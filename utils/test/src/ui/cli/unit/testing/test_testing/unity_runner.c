@@ -84,7 +84,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\testing\\test_testing\\test_testing.c");
+  UnityBegin("utils/test/src/ui/cli/unit/testing/test_testing/test_testing.c");
   run_test(test_tests_are_found_as_pytest_and_unittest_find_them, "test_tests_are_found_as_pytest_and_unittest_find_them", 89);
   run_test(test_a_found_test_reports_the_line_of_its_name, "test_a_found_test_reports_the_line_of_its_name", 95);
   run_test(test_a_pyproject_sets_the_test_paths, "test_a_pyproject_sets_the_test_paths", 101);

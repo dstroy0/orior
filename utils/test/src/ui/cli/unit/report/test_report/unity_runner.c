@@ -77,7 +77,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\report\\test_report\\test_report.c");
+  UnityBegin("utils/test/src/ui/cli/unit/report/test_report/test_report.c");
   run_test(test_a_path_is_scrubbed_whatever_its_case, "test_a_path_is_scrubbed_whatever_its_case", 20);
   run_test(test_the_recent_list_holds_the_newest_twenty_errors_scrubbed, "test_the_recent_list_holds_the_newest_twenty_errors_scrubbed", 29);
   run_test(test_a_fingerprint_ignores_numbers, "test_a_fingerprint_ignores_numbers", 50);

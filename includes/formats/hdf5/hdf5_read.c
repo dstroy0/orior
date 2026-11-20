@@ -9,7 +9,7 @@ static int hdf5_chunk_grid(Hdf5Gather *gather)
     const Hdf5Object *const object = gather->object;
     const unsigned int rank = object->rank;
     unsigned long long down[ENGINE_ARRAY_RANK];
-    down[rank - 1u] = 1ull;
+    down[rank - 1u] = 1ULL;
     for (unsigned int axis = rank - 1u; axis > 0u; axis -= 1u)
     {
         down[axis - 1u] = down[axis] * gather->range[axis];
@@ -21,19 +21,19 @@ static int hdf5_chunk_grid(Hdf5Gather *gather)
     int ok = (object->chunk_index != HDF5_INDEX_FIXED) || hdf5_fixed_open(file, object, gather, &fixed);
     const unsigned long long start = gather->first / object->chunk[0u];
     const unsigned long long stop =
-        (gather->end / object->chunk[0u]) + (((gather->end % object->chunk[0u]) != 0ull) ? 1ull : 0ull);
+        (gather->end / object->chunk[0u]) + (((gather->end % object->chunk[0u]) != 0ULL) ? 1ULL : 0ULL);
     unsigned long long scaled[ENGINE_ARRAY_RANK];
     memset(scaled, 0, sizeof(scaled));
     scaled[0u] = start;
     int more = ok && (start < stop);
     for (unsigned int axis = 1u; axis < rank; axis += 1u)
     {
-        more = more && (gather->grid[axis] > 0ull);
+        more = more && (gather->grid[axis] > 0ULL);
     }
     while (more)
     {
         unsigned long long origin[ENGINE_ARRAY_RANK];
-        unsigned long long linear = 0ull;
+        unsigned long long linear = 0ULL;
         for (unsigned int axis = 0u; axis < rank; axis += 1u)
         {
             origin[axis] = scaled[axis] * object->chunk[axis];
@@ -64,13 +64,13 @@ static int hdf5_chunk_grid(Hdf5Gather *gather)
         {
             const unsigned int moving = axis - 1u;
             const unsigned long long bound = (moving == 0u) ? stop : gather->grid[moving];
-            scaled[moving] += 1ull;
+            scaled[moving] += 1ULL;
             if (scaled[moving] < bound)
             {
                 more = 1;
                 break;
             }
-            scaled[moving] = (moving == 0u) ? start : 0ull;
+            scaled[moving] = (moving == 0u) ? start : 0ULL;
         }
     }
     hdf5_fixed_close(&fixed);
@@ -109,16 +109,16 @@ static int hdf5_request_check(Hdf5File *file, const Hdf5Object *object, const En
     {
         return hdf5_error(file, "a row range outside the dataset");
     }
-    unsigned long long row = 0ull;
+    unsigned long long row = 0ULL;
     const unsigned long long rows = request->end - request->first;
     if (!hdf5_product(&object->extent[1u], object->rank - 1u, object->element_bytes, &row) ||
-        ((rows != 0ull) && (row > (~0ull / rows))))
+        ((rows != 0ULL) && (row > (~0ULL / rows))))
     {
         return hdf5_error(file, "a row range whose byte size overflows");
     }
     const unsigned long long total = rows * row;
     if (((unsigned long long)(size_t)total != total) || (total > request->out_capacity) ||
-        ((total > 0ull) && (request->out == NULL)))
+        ((total > 0ULL) && (request->out == NULL)))
     {
         return hdf5_error(file, "an output buffer too small for the rows requested");
     }
@@ -130,10 +130,10 @@ static int hdf5_gather_chunks(Hdf5Gather *gather)
 {
     const Hdf5Object *const object = gather->object;
     const unsigned int rank = object->rank;
-    unsigned long long chunk_bytes = 0ull;
-    (void)hdf5_product(object->chunk, rank + 1u, 1ull, &chunk_bytes);
+    unsigned long long chunk_bytes = 0ULL;
+    (void)hdf5_product(object->chunk, rank + 1u, 1ULL, &chunk_bytes);
     gather->chunk_bytes = (size_t)chunk_bytes;
-    gather->chunk_stride[rank - 1u] = 1ull;
+    gather->chunk_stride[rank - 1u] = 1ULL;
     for (unsigned int axis = rank - 1u; axis > 0u; axis -= 1u)
     {
         gather->chunk_stride[axis - 1u] = gather->chunk_stride[axis] * object->chunk[axis];
@@ -143,8 +143,8 @@ static int hdf5_gather_chunks(Hdf5Gather *gather)
         const unsigned long long span = object->chunk[axis];
         const unsigned long long bounded =
             (object->max[axis] >= object->extent[axis]) ? object->max[axis] : object->extent[axis];
-        gather->grid[axis] = (object->extent[axis] / span) + (((object->extent[axis] % span) != 0ull) ? 1ull : 0ull);
-        gather->range[axis] = (bounded / span) + (((bounded % span) != 0ull) ? 1ull : 0ull);
+        gather->grid[axis] = (object->extent[axis] / span) + (((object->extent[axis] % span) != 0ULL) ? 1ULL : 0ULL);
+        gather->range[axis] = (bounded / span) + (((bounded % span) != 0ULL) ? 1ULL : 0ULL);
     }
     if (object->chunk_index == HDF5_INDEX_TREE)
     {
@@ -157,7 +157,7 @@ static int hdf5_gather_chunks(Hdf5Gather *gather)
 static long long hdf5_gather(Hdf5File *file, const Hdf5Object *object, const EngineArrayRead *request,
                              unsigned long long bytes)
 {
-    if (bytes == 0ull)
+    if (bytes == 0ULL)
     {
         return 0LL;
     }
@@ -169,7 +169,7 @@ static long long hdf5_gather(Hdf5File *file, const Hdf5Object *object, const Eng
     gather.end = request->end;
     gather.out = request->out;
     const unsigned int rank = object->rank;
-    gather.out_stride[rank - 1u] = 1ull;
+    gather.out_stride[rank - 1u] = 1ULL;
     for (unsigned int axis = rank - 1u; axis > 0u; axis -= 1u)
     {
         gather.out_stride[axis - 1u] = gather.out_stride[axis] * object->extent[axis];
@@ -224,7 +224,7 @@ long hdf5_describe(const EngineDescribeRequest *request)
     Hdf5Object object;
     memset(&object, 0, sizeof(object));
     object.compact = NULL;
-    unsigned long long address = 0ull;
+    unsigned long long address = 0ULL;
     int ok = hdf5_open(&file, request->path, request->tools);
     ok = ok && hdf5_locate(&file, request->member, &address);
     ok = ok && hdf5_object_open(&file, address, &object);
@@ -262,8 +262,8 @@ long long hdf5_read(const EngineArrayRead *request)
     Hdf5Object object;
     memset(&object, 0, sizeof(object));
     object.compact = NULL;
-    unsigned long long address = 0ull;
-    unsigned long long bytes = 0ull;
+    unsigned long long address = 0ULL;
+    unsigned long long bytes = 0ULL;
     int ok = hdf5_open(&file, request->path, request->tools);
     ok = ok && hdf5_locate(&file, request->member, &address);
     ok = ok && hdf5_object_open(&file, address, &object);

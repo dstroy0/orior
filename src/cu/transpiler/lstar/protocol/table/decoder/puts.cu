@@ -16,7 +16,7 @@ static int put_read(const LoggedPut &put)
 
 // the values every statement reads as themselves lie below the top of a byte read signed
 
-static const unsigned long long s_statement_free_below = 0x80ull;
+static const unsigned long long s_statement_free_below = 0x80ULL;
 
 // the first word of a link's text up to its first `.`, its guard passed over
 

@@ -23,7 +23,7 @@ typedef struct CliGitFoundCtx CliGitFoundCtx;
 // the max bytes of what git writes that are stored, the bytes one read of its pipe takes, and the max
 // bytes of what it reports went wrong
 #define CLI_GIT_OUT (1u << 24u)
-#define CLI_GIT_READ 65536ull
+#define CLI_GIT_READ 65536ULL
 #define CLI_GIT_ERR (1u << 16u)
 
 // how git is started: with no optional lock taken, as a question that changes nothing runs it; with no terminal prompt

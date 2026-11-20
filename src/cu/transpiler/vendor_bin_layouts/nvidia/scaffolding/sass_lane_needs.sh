@@ -41,7 +41,7 @@ for source in "${FILE_DEFS_LINEA[@]}" "$NO_ROUNDING"/exact_integer_{add,limbs,mu
     OBJECTS+=("$object")
 done
 # the assembly printer and the device's code generator run on the record machine and call the host oracle, the
-# cycle.c left out above; nothing here writes a lane, it only decides one
+# cycle.c left out above. Nothing here writes a lane, it only decides one
 for source in "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu" "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/../file_defs/krs/ruleset_flat/*.cu \
     "$CUBIN/sass_target.cu" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/sass_lane_needs.cpp"; do
     case "$(basename "$source")" in

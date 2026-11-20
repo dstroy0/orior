@@ -11,11 +11,11 @@ static int floor_fit(const unsigned long long *count, const unsigned long long *
     memset(&error, 0, sizeof(error));
     NoiseLineSums sums;
     noise_line_sums_zero(&sums);
-    fit->samples = 0ull;
+    fit->samples = 0ULL;
     int ok = 1;
-    for (unsigned long long level = 0ull; ok && (level < FLOOR_LEVELS); level += 1ull)
+    for (unsigned long long level = 0ULL; ok && (level < FLOOR_LEVELS); level += 1ULL)
     {
-        if (count[level] == 0ull)
+        if (count[level] == 0ULL)
         {
             continue;
         }
@@ -25,7 +25,7 @@ static int floor_fit(const unsigned long long *count, const unsigned long long *
         ok = noise_line_sums_add(&sums, count[level], level, &measured, &error) == 0L;
     }
     NoiseLine line;
-    ok = ok && (noise_line_fit(&sums, 1ull, 1ull, &line, &error) == 0L);
+    ok = ok && (noise_line_fit(&sums, 1ULL, 1ULL, &line, &error) == 0L);
     if (ok != 0)
     {
         fit->slope = line.slope;
@@ -103,9 +103,9 @@ static int floor_spreads(const unsigned long long *count, const SimCamera *camer
     orior_exact_zero(intercept_spread);
     orior_exact_zero(slope_spread);
     int ok = 1;
-    for (unsigned long long level = 0ull; ok && (level < FLOOR_LEVELS); level += 1ull)
+    for (unsigned long long level = 0ULL; ok && (level < FLOOR_LEVELS); level += 1ULL)
     {
-        if (count[level] == 0ull)
+        if (count[level] == 0ULL)
         {
             continue;
         }
@@ -125,10 +125,10 @@ static int floor_spreads(const unsigned long long *count, const SimCamera *camer
     sim_exact_unsigned(&gain, camera->gain);
     sim_exact_unsigned(&read, camera->read_square);
     ok = ok && sim_exact_product(&gain, &gain, &gain_square) &&
-         sim_exact_product(&gain_square, &gain_square, &gain_fourth) && sim_exact_scaled(&read, 2ull, &read_twice);
-    for (unsigned long long level = 0ull; ok && (level < FLOOR_LEVELS); level += 1ull)
+         sim_exact_product(&gain_square, &gain_square, &gain_fourth) && sim_exact_scaled(&read, 2ULL, &read_twice);
+    for (unsigned long long level = 0ULL; ok && (level < FLOOR_LEVELS); level += 1ULL)
     {
-        if (count[level] == 0ull)
+        if (count[level] == 0ULL)
         {
             continue;
         }
@@ -142,8 +142,8 @@ static int floor_spreads(const unsigned long long *count, const SimCamera *camer
         OriorExactInteger unit;
         // a level is below 2^18. 4 S fits a word
         ok = sim_exact_scaled(&gain_square, level, &shot) && sim_exact_sum(&shot, &read, &variance) &&
-             sim_exact_product(&variance, &variance, &fourth) && sim_exact_scaled(&fourth, 12ull, &fourth_twelve) &&
-             sim_exact_scaled(&gain_fourth, 4ull * level, &shot_fourth) &&
+             sim_exact_product(&variance, &variance, &fourth) && sim_exact_scaled(&fourth, 12ULL, &fourth_twelve) &&
+             sim_exact_scaled(&gain_fourth, 4ULL * level, &shot_fourth) &&
              sim_exact_sum(&fourth_twelve, &shot_fourth, &spread) && sim_exact_less(&spread, &read_twice, &unit);
         // the intercept's weight B - A S and the slope's N S - A, each squared, times count(S) u(S)
         OriorExactInteger product;
@@ -197,7 +197,7 @@ static void floor_transfer(SimResults *results, const SimScene *scene, const Sim
     ok = ok && sim_status_check(results, cudaMemset(device_coherence, 0, sizeof(FloorCoherence)), "coherence zero");
     if (ok)
     {
-        const unsigned long long blocks = sim_launch_blocks((scene->frames - 1ull) * voxels, SIM_RENDER_THREADS);
+        const unsigned long long blocks = sim_launch_blocks((scene->frames - 1ULL) * voxels, SIM_RENDER_THREADS);
         // the grid is below 2^31 blocks here
         floor_transfer_kernel<<<(unsigned int)blocks, (unsigned int)SIM_RENDER_THREADS>>>(
             device_lanes, device_signal, scene->frames, voxels, scene->extent[2], bins[0], bins[1], bins[2],
@@ -238,9 +238,9 @@ static void floor_transfer(SimResults *results, const SimScene *scene, const Sim
         mmgr_line_decimal(line, camera->read_square, 1u);
         mmgr_line_ch(line, '\n');
         mmgr_line_put(line, "    truth, motion removed exactly (signal unchanged), d^2 on S: law slope 2 g^2 = ");
-        mmgr_line_decimal(line, 2ull * camera->gain * camera->gain, 1u);
+        mmgr_line_decimal(line, 2ULL * camera->gain * camera->gain, 1u);
         mmgr_line_put(line, ", intercept 2 r^2 = ");
-        mmgr_line_decimal(line, 2ull * camera->read_square, 1u);
+        mmgr_line_decimal(line, 2ULL * camera->read_square, 1u);
         mmgr_line_ch(line, '\n');
         floor_print_fit(line, "      ", &fit[0]);
         mmgr_line_put(line, "    data only, every pair, d^2 on I(t) + I(t+1): law slope g = ");
@@ -273,13 +273,13 @@ static void floor_transfer(SimResults *results, const SimScene *scene, const Sim
         OriorExactInteger apart;
         OriorExactInteger apart_square;
         OriorExactInteger bound;
-        sim_exact_unsigned(&law, 2ull * camera->gain * camera->gain);
+        sim_exact_unsigned(&law, 2ULL * camera->gain * camera->gain);
         ok = spread && sim_exact_product(&law, &fit[0].denominator, &scaled) &&
              sim_exact_less(&fit[0].slope, &scaled, &apart) && sim_exact_product(&apart, &apart, &apart_square) &&
              sim_exact_scaled(&slope_spread, FLOOR_ERROR_RANGE_SQUARED, &bound) &&
              (orior_exact_compare(&apart_square, &bound) <= 0);
         sim_check(results, ok, "the truth route's slope lies within 5 SE_b of 2 g^2");
-        sim_exact_unsigned(&law, 2ull * camera->read_square);
+        sim_exact_unsigned(&law, 2ULL * camera->read_square);
         ok = spread && sim_exact_product(&law, &fit[0].denominator, &scaled) &&
              sim_exact_less(&fit[0].intercept, &scaled, &apart) && sim_exact_product(&apart, &apart, &apart_square) &&
              sim_exact_scaled(&intercept_spread, FLOOR_ERROR_RANGE_SQUARED, &bound) &&
@@ -336,7 +336,7 @@ int main(void)
     // the streams on the device, and the camera-law scene below: 24 frames of 20 x 96 x 96 lanes
     ok = ok && sim_job_submit(&results, "noise_floor", 0, NULL,
                               (FLOOR_STREAMS * (sizeof(FloorStream) + (2u * sizeof(unsigned int)))) +
-                                  (24ull * 20ull * 96ull * 96ull * sizeof(unsigned short)));
+                                  (24ULL * 20ULL * 96ULL * 96ULL * sizeof(unsigned short)));
     if (ok)
     {
         floor_mock(&results, streams, lengths, regenerated);
@@ -348,32 +348,32 @@ int main(void)
     memset(body, 0, sizeof(body));
     SimScene scene;
     memset(&scene, 0, sizeof(scene));
-    scene.frames = 24ull;
-    scene.extent[0] = 20ull;
-    scene.extent[1] = 96ull;
-    scene.extent[2] = 96ull;
-    scene.background = 40ull;
-    scene.ramp = 2ull;
+    scene.frames = 24ULL;
+    scene.extent[0] = 20ULL;
+    scene.extent[1] = 96ULL;
+    scene.extent[2] = 96ULL;
+    scene.background = 40ULL;
+    scene.ramp = 2ULL;
     scene.bodies = FLOOR_FOUNDERS;
     scene.body = body;
     SimDraws draws;
     draws.key = FLOOR_KEY;
-    draws.counter = 0ull;
+    draws.counter = 0ULL;
     sim_founders_draw(&draws, &scene, body, FLOOR_FOUNDERS);
     SimCamera camera;
     memset(&camera, 0, sizeof(camera));
     camera.key = FLOOR_KEY;
-    camera.offset = 100ull;
-    camera.gain = 1ull;
-    camera.read_square = 3ull;
-    camera.pattern_range = 8ull;
-    camera.shot = 1ull;
+    camera.offset = 100ULL;
+    camera.gain = 1ULL;
+    camera.read_square = 3ULL;
+    camera.pattern_range = 8ULL;
+    camera.shot = 1ULL;
 
     const unsigned long long lanes_count = scene.frames * sim_scene_voxels(&scene);
     unsigned short *const lanes = (unsigned short *)malloc((size_t)lanes_count * sizeof(unsigned short));
     unsigned short *device_lanes = NULL;
     unsigned int *device_signal = NULL;
-    unsigned long long clipped = 0ull;
+    unsigned long long clipped = 0ULL;
     ok = ok && (lanes != NULL);
     ok = ok &&
          sim_status_check(&results, cudaMalloc((void **)&device_lanes, lanes_count * sizeof(unsigned short)), "lanes");
@@ -384,7 +384,7 @@ int main(void)
          sim_status_check(&results,
                           cudaMemcpy(lanes, device_lanes, lanes_count * sizeof(unsigned short), cudaMemcpyDeviceToHost),
                           "lanes read");
-    sim_check(&results, ok && (clipped == 0ull), "the lattice rendered with no lane clipped");
+    sim_check(&results, ok && (clipped == 0ULL), "the lattice rendered with no lane clipped");
     if (ok)
     {
         floor_planes(&results, lanes, lanes_count);

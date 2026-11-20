@@ -371,7 +371,8 @@ int gui_editor_position_rect(const GuiEditorPositionCellCfg *args)
             {
                 return 0;
             }
-            const int x = (found < text_left) ? text_left : ((found >= right) ? right : found);
+            const int below_right = (found >= right) ? right : found;
+            const int x = (found < text_left) ? text_left : below_right;
             *rect = (GuiRect){x, y, (int)(args->cell + 0.5f), line_height};
             return 1;
         }

@@ -9,7 +9,7 @@
 // the word at `place` of the retained row `row`
 static unsigned long long kdecode_row_word(const KdecodeRow *row, size_t place)
 {
-    unsigned long long word = 0ull;
+    unsigned long long word = 0ULL;
     memcpy(&word, row->words_at + (place * 8u), 8u);
     return word;
 }
@@ -85,9 +85,9 @@ void kdecode_line_ended(void)
 // the run contains no such text
 static void kdecode_text_printed(const KdecodeRun *run, unsigned long long file, unsigned long long number)
 {
-    unsigned long long length = 0ull;
-    const char *const text = (number != 0ull) ? kdecode_text(run, file, number, &length) : NULL;
-    if (number == 0ull)
+    unsigned long long length = 0ULL;
+    const char *const text = (number != 0ULL) ? kdecode_text(run, file, number, &length) : NULL;
+    if (number == 0ULL)
     {
         mmgr_line_put(&s_displayed, " -");
     }
@@ -105,7 +105,7 @@ static void kdecode_text_printed(const KdecodeRun *run, unsigned long long file,
 static void kdecode_who_printed(const unsigned long long *words)
 {
     char named[KDECODE_NAMED];
-    if (((words[0] != 0ull) || (words[1] != 0ull)) && who_named(who_of_words(words), named, sizeof(named)))
+    if (((words[0] != 0ULL) || (words[1] != 0ULL)) && who_named(who_of_words(words), named, sizeof(named)))
     {
         mmgr_line_put(&s_displayed, " who ");
         mmgr_line_put(&s_displayed, named);
@@ -122,7 +122,7 @@ static void kdecode_column_printed(const KdecodeRun *run, const KdecodeOracle *o
     if ((form[0] == '<') && (strchr(form, '>') != NULL))
     {
         // the family is the form's word, between its brackets
-        VerbaLinea word = {family, sizeof(family), 0ull};
+        VerbaLinea word = {family, sizeof(family), 0ULL};
         mmgr_line_put_max(&word, form + 1, (unsigned long long)(strchr(form, '>') - form - 1));
         mmgr_line_finish(&word);
     }
@@ -139,13 +139,13 @@ static void kdecode_column_printed(const KdecodeRun *run, const KdecodeOracle *o
     }
     else if (strcmp(family, "text") == 0)
     {
-        kdecode_text_printed(run, 0ull, value);
+        kdecode_text_printed(run, 0ULL, value);
     }
-    else if ((either != NULL) && (value <= 1ull))
+    else if ((either != NULL) && (value <= 1ULL))
     {
         // the first word is for 1 and the second for 0
         mmgr_line_ch(&s_displayed, ' ');
-        if (value == 1ull)
+        if (value == 1ULL)
         {
             mmgr_line_put_n(&s_displayed, form, (unsigned long long)(either - form));
         }
@@ -173,7 +173,7 @@ static void kdecode_column_printed(const KdecodeRun *run, const KdecodeOracle *o
 // column, any word past the oracle's columns in hex, and its who named
 static void kdecode_columns_printed(const KdecodeRun *run, const KdecodeOracle *oracle, const KdecodeRow *row)
 {
-    unsigned long long who[2] = {0ull, 0ull};
+    unsigned long long who[2] = {0ULL, 0ULL};
     for (size_t at = 0u; (at < 2u) && (at < row->words); at += 1u)
     {
         who[at] = kdecode_row_word(row, at);
@@ -224,7 +224,7 @@ static const KdecodeOracle *kdecode_format_oracle(const KdecodeRun *run, unsigne
         }
         stem[length] = '\0';
         char path[256];
-        VerbaLinea oracle_path = {path, sizeof(path), 0ull};
+        VerbaLinea oracle_path = {path, sizeof(path), 0ULL};
         mmgr_line_put(&oracle_path, TABLE_KFILE_ORACLES);
         mmgr_line_ch(&oracle_path, '/');
         mmgr_line_put(&oracle_path, stem);
@@ -272,10 +272,10 @@ static void kdecode_change_printed(const KdecodeRun *run, const KdecodeOracle *r
         const unsigned long long length = kdecode_row_word(row, 6u);
         const unsigned long long room = (row->words - 7u) * 8u;
         char characters[5] = "";
-        for (unsigned int at = 0u; (at < 4u) && (((type >> (8u * at)) & 0xffull) != 0ull); at += 1u)
+        for (unsigned int at = 0u; (at < 4u) && (((type >> (8u * at)) & 0xffULL) != 0ULL); at += 1u)
         {
             // the type's four bytes are the low first in its word, its zeros past its characters
-            characters[at] = (char)((type >> (8u * at)) & 0xffull);
+            characters[at] = (char)((type >> (8u * at)) & 0xffULL);
         }
         // the name is at max its row's bytes
         mmgr_line_ch(&s_displayed, ' ');
@@ -316,9 +316,9 @@ static void kdecode_change_printed(const KdecodeRun *run, const KdecodeOracle *r
         }
         for (size_t at = opening; at < row->words; at += 1u)
         {
-            unsigned long long length = 0ull;
+            unsigned long long length = 0ULL;
             const unsigned long long number = kdecode_row_word(row, at);
-            const char *const text = (number != 0ull) ? kdecode_text(run, file, number, &length) : NULL;
+            const char *const text = (number != 0ULL) ? kdecode_text(run, file, number, &length) : NULL;
             if (text != NULL)
             {
                 kdecode_numbered_displayed(number, text, length);
@@ -340,7 +340,7 @@ int kdecode_table(const char *path, const char *table, int raw, unsigned long lo
     static KdecodeRow s_rows[KDECODE_RECORDS_MAX];
     static KdecodeContent s_contents[KDECODE_CONTENTS_MAX];
     KdecodeRun run = {table, from, to, max, s_blobs, 0u, s_texts, 0u, s_files, 0u, s_rows, 0u, s_contents, 0u, 0};
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const unsigned char *const bytes = qry_member_file_mapped(path, &size);
     const int read = kdecode_records_each(bytes, size, kdecode_blob, &run);
     if (!read || run.failed)
@@ -354,9 +354,9 @@ int kdecode_table(const char *path, const char *table, int raw, unsigned long lo
     static KdecodeOracle s_format;
     kdecode_oracle_free(&s_oracle);
     kdecode_oracle_free(&s_format);
-    unsigned long long format_for = 0ull;
+    unsigned long long format_for = 0ULL;
     char oracle_path[256];
-    VerbaLinea oracle_line = {oracle_path, sizeof(oracle_path), 0ull};
+    VerbaLinea oracle_line = {oracle_path, sizeof(oracle_path), 0ULL};
     mmgr_line_put(&oracle_line, TABLE_ORACLES);
     mmgr_line_ch(&oracle_line, '/');
     mmgr_line_put(&oracle_line, table);
@@ -371,11 +371,11 @@ int kdecode_table(const char *path, const char *table, int raw, unsigned long lo
         const char *const named = s_oracle.column[at].codes_from;
         if (named[0] != '\0')
         {
-            VerbaLinea from_line = {from_path, sizeof(from_path), 0ull};
+            VerbaLinea from_line = {from_path, sizeof(from_path), 0ULL};
             mmgr_line_put(&from_line, TABLE_ORACLES);
             mmgr_line_ch(&from_line, '/');
             mmgr_line_put(&from_line, named);
-            if (mmgr_line_finish(&from_line) != 0ull)
+            if (mmgr_line_finish(&from_line) != 0ULL)
             {
                 kdecode_oracle_read(&run, from_path, &s_oracle, 1);
             }
@@ -405,7 +405,7 @@ int kdecode_table(const char *path, const char *table, int raw, unsigned long lo
         {
             mmgr_line_decimal(&s_displayed, row->key, 0u);
             mmgr_line_put(&s_displayed, " text");
-            kdecode_text_printed(&run, 0ull, kdecode_row_word(row, 2u));
+            kdecode_text_printed(&run, 0ULL, kdecode_row_word(row, 2u));
             kdecode_line_ended();
         }
         else if (columned)

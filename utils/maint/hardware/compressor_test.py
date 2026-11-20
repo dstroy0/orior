@@ -10,7 +10,7 @@ Three things are varied here, because each of them moves the answer:
                its internal carry is absorbed and never rippled. It reduces four operands to
                two for one bit of climb. 7:3 spreads its three outputs over bits i, i+1 and i+2.
   state        whether a and e are resolved every round or carried redundantly. This is the
-               that decides the answer, and it is not free to choose: Sigma is a xor of rotations,
+               that decides the answer. It is not free to choose: Sigma is a xor of rotations,
                rotation does not distribute over addition. ROTR(s+c) is not ROTR(s)+ROTR(c).
                A design that retains the state redundant cannot compute Sigma on it.
   operands     five for T1, two for T2 and for the two final sums, four in the schedule.

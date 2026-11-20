@@ -9,7 +9,7 @@
 #   Usage:  python examples/language/4_measure/drav_inventory.py
 #
 # Malayalam carries 524 distinct codepoints in the same length of text where Tamil carries 149, and that
-# difference is doing the damage: the two closest languages in the family read as the widest apart. Three
+# difference does the damage: the two closest languages in the family read as the widest apart. Three
 # explanations were proposed for it and all three failed. Aligning the scripts moved nothing, which it
 # could not have, since the reading ranks by frequency and never sees a codepoint. Reading whole clusters
 # made it worse. Folding the aspirate and voiced stops onto their plain forms, the distinction set

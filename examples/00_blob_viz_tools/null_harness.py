@@ -21,7 +21,7 @@ Every caller picks one. A floor picked by a caller is a result picked by a calle
 
 THE RULE THIS APPLIES TO ITSELF
 
-A checker that has never caught its own defect is a checker nobody has tested. So before any floor
+A checker that has never caught its own defect is a checker nobody tested. So before any floor
 here is offered, the harness is passed a move that is not a null while being told it is one, and it
 has to catch it, and it is passed a genuine null and has to stay quiet. Both run first under
 `--check` and the floors error if either misbehaves.
@@ -139,7 +139,7 @@ def relabeled_within_octants(points, live):
 def moved_across_octants(points, live, how_many):
     """A move that is NOT a null: lit points sent to unlit points in a different octant.
 
-    Retained here deliberately. It is the known positive the harness is tested against, and it has to be
+    Retained here deliberately. It is the known positive the harness is tested against. It has to be
     a move of the same shape as the real null so that catching it means something.
     """
     def octant_of(at):

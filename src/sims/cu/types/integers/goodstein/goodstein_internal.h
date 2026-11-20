@@ -24,18 +24,18 @@
 #include <algorithm>
 #include <vector>
 
-#define GOODSTEIN_STEPS 1000000ull
+#define GOODSTEIN_STEPS 1000000ULL
 
-#define GOODSTEIN_LEMMA_BELOW 20000ull
+#define GOODSTEIN_LEMMA_BELOW 20000ULL
 
-#define GOODSTEIN_LEMMA_BASE_MAX 6ull
+#define GOODSTEIN_LEMMA_BASE_MAX 6ULL
 
 #define GOODSTEIN_TOWER 4u
 
-#define GOODSTEIN_SMALL_STEPS_MAX 64ull
+#define GOODSTEIN_SMALL_STEPS_MAX 64ULL
 
 // the max term comparisons one ordinal comparison may make before it is reported unfinished
-#define GOODSTEIN_COMPARE_TERMS 1000000ull
+#define GOODSTEIN_COMPARE_TERMS 1000000ULL
 
 // the max characters an ordinal is printed with
 #define GOODSTEIN_PRINT_CAPACITY 360u

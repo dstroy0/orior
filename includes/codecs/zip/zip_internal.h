@@ -16,12 +16,12 @@
 #define ZIP_IO(condition_, evacaddr_, error_)                                                                          \
     engine_io_check((condition_), ENGINE_MODULE_ZIP, (unsigned int)__LINE__, (const void *)(evacaddr_), (error_))
 
-#define ZIP_TAIL_CAPACITY 65557ull
-#define ZIP_WORD 0xFFFFFFFFull
-#define ZIP_HALF 0xFFFFull
+#define ZIP_TAIL_CAPACITY 65557ULL
+#define ZIP_WORD 0xFFFFFFFFULL
+#define ZIP_HALF 0xFFFFULL
 #define ZIP_PATH_CAPACITY ENGINE_PATH_CAPACITY
 
-static const ZipEntry zip_empty_entry = {NULL, 0ull, 0ull, 0ull, 0ull, 0ull, 0ull, 0ull};
+static const ZipEntry zip_empty_entry = {NULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL};
 
 unsigned long long zip_load(const unsigned char *bytes, unsigned int count);
 

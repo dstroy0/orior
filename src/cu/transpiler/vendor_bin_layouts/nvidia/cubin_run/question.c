@@ -22,7 +22,7 @@ typedef struct
 // one word of an instruction in `code` at `byte`, read and written back
 static unsigned long long cubin_run_word(const unsigned char *code, unsigned int byte)
 {
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
         value |= (unsigned long long)code[byte + at] << (8u * at);
@@ -34,7 +34,7 @@ static void cubin_run_word_set(unsigned char *code, unsigned int byte, unsigned 
 {
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
-        code[byte + at] = (unsigned char)((value >> (8u * at)) & 0xffull);
+        code[byte + at] = (unsigned char)((value >> (8u * at)) & 0xffULL);
     }
 }
 
@@ -45,8 +45,8 @@ static void cubin_run_bits_set(unsigned long long *low, unsigned long long *high
     for (unsigned int bit = first; bit <= last; bit += 1u)
     {
         unsigned long long *const word = (bit < 64u) ? low : high;
-        const unsigned long long one = (value >> (bit - first)) & 1ull;
-        *word = (*word & ~(1ull << (bit % 64u))) | (one << (bit % 64u));
+        const unsigned long long one = (value >> (bit - first)) & 1ULL;
+        *word = (*word & ~(1ULL << (bit % 64u))) | (one << (bit % 64u));
     }
 }
 
@@ -57,7 +57,7 @@ static void cubin_run_bits_set(unsigned long long *low, unsigned long long *high
 // set
 static void cubin_run_safe_word(unsigned char *code, unsigned long long code_size, unsigned int probe_place)
 {
-    const unsigned int places = (unsigned int)(code_size / 16ull);
+    const unsigned int places = (unsigned int)(code_size / 16ULL);
     for (unsigned int place = 0u; place < places; place += 1u)
     {
         unsigned long long low = cubin_run_word(code, place * 16u);
@@ -124,7 +124,7 @@ static const char *cubin_run_listener_cause(void)
             }
         }
     }
-    static const unsigned long long s_listener_events[] = {31ull, 8ull, 109ull, 13ull, 69ull};
+    static const unsigned long long s_listener_events[] = {31ULL, 8ULL, 109ULL, 13ULL, 69ULL};
     static const char *const s_listener_causes[] = {"address", "time", "time", "exception", "exception"};
     for (size_t event = 0u; event < (sizeof(s_listener_events) / sizeof(s_listener_events[0])); event += 1u)
     {
@@ -145,9 +145,9 @@ static const char *cubin_run_listener_cause(void)
 static void cubin_run_faulted_stored(unsigned long long low, unsigned long long high, const char *cause)
 {
     const unsigned char *bytes = NULL;
-    unsigned long long size = 0ull;
-    static char s_text_bytes[QRY_WRITER_RING_BYTES / 2ull];
-    VerbaLinea text = {s_text_bytes, sizeof(s_text_bytes), 0ull};
+    unsigned long long size = 0ULL;
+    static char s_text_bytes[QRY_WRITER_RING_BYTES / 2ULL];
+    VerbaLinea text = {s_text_bytes, sizeof(s_text_bytes), 0ULL};
     if (qry_member_blob(CUBIN_RUN_FAULTS, &bytes, &size, NULL))
     {
         mmgr_line_put_n(&text, (const char *)bytes, size);
@@ -168,7 +168,7 @@ static void cubin_run_faulted_stored(unsigned long long low, unsigned long long 
 }
 
 // The account `call` contains written in the answer `answers` too, and passed as a panic of the call where `panicked`
-// and the run's writer runs; let go either way
+// and the run's writer runs. Let go either way
 static void cubin_run_account_given(VerbaLinea *answers, VerbaLinea *call, int panicked)
 {
     // an account is a line, far below what an int counts
@@ -254,9 +254,9 @@ void cubin_run_refusal_written(VerbaLinea *answers, int panicked, const char *co
     }
     cubin_run_account_given(answers, call, panicked);
     // the probe instruction as the gate read it, the safety word positioned on, where the code contains a probe
-    const int placed = (((unsigned long long)probe_place * 16ull) + 16ull) <= code_size;
-    const unsigned long long low = placed ? cubin_run_word(s_code, probe_place * 16u) : 0ull;
-    const unsigned long long high = placed ? cubin_run_word(s_code, (probe_place * 16u) + 8u) : 0ull;
+    const int placed = (((unsigned long long)probe_place * 16ULL) + 16ULL) <= code_size;
+    const unsigned long long low = placed ? cubin_run_word(s_code, probe_place * 16u) : 0ULL;
+    const unsigned long long high = placed ? cubin_run_word(s_code, (probe_place * 16u) + 8u) : 0ULL;
     mmgr_line_put(call, "gate: the code read ");
     mmgr_line_put(call, cubin_safe_name(verdict));
     if (verdict != CUBIN_SAFE)
@@ -301,9 +301,9 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
     const unsigned long long input_began = cubin_run_host_now();
     const unsigned long long query_key = cubin_run_query_key(code_path);
     const unsigned long long code_size = cubin_run_input(code_path, s_code, sizeof(s_code));
-    const int cased = (code_size != 0ull) && cubin_run_cases(cases_path);
+    const int cased = (code_size != 0ULL) && cubin_run_cases(cases_path);
     s_clocks.input += cubin_run_host_now() - input_began;
-    if ((pattern_size == 0ull) || !cased)
+    if ((pattern_size == 0ULL) || !cased)
     {
         fprintf(stderr, "the container, the code or the cases did not read\n");
         return 2;
@@ -337,7 +337,7 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
     written.registers = registers;
     written.exit_count = cubin_exits_find(s_code, code_size, sass_exit_encoding(&s_machine), s_exits, CUBIN_RUN_EXITS);
     written.exits = s_exits;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     if (!cubin_write(&written, s_container, sizeof(s_container), &size))
     {
         mmgr_line_put(answers, "skipped not written\n");
@@ -345,7 +345,7 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
     }
     // read on the host before the driver sees it: code that breaks a rule of cubin_safe is answered without the part,
     // its register fields bound by the count this question's kernel allots (rule 6)
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     const unsigned int verdict = cubin_safe_image(&s_machine, s_container, size, registers, &at);
     const unsigned long long row_began = cubin_run_host_now();
     s_clocks.gate += row_began - gate_began;
@@ -399,7 +399,7 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
         cubin_run_telemetry_open();
         s_driver_opened = 1;
     }
-    unsigned long long nanoseconds = 0ull;
+    unsigned long long nanoseconds = 0ULL;
     const CubinRunStatus status = cubin_run_launch(&s_driver, kernel, &shape, launches, &nanoseconds);
     if (status != 0)
     {
@@ -413,7 +413,7 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
         const unsigned int outcome = s_launch_timed_out ? CUBIN_RUN_TIMED_OUT
                                      : s_launch_faulted ? CUBIN_RUN_FAULTED
                                                         : CUBIN_RUN_REFUSED;
-        cubin_run_launch_row(query_key, outcome, launches, 0ull, 0ull, 0ull, refused);
+        cubin_run_launch_row(query_key, outcome, launches, 0ULL, 0ULL, 0ULL, refused);
         // the carrier losing its mind, a launch that faulted the part or hung past its bound, is a panic: the call
         // opened with every party's account and the answer passed with them, nothing waiting on the disk. A refusal
         // that left the part whole is an answer like any other. Either way the accounts are written in the answer, for
@@ -460,8 +460,8 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
         }
     }
     const unsigned long long passed_began = cubin_run_host_now();
-    cubin_run_launch_row(query_key, CUBIN_RUN_ANSWERED, launches, (launches != 0u) ? nanoseconds : 0ull,
-                         (launches != 0u) ? s_timed_least : 0ull, (launches != 0u) ? s_timed_max : 0ull, "");
+    cubin_run_launch_row(query_key, CUBIN_RUN_ANSWERED, launches, (launches != 0u) ? nanoseconds : 0ULL,
+                         (launches != 0u) ? s_timed_least : 0ULL, (launches != 0u) ? s_timed_max : 0ULL, "");
     const int filed = cubin_run_member_written(answers, answers_path, QRY_ORDINARY, 0);
     s_clocks.passed += cubin_run_host_now() - passed_began;
     return filed;
@@ -472,7 +472,7 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
 int cubin_run_verdict_load(const char *name)
 {
     const unsigned char *bytes = NULL;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     if (!qry_member_blob(name, &bytes, &size, NULL) || !cubin_safe_verdict_read((const char *)bytes, size))
     {
         return 0;

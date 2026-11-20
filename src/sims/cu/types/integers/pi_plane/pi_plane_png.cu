@@ -48,11 +48,11 @@ int plane_png(const std::string &path, const std::vector<unsigned char> &pixels,
 {
     const unsigned long long stride = width * channels;
     std::vector<unsigned char> raw;
-    for (unsigned long long row = 0ull; row < height; row += 1ull)
+    for (unsigned long long row = 0ULL; row < height; row += 1ULL)
     {
         raw.push_back(0u);
         raw.insert(raw.end(), pixels.begin() + (ptrdiff_t)(row * stride),
-                   pixels.begin() + (ptrdiff_t)((row + 1ull) * stride));
+                   pixels.begin() + (ptrdiff_t)((row + 1ULL) * stride));
     }
     std::vector<unsigned char> header;
     // the extents are below 2^16. They fit the header's words
@@ -105,16 +105,16 @@ int plane_png(const std::string &path, const std::vector<unsigned char> &pixels,
 int plane_picture(const PlaneExtent &extent, const unsigned char *bits, const std::string &path)
 {
     const unsigned long long longer = std::max(extent.height, extent.width);
-    const unsigned long long scale = std::max(1ull, PLANE_PICTURE_MAX / longer);
+    const unsigned long long scale = std::max(1ULL, PLANE_PICTURE_MAX / longer);
     const unsigned long long width = extent.width * scale;
     const unsigned long long height = extent.height * scale;
     std::vector<unsigned char> pixels((size_t)(width * height));
-    for (unsigned long long row = 0ull; row < height; row += 1ull)
+    for (unsigned long long row = 0ULL; row < height; row += 1ULL)
     {
-        for (unsigned long long column = 0ull; column < width; column += 1ull)
+        for (unsigned long long column = 0ULL; column < width; column += 1ULL)
         {
             const long long cell = extent.cell[(size_t)(((row / scale) * extent.width) + (column / scale))];
-            const unsigned char shade = (cell < 0ll) ? (unsigned char)PLANE_EMPTY_SHADE
+            const unsigned char shade = (cell < 0LL) ? (unsigned char)PLANE_EMPTY_SHADE
                                                      : ((bits[cell] != 0u) ? (unsigned char)255u : (unsigned char)0u);
             pixels[(size_t)((row * width) + column)] = shade;
         }
@@ -127,24 +127,24 @@ int plane_picture(const PlaneExtent &extent, const unsigned char *bits, const st
 int plane_sparse_picture(const PlaneExtent &extent, const unsigned char *bits, const PlaneLine &found,
                          const std::string &path)
 {
-    const unsigned long long cell = 7ull;
-    const unsigned long long dot = 5ull;
+    const unsigned long long cell = 7ULL;
+    const unsigned long long dot = 5ULL;
     std::vector<unsigned char> marked(extent.cell.size(), 0u);
     // the extents are below 2^16. They fit a signed word
     const long long height = (long long)extent.height;
     const long long width = (long long)extent.width;
-    for (long long index = 0ll; index < height * width; index += 1ll)
+    for (long long index = 0LL; index < height * width; index += 1LL)
     {
         if (extent.cell[(size_t)index] != found.start)
         {
             continue;
         }
-        for (unsigned long long walked = 0ull; walked < found.length; walked += 1ull)
+        for (unsigned long long walked = 0ULL; walked < found.length; walked += 1ULL)
         {
             // the walk is at max the line's length, below 2^15
             const long long row = (index / width) + ((long long)walked * found.step.row);
             const long long column = (index % width) + ((long long)walked * found.step.column);
-            if ((row >= 0ll) && (row < height) && (column >= 0ll) && (column < width))
+            if ((row >= 0LL) && (row < height) && (column >= 0LL) && (column < width))
             {
                 // the row and column are inside the shape. The index is never negative
                 marked[(size_t)((row * width) + column)] = 1u;
@@ -153,20 +153,20 @@ int plane_sparse_picture(const PlaneExtent &extent, const unsigned char *bits, c
     }
     const unsigned long long picture_width = extent.width * cell;
     const unsigned long long picture_height = extent.height * cell;
-    std::vector<unsigned char> pixels((size_t)(picture_width * picture_height * 3ull), 0u);
-    for (unsigned long long row = 0ull; row < picture_height; row += 1ull)
+    std::vector<unsigned char> pixels((size_t)(picture_width * picture_height * 3ULL), 0u);
+    for (unsigned long long row = 0ULL; row < picture_height; row += 1ULL)
     {
-        for (unsigned long long column = 0ull; column < picture_width; column += 1ull)
+        for (unsigned long long column = 0ULL; column < picture_width; column += 1ULL)
         {
             const size_t index = (size_t)(((row / cell) * extent.width) + (column / cell));
             const unsigned long long inside_row = row % cell;
             const unsigned long long inside_column = column % cell;
             const int in_dot =
-                (inside_row >= 1ull) && (inside_row <= dot) && (inside_column >= 1ull) && (inside_column <= dot);
+                (inside_row >= 1ULL) && (inside_row <= dot) && (inside_column >= 1ULL) && (inside_column <= dot);
             unsigned char red = 0u;
             unsigned char green = 0u;
             unsigned char blue = 0u;
-            if (extent.cell[index] < 0ll)
+            if (extent.cell[index] < 0LL)
             {
                 red = 24u;
                 green = 24u;
@@ -184,7 +184,7 @@ int plane_sparse_picture(const PlaneExtent &extent, const unsigned char *bits, c
                 green = 255u;
                 blue = 255u;
             }
-            const size_t at = (size_t)(((row * picture_width) + column) * 3ull);
+            const size_t at = (size_t)(((row * picture_width) + column) * 3ULL);
             pixels[at] = red;
             pixels[at + 1u] = green;
             pixels[at + 2u] = blue;

@@ -6,8 +6,8 @@
 static const unsigned int s_plane_fibonacci[PLANE_FIBONACCI] = {
     1u, 2u, 3u, 5u, 8u, 13u, 21u, 34u, 55u, 89u, 144u, 233u, 377u, 610u, 987u, 1597u, 2584u, 4181u, 6765u, 10946u};
 
-static const unsigned long long s_plane_widths[PLANE_WIDTHS] = {7ull,   16ull,  32ull,  64ull,
-                                                                106ull, 113ull, 128ull, 256ull};
+static const unsigned long long s_plane_widths[PLANE_WIDTHS] = {7ULL,   16ULL,  32ULL,  64ULL,
+                                                                106ULL, 113ULL, 128ULL, 256ULL};
 
 int main(int count, char **arguments)
 {
@@ -18,13 +18,13 @@ int main(int count, char **arguments)
     const unsigned int bits_count = plane_number(count, arguments, "--bits", PLANE_BITS);
     const unsigned int draws = plane_number(count, arguments, "--draws", PLANE_DRAWS);
     const std::string directory = plane_directory(count, arguments);
-    const unsigned long long needed = (unsigned long long)bits_count + PLANE_GUARD + 64ull;
+    const unsigned long long needed = (unsigned long long)bits_count + PLANE_GUARD + 64ULL;
     if ((bits_count < 64u) || (bits_count > PLANE_BITS_MAX) || (needed > ORIOR_EXACT_BITS) || (draws == 0u))
     {
-        unsigned long long limbs = 1ull;
-        while (limbs * 32ull < needed)
+        unsigned long long limbs = 1ULL;
+        while (limbs * 32ULL < needed)
         {
-            limbs *= 2ull;
+            limbs *= 2ULL;
         }
         mmgr_line_put(line, "  errored: the draws are at least 1, the bits are 64 to ");
         mmgr_line_decimal(line, PLANE_BITS_MAX, 1u);
@@ -75,7 +75,7 @@ int main(int count, char **arguments)
     unsigned char *device_bits = NULL;
     unsigned int *device_longest = NULL;
     ok = ok && sim_job_submit(&results, "pi_plane", count, arguments,
-                              (unsigned long long)bits_count * (1ull + sizeof(unsigned int)));
+                              (unsigned long long)bits_count * (1ULL + sizeof(unsigned int)));
     ok = ok && sim_status_check(&results, cudaMalloc((void **)&device_bits, bits_count), "bits");
     ok = ok &&
          sim_status_check(&results, cudaMalloc((void **)&device_longest, (size_t)bits_count * sizeof(unsigned int)),
@@ -133,7 +133,7 @@ int main(int count, char **arguments)
     unsigned long long depth_sizes[PLANE_DEPTHS + 1u];
 
     // the sphere: the widest integer shell the bits fill, bit n at the n-th point by latitude circles or by meridians
-    long long sphere_radius = 0ll;
+    long long sphere_radius = 0LL;
     std::vector<std::vector<PlaneSpherePoint>> sphere_orders(2u);
     std::vector<PlaneExtent> spheres(2u);
     size_t sphere_count = 0u;
@@ -160,7 +160,7 @@ int main(int count, char **arguments)
     sim_check(&results, sphere_drew, "the sphere is arranged and drawn for pi and for one shuffle of its bits");
     ok = ok && sphere_drew;
     std::vector<PlaneLine> sphere_found(spheres.size());
-    std::vector<unsigned long long> sphere_latitude(spheres.size(), 0ull);
+    std::vector<unsigned long long> sphere_latitude(spheres.size(), 0ULL);
     for (size_t fill = 0u; ok && (fill < spheres.size()); fill += 1u)
     {
         sphere_found[fill] = plane_longest_line(spheres[fill], sphere_bits.data(), steps);
@@ -194,11 +194,11 @@ int main(int count, char **arguments)
             sphere_latitude_band[fill].push_back(
                 plane_latitude_spread(sphere_orders[fill], sphere_radius, sphere_drawn.data()));
         }
-        unsigned long long golden_max = 0ull;
+        unsigned long long golden_max = 0ULL;
         for (unsigned int fibonacci = 0u; fibonacci < PLANE_FIBONACCI; fibonacci += 1u)
         {
             const unsigned long long run =
-                (s_plane_fibonacci[fibonacci] < bits_count) ? drawn_longest[s_plane_fibonacci[fibonacci]] : 0ull;
+                (s_plane_fibonacci[fibonacci] < bits_count) ? drawn_longest[s_plane_fibonacci[fibonacci]] : 0ULL;
             fibonacci_band[fibonacci].push_back(run);
             golden_max = std::max(golden_max, run);
         }
@@ -309,7 +309,7 @@ int main(int count, char **arguments)
             sim_flush(&results);
         }
         mmgr_line_put(line, "  the golden sphere's spirals, pi's longest run at each Fibonacci difference:\n");
-        unsigned long long golden_max = 0ull;
+        unsigned long long golden_max = 0ULL;
         for (unsigned int fibonacci = 0u; fibonacci < PLANE_FIBONACCI; fibonacci += 1u)
         {
             if (s_plane_fibonacci[fibonacci] >= bits_count)
@@ -345,13 +345,13 @@ int main(int count, char **arguments)
         const std::vector<long long> under = plane_path_cells(extents[PLANE_WIDTHS + 2u], cells_path);
         const unsigned long long ones = plane_ones_under(under, bits.data());
         std::vector<unsigned long long> path_band;
-        unsigned long long at_or_below = 0ull;
+        unsigned long long at_or_below = 0ULL;
         for (unsigned int draw = 0u; draw < draws; draw += 1u)
         {
             plane_shuffle(bits, draw, &drawn);
             const unsigned long long drawn_ones = plane_ones_under(under, drawn.data());
             path_band.push_back(drawn_ones);
-            at_or_below += (drawn_ones <= ones) ? 1ull : 0ull;
+            at_or_below += (drawn_ones <= ones) ? 1ULL : 0ULL;
         }
         mmgr_line_put(line, "  the drawn path: ");
         mmgr_line_decimal(line, under.size(), 1u);

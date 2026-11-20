@@ -8,7 +8,7 @@ unsigned long long omega_computer_count(const OmegaComputerCounts *counts, unsig
 {
     if (length < 2u)
     {
-        return 0ull;
+        return 0ULL;
     }
     const unsigned int range = (depth < (length - 1u)) ? depth : (length - 1u);
     return counts->count[length][range];
@@ -21,7 +21,7 @@ void omega_computer_count_all(OmegaComputerCounts *counts, unsigned int max)
     {
         for (unsigned int depth = 0u; depth < length; depth += 1u)
         {
-            unsigned long long total = ((length - 1u) <= depth) ? 1ull : 0ull;
+            unsigned long long total = ((length - 1u) <= depth) ? 1ULL : 0ULL;
             total += omega_computer_count(counts, length - 2u, depth + 1u);
             for (unsigned int left = 2u; (left + 4u) <= length; left += 1u)
             {
@@ -40,13 +40,13 @@ void omega_computer_unrank(const OmegaComputerCounts *counts, unsigned int lengt
 {
     if ((length - 1u) <= depth)
     {
-        if (index == 0ull)
+        if (index == 0ULL)
         {
             // an index below the length, which is at max 40
             term.push_back((int)(length - 1u));
             return;
         }
-        index -= 1ull;
+        index -= 1ULL;
     }
     const unsigned long long bodies = omega_computer_count(counts, length - 2u, depth + 1u);
     if (index < bodies)
@@ -279,6 +279,6 @@ int omega_computer_grows_forever(const std::vector<int> &stored, const std::vect
     return 0;
 }
 
-// normal order under a step and a size budget, watched by Brent's cycle finder and the growth proof; on a halt `term`
+// normal order under a step and a size budget, watched by Brent's cycle finder and the growth proof. On a halt `term`
 // is left containing the normal form
 size_t g_omega_computer_peak = 0u;

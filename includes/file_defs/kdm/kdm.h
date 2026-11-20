@@ -6,7 +6,7 @@
 // part's registers, widths, loads and stores in a block of the ruleset's language, `__krs__(` to `)__krs__` (klang.h),
 // which the ruleset reader reads, its pipes, and their comments.
 //
-// A program that writes the rows writes the whole section, after a who line of its own; the tail is as the file
+// A program that writes the rows writes the whole section, after a who line of its own. The tail is as the file
 // stored it, the who that was in force over it written again before it. A program that writes the pipes writes them at
 // the end of the tail, after a who line of its own, and the pipes before them are let go.
 #ifndef KDM_H
@@ -65,7 +65,7 @@ extern "C"
     unsigned int kdm_tail_at(const KdmFile *file);
 
     // The file's section, every line from its second to its tail, replaced by `lines`, `count` of them, written by
-    // `who`: its first line `kdm <part>`, `part` where the file had none; then a who line of `who`, the lines, and
+    // `who`: its first line `kdm <part>`, `part` where the file had none. Then a who line of `who`, the lines, and
     // before the tail the who that was in force over it, `who -` where none was. 1, or 0 where there was no memory for
     // them, the file as it was
     int kdm_section_written_by(KdmFile *file, const char *part, const char *const *lines, unsigned int count, Who who);

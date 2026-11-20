@@ -16,7 +16,7 @@
 # does not fix which atoms are joined. Ethanol and dimethyl ether both close every atom.
 #
 # The reading at each atom is boolean. Sum the bond orders on the atom, the electrons it shares, and
-# compare against the standard valence of its element: it closes or it does not, with no tolerance,
+# compare against the standard valence of its element. It closes or it does not, with no tolerance,
 # because a bond order and a valence are both integers. The molecule is the conjunction.
 #
 # Two routes are read and they are displayed able to disagree. The per-atom octet is the strong one. The
@@ -121,7 +121,7 @@ def handshake_ok(atoms, bonds):
 def null_pass_rate(atoms, bonds, draws):
     """Fraction of element-label permutations, drawn by the engine's shuffle, that still close.
 
-    The bond graph is retained and the multiset of elements is retained; the deleted part is which element
+    The bond graph is retained and the multiset of elements is retained. The deleted part is which element
     sits at which atom. permuted preserves every count exactly. Each draw is a genuine
     rearrangement of the same atoms and never invents or loses one.
     """

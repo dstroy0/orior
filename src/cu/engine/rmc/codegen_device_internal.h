@@ -26,7 +26,7 @@ int layout_same(const EngineRecordLayout *left, const EngineRecordLayout *right)
 #define CODEGEN_THREADS 256u
 
 // the max a scan or a selection counts, as cub takes its counts
-#define CODEGEN_COUNT_MAX 0x7FFFFFFFull
+#define CODEGEN_COUNT_MAX 0x7FFFFFFFULL
 
 // what the steps leave for the lane's own forms, a word each: the max temporaries, 64-bit temporaries and predicates
 // any step took, 1 where any reads the tables, where a form breaks the lane and where a step is one the lane does not
@@ -149,7 +149,7 @@ __global__ void codegen_device_encode(KeymathCoreEncode encoding, LayoutEnd *end
 
 __global__ void codegen_layout(KeyScheduleCoreLayout layout, LayoutEnd *ended);
 
-// the device memory a lane's writing takes, freed together, and 0 once a call the device errored has left it unusable
+// the device memory a lane's writing takes, freed together, and 0 once a call the device errored left it unusable
 struct DeviceArena
 {
     std::vector<void *> allocations;
@@ -159,7 +159,7 @@ struct DeviceArena
 template <typename Element> static Element *codegen_device_take(DeviceArena *memory, unsigned long long count)
 {
     void *taken = NULL;
-    const unsigned long long bytes = ((count == 0ull) ? 1ull : count) * sizeof(Element);
+    const unsigned long long bytes = ((count == 0ULL) ? 1ULL : count) * sizeof(Element);
     if ((memory->ok != 0) && (cudaMalloc(&taken, (size_t)bytes) == cudaSuccess))
     {
         memory->allocations.push_back(taken);
@@ -173,7 +173,7 @@ template <typename Element>
 static Element *codegen_device_copy(DeviceArena *memory, const Element *from, unsigned long long count)
 {
     Element *const to = codegen_device_take<Element>(memory, count);
-    if ((memory->ok != 0) && (count != 0ull))
+    if ((memory->ok != 0) && (count != 0ULL))
     {
         memory->ok = cudaMemcpy(to, from, (size_t)(count * sizeof(Element)), cudaMemcpyHostToDevice) == cudaSuccess;
     }
@@ -183,7 +183,7 @@ static Element *codegen_device_copy(DeviceArena *memory, const Element *from, un
 template <typename Element>
 static void codegen_device_read(DeviceArena *memory, Element *to, const Element *from, unsigned long long count)
 {
-    if ((memory->ok != 0) && (count != 0ull))
+    if ((memory->ok != 0) && (count != 0ULL))
     {
         memory->ok = cudaMemcpy(to, from, (size_t)(count * sizeof(Element)), cudaMemcpyDeviceToHost) == cudaSuccess;
     }
@@ -200,9 +200,9 @@ template <typename Counted>
 static unsigned long long codegen_device_scan(DeviceArena *memory, const Counted *counts, Counted *sums,
                                               unsigned long long count)
 {
-    if ((memory->ok == 0) || (count == 0ull))
+    if ((memory->ok == 0) || (count == 0ULL))
     {
-        return 0ull;
+        return 0ULL;
     }
     size_t bytes = 0u;
     // bounded below CODEGEN_COUNT_MAX by the callers
@@ -212,8 +212,8 @@ static unsigned long long codegen_device_scan(DeviceArena *memory, const Counted
         (memory->ok != 0) && (cub::DeviceScan::ExclusiveSum(temporary, bytes, counts, sums, (int)count) == cudaSuccess);
     Counted last_count = 0;
     Counted last_sum = 0;
-    codegen_device_read(memory, &last_count, &counts[count - 1ull], 1ull);
-    codegen_device_read(memory, &last_sum, &sums[count - 1ull], 1ull);
+    codegen_device_read(memory, &last_count, &counts[count - 1ULL], 1ULL);
+    codegen_device_read(memory, &last_sum, &sums[count - 1ULL], 1ULL);
     return (unsigned long long)last_count + (unsigned long long)last_sum;
 }
 

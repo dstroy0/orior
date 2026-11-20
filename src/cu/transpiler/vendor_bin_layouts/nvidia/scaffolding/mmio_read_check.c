@@ -27,8 +27,8 @@ int main(int count, char **words)
         fprintf(stderr, "the BAR0 driver was not reached: load its service first (install_bar0.ps1)\n");
         return 2;
     }
-    unsigned long long base = 0ull;
-    unsigned long long size = 0ull;
+    unsigned long long base = 0ULL;
+    unsigned long long size = 0ULL;
     if (mmio_extent(device, &base, &size))
     {
         printf("BAR0 mapped at 0x%llx, %llu bytes\n", base, size);

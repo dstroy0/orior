@@ -235,8 +235,8 @@ unsigned int sass_machine_sweep(SassMachine *machine, const char *architecture, 
         const unsigned long long high = machine->form[carrier[which]].high;
         for (unsigned int first = 0u; first <= SASS_OPERATION_MASK; first += SASS_BITS)
         {
-            const unsigned int count = (((unsigned long long)first + SASS_BITS) > (SASS_OPERATION_MASK + 1ull))
-                                           ? ((unsigned int)(SASS_OPERATION_MASK + 1ull) - first)
+            const unsigned int count = (((unsigned long long)first + SASS_BITS) > (SASS_OPERATION_MASK + 1ULL))
+                                           ? ((unsigned int)(SASS_OPERATION_MASK + 1ULL) - first)
                                            : SASS_BITS;
             for (unsigned int at = 0u; at < count; at += 1u)
             {
@@ -270,7 +270,7 @@ unsigned int sass_machine_sweep(SassMachine *machine, const char *architecture, 
     }
     printf("interface sass sweep: %u keys put to the disassembler from each of %u carriers, %u named, %u forms it had "
            "not already, %u batches the disassembler failed, %u forms past what the machine contains\n",
-           (unsigned int)(SASS_OPERATION_MASK + 1ull), carriers, named, machine->forms - forms_before, failed,
+           (unsigned int)(SASS_OPERATION_MASK + 1ULL), carriers, named, machine->forms - forms_before, failed,
            machine->refused);
     return machine->forms - forms_before;
 }

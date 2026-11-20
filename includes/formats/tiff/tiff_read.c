@@ -19,13 +19,13 @@ static int tiff_layout(TiffFile *file, const TiffPage *page, const char *text, u
     {
         tiff_ome(file, page, text, pages, pages_known, layout);
     }
-    else if ((page->next != 0ull) != (pages > 1ull))
+    else if ((page->next != 0ULL) != (pages > 1ULL))
     {
         return tiff_fail(file, "the page count does not match the chain of pages");
     }
-    else if (pages > 1ull)
+    else if (pages > 1ULL)
     {
-        tiff_layout_axis(layout, '\0', pages, 1ull);
+        tiff_layout_axis(layout, '\0', pages, 1ULL);
     }
     unsigned long long total = page->page_bytes;
     for (unsigned int axis = 0u; axis < layout->leading; axis += 1u)
@@ -71,12 +71,12 @@ static void tiff_report(const TiffFile *file)
 long tiff_describe(const EngineDescribeRequest *request)
 {
     TiffFile file;
-    TiffChain chain = {NULL, 0ull, 0ull, 0ull};
+    TiffChain chain = {NULL, 0ULL, 0ULL, 0ULL};
     TiffPage first;
     memset(&first, 0, sizeof(first));
     tiff_open(&file, request->path, request->member, request->tools);
     unsigned long long offset = file.first_ifd;
-    while ((file.reason == NULL) && (offset != 0ull))
+    while ((file.reason == NULL) && (offset != 0ULL))
     {
         TiffPage page;
         unsigned long long *offsets = NULL;
@@ -86,7 +86,7 @@ long tiff_describe(const EngineDescribeRequest *request)
         tiff_page_chunks(&file, &page, &offsets, &counts);
         free(offsets);
         free(counts);
-        if (chain.count == 1ull)
+        if (chain.count == 1ULL)
         {
             first = page;
         }
@@ -113,18 +113,18 @@ long tiff_describe(const EngineDescribeRequest *request)
 static int tiff_read_planes(TiffFile *file, const EngineArrayRead *request, const TiffPage *first,
                             const TiffLayout *layout, TiffScratch *scratch, TiffChain *chain)
 {
-    unsigned long long inner = 1ull;
-    unsigned long long top = (request->end - 1ull) * layout->stride[0u];
+    unsigned long long inner = 1ULL;
+    unsigned long long top = (request->end - 1ULL) * layout->stride[0u];
     for (unsigned int axis = 1u; axis < layout->leading; axis += 1u)
     {
         inner *= layout->extent[axis];
-        top += (layout->extent[axis] - 1ull) * layout->stride[axis];
+        top += (layout->extent[axis] - 1ULL) * layout->stride[axis];
     }
     unsigned long long next = first->next;
     tiff_chain_add(file, chain, file->first_ifd);
     while ((file->reason == NULL) && (chain->count <= top))
     {
-        if (next == 0ull)
+        if (next == 0ULL)
         {
             return tiff_fail(file, "the file has fewer pages than its extent");
         }
@@ -133,10 +133,10 @@ static int tiff_read_planes(TiffFile *file, const EngineArrayRead *request, cons
     }
     const unsigned long long plane_first = request->first * inner;
     const unsigned long long plane_end = request->end * inner;
-    for (unsigned long long plane = plane_first; (file->reason == NULL) && (plane < plane_end); plane += 1ull)
+    for (unsigned long long plane = plane_first; (file->reason == NULL) && (plane < plane_end); plane += 1ULL)
     {
         unsigned long long remainder = plane;
-        unsigned long long page_index = 0ull;
+        unsigned long long page_index = 0ULL;
         for (unsigned int axis = layout->leading; axis > 0u; axis -= 1u)
         {
             page_index += (remainder % layout->extent[axis - 1u]) * layout->stride[axis - 1u];
@@ -148,7 +148,7 @@ static int tiff_read_planes(TiffFile *file, const EngineArrayRead *request, cons
         {
             return tiff_fail(file, "the pages differ in width, height or sample type");
         }
-        tiff_page_rows(file, &page, scratch, 0ull, page.height,
+        tiff_page_rows(file, &page, scratch, 0ULL, page.height,
                        &request->out[(plane - plane_first) * first->page_bytes]);
     }
     return file->reason == NULL;
@@ -157,17 +157,17 @@ static int tiff_read_planes(TiffFile *file, const EngineArrayRead *request, cons
 long long tiff_read(const EngineArrayRead *request)
 {
     TiffFile file;
-    TiffScratch scratch = {NULL, 0ull, NULL, 0ull};
-    TiffChain chain = {NULL, 0ull, 0ull, 0ull};
+    TiffScratch scratch = {NULL, 0ULL, NULL, 0ULL};
+    TiffChain chain = {NULL, 0ULL, 0ULL, 0ULL};
     TiffPage first;
     TiffLayout layout;
     EngineArrayExtent expected;
     const EngineArrayExtent *const given = request->extent;
-    unsigned long long total = 0ull;
+    unsigned long long total = 0ULL;
     tiff_open(&file, request->path, request->member, request->tools);
     tiff_page(&file, file.first_ifd, &first);
     char *const text = tiff_description(&file, &first.description);
-    const unsigned long long pages = (first.next == 0ull) ? 1ull : ((given->rank == 3u) ? given->sizes[0u] : 0ull);
+    const unsigned long long pages = (first.next == 0ULL) ? 1ULL : ((given->rank == 3u) ? given->sizes[0u] : 0ULL);
     tiff_layout(&file, &first, text, pages, 0u, &layout);
     free(text);
     tiff_extent(&first, &layout, &expected);
@@ -203,7 +203,7 @@ long long tiff_read(const EngineArrayRead *request)
     free(chain.offsets);
     if (file.reason != NULL)
     {
-        if (writing && (total > 0ull))
+        if (writing && (total > 0ULL))
         {
             memset(request->out, 0, (size_t)total);
         }

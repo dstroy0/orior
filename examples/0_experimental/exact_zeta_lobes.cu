@@ -97,7 +97,7 @@ static unsigned int lobes_constant(LobesProgram *program, unsigned long long val
                       0u);
 }
 
-// a field of the shared record, `bits` wide and signed, positioned at the record's next bit; the step that reads it is
+// a field of the shared record, `bits` wide and signed, positioned at the record's next bit. The step that reads it is
 // written where it is read, and the register is live only from there to its reader
 static unsigned int lobes_field(LobesProgram *program, unsigned int bits)
 {

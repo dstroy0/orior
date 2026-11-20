@@ -10,7 +10,7 @@
 // case comes out, and what those words are is the part's answer and no software's opinion of it.
 //
 // What carries the bytes is whatever owns the part's bus mapping. On a part behind a driver that is the driver,
-// which for a load and a start does what the channel specifies it does: it writes the container into the part's memory
+// which for a load and a start does what the channel specifies it does. It writes the container into the part's memory
 // over its address window and rings the register that starts it. It is reached by name and by its own entry points,
 // and nothing of its vendor's toolchain is compiled against or queried anything. A translator is not transport: a
 // thing that turns a source into a coding is the part of the loop being derived, and a run that went through one

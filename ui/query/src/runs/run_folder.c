@@ -310,7 +310,7 @@ void query_runs_prune(const QueryFolderMaxCtx *args)
     }
     g_cli_guard->persistent_buf_release(runs.number, g_query_owner);
     g_cli_guard->persistent_buf_release(runs.path, g_query_owner);
-    *(&runs) = (QueryRuns){NULL, NULL, 0u};
+    runs = (QueryRuns){NULL, NULL, 0u};
 }
 
 int query_latest_run(const QueryLoopsFolderCfg *args)
@@ -360,6 +360,6 @@ int query_latest_run(const QueryLoopsFolderCfg *args)
     }
     g_cli_guard->persistent_buf_release(runs.number, g_query_owner);
     g_cli_guard->persistent_buf_release(runs.path, g_query_owner);
-    *(&runs) = (QueryRuns){NULL, NULL, 0u};
+    runs = (QueryRuns){NULL, NULL, 0u};
     return latest == 1;
 }

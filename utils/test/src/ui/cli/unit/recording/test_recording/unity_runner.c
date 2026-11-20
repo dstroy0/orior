@@ -86,7 +86,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\recording\\test_recording\\test_recording.c");
+  UnityBegin("utils/test/src/ui/cli/unit/recording/test_recording/test_recording.c");
   run_test(test_each_line_is_recorded_with_its_frames_depth, "test_each_line_is_recorded_with_its_frames_depth", 114);
   run_test(test_a_frames_names_are_recorded_with_their_values, "test_a_frames_names_are_recorded_with_their_values", 125);
   run_test(test_each_frame_has_its_own_values, "test_each_frame_has_its_own_values", 130);

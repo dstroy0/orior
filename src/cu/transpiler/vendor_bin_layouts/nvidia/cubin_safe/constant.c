@@ -77,12 +77,12 @@ int cubin_constant_out_of_bank(const struct TablesSetTag *tables, unsigned long 
         return 0;
     }
     // bank 0 is the parameters' bank, the one section of a bank a container of ours carries
-    if (tables_field_read(bank, low, high) != 0ull)
+    if (tables_field_read(bank, low, high) != 0ULL)
     {
         return 1;
     }
     // the read, from the byte offset the class's offset field scales to (tables_class_offset) and as many bytes as its
     // size operand specifies, four where it names none, must end inside the bank where the bank's size is known
     const unsigned long long bytes = tables_class_offset(class_, low, high);
-    return (bank_size != 0ull) && (bytes + (unsigned long long)tables_class_bytes(class_, low, high) > bank_size);
+    return (bank_size != 0ULL) && (bytes + (unsigned long long)tables_class_bytes(class_, low, high) > bank_size);
 }

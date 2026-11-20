@@ -295,7 +295,7 @@ EMBED_INLINE void dap_complaint_store(const DapCtx *args)
 }
 
 // a line the pipe's reader cut from the program adapter's errors, stored
-static void dap_complaint_each(void *context, char *line, unsigned long long used)
+static void dap_complaint_each(void *context, const char *line, unsigned long long used)
 {
     EMBED_CALL(dap_complaint_store, DapCtx, .dap = (CliDap *)context, .line = line, .used = used);
 }

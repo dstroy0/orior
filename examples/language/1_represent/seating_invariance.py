@@ -21,7 +21,7 @@
 # every position untouched and change only which number each symbol was given.
 #
 # If the reading holds across renumbering, the numbering was not what was being measured, and the earlier
-# result is for the corpora numbered here. If the reading collapses, the volume is reading an
+# result is for the corpora numbered here. If the reading collapses, the volume reads an
 # ordering that was invented, and no cross corpus row from it means anything.
 
 import io

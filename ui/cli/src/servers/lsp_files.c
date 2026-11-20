@@ -333,7 +333,7 @@ int cli_lsp_text(const CliLspPathOutCfg *args)
         const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = saved_path,
                                                       .size_pointer = &size, .owner = g_cli_lsp_files_owner);
         mmgr_line_put_n(args->out, (bytes != NULL) ? (const char *)bytes : "", size);
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_lsp_files_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_lsp_files_owner);
         read = 1;
     }
     return read;
@@ -360,7 +360,7 @@ int cli_lsp_read_again(const CliLspErrMsgTextCfg *args)
     const int changed =
         EMBED_CALL(cli_lsp_err_msg_text.change, CliLspErrMsgTextCfg, .lsp = args->lsp, .path = args->path,
                    .text = (bytes != NULL) ? (const char *)bytes : "", .length = size, .err_msg = args->err_msg);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_lsp_files_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_lsp_files_owner);
     return changed;
 }
 
@@ -499,7 +499,7 @@ void cli_lsp_open_each(const CliLspContextCfg *args)
         EMBED_CALL(args->each, CliEachPathTextLengthCfg, .context = args->context, .path = path,
                    .text = (inner_bytes != NULL) ? (const char *)inner_bytes : "",
                    .length = (inner_bytes != NULL) ? size : 0ULL);
-        g_cli_guard->persistent_buf_release((void *)(embed_word)inner_bytes, (g_cli_lsp_files_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)inner_bytes, g_cli_lsp_files_owner);
     }
     g_cli_guard->persistent_buf_release(uris, g_cli_lsp_files_owner);
     g_cli_guard->persistent_buf_release(positions, g_cli_lsp_files_owner);

@@ -36,7 +36,7 @@ AnswerTally answer_tally_read(const AnswerBracket *host, unsigned int cases, uns
     for (unsigned int place = 0u; place < cases; place += 1u)
     {
         const AnswerRead read =
-            answer_read(&host[place], outcome, (outcome == (unsigned int)RUN_ANSWERED) ? answered[place] : 0ull);
+            answer_read(&host[place], outcome, (outcome == (unsigned int)RUN_ANSWERED) ? answered[place] : 0ULL);
         if (reads != NULL)
         {
             reads[place] = read;

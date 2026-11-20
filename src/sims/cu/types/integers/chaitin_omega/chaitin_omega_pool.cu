@@ -96,49 +96,49 @@ __global__ void omega_pool_survey(OmegaTerm *terms, unsigned long long live, con
         atomicMax(&totals->max_tokens, size);
         term->head = omega_pool_head(text, size);
         term->redex = OMEGA_ENGINE_NONE;
-        term->out_size = 0ull;
-        out_sizes[at] = 0ull;
-        unsigned long long max_token = 1ull;
-        for (unsigned long long token = 0ull; token < size; token += 1ull)
+        term->out_size = 0ULL;
+        out_sizes[at] = 0ULL;
+        unsigned long long max_token = 1ULL;
+        for (unsigned long long token = 0ULL; token < size; token += 1ULL)
         {
             const unsigned long long magnitude = (unsigned long long)((text[token] < 0) ? -text[token] : text[token]);
             max_token = (magnitude > max_token) ? magnitude : max_token;
-            if ((term->redex == OMEGA_ENGINE_NONE) && ((token + 1ull) < size) && (text[token] == OMEGA_APPLY) &&
-                (text[token + 1ull] == OMEGA_LAMBDA))
+            if ((term->redex == OMEGA_ENGINE_NONE) && ((token + 1ULL) < size) && (text[token] == OMEGA_APPLY) &&
+                (text[token + 1ULL] == OMEGA_LAMBDA))
             {
                 term->redex = token;
             }
         }
         if (term->redex == OMEGA_ENGINE_NONE)
         {
-            unsigned long long bits = 0ull;
-            for (unsigned long long token = 0ull; token < size; token += 1ull)
+            unsigned long long bits = 0ULL;
+            for (unsigned long long token = 0ULL; token < size; token += 1ULL)
             {
-                bits += (text[token] <= 0) ? 2ull : ((unsigned long long)text[token] + 1ull);
+                bits += (text[token] <= 0) ? 2ULL : ((unsigned long long)text[token] + 1ULL);
             }
             term->fate = OMEGA_HALTS;
             term->bits = bits;
             continue;
         }
-        term->argument = omega_pool_end(text, term->redex + 1ull);
+        term->argument = omega_pool_end(text, term->redex + 1ULL);
         term->after = omega_pool_end(text, term->argument);
-        OmegaWalk walk = {&frames[term->base], 0ull, 0ull};
-        unsigned long long uses = 0ull;
-        unsigned long long max_depth = 0ull;
-        for (unsigned long long token = term->redex + 2ull; token < term->argument; token += 1ull)
+        OmegaWalk walk = {&frames[term->base], 0ULL, 0ULL};
+        unsigned long long uses = 0ULL;
+        unsigned long long max_depth = 0ULL;
+        for (unsigned long long token = term->redex + 2ULL; token < term->argument; token += 1ULL)
         {
             omega_walk_open(&walk, text[token]);
             max_depth = (walk.depth > max_depth) ? walk.depth : max_depth;
             if (text[token] > 0)
             {
-                uses += (text[token] == (OmegaToken)(walk.depth + 1ull)) ? 1ull : 0ull;
+                uses += (text[token] == (OmegaToken)(walk.depth + 1ULL)) ? 1ULL : 0ULL;
                 omega_walk_close(&walk);
             }
         }
-        walk.top = 0ull;
-        walk.depth = 0ull;
-        unsigned long long max_bound = 0ull;
-        for (unsigned long long token = term->argument; token < term->after; token += 1ull)
+        walk.top = 0ULL;
+        walk.depth = 0ULL;
+        unsigned long long max_bound = 0ULL;
+        for (unsigned long long token = term->argument; token < term->after; token += 1ULL)
         {
             omega_walk_open(&walk, text[token]);
             max_bound = (walk.depth > max_bound) ? walk.depth : max_bound;
@@ -147,7 +147,7 @@ __global__ void omega_pool_survey(OmegaTerm *terms, unsigned long long live, con
                 omega_walk_close(&walk);
             }
         }
-        const unsigned long long body = term->argument - (term->redex + 2ull);
+        const unsigned long long body = term->argument - (term->redex + 2ULL);
         const unsigned long long argument = term->after - term->argument;
         term->out_size = term->redex + (body - uses) + (uses * argument) + (size - term->after);
         out_sizes[at] = term->out_size;
@@ -188,8 +188,8 @@ static __device__ void omega_pool_plan(const OmegaRoundWidths *widths, unsigned 
     omega_pool_put(plan, widths->depth_bits, widths->bound_bits, (OmegaToken)bound);
     omega_pool_put(plan, widths->depth_bits + widths->bound_bits, 1u, (OmegaToken)body);
     omega_pool_put(plan, widths->depth_bits + widths->bound_bits + 1u, 1u, (OmegaToken)argument);
-    index[2ull * out] = (unsigned int)source;
-    index[(2ull * out) + 1ull] = (unsigned int)(out % OMEGA_ENGINE_SWEEP);
+    index[2ULL * out] = (unsigned int)source;
+    index[(2ULL * out) + 1ULL] = (unsigned int)(out % OMEGA_ENGINE_SWEEP);
 }
 
 // a thread a stepping term arranges its reduct's plans at the term's out base
@@ -207,23 +207,23 @@ __global__ void omega_pool_place(const OmegaTerm *terms, unsigned long long live
         }
         const OmegaToken *const text = &tokens[term->base];
         unsigned long long out = out_bases[at];
-        for (unsigned long long token = 0ull; token < term->redex; token += 1ull)
+        for (unsigned long long token = 0ULL; token < term->redex; token += 1ULL)
         {
-            omega_pool_plan(&widths, plans, index, out, term->base + token, 0ull, 0ull, 0u, 0u);
-            out += 1ull;
+            omega_pool_plan(&widths, plans, index, out, term->base + token, 0ULL, 0ULL, 0u, 0u);
+            out += 1ULL;
         }
-        OmegaWalk walk = {&frames[term->base], 0ull, 0ull};
-        for (unsigned long long token = term->redex + 2ull; token < term->argument; token += 1ull)
+        OmegaWalk walk = {&frames[term->base], 0ULL, 0ULL};
+        for (unsigned long long token = term->redex + 2ULL; token < term->argument; token += 1ULL)
         {
             omega_walk_open(&walk, text[token]);
-            if ((text[token] > 0) && (text[token] == (OmegaToken)(walk.depth + 1ull)))
+            if ((text[token] > 0) && (text[token] == (OmegaToken)(walk.depth + 1ULL)))
             {
-                OmegaWalk inner = {&inner_frames[term->base], 0ull, 0ull};
-                for (unsigned long long copy = term->argument; copy < term->after; copy += 1ull)
+                OmegaWalk inner = {&inner_frames[term->base], 0ULL, 0ULL};
+                for (unsigned long long copy = term->argument; copy < term->after; copy += 1ULL)
                 {
                     omega_walk_open(&inner, text[copy]);
                     omega_pool_plan(&widths, plans, index, out, term->base + copy, walk.depth, inner.depth, 0u, 1u);
-                    out += 1ull;
+                    out += 1ULL;
                     if (text[copy] > 0)
                     {
                         omega_walk_close(&inner);
@@ -232,18 +232,18 @@ __global__ void omega_pool_place(const OmegaTerm *terms, unsigned long long live
             }
             else
             {
-                omega_pool_plan(&widths, plans, index, out, term->base + token, walk.depth, 0ull, 1u, 0u);
-                out += 1ull;
+                omega_pool_plan(&widths, plans, index, out, term->base + token, walk.depth, 0ULL, 1u, 0u);
+                out += 1ULL;
             }
             if (text[token] > 0)
             {
                 omega_walk_close(&walk);
             }
         }
-        for (unsigned long long token = term->after; token < term->size; token += 1ull)
+        for (unsigned long long token = term->after; token < term->size; token += 1ULL)
         {
-            omega_pool_plan(&widths, plans, index, out, term->base + token, 0ull, 0ull, 0u, 0u);
-            out += 1ull;
+            omega_pool_plan(&widths, plans, index, out, term->base + token, 0ULL, 0ULL, 0u, 0u);
+            out += 1ULL;
         }
     }
 }
@@ -281,7 +281,7 @@ __global__ void omega_pool_watch(OmegaTerm *terms, unsigned long long live, cons
         term->least = ((term->head == OMEGA_ENGINE_NONE) || (term->least == OMEGA_ENGINE_NONE))
                           ? OMEGA_ENGINE_NONE
                           : ((term->head < term->least) ? term->head : term->least);
-        term->steps += 1ull;
+        term->steps += 1ULL;
         if ((size == term->stored_size) && (omega_pool_same(text, &stored[term->stored_base], size) != 0))
         {
             term->fate = OMEGA_LOOPS;
@@ -294,13 +294,13 @@ __global__ void omega_pool_watch(OmegaTerm *terms, unsigned long long live, cons
             term->fate = OMEGA_DIVERGES;
             continue;
         }
-        term->since += 1ull;
+        term->since += 1ULL;
         if (term->since == term->power)
         {
             term->stored_again = 1u;
-            term->least = OMEGA_ENGINE_NONE - 1ull;
-            term->power *= 2ull;
-            term->since = 0ull;
+            term->least = OMEGA_ENGINE_NONE - 1ULL;
+            term->power *= 2ULL;
+            term->since = 0ULL;
         }
     }
 }
@@ -316,7 +316,7 @@ __global__ void omega_pool_settled(const OmegaTerm *terms, unsigned long long li
         {
             continue;
         }
-        const unsigned long long index = atomicAdd(&totals->settled, 1ull);
+        const unsigned long long index = atomicAdd(&totals->settled, 1ULL);
         settled[index].length = term->length;
         settled[index].job = term->job;
         settled[index].index = term->index;
@@ -335,12 +335,12 @@ __global__ void omega_pool_retained_sizes(const OmegaTerm *terms, unsigned long 
     OMEGA_POOL_EACH(at, live)
     {
         const OmegaTerm *const term = &terms[at];
-        const unsigned long long retained = (term->fate < 0) ? 1ull : 0ull;
+        const unsigned long long retained = (term->fate < 0) ? 1ULL : 0ULL;
         const unsigned long long stored_count = (term->stored_again != 0u) ? term->out_size : term->stored_size;
         places[at] = retained;
         token_sizes[at] = retained * term->out_size;
         stored_sizes[at] = retained * stored_count;
-        end_sizes[at] = retained * (stored_count + 1ull);
+        end_sizes[at] = retained * (stored_count + 1ULL);
     }
 }
 
@@ -424,10 +424,10 @@ __global__ void omega_pool_insert(const unsigned long long *counts, unsigned int
         }
         OmegaTerm term;
         term.index = from + at;
-        term.steps = 0ull;
-        term.power = 1ull;
-        term.since = 0ull;
-        term.least = OMEGA_ENGINE_NONE - 1ull;
+        term.steps = 0ULL;
+        term.power = 1ULL;
+        term.since = 0ULL;
+        term.least = OMEGA_ENGINE_NONE - 1ULL;
         term.base = token_end + offset;
         term.size = size;
         term.stored_base = stored_end + offset;
@@ -436,11 +436,11 @@ __global__ void omega_pool_insert(const unsigned long long *counts, unsigned int
         term.stored_range = omega_pool_spine(text, size, &stored_ends[term.ends_base]);
         term.head = OMEGA_ENGINE_NONE;
         term.redex = OMEGA_ENGINE_NONE;
-        term.argument = 0ull;
-        term.after = 0ull;
-        term.out_size = 0ull;
-        term.out_base = 0ull;
-        term.bits = 0ull;
+        term.argument = 0ULL;
+        term.after = 0ULL;
+        term.out_size = 0ULL;
+        term.out_base = 0ULL;
+        term.bits = 0ULL;
         term.length = length;
         term.job = job;
         term.fate = -1;

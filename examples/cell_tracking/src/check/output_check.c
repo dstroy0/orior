@@ -585,7 +585,7 @@ static int output_check_pass(FILE *file, unsigned long long bytes, unsigned char
 }
 
 // the sample's .drift: its head against the .points' frames and view, and each frame's lag onto it (0 at frame 0) into
-// `lags`, three a frame; the file ended at its last frame
+// `lags`, three a frame. The file ended at its last frame
 static int output_check_drift(const char *set, const char *sample, OutputCheckGraph *graph, int *lags)
 {
     char path[OUTPUT_CHECK_PATH];

@@ -8,12 +8,12 @@ static unsigned int root_floors(const unsigned long long extent[4])
     unsigned long long left[4];
     memcpy(left, extent, sizeof(left));
     unsigned int floors = 0u;
-    while ((left[0] > 1ull) || (left[1] > 1ull) || (left[2] > 1ull) || (left[3] > 1ull))
+    while ((left[0] > 1ULL) || (left[1] > 1ULL) || (left[2] > 1ULL) || (left[3] > 1ULL))
     {
         floors += 1u;
         for (unsigned int axis = 0u; axis < 4u; axis += 1u)
         {
-            left[axis] = (left[axis] + 1ull) / 2ull;
+            left[axis] = (left[axis] + 1ULL) / 2ULL;
         }
     }
     return floors;
@@ -28,7 +28,7 @@ unsigned long long root_region(const unsigned long long extent[4], unsigned int 
     {
         for (unsigned int axis = 0u; axis < 4u; axis += 1u)
         {
-            left[axis] = (left[axis] + 1ull) / 2ull;
+            left[axis] = (left[axis] + 1ULL) / 2ULL;
         }
     }
     return left[0] * left[1] * left[2] * left[3];
@@ -44,7 +44,7 @@ void root_permutation(unsigned int *table, unsigned int bits, unsigned long long
     for (unsigned int index = entries - 1u; index > 0u; index -= 1u)
     {
         // the draw below index + 1 is at max index, a position inside the table
-        const unsigned int other = (unsigned int)sim_draw_below(key, index, (unsigned long long)index + 1ull);
+        const unsigned int other = (unsigned int)sim_draw_below(key, index, (unsigned long long)index + 1ULL);
         const unsigned int temporary = table[index];
         table[index] = table[other];
         table[other] = temporary;
@@ -54,19 +54,19 @@ void root_permutation(unsigned int *table, unsigned int bits, unsigned long long
 void root_program_draw(RootProgram *program, unsigned int floors, unsigned long long key, int range_widest)
 {
     // the draw below the edge ceiling is far under 2^32
-    program->count = 1u + (unsigned int)sim_draw_below(key, 0ull, ROOT_EDGES_DRAWN_MAX);
+    program->count = 1u + (unsigned int)sim_draw_below(key, 0ULL, ROOT_EDGES_DRAWN_MAX);
     for (unsigned int at = 0u; at < program->count; at += 1u)
     {
-        const unsigned long long counter = 1ull + (3ull * at);
+        const unsigned long long counter = 1ULL + (3ULL * at);
         TowerEdge *const edge = &program->edge[at];
         // the floor draw is at max floors and the width draw below the width ceiling, both under 2^32
-        edge->floor = (unsigned int)sim_draw_below(key, counter, (unsigned long long)floors + 1ull);
-        edge->index_bits = 1u + (unsigned int)sim_draw_below(key, counter + 1ull, ROOT_BITS_DRAWN_MAX);
+        edge->floor = (unsigned int)sim_draw_below(key, counter, (unsigned long long)floors + 1ULL);
+        edge->index_bits = 1u + (unsigned int)sim_draw_below(key, counter + 1ULL, ROOT_BITS_DRAWN_MAX);
         if ((range_widest != 0) && (at == 0u))
         {
             edge->index_bits = TOWER_EDGE_INDEX_BITS_MAX;
         }
-        root_permutation(program->table[at], edge->index_bits, sim_draw(key, counter + 2ull));
+        root_permutation(program->table[at], edge->index_bits, sim_draw(key, counter + 2ULL));
         edge->forward = program->table[at];
     }
 }
@@ -96,8 +96,8 @@ int root_volume_open(SimResults *results, RootVolume *volume, const unsigned lon
     volume->scene.extent[0] = extent[1];
     volume->scene.extent[1] = extent[2];
     volume->scene.extent[2] = extent[3];
-    volume->scene.background = 200ull;
-    volume->scene.ramp = 1ull;
+    volume->scene.background = 200ULL;
+    volume->scene.ramp = 1ULL;
     volume->scene.bodies = ROOT_FOUNDERS;
     volume->lanes = extent[0] * extent[1] * extent[2] * extent[3];
     volume->floors = root_floors(extent);
@@ -121,13 +121,13 @@ int root_volume_render(SimResults *results, RootVolume *volume, const SimCamera 
 {
     SimDraws draws;
     draws.key = camera->key ^ ROOT_FOUNDER_PURPOSE;
-    draws.counter = 0ull;
+    draws.counter = 0ULL;
     sim_founders_draw(&draws, &volume->scene, volume->body, ROOT_FOUNDERS);
     volume->scene.body = volume->body;
-    unsigned long long clipped = 0ull;
+    unsigned long long clipped = 0ULL;
     int ok = sim_render(results, &volume->scene, camera, volume->device, NULL, NULL, &clipped);
-    sim_check(results, ok && (clipped == 0ull), "the volume rendered with nothing clipped");
-    ok = ok && (clipped == 0ull) &&
+    sim_check(results, ok && (clipped == 0ULL), "the volume rendered with nothing clipped");
+    ok = ok && (clipped == 0ULL) &&
          sim_status_check(
              results,
              cudaMemcpy(volume->host, volume->device, volume->lanes * sizeof(unsigned short), cudaMemcpyDeviceToHost),
@@ -190,7 +190,7 @@ int root_crystal_trip(SimResults *results, RootVolume *volume, const TowerEdge *
                               cudaMemcpy(crystal, coefficients, volume->lanes * sizeof(int), cudaMemcpyDeviceToHost),
                               "crystal read");
     }
-    unsigned long long chunks = 0ull;
+    unsigned long long chunks = 0ULL;
     const unsigned long long *offsets = NULL;
     const unsigned int *stream = NULL;
     if (ok)
@@ -229,7 +229,7 @@ int root_crystal_trip(SimResults *results, RootVolume *volume, const TowerEdge *
         ok = (compression_decode(&decode) == 0L) && (error.type == ENGINE_ERROR_NONE);
         sim_check(results, ok, "compression_decode read the crystal back");
     }
-    unsigned long long mismatches = 1ull;
+    unsigned long long mismatches = 1ULL;
     if (ok)
     {
         const unsigned short *device_rebuilt = NULL;
@@ -248,7 +248,7 @@ int root_crystal_trip(SimResults *results, RootVolume *volume, const TowerEdge *
     }
     if (ok)
     {
-        *exact = (mismatches == 0ull) &&
+        *exact = (mismatches == 0ULL) &&
                  (memcmp(volume->rebuilt, volume->host, (size_t)volume->lanes * sizeof(unsigned short)) == 0);
     }
     return ok;

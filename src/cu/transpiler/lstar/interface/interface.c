@@ -9,10 +9,10 @@
 void interface_output_appended(InterfaceAnswer *answer, unsigned long long *total, const char *piece,
                                unsigned long long read)
 {
-    const unsigned long long capacity = (answer->output_capacity != 0ull) ? (answer->output_capacity - 1ull) : 0ull;
-    const unsigned long long room_left = (*total < capacity) ? (capacity - *total) : 0ull;
+    const unsigned long long capacity = (answer->output_capacity != 0ULL) ? (answer->output_capacity - 1ULL) : 0ULL;
+    const unsigned long long room_left = (*total < capacity) ? (capacity - *total) : 0ULL;
     const unsigned long long copied = (room_left < read) ? room_left : read;
-    if ((answer->output != NULL) && (copied != 0ull))
+    if ((answer->output != NULL) && (copied != 0ULL))
     {
         // a copy is at max one piece, which a size_t represents
         memcpy(answer->output + *total, piece, (size_t)copied);
@@ -23,10 +23,10 @@ void interface_output_appended(InterfaceAnswer *answer, unsigned long long *tota
 // the answer's output ended by a zero byte inside its capacity, and its length whole
 void interface_output_ended(InterfaceAnswer *answer, unsigned long long total)
 {
-    if ((answer->output != NULL) && (answer->output_capacity != 0ull))
+    if ((answer->output != NULL) && (answer->output_capacity != 0ULL))
     {
         const unsigned long long end =
-            (total < (answer->output_capacity - 1ull)) ? total : (answer->output_capacity - 1ull);
+            (total < (answer->output_capacity - 1ULL)) ? total : (answer->output_capacity - 1ULL);
         // the end is inside the capacity, which the caller's buffer allocates
         answer->output[(size_t)end] = '\0';
     }
@@ -49,7 +49,7 @@ unsigned long long interface_now(void)
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
     // a monotonic clock's seconds and nanoseconds are not negative
-    return ((unsigned long long)now.tv_sec * INTERFACE_MILLION) + ((unsigned long long)now.tv_nsec / 1000ull);
+    return ((unsigned long long)now.tv_sec * INTERFACE_MILLION) + ((unsigned long long)now.tv_nsec / 1000ULL);
 #endif
 }
 
@@ -57,11 +57,11 @@ unsigned long long interface_now(void)
 long interface_probe_run(const InterfaceProbe *probe, InterfaceAnswer *answer, EngineError *error)
 {
     answer->ending = INTERFACE_ENDING_NOT_STARTED;
-    answer->code = 0ull;
+    answer->code = 0ULL;
     answer->fault = INTERFACE_FAULT_NONE;
-    answer->output_bytes = 0ull;
-    answer->microseconds = 0ull;
-    if ((answer->output != NULL) && (answer->output_capacity != 0ull))
+    answer->output_bytes = 0ULL;
+    answer->microseconds = 0ULL;
+    if ((answer->output != NULL) && (answer->output_capacity != 0ULL))
     {
         answer->output[0] = '\0';
     }

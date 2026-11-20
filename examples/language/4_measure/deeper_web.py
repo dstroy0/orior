@@ -21,7 +21,7 @@
 # see one character back, triples see two, quadruples see three, and a language's habits live at those
 # lengths: the characters that may follow each other, the endings it inflects with, the clusters it forbids.
 # The alphabet is narrowed as the order grows so the count of numbers stays manageable, which trades
-# breadth for depth deliberately, and it is stated here because it is a choice.
+# breadth for depth deliberately. It is stated here because it is a choice.
 #
 # The test is the same one that produced the seven percent, run again unchanged. If the margin widens, the
 # reading was destroying the language. If it does not, the language really is only marginally there.

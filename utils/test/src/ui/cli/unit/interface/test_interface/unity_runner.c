@@ -89,7 +89,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\interface\\test_interface\\test_interface.c");
+  UnityBegin("utils/test/src/ui/cli/unit/interface/test_interface/test_interface.c");
   run_test(test_a_process_joins_by_its_key, "test_a_process_joins_by_its_key", 310);
   run_test(test_a_process_listens_on_its_channels, "test_a_process_listens_on_its_channels", 317);
   run_test(test_a_message_on_its_channel_reaches_it, "test_a_message_on_its_channel_reaches_it", 323);

@@ -15,7 +15,7 @@ static const char *const s_control_or_wait[] = {"BRA",   "BRX",  "JMP",      "JM
 std::string run_blob_text(const char *name)
 {
     const unsigned char *bytes = NULL;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     if (!qry_member_blob(name, &bytes, &size, NULL))
     {
         return std::string();
@@ -29,7 +29,7 @@ std::string run_blob_text(const char *name)
 std::string run_file_text(const std::string &path)
 {
     const unsigned char *bytes = NULL;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     if (!qry_member_file_blob(path.c_str(), &bytes, &size))
     {
         return std::string();

@@ -28,7 +28,7 @@ std::vector<char> cycle_cache_read(const std::string &path, const std::string &s
     fclose(file);
     const size_t magic = sizeof(s_cycle_cache_magic) - 1u;
     const size_t head = magic + sizeof(unsigned long long);
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     if (contents.size() >= head)
     {
         memcpy(&length, &contents[magic], sizeof(length));
@@ -186,7 +186,7 @@ const CycleTarget *cycle_target(int major, int minor, int lto, int report)
     return lane_target;
 }
 
-// the .version, .target and .address_size lines of a PTX text, the first of each, in that order; empty where one is
+// the .version, .target and .address_size lines of a PTX text, the first of each, in that order. Empty where one is
 // missing or the address size is not 64, which the lane's pointers are written for
 static std::string cycle_ptx_header_lines(const char *ptx)
 {

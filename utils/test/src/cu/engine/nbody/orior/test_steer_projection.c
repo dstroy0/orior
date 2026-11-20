@@ -132,7 +132,7 @@ static int check_projection_closes(void)
     // A ERROR WRITES NOTHING, AND THAT IS CHECKED BY PLANTING A SENTINEL. Fail closed means a
     // request that cannot be met changes no state. The undersize path used to zero `distinct` while
     // the null and zero-length paths left it alone. A caller could not distinguish an errored zero from a
-    // measured zero. The realistic caller error is sizing the buffers by an expected class count
+    // measured zero. The realistic caller error sizes the buffers by an expected class count
     // and not by `length`, which passes over buffers correct for the field they had in mind.
     {
         const size_t sentinel_count = 43981u;

@@ -99,7 +99,7 @@ int ksg_path_with(const char *path, const char *suffix, char *out)
 // eight bytes low byte first as a word
 static unsigned long long ksg_word_read(const unsigned char *bytes)
 {
-    unsigned long long word = 0ull;
+    unsigned long long word = 0ULL;
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
         word |= (unsigned long long)bytes[at] << (8u * at);
@@ -213,16 +213,16 @@ static int ksg_leaf_check(void *context, const unsigned char *leaf, unsigned lon
     KsgChecking *const checking = context;
     unsigned char stored_trailer[KSG_SIGNUM_BYTES];
     const int read = fread(stored_trailer, 1u, sizeof(stored_trailer), checking->seal) == sizeof(stored_trailer);
-    checking->leaves += 1ull;
+    checking->leaves += 1ULL;
     if (read && (memcmp(stored_trailer, leaf, KSG_SIGNUM_BYTES) == 0))
     {
         return 1;
     }
-    checking->differ += 1ull;
+    checking->differ += 1ULL;
     if (checking->differ <= KSG_NAMED_MAX)
     {
         ksg_print("  line ");
-        ksg_print_number(line + 1ull);
+        ksg_print_number(line + 1ULL);
         ksg_print(read ? " differs\n" : " has no leaf in the seal\n");
         ksg_print_flush();
     }
@@ -245,7 +245,7 @@ static int ksg_checked(const char *path, const KsaApproval *required, unsigned i
     }
     ksg_print(":\n");
     ksg_print_flush();
-    KsgChecking checking = {seal, 0ull, 0ull};
+    KsgChecking checking = {seal, 0ULL, 0ULL};
     unsigned char root[KSG_SIGNUM_BYTES];
     const int sealed = ksg_seal_begun(&s_seal, ksg_leaf_check, &checking) && ksg_file_sealed(path) &&
                        ksg_seal_ended(&s_seal, root, trailer);
@@ -254,7 +254,7 @@ static int ksg_checked(const char *path, const KsaApproval *required, unsigned i
     const int count_matches = (ksg_word_read(trailer + 16u) == ksg_word_read(stored_trailer + 16u)) &&
                               (ksg_word_read(stored_trailer + 8u) == KSG_LINE_MAX);
     const int root_matches = memcmp(trailer + 24u, stored_trailer + 24u, KSG_SIGNUM_BYTES) == 0;
-    const int seal_matches = sealed && (checking.differ == 0ull) && size_matches && count_matches && root_matches;
+    const int seal_matches = sealed && (checking.differ == 0ULL) && size_matches && count_matches && root_matches;
     if (checking.differ > KSG_NAMED_MAX)
     {
         ksg_print("  and ");

@@ -56,7 +56,7 @@ int cli_servers_check_work_state_init(const CliServersQueueFilesCtx *args)
 void cli_servers_check_queued_cleared(const CliServersQueueFilesCtx *args)
 {
     static const unsigned char s_zeros[256];
-    CliServersQueue *const queue = args->queue;
+    const CliServersQueue *const queue = args->queue;
     for (unsigned int at = 0u; (queue->files_cell != NULL) && (at < queue->file_at_max); at += sizeof(s_zeros))
     {
         const unsigned int left = queue->file_at_max - at;

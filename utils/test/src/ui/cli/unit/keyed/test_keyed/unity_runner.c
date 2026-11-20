@@ -75,7 +75,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\keyed\\test_keyed\\test_keyed.c");
+  UnityBegin("utils/test/src/ui/cli/unit/keyed/test_keyed/test_keyed.c");
   run_test(test_an_empty_store_lists_nothing, "test_an_empty_store_lists_nothing", 52);
   run_test(test_keys_and_side_values_count_with_their_terminators_and_values_do_not, "test_keys_and_side_values_count_with_their_terminators_and_values_do_not", 57);
   run_test(test_replacing_an_entry_counts_the_new_side_value, "test_replacing_an_entry_counts_the_new_side_value", 64);

@@ -8,7 +8,7 @@
 
 #include "../../../../../cu/engine/analysis/noise_detector/noise_detector.h"
 
-#define FLOOR_KEY 0x464C4F4F52ull
+#define FLOOR_KEY 0x464C4F4F52ULL
 
 #define FLOOR_STREAM_BITS 512u
 
@@ -24,9 +24,9 @@
 
 #define FLOOR_PLANES 16u
 
-#define FLOOR_THREADS 128ull
+#define FLOOR_THREADS 128ULL
 
-#define FLOOR_LEVELS 262144ull
+#define FLOOR_LEVELS 262144ULL
 
 #define FLOOR_ROUTES 3u
 
@@ -35,11 +35,11 @@
 // the static pairs' neighbor correlation is bounded within 5 / sqrt(N) of 0, this squared times N. A frame difference
 // shares a frame with the next. Over 23 frame pairs a voxel the product sum spreads by sqrt(1.478) of an
 // independent one's, and the tolerance is about 4.1 standard errors
-#define FLOOR_CORRELATION_RANGE_SQUARED 25ll
+#define FLOOR_CORRELATION_RANGE_SQUARED 25LL
 
 // the truth route's slope and intercept are bounded within 5 standard errors of the law, this squared, and the
 // intercept at least 5 above 0
-#define FLOOR_ERROR_RANGE_SQUARED 25ull
+#define FLOOR_ERROR_RANGE_SQUARED 25ULL
 
 typedef struct
 {

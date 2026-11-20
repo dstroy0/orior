@@ -139,7 +139,7 @@ static void lite_ready(void)
     TEST_ASSERT_NOT_NULL(s_lite);
 }
 
-// a stop sent from a thread of its own once half a second has passed
+// a stop sent from a thread of its own once half a second passed
 static void statement_stopped(void *context)
 {
     char why[256];

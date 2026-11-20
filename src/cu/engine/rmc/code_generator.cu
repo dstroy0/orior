@@ -28,7 +28,7 @@ static const RulesetName s_physreg_names[PHYSREG_COUNT] = {PHYSREGS(PHYSREG_WRIT
 // the program's own widths. The code generator writes no text of its own: every line is a form of the language's
 // ruleset, and every register a written form of its banks and fixed registers. The code generator decides what a step
 // does and the ruleset how the language writes it. What each step does, and the lane's opening, close and split into
-// states, is decided in codegen_core.h, which the device compiles as well; here the forms it decides are written in the
+// states, is decided in codegen_core.h, which the device compiles as well. Here the forms it decides are written in the
 // ruleset and arranged into the text in its order. The steps that loop on their values are loops of the same forms,
 // each body over registers of fixed widths so no limb is named by a value the lane computes: the gcd, the golden
 // ladder, a division by more than one limb, and a product too wide to unroll. A loop is a label and a branch back to it
@@ -186,16 +186,16 @@ static std::vector<MachineInstr> code_generator_decided(MachineFunction *lane, c
 {
     MachineFunction counting = *lane;
     counting.items = NULL;
-    counting.capacity = 0ull;
-    counting.count = 0ull;
+    counting.capacity = 0ULL;
+    counting.count = 0ULL;
     decide(&counting);
     std::vector<MachineInstr> items((size_t)counting.count);
     lane->items = items.data();
     lane->capacity = counting.count;
-    lane->count = 0ull;
+    lane->count = 0ULL;
     decide(lane);
     lane->items = NULL;
-    lane->capacity = 0ull;
+    lane->capacity = 0ULL;
     return items;
 }
 
@@ -231,10 +231,10 @@ static unsigned int code_generator_live_max(const IrProgram *program, const std:
         }
     }
     // the change in live words at each step, their count its running sum
-    std::vector<long long> change((size_t)steps + 1u, 0ll);
+    std::vector<long long> change((size_t)steps + 1u, 0LL);
     for (unsigned int at = 0u; at < steps; at += 1u)
     {
-        const long long value = (long long)program->steps[at].limbs + 1ll;
+        const long long value = (long long)program->steps[at].limbs + 1LL;
         change[at] += value + (long long)step_words[at];
         change[read_last[at] + 1u] -= value;
         change[at + 1u] -= (long long)step_words[at];
@@ -243,20 +243,20 @@ static unsigned int code_generator_live_max(const IrProgram *program, const std:
     {
         if (program->put_last[word] != 0u)
         {
-            change[program->put_first[word]] += 1ll;
-            change[program->put_last[word]] -= 1ll;
+            change[program->put_first[word]] += 1LL;
+            change[program->put_last[word]] -= 1LL;
         }
     }
     for (unsigned int atom = 0u; atom < atoms; atom += 1u)
     {
         if (program->atom_reader[atom] != steps)
         {
-            change[program->atom_reader[atom]] += 1ll;
-            change[(size_t)atom_last[atom] + 1u] -= 1ll;
+            change[program->atom_reader[atom]] += 1LL;
+            change[(size_t)atom_last[atom] + 1u] -= 1LL;
         }
     }
-    long long live = 0ll;
-    long long max = 0ll;
+    long long live = 0LL;
+    long long max = 0LL;
     for (unsigned int at = 0u; at < steps; at += 1u)
     {
         live += change[at];
@@ -499,7 +499,7 @@ int CodeGenerator::decide(const EngineRecordLayout *layout, const ScheduleModel 
     return 1;
 }
 
-// the lane as decide() decides it, written in the ruleset under `header` for `target`, which the note names; empty
+// the lane as decide() decides it, written in the ruleset under `header` for `target`, which the note names. Empty
 // where it is not decided, its banks run past the language's register file, or a form was written with other
 // arguments than it takes
 std::string CodeGenerator::lane(const EngineRecordLayout *layout, const TargetInfo *target, const std::string &header,
@@ -542,9 +542,9 @@ std::string CodeGenerator::lane(const EngineRecordLayout *layout, const TargetIn
                                    : (one.scratch_of != CODEGEN_NO_ITEM)
                                        ? ("scratch of " + std::string(s_opcode_names[items[one.scratch_of].form].text))
                                        : std::string(s_regclass_names[one.bank].text);
-        claim_lines += written + " " + holder + " claimed " + std::to_string(one.claimed + 1ull) + " " +
+        claim_lines += written + " " + holder + " claimed " + std::to_string(one.claimed + 1ULL) + " " +
                        s_opcode_names[items[one.claimed].form].text + " released " +
-                       std::to_string(one.released + 1ull) + " " + s_opcode_names[items[one.released].form].text + "\n";
+                       std::to_string(one.released + 1ULL) + " " + s_opcode_names[items[one.released].form].text + "\n";
     }
     int broken = 0;
     std::string text;

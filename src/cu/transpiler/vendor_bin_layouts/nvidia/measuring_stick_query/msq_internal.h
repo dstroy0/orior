@@ -38,7 +38,7 @@ static const char *const s_control[] = {"BRA",   "BRX",   "JMP",  "JMX",      "C
                                         "BPT",   "RTT",   "KILL", "RPCMOV",   "RETIRE", "PMTRIG"};
 
 // an executable section of an ELF, by the flag its header carries
-#define MSQ_EXECUTABLE 0x4ull
+#define MSQ_EXECUTABLE 0x4ULL
 
 // the max registers a reading names, past the max a kernel allots and the widest operand past it
 #define MSQ_REGISTERS 512u

@@ -48,7 +48,7 @@ int cli_started_outside(const CliWordsIdCtx *args)
 {
     unsigned int *id = args->id;
     static char s_line[32768];
-    VerbaLinea line = {s_line, sizeof(s_line), 0ull};
+    VerbaLinea line = {s_line, sizeof(s_line), 0ULL};
     for (unsigned int at = 0u; args->words[at] != NULL; at += 1u)
     {
         const int quoted = (args->words[at][0] == '\0') ||
@@ -59,7 +59,7 @@ int cli_started_outside(const CliWordsIdCtx *args)
         mmgr_line_put(&line, args->words[at]);
         mmgr_line_put(&line, quoted ? "\"" : "");
     }
-    if (mmgr_line_finish(&line) == 0ull)
+    if (mmgr_line_finish(&line) == 0ULL)
     {
         return 0;
     }
@@ -185,7 +185,7 @@ EMBED_INLINE unsigned long long windows_standard_handle(DWORD which)
     const HANDLE handle = GetStdHandle(which);
     if ((handle == INVALID_HANDLE_VALUE) || (handle == NULL))
     {
-        return 0ull;
+        return 0ULL;
     }
     // a handle is a pointer-sized value the pipe handle word stores whole
     return (unsigned long long)(embed_word)handle;
@@ -277,14 +277,14 @@ unsigned long long cli_clock_milliseconds(void)
 {
     // The tick count moves in steps of the system timer, about 15.6 ms, and a moving part read from it is stationary
     // across whole frames. The performance counter moves each microsecond
-    return cli_clock_microseconds() / 1000ull;
+    return cli_clock_microseconds() / 1000ULL;
 }
 
 int cli_raised_platform(const CliErrMsgFromCtx *args)
 {
     char program[CLI_PATH_MAX_LEN];
     char parameters[(2u * CLI_PATH_MAX_LEN) + 32u];
-    VerbaLinea line = {parameters, sizeof(parameters), 0ull};
+    VerbaLinea line = {parameters, sizeof(parameters), 0ULL};
     mmgr_line_put(&line, "write-raised \"");
     mmgr_line_put(&line, args->from_text);
     mmgr_line_put(&line, "\" \"");
@@ -292,7 +292,7 @@ int cli_raised_platform(const CliErrMsgFromCtx *args)
     mmgr_line_ch(&line, '"');
     if (!EMBED_CALL(cli_path_capacity_internal.program_own, CliPathCapacityCtx, .path_out = program,
                     .capacity_bytes = sizeof(program)) ||
-        (mmgr_line_finish(&line) == 0ull))
+        (mmgr_line_finish(&line) == 0ULL))
     {
         mmgr_line_put(args->err_msg, "orior's own program could not be named");
         return 0;
@@ -355,9 +355,9 @@ static int cli_sockets_start(void)
 
 int cli_socket_connect(const CliErrMsgCtx *args)
 {
-    args->sock_out->handle = 0ull;
+    args->sock_out->handle = 0ULL;
     char service[16];
-    VerbaLinea service_line = {service, sizeof(service), 0ull};
+    VerbaLinea service_line = {service, sizeof(service), 0ULL};
     mmgr_line_decimal(&service_line, args->port, 0u);
     mmgr_line_finish(&service_line);
     ADDRINFOA hints;
@@ -395,18 +395,18 @@ int cli_socket_connect(const CliErrMsgCtx *args)
     const BOOL no_delay = TRUE;
     setsockopt(made, IPPROTO_TCP, TCP_NODELAY, (const char *)&no_delay, sizeof(no_delay));
     // a socket is a pointer's width, which an unsigned long long stores; one past it so that 0 is for none
-    args->sock_out->handle = (unsigned long long)made + 1ull;
+    args->sock_out->handle = (unsigned long long)made + 1ULL;
     return 1;
 }
 
 int cli_socket_write(const CliBytesSizeCtx *args)
 {
-    const SOCKET handle_at = (SOCKET)(args->sock->handle - 1ull);
-    unsigned long long put = 0ull;
+    const SOCKET handle_at = (SOCKET)(args->sock->handle - 1ULL);
+    unsigned long long put = 0ULL;
     while (put < args->size)
     {
         // a piece is at max a gibibyte, which an int counts
-        const int piece = (int)(((args->size - put) < (1ull << 30u)) ? (args->size - put) : (1ull << 30u));
+        const int piece = (int)(((args->size - put) < (1ULL << 30u)) ? (args->size - put) : (1ULL << 30u));
         const int sent = send(handle_at, (const char *)args->bytes + put, piece, 0);
         if (sent <= 0)
         {
@@ -419,11 +419,11 @@ int cli_socket_write(const CliBytesSizeCtx *args)
 
 int cli_socket_read(const CliSizeBytesCtx *args)
 {
-    const SOCKET handle_at = (SOCKET)(args->sock->handle - 1ull);
-    unsigned long long got = 0ull;
+    const SOCKET handle_at = (SOCKET)(args->sock->handle - 1ULL);
+    unsigned long long got = 0ULL;
     while (got < args->size)
     {
-        const int piece = (int)(((args->size - got) < (1ull << 30u)) ? (args->size - got) : (1ull << 30u));
+        const int piece = (int)(((args->size - got) < (1ULL << 30u)) ? (args->size - got) : (1ULL << 30u));
         const int read = recv(handle_at, (char *)args->bytes_out + got, piece, 0);
         if (read <= 0)
         {
@@ -437,8 +437,8 @@ int cli_socket_read(const CliSizeBytesCtx *args)
 long long cli_socket_some(const CliCapacityCtx *args)
 {
     // a piece is at max a gibibyte, which an int counts
-    const int piece = (int)((args->capacity < (1ull << 30u)) ? args->capacity : (1ull << 30u));
-    const int read = recv((SOCKET)(args->sock->handle - 1ull), (char *)args->bytes_out, piece, 0);
+    const int piece = (int)((args->capacity < (1ULL << 30u)) ? args->capacity : (1ULL << 30u));
+    const int read = recv((SOCKET)(args->sock->handle - 1ULL), (char *)args->bytes_out, piece, 0);
     if (read > 0)
     {
         return read;
@@ -453,30 +453,30 @@ long long cli_socket_some(const CliCapacityCtx *args)
 void cli_socket_wait(const CliSockCtx *args)
 {
     const DWORD wait = args->milliseconds;
-    setsockopt((SOCKET)(args->sock->handle - 1ull), SOL_SOCKET, SO_RCVTIMEO, (const char *)&wait, sizeof(wait));
+    setsockopt((SOCKET)(args->sock->handle - 1ULL), SOL_SOCKET, SO_RCVTIMEO, (const char *)&wait, sizeof(wait));
 }
 
 void cli_socket_write_wait(const CliSockCtx *args)
 {
     const DWORD wait = args->milliseconds;
-    setsockopt((SOCKET)(args->sock->handle - 1ull), SOL_SOCKET, SO_SNDTIMEO, (const char *)&wait, sizeof(wait));
+    setsockopt((SOCKET)(args->sock->handle - 1ULL), SOL_SOCKET, SO_SNDTIMEO, (const char *)&wait, sizeof(wait));
 }
 
 void cli_socket_end(const CliSockCtx *args)
 {
-    if (args->sock->handle != 0ull)
+    if (args->sock->handle != 0ULL)
     {
-        shutdown((SOCKET)(args->sock->handle - 1ull), SD_BOTH);
+        shutdown((SOCKET)(args->sock->handle - 1ULL), SD_BOTH);
     }
 }
 
 void cli_socket_close(const CliErrMsgCtx *args)
 {
-    if (args->sock_out->handle != 0ull)
+    if (args->sock_out->handle != 0ULL)
     {
-        closesocket((SOCKET)(args->sock_out->handle - 1ull));
+        closesocket((SOCKET)(args->sock_out->handle - 1ULL));
     }
-    args->sock_out->handle = 0ull;
+    args->sock_out->handle = 0ULL;
 }
 
 int cli_port_free(const CliErrMsgPortCtx *args)

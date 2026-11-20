@@ -15,9 +15,9 @@ static unsigned int tower_record_append(TowerRecordBuilder *builder, EngineRecor
     {
         builder->steps[builder->count] = EngineRecordStep{operation, left, right, 0u};
     }
-    builder->count += 1ull;
+    builder->count += 1ULL;
     // a program is written only once its count is bounded by 2^32 - 1, and a counted name past that errors unread
-    return (unsigned int)(builder->count - 1ull);
+    return (unsigned int)(builder->count - 1ULL);
 }
 
 static unsigned int tower_record_constant(TowerRecordBuilder *builder, unsigned long long value)
@@ -31,7 +31,7 @@ static unsigned int tower_record_constant(TowerRecordBuilder *builder, unsigned 
     }
     // a constant step stores its value's low 32 bits in `left` and its high 32 in `right`
     const unsigned int step_index = tower_record_append(
-        builder, ENGINE_RECORD_CONSTANT, (unsigned int)(value & 0xFFFFFFFFull), (unsigned int)(value >> 32u));
+        builder, ENGINE_RECORD_CONSTANT, (unsigned int)(value & 0xFFFFFFFFULL), (unsigned int)(value >> 32u));
     builder->constants.push_back(std::pair<unsigned long long, unsigned int>(value, step_index));
     return step_index;
 }
@@ -44,11 +44,11 @@ static unsigned int tower_record_floor_shift(TowerRecordBuilder *builder, unsign
     {
         return value;
     }
-    const unsigned int mask = tower_record_constant(builder, (1ull << shift) - 1ull);
+    const unsigned int mask = tower_record_constant(builder, (1ULL << shift) - 1ULL);
     const unsigned int residue = tower_record_append(builder, ENGINE_RECORD_AND, value, mask);
     const unsigned int difference = tower_record_append(builder, ENGINE_RECORD_DIFFERENCE, value, residue);
     return tower_record_append(builder, ENGINE_RECORD_EXACT_QUOTIENT, difference,
-                               tower_record_constant(builder, 1ull << shift));
+                               tower_record_constant(builder, 1ULL << shift));
 }
 
 // one lifting step over a band: each value moves by sign * floor((rounding + sum_k weight_k * other[a + offset_k]) /
@@ -57,7 +57,7 @@ static void tower_record_lifting_step(TowerRecordBuilder *builder, const TowerLi
                                       std::vector<unsigned int> &target, const std::vector<unsigned int> &other)
 {
     // both bands of a lifted line contain at least one value, and far fewer than 2^31
-    const long long last = (long long)other.size() - 1ll;
+    const long long last = (long long)other.size() - 1LL;
     for (size_t at = 0u; at < target.size(); at += 1u)
     {
         unsigned int sum = 0u;
@@ -70,7 +70,7 @@ static void tower_record_lifting_step(TowerRecordBuilder *builder, const TowerLi
         for (unsigned int tap = 0u; tap < rule.taps; tap += 1u)
         {
             const long long wanted = (long long)at + (long long)rule.offset[tap];
-            const long long taken = (wanted < 0ll) ? 0ll : ((wanted > last) ? last : wanted);
+            const long long taken = (wanted < 0LL) ? 0LL : ((wanted > last) ? last : wanted);
             unsigned int term = other[(size_t)taken];
             // a weight is never INT_MIN. Its magnitude is an int
             const unsigned int magnitude =
@@ -84,7 +84,7 @@ static void tower_record_lifting_step(TowerRecordBuilder *builder, const TowerLi
             {
                 sum = (rule.weight[tap] > 0) ? term
                                              : tower_record_append(builder, ENGINE_RECORD_DIFFERENCE,
-                                                                   tower_record_constant(builder, 0ull), term);
+                                                                   tower_record_constant(builder, 0ULL), term);
                 summed = 1;
             }
             else
@@ -108,18 +108,18 @@ static void tower_record_line(TowerRecordBuilder *builder, const TowerLiftingSte
                               std::vector<unsigned int> &registers, unsigned long long line, unsigned long long stride,
                               unsigned long long length, int inverse)
 {
-    const unsigned long long lows = (length + 1ull) / 2ull;
-    const unsigned long long highs = length / 2ull;
+    const unsigned long long lows = (length + 1ULL) / 2ULL;
+    const unsigned long long highs = length / 2ULL;
     // a band's k-th value sits at 2k or 2k + 1 along the interleaved line, and at k or lows + k along the lifted one
     std::vector<unsigned int> low((size_t)lows);
     std::vector<unsigned int> high((size_t)highs);
-    for (unsigned long long k = 0ull; k < lows; k += 1ull)
+    for (unsigned long long k = 0ULL; k < lows; k += 1ULL)
     {
-        low[(size_t)k] = registers[(size_t)(line + (((inverse != 0) ? k : (2ull * k)) * stride))];
+        low[(size_t)k] = registers[(size_t)(line + (((inverse != 0) ? k : (2ULL * k)) * stride))];
     }
-    for (unsigned long long k = 0ull; k < highs; k += 1ull)
+    for (unsigned long long k = 0ULL; k < highs; k += 1ULL)
     {
-        high[(size_t)k] = registers[(size_t)(line + (((inverse != 0) ? (lows + k) : ((2ull * k) + 1ull)) * stride))];
+        high[(size_t)k] = registers[(size_t)(line + (((inverse != 0) ? (lows + k) : ((2ULL * k) + 1ULL)) * stride))];
     }
     for (unsigned int walked = 0u; walked < rule_count; walked += 1u)
     {
@@ -133,13 +133,13 @@ static void tower_record_line(TowerRecordBuilder *builder, const TowerLiftingSte
             tower_record_lifting_step(builder, rule, inverse, low, high);
         }
     }
-    for (unsigned long long k = 0ull; k < lows; k += 1ull)
+    for (unsigned long long k = 0ULL; k < lows; k += 1ULL)
     {
-        registers[(size_t)(line + (((inverse != 0) ? (2ull * k) : k) * stride))] = low[(size_t)k];
+        registers[(size_t)(line + (((inverse != 0) ? (2ULL * k) : k) * stride))] = low[(size_t)k];
     }
-    for (unsigned long long k = 0ull; k < highs; k += 1ull)
+    for (unsigned long long k = 0ULL; k < highs; k += 1ULL)
     {
-        registers[(size_t)(line + (((inverse != 0) ? ((2ull * k) + 1ull) : (lows + k)) * stride))] = high[(size_t)k];
+        registers[(size_t)(line + (((inverse != 0) ? ((2ULL * k) + 1ULL) : (lows + k)) * stride))] = high[(size_t)k];
     }
 }
 
@@ -147,17 +147,17 @@ static void tower_record_line(TowerRecordBuilder *builder, const TowerLiftingSte
 static std::vector<unsigned long long> tower_record_lines(const TowerStep &step, unsigned int axis)
 {
     unsigned long long across[4];
-    unsigned long long lines = 1ull;
+    unsigned long long lines = 1ULL;
     for (unsigned int each = 0u; each < 4u; each += 1u)
     {
-        across[each] = (each == axis) ? 1ull : step.extent[each];
+        across[each] = (each == axis) ? 1ULL : step.extent[each];
         lines *= across[each];
     }
     std::vector<unsigned long long> first((size_t)lines);
-    for (unsigned long long index = 0ull; index < lines; index += 1ull)
+    for (unsigned long long index = 0ULL; index < lines; index += 1ULL)
     {
         unsigned long long rest = index;
-        unsigned long long offset = 0ull;
+        unsigned long long offset = 0ULL;
         for (unsigned int each = 4u; each > 0u; each -= 1u)
         {
             offset += (rest % across[each - 1u]) * step.stride[each - 1u];
@@ -180,7 +180,7 @@ static void tower_record_build(TowerRecordBuilder *builder, const TowerLiftingSt
         for (unsigned int turn = 0u; turn < 4u; turn += 1u)
         {
             const unsigned int axis = (inverse != 0) ? (3u - turn) : turn;
-            if (step.extent[axis] < 2ull)
+            if (step.extent[axis] < 2ULL)
             {
                 continue;
             }
@@ -206,7 +206,7 @@ static long tower_record_run(const TowerRecordRequest *request, int inverse)
         return TOWER_ERROR;
     }
     const unsigned long long lanes = tower_lanes(request->extent);
-    if (!TOWER_CHECK((lanes != 0ull) && (lanes <= 0xFFFFFFFFull), request->extent, error, ENGINE_ERROR_REQUEST))
+    if (!TOWER_CHECK((lanes != 0ULL) && (lanes <= 0xFFFFFFFFULL), request->extent, error, ENGINE_ERROR_REQUEST))
     {
         return TOWER_ERROR;
     }
@@ -236,7 +236,7 @@ static long tower_record_run(const TowerRecordRequest *request, int inverse)
     }
     const unsigned int start = *request->count;
     std::vector<unsigned int> registers((size_t)lanes);
-    for (unsigned long long lane = 0ull; lane < lanes; lane += 1ull)
+    for (unsigned long long lane = 0ULL; lane < lanes; lane += 1ULL)
     {
         // a value the block reads is an earlier step's register
         if (!TOWER_CHECK(request->in_registers[lane] < start, &request->in_registers[lane], error,
@@ -251,7 +251,7 @@ static long tower_record_run(const TowerRecordRequest *request, int inverse)
     TowerRecordBuilder counted = {NULL, start, {}};
     std::vector<unsigned int> named = registers;
     tower_record_build(&counted, rules, rule_count, floors, named, inverse);
-    if (!TOWER_CHECK((counted.count <= 0xFFFFFFFFull) &&
+    if (!TOWER_CHECK((counted.count <= 0xFFFFFFFFULL) &&
                          ((request->steps == NULL) || (counted.count <= (unsigned long long)request->step_capacity)),
                      request, error, ENGINE_ERROR_REQUEST))
     {

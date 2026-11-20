@@ -80,7 +80,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\db_pane\\test_db_pane\\test_db_pane.c");
+  UnityBegin("utils/test/src/ui/cli/unit/db_pane/test_db_pane/test_db_pane.c");
   run_test(test_the_connections_read_with_none_chosen_are_as_one_sentence, "test_the_connections_read_with_none_chosen_are_as_one_sentence", 133);
   run_test(test_the_chosen_connection_is_not_connected_until_connect_opens_its_schema, "test_the_chosen_connection_is_not_connected_until_connect_opens_its_schema", 144);
   run_test(test_a_node_pressed_reads_its_level_once_and_a_second_press_closes_it, "test_a_node_pressed_reads_its_level_once_and_a_second_press_closes_it", 166);

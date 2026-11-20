@@ -11,8 +11,8 @@
 unsigned int krs_parameters_named(const char *path, const char *name, char parameter[][KRS_NAME])
 {
     const unsigned char *file_bytes = NULL;
-    unsigned long long file_size = 0ull;
-    unsigned long long file_at = 0ull;
+    unsigned long long file_size = 0ULL;
+    unsigned long long file_at = 0ULL;
     if (!qry_member_file_blob(path, &file_bytes, &file_size))
     {
         return 0u;
@@ -173,9 +173,9 @@ void krs_folder_of(const char *path, char *folder, size_t room)
 
 int krs_place_read(const char *walk, unsigned int *place, int *length)
 {
-    unsigned long long read = 0ull;
+    unsigned long long read = 0ULL;
     const char *inside = walk + 1;
-    if ((*walk != '{') || !line_number(&inside, 0, &read) || (*inside != '}') || (read > 0xffffffffull))
+    if ((*walk != '{') || !line_number(&inside, 0, &read) || (*inside != '}') || (read > 0xffffffffULL))
     {
         return 0;
     }

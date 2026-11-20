@@ -59,9 +59,9 @@ def rounds_of(message, read="state"):
     THE DIFFERENCE MATTERS AND IT IS NOT SMALL
 
     The digest reading adds the initial values back into every word before handing the frame over.
-    That feed-forward is a mixing step applied after the round has finished, and it is applied to
+    That feed-forward is a mixing step applied after the round finished, and it is applied to
     every frame. It hides the structure the round itself put there. Measuring the digest sequence
-    and reporting it as a property of the round is measuring the wrong object.
+    and reporting it as a property of the round measures the wrong object.
 
     The working state is the eight words as the round leaves them, with nothing added back, and the
     register shift is visible only in that. Every earlier reading here used the digest. The
@@ -121,7 +121,7 @@ def redraw_level(points, lit_count, seed=9, tries=200):
     Without this the delta is a number with no scale. Eight characters over 256 bits is a coarse
     alphabet, and two unrelated states of the same weight already differ by a few percent in it just
     from the counting noise, and a measured delta only means something measured against that. A reading
-    sitting at this level is saturated: it is reporting noise at full volume and has no room left to
+    sitting at this level is saturated. It is reporting noise at full volume and has no room left to
     show the mixing taking hold.
     """
     state = (seed ^ 0x9E3779B97F4A7C15) & 0xFFFFFFFFFFFFFFFF

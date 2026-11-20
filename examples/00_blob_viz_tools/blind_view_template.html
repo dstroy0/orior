@@ -159,7 +159,7 @@ EV.rgb = (color) => {
 };
 
 // The field at one point of the map, read back through the inverse projection and interpolated between the four
-// grid samples around it; null outside the ellipse. Row r sits at colatitude pi (r + 1/2) / rows from the north
+// grid samples around it. Null outside the ellipse. Row r sits at colatitude pi (r + 1/2) / rows from the north
 // pole, and column c at longitude 2 pi c / columns, the grid sphere_field.synthesize samples.
 EV.fieldAt = (field, x, y) => {
   if (x * x + y * y > 1) {

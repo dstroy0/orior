@@ -73,7 +73,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\file_writing\\test_file_writing\\test_file_writing.c");
+  UnityBegin("utils/test/src/ui/cli/unit/file_writing/test_file_writing/test_file_writing.c");
   run_test(test_a_gsm_written_in_pieces_holds_its_bytes, "test_a_gsm_written_in_pieces_holds_its_bytes", 70);
   run_test(test_the_seal_adjacent_it_holds_the_root_of_those_bytes, "test_the_seal_adjacent_it_holds_the_root_of_those_bytes", 75);
   run_test(test_a_markdown_file_is_written_with_no_seal, "test_a_markdown_file_is_written_with_no_seal", 80);

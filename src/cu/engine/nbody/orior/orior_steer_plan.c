@@ -49,7 +49,7 @@ static size_t steer_descend(size_t *offsets, size_t count, const uint8_t *corpus
     // running one descent, then running the next over the survivors the last one left. The child
     // reads only what the parent left located and its cost is the survivor count and not the whole
     // field. The engine cannot check that an incoming survivor set is a valid superset of the true
-    // occurrences; that obligation is the caller's, and it is satisfied when the set came from an earlier
+    // occurrences; that obligation is the caller's. It is satisfied when the set came from an earlier
     // descent on this field. A lone survivor is still not an answer: it has passed only the probes
     // placed so far, and the caller verifies it against the conditions not yet tested with a full
     // compare before calling it found.

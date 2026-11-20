@@ -84,7 +84,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\notebook\\test_notebook\\test_notebook.c");
+  UnityBegin("utils/test/src/ui/cli/unit/notebook/test_notebook/test_notebook.c");
   run_test(test_a_cells_source_reads_as_one_string, "test_a_cells_source_reads_as_one_string", 132);
   run_test(test_a_cells_output_text_reads_as_one_string, "test_a_cells_output_text_reads_as_one_string", 139);
   run_test(test_a_notebook_writes_back_unchanged, "test_a_notebook_writes_back_unchanged", 146);

@@ -13,11 +13,11 @@ void knf_entangle(const KnfRecord *record, const unsigned int *map, unsigned lon
 {
     memset(result, 0, sizeof(*result));
     const unsigned long long side = record->side;
-    for (unsigned long long depth = 0ull; depth < side; depth += 1ull)
+    for (unsigned long long depth = 0ULL; depth < side; depth += 1ULL)
     {
-        for (unsigned long long row = 0ull; row < side; row += 1ull)
+        for (unsigned long long row = 0ULL; row < side; row += 1ULL)
         {
-            for (unsigned long long column = 0ull; column < side; column += 1ull)
+            for (unsigned long long column = 0ULL; column < side; column += 1ULL)
             {
                 const unsigned long long place[SIM_AXES] = {depth, row, column};
                 const unsigned long long voxel = (((depth * side) + row) * side) + column;
@@ -26,7 +26,7 @@ void knf_entangle(const KnfRecord *record, const unsigned int *map, unsigned lon
                 for (unsigned int axis = 0u; axis < SIM_AXES; axis += 1u)
                 {
                     unsigned long long next[SIM_AXES] = {depth, row, column};
-                    next[axis] = (place[axis] + 1ull) % side;
+                    next[axis] = (place[axis] + 1ULL) % side;
                     const unsigned long long across = (((next[0] * side) + next[1]) * side) + next[2];
                     const unsigned long long other = (map != NULL) ? map[across] : across;
                     const long long term = knf_pair(here, &record->centerd[other * KNF_WINDOWS]);
@@ -56,39 +56,39 @@ void knf_inside_draw(unsigned int *map, unsigned int *cells, unsigned long long 
                      unsigned long long key)
 {
     const unsigned long long voxels = side * side * side;
-    for (unsigned long long voxel = 0ull; voxel < voxels; voxel += 1ull)
+    for (unsigned long long voxel = 0ULL; voxel < voxels; voxel += 1ULL)
     {
         // a voxel index is below 2^18 here
         map[voxel] = (unsigned int)voxel;
     }
     const unsigned long long across = side / tile;
-    unsigned long long counter = 0ull;
-    for (unsigned long long tile_depth = 0ull; tile_depth < across; tile_depth += 1ull)
+    unsigned long long counter = 0ULL;
+    for (unsigned long long tile_depth = 0ULL; tile_depth < across; tile_depth += 1ULL)
     {
-        for (unsigned long long tile_row = 0ull; tile_row < across; tile_row += 1ull)
+        for (unsigned long long tile_row = 0ULL; tile_row < across; tile_row += 1ULL)
         {
-            for (unsigned long long tile_column = 0ull; tile_column < across; tile_column += 1ull)
+            for (unsigned long long tile_column = 0ULL; tile_column < across; tile_column += 1ULL)
             {
-                unsigned long long cell_count = 0ull;
-                for (unsigned long long depth = tile_depth * tile; depth < (tile_depth + 1ull) * tile; depth += 1ull)
+                unsigned long long cell_count = 0ULL;
+                for (unsigned long long depth = tile_depth * tile; depth < (tile_depth + 1ULL) * tile; depth += 1ULL)
                 {
-                    for (unsigned long long row = tile_row * tile; row < (tile_row + 1ull) * tile; row += 1ull)
+                    for (unsigned long long row = tile_row * tile; row < (tile_row + 1ULL) * tile; row += 1ULL)
                     {
-                        for (unsigned long long column = tile_column * tile; column < (tile_column + 1ull) * tile;
-                             column += 1ull)
+                        for (unsigned long long column = tile_column * tile; column < (tile_column + 1ULL) * tile;
+                             column += 1ULL)
                         {
                             // a voxel index is below 2^18 here
                             cells[cell_count] = (unsigned int)((((depth * side) + row) * side) + column);
-                            cell_count += 1ull;
+                            cell_count += 1ULL;
                         }
                     }
                 }
-                for (unsigned long long remaining = cell_count; remaining > 1ull; remaining -= 1ull)
+                for (unsigned long long remaining = cell_count; remaining > 1ULL; remaining -= 1ULL)
                 {
                     const unsigned long long pick = sim_draw_below(key, counter, remaining);
-                    counter += 1ull;
-                    const unsigned int chosen = map[cells[remaining - 1ull]];
-                    map[cells[remaining - 1ull]] = map[cells[pick]];
+                    counter += 1ULL;
+                    const unsigned int chosen = map[cells[remaining - 1ULL]];
+                    map[cells[remaining - 1ULL]] = map[cells[pick]];
                     map[cells[pick]] = chosen;
                 }
             }
@@ -102,23 +102,23 @@ void knf_between_draw(unsigned int *map, unsigned int *cells, unsigned long long
 {
     const unsigned long long across = side / tile;
     const unsigned long long tiles = across * across * across;
-    for (unsigned long long index = 0ull; index < tiles; index += 1ull)
+    for (unsigned long long index = 0ULL; index < tiles; index += 1ULL)
     {
         // a tile index is below 2^18 here
         cells[index] = (unsigned int)index;
     }
-    for (unsigned long long remaining = tiles; remaining > 1ull; remaining -= 1ull)
+    for (unsigned long long remaining = tiles; remaining > 1ULL; remaining -= 1ULL)
     {
         const unsigned long long pick = sim_draw_below(key, remaining, remaining);
-        const unsigned int chosen = cells[remaining - 1ull];
-        cells[remaining - 1ull] = cells[pick];
+        const unsigned int chosen = cells[remaining - 1ULL];
+        cells[remaining - 1ULL] = cells[pick];
         cells[pick] = chosen;
     }
-    for (unsigned long long depth = 0ull; depth < side; depth += 1ull)
+    for (unsigned long long depth = 0ULL; depth < side; depth += 1ULL)
     {
-        for (unsigned long long row = 0ull; row < side; row += 1ull)
+        for (unsigned long long row = 0ULL; row < side; row += 1ULL)
         {
-            for (unsigned long long column = 0ull; column < side; column += 1ull)
+            for (unsigned long long column = 0ULL; column < side; column += 1ULL)
             {
                 const unsigned long long place =
                     ((((depth / tile) * across) + (row / tile)) * across) + (column / tile);
@@ -160,26 +160,26 @@ static void knf_host_section(const unsigned short *series, unsigned long long *w
     {
         counts[bit] = 0u;
     }
-    unsigned long long window = 0ull;
+    unsigned long long window = 0ULL;
     unsigned int in_window = 0u;
-    for (unsigned long long frame = 1ull; frame < KNF_FRAMES; frame += 1ull)
+    for (unsigned long long frame = 1ULL; frame < KNF_FRAMES; frame += 1ULL)
     {
-        const unsigned int flipped = (unsigned int)series[frame] ^ (unsigned int)series[frame - 1ull];
+        const unsigned int flipped = (unsigned int)series[frame] ^ (unsigned int)series[frame - 1ULL];
         for (unsigned int bit = 0u; bit < ENGINE_HISTORY_BITS; bit += 1u)
         {
             counts[bit] += (flipped >> bit) & 1u;
         }
         in_window += 1u;
-        if ((in_window == ENGINE_HISTORY_WINDOW) || (frame == (KNF_FRAMES - 1ull)))
+        if ((in_window == ENGINE_HISTORY_WINDOW) || (frame == (KNF_FRAMES - 1ULL)))
         {
-            unsigned long long packed = 0ull;
+            unsigned long long packed = 0ULL;
             for (unsigned int bit = 0u; bit < ENGINE_HISTORY_BITS; bit += 1u)
             {
                 packed |= (unsigned long long)counts[bit] << (4u * bit);
                 counts[bit] = 0u;
             }
             words[window] = packed;
-            window += 1ull;
+            window += 1ULL;
             in_window = 0u;
         }
     }
@@ -188,7 +188,7 @@ static void knf_host_section(const unsigned short *series, unsigned long long *w
 static int knf_section_same(const KnfRecord *record, unsigned long long voxel, const unsigned long long *words)
 {
     int same = 1;
-    for (unsigned long long window = 0ull; window < KNF_WINDOWS; window += 1ull)
+    for (unsigned long long window = 0ULL; window < KNF_WINDOWS; window += 1ULL)
     {
         same = same && (record->history[(window * record->voxels) + voxel] == words[window]);
     }
@@ -200,27 +200,27 @@ void knf_one_bit(SimResults *results, const unsigned short *lanes, const KnfReco
     const unsigned long long voxels = record->voxels;
     unsigned short series[KNF_FRAMES];
     unsigned long long words[KNF_WINDOWS];
-    unsigned long long mirror_differ = 0ull;
-    for (unsigned long long voxel = 0ull; voxel < voxels; voxel += 1ull)
+    unsigned long long mirror_differ = 0ULL;
+    for (unsigned long long voxel = 0ULL; voxel < voxels; voxel += 1ULL)
     {
-        for (unsigned long long frame = 0ull; frame < KNF_FRAMES; frame += 1ull)
+        for (unsigned long long frame = 0ULL; frame < KNF_FRAMES; frame += 1ULL)
         {
             series[frame] = lanes[(frame * voxels) + voxel];
         }
         knf_host_section(series, words);
-        mirror_differ += (knf_section_same(record, voxel, words) != 0) ? 0ull : 1ull;
+        mirror_differ += (knf_section_same(record, voxel, words) != 0) ? 0ULL : 1ULL;
     }
-    sim_check(results, mirror_differ == 0ull, "the host's walk of every voxel equals the engine's knf");
-    unsigned long long agree = 0ull;
-    unsigned long long unchanged = 0ull;
+    sim_check(results, mirror_differ == 0ULL, "the host's walk of every voxel equals the engine's knf");
+    unsigned long long agree = 0ULL;
+    unsigned long long unchanged = 0ULL;
     for (unsigned int flip = 0u; flip < KNF_FLIPS; flip += 1u)
     {
         const unsigned long long key = KNF_KEY ^ KNF_FLIP_PURPOSE;
-        const unsigned long long voxel = sim_draw_below(key, 3ull * flip, voxels);
-        const unsigned long long frame = sim_draw_below(key, (3ull * flip) + 1ull, KNF_FRAMES);
+        const unsigned long long voxel = sim_draw_below(key, 3ULL * flip, voxels);
+        const unsigned long long frame = sim_draw_below(key, (3ULL * flip) + 1ULL, KNF_FRAMES);
         // a draw below 16 fits any unsigned int
-        const unsigned int bit = (unsigned int)sim_draw_below(key, (3ull * flip) + 2ull, ENGINE_HISTORY_BITS);
-        for (unsigned long long at = 0ull; at < KNF_FRAMES; at += 1ull)
+        const unsigned int bit = (unsigned int)sim_draw_below(key, (3ULL * flip) + 2ULL, ENGINE_HISTORY_BITS);
+        for (unsigned long long at = 0ULL; at < KNF_FRAMES; at += 1ULL)
         {
             series[at] = lanes[(at * voxels) + voxel];
         }
@@ -230,10 +230,10 @@ void knf_one_bit(SimResults *results, const unsigned short *lanes, const KnfReco
         const int same = knf_section_same(record, voxel, words);
         // a flip inside a window toggles two of its transitions, which cancel when exactly one of them flipped before
         const int predicted =
-            (frame >= 1ull) && ((frame + 1ull) < KNF_FRAMES) && ((frame % ENGINE_HISTORY_WINDOW) != 0ull) &&
-            (((((unsigned int)series[frame - 1ull] ^ (unsigned int)series[frame + 1ull]) >> bit) & 1u) != 0u);
-        agree += (same == predicted) ? 1ull : 0ull;
-        unchanged += (same != 0) ? 1ull : 0ull;
+            (frame >= 1ULL) && ((frame + 1ULL) < KNF_FRAMES) && ((frame % ENGINE_HISTORY_WINDOW) != 0ULL) &&
+            (((((unsigned int)series[frame - 1ULL] ^ (unsigned int)series[frame + 1ULL]) >> bit) & 1u) != 0u);
+        agree += (same == predicted) ? 1ULL : 0ULL;
+        unchanged += (same != 0) ? 1ULL : 0ULL;
     }
     VerbaLinea *const line = &results->line;
     mmgr_line_put(line, "  one bit: the host's walk equals the knf at every voxel; of ");
@@ -254,7 +254,7 @@ static void knf_motion_place(unsigned long long side, unsigned int motion, const
     for (unsigned int axis = 0u; axis < SIM_AXES; axis += 1u)
     {
         const unsigned long long taken = place[order[axis]];
-        const unsigned long long reflected = ((((motion & 7u) >> axis) & 1u) != 0u) ? (side - 1ull - taken) : taken;
+        const unsigned long long reflected = ((((motion & 7u) >> axis) & 1u) != 0u) ? (side - 1ULL - taken) : taken;
         moved[axis] = (reflected + shift[axis]) % side;
     }
 }
@@ -266,18 +266,18 @@ void knf_motions(SimResults *results, const unsigned short *lanes, unsigned shor
     const unsigned long long voxels = record->voxels;
     KnfEntangled whole;
     knf_entangle(record, NULL, side, NULL, &whole);
-    unsigned long long projected = 0ull;
-    unsigned long long carried = 0ull;
-    unsigned long long retained = 0ull;
-    unsigned long long cloud_count = 0ull;
+    unsigned long long projected = 0ULL;
+    unsigned long long carried = 0ULL;
+    unsigned long long retained = 0ULL;
+    unsigned long long cloud_count = 0ULL;
     for (unsigned int motion = 0u; motion < KNF_MOTIONS; motion += 1u)
     {
         unsigned long long shift[SIM_AXES];
         for (unsigned int axis = 0u; axis < SIM_AXES; axis += 1u)
         {
-            shift[axis] = sim_draw_below(KNF_KEY ^ KNF_MOTION_PURPOSE, (3ull * motion) + axis, side);
+            shift[axis] = sim_draw_below(KNF_KEY ^ KNF_MOTION_PURPOSE, (3ULL * motion) + axis, side);
         }
-        for (unsigned long long voxel = 0ull; voxel < voxels; voxel += 1ull)
+        for (unsigned long long voxel = 0ULL; voxel < voxels; voxel += 1ULL)
         {
             const unsigned long long place[SIM_AXES] = {voxel / (side * side), (voxel / side) % side, voxel % side};
             unsigned long long to[SIM_AXES];
@@ -285,9 +285,9 @@ void knf_motions(SimResults *results, const unsigned short *lanes, unsigned shor
             // a voxel index is below 2^18 here
             target[voxel] = (unsigned int)((((to[0] * side) + to[1]) * side) + to[2]);
         }
-        for (unsigned long long frame = 0ull; frame < KNF_FRAMES; frame += 1ull)
+        for (unsigned long long frame = 0ULL; frame < KNF_FRAMES; frame += 1ULL)
         {
-            for (unsigned long long voxel = 0ull; voxel < voxels; voxel += 1ull)
+            for (unsigned long long voxel = 0ULL; voxel < voxels; voxel += 1ULL)
             {
                 moved[(frame * voxels) + target[voxel]] = lanes[(frame * voxels) + voxel];
             }
@@ -296,26 +296,26 @@ void knf_motions(SimResults *results, const unsigned short *lanes, unsigned shor
         {
             continue;
         }
-        projected += 1ull;
-        unsigned long long differ = 0ull;
-        for (unsigned long long voxel = 0ull; voxel < voxels; voxel += 1ull)
+        projected += 1ULL;
+        unsigned long long differ = 0ULL;
+        for (unsigned long long voxel = 0ULL; voxel < voxels; voxel += 1ULL)
         {
             int same = 1;
-            for (unsigned long long window = 0ull; window < KNF_WINDOWS; window += 1ull)
+            for (unsigned long long window = 0ULL; window < KNF_WINDOWS; window += 1ULL)
             {
                 same = same && (moved_record->history[(window * voxels) + target[voxel]] ==
                                 record->history[(window * voxels) + voxel]);
             }
-            differ += (same != 0) ? 0ull : 1ull;
+            differ += (same != 0) ? 0ULL : 1ULL;
         }
-        carried += (differ == 0ull) ? 1ull : 0ull;
+        carried += (differ == 0ULL) ? 1ULL : 0ULL;
         KnfEntangled turned;
         knf_entangle(moved_record, NULL, side, NULL, &turned);
-        retained += knf_wide_equal(&turned.inside, &whole.inside) ? 1ull : 0ull;
+        retained += knf_wide_equal(&turned.inside, &whole.inside) ? 1ULL : 0ULL;
         cloud_count += (memcmp(moved_record->cloud, record->cloud,
                                (size_t)(KNF_WINDOWS * KNF_WINDOWS) * sizeof(unsigned long long)) == 0)
-                           ? 1ull
-                           : 0ull;
+                           ? 1ULL
+                           : 0ULL;
     }
     VerbaLinea *const line = &results->line;
     mmgr_line_put(

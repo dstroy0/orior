@@ -30,7 +30,7 @@ static unsigned long long sass_file_read(const char *path, unsigned char *bytes,
     if (file == NULL)
     {
         printf("  cubin: %s could not be read\n", path);
-        return 0ull;
+        return 0ULL;
     }
     const unsigned long long read = (unsigned long long)fread(bytes, 1u, (size_t)room, file);
     fclose(file);
@@ -55,7 +55,7 @@ unsigned int sass_cubin_text(const char *folder, const char *name, char *text, u
     snprintf(path, sizeof(path), "%s/%s.sass", folder, name);
     static unsigned char s_listing[SASS_TEXT_BYTES];
     const unsigned long long listing_size = sass_file_read(path, s_listing, sizeof(s_listing) - 1u);
-    if (listing_size == 0ull)
+    if (listing_size == 0ULL)
     {
         return 0u;
     }
@@ -73,7 +73,7 @@ int sass_cubin_kernel(const SassMachine *machine, const char *folder, const char
     char path[1024];
     snprintf(path, sizeof(path), "%s/%s.cubin", folder, pattern);
     const unsigned long long pattern_size = sass_file_read(path, s_pattern, sizeof(s_pattern));
-    if (pattern_size == 0ull)
+    if (pattern_size == 0ULL)
     {
         return 0;
     }
@@ -83,7 +83,7 @@ int sass_cubin_kernel(const SassMachine *machine, const char *folder, const char
         printf("  cubin: %s assembled nothing\n", into);
         return 0;
     }
-    const unsigned long long code_size = 16ull * instructions;
+    const unsigned long long code_size = 16ULL * instructions;
     CubinWrite written;
     memset(&written, 0, sizeof(written));
     written.pattern = s_pattern;
@@ -94,7 +94,7 @@ int sass_cubin_kernel(const SassMachine *machine, const char *folder, const char
     written.registers = cubin_registers_read(s_pattern, pattern_size, kernel);
     written.exit_count = cubin_exits_find(s_code, code_size, sass_exit_encoding(machine), s_exits, SASS_EXITS);
     written.exits = s_exits;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     if (!cubin_write(&written, s_cubin, sizeof(s_cubin), &size))
     {
         return 0;

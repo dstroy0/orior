@@ -16,7 +16,7 @@ int krep_read(KrepFile *file, const char *path, const char *type, char *error, s
 {
     krep_open(file, type);
     const unsigned char *bytes = NULL;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     if (!qry_member_file_blob(path, &bytes, &size))
     {
         return 1;
@@ -38,10 +38,10 @@ int krep_read(KrepFile *file, const char *path, const char *type, char *error, s
     static unsigned long long s_words[1u << 16u];
     while ((stopped == NULL) && (at < size))
     {
-        unsigned long long code = 0ull;
-        unsigned long long count = 0ull;
+        unsigned long long code = 0ULL;
+        unsigned long long count = 0ULL;
         if (!krep_number_read(bytes, size, &at, &code) || !krep_number_read(bytes, size, &at, &count) ||
-            (code > 0xffffffffull))
+            (code > 0xffffffffULL))
         {
             stopped = "contains a record that runs past its end";
             break;
@@ -54,7 +54,7 @@ int krep_read(KrepFile *file, const char *path, const char *type, char *error, s
                 stopped = "contains a text that runs past its end";
                 break;
             }
-            if (krep_text_taken(file, (const char *)(bytes + at), count) == 0ull)
+            if (krep_text_taken(file, (const char *)(bytes + at), count) == 0ULL)
             {
                 stopped = "has a text there was no memory for";
             }
@@ -76,7 +76,7 @@ int krep_read(KrepFile *file, const char *path, const char *type, char *error, s
             stopped = "has a record there was no memory for";
             break;
         }
-        for (unsigned long long word = 0ull; (stopped == NULL) && (word < count); word += 1ull)
+        for (unsigned long long word = 0ULL; (stopped == NULL) && (word < count); word += 1ULL)
         {
             stopped =
                 krep_number_read(bytes, size, &at, &words[word]) ? NULL : "contains a record that runs past its end";
@@ -101,7 +101,7 @@ int krep_read(KrepFile *file, const char *path, const char *type, char *error, s
 // writes it in the file's place: the sequence of its bytes' blob, or 0 where it could not be written
 static unsigned long long krep_filed(const KrepFile *file, const char *path, Who who)
 {
-    static char s_text_bytes[QRY_WRITER_RING_BYTES / 2ull];
+    static char s_text_bytes[QRY_WRITER_RING_BYTES / 2ULL];
     const size_t room = sizeof(s_text_bytes);
     unsigned char head[KREP_HEAD_BYTES];
     memcpy(head, KREP_MAGIC, 8u);
@@ -130,12 +130,12 @@ static unsigned long long krep_filed(const KrepFile *file, const char *path, Who
         }
     }
     const unsigned long long time =
-        verba_finis.ok(&(VerbaFinisCfg){.cap = room, .at = text}) ? qry_member_filed(path, s_text_bytes, text) : 0ull;
+        verba_finis.ok(&(VerbaFinisCfg){.cap = room, .at = text}) ? qry_member_filed(path, s_text_bytes, text) : 0ULL;
     const char *const name = qry_member_file_name(path);
-    if ((time != 0ull) && (name != NULL))
+    if ((time != 0ULL) && (name != NULL))
     {
         // the file's row of the table files (files.oracle.tsv): the who that wrote it, its record and its name
-        unsigned long long row[4] = {0ull, 0ull, time, table_text(name, strlen(name))};
+        unsigned long long row[4] = {0ULL, 0ULL, time, table_text(name, strlen(name))};
         who_words(who, row);
         qry_member_append(TABLE_FILES, row, sizeof(row), QRY_CRITICAL);
     }
@@ -144,23 +144,23 @@ static unsigned long long krep_filed(const KrepFile *file, const char *path, Who
 
 int krep_write_by(const KrepFile *file, const char *path, Who who)
 {
-    if (file->key == 0ull)
+    if (file->key == 0ULL)
     {
-        return krep_filed(file, path, who) != 0ull;
+        return krep_filed(file, path, who) != 0ULL;
     }
     // the file its rows put together written, the view of its table, and not the one stored: its bytes' blob linked to
     // the head row of the rows it was written from
     KrepFile view;
     memset(&view, 0, sizeof(view));
-    const unsigned long long written = krep_viewed(file, &view) ? krep_filed(&view, path, who) : 0ull;
+    const unsigned long long written = krep_viewed(file, &view) ? krep_filed(&view, path, who) : 0ULL;
     krep_free(&view);
-    if (written != 0ull)
+    if (written != 0ULL)
     {
-        unsigned long long link[2u + 3] = {0ull, 0ull, written, file->key, TABLE_LINK_WRITTEN_FROM};
+        unsigned long long link[2u + 3] = {0ULL, 0ULL, written, file->key, TABLE_LINK_WRITTEN_FROM};
         who_words(who, link);
         qry_member_append(TABLE_LINKS, link, sizeof(link), QRY_ORDINARY);
     }
-    return written != 0ull;
+    return written != 0ULL;
 }
 
 void krep_free(KrepFile *file)
@@ -212,7 +212,7 @@ int krep_record_put(KrepFile *file, unsigned int at, unsigned int code, const un
     file->record[at].count = count;
     file->record[at].word = copy;
     file->records += 1u;
-    if (file->key != 0ull)
+    if (file->key != 0ULL)
     {
         unsigned long long who[2];
         krep_who_words_at(file, at, who);
@@ -232,12 +232,12 @@ void krep_record_drop(KrepFile *file, unsigned int at)
     {
         return;
     }
-    if (file->key != 0ull)
+    if (file->key != 0ULL)
     {
         unsigned long long who[2];
         krep_who_words_at(file, at, who);
         const unsigned long long numbers[1] = {at};
-        krep_row_passed(file, file->key, who, KREP_ROW_DROP, numbers, 1u, NULL, 0ull, QRY_ORDINARY);
+        krep_row_passed(file, file->key, who, KREP_ROW_DROP, numbers, 1u, NULL, 0ULL, QRY_ORDINARY);
     }
     free(file->record[at].word);
     memmove(&file->record[at], &file->record[at + 1u], (size_t)(file->records - at - 1u) * sizeof(KrepRecord));
@@ -262,7 +262,7 @@ int krep_record_set(KrepFile *file, unsigned int at, const unsigned long long *w
     free(file->record[at].word);
     file->record[at].word = copy;
     file->record[at].count = count;
-    if (file->key != 0ull)
+    if (file->key != 0ULL)
     {
         unsigned long long who[2];
         krep_who_words_at(file, at, who);
@@ -275,7 +275,7 @@ int krep_record_set(KrepFile *file, unsigned int at, const unsigned long long *w
 
 int krep_tabled_by(KrepFile *file, QryShared *buffer, const char *table, const char *path, Who who)
 {
-    file->key = 0ull;
+    file->key = 0ULL;
     const char *const name = qry_member_file_name(path);
     if ((buffer == NULL) || (name == NULL))
     {
@@ -287,23 +287,23 @@ int krep_tabled_by(KrepFile *file, QryShared *buffer, const char *table, const c
     who_words(who, words);
     const unsigned long long length = strlen(name);
     const unsigned long long head[3] = {krep_half_of((const unsigned char *)file->type), KREP_VERSION, length};
-    file->key = krep_row_passed(file, 0ull, words, KREP_ROW_HEAD, head, 3u, name, length, QRY_CRITICAL);
-    for (unsigned int number = 1u; (file->key != 0ull) && (number <= file->texts); number += 1u)
+    file->key = krep_row_passed(file, 0ULL, words, KREP_ROW_HEAD, head, 3u, name, length, QRY_CRITICAL);
+    for (unsigned int number = 1u; (file->key != 0ULL) && (number <= file->texts); number += 1u)
     {
         krep_text_row(file, number);
     }
     // each record's who the who in force over it, carried down the records from each who record
-    words[0] = 0ull;
-    words[1] = 0ull;
-    for (unsigned int at = 0u; (file->key != 0ull) && (at < file->records); at += 1u)
+    words[0] = 0ULL;
+    words[1] = 0ULL;
+    for (unsigned int at = 0u; (file->key != 0ULL) && (at < file->records); at += 1u)
     {
         const KrepRecord *const entry = &file->record[at];
         if (entry->code == KREP_RECORD_WHO)
         {
-            words[0] = (entry->count == 2u) ? entry->word[0] : 0ull;
-            words[1] = (entry->count == 2u) ? entry->word[1] : 0ull;
+            words[0] = (entry->count == 2u) ? entry->word[0] : 0ULL;
+            words[1] = (entry->count == 2u) ? entry->word[1] : 0ULL;
         }
         krep_record_row(file, at, words);
     }
-    return file->key != 0ull;
+    return file->key != 0ULL;
 }

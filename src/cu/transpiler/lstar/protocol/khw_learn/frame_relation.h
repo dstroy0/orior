@@ -48,7 +48,7 @@ extern "C"
 #define FRAME_PLACE_NONE 0xffffffffu
 
     // The host's answer of `relation` for the thread `at`, put with the case's two words `word` under the relation's
-    // reading `reading`: the word a load reads, 0 or 1; the word of the register a store's variant set, 1 for the
+    // reading `reading`: the word a load reads, 0 or 1. The word of the register a store's variant set, 1 for the
     // second; a number's constant. The answer is the record's two words as one value, the first word low: a lane's
     // number, a block's, a word loaded or a number are in the first with the second 0, as the stores before the
     // probe place leave it; a store leaves the case's second word in the first, as the probe place found it, and the
@@ -68,10 +68,10 @@ extern "C"
             *answered = at / RUN_THREADS_A_BLOCK;
             return 1;
         case FRAME_LOAD:
-            *answered = (reading == 0ull) ? word[0] : word[1];
+            *answered = (reading == 0ULL) ? word[0] : word[1];
             return 1;
         case FRAME_STORE:
-            *answered = (unsigned long long)word[1] | ((unsigned long long)word[(reading == 0ull) ? 0u : 1u] << 32u);
+            *answered = (unsigned long long)word[1] | ((unsigned long long)word[(reading == 0ULL) ? 0u : 1u] << 32u);
             return 1;
         case FRAME_EXIT:
             *answered = RUN_UNWRITTEN_WORD;

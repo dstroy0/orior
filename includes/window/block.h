@@ -19,7 +19,7 @@ typedef struct GuiBlockFramebufferCfg GuiBlockFramebufferCfg;
 
 // the boundary each part and each of its segments starts on in the block, the placement a graphics device takes a
 // buffer at
-#define GUI_BLOCK_POSITION (64ull << 10u)
+#define GUI_BLOCK_POSITION (64ULL << 10u)
 
 // The parts, each named with its segments; a segment holds one raster of the largest monitor. The rasters hold one
 // each; the glyph cells, the busy indicator and the faces span theirs; the lattice has a segment a slot and the faces one

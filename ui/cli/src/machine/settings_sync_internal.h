@@ -22,7 +22,7 @@ typedef struct CliSettingsSyncCtx CliSettingsSyncCtx;
 #define CLI_SETTINGS_SYNC_MARK "orior settings"
 
 // the bytes a settings text written is written in
-#define CLI_SETTINGS_SYNC_WRITTEN_CAPACITY (16ull << 20u)
+#define CLI_SETTINGS_SYNC_WRITTEN_CAPACITY (16ULL << 20u)
 
 // The work state settings are read in: the tree, a cell sized to the texts read into it, begun empty under the lock of
 // the work that reads them and given back before it is given
@@ -63,7 +63,7 @@ void cli_settings_sync_files(const CliSettingsSyncFolderCtx *args);
 #define CLI_ALLOCATING_FILES 4096u
 
 // the bytes of an import's files and whether each was there before, a cell of whoever reads or writes it
-#define CLI_ALLOCATING_BYTES ((unsigned long long)CLI_ALLOCATING_FILES * (CLI_NAME_MAX_LEN + 1ull))
+#define CLI_ALLOCATING_BYTES ((unsigned long long)CLI_ALLOCATING_FILES * (CLI_NAME_MAX_LEN + 1ULL))
 
 // An import as saved: its id, when, from where, and each file it wrote with whether one was there before
 typedef struct

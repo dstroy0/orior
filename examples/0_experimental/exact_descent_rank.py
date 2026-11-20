@@ -23,7 +23,7 @@
 # b = -n^2 for alpha and b = 4 n^2 for alpha') has a point over R and over every Q_p. The image of the
 # descent sits inside the Selmer group, and dim Sel over-approximates it, and the bound is therefore a
 # sound UPPER bound on the rank: it can never fall below the true rank. It is exact, equal to the rank,
-# exactly when the 2-part of the Tate-Shafarevich group vanishes; where that group is nontrivial the
+# exactly when the 2-part of the Tate-Shafarevich group vanishes. Where that group is nontrivial the
 # bound is honestly loose, and n = 17 below is that case.
 #
 # LOCAL SOLVABILITY AS A REFUTE-ONLY PROBE, WITH NO PICKED BOUND. A square class starts admitted, in the

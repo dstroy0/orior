@@ -187,9 +187,11 @@ void cli_test_result_emit(const CliTestRunsOutcomeCtx *args)
 static void test_end(void *context)
 {
     CliTestRun *const run = (CliTestRun *)context;
+    unsigned int wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &run->wake);
     while (run->going > 0u)
     {
-        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &run->wake);
+        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &run->wake, .seen = wake_seen);
+        wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &run->wake);
     }
     EMBED_CALL(cli_test_runs_run_text_internal.test_coverage_emit, CliTestRunsRunTextCtx, .run = run);
     for (unsigned int at = 0u; at < run->worker_count; at += 1u)
@@ -253,6 +255,7 @@ static CliTestRun *test_run_alloc(void)
     unsigned int at = CLI_TEST_RUNS;
     while (at == CLI_TEST_RUNS)
     {
+        const unsigned int wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_runs_wake);
         at = 0u;
         while ((at < CLI_TEST_RUNS) && (s_runs[at] != NULL))
         {
@@ -260,7 +263,7 @@ static CliTestRun *test_run_alloc(void)
         }
         if (at == CLI_TEST_RUNS)
         {
-            EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_runs_wake);
+            EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_runs_wake, .seen = wake_seen);
         }
     }
     // a run's record holds the wake its workers wait on, so the records are fixed outside the pool, one for each

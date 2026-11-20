@@ -136,7 +136,7 @@ def inverse_root(product, value, bits):
     """floor(2^bits / sqrt(value)), by Newton, with no division and no square root under it.
 
     The step is y' = y * (3 * 2^(2b) - value * y^2) / 2^(2b+1), where the halving is a shift. This
-    is the iteration that converges to one over the root, and it is used instead of the iteration
+    is the iteration that converges to one over the root. It is used instead of the iteration
     for the root itself because that one contains a division and this one does not.
     """
     if value <= 0:
@@ -259,8 +259,8 @@ def split(product, first, last):
     sum already scaled by that denominator. The merge is one line and it is the whole method.
 
     NOTHING IS DIVIDED HERE. That absence is the method. The linear sum divides at every term at
-    full working precision and the squaring is where it loses; this defers the single division to
-    the very end, and every intermediate stays an exact integer that no rounding has touched.
+    full working precision and the squaring is where it loses. This defers the single division to
+    the very end, and every intermediate stays an exact integer that no rounding touched.
 
     Recursion depth is the log of the term count, and a billion digits is a depth of some twenty six
     and there is no stack concern at any size a desktop can reach.

@@ -2,7 +2,7 @@
 
 The mirror-arm test could not answer this. Reflecting a point set negates every longitude, which
 conjugates every coefficient, which negates every phase - for any data at all. The answer was fixed
-by geometry before SHA was consulted, and it came back at 1e-16, which is float64's floor and not a
+by geometry before SHA was consulted. It came back at 1e-16, which is float64's floor and not a
 fact about hashing.
 
 The handedness that could matter is in the function. SHA-256 turns one way, six times, and never the

@@ -83,7 +83,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\catalog\\test_catalog\\test_catalog.c");
+  UnityBegin("utils/test/src/ui/cli/unit/catalog/test_catalog/test_catalog.c");
   run_test(test_case_names_reads_the_line_after_the_case, "test_case_names_reads_the_line_after_the_case", 95);
   run_test(test_a_builds_trace_is_verbose_by_default_or_quiet, "test_a_builds_trace_is_verbose_by_default_or_quiet", 104);
   run_test(test_a_traced_build_runs_bash_with_xtrace, "test_a_traced_build_runs_bash_with_xtrace", 115);

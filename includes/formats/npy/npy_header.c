@@ -5,7 +5,7 @@
 
 unsigned long long npy_load(const unsigned char *bytes, unsigned int count)
 {
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     for (unsigned int place = count; place > 0u; place -= 1u)
     {
         value = (value << 8u) | (unsigned long long)bytes[place - 1u];
@@ -20,7 +20,7 @@ unsigned int npy_fits_memory(unsigned long long bytes)
 
 unsigned int npy_multiply(unsigned long long left, unsigned long long right, unsigned long long *product)
 {
-    if ((left != 0ull) && (right > (NPY_BYTES_LIMIT / left)))
+    if ((left != 0ULL) && (right > (NPY_BYTES_LIMIT / left)))
     {
         return 0u;
     }
@@ -31,7 +31,7 @@ unsigned int npy_multiply(unsigned long long left, unsigned long long right, uns
 unsigned int npy_file_fetch(const EngineIngestTools *tools, const char *path, unsigned long long offset,
                             unsigned long long bytes, unsigned char *out)
 {
-    if (bytes == 0ull)
+    if (bytes == 0ULL)
     {
         return 1u;
     }
@@ -47,7 +47,7 @@ unsigned int npy_source_fetch(const NpySource *source, unsigned long long offset
     {
         return 0u;
     }
-    if (bytes == 0ull)
+    if (bytes == 0ULL)
     {
         return 1u;
     }
@@ -61,7 +61,7 @@ unsigned int npy_source_fetch(const NpySource *source, unsigned long long offset
 
 void npy_swap(unsigned char *bytes, unsigned long long total, unsigned int element_bytes)
 {
-    for (unsigned long long start = 0ull; start < total; start += element_bytes)
+    for (unsigned long long start = 0ULL; start < total; start += element_bytes)
     {
         for (unsigned int low = 0u; low < (element_bytes / 2u); low += 1u)
         {
@@ -78,7 +78,7 @@ static void npy_space(NpyText *text)
     while ((text->at < text->length) && ((text->text[text->at] == ' ') || (text->text[text->at] == '\t') ||
                                          (text->text[text->at] == '\n') || (text->text[text->at] == '\r')))
     {
-        text->at += 1ull;
+        text->at += 1ULL;
     }
 }
 
@@ -87,7 +87,7 @@ static unsigned int npy_expect(NpyText *text, unsigned char wanted)
     npy_space(text);
     if ((text->at < text->length) && (text->text[text->at] == wanted))
     {
-        text->at += 1ull;
+        text->at += 1ULL;
         return 1u;
     }
     return 0u;
@@ -110,7 +110,7 @@ static unsigned int npy_quoted(NpyText *text, unsigned long long *start, unsigne
     {
         return 0u;
     }
-    text->at += 1ull;
+    text->at += 1ULL;
     *start = text->at;
     while ((text->at < text->length) && (text->text[text->at] != quote))
     {
@@ -118,14 +118,14 @@ static unsigned int npy_quoted(NpyText *text, unsigned long long *start, unsigne
         {
             return 0u;
         }
-        text->at += 1ull;
+        text->at += 1ULL;
     }
     if (text->at >= text->length)
     {
         return 0u;
     }
     *end = text->at;
-    text->at += 1ull;
+    text->at += 1ULL;
     return 1u;
 }
 
@@ -149,7 +149,7 @@ static unsigned int npy_named(const unsigned char *defined, unsigned long long l
 
 static unsigned int npy_description(const unsigned char *defined, unsigned long long length, NpyLayout *layout)
 {
-    if (length != 3ull)
+    if (length != 3ULL)
     {
         return 0u;
     }
@@ -192,17 +192,17 @@ static unsigned int npy_extent(NpyText *text, EngineArrayExtent *extent)
         {
             return 0u;
         }
-        unsigned long long value = 0ull;
+        unsigned long long value = 0ULL;
         const unsigned long long digits = text->at;
         while ((text->at < text->length) && (text->text[text->at] >= '0') && (text->text[text->at] <= '9'))
         {
             const unsigned long long digit = (unsigned long long)(text->text[text->at] - '0');
-            if (value > ((NPY_BYTES_LIMIT - digit) / 10ull))
+            if (value > ((NPY_BYTES_LIMIT - digit) / 10ULL))
             {
                 return 0u;
             }
-            value = (value * 10ull) + digit;
-            text->at += 1ull;
+            value = (value * 10ULL) + digit;
+            text->at += 1ULL;
         }
         if (text->at == digits)
         {
@@ -214,7 +214,7 @@ static unsigned int npy_extent(NpyText *text, EngineArrayExtent *extent)
         npy_space(text);
         if (npy_next_is(text, ','))
         {
-            text->at += 1ull;
+            text->at += 1ULL;
             npy_space(text);
         }
         else if (!npy_next_is(text, ')'))
@@ -232,7 +232,7 @@ static unsigned int npy_extent(NpyText *text, EngineArrayExtent *extent)
 
 unsigned int npy_dictionary(const unsigned char *header, unsigned long long length, NpyLayout *layout)
 {
-    NpyText text = {header, length, 0ull};
+    NpyText text = {header, length, 0ULL};
     unsigned int seen = 0u;
     if (!npy_expect(&text, '{'))
     {
@@ -241,8 +241,8 @@ unsigned int npy_dictionary(const unsigned char *header, unsigned long long leng
     npy_space(&text);
     while ((text.at < text.length) && (text.text[text.at] != '}'))
     {
-        unsigned long long key_start = 0ull;
-        unsigned long long key_end = 0ull;
+        unsigned long long key_start = 0ULL;
+        unsigned long long key_end = 0ULL;
         if (!npy_quoted(&text, &key_start, &key_end) || !npy_expect(&text, ':'))
         {
             return 0u;
@@ -251,8 +251,8 @@ unsigned int npy_dictionary(const unsigned char *header, unsigned long long leng
         const unsigned long long key_length = key_end - key_start;
         if (npy_named(key, key_length, "descr") && ((seen & 1u) == 0u))
         {
-            unsigned long long value_start = 0ull;
-            unsigned long long value_end = 0ull;
+            unsigned long long value_start = 0ULL;
+            unsigned long long value_end = 0ULL;
             if (!npy_quoted(&text, &value_start, &value_end) ||
                 !npy_description(header + value_start, value_end - value_start, layout))
             {
@@ -285,7 +285,7 @@ unsigned int npy_dictionary(const unsigned char *header, unsigned long long leng
         npy_space(&text);
         if (npy_next_is(&text, ','))
         {
-            text.at += 1ull;
+            text.at += 1ULL;
             npy_space(&text);
         }
         else if (!npy_next_is(&text, '}'))

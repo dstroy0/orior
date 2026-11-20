@@ -74,7 +74,7 @@ int main(int count, char **word)
     // of what a discover left; [--registers] queries the register-runs the turns found; [--costs] times every form the
     // machine file names on the timer register (P6) and stores its cost and spread in the part's .ksc. A cross-check
     // reads each round's questions before it is carried (run_channel.h), and no form's turns or register-runs reach the
-    // part before the vendor has read them
+    // part before the vendor read them
     unsigned int rounds = 1u;
     unsigned int enumerate = 0xffffffffu;
     const char *forms = NULL;
@@ -143,7 +143,7 @@ int main(int count, char **word)
         words += 1u;
     }
     carrier[words] = NULL;
-    if (!run_channel_open(carrier, 60000000ull))
+    if (!run_channel_open(carrier, 60000000ULL))
     {
         return 1;
     }
@@ -194,13 +194,13 @@ int main(int count, char **word)
     // the split: a discover pass widens the working set a round and retains what it finds unqueried, a turns pass
     // queries the turns of what a discover left, a register pass queries the register-runs the turns found. A
     // cross-check reads each round's questions before it is carried, and neither a form's turns nor its register-runs
-    // reach the part before the vendor has read them. The working set is the run's blob KHW_WORK_NAME, which the passes
+    // reach the part before the vendor read them. The working set is the run's blob KHW_WORK_NAME, which the passes
     // hand each other; the position is found afresh each pass, off the kernel's code
     if ((discover != 0) || (turns != 0) || (registers != 0) || (costs != 0))
     {
         KhwAnswered kernel;
         memset(&kernel, 0, sizeof(kernel));
-        unsigned long long nanoseconds = 0ull;
+        unsigned long long nanoseconds = 0ULL;
         unsigned int probe_place = 0u;
         if (!khw_first_round(&kernel, &probe_place, &nanoseconds) || (probe_place == s_kernel_places))
         {
@@ -226,7 +226,7 @@ int main(int count, char **word)
             if (s_names == 0u)
             {
                 // the working set empty: the kernel's own position form seeded as a discovered form, its relation
-                // queried but its fields left for the turns and register passes to query once a cross has read them, as
+                // queried but its fields left for the turns and register passes to query once a cross read them, as
                 // of any form. The relation is the real instruction the part already ran, safe to query without a cross
                 KhwAnswered form;
                 memset(&form, 0, sizeof(form));
@@ -280,12 +280,12 @@ int main(int count, char **word)
             static KhwAnswered *s_forms[KHW_FORMS];
             const unsigned int count =
                 khw_comparisons_void(s_forms, khw_forms_in_phase(KHW_PHASE_DISCOVERED, s_forms));
-            unsigned long long stages = 0ull;
+            unsigned long long stages = 0ULL;
             for (unsigned int at = 0u; at < count; at += 1u)
             {
                 stages += (unsigned long long)khw_turning_cases(s_forms[at]);
             }
-            khw_plan_passed("turns", stages * ((unsigned long long)KHW_TURNS + 1ull));
+            khw_plan_passed("turns", stages * ((unsigned long long)KHW_TURNS + 1ULL));
             const unsigned int fields_turned = khw_fields_turns(s_forms, count);
             run_channel_close();
             if (!khw_forms_work_written())
@@ -323,7 +323,7 @@ int main(int count, char **word)
             return 0;
         }
         // every turned form's register-runs queried at once, in shared rounds, its operand runs recorded and its phase
-        // classified; what the part has answered for whole then arranged by the vendor
+        // classified; what the part answered for whole then arranged by the vendor
         static KhwAnswered *s_forms[KHW_FORMS];
         const unsigned int turned = khw_forms_in_phase(KHW_PHASE_TURNED, s_forms);
         // a classified form two of whose runs carry one place is queried again, over a turning case that reads apart
@@ -332,7 +332,7 @@ int main(int count, char **word)
         {
             printf("  registers: %u classified form(s) with a place present twice queried again\n", count - turned);
         }
-        unsigned long long settings = 0ull;
+        unsigned long long settings = 0ULL;
         for (unsigned int at = 0u; at < count; at += 1u)
         {
             settings += (unsigned long long)s_forms[at]->runs * KHW_SETTINGS * KHW_STAGES;
@@ -350,7 +350,7 @@ int main(int count, char **word)
     }
     KhwAnswered kernel;
     memset(&kernel, 0, sizeof(kernel));
-    unsigned long long nanoseconds = 0ull;
+    unsigned long long nanoseconds = 0ULL;
     unsigned int probe_place = 0u;
     const int related = khw_first_round(&kernel, &probe_place, &nanoseconds);
     if (s_kernel_probe_place < s_kernel_places)
@@ -363,7 +363,7 @@ int main(int count, char **word)
     else
     {
         printf("  the first round: the kernel's relation and %llu places queried for the probe place, %llu queries\n",
-               s_query_count - 1ull, s_query_count);
+               s_query_count - 1ULL, s_query_count);
     }
     // a dry channel carries every question by nothing: the kernel answers no relation, and the pass goes on with the
     // position the .ksc names, every round put through the airlock as on a live channel and nothing launched

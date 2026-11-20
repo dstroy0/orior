@@ -35,7 +35,7 @@ int main(int count_of_words, char **words)
     const unsigned long long stride = strtoull(words[4], NULL, 16);
     const unsigned long long turns = strtoull(words[5], NULL, 16);
     const unsigned int word = (unsigned int)strtoul(words[6], NULL, 16);
-    for (unsigned long long number = 0ull; number < count; number += 1ull)
+    for (unsigned long long number = 0ULL; number < count; number += 1ULL)
     {
         Query query = {0};
         query.address = from + (number * stride);
@@ -45,14 +45,14 @@ int main(int count_of_words, char **words)
         query_put(&query);
         // an address in hex and two numbers, each in the room of a 64-bit word's digits
         char text[64];
-        VerbaLinea line = {text, sizeof(text), 0ull};
+        VerbaLinea line = {text, sizeof(text), 0ULL};
         mmgr_line_hex(&line, query.address, 0u);
         mmgr_line_ch(&line, ' ');
         mmgr_line_decimal(&line, query.bit, 0u);
         mmgr_line_ch(&line, ' ');
         mmgr_line_decimal(&line, query.type, 0u);
         mmgr_line_ch(&line, '\n');
-        if (qry_member_append(QUERY_WALK_RECORD, text, line.at, QRY_ORDINARY) == 0ull)
+        if (qry_member_append(QUERY_WALK_RECORD, text, line.at, QRY_ORDINARY) == 0ULL)
         {
             return 3;
         }

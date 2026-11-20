@@ -10,7 +10,7 @@
 #
 # This reads no corpus. It sits in 0_experimental: an algorithm displayed working, a robust-estimation
 # filter beside the signal ones. The medium is new -- a graph whose vertices are MEASUREMENTS and whose
-# edges are pairwise compatibility; the technique is new to this tree, but the theorem is the same
+# edges are pairwise compatibility. The technique is new to this tree, but the theorem is the same
 # one the anchor cascade already proves.
 #
 # The setup is ROBIN's (arXiv:2011.03659): two integer point sets are related by a rigid motion, and

@@ -336,7 +336,7 @@ EMBED_INLINE void cli_signature_tree_type(const SymbolsSignatureCtx *args)
     read.leaf = NULL;
     read.count = 0u;
     read.capacity = 0u;
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_code_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_code_owner);
 }
 
 // the type of the argument at `argument`: a literal's where every leaf of it is a number's or every one a string's,
@@ -526,7 +526,7 @@ int cli_symbols_signature_read(const CliSymbolsPathTextSizeOutCfg *args)
         if (languages != NULL)
         {
             g_cli_guard->persistent_buf_release(languages->languages.pair, g_cli_plugins_owner);
-            *(&languages->languages) = (CliLanguages){NULL, 0u, 0u};
+            languages->languages = (CliLanguages){NULL, 0u, 0u};
         }
         g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
         mmgr_line_put(args->err_msg, "the cells cannot meet a signature's reading");
@@ -572,7 +572,7 @@ int cli_symbols_signature_read(const CliSymbolsPathTextSizeOutCfg *args)
     if (languages != NULL)
     {
         g_cli_guard->persistent_buf_release(languages->languages.pair, g_cli_plugins_owner);
-        *(&languages->languages) = (CliLanguages){NULL, 0u, 0u};
+        languages->languages = (CliLanguages){NULL, 0u, 0u};
     }
     g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
     if (refused)

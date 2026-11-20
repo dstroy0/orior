@@ -26,7 +26,7 @@ unsigned long long fields_file_read(const char *path, unsigned char *bytes, unsi
     FILE *const file = fopen(path, "rb");
     if (file == NULL)
     {
-        return 0ull;
+        return 0ULL;
     }
     const unsigned long long read = (unsigned long long)fread(bytes, 1u, (size_t)room, file);
     fclose(file);
@@ -44,7 +44,7 @@ static int fields_file_write(const char *path, const unsigned char *bytes, unsig
 // the eight bytes at `bytes` read as one word, lowest first, and written back
 unsigned long long fields_word_read(const unsigned char *bytes)
 {
-    unsigned long long word = 0ull;
+    unsigned long long word = 0ULL;
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
         word |= (unsigned long long)bytes[at] << (8u * at);
@@ -90,7 +90,7 @@ int fields_splice(const char *kernel_text, const char *lines, char *text, size_t
 unsigned int fields_find(const unsigned char *code, unsigned int count, unsigned long long low,
                                 unsigned long long high)
 {
-    const unsigned long long mask = (1ull << (FIELDS_OPERATION_BITS - 64u)) - 1ull;
+    const unsigned long long mask = (1ULL << (FIELDS_OPERATION_BITS - 64u)) - 1ULL;
     unsigned int found = count;
     unsigned int matches = 0u;
     for (unsigned int number = 0u; number < count; number += 1u)
@@ -112,13 +112,13 @@ int fields_cubin(const unsigned char *code, unsigned int count, unsigned int pla
                         const char *path)
 {
     static unsigned char s_turned[FIELDS_CODE_BYTES];
-    const unsigned long long code_size = 16ull * count;
+    const unsigned long long code_size = 16ULL * count;
     memcpy(s_turned, code, (size_t)code_size);
     if (bit < 128u)
     {
         const unsigned int at = (16u * place) + ((bit < 64u) ? 0u : 8u);
         unsigned long long word = fields_word_read(&s_turned[at]);
-        word ^= 1ull << (bit % 64u);
+        word ^= 1ULL << (bit % 64u);
         fields_word_write(&s_turned[at], word);
     }
     CubinWrite written;
@@ -131,7 +131,7 @@ int fields_cubin(const unsigned char *code, unsigned int count, unsigned int pla
     written.registers = FIELDS_REGISTERS;
     written.exit_count = cubin_exits_find(s_turned, code_size, sass_exit_encoding(&s_machine), s_exits, FIELDS_EXITS);
     written.exits = s_exits;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     if (!cubin_write(&written, s_cubin, sizeof(s_cubin), &size) || !fields_file_write(path, s_cubin, size))
     {
         printf("  %s was not written\n", path);
@@ -174,15 +174,15 @@ int fields_flip_safe(unsigned int place, unsigned int bit, char *name, size_t ro
     unsigned long long high = fields_word_read(&s_code[(16u * place) + 8u]);
     if (bit < 64u)
     {
-        low ^= 1ull << bit;
+        low ^= 1ULL << bit;
     }
     else if (bit < 128u)
     {
-        high ^= 1ull << (bit - 64u);
+        high ^= 1ULL << (bit - 64u);
     }
     const unsigned long long key = low & SASS_OPERATION_MASK;
     char text[256];
-    if (sass_encoding_read(&s_machine, low, high, 0ull, text, sizeof(text)))
+    if (sass_encoding_read(&s_machine, low, high, 0ULL, text, sizeof(text)))
     {
         SassInstructionParts parts;
         sass_instruction_read(text, &parts);

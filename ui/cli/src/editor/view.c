@@ -823,7 +823,7 @@ EMBED_INLINE void view_language_read(const ViewCtx *args)
     const int named = EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
                                  .languages_read = &languages, .path = args->view->path, .id_out = id);
     g_cli_guard->persistent_buf_release(languages.pair, g_cli_plugins_owner);
-    *(&languages) = (CliLanguages){NULL, 0u, 0u};
+    languages = (CliLanguages){NULL, 0u, 0u};
     if (named)
     {
         CliViewPluginNeedle needle = {id, args->view};
@@ -2510,10 +2510,10 @@ EMBED_INLINE unsigned long long view_span_bytes(const ViewCtx *args)
         for (unsigned long long at = start; at < end; at += 1ULL)
         {
             unsigned short unit = 0u;
-            if ((at) < args->view->line_length)
+            if (at < args->view->line_length)
             {
                 (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->view->line_units,
-                                                                        .offset = (at) * sizeof(unit),
+                                                                        .offset = at * sizeof(unit),
                                                                         .dst = &unit,
                                                                         .bytes = sizeof(unit)});
             }
@@ -5186,7 +5186,7 @@ EMBED_INLINE void view_line_place(const CliStoredText *one, unsigned long long l
 // writes the span it put into `from_pointer` and `to_pointer`. It gives 1, or 0 where the clipboard took nothing.
 EMBED_INLINE int view_copied(const ViewCtx *args)
 {
-    CliView *const view = args->view;
+    const CliView *const view = args->view;
     const CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = view->key);
     if ((one == NULL) || view->paged || (one->lines.lines == 0u))
     {
@@ -5521,7 +5521,6 @@ EMBED_INLINE void view_top_put(const ViewCtx *args)
 // reserved for the view, 0 where it was not or an edit failed with why into `err_msg`
 EMBED_INLINE int view_input_taken(const ViewCtx *args)
 {
-    const char *key = args->key;
     CliView *const view = args->view;
     int reserved = 1;
     EMBED_CALL(view_folds_refresh, ViewCtx, .view = view);
@@ -6134,10 +6133,10 @@ EMBED_INLINE int view_brace_line(const ViewCtx *args)
     for (unsigned long long at = 0ULL; at < length; at += 1ULL)
     {
         unsigned short unit = 0u;
-        if ((at) < args->view->line_length)
+        if (at < args->view->line_length)
         {
             (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-                .cell = args->view->line_units, .offset = (at) * sizeof(unit), .dst = &unit, .bytes = sizeof(unit)});
+                .cell = args->view->line_units, .offset = at * sizeof(unit), .dst = &unit, .bytes = sizeof(unit)});
         }
         if (unit == '{')
         {

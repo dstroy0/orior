@@ -39,7 +39,7 @@ This detects the formula that could be a molecule. It does not check a particula
 
 ## The boundary with chemistry
 
-This reads the integer count off the atomic structure, the atom subject's to give. How long a bond is, what angle two of them make, and how much energy one holds are measured, and they are the chemistry subject's oracle. The chemistry subject also carries the octet as a whole-molecule sift, degree equal to capacity at every atom at once against a permutation null; this subject stops at the per-atom count and the formula-level existence above. The two do not overlap: one counts the bonds the shells force, the other measures the bonds that form.
+This reads the integer count off the atomic structure, the atom subject's to give. How long a bond is, what angle two of them make, and how much energy one holds are measured, and they are the chemistry subject's oracle. The chemistry subject also carries the octet as a whole-molecule sift, degree equal to capacity at every atom at once against a permutation null. This subject stops at the per-atom count and the formula-level existence above. The two do not overlap: one counts the bonds the shells force, the other measures the bonds that form.
 
 The two meet at one integer as a cross-check. The capacity here, `min(valence, closure - valence)`, equals the degree that closes the chemistry subject's octet at a main-group atom: the same number reached by two routes across two subjects. A disagreement on a main-group atom would mean one of the two is wrong.
 

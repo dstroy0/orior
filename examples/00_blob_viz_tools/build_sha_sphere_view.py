@@ -141,7 +141,7 @@ def compress(block, rounds):
     """The SHA-256 compression function, stopped after `rounds` of the sixty-four.
 
     A standard compression run with the round loop cut short. The schedule is expanded in full
-    because a round reads words the schedule has already produced; stopping the rounds is what
+    because a round reads words the schedule has already produced. Stopping the rounds is what
     limits the mixing, and no other knob is turned in this study.
     """
     words = list(block)

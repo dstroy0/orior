@@ -23,7 +23,7 @@
 # difference between them is ala difference of subject. It is reported and marked, and nothing leans on it.
 #
 # What the script pair alone can settle: if one language in two character sets reads as far apart as two
-# unrelated languages do, the reading is following the writing.
+# unrelated languages do, the reading follows the writing.
 
 import io
 import os
@@ -74,7 +74,7 @@ def main():
             out.write("  %-14s errored in the gate: %s\n" % (label, gate))
             continue
         if len(text) < SAME_LENGTH:
-            # The gate's note here read as though the gate had rejected a file it passed
+            # The gate's note here read as though the gate rejected a file it passed
             out.write("  %-14s passed the gate and holds %d characters, under the %d needed\n"
                       % (label, len(text), SAME_LENGTH))
             continue

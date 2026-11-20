@@ -77,7 +77,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\crumbs\\test_crumbs\\test_crumbs.c");
+  UnityBegin("utils/test/src/ui/cli/unit/crumbs/test_crumbs/test_crumbs.c");
   run_test(test_read_lists_folders_file_and_the_declarations_a_line_is_inside, "test_read_lists_folders_file_and_the_declarations_a_line_is_inside", 66);
   run_test(test_a_line_inside_the_next_declaration_reads_it, "test_a_line_inside_the_next_declaration_reads_it", 79);
   run_test(test_a_line_before_the_first_declaration_lists_none, "test_a_line_before_the_first_declaration_lists_none", 87);

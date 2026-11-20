@@ -10,7 +10,7 @@
 
 // the radix sort's threads: each walks one stretch of the order, and their counts, sixteen a thread, are scanned by one
 // block of CYCLE_SORT_SCAN_THREADS
-#define CYCLE_SORT_THREADS_MAX 65536ull
+#define CYCLE_SORT_THREADS_MAX 65536ULL
 
 #define CYCLE_SORT_SCAN_THREADS 1024u
 
@@ -165,7 +165,7 @@ __global__ static void cycle_sort_count_kernel(const unsigned int *records, cons
     }
     const unsigned long long begin = thread * stretch;
     const unsigned long long end = ((begin + stretch) < count) ? (begin + stretch) : count;
-    for (unsigned long long at = begin; at < end; at += 1ull)
+    for (unsigned long long at = begin; at < end; at += 1ULL)
     {
         tally[cycle_sort_digit(records, from[at], group, out_limbs, offset, bits, field_passes, pass)] += 1u;
     }
@@ -181,11 +181,11 @@ __global__ static void cycle_sort_count_kernel(const unsigned int *records, cons
 __global__ static void cycle_sort_scan_kernel(unsigned int *counts, unsigned long long entries)
 {
     __shared__ unsigned long long totals[CYCLE_SORT_SCAN_THREADS];
-    const unsigned long long stretch = (entries + CYCLE_SORT_SCAN_THREADS - 1ull) / CYCLE_SORT_SCAN_THREADS;
+    const unsigned long long stretch = (entries + CYCLE_SORT_SCAN_THREADS - 1ULL) / CYCLE_SORT_SCAN_THREADS;
     const unsigned long long begin = threadIdx.x * stretch;
     const unsigned long long end = ((begin + stretch) < entries) ? (begin + stretch) : entries;
-    unsigned long long total = 0ull;
-    for (unsigned long long at = begin; at < end; at += 1ull)
+    unsigned long long total = 0ULL;
+    for (unsigned long long at = begin; at < end; at += 1ULL)
     {
         total += counts[at];
     }
@@ -193,7 +193,7 @@ __global__ static void cycle_sort_scan_kernel(unsigned int *counts, unsigned lon
     __syncthreads();
     if (threadIdx.x == 0u)
     {
-        unsigned long long running = 0ull;
+        unsigned long long running = 0ULL;
         for (unsigned int thread = 0u; thread < CYCLE_SORT_SCAN_THREADS; thread += 1u)
         {
             const unsigned long long here = totals[thread];
@@ -203,7 +203,7 @@ __global__ static void cycle_sort_scan_kernel(unsigned int *counts, unsigned lon
     }
     __syncthreads();
     unsigned long long running = totals[threadIdx.x];
-    for (unsigned long long at = begin; at < end; at += 1ull)
+    for (unsigned long long at = begin; at < end; at += 1ULL)
     {
         const unsigned long long here = counts[at];
         // a place in the order is below the count, at max 2^32 records, and the last prefix is below 2^32
@@ -233,7 +233,7 @@ __global__ static void cycle_sort_scatter_kernel(const unsigned int *records, co
     }
     const unsigned long long begin = thread * stretch;
     const unsigned long long end = ((begin + stretch) < count) ? (begin + stretch) : count;
-    for (unsigned long long at = begin; at < end; at += 1ull)
+    for (unsigned long long at = begin; at < end; at += 1ULL)
     {
         const unsigned int lane = from[at];
         const unsigned int digit = cycle_sort_digit(records, lane, group, out_limbs, offset, bits, field_passes, pass);
@@ -246,7 +246,7 @@ __global__ static void cycle_sort_scatter_kernel(const unsigned int *records, co
 static unsigned int cycle_sort_bit_length(unsigned long long value)
 {
     unsigned int length = 0u;
-    while (value != 0ull)
+    while (value != 0ULL)
     {
         length += 1u;
         value >>= 1u;
@@ -262,14 +262,14 @@ static int cycle_sort_radix(const CycleRecordSortRequest *request, EngineError *
     const unsigned long long runs = count / request->group;
     const unsigned int field_passes = (request->bits + CYCLE_SORT_DIGIT_BITS - 1u) / CYCLE_SORT_DIGIT_BITS;
     const unsigned int run_passes =
-        (cycle_sort_bit_length(runs - 1ull) + CYCLE_SORT_DIGIT_BITS - 1u) / CYCLE_SORT_DIGIT_BITS;
+        (cycle_sort_bit_length(runs - 1ULL) + CYCLE_SORT_DIGIT_BITS - 1u) / CYCLE_SORT_DIGIT_BITS;
     const unsigned int passes = field_passes + run_passes;
     const unsigned long long threads = (count < CYCLE_SORT_THREADS_MAX) ? count : CYCLE_SORT_THREADS_MAX;
-    const unsigned long long stretch = (count + threads - 1ull) / threads;
+    const unsigned long long stretch = (count + threads - 1ULL) / threads;
     const unsigned long long entries = CYCLE_SORT_DIGITS * threads;
     // the thread blocks are at max CYCLE_SORT_THREADS_MAX / CYCLE_BLOCK, far under 2^31
-    const unsigned int blocks = (unsigned int)((threads + CYCLE_BLOCK - 1ull) / CYCLE_BLOCK);
-    const unsigned long long fill_needed = (count + CYCLE_BLOCK - 1ull) / CYCLE_BLOCK;
+    const unsigned int blocks = (unsigned int)((threads + CYCLE_BLOCK - 1ULL) / CYCLE_BLOCK);
+    const unsigned long long fill_needed = (count + CYCLE_BLOCK - 1ULL) / CYCLE_BLOCK;
     const unsigned int fill_blocks =
         (unsigned int)((fill_needed < CYCLE_RECORD_BLOCKS_MAX) ? fill_needed : CYCLE_RECORD_BLOCKS_MAX);
     unsigned int *spare = NULL;
@@ -325,10 +325,10 @@ extern "C" long cycle_record_sort(const CycleRecordSortRequest *request)
     }
     const unsigned long long runs = request->count / request->group;
     const unsigned int limbs = (request->bits + 31u) / 32u;
-    unsigned long long width = 1ull;
+    unsigned long long width = 1ULL;
     while (width < request->group)
     {
-        width *= 2ull;
+        width *= 2ULL;
     }
     int device = 0;
     int shared_max = 0;
@@ -340,12 +340,12 @@ extern "C" long cycle_record_sort(const CycleRecordSortRequest *request)
         return CYCLE_ERROR;
     }
     // the network's keys and places for a run padded to a power of two
-    const unsigned long long shared_bytes = width * ((unsigned long long)limbs + 1ull) * sizeof(unsigned int);
+    const unsigned long long shared_bytes = width * ((unsigned long long)limbs + 1ULL) * sizeof(unsigned int);
     // the attribute is a positive byte count the runtime reports, and it re-signs to unsigned exactly
     if (shared_bytes <= (unsigned long long)shared_max)
     {
         const unsigned int threads =
-            (unsigned int)((width < CYCLE_SORT_NETWORK_THREADS) ? ((width < 32ull) ? 32ull : width)
+            (unsigned int)((width < CYCLE_SORT_NETWORK_THREADS) ? ((width < 32ULL) ? 32ULL : width)
                                                                 : CYCLE_SORT_NETWORK_THREADS);
         const unsigned int blocks = (unsigned int)((runs < CYCLE_RECORD_BLOCKS_MAX) ? runs : CYCLE_RECORD_BLOCKS_MAX);
         // the shared bytes are at max the device's max, an int

@@ -194,12 +194,12 @@ int ksc_rows_replaced_traced_by(KscFile *file, const char *channel, const char *
 int ksc_field_read(const char *line, char *name, size_t room, unsigned int *from, unsigned int *width)
 {
     char type[8];
-    unsigned long long first = 0ull;
-    unsigned long long bits = 0ull;
+    unsigned long long first = 0ULL;
+    unsigned long long bits = 0ULL;
     const char *at = line;
     if (!line_word(&at, type, sizeof(type)) || (strcmp(type, "field") != 0) || !line_word(&at, name, room) ||
-        !line_number(&at, 0, &first) || !line_number(&at, 0, &bits) || (first > 0xffffffffull) ||
-        (bits > 0xffffffffull))
+        !line_number(&at, 0, &first) || !line_number(&at, 0, &bits) || (first > 0xffffffffULL) ||
+        (bits > 0xffffffffULL))
     {
         return 0;
     }

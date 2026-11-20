@@ -155,7 +155,7 @@ void khw_ladder_registers_read(KhwAnswered *ladder_form, unsigned int at, const 
 // through the index's register and the record's own through the record's, and a store writes the record through the
 // record's register and the case through the index's. A load's is a place of its tuple, and a store's an operand the
 // form contains with no place, since the record is where a store writes. The runs the turns found inside such a field
-// give way to one run, the field, marked an address; every other run is left for the second stage. The turns alone
+// give way to one run, the field, marked an address. Every other run is left for the second stage. The turns alone
 // cannot find an address field, since each bit of it turned reads through a register that contains no address
 void khw_frame_addresses_read(KhwAnswered *form, unsigned int at, const KhwStaged *stage)
 {
@@ -273,7 +273,7 @@ void khw_frame_registers_read(KhwAnswered *form, unsigned int at, const KhwStage
             const int immediate = (settings[1] == KHW_OFFSET_WORD);
             place = KHW_PLACE_NONE;
             type = KHW_KIND_REGISTER;
-            if (immediate && (form->frame == FRAME_NUMBER) && both && (answer[0] == 0ull) &&
+            if (immediate && (form->frame == FRAME_NUMBER) && both && (answer[0] == 0ULL) &&
                 (answer[1] == KHW_OFFSET_WORD))
             {
                 place = frame_place_number(form->frame);

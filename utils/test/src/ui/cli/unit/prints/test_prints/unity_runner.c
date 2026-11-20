@@ -78,7 +78,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\prints\\test_prints\\test_prints.c");
+  UnityBegin("utils/test/src/ui/cli/unit/prints/test_prints/test_prints.c");
   run_test(test_python_print_prints, "test_python_print_prints", 26);
   run_test(test_a_longer_name_does_not_print, "test_a_longer_name_does_not_print", 31);
   run_test(test_a_comment_does_not_print, "test_a_comment_does_not_print", 36);

@@ -23,7 +23,7 @@ unsigned long long msq_now(void)
 #else
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
-    return ((unsigned long long)now.tv_sec * 1000000000ull) + (unsigned long long)now.tv_nsec;
+    return ((unsigned long long)now.tv_sec * 1000000000ULL) + (unsigned long long)now.tv_nsec;
 #endif
 }
 
@@ -57,13 +57,13 @@ int msq_added(unsigned char **memory, size_t *size_used, size_t *room, const voi
 // disassembler ended clean, 1 where it did not, and -1 where it could not be run
 int msq_read(MsqReader *reader, const MsqBytes *runs, size_t count)
 {
-    reader->calls += 1ull;
+    reader->calls += 1ULL;
     reader->raw_size = 0u;
     int joined = 1;
     for (size_t at = 0u; joined && (at < count); at += 1u)
     {
         // a run is at max a container's code, which a size_t counts
-        joined = (runs[at].size == 0ull) ||
+        joined = (runs[at].size == 0ULL) ||
                  msq_added(&reader->raw, &reader->raw_size, &reader->raw_room, runs[at].bytes, (size_t)runs[at].size);
     }
     char stream_name[64];
@@ -71,7 +71,7 @@ int msq_read(MsqReader *reader, const MsqBytes *runs, size_t count)
     snprintf(stream_name, sizeof(stream_name), "msq_stream_%u", reader->stream);
     const unsigned long long streamed_began = msq_now();
     const int streamed = joined && (qry_member_streamed(stream_name, reader->raw, (unsigned long long)reader->raw_size,
-                                                 stream_path, sizeof(stream_path)) != 0ull);
+                                                 stream_path, sizeof(stream_path)) != 0ULL);
     atomic_fetch_add(&s_streamed_nanoseconds, msq_now() - streamed_began);
     if (!streamed)
     {
@@ -87,7 +87,7 @@ int msq_read(MsqReader *reader, const MsqBytes *runs, size_t count)
         memset(&answer, 0, sizeof(answer));
         answer.output = reader->output;
         answer.output_capacity = reader->output_room;
-        const InterfaceProbe probe = {command, NULL, 0ull};
+        const InterfaceProbe probe = {command, NULL, 0ULL};
         EngineError error;
         memset(&error, 0, sizeof(error));
         if ((interface_probe_run(&probe, &answer, &error) != 0L) || (answer.ending == INTERFACE_ENDING_NOT_STARTED))
@@ -98,7 +98,7 @@ int msq_read(MsqReader *reader, const MsqBytes *runs, size_t count)
         {
             break;
         }
-        const unsigned long long room = answer.output_bytes + 65536ull;
+        const unsigned long long room = answer.output_bytes + 65536ULL;
         char *const larger = (char *)realloc(reader->output, (size_t)room);
         if (larger == NULL)
         {
@@ -109,7 +109,7 @@ int msq_read(MsqReader *reader, const MsqBytes *runs, size_t count)
     }
     atomic_fetch_add(&s_vendor_nanoseconds, msq_now() - vendor_began);
     reader->output_size =
-        (answer.output_bytes < reader->output_room) ? answer.output_bytes : (reader->output_room - 1ull);
+        (answer.output_bytes < reader->output_room) ? answer.output_bytes : (reader->output_room - 1ULL);
     // what the vendor printed of the run, the cross's trace (qry_member.h)
     if (qry_member_run() != NULL)
     {
@@ -117,7 +117,7 @@ int msq_read(MsqReader *reader, const MsqBytes *runs, size_t count)
         snprintf(name, sizeof(name), "run_%u_%llu", reader->ident, reader->calls);
         qry_member_append(name, reader->output, reader->output_size, QRY_ORDINARY);
     }
-    return ((answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ull)) ? 0 : 1;
+    return ((answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ULL)) ? 0 : 1;
 }
 
 // 1 where `c` is a space as the vendor's listing reads it
@@ -173,7 +173,7 @@ int msq_listing_read(const char *printed, size_t length, MsqListing *listing)
             continue;
         }
         walk += 2u;
-        unsigned long long offset = 0ull;
+        unsigned long long offset = 0ULL;
         size_t digits = 0u;
         while ((walk < length) &&
                (((text[walk] >= '0') && (text[walk] <= '9')) || ((text[walk] >= 'a') && (text[walk] <= 'f'))))
@@ -299,7 +299,7 @@ int msq_stopped_at(const char *text, size_t length, unsigned long long *address)
             continue;
         }
         size_t walk = at + marker_length;
-        unsigned long long value = 0ull;
+        unsigned long long value = 0ULL;
         size_t digits = 0u;
         while ((walk < length) &&
                (((text[walk] >= '0') && (text[walk] <= '9')) || ((text[walk] >= 'a') && (text[walk] <= 'f'))))

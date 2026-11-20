@@ -5,7 +5,7 @@
 
 // key_schedule's record layout as one source the host and the device both compile (engine_table.md item 11(a), the
 // compiler on the device): each step arranged for the device from its term, its register placed in the file, and each
-// output placed in the record. The host's key_schedule_record_layout runs it and builds the layout; the device runs it
+// output placed in the record. The host's key_schedule_record_layout runs it and builds the layout. The device runs it
 // in one thread, since each place is taken from what the steps before it freed. The lists it works in are the caller's,
 // each as long as the program has steps
 
@@ -161,7 +161,7 @@ KEY_SCHEDULE_CORE int key_schedule_core_places(KeyScheduleCoreLayout *layout)
     const unsigned int steps = layout->step_count;
     if (layout->reuse == 0)
     {
-        unsigned long long place = 0ull;
+        unsigned long long place = 0ULL;
         for (unsigned int step = 0u; step < steps; step += 1u)
         {
             // a place past ENGINE_RECORD_LIMBS_MAX errors on the layout below, and a place arranged is a 32-bit count
@@ -251,12 +251,12 @@ KEY_SCHEDULE_CORE int key_schedule_core_record_layout(KeyScheduleCoreLayout *lay
 {
     layout->end = KEY_SCHEDULE_CORE_OK;
     layout->at = 0u;
-    unsigned long long table_words = 0ull;
+    unsigned long long table_words = 0ULL;
     for (unsigned int table = 0u; table < layout->table_count; table += 1u)
     {
         layout->table_offset[table] = table_words;
         // index_bits is at max 32, and the entry count at max 2^32
-        const unsigned long long entries = 1ull << layout->tables[table].index_bits;
+        const unsigned long long entries = 1ULL << layout->tables[table].index_bits;
         table_words += entries * (unsigned long long)((layout->tables[table].out_bits + 31u) / 32u);
     }
     layout->table_offset[layout->table_count] = table_words;
@@ -281,7 +281,7 @@ KEY_SCHEDULE_CORE int key_schedule_core_record_layout(KeyScheduleCoreLayout *lay
         {
             if (!((layout->field_offset != NULL) && (term->left < layout->fields) &&
                   (((unsigned long long)layout->field_offset[term->left] + term->bits) <=
-                   (32ull * (unsigned long long)layout->in_limbs[term->member]))))
+                   (32ULL * (unsigned long long)layout->in_limbs[term->member]))))
             {
                 return key_schedule_core_error(layout, KEY_SCHEDULE_CORE_STEP, step);
             }
@@ -291,13 +291,13 @@ KEY_SCHEDULE_CORE int key_schedule_core_record_layout(KeyScheduleCoreLayout *lay
         }
         else if (term->operation == ENGINE_RECORD_CONSTANT)
         {
-            device->left = (unsigned int)(term->constant & 0xFFFFFFFFull);
+            device->left = (unsigned int)(term->constant & 0xFFFFFFFFULL);
             device->right = (unsigned int)(term->constant >> 32u);
         }
         else if (term->operation == ENGINE_RECORD_TABLE)
         {
             if (!((layout->tables != NULL) && (term->right < layout->table_count) &&
-                  (layout->table_offset[term->right] <= 0x7FFFFFFFull)))
+                  (layout->table_offset[term->right] <= 0x7FFFFFFFULL)))
             {
                 return key_schedule_core_error(layout, KEY_SCHEDULE_CORE_STEP, step);
             }
@@ -328,7 +328,7 @@ KEY_SCHEDULE_CORE int key_schedule_core_record_layout(KeyScheduleCoreLayout *lay
     {
         return key_schedule_core_error(layout, KEY_SCHEDULE_CORE_FILE, 0u);
     }
-    layout->out_bits = 0ull;
+    layout->out_bits = 0ULL;
     for (unsigned int output = 0u; output < layout->output_count; output += 1u)
     {
         DeviceRecordStep *const device = &layout->steps[layout->outputs[output]];
@@ -337,7 +337,7 @@ KEY_SCHEDULE_CORE int key_schedule_core_record_layout(KeyScheduleCoreLayout *lay
         device->out_bits = layout->terms[layout->outputs[output]].bits + 1u;
         layout->out_bits += (unsigned long long)device->out_bits;
     }
-    if (layout->out_bits > 0x7FFFFFFFull)
+    if (layout->out_bits > 0x7FFFFFFFULL)
     {
         return key_schedule_core_error(layout, KEY_SCHEDULE_CORE_OUTPUT, 0u);
     }

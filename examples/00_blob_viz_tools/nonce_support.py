@@ -19,7 +19,7 @@ WHAT IS MEASURED
 
 Excite the nonce across many values. At every round of the compression read the whole interior state
 and mark a bit position as SUPPORTED if it takes more than one value across the excitations, ELIDED
-if it never moves. The support is the set of positions the nonce can still reach at that depth; its
+if it never moves. The support is the set of positions the nonce can still reach at that depth. Its
 size grows as the avalanche spreads and closes when every position is reachable. Where it closes is
 the round past which nothing is elided and no hard constraint can be read, and the research measured
 that at round 30 of 64 on the compression function. Past it, a reading returns a floor that looks

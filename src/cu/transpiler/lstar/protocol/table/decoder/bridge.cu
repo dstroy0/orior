@@ -16,7 +16,7 @@ int Decoding::bridge_read(const char *klq)
 {
     std::string line;
     const unsigned char *bridge_bytes = NULL;
-    unsigned long long bridge_size = 0ull;
+    unsigned long long bridge_size = 0ULL;
     if (!qry_member_file_blob(klq, &bridge_bytes, &bridge_size))
     {
         printf("orior_klq_decoder: %s could not be read\n", klq);
@@ -289,7 +289,7 @@ void Decoding::printed(const char *klq)
         int answered = 0;
         for (const auto &flag : entry.second)
         {
-            answered |= ((flag.first & answered_flags) != 0ull) ? 1 : 0;
+            answered |= ((flag.first & answered_flags) != 0ULL) ? 1 : 0;
         }
         if (!entry.first.empty() && (decoded.count(entry.first) == 0u) && !answered)
         {

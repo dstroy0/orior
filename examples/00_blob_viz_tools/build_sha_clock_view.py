@@ -31,7 +31,7 @@ The globe is not a fixed size. Its radius is the clock. The state starts small n
 and inflates outward as the computation runs, reaching the shell at the last operation traced. The
 reader stationary therefore has the computation arrive at them and pass, and where they are
 located decides which part of the run they are inside of. Depth in this room has meant distance
-from a boundary on every other page; here it is time, and it is the same axis the round-depth
+from a boundary on every other page. Here it is time, and it is the same axis the round-depth
 experiment puts the leak against.
 
 THE SPIN
@@ -340,7 +340,7 @@ def main():
         return 2
     # The rings are eight latitudes of thirty-two. Degree 16 is the finest structure the
     # placement can carry in longitude and degree 8 the finest in latitude. Past that the expansion
-    # is fitting the layout and not the state, and the page would show detail nothing put there.
+    # fits the layout and not the state, and the page would show detail nothing put there.
     if top < 1 or top > 16:
         sys.stderr.write("--degrees sits between 1 and 16 for this layout\n")
         return 2

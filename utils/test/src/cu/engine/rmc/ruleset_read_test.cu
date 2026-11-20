@@ -74,7 +74,7 @@ static void relation_print(const LanguageSet *set, const RulesetSchema *names, c
 }
 
 // the files at `paths` read into `set` and checked against each other, and against `schema` where it is not NULL,
-// `names` its names; every relation written, and the set failed where it contains a verdict. 1 where it was read
+// `names` its names. Every relation written, and the set failed where it contains a verdict. 1 where it was read
 static int relations_check(const char *label, const std::string *paths, unsigned int count,
                            const RulesetCoreSchema *schema, const RulesetSchema *names, LanguageSet *set)
 {

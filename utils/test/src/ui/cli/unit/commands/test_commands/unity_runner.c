@@ -86,7 +86,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\commands\\test_commands\\test_commands.c");
+  UnityBegin("utils/test/src/ui/cli/unit/commands/test_commands/test_commands.c");
   run_test(test_no_two_menus_share_a_word, "test_no_two_menus_share_a_word", 33);
   run_test(test_no_menu_lists_a_command_twice, "test_no_menu_lists_a_command_twice", 47);
   run_test(test_every_command_is_one_word, "test_every_command_is_one_word", 66);

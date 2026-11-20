@@ -48,14 +48,14 @@ extern "C"
 #define ENGINE_TARGET_AARCH64 0
 #endif
 
-#define ENGINE_DOUBLE_SIGN_MASK 0x8000000000000000ull
-#define ENGINE_DOUBLE_EXP_MASK 0x7FF0000000000000ull
-#define ENGINE_DOUBLE_MANT_MASK 0x000FFFFFFFFFFFFFull
+#define ENGINE_DOUBLE_SIGN_MASK 0x8000000000000000ULL
+#define ENGINE_DOUBLE_EXP_MASK 0x7FF0000000000000ULL
+#define ENGINE_DOUBLE_MANT_MASK 0x000FFFFFFFFFFFFFULL
 #define ENGINE_DOUBLE_SIGN_SHIFT 63u
 #define ENGINE_DOUBLE_MANT_BITS 52u
 #define ENGINE_DOUBLE_EXP_BITS 11u
-#define ENGINE_DOUBLE_SIGN_ONE 0x1ull
-#define ENGINE_DOUBLE_EXP_ALL 0x7FFull
+#define ENGINE_DOUBLE_SIGN_ONE 0x1ULL
+#define ENGINE_DOUBLE_EXP_ALL 0x7FFULL
 #define ENGINE_DOUBLE_BIAS 1023
 #define ENGINE_DOUBLE_BITS 64u
 #define ENGINE_DOUBLE_SCALE_MAX ((int)(ENGINE_DOUBLE_EXP_ALL - 1u) - ENGINE_DOUBLE_BIAS - (int)ENGINE_DOUBLE_MANT_BITS)
@@ -66,7 +66,7 @@ extern "C"
         struct timespec now;
         timespec_get(&now, TIME_UTC);
         // tv_sec and tv_nsec are non-negative after timespec_get. They re-sign to unsigned long long exactly
-        return ((unsigned long long)now.tv_sec * 1000000ull) + ((unsigned long long)now.tv_nsec / 1000ull);
+        return ((unsigned long long)now.tv_sec * 1000000ULL) + ((unsigned long long)now.tv_nsec / 1000ULL);
     }
 
     static inline unsigned int engine_word_population(unsigned long long word)
@@ -82,7 +82,7 @@ extern "C"
     {
         unsigned long long larger = first;
         unsigned long long smaller = second;
-        while (smaller != 0ull)
+        while (smaller != 0ULL)
         {
             const unsigned long long rest = larger % smaller;
             larger = smaller;

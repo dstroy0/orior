@@ -28,7 +28,7 @@ because a gap is visible and an invention is not.
 SELF CONTAINED
 
 One file, no network, no CDN, no interpreter. That is the tree's convention for these pages and it
-is the property that makes a page worth retention: it opens in five years on a machine with none of
+is the property that makes a page worth retention. It opens in five years on a machine with none of
 this installed. The output location is resolved through `out_path` so the tool never writes beside
 itself.
 """
@@ -174,7 +174,7 @@ def read_pool():
     disagree by a factor of eleven when the historical shares were won under an easier target. A
     page that shows only the inferred figure quietly reports a share rate that is no longer current.
 
-    Both are retained. The stated one is the target mined against now; the inferred one is what was
+    Both are retained. The stated one is the target mined against now. The inferred one is what was
     actually achieved, and their disagreement is the finding and not an error to hide.
     """
     out = {"difficulty": None, "workers": None, "worker": None}
@@ -329,7 +329,7 @@ def render(telemetry, totals, rates, chain, pool=None, liveness=None):
             cell("leading zero bits", "%d" % chain["zeros"], "required by the target"),
             cell("nonces per block", "%.3e" % chain["expected"]),
         ]
-        # The wait for a block belongs in the Win rate section below and is not repeated here; the
+        # The wait for a block belongs in the Win rate section below and is not repeated here. The
         # bits route to it is checked against the difficulty route in --check.
     else:
         chain_cells = [absent("chain context", "the block corpus was not found")]
@@ -654,7 +654,7 @@ def _check():
         failed += 1
 
     # NO FIAT ANYWHERE. A BTC amount is a measurement; a dollar amount is a price quote off a
-    # market this tree does not read, and it would be the one invented number on the page.
+    # market this tree does not read. It would be the one invented number on the page.
     fiat = [one for one in ("$", "USD", "usd", "dollar") if one in page]
     lines.append("  the page quotes no currency price: %s" % (not fiat))
     if fiat:

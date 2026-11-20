@@ -1515,7 +1515,7 @@ struct PanelsServeJob
 // change cut a slice, and the slice cut walks the file and its includes
 static void panels_serve_job(const CliServersJobCfg *args)
 {
-    const PanelsServeJob *const job = (const PanelsServeJob *)(const void *)args->job;
+    const PanelsServeJob *const job = (const PanelsServeJob *)args->job;
     const char *const text = args->job + sizeof(*job);
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea ignored = {why, sizeof(why), 0ULL};

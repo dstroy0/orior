@@ -26,7 +26,7 @@ zero pattern is a field T computed from the target alone.
 
 THE ANSWER TO THE DIFFERENCE is the exact cross-correlation of F_r with T. The round where the
 winner's correlation pulls away from the losers around it is the meeting round, read from the data.
-Earlier than the round-61 anchor and a boundary-field question prunes what the anchor cannot; at 61
+Earlier than the round-61 anchor and a boundary-field question prunes what the anchor cannot. At 61
 or later it gives nothing new, and the exact number says which, with no float floor to hide behind.
 
 WHAT IS WITHHELD
@@ -80,7 +80,7 @@ def target_bits(leading):
 def cyclic_convolve(left, right):
     """The exact CYCLIC convolution of two length-WIDTH sequences, folded in the proven ring.
 
-    four_step.convolve pads to a linear convolution of length len(left)+len(right); this instead
+    four_step.convolve pads to a linear convolution of length len(left)+len(right). This instead
     folds both inputs at WIDTH and takes the pointwise product back, the cyclic convolution
     the correlation below needs. The transform is the same proven fold either way.
     """
@@ -249,7 +249,7 @@ def _check():
         lines.append(text)
 
     # THE EXACT TRANSFORM IS THE EXACT CONVOLUTION. The NTT correlation must equal the direct one to
-    # the integer, or the steering is reading a different map than it thinks.
+    # the integer, or the steering reads a different map than it thinks.
     generator = 1234567
     field = [(generator * (n + 1)) % 2 for n in range(WIDTH)]
     pattern = target_bits(72)

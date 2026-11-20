@@ -94,8 +94,8 @@ def main():
             notes.append("%s errored in the gate: %s" % (name, note))
             continue
         if len(text) < SAME_LENGTH:
-            # Said plainly, because printing the gate's note here read as though the gate had rejected a
-            # file it had passed, and several clean files were being dropped for length under that label
+            # Said plainly, because printing the gate's note here read as though the gate rejected a
+            # file it passed, and several clean files were being dropped for length under that label
             notes.append(
                 "%s passed the gate and holds only %d characters, under the %d needed"
                 % (name, len(text), SAME_LENGTH)

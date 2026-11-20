@@ -51,7 +51,7 @@ extern "C" {
 static_assert(CASMI_PARQUET_PATH_BYTES >= 64u, "CASMI_PARQUET_PATH_BYTES: the list columns' dotted paths need 41 bytes");
 
 // Every byte count here is an unsigned long long and passes to memcpy, fread and malloc as a size_t
-// with no cast; the two must be one width.
+// with no cast. The two must be one width.
 static_assert(sizeof(size_t) == sizeof(unsigned long long), "size_t: expected 64 bits, the width of every CASMI byte count");
 
 // __has_attribute is itself a compiler feature; it is tested once here and nowhere else.

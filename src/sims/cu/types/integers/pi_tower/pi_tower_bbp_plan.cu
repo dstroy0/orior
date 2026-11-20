@@ -99,9 +99,9 @@ static int pi_tower_bbp_term_build(PiTowerBbp *bbp, EngineError *error)
     unsigned int values[32];
     for (unsigned int row = 0u; row < 16u; row += 1u)
     {
-        const unsigned long long power = 1ull << (4u * row);
+        const unsigned long long power = 1ULL << (4u * row);
         // the low and high halves of the word each fit a limb
-        values[2u * row] = (unsigned int)(power & 0xFFFFFFFFull);
+        values[2u * row] = (unsigned int)(power & 0xFFFFFFFFULL);
         values[(2u * row) + 1u] = (unsigned int)(power >> 32u);
     }
     const EngineRecordTable table = {4u, 61u, values};
@@ -163,7 +163,7 @@ static int pi_tower_bbp_pair_build(PiTowerBbp *bbp, EngineError *error)
 PiWide pi_tower_bbp_error(const PiTowerBbp *bbp)
 {
     const PiWide lanes = pi_tower_sum(bbp->terms, pi_tower_unsigned(bbp->tail_terms));
-    return pi_tower_sum(pi_tower_product(lanes, pi_tower_unsigned(4ull)), pi_tower_unsigned(1ull));
+    return pi_tower_sum(pi_tower_product(lanes, pi_tower_unsigned(4ULL)), pi_tower_unsigned(1ULL));
 }
 
 // the run at hex position d, from d alone: W contains PI_TOWER_BBP_CERTIFIED bits past the error with
@@ -172,7 +172,7 @@ int pi_tower_bbp_plan(PiTowerBbp *bbp, const PiWide &position, unsigned long lon
 {
     memset(bbp, 0, sizeof(*bbp));
     bbp->position = position;
-    bbp->terms = pi_tower_sum(position, pi_tower_unsigned(1ull));
+    bbp->terms = pi_tower_sum(position, pi_tower_unsigned(1ULL));
     const unsigned int position_bits = pi_tower_bit_length(position);
     bbp->position_bits = (position_bits == 0u) ? 1u : position_bits;
     bbp->lanes = lanes;
@@ -211,11 +211,11 @@ int pi_tower_bbp_plan(PiTowerBbp *bbp, const PiWide &position, unsigned long lon
 // three programs' step tables and lookup tables
 unsigned long long pi_tower_bbp_bytes(const PiTowerBbp *bbp)
 {
-    const unsigned long long buffer_words = (bbp->lanes + 1ull) * bbp->out_limbs;
+    const unsigned long long buffer_words = (bbp->lanes + 1ULL) * bbp->out_limbs;
     const unsigned long long steps =
         (unsigned long long)bbp->term.layout.steps + bbp->tail.layout.steps + bbp->pair.layout.steps;
     const unsigned long long tables = bbp->term.layout.table_word_count + bbp->tail.layout.table_word_count;
-    return (((bbp->lanes * bbp->in_limbs) + (2ull * buffer_words) + (bbp->lanes + 1ull) + bbp->out_limbs + tables) *
+    return (((bbp->lanes * bbp->in_limbs) + (2ULL * buffer_words) + (bbp->lanes + 1ULL) + bbp->out_limbs + tables) *
             sizeof(unsigned int)) +
            (steps * sizeof(DeviceRecordStep));
 }
@@ -231,7 +231,7 @@ static __global__ void pi_tower_bbp_count(unsigned int *out, unsigned long long 
         const unsigned long long value = first + lane;
         unsigned int *const place = &out[lane * limbs];
         // the low and high halves of the word each fit a limb
-        place[0] = (unsigned int)(value & 0xFFFFFFFFull);
+        place[0] = (unsigned int)(value & 0xFFFFFFFFULL);
         for (unsigned int limb = 1u; limb < limbs; limb += 1u)
         {
             place[limb] = (limb == 1u) ? (unsigned int)(value >> 32u) : 0u;
@@ -242,26 +242,26 @@ static __global__ void pi_tower_bbp_count(unsigned int *out, unsigned long long 
 int pi_tower_bbp_counted(SimResults *results, unsigned int *out, unsigned long long count, unsigned int limbs,
                          unsigned long long first)
 {
-    const unsigned long long blocks = sim_launch_blocks(count, 256ull);
+    const unsigned long long blocks = sim_launch_blocks(count, 256ULL);
     // at max 4096 blocks. The count fits an unsigned int
-    pi_tower_bbp_count<<<(unsigned int)((blocks < 4096ull) ? blocks : 4096ull), 256u>>>(out, count, limbs, first);
+    pi_tower_bbp_count<<<(unsigned int)((blocks < 4096ULL) ? blocks : 4096ULL), 256u>>>(out, count, limbs, first);
     return sim_status_check(results, cudaGetLastError(), "engine: the lanes' integers");
 }
 
-// the sums of count lanes in buffers[0], reduced to one by rounds of the pair program, the buffers taking turns; the
+// the sums of count lanes in buffers[0], reduced to one by rounds of the pair program, the buffers taking turns. The
 // buffer the one sum lands in, or NULL
 unsigned int *pi_tower_bbp_reduce(SimResults *results, const PiTowerBbp *bbp, unsigned int *const *buffers,
                                   const unsigned int *index, unsigned long long count, EngineError *error)
 {
     unsigned int from = 0u;
     unsigned long long left = count;
-    while (left > 1ull)
+    while (left > 1ULL)
     {
-        const unsigned long long pairs = left / 2ull;
+        const unsigned long long pairs = left / 2ULL;
         // lane k reads index 2 k and 2 k + 1, lanes 2 k and 2 k + 1 of the buffer
         const CycleRecordRunRequest run = {bbp->pair.record,
                                            {buffers[from], buffers[from], NULL},
-                                           {left, left, 0ull},
+                                           {left, left, 0ULL},
                                            index,
                                            pairs,
                                            buffers[1u - from],
@@ -272,16 +272,16 @@ unsigned int *pi_tower_bbp_reduce(SimResults *results, const PiTowerBbp *bbp, un
             return NULL;
         }
         // the odd lane out rides into the next round unpaired
-        if (((left & 1ull) != 0ull) &&
+        if (((left & 1ULL) != 0ULL) &&
             !sim_status_check(results,
                               cudaMemcpy(&buffers[1u - from][pairs * bbp->out_limbs],
-                                         &buffers[from][(left - 1ull) * bbp->out_limbs],
+                                         &buffers[from][(left - 1ULL) * bbp->out_limbs],
                                          bbp->out_limbs * sizeof(unsigned int), cudaMemcpyDeviceToDevice),
                               "engine: the odd lane"))
         {
             return NULL;
         }
-        left = pairs + (left & 1ull);
+        left = pairs + (left & 1ULL);
         from = 1u - from;
     }
     return buffers[from];
@@ -326,20 +326,20 @@ void pi_tower_bbp_progress(SimResults *results, const PiTowerBbp *bbp, const PiT
     mmgr_line_put(&results->line, " terms in ");
     mmgr_line_decimal(&results->line, run->sweeps, 1u);
     mmgr_line_put(&results->line, " cycles and ");
-    sim_fraction_print(&results->line, micros, 1000000ull, 3u);
+    sim_fraction_print(&results->line, micros, 1000000ULL, 3u);
     mmgr_line_put(&results->line, " s, ");
     pi_tower_print_exponent(&results->line,
-                            pi_tower_product(pi_tower_unsigned(run->done), pi_tower_unsigned(1000000ull)),
-                            pi_tower_unsigned((micros == 0ull) ? 1ull : micros));
+                            pi_tower_product(pi_tower_unsigned(run->done), pi_tower_unsigned(1000000ULL)),
+                            pi_tower_unsigned((micros == 0ULL) ? 1ULL : micros));
     mmgr_line_put(&results->line, " terms a second");
-    if ((left.sign != 0) && (run->done != 0ull))
+    if ((left.sign != 0) && (run->done != 0ULL))
     {
         // the years left: left . micros / (done . 10^6 . 31557600)
         mmgr_line_put(&results->line, "; ");
-        pi_tower_print_exponent(&results->line, left, pi_tower_unsigned(1ull));
+        pi_tower_print_exponent(&results->line, left, pi_tower_unsigned(1ULL));
         mmgr_line_put(&results->line, " left, ");
         pi_tower_print_exponent(&results->line, pi_tower_product(left, pi_tower_unsigned(micros)),
-                                pi_tower_product(pi_tower_unsigned(run->done), pi_tower_unsigned(31557600000000ull)));
+                                pi_tower_product(pi_tower_unsigned(run->done), pi_tower_unsigned(31557600000000ULL)));
         mmgr_line_put(&results->line, " years at this rate");
     }
     mmgr_line_ch(&results->line, '\n');

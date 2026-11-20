@@ -246,7 +246,7 @@ int main(void)
     claimed(&frame, &numbers);
     cli_check((frame.tabs_share == (11 * GUI_FIXED_ONE) / 16) && (frame.tabs.height == 22),
               "the row's share is at the sixteenth nearest the claim's, its height at the claim's own share");
-    // the head revealed: the bar comes in as a pane the gap down from the top, past the wordmark's corner; the work
+    // the head revealed: the bar comes in as a pane the gap down from the top, past the wordmark's corner. The work
     // stays until the capacity is taken, then moves down under the bar
     numbers.claim = GUI_FIXED_ONE;
     numbers.reveal_top = GUI_FIXED_ONE;

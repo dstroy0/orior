@@ -400,7 +400,7 @@ EMBED_INLINE int cli_position_alloc(const SettingsSyncImportCtx *args)
     // view of one that was is a fault elsewhere; what the writing needs of it is in the settings written and the saved
     // copy already
     const unsigned int existed = (before != NULL) ? 1u : 0u;
-    g_cli_guard->persistent_buf_release((void *)(embed_word)before, (g_cli_machine_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)before, g_cli_machine_owner);
     if (reserved && (text != NULL))
     {
         reserved = EMBED_CALL(cli_write_on_to, SettingsSyncImportCtx, .to = path, .text = text, .size = size,

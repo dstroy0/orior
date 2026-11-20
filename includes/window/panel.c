@@ -148,7 +148,7 @@ EMBED_INLINE void layout_word(const PanelCtx *args)
 }
 
 // a paragraph's line positioned from `text`, `length` bytes, word by word, the text between single backticks in the code
-// face in the type's color; the pen left after its last word, a blank's width on, for the next line's words
+// face in the type's color. The pen left after its last word, a blank's width on, for the next line's words
 EMBED_INLINE void layout_paragraph_line(const PanelCtx *args)
 {
     const char *text = args->text;

@@ -18,7 +18,7 @@
  * @param[in]  sample_stride    Plan on every Nth alignment. 0 is treated as 1.
  * @return                      Probes actually placed.
  * @note Static and positional, which is where a long parameter list is allowed to live. The public
- *       surface takes one pointer to a const argument structure; this is the backend it names, and
+ *       surface takes one pointer to a const argument structure. This is the backend it names, and
  *       every check the contract states happens here and not in the entry.
  */
 static size_t steer_sweep_probes(OriorProbe *probes, size_t wanted, const uint8_t *corpus, size_t corpus_len,

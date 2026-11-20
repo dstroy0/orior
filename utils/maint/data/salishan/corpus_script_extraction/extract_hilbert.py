@@ -71,7 +71,7 @@ def _repository_root():
     A marker the repository produces, such as build/, is absent from a linked worktree and a
     never-built clone, and a climb to it can pass this root and land in another checkout whose paths
     look valid. A marker infers the root. Git answers it. The climb below serves only an exported tree
-    with no git directory, and it looks for archive/src/python, which the repository tracks and every checkout
+    with no git directory. It looks for archive/src/python, which the repository tracks and every checkout
     of it holds.
 
     Git's own variables are cleared first. Inside a hook GIT_DIR is exported, and a rev-parse that
@@ -152,7 +152,7 @@ PAGE_NUMBER = re.compile(r"^\d{1,4}$")
 #
 # Without this the English of an example ran on into the essay under it. Example 2's translation is
 # a single line, ‘High class, high class was Raven.’, and it was recorded with the next eleven lines
-# of Hilbert's commentary welded onto it, as something Susie Sampson Peter had said. Coverage was
+# of Hilbert's commentary welded onto it, as something Susie Sampson Peter said. Coverage was
 # 100 percent throughout, because every token was in the file; it was in the wrong row.
 COLUMN = 46
 

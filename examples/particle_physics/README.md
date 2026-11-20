@@ -79,7 +79,7 @@ Distinct is the states summed over the table; the accumulation is 7021 electrons
 | counts retained, order deleted | 0.030 | 0.027 | 0.060  | 0.035  | 0.094 at 22 |
 | no exclusion               | 0.000 | 0.000 | 0.000  | 0.000  | 0.000 at 1  |
 
-The first background is `reference.shuffles.permuted`, a uniform arrangement of the same signatures. Its floor is identical to the real one, 0.030, because it retains every count exactly, and its match rate at the row lengths falls to that floor. The recurrence is in the order Pauli fills the shells in. It is not in the counts. The second background deletes the exclusion: every electron drops to 1s, and an element is then only a count of electrons in one state; every signature is distinct, and the floor and the match rate are both zero. Without exclusion there is a ladder and no table. The real accumulation is the positive control and the only arm carrying the recurrence.
+The first background is `reference.shuffles.permuted`, a uniform arrangement of the same signatures. Its floor is identical to the real one, 0.030, because it retains every count exactly, and its match rate at the row lengths falls to that floor. The recurrence is in the order Pauli fills the shells in. It is not in the counts. The second background deletes the exclusion: every electron drops to 1s, and an element is then only a count of electrons in one state. Every signature is distinct, and the floor and the match rate are both zero. Without exclusion there is a ladder and no table. The real accumulation is the positive control and the only arm carrying the recurrence.
 
 ## The row lengths, off the difference set
 

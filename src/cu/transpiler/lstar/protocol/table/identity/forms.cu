@@ -33,7 +33,7 @@ int vector_alike(const std::vector<unsigned char> &code, const std::vector<std::
         question_alike(code, host, places, question, queries);
         return (question->outcome == RUN_ANSWERED) ? 1 : 0;
     };
-    // the query at the fewest is in R once the walk has put it, and is read from there
+    // the query at the fewest is in R once the walk put it, and is read from there
     question->registers = (unsigned int)walk_halved(answers_declaring, (long long)max, (long long)least);
     return question_alike(code, host, places, question, queries);
 }

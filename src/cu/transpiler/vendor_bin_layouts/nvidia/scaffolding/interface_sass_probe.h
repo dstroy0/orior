@@ -170,7 +170,7 @@ typedef struct
     SassInstruction first;
 } SassOperation;
 
-// what one run of the probe has found so far: where its cubins are, which program assembles them, and the part, the
+// what one run of the probe found so far: where its cubins are, which program assembles them, and the part, the
 // questions and the operations read out of them
 typedef struct
 {

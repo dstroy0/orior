@@ -375,7 +375,7 @@ int cli_servers_slice_send(const CliServersPathSizeRootCtx *args)
             opener[at] = 0u;
             (void)g_cli_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = stored.cell,
-                                    .offset = (embed_word)(stored.text_at + sizeof(head) + ((at) * sizeof(opener[at]))),
+                                    .offset = (embed_word)(stored.text_at + sizeof(head) + (at * sizeof(opener[at]))),
                                     .dst = &opener[at],
                                     .bytes = sizeof(opener[at])});
         }
@@ -707,7 +707,7 @@ static void slice_gather_job(const CliServersJobCfg *args)
         unsigned int was = 0u;
         (void)g_cli_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = stored.cell,
-                                .offset = (embed_word)(stored.text_at + sizeof(head) + ((at) * sizeof(was))),
+                                .offset = (embed_word)(stored.text_at + sizeof(head) + (at * sizeof(was))),
                                 .dst = &was,
                                 .bytes = sizeof(was)});
         same = was == gather->opener[at];
@@ -779,7 +779,7 @@ int cli_servers_view(const CliServersPathOutErrMsgCfg *args)
         unsigned int was = 0u;
         (void)g_cli_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = stored.cell,
-                                .offset = (embed_word)(stored.text_at + sizeof(head) + ((at) * sizeof(was))),
+                                .offset = (embed_word)(stored.text_at + sizeof(head) + (at * sizeof(was))),
                                 .dst = &was,
                                 .bytes = sizeof(was)});
         same = was == args->opener[at];

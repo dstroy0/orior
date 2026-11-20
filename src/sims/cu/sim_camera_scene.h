@@ -10,53 +10,53 @@
 
 #define SIM_TRUTH_FIELDS 4u
 
-#define SIM_LANE_MAX 65535ll
+#define SIM_LANE_MAX 65535LL
 
-#define SIM_RENDER_THREADS 256ull
+#define SIM_RENDER_THREADS 256ULL
 
-#define SIM_SHOT_PURPOSE 0x53484F54ull
+#define SIM_SHOT_PURPOSE 0x53484F54ULL
 
-#define SIM_READ_PURPOSE 0x52454144ull
+#define SIM_READ_PURPOSE 0x52454144ULL
 
-#define SIM_PATTERN_PURPOSE 0x50415454ull
+#define SIM_PATTERN_PURPOSE 0x50415454ULL
 
-#define SIM_ROW_PURPOSE 0x524F57ull
+#define SIM_ROW_PURPOSE 0x524F57ULL
 
-#define SIM_COLUMN_PURPOSE 0x434F4C554D4Eull
+#define SIM_COLUMN_PURPOSE 0x434F4C554D4EULL
 
-#define SIM_PLANE_PURPOSE 0x504C414E45ull
+#define SIM_PLANE_PURPOSE 0x504C414E45ULL
 
-#define SIM_FLICKER_PURPOSE 0x464C49434B4552ull
+#define SIM_FLICKER_PURPOSE 0x464C49434B4552ULL
 
-#define SIM_SPIKE_PURPOSE 0x5350494B45ull
+#define SIM_SPIKE_PURPOSE 0x5350494B45ULL
 
-#define SIM_RESET_PURPOSE 0x5245534554ull
+#define SIM_RESET_PURPOSE 0x5245534554ULL
 
-#define SIM_THIN_PURPOSE 0x5448494Eull
+#define SIM_THIN_PURPOSE 0x5448494EULL
 
-#define SIM_EXCESS_PURPOSE 0x455843455353ull
+#define SIM_EXCESS_PURPOSE 0x455843455353ULL
 
-#define SIM_SCALE_PURPOSE 0x5343414C45ull
+#define SIM_SCALE_PURPOSE 0x5343414C45ULL
 
-#define SIM_GAIN_PATTERN_PURPOSE 0x50524E55ull
+#define SIM_GAIN_PATTERN_PURPOSE 0x50524E55ULL
 
-#define SIM_GAIN_ROUND_PURPOSE 0x524F554E44ull
+#define SIM_GAIN_ROUND_PURPOSE 0x524F554E44ULL
 
-#define SIM_OFFSET_PATTERN_PURPOSE 0x44534E55ull
+#define SIM_OFFSET_PATTERN_PURPOSE 0x44534E55ULL
 
 // the camera's shot laws, 0 for none: sim_poisson_four_cumulants, the camera's own, whose first four cumulants are
-// each S, a Poisson count's; and Binomial(4S, 1/2) - S, of mean and variance S but symmetric (third cumulant 0,
+// each S, a Poisson count's. And Binomial(4S, 1/2) - S, of mean and variance S but symmetric (third cumulant 0,
 // fourth -S/2), stored for a sim to read beside it
-#define SIM_SHOT_POISSON 1ull
+#define SIM_SHOT_POISSON 1ULL
 
-#define SIM_SHOT_SYMMETRIC 2ull
+#define SIM_SHOT_SYMMETRIC 2ULL
 
 // two more counts for a sim to thin (rows 13 and 14): Binomial(2S, 1/2), of mean S and variance S / 2, Fano factor
-// 1/2, a sub-Poisson source; and twice the camera's Poisson count of S / 2 pairs, S even, of mean S and variance 2 S,
+// 1/2, a sub-Poisson source. And twice the camera's Poisson count of S / 2 pairs, S even, of mean S and variance 2 S,
 // Fano factor 2, a bunched source
-#define SIM_SHOT_HALF 3ull
+#define SIM_SHOT_HALF 3ULL
 
-#define SIM_SHOT_PAIRED 4ull
+#define SIM_SHOT_PAIRED 4ULL
 
 typedef struct
 {
@@ -148,15 +148,15 @@ static inline __host__ __device__ unsigned long long sim_scene_voxels(const SimS
 
 static inline unsigned long long sim_draws_between(SimDraws *draws, unsigned long long low, unsigned long long high)
 {
-    const unsigned long long value = low + sim_draw_below(draws->key, draws->counter, (high - low) + 1ull);
-    draws->counter += 1ull;
+    const unsigned long long value = low + sim_draw_below(draws->key, draws->counter, (high - low) + 1ULL);
+    draws->counter += 1ULL;
     return value;
 }
 
 static inline long long sim_draws_signed(SimDraws *draws, long long range)
 {
     // the range is a small positive speed. 2 range + 1 and the draw below it fit both types
-    return (long long)sim_draws_between(draws, 0ull, 2ull * (unsigned long long)range) - range;
+    return (long long)sim_draws_between(draws, 0ULL, 2ULL * (unsigned long long)range) - range;
 }
 
 static inline void sim_founders_draw(SimDraws *draws, const SimScene *scene, SimBody *body, unsigned int founders)
@@ -165,20 +165,20 @@ static inline void sim_founders_draw(SimDraws *draws, const SimScene *scene, Sim
     {
         SimBody *const founder = &body[index];
         // each extent is far below 2^63, and the margins place a founder inside at birth
-        founder->center[0] = (long long)sim_draws_between(draws, 4ull, scene->extent[0] - 5ull);
-        founder->center[1] = (long long)sim_draws_between(draws, 16ull, scene->extent[1] - 17ull);
-        founder->center[2] = (long long)sim_draws_between(draws, 16ull, scene->extent[2] - 17ull);
-        founder->velocity[0] = 0ll;
-        founder->velocity[1] = sim_draws_signed(draws, 1ll);
-        founder->velocity[2] = sim_draws_signed(draws, 1ll);
+        founder->center[0] = (long long)sim_draws_between(draws, 4ULL, scene->extent[0] - 5ULL);
+        founder->center[1] = (long long)sim_draws_between(draws, 16ULL, scene->extent[1] - 17ULL);
+        founder->center[2] = (long long)sim_draws_between(draws, 16ULL, scene->extent[2] - 17ULL);
+        founder->velocity[0] = 0LL;
+        founder->velocity[1] = sim_draws_signed(draws, 1LL);
+        founder->velocity[2] = sim_draws_signed(draws, 1LL);
         // semi-axes of a few voxels, drawn small and positive
-        founder->range[0] = (long long)sim_draws_between(draws, 2ull, 3ull);
-        founder->range[1] = (long long)sim_draws_between(draws, 4ull, 7ull);
-        founder->range[2] = (long long)sim_draws_between(draws, 4ull, 7ull);
-        founder->brightness = sim_draws_between(draws, 150ull, 400ull);
-        founder->born = 0ull;
+        founder->range[0] = (long long)sim_draws_between(draws, 2ULL, 3ULL);
+        founder->range[1] = (long long)sim_draws_between(draws, 4ULL, 7ULL);
+        founder->range[2] = (long long)sim_draws_between(draws, 4ULL, 7ULL);
+        founder->brightness = sim_draws_between(draws, 150ULL, 400ULL);
+        founder->born = 0ULL;
         founder->ended = scene->frames;
-        founder->parent = -1ll;
+        founder->parent = -1LL;
     }
 }
 
@@ -219,11 +219,11 @@ static inline __host__ __device__ unsigned long long sim_signal(const SimScene *
 {
     // a column index inside the view is non-negative and below the extent
     unsigned long long electrons = scene->background + (scene->ramp * (unsigned long long)place[2]);
-    if (scene->plant_period != 0ull)
+    if (scene->plant_period != 0ULL)
     {
         // a coordinate inside the view is non-negative and below the extent
         const unsigned long long phase = (unsigned long long)place[scene->plant_axis] % scene->plant_period;
-        electrons += sim_draw_below(scene->plant_key, phase, scene->plant_amplitude + 1ull);
+        electrons += sim_draw_below(scene->plant_key, phase, scene->plant_amplitude + 1ULL);
     }
     for (unsigned int index = 0u; index < scene->bodies; index += 1u)
     {
@@ -240,13 +240,13 @@ static inline __host__ __device__ long long sim_centerd(unsigned long long key, 
                                                         unsigned long long square)
 {
     // a head count of at max 4 square is far below 2^62
-    return (long long)sim_binomial_half(key, counter, 4ull * square) - (2ll * (long long)square);
+    return (long long)sim_binomial_half(key, counter, 4ULL * square) - (2LL * (long long)square);
 }
 
 // the shared scale's e_t in frame t: scale_octaves draws of variance scale_square, octave o's sustained for 2^o frames
 static inline __host__ __device__ long long sim_scale(const SimCamera *camera, unsigned long long frame)
 {
-    long long shared = 0ll;
+    long long shared = 0LL;
     for (unsigned int octave = 0u; octave < camera->scale_octaves; octave += 1u)
     {
         // octave o's draw changes only when frame >> o does
@@ -262,35 +262,35 @@ static inline __host__ __device__ unsigned long long sim_light(const SimScene *s
                                                                unsigned long long frame, const long long *place)
 {
     unsigned long long light = sim_signal(scene, frame, place);
-    if (camera->blur_eighths != 0ull)
+    if (camera->blur_eighths != 0ULL)
     {
-        long long beside[SIM_AXES] = {place[0], place[1], place[2] - 1ll};
-        const unsigned long long left = (place[2] > 0ll) ? sim_signal(scene, frame, beside) : light;
-        beside[2] = place[2] + 1ll;
+        long long beside[SIM_AXES] = {place[0], place[1], place[2] - 1LL};
+        const unsigned long long left = (place[2] > 0LL) ? sim_signal(scene, frame, beside) : light;
+        beside[2] = place[2] + 1LL;
         // a column index inside the view is non-negative and below the extent
         const unsigned long long right =
-            (((unsigned long long)place[2] + 1ull) < scene->extent[2]) ? sim_signal(scene, frame, beside) : light;
+            (((unsigned long long)place[2] + 1ULL) < scene->extent[2]) ? sim_signal(scene, frame, beside) : light;
         light =
-            (((8ull - (2ull * camera->blur_eighths)) * light) + (camera->blur_eighths * (left + right)) + 4ull) / 8ull;
+            (((8ULL - (2ULL * camera->blur_eighths)) * light) + (camera->blur_eighths * (left + right)) + 4ULL) / 8ULL;
     }
     if (camera->scale_bits != 0u)
     {
         // the unit is far below 2^62, and the scale is at least 1
-        const long long unit = 1ll << camera->scale_bits;
+        const long long unit = 1LL << camera->scale_bits;
         const long long scale = unit + sim_scale(camera, frame);
-        const unsigned long long factor = (scale < 1ll) ? 1ull : (unsigned long long)scale;
-        light = ((light * factor) + (1ull << (camera->scale_bits - 1u))) >> camera->scale_bits;
+        const unsigned long long factor = (scale < 1LL) ? 1ULL : (unsigned long long)scale;
+        light = ((light * factor) + (1ULL << (camera->scale_bits - 1u))) >> camera->scale_bits;
     }
     return light;
 }
 
 static inline __host__ __device__ unsigned long long sim_pattern(const SimCamera *camera, unsigned long long voxel)
 {
-    if (camera->pattern_range == 0ull)
+    if (camera->pattern_range == 0ULL)
     {
-        return 0ull;
+        return 0ULL;
     }
-    return sim_draw_below(camera->key ^ SIM_PATTERN_PURPOSE, voxel, camera->pattern_range + 1ull);
+    return sim_draw_below(camera->key ^ SIM_PATTERN_PURPOSE, voxel, camera->pattern_range + 1ULL);
 }
 
 #endif

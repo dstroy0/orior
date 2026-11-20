@@ -24,7 +24,7 @@
 //
 // The trace is put in sections, one a cycle. Before each cycle a satisfied run is put for every side the cycle queries,
 // each read against the bound. Where every one lands under it, the bound still applies to the part and the cycle is
-// put. Where one lands past it, the part has moved since the bound was read, and the walk takes up the same record
+// put. Where one lands past it, the part moved since the bound was read, and the walk takes up the same record
 // again for the reach still ahead before the cycle is put.
 //
 // How far the bound swings is recorded, section by section and in sum. The bound only grows, since a run can raise the

@@ -10,7 +10,7 @@
 #
 # What separates two German books came out at 11 percent for the author, 1 percent for the century and 88
 # percent for the book itself, over 1244 texts. That is a strong result and it describes Germanic prose,
-# which is one branch of one family, and it was written down as though it described writing.
+# which is one branch of one family. It was written down as though it described writing.
 #
 # Japanese is the corpus that can carry the same question from outside. It is not Indo-European, it writes
 # with three systems at once, it marks no word boundaries, and its pitch accent never reaches the page at

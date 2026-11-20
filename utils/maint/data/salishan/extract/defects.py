@@ -6,7 +6,7 @@ before and the table holds one current row per repair:
     paper   page   type   raw   repaired   tool
 
 The types are counted across papers with python defects.py, which prints how often each type
-has turned up and in how many papers.
+turned up and in how many papers.
 """
 import collections
 import os

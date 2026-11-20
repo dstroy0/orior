@@ -161,7 +161,7 @@ EMBED_INLINE int verify_cli_by_name(const DisasmVerifyCtx *args)
         }
         at = end + 1ULL;
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)text, (g_cli_programs_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)text, g_cli_programs_owner);
     return found;
 }
 
@@ -368,7 +368,7 @@ EMBED_INLINE int verify_readings_run(const DisasmVerifyCtx *args)
     }
     g_cli_guard->persistent_buf_release(one.instruction, g_cli_programs_owner);
     g_cli_guard->persistent_buf_release(other.instruction, g_cli_programs_owner);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)ghidra, (g_cli_programs_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)ghidra, g_cli_programs_owner);
     if (disassembled != NULL)
     {
         EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = disassembled);

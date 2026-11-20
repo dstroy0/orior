@@ -109,12 +109,12 @@ struct CycleRecord
 };
 
 // a launch's time to live where CYCLE_RECORD_TTL names none, well inside Windows' 2 s watchdog
-#define CYCLE_PROGRAM_TTL_MICROSECONDS 500000ull
+#define CYCLE_PROGRAM_TTL_MICROSECONDS 500000ULL
 
 // the check-in the scheduler checks a program against, and how often each of its thread blocks checks in within it
-#define CYCLE_PROGRAM_WDT_MICROSECONDS 100000ull
+#define CYCLE_PROGRAM_WDT_MICROSECONDS 100000ULL
 
-#define CYCLE_PROGRAM_CHECKINS_PER_WDT 4ull
+#define CYCLE_PROGRAM_CHECKINS_PER_WDT 4ULL
 
 // the stack a launch grew past `before` given back (cycle_launch.cu)
 int cycle_stack_return(size_t before, const void *evacaddr, EngineError *error);
@@ -133,7 +133,7 @@ int cycle_record_compile(const EngineRecordLayout *layout, CycleRecord *record, 
 void cycle_program_release(cudaKernel_t kernel);
 
 // a program's C source built by the host's compiler and loaded for `record`, 0 where it did not build; a cached host
-// program given back; and a host program run resident on the host (cycle_compile.cu)
+// program given back. And a host program run resident on the host (cycle_compile.cu)
 int cycle_host_program_load(const EngineRecordLayout *layout, CycleRecord *record, const std::string &source,
                             unsigned int places, unsigned long long written, int report);
 

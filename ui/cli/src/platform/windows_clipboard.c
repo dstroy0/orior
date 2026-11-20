@@ -86,7 +86,7 @@ int cli_clipboard_text_read(const CliCtx *args)
             // a piece is at max CLI_CLIPBOARD_PIECE units, which an int counts
             const int bytes =
                 WideCharToMultiByte(CP_UTF8, 0u, pixel_width + at, (int)count, piece, (int)sizeof(piece), NULL, NULL);
-            mmgr_line_put_n(args->text_verba_linea_pointer, piece, (bytes > 0) ? (unsigned long long)bytes : 0ull);
+            mmgr_line_put_n(args->text_verba_linea_pointer, piece, (bytes > 0) ? (unsigned long long)bytes : 0ULL);
             at += count;
         }
         GlobalUnlock(clipboard_data);
@@ -137,7 +137,7 @@ int cli_clipboard_text_write(const CliSizeTextCtx *args)
         return 0;
     }
     // the size is at max what an int counts, as checked above
-    const int units = (args->size > 0ull) ? MultiByteToWideChar(CP_UTF8, 0u, args->text, (int)args->size, NULL, 0) : 0;
+    const int units = (args->size > 0ULL) ? MultiByteToWideChar(CP_UTF8, 0u, args->text, (int)args->size, NULL, 0) : 0;
     const HGLOBAL memory = GlobalAlloc(GMEM_MOVEABLE, ((SIZE_T)units + 1u) * sizeof(wchar_t));
     wchar_t *const pixel_width = (memory != NULL) ? (wchar_t *)GlobalLock(memory) : NULL;
     if (pixel_width == NULL)

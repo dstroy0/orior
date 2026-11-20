@@ -133,7 +133,7 @@ static int bound(const char *text)
     const CliViewInput sized = {.type = CLI_VIEW_SIZE, .rows = 10u, .columns = 80u};
     (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = PREVIEW_KEY, .input = &sized,
                      .err_msg = &err_msg);
-    EMBED_CALL(cli_preview.mode_set, CliPreviewCfg, .word = "beside");
+    EMBED_CALL(cli_preview.mode_set, CliPreviewCfg, .mode_word = "beside");
     s_now_ms += CLI_PREVIEW_LOOK_MS;
     return EMBED_CALL(cli_preview.step, CliPreviewCfg, .key = PREVIEW_KEY, .now_ms = s_now_ms,
                       .width_px = PREVIEW_WIDTH, .height_px = PREVIEW_HEIGHT, .scale = 100);
@@ -231,13 +231,13 @@ void test_mode_reads_its_word_turns_off_where_it_is_and_is_saved(void)
     cli_unity_folder("preview_home", home);
     TEST_ASSERT_EQUAL_INT(
         1, EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = home));
-    EMBED_CALL(cli_preview.mode_set, CliPreviewCfg, .word = "alone");
+    EMBED_CALL(cli_preview.mode_set, CliPreviewCfg, .mode_word = "alone");
     TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_ALONE, EMBED_CALL(cli_preview.mode_get, CliPreviewCfg, .now_ms = 0ULL));
     EMBED_CALL(cli_preview.mode_set, CliPreviewCfg, .mode = CLI_PREVIEW_BESIDE);
     TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_BESIDE, EMBED_CALL(cli_preview.mode_get, CliPreviewCfg, .now_ms = 0ULL));
     EMBED_CALL(cli_preview.mode_set, CliPreviewCfg, .mode = CLI_PREVIEW_BESIDE);
     TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_OFF, EMBED_CALL(cli_preview.mode_get, CliPreviewCfg, .now_ms = 0ULL));
-    EMBED_CALL(cli_preview.mode_set, CliPreviewCfg, .mode = CLI_PREVIEW_BESIDE, .word = "alone");
+    EMBED_CALL(cli_preview.mode_set, CliPreviewCfg, .mode = CLI_PREVIEW_BESIDE, .mode_word = "alone");
     TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_ALONE, EMBED_CALL(cli_preview.mode_get, CliPreviewCfg, .now_ms = 0ULL));
     CliStateEntries entries =
         cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = home, .owner = g_cli_preview_owner});
@@ -540,9 +540,9 @@ void test_a_step_positions_the_text_again_only_where_it_changed(void)
     TEST_ASSERT_EQUAL_INT(1, stepped());
     TEST_ASSERT_EQUAL_UINT(EMBED_CALL(cli_preview_item.count, CliPreviewItemCfg, .at = 0u), bound_run("First"));
     TEST_ASSERT_NOT_NULL(EMBED_CALL(cli_preview_item.item, CliPreviewItemCfg, .at = bound_run("Second")));
-    EMBED_CALL(cli_preview.mode_set, CliPreviewCfg, .word = "off");
+    EMBED_CALL(cli_preview.mode_set, CliPreviewCfg, .mode_word = "off");
     TEST_ASSERT_EQUAL_UINT64(0ULL, EMBED_CALL(cli_preview.deadline_ms, CliPreviewCfg, .now_ms = s_now_ms));
-    EMBED_CALL(cli_preview.mode_set, CliPreviewCfg, .word = "beside");
+    EMBED_CALL(cli_preview.mode_set, CliPreviewCfg, .mode_word = "beside");
     TEST_ASSERT_EQUAL_UINT64(s_now_ms + CLI_PREVIEW_LOOK_MS,
                              EMBED_CALL(cli_preview.deadline_ms, CliPreviewCfg, .now_ms = s_now_ms));
 }

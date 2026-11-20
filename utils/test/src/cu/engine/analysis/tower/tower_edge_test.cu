@@ -74,7 +74,7 @@ static unsigned int tower_test_compare(unsigned int x)
 }
 
 // The Bennett embedding of f: (x, y) -> (x, y xor f(x)). It is a permutation of the pair for any f, lossy or
-// not, since y comes back as the carrier xor f(x); the price is the carrier's width.
+// not, since y comes back as the carrier xor f(x). The price is the carrier's width.
 static void tower_test_bennett(unsigned int *table, unsigned int (*function)(unsigned int))
 {
     for (unsigned int carrier = 0u; carrier <= BENNETT_FIELD; carrier += 1u)

@@ -22,7 +22,7 @@
 // take lanes a round at a time from one counter, check in to the block as they go, and leave once the launch has run
 // its time to live or the block's command directs to. The last one out writes where the program is, and the run
 // launches it again from there until every lane is done: a launch never outlives the display driver's watchdog, and no
-// lane runs twice. The host reads the block only once a launch has ended. Eight switches, read at each load or run:
+// lane runs twice. The host reads the block only once a launch ended. Eight switches, read at each load or run:
 // CYCLE_RECORD_INTERPRET=1 retains every program on the interpreter, CYCLE_RECORD_CHECK=1 runs both on every launch and
 // errors on the launch where their records or errors differ, CYCLE_RECORD_REPORT=1 reports on stderr where each program
 // came from and how long each kernel ran, CYCLE_RECORD_TTL=<microseconds> sets a launch's time to live,

@@ -300,7 +300,7 @@ EMBED_INLINE void query_writers_read(const RetentionCtx *args)
     g_cli_guard->persistent_buf_release(names, g_query_owner);
     g_cli_guard->persistent_buf_release(list_entries.number, g_query_owner);
     g_cli_guard->persistent_buf_release(list_entries.path, g_query_owner);
-    *(&list_entries) = (QueryRuns){NULL, NULL, 0u};
+    list_entries = (QueryRuns){NULL, NULL, 0u};
 }
 
 // One folder of runs retained: left as it is where its newest run's writer runs; else its writers' accounts read, its
@@ -325,7 +325,7 @@ void query_retention_folder(const QueryRetentionContextOwnCtx *args)
                  1u});
     g_cli_guard->persistent_buf_release(list_entries.number, g_query_owner);
     g_cli_guard->persistent_buf_release(list_entries.path, g_query_owner);
-    *(&list_entries) = (QueryRuns){NULL, NULL, 0u};
+    list_entries = (QueryRuns){NULL, NULL, 0u};
     char text[QUERY_PATH_MAX_LEN + 128u];
     VerbaLinea line = {text, sizeof(text), 0ULL};
     if (newest_path[0] != '\0')

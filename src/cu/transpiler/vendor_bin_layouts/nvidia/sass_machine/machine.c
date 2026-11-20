@@ -21,7 +21,7 @@ const SassForm *sass_machine_form(const SassMachine *machine, const SassInstruct
 
 unsigned long long sass_exit_encoding(const SassMachine *machine)
 {
-    unsigned long long found = 0ull;
+    unsigned long long found = 0ULL;
     for (unsigned int number = 0u; number < machine->forms; number += 1u)
     {
         found = (strcmp(machine->form[number].operation, "EXIT") == 0) ? machine->form[number].low : found;
@@ -46,7 +46,7 @@ int sass_operation_control_or_wait(const char *operation)
 
 int sass_barrier_set(unsigned long long high, unsigned int first)
 {
-    return (unsigned int)((high >> (first - 64u)) & 7ull) != SASS_BARRIER_NONE;
+    return (unsigned int)((high >> (first - 64u)) & 7ULL) != SASS_BARRIER_NONE;
 }
 
 unsigned int sass_operation_schedule(const SassMachine *machine, const char *operation, unsigned int *soonest)
@@ -312,8 +312,8 @@ static void sass_types_write(const SassForm *form, char *written, size_t room)
 
 int sass_machine_write(const SassMachine *machine, const char *path)
 {
-    static char s_file_bytes[QRY_WRITER_RING_BYTES / 2ull];
-    VerbaLinea file = {s_file_bytes, sizeof(s_file_bytes), 0ull};
+    static char s_file_bytes[QRY_WRITER_RING_BYTES / 2ULL];
+    VerbaLinea file = {s_file_bytes, sizeof(s_file_bytes), 0ULL};
     mmgr_line_put(&file, "forms 2" SASS_LINE_END);
     mmgr_line_put(&file,
                   "# The part's instructions as the cell's probes read them back: one line a form, an operation "
@@ -471,8 +471,8 @@ int sass_machine_read(SassMachine *machine, const char *path)
 {
     // The machine file as the run stores it (qry_member_file).
     const unsigned char *file_bytes = NULL;
-    unsigned long long file_size = 0ull;
-    unsigned long long file_at = 0ull;
+    unsigned long long file_size = 0ULL;
+    unsigned long long file_at = 0ULL;
     if (!qry_member_file_blob(path, &file_bytes, &file_size))
     {
         printf("  sass_machine: %s could not be read\n", path);
@@ -510,8 +510,8 @@ int sass_machine_read(SassMachine *machine, const char *path)
         char runs[SASS_MACHINE_RUNS * 16u];
         char relation[SASS_MACHINE_TOKEN] = "";
         char signed_read[SASS_MACHINE_TOKEN] = "";
-        unsigned long long low = 0ull;
-        unsigned long long high = 0ull;
+        unsigned long long low = 0ULL;
+        unsigned long long high = 0ULL;
         // The text past the runs is the instruction the probe read the form as, and it contains spaces. At forms 2
         // it is also past the relation and the signedness.
         const char *seen = line + 5;

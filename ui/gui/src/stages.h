@@ -19,7 +19,7 @@ typedef struct GuiStagesCfg GuiStagesCfg;
 typedef struct GuiStagesReadCfg GuiStagesReadCfg;
 
 // the milliseconds a stage is, a frame at 120 frames a second; a slower display reads every other stage
-#define GUI_STAGE_MS 8ull
+#define GUI_STAGE_MS 8ULL
 
 // A stage: its frame; the holes the parts make in the work; its map; and its titles, in the stages' cell
 typedef struct

@@ -26,7 +26,7 @@ unsigned int zarr_crc32c(const unsigned char *bytes, unsigned long long count)
         table_ready = 1;
     }
     unsigned int crc = 0xFFFFFFFFu;
-    for (unsigned long long at = 0ull; at < count; at += 1ull)
+    for (unsigned long long at = 0ULL; at < count; at += 1ULL)
     {
         crc = table[(crc ^ bytes[at]) & 0xFFu] ^ (crc >> 8u);
     }
@@ -35,7 +35,7 @@ unsigned int zarr_crc32c(const unsigned char *bytes, unsigned long long count)
 
 unsigned long long zarr_little(const unsigned char *bytes, unsigned int count)
 {
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     for (unsigned int place = 0u; place < count; place += 1u)
     {
         value |= (unsigned long long)bytes[place] << (8u * place);
@@ -45,7 +45,7 @@ unsigned long long zarr_little(const unsigned char *bytes, unsigned int count)
 
 unsigned long long zarr_big(const unsigned char *bytes, unsigned int count)
 {
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     for (unsigned int place = 0u; place < count; place += 1u)
     {
         value = (value << 8u) | (unsigned long long)bytes[place];
@@ -121,11 +121,11 @@ long long zarr_unchain(const ZarrWalk *walk, const ZarrChain *chain, unsigned ch
     unsigned long long data_bytes = raw_bytes;
     if (chain->crc32c != 0u)
     {
-        if (data_bytes < 4ull)
+        if (data_bytes < 4ULL)
         {
             return ZARR_ERROR;
         }
-        data_bytes -= 4ull;
+        data_bytes -= 4ULL;
         if (zarr_crc32c(raw, data_bytes) != (unsigned int)zarr_little(&raw[data_bytes], 4u))
         {
             return ZARR_ERROR;
@@ -160,7 +160,7 @@ long long zarr_unchain(const ZarrWalk *walk, const ZarrChain *chain, unsigned ch
 
 void zarr_swap(unsigned char *bytes, unsigned long long elements, unsigned int element_bytes)
 {
-    for (unsigned long long element = 0ull; element < elements; element += 1ull)
+    for (unsigned long long element = 0ULL; element < elements; element += 1ULL)
     {
         unsigned char *const at = &bytes[element * element_bytes];
         for (unsigned int low = 0u; low < (element_bytes / 2u); low += 1u)
@@ -190,9 +190,9 @@ void zarr_place(const ZarrWalk *walk, const unsigned long long *position, const 
     }
     unsigned long long counter[ENGINE_ARRAY_RANK];
     memset(counter, 0, sizeof(counter));
-    unsigned long long source = 0ull;
-    const unsigned long long last = (rank != 0u) ? stored[rank - 1u] : 1ull;
-    const unsigned long long step = (identity != 0u) ? last : 1ull;
+    unsigned long long source = 0ULL;
+    const unsigned long long last = (rank != 0u) ? stored[rank - 1u] : 1ULL;
+    const unsigned long long step = (identity != 0u) ? last : 1ULL;
     while (source < elements)
     {
         unsigned long long logical[ENGINE_ARRAY_RANK];
@@ -201,7 +201,7 @@ void zarr_place(const ZarrWalk *walk, const unsigned long long *position, const 
             logical[layout->order[axis]] = counter[axis];
         }
         unsigned int inside = 1u;
-        unsigned long long target = 0ull;
+        unsigned long long target = 0ULL;
         for (unsigned int axis = 0u; axis < rank; axis += 1u)
         {
             const unsigned long long global = origin[axis] + logical[axis];
@@ -210,7 +210,7 @@ void zarr_place(const ZarrWalk *walk, const unsigned long long *position, const 
             const unsigned long long shifted = (axis == 0u) ? (global - request->first) : global;
             inside &= (unsigned int)((axis != 0u) || ((global >= request->first) && (global < request->end)));
             inside &= (unsigned int)((axis == 0u) || (global < layout->extent.sizes[axis]));
-            target = (target * extent) + ((inside != 0u) ? shifted : 0ull);
+            target = (target * extent) + ((inside != 0u) ? shifted : 0ULL);
         }
         if (inside != 0u)
         {
@@ -227,12 +227,12 @@ void zarr_place(const ZarrWalk *walk, const unsigned long long *position, const 
         source += step;
         for (unsigned int axis = rank; axis > 0u; axis -= 1u)
         {
-            counter[axis - 1u] += (axis == rank) ? step : 1ull;
+            counter[axis - 1u] += (axis == rank) ? step : 1ULL;
             if ((counter[axis - 1u] < stored[axis - 1u]) || (axis == 1u))
             {
                 break;
             }
-            counter[axis - 1u] = 0ull;
+            counter[axis - 1u] = 0ULL;
         }
     }
 }

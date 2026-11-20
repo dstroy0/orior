@@ -88,7 +88,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\query_retention\\test_query_retention\\test_query_retention.c");
+  UnityBegin("utils/test/src/ui/cli/unit/query_retention/test_query_retention/test_query_retention.c");
   run_test(test_the_writers_account_is_read_from_its_record, "test_the_writers_account_is_read_from_its_record", 81);
   run_test(test_an_accounts_rate_is_in_mebibytes_a_second, "test_an_accounts_rate_is_in_mebibytes_a_second", 90);
   run_test(test_bytes_that_are_no_account_are_refused, "test_bytes_that_are_no_account_are_refused", 96);

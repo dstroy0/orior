@@ -30,7 +30,7 @@ static int run_folders_make(char *path)
     return run_folder_exists(path);
 }
 
-// the parent's record rewritten from its start: the pid launched, the child's pid once it has reported it, and the
+// the parent's record rewritten from its start: the pid launched, the child's pid once it reported it, and the
 // keepalive, one more at each write. A line never shortens, and none is left from the one before
 static void run_record_write(RunChannel *channel)
 {
@@ -49,7 +49,7 @@ static void run_record_write(RunChannel *channel)
         // a record's length is positive. It converts exactly
         run_record_put(channel, line, (size_t)length);
     }
-    channel->keepalive += 1ull;
+    channel->keepalive += 1ULL;
 }
 
 void run_record_launched(RunChannel *channel, unsigned long long pid)
@@ -62,7 +62,7 @@ void run_record_launched(RunChannel *channel, unsigned long long pid)
 }
 
 // the records' path: the host's tessera state, then children, then this process's pid and the job's signum, as a lost
-// ticket's record is named; the folders are made where they are not
+// ticket's record is named. The folders are made where they are not
 static int run_records_place(RunChannel *channel, const EngineSignum *signum)
 {
     unsigned char host[TESSERA_DEVICE_BYTES];
@@ -185,7 +185,7 @@ static void run_channel_refresh(RunChannel *channel)
     }
     char path[ENGINE_PATH_CAPACITY];
     char state[RUN_STATE_CAPACITY];
-    unsigned long long numbers[RUN_NUMBERS] = {0ull, 0ull, 0ull, 0ull};
+    unsigned long long numbers[RUN_NUMBERS] = {0ULL, 0ULL, 0ULL, 0ULL};
     const int fields =
         run_path_joined(channel->records, ".child", path, sizeof(path)) ? run_record_read(path, state, numbers) : -1;
     if (fields >= 2)
@@ -200,10 +200,10 @@ static void run_channel_refresh(RunChannel *channel)
         }
         // the command's processors between two of the child's records, on its clock, once they span half a sweep: a
         // record read late, or missed mid-write, shifts no time into the next reading
-        const int spans = (fields >= 3) && (numbers[2] >= (channel->reported_wall + (RUN_SWEEP_MICROSECONDS / 2ull)));
+        const int spans = (fields >= 3) && (numbers[2] >= (channel->reported_wall + (RUN_SWEEP_MICROSECONDS / 2ULL)));
         if (channel->bound && (numbers[0] == channel->child) && spans)
         {
-            const unsigned long long grew = (numbers[1] > channel->reported) ? (numbers[1] - channel->reported) : 0ull;
+            const unsigned long long grew = (numbers[1] > channel->reported) ? (numbers[1] - channel->reported) : 0ULL;
             channel->rate = (grew * TESSERA_HOST_PROCESSOR) / (numbers[2] - channel->reported_wall);
             channel->reported = numbers[1];
             channel->reported_wall = numbers[2];
@@ -216,7 +216,7 @@ static void run_channel_refresh(RunChannel *channel)
     run_record_write(channel);
 }
 
-// a child that ended its command itself leaves nothing to relaunch or resume, and the records go; any other end retains
+// a child that ended its command itself leaves nothing to relaunch or resume, and the records go. Any other end retains
 // them where the child's log records why
 void run_channel_close(RunChannel *channel)
 {
@@ -246,7 +246,7 @@ void run_channel_close(RunChannel *channel)
 void run_wait(RunChild *child, RunChannel *channel, TesseraClient *client, TesseraTicket *ticket, EngineError *error)
 {
     const int across = channel->open && channel->across;
-    unsigned long long cpu_before = 0ull;
+    unsigned long long cpu_before = 0ULL;
     int reporting = run_cpu(child, &cpu_before) || across;
     unsigned long long wall_before = run_now();
     int ended = 0;
@@ -261,15 +261,15 @@ void run_wait(RunChild *child, RunChannel *channel, TesseraClient *client, Tesse
         {
             continue;
         }
-        unsigned long long cpu = 0ull;
+        unsigned long long cpu = 0ULL;
         const int read = reporting && run_cpu(child, &cpu);
-        const int complete = (spent != 0ull) && (!ended || ((2ull * spent) >= RUN_SWEEP_MICROSECONDS));
+        const int complete = (spent != 0ULL) && (!ended || ((2ULL * spent) >= RUN_SWEEP_MICROSECONDS));
         if (reporting && (read || across) && complete)
         {
             // the processors used over the reading, in thousandths: the tree's processor time over the wall time
             const unsigned long long own =
-                read ? ((((cpu > cpu_before) ? (cpu - cpu_before) : 0ull) * TESSERA_HOST_PROCESSOR) / spent) : 0ull;
-            const unsigned long long used = own + (across ? channel->rate : 0ull);
+                read ? ((((cpu > cpu_before) ? (cpu - cpu_before) : 0ULL) * TESSERA_HOST_PROCESSOR) / spent) : 0ULL;
+            const unsigned long long used = own + (across ? channel->rate : 0ULL);
             reporting = tessera_job_report(client, ticket, used, error) == 0L;
         }
         cpu_before = read ? cpu : cpu_before;
@@ -304,7 +304,7 @@ static void run_child_write(const char *records, const char *state, unsigned lon
 // no longer counts theirs, and the time it has used never falls
 static unsigned long long run_child_cpu(const RunChild *child, unsigned long long before)
 {
-    unsigned long long read = 0ull;
+    unsigned long long read = 0ULL;
     return (run_cpu(child, &read) && (read > before)) ? read : before;
 }
 
@@ -321,7 +321,7 @@ int run_child(const RunRequest *request, char **arguments, int count, unsigned l
     char parent[ENGINE_PATH_CAPACITY];
     char entry[RUN_ENTRY_CAPACITY];
     char state[RUN_STATE_CAPACITY];
-    unsigned long long parent_fields[RUN_NUMBERS] = {0ull, 0ull, 0ull, 0ull};
+    unsigned long long parent_fields[RUN_NUMBERS] = {0ULL, 0ULL, 0ULL, 0ULL};
     if (!run_path_joined(records, ".parent", parent, sizeof(parent)) ||
         (run_record_read(parent, state, parent_fields) < 2))
     {
@@ -330,7 +330,7 @@ int run_child(const RunRequest *request, char **arguments, int count, unsigned l
         run_log(records, entry);
         return RUN_FAILED;
     }
-    run_child_write(records, "alive", self, 0ull, 0ull, 0, 0);
+    run_child_write(records, "alive", self, 0ULL, 0ULL, 0, 0);
     // the parent reads this record and records this pid within its greeting step
     const unsigned long long greeted = run_now();
     int bound = 0;
@@ -346,7 +346,7 @@ int run_child(const RunRequest *request, char **arguments, int count, unsigned l
         snprintf(entry, sizeof(entry), "child %llu: its parent %s and did not record this pid; %s was not run", self,
                  alive ? "locks its record" : "is gone", label);
         run_log(records, entry);
-        run_child_write(records, "orphaned", self, 0ull, 0ull, 1, RUN_ORPHANED);
+        run_child_write(records, "orphaned", self, 0ULL, 0ULL, 1, RUN_ORPHANED);
         return RUN_ORPHANED;
     }
     // the parent's record names the child it launched: the command runs only where that is this process
@@ -364,20 +364,20 @@ int run_child(const RunRequest *request, char **arguments, int count, unsigned l
              "on processors 0x%llx at below normal priority",
              self, parent_fields[0], label, mask);
     run_log(records, entry);
-    run_child_write(records, "confirmed", self, 0ull, 0ull, 0, 0);
+    run_child_write(records, "confirmed", self, 0ULL, 0ULL, 0, 0);
     RunChild child;
     memset(&child, 0, sizeof(child));
     if (!run_start(&child, arguments + request->command, count - request->command, mask, NULL))
     {
         snprintf(entry, sizeof(entry), "child %llu: %s could not be started", self, label);
         run_log(records, entry);
-        run_child_write(records, "ended", self, 0ull, 0ull, 1, RUN_NOT_STARTED);
+        run_child_write(records, "ended", self, 0ULL, 0ULL, 1, RUN_NOT_STARTED);
         return RUN_NOT_STARTED;
     }
     unsigned long long keepalive = parent_fields[2];
     const unsigned long long began = run_now();
     unsigned long long seen_at = began;
-    unsigned long long cpu = 0ull;
+    unsigned long long cpu = 0ULL;
     int ended = 0;
     int orphaned = 0;
     int alive = 1;
@@ -392,7 +392,7 @@ int run_child(const RunRequest *request, char **arguments, int count, unsigned l
         const int parent_alive = (fields == 3) && (parent_fields[2] != keepalive);
         if (parent_alive && looked)
         {
-            snprintf(entry, sizeof(entry), "child %llu: the parent's keepalive is received again after %llu.%03llu s",
+            snprintf(entry, sizeof(entry), "child %llu: the parent's keepalive is received again after %llu.%03LLU s",
                      self, (now - seen_at) / RUN_MILLION, ((now - seen_at) % RUN_MILLION) / RUN_THOUSAND);
             run_log(records, entry);
         }
@@ -406,7 +406,7 @@ int run_child(const RunRequest *request, char **arguments, int count, unsigned l
         if (!ended && !orphaned && (silence >= silent) && !looked)
         {
             snprintf(entry, sizeof(entry),
-                     "child %llu: no keepalive for %llu.%03llu s; the parent still locks its record, "
+                     "child %llu: no keepalive for %llu.%03LLU s; the parent still locks its record, "
                      "and is given until %llu s",
                      self, silence / RUN_MILLION, (silence % RUN_MILLION) / RUN_THOUSAND, unresponsive / RUN_MILLION);
             run_log(records, entry);
@@ -421,7 +421,7 @@ int run_child(const RunRequest *request, char **arguments, int count, unsigned l
         const int code = run_finish(&child);
         run_child_write(records, "orphaned", self, cpu, run_now() - began, 1, code);
         snprintf(entry, sizeof(entry),
-                 "child %llu: its parent %s, with no keepalive for %llu.%03llu s; %s was requested to "
+                 "child %llu: its parent %s, with no keepalive for %llu.%03LLU s; %s was requested to "
                  "end, %llu of its processes ended by force, exit %d. The parent may relaunch or resume it",
                  self, alive ? "locks its record but is not responding" : "is gone", silence / RUN_MILLION,
                  (silence % RUN_MILLION) / RUN_THOUSAND, label, forced, code);
@@ -430,7 +430,7 @@ int run_child(const RunRequest *request, char **arguments, int count, unsigned l
     }
     const int code = run_finish(&child);
     run_child_write(records, "ended", self, cpu, run_now() - began, 1, code);
-    snprintf(entry, sizeof(entry), "child %llu: %s ended, exit %d, after %llu.%03llu s of processor time", self, label,
+    snprintf(entry, sizeof(entry), "child %llu: %s ended, exit %d, after %llu.%03LLU s of processor time", self, label,
              code, cpu / RUN_MILLION, (cpu % RUN_MILLION) / RUN_THOUSAND);
     run_log(records, entry);
     return code;

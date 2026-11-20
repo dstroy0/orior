@@ -51,7 +51,7 @@ def _repository_root():
     A marker the repository produces, such as build/, is absent from a linked worktree and a
     never-built clone, and a climb to it can pass this root and land in another checkout whose paths
     look valid. A marker infers the root. Git answers it. The climb below serves only an exported tree
-    with no git directory, and it looks for archive/src/python, which the repository tracks and every checkout
+    with no git directory. It looks for archive/src/python, which the repository tracks and every checkout
     of it holds.
 
     Git's own variables are cleared first. Inside a hook GIT_DIR is exported, and a rev-parse that
@@ -132,7 +132,7 @@ LAYER = {
     "phonetic": SPOKEN,
     "translation": SPOKEN,
     "note": DERIVED,
-    # Retained, marked, and excluded from the ingestion stream until someone has looked at it. A line
+    # Retained, marked, and excluded from the ingestion stream until someone looked at it. A line
     # nobody has classified is not a line to feed to anything, and it is not a line to throw away.
     UNCLASSIFIED: DERIVED,
 }

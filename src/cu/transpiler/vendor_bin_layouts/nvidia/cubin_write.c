@@ -82,9 +82,9 @@ unsigned long long cubin_pattern_read(const char *path, unsigned char *pattern, 
     if (file == NULL)
     {
         printf("  cubin_write: %s could not be read\n", path);
-        return 0ull;
+        return 0ULL;
     }
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     int fits = 1;
     kernel[0] = '\0';
     char line[512];
@@ -109,15 +109,15 @@ unsigned long long cubin_pattern_read(const char *path, unsigned char *pattern, 
             if (fits)
             {
                 pattern[size] = (unsigned char)((high << 4u) | low);
-                size += 1ull;
+                size += 1ULL;
             }
         }
     }
     fclose(file);
-    if (!fits || (size == 0ull) || (kernel[0] == '\0'))
+    if (!fits || (size == 0ULL) || (kernel[0] == '\0'))
     {
         printf("  cubin_write: %s contains no container the system accepted that reads and fits\n", path);
-        return 0ull;
+        return 0ULL;
     }
     return size;
 }

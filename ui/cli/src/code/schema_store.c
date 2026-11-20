@@ -195,7 +195,7 @@ EMBED_INLINE const char *store_text_get(const SchemaStoreCtx *args)
                                                   .size_pointer = size, .owner = g_cli_schema_owner);
     if ((bytes != NULL) && (*size > CLI_SCHEMA_DOCUMENT_TEXT))
     {
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_schema_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_schema_owner);
         return NULL;
     }
     *mapped = (bytes != NULL);
@@ -260,7 +260,7 @@ unsigned int cli_schema_load(const CliSchemaStoreCtx *args)
             : CLI_JSON_NONE;
     if (mapped)
     {
-        g_cli_guard->persistent_buf_release((void *)(embed_word)((const unsigned char *)text), (g_cli_schema_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)((const unsigned char *)text), g_cli_schema_owner);
     }
     if (root == CLI_JSON_NONE)
     {

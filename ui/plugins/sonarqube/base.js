@@ -75,7 +75,7 @@ function pathOfUri(uri) {
 
 // The file URI of a whole path.
 function uriOfPath(path) {
-  const forward = String(path).replace(/\\/g, "/");
+  const forward = String(path).replaceAll("\\", "/");
   const rooted = /^[A-Za-z]:/.test(forward) ? `/${forward}` : forward;
   return `file://${rooted.split("/").map((part, at) => (at === 1 && /^[A-Za-z]:$/.test(part) ? part : encodeURIComponent(part))).join("/")}`;
 }

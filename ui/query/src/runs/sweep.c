@@ -241,7 +241,7 @@ EMBED_INLINE int sweep_pick(const SweepCtx *args)
     }
     g_cli_guard->persistent_buf_release(runs.number, g_query_owner);
     g_cli_guard->persistent_buf_release(runs.path, g_query_owner);
-    *(&runs) = (QueryRuns){NULL, NULL, 0u};
+    runs = (QueryRuns){NULL, NULL, 0u};
     unsigned long long median[QUERY_SWEEP_ENTRIES] = {0ULL};
     for (unsigned int entry = 0u; (sweeps >= QUERY_SWEEP_MIN) && (entry < QUERY_SWEEP_ENTRIES); entry += 1u)
     {
@@ -363,7 +363,7 @@ void query_swept_again(const QueryRetentionContextCtx *args)
     }
     g_cli_guard->persistent_buf_release(runs.number, g_query_owner);
     g_cli_guard->persistent_buf_release(runs.path, g_query_owner);
-    *(&runs) = (QueryRuns){NULL, NULL, 0u};
+    runs = (QueryRuns){NULL, NULL, 0u};
     char why[QUERY_LINE_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     if (within)

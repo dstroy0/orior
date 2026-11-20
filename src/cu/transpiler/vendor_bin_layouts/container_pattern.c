@@ -6,7 +6,7 @@
 
 unsigned long long container_value_read(const unsigned char *bytes, unsigned int width)
 {
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     for (unsigned int at = 0u; at < width; at += 1u)
     {
         value |= ((unsigned long long)bytes[at]) << (8u * at);
@@ -40,21 +40,21 @@ int container_places_read(const ContainerLayout *layout, Places *places)
     {
         return 0;
     }
-    places->header_bytes = layout_number(layout, "header", 0ull);
-    places->symbol_bytes = layout_number(layout, "symbol", 0ull);
-    places->instruction = layout_number(layout, "instruction", 0ull);
-    places->table_align = layout_number(layout, "table.align", 1ull);
-    places->table_entry = layout_number(layout, "table.entry", 8ull);
+    places->header_bytes = layout_number(layout, "header", 0ULL);
+    places->symbol_bytes = layout_number(layout, "symbol", 0ULL);
+    places->instruction = layout_number(layout, "instruction", 0ULL);
+    places->table_align = layout_number(layout, "table.align", 1ULL);
+    places->table_entry = layout_number(layout, "table.entry", 8ULL);
     // a layout that names no type that takes no bytes has every section take its bytes
-    places->section_type_nobits = layout_number(layout, "section.type_nobits", ~0ull);
-    places->registers_shift = layout_number(layout, "registers.shift", 0ull);
-    places->registers_symbol_mask = layout_number(layout, "registers.symbol_mask", 0ull);
-    places->attribute_header = layout_number(layout, "attribute.header", 0ull);
-    places->attribute_format_value = layout_number(layout, "attribute.format_value", 0ull);
-    places->attribute_registers = layout_number(layout, "attribute.registers", 0ull);
-    places->attribute_exits = layout_number(layout, "attribute.exits", 0ull);
-    if ((places->header_bytes == 0ull) || (places->symbol_bytes == 0ull) || (places->attribute_header == 0ull) ||
-        (places->instruction == 0ull))
+    places->section_type_nobits = layout_number(layout, "section.type_nobits", ~0ULL);
+    places->registers_shift = layout_number(layout, "registers.shift", 0ULL);
+    places->registers_symbol_mask = layout_number(layout, "registers.symbol_mask", 0ULL);
+    places->attribute_header = layout_number(layout, "attribute.header", 0ULL);
+    places->attribute_format_value = layout_number(layout, "attribute.format_value", 0ULL);
+    places->attribute_registers = layout_number(layout, "attribute.registers", 0ULL);
+    places->attribute_exits = layout_number(layout, "attribute.exits", 0ULL);
+    if ((places->header_bytes == 0ULL) || (places->symbol_bytes == 0ULL) || (places->attribute_header == 0ULL) ||
+        (places->instruction == 0ULL))
     {
         printf("  container_write: %s names no header, symbol, attribute or instruction size\n", layout->from);
         return 0;
@@ -66,14 +66,14 @@ unsigned int container_endings_find(const ContainerLayout *layout, const unsigne
                                     unsigned long long code_size, unsigned long long ending, unsigned int *exits,
                                     unsigned int room)
 {
-    const unsigned long long instruction = layout_number(layout, "instruction", 0ull);
-    const unsigned long long key = layout_number(layout, "operation.mask", 0xfffull);
+    const unsigned long long instruction = layout_number(layout, "instruction", 0ULL);
+    const unsigned long long key = layout_number(layout, "operation.mask", 0xfffULL);
     unsigned int found = 0u;
-    if (instruction == 0ull)
+    if (instruction == 0ULL)
     {
         return 0u;
     }
-    for (unsigned long long at = 0ull; (at + instruction) <= code_size; at += instruction)
+    for (unsigned long long at = 0ULL; (at + instruction) <= code_size; at += instruction)
     {
         if (((container_value_read(&code[at], 8u) & key) == (ending & key)) && (found < room))
         {
@@ -89,7 +89,7 @@ unsigned int container_endings_find(const ContainerLayout *layout, const unsigne
 int container_section_takes_bytes(const Places *places, const unsigned char *pattern, unsigned long long at,
                                   unsigned long long index)
 {
-    return (index != 0ull) && (container_value_read(&pattern[at + places->section_type], places->section_type_width) !=
+    return (index != 0ULL) && (container_value_read(&pattern[at + places->section_type], places->section_type_width) !=
                                places->section_type_nobits);
 }
 
@@ -133,15 +133,15 @@ int container_pattern_matches(const Places *places, const unsigned char *pattern
         !place_inside(places->section_size, places->section_size_width, entry) ||
         !place_inside(places->section_info, places->section_info_width, entry) ||
         !place_inside(places->section_align, places->section_align_width, entry) || (names_index >= count) ||
-        (count > CONTAINER_SECTIONS) || (entry == 0ull) || (table > size) || (count > ((size - table) / entry)))
+        (count > CONTAINER_SECTIONS) || (entry == 0ULL) || (table > size) || (count > ((size - table) / entry)))
     {
         return 0;
     }
-    if ((segments != 0ull) &&
+    if ((segments != 0ULL) &&
         (!place_inside(places->segment_offset, places->segment_offset_width, segment_entry) ||
          !place_inside(places->segment_file_size, places->segment_file_width, segment_entry) ||
          !place_inside(places->segment_memory_size, places->segment_memory_width, segment_entry) ||
-         (segment_entry == 0ull) || (segment_table > size) || (segments > ((size - segment_table) / segment_entry))))
+         (segment_entry == 0ULL) || (segment_table > size) || (segments > ((size - segment_table) / segment_entry))))
     {
         return 0;
     }
@@ -154,7 +154,7 @@ int container_pattern_matches(const Places *places, const unsigned char *pattern
     {
         return 0;
     }
-    for (unsigned long long index = 0ull; index < count; index += 1ull)
+    for (unsigned long long index = 0ULL; index < count; index += 1ULL)
     {
         const unsigned long long at = table + (index * entry);
         const unsigned long long offset =
@@ -200,8 +200,8 @@ unsigned int container_registers_read(const ContainerLayout *layout, const unsig
         return 0u;
     }
     unsigned int count = 0u;
-    unsigned long long strings = 0ull;
-    unsigned long long entry = 0ull;
+    unsigned long long strings = 0ULL;
+    unsigned long long entry = 0ULL;
     const unsigned long long table = container_sections_of(&places, pattern, &count, &strings, &entry);
     unsigned int found = 0u;
     for (unsigned int index = 0u; index < count; index += 1u)
@@ -230,8 +230,8 @@ int container_part_code(const ContainerLayout *layout, const unsigned char *patt
         return 0;
     }
     unsigned int count = 0u;
-    unsigned long long strings = 0ull;
-    unsigned long long entry = 0ull;
+    unsigned long long strings = 0ULL;
+    unsigned long long entry = 0ULL;
     const unsigned long long table = container_sections_of(&places, pattern, &count, &strings, &entry);
     for (unsigned int index = 0u; index < count; index += 1u)
     {
@@ -261,8 +261,8 @@ unsigned int container_exits_read(const ContainerLayout *layout, const unsigned 
         return 0u;
     }
     unsigned int count = 0u;
-    unsigned long long strings = 0ull;
-    unsigned long long entry = 0ull;
+    unsigned long long strings = 0ULL;
+    unsigned long long entry = 0ULL;
     const unsigned long long table = container_sections_of(&places, pattern, &count, &strings, &entry);
     unsigned int found = 0u;
     for (unsigned int index = 0u; index < count; index += 1u)
@@ -278,18 +278,18 @@ unsigned int container_exits_read(const ContainerLayout *layout, const unsigned 
             container_value_read(&pattern[at + places.section_offset], places.section_offset_width);
         const unsigned long long size =
             container_value_read(&pattern[at + places.section_size], places.section_size_width);
-        unsigned long long value_size = 0ull;
+        unsigned long long value_size = 0ULL;
         const unsigned char *const attribute =
             container_attribute_of(&places, &pattern[offset], size, places.attribute_exits, &value_size);
-        for (unsigned long long number = 0ull; (attribute != NULL) && (((number + 1ull) * 4ull) <= value_size);
-             number += 1ull)
+        for (unsigned long long number = 0ULL; (attribute != NULL) && (((number + 1ULL) * 4ULL) <= value_size);
+             number += 1ULL)
         {
             if (found == room)
             {
                 return found;
             }
             exits[found] =
-                (unsigned int)container_value_read(&attribute[places.attribute_header + (4ull * number)], 4u);
+                (unsigned int)container_value_read(&attribute[places.attribute_header + (4ULL * number)], 4u);
             found += 1u;
         }
     }
@@ -328,7 +328,7 @@ unsigned int container_named_sections(const ContainerLayout *layout, const unsig
     if (!place_inside(places.section_name, places.section_name_width, entry) ||
         !place_inside(places.section_offset, places.section_offset_width, entry) ||
         !place_inside(places.section_size, places.section_size_width, entry) || (names_index >= count) ||
-        (entry == 0ull) || (table > size) || (count > ((size - table) / entry)))
+        (entry == 0ULL) || (table > size) || (count > ((size - table) / entry)))
     {
         return 0u;
     }
@@ -343,7 +343,7 @@ unsigned int container_named_sections(const ContainerLayout *layout, const unsig
     }
     const unsigned long long length = (unsigned long long)strlen(code);
     unsigned int found = 0u;
-    for (unsigned long long index = 0ull; index < count; index += 1ull)
+    for (unsigned long long index = 0ULL; index < count; index += 1ULL)
     {
         const unsigned long long at = table + (index * entry);
         const unsigned long long name =
@@ -387,13 +387,13 @@ unsigned int container_section_named(const Places *places, const unsigned char *
 const unsigned char *container_attribute_of(const Places *places, const unsigned char *bytes, unsigned long long size,
                                             unsigned long long attribute, unsigned long long *value_size)
 {
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while ((at + places->attribute_header) <= size)
     {
         const unsigned long long format = bytes[at];
         const unsigned long long named = bytes[at + 1u];
         const unsigned long long retained =
-            (format == places->attribute_format_value) ? container_value_read(&bytes[at + 2u], 2u) : 0ull;
+            (format == places->attribute_format_value) ? container_value_read(&bytes[at + 2u], 2u) : 0ULL;
         // a value that runs past the section ends the read, and the section contains no attribute past it
         if (retained > (size - (at + places->attribute_header)))
         {
@@ -406,6 +406,6 @@ const unsigned char *container_attribute_of(const Places *places, const unsigned
         }
         at += places->attribute_header + retained;
     }
-    *value_size = 0ull;
+    *value_size = 0ULL;
     return NULL;
 }

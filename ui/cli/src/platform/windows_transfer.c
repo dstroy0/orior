@@ -38,10 +38,10 @@ int cli_region_with(const CliTransferRegionBytesCfg *args)
         mmgr_line_put(args->err_msg, " bytes is past the max a region supports");
         return 0;
     }
-    const unsigned long long capacity = (args->size > 0ull) ? args->size : 1ull;
+    const unsigned long long capacity = (args->size > 0ULL) ? args->size : 1ULL;
     // the section's size given as its two halves, as Windows takes it
     const HANDLE section = CreateFileMappingW(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, (DWORD)(capacity >> 32u),
-                                              (DWORD)(capacity & 0xffffffffull), NULL);
+                                              (DWORD)(capacity & 0xffffffffULL), NULL);
     if (section == NULL)
     {
         EMBED_CALL(transfer_fail, WindowsTransferCtx, .err_msg = args->err_msg, .what = "the system made no region");
@@ -72,7 +72,7 @@ int cli_region_free(const CliTransferCfg *args)
     if (target == NULL)
     {
         char what[64];
-        VerbaLinea line = {what, sizeof(what), 0ull};
+        VerbaLinea line = {what, sizeof(what), 0ULL};
         mmgr_line_put(&line, "process ");
         mmgr_line_decimal(&line, args->process, 1u);
         mmgr_line_put(&line, " was not opened");
@@ -113,7 +113,7 @@ EMBED_INLINE int transfer_map(const WindowsTransferCtx *args)
     }
     // a view longer than the section is refused by the system
     const unsigned char *const view =
-        (const unsigned char *)MapViewOfFile(section, FILE_MAP_READ, 0u, 0u, (SIZE_T)((length > 0ull) ? length : 1ull));
+        (const unsigned char *)MapViewOfFile(section, FILE_MAP_READ, 0u, 0u, (SIZE_T)((length > 0ULL) ? length : 1ULL));
     if (view == NULL)
     {
         const DWORD error = GetLastError();
@@ -141,7 +141,7 @@ int cli_region_alloc(const CliTransferRegionCfg *args)
     if (source == NULL)
     {
         char what[64];
-        VerbaLinea line = {what, sizeof(what), 0ull};
+        VerbaLinea line = {what, sizeof(what), 0ULL};
         mmgr_line_put(&line, "process ");
         mmgr_line_decimal(&line, args->process, 1u);
         mmgr_line_put(&line, " was not opened");

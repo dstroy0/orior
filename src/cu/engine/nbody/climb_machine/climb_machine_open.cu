@@ -102,7 +102,7 @@ static int machine_split_runs(ClimbMachine *machine, unsigned int resident, cons
         unsigned int *grown[4] = {NULL, NULL, NULL, NULL};
         unsigned int *const current[4] = {machine->run_start, machine->run_length, machine->run_leaf,
                                           machine->run_at_row};
-        ok = ok && ((residents * capacity) <= 0xFFFFFFFFull);
+        ok = ok && ((residents * capacity) <= 0xFFFFFFFFULL);
         for (unsigned int which = 0u; (ok != 0) && (which < 4u); which += 1u)
         {
             ok = (cudaMalloc((void **)&grown[which], residents * capacity * sizeof(unsigned int)) == cudaSuccess) ? 1
@@ -208,7 +208,7 @@ extern "C" ClimbMachine *climb_machine_open(const ClimbMachineExtent *extent)
     geometry->width = extent->width;
     geometry->weight_z = extent->weight_z;
     geometry->voxels = (unsigned long long)extent->depth * extent->height * extent->width;
-    geometry->words = (geometry->voxels + 63ull) / 64ull;
+    geometry->words = (geometry->voxels + 63ULL) / 64ULL;
     machine->peak_capacity = extent->peak_capacity;
     machine->capacity = (extent->frames < 2u) ? 2u : extent->frames;
     const size_t residents = (size_t)machine->capacity;

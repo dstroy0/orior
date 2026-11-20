@@ -39,7 +39,7 @@ a result. A null asserted from a prior is not.
 THE THREE CONTROLS, ALL OF WHICH MUST PASS FOR A NULL HERE TO MEAN ANYTHING
 
     1. THE BUILT-IN POSITIVE CONTROL IS FREE. The target is the leading zero count of state 64.
-       Reading state 64 is reading the answer. That row MUST fire. If the loudest correlation at
+       Reading state 64 reads the answer. That row MUST fire. If the loudest correlation at
        round 64 does not clear the null bar, the instrument is broken and every other row on the
        page is meaningless. This costs nothing and it is not optional.
 
@@ -51,7 +51,7 @@ THE THREE CONTROLS, ALL OF WHICH MUST PASS FOR A NULL HERE TO MEAN ANYTHING
 
     3. THE LIMIT IS MEASURED BY INJECTION FADE. A correlation is blended into the target at a known
        strength and faded until it stops clearing the bar. The smallest strength still detected is
-       what this sample could have seen, and it is the number that gives the null its meaning.
+       what this sample could have seen. It is the number that gives the null its meaning.
 
 WHAT THIS TOOL DOES NOT CLAIM
 
@@ -84,7 +84,7 @@ NONCES = 2048                    # more than nonce_read's 512: the limit scales 
 # WHERE THE NONCE ENTERS, WHICH THE ROUND LIST IS BUILT AROUND. header_words puts the nonce in
 # schedule word 15, and SHA-256 round r consumes schedule word r. So rounds 0 through 14 consume
 # words 0 through 14, every one of which is identical across the sweep, and states[0] through
-# states[15] are BIT-IDENTICAL for every nonce. states[16] is the first state the nonce has reached.
+# states[15] are BIT-IDENTICAL for every nonce. states[16] is the first state the nonce reached.
 #
 # Rounds 8 and 15 are therefore an EXACT NULL BY CONSTRUCTION and are in this list for that reason:
 # they cost nothing, they must read exactly 0.0000, and any variance there is a wiring bug and
@@ -286,7 +286,7 @@ def _report(nonces=NONCES):
         return 1
 
     # THE FREE EXACT NULL, CHECKED AND NOT ASSUMED. Every round before the nonce enters must read
-    # exactly zero. If one of them does not, the sweep is reading a state the nonce never touched as
+    # exactly zero. If one of them does not, the sweep reads a state the nonce never touched as
     # though it varied, which would mean the occupancy or the state indexing is wrong, and every
     # null below would be an artifact of that bug and not a property of SHA-256.
     for (round_at, name), (value, _, _) in sorted(fired.items()):

@@ -62,7 +62,7 @@ def _repository_root():
     A marker the repository produces, such as build/, is absent from a linked worktree and a
     never-built clone, and a climb to it can pass this root and land in another checkout whose paths
     look valid. A marker infers the root. Git answers it. The climb below serves only an exported tree
-    with no git directory, and it looks for archive/src/python, which the repository tracks and every checkout
+    with no git directory. It looks for archive/src/python, which the repository tracks and every checkout
     of it holds.
 
     Git's own variables are cleared first. Inside a hook GIT_DIR is exported, and a rev-parse that
@@ -245,7 +245,7 @@ TABLES = {
 
 TABLE_CAPTION = re.compile(r"^Table (A?\d+)[:.]")
 
-# How a table knows one of its rows has ended, which is not the same question in every table.
+# How a table knows one of its rows ended, which is not the same question in every table.
 #
 # Max rows are one line and hold one form. Counting forms works. Tables 8 and 9 put a note after
 # the Southern form saying how its /a/ surfaces, and the note wraps across as many as three lines.
@@ -313,7 +313,7 @@ def table_rows(lines, at, columns, ending):
     """One table's rows, from the line after its caption to the blank line or heading that ends it.
 
     Caption continuations and column headings are skipped by carrying no character of the alphabet
-    while no row has started yet. Once rows have started, a line without one is a gloss the
+    while no row has started yet. Once rows started, a line without one is a gloss the
     typesetter wrapped, and it belongs to the row being built.
     """
     held = []
@@ -442,7 +442,7 @@ def from_interlinear(number, block):
     """One of Annie Jack's sentences from Appendix A, in the four lines the paper prints it on.
 
     These six are the only connected speech in the paper. Everything else is a word on its own,
-    taken from a dictionary, from Hess, from Bianco, or elicited; these came off a recording made in
+    taken from a dictionary, from Hess, from Bianco, or elicited. These came off a recording made in
     the 1950s and each carries the story and the line it was said in.
     """
     where = "App A (%d)" % number

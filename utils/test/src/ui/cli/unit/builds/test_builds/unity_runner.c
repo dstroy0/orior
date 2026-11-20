@@ -85,7 +85,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\builds\\test_builds\\test_builds.c");
+  UnityBegin("utils/test/src/ui/cli/unit/builds/test_builds/test_builds.c");
   run_test(test_gradle_scripts_and_settings_are_gradle, "test_gradle_scripts_and_settings_are_gradle", 59);
   run_test(test_a_version_catalog_is_a_catalog, "test_a_version_catalog_is_a_catalog", 65);
   run_test(test_a_pom_is_maven, "test_a_pom_is_maven", 70);

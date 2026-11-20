@@ -8,7 +8,7 @@
 #
 # Nine papers have a reader written against their layout, and what those readers produce is named
 # for the speaker, the language and the year, because the paper states all three. The other 143
-# state those things too, in prose nobody has read.
+# state those things too, in prose nobody read.
 #
 # So what comes out of here is a different type of thing and is retained apart from the nine. It goes
 # to build/corpora/sifted/, one file per paper, and it carries no speaker and no language name.
@@ -56,7 +56,7 @@ def _repository_root():
     A marker the repository produces, such as build/, is absent from a linked worktree and a
     never-built clone, and a climb to it can pass this root and land in another checkout whose paths
     look valid. A marker infers the root. Git answers it. The climb below serves only an exported tree
-    with no git directory, and it looks for archive/src/python, which the repository tracks and every checkout
+    with no git directory. It looks for archive/src/python, which the repository tracks and every checkout
     of it holds.
 
     Git's own variables are cleared first. Inside a hook GIT_DIR is exported, and a rev-parse that

@@ -8,8 +8,8 @@
 
 static void golden_ladder(unsigned long long *rung)
 {
-    rung[0] = 0ull;
-    rung[1] = 1ull;
+    rung[0] = 0ULL;
+    rung[1] = 1ULL;
     for (unsigned int step = 2u; step < DAMP_BANDS; step += 1u)
     {
         rung[step] = rung[step - 1u] + rung[step - 2u];

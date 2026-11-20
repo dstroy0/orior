@@ -14,8 +14,8 @@
 #include "memoria_operor/memoria_operor.h"
 
 // the lanes of a spread pixel: blue at bit 0, red at 16, green at 32 and alpha at 48, a byte each
-#define BEAD_LANES 0x00ff00ff00ff00ffull
-#define BEAD_LANE_CARRY 0x0001000100010001ull
+#define BEAD_LANES 0x00ff00ff00ff00ffULL
+#define BEAD_LANE_CARRY 0x0001000100010001ULL
 // the rim's power, and the share of the rim that is all round, the rest on the side away from the light
 #define BEAD_RIM_POWER 2.0
 #define BEAD_RIM_ROUND 0.4
@@ -23,23 +23,24 @@
 #define BEAD_CAUSTIC_CENTER 0.18
 #define BEAD_CAUSTIC_SHIFT 0.12
 #define BEAD_CAUSTIC_WIDTH 0.12
-// the shadow's spread as a share of the side and the share the press takes off it; the share of the dome's height
+// the shadow's spread as a share of the side and the share the press takes off it. The share of the dome's height
 // above the glass the shadow is cast from; and the share the press takes off the shadow's density
 #define BEAD_SHADOW_SPREAD 0.085
 #define BEAD_SHADOW_SPREAD_PRESSED 0.35
 #define BEAD_SHADOW_LIFT 0.65
 #define BEAD_SHADOW_FADE_PRESSED 0.2
-// The reflection of a light on the dome: broad and soft, as the sky reflects on a drop; its sharpness at rest, the
-// share the press takes off it, its level, below the whole so no plateau saturates, the share the press takes off
-// it, and the share of it that is at the dome's top, the rest growing toward the rim as water reflects more at a
-// grazing angle
+// The reflection of a light on the dome, broad and soft, as the sky reflects on a drop:
+//   - its sharpness at rest, and the share that the press takes off it.
+//   - its level, below the whole so that no plateau saturates, and the share that the press takes off it.
+//   - the share of it at the top of the dome. The rest grows toward the rim, because water reflects more at a low
+//     angle.
 #define BEAD_GLINT_SHARP 28.0
 #define BEAD_GLINT_SOFTEN 0.45
 #define BEAD_GLINT_LEVEL 0.6
 #define BEAD_GLINT_DIM 0.25
 #define BEAD_GLINT_FLAT 0.35
-// a tab's flat top keeps a faint share of the glint, and its press takes most of the glint off: the light visibly
-// changes under a press on a face too flat to slide it
+// the flat top of a tab keeps a faint share of the glint, and its press takes most of the glint off. The light then
+// shows a change under a press on a face too flat to slide it
 #define BEAD_GLINT_FLAT_TAB 0.1
 #define BEAD_GLINT_DIM_TAB 0.7
 // the max pixels of the shadow's kernel to each side, and a column of the cell for the vertical pass
@@ -86,7 +87,7 @@ typedef struct
     double z;
 } BeadWay;
 
-// the number of `value` held between `low` and `high`
+// the number of `value`, kept between `low` and `high`
 EMBED_INLINE double bead_held(const BeadCtx *args)
 {
     return (args->value < args->low) ? args->low : ((args->value > args->high) ? args->high : args->value);
@@ -163,7 +164,7 @@ EMBED_INLINE unsigned long long bead_spread(GuiColor pixel)
 EMBED_INLINE GuiColor bead_pack(unsigned long long lanes)
 {
     // the lanes hold a byte each, which the pixel's bytes take whole
-    return (GuiColor)(lanes & 0x00ff00ffull) | (GuiColor)((lanes >> 24u) & 0xff00ff00ull);
+    return (GuiColor)(lanes & 0x00ff00ffULL) | (GuiColor)((lanes >> 24u) & 0xff00ff00ULL);
 }
 
 // a light's `color` at `share` of the color's alpha positioned over the premultiplied `had`, premultiplied
@@ -190,11 +191,13 @@ EMBED_INLINE double bead_frame_share(const BeadCtx *args)
     return GUI_BEAD_LOW + ((1.0 - GUI_BEAD_LOW) * (double)args->frame / (double)(GUI_BEAD_FRAMES - 1u));
 }
 
-// The signed distance of the point `across`, `down` from the bead's center to the bead's edge, the bead `width` by
-// `height` and `share` pressed: negative inside, in pixels. A dome's edge is a superellipse of GUI_BEAD_SHAPE_POWER
-// on the button's half width and half height, round at every point, its distance in the smaller half side. A tab's
-// edge is the tab's box, its top corners rounded by `radius`, no more than a half side, its foot and lower corners
-// square. The press squashes the bead across and down
+// The signed distance of the point `across`, `down` from the center of the bead to the edge of the bead. The bead is
+// `width` by `height`, with `share` pressed. The distance is negative inside, in pixels.
+// The edge of a dome is a superellipse of GUI_BEAD_SHAPE_POWER on the half width and half height of the button. It is
+// round at each point, and its distance is in the smaller half side.
+//
+// The edge of a tab is the box of the tab, with its top corners rounded by `radius`, no more than a half side. Its foot
+// and lower corners are square. The press squashes the bead across and down
 EMBED_INLINE double bead_distance(const BeadCtx *args)
 {
     const double half_width = (double)args->width / 2.0;
@@ -225,8 +228,8 @@ EMBED_INLINE double bead_distance(const BeadCtx *args)
     return (reach - 1.0) * half;
 }
 
-// The dome's height at `value` the signed distance of a bead `width` by `height`: a circular profile over the
-// smaller side, nothing at the edge and `high`, the dome's top, at the center
+// The height of the dome at `value`, the signed distance of a bead `width` by `height`. It is a circular profile over
+// the smaller side: nothing at the edge, and `high`, the top of the dome, at the center
 EMBED_INLINE double bead_height(const BeadCtx *args)
 {
     const double side = (double)((args->width < args->height) ? args->width : args->height);
@@ -275,7 +278,7 @@ EMBED_INLINE void bead_shadow_blur(const BeadCtx *args)
             double total = 0.0;
             for (unsigned int at = 0u; at <= 2u * reach; at += 1u)
             {
-                // the offset's sign is retained in an int; the cell's sides are far inside an int
+                // an int keeps the sign of the offset. The sides of the cell are far inside an int
                 const int column = (int)x + (int)at - (int)reach;
                 const int held = (column < 0) ? 0 : ((column >= (int)cell_width) ? (int)cell_width - 1 : column);
                 total += weight[at] * (double)cover[(y * stride) + (unsigned int)held];
@@ -335,9 +338,9 @@ EMBED_INLINE double bead_blur_at(const BeadCtx *args)
     return (double)blur[((unsigned int)y * atlas->stride) + (unsigned int)x];
 }
 
-// One frame of one button baked: its heights and cover positioned, its shadow blurred, then every pixel's two planes. The
-// bead is the button's own width and height, positioned from the cell's top left corner inside the margin, its dome and its
-// press on the smaller of the two
+// One frame of one button, baked: its heights and cover positioned, its shadow blurred, then the two planes of each
+// pixel. The bead is the own width and height of the button, positioned from the top left corner of the cell inside
+// the margin. Its dome and its press are on the smaller of the two
 EMBED_INLINE void bead_frame_bake(const BeadCtx *args)
 {
     GuiBeadAtlas *const atlas = args->atlas;
@@ -375,8 +378,8 @@ EMBED_INLINE void bead_frame_bake(const BeadCtx *args)
     }
     const double sigma = side * BEAD_SHADOW_SPREAD * (1.0 - (BEAD_SHADOW_SPREAD_PRESSED * share));
     EMBED_CALL(bead_shadow_blur, BeadCtx, .atlas = atlas, .sigma = (sigma < 0.5) ? 0.5 : sigma);
-    // each light's way from the bead's center, and where it casts the bead's shadow: away from it, as far as the
-    // bead is above the glass lets it
+    // the way of each light from the center of the bead, and where it casts the shadow of the bead. That is away from
+    // it, as far as the height of the bead above the glass lets it
     const double lift = arith_max(top - sink, 0.0) * BEAD_SHADOW_LIFT;
     double drop_x[GUI_LIGHTS_MAX];
     double drop_y[GUI_LIGHTS_MAX];
@@ -396,8 +399,8 @@ EMBED_INLINE void bead_frame_bake(const BeadCtx *args)
         drop_y[at] = -way.y / over * lift;
         weight[at] = (strengths > 0.0) ? light.strength / strengths : 0.0;
     }
-    // a tab is clear glass on the row: it casts no shadow, bends no light, frosts no halo, its rim darkens half as
-    // much as a dome's, and its glint lies on its curved edges with a faint sheen on its flat top
+    // a tab is clear glass on the row. It casts no shadow, bends no light and frosts no halo. Its rim darkens half as
+    // much as the rim of a dome. Its glint lies on its curved edges, with a faint sheen on its flat top
     const int tab = atlas->shape == GUI_BEAD_SHAPE_TAB;
     const double shadow_strength = tab ? 0.0 : 1.0 - (BEAD_SHADOW_FADE_PRESSED * share);
     const double rim_strength = tab ? 0.5 : 1.0;
@@ -445,13 +448,13 @@ EMBED_INLINE void bead_frame_bake(const BeadCtx *args)
                 offset_x = (int)arith_round_whole(read_x);
                 offset_y = (int)arith_round_whole(read_y);
             }
-            // the light from each light: the glint where the dome mirrors it to the eye, the caustic on the edge
-            // away from it, and the shadow it casts; the point lit is at the dome's height less the sink
+            // the light from each light. That is the glint where the dome mirrors it to the eye, and the caustic on
+            // the edge away from it. Then the shadow that it casts. The lit point is at the height of the dome less the sink
             const double lit_z = (double)height[(y * stride) + x] - sink;
             const double in = EMBED_CALL(bead_held, BeadCtx, .value = -distance / (side / 2.0), .low = 0.0, .high = 1.0);
             const double band = (in - caustic_center) / BEAD_CAUSTIC_WIDTH;
             const double banded = arith_exp(-(band * band));
-            // water reflects little at the dome's top and nearly all at a grazing angle
+            // water reflects little at the top of the dome, and nearly all at a low angle
             const double grazing = (1.0 - normal.z) * (1.0 - normal.z);
             const double fresnel = glint_flat + ((1.0 - glint_flat) * grazing);
             double glint = 0.0;
@@ -530,7 +533,7 @@ EMBED_INLINE int bead_sizes_refused(const GuiBeadBakeCfg *args)
            (args->tools == 0u) || (args->tools > GUI_BEAD_TOOLS_MAX);
 }
 
-// the rows the atlas's raster holds for the sizes: each button's frames, two planes a frame; the three patches with
+// the rows the atlas's raster holds for the sizes: each button's frames, two planes a frame. The three patches with
 // the reach as a margin; and the three planes of float work
 EMBED_INLINE unsigned int bead_rows(const GuiBeadBakeCfg *args)
 {
@@ -650,8 +653,8 @@ unsigned int gui_bead_frame(const GuiBeadCfg *args)
     return (unsigned int)frame;
 }
 
-// A box pass of four over `lines` lines of a patch: each pixel of a line the mean of the four from offset `lo` to
-// `hi` along `step`, the lines `line_step` apart, from `count` pixels of the line. The mean is a shift
+// A box pass of four over `lines` lines of a patch, the lines `line_step` apart, from `count` pixels of the line. Each
+// pixel of a line is the mean of the four from offset `lo` to `hi` along `step`. The mean is a shift
 EMBED_INLINE void bead_box_pass(const BeadCtx *args)
 {
     for (unsigned int line = 0u; line < args->lines; line += 1u)
@@ -707,7 +710,7 @@ void gui_bead_blit(const GuiBeadBlitCfg *args)
     const int height = (int)raster->height;
     const int left = args->x - reach;
     const int top = args->y - reach;
-    // the columns of the patch that lie on the raster are one copy a row; the columns past its sides take its edge
+    // the columns of the patch that lie on the raster are one copy a row. The columns past its sides take its edge
     // pixel; the sides are far inside an int
     const int first = (left < 0) ? -left : 0;
     const int past = ((left + (int)stride) > width) ? width - left : (int)stride;
@@ -741,7 +744,7 @@ void gui_bead_blit(const GuiBeadBlitCfg *args)
                .lines = stride, .line_step = 1u);
     EMBED_CALL(bead_box_pass, BeadCtx, .from = ping, .to = frost, .lo = 1u, .hi = 2u, .step = stride, .count = patch_rows,
                .lines = stride, .line_step = 1u);
-    // each pixel of the cell on the raster: skipped where its mask is 0; else read through its offsets from the
+    // each pixel of the cell on the raster: skipped where its mask is 0. Else read through its offsets from the
     // sharp patch, mixed with the frosted patch by its share, and lit from plane B
     const unsigned int scale = args->opacity + (args->opacity >> 7u);
     const GuiColor *const plane_a = EMBED_CALL(
@@ -750,7 +753,7 @@ void gui_bead_blit(const GuiBeadBlitCfg *args)
     const GuiColor *const plane_b = plane_a + ((unsigned long long)atlas->cell_height * stride);
     for (int y = on.y; y < on.y + on.height; y += 1)
     {
-        // the row and column inside the cell are not negative, the rectangle drawn lying inside it
+        // the row and column inside the cell are not negative, because the drawn rectangle lies inside it
         const unsigned int row = (unsigned int)(y - args->y);
         const GuiColor *const words = plane_a + ((unsigned long long)row * stride);
         const GuiColor *const lights = plane_b + ((unsigned long long)row * stride);
@@ -775,7 +778,7 @@ void gui_bead_blit(const GuiBeadBlitCfg *args)
             const unsigned long long light = (bead_spread(lights[column]) * scale) >> 8u;
             const unsigned int alpha = (GUI_ALPHA_OF(lights[column]) * scale) >> 8u;
             unsigned long long lanes = (light & BEAD_LANES) + ((((ground & BEAD_LANES) * (256u - alpha)) >> 8u) & BEAD_LANES);
-            // a lane past a byte is held at the byte's max
+            // a lane past a byte stays at the max of the byte
             const unsigned long long carried = (lanes >> 8u) & BEAD_LANE_CARRY;
             lanes = (lanes | ((carried << 8u) - carried)) & BEAD_LANES;
             out[(unsigned int)x] = bead_pack(lanes) | 0xff000000u;

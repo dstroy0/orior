@@ -100,7 +100,7 @@ EMBED_INLINE int cli_snapshot_same(const HistoryCtx *args)
     const int same =
         (snapshot_bytes != NULL) && (read == size) &&
         (memor.cmp(&(MemoriaCfg){.src = snapshot_bytes, .other = args->text, .bytes = (embed_word)size}) == 0);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)snapshot_bytes, (g_cli_editor_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)snapshot_bytes, g_cli_editor_owner);
     return same;
 }
 
@@ -236,7 +236,6 @@ EMBED_INLINE int cli_snapshot_save(const HistoryCtx *args)
     unsigned long long size = args->size;
     char home[CLI_PATH_MAX_LEN];
     char folder[CLI_PATH_MAX_LEN];
-    char snapshot[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = home))
     {
         mmgr_line_put(args->err_msg, s_no_home);

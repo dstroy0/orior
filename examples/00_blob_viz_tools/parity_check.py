@@ -13,7 +13,7 @@ check that drifts in one turns a value one page takes into a value another page 
 The frame watch, core/watch.js, is a reporter: it is only worth its place on a page if it reports a
 loop that throws, a loop that stops turning and a page with no device to draw on, and stays quiet for
 a page that is hidden or a loop that is asleep with nothing to draw. A reporter nobody has seen fire
-is a reporter nobody has tested.
+is a reporter nobody tested.
 
 WHAT IT DOES
 

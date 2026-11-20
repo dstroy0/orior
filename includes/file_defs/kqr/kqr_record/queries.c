@@ -47,7 +47,7 @@ int kqr_identity_read(const char *text, KqrIdentity *identity)
     {
         const size_t length = strcspn(at, " ");
         const int hexed = (word == 0u) || (word == 6u);
-        if (!kqr_number_read(at, length, hexed ? 16 : 10, &value[word]) || (!hexed && (value[word] > 0xffffffffull)))
+        if (!kqr_number_read(at, length, hexed ? 16 : 10, &value[word]) || (!hexed && (value[word] > 0xffffffffULL)))
         {
             return 0;
         }
@@ -122,12 +122,12 @@ static unsigned long long kqr_identity_hash(const KqrIdentity *identity)
 {
     unsigned long long words[KQR_QUERY_WORDS];
     kqr_identity_words(identity, 0u, words);
-    unsigned long long hash = 0xcbf29ce484222325ull;
+    unsigned long long hash = 0xcbf29ce484222325ULL;
     for (unsigned int word = 0u; word < (KQR_QUERY_WORDS - 1u); word += 1u)
     {
         for (unsigned int byte = 0u; byte < 8u; byte += 1u)
         {
-            hash = (hash ^ ((words[word] >> (8u * byte)) & 0xffull)) * 0x100000001b3ull;
+            hash = (hash ^ ((words[word] >> (8u * byte)) & 0xffULL)) * 0x100000001b3ULL;
         }
     }
     return hash;
@@ -161,7 +161,7 @@ unsigned int kqr_slot_of(const KqrRecord *record, const KqrIdentity *identity)
 // none
 void kqr_text_copied(const KqrRecord *record, unsigned long long number, char *text, size_t room)
 {
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     const char *const found = krep_text(&record->file, number, &length);
     // a text is cut to its room
     const size_t written =
@@ -177,7 +177,7 @@ void kqr_text_copied(const KqrRecord *record, unsigned long long number, char *t
 // the number of `text`, stored once, or 0 where it is empty or there was no memory for it
 unsigned long long kqr_text_number(KqrRecord *record, const char *text)
 {
-    return (text[0] == '\0') ? 0ull : krep_text_number(&record->file, text, strlen(text));
+    return (text[0] == '\0') ? 0ULL : krep_text_number(&record->file, text, strlen(text));
 }
 
 // The query record `entry` read into `query`: 1, or 0 where it is not a query's
@@ -238,10 +238,10 @@ int kqr_sample_of(const KqrRecord *record, const KrepRecord *entry, KqrSample *s
     sample->answer = kqr_identity_of_words(entry->word, &sample->identity);
     if (sample->answer == KQR_ANSWERS)
     {
-        sample->nanoseconds = (entry->count > KQR_QUERY_WORDS) ? entry->word[KQR_QUERY_WORDS] : 0ull;
+        sample->nanoseconds = (entry->count > KQR_QUERY_WORDS) ? entry->word[KQR_QUERY_WORDS] : 0ULL;
         sample->launched = (entry->count >= (KQR_QUERY_WORDS + 3u)) ? 1 : 0;
-        sample->least = sample->launched ? entry->word[KQR_QUERY_WORDS + 1u] : 0ull;
-        sample->max = sample->launched ? entry->word[KQR_QUERY_WORDS + 2u] : 0ull;
+        sample->least = sample->launched ? entry->word[KQR_QUERY_WORDS + 1u] : 0ULL;
+        sample->max = sample->launched ? entry->word[KQR_QUERY_WORDS + 2u] : 0ULL;
     }
     else if (entry->count > KQR_QUERY_WORDS)
     {

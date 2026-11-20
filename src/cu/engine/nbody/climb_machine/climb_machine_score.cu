@@ -39,18 +39,18 @@ __global__ void machine_score_kernel(const unsigned int *run_start, const unsign
         const long long base_y = (long long)(rest / geometry.width) + (long long)center[1];
         const long long base_x = (long long)(rest % geometry.width) + (long long)center[2];
         unsigned int candidate = 0u;
-        for (long long step_z = -1ll; step_z <= 1ll; step_z += 1ll)
+        for (long long step_z = -1LL; step_z <= 1LL; step_z += 1LL)
         {
             const long long z = base_z + step_z;
-            const int inside_z = (z >= 0ll) && (z < (long long)geometry.depth);
-            for (long long step_y = -1ll; step_y <= 1ll; step_y += 1ll)
+            const int inside_z = (z >= 0LL) && (z < (long long)geometry.depth);
+            for (long long step_y = -1LL; step_y <= 1LL; step_y += 1LL)
             {
                 const long long y = base_y + step_y;
-                const int inside_y = (y >= 0ll) && (y < (long long)geometry.height);
-                for (long long step_x = -1ll; step_x <= 1ll; step_x += 1ll)
+                const int inside_y = (y >= 0LL) && (y < (long long)geometry.height);
+                for (long long step_x = -1LL; step_x <= 1LL; step_x += 1LL)
                 {
                     const long long x = base_x + step_x;
-                    const long long first = (x < 0ll) ? -x : 0ll;
+                    const long long first = (x < 0LL) ? -x : 0LL;
                     const long long width_left = (long long)geometry.width - x;
                     const long long end = (width_left < length) ? width_left : length;
                     if ((inside_z != 0) && (inside_y != 0) && (first < end))
@@ -84,7 +84,7 @@ __global__ void machine_decide_kernel(const unsigned int *climber_entry_start, c
     long long sums[CLIMB_MACHINE_CANDIDATES];
     for (unsigned int candidate = 0u; candidate < CLIMB_MACHINE_CANDIDATES; candidate += 1u)
     {
-        sums[candidate] = 0ll;
+        sums[candidate] = 0LL;
     }
     for (unsigned int entry = climber_entry_start[climber]; entry < climber_entry_start[climber + 1u]; entry += 1u)
     {
@@ -97,14 +97,14 @@ __global__ void machine_decide_kernel(const unsigned int *climber_entry_start, c
     const long long here[3] = {(long long)center[0], (long long)center[1], (long long)center[2]};
     long long best[3] = {here[0], here[1], here[2]};
     long long best_score = sums[13];
-    unsigned long long best_length = 0ull;
+    unsigned long long best_length = 0ULL;
     int stepped = 0;
     unsigned int candidate = 0u;
-    for (long long step_z = -1ll; step_z <= 1ll; step_z += 1ll)
+    for (long long step_z = -1LL; step_z <= 1LL; step_z += 1LL)
     {
-        for (long long step_y = -1ll; step_y <= 1ll; step_y += 1ll)
+        for (long long step_y = -1LL; step_y <= 1LL; step_y += 1LL)
         {
-            for (long long step_x = -1ll; step_x <= 1ll; step_x += 1ll)
+            for (long long step_x = -1LL; step_x <= 1LL; step_x += 1LL)
             {
                 const long long lag[3] = {here[0] + step_z, here[1] + step_y, here[2] + step_x};
                 const unsigned long long length =

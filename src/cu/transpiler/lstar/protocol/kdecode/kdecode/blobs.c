@@ -13,10 +13,10 @@ static void blob_printed(const char *name, unsigned int name_length, unsigned lo
     mmgr_line_put_n(&s_displayed, name, name_length);
     kdecode_decimal_displayed(size);
     mmgr_line_ch(&s_displayed, '\n');
-    for (unsigned long long at = 0ull; at < size; at += 1ull)
+    for (unsigned long long at = 0ULL; at < size; at += 1ULL)
     {
         // the text is passed every 64 KiB at max, far inside the half of its room it may still take
-        if ((at & 0xffffull) == 0ull)
+        if ((at & 0xffffULL) == 0ULL)
         {
             kdecode_displayed_passed(0);
         }
@@ -32,7 +32,7 @@ int kdecode_records_each(const unsigned char *bytes, unsigned long long size,
                                       unsigned long long time, const unsigned char *blob, unsigned long long blob_size),
                          void *context)
 {
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     const QryRecord *record = NULL;
     while ((bytes != NULL) && qry_record_read(bytes, size, &at, &record))
     {
@@ -55,7 +55,7 @@ static void records_passed(void *context, const char *name, unsigned int name_le
 
 int kdecode_run_whole(const unsigned char *bytes, unsigned long long size)
 {
-    return (size > 0ull) && kdecode_records_each(bytes, size, records_passed, NULL);
+    return (size > 0ULL) && kdecode_records_each(bytes, size, records_passed, NULL);
 }
 
 // what the blob walk of kdecode_blobs retains: the name wanted, whether the latest alone is written, and that one where
@@ -89,8 +89,8 @@ static void blobs_each(void *context, const char *name, unsigned int name_length
 
 int kdecode_blobs(const char *path, const char *name, int latest)
 {
-    KdecodeBlobs walk = {name, latest, 0ull, NULL, 0ull};
-    unsigned long long size = 0ull;
+    KdecodeBlobs walk = {name, latest, 0ULL, NULL, 0ULL};
+    unsigned long long size = 0ULL;
     const unsigned char *const bytes = qry_member_file_mapped(path, &size);
     const int read = kdecode_records_each(bytes, size, blobs_each, &walk);
     if (!read)

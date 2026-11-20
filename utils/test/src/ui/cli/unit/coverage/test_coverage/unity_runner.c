@@ -77,7 +77,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\coverage\\test_coverage\\test_coverage.c");
+  UnityBegin("utils/test/src/ui/cli/unit/coverage/test_coverage/test_coverage.c");
   run_test(test_a_pixel_inside_a_rectangle_takes_the_color_whole, "test_a_pixel_inside_a_rectangle_takes_the_color_whole", 57);
   run_test(test_a_pixel_outside_a_rectangle_retains_its_ground, "test_a_pixel_outside_a_rectangle_retains_its_ground", 65);
   run_test(test_a_pixel_an_edge_halves_takes_half_the_color, "test_a_pixel_an_edge_halves_takes_half_the_color", 74);

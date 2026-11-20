@@ -27,7 +27,7 @@ typedef struct GuiBeadBlitCfg GuiBeadBlitCfg;
 #define GUI_BEAD_PAD 7
 #define GUI_BEAD_REACH 6
 // The bead's outline: a superellipse of this power over the button, round at every point, no straight run. The
-// dome's height as a share of the button's side; the share of the height the press takes away; the share of the
+// dome's height as a share of the button's side; the share of the height the press takes away. The share of the
 // side the press sinks the bead; the share the press squashes the bead across and down; and water's refractive index
 #define GUI_BEAD_SHAPE_POWER 3.0
 #define GUI_BEAD_HEIGHT 0.36
@@ -71,7 +71,7 @@ typedef struct
 // holds frames for, each button's cell top left in the caller's pixels with the button's own width and height, 0 for
 // the largest's, its bead positioned from the cell's top left corner inside the margin; the lights and the bead's four
 // colors they are lit with; and a bit a button, set once its frames are baked. The raster's rows hold, in order: each
-// button's frames, each frame's plane A then plane B; three patches with the reach as a margin; and three planes of
+// button's frames, each frame's plane A then plane B; three patches with the reach as a margin. And three planes of
 // float work for the bake. The patches are the blit's own scratch. A button's frames bake the first time the bead is
 // drawn on it
 typedef struct
@@ -105,7 +105,7 @@ unsigned long long gui_bead_bytes(const GuiBeadBakeCfg *args);
 // same sizes; their cells' top lefts `cells` with each button's own width and height, 0 for the max, lit by
 // `light_count` of `lights` in `colors`, GUI_BEAD_COLORS of them: 1, or 0 where there are no pixels, a size is 0,
 // the cell is too tall, the reach is below 3 or there are too many tools. A button whose frames are baked for the
-// same sizes, shape, place, lights and colors retains them; any other bakes again when the bead is next drawn on it
+// same sizes, shape, place, lights and colors retains them. Any other bakes again when the bead is next drawn on it
 int gui_bead_bake(const GuiBeadBakeCfg *args);
 // the frames of the button `tool` baked where they are not: 1, or 0 where the atlas is not arranged
 int gui_bead_tool_bake(const GuiBeadBlitCfg *args);

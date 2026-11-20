@@ -472,7 +472,7 @@ void cli_cargo_workspace_get(const CliCargoReportCfg *args)
                 (length == 11ULL) &&
                 (memor.cmp(&(MemoriaCfg){.src = bytes + start, .other = "[workspace]", .bytes = 11u}) == 0);
         }
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_tests_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_tests_owner);
         if (workspace_table)
         {
             memor.cpy(

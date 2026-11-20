@@ -73,7 +73,7 @@ EMBED_INLINE void find_line_write(const SymbolsFindCtx *args)
     const unsigned long long length = ((end - start) < CLI_SYMBOL_LINE_MAX) ? (end - start) : CLI_SYMBOL_LINE_MAX;
     EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = out, .text_bytes = bytes + start,
                .length = length);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_code_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_code_owner);
 }
 
 // two runs of bytes in two stored files' cells ordered by their first difference over the shorter

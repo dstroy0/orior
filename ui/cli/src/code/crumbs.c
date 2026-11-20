@@ -270,7 +270,7 @@ typedef struct
 {
     const char *label;
     unsigned long long label_length;
-    const char *word;
+    const char *word_text;
     unsigned long long word_length;
 } CrumbsMenuRow;
 
@@ -303,11 +303,11 @@ EMBED_INLINE int crumbs_menu_built(const CrumbsMenuCtx *args)
         char *const label = texts + used;
         memor.cpy(&(MemoriaCfg){.dst = label, .src = row->label, .bytes = row->label_length});
         label[row->label_length] = '\0';
-        char *const word = label + row->label_length + 1ULL;
-        memor.cpy(&(MemoriaCfg){.dst = word, .src = row->word, .bytes = row->word_length});
-        word[row->word_length] = '\0';
+        char *const word_copy = label + row->label_length + 1ULL;
+        memor.cpy(&(MemoriaCfg){.dst = word_copy, .src = row->word_text, .bytes = row->word_length});
+        word_copy[row->word_length] = '\0';
         used += row->label_length + row->word_length + 2ULL;
-        cli_menus_own_row(&(CliMenusCfg){.item = &(CliItem){label, args->command, "", word, "", "", 0, 0, 0, 0, 0u}});
+        cli_menus_own_row(&(CliMenusCfg){.item = &(CliItem){label, args->command, "", word_copy, "", "", 0, 0, 0, 0, 0u}});
     }
     g_cli_guard->persistent_buf_release(texts, g_cli_widgets_owner);
     return 1;

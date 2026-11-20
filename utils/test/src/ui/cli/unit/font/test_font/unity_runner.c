@@ -80,7 +80,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\font\\test_font\\test_font.c");
+  UnityBegin("utils/test/src/ui/cli/unit/font/test_font/test_font.c");
   run_test(test_a_square_of_four_draws_five_by_four, "test_a_square_of_four_draws_five_by_four", 66);
   run_test(test_a_pixel_inside_is_fully_covered, "test_a_pixel_inside_is_fully_covered", 74);
   run_test(test_a_pixel_end_the_edge_is_not_covered, "test_a_pixel_end_the_edge_is_not_covered", 81);

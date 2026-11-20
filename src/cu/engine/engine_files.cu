@@ -130,21 +130,21 @@ static unsigned long long entry_each_workers(unsigned long long items)
     const char *const named = getenv("TESSERA_RUN_PROCESSORS");
     char *end = NULL;
     const unsigned long long requested_workers =
-        ((named != NULL) && (named[0] >= '1') && (named[0] <= '9')) ? strtoull(named, &end, 10) : 0ull;
+        ((named != NULL) && (named[0] >= '1') && (named[0] <= '9')) ? strtoull(named, &end, 10) : 0ULL;
     const unsigned long long workers =
-        ((requested_workers != 0ull) && (end != NULL) && (*end == '\0')) ? requested_workers : 1ull;
+        ((requested_workers != 0ULL) && (end != NULL) && (*end == '\0')) ? requested_workers : 1ULL;
     return (workers < items) ? workers : items;
 }
 
-// every item on the workers, each taking the next item from one counter until none is left or one has failed
+// every item on the workers, each taking the next item from one counter until none is left or one failed
 static int entry_each(unsigned long long items, EngineEachWork work, void *context)
 {
-    std::atomic<unsigned long long> next(0ull);
+    std::atomic<unsigned long long> next(0ULL);
     std::atomic<int> failed(0);
     const auto run = [&]() {
         for (;;)
         {
-            const unsigned long long item = next.fetch_add(1ull);
+            const unsigned long long item = next.fetch_add(1ULL);
             if ((item >= items) || (failed.load() != 0))
             {
                 return;
@@ -157,7 +157,7 @@ static int entry_each(unsigned long long items, EngineEachWork work, void *conte
     };
     const unsigned long long workers = entry_each_workers(items);
     std::vector<std::thread> started;
-    for (unsigned long long worker = 1ull; worker < workers; worker += 1ull)
+    for (unsigned long long worker = 1ULL; worker < workers; worker += 1ULL)
     {
         started.emplace_back(run);
     }
@@ -218,10 +218,10 @@ static void entry_span_release(EntrySpan *span)
     free(span->bytes);
     span->bytes = NULL;
     span->path[0] = '\0';
-    span->first = 0ull;
-    span->length = 0ull;
-    span->read = 0ll;
-    span->requested_order = 0ull;
+    span->first = 0ULL;
+    span->length = 0ULL;
+    span->read = 0LL;
+    span->requested_order = 0ULL;
     span->waiting = 0;
 }
 
@@ -295,25 +295,25 @@ extern "C" long engine_source_prefetch(const char *source, const char *sample, E
     const ZipArchive *const archive =
         ((source != NULL) && (sample != NULL) && entry_is_file(source)) ? zip_archive_cached(tools, source, error)
                                                                          : NULL;
-    unsigned long long first = 0ull;
-    unsigned long long count = 0ull;
-    if ((archive == NULL) || !zip_folder_find(archive, sample, &first, &count) || (count == 0ull) ||
+    unsigned long long first = 0ULL;
+    unsigned long long count = 0ULL;
+    if ((archive == NULL) || !zip_folder_find(archive, sample, &first, &count) || (count == 0ULL) ||
         (strlen(source) >= sizeof(at->path)))
     {
         return ENGINE_ERROR;
     }
     // the members' span, from the first local header to past the last member's data: its local header is 30 bytes,
     // and its name and extra field at max 65,535 bytes each
-    unsigned long long begin = ~0ull;
-    unsigned long long end = 0ull;
-    for (unsigned long long at = first; at < (first + count); at += 1ull)
+    unsigned long long begin = ~0ULL;
+    unsigned long long end = 0ULL;
+    for (unsigned long long at = first; at < (first + count); at += 1ULL)
     {
         ZipEntry entry;
         if (!zip_entry_at(archive, at, &entry, error))
         {
             return ENGINE_ERROR;
         }
-        const unsigned long long past = entry.local_offset + 30ull + (2ull * 65535ull) + entry.compressed;
+        const unsigned long long past = entry.local_offset + 30ULL + (2ULL * 65535ULL) + entry.compressed;
         begin = (entry.local_offset < begin) ? entry.local_offset : begin;
         end = (past > end) ? past : end;
     }
@@ -326,8 +326,8 @@ extern "C" long engine_source_prefetch(const char *source, const char *sample, E
     memcpy(at->path, source, strlen(source) + 1u);
     at->first = begin;
     at->length = end - begin;
-    at->read = 0ll;
-    s_span_requests += 1ull;
+    at->read = 0LL;
+    s_span_requests += 1ULL;
     at->requested_order = s_span_requests;
     // it starts now where no other reader runs, and otherwise once the thread that requested joins the one that does
     int running = 0;
@@ -403,14 +403,14 @@ void entry_json_release(EntryJson *json)
 static int entry_file_read_all(const char *path, char **bytes, size_t *length)
 {
     const long long size = stack_file_size(path);
-    if (size < 0ll)
+    if (size < 0LL)
     {
         return 0;
     }
     char *const text = (char *)malloc((size_t)size + 1u);
     EngineFileRange range;
     range.path = path;
-    range.offset = 0ull;
+    range.offset = 0ULL;
     range.bytes = (unsigned long long)size;
     range.out = (unsigned char *)text;
     if ((text == NULL) || (stack_file_read(&range) != size))
@@ -512,9 +512,9 @@ int entry_element_named(const char *name, EngineArrayExtent *extent, unsigned in
     const int ordered =
         (length >= 3u) && ((name[0] == '<') || (name[0] == '>') || (name[0] == '|') || (name[0] == '='));
     const char type = ordered ? name[1] : '\0';
-    const unsigned long width = ordered ? strtoul(&name[2], NULL, 10) : 0ul;
+    const unsigned long width = ordered ? strtoul(&name[2], NULL, 10) : 0UL;
     if ((ordered == 0) || ((type != 'u') && (type != 'i') && (type != 'f')) ||
-        ((width != 1ul) && (width != 2ul) && (width != 4ul) && (width != 8ul)))
+        ((width != 1UL) && (width != 2UL) && (width != 4UL) && (width != 8UL)))
     {
         return 0;
     }

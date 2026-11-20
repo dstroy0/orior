@@ -21,7 +21,7 @@
 # from technical documentation to a 1667 epic is a distance between two registers, and it would
 # have been read as a distance between two writers.
 #
-# The second split this tree by whether the current session had opened a file, and called the
+# The second split this tree by whether the current session opened a file, and called the
 # untouched half a person's prose. That split is void: the text of this repository is almost all
 # machine-written, over many sessions. Both halves had one author. It explains the null the
 # distributional form of this script returned, where the gap between those halves carried the same
@@ -35,7 +35,7 @@
 #
 # Surprise is mean bits per byte pair. Lower sits closer to English. The papers fix the scale. A
 # repository file inside the papers' own spread reads the way a human technical page reads, and one
-# above all of them does not. Nothing here is a verdict on a sentence: it ranks files by how far
+# above all of them does not. Nothing here is a verdict on a sentence. It ranks files by how far
 # they sit from English, which says where to look, and a person still reads the file.
 
 import io

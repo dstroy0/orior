@@ -198,7 +198,7 @@ int orior_raster_host(uint8_t *pixels, const OriorRasterConfig *config, const ui
     }
 
     const size_t cells = config->width * config->height;
-    // which cells an alignment has reached; a cell nothing reaches writes ORIOR_RASTER_EMPTY
+    // which cells an alignment reached; a cell nothing reaches writes ORIOR_RASTER_EMPTY
     uint8_t *const filled = (uint8_t *)calloc(cells, 1u);
     if (filled == NULL)
     {

@@ -5,7 +5,7 @@
 
 unsigned long long zstd_little_endian(const unsigned char *bytes, unsigned int count)
 {
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     for (unsigned int place = 0u; place < count; place += 1u)
     {
         value |= (unsigned long long)bytes[place] << (8u * place);
@@ -22,7 +22,7 @@ void zstd_advance(ZstdSpan *span, unsigned long long count)
 unsigned int zstd_high_bit(unsigned long long value)
 {
     unsigned int bit = 0u;
-    while ((value >> bit) > 1ull)
+    while ((value >> bit) > 1ULL)
     {
         bit += 1u;
     }
@@ -33,9 +33,9 @@ static unsigned long long zstd_bits_at(const unsigned char *bytes, unsigned long
                                        unsigned int count)
 {
     const unsigned long long byte = first >> 3u;
-    const unsigned int skip = (unsigned int)(first & 7ull);
-    unsigned long long word = 0ull;
-    if ((byte < length) && ((length - byte) >= 8ull))
+    const unsigned int skip = (unsigned int)(first & 7ULL);
+    unsigned long long word = 0ULL;
+    if ((byte < length) && ((length - byte) >= 8ULL))
     {
         const unsigned char *const lane = &bytes[byte];
         word = (unsigned long long)lane[0u] | ((unsigned long long)lane[1u] << 8u) |
@@ -50,7 +50,7 @@ static unsigned long long zstd_bits_at(const unsigned char *bytes, unsigned long
             word |= (unsigned long long)bytes[byte + place] << (8u * place);
         }
     }
-    const unsigned long long mask = (1ull << count) - 1ull;
+    const unsigned long long mask = (1ULL << count) - 1ULL;
     return (word >> skip) & mask;
 }
 
@@ -63,7 +63,7 @@ static int zstd_forward_skip(ZstdForwardStream *stream, unsigned int count)
 {
     stream->position += count;
     const unsigned long long byte_position = stream->position >> 3u;
-    const unsigned long long partial = ((stream->position & 7ull) != 0ull) ? 1ull : 0ull;
+    const unsigned long long partial = ((stream->position & 7ULL) != 0ULL) ? 1ULL : 0ULL;
     return (byte_position + partial) <= stream->length;
 }
 
@@ -72,12 +72,12 @@ int zstd_backward_open(ZstdBackwardStream *stream, const unsigned char *bytes, u
     stream->bytes = bytes;
     stream->length = length;
     stream->position = 0LL;
-    if ((length == 0ull) || (length > ZSTD_BLOCK_MAXIMUM) || (bytes[length - 1ull] == 0u))
+    if ((length == 0ULL) || (length > ZSTD_BLOCK_MAXIMUM) || (bytes[length - 1ULL] == 0u))
     {
         return 0;
     }
-    const unsigned int marker = zstd_high_bit(bytes[length - 1ull]);
-    stream->position = (long long)(((length - 1ull) * 8ull) + marker);
+    const unsigned int marker = zstd_high_bit(bytes[length - 1ULL]);
+    stream->position = (long long)(((length - 1ULL) * 8ULL) + marker);
     return 1;
 }
 
@@ -85,7 +85,7 @@ unsigned long long zstd_backward_peek(const ZstdBackwardStream *stream, unsigned
 {
     if ((count == 0u) || (stream->position <= 0LL))
     {
-        return 0ull;
+        return 0ULL;
     }
     const long long low = stream->position - (long long)count;
     if (low >= 0LL)
@@ -93,7 +93,7 @@ unsigned long long zstd_backward_peek(const ZstdBackwardStream *stream, unsigned
         return zstd_bits_at(stream->bytes, stream->length, (unsigned long long)low, count);
     }
     const unsigned int missing = (unsigned int)(0LL - low);
-    return zstd_bits_at(stream->bytes, stream->length, 0ull, count - missing) << missing;
+    return zstd_bits_at(stream->bytes, stream->length, 0ULL, count - missing) << missing;
 }
 
 unsigned long long zstd_backward_read(ZstdBackwardStream *stream, unsigned int count)
@@ -105,7 +105,7 @@ unsigned long long zstd_backward_read(ZstdBackwardStream *stream, unsigned int c
 
 int zstd_fse_describe(ZstdSpan *input, const ZstdTableKind *type, long *counts, unsigned int *accuracy)
 {
-    ZstdForwardStream stream = {input->bytes, input->length, 0ull};
+    ZstdForwardStream stream = {input->bytes, input->length, 0ULL};
     const unsigned int found = (unsigned int)zstd_forward_peek(&stream, 4u) + 5u;
     int ok = zstd_forward_skip(&stream, 4u) && (found <= type->accuracy);
     for (unsigned int symbol = 0u; symbol < type->symbols; symbol += 1u)
@@ -156,7 +156,7 @@ int zstd_fse_describe(ZstdSpan *input, const ZstdTableKind *type, long *counts, 
         }
         measurement = ok && (remaining > 1L) && (symbol < type->symbols);
     }
-    const unsigned long long consumed = (stream.position + 7ull) >> 3u;
+    const unsigned long long consumed = (stream.position + 7ULL) >> 3u;
     ok = ok && (remaining == 1L) && (consumed <= input->length);
     if (ok)
     {
@@ -169,11 +169,11 @@ int zstd_fse_describe(ZstdSpan *input, const ZstdTableKind *type, long *counts, 
 int zstd_fse_build(ZstdFseTable *table, const long *counts, unsigned int symbols, unsigned int accuracy)
 {
     table->ready = 0;
-    const unsigned long size = 1ul << accuracy;
-    unsigned long total = 0ul;
+    const unsigned long size = 1UL << accuracy;
+    unsigned long total = 0UL;
     for (unsigned int symbol = 0u; symbol < symbols; symbol += 1u)
     {
-        total += (counts[symbol] < 0L) ? 1ul : (unsigned long)counts[symbol];
+        total += (counts[symbol] < 0L) ? 1UL : (unsigned long)counts[symbol];
     }
     if ((accuracy > ZSTD_FSE_ACCURACY_MAXIMUM) || (symbols > ZSTD_FSE_SYMBOLS) || (total != size))
     {
@@ -183,16 +183,16 @@ int zstd_fse_build(ZstdFseTable *table, const long *counts, unsigned int symbols
     long high = (long)size - 1L;
     for (unsigned int symbol = 0u; symbol < symbols; symbol += 1u)
     {
-        next[symbol] = (counts[symbol] < 0L) ? 1ul : (unsigned long)counts[symbol];
+        next[symbol] = (counts[symbol] < 0L) ? 1UL : (unsigned long)counts[symbol];
         if (counts[symbol] < 0L)
         {
             table->cells[high].symbol = (unsigned char)symbol;
             high -= 1L;
         }
     }
-    const unsigned long step = (size >> 1u) + (size >> 3u) + 3ul;
-    const unsigned long mask = size - 1ul;
-    unsigned long position = 0ul;
+    const unsigned long step = (size >> 1u) + (size >> 3u) + 3UL;
+    const unsigned long mask = size - 1UL;
+    unsigned long position = 0UL;
     for (unsigned int symbol = 0u; symbol < symbols; symbol += 1u)
     {
         for (long copy = 0L; copy < counts[symbol]; copy += 1L)
@@ -205,15 +205,15 @@ int zstd_fse_build(ZstdFseTable *table, const long *counts, unsigned int symbols
             }
         }
     }
-    if (position != 0ul)
+    if (position != 0UL)
     {
         return 0;
     }
-    for (unsigned long cell = 0ul; cell < size; cell += 1ul)
+    for (unsigned long cell = 0UL; cell < size; cell += 1UL)
     {
         const unsigned int symbol = table->cells[cell].symbol;
         const unsigned long state = next[symbol];
-        next[symbol] += 1ul;
+        next[symbol] += 1UL;
         const unsigned int bits = accuracy - zstd_high_bit(state);
         table->cells[cell].bits = (unsigned char)bits;
         table->cells[cell].baseline = (unsigned short)((state << bits) - size);

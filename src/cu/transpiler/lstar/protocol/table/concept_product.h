@@ -50,10 +50,10 @@ static inline std::vector<std::set<unsigned long long>> concept_values(const std
     for (const unsigned long long value : operands)
     {
         cased[CONCEPT_VALUE_WIDE].insert(value);
-        cased[CONCEPT_VALUE_WORD].insert(value & 0xffffffffull);
+        cased[CONCEPT_VALUE_WORD].insert(value & 0xffffffffULL);
         cased[CONCEPT_VALUE_WORD].insert(value >> 32u);
     }
-    cased[CONCEPT_VALUE_FLAG] = {0ull, 1ull};
+    cased[CONCEPT_VALUE_FLAG] = {0ULL, 1ULL};
     return cased;
 }
 
@@ -65,7 +65,7 @@ static inline std::vector<std::set<unsigned long long>> concept_values_qualified
     std::vector<std::set<unsigned long long>> qualified = cased;
     for (const unsigned long long value : qualifiers)
     {
-        qualified[CONCEPT_VALUE_WORD].insert(value & 0xffffffffull);
+        qualified[CONCEPT_VALUE_WORD].insert(value & 0xffffffffULL);
         qualified[CONCEPT_VALUE_WIDE].insert(value);
     }
     return qualified;
@@ -162,10 +162,10 @@ static inline void concept_product_made(const ConceptReads &reads, const std::ve
         int cased_all = 1;
         for (size_t value = 0u; value < bases.size(); value += 1u)
         {
-            const unsigned long long low = (low_at[value] >= 0) ? reads[(size_t)low_at[value]].second[place] : 0ull;
-            const unsigned long long high = (high_at[value] >= 0) ? reads[(size_t)high_at[value]].second[place] : 0ull;
+            const unsigned long long low = (low_at[value] >= 0) ? reads[(size_t)low_at[value]].second[place] : 0ULL;
+            const unsigned long long high = (high_at[value] >= 0) ? reads[(size_t)high_at[value]].second[place] : 0ULL;
             const unsigned long long read = ((low_at[value] >= 0) && (high_at[value] >= 0))
-                                                ? ((high << 32u) | (low & 0xffffffffull))
+                                                ? ((high << 32u) | (low & 0xffffffffULL))
                                             : (low_at[value] >= 0) ? low
                                                                    : high;
             cased_all &= (cased[(size_t)types[value]].count(read) != 0u) ? 1 : 0;
@@ -216,10 +216,10 @@ static inline std::string concept_identity(const ConceptProduct &product,
     {
         written += row.first + ((row.second.size() > 1u) ? "?" : std::string(1u, *row.second.begin())) + ";";
     }
-    unsigned long long hashed = 0xcbf29ce484222325ull;
+    unsigned long long hashed = 0xcbf29ce484222325ULL;
     for (const char character : written)
     {
-        hashed = (hashed ^ (unsigned char)character) * 0x100000001b3ull;
+        hashed = (hashed ^ (unsigned char)character) * 0x100000001b3ULL;
     }
     char identity[24];
     snprintf(identity, sizeof(identity), "%016llx", hashed);

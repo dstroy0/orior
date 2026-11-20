@@ -4,15 +4,17 @@
 //
 //   kdm_write <part> <path>
 //
-// The arrangements are found from the relations and from nothing else: no ruleset is read, no machine file is read,
-// and no target is queried. What a target can write of them, and what each costs it, is the other half and is filled
-// by the part itself.
+// The writer finds the arrangements from the relations and from nothing else. It reads no ruleset and no machine file,
+// and it queries no target. What a target can write of them, and what each costs it, is the other half. The part
+// itself fills that half.
 //
-// Where the path already contains a .kdm, its costs come forward onto the arrangements found this time, matched by the
-// arrangement and never by where it sat in the file. A cost is therefore retained across a rewrite, and a rewrite that
-// finds an arrangement nobody has timed leaves it untimed. The .kdm's section is what this writes (kdm.h); its tail,
-// the part's registers, widths, loads and stores in their block of the ruleset's language and its pipes, is as the
-// file stored it, since none of it is found from the relations.
+// Where the path already holds a .kdm, its costs come forward onto the arrangements that this write finds. The match
+// is by the arrangement, and never by where it sat in the file. A cost thus stays across a rewrite. A rewrite that
+// finds an arrangement with no time leaves it untimed.
+//
+// This writes the section of the .kdm (kdm.h). Its tail stays as the file stored it, because the relations give none
+// of it. The tail is the registers, widths, loads and stores of the part, in their block of the language of the
+// ruleset, and its pipes.
 #include "../../../src/cu/transpiler/lstar/protocol/gate/chain_build.h"
 
 #include "../qry/writer/qry_member.h"
@@ -33,9 +35,9 @@ static const char *const s_anchor_text[] = {LADDER_ANCHORS(LADDER_TEXT)};
 // the longest cost a row carries: an exact rational, numerator/denominator, each a run of decimal digits
 #define KDM_COST_MAX_LEN 128u
 
-// One row as it was in the file the last time: the arrangement, what it has cost, and over how many runs. A cost
-// is an exact rational and is carried as the text it was written as. Nothing here computes with one, and a cost read
-// into a number to be written back out would be rounded on the way
+// One row as it was in the file the last time: the arrangement, what it cost, and over how many runs. A cost is an
+// exact rational, and the code carries it as its text in the file. Nothing here computes with one. A read of a cost
+// into a number and a write back out rounds it on the way
 typedef struct
 {
     char text[KDM_TEXT_MAX_LEN];
@@ -45,7 +47,7 @@ typedef struct
 
 static KdmCostRow s_cost_rows[KDM_ROWS];
 
-// the texts of the rows one operator has written, each once
+// the texts of the rows that one operator wrote, each once
 static char s_written[CHAIN_MAX][KDM_TEXT_MAX_LEN];
 
 // Whether `text` is an exact rational written in decimal: digits, an optional leading minus, and at max one /
@@ -93,8 +95,8 @@ static void kdm_costs_read(const char *path)
         KdmCostRow *const row = &s_cost_rows[s_cost_row_count];
         snprintf(row->text, sizeof(row->text), "%s", s_row.chain);
         row->runs = s_row.runs;
-        // a cost that is not an exact rational of decimal digits is not carried: it is refused, and the row reads
-        // as never timed
+        // the code does not carry a cost that is not an exact rational of decimal digits. It refuses the cost, and
+        // the row reads as never timed
         if ((kdm_exact_text(s_row.cost) == 0) || (strlen(s_row.cost) >= sizeof(row->cost)))
         {
             row->runs = 0u;
@@ -108,7 +110,7 @@ static void kdm_costs_read(const char *path)
     }
 }
 
-// the row `text` was in the last time, or NULL where nothing has timed it
+// the row `text` was in the last time, or NULL where nothing timed it
 static const KdmCostRow *kdm_cost(const char *text)
 {
     for (unsigned int at = 0u; at < s_cost_row_count; at += 1u)
@@ -136,8 +138,8 @@ static unsigned int anchor_cases(unsigned int anchor, LadderQuestion *cases)
     return found;
 }
 
-// A seed the file's own state decides, from the part's name and the runs already folded into it. Nothing has to be
-// timed for an order to be reproducible, and nothing stays in one order once timings come in
+// A seed from the own state of the file: the name of the part and the runs already folded into it. An order can
+// repeat with no time. Nothing stays in one order once timings come in
 static unsigned int kdm_seed(const char *part)
 {
     unsigned int seed = 0x9e3779b9u;
@@ -152,9 +154,9 @@ static unsigned int kdm_seed(const char *part)
     return seed;
 }
 
-// the section, every line after the first to the tail (kdm.h), put together in s_section_bytes and then written in the
-// file's place, `s_section_at` bytes so far, the room once a write did not fit
-static char s_section_bytes[QRY_WRITER_RING_BYTES / 2ull];
+// the section, each line after the first up to the tail (kdm.h). The code puts it together in s_section_bytes, and then
+// writes it in the place of the file. `s_section_at` is the bytes so far, or the room once a write did not fit
+static char s_section_bytes[QRY_WRITER_RING_BYTES / 2ULL];
 static size_t s_section_at;
 
 // `text` written after what the section contains
@@ -209,7 +211,7 @@ int main(int count, char **word)
         chain_shuffle(&set, seed + anchor);
         printf("  %-8s %2u cases  %5u chains  %8u tried", s_anchor_text[anchor], found, chains, set.tried);
         printf("%s\n", (set.over != 0u) ? "  and more than the set contains" : "");
-        // an arrangement is named by its text, and two chains of the set that write one text are one row: the first
+        // the text of an arrangement names it. Two chains of the set that write one text are one row: the first
         unsigned int distinct = 0u;
         for (unsigned int at = 0u; at < chains; at += 1u)
         {
@@ -253,8 +255,8 @@ int main(int count, char **word)
         }
         if (chains == 0u)
         {
-            // an operator no arrangement of this length reaches. Reporting so is the point: it is what the part has to
-            // be queried about outright, or what a longer chain has to be found for
+            // an operator that no arrangement of this length reaches. The report of it is the point. The part must
+            // answer a direct query about it, or a search must find a longer chain for it
             section_text(s_anchor_text[anchor]);
             section_text("\t0\t-\t-\t0\n");
         }

@@ -44,7 +44,7 @@ in O(sqrt(kappa)) iterations at O(N s) each. The honest classical cost is
     HHL          O(log(N) * s^2 * kappa^2 / epsilon)
 
 Both degrade with dimension. The difference that survives nesting is the N term: linear against
-logarithmic. "The algebraic expression pays" means that here, and it is the only asymptotic
+logarithmic. "The algebraic expression pays" means that here. It is the only asymptotic
 quantum win anywhere in this tree.
 
 WHAT THIS DOES NOT CLAIM
@@ -165,7 +165,7 @@ def _report():
     for dimensions, side in ((1, 512), (1, 64), (2, 16), (2, 24), (3, 8), (3, 10), (4, 5), (4, 6)):
         size = side ** dimensions
         if size > 1500:
-            # A dense SVD of the nested operator is what is being avoided in principle; retain the
+            # A dense SVD of the nested operator is what is being avoided in principle. Retain the
             # measured cases small and let the prediction carry the wide ones.
             continue
         laplacian = nested_laplacian(side, dimensions)

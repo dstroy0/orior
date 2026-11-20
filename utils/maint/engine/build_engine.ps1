@@ -20,7 +20,7 @@
 #   nvcc is frequently not on PATH even where the toolkit is installed. The standard locations are
 #   searched and the newest is put on PATH for the configure.
 #
-# Where any of that is missing the build still succeeds with the host arms and says what was
+# Where any of that misses the build still succeeds with the host arms and says what was
 # skipped. A skipped device is reported, never silent.
 
 param(

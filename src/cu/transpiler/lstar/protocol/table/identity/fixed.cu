@@ -29,8 +29,8 @@ static unsigned int fixed_opening_read(const char *ksc)
 static void place_words(const std::vector<unsigned char> &kernel, unsigned int place, unsigned long long *low,
                         unsigned long long *high)
 {
-    *low = 0ull;
-    *high = 0ull;
+    *low = 0ULL;
+    *high = 0ULL;
     for (unsigned int byte = 0u; byte < 8u; byte += 1u)
     {
         *low |= (unsigned long long)kernel[(place * 16u) + byte] << (8u * byte);
@@ -45,8 +45,8 @@ static std::vector<unsigned char> place_put(const std::vector<unsigned char> &ke
     std::vector<unsigned char> variant(kernel);
     for (unsigned int byte = 0u; byte < 8u; byte += 1u)
     {
-        variant[(place * 16u) + byte] = (unsigned char)((low >> (8u * byte)) & 0xffull);
-        variant[(place * 16u) + 8u + byte] = (unsigned char)((high >> (8u * byte)) & 0xffull);
+        variant[(place * 16u) + byte] = (unsigned char)((low >> (8u * byte)) & 0xffULL);
+        variant[(place * 16u) + 8u + byte] = (unsigned char)((high >> (8u * byte)) & 0xffULL);
     }
     return variant;
 }
@@ -61,7 +61,7 @@ static void place_stalled_longest(std::vector<unsigned char> *variant, unsigned 
                                   unsigned long long longest)
 {
     stall_bits_write(variant, place, stall, longest);
-    stall_bits_write(variant, place, s_yield, 0ull);
+    stall_bits_write(variant, place, s_yield, 0ULL);
 }
 
 // what the mode records while it queries: the cases' host places, the question, the queries counted, the blob
@@ -75,7 +75,7 @@ struct FixedQuery
     int dry;
 };
 
-// 1 where the part answers `variant` alike with `reference` on every case; the query is a line of fixed.txt named by
+// 1 where the part answers `variant` alike with `reference` on every case. The query is a line of fixed.txt named by
 // `what`, and a dry run is noted from the carrier's refusal
 static int fixed_alike(FixedQuery *query, const std::vector<unsigned char> &variant,
                        const std::vector<std::string> &reference, const char *what)
@@ -138,10 +138,10 @@ int identity_fixed(const char *engine, const char *answers, const char *ksc, con
     const StallField ra = fields["ra"];
     const StallField rb = fields["rb"];
     s_yield = (fields.count("yield") != 0u) ? fields["yield"] : StallField{0u, 0u};
-    const unsigned long long longest = (1ull << stall.bits) - 1ull;
-    const unsigned long long top = (1ull << rd.bits) - 1ull;
+    const unsigned long long longest = (1ULL << stall.bits) - 1ULL;
+    const unsigned long long top = (1ULL << rd.bits) - 1ULL;
     const unsigned int from = fixed_opening_read(ksc);
-    if (!run_channel_open(carrier, 60000000ull))
+    if (!run_channel_open(carrier, 60000000ULL))
     {
         return 1;
     }
@@ -149,11 +149,11 @@ int identity_fixed(const char *engine, const char *answers, const char *ksc, con
     static RunQuestion s_question;
     s_question.place = RUN_PLACE_NONE;
     s_question.registers = registers;
-    FixedQuery query = {std::vector<unsigned int>(), &s_question, 0ull, {(folder + "/fixed.txt"), 0, std::string()}, 0};
+    FixedQuery query = {std::vector<unsigned int>(), &s_question, 0ULL, {(folder + "/fixed.txt"), 0, std::string()}, 0};
     stall_cases(&s_question, &query.places);
     // the probe place
-    unsigned long long unreached_low = 0ull;
-    unsigned long long unreached_high = 0ull;
+    unsigned long long unreached_low = 0ULL;
+    unsigned long long unreached_high = 0ULL;
     place_words(kernel, places - 1u, &unreached_low, &unreached_high);
     std::vector<std::string> second(IDENTITY_CASES, "-");
     for (unsigned int at = 0u; at < s_question.cases; at += 1u)
@@ -165,8 +165,8 @@ int identity_fixed(const char *engine, const char *answers, const char *ksc, con
     unsigned int probe_place = places;
     for (unsigned int place = from; (place < places) && (probe_place == places) && !query.dry; place += 1u)
     {
-        unsigned long long low = 0ull;
-        unsigned long long high = 0ull;
+        unsigned long long low = 0ULL;
+        unsigned long long high = 0ULL;
         place_words(kernel, place, &low, &high);
         if ((low == unreached_low) && (high == unreached_high))
         {

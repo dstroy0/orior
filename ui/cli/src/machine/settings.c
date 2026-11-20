@@ -384,7 +384,7 @@ EMBED_INLINE int cli_chain_step(const SettingsCtx *args)
                                                   .size_pointer = &size, .owner = g_cli_settings_owner);
     if ((bytes == NULL) || (size > CLI_SETTINGS_FILE))
     {
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_settings_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_settings_owner);
         const int is_file = EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = next);
         if (!*args->first || is_file)
         {
@@ -401,7 +401,7 @@ EMBED_INLINE int cli_chain_step(const SettingsCtx *args)
     // the file's bytes are its text
     EMBED_CALL(cli_devcontainer_text.plain_json, CliDevcontainerTextCfg, .text = (const char *)bytes, .size = size,
                .plain = &plain);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_settings_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_settings_owner);
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea reason = {why, sizeof(why), 0ULL};
     CliJson own;

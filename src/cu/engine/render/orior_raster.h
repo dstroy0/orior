@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission. That permission is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
@@ -261,7 +261,7 @@ extern "C"
      *                        it.
      * @return                1 where the volume was written, 0 where the configuration errored.
      *
-     * @note THE HOST ARM. orior_volume_render is the entry a caller should use: it prefers the device
+     * @note THE HOST ARM. orior_volume_render is the entry a caller should use. It prefers the device
      *       and falls back here, the same way orior_raster_render does for a sheet. This arm and
      *       orior_volume_device stay public because a grader has to call one specific arm and compare
      *       it against the other. That comparison is the only check on the device copy.
@@ -395,7 +395,7 @@ extern "C"
      * @return           1 on success, 0 where the file could not be written.
      *
      * @note P5 because the format is a short text header and then the bytes. Nothing is encoded. A
-     *       reader comparing two rasters is comparing the same bytes the rasterizer produced.
+     *       reader comparing two rasters compares the same bytes the rasterizer produced.
      */
     int orior_raster_write_pgm(const char *path, const uint8_t *pixels, size_t width, size_t height);
 

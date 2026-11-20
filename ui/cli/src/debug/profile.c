@@ -235,9 +235,11 @@ static void profile_output_read(void *context)
 {
     CliProfile *const profile = (CliProfile *)context;
     EMBED_CALL(profile_lines, ProfileCtx, .profile = profile, .pipe = profile->spawned.out, .each_line = profile_line);
+    unsigned int wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_wake);
     while (profile->going > 1u)
     {
-        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_wake);
+        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_wake, .seen = wake_seen);
+        wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_wake);
     }
     long long status = 0LL;
     int has_status = 0;
@@ -288,6 +290,7 @@ EMBED_INLINE CliProfile *profile_alloc(const ProfileCtx *args)
     CliProfile *profile = NULL;
     while (profile == NULL)
     {
+        const unsigned int wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_wake);
         unsigned int at = 0u;
         while ((at < CLI_PROFILES) && (profile == NULL))
         {
@@ -296,7 +299,7 @@ EMBED_INLINE CliProfile *profile_alloc(const ProfileCtx *args)
         }
         if (profile == NULL)
         {
-            EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_wake);
+            EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_wake, .seen = wake_seen);
         }
     }
     profile->reserved = 1;

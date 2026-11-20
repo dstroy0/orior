@@ -16,7 +16,7 @@ Unknown keys error and never ignored. A typo in a setting is silent otherwise, a
 that opens in the wrong state looks like a bug in the viewer.
 
 One definition per setting serves both the --set command and the shared control bar. A unit names
-the settings its bar carries and passes `schema` the names; the bar draws a control per entry from
+the settings its bar carries and passes `schema` the names. The bar draws a control per entry from
 the type, the range and the fallback stored here. The command and the bar read one source, and a
 setting cannot mean one thing on the command line and another in the bar.
 
@@ -29,7 +29,7 @@ import sys
 
 # One entry per setting: its type, the value it opens at when nothing sets it, a human line, and the
 # range the bar bounds a control to. The bar type and the command type are the same word. int and
-# float cast on the command line; color, word and text are strings there and draw their own control
+# float cast on the command line. Color, word and text are strings there and draw their own control
 # in the bar. A bounded number carries low and high; a word carries its words. The page applies
 # these; nothing here draws anything.
 KNOWN = {

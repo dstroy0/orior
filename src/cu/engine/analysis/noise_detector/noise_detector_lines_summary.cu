@@ -8,18 +8,18 @@ static const char *const NOISE_LINE_NAMES[NOISE_LINE_KINDS] = {"row", "column", 
 void noise_exact_wide(OriorExactInteger *value, const NoiseWide *wide)
 {
     orior_exact_zero(value);
-    value->limb[0] = (uint32_t)(wide->low & 0xFFFFFFFFull);
+    value->limb[0] = (uint32_t)(wide->low & 0xFFFFFFFFULL);
     value->limb[1] = (uint32_t)(wide->low >> 32u);
-    value->limb[2] = (uint32_t)(wide->high & 0xFFFFFFFFull);
+    value->limb[2] = (uint32_t)(wide->high & 0xFFFFFFFFULL);
     value->limb[3] = (uint32_t)(wide->high >> 32u);
-    value->sign = ((wide->low | wide->high) != 0ull) ? 1 : 0;
+    value->sign = ((wide->low | wide->high) != 0ULL) ? 1 : 0;
 }
 
 // the lines' summed squares against their members' squares, in thousandths rounded down; 0 where nothing was summed
 static int noise_line_per_mille(const NoiseWide *line_squares, unsigned long long member_squares,
                                 unsigned long long *per_mille)
 {
-    if (member_squares == 0ull)
+    if (member_squares == 0ULL)
     {
         return 0;
     }
@@ -29,7 +29,7 @@ static int noise_line_per_mille(const NoiseWide *line_squares, unsigned long lon
     OriorExactInteger quotient;
     OriorExactInteger remainder;
     noise_exact_wide(&numerator, line_squares);
-    noise_exact_word(&factor, 1000ull);
+    noise_exact_word(&factor, 1000ULL);
     noise_exact_word(&denominator, member_squares);
     int ok = (orior_exact_multiply(&numerator, &factor, &numerator) == ORIOR_EXACT_OK) &&
              (orior_exact_divide(&numerator, &denominator, &quotient, &remainder) == ORIOR_EXACT_OK);
@@ -37,7 +37,7 @@ static int noise_line_per_mille(const NoiseWide *line_squares, unsigned long lon
     {
         ok = quotient.limb[limb] == 0u;
     }
-    *per_mille = ok ? (((unsigned long long)quotient.limb[1] << 32u) | quotient.limb[0]) : 0ull;
+    *per_mille = ok ? (((unsigned long long)quotient.limb[1] << 32u) | quotient.limb[0]) : 0ULL;
     return ok;
 }
 
@@ -57,10 +57,10 @@ static void noise_lines_summary(const char *name, const NoiseLineCell cells[NOIS
             noise_wide_add(&pooled.line_squares, cell->line_squares.low, cell->line_squares.high);
         }
         counted[type] = pooled.lines;
-        unsigned long long per_mille = 0ull;
+        unsigned long long per_mille = 0ULL;
         if (noise_line_per_mille(&pooled.line_squares, pooled.member_squares, &per_mille))
         {
-            printf(" %9llu", per_mille);
+            printf(" %9LLU", per_mille);
         }
         else
         {
@@ -92,10 +92,10 @@ static int noise_exact_ratio(const OriorExactInteger *numerator, const OriorExac
     {
         ok = quotient.limb[limb] == 0u;
     }
-    const unsigned long long magnitude = ok ? (((unsigned long long)quotient.limb[1] << 32u) | quotient.limb[0]) : 0ull;
-    ok = ok && (magnitude <= 0x7FFFFFFFFFFFFFFFull);
+    const unsigned long long magnitude = ok ? (((unsigned long long)quotient.limb[1] << 32u) | quotient.limb[0]) : 0ULL;
+    ok = ok && (magnitude <= 0x7FFFFFFFFFFFFFFFULL);
     // the magnitude is below 2^63. It converts to long long exactly; the sign is stored apart
-    *ratio = ok ? ((long long)magnitude * (long long)quotient.sign) : 0ll;
+    *ratio = ok ? ((long long)magnitude * (long long)quotient.sign) : 0LL;
     return ok;
 }
 
@@ -110,13 +110,13 @@ void noise_planes_readings(const NoisePlanePool *pool, long long readings[NOISE_
     OriorExactInteger column_part;
     OriorExactInteger plane_part;
     OriorExactInteger counted;
-    noise_exact_word(&factor, width - 1ull);
+    noise_exact_word(&factor, width - 1ULL);
     int ok = (orior_exact_subtract(&pool->spread, &pool->rows, &residual) == ORIOR_EXACT_OK) &&
              (orior_exact_subtract(&residual, &pool->columns, &residual) == ORIOR_EXACT_OK) &&
              (orior_exact_multiply(&pool->rows, &factor, &row_part) == ORIOR_EXACT_OK);
-    noise_exact_word(&factor, height - 1ull);
+    noise_exact_word(&factor, height - 1ULL);
     ok = ok && (orior_exact_multiply(&pool->columns, &factor, &column_part) == ORIOR_EXACT_OK);
-    noise_exact_word(&factor, (height - 1ull) * (width - 1ull));
+    noise_exact_word(&factor, (height - 1ULL) * (width - 1ULL));
     ok = ok && (orior_exact_multiply(&pool->plane_squares, &factor, &plane_part) == ORIOR_EXACT_OK) &&
          (orior_exact_subtract(&plane_part, &row_part, &plane_part) == ORIOR_EXACT_OK) &&
          (orior_exact_subtract(&plane_part, &column_part, &plane_part) == ORIOR_EXACT_OK) &&
@@ -128,10 +128,10 @@ void noise_planes_readings(const NoisePlanePool *pool, long long readings[NOISE_
     const OriorExactInteger *const numerators[NOISE_TWO_WAY_READINGS] = {&row_part, &column_part, &plane_part,
                                                                           &residual};
     const OriorExactInteger *const denominators[NOISE_TWO_WAY_READINGS] = {&residual, &residual, &residual, &counted};
-    const unsigned long long scales[NOISE_TWO_WAY_READINGS] = {1000ull, 1000ull, 1000ull, 1ull};
+    const unsigned long long scales[NOISE_TWO_WAY_READINGS] = {1000ULL, 1000ULL, 1000ULL, 1ULL};
     for (unsigned int ratio = 0u; ratio < NOISE_TWO_WAY_READINGS; ratio += 1u)
     {
-        readings[ratio] = 0ll;
+        readings[ratio] = 0LL;
         valid[ratio] = ok && noise_exact_ratio(numerators[ratio], denominators[ratio], scales[ratio], &readings[ratio]);
     }
 }
@@ -220,8 +220,8 @@ void noise_static_readings(const NoiseStaticPool *still, long long readings[NOIS
                                                                            &common};
     for (unsigned int measurement = 0u; measurement < NOISE_STATIC_READINGS; measurement += 1u)
     {
-        readings[measurement] = 0ll;
-        valid[measurement] = ok && noise_exact_ratio(numerators[measurement], denominators[measurement], 1000ull,
+        readings[measurement] = 0LL;
+        valid[measurement] = ok && noise_exact_ratio(numerators[measurement], denominators[measurement], 1000ULL,
                                                      &readings[measurement]);
     }
 }
@@ -256,7 +256,7 @@ static int noise_lines_rows(FILE *table, const char *name, const NoiseLineCell c
         for (unsigned int level_bin = 0u; ok && (level_bin < NOISE_LEVEL_BINS); level_bin += 1u)
         {
             const NoiseLineCell *const cell = &cells[(type * NOISE_LEVEL_BINS) + level_bin];
-            if (cell->lines == 0ull)
+            if (cell->lines == 0ULL)
             {
                 continue;
             }
@@ -318,7 +318,7 @@ extern "C" long noise_lines_set(const NoiseSetRequest *request)
     for (unsigned int sample = 0u; ok && (sample < request->count); sample += 1u)
     {
         const char *const name = request->samples[sample];
-        unsigned long long extent[4] = {0ull, 0ull, 0ull, 0ull};
+        unsigned long long extent[4] = {0ULL, 0ULL, 0ULL, 0ULL};
         unsigned short *volume = NULL;
         ok = NOISE_DETECTOR_CHECK(request->load(request->set, name, extent, &volume, error) == 0L, name, error,
                                   ENGINE_ERROR_REQUEST) &&
@@ -345,7 +345,7 @@ extern "C" long noise_lines_set(const NoiseSetRequest *request)
     if (ok != 0)
     {
         printf("  lines: %u samples in %llu ms; every sum is in %s, and every plane's in %s\n", request->count,
-               (engine_clock_microseconds() - began) / 1000ull, path, plane_path);
+               (engine_clock_microseconds() - began) / 1000ULL, path, plane_path);
     }
     return (ok != 0) ? 0L : NOISE_DETECTOR_ERROR;
 }

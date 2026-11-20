@@ -58,7 +58,7 @@ The walk, which has to leave the dictionaries at `sources.length` and stay insid
 `clock.hold`.
 
 Then a written sample carrying one unguarded absent key, because the tree has none and a checker
-nobody has seen fire is a checker nobody has tested. Then both real pages, which have to come back
+nobody has seen fire is a checker nobody tested. Then both real pages, which have to come back
 clean for their two different reasons.
 """
 
@@ -388,7 +388,7 @@ def _check():
     lines.append("")
 
     # The known positive, written above because the tree has none. A checker nobody has seen fire is
-    # a checker nobody has tested.
+    # a checker nobody tested.
     made = os.path.join(ROOT, "build", "view", "_data_check_sample.html")
     os.makedirs(os.path.dirname(made), exist_ok=True)
     with io.open(made, "w", encoding="utf-8", newline="\n") as handle:

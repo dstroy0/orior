@@ -38,39 +38,39 @@ void terms_structure(SimResults *results, const unsigned short *lanes, const Sim
     }
     // the light at every column and frame, exactly as the camera drew it: the scene has no body. Every z and y of a
     // column has the same light
-    for (unsigned long long x = 0ull; x < TERMS_WIDTH; x += 1ull)
+    for (unsigned long long x = 0ULL; x < TERMS_WIDTH; x += 1ULL)
     {
         // a column index is far below 2^63
-        const long long place[SIM_AXES] = {0ll, 0ll, (long long)x};
-        for (unsigned long long frame = 0ull; frame < TERMS_FRAMES; frame += 1ull)
+        const long long place[SIM_AXES] = {0LL, 0LL, (long long)x};
+        for (unsigned long long frame = 0ULL; frame < TERMS_FRAMES; frame += 1ULL)
         {
             light[(x * TERMS_FRAMES) + frame] = sim_light(scene, camera, frame, place);
         }
     }
     long long path[TERMS_FRAMES];
-    long long path_total = 0ll;
-    long long least = 0ll;
-    long long max = 0ll;
-    for (unsigned long long frame = 0ull; frame < TERMS_FRAMES; frame += 1ull)
+    long long path_total = 0LL;
+    long long least = 0LL;
+    long long max = 0LL;
+    for (unsigned long long frame = 0ULL; frame < TERMS_FRAMES; frame += 1ULL)
     {
-        path[frame] = (camera->scale_bits != 0u) ? sim_scale(camera, frame) : 0ll;
+        path[frame] = (camera->scale_bits != 0u) ? sim_scale(camera, frame) : 0LL;
         path_total += path[frame];
-        least = ((frame == 0ull) || (path[frame] < least)) ? path[frame] : least;
-        max = ((frame == 0ull) || (path[frame] > max)) ? path[frame] : max;
+        least = ((frame == 0ULL) || (path[frame] < least)) ? path[frame] : least;
+        max = ((frame == 0ULL) || (path[frame] > max)) ? path[frame] : max;
     }
-    const long long unit = (camera->scale_bits != 0u) ? (1ll << camera->scale_bits) : 1ll;
+    const long long unit = (camera->scale_bits != 0u) ? (1LL << camera->scale_bits) : 1LL;
     // each light's rounding in units of 1 / unit: the rounded light times the unit less the light before the scale
     // times the scale applied, as sim_light applies it, an integer of at max unit / 2 in size and 0 without a scale
     SimCamera unscaled = *camera;
     unscaled.scale_bits = 0u;
-    for (unsigned long long x = 0ull; x < TERMS_WIDTH; x += 1ull)
+    for (unsigned long long x = 0ULL; x < TERMS_WIDTH; x += 1ULL)
     {
         // a column index is far below 2^63
-        const long long place[SIM_AXES] = {0ll, 0ll, (long long)x};
-        for (unsigned long long frame = 0ull; frame < TERMS_FRAMES; frame += 1ull)
+        const long long place[SIM_AXES] = {0LL, 0LL, (long long)x};
+        for (unsigned long long frame = 0ULL; frame < TERMS_FRAMES; frame += 1ULL)
         {
             const long long scale = unit + path[frame];
-            const long long factor = (scale < 1ll) ? 1ll : scale;
+            const long long factor = (scale < 1LL) ? 1LL : scale;
             // a light of a few hundred electrons times a unit of 2^10 is far below 2^63
             rounding[(x * TERMS_FRAMES) + frame] = ((long long)light[(x * TERMS_FRAMES) + frame] * unit) -
                                                    ((long long)sim_light(scene, &unscaled, frame, place) * factor);
@@ -88,42 +88,42 @@ void terms_structure(SimResults *results, const unsigned short *lanes, const Sim
     const char *const labels[NOISE_FLICKER_LAGS] = {"lag 1", "lag 2", "lag 4", "lag 8", "lag 16", "lag 32", "lag 64"};
     for (unsigned int lag = 0u; lag < NOISE_FLICKER_LAGS; lag += 1u)
     {
-        const unsigned long long apart = 1ull << lag;
+        const unsigned long long apart = 1ULL << lag;
         const unsigned long long frame_pairs = TERMS_FRAMES - apart;
-        unsigned long long steps = 0ull;
-        for (unsigned long long frame = 0ull; frame < frame_pairs; frame += 1ull)
+        unsigned long long steps = 0ULL;
+        for (unsigned long long frame = 0ULL; frame < frame_pairs; frame += 1ULL)
         {
             const long long step = path[frame + apart] - path[frame];
             // a step of a few hundred squares far below 2^63, and re-signs exactly
             steps += (unsigned long long)(step * step);
         }
         // the pairs in 40 to 199 by their lights' totals, and their own noise over the frame pairs
-        unsigned long long included = 0ull;
-        unsigned long long own = 0ull;
+        unsigned long long included = 0ULL;
+        unsigned long long own = 0ULL;
         // the roundings' own mean square, g^2 (rho(x, t + k) - rho(x, t) - rho(x + 1, t + k) + rho(x + 1, t))^2 summed,
         // in units of 1 / unit^2
-        unsigned long long rounded = 0ull;
-        for (unsigned long long x = 0ull; (x + 1ull) < TERMS_WIDTH; x += 1ull)
+        unsigned long long rounded = 0ULL;
+        for (unsigned long long x = 0ULL; (x + 1ULL) < TERMS_WIDTH; x += 1ULL)
         {
             const unsigned long long *const here = &light[x * TERMS_FRAMES];
-            const unsigned long long *const beside = &light[(x + 1ull) * TERMS_FRAMES];
+            const unsigned long long *const beside = &light[(x + 1ULL) * TERMS_FRAMES];
             const long long *const here_rounding = &rounding[x * TERMS_FRAMES];
-            const long long *const beside_rounding = &rounding[(x + 1ull) * TERMS_FRAMES];
-            unsigned long long totals = 0ull;
-            for (unsigned long long frame = 0ull; frame < TERMS_FRAMES; frame += 1ull)
+            const long long *const beside_rounding = &rounding[(x + 1ULL) * TERMS_FRAMES];
+            unsigned long long totals = 0ULL;
+            for (unsigned long long frame = 0ULL; frame < TERMS_FRAMES; frame += 1ULL)
             {
-                totals += (2ull * camera->offset) + (gain * (here[frame] + beside[frame]));
+                totals += (2ULL * camera->offset) + (gain * (here[frame] + beside[frame]));
             }
-            const unsigned long long level_bin = totals / (16ull * TERMS_FRAMES);
-            if ((level_bin < 5ull) || (level_bin > 24ull))
+            const unsigned long long level_bin = totals / (16ULL * TERMS_FRAMES);
+            if ((level_bin < 5ULL) || (level_bin > 24ULL))
             {
                 continue;
             }
-            included += 1ull;
-            for (unsigned long long frame = 0ull; frame < frame_pairs; frame += 1ull)
+            included += 1ULL;
+            for (unsigned long long frame = 0ULL; frame < frame_pairs; frame += 1ULL)
             {
                 own += (gain * gain * (here[frame] + here[frame + apart] + beside[frame] + beside[frame + apart])) +
-                       (4ull * camera->read_square);
+                       (4ULL * camera->read_square);
                 // four roundings of at max unit / 2 each: the step is at max 2 unit, its square far below 2^63
                 const long long step = here_rounding[frame + apart] - here_rounding[frame] -
                                        beside_rounding[frame + apart] + beside_rounding[frame];
@@ -143,22 +143,22 @@ void terms_structure(SimResults *results, const unsigned short *lanes, const Sim
         // the unit times the frames, and the path's total, are each far below 2^31
         const long long level = (unit * (long long)TERMS_FRAMES) + path_total;
         // each factor is small here: the product stays far below 2^63, the denominator below 2^64
-        const long long expected = (long long)(1000000ull * TERMS_FRAMES * TERMS_FRAMES * steps);
+        const long long expected = (long long)(1000000ULL * TERMS_FRAMES * TERMS_FRAMES * steps);
         const unsigned long long expected_denominator = frame_pairs * (unsigned long long)(level * level);
         OriorExactInteger millionths;
-        const int scaled = sim_exact_scaled(&measurement->slope[lag], 1000000ull, &millionths);
+        const int scaled = sim_exact_scaled(&measurement->slope[lag], 1000000ULL, &millionths);
         sim_check(results, scaled, "the slope in millionths");
         if (scaled)
         {
             terms_ratio_within(results, "  D_a(k), millionths", &millionths, &measurement->slope_denominator[lag],
-                               expected, expected_denominator, 500ull, 1ull);
+                               expected, expected_denominator, 500ULL, 1ULL);
         }
         // the own noise summed, below 2^24, times unit^2 = 2^20, plus the roundings' sum, below 2^36, is far below
         // 2^63, and the pairs' count times unit^2 below 2^34
         const unsigned long long square_unit = (unsigned long long)(unit * unit);
         terms_ratio_within(results, "  2 D(k), the pairs' own noise", &measurement->intercept[lag],
                            &measurement->intercept_denominator[lag], (long long)((own * square_unit) + rounded),
-                           included * frame_pairs * square_unit, 1ull, 1ull);
+                           included * frame_pairs * square_unit, 1ULL, 1ULL);
     }
     free(measurement);
     free(light);
@@ -185,12 +185,12 @@ int terms_halves(SimResults *results, const unsigned short *lanes, const SimCame
         return 0;
     }
     const unsigned long long pixels = TERMS_HEIGHT * TERMS_WIDTH;
-    const unsigned long long unit = (camera->gain_pattern_bits != 0u) ? (1ull << camera->gain_pattern_bits) : 1ull;
+    const unsigned long long unit = (camera->gain_pattern_bits != 0u) ? (1ULL << camera->gain_pattern_bits) : 1ULL;
     // g S is below 2^10 here. The gained light re-signs exactly
     const long long gained = (long long)(camera->gain * light);
-    long long fixed = 0ll;
-    long long fixed_square = 0ll;
-    for (unsigned long long pixel = 0ull; pixel < pixels; pixel += 1ull)
+    long long fixed = 0LL;
+    long long fixed_square = 0LL;
+    for (unsigned long long pixel = 0ULL; pixel < pixels; pixel += 1ULL)
     {
         // o is at max 12 and p at max 32 in magnitude. F is below 2^15 and its square below 2^30
         const long long own = ((long long)sim_offset_pattern(camera, pixel) * (long long)unit) +
@@ -218,12 +218,12 @@ void terms_halves_line(SimResults *results, const SimCamera *camera, const Noise
                        unsigned long long low_light, const NoiseHalvesMeasurement *high, unsigned long long high_light)
 {
     const unsigned long long pixels = TERMS_HEIGHT * TERMS_WIDTH;
-    const unsigned long long unit = (camera->gain_pattern_bits != 0u) ? (1ull << camera->gain_pattern_bits) : 1ull;
-    long long offset = 0ll;
-    long long offset_square = 0ll;
-    long long spread = 0ll;
-    long long spread_square = 0ll;
-    for (unsigned long long pixel = 0ull; pixel < pixels; pixel += 1ull)
+    const unsigned long long unit = (camera->gain_pattern_bits != 0u) ? (1ULL << camera->gain_pattern_bits) : 1ULL;
+    long long offset = 0LL;
+    long long offset_square = 0LL;
+    long long spread = 0LL;
+    long long spread_square = 0LL;
+    for (unsigned long long pixel = 0ULL; pixel < pixels; pixel += 1ULL)
     {
         // o is at max 12 and p at max 32 in magnitude. Each re-signs and squares exactly
         const long long own_offset = (long long)sim_offset_pattern(camera, pixel);
@@ -260,12 +260,12 @@ void terms_halves_line(SimResults *results, const SimCamera *camera, const Noise
         return;
     }
     terms_ratio_within(results, "  the halves' intercept, var(o)", &intercept, &denominator, offset_varied,
-                       pixels * pixels, 1ull, 5ull);
+                       pixels * pixels, 1ULL, 5ULL);
     // the slope is printed in millionths, where four places show it; its tolerance of 1/300000 is 10/3 millionths
     ok = sim_exact_scaled(&slope, TERMS_MILLION, &slope);
     sim_check(results, ok, "the halves' slope in millionths");
     terms_ratio_within(results, "  the halves' slope in millionths, var(p) g^2 / 2^2b", &slope, &denominator,
-                       spread_varied * (long long)TERMS_MILLION, pixels * pixels * unit * unit, 10ull, 3ull);
+                       spread_varied * (long long)TERMS_MILLION, pixels * pixels * unit * unit, 10ULL, 3ULL);
 }
 
 // The clip pass against the plant: spikes at 128 in one voxel-frame of 1024, dips never. At 16 and 32 a symmetric
@@ -301,10 +301,10 @@ void terms_spikes(SimResults *results, const unsigned short *lanes, unsigned lon
     mmgr_line_ch(line, '\n');
     const unsigned long long top_spikes = spikes[1u + (2u * (NOISE_SPIKE_THRESHOLDS - 1u))];
     const unsigned long long top_dips = spikes[2u + (2u * (NOISE_SPIKE_THRESHOLDS - 1u))];
-    sim_check(results, top_dips == 0ull, "no dip clears 128 at a level of 120");
-    if (spike_denominator == 0ull)
+    sim_check(results, top_dips == 0ULL, "no dip clears 128 at a level of 120");
+    if (spike_denominator == 0ULL)
     {
-        sim_check(results, top_spikes == 0ull, "the null has no spike of 128");
+        sim_check(results, top_spikes == 0ULL, "the null has no spike of 128");
         for (unsigned int threshold = 0u; threshold < 2u; threshold += 1u)
         {
             const unsigned long long raised = spikes[1u + (2u * threshold)];
@@ -313,12 +313,12 @@ void terms_spikes(SimResults *results, const unsigned short *lanes, unsigned lon
             // counts of a few million: their squares are far below 2^64
             if (law == SIM_SHOT_POISSON)
             {
-                sim_check(results, (raised > lowered) && ((apart * apart) > (25ull * (raised + lowered))),
+                sim_check(results, (raised > lowered) && ((apart * apart) > (25ULL * (raised + lowered))),
                           "the Poisson null's spikes outnumber its dips by more than 5 standard errors");
             }
             else
             {
-                sim_check(results, (apart * apart) <= (25ull * (raised + lowered)),
+                sim_check(results, (apart * apart) <= (25ULL * (raised + lowered)),
                           "the null's spikes and dips agree within 5 standard errors");
             }
         }
@@ -328,7 +328,7 @@ void terms_spikes(SimResults *results, const unsigned short *lanes, unsigned lon
     const unsigned long long scaled = top_spikes * spike_denominator;
     const unsigned long long apart = (scaled > triples) ? (scaled - triples) : (triples - scaled);
     // the difference is below 2^32 and the bound below 2^50 at these sizes
-    sim_check(results, (apart * apart) <= (25ull * spike_denominator * triples),
+    sim_check(results, (apart * apart) <= (25ULL * spike_denominator * triples),
               "the spikes of 128 are the planted rate within 5 standard errors");
 }
 
@@ -336,23 +336,23 @@ void terms_spikes(SimResults *results, const unsigned short *lanes, unsigned lon
 void terms_boxes(unsigned short *lanes)
 {
     const unsigned long long voxels = TERMS_DEPTH * TERMS_HEIGHT * TERMS_WIDTH;
-    for (unsigned long long frame = 0ull; frame < TERMS_FRAMES; frame += 1ull)
+    for (unsigned long long frame = 0ULL; frame < TERMS_FRAMES; frame += 1ULL)
     {
-        for (unsigned long long z = 3ull; z <= 5ull; z += 1ull)
+        for (unsigned long long z = 3ULL; z <= 5ULL; z += 1ULL)
         {
-            for (unsigned long long y = 10ull; y <= 29ull; y += 1ull)
+            for (unsigned long long y = 10ULL; y <= 29ULL; y += 1ULL)
             {
-                for (unsigned long long x = 40ull; x <= 79ull; x += 1ull)
+                for (unsigned long long x = 40ULL; x <= 79ULL; x += 1ULL)
                 {
                     lanes[(frame * voxels) + (((z * TERMS_HEIGHT) + y) * TERMS_WIDTH) + x] = 0u;
                 }
             }
         }
-        for (unsigned long long y = 0ull; y <= 3ull; y += 1ull)
+        for (unsigned long long y = 0ULL; y <= 3ULL; y += 1ULL)
         {
-            for (unsigned long long x = 0ull; x <= 3ull; x += 1ull)
+            for (unsigned long long x = 0ULL; x <= 3ULL; x += 1ULL)
             {
-                lanes[(frame * voxels) + (((7ull * TERMS_HEIGHT) + y) * TERMS_WIDTH) + x] = 65535u;
+                lanes[(frame * voxels) + (((7ULL * TERMS_HEIGHT) + y) * TERMS_WIDTH) + x] = 65535u;
             }
         }
     }

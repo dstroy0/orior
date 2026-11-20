@@ -143,7 +143,7 @@ int main(int count, char **words)
         return code;
     }
     int given = 3;
-    unsigned long long bank_size = 0ull;
+    unsigned long long bank_size = 0ULL;
     if (((given + 1) < count) && (strcmp(words[given], "--bank") == 0))
     {
         bank_size = strtoull(words[given + 1], NULL, 0);
@@ -160,7 +160,7 @@ int main(int count, char **words)
         const char *verdict = "";
         if (constant)
         {
-            verdict = (bank_size == 0ull)                                      ? " unknown"
+            verdict = (bank_size == 0ULL)                                      ? " unknown"
                       : cubin_constant_out_of_bank(&set, low, high, bank_size) ? " gated"
                                                                                : " passes";
         }

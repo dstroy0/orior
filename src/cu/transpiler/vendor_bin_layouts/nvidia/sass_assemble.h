@@ -43,7 +43,7 @@ unsigned int sass_assemble_lines(const SassMachine *machine, const char *text, u
                                  unsigned char *code, unsigned long long room);
 
 // The read back, the assembler run the other way through the same forms and fields. An encoding is matched by the
-// form whose bits, outside its operands' fields, its guard and the scheduler's bits, are its own; of several, the
+// form whose bits, outside its operands' fields, its guard and the scheduler's bits, are its own. Of several, the
 // one with the fewest bits left to its operands. Its text is the guard, the operation and each operand read from the
 // field the assembler writes it to, a label as the address it lands on: `address` is where the encoding lies. 1, or 0
 // where no form matches it. Nothing here changes an encoding: an emitted instruction is read back, never rewritten and
@@ -60,7 +60,7 @@ int sass_encoding_places_built(SassMachine *machine);
 // instruction that takes a loop back: its guard is the flag the loop is steered on alone, and it is taken
 // only where the flag is true; one of its label or immediate operands, added to the address after it and limited to the
 // field's own width, lands on `target`; and its first operand writes neither a register the loop uses nor the flag.
-// The walk is a bumper a caller turns on or off and stops at any step of: it never changes the encoding, and with it
+// The walk is a bumper a caller turns on or off and stops at any step of. It never changes the encoding, and with it
 // off whatever was emitted is what runs.
 typedef struct
 {

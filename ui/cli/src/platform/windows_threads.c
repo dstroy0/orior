@@ -21,8 +21,8 @@ int embed_word_wait(embed_atomic_word *word, embed_atomic_word_value seen, embed
     // waits that long
     const embed_u64 milliseconds = (nanoseconds / 1000000u) + (embed_u64)((nanoseconds % 1000000u) != 0u);
     const DWORD waited = (nanoseconds == EMBED_WAIT_INFINITE) ? INFINITE
-                         : (milliseconds < 0xfffffffeull)     ? (DWORD)milliseconds
-                                                              : (DWORD)0xfffffffeull;
+                         : (milliseconds < 0xfffffffeULL)     ? (DWORD)milliseconds
+                                                              : (DWORD)0xfffffffeULL;
     (void)WaitOnAddress(&word->value, &was, sizeof(was), waited);
     return embed_atomic_word_load(word) != seen;
 }
@@ -32,19 +32,11 @@ void embed_word_wake(embed_atomic_word *word)
     WakeByAddressAll(&word->value);
 }
 
-void cli_wake_wait(const CliWakeCtx *args)
-{
-    // The wait compares the word with seen before it sleeps, so a wake that lands first ends it at once. The sleep
-    // has no timer: it ends when the word moves
-    embed_atomic_word_value seen = embed_atomic_word_load(&args->wake->generation);
-    (void)WaitOnAddress(&args->wake->generation.value, &seen, sizeof(seen), INFINITE);
-}
-
 int cli_wake_wait_for(const CliWakeCtx *args)
 {
     embed_atomic_word_value seen = embed_atomic_word_load(&args->wake->generation);
     // a wait past the longest a DWORD counts waits that long
-    const DWORD waited = (DWORD)((args->milliseconds_u64 < 0xfffffffeull) ? args->milliseconds_u64 : 0xfffffffeull);
+    const DWORD waited = (DWORD)((args->milliseconds_u64 < 0xfffffffeULL) ? args->milliseconds_u64 : 0xfffffffeULL);
     return WaitOnAddress(&args->wake->generation.value, &seen, sizeof(seen), waited) != FALSE;
 }
 
@@ -52,7 +44,7 @@ int cli_wake_wait_seen_for(const CliWakeCtx *args)
 {
     embed_atomic_word_value seen = args->seen;
     // a wait past the longest a DWORD counts waits that long
-    const DWORD waited = (DWORD)((args->milliseconds_u64 < 0xfffffffeull) ? args->milliseconds_u64 : 0xfffffffeull);
+    const DWORD waited = (DWORD)((args->milliseconds_u64 < 0xfffffffeULL) ? args->milliseconds_u64 : 0xfffffffeULL);
     return WaitOnAddress(&args->wake->generation.value, &seen, sizeof(seen), waited) != FALSE;
 }
 

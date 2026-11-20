@@ -35,7 +35,7 @@ def _repository_root():
     A marker the repository produces, such as build/, is absent from a linked worktree and a
     never-built clone, and a climb to it can pass this root and land in another checkout whose paths
     look valid. A marker infers the root. Git answers it. The climb below serves only an exported tree
-    with no git directory, and it looks for archive/src/python, which the repository tracks and every checkout
+    with no git directory. It looks for archive/src/python, which the repository tracks and every checkout
     of it holds.
 
     Git's own variables are cleared first. Inside a hook GIT_DIR is exported, and a rev-parse that
@@ -227,7 +227,7 @@ def without_marker(plain):
 #
 # Module state, because bare() is reached from eight places across three functions and the paper is
 # the same for all of them within one check. It sits beside EDGES, PAIRED and LIGATURES, which are
-# the same type of fact about how a paper is written; this is the part of that which changes per
+# the same type of fact about how a paper is written. This is the part of that which changes per
 # paper instead of holding for all of them.
 MARKS = ""
 
@@ -580,7 +580,7 @@ def main():
             out.write("      %-12s %-11s %-28s %s\n" % (where, type, form, piece))
 
         # Direction two. A word in the paper that no row holds is a row the reader skipped. Only
-        # tokens carrying a character of the language are asked about; the paper is otherwise
+        # tokens carrying a character of the language are asked about. The paper is otherwise
         # English prose and the hand extraction is not a transcription of that.
         missed = []
         for token, number in sorted(held.items(), key=lambda one: one[1]):

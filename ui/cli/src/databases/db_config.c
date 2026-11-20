@@ -171,7 +171,7 @@ static int config_read(const DbConfigCtx *args)
                                      .json = &json, .text = (const char *)bytes, .size = size, .nodes_more = 0u,
                                      .text_more = 0ULL, .err_msg = &read_err_msg, .owner = g_cli_db_owner)
                         : CLI_JSON_NONE;
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_db_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_db_owner);
     const unsigned int connections = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                 .json_read = &json, .object = root_node, .name = "connections");
     unsigned int named = 0u;

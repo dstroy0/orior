@@ -74,7 +74,7 @@ unsigned long long daemon_now(void)
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
     // a monotonic clock's seconds and nanoseconds are not negative
-    return ((unsigned long long)now.tv_sec * TESSERA_DAEMON_MILLION) + ((unsigned long long)now.tv_nsec / 1000ull);
+    return ((unsigned long long)now.tv_sec * TESSERA_DAEMON_MILLION) + ((unsigned long long)now.tv_nsec / 1000ULL);
 #endif
 }
 
@@ -83,12 +83,12 @@ unsigned long long daemon_wall(void)
 #if defined(_WIN32)
     FILETIME now;
     GetSystemTimeAsFileTime(&now);
-    return ((((unsigned long long)now.dwHighDateTime) << 32u) | now.dwLowDateTime) / 10ull;
+    return ((((unsigned long long)now.dwHighDateTime) << 32u) | now.dwLowDateTime) / 10ULL;
 #else
     struct timespec now;
     clock_gettime(CLOCK_REALTIME, &now);
     // a wall clock after the epoch has seconds and nanoseconds that are not negative
-    return ((unsigned long long)now.tv_sec * TESSERA_DAEMON_MILLION) + ((unsigned long long)now.tv_nsec / 1000ull);
+    return ((unsigned long long)now.tv_sec * TESSERA_DAEMON_MILLION) + ((unsigned long long)now.tv_nsec / 1000ULL);
 #endif
 }
 
@@ -99,8 +99,8 @@ void daemon_wait_until(unsigned long long when)
     if (when != TESSERA_DAEMON_FOREVER)
     {
         const unsigned long long now = daemon_now();
-        const unsigned long long remaining = (when > now) ? (when - now) : 0ull;
-        const unsigned long long wait_milliseconds = (remaining + 999ull) / 1000ull;
+        const unsigned long long remaining = (when > now) ? (when - now) : 0ULL;
+        const unsigned long long wait_milliseconds = (remaining + 999ULL) / 1000ULL;
         // a wait below INFINITE fits a DWORD
         milliseconds = (wait_milliseconds < (unsigned long long)INFINITE) ? (DWORD)wait_milliseconds : (INFINITE - 1u);
     }
@@ -115,7 +115,7 @@ void daemon_wait_until(unsigned long long when)
     // a monotonic time in seconds fits a time_t
     until.tv_sec = (time_t)(when / TESSERA_DAEMON_MILLION);
     // a remainder below a million microseconds is below a billion nanoseconds
-    until.tv_nsec = (long)((when % TESSERA_DAEMON_MILLION) * 1000ull);
+    until.tv_nsec = (long)((when % TESSERA_DAEMON_MILLION) * 1000ULL);
     pthread_cond_timedwait(&g_daemon_changed, &s_daemon_lock, &until);
 #endif
 }
@@ -170,13 +170,13 @@ static void daemon_put_long(unsigned char *bytes, unsigned long long value)
     for (unsigned int byte = 0u; byte < 8u; byte += 1u)
     {
         // one byte of the long, taken from the bottom
-        bytes[byte] = (unsigned char)((value >> (8u * byte)) & 0xFFull);
+        bytes[byte] = (unsigned char)((value >> (8u * byte)) & 0xFFULL);
     }
 }
 
 static unsigned long long daemon_get_long(const unsigned char *bytes)
 {
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     for (unsigned int byte = 0u; byte < 8u; byte += 1u)
     {
         value |= (unsigned long long)bytes[byte] << (8u * byte);
@@ -200,10 +200,10 @@ int daemon_history_load(void)
     int ok = fseek(file, 0L, SEEK_END) == 0;
     const long length = ok ? ftell(file) : -1L;
     ok = ok && (length >= (long)OBSIGNATIO_SIGNUM_BYTES) &&
-         ((((unsigned long long)length - OBSIGNATIO_SIGNUM_BYTES) % TESSERA_HISTORY_RECORD) == 0ull) &&
+         ((((unsigned long long)length - OBSIGNATIO_SIGNUM_BYTES) % TESSERA_HISTORY_RECORD) == 0ULL) &&
          (fseek(file, 0L, SEEK_SET) == 0);
     // a length checked non-negative above is the file's byte count
-    const unsigned long long total = ok ? (unsigned long long)length : 0ull;
+    const unsigned long long total = ok ? (unsigned long long)length : 0ULL;
     unsigned char *const bytes = ok ? (unsigned char *)malloc((size_t)total) : NULL;
     ok = ok && (bytes != NULL) && (fread(bytes, 1u, (size_t)total, file) == (size_t)total);
     fclose(file);
@@ -212,7 +212,7 @@ int daemon_history_load(void)
     memset(&error, 0, sizeof(error));
     const ObsignatioSealRequest seal = {bytes, sealed, (bytes != NULL) ? bytes + sealed : NULL, &error};
     ok = ok && (obsignatio_seal_verify(&seal) == 1L);
-    for (unsigned long long at = 0ull; ok && (at < sealed); at += TESSERA_HISTORY_RECORD)
+    for (unsigned long long at = 0ULL; ok && (at < sealed); at += TESSERA_HISTORY_RECORD)
     {
         TesseraHistory entry;
         memcpy(entry.signum.bytes, bytes + at, ENGINE_SIGNUM_BYTES);
@@ -245,7 +245,7 @@ int daemon_history_save(void)
         fprintf(stderr, "%s%s\n", s_daemon_history_unsaved, path);
         return 0;
     }
-    for (unsigned long long at = 0ull; at < g_daemon.ledger.history_count; at += 1ull)
+    for (unsigned long long at = 0ULL; at < g_daemon.ledger.history_count; at += 1ULL)
     {
         const TesseraHistory *const entry = &g_daemon.ledger.history[at];
         unsigned char *const record = bytes + (at * TESSERA_HISTORY_RECORD);

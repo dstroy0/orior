@@ -13,7 +13,7 @@
 #
 # This reads no corpus. It sits in 0_experimental: an arithmetic result displayed working instead of a stage
 # reading. It imports the ring, the recurrence and Parseval from exact_navier_stokes_on_torus.py so one
-# representation carries both files, and it adds no arithmetic of its own beyond a product of two exact
+# representation carries both files. It adds no arithmetic of its own beyond a product of two exact
 # quantities. Python integers are the bignum, representation.exact reads the viscosity, and the rest is
 # booleans and comparisons. No float, no fraction library.
 #

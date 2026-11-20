@@ -29,7 +29,7 @@ extern "C"
     } TesseraEventKind;
 
     // A job as it requests. `declared` is the bytes the job states it will take; `located` is the bytes its process
-    // already has allocated on the device as it requests (its CUDA context, and whatever it retained from an earlier
+    // already allocated on the device as it requests (its CUDA context, and whatever it retained from an earlier
     // job), measured by the daemon. The job's whole declaration is the two together, and the device's measured use
     // already counts the located bytes.
     typedef struct

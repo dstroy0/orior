@@ -13,7 +13,7 @@ __global__ static void noise_crosstalk_kernel(const unsigned short *lanes, unsig
     __shared__ unsigned long long cells[NOISE_CROSSTALK_CELLS];
     for (unsigned int entry = threadIdx.x; entry < NOISE_CROSSTALK_CELLS; entry += blockDim.x)
     {
-        cells[entry] = 0ull;
+        cells[entry] = 0ULL;
     }
     __syncthreads();
     const unsigned long long voxels = depth * height * width;
@@ -23,7 +23,7 @@ __global__ static void noise_crosstalk_kernel(const unsigned short *lanes, unsig
     {
         const unsigned long long place[NOISE_CROSSTALK_AXES] = {(voxel / width) % height, voxel % width};
         const unsigned long long extent[NOISE_CROSSTALK_AXES] = {height, width};
-        const unsigned long long stride[NOISE_CROSSTALK_AXES] = {width, 1ull};
+        const unsigned long long stride[NOISE_CROSSTALK_AXES] = {width, 1ULL};
         for (unsigned int axis = 0u; axis < NOISE_CROSSTALK_AXES; axis += 1u)
         {
             if ((place[axis] + NOISE_CROSSTALK_STEPS) >= extent[axis])
@@ -33,14 +33,14 @@ __global__ static void noise_crosstalk_kernel(const unsigned short *lanes, unsig
             unsigned long long run[NOISE_CROSSTALK_SUMS];
             for (unsigned int sum = 0u; sum < NOISE_CROSSTALK_SUMS; sum += 1u)
             {
-                run[sum] = 0ull;
+                run[sum] = 0ULL;
             }
-            for (unsigned long long frame = 0ull; (frame + 1ull) < frames; frame += 1ull)
+            for (unsigned long long frame = 0ULL; (frame + 1ULL) < frames; frame += 1ULL)
             {
                 const unsigned long long early = (frame * voxels) + voxel;
                 const unsigned long long late = early + voxels;
                 const long long moved = (long long)lanes[late] - (long long)lanes[early];
-                run[0] += 1ull;
+                run[0] += 1ULL;
                 // a square is never negative. It re-signs to unsigned long long exactly
                 run[1] += (unsigned long long)(moved * moved);
                 for (unsigned int step = 1u; step <= NOISE_CROSSTALK_STEPS; step += 1u)
@@ -49,13 +49,13 @@ __global__ static void noise_crosstalk_kernel(const unsigned short *lanes, unsig
                     const long long other = (long long)lanes[late + apart] - (long long)lanes[early + apart];
                     const long long product = moved * other;
                     // a product's magnitude re-signs to unsigned long long exactly
-                    run[2u * step] += (product > 0ll) ? (unsigned long long)product : 0ull;
-                    run[(2u * step) + 1u] += (product < 0ll) ? (unsigned long long)(-product) : 0ull;
+                    run[2u * step] += (product > 0LL) ? (unsigned long long)product : 0ULL;
+                    run[(2u * step) + 1u] += (product < 0LL) ? (unsigned long long)(-product) : 0ULL;
                 }
             }
             for (unsigned int sum = 0u; sum < NOISE_CROSSTALK_SUMS; sum += 1u)
             {
-                if (run[sum] != 0ull)
+                if (run[sum] != 0ULL)
                 {
                     atomicAdd(&cells[(axis * NOISE_CROSSTALK_SUMS) + sum], run[sum]);
                 }
@@ -65,7 +65,7 @@ __global__ static void noise_crosstalk_kernel(const unsigned short *lanes, unsig
     __syncthreads();
     for (unsigned int entry = threadIdx.x; entry < NOISE_CROSSTALK_CELLS; entry += blockDim.x)
     {
-        if (cells[entry] != 0ull)
+        if (cells[entry] != 0ULL)
         {
             atomicAdd(&sums[entry], cells[entry]);
         }
@@ -87,8 +87,8 @@ extern "C" long noise_crosstalk_volume(const unsigned short *volume, const unsig
     const unsigned long long frames = extent[0];
     const unsigned long long voxels = extent[1] * extent[2] * extent[3];
     // every sum is at max one sample's pairs times the widest product, 65535 squared
-    const int bounded = (frames >= 2ull) && (voxels != 0ull) && (frames <= (~0ull / voxels)) &&
-                        ((frames * voxels) <= (~0ull / (65535ull * 65535ull)));
+    const int bounded = (frames >= 2ULL) && (voxels != 0ULL) && (frames <= (~0ULL / voxels)) &&
+                        ((frames * voxels) <= (~0ULL / (65535ULL * 65535ULL)));
     if (!NOISE_DETECTOR_CHECK(bounded, extent, error, ENGINE_ERROR_REQUEST))
     {
         return NOISE_DETECTOR_ERROR;
@@ -105,8 +105,8 @@ extern "C" long noise_crosstalk_volume(const unsigned short *volume, const unsig
                                          device_lanes, error);
     if (ok != 0)
     {
-        const unsigned long long needed = (voxels + NOISE_DETECTOR_THREADS - 1ull) / NOISE_DETECTOR_THREADS;
-        const unsigned int blocks = (unsigned int)((needed < 65536ull) ? needed : 65536ull);
+        const unsigned long long needed = (voxels + NOISE_DETECTOR_THREADS - 1ULL) / NOISE_DETECTOR_THREADS;
+        const unsigned int blocks = (unsigned int)((needed < 65536ULL) ? needed : 65536ULL);
         noise_crosstalk_kernel<<<blocks, NOISE_DETECTOR_THREADS>>>(device_lanes, frames, extent[1], extent[2],
                                                                    extent[3], device_sums);
         ok = NOISE_DETECTOR_STATUS_CHECK(cudaGetLastError(), device_sums, error) &&
@@ -156,7 +156,7 @@ __global__ static void noise_charge_kernel(const unsigned short *lanes, unsigned
     __shared__ unsigned long long cells[NOISE_CHARGE_SUMS];
     for (unsigned int entry = threadIdx.x; entry < NOISE_CHARGE_SUMS; entry += blockDim.x)
     {
-        cells[entry] = 0ull;
+        cells[entry] = 0ULL;
     }
     __syncthreads();
     const unsigned long long jump = (unsigned long long)gridDim.x * blockDim.x;
@@ -164,8 +164,8 @@ __global__ static void noise_charge_kernel(const unsigned short *lanes, unsigned
          voxel += jump)
     {
         unsigned long long total = lanes[voxel];
-        unsigned long long squares = 0ull;
-        for (unsigned long long frame = 1ull; frame < frames; frame += 1ull)
+        unsigned long long squares = 0ULL;
+        for (unsigned long long frame = 1ULL; frame < frames; frame += 1ULL)
         {
             const unsigned long long here = (frame * voxels) + voxel;
             const long long moved = (long long)lanes[here] - (long long)lanes[here - voxels];
@@ -173,11 +173,11 @@ __global__ static void noise_charge_kernel(const unsigned short *lanes, unsigned
             // a square is never negative. It re-signs to unsigned long long exactly
             squares += (unsigned long long)(moved * moved);
         }
-        if (total != 0ull)
+        if (total != 0ULL)
         {
             atomicAdd(&cells[0], total);
         }
-        if (squares != 0ull)
+        if (squares != 0ULL)
         {
             atomicAdd(&cells[1], squares);
         }
@@ -185,7 +185,7 @@ __global__ static void noise_charge_kernel(const unsigned short *lanes, unsigned
     __syncthreads();
     for (unsigned int entry = threadIdx.x; entry < NOISE_CHARGE_SUMS; entry += blockDim.x)
     {
-        if (cells[entry] != 0ull)
+        if (cells[entry] != 0ULL)
         {
             atomicAdd(&sums[entry], cells[entry]);
         }
@@ -207,8 +207,8 @@ static long noise_charge_sample(const unsigned short *volume, unsigned long long
                                          device_lanes, error);
     if (ok != 0)
     {
-        const unsigned long long needed = (voxels + NOISE_DETECTOR_THREADS - 1ull) / NOISE_DETECTOR_THREADS;
-        const unsigned int blocks = (unsigned int)((needed < 65536ull) ? needed : 65536ull);
+        const unsigned long long needed = (voxels + NOISE_DETECTOR_THREADS - 1ULL) / NOISE_DETECTOR_THREADS;
+        const unsigned int blocks = (unsigned int)((needed < 65536ULL) ? needed : 65536ULL);
         noise_charge_kernel<<<blocks, NOISE_DETECTOR_THREADS>>>(device_lanes, frames, voxels, device_sums);
         ok = NOISE_DETECTOR_STATUS_CHECK(cudaGetLastError(), device_sums, error) &&
              NOISE_DETECTOR_STATUS_CHECK(cudaMemcpy(sums, device_sums, sum_bytes, cudaMemcpyDeviceToHost), sums, error);
@@ -235,8 +235,8 @@ extern "C" long noise_charge_series(const unsigned short *bias, const unsigned s
     const unsigned long long voxels = extent[1] * extent[2] * extent[3];
     // every sum is at max a series' voxel-frames times the widest square, 65535 squared, and twice the frame
     // differences is below 2^64 with it
-    const int bounded = (frames >= 2ull) && (voxels != 0ull) && (frames <= (~0ull / voxels)) &&
-                        ((frames * voxels) <= (~0ull / (65535ull * 65535ull)));
+    const int bounded = (frames >= 2ULL) && (voxels != 0ULL) && (frames <= (~0ULL / voxels)) &&
+                        ((frames * voxels) <= (~0ULL / (65535ULL * 65535ULL)));
     if (!NOISE_DETECTOR_CHECK(bounded, extent, error, ENGINE_ERROR_REQUEST))
     {
         return NOISE_DETECTOR_ERROR;
@@ -255,7 +255,7 @@ extern "C" long noise_charge_series(const unsigned short *bias, const unsigned s
     noise_exact_word(&read.offset, bias_sums[0]);
     noise_exact_word(&read.offset_denominator, frames * voxels);
     noise_exact_word(&read.level_free, bias_sums[1]);
-    noise_exact_word(&read.level_free_denominator, 2ull * (frames - 1ull) * voxels);
+    noise_exact_word(&read.level_free_denominator, 2ULL * (frames - 1ULL) * voxels);
     noise_exact_word(&dark_total, dark_sums[0]);
     noise_exact_word(&dark_squares, dark_sums[1]);
     read.dark_level_denominator = read.offset_denominator;

@@ -78,7 +78,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\sessions\\test_sessions\\test_sessions.c");
+  UnityBegin("utils/test/src/ui/cli/unit/sessions/test_sessions/test_sessions.c");
   run_test(test_no_session_lists_as_none, "test_no_session_lists_as_none", 82);
   run_test(test_a_send_with_no_session_is_refused, "test_a_send_with_no_session_is_refused", 88);
   run_test(test_leaving_a_host_with_no_session_is_refused, "test_leaving_a_host_with_no_session_is_refused", 94);

@@ -5,7 +5,7 @@
 
 #include "sim.h"
 
-#define ENERGY_THREADS 128ull
+#define ENERGY_THREADS 128ULL
 
 typedef struct
 {
@@ -25,25 +25,25 @@ typedef struct
 
 static inline __host__ __device__ unsigned long long energy_phase_base(unsigned long long period)
 {
-    return ((period * (period - 1ull)) / 2ull) - 1ull;
+    return ((period * (period - 1ULL)) / 2ULL) - 1ULL;
 }
 
 static __global__ void energy_phase_kernel(const long long *values, unsigned long long length, unsigned long long range,
                                            long long *sums)
 {
     const unsigned long long index = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x;
-    const unsigned long long phase_count = energy_phase_base(range + 1ull);
+    const unsigned long long phase_count = energy_phase_base(range + 1ULL);
     if (index >= phase_count)
     {
         return;
     }
-    unsigned long long period = 2ull;
-    while (energy_phase_base(period + 1ull) <= index)
+    unsigned long long period = 2ULL;
+    while (energy_phase_base(period + 1ULL) <= index)
     {
-        period += 1ull;
+        period += 1ULL;
     }
     const unsigned long long phase = index - energy_phase_base(period);
-    long long total = 0ll;
+    long long total = 0LL;
     for (unsigned long long at = phase; at < length; at += period)
     {
         total += values[at];
@@ -54,7 +54,7 @@ static __global__ void energy_phase_kernel(const long long *values, unsigned lon
 static inline int energy_phase_sums(SimResults *results, const long long *values, unsigned long long length,
                                     unsigned long long range, long long *sums)
 {
-    const unsigned long long phase_count = energy_phase_base(range + 1ull);
+    const unsigned long long phase_count = energy_phase_base(range + 1ULL);
     long long *device_values = NULL;
     long long *device_sums = NULL;
     int ok =
@@ -83,19 +83,19 @@ static inline int energy_phase_sums(SimResults *results, const long long *values
 static inline unsigned long long energy_members(unsigned long long length, unsigned long long period,
                                                 unsigned long long phase)
 {
-    return (length / period) + ((phase < (length % period)) ? 1ull : 0ull);
+    return (length / period) + ((phase < (length % period)) ? 1ULL : 0ULL);
 }
 
 static inline int energy_ratio(const long long *values, unsigned long long length, const long long *sums,
                                unsigned long long period, OriorExactInteger *numerator,
                                OriorExactInteger *denominator)
 {
-    if ((period < 2ull) || (period >= length))
+    if ((period < 2ULL) || (period >= length))
     {
         return 0;
     }
     const unsigned long long fewer = length / period;
-    const unsigned long long more = fewer + 1ull;
+    const unsigned long long more = fewer + 1ULL;
     OriorExactInteger fewer_squares;
     OriorExactInteger more_squares;
     OriorExactInteger integer_sum;
@@ -106,7 +106,7 @@ static inline int energy_ratio(const long long *values, unsigned long long lengt
     orior_exact_zero(&integer_sum);
     orior_exact_zero(&integer_squares);
     int ok = 1;
-    for (unsigned long long phase = 0ull; ok && (phase < period); phase += 1ull)
+    for (unsigned long long phase = 0ULL; ok && (phase < period); phase += 1ULL)
     {
         OriorExactInteger sum;
         sim_exact_signed(&sum, sums[energy_phase_base(period) + phase]);
@@ -120,7 +120,7 @@ static inline int energy_ratio(const long long *values, unsigned long long lengt
             ok = ok && sim_exact_sum(&fewer_squares, &term, &fewer_squares);
         }
     }
-    for (unsigned long long at = 0ull; ok && (at < length); at += 1ull)
+    for (unsigned long long at = 0ULL; ok && (at < length); at += 1ULL)
     {
         sim_exact_signed(&term, values[at]);
         ok = sim_exact_product(&term, &term, &term) && sim_exact_sum(&integer_squares, &term, &integer_squares);
@@ -151,26 +151,26 @@ static inline int energy_ratio(const long long *values, unsigned long long lengt
         return 0;
     }
     return sim_exact_scaled(&between, length - period, numerator) &&
-           sim_exact_scaled(&within, period - 1ull, denominator);
+           sim_exact_scaled(&within, period - 1ULL, denominator);
 }
 
 static inline int energy_recover(SimResults *results, const long long *values, unsigned long long length,
                                  unsigned long long range, long long *sums, EnergyMeasurement *measurement)
 {
     measurement->found = 0;
-    measurement->period = 0ull;
+    measurement->period = 0ULL;
     // a range below 2 has no period to test, and errors before the device is invoked (the phase count at range 0
     // would wrap)
-    if ((length < 4ull) || (range < 2ull))
+    if ((length < 4ULL) || (range < 2ULL))
     {
         return 0;
     }
-    const unsigned long long top = (range < (length - 1ull)) ? range : (length - 1ull);
+    const unsigned long long top = (range < (length - 1ULL)) ? range : (length - 1ULL);
     if (energy_phase_sums(results, values, length, top, sums) == 0)
     {
         return 0;
     }
-    for (unsigned long long period = 2ull; period <= top; period += 1ull)
+    for (unsigned long long period = 2ULL; period <= top; period += 1ULL)
     {
         OriorExactInteger numerator;
         OriorExactInteger denominator;
@@ -199,13 +199,13 @@ static inline void energy_shuffle(const long long *values, long long *shuffled, 
 {
     memcpy(shuffled, values, (size_t)length * sizeof(long long));
     // fewer than two values shuffle to themselves, and length - 1 would wrap at 0
-    if (length < 2ull)
+    if (length < 2ULL)
     {
         return;
     }
-    for (unsigned long long at = length - 1ull; at > 0ull; at -= 1ull)
+    for (unsigned long long at = length - 1ULL; at > 0ULL; at -= 1ULL)
     {
-        const unsigned long long other = sim_draw_below(key, at, at + 1ull);
+        const unsigned long long other = sim_draw_below(key, at, at + 1ULL);
         const long long temporary = shuffled[at];
         shuffled[at] = shuffled[other];
         shuffled[other] = temporary;
@@ -218,8 +218,8 @@ static inline int energy_band_top(SimResults *results, const long long *values, 
                                   unsigned long long *reached)
 {
     top->found = 0;
-    *reached = 0ull;
-    for (unsigned long long draw = 0ull; draw < draws; draw += 1ull)
+    *reached = 0ULL;
+    for (unsigned long long draw = 0ULL; draw < draws; draw += 1ULL)
     {
         energy_shuffle(values, shuffled, length, sim_draw(key, draw));
         EnergyMeasurement measurement;
@@ -231,7 +231,7 @@ static inline int energy_band_top(SimResults *results, const long long *values, 
         {
             continue;
         }
-        *reached += 1ull;
+        *reached += 1ULL;
         int order = 1;
         if (top->found != 0)
         {
@@ -280,27 +280,27 @@ static __global__ void energy_welford_kernel(const long long *values, unsigned l
     {
         return;
     }
-    long long numerator = 0ll;
-    unsigned long long denominator = 1ull;
-    unsigned long long seen = 0ull;
+    long long numerator = 0LL;
+    unsigned long long denominator = 1ULL;
+    unsigned long long seen = 0ULL;
     for (unsigned long long at = phase; at < length; at += period)
     {
-        seen += 1ull;
+        seen += 1ULL;
         // d and seen are member counts below 2^16 here. Every product fits 64 bits
         const long long step_numerator = (values[at] * (long long)denominator) - numerator;
         const unsigned long long step_denominator = denominator * seen;
         numerator = (numerator * (long long)step_denominator) + (step_numerator * (long long)denominator);
         denominator = denominator * step_denominator;
         unsigned long long left =
-            (numerator < 0ll) ? (0ull - (unsigned long long)numerator) : (unsigned long long)numerator;
+            (numerator < 0LL) ? (0ULL - (unsigned long long)numerator) : (unsigned long long)numerator;
         unsigned long long right = denominator;
-        while (right != 0ull)
+        while (right != 0ULL)
         {
             const unsigned long long rest = left % right;
             left = right;
             right = rest;
         }
-        if (left > 1ull)
+        if (left > 1ULL)
         {
             // the common divisor divides the numerator exactly and is below 2^63
             numerator /= (long long)left;
@@ -354,15 +354,15 @@ static inline int energy_reduction(const long long *noisy, const long long *targ
                                    OriorExactInteger *numerator, OriorExactInteger *denominator)
 {
     const unsigned long long fewer = length / period;
-    const unsigned long long more = fewer + 1ull;
-    unsigned long long injected = 0ull;
+    const unsigned long long more = fewer + 1ULL;
+    unsigned long long injected = 0ULL;
     OriorExactInteger left_fewer;
     OriorExactInteger left_more;
     OriorExactInteger term;
     orior_exact_zero(&left_fewer);
     orior_exact_zero(&left_more);
     int ok = 1;
-    for (unsigned long long at = 0ull; ok && (at < length); at += 1ull)
+    for (unsigned long long at = 0ULL; ok && (at < length); at += 1ULL)
     {
         const long long apart = noisy[at] - target[at];
         // a squared difference of small integers is non-negative and far below 2^63
@@ -376,10 +376,10 @@ static inline int energy_reduction(const long long *noisy, const long long *targ
         ok = ok && sim_exact_sum((members == more) ? &left_more : &left_fewer, &term,
                                  (members == more) ? &left_more : &left_fewer);
     }
-    if (injected == 0ull)
+    if (injected == 0ULL)
     {
-        sim_exact_unsigned(numerator, 1ull);
-        sim_exact_unsigned(denominator, 1ull);
+        sim_exact_unsigned(numerator, 1ULL);
+        sim_exact_unsigned(denominator, 1ULL);
         return ok;
     }
     OriorExactInteger fewer_square;

@@ -26,7 +26,7 @@ extern "C"
 
 // a device of sixteen zero bytes names the host's processors, which a job declares and reports in thousandths of one
 // logical processor
-#define TESSERA_HOST_PROCESSOR 1000ull
+#define TESSERA_HOST_PROCESSOR 1000ULL
 
     typedef enum
     {
@@ -101,7 +101,7 @@ _Static_assert(sizeof(TesseraFrame) == TESSERA_FRAME_BYTES, "tessera: a frame is
         unsigned int override_budget;
         const char *daemon_path;
         EngineError *error;
-        // how long the submit waits for the job to fit the headroom; past it the submit errs, its connection closes
+        // how long the submit waits for the job to fit the headroom. Past it the submit errs, its connection closes
         // and the daemon drops the job. 0 waits until it fits
         unsigned long long waiting_microseconds;
     } TesseraJobSubmit;
@@ -144,7 +144,7 @@ _Static_assert((offsetof(TesseraTicket, lost_path) % 8u) == 0u,
     TESSERA_EXPORT long tessera_job_precalc_saved(TesseraClient *client, EngineError *error);
 
     // an admitted job's own measure, where the daemon reads none from outside (the host's processors, or a device under
-    // WSL); any growth the daemon has reported back is read into the ticket
+    // WSL); any growth the daemon reported back is read into the ticket
     TESSERA_EXPORT long tessera_job_report(TesseraClient *client, TesseraTicket *ticket, unsigned long long measured,
                                            EngineError *error);
 

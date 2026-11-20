@@ -75,7 +75,7 @@ invariant under permutation of its operands. ∎
 
 *Obligation on the implementation.* The step from "the conjunction is invariant" to "the program is
 invariant" requires that evaluating `P_p` have no side effect that a later probe reads. That is a
-property of the code and not of the mathematics, and it is the reason to test order as a permutation
+property of the code and not of the mathematics. It is the reason to test order as a permutation
 null instead of assuming it.
 
 ## Theorem 3, the loop invariant is the postcondition
@@ -93,7 +93,7 @@ first iteration, where the plan is empty. **The invariant and the postcondition 
 predicate.**
 
 That identity is the whole explanation of the anytime property. An ordinary loop carries an invariant
-strictly weaker than its postcondition, and termination is what closes the gap; the loop must finish
+strictly weaker than its postcondition, and termination is what closes the gap. The loop must finish
 before its promise is true. Here there is no gap to close. Termination establishes nothing that is
 not already established, and interrupting the refinement at any instant and running the sweep returns
 `N`.
@@ -110,7 +110,7 @@ diverges at step `k`, then interrupting and sweeping with `S_k` returns `N`.**
 computability, or termination of anything. No such hypothesis can be needed to discharge it. Each
 defined `S_i` is a plan; apply Theorem 1. For the divergent case, `S_k` is a plan; apply Theorem 1. ∎
 
-This is the theorem worth stating to anyone who has read the header's claim about halting
+This is the theorem worth stating to anyone who read the header's claim about halting
 ([`orior_descent.h:124-135`](https://github.com/dstroy0/orior/blob/main/src/cu/engine/nbody/orior/orior_descent.h#L124-L135)). It says the
 planner callback accepts an arbitrary computation, including one that decides an undecidable question and
 therefore never returns, without the answer depending on it. The undecidability is real and it is
@@ -245,7 +245,7 @@ polynomial-time planner improves it for coverage functions unless P equals NP.
 
 So the two statements sit together. **Correctness does not depend on the planner at all, and the
 planner still lands within a constant factor of optimal, with that constant at the limit for
-polynomial time.** The first is Theorem 1 and the second is this one, and they are about different
+polynomial time.** The first is Theorem 1 and the second is this one. They are about different
 things: one about the answer, one about the cost of getting it.
 
 **The honest gap.** `f` counts refutations and the engine's cost is reads. Under short circuiting a

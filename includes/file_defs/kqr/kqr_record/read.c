@@ -81,8 +81,8 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
     static KqrQuery s_query;
     static KqrSample s_sample;
     // the pairs, stored apart and put after every other record
-    KrepFile pairs = {{0}, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u, NULL, NULL, 0ull};
-    unsigned long long at = 0ull;
+    KrepFile pairs = {{0}, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u, NULL, NULL, 0ULL};
+    unsigned long long at = 0ULL;
     unsigned int number = 0u;
     const char *stopped = NULL;
     while ((stopped == NULL) && line_read(bytes, size, &at, s_line, sizeof(s_line)))
@@ -94,7 +94,7 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
             continue;
         }
         const char *rest = NULL;
-        unsigned long long words[5] = {0ull, 0ull, 0ull, 0ull, 0ull};
+        unsigned long long words[5] = {0ULL, 0ULL, 0ULL, 0ULL, 0ULL};
         if ((number == 1u) && kqr_line_type(s_line, "kqr"))
         {
             const char *const named = s_line + 3 + strspn(s_line + 3, " ");
@@ -135,8 +135,8 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
             // the hash of the pair's reads, sixteen hex digits ahead of the verdict, where the record contains one
             const size_t gap = strcspn(field, " ");
             words[2] =
-                ((gap == 16u) && (field[gap] == ' ') && (strspn(field, "0123456789abcdef") >= 16u)) ? 1ull : 0ull;
-            words[3] = words[2] ? strtoull(field, NULL, 16) : 0ull;
+                ((gap == 16u) && (field[gap] == ' ') && (strspn(field, "0123456789abcdef") >= 16u)) ? 1ULL : 0ULL;
+            words[3] = words[2] ? strtoull(field, NULL, 16) : 0ULL;
             field += words[2] ? 17 : 0;
             words[4] = kqr_text_number(record, field);
             stopped = (field[0] != '\0') ? NULL : "a pair with no verdict";
@@ -157,8 +157,8 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
                 char *max_after = NULL;
                 const unsigned long long max = strtoull(least_after, &max_after, 10);
                 s_sample.launched = ((least_after != after) && (max_after != least_after)) ? 1 : 0;
-                s_sample.least = s_sample.launched ? least : 0ull;
-                s_sample.max = s_sample.launched ? max : 0ull;
+                s_sample.least = s_sample.launched ? least : 0ULL;
+                s_sample.max = s_sample.launched ? max : 0ULL;
             }
             else if (stopped == NULL)
             {
@@ -280,7 +280,7 @@ int kqr_read(KqrRecord *record, const char *path, const char *member, char *erro
     {
         // the text form: its bytes read again, as the run stores them, and taken as records
         const unsigned char *bytes = NULL;
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         krep_open(&record->file, KQR_KIND);
         const unsigned long long named = krep_text_number(&record->file, member, strlen(member));
         krep_record_add(&record->file, KQR_MEMBER_RECORD, &named, 1u);

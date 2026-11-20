@@ -6,7 +6,7 @@
 
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission. That permission is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
@@ -47,7 +47,7 @@
  * FOUR OF THESE ARE DIFFERENTIAL. They compare two routes that must agree. No expected number is
  * written down in advance and none can be written down wrongly. Those are the strongest cases here,
  * and they double in value the moment a second implementation exists: a case passing the portable
- * arm and failing a vectorized one has found a vectorization defect, and a case passing both has
+ * arm and failing a vectorized one found a vectorization defect, and a case passing both has
  * been checked twice.
  *
  * WHAT IT COVERS, in the order it runs.

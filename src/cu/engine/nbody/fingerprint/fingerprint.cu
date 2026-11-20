@@ -37,7 +37,7 @@ extern "C" long fingerprint_program(const FingerprintRequest *request, EngineRec
 {
     const unsigned long long unit =
         engine_common_unit(engine_common_unit(request->voxel_pm[0], request->voxel_pm[1]), request->voxel_pm[2]);
-    if ((request->voxel_pm[0] == 0ull) || (request->voxel_pm[1] == 0ull) || (request->voxel_pm[2] == 0ull))
+    if ((request->voxel_pm[0] == 0ULL) || (request->voxel_pm[1] == 0ULL) || (request->voxel_pm[2] == 0ULL))
     {
         return FINGERPRINT_ERROR;
     }
@@ -48,7 +48,7 @@ extern "C" long fingerprint_program(const FingerprintRequest *request, EngineRec
         fingerprint_step(&program[FINGERPRINT_SUMS + axis], ENGINE_RECORD_FIELD, request->sum_field[axis], 0u);
         const unsigned long long scale = request->voxel_pm[axis] / unit;
         fingerprint_step(&program[FINGERPRINT_SCALES + axis], ENGINE_RECORD_CONSTANT,
-                         (unsigned int)(scale & 0xFFFFFFFFull), (unsigned int)(scale >> 32u));
+                         (unsigned int)(scale & 0xFFFFFFFFULL), (unsigned int)(scale >> 32u));
     }
     for (unsigned int moment = 0u; moment < FINGERPRINT_MOMENTS; moment += 1u)
     {

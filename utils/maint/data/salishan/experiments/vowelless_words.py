@@ -10,7 +10,7 @@
 # (2 March 2020, read at languagelog.ldc.upenn.edu/nll/?p=46316), wrote that "any apparent
 # preponderance of vowelless 'words' in Nuxalk derives in big part from the community writing
 # system's choice of visually isolating several clitics from the words they inflect", and that
-# Nuxalk has carried the pan-Salish reduction of unstressed vowels further, to zero where the
+# Nuxalk carried the pan-Salish reduction of unstressed vowels further, to zero where the
 # phonotactics allow. The first part is a claim about spacing, the second about the lexicon, and the
 # oracle forms can separate them.
 #

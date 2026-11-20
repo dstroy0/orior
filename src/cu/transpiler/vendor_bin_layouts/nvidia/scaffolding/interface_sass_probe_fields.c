@@ -44,7 +44,7 @@ int main(int count, char **words)
     s_pattern_size = fields_file_read(words[1], s_pattern, sizeof(s_pattern));
     const unsigned long long kernel_text_size = fields_file_read(words[2], (unsigned char *)s_kernel_text, sizeof(s_kernel_text) - 1u);
     s_kernel_text[kernel_text_size] = '\0';
-    if ((s_pattern_size == 0ull) || (kernel_text_size == 0ull) || !fields_kernel(s_kernel_text, s_kernel, sizeof(s_kernel)))
+    if ((s_pattern_size == 0ULL) || (kernel_text_size == 0ULL) || !fields_kernel(s_kernel_text, s_kernel, sizeof(s_kernel)))
     {
         fprintf(stderr, "the pattern cubin %s or the kernel %s did not read\n", words[1], words[2]);
         return 2;
@@ -82,14 +82,14 @@ int main(int count, char **words)
         }
         char lines[2048];
         snprintf(lines, sizeof(lines), FIELDS_LINES_HEAD "%s%s" FIELDS_LINES_TAIL, redirected, observe);
-        unsigned long long low = 0ull;
-        unsigned long long high = 0ull;
+        unsigned long long low = 0ULL;
+        unsigned long long high = 0ULL;
         const unsigned int assembled =
             fields_splice(s_kernel_text, lines, s_query_text, sizeof(s_query_text))
                 ? sass_assemble_lines(&s_machine, s_query_text, SASS_CONTROL_SAFE, s_code, sizeof(s_code))
                 : 0u;
         const int alone =
-            (assembled != 0u) && sass_assemble(&s_machine, redirected, 0ull, 0ull, SASS_CONTROL_SAFE, &low, &high);
+            (assembled != 0u) && sass_assemble(&s_machine, redirected, 0ULL, 0ULL, SASS_CONTROL_SAFE, &low, &high);
         const unsigned int place = alone ? fields_find(s_code, assembled, low, high) : assembled;
         if (place == assembled)
         {
@@ -104,7 +104,7 @@ int main(int count, char **words)
             const unsigned long long one = fields_word_read(&s_code[16u * number]);
             const unsigned long long two = fields_word_read(&s_code[(16u * number) + 8u]);
             char text[256];
-            if (sass_encoding_read(&s_machine, one, two, 16ull * number, text, sizeof(text)))
+            if (sass_encoding_read(&s_machine, one, two, 16ULL * number, text, sizeof(text)))
             {
                 printf("CODE\t%u\t%s%s\n", number, text, (number == place) ? "\t<- turned" : "");
             }

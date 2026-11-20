@@ -8,7 +8,7 @@ never ARRANGEMENT. A bag of words is invariant under permutation - shuffle the c
 count is identical - and so it cannot separate a text from its own shuffle, and it cannot say WHICH
 sentences carry the register. That is not a flaw in the tool, it is what a bag of words is.
 
-The gap is what this measures. Generated text is close to MEMORYLESS: it is sampled token by token
+The gap is what this measures. Generated text is close to MEMORYLESS. It is sampled token by token
 from a context window, and so its long-range structure is whatever that window carries. Human
 writing is not memoryless. A person holds a subject across paragraphs and returns to it, and so
 dependence survives to ranges no window covers.
@@ -28,7 +28,7 @@ hits the floor. A power law is straight on log-log; an exponential is straight o
 drops off a cliff. That is a shape a curve can show and a single number cannot.
 
 This is the same instrument as `bench_walk`'s autocorrelation sweep over lags 1 to 1024, pointed at
-text instead of nonces, and it answers the same question: does this thing carry anything across a
+text instead of nonces. It answers the same question: does this thing carry anything across a
 gap, or does it forget.
 
 THE NULL IS FREE AND IT IS DRAWN, NOT DERIVED
@@ -564,7 +564,7 @@ def main():
         #
         # So the human pole is cut to the machine pole's exact token count and the comparison is
         # made there. The full-length human curve above is retained only to show what the instrument can
-        # see when it is not starved; it is not what the verdict rests on.
+        # see when it is not starved. It is not what the verdict rests on.
         matched = human[:session.size]
         matched_rows = curve(matched, size)
         show("HUMAN POLE, cut to the machine pole's length", matched_rows, matched.size)
@@ -595,7 +595,7 @@ def main():
         # Two corpora whose commonest words carry different mass produce different bias at identical
         # token counts. Comparing an excess-over-floor across mismatched floors compares two
         # different estimators and reports the difference between THEM.
-        # THE SHAPE IS COMPARABLE EVEN WHERE THE LEVEL IS NOT, and it is computed either way and it
+        # THE SHAPE IS COMPARABLE EVEN WHERE THE LEVEL IS NOT. It is computed either way and it
         # is what the verdict rests on when the floors do not match.
         human_slope, human_points = decay_shape(matched_rows)
         session_slope, session_points = decay_shape(session_rows)

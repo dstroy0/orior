@@ -2,28 +2,28 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission. That permission is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
  * @file arm_avx2.c
- * @brief The AVX2 arm of the exact arithmetic, comparing eight 32 bit limbs per instruction.
+ * @brief The AVX2 arm of the exact arithmetic, which compares eight 32 bit limbs per instruction.
  * @author dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
  *
- * @note ONE FILE FOR EVERY x86 BUILD. The loops are a property of the instruction set and are
- *       shared across every operating system. Both ways of querying the processor about AVX2 live
- *       here together with them, and no second copy that could disagree with this one exists.
- * @note Two detection paths, both arms of the gate defined. MSVC has no __builtin_cpu_supports and
- *       takes __cpuidex directly. GCC and Clang have the builtin and use it on any host. A compiler
- *       carrying neither reports the arm absent instead of guessing.
- * @note Queried at run time deliberately. A binary built where AVX2 was available still runs on
- *       machines that lack it, and calling in there raises an illegal instruction.
- * @note THE NAME STILL NAMES THE OPERATING SYSTEM. Two builds running the same instructions have
- *       to be distinguished in a row of results, because what a row compares includes the compiler and
- *       the operating system that built it. Folding the files did not change what a row prints.
- * @note Both comparisons walk from the top limb down. At a scale of 1024 decimal digits a deposited
- *       value has hundreds of trailing zero digits. The low limbs are zero on both sides and carry
- *       no information. The first difference is near the top and the scan finds it at once.
+ * @note ONE FILE FOR EACH x86 BUILD. The loops belong to the instruction set, and each operating system
+ *       shares them. Both ways to ask the processor about AVX2 live here with them. No second copy that
+ *       can disagree with this one exists.
+ * @note Two detection paths, and the gate defines both arms. MSVC has no __builtin_cpu_supports and
+ *       uses __cpuidex directly. GCC and Clang have the builtin and use it on any host. A compiler with
+ *       neither reports that the arm is absent, and does not guess.
+ * @note The arm asks at run time, and not at build time. A program built where AVX2 is present still runs on
+ *       machines without it. A call into the arm there raises an illegal instruction.
+ * @note THE NAME NAMES THE OPERATING SYSTEM. A row of results must tell apart two builds that run the
+ *       same instructions. What a row compares includes the compiler and the operating system of the
+ *       build.
+ * @note Both comparisons walk from the top limb down. At a scale of 1024 decimal digits, a deposited
+ *       value has hundreds of zero digits at its end. The low limbs are zero on both sides and hold no
+ *       information. The first difference is near the top, and the scan finds it at once.
  */
 
 #include "arm.h"
@@ -41,7 +41,7 @@
 #endif
 
 #if defined(_WIN32)
-/** @brief What a row of results prints for this arm, which names the operating system that built it. */
+/** @brief What a row of results prints for this arm. It names the operating system of the build. */
 #define ORIOR_AVX2_ARM_NAME "avx2-win"
 #else
 #define ORIOR_AVX2_ARM_NAME "avx2-linux"
@@ -53,9 +53,9 @@
 /**
  * @brief Whether the running processor carries AVX2.
  *
- * @return 1 where AVX2 is present, 0 where it is absent or cannot be determined.
- * @note Leaf 7 subleaf 0, bit 5 of EBX is the AVX2 flag. The leaf itself only exists where the
- *       max leaf reported by leaf 0 reaches 7. That is checked before it is read.
+ * @return 1 where AVX2 is present, 0 where it is absent or the call cannot tell.
+ * @note Leaf 7 subleaf 0, bit 5 of EBX is the AVX2 flag. The leaf only exists where the max leaf that
+ *       leaf 0 reports reaches 7. The call checks that before it reads the leaf.
  */
 static int avx2_present(void)
 {
@@ -117,9 +117,9 @@ static int avx2_magnitude_equal(const uint32_t *left, const uint32_t *right)
  * @param[in] left  First magnitude [BORROWS].
  * @param[in] right Second magnitude [BORROWS].
  * @return          -1 where left is smaller, 1 where it is larger, 0 where they are equal.
- * @note A vector reports that a block differs and not which limb differs first. The block containing
- *       the highest difference is found with the vector and then walked backward one limb at a time,
- *       which runs at max eight scalar steps once per comparison.
+ * @note A vector reports that a block differs, and not which limb differs first. The vector finds the
+ *       block with the highest difference. The call then walks it back one limb at a time. That is eight
+ *       scalar steps at max, once per comparison.
  */
 static int avx2_magnitude_compare(const uint32_t *left, const uint32_t *right)
 {
@@ -192,7 +192,7 @@ static int arm_compare(const OriorExactInteger *left, const OriorExactInteger *r
 }
 
 /**
- * @brief Counts agreeing places over a sorted run, through the AVX2 equality.
+ * @brief Counts the places that agree over a sorted run, through the AVX2 equality.
  *
  * @param[in] positions Positions, ascending [BORROWS].
  * @param[in] values    The value located at each position [BORROWS].
@@ -203,14 +203,13 @@ static int arm_compare(const OriorExactInteger *left, const OriorExactInteger *r
 static size_t arm_agreement(const OriorExactInteger *positions, const uint64_t *values, size_t count,
                             const OriorExactInteger *lag)
 {
-    // The shared search, with only the equality test swapped. This arm carried its own ordered
-    // search once, and timing that against a portable arm doing a membership lookup measured the
-    // difference between two algorithms and reported it as the difference between two instruction
-    // sets. It read 3.44x that way and 1.75x this way.
+    // The shared search, with only the equality test swapped. An arm with its own search is a
+    // different algorithm. A time of it against the portable arm then measures the algorithm, and not
+    // the instruction set.
     return orior_exact_agreement_using(arm_equal, positions, values, count, lag);
 }
 
-/** @brief The arm as a driver sees it. Static storage. Returning its address is safe. */
+/** @brief The arm as a driver sees it. Static storage. A return of its address is safe. */
 static const OriorExactArm AVX2_ARM = {
     ORIOR_AVX2_ARM_NAME,
     arm_equal,

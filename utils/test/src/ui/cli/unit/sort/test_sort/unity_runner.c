@@ -75,7 +75,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\sort\\test_sort\\test_sort.c");
+  UnityBegin("utils/test/src/ui/cli/unit/sort/test_sort/test_sort.c");
   run_test(test_no_records_and_one_record_are, "test_no_records_and_one_record_are", 75);
   run_test(test_two_records_swap, "test_two_records_swap", 83);
   run_test(test_a_short_run_is_put_in_order, "test_a_short_run_is_put_in_order", 92);

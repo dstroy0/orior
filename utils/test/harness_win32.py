@@ -376,7 +376,7 @@ def thread_count(process_id):
 
 
 def system_times():
-    """(idle, kernel, user) seconds every processor of the system has spent; the kernel time holds the idle time."""
+    """(idle, kernel, user) seconds every processor of the system spent; the kernel time holds the idle time."""
     idle, kernel, user = FileTime(), FileTime(), FileTime()
     kernel32.GetSystemTimes(ctypes.byref(idle), ctypes.byref(kernel), ctypes.byref(user))
     return tuple(((one.high << 32) | one.low) / 10_000_000 for one in (idle, kernel, user))

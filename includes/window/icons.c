@@ -17,9 +17,11 @@
 #include "../utf8/utf8.h"
 
 #define ICONS_PATHS 3u
-// An icon's shape: its name, its paths, its dots as `fills` triples of center x, center y and radius, whether it is
-// the cog, drawn from its teeth; its own box, left, top, width and height in its units, where it is not drawn on the
-// square of sixteen, the box fitted to the square and centered; and a closed path filled whole, where it has one
+// The shape of an icon. It holds its name, its paths, and its dots as `fills` triples of center x, center y and radius.
+// It holds whether it is the cog, which the code draws from its teeth.
+//
+// Where it does not draw on the square of sixteen, it holds its own box: left, top, width and height in its units. The
+// code fits the box to the square and centers it. Where it has a closed path to fill whole, it holds that path
 typedef struct
 {
     const char *name;
@@ -30,11 +32,15 @@ typedef struct
     const float *box;
     const char *filled;
 } GuiIconShape;
-// The pen a path is drawn with: the cover it draws into, floats of 0 to 1 a pixel of the square, the square's side,
-// the pixels a unit takes, the units the shape's box starts at and the pixels the box is in from the square's
-// top left, and the line's half width in pixels; where the pen is and where its subpath began, in units; the
-// second control point of the last curve, for a smooth curve to mirror, where the last part was one; and the
-// corners gathered while a shape is filled, in pixels, in place of lines drawn, NULL while it draws
+// The pen that draws a path. It holds:
+//   - the cover that it draws into, floats of 0 to 1 a pixel of the square, and the side of the square.
+//   - the pixels of a unit, and the units where the box of the shape starts.
+//   - the pixels from the top left of the square to the box.
+//   - the half width of the line in pixels.
+//   - where the pen is, and where its subpath began, in units.
+//   - the second control point of the last curve, where the last part was a curve, for a smooth curve to mirror.
+//   - the corners that the pen collects while it fills a shape, in pixels, in place of lines. They are NULL while it
+//     draws.
 typedef struct
 {
     float *cover;
@@ -55,11 +61,11 @@ typedef struct
     float *corner;
     unsigned int corners;
 } GuiPen;
-// the pixels between the points a curve is flattened to, and the max parts an icon's path has
+// the pixels between the points that a curve flattens to, and the most parts of the path of an icon
 #define ICONS_STEP 0.5f
 
-// the eye of the wordmark, the page's line art: each stroke the center line of one line of the drawing, and the
-// iris its one filled shape, in the drawing's own units within its box
+// the eye of the wordmark, the line art of the page. Each stroke is the center line of one line of the drawing. The
+// iris is its one filled shape, in the own units of the drawing within its box
 static const char s_logo_strokes[] =
     "M164.8 30.5L164.2 32.8L164.5 65M136.5 42.2L140.5 68M191.5 42.8L188.5 63L188 67L188.2 68.2"
     "M113.2 55.2L113.8 58.2L119.8 74.8M215.5 55.8L208.5 75M231.5 71.2L225.7 82.2L224.5 83.5"
@@ -133,8 +139,8 @@ static const GuiIconShape s_shapes[] = {
     {"commit", {"M1.5 8h4M10.5 8h4", "M8 5.4a2.6 2.6 0 1 1 0 5.2a2.6 2.6 0 0 1 0-5.2z", NULL}, NULL, 0u, 0},
     {"more", {NULL, NULL, NULL}, s_more_dots, 3u, 0},
     {"run", {"M2 13.5h12", "M3.2 10.8 6.4 7.3l2.7 2.2 3.7-4.8", NULL}, NULL, 0u, 0},
-    {"debug", {"M8 1.8l5.4 3.1v6.2L8 14.2l-5.4-3.1V4.9z", "M6.7 5.9v4.2L10.1 8z", NULL}, NULL, 0u, 0},
-    {"terminal", {ICONS_BOX, "M5 6.4 7 8l-2 1.6M8.6 10h2.6", NULL}, NULL, 0u, 0},
+    {"debug", {"M8 1.8l5.4 3.1v6.2L8 14.2L-5.4-3.1V4.9z", "M6.7 5.9v4.2L10.1 8z", NULL}, NULL, 0u, 0},
+    {"terminal", {ICONS_BOX, "M5 6.4 7 8L-2 1.6M8.6 10h2.6", NULL}, NULL, 0u, 0},
     {"problems", {"M8 2a6 6 0 1 1 0 12A6 6 0 0 1 8 2z", "M8 4.9v3.8", NULL}, s_problems_dots, 1u, 0},
     {"git", {"M5 3.6v8.8", "M5 10c0-2.6 6-2.2 6-5", NULL}, s_git_dots, 3u, 0},
     {"profile", {"M2 13.5h12M3 10.5h8.5M4 7.5h5M5 4.5h2", NULL, NULL}, NULL, 0u, 0},
@@ -153,7 +159,7 @@ static const GuiIconShape s_shapes[] = {
      0u,
      0},
     {"comms",
-     {"M8 6.3a1.7 1.7 0 1 1 0 3.4a1.7 1.7 0 0 1 0-3.4z", "M8 6.3V3.6M6.5 8.9l-2.3 1.4M9.5 8.9l2.3 1.4",
+     {"M8 6.3a1.7 1.7 0 1 1 0 3.4a1.7 1.7 0 0 1 0-3.4z", "M8 6.3V3.6M6.5 8.9L-2.3 1.4M9.5 8.9l2.3 1.4",
       "M8 1.6a1 1 0 1 1 0 2a1 1 0 0 1 0-2zM3.3 10a1 1 0 1 1 0 2a1 1 0 0 1 0-2zM12.7 10a1 1 0 1 1 0 2a1 1 0 0 1 0-2z"},
      NULL,
      0u,
@@ -168,9 +174,9 @@ static const GuiIconShape s_shapes[] = {
     {"minimize", {"M3.5 8h9", NULL, NULL}, NULL, 0u, 0},
     {"maximize", {"M4 4h8v8H4z", NULL, NULL}, NULL, 0u, 0},
     {"restore", {"M4 6h6v6H4z", "M6 6V4h6v6h-2", NULL}, NULL, 0u, 0},
-    {"close", {"M4.2 4.2l7.6 7.6M11.8 4.2l-7.6 7.6", NULL, NULL}, NULL, 0u, 0},
+    {"close", {"M4.2 4.2l7.6 7.6M11.8 4.2L-7.6 7.6", NULL, NULL}, NULL, 0u, 0},
     {"protocol",
-     {"M3.5 2.5v11M12.5 2.5v11", "M3.5 5.5h7.4M9.4 4l1.5 1.5-1.5 1.5", "M12.5 10.5H5.1M6.6 9l-1.5 1.5 1.5 1.5"},
+     {"M3.5 2.5v11M12.5 2.5v11", "M3.5 5.5h7.4M9.4 4l1.5 1.5-1.5 1.5", "M12.5 10.5H5.1M6.6 9L-1.5 1.5 1.5 1.5"},
      NULL,
      0u,
      0},
@@ -192,7 +198,7 @@ static const GuiIconShape s_shapes[] = {
      NULL,
      0u,
      0},
-    {"launch", {"M2.6 3.6 7 8l-4.4 4.4", "M8.4 3.6 12.8 8l-4.4 4.4", NULL}, NULL, 0u, 0},
+    {"launch", {"M2.6 3.6 7 8L-4.4 4.4", "M8.4 3.6 12.8 8L-4.4 4.4", NULL}, NULL, 0u, 0},
     {"view",
      {"M1.5 8C3.2 4.8 5.4 3.5 8 3.5s4.8 1.3 6.5 4.5c-1.7 3.2-3.9 4.5-6.5 4.5S3.2 11.2 1.5 8z", NULL, NULL},
      s_view_dots,
@@ -206,7 +212,7 @@ static const GuiIconShape s_shapes[] = {
      0},
     {"hammer", {"M6.4 4.6 9.6 1.4l4.9 4.9-3.2 3.2z", "M8 6.2 2.2 12a1.1 1.1 0 0 0 1.6 1.6L9.6 7.8", NULL}, NULL, 0u, 0},
     {"wrench",
-     {"M10.8 2.2a3.2 3.2 0 0 0-3.9 4.3L2.4 11a1.5 1.5 0 0 0 2.1 2.1l4.5-4.5a3.2 3.2 0 0 0 4.3-3.9l-2 2-1.9-.6-.6-1.9z",
+     {"M10.8 2.2a3.2 3.2 0 0 0-3.9 4.3L2.4 11a1.5 1.5 0 0 0 2.1 2.1l4.5-4.5a3.2 3.2 0 0 0 4.3-3.9L-2 2-1.9-.6-.6-1.9z",
       NULL, NULL},
      NULL,
      0u,
@@ -215,7 +221,7 @@ static const GuiIconShape s_shapes[] = {
 };
 #define ICONS_COUNT (sizeof(s_shapes) / sizeof(s_shapes[0]))
 
-// the max corners a filled shape has, and the samples across and down a pixel its cover is read from
+// the most corners of a filled shape, and the samples across and down a pixel that give its cover
 #define ICONS_CORNERS 256u
 #define ICONS_SAMPLES 4u
 
@@ -276,9 +282,9 @@ EMBED_INLINE float pen_py(const IconsCtx *args)
     return ((args->y - args->pen_read->top) * args->pen_read->scale) + args->pen_read->pad_y;
 }
 
-// a capsule of `radius` pixels about the line from x0, y0 to x1, y1 in pixels positioned on the cover: each pixel's share
-// the distance left from its middle to the capsule's edge, clamped, where that is more than the pixel has; a capsule
-// of no length is a disc
+// a capsule of `radius` pixels about the line from x0, y0 to x1, y1 in pixels, on the cover. The share of each pixel is
+// the distance from its middle to the edge of the capsule, clamped. It applies where that is more than the pixel has. A capsule of
+// no length is a disc
 EMBED_INLINE void pen_capsule(const IconsCtx *args)
 {
     // the square's side is far inside what an int represents
@@ -310,7 +316,7 @@ EMBED_INLINE void pen_capsule(const IconsCtx *args)
     }
 }
 
-// a corner gathered at x, y in units while a shape is filled
+// a corner that the pen collects at x, y in units while it fills a shape
 EMBED_INLINE void pen_corner(const IconsCtx *args)
 {
     if (args->pen->corners < ICONS_CORNERS)
@@ -337,8 +343,8 @@ EMBED_INLINE void pen_move(const IconsCtx *args)
     }
 }
 
-// a line drawn from the pen to x, y in units, the pen left at its end; a corner gathered in its place while a shape
-// is filled
+// a line drawn from the pen to x, y in units, with the pen at its end. While the pen fills a shape, it collects a
+// corner in place of the line
 EMBED_INLINE void pen_draw(const IconsCtx *args)
 {
     float x = args->x;
@@ -359,8 +365,8 @@ EMBED_INLINE void pen_draw(const IconsCtx *args)
     args->pen->y = y;
 }
 
-// the edges of the polygon of `saved` corners in pixels a row of samples at `sample_y` crosses, in order across, each
-// with the way it winds: how many
+// the edges of the polygon of `saved` corners in pixels that a row of samples at `sample_y` crosses, in order across.
+// Each has the way that it winds. The result is how many
 EMBED_INLINE unsigned int polygon_crossings(const IconsCtx *args)
 {
     unsigned int crossings = 0u;
@@ -390,9 +396,9 @@ EMBED_INLINE unsigned int polygon_crossings(const IconsCtx *args)
     return crossings;
 }
 
-// a run across the row from x0 to x1 in pixels counted into `counts` across the samples it covers, a whole pixel at a
-// time inside it, the samples the row's runs span widened to it. A sample is at the middle of its fraction of a
-// pixel: the first at or past each end
+// a run across the row from x0 to x1 in pixels, counted into `counts` across the samples that it covers. Inside it the
+// count goes a whole pixel at a time. The span of the samples of the runs of the row grows to hold it.
+// A sample is at the middle of its fraction of a pixel, the first at or past each end
 EMBED_INLINE void polygon_run_counted(const IconsCtx *args)
 {
     const int first = (int)arith_ceil_f32((args->x0 * (float)ICONS_SAMPLES) - 0.5f);
@@ -459,7 +465,7 @@ void gui_icons_polygon_fill(const GuiIconsCoverCfg *args)
         return;
     }
     memor.set(&(MemoriaCfg){.dst = counts, .val = 0, .bytes = args->width});
-    // the cover's sides are far inside what an int represents, and a sample's column past them is clipped
+    // the sides of the cover are far inside what an int holds. The code clips the column of a sample past them
     const int pixel_height = (int)args->height;
     const int samples_width = (int)args->width * (int)ICONS_SAMPLES;
     const int top = (int)arith_floor_f32(min_y);
@@ -546,9 +552,9 @@ EMBED_INLINE float pen_angle(const IconsCtx *args)
     return (((args->ux * args->vy) - (args->uy * args->vx)) < 0.0f) ? -angle : angle;
 }
 
-// an elliptical arc drawn from the pen to x, y with radii rx, ry turned by `turn` degrees, the larger arc where
-// `large` is set and the one that sweeps clockwise where `sweep` is, as the path language's arc, its center found
-// from its ends and the arc walked in steps
+// an elliptical arc drawn from the pen to x, y, with radii rx, ry turned by `turn` degrees. Where `large` is on, it is
+// the larger arc. Where `sweep` is on, it is the arc that sweeps clockwise. This is the arc of the path language. The
+// code finds its center from its ends and walks the arc in steps
 EMBED_INLINE void pen_arc(const IconsCtx *args)
 {
     float x = args->x;
@@ -620,8 +626,8 @@ EMBED_INLINE void pen_arc(const IconsCtx *args)
     args->pen->y = y;
 }
 
-// a number read from `*at` as the path language writes one, a sign, digits and a fraction, the separators before it
-// passed over: 1 with the number into `value` and `*at` past it, or 0 where none is there
+// a number read from `*at` as the path language writes one: a sign, digits and a fraction. The call passes over the
+// separators before it. The result is 1, with the number into `value` and `*at` past it, or 0 where none is there
 EMBED_INLINE int icons_number(const IconsCtx *args)
 {
     const char **at = args->at;
@@ -763,8 +769,8 @@ EMBED_INLINE int pen_command(const IconsCtx *args)
     return 1;
 }
 
-// the path `d` drawn: each command with the numbers that follow it, a command's numbers repeating it, the pairs after
-// a move drawn as lines, and a close a line back to where the subpath began
+// the path `d`, drawn. Each command goes with the numbers that follow it, and more numbers repeat the command. The pairs
+// after a move draw as lines. A close is a line back to where the subpath began
 EMBED_INLINE void pen_path(const IconsCtx *args)
 {
     const char *at = args->d;
@@ -860,15 +866,15 @@ void gui_icons_init(const GuiIconsCfg *args)
     memor.set(&(MemoriaCfg){.dst = args->icons, .val = 0, .bytes = sizeof(*args->icons)});
 }
 
-// the shape `index` drawn at `size` with its line `stroke` wide into `mask`, the cover a cell of its own: 1, or 0
-// where a cell could not be taken
+// the shape `index`, drawn at `size` with its line `stroke` wide into `mask`, with the cover in a cell of its own. The
+// result is 1, or 0 where the call cannot take a cell
 EMBED_INLINE int icons_draw(const IconsCtx *args)
 {
     const unsigned long long pixels = (unsigned long long)args->size * args->size;
     // the coverage floats lie in the icons' work part of the block, one icon's at a time
     float *const floats = (float *)(void *)EMBED_CALL(gui_block_part.span, GuiBlockPartCfg, .part = GUI_BLOCK_ICON_WORK,
                                                      .bytes = pixels * sizeof(*floats));
-    // the cover is taken from the covers ring of the block, which the cache empties before it as it fills
+    // the cover comes from the covers ring of the block. The cache empties that ring before it as it fills
     unsigned char *const cover = EMBED_CALL(gui_block_part.take, GuiBlockPartCfg, .part = GUI_BLOCK_ICON_COVERS,
                                             .cursor = &args->icons->covers_used, .bytes = pixels);
     if ((floats == NULL) || (cover == NULL))
@@ -880,8 +886,8 @@ EMBED_INLINE int icons_draw(const IconsCtx *args)
     memor.set(&(MemoriaCfg){.dst = &pen, .val = 0, .bytes = sizeof(pen)});
     pen.cover = floats;
     pen.side = args->size;
-    // a shape on its own box is fitted to the square by the box's longer side and centered along its shorter
-    // a shape on no box of its own is on the icon's square
+    // a shape on its own box fits the square by the longer side of the box, centered along its shorter side. A shape
+    // on no box of its own is on the square of the icon
     static const float s_square[4] = {0.0f, 0.0f, GUI_ICON_UNITS, GUI_ICON_UNITS};
     const float *const box = (args->shape->box != NULL) ? args->shape->box : s_square;
     const float box_width = box[2];
@@ -954,7 +960,7 @@ const GuiMask *gui_icon_get(const GuiIconsCfg *args)
             return &entry->mask_bits;
         }
     }
-    // the cache full of entries, or its covers ring without room for this one, is emptied first
+    // where the cache is full of entries, or its covers ring has no room for this one, the call first empties it
     if ((args->icons->count >= GUI_ICON_CACHE_ENTRIES) ||
         (args->icons->covers_used + ((unsigned long long)size * size) >
          EMBED_CALL(gui_block_size.raster_bytes, GuiBlockSizeCfg)))

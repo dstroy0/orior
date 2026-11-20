@@ -4,7 +4,7 @@
 //
 // NVIDIA's listing of the tagged build is the answer key: the instructions between tag n and tag n + 1 are its writing
 // of precept n - 1, each with the 128 bits it encoded. For every one, our reader is queried for its text from those
-// bits, and our assembler for its bits from that text; the scheduler's bits, 105 to 127, are read apart, since no
+// bits, and our assembler for its bits from that text. The scheduler's bits, 105 to 127, are read apart, since no
 // listing prints them. Then the word our compiler writes the block's precept with (word_web.h) is written through
 // sass.krs with NVIDIA's own registers, assembled, and set beside NVIDIA's instruction. A precept no word implements is
 // reported with the tree the alphabet web writes it as (precepts.h). sass.krs, the machine file and the word web are
@@ -42,7 +42,7 @@ extern "C" const char __ehdr_start = 0;
 #endif
 
 // the operation's own bits of an encoding's high word: below bit 105 of the 128, where the scheduler's begin
-#define EMIT_OPERATION_HIGH ((1ull << 41u) - 1ull)
+#define EMIT_OPERATION_HIGH ((1ULL << 41u) - 1ULL)
 
 #define EMIT_NAMED(name_, text_, arity_) text_,
 
@@ -254,7 +254,7 @@ static std::string emit_binary(unsigned long long low, unsigned long long high)
     for (int bit = 127; bit >= 0; bit -= 1)
     {
         const unsigned long long word = (bit >= 64) ? high : low;
-        bits += ((word >> (unsigned int)(bit % 64)) & 1ull) ? '1' : '0';
+        bits += ((word >> (unsigned int)(bit % 64)) & 1ULL) ? '1' : '0';
         bits += ((bit % 8) == 0 && (bit != 0)) ? " " : "";
     }
     return bits;
@@ -275,8 +275,8 @@ static std::string emit_bits_apart(unsigned long long nvidia_low, unsigned long 
             snprintf(top, sizeof(top), "%-9d", bit);
             numbers += top;
         }
-        const unsigned long long theirs = (((bit >= 64) ? nvidia_high : nvidia_low) >> (unsigned int)(bit % 64)) & 1ull;
-        const unsigned long long mine = (((bit >= 64) ? high : low) >> (unsigned int)(bit % 64)) & 1ull;
+        const unsigned long long theirs = (((bit >= 64) ? nvidia_high : nvidia_low) >> (unsigned int)(bit % 64)) & 1ULL;
+        const unsigned long long mine = (((bit >= 64) ? high : low) >> (unsigned int)(bit % 64)) & 1ULL;
         marks += (theirs == mine) ? ' ' : ((bit >= 105) ? '.' : '^');
         marks += ((bit % 8) == 0 && (bit != 0)) ? " " : "";
     }
@@ -462,7 +462,7 @@ static void emit_unread_forms_read(const char *path, const SassMachine *machine)
         const unsigned long alike = strtoul(cells[5].c_str(), nullptr, 10);
         const unsigned long questioned = strtoul(cells[5].c_str() + of + 4u, nullptr, 10);
         if ((last < first) || (((last - first) + 1u) > EMIT_UNREAD_FORMS_WIDEST) || (alike != questioned) ||
-            (questioned == 0ul))
+            (questioned == 0UL))
         {
             continue;
         }
@@ -568,12 +568,12 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
         // instruction after the branch, and the address is given as the label's
         const size_t branch = line.text.find("BRA 0x");
         const unsigned long long target =
-            (branch == std::string::npos) ? 0ull : strtoull(line.text.c_str() + branch + 6u, nullptr, 16);
+            (branch == std::string::npos) ? 0ULL : strtoull(line.text.c_str() + branch + 6u, nullptr, 16);
         const std::string put = (branch == std::string::npos)
                                     ? line.text
                                     : (line.text.substr(0u, branch + 4u) + "`(" + line.text.substr(branch + 4u) + ")");
-        unsigned long long low = 0ull;
-        unsigned long long high = 0ull;
+        unsigned long long low = 0ULL;
+        unsigned long long high = 0ULL;
         if (!sass_assemble(machine, put.c_str(), line.address, target, SASS_CONTROL_BASE, &low, &high))
         {
             printf("         our assembler: refused it\n");
@@ -602,8 +602,8 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
         int unread_only = (operation == 0) && (form != nullptr);
         for (unsigned int bit = 0u; (operation == 0) && (bit < 105u); bit += 1u)
         {
-            const unsigned long long theirs = (bit < 64u) ? ((line.low >> bit) & 1ull) : ((line.high >> (bit - 64u)) & 1ull);
-            const unsigned long long mine = (bit < 64u) ? ((low >> bit) & 1ull) : ((high >> (bit - 64u)) & 1ull);
+            const unsigned long long theirs = (bit < 64u) ? ((line.low >> bit) & 1ULL) : ((line.high >> (bit - 64u)) & 1ULL);
+            const unsigned long long mine = (bit < 64u) ? ((low >> bit) & 1ULL) : ((high >> (bit - 64u)) & 1ULL);
             apart += (theirs != mine) ? ((apart.empty() ? "" : " ") + std::to_string(bit)) : "";
             unread_only = unread_only && ((theirs == mine) || emit_unread(form, bit));
         }
@@ -674,9 +674,9 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
             return;
         }
         const std::string plain = emit_plain(written);
-        unsigned long long low = 0ull;
-        unsigned long long high = 0ull;
-        const int assembles = sass_assemble(machine, plain.c_str(), 0ull, 0ull, SASS_CONTROL_BASE, &low, &high);
+        unsigned long long low = 0ULL;
+        unsigned long long high = 0ULL;
+        const int assembles = sass_assemble(machine, plain.c_str(), 0ULL, 0ULL, SASS_CONTROL_BASE, &low, &high);
         printf("  our compiler, candidate 2, the copy word: %s, %s\n", plain.c_str(),
                assembles ? "which assembles, one instruction where NVIDIA's block contains none"
                          : "which does not assemble");
@@ -697,9 +697,9 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
             trap = (line.text.find("TRAP") != std::string::npos) ? &line : trap;
             guard = (line.text.find("BRA") != std::string::npos) ? &line : guard;
         }
-        unsigned long long low = 0ull;
-        unsigned long long high = 0ull;
-        const int trap_written = (trap != nullptr) && sass_assemble(machine, trap->text.c_str(), trap->address, 0ull,
+        unsigned long long low = 0ULL;
+        unsigned long long high = 0ULL;
+        const int trap_written = (trap != nullptr) && sass_assemble(machine, trap->text.c_str(), trap->address, 0ULL,
                                                                     SASS_CONTROL_BASE, &low, &high);
         SassInstructionParts trap_parts;
         if (trap != nullptr)
@@ -738,12 +738,12 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
         std::string reads;
         for (unsigned int at = 0u; at < assembled; at += 1u)
         {
-            unsigned long long word_low = 0ull;
-            unsigned long long word_high = 0ull;
+            unsigned long long word_low = 0ULL;
+            unsigned long long word_high = 0ULL;
             memcpy(&word_low, &code[16u * at], 8u);
             memcpy(&word_high, &code[(16u * at) + 8u], 8u);
             char text[256];
-            reads += sass_encoding_read(machine, word_low, word_high, 16ull * at, text, sizeof(text)) ? emit_plain(text)
+            reads += sass_encoding_read(machine, word_low, word_high, 16ULL * at, text, sizeof(text)) ? emit_plain(text)
                                                                                                        : "(unread)";
             reads += (at + 1u < assembled) ? "; " : "";
         }
@@ -782,8 +782,8 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
         static unsigned char code[256];
         const unsigned int assembled =
             label ? sass_assemble_lines(machine, written.c_str(), SASS_CONTROL_BASE, code, sizeof(code)) : 0u;
-        unsigned long long low = 0ull;
-        unsigned long long high = 0ull;
+        unsigned long long low = 0ULL;
+        unsigned long long high = 0ULL;
         memcpy(&low, &code[0], 8u);
         memcpy(&high, &code[8], 8u);
         char text[256];
@@ -793,8 +793,8 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
                                       : std::string("(unread)");
         // the jump's guard and operation checked against NVIDIA's, its target apart: the label here lands where
         // label_loop is and NVIDIA's lands past its block
-        const unsigned long long guard_bits = 0xf000ull;
-        const unsigned long long operation_bits = 0xfffull;
+        const unsigned long long guard_bits = 0xf000ULL;
+        const unsigned long long operation_bits = 0xfffULL;
         const int same_guard = (assembled != 0u) && ((low & guard_bits) == (guard->low & guard_bits));
         const int same_operation = (assembled != 0u) && ((low & operation_bits) == (guard->low & operation_bits));
         printf("  our compiler, loop_back_if on %s: %s\n", where.c_str(), reads.c_str());
@@ -875,10 +875,10 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
             return;
         }
         const std::string plain = emit_plain(written);
-        unsigned long long low = 0ull;
-        unsigned long long high = 0ull;
+        unsigned long long low = 0ULL;
+        unsigned long long high = 0ULL;
         const int assembles =
-            sass_assemble(machine, plain.c_str(), core->address, 0ull, SASS_CONTROL_BASE, &low, &high);
+            sass_assemble(machine, plain.c_str(), core->address, 0ULL, SASS_CONTROL_BASE, &low, &high);
         const int same = assembles && (low == core->low) &&
                          ((high & EMIT_OPERATION_HIGH) == (core->high & EMIT_OPERATION_HIGH));
         printf("  our compiler, %s with its leaves %s: %s\n", word->name, (order == 0u) ? "in NVIDIA's order" : "swapped",
@@ -896,8 +896,8 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
         unsigned int places = assembles ? 0u : 105u;
         for (unsigned int bit = 0u; assembles && (bit < 105u); bit += 1u)
         {
-            const unsigned long long theirs = (bit < 64u) ? ((core->low >> bit) & 1ull) : ((core->high >> (bit - 64u)) & 1ull);
-            const unsigned long long mine = (bit < 64u) ? ((low >> bit) & 1ull) : ((high >> (bit - 64u)) & 1ull);
+            const unsigned long long theirs = (bit < 64u) ? ((core->low >> bit) & 1ULL) : ((core->high >> (bit - 64u)) & 1ULL);
+            const unsigned long long mine = (bit < 64u) ? ((low >> bit) & 1ULL) : ((high >> (bit - 64u)) & 1ULL);
             places += (theirs != mine) ? 1u : 0u;
         }
         if (places < recorded_apart)

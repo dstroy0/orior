@@ -5,13 +5,13 @@
 
 __device__ static long long tower_floor_shift(long long value, unsigned int shift)
 {
-    return (value >= 0ll) ? (value >> shift) : -(((-value) + (1ll << shift) - 1ll) >> shift);
+    return (value >= 0LL) ? (value >> shift) : -(((-value) + (1LL << shift) - 1LL) >> shift);
 }
 
 __device__ static unsigned long long tower_line(const TowerStep &step, unsigned long long index,
                                                 unsigned long long *along)
 {
-    unsigned long long offset = 0ull;
+    unsigned long long offset = 0ULL;
     unsigned long long rest = index;
     for (unsigned int axis = 4u; axis > 0u; axis -= 1u)
     {
@@ -29,9 +29,9 @@ __device__ static unsigned long long tower_line(const TowerStep &step, unsigned 
 __device__ static long long tower_high(const int *from, unsigned long long line, unsigned long long stride,
                                        unsigned long long length, unsigned long long j)
 {
-    const long long left = from[line + (2ull * j * stride)];
-    const long long right = ((2ull * j + 2ull) < length) ? (long long)from[line + ((2ull * j + 2ull) * stride)] : left;
-    return (long long)from[line + ((2ull * j + 1ull) * stride)] - tower_floor_shift(left + right, 1u);
+    const long long left = from[line + (2ULL * j * stride)];
+    const long long right = ((2ULL * j + 2ULL) < length) ? (long long)from[line + ((2ULL * j + 2ULL) * stride)] : left;
+    return (long long)from[line + ((2ULL * j + 1ULL) * stride)] - tower_floor_shift(left + right, 1u);
 }
 
 __global__ void tower_forward_kernel(const int *from, int *to, TowerStep step, unsigned int *overflow)
@@ -40,19 +40,19 @@ __global__ void tower_forward_kernel(const int *from, int *to, TowerStep step, u
     for (unsigned long long index = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x; index < step.count;
          index += jump)
     {
-        unsigned long long along = 0ull;
+        unsigned long long along = 0ULL;
         const unsigned long long line = tower_line(step, index, &along);
         const unsigned long long stride = step.stride[step.axis];
         const unsigned long long length = step.extent[step.axis];
-        const unsigned long long lows = (length + 1ull) / 2ull;
-        const unsigned long long highs = length / 2ull;
-        long long value = 0ll;
+        const unsigned long long lows = (length + 1ULL) / 2ULL;
+        const unsigned long long highs = length / 2ULL;
+        long long value = 0LL;
         if (along < lows)
         {
-            const long long before = (along > 0ull) ? tower_high(from, line, stride, length, along - 1ull)
-                                                    : tower_high(from, line, stride, length, 0ull);
+            const long long before = (along > 0ULL) ? tower_high(from, line, stride, length, along - 1ULL)
+                                                    : tower_high(from, line, stride, length, 0ULL);
             const long long after = (along < highs) ? tower_high(from, line, stride, length, along) : before;
-            value = (long long)from[line + (2ull * along * stride)] + tower_floor_shift(before + after + 2ll, 2u);
+            value = (long long)from[line + (2ULL * along * stride)] + tower_floor_shift(before + after + 2LL, 2u);
         }
         else
         {
@@ -69,9 +69,9 @@ __global__ void tower_forward_kernel(const int *from, int *to, TowerStep step, u
 __device__ static long long tower_even(const int *from, unsigned long long line, unsigned long long stride,
                                        unsigned long long lows, unsigned long long highs, unsigned long long i)
 {
-    const long long before = (long long)from[line + ((lows + ((i > 0ull) ? (i - 1ull) : 0ull)) * stride)];
+    const long long before = (long long)from[line + ((lows + ((i > 0ULL) ? (i - 1ULL) : 0ULL)) * stride)];
     const long long after = (i < highs) ? (long long)from[line + ((lows + i) * stride)] : before;
-    return (long long)from[line + (i * stride)] - tower_floor_shift(before + after + 2ll, 2u);
+    return (long long)from[line + (i * stride)] - tower_floor_shift(before + after + 2LL, 2u);
 }
 
 __global__ void tower_inverse_kernel(const int *from, int *to, TowerStep step)
@@ -80,23 +80,23 @@ __global__ void tower_inverse_kernel(const int *from, int *to, TowerStep step)
     for (unsigned long long index = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x; index < step.count;
          index += jump)
     {
-        unsigned long long along = 0ull;
+        unsigned long long along = 0ULL;
         const unsigned long long line = tower_line(step, index, &along);
         const unsigned long long stride = step.stride[step.axis];
         const unsigned long long length = step.extent[step.axis];
-        const unsigned long long lows = (length + 1ull) / 2ull;
-        const unsigned long long highs = length / 2ull;
-        long long value = 0ll;
-        if ((along % 2ull) == 0ull)
+        const unsigned long long lows = (length + 1ULL) / 2ULL;
+        const unsigned long long highs = length / 2ULL;
+        long long value = 0LL;
+        if ((along % 2ULL) == 0ULL)
         {
-            value = tower_even(from, line, stride, lows, highs, along / 2ull);
+            value = tower_even(from, line, stride, lows, highs, along / 2ULL);
         }
         else
         {
-            const unsigned long long j = along / 2ull;
+            const unsigned long long j = along / 2ULL;
             const long long left = tower_even(from, line, stride, lows, highs, j);
             const long long right =
-                ((2ull * j + 2ull) < length) ? tower_even(from, line, stride, lows, highs, j + 1ull) : left;
+                ((2ULL * j + 2ULL) < length) ? tower_even(from, line, stride, lows, highs, j + 1ULL) : left;
             value = (long long)from[line + ((lows + j) * stride)] + tower_floor_shift(left + right, 1u);
         }
         to[line + (along * stride)] = (int)value;
@@ -109,7 +109,7 @@ __global__ void tower_copy_kernel(const int *from, int *to, TowerStep step)
     for (unsigned long long index = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x; index < step.count;
          index += jump)
     {
-        unsigned long long along = 0ull;
+        unsigned long long along = 0ULL;
         const unsigned long long lane = tower_line(step, index, &along) + (along * step.stride[step.axis]);
         to[lane] = from[lane];
     }
@@ -122,7 +122,7 @@ __global__ void tower_edge_kernel(int *state, TowerStep region, const unsigned i
     for (unsigned long long index = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x; index < region.count;
          index += jump)
     {
-        unsigned long long offset = 0ull;
+        unsigned long long offset = 0ULL;
         unsigned long long rest = index;
         for (unsigned int axis = 4u; axis > 0u; axis -= 1u)
         {
@@ -166,13 +166,13 @@ __global__ void tower_differ_kernel(const int *rebuilt, const unsigned short *la
                                     unsigned long long *mismatches)
 {
     const unsigned long long jump = (unsigned long long)gridDim.x * blockDim.x;
-    unsigned long long differ = 0ull;
+    unsigned long long differ = 0ULL;
     for (unsigned long long index = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x; index < count;
          index += jump)
     {
-        differ += (rebuilt[index] != (int)lanes[index]) ? 1ull : 0ull;
+        differ += (rebuilt[index] != (int)lanes[index]) ? 1ULL : 0ULL;
     }
-    if (differ != 0ull)
+    if (differ != 0ULL)
     {
         atomicAdd(mismatches, differ);
     }
@@ -199,8 +199,8 @@ __global__ void tower_narrow_kernel(const int *rebuilt, unsigned long long count
 
 unsigned int tower_blocks(unsigned long long count)
 {
-    const unsigned long long needed = (count + TOWER_THREADS - 1ull) / TOWER_THREADS;
-    return (unsigned int)((needed < 65536ull) ? ((needed == 0ull) ? 1ull : needed) : 65536ull);
+    const unsigned long long needed = (count + TOWER_THREADS - 1ULL) / TOWER_THREADS;
+    return (unsigned int)((needed < 65536ULL) ? ((needed == 0ULL) ? 1ULL : needed) : 65536ULL);
 }
 
 std::vector<TowerStep> tower_floors(const unsigned long long *extent)
@@ -208,7 +208,7 @@ std::vector<TowerStep> tower_floors(const unsigned long long *extent)
     std::vector<TowerStep> floors;
     TowerStep step;
     memset(&step, 0, sizeof(step));
-    step.stride[3] = 1ull;
+    step.stride[3] = 1ULL;
     step.stride[2] = extent[3];
     step.stride[1] = extent[2] * extent[3];
     step.stride[0] = extent[1] * extent[2] * extent[3];
@@ -216,13 +216,13 @@ std::vector<TowerStep> tower_floors(const unsigned long long *extent)
     {
         step.extent[axis] = extent[axis];
     }
-    while ((step.extent[0] > 1ull) || (step.extent[1] > 1ull) || (step.extent[2] > 1ull) || (step.extent[3] > 1ull))
+    while ((step.extent[0] > 1ULL) || (step.extent[1] > 1ULL) || (step.extent[2] > 1ULL) || (step.extent[3] > 1ULL))
     {
         step.count = step.extent[0] * step.extent[1] * step.extent[2] * step.extent[3];
         floors.push_back(step);
         for (unsigned int axis = 0u; axis < 4u; axis += 1u)
         {
-            step.extent[axis] = (step.extent[axis] + 1ull) / 2ull;
+            step.extent[axis] = (step.extent[axis] + 1ULL) / 2ULL;
         }
     }
     return floors;
@@ -263,7 +263,7 @@ int tower_edge_reserve(unsigned int entries, EngineError *error)
 }
 
 // the pool's slices for `lanes`, in the order they are arranged and taken: the coefficients, the scratch, the flag and
-// the mismatch count; the plan is arranged from them, and a pool reserved from it takes them
+// the mismatch count. The plan is arranged from them, and a pool reserved from it takes them
 DevicePoolPlan tower_plan(size_t lanes, EngineError *error, DevicePoolTakeRequest takes[TOWER_SLICES])
 {
     TowerResident *const resident = &g_tower_resident;
@@ -272,7 +272,7 @@ DevicePoolPlan tower_plan(size_t lanes, EngineError *error, DevicePoolTakeReques
         {&resident->pool, lanes * sizeof(int), (void **)&resident->scratch, error},
         {&resident->pool, sizeof(unsigned int), (void **)&resident->flag, error},
         {&resident->pool, sizeof(unsigned long long), (void **)&resident->mismatches, error}};
-    DevicePoolPlan plan = {0ull, 0ull, 0};
+    DevicePoolPlan plan = {0ULL, 0ULL, 0};
     for (unsigned int at = 0u; at < TOWER_SLICES; at += 1u)
     {
         takes[at] = requests[at];

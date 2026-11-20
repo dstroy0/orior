@@ -29,7 +29,7 @@ static int cubin_safe_verdict_lines(const char *bytes, unsigned long long size)
 {
     char line[CUBIN_SAFE_GATED_LINE];
     int grown = 1;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while (grown && (at < size))
     {
         // the next line, as much of it as a gated line contains
@@ -38,9 +38,9 @@ static int cubin_safe_verdict_lines(const char *bytes, unsigned long long size)
         const size_t copied = (length < (sizeof(line) - 1u)) ? length : (sizeof(line) - 1u);
         memcpy(line, bytes + at, copied);
         line[copied] = '\0';
-        at += (unsigned long long)length + 1ull;
-        unsigned long long low = 0ull;
-        unsigned long long high = 0ull;
+        at += (unsigned long long)length + 1ULL;
+        unsigned long long low = 0ULL;
+        unsigned long long high = 0ULL;
         const char *read = line;
         if (!line_number(&read, 1, &low) || !line_number(&read, 1, &high))
         {
@@ -178,7 +178,7 @@ int cubin_safe_admitted_read(const char *bytes, unsigned long long size)
 {
     cubin_safe_admitted_clear();
     char line[CUBIN_SAFE_GATED_LINE];
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while (at < size)
     {
         // the next line, as much of it as a gated line contains
@@ -187,9 +187,9 @@ int cubin_safe_admitted_read(const char *bytes, unsigned long long size)
         const size_t copied = (length < (sizeof(line) - 1u)) ? length : (sizeof(line) - 1u);
         memcpy(line, bytes + at, copied);
         line[copied] = '\0';
-        at += (unsigned long long)length + 1ull;
-        unsigned long long low = 0ull;
-        unsigned long long high = 0ull;
+        at += (unsigned long long)length + 1ULL;
+        unsigned long long low = 0ULL;
+        unsigned long long high = 0ULL;
         const char *read = line;
         if (!line_characters(&read, "lesson ") || !line_characters(&read, "admitted ") || !line_characters(&read, "* ") ||
             !line_number(&read, 1, &low) || !line_number(&read, 1, &high))

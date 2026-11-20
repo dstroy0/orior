@@ -13,7 +13,7 @@
 # as code.
 #
 # A paper carries some of these types and not others, and it declares which in paper_config.py. The
-# mechanism is written once here; the count behind each declaration stays with the paper, because it
+# mechanism is written once here. The count behind each declaration stays with the paper, because it
 # is a fact about that paper and not about the mechanism.
 #
 # WHAT IS HERE AND WHAT IS NOT
@@ -63,7 +63,7 @@ def composed():
 def corrected(pairs):
     """Deletion: marks the extraction dropped, put back from a table read off the page.
 
-    This is the only grain that cannot be derived from the text, and it is here because the damage it
+    This is the only grain that cannot be derived from the text. It is here because the damage it
     repairs is not decidable from the text either. Davis and Mellesmoen prints l followed by a space
     for both l̓ with its space inserted and a plain l at a real boundary, and q̓íl q-s=a is the second
     while n-ká<k>əl -xal is the first. No rule separates them.

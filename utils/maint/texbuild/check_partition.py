@@ -105,7 +105,7 @@ def read_manifest(root):
             # then depended on line order alone.
             #
             # Silent last-write-wins is the wrong failure whichever way it lands. If the later row is
-            # right the manifest still carries a contradiction; if the earlier one is right a file is
+            # right the manifest still carries a contradiction. If the earlier one is right a file is
             # published on a row nobody meant to retain.
             key = normalize(fields[0])
             if key in entries:

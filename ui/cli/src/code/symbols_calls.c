@@ -265,7 +265,7 @@ EMBED_INLINE void calls_file_released(const SymbolsCallsCtx *args)
     if (args->file_out->languages != NULL)
     {
         g_cli_guard->persistent_buf_release(args->file_out->languages->languages.pair, g_cli_plugins_owner);
-        *(&args->file_out->languages->languages) = (CliLanguages){NULL, 0u, 0u};
+        args->file_out->languages->languages = (CliLanguages){NULL, 0u, 0u};
     }
     g_cli_guard->persistent_buf_release(args->file_out->languages, g_cli_code_owner);
     if (args->file_out->mapped && (args->file_out->text != NULL))

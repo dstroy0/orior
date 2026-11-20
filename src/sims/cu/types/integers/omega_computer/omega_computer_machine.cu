@@ -159,7 +159,7 @@ static int omega_computer_lookup(const OmegaComputerMachine *machine, int enviro
 // The thunk to its weak head normal form, by Krivine's machine with Sestoft's update frames: the stack stores arguments
 // (a thunk, shifted up one) and updates (a thunk, shifted up one, with the low bit set). A lambda meeting an argument
 // is a beta step; meeting an update, it becomes that thunk's value. A variable whose thunk is evaluated continues as
-// its value; one not yet evaluated is entered under an update; one already entered is needed to make its own value.
+// its value; one not yet evaluated is entered under an update. One already entered is needed to make its own value.
 // It never has one, and nor has the term.
 static OmegaComputerFate omega_computer_whnf(OmegaComputerMachine *machine, int root)
 {
@@ -211,7 +211,7 @@ static OmegaComputerFate omega_computer_whnf(OmegaComputerMachine *machine, int 
                 stack.pop_back();
                 environment = omega_computer_cell(machine->environments, top >> 1, environment);
                 term = node.left;
-                machine->steps += 1ull;
+                machine->steps += 1ULL;
                 continue;
             }
             OmegaComputerThunk &updated = machine->thunks[(size_t)(top >> 1)];
@@ -346,7 +346,7 @@ OmegaComputerFate omega_computer_run(OmegaComputerMachine *machine, const std::v
     machine->thunks.clear();
     machine->environments.clear();
     machine->spines.clear();
-    machine->steps = 0ull;
+    machine->steps = 0ULL;
     int root = 0;
     if (depth == 0u)
     {

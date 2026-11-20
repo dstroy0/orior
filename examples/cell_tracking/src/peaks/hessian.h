@@ -24,7 +24,7 @@ extern "C"
 #define HESSIAN_FACE_X_LOW 0x10u
 #define HESSIAN_FACE_X_HIGH 0x20u
 
-    // a difference is defined when every axis it reads has neither of its faces cutting the point's neighborhood; an
+    // a difference is defined when every axis it reads has neither of its faces cutting the point's neighborhood. An
     // undefined one is written as zero limbs, and the point's faces specify which ones they are
     typedef struct
     {

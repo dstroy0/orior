@@ -76,9 +76,9 @@ int PutLink::logged(PairWork &work) const
             // a flag bound to a literal is read as a flag, `P` before its name
             const int flag = (value == "PT") || (value == "!PT");
             read = (flag ? "P=" : "=") + from_names[parameter] + part;
-            literal_reads[read] = (value == "PT") ? 1ull
+            literal_reads[read] = (value == "PT") ? 1ULL
                                   : ((value == ruleset_physreg(work.sass, "zero")) || (value == "!PT"))
-                                      ? 0ull
+                                      ? 0ULL
                                       : (unsigned long long)std::stoll(value, nullptr, 0);
         }
         if (!read.empty() && (std::find(form_reads.begin(), form_reads.end(), read) == form_reads.end()))
@@ -183,7 +183,7 @@ int PutLink::logged(PairWork &work) const
                     const unsigned long long value =
                         ((2u * operand + 1u) < RUN_IN_WORDS)
                             ? (((unsigned long long)words[2u * operand + 1u] << 32u) | words[2u * operand])
-                            : 0ull;
+                            : 0ULL;
                     query_log_print(s_query_log, " %llx", value);
                     put_reads.back().second.push_back(value);
                 }

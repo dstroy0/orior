@@ -230,7 +230,7 @@ static GuiSystem *main_system_of(const MainCtx *args)
 // on
 static void main_present(const MainCtx *args)
 {
-    GuiSystem *const system = EMBED_CALL(main_system_of, MainCtx, .surface = args->order->surface);
+    const GuiSystem *const system = EMBED_CALL(main_system_of, MainCtx, .surface = args->order->surface);
     if ((system != NULL) && (args->order->type == CLI_VIEW_ORDER_PRESENT))
     {
         EMBED_CALL(gui_system_raster.present, GuiSystemRasterCfg, .system = system, .raster = &args->order->raster);
@@ -250,7 +250,7 @@ static void main_present(const MainCtx *args)
 static void main_pointer_put(const MainCtx *args)
 {
     const CliViewOrder *const order = args->order;
-    GuiSystem *const system = EMBED_CALL(main_system_of, MainCtx, .surface = order->surface);
+    const GuiSystem *const system = EMBED_CALL(main_system_of, MainCtx, .surface = order->surface);
     // a picture's sides are a few dozen pixels, not negative
     EMBED_CALL(gui_system_pointer.put, GuiSystemPointerCfg, .at = order->pointer, .system_read = system,
                .picture = order->raster.pixels, .width = (unsigned int)order->part.width,

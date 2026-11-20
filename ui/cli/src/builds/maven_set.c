@@ -13,7 +13,7 @@
 #include "maven_internal.h"
 
 // the bytes the user's settings written are taken with beyond what they contained
-#define CLI_MAVEN_SET_MORE 4096ull
+#define CLI_MAVEN_SET_MORE 4096ULL
 
 typedef struct
 {

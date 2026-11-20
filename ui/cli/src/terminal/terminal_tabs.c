@@ -453,7 +453,7 @@ EMBED_INLINE void terminal_unstore(const TerminalCtx *args)
 // the selection of the tab's view written to the clipboard, the selection let go: 1, or 0 where nothing is chosen
 EMBED_INLINE int terminal_copy(const TerminalCtx *args)
 {
-    TerminalTab *const tab = args->tab;
+    const TerminalTab *const tab = args->tab;
     CliPosition cursor = {0ULL, 0ULL};
     CliPosition anchor = {0ULL, 0ULL};
     if ((tab == NULL) || !tab->stored ||
@@ -891,10 +891,10 @@ int cli_terminal_tabs_command(const CliTerminalTabsCfg *args)
         // the args->words passed to the paste, a space between each, else the clipboard's text
         char text_words[CLI_PATH_MAX_LEN];
         VerbaLinea line = {text_words, sizeof(text_words), 0ULL};
-        for (unsigned int word = 0u; word < args->count; word += 1u)
+        for (unsigned int word_at = 0u; word_at < args->count; word_at += 1u)
         {
-            mmgr_line_put(&line, (word != 0u) ? " " : "");
-            mmgr_line_put(&line, args->words[word]);
+            mmgr_line_put(&line, (word_at != 0u) ? " " : "");
+            mmgr_line_put(&line, args->words[word_at]);
         }
         EMBED_CALL(terminal_paste, TerminalCtx, .bytes = (args->count != 0u) ? text_words : NULL,
                    .size = mmgr_line_ok(&line) ? line.at : 0ULL);
@@ -1119,7 +1119,7 @@ void cli_terminal_tabs_wheel(const CliTerminalTabsCfg *args)
     {
         return;
     }
-    TerminalTab *const tab = s_terminal.tab[at];
+    const TerminalTab *const tab = s_terminal.tab[at];
     // the args->view's top moved by the wheel's args->notches, down where positive, between the text's first line and
     // the first line of the screen drawn on
     const CliViewInput wheeled = {.type = CLI_VIEW_WHEEL, .wheel_rows = args->notches, .top = tab->xterm.base};

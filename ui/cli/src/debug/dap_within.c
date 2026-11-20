@@ -406,9 +406,11 @@ CliDap *cli_dap_within(const CliDapEmitCfg *args)
 {
     CliDapEventFn emit = args->emit;
     void *context = args->context;
+    unsigned int wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_queue_wake);
     while (s_serving)
     {
-        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_queue_wake);
+        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_queue_wake, .seen = wake_seen);
+        wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_queue_wake);
     }
     CliDap *const dap = cli_dap_position_alloc();
     if (dap == NULL)

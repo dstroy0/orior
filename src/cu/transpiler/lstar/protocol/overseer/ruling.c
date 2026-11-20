@@ -37,8 +37,8 @@ static void overseer_text_added(OverseerRuling *ruling, const char *text)
 }
 
 // the conference and the panic call, each every record of its name the run contains, gathered
-static unsigned char s_conference[QRY_WRITER_RING_BYTES / 2ull];
-static unsigned char s_call[QRY_WRITER_RING_BYTES / 2ull];
+static unsigned char s_conference[QRY_WRITER_RING_BYTES / 2ULL];
+static unsigned char s_call[QRY_WRITER_RING_BYTES / 2ULL];
 
 int overseer_convened(QryShared *run, const char *identity, int other_way_put, OverseerRuling *ruling)
 {
@@ -49,18 +49,18 @@ int overseer_convened(QryShared *run, const char *identity, int other_way_put, O
     overseer_conference_named(identity, name);
     const unsigned char *const conference = s_conference;
     const unsigned long long gathered = qry_member_gathered(name, s_conference, sizeof(s_conference));
-    const unsigned long long conference_size = (gathered == QRY_MEMBER_UNREAD) ? 0ull : gathered;
+    const unsigned long long conference_size = (gathered == QRY_MEMBER_UNREAD) ? 0ULL : gathered;
     // a question no party called a conference of, one answered as blocked or halted by the line, is received by no one
-    if ((run == NULL) || (conference_size == 0ull))
+    if ((run == NULL) || (conference_size == 0ULL))
     {
         return 0;
     }
     // the conference named in each row of it by the number of the question's identity
     const unsigned long long question = table_text(identity, strlen(identity));
-    overseer_accounts_read(tally, conference, conference_size, NULL, 0ull, run, question);
+    overseer_accounts_read(tally, conference, conference_size, NULL, 0ULL, run, question);
     // a panic on the line: every party's account of it received too, those the conference already contains received
     // once
-    if (qry_member_panicked() != 0ull)
+    if (qry_member_panicked() != 0ULL)
     {
         const unsigned long long call_size = qry_member_gathered(QRY_PANIC_CALL, s_call, sizeof(s_call));
         if (call_size != QRY_MEMBER_UNREAD)
@@ -99,7 +99,7 @@ int overseer_convened(QryShared *run, const char *identity, int other_way_put, O
     }
     ruling->own = own;
     char count[96];
-    VerbaLinea count_line = {count, sizeof(count), 0ull};
+    VerbaLinea count_line = {count, sizeof(count), 0ULL};
     mmgr_line_decimal(&count_line, tally->accounts, 0u);
     mmgr_line_put(&count_line, " accounts received, from");
     mmgr_line_finish(&count_line);
@@ -187,8 +187,8 @@ int overseer_convened(QryShared *run, const char *identity, int other_way_put, O
         {
             // the lesson a row of the run's table of lessons: its conference, its cause, its carrier, `*` at every
             // carrier, and the stand-in as written
-            unsigned long long lesson[2u + 4] = {0ull,
-                                                 0ull,
+            unsigned long long lesson[2u + 4] = {0ULL,
+                                                 0ULL,
                                                  question,
                                                  cause,
                                                  table_text(carrier, strlen(carrier)),
@@ -213,15 +213,15 @@ int overseer_convened(QryShared *run, const char *identity, int other_way_put, O
     overseer_account(run, identity, "overseer", ruling->text);
     // the conference a row of the run's table of conferences: the ruling, its accounts received, the lesson where one
     // was taught, and its words
-    unsigned long long ruled[2u + 8] = {0ull,
-                                        0ull,
+    unsigned long long ruled[2u + 8] = {0ULL,
+                                        0ULL,
                                         question,
-                                        ruling->agreed ? 1ull : 0ull,
+                                        ruling->agreed ? 1ULL : 0ULL,
                                         ruling->cause,
                                         ruling->side,
                                         ruling->guidance,
                                         ruling->accounts,
-                                        ruling->taught ? 1ull : 0ull,
+                                        ruling->taught ? 1ULL : 0ULL,
                                         table_text(ruling->text, strlen(ruling->text))};
     who_words(WHO_HERE, ruled);
     qry_member_append(OVERSEER_CONFERENCES_TABLE, ruled, sizeof(ruled), QRY_ORDINARY);
@@ -237,13 +237,13 @@ int overseer_admission(QryShared *run, const char *identity, const char *encodin
     overseer_conference_named(identity, name);
     const unsigned char *const conference = s_conference;
     const unsigned long long gathered = qry_member_gathered(name, s_conference, sizeof(s_conference));
-    const unsigned long long conference_size = (gathered == QRY_MEMBER_UNREAD) ? 0ull : gathered;
-    if ((run == NULL) || (conference_size == 0ull))
+    const unsigned long long conference_size = (gathered == QRY_MEMBER_UNREAD) ? 0ULL : gathered;
+    if ((run == NULL) || (conference_size == 0ULL))
     {
         return 0;
     }
     const unsigned long long question = table_text(identity, strlen(identity));
-    overseer_accounts_read(tally, conference, conference_size, NULL, 0ull, run, question);
+    overseer_accounts_read(tally, conference, conference_size, NULL, 0ULL, run, question);
     ruling->accounts = tally->accounts;
     if (tally->accounts == 0u)
     {
@@ -256,7 +256,7 @@ int overseer_admission(QryShared *run, const char *identity, const char *encodin
     ruling->side = (unsigned int)OVERSEER_SIDE_UNKNOWN;
     ruling->guidance = admitted ? (unsigned int)OVERSEER_PUT : (unsigned int)OVERSEER_HANDS_OFF;
     char count[160];
-    VerbaLinea count_line = {count, sizeof(count), 0ull};
+    VerbaLinea count_line = {count, sizeof(count), 0ULL};
     mmgr_line_decimal(&count_line, tally->accounts, 0u);
     mmgr_line_put(&count_line, " accounts received, ");
     mmgr_line_decimal(&count_line, tally->admits, 0u);
@@ -276,7 +276,7 @@ int overseer_admission(QryShared *run, const char *identity, const char *encodin
         ruling->taught = overseer_lesson_stored((unsigned int)OVERSEER_CAUSE_ADMITTED, "*", encoding);
         if (ruling->taught)
         {
-            unsigned long long lesson[2u + 4] = {0ull, 0ull, question, (unsigned int)OVERSEER_CAUSE_ADMITTED,
+            unsigned long long lesson[2u + 4] = {0ULL, 0ULL, question, (unsigned int)OVERSEER_CAUSE_ADMITTED,
                                                   table_text("*", 1u),
                                                   table_text(encoding, strlen(encoding))};
             who_words(WHO_HERE, lesson);
@@ -293,15 +293,15 @@ int overseer_admission(QryShared *run, const char *identity, const char *encodin
                                                           : "; passes off: a party blocks it");
     }
     overseer_account(run, identity, "overseer", ruling->text);
-    unsigned long long ruled[2u + 8] = {0ull,
-                                        0ull,
+    unsigned long long ruled[2u + 8] = {0ULL,
+                                        0ULL,
                                         question,
-                                        ruling->agreed ? 1ull : 0ull,
+                                        ruling->agreed ? 1ULL : 0ULL,
                                         ruling->cause,
                                         ruling->side,
                                         ruling->guidance,
                                         ruling->accounts,
-                                        ruling->taught ? 1ull : 0ull,
+                                        ruling->taught ? 1ULL : 0ULL,
                                         table_text(ruling->text, strlen(ruling->text))};
     who_words(WHO_HERE, ruled);
     qry_member_append(OVERSEER_CONFERENCES_TABLE, ruled, sizeof(ruled), QRY_ORDINARY);
@@ -311,7 +311,7 @@ int overseer_admission(QryShared *run, const char *identity, const char *encodin
 int overseer_admits(unsigned long long low, unsigned long long high)
 {
     char encoding[48];
-    VerbaLinea encoding_line = {encoding, sizeof(encoding), 0ull};
+    VerbaLinea encoding_line = {encoding, sizeof(encoding), 0ULL};
     mmgr_line_hex(&encoding_line, low, 16u);
     mmgr_line_ch(&encoding_line, ' ');
     mmgr_line_hex(&encoding_line, high, 16u);
@@ -341,7 +341,7 @@ int overseer_blocks(const char *located, const char *carrier, char *why, size_t 
         if ((strcmp(lesson->located, joined) == 0) &&
             ((strcmp(lesson->carrier, "*") == 0) || (strcmp(lesson->carrier, carrier) == 0)))
         {
-            VerbaLinea why_line = {why, room, 0ull};
+            VerbaLinea why_line = {why, room, 0ULL};
             mmgr_line_put(&why_line, "overseen: the conference blocked it, its cause ");
             mmgr_line_put(&why_line, s_cause_words[lesson->cause]);
             mmgr_line_finish(&why_line);
@@ -354,19 +354,19 @@ int overseer_blocks(const char *located, const char *carrier, char *why, size_t 
 unsigned int overseer_lessons_read(QryShared *run)
 {
     const unsigned char *bytes = NULL;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     if ((run == NULL) || !qry_member_blob(OVERSEER_LESSONS, &bytes, &size, NULL))
     {
         return 0u;
     }
     unsigned int read = 0u;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while (at < size)
     {
         const unsigned char *const line = bytes + at;
         const unsigned char *const found = (const unsigned char *)memchr(line, '\n', (size_t)(size - at));
         const size_t length = (size_t)(((found != NULL) ? found : (bytes + size)) - line);
-        at += (unsigned long long)length + 1ull;
+        at += (unsigned long long)length + 1ULL;
         char text[OVERSEER_STANDING_MAX_LEN + 128u];
         overseer_trimmed((const char *)line, (const char *)line + length, text, sizeof(text));
         char cause[32];
@@ -398,7 +398,7 @@ int overseer_lessons_passed(QryShared *run)
     }
     // a line a lesson, each sized for its longest
     static char s_lessons_text[OVERSEER_LESSONS_MAX * (OVERSEER_STANDING_MAX_LEN + OVERSEER_CARRIER_MAX_LEN + 32u)];
-    VerbaLinea text = {s_lessons_text, sizeof(s_lessons_text), 0ull};
+    VerbaLinea text = {s_lessons_text, sizeof(s_lessons_text), 0ULL};
     for (unsigned int at = 0u; at < s_lesson_count; at += 1u)
     {
         const OverseerLesson *const lesson = &s_lessons[at];

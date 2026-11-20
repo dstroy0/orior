@@ -94,7 +94,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\files\\test_files\\test_files.c");
+  UnityBegin("utils/test/src/ui/cli/unit/files/test_files/test_files.c");
   run_test(test_a_file_written_where_a_folder_exists_is_refused_with_the_systems_reason, "test_a_file_written_where_a_folder_exists_is_refused_with_the_systems_reason", 146);
   run_test(test_a_search_finds_every_line_in_cells_grown_end_their_first_capacity_each_released, "test_a_search_finds_every_line_in_cells_grown_end_their_first_capacity_each_released", 159);
   run_test(test_workers_searching_many_files_lose_no_line_and_return_them_in_the_order_of_the_files, "test_workers_searching_many_files_lose_no_line_and_return_them_in_the_order_of_the_files", 225);

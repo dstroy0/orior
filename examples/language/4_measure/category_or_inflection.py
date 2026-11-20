@@ -15,7 +15,7 @@
 # different problems and a channel that solves one does not touch the other.
 #
 # The split is multiplicative and exact. For any written word, the readings it carries divide into how
-# many types of word it can be, and how many readings it has left once the type is fixed. The two
+# many types of word it can be, and how many readings it left once the type is fixed. The two
 # multiply back to the whole. Each is reported as the geometric mean of its factor and the product of
 # the two columns is the geometric mean of the total.
 #

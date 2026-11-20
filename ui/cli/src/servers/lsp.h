@@ -42,7 +42,7 @@ typedef struct CliLspSizeTypeCfg CliLspSizeTypeCfg;
 #define CLI_LSP_COMPLAINT 4096u
 
 // the max bytes of orior's answer to a request of the server's
-#define CLI_LSP_ANSWERED (1ull << 20u)
+#define CLI_LSP_ANSWERED (1ULL << 20u)
 
 // A running language server
 typedef struct CliLsp CliLsp;
@@ -91,7 +91,7 @@ typedef struct
 } CliLspPart;
 
 // a piece of a message written as the literal `text_` is, its size counted from the literal
-#define CLI_LSP_RAW(text_) {(text_), sizeof(text_) - 1ull, 0, NULL, 0ull}
+#define CLI_LSP_RAW(text_) {(text_), sizeof(text_) - 1ULL, 0, NULL, 0ULL}
 
 // `size` bytes of a JSON body framed and written whole by `writer` under `lock`; the same of a body made of `count`
 // pieces, each text written as a JSON string's characters as it goes, so that a file's whole text is never copied: each 1,

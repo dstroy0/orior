@@ -93,7 +93,7 @@ def main():
             continue
 
         # THE REPLACEMENT MUST BE CLEAN. The thing being written into the file is graded by the same
-        # list that would reject it if a human had typed it there.
+        # list that would reject it if a human typed it there.
         hits = banned_in(replace)
         if hits:
             print("  BREAK line %d: the REPLACEMENT is itself banned" % number)

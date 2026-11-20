@@ -5,7 +5,7 @@
 
 // The code generator's text as a record program, the code generator's work where the programs run (engine_table.md item
 // 11(a), the code generator on the device). The core decides the forms of the language's ruleset a lane is written
-// in (codegen_core.h, MachineInstr); the assembly printer writes their text from the ruleset's own written forms positioned
+// in (codegen_core.h, MachineInstr). The assembly printer writes their text from the ruleset's own written forms positioned
 // out as tables, a lane a byte. Each lane reads one form, by the index, finds which of the form's pieces contains its
 // byte, and writes that byte: a character of a piece of the form's text, of a bank's written form around a register's
 // number, of a word the ruleset contains whole, or a decimal digit of a number. A lane past its form's end writes 0,
@@ -51,7 +51,7 @@
 #define ASM_PRINTER_RECORD_LIMBS ((ASM_PRINTER_RECORD_BITS + 31u) / 32u)
 
 // the max lanes and records the assembly printer runs: a first lane and a record's number are 32-bit fields
-#define ASM_PRINTER_LANES_MAX 0x80000000ull
+#define ASM_PRINTER_LANES_MAX 0x80000000ULL
 
 // the assembly printer: its key and layout, as keymath and key_schedule leave them, and what they took, retained so the
 // device positions it out again (layout_device, codegen_device.h): its steps, the fields' widths and offsets, its tables,
@@ -298,8 +298,8 @@ CODEGEN_CORE unsigned int asm_printer_byte(const unsigned int *record, unsigned 
 {
     const unsigned long long pair =
         (unsigned long long)record[offset / 32u] |
-        ((((offset / 32u) + 1u) < out_limbs) ? ((unsigned long long)record[(offset / 32u) + 1u] << 32u) : 0ull);
-    return (unsigned int)((pair >> (offset % 32u)) & 0xFFull);
+        ((((offset / 32u) + 1u) < out_limbs) ? ((unsigned long long)record[(offset / 32u) + 1u] << 32u) : 0ULL);
+    return (unsigned int)((pair >> (offset % 32u)) & 0xFFULL);
 }
 
 // the assembly printer and its tables for any lane the core decides in `rules` for `target` under `header`: 1 where it

@@ -81,7 +81,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\pages\\test_pages\\test_pages.c");
+  UnityBegin("utils/test/src/ui/cli/unit/pages/test_pages/test_pages.c");
   run_test(test_a_file_ending_in_a_newline_has_an_empty_line_last, "test_a_file_ending_in_a_newline_has_an_empty_line_last", 299);
   run_test(test_find_reaches_the_first_line_of_a_block_of_characters_of_one_byte_each, "test_find_reaches_the_first_line_of_a_block_of_characters_of_one_byte_each", 307);
   run_test(test_a_file_of_long_lines_has_its_lines_counted, "test_a_file_of_long_lines_has_its_lines_counted", 318);

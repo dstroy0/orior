@@ -17,7 +17,7 @@ extern "C"
 
 // the pool every program is on: the max bytes its two ends occupy at once, as the cellblock's own peaks read
 // them, rounded up to the next 32 MiB; the system gives the bytes as the pool is first made
-#define CLI_POOL_BYTES ((256ull << 20u) + (32ull << 20u))
+#define CLI_POOL_BYTES ((256ULL << 20u) + (32ULL << 20u))
 
 // the max movable cells the pool names at once
 #define CLI_POOL_MOVABLE (131072u + 1u)

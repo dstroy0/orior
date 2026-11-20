@@ -26,8 +26,8 @@ int khw_kernel_read(void)
     }
     qry_member_rings_settled();
     const unsigned char *kernel = NULL;
-    unsigned long long kernel_size = 0ull;
-    unsigned long long place = 0ull;
+    unsigned long long kernel_size = 0ULL;
+    unsigned long long place = 0ULL;
     KernelBlobHead head;
     if (!qry_member_blob(KERNEL_BLOB_NAME, &kernel, &kernel_size, &place) || (place < before) ||
         (kernel_size < sizeof(head)))
@@ -54,12 +54,12 @@ int khw_kernel_read(void)
     return 1;
 }
 
-// the forms the part has answered for, each with the relation it answered
+// the forms the part answered for, each with the relation it answered
 KhwAnswered s_named[KHW_FORMS];
 
 unsigned int s_names;
 
-// 1 where `low` and `high` is already one of the forms the part has answered for
+// 1 where `low` and `high` is already one of the forms the part answered for
 int khw_named_already(unsigned long long low, unsigned long long high)
 {
     for (unsigned int at = 0u; at < s_names; at += 1u)
@@ -72,7 +72,7 @@ int khw_named_already(unsigned long long low, unsigned long long high)
     return 0;
 }
 
-// `low` and `high` queried its relation and its fields, and recorded among the forms the part has answered for where it
+// `low` and `high` queried its relation and its fields, and recorded among the forms the part answered for where it
 // answered one, whether the vendor's table names it: what the part answered is the protocol's, and only the
 // file written at the end takes a name (P14). 1 where it was recorded
 int khw_form_queried(unsigned long long low, unsigned long long high)
@@ -110,7 +110,7 @@ static unsigned int khw_register_bits(const char *ksc)
         if (ksc_row_read(s_file.line[line], "run", &s_row) && (strcmp(s_row.answer, "answers") == 0) &&
             (strncmp(s_row.question, "register last", 13u) == 0))
         {
-            for (bits = 0u; (bits < 64u) && ((s_row.value >> bits) != 0ull); bits += 1u)
+            for (bits = 0u; (bits < 64u) && ((s_row.value >> bits) != 0ULL); bits += 1u)
             {
             }
         }
@@ -145,8 +145,8 @@ static void khw_seed_added(unsigned long long *seed_low, unsigned long long *see
 
 // Every seed of the run's blob `name` queried its relation from the top in the position, each a line `<low> <high>` in
 // hex as a vendor's reader of a listing writes it (orior_sass_listing_seeds): one that answers a ladder relation enters
-// the working set as a discovered form, its fields left for the turns and register passes once a cross has read them,
-// and one that answers none, or is a form the part has answered for already, is passed over. A seed is put with the
+// the working set as a discovered form, its fields left for the turns and register passes once a cross read them,
+// and one that answers none, or is a form the part answered for already, is passed over. A seed is put with the
 // position's own registers: a listing's instruction names the compiler's registers, and the position's case words lie
 // in the kernel's. The words the kernel's own classified form contains at its register fields are written into the seed
 // at the same fields, every other register field is set in turn to the zero register the part answered, and the part
@@ -217,7 +217,7 @@ static unsigned int khw_round_related(const unsigned long long *lows, const unsi
 unsigned int khw_seeds_queried(const char *name)
 {
     const unsigned char *bytes = NULL;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     if (!qry_member_blob(name, &bytes, &size, NULL))
     {
         printf("  khw_write: the run contains no seeds %s\n", name);
@@ -261,11 +261,11 @@ unsigned int khw_seeds_queried(const char *name)
     static unsigned long long s_seed_high[KHW_SEEDS_MAX];
     unsigned int seeds = 0u;
     char line[256];
-    unsigned long long next = 0ull;
+    unsigned long long next = 0ULL;
     while ((seeds < KHW_SEEDS_MAX) && line_read(bytes, size, &next, line, sizeof(line)))
     {
-        unsigned long long low = 0ull;
-        unsigned long long high = 0ull;
+        unsigned long long low = 0ULL;
+        unsigned long long high = 0ULL;
         const char *at = line;
         if (!line_number(&at, 1, &low) || !line_number(&at, 1, &high))
         {
@@ -399,7 +399,7 @@ unsigned int khw_widened(unsigned int from, int discover)
             }
             unsigned long long low = form.low;
             unsigned long long high = form.high;
-            khw_run_write(&low, &high, bit, bit, khw_run_read(low, high, bit, bit) ^ 1ull);
+            khw_run_write(&low, &high, bit, bit, khw_run_read(low, high, bit, bit) ^ 1ULL);
             int seen = inside || khw_named_already(low, high);
             for (unsigned int other = 0u; (other < turned) && !seen; other += 1u)
             {

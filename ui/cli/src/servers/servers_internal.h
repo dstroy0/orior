@@ -91,22 +91,22 @@ typedef struct CliServersRootTypeCtx CliServersRootTypeCtx;
 // how long a request is waited on, and a search of the whole tree, in milliseconds; how many files the check has open
 // at once; how long it waits for a file's diagnostics and for any after them; how often an ended server is started
 // again, at max that many times within that many milliseconds; and the max bytes of a file the check reads
-#define CLI_SERVERS_REQUEST_TIMEOUT_MS 5000ull
-#define CLI_SERVERS_SEARCHING 60000ull
+#define CLI_SERVERS_REQUEST_TIMEOUT_MS 5000ULL
+#define CLI_SERVERS_SEARCHING 60000ULL
 #define CLI_SERVERS_CHECKING 6u
-#define CLI_SERVERS_PATIENCE 30000ull
-#define CLI_SERVERS_QUIET 250ull
+#define CLI_SERVERS_PATIENCE 30000ULL
+#define CLI_SERVERS_QUIET 250ULL
 #define CLI_SERVERS_RESTARTS 3u
-#define CLI_SERVERS_RESTARTS_WITHIN 60000ull
-#define CLI_SERVERS_LARGEST (2ull << 20u)
+#define CLI_SERVERS_RESTARTS_WITHIN 60000ULL
+#define CLI_SERVERS_LARGEST (2ULL << 20u)
 
 // the name the findings of the files impero reads itself are stored by, beside the checkers'
 #define CLI_SERVERS_OWN "orior"
 
 // the max bytes of a text written from one server's answer or one file's findings, and of what a check of the whole
 // tree finds; and the max nodes a tree contains
-#define CLI_SERVERS_ANSWER (8ull << 20u)
-#define CLI_SERVERS_FINDINGS (32ull << 20u)
+#define CLI_SERVERS_ANSWER (8ULL << 20u)
+#define CLI_SERVERS_FINDINGS (32ULL << 20u)
 #define CLI_SERVERS_NODES (1u << 18u)
 
 // the max bytes of a request's params about a file: its path as a URI, a place and a new name
@@ -150,10 +150,10 @@ typedef struct
 // the asks a server given the tree's slices remembers the times of; and the quiet it is let go after, in
 // milliseconds: the least, what each ask of the last minute adds, the max, and the minute
 #define CLI_SERVERS_REQUESTS 128u
-#define CLI_SERVERS_QUIET_MIN 2000ull
-#define CLI_SERVERS_QUIET_EACH 500ull
-#define CLI_SERVERS_QUIET_MAX 60000ull
-#define CLI_SERVERS_REQUESTS_WITHIN 60000ull
+#define CLI_SERVERS_QUIET_MIN 2000ULL
+#define CLI_SERVERS_QUIET_EACH 500ULL
+#define CLI_SERVERS_QUIET_MAX 60000ULL
+#define CLI_SERVERS_REQUESTS_WITHIN 60000ULL
 
 // A server running: whether its place is taken, the server, and its spec; and for a server given the tree's slices,
 // the asks waiting on it, the times of its last asks in a ring and how many it was asked, and when it was last asked
@@ -300,7 +300,7 @@ extern CliKeyed g_cli_servers_input;
 extern CliKeyed g_cli_servers_supplied;
 
 // the max bytes of a job of the servers: a file's text and what is reported of it
-#define CLI_SERVERS_JOB_CAPACITY (CLI_SERVERS_LARGEST + (64ull << 10u))
+#define CLI_SERVERS_JOB_CAPACITY (CLI_SERVERS_LARGEST + (64ULL << 10u))
 
 // A job of the servers done on one of their threads, from `size` bytes of it, its own copy of what it was passed
 typedef void (*CliServersJob)(const CliServersJobCfg *args);

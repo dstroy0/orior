@@ -203,7 +203,7 @@ double arith_cos(double angle)
     return by_quadrant[quadrant.quadrant];
 }
 
-// the natural logarithm of two in two parts, and of e in base two; the power past which e to it overflows, the power
+// the natural logarithm of two in two parts, and of e in base two. The power past which e to it overflows, the power
 // below which it is 0
 #define ARITH_LN2_HIGH 0.6931471803691238
 #define ARITH_LN2_LOW 1.9082149292705877e-10

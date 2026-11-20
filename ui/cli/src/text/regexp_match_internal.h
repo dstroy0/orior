@@ -18,7 +18,7 @@ typedef struct CliRegexpMatchACtx CliRegexpMatchACtx;
 #define CLI_REGEXP_ENDS_MAX (1u << 22u)
 #define CLI_REGEXP_ENDS_STACKED 256u
 
-#define CLI_REGEXP_NO_PASS 0xffffffffffffffffull
+#define CLI_REGEXP_NO_PASS 0xffffffffffffffffULL
 
 // Where a match is: the text and its length, each group's span, the steps taken, where the match's end was passed,
 // and the address its stack was at as it began; and the passes' ends of the one-way repeats located on the stack,

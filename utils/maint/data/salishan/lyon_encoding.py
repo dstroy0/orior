@@ -28,7 +28,7 @@
 # character. Page 25 settles the first as sp̓lák̓səlx and page 24 the second as iʔ k̓l. `wa’y` and `Lyon’s`
 # are the same case with the space missing instead of inserted.
 #
-# Those are the sites to read first on any page, and they are why this file is not a repair in
+# Those are the sites to read first on any page. They are why this file is not a repair in
 # papers.py: a repair is applied and trusted, and this has to be checked.
 
 import re
@@ -43,7 +43,7 @@ import unicodedata
 MOVED = {"’": "̓", "´": "́"}
 
 # What the glyph codes are for, one for one, wherever they appear in a Salish token. ; was in this
-# table until níkmən; showed that it is not one for one: see lengthened().
+# table until níkmən. Showed that it is not one for one: see lengthened().
 CHARACTERS = (
     ("@", "ə"),
     ("ì", "ɬ"),

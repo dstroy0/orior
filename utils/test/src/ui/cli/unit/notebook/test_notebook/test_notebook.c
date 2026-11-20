@@ -42,7 +42,7 @@ static unsigned int read_as(const char *path, const char *text, unsigned long lo
     return EMBED_CALL(cli_notebook_path.read, CliNotebookPathCfg, .json = tree_emptied(), .path = path, .text = text, .size = size, .tokens = s_token, .tokens_max = sizeof(s_token) / sizeof(s_token[0]), .err_msg = &err_msg);
 }
 
-// a string reached from `node` by `count` members or items, each a name or, where it starts with `#`, an index of one digit; the empty
+// a string reached from `node` by `count` members or items, each a name or, where it starts with `#`, an index of one digit. The empty
 // string where it has none
 static const char *string_at(unsigned int node, const char *const *path, unsigned int count)
 {

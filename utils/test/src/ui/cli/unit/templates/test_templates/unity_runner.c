@@ -74,7 +74,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\templates\\test_templates\\test_templates.c");
+  UnityBegin("utils/test/src/ui/cli/unit/templates/test_templates/test_templates.c");
   run_test(test_a_project_has_its_name_substituted_everywhere, "test_a_project_has_its_name_substituted_everywhere", 43);
   run_test(test_a_binary_file_copies_unchanged, "test_a_binary_file_copies_unchanged", 54);
   run_test(test_an_existing_folder_is_not_overwritten, "test_an_existing_folder_is_not_overwritten", 64);

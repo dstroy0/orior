@@ -142,14 +142,14 @@ typedef struct
 // critical errors are registered and read under, and the event a wait fills: the part's handle, the type stamped and
 // its datum, with room past them for the fields a newer management layer adds; an older one's shorter event is read
 // into that same space
-#define CUBIN_RUN_XID 0x0000000000000008ull
+#define CUBIN_RUN_XID 0x0000000000000008ULL
 
 #if defined(_WIN32)
 
 // a subscription to the events a channel is written from now on, and an event rendered as its XML
-#define CUBIN_RUN_EVENTS_FUTURE 1ul
+#define CUBIN_RUN_EVENTS_FUTURE 1UL
 
-#define CUBIN_RUN_EVENTS_XML 1ul
+#define CUBIN_RUN_EVENTS_XML 1UL
 
 #endif
 

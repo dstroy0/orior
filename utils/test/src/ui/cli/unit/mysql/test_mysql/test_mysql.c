@@ -13,7 +13,7 @@
 #define MYSQL_VALUES 4u
 #define MYSQL_VALUE 64u
 
-// What stops a statement, sent from a thread of its own once 400 milliseconds have passed
+// What stops a statement, sent from a thread of its own once 400 milliseconds passed
 typedef struct
 {
     CliMysqlCancel cancel;

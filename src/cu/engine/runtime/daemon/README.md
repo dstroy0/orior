@@ -56,7 +56,7 @@ the deadlines, the retained peaks) are one source, `tessera_ledger_core.h`, whic
 both the host and the device. The daemon's ledger (`tessera_ledger.c`) grows its rooms and then runs the core. The
 daemon stays as it is: it builds with no CUDA toolchain and makes no CUDA context. The device's tessera
 (`tessera_device.h`, `tessera.cu`) positions a ledger in the device's memory, and one thread makes a list of calls
-(`TesseraCall`) in order, each answered (`TesseraAnswer`). A call that could add more than the ledger's rooms hold errors before it changes anything; the host grows the rooms on the device, and the run goes on from that call.
+(`TesseraCall`) in order, each answered (`TesseraAnswer`). A call that could add more than the ledger's rooms hold errors before it changes anything. The host grows the rooms on the device, and the run goes on from that call.
 The device's tessera builds only where `nvcc` is.
 
 `utils/test/src/cu/engine/runtime/daemon/tessera_test.sh` holds the two to each other. It makes one seeded stream of calls of each
@@ -188,7 +188,7 @@ and a pid reused by a new process is never taken for the old one.
 3. Declaring exactly the retained peak is admitted at once, over its located.
 4. Declaring four times the peak with no answer is withheld for its 0.4 s holding time, then lost. The ticket names
    its lost and found directory, and the precalc saved releases it. The ticket's seal holds with the note in it.
-5. Once the daemon has ended, the history it left is whole records and a seal. The test damages one byte of it,
+5. Once the daemon ended, the history it left is whole records and a seal. The test damages one byte of it,
    then cuts one byte off, then strips the seal. Each time the submit errors because no daemon starts on it.
    With the file restored, the daemon starts and the same signum over its peak is asked with the retained peak, and the
    history really was read.

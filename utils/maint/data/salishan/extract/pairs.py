@@ -775,7 +775,7 @@ def roots(out, context, example_of):
     An item is a root or its variants and a gloss, a. √pəq, paq ‘white’, perhaps with a word built on
     it, (as in ƛ̓ál-ləx ‘stop (oneself)’), or roots set against each other, a. √səq vs. √səq̓, with their
     glosses on the line below in the same order, ‘split’ ‘crack’. Each root is a root row and each
-    gloss a translation; the word it is found in is the item's second line, a segmentation and its
+    gloss a translation. The word it is found in is the item's second line, a segmentation and its
     translation. Roots set against each other take a line each.
     """
     named = getattr(context, "ROOTS", ())
@@ -926,7 +926,7 @@ def wordlist(out, context, example_of):
 
     A gloss the cell wraps goes on over the lines after it, ‘dregs at the / bottom’, and a phrase can
     take two lines before its gloss, ʔe skə̣l̓na píx̣mek ʔa / ze / ‘buckskin was hung ...’. The engine
-    reads the table as one note and each word as a candidate; both give way to a row a word, Table
+    reads the table as one note and each word as a candidate. Both give way to a row a word, Table
     A1 line N, the word a transcription and its gloss a translation.
     """
     named = getattr(context, "WORDLIST", ())

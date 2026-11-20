@@ -37,19 +37,19 @@
 // the guard bits Machin's bracket is taken at past the bits read
 #define PLANE_GUARD 32u
 
-#define PLANE_PUBLISHED_BITS 0x243F6A8885A308D3ull
+#define PLANE_PUBLISHED_BITS 0x243F6A8885A308D3ULL
 
 #define PLANE_DRAWS 99u
 
-#define PLANE_KEY 0x504C414E45ull
+#define PLANE_KEY 0x504C414E45ULL
 
 #define PLANE_THREADS 256u
 
 // the widest part of a line's step on a shape
-#define PLANE_STEP_MAX 6ll
+#define PLANE_STEP_MAX 6LL
 
 // a picture's longer side is scaled up to at max this many pixels
-#define PLANE_PICTURE_MAX 1024ull
+#define PLANE_PICTURE_MAX 1024ULL
 
 // the shade of a pixel no bit lands on, midway. A one and a zero are equally far from it
 #define PLANE_EMPTY_SHADE 128u
@@ -61,12 +61,12 @@
 #define PLANE_FIBONACCI 20u
 
 // the empty columns between the sphere's four views in its picture
-#define PLANE_SPHERE_GAP 3ll
+#define PLANE_SPHERE_GAP 3LL
 
 // the rings are drawn unrolled at this many pixels across, each ring a row this tall
-#define PLANE_RING_UNROLLED_WIDTH 2048ull
+#define PLANE_RING_UNROLLED_WIDTH 2048ULL
 
-#define PLANE_RING_ROW 24ull
+#define PLANE_RING_ROW 24ULL
 
 // the fixed point, 2^this, the rings' turn is taken in
 #define PLANE_FIXED 40u
@@ -74,7 +74,7 @@
 // the rings drawn enlarged about the center, and how much
 #define PLANE_RING_CENTER 10u
 
-#define PLANE_RING_CENTER_SCALE 2ll
+#define PLANE_RING_CENTER_SCALE 2LL
 
 typedef struct
 {

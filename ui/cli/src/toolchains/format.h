@@ -17,7 +17,7 @@ typedef struct CliFormatCfg CliFormatCfg;
 typedef struct CliFormatLanguageCfg CliFormatLanguageCfg;
 
 // how long a formatter may take before it is stopped, in milliseconds
-#define CLI_FORMAT_PATIENCE 30000ull
+#define CLI_FORMAT_PATIENCE 30000ULL
 
 // the language a file opens in, by its extension, as the window chooses it, into `id`, sized for CLI_NAME_MAX_LEN:
 // one of the reader's plugins ahead of one that comes with orior, and of two that come with orior the first by id. 1,

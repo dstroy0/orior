@@ -588,5 +588,5 @@ void cli_servers_check_one(const CliServersPathSinkCtx *args)
     EMBED_CALL(check_one_run, ServersCheckOneCtx, .checker = args->checker, .path = args->path,
                .text = (const char *)mapped, .size = size, .one = args->one_servers_waiting_pointer,
                .sink = args->sink);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)mapped, (g_cli_servers_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)mapped, g_cli_servers_owner);
 }

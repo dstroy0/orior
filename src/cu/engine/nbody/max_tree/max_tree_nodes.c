@@ -464,7 +464,7 @@ long max_tree_probe_levels(const MaxTreeProbeRequest *request)
     for (unsigned int at = 0u; at < probes; at += 1u)
     {
         // the low word of a key is the probe's index
-        request->sorted[at] = (unsigned int)(keys[at] & 0xFFFFFFFFull);
+        request->sorted[at] = (unsigned int)(keys[at] & 0xFFFFFFFFULL);
     }
     for (unsigned int at = 0u; (at + 1u) < probes; at += 1u)
     {

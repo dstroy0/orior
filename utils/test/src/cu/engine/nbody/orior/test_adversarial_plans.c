@@ -86,7 +86,7 @@ int adversarial_case_sampling_cost(void)
     // BUILT HERE, THOUGH bench_corpora BUILDS THE SAME FIELD. This was briefly folded
     // onto bench_build_bytes(CORPUS_PERIODIC), whose body is character for character this loop, and
     // the fold was withdrawn: it would make a test depend on a bench corpus, and a bench corpus that
-    // cannot be retuned without checking what it silently changed in the test suite has stopped
+    // cannot be retuned without checking what it silently changed in the test suite stopped
     // being a benchmark. utils/test/ answers whether the engine is right and utils/bench/ answers how fast, and
     // the dependency only runs one way.
     //
@@ -178,7 +178,7 @@ int adversarial_case_permutation_null(void)
  *       verifier is wrong and every other count in the tree rests on nothing, because every probe
  *       set relies on that same compare to remove its false survivors.
  * @note The read count is graded at zero as a premise check. Probes reading bytes where no probe
- *       was supplied would mean the entry is choosing its own, and the case would be measuring
+ *       was supplied would mean the entry chooses its own, and the case would be measuring
  *       something other than the identity.
  */
 int adversarial_case_empty_plan(void)

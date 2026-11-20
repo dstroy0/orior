@@ -22,7 +22,7 @@ static void msq_register_add(MsqRegisters *set, unsigned long long number)
 {
     if (number < MSQ_REGISTERS)
     {
-        set->bits[number / 64u] |= 1ull << (number % 64u);
+        set->bits[number / 64u] |= 1ULL << (number % 64u);
     }
 }
 
@@ -48,16 +48,16 @@ static int msq_addresses_added(const char *raw, MsqRegisters *set)
             continue;
         }
         walk += 1u;
-        unsigned long long number = 0ull;
+        unsigned long long number = 0ULL;
         while ((raw[walk] >= '0') && (raw[walk] <= '9'))
         {
-            number = (number * 10ull) + (unsigned long long)(raw[walk] - '0');
+            number = (number * 10ULL) + (unsigned long long)(raw[walk] - '0');
             walk += 1u;
         }
         msq_register_add(set, number);
         if (strncmp(raw + walk, ".64", 3u) == 0)
         {
-            msq_register_add(set, number + 1ull);
+            msq_register_add(set, number + 1ULL);
         }
     }
     return (strncmp(raw, "EXIT", 4u) == 0) && !msq_word(raw[4]);
@@ -130,10 +130,10 @@ int msq_register_reached(const char *body, unsigned int registers, unsigned long
             continue;
         }
         size_t walk = at + 1u;
-        unsigned long long number = 0ull;
+        unsigned long long number = 0ULL;
         while ((rest[walk] >= '0') && (rest[walk] <= '9'))
         {
-            number = (number * 10ull) + (unsigned long long)(rest[walk] - '0');
+            number = (number * 10ULL) + (unsigned long long)(rest[walk] - '0');
             walk += 1u;
         }
         // the width the operand names where `.64` or `.128` follows it and a word's edge after that, else the
@@ -180,10 +180,10 @@ void msq_registers_written(const char *body, MsqRegisters *set)
         return;
     }
     size_t walk = 1u;
-    unsigned long long number = 0ull;
+    unsigned long long number = 0ULL;
     while ((first[walk] >= '0') && (first[walk] <= '9'))
     {
-        number = (number * 10ull) + (unsigned long long)(first[walk] - '0');
+        number = (number * 10ULL) + (unsigned long long)(first[walk] - '0');
         walk += 1u;
     }
     if (msq_word(first[walk]))
@@ -220,14 +220,14 @@ int msq_container_code(const MsqBytes *container, MsqBytes *code)
 {
     const unsigned char *const data = container->bytes;
     const unsigned long long size = container->size;
-    if ((size < 0x40ull) || (memcmp(data,
+    if ((size < 0x40ULL) || (memcmp(data,
                                     "\x7f"
                                     "ELF",
                                     4u) != 0))
     {
         return 0;
     }
-    unsigned long long section_offset = 0ull;
+    unsigned long long section_offset = 0ULL;
     memcpy(&section_offset, data + 0x28u, 8u);
     unsigned short entry_size = 0u;
     unsigned short entries = 0u;
@@ -236,21 +236,21 @@ int msq_container_code(const MsqBytes *container, MsqBytes *code)
     for (unsigned int index = 0u; index < entries; index += 1u)
     {
         const unsigned long long header = section_offset + ((unsigned long long)index * entry_size);
-        if ((header + 0x28ull) > size)
+        if ((header + 0x28ULL) > size)
         {
             return 0;
         }
-        unsigned long long flags = 0ull;
-        unsigned long long offset = 0ull;
-        unsigned long long length = 0ull;
+        unsigned long long flags = 0ULL;
+        unsigned long long offset = 0ULL;
+        unsigned long long length = 0ULL;
         memcpy(&flags, data + header + 0x08u, 8u);
         memcpy(&offset, data + header + 0x18u, 8u);
         memcpy(&length, data + header + 0x20u, 8u);
-        if (((flags & MSQ_EXECUTABLE) != 0ull) && (length != 0ull))
+        if (((flags & MSQ_EXECUTABLE) != 0ULL) && (length != 0ULL))
         {
             // the section as far as the container contains it
             code->bytes = data + ((offset < size) ? offset : size);
-            code->size = (offset < size) ? (((offset + length) <= size) ? length : (size - offset)) : 0ull;
+            code->size = (offset < size) ? (((offset + length) <= size) ? length : (size - offset)) : 0ULL;
             return 1;
         }
     }
@@ -259,10 +259,10 @@ int msq_container_code(const MsqBytes *container, MsqBytes *code)
 
 static unsigned long long msq_bytes_hash(const MsqBytes *item)
 {
-    unsigned long long hash = 0xcbf29ce484222325ull;
-    for (unsigned long long at = 0ull; at < item->size; at += 1ull)
+    unsigned long long hash = 0xcbf29ce484222325ULL;
+    for (unsigned long long at = 0ULL; at < item->size; at += 1ULL)
     {
-        hash = (hash ^ item->bytes[at]) * 0x100000001b3ull;
+        hash = (hash ^ item->bytes[at]) * 0x100000001b3ULL;
     }
     return hash;
 }
@@ -306,7 +306,7 @@ size_t msq_distinct_index(MsqDistinct *set, const MsqBytes *item)
             return set->count - 1u;
         }
         if ((set->items[stored].size == item->size) &&
-            ((item->size == 0ull) || (memcmp(set->items[stored].bytes, item->bytes, (size_t)item->size) == 0)))
+            ((item->size == 0ULL) || (memcmp(set->items[stored].bytes, item->bytes, (size_t)item->size) == 0)))
         {
             return stored;
         }

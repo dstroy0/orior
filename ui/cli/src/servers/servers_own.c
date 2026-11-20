@@ -211,13 +211,13 @@ EMBED_INLINE void own_tree_file(const ServersOwnCtx *args)
     if ((mapped == NULL) ||
         !EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = (const char *)mapped, .size = size))
     {
-        g_cli_guard->persistent_buf_release((void *)(embed_word)mapped, (g_cli_servers_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)mapped, g_cli_servers_owner);
         return;
     }
     cli_grown_reset(args->items);
     EMBED_CALL(own_check, ServersOwnCtx, .root = args->root, .path = path, .text = (const char *)mapped, .size = size,
                .out = &args->items->line);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)mapped, (g_cli_servers_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)mapped, g_cli_servers_owner);
     const int integer = mmgr_line_ok(&args->items->line);
     const int empty = integer && (cli_grown_size(args->items) == 2ULL) &&
                       (memor.cmp(&(MemoriaCfg){.src = args->items->cell, .other = "[]", .bytes = 2u}) == 0);

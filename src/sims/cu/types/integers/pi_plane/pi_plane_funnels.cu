@@ -16,12 +16,12 @@ int plane_blind(SimResults *results, const std::vector<unsigned long long> &size
         sizes.begin(), sizes.begin() + (ptrdiff_t)std::min<size_t>(PLANE_BLIND_RINGS, sizes.size()));
     const unsigned long long block = plane_ring_total(rings);
     const unsigned long long needed = seen + ((first + pairs) * block);
-    if ((first + pairs > PLANE_BLIND_MAX) || (needed + PLANE_GUARD + 64ull > ORIOR_EXACT_BITS))
+    if ((first + pairs > PLANE_BLIND_MAX) || (needed + PLANE_GUARD + 64ULL > ORIOR_EXACT_BITS))
     {
         mmgr_line_put(line, "  the blind pairs lie in the first ");
         mmgr_line_decimal(line, PLANE_BLIND_MAX, 1u);
         mmgr_line_put(line, " blocks and need an exact width of ");
-        mmgr_line_decimal(line, needed + PLANE_GUARD + 64ull, 1u);
+        mmgr_line_decimal(line, needed + PLANE_GUARD + 64ULL, 1u);
         mmgr_line_put(line, " bits\n");
         sim_check(results, 0, "the blind pairs fit the exact width");
         return 0;
@@ -36,7 +36,7 @@ int plane_blind(SimResults *results, const std::vector<unsigned long long> &size
     {
         // the draw is below the pair count. It narrows to unsigned int exactly
         const unsigned int other = (unsigned int)sim_draw_below(
-            PLANE_KEY ^ 0x42414C414E4345ull ^ ((unsigned long long)first << 32u), pair - 1u, pair);
+            PLANE_KEY ^ 0x42414C414E4345ULL ^ ((unsigned long long)first << 32u), pair - 1u, pair);
         std::swap(sides[pair - 1u], sides[other]);
     }
     std::vector<unsigned char> all;
@@ -51,12 +51,12 @@ int plane_blind(SimResults *results, const std::vector<unsigned long long> &size
         std::vector<unsigned char> other;
         plane_shuffle(mine, 7919u + first + pair, &other);
         const int pi_first =
-            balanced ? (sides[pair] != 0u) : ((sim_draw(PLANE_KEY ^ 0x424C494E44ull, first + pair) & 1ull) == 0ull);
+            balanced ? (sides[pair] != 0u) : ((sim_draw(PLANE_KEY ^ 0x424C494E44ULL, first + pair) & 1ULL) == 0ULL);
         const std::string stem = directory + "/blind_" + std::to_string(pair + 1u);
         ok = plane_ring_unrolled(rings, pi_first ? mine.data() : other.data(), stem + "_A.png") &&
              plane_ring_unrolled(rings, pi_first ? other.data() : mine.data(), stem + "_B.png");
         fprintf(answer, "pair %u: pi is %s (pi's bits %llu to %llu)\n", pair + 1u, pi_first ? "A" : "B",
-                (unsigned long long)from + 1ull, (unsigned long long)(from + block));
+                (unsigned long long)from + 1ULL, (unsigned long long)(from + block));
     }
     if (answer != NULL)
     {
@@ -68,7 +68,7 @@ int plane_blind(SimResults *results, const std::vector<unsigned long long> &size
     mmgr_line_put(line, " pairs, blind_<n>_A.png and blind_<n>_B.png, rings 0 to ");
     mmgr_line_decimal(line, rings.size() - 1u, 1u);
     mmgr_line_put(line, " unrolled; each pair is one unseen block of pi from bit ");
-    mmgr_line_decimal(line, seen + (first * block) + 1ull, 1u);
+    mmgr_line_decimal(line, seen + (first * block) + 1ULL, 1u);
     mmgr_line_put(line, " on and a shuffle of the same block; ");
     mmgr_line_put(line, balanced ? "pi is A in exactly half the pairs, dealt by a keyed shuffle; " : "");
     mmgr_line_put(line, "which is pi is in blind_answer.txt and nowhere else\n");
@@ -79,13 +79,13 @@ int plane_blind(SimResults *results, const std::vector<unsigned long long> &size
 // the funnels. A funnel's mouth is a run of two equal bits or more on rings 1 to PLANE_FUNNEL_MOUTH_LAST; each bar
 // below it is the widest run of the same bit among the cells whose parent lies under the bar above, and the funnel ends
 // on the ring where no such cell contains the bit. Its depth is how many bars it has below the mouth, the dense rings,
-// two bits or more to a pixel, included; three bars w0, w1, w2, each in turns, fit one ratio as w1^2 comes near w0 w2.
+// two bits or more to a pixel, included. Three bars w0, w1, w2, each in turns, fit one ratio as w1^2 comes near w0 w2.
 #define PLANE_FUNNEL_MOUTH_LAST 8u
 
 #define PLANE_FUNNEL_FRESH_MAX 16u
 
 // the funnels drawn over a picture are those from a mouth this many bits wide or wider that reach the last ring
-#define PLANE_FUNNEL_DRAWN_MOUTH 3ull
+#define PLANE_FUNNEL_DRAWN_MOUTH 3ULL
 
 static const char *const s_plane_funnel_names[PLANE_FUNNEL_READINGS] = {
     "the funnels' depth, the bars below every mouth", "three bars' fit to one ratio, the mean in millionths",
@@ -93,7 +93,7 @@ static const char *const s_plane_funnel_names[PLANE_FUNNEL_READINGS] = {
 
 static std::vector<unsigned long long> plane_ring_starts(const std::vector<unsigned long long> &sizes)
 {
-    std::vector<unsigned long long> starts(sizes.size(), 0ull);
+    std::vector<unsigned long long> starts(sizes.size(), 0ULL);
     for (size_t ring = 1u; ring < sizes.size(); ring += 1u)
     {
         starts[ring] = starts[ring - 1u] + sizes[ring - 1u];
@@ -114,35 +114,35 @@ static void plane_funnel_trace(const std::vector<unsigned long long> &sizes,
         const unsigned long long outer = sizes[ring + 1u];
         // the cells whose parent, floor(place c_k / c_(k + 1)), lies from first to last: at least one, since the ring
         // out is at least as large
-        const unsigned long long from = ((first * outer) + inner - 1ull) / inner;
-        const unsigned long long to = ((((last + 1ull) * outer) + inner - 1ull) / inner) - 1ull;
+        const unsigned long long from = ((first * outer) + inner - 1ULL) / inner;
+        const unsigned long long to = ((((last + 1ULL) * outer) + inner - 1ULL) / inner) - 1ULL;
         const unsigned char *const cells = bits + starts[ring + 1u];
-        unsigned long long best_first = 0ull;
-        unsigned long long best_length = 0ull;
+        unsigned long long best_first = 0ULL;
+        unsigned long long best_length = 0ULL;
         unsigned long long run_first = from;
-        for (unsigned long long place = from; place <= to; place += 1ull)
+        for (unsigned long long place = from; place <= to; place += 1ULL)
         {
             if (cells[place] != bit)
             {
                 continue;
             }
-            if ((place == from) || (cells[place - 1ull] != bit))
+            if ((place == from) || (cells[place - 1ULL] != bit))
             {
                 run_first = place;
             }
-            if (place - run_first + 1ull > best_length)
+            if (place - run_first + 1ULL > best_length)
             {
-                best_length = place - run_first + 1ull;
+                best_length = place - run_first + 1ULL;
                 best_first = run_first;
             }
         }
-        if (best_length == 0ull)
+        if (best_length == 0ULL)
         {
             return;
         }
         ring += 1u;
         first = best_first;
-        last = best_first + best_length - 1ull;
+        last = best_first + best_length - 1ULL;
         bars->push_back(PlaneBar{ring, first, last});
     }
 }
@@ -151,9 +151,9 @@ static void plane_funnel_trace(const std::vector<unsigned long long> &sizes,
 // c_k
 static unsigned long long plane_funnel_fit(const std::vector<unsigned long long> &sizes, const PlaneBar *bar)
 {
-    const unsigned long long wide = bar[0].last - bar[0].first + 1ull;
-    const unsigned long long middle = bar[1].last - bar[1].first + 1ull;
-    const unsigned long long narrow = bar[2].last - bar[2].first + 1ull;
+    const unsigned long long wide = bar[0].last - bar[0].first + 1ULL;
+    const unsigned long long middle = bar[1].last - bar[1].first + 1ULL;
+    const unsigned long long narrow = bar[2].last - bar[2].first + 1ULL;
     // w1^2 against w0 w2 is middle^2 c_k c_(k + 2) against wide narrow c_(k + 1)^2; every width and size is below
     // 2^13. Each product stays under 2^52
     unsigned long long square = middle * middle * sizes[bar[0].ring] * sizes[bar[2].ring];
@@ -161,12 +161,12 @@ static unsigned long long plane_funnel_fit(const std::vector<unsigned long long>
     unsigned long long smaller = std::min(square, across);
     unsigned long long larger = std::max(square, across);
     // both are halved together until a million times the smaller fits a word
-    while (larger >= (1ull << 43u))
+    while (larger >= (1ULL << 43u))
     {
         smaller >>= 1u;
         larger >>= 1u;
     }
-    return (smaller * 1000000ull) / larger;
+    return (smaller * 1000000ULL) / larger;
 }
 
 // every funnel of the block: the bars below every mouth summed, the mean fit of every three bars whose first is two
@@ -175,21 +175,21 @@ static PlaneFunnelMeasurement plane_funnel_read(const std::vector<unsigned long 
                                                 const std::vector<unsigned long long> &starts,
                                                 const unsigned char *bits)
 {
-    PlaneFunnelMeasurement measurement = {{0ull, 0ull, plane_ring_read(sizes, bits).agree}};
-    unsigned long long fit = 0ull;
-    unsigned long long triples = 0ull;
+    PlaneFunnelMeasurement measurement = {{0ULL, 0ULL, plane_ring_read(sizes, bits).agree}};
+    unsigned long long fit = 0ULL;
+    unsigned long long triples = 0ULL;
     std::vector<PlaneBar> bars;
     const size_t last_mouth = std::min<size_t>(PLANE_FUNNEL_MOUTH_LAST, sizes.size() - 1u);
     for (size_t ring = 1u; ring <= last_mouth; ring += 1u)
     {
         const unsigned char *const cells = bits + starts[ring];
-        unsigned long long place = 0ull;
+        unsigned long long place = 0ULL;
         while (place < sizes[ring])
         {
             unsigned long long end = place;
-            while ((end + 1ull < sizes[ring]) && (cells[end + 1ull] == cells[place]))
+            while ((end + 1ULL < sizes[ring]) && (cells[end + 1ULL] == cells[place]))
             {
-                end += 1ull;
+                end += 1ULL;
             }
             if (end > place)
             {
@@ -200,14 +200,14 @@ static PlaneFunnelMeasurement plane_funnel_read(const std::vector<unsigned long 
                     if (bars[bar].last > bars[bar].first)
                     {
                         fit += plane_funnel_fit(sizes, &bars[bar]);
-                        triples += 1ull;
+                        triples += 1ULL;
                     }
                 }
             }
-            place = end + 1ull;
+            place = end + 1ULL;
         }
     }
-    measurement.value[1] = (triples == 0ull) ? 0ull : (fit / triples);
+    measurement.value[1] = (triples == 0ULL) ? 0ULL : (fit / triples);
     return measurement;
 }
 
@@ -223,60 +223,60 @@ static int plane_funnel_picture(const std::vector<unsigned long long> &sizes, co
     for (size_t ring = 1u; ring <= last_mouth; ring += 1u)
     {
         const unsigned char *const cells = bits + starts[ring];
-        unsigned long long place = 0ull;
+        unsigned long long place = 0ULL;
         while (place < sizes[ring])
         {
             unsigned long long end = place;
-            while ((end + 1ull < sizes[ring]) && (cells[end + 1ull] == cells[place]))
+            while ((end + 1ULL < sizes[ring]) && (cells[end + 1ULL] == cells[place]))
             {
-                end += 1ull;
+                end += 1ULL;
             }
-            if (end + 1ull >= place + PLANE_FUNNEL_DRAWN_MOUTH)
+            if (end + 1ULL >= place + PLANE_FUNNEL_DRAWN_MOUTH)
             {
                 plane_funnel_trace(sizes, starts, bits, ring, place, end, &bars);
             }
-            if ((end + 1ull >= place + PLANE_FUNNEL_DRAWN_MOUTH) && (bars.back().ring + 1u == sizes.size()))
+            if ((end + 1ULL >= place + PLANE_FUNNEL_DRAWN_MOUTH) && (bars.back().ring + 1u == sizes.size()))
             {
                 for (const PlaneBar &bar : bars)
                 {
-                    for (unsigned long long cell = bar.first; cell <= bar.last; cell += 1ull)
+                    for (unsigned long long cell = bar.first; cell <= bar.last; cell += 1ULL)
                     {
                         marked[(size_t)(starts[bar.ring] + cell)] = 1u;
                     }
                 }
             }
-            place = end + 1ull;
+            place = end + 1ULL;
         }
     }
     const unsigned long long width = PLANE_RING_UNROLLED_WIDTH;
     const unsigned long long height = sizes.size() * PLANE_RING_ROW;
-    std::vector<unsigned char> pixels((size_t)(width * height * 3ull), (unsigned char)PLANE_EMPTY_SHADE);
+    std::vector<unsigned char> pixels((size_t)(width * height * 3ULL), (unsigned char)PLANE_EMPTY_SHADE);
     for (size_t ring = 0u; ring < sizes.size(); ring += 1u)
     {
-        std::vector<unsigned long long> ones((size_t)width, 0ull);
-        std::vector<unsigned long long> counted((size_t)width, 0ull);
-        std::vector<unsigned long long> tinted((size_t)width, 0ull);
-        for (unsigned long long place = 0ull; place < sizes[ring]; place += 1ull)
+        std::vector<unsigned long long> ones((size_t)width, 0ULL);
+        std::vector<unsigned long long> counted((size_t)width, 0ULL);
+        std::vector<unsigned long long> tinted((size_t)width, 0ULL);
+        for (unsigned long long place = 0ULL; place < sizes[ring]; place += 1ULL)
         {
             const unsigned long long from = (place * width) / sizes[ring];
-            const unsigned long long to = std::max(from + 1ull, ((place + 1ull) * width) / sizes[ring]);
-            for (unsigned long long column = from; column < to; column += 1ull)
+            const unsigned long long to = std::max(from + 1ULL, ((place + 1ULL) * width) / sizes[ring]);
+            for (unsigned long long column = from; column < to; column += 1ULL)
             {
                 ones[(size_t)column] += (unsigned long long)bits[starts[ring] + place];
-                counted[(size_t)column] += 1ull;
+                counted[(size_t)column] += 1ULL;
                 tinted[(size_t)column] += (unsigned long long)marked[(size_t)(starts[ring] + place)];
             }
         }
-        for (unsigned long long row = 1ull; row + 1ull < PLANE_RING_ROW; row += 1ull)
+        for (unsigned long long row = 1ULL; row + 1ULL < PLANE_RING_ROW; row += 1ULL)
         {
-            for (unsigned long long column = 0ull; column < width; column += 1ull)
+            for (unsigned long long column = 0ULL; column < width; column += 1ULL)
             {
                 // the share of ones, scaled to 255, is at max 255, and each tint below stays within a byte
-                const unsigned long long shade = (255ull * ones[(size_t)column]) / counted[(size_t)column];
-                const int red = tinted[(size_t)column] != 0ull;
-                const size_t at = (size_t)(((((ring * PLANE_RING_ROW) + row) * width) + column) * 3ull);
-                pixels[at] = (unsigned char)(red ? (110ull + ((145ull * shade) / 255ull)) : shade);
-                pixels[at + 1u] = (unsigned char)(red ? ((150ull * shade) / 255ull) : shade);
+                const unsigned long long shade = (255ULL * ones[(size_t)column]) / counted[(size_t)column];
+                const int red = tinted[(size_t)column] != 0ULL;
+                const size_t at = (size_t)(((((ring * PLANE_RING_ROW) + row) * width) + column) * 3ULL);
+                pixels[at] = (unsigned char)(red ? (110ULL + ((145ULL * shade) / 255ULL)) : shade);
+                pixels[at + 1u] = (unsigned char)(red ? ((150ULL * shade) / 255ULL) : shade);
                 pixels[at + 2u] = pixels[at + 1u];
             }
         }
@@ -293,10 +293,10 @@ static void plane_funnel_blocks(SimResults *results, const std::vector<unsigned 
     VerbaLinea *const line = &results->line;
     const std::vector<unsigned long long> starts = plane_ring_starts(sizes);
     const unsigned long long block = plane_ring_total(sizes);
-    PlaneFunnelMeasurement pi_total = {{0ull, 0ull, 0ull}};
+    PlaneFunnelMeasurement pi_total = {{0ULL, 0ULL, 0ULL}};
     std::vector<PlaneFunnelMeasurement> drawn_total(draws, pi_total);
     std::vector<std::vector<unsigned long long>> reached(PLANE_FUNNEL_READINGS,
-                                                         std::vector<unsigned long long>(blocks, 0ull));
+                                                         std::vector<unsigned long long>(blocks, 0ULL));
     std::vector<unsigned char> drawn;
     for (unsigned int each = 0u; each < blocks; each += 1u)
     {
@@ -314,7 +314,7 @@ static void plane_funnel_blocks(SimResults *results, const std::vector<unsigned 
             for (unsigned int type = 0u; type < PLANE_FUNNEL_READINGS; type += 1u)
             {
                 drawn_total[draw].value[type] += drawn_measurement.value[type];
-                reached[type][each] += (drawn_measurement.value[type] >= measurement.value[type]) ? 1ull : 0ull;
+                reached[type][each] += (drawn_measurement.value[type] >= measurement.value[type]) ? 1ULL : 0ULL;
             }
         }
     }
@@ -323,7 +323,7 @@ static void plane_funnel_blocks(SimResults *results, const std::vector<unsigned 
     mmgr_line_put(line, ", ");
     mmgr_line_decimal(line, blocks, 1u);
     mmgr_line_put(line, " blocks from bit ");
-    mmgr_line_decimal(line, from + 1ull, 1u);
+    mmgr_line_decimal(line, from + 1ULL, 1u);
     mmgr_line_put(line, " to ");
     mmgr_line_decimal(line, from + (blocks * block), 1u);
     mmgr_line_ch(line, '\n');
@@ -362,12 +362,12 @@ int plane_funnels(SimResults *results, const std::vector<unsigned long long> &si
         sizes.begin(), sizes.begin() + (ptrdiff_t)std::min<size_t>(PLANE_BLIND_RINGS, sizes.size()));
     const unsigned long long block = plane_ring_total(rings);
     const unsigned long long needed = seen + ((PLANE_BLIND_SCORED + fresh) * block);
-    if ((fresh > PLANE_FUNNEL_FRESH_MAX) || (needed + PLANE_GUARD + 64ull > ORIOR_EXACT_BITS))
+    if ((fresh > PLANE_FUNNEL_FRESH_MAX) || (needed + PLANE_GUARD + 64ULL > ORIOR_EXACT_BITS))
     {
         mmgr_line_put(line, "  the funnels read at max ");
         mmgr_line_decimal(line, PLANE_FUNNEL_FRESH_MAX, 1u);
         mmgr_line_put(line, " fresh blocks and need an exact width of ");
-        mmgr_line_decimal(line, needed + PLANE_GUARD + 64ull, 1u);
+        mmgr_line_decimal(line, needed + PLANE_GUARD + 64ULL, 1u);
         mmgr_line_put(line, " bits\n");
         sim_check(results, 0, "the funnels' blocks fit the exact width");
         return 0;

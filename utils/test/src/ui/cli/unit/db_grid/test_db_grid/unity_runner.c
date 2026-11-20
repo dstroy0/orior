@@ -78,7 +78,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\db_grid\\test_db_grid\\test_db_grid.c");
+  UnityBegin("utils/test/src/ui/cli/unit/db_grid/test_db_grid/test_db_grid.c");
   run_test(test_an_answer_adopted_stores_its_columns_its_first_page_and_its_end, "test_an_answer_adopted_stores_its_columns_its_first_page_and_its_end", 95);
   run_test(test_each_width_is_the_longest_of_its_label_and_first_rows_cut_to_the_max, "test_each_width_is_the_longest_of_its_label_and_first_rows_cut_to_the_max", 114);
   run_test(test_the_step_reads_what_the_view_heads_into_and_lets_go_the_rows_behind, "test_the_step_reads_what_the_view_heads_into_and_lets_go_the_rows_behind", 129);

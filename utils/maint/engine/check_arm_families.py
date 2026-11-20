@@ -12,7 +12,7 @@
 # portable arm is the reference in each and every other set exists to be faster at an answer portable
 # already fixed. This check holds that invariant: it reads the two directories, takes the <set>
 # suffix off every arm file, and exits non-zero when the two families disagree or when either family
-# is missing its portable reference.
+# misses its portable reference.
 #
 # It fails closed. A directory that does not resolve, or one that yields no arm at all, is a defect
 # and exits non-zero instead of reporting an empty match as a pass. Every root it read is printed.

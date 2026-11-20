@@ -95,7 +95,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\git_history\\test_git_history\\test_git_history.c");
+  UnityBegin("utils/test/src/ui/cli/unit/git_history/test_git_history/test_git_history.c");
   run_test(test_a_commit_lists_the_files_it_changed_a_rename_with_the_name_it_had, "test_a_commit_lists_the_files_it_changed_a_rename_with_the_name_it_had", 305);
   run_test(test_the_first_commit_lists_the_files_it_added, "test_the_first_commit_lists_the_files_it_added", 320);
   run_test(test_an_id_that_is_not_hex_is_refused, "test_an_id_that_is_not_hex_is_refused", 332);

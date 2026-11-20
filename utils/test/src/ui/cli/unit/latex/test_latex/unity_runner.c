@@ -77,7 +77,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\latex\\test_latex\\test_latex.c");
+  UnityBegin("utils/test/src/ui/cli/unit/latex/test_latex/test_latex.c");
   run_test(test_the_engine_the_file_names, "test_the_engine_the_file_names", 62);
   run_test(test_the_engine_the_file_names_in_the_other_form, "test_the_engine_the_file_names_in_the_other_form", 67);
   run_test(test_fontspec_needs_lualatex, "test_fontspec_needs_lualatex", 72);

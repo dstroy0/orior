@@ -87,7 +87,7 @@ extern "C" long max_tree_objects(const MaxTreeObjectsRequest *request)
                        &request->limbs, error, ENGINE_ERROR_REQUEST) &&
         MAX_TREE_CHECK((request->capacity == 0u) || (request->bodies != NULL), &request->bodies, error,
                        ENGINE_ERROR_REQUEST) &&
-        MAX_TREE_CHECK((voxels != 0u) && ((voxels * 3u) < 0xFFFFFFFFull), &request->depth, error, ENGINE_ERROR_REQUEST);
+        MAX_TREE_CHECK((voxels != 0u) && ((voxels * 3u) < 0xFFFFFFFFULL), &request->depth, error, ENGINE_ERROR_REQUEST);
     if (valid == 0)
     {
         return MAX_TREE_ERROR;
@@ -227,7 +227,7 @@ extern "C" long max_tree_objects(const MaxTreeObjectsRequest *request)
     ok = ok && MAX_TREE_STATUS_CHECK(cudaMemcpy(resident->host_chunks, resident->at_chunk,
                                                 (size_t)chunks * sizeof(unsigned int), cudaMemcpyDeviceToHost),
                                      resident->host_chunks, error);
-    unsigned long long bodies = 0ull;
+    unsigned long long bodies = 0ULL;
     for (unsigned int chunk = 0u; (ok != 0) && (chunk < chunks); chunk += 1u)
     {
         const unsigned int here = resident->host_chunks[chunk];
@@ -273,7 +273,7 @@ extern "C" long max_tree_objects(const MaxTreeObjectsRequest *request)
                 MAX_TREE_STATUS_CHECK(cudaMemcpy(request->positive_words, resident->packed,
                                                  (size_t)words * sizeof(unsigned long long), cudaMemcpyDeviceToHost),
                                       request->positive_words, error));
-    ok = ok && ((request->bodies == NULL) || (bodies == 0ull) ||
+    ok = ok && ((request->bodies == NULL) || (bodies == 0ULL) ||
                 MAX_TREE_STATUS_CHECK(cudaMemcpy(request->bodies, resident->bodies, (size_t)bodies * sizeof(EngineBody),
                                                  cudaMemcpyDeviceToHost),
                                       request->bodies, error));

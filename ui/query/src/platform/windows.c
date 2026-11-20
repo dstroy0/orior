@@ -16,9 +16,9 @@
 #define QUERY_COMMAND_MAX_LEN 32768u
 
 // the hundreds of nanoseconds from 1601 to 1970, which the system's file times count from
-#define QUERY_EPOCH_TICKS 116444736000000000ull
+#define QUERY_EPOCH_TICKS 116444736000000000ULL
 
-#define QUERY_TICKS_A_SECOND 10000000ull
+#define QUERY_TICKS_A_SECOND 10000000ULL
 
 typedef struct
 {
@@ -44,7 +44,7 @@ EMBED_INLINE void query_word_quote(const WindowsCtx *args)
     mmgr_line_ch(args->line, '"');
     unsigned int slashes = 0u;
     const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_POOL_BYTES});
-    for (unsigned long long at = 0ull; at < whole;)
+    for (unsigned long long at = 0ULL; at < whole;)
     {
         const unsigned long long stop = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
                                                    .text = args->word, .at = at, .size = whole, .set = "\\\"");
@@ -57,12 +57,12 @@ EMBED_INLINE void query_word_quote(const WindowsCtx *args)
         at = run_end;
         if ((run_end < whole) && (args->word[run_end] == '"'))
         {
-            for (unsigned long long added = stop; added <= run_end; added += 1ull)
+            for (unsigned long long added = stop; added <= run_end; added += 1ULL)
             {
                 mmgr_line_ch(args->line, '\\');
             }
             mmgr_line_ch(args->line, '"');
-            at = run_end + 1ull;
+            at = run_end + 1ULL;
         }
     }
     for (unsigned int added = 0u; added < slashes; added += 1u)
@@ -75,10 +75,10 @@ EMBED_INLINE void query_word_quote(const WindowsCtx *args)
 int query_process_start(const QueryStartedCtx *args)
 {
     int output = args->output;
-    args->started->process = 0ull;
-    args->started->output = 0ull;
+    args->started->process = 0ULL;
+    args->started->output = 0ULL;
     static char s_line[QUERY_COMMAND_MAX_LEN];
-    VerbaLinea line = {s_line, sizeof(s_line), 0ull};
+    VerbaLinea line = {s_line, sizeof(s_line), 0ULL};
     for (unsigned int at = 0u; args->words[at] != NULL; at += 1u)
     {
         if (at != 0u)
@@ -87,7 +87,7 @@ int query_process_start(const QueryStartedCtx *args)
         }
         EMBED_CALL(query_word_quote, WindowsCtx, .line = &line, .word = args->words[at]);
     }
-    if (mmgr_line_finish(&line) == 0ull)
+    if (mmgr_line_finish(&line) == 0ULL)
     {
         return 0;
     }
@@ -159,22 +159,22 @@ int query_process_start(const QueryStartedCtx *args)
     CloseHandle(process.hThread);
     // a handle is a pointer's width, which an unsigned long long represents
     args->started->process = (unsigned long long)(uintptr_t)process.hProcess;
-    args->started->output = (read_end != INVALID_HANDLE_VALUE) ? (unsigned long long)(uintptr_t)read_end : 0ull;
+    args->started->output = (read_end != INVALID_HANDLE_VALUE) ? (unsigned long long)(uintptr_t)read_end : 0ULL;
     return 1;
 }
 
 unsigned long long query_process_read(const QueryProcessPieceCtx *args)
 {
-    if (args->process->output == 0ull)
+    if (args->process->output == 0ULL)
     {
-        return 0ull;
+        return 0ULL;
     }
     // a piece is at max a gibibyte, which a DWORD counts
-    const DWORD max = (DWORD)((args->capacity_u64 < (1ull << 30u)) ? args->capacity_u64 : (1ull << 30u));
+    const DWORD max = (DWORD)((args->capacity_u64 < (1ULL << 30u)) ? args->capacity_u64 : (1ULL << 30u));
     DWORD got = 0u;
     if (!ReadFile((HANDLE)(uintptr_t)args->process->output, args->piece, max, &got, NULL))
     {
-        return 0ull;
+        return 0ULL;
     }
     return got;
 }
@@ -182,23 +182,23 @@ unsigned long long query_process_read(const QueryProcessPieceCtx *args)
 long long query_process_wait(const QueryProcessCtx *args)
 {
     QueryProcess *process = args->process_out;
-    if (process->process == 0ull)
+    if (process->process == 0ULL)
     {
-        return -1ll;
+        return -1LL;
     }
     const HANDLE handle = (HANDLE)(uintptr_t)process->process;
     WaitForSingleObject(handle, INFINITE);
     DWORD code = 0u;
     const BOOL read = GetExitCodeProcess(handle, &code);
     CloseHandle(handle);
-    if (process->output != 0ull)
+    if (process->output != 0ULL)
     {
         CloseHandle((HANDLE)(uintptr_t)process->output);
     }
-    process->process = 0ull;
-    process->output = 0ull;
+    process->process = 0ULL;
+    process->output = 0ULL;
     // an exit code is a DWORD, which a long long represents
-    return read ? (long long)code : -1ll;
+    return read ? (long long)code : -1LL;
 }
 
 // the max characters of a variable's name or value in Windows' wide characters, its zero among them
@@ -243,10 +243,10 @@ int query_environment_write(const QueryNameOutCtx *args)
 int query_folder_each(const QueryFolderEachCtx *args)
 {
     char pattern[QUERY_PATH_MAX_LEN + 4u];
-    VerbaLinea line = {pattern, sizeof(pattern), 0ull};
+    VerbaLinea line = {pattern, sizeof(pattern), 0ULL};
     mmgr_line_put(&line, args->folder);
     mmgr_line_put(&line, "\\*");
-    if (mmgr_line_finish(&line) == 0ull)
+    if (mmgr_line_finish(&line) == 0ULL)
     {
         return 0;
     }
@@ -306,11 +306,11 @@ static void query_entry_remove(const CliEachNameIsFolderCfg *args)
 {
     QueryRemoval *const removal = (QueryRemoval *)args->context;
     char path[QUERY_PATH_MAX_LEN];
-    VerbaLinea line = {path, sizeof(path), 0ull};
+    VerbaLinea line = {path, sizeof(path), 0ULL};
     mmgr_line_put(&line, removal->folder);
     mmgr_line_ch(&line, '\\');
     mmgr_line_put(&line, args->name);
-    removal->whole = (mmgr_line_finish(&line) != 0ull) &&
+    removal->whole = (mmgr_line_finish(&line) != 0ULL) &&
                      EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = path) &&
                      removal->whole;
 }
@@ -354,12 +354,12 @@ int query_file_write(const QueryPathBytesSizeCtx *args)
     {
         return 0;
     }
-    unsigned long long put = 0ull;
+    unsigned long long put = 0ULL;
     int whole = 1;
     while (whole && (put < args->size))
     {
         // a piece is at max a gibibyte, which a DWORD counts
-        const DWORD piece = (DWORD)(((args->size - put) < (1ull << 30u)) ? (args->size - put) : (1ull << 30u));
+        const DWORD piece = (DWORD)(((args->size - put) < (1ULL << 30u)) ? (args->size - put) : (1ULL << 30u));
         DWORD wrote = 0u;
         whole = WriteFile(file, (const unsigned char *)args->bytes + put, piece, &wrote, NULL) && (wrote == piece);
         put += wrote;
@@ -383,7 +383,7 @@ int query_is_folder(const QueryPathSecondsCtx *args)
 EMBED_INLINE unsigned long long query_seconds_get(const WindowsCtx *args)
 {
     const unsigned long long ticks = ((unsigned long long)args->time.dwHighDateTime << 32u) | args->time.dwLowDateTime;
-    return (ticks > QUERY_EPOCH_TICKS) ? ((ticks - QUERY_EPOCH_TICKS) / QUERY_TICKS_A_SECOND) : 0ull;
+    return (ticks > QUERY_EPOCH_TICKS) ? ((ticks - QUERY_EPOCH_TICKS) / QUERY_TICKS_A_SECOND) : 0ULL;
 }
 
 int query_modify(const QueryPathSecondsCtx *args)
@@ -409,7 +409,7 @@ int query_modified_set(const QueryPathSecondsTypeCtx *args)
     const unsigned long long ticks = (args->seconds_value * QUERY_TICKS_A_SECOND) + QUERY_EPOCH_TICKS;
     FILETIME time;
     // a FILETIME is the ticks' two halves
-    time.dwLowDateTime = (DWORD)(ticks & 0xffffffffull);
+    time.dwLowDateTime = (DWORD)(ticks & 0xffffffffULL);
     time.dwHighDateTime = (DWORD)(ticks >> 32u);
     const int set = SetFileTime(file, NULL, NULL, &time) != 0;
     CloseHandle(file);
@@ -455,7 +455,7 @@ unsigned long long query_terminal_line_read(const QueryCapacityLineCtx *args)
 {
     const HANDLE input = GetStdHandle(STD_INPUT_HANDLE);
     size_t length = 0u;
-    unsigned long long whole = 0ull;
+    unsigned long long whole = 0ULL;
     int read_any = 0;
     for (;;)
     {
@@ -476,7 +476,7 @@ unsigned long long query_terminal_line_read(const QueryCapacityLineCtx *args)
         }
         if (character != '\r')
         {
-            whole += 1ull;
+            whole += 1ULL;
             if ((length + 1u) < args->capacity)
             {
                 args->line[length] = character;
@@ -491,11 +491,11 @@ unsigned long long query_terminal_line_read(const QueryCapacityLineCtx *args)
 void query_terminal_write(const QueryErrorsCtx *args)
 {
     const HANDLE output = GetStdHandle(args->errors ? STD_ERROR_HANDLE : STD_OUTPUT_HANDLE);
-    unsigned long long put = 0ull;
+    unsigned long long put = 0ULL;
     while (put < args->length)
     {
         // a piece is at max a gibibyte, which a DWORD counts
-        const DWORD piece = (DWORD)(((args->length - put) < (1ull << 30u)) ? (args->length - put) : (1ull << 30u));
+        const DWORD piece = (DWORD)(((args->length - put) < (1ULL << 30u)) ? (args->length - put) : (1ULL << 30u));
         DWORD wrote = 0u;
         if (!WriteFile(output, args->text + put, piece, &wrote, NULL) || (wrote == 0u))
         {

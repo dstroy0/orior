@@ -109,7 +109,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\plugins\\test_plugins\\test_plugins.c");
+  UnityBegin("utils/test/src/ui/cli/unit/plugins/test_plugins/test_plugins.c");
   run_test(test_every_bundled_plugin_reads_and_names_itself_and_a_script_transfers_its_code, "test_every_bundled_plugin_reads_and_names_itself_and_a_script_transfers_its_code", 217);
   run_test(test_a_plugin_written_in_oriors_folder_is_listing_as_the_readers, "test_a_plugin_written_in_oriors_folder_is_listing_as_the_readers", 255);
   run_test(test_a_plugins_code_is_each_file_its_main_names_in_order, "test_a_plugins_code_is_each_file_its_main_names_in_order", 263);

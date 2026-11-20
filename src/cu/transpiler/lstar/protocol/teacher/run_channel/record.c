@@ -8,17 +8,17 @@
 // cases and the hash of its cases, into `identity`
 void run_channel_identity(const RunQuestion *question, KqrIdentity *identity)
 {
-    unsigned long long code = 0xcbf29ce484222325ull;
-    for (unsigned long long at = 0ull; at < question->code_size; at += 1ull)
+    unsigned long long code = 0xcbf29ce484222325ULL;
+    for (unsigned long long at = 0ULL; at < question->code_size; at += 1ULL)
     {
-        code = (code ^ question->code[at]) * 0x100000001b3ull;
+        code = (code ^ question->code[at]) * 0x100000001b3ULL;
     }
-    unsigned long long cases = 0xcbf29ce484222325ull;
+    unsigned long long cases = 0xcbf29ce484222325ULL;
     const unsigned char *const words = (const unsigned char *)question->word;
     const size_t bytes = (size_t)question->cases * sizeof(question->word[0]);
     for (size_t at = 0u; at < bytes; at += 1u)
     {
-        cases = (cases ^ words[at]) * 0x100000001b3ull;
+        cases = (cases ^ words[at]) * 0x100000001b3ULL;
     }
     identity->code = code;
     identity->registers = question->registers;
@@ -107,10 +107,10 @@ void run_channel_stored(const RunQuestion *question)
         s_sample.identity = identity;
         s_sample.answer = answer;
         s_sample.nanoseconds = question->nanoseconds;
-        s_sample.launched = (question->max != 0ull) ? 1 : 0;
+        s_sample.launched = (question->max != 0ULL) ? 1 : 0;
         s_sample.least = question->least;
         s_sample.max = question->max;
-        VerbaLinea refusal = {s_sample.refusal, sizeof(s_sample.refusal), 0ull};
+        VerbaLinea refusal = {s_sample.refusal, sizeof(s_sample.refusal), 0ULL};
         mmgr_line_put_max(&refusal, question->refused, sizeof(s_sample.refusal) - 1u);
         mmgr_line_finish(&refusal);
         kqr_sample(&s_record, &s_sample);
@@ -119,7 +119,7 @@ void run_channel_stored(const RunQuestion *question)
     memset(&s_stored, 0, sizeof(s_stored));
     s_stored.identity = identity;
     s_stored.answer = answer;
-    VerbaLinea refusal = {s_stored.refusal, sizeof(s_stored.refusal), 0ull};
+    VerbaLinea refusal = {s_stored.refusal, sizeof(s_stored.refusal), 0ULL};
     mmgr_line_put_max(&refusal, question->refused, sizeof(s_stored.refusal) - 1u);
     mmgr_line_finish(&refusal);
     for (unsigned int place = 0u;
@@ -140,7 +140,7 @@ int run_channel_registers_past(const char *ksc)
     for (unsigned int line = 0u; line < s_file.lines; line += 1u)
     {
         if (ksc_row_read(s_file.line[line], "run", &s_row) && (strcmp(s_row.answer, "answers") == 0) &&
-            (strncmp(s_row.question, "register past", 13u) == 0) && (s_row.value != 0ull) &&
+            (strncmp(s_row.question, "register past", 13u) == 0) && (s_row.value != 0ULL) &&
             (s_row.value < RUN_REGISTERS_UNANSWERED))
         {
             // a count below the mark of no answer is one an unsigned int represents
@@ -158,7 +158,7 @@ int run_channel_record(const char *path, const char *member, const char *mode)
     if (!kqr_read(&s_record, path, member, error, sizeof(error)))
     {
         char message[sizeof(error) + 16u];
-        VerbaLinea line = {message, sizeof(message), 0ull};
+        VerbaLinea line = {message, sizeof(message), 0ULL};
         mmgr_line_put(&line, "record: ");
         mmgr_line_put(&line, error);
         mmgr_line_ch(&line, '\n');
@@ -166,7 +166,7 @@ int run_channel_record(const char *path, const char *member, const char *mode)
         run_channel_trace_line(message);
         return 0;
     }
-    VerbaLinea record_path = {s_record_path, sizeof(s_record_path), 0ull};
+    VerbaLinea record_path = {s_record_path, sizeof(s_record_path), 0ULL};
     mmgr_line_put(&record_path, path);
     mmgr_line_finish(&record_path);
     // R a view of the run's table of queries, written as its rows put it together; with no run it is written as stored
@@ -206,7 +206,7 @@ unsigned long long run_channel_round_passed(void)
 {
     return qry_member_append("questions.txt", s_channel_list, s_channel.list_size, QRY_CRITICAL)
                ? qry_member_settled()
-               : 0ull;
+               : 0ULL;
 }
 
 char s_airlock_output[RUN_CARRIER_OUTPUT];

@@ -956,7 +956,7 @@ static int turing_same_expansion(const TuringExpansion &a, const TuringExpansion
     return same;
 }
 
-// an expansion's fields in member `member`, positioned once; each value is read at the step that wants it, which leaves it
+// an expansion's fields in member `member`, positioned once. Each value is read at the step that wants it, which leaves it
 // out of the register file until then
 typedef struct
 {
@@ -1051,7 +1051,7 @@ static TuringComplex turing_cshift_down(TuringProgram *program, TuringComplex a,
     return out;
 }
 
-// the count stage of the leaves: lane b nu + k - 1 reads pole k through the index and gives [b W > pos_k]; the sum
+// the count stage of the leaves: lane b nu + k - 1 reads pole k through the index and gives [b W > pos_k]. The sum
 // over each run of nu is the poles below the leaf boundary b W
 static void turing_below_build(TuringStage *stage, unsigned int beta, const TuringStage *pole)
 {
@@ -2417,7 +2417,7 @@ typedef struct
 // the multiple evaluation: from `sets` sets of pole records, each nu of them and a zero record after and every set's
 // poles at the same places, the sum at every point of the cell for each set into the returned array, set s at records
 // s P to (s + 1) P - 1, arranged as `values`. The sets share the tree, its lists and its twiddles, and run in one run
-// a stage, set after set; each run checks the first lanes of the first set and of the last
+// a stage, set after set. Each run checks the first lanes of the first set and of the last
 static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *owned, unsigned long long nu, unsigned int p,
                                unsigned int beta, unsigned int order, unsigned long long checked,
                                const TuringOsConstants &os, TuringStage *pole, unsigned int *device_pole,
@@ -3574,7 +3574,7 @@ static int turing_job(const char *input, const char *output)
 
     marks[5] = turing_now();
     // with the listing word 2: Z' at every point, by the twist or by the pairs' sine sums, then each step's hull
-    // against the margin; the slope records positioned after one empty record, which point 0's step reads as uncertified
+    // against the margin. The slope records positioned after one empty record, which point 0's step reads as uncertified
     std::vector<unsigned int> margin_records, slope_apart;
     unsigned int *device_margin = NULL;
     if (ok && sloped)

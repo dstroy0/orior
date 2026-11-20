@@ -66,7 +66,7 @@ def _repository_root():
     A marker the repository produces, such as build/, is absent from a linked worktree and a
     never-built clone, and a climb to it can pass this root and land in another checkout whose paths
     look valid. A marker infers the root. Git answers it. The climb below serves only an exported tree
-    with no git directory, and it looks for archive/src/python, which the repository tracks and every checkout
+    with no git directory. It looks for archive/src/python, which the repository tracks and every checkout
     of it holds.
 
     Git's own variables are cleared first. Inside a hook GIT_DIR is exported, and a rev-parse that
@@ -251,7 +251,7 @@ def main():
 
         # The type column says what the row is, and the who column says whose it is. A reconstruction is a
         # cited affix like any other here, because several of them are cited from Kuipers, Kinkade
-        # or Pincott by name; what retains it out of a language corpus is that PCS and PS are not
+        # or Pincott by name. What retains it out of a language corpus is that PCS and PS are not
         # languages anybody speaks, which the who column already says. Resting the purity filter on
         # that column instead of on the type is what this paper is for.
         type = "predicted" if (where in PREDICTED_TABLES) else "cited affix"

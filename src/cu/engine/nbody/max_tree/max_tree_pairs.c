@@ -123,13 +123,13 @@ long max_tree_pairs(const MaxTreePairsRequest *request)
     {
         if ((at != 0u) && (keys[at] == keys[at - 1u]))
         {
-            pairs->voxels[entry - 1u] += 1ull;
+            pairs->voxels[entry - 1u] += 1ULL;
             continue;
         }
         // the high word is the earlier node and the low word the later one
         pairs->earlier[entry] = (unsigned int)(keys[at] >> 32u);
-        pairs->later[entry] = (unsigned int)(keys[at] & 0xFFFFFFFFull);
-        pairs->voxels[entry] = 1ull;
+        pairs->later[entry] = (unsigned int)(keys[at] & 0xFFFFFFFFULL);
+        pairs->voxels[entry] = 1ULL;
         entry += 1u;
     }
     free(keys);
@@ -148,7 +148,7 @@ static void max_tree_fenwick_add(unsigned long long *fenwick, unsigned int size,
 
 static unsigned long long max_tree_fenwick_below(const unsigned long long *fenwick, unsigned int end)
 {
-    unsigned long long total = 0ull;
+    unsigned long long total = 0ULL;
     for (unsigned int tree_at = end; tree_at > 0u; tree_at -= tree_at & (0u - tree_at))
     {
         total += fenwick[tree_at];
@@ -214,8 +214,8 @@ long max_tree_overlap_sums(const MaxTreeOverlapSumsRequest *request)
     {
         const unsigned int node = request->earlier_nodes[query];
         // an event's low word is twice the query, plus 1 for the range's lower edge; the high word is the row edge
-        keys[2u * (size_t)query] = ((unsigned long long)earlier->subtree_end[node] << 32u) | (2ull * query);
-        keys[(2u * (size_t)query) + 1u] = ((unsigned long long)node << 32u) | ((2ull * query) + 1ull);
+        keys[2u * (size_t)query] = ((unsigned long long)earlier->subtree_end[node] << 32u) | (2ULL * query);
+        keys[(2u * (size_t)query) + 1u] = ((unsigned long long)node << 32u) | ((2ULL * query) + 1ULL);
     }
     qsort(keys, events, sizeof(unsigned long long), max_tree_key_compare);
     unsigned int entry = 0u;
@@ -229,7 +229,7 @@ long max_tree_overlap_sums(const MaxTreeOverlapSumsRequest *request)
             entry += 1u;
         }
         // the low word is twice the query plus the edge, below 2^32
-        const unsigned int event = (unsigned int)(keys[at] & 0xFFFFFFFFull);
+        const unsigned int event = (unsigned int)(keys[at] & 0xFFFFFFFFULL);
         const unsigned int query = event / 2u;
         const unsigned int node = request->later_nodes[query];
         const unsigned long long sum =
@@ -249,7 +249,7 @@ long max_tree_overlap_sums(const MaxTreeOverlapSumsRequest *request)
         // the rows below a subtree's start are a subset of the rows below its end
         ok =
             MAX_TREE_HOST_CHECK(request->sums[query] >= below[query], &request->sums[query], error, ENGINE_ERROR_LOGIC);
-        request->sums[query] -= (ok != 0) ? below[query] : 0ull;
+        request->sums[query] -= (ok != 0) ? below[query] : 0ULL;
     }
     free(keys);
     free(below);

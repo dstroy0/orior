@@ -134,7 +134,7 @@ static int chain_answers(const ChainWork *work)
 }
 
 // Whether the chain answers the relation on words the cases do not carry. A ladder's cases are its climbing order
-// and are few and small; an arrangement right about those words and wrong about the rest passes them and comes back
+// and are few and small. An arrangement right about those words and wrong about the rest passes them and comes back
 // looking like a finding. The relation is true for every word there is and is queried for words the arrangement was
 // never fitted to
 static int chain_swept(const ChainWork *work)
@@ -335,7 +335,7 @@ unsigned int chain_text(const Chain *chain, char *text, unsigned int room)
     {
         return 0u;
     }
-    VerbaLinea line = {text, room, 0ull};
+    VerbaLinea line = {text, room, 0ULL};
     chain_child_text(chain, (unsigned char)(chain->nodes - 1u), &line);
     // a text is at max its room, which an unsigned int represents
     return (unsigned int)mmgr_line_finish(&line);

@@ -179,7 +179,7 @@ int cli_file_stamp(const CliPathSizeCtx *args);
 // file ends first: 1, or 0 where the file could not be opened or read
 int cli_file_read_at(const CliPathFromCtx *args);
 // the bytes past a file's stored in its cell, zero: a word a walk loads over a text's last bytes, and the terminator
-#define CLI_FILE_SLACK 64ull
+#define CLI_FILE_SLACK 64ULL
 // The bytes of a file in one temporary cell of their size and the slack, counted to `owner`: the file at `path` read
 // whole, its size into `*size`; the same where its bytes read as UTF-8 whole; or `count` bytes of it from `from`, their
 // count into `*size`, fewer where the file ends first. NULL where the file could not be read or the cells cannot meet
@@ -242,7 +242,7 @@ typedef struct
 // on the word with the turnstile's backoff until the holder opens it and wakes the word
 typedef struct
 {
-    embed_atomic_word word;
+    embed_atomic_word state;
 } CliGate;
 
 #define CLI_GATE_INIT {EMBED_ATOMIC_INIT(0u)}
@@ -253,12 +253,12 @@ typedef struct
 EMBED_INLINE void cli_gate_shut(CliGate *gate)
 {
     EmbedTurnstileBackoff backoff;
-    embed_atomic_word_value was = embed_atomic_word_fetch_or(&gate->word, CLI_GATE_HELD);
+    embed_atomic_word_value was = embed_atomic_word_fetch_or(&gate->state, CLI_GATE_HELD);
     embed_turnstile_backoff_begin(&backoff);
     while ((was & CLI_GATE_HELD) != 0u)
     {
-        embed_turnstile_backoff_step(&gate->word, was, CLI_GATE_SLEEPER, &backoff, 1u);
-        was = embed_atomic_word_fetch_or(&gate->word, CLI_GATE_HELD);
+        embed_turnstile_backoff_step(&gate->state, was, CLI_GATE_SLEEPER, &backoff, 1u);
+        was = embed_atomic_word_fetch_or(&gate->state, CLI_GATE_HELD);
     }
     EMBED_ATOMIC_ORDERED();
 }
@@ -267,10 +267,10 @@ EMBED_INLINE void cli_gate_shut(CliGate *gate)
 EMBED_INLINE void cli_gate_opened(CliGate *gate)
 {
     EMBED_ATOMIC_ORDERED();
-    const embed_atomic_word_value was = embed_atomic_word_fetch_and(&gate->word, ~(CLI_GATE_HELD | CLI_GATE_SLEEPER));
+    const embed_atomic_word_value was = embed_atomic_word_fetch_and(&gate->state, ~(CLI_GATE_HELD | CLI_GATE_SLEEPER));
     if ((was & CLI_GATE_SLEEPER) != 0u)
     {
-        embed_word_wake(&gate->word);
+        embed_word_wake(&gate->state);
     }
 }
 
@@ -540,9 +540,9 @@ typedef struct
     unsigned int priority;
 } CliThread;
 
-// the lock, which the caller owns, given back while the thread waits on the wake, and taken again as it wakes; every
-// thread waiting woken; and a thread started on `thread`, let go to end on its own: 1, or 0 where it could not start
-void cli_wake_wait(const CliWakeCtx *args);
+// each thread that waits on the wake, woken; and a thread started on `thread`, let go to end on its own: 1, or 0 where
+// it could not start. An untimed wait has no form that reads the generation itself. That read comes after the test of
+// the waiter, and a wake between the two is lost to a sleep that no timer ends
 void cli_wake_all(const CliWakeCtx *args);
 // the wake's generation, read before a waiter tests its condition; and a sleep until the generation moves off `seen`,
 // which no wake landing after that read can be lost to
@@ -586,11 +586,11 @@ typedef struct
 } CliSocket;
 
 // what a read that takes what came returns beside a count
-#define CLI_SOCKET_CLOSED 0ll
+#define CLI_SOCKET_CLOSED 0LL
 
-#define CLI_SOCKET_WAITED (-2ll)
+#define CLI_SOCKET_WAITED (-2LL)
 
-#define CLI_SOCKET_FAILED (-1ll)
+#define CLI_SOCKET_FAILED (-1LL)
 
 // a connection made to `host`:`port`, its delay of small writes off; `size` bytes written whole; `size` bytes read
 // whole, 0 where the peer closed or the wait ran out; the wait of a read set, 0 for none; the connection ended both
@@ -986,7 +986,7 @@ struct CliSpawnLinesCtx
     unsigned long long pipe_handle;
     char *line;
     unsigned long long capacity;
-    void (*each)(void *context, char *line, unsigned long long used);
+    void (*each)(void *context, const char *line, unsigned long long used);
     void *context;
 };
 
@@ -1381,16 +1381,14 @@ EMBED_TABLE_STORAGE CliWordsWordsNs cli_words_words_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*wake_wait)(const CliWakeCtx *args);
     void (*wake_all)(const CliWakeCtx *args);
     unsigned int (*wake_read)(const CliWakeCtx *args);
     void (*wake_wait_seen)(const CliWakeCtx *args);
     int (*wake_wait_for)(const CliWakeCtx *args);
     int (*wake_wait_seen_for)(const CliWakeCtx *args);
 } CliWakeNs;
-EMBED_TABLE_LAYOUT(CliWakeNs, wake_wait, wake_all, wake_read, wake_wait_seen, wake_wait_for, wake_wait_seen_for);
+EMBED_TABLE_LAYOUT(CliWakeNs, wake_all, wake_read, wake_wait_seen, wake_wait_for, wake_wait_seen_for);
 EMBED_TABLE_STORAGE CliWakeNs cli_wake_internal EMBED_UNUSED = {
-    .wake_wait = cli_wake_wait,
     .wake_all = cli_wake_all,
     .wake_read = cli_wake_read,
     .wake_wait_seen = cli_wake_wait_seen,

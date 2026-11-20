@@ -17,7 +17,7 @@
 # at all. These seven writers share an alphabet entirely. That reading has nothing to work with and
 # should come out near chance.
 #
-# Word choice is the other unit, and it is where authorship has been found since the disputed Federalist
+# Word choice is the other unit. It is where authorship has been found since the disputed Federalist
 # papers were settled on function word frequencies alone. It is also the unit where composition drifts
 # within a text, which was raised earlier as a fault in the whole approach and displayed to be negligible at
 # character level. At word level it is not negligible. The same drift that could not touch the
@@ -66,7 +66,7 @@ def main():
             out.write("  %-28s errored in the gate: %s\n" % (name[:28], gate))
             continue
         if len(text) < SAME_LENGTH:
-            # The gate's note here read as though the gate had rejected a file it passed
+            # The gate's note here read as though the gate rejected a file it passed
             out.write("  %-28s passed the gate and holds %d characters, under the %d needed\n"
                       % (name[:28], len(text), SAME_LENGTH))
             continue

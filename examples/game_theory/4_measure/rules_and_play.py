@@ -24,7 +24,7 @@
 # independent quantity the departure is scored against, and it is not a reading of the departure.
 #
 # What came out is a negative and it is the point of the script. The departure separates the rules
-# from a scatter by 21 percent and 25 floors, and it does not order the three arms at all: the
+# from a scatter by 21 percent and 25 floors. It does not order the three arms at all: the
 # correlation between the departure and the win share over the nine pairings is 0.07.
 
 import io

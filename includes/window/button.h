@@ -21,7 +21,7 @@ typedef struct GuiButtonsDrawCfg GuiButtonsDrawCfg;
 #define GUI_BUTTONS_PRESS_MS 90ULL
 #define GUI_BUTTONS_RELEASE_MS 320ULL
 
-// The buttons: their beads' atlas; each button's press, GUI_FIXED_ONE at rest to twice that pressed, below rest in
+// The buttons: their beads' atlas. Each button's press, GUI_FIXED_ONE at rest to twice that pressed, below rest in
 // the wobble; and the button held pressed, GUI_BEAD_TOOLS_MAX for none
 typedef struct
 {

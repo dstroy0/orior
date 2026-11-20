@@ -22,7 +22,7 @@ extern "C" int krep_words_write(FILE *file, const unsigned long long *words, siz
         unsigned char bytes[8];
         for (unsigned int place = 0u; place < 8u; place += 1u)
         {
-            bytes[place] = (unsigned char)((words[at] >> (8u * place)) & 0xFFull);
+            bytes[place] = (unsigned char)((words[at] >> (8u * place)) & 0xFFULL);
         }
         if (fwrite(bytes, 1u, 8u, file) != 8u)
         {
@@ -45,7 +45,7 @@ extern "C" int krep_words_read(FILE *file, unsigned long long *words, size_t cou
         {
             return 0;
         }
-        words[at] = 0ull;
+        words[at] = 0ULL;
         for (unsigned int place = 0u; place < 8u; place += 1u)
         {
             words[at] |= (unsigned long long)bytes[place] << (8u * place);
@@ -116,12 +116,12 @@ extern "C" int krep_head_read(FILE *file, const char *type)
 
 unsigned long long krep_lanes(const unsigned long long extent[4])
 {
-    unsigned long long lanes = 1ull;
+    unsigned long long lanes = 1ULL;
     for (unsigned int axis = 0u; axis < 4u; axis += 1u)
     {
-        if ((extent[axis] == 0ull) || (extent[axis] > (1ull << 40u)) || (lanes > ((1ull << 40u) / extent[axis])))
+        if ((extent[axis] == 0ULL) || (extent[axis] > (1ULL << 40u)) || (lanes > ((1ULL << 40u) / extent[axis])))
         {
-            return 0ull;
+            return 0ULL;
         }
         lanes *= extent[axis];
     }
@@ -130,22 +130,22 @@ unsigned long long krep_lanes(const unsigned long long extent[4])
 
 static unsigned long long krep_side_leaves(const EngineSideSection *section)
 {
-    return (section != NULL) ? section->side.leaves : 0ull;
+    return (section != NULL) ? section->side.leaves : 0ULL;
 }
 
 static unsigned long long krep_side_bytes(const EngineSideSection *section)
 {
-    return (krep_side_leaves(section) != 0ull) ? section->side.byte_start[section->side.leaves] : 0ull;
+    return (krep_side_leaves(section) != 0ULL) ? section->side.byte_start[section->side.leaves] : 0ULL;
 }
 
 static unsigned long long krep_names_bytes(const EngineSideSection *section)
 {
-    return (krep_side_leaves(section) != 0ull) ? section->side.name_start[section->side.leaves] : 0ull;
+    return (krep_side_leaves(section) != 0ULL) ? section->side.name_start[section->side.leaves] : 0ULL;
 }
 
 static unsigned long long krep_member_words(unsigned long long leaves)
 {
-    return (leaves != 0ull) ? ((6ull * leaves) + 2ull) : 0ull;
+    return (leaves != 0ULL) ? ((6ULL * leaves) + 2ULL) : 0ULL;
 }
 
 static unsigned long long krep_seal_nodes(const EngineSeal *seal)
@@ -158,10 +158,10 @@ extern "C" unsigned long long krep_crystal_bytes(const EngineStream *stream, con
 {
     const unsigned long long leaves = krep_side_leaves(section);
     const unsigned long long side =
-        (leaves != 0ull) ? (section->packed_bytes + (8ull * krep_member_words(leaves)) + krep_names_bytes(section))
-                         : 0ull;
-    return KREP_HEAD_BYTES + (8ull * KREP_CRYSTAL_HEAD_WORDS) + (ENGINE_SIGNUM_BYTES * krep_seal_nodes(seal)) +
-           (8ull * stream->chunks) + (4ull * ((stream->bits + 31ull) / 32ull)) + side;
+        (leaves != 0ULL) ? (section->packed_bytes + (8ULL * krep_member_words(leaves)) + krep_names_bytes(section))
+                         : 0ULL;
+    return KREP_HEAD_BYTES + (8ULL * KREP_CRYSTAL_HEAD_WORDS) + (ENGINE_SIGNUM_BYTES * krep_seal_nodes(seal)) +
+           (8ULL * stream->chunks) + (4ULL * ((stream->bits + 31ULL) / 32ULL)) + side;
 }
 
 static void krep_crystal_head_words(const EngineStream *stream, const EngineSideSection *section,
@@ -173,7 +173,7 @@ static void krep_crystal_head_words(const EngineStream *stream, const EngineSide
     head[KREP_HEAD_LANE_OFFSET] = stream->lane_offset;
     head[KREP_HEAD_LEAVES] = krep_side_leaves(section);
     head[KREP_HEAD_SIDE_BYTES] = krep_side_bytes(section);
-    head[KREP_HEAD_PACKED_BYTES] = (head[KREP_HEAD_LEAVES] != 0ull) ? section->packed_bytes : 0ull;
+    head[KREP_HEAD_PACKED_BYTES] = (head[KREP_HEAD_LEAVES] != 0ULL) ? section->packed_bytes : 0ULL;
     head[KREP_HEAD_NAMES_BYTES] = krep_names_bytes(section);
     head[KREP_HEAD_LANE_NODES] = seal->lane_count;
 }
@@ -240,7 +240,7 @@ extern "C" int krep_crystal_write(const KrepCrystalRequest *request)
     const EngineSeal *const seal = request->seal;
     unsigned long long head[KREP_CRYSTAL_HEAD_WORDS];
     krep_crystal_head_words(stream, section, seal, head);
-    const size_t limbs = (size_t)((stream->bits + 31ull) / 32ull);
+    const size_t limbs = (size_t)((stream->bits + 31ULL) / 32ULL);
     FILE *const crystal = fopen(request->path, "wb");
     int ok = KREP_IO(crystal != NULL, request->path, error) &&
              KREP_IO(krep_head_write(crystal, KREP_KIND_CRYSTAL) != 0, crystal, error) &&
@@ -248,7 +248,7 @@ extern "C" int krep_crystal_write(const KrepCrystalRequest *request)
              krep_seal_write(crystal, seal, error) &&
              KREP_IO(krep_words_write(crystal, stream->offsets, (size_t)stream->chunks) != 0, stream->offsets, error) &&
              KREP_IO(krep_limbs_write(crystal, stream->stream, limbs) != 0, stream->stream, error);
-    if (ok && (head[KREP_HEAD_LEAVES] != 0ull))
+    if (ok && (head[KREP_HEAD_LEAVES] != 0ULL))
     {
         ok = KREP_IO(fwrite(section->packed, 1u, (size_t)section->packed_bytes, crystal) ==
                          (size_t)section->packed_bytes,
@@ -273,12 +273,12 @@ int krep_crystal_head_from(const char *path, FILE *crystal, EngineStream *stream
     stream->chunks = head[KREP_HEAD_CHUNKS];
     stream->bits = head[KREP_HEAD_BITS];
     stream->lane_offset = head[KREP_HEAD_LANE_OFFSET];
-    const unsigned long long lanes = ok ? krep_lanes(stream->extent) : 0ull;
-    const int unsided = (head[KREP_HEAD_SIDE_BYTES] == 0ull) && (head[KREP_HEAD_PACKED_BYTES] == 0ull) &&
-                        (head[KREP_HEAD_NAMES_BYTES] == 0ull);
-    return ok && KREP_CHECK((lanes != 0ull) && (stream->chunks <= lanes) && (stream->bits <= (64ull * lanes)) &&
-                                ((head[KREP_HEAD_LEAVES] != 0ull) || unsided) &&
-                                (head[KREP_HEAD_LANE_NODES] <= ((3ull * lanes) + 1ull)),
+    const unsigned long long lanes = ok ? krep_lanes(stream->extent) : 0ULL;
+    const int unsided = (head[KREP_HEAD_SIDE_BYTES] == 0ULL) && (head[KREP_HEAD_PACKED_BYTES] == 0ULL) &&
+                        (head[KREP_HEAD_NAMES_BYTES] == 0ULL);
+    return ok && KREP_CHECK((lanes != 0ULL) && (stream->chunks <= lanes) && (stream->bits <= (64ULL * lanes)) &&
+                                ((head[KREP_HEAD_LEAVES] != 0ULL) || unsided) &&
+                                (head[KREP_HEAD_LANE_NODES] <= ((3ULL * lanes) + 1ULL)),
                             head, error, ENGINE_ERROR_LOGIC);
 }
 
@@ -316,7 +316,7 @@ int krep_side_read(FILE *crystal, const unsigned long long head[KREP_CRYSTAL_HEA
                    EngineError *error)
 {
     memset(section, 0, sizeof(*section));
-    if (head[KREP_HEAD_LEAVES] == 0ull)
+    if (head[KREP_HEAD_LEAVES] == 0ULL)
     {
         return 1;
     }

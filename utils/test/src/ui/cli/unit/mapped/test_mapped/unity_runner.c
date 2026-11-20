@@ -70,7 +70,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\mapped\\test_mapped\\test_mapped.c");
+  UnityBegin("utils/test/src/ui/cli/unit/mapped/test_mapped/test_mapped.c");
   run_test(test_a_file_of_many_pages_maps_as_written, "test_a_file_of_many_pages_maps_as_written", 39);
   run_test(test_a_file_end_a_mebibyte_maps_as_written, "test_a_file_end_a_mebibyte_maps_as_written", 44);
   run_test(test_an_empty_file_maps_to_no_bytes, "test_an_empty_file_maps_to_no_bytes", 49);

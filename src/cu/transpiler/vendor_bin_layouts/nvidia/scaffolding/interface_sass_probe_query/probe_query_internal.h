@@ -57,9 +57,9 @@
 // where the candidate and the label lie in form_0's section, five lines of the body past the sixteen of the kernel
 // that come before its IADD3. A branch counts from the instruction after it, and only the distance between the two
 // reaches the encoding
-#define SASS_LOOP_AT 0x180ull
+#define SASS_LOOP_AT 0x180ULL
 
-#define SASS_LOOP_TARGET 0x150ull
+#define SASS_LOOP_TARGET 0x150ULL
 
 // the flag, and the registers the loop preserves, which a candidate that comes back leaves as they were
 // (sass_loop_walk): R0 the count down, R2 and R3 its steps, R4 and R5 the answer's address and R7 the count up

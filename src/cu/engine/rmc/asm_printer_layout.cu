@@ -126,8 +126,8 @@ int asm_printer_host(const AsmPrinterRuleset *text_rules, const std::vector<Mach
                      std::string *error_message)
 {
     const AsmPrinterLists forms = asm_printer_lists(text_rules);
-    std::vector<unsigned long long> record_first(items.size(), 0ull);
-    unsigned long long record_count = 0ull;
+    std::vector<unsigned long long> record_first(items.size(), 0ULL);
+    unsigned long long record_count = 0ULL;
     for (size_t at = 0u; at < items.size(); at += 1u)
     {
         if (!asm_printer_formed(&items[at]))
@@ -144,25 +144,25 @@ int asm_printer_host(const AsmPrinterRuleset *text_rules, const std::vector<Mach
         return 0;
     }
     std::vector<unsigned int> records((size_t)(record_count * ASM_PRINTER_RECORD_LIMBS), 0u);
-    std::vector<unsigned long long> record_lanes((size_t)record_count, 0ull);
+    std::vector<unsigned long long> record_lanes((size_t)record_count, 0ULL);
     for (size_t at = 0u; at < items.size(); at += 1u)
     {
         asm_printer_records(&forms, &items[at], record_first[at], records.data(), record_lanes.data());
     }
-    unsigned long long lanes = 0ull;
-    for (unsigned long long record = 0ull; record < record_count; record += 1ull)
+    unsigned long long lanes = 0ULL;
+    for (unsigned long long record = 0ULL; record < record_count; record += 1ULL)
     {
         lanes += record_lanes[record];
     }
-    if ((lanes >= ASM_PRINTER_LANES_MAX) || (lanes == 0ull))
+    if ((lanes >= ASM_PRINTER_LANES_MAX) || (lanes == 0ULL))
     {
         *error_message = "the text contains more lanes than the assembly printer supports";
         return 0;
     }
     std::vector<unsigned int> index;
     index.reserve((size_t)lanes);
-    unsigned long long first = 0ull;
-    for (unsigned long long record = 0ull; record < record_count; record += 1ull)
+    unsigned long long first = 0ULL;
+    for (unsigned long long record = 0ULL; record < record_count; record += 1ULL)
     {
         asm_printer_first(records.data(), record, first);
         // a record's number is below 2^31
@@ -188,7 +188,7 @@ int asm_printer_host(const AsmPrinterRuleset *text_rules, const std::vector<Mach
     // the one output, the byte, lies at its step's offset in each lane's record
     const unsigned int offset = text_rules->program.layout.step_table[text_rules->program.key.output[0]].out_offset;
     std::string written;
-    for (unsigned long long lane = 0ull; lane < lanes; lane += 1ull)
+    for (unsigned long long lane = 0ULL; lane < lanes; lane += 1ULL)
     {
         const unsigned int byte = asm_printer_byte(&out[(size_t)(lane * out_limbs)], out_limbs, offset);
         if (byte != 0u)

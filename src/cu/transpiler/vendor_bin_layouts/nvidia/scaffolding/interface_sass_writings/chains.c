@@ -134,7 +134,7 @@ int writings_chains_write(const char *pattern, const char *kernel_text, const ch
     s_pattern_size = writings_file_read(pattern, s_pattern, sizeof(s_pattern));
     const unsigned long long kernel_text_size = writings_file_read(kernel_text, (unsigned char *)s_kernel_text, sizeof(s_kernel_text) - 1u);
     s_kernel_text[kernel_text_size] = '\0';
-    if ((s_pattern_size == 0ull) || (kernel_text_size == 0ull) || !writings_kernel(s_kernel_text, s_kernel, sizeof(s_kernel)) ||
+    if ((s_pattern_size == 0ULL) || (kernel_text_size == 0ULL) || !writings_kernel(s_kernel_text, s_kernel, sizeof(s_kernel)) ||
         !sass_machine_read(&s_machine, machine) || !writings_load(folder))
     {
         fprintf(stderr, "the pattern, the kernel, the machine file or the search in %s did not read\n", folder);

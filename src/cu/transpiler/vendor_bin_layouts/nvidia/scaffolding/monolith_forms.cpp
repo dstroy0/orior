@@ -126,13 +126,13 @@ static int krs_read(const char *path, Krs *krs)
 {
     // the ruleset as the run stores it, or the disk where the run stores none (qry_member_file)
     const unsigned char *bytes = NULL;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     if (!qry_member_file_blob(path, &bytes, &size))
     {
         return 0;
     }
     std::string line;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while (at < size)
     {
         line.clear();
@@ -142,9 +142,9 @@ static int krs_read(const char *path, Krs *krs)
             {
                 line += (char)bytes[at];
             }
-            at += 1ull;
+            at += 1ULL;
         }
-        at += 1ull;
+        at += 1ULL;
         const size_t equals = line.find(" = ");
         if (equals == std::string::npos)
         {
@@ -1463,7 +1463,7 @@ struct Read
     std::string why;
 };
 
-// the in and out bases the listing has set up so far, a register each and its pair
+// the in and out bases the listing set up so far, a register each and its pair
 struct Bases
 {
     int in_low;
@@ -1490,8 +1490,8 @@ static std::string hex_number(const std::string &decimal)
 static int number_named(std::string *named, const std::string &number, const std::string &name, std::string *why)
 {
     const unsigned long long word = strtoull(number.c_str(), NULL, 10);
-    const std::string negative = ((word >= 0x80000000ull) && (word <= 0xffffffffull))
-                                     ? std::to_string(-(long long)(0x100000000ull - word))
+    const std::string negative = ((word >= 0x80000000ULL) && (word <= 0xffffffffULL))
+                                     ? std::to_string(-(long long)(0x100000000ULL - word))
                                      : number;
     for (const std::string &literal : {hex_number(number), number, hex_number(negative), negative})
     {
@@ -1533,12 +1533,12 @@ static std::string numbers_named(const std::string &text, const Question &questi
         {
             continue;
         }
-        const unsigned long long word = (role.number[0] == '-') ? 0ull : strtoull(role.number.c_str(), NULL, 10);
-        if (number_named(&named, role.number, "{" + role.name + "}", why) || (word <= 0xffffffffull))
+        const unsigned long long word = (role.number[0] == '-') ? 0ULL : strtoull(role.number.c_str(), NULL, 10);
+        if (number_named(&named, role.number, "{" + role.name + "}", why) || (word <= 0xffffffffULL))
         {
             continue;
         }
-        number_named(&named, std::to_string(word & 0xffffffffull), "{" + role.name + "}", why);
+        number_named(&named, std::to_string(word & 0xffffffffULL), "{" + role.name + "}", why);
         number_named(&named, std::to_string(word >> 32u), "{" + role.name + "}.hi", why);
     }
     return named;
@@ -1548,7 +1548,7 @@ static std::string numbers_named(const std::string &text, const Question &questi
 // was more than one time. 0 where it is nowhere in the answer, the system having folded it into a form of its own
 static int number_carried(const std::string &text, const Role &role)
 {
-    // the bare name is the low word; the name followed by .hi is the high half alone, which does not carry the low word
+    // the bare name is the low word. The name followed by .hi is the high half alone, which does not carry the low word
     // a fold left behind
     const std::string named = "{" + role.name + "}";
     size_t low = text.find(named);
@@ -1560,9 +1560,9 @@ static int number_carried(const std::string &text, const Role &role)
         }
         low = text.find(named, low + 1u);
     }
-    const unsigned long long word = (role.number[0] == '-') ? 0ull : strtoull(role.number.c_str(), NULL, 10);
-    const std::string negative = ((word >= 0x80000000ull) && (word <= 0xffffffffull))
-                                     ? std::to_string(-(long long)(0x100000000ull - word))
+    const unsigned long long word = (role.number[0] == '-') ? 0ULL : strtoull(role.number.c_str(), NULL, 10);
+    const std::string negative = ((word >= 0x80000000ULL) && (word <= 0xffffffffULL))
+                                     ? std::to_string(-(long long)(0x100000000ULL - word))
                                      : role.number;
     for (const std::string &literal : {hex_number(role.number), role.number, hex_number(negative), negative})
     {
@@ -2316,7 +2316,7 @@ static int sass_assembles(const std::string &text, const Question &question)
         // assembler reads: a bare decimal it would take for a register number, which tests the wrong operand type
         if ((role.type == "number") || role.opaque)
         {
-            const unsigned long long word = (role.number[0] == '-') ? 0ull : strtoull(role.number.c_str(), NULL, 10);
+            const unsigned long long word = (role.number[0] == '-') ? 0ULL : strtoull(role.number.c_str(), NULL, 10);
             const std::string high = "{" + role.name + "}.hi";
             size_t at = filled.find(high);
             while (at != std::string::npos)
@@ -2324,8 +2324,8 @@ static int sass_assembles(const std::string &text, const Question &question)
                 filled.replace(at, high.size(), hex_number(std::to_string(word >> 32u)));
                 at = filled.find(high, at);
             }
-            const std::string low = ((role.number[0] != '-') && (word > 0xffffffffull))
-                                        ? std::to_string(word & 0xffffffffull)
+            const std::string low = ((role.number[0] != '-') && (word > 0xffffffffULL))
+                                        ? std::to_string(word & 0xffffffffULL)
                                         : role.number;
             filled = text_fill(filled, role.name, hex_number(low));
             continue;
@@ -2499,7 +2499,7 @@ static int krs_apply(const char *path, const std::map<std::string, std::string> 
 {
     // the ruleset as the run stores it, or the disk where the run stores none (qry_member_file)
     const unsigned char *bytes = NULL;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     if (!qry_member_file_blob(path, &bytes, &size))
     {
         return -1;
@@ -2605,7 +2605,7 @@ static int forms_read(const char *questions_path, const char *listing, const cha
             verdict.text.clear();
         }
     };
-    // A question submitted in ptx.krs's text is read for sass.krs off the listing; one submitted in c.krs's for ptx.krs
+    // A question submitted in ptx.krs's text is read for sass.krs off the listing. One submitted in c.krs's for ptx.krs
     // off the PTX. The questions that load their numbers settle a form of their own with the questions that contain
     // none, and it is where the questions that write their numbers in do not settle one
     std::map<std::string, Verdict> loaded_verdicts;
@@ -2630,7 +2630,7 @@ static int forms_read(const char *questions_path, const char *listing, const cha
         int loaded = 0;
         int numbered = 0;
         // A probe classifies an operator only where what it varies shows in the answer. A numbered probe whose number
-        // the answer does not carry is one the system folded: it answered as it would for a value of its own and gave
+        // the answer does not carry is one the system folded. It answered as it would for a value of its own and gave
         // the classifier nothing of the form. A register the probe puts that the answer names nowhere is folded the
         // same way, the system retaining the value without an instruction of its own. Either is gated, and a probe the
         // system cannot fold decides instead. What a system folds is its own, written to its .ksc; nothing here names

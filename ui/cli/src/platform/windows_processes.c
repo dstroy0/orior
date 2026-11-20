@@ -81,7 +81,7 @@ EMBED_INLINE char *processes_command_get(const WindowsProcessesCtx *args)
         if ((start != NULL) && ((const unsigned char *)start >= base) &&
             ((const unsigned char *)(start + length) <= end))
         {
-            command = g_cli_guard->temporary_buf_alloc((3ull * length) + 1ull, g_cli_platform_owner);
+            command = g_cli_guard->temporary_buf_alloc((3ULL * length) + 1ULL, g_cli_platform_owner);
         }
         if (command != NULL)
         {

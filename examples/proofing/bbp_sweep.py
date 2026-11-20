@@ -1,7 +1,7 @@
 """Point the validated relation search at real constants, across a grid of parameters.
 
 The pipeline is gated in both directions: it recovers a planted relation exactly, it rejects a false
-one found among unrelated numbers, and it rediscovers the 1996 BBP formula for pi. So it can be
+one found among unrelated numbers. It rediscovers the 1996 BBP formula for pi. So it can be
 pointed somewhere and its answers read.
 
 WHERE NOT TO POINT IT

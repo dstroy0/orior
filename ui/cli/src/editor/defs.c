@@ -62,7 +62,7 @@ EMBED_INLINE void cli_unmapped(const DefsCtx *args)
     {
         // the text is the bytes the file was mapped as
         g_cli_guard->persistent_buf_release((void *)(embed_word)((const unsigned char *)args->file.text),
-                                            (g_cli_defs_owner));
+                                            g_cli_defs_owner);
     }
 }
 

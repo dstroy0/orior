@@ -12,24 +12,24 @@ __global__ static void noise_halves_kernel(const unsigned short *lanes, unsigned
     __shared__ unsigned long long cells[NOISE_HALVES_SUMS];
     for (unsigned int entry = threadIdx.x; entry < NOISE_HALVES_SUMS; entry += blockDim.x)
     {
-        cells[entry] = 0ull;
+        cells[entry] = 0ULL;
     }
     __syncthreads();
     const unsigned long long voxels = depth * pixels;
-    const unsigned long long middle = depth / 2ull;
+    const unsigned long long middle = depth / 2ULL;
     const unsigned long long jump = (unsigned long long)gridDim.x * blockDim.x;
     for (unsigned long long pixel = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x; pixel < pixels;
          pixel += jump)
     {
-        unsigned long long lower = 0ull;
-        unsigned long long upper = 0ull;
-        for (unsigned long long frame = 0ull; frame < frames; frame += 1ull)
+        unsigned long long lower = 0ULL;
+        unsigned long long upper = 0ULL;
+        for (unsigned long long frame = 0ULL; frame < frames; frame += 1ULL)
         {
-            for (unsigned long long z = 0ull; z < depth; z += 1ull)
+            for (unsigned long long z = 0ULL; z < depth; z += 1ULL)
             {
                 const unsigned long long value = lanes[(frame * voxels) + (z * pixels) + pixel];
-                lower += (z < middle) ? value : 0ull;
-                upper += (z < middle) ? 0ull : value;
+                lower += (z < middle) ? value : 0ULL;
+                upper += (z < middle) ? 0ULL : value;
             }
         }
         atomicAdd(&cells[NOISE_HALVES_LOWER], lower);
@@ -62,10 +62,10 @@ extern "C" long noise_halves_volume(const unsigned short *volume, const unsigned
     const unsigned long long depth = extent[1];
     const unsigned long long pixels = extent[2] * extent[3];
     const unsigned long long voxels = depth * pixels;
-    // sum lo and sum hi are at max the voxel-frames times 65535, below 2^64; sum lo hi is at max that times one
+    // sum lo and sum hi are at max the voxel-frames times 65535, below 2^64. Sum lo hi is at max that times one
     // pixel's frames and planes times 65535, below 2^128 with it
-    const int bounded = (depth >= 2ull) && (frames != 0ull) && (pixels != 0ull) && (frames <= (~0ull / voxels)) &&
-                        ((frames * voxels) <= (~0ull / 65535ull));
+    const int bounded = (depth >= 2ULL) && (frames != 0ULL) && (pixels != 0ULL) && (frames <= (~0ULL / voxels)) &&
+                        ((frames * voxels) <= (~0ULL / 65535ULL));
     if (!NOISE_DETECTOR_CHECK(bounded, extent, error, ENGINE_ERROR_REQUEST))
     {
         return NOISE_DETECTOR_ERROR;
@@ -82,8 +82,8 @@ extern "C" long noise_halves_volume(const unsigned short *volume, const unsigned
                                          device_lanes, error);
     if (ok != 0)
     {
-        const unsigned long long needed = (pixels + NOISE_DETECTOR_THREADS - 1ull) / NOISE_DETECTOR_THREADS;
-        const unsigned int blocks = (unsigned int)((needed < 65536ull) ? needed : 65536ull);
+        const unsigned long long needed = (pixels + NOISE_DETECTOR_THREADS - 1ULL) / NOISE_DETECTOR_THREADS;
+        const unsigned int blocks = (unsigned int)((needed < 65536ULL) ? needed : 65536ULL);
         noise_halves_kernel<<<blocks, NOISE_DETECTOR_THREADS>>>(device_lanes, frames, depth, pixels, device_sums);
         ok = NOISE_DETECTOR_STATUS_CHECK(cudaGetLastError(), device_sums, error) &&
              NOISE_DETECTOR_STATUS_CHECK(cudaMemcpy(sums, device_sums, sum_bytes, cudaMemcpyDeviceToHost), sums, error);
@@ -104,7 +104,7 @@ extern "C" long noise_halves_volume(const unsigned short *volume, const unsigned
     noise_exact_words(&read.covariance, &sums[NOISE_HALVES_PRODUCT]);
     noise_exact_word(&count, pixels);
     // P sum lo hi - sum lo sum hi over P^2 n_lo n_hi, then sum (lo + hi) over P T Z
-    const unsigned long long middle = depth / 2ull;
+    const unsigned long long middle = depth / 2ULL;
     int formed = (orior_exact_multiply(&read.covariance, &count, &read.covariance) == ORIOR_EXACT_OK) &&
                  (orior_exact_multiply(&lower, &upper, &term) == ORIOR_EXACT_OK) &&
                  (orior_exact_subtract(&read.covariance, &term, &read.covariance) == ORIOR_EXACT_OK) &&
@@ -150,13 +150,13 @@ extern "C" long noise_flicker_volume(const unsigned short *volume, const unsigne
             if (noise_per_mille(pooled[lag][NOISE_FLICKER_SQUARES], pooled[lag][NOISE_FLICKER_PAIRS],
                                 pooled[0][NOISE_FLICKER_SQUARES], pooled[0][NOISE_FLICKER_PAIRS], &per_mille[lag]) == 0)
             {
-                per_mille[lag] = 0ull;
+                per_mille[lag] = 0ULL;
             }
             if (noise_per_mille(pooled[lag][NOISE_FLICKER_NEIGHBOR_SQUARES], pooled[lag][NOISE_FLICKER_NEIGHBOR_PAIRS],
                                 pooled[0][NOISE_FLICKER_NEIGHBOR_SQUARES], pooled[0][NOISE_FLICKER_NEIGHBOR_PAIRS],
                                 &neighbor_per_mille[lag]) == 0)
             {
-                neighbor_per_mille[lag] = 0ull;
+                neighbor_per_mille[lag] = 0ULL;
             }
         }
     }
@@ -218,7 +218,7 @@ extern "C" long noise_neighbors_volume(const unsigned short *volume, const unsig
         }
         if (noise_neighbors_per_mille(pooled, &per_mille[radius]) == 0)
         {
-            per_mille[radius] = 0ll;
+            per_mille[radius] = 0LL;
         }
     }
     free(sums);
@@ -262,6 +262,6 @@ extern "C" void noise_root_extent(unsigned int term, const unsigned long long bo
     for (unsigned int axis = 0u; axis < 4u; axis += 1u)
     {
         const int unshared = (term < NOISE_ROOT_TERMS) && ((NOISE_ROOT_SHARED[term] & NOISE_ROOT_AXIS(axis)) == 0u);
-        pattern[axis] = (unshared != 0) ? box[axis] : 1ull;
+        pattern[axis] = (unshared != 0) ? box[axis] : 1ULL;
     }
 }

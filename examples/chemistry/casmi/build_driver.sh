@@ -129,7 +129,7 @@ tessera_build casmi_driver "${LINEA_OBJECTS[@]}" || exit 1
 
 # The engine's sources, each compiled alone, through the compile cache under a key of src/ only: its tree at HEAD,
 # its uncommitted changes and its untracked files, and the toolkit. The tree's own key covers every file of the
-# repository; an edit here would compile the engine again; under this key a build compiles only what changed in
+# repository; an edit here would compile the engine again. Under this key a build compiles only what changed in
 # src/. Four compile at a time
 ENGINE_KEY="$({ git -C "$TOP" rev-parse HEAD:src; git -C "$TOP" diff HEAD --binary -- src;
                 git -C "$TOP" ls-files -o --exclude-standard -- src | while read -r path; do

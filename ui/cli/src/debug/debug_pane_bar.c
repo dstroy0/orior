@@ -277,7 +277,7 @@ EMBED_INLINE void bar_evaluated(const DebugPaneBarCtx *args)
                    .length = sizeof(BAR_NONE) - 1ULL, .type = CLI_DEBUG_LINE_STDERR);
         return;
     }
-    CliDebugPaneStore *const frames = &g_cli_debug_pane.frames;
+    const CliDebugPaneStore *const frames = &g_cli_debug_pane.frames;
     const int framed = g_cli_debug_pane.paused && (g_cli_debug_pane.frame_at < frames->count);
     char *const scratch = g_cli_guard->temporary_buf_alloc(BAR_ANSWER, g_cli_debug_pane_owner);
     if (scratch == NULL)

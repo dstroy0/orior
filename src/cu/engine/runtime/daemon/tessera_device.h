@@ -5,7 +5,7 @@
 
 // The device's tessera: a ledger arranged in the device's memory, whose decisions the device makes. One thread runs a
 // list of calls in order, each tessera_ledger_core.h's decision, the one the host daemon's ledger makes. A call the
-// ledger's arrays cannot take stops the run with nothing changed; the host grows the arrays on the device, copying
+// ledger's arrays cannot take stops the run with nothing changed. The host grows the arrays on the device, copying
 // what they allocate, and the run goes on from that call. The host daemon stays: it builds with no CUDA toolchain and
 // makes no CUDA context. This one is built only where nvcc is.
 

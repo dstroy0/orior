@@ -14,7 +14,7 @@
 // inverse table runs the negative orders, a third table reads a halt set, and an or gathers every bit's lim sup beside
 // the floor. A bijection of a finite set has no transient. Every orbit is a cycle, and +omega and -omega are one
 // stage: each bit's or over the cycle, and the halt flag set exactly when the cycle meets the halt set. The device
-// decides every lane whose cycle fits its run; past the run a set flag is a halt seen, and a clear one is open. The
+// decides every lane whose cycle fits its run. Past the run a set flag is a halt seen, and a clear one is open. The
 // test is one job on the device's tessera daemon, submitted before its first device work.
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"

@@ -10,7 +10,7 @@
 #include "block.h"
 
 
-// What a pixel of a picture has gathered: its channels by what they have of it, and what of 255 it leaves the ground
+// What a pixel of a picture gathered: its channels by what they have of it, and what of 255 it leaves the ground
 typedef struct
 {
     unsigned int red;
@@ -18,9 +18,10 @@ typedef struct
     unsigned int blue;
     unsigned int rest;
 } BusyPixel;
-// the stages of the turn the trail reaches back round the ring; how many pulses a swirl holds and how far they fall,
-// the burn's level running from its least to all of 255; and the shares the ash and the hottest of the trail are at,
-// the trail's least under the burn's whole share for the burn alone to be as the fuse's own color
+// the stages of the turn that the trail reaches back round the ring. Then how many pulses a swirl holds and how far they
+// fall, with the level of the burn from its least to all of 255.
+// Then the shares of the ash and of the hottest part of the trail. The least of the trail is under the whole share of
+// the burn, so that only the burn shows the own color of the fuse
 #define BUSY_TRAIL 48u
 #define BUSY_PULSES 4u
 #define BUSY_LEVEL_MIN 96u
@@ -77,7 +78,8 @@ EMBED_INLINE int busy_sine(const BusyCtx *args)
     return (on < (GUI_BUSY_STAGES / 2u)) ? size : -size;
 }
 
-// a triangle from -16 to 16 at `phase` of a swirl's stages, every whole multiple of a stage coming round with the swirl
+// a triangle from -16 to 16 at `phase` of the stages of a swirl. Each whole multiple of a stage comes round with the
+// swirl
 EMBED_INLINE int busy_wave(const BusyCtx *args)
 {
     // a phase within a swirl is far inside what an int represents
@@ -113,7 +115,7 @@ int gui_busy_waiting(const GuiBusySinceCfg *args)
     return 1;
 }
 
-// whether an ask has was past the wait
+// whether a request is past the wait
 EMBED_INLINE int busy_wait_over(const BusyCtx *args)
 {
     const unsigned long long now_ms = args->now_ms;
@@ -163,8 +165,8 @@ unsigned long long gui_busy_next_deadline_ms(const GuiBusyCfg *args)
     {
         return now_ms + GUI_BUSY_STAGE_MS - ((now_ms - args->busy_read->visible_start_ms) & (GUI_BUSY_STAGE_MS - 1ULL));
     }
-    // stationary it wants a tick only to go: at its minimum visible time, and then as soon as no request has was
-    // past the show delay; while one has, the answer wakes the window
+    // when it does not move, it wants a tick only to go. That is at its minimum visible time, and then as soon as no
+    // request is past the show delay. While one is, the answer wakes the window
     const unsigned long long min_visible_end_ms = args->busy_read->visible_start_ms + GUI_BUSY_MIN_VISIBLE_MS;
     if (now_ms < min_visible_end_ms)
     {
@@ -230,7 +232,7 @@ EMBED_INLINE GuiColor busy_between(const BusyCtx *args)
                    ((GUI_BLUE_OF(args->from) * left) + (GUI_BLUE_OF(args->to) * args->share) + 127u) / 255u);
 }
 
-// `color` positioned over what the pixel has gathered by `share` of 255
+// `color` positioned over what the pixel gathered by `share` of 255
 EMBED_INLINE void busy_layout_over(const BusyCtx *args)
 {
     const unsigned int left = 255u - args->share;
@@ -252,8 +254,8 @@ EMBED_INLINE unsigned int busy_between_arcs(const BusyCtx *args)
     return (whole > hollow) ? whole - hollow : 0u;
 }
 
-// how far along one side of the circle the sine of a stage is at `reach`: where a pixel's middle falls, the
-// circle's center lying between two pixels and either way from it the same
+// how far along one side of the circle the sine of a stage is at `reach`. That is where the middle of a pixel falls.
+// The center of the circle lies between two pixels, and the result is the same on each side of it
 EMBED_INLINE unsigned int busy_along(const BusyCtx *args)
 {
     // a reach by a sine with sixteen bits of fraction, either way from the center, is far inside what an int represents
@@ -261,9 +263,9 @@ EMBED_INLINE unsigned int busy_along(const BusyCtx *args)
     return (args->sine < 0) ? args->half - 1u - exists : args->half + exists;
 }
 
-// the trail at the pixel `at` positioned on `pixel`, `share` of 255 its heat there: the burn's color glowing about the ring
-// by the pixel's share of the glow, and the ring's color, from the ash through the burn to the fire as the heat rises,
-// by its share of the ring
+// the trail at the pixel `at`, positioned on `pixel`, with `share` of 255 its heat there. The color of the burn glows
+// about the ring by the share of the glow of the pixel. The color of the ring goes from the ash through the burn to
+// the fire as the heat rises, by its share of the ring
 EMBED_INLINE void busy_trail_layout(const BusyCtx *args)
 {
     const unsigned int heat = args->share;
@@ -284,9 +286,10 @@ EMBED_INLINE void busy_trail_layout(const BusyCtx *args)
     }
 }
 
-// the burn positioned on `pixel`, `across` pixels from the picture's left and `down` from its top, its middle cell at
-// `head_x` and `head_y` and each cell `cell` pixels wide: the cell at its middle and one to each side of it, two lines
-// of three crossing. The `level` against the ordered threshold lights the pixel or lets it are dim
+// the burn, positioned on `pixel`, `across` pixels from the left of the picture and `down` from its top. Its middle cell
+// is at `head_x` and `head_y`, and each cell is `cell` pixels wide.
+// It is the cell at its middle and one to each side of it, two lines of three that cross. The `level` against the
+// ordered threshold lights the pixel or leaves it dim
 EMBED_INLINE void busy_burn_layout(const BusyCtx *args)
 {
     // a cell's place and a pixel's inside a picture are far inside what an int represents
@@ -320,8 +323,8 @@ EMBED_INLINE void busy_burn_layout(const BusyCtx *args)
     }
 }
 
-// the picture of `stage`, its pixels gathered from the ring, the trail's glow about it and the burn at its head; the
-// ring's reaches and each pixel's stage of the turn read from what the cell holds for the picture's making
+// the picture of `stage`, its pixels collected from the ring, the glow of the trail about it and the burn at its head.
+// The reaches of the ring and the stage of the turn of each pixel come from what the cell holds for the picture
 EMBED_INLINE void busy_stage_init(const BusyCtx *args)
 {
     const unsigned int side = args->busy->side;
@@ -330,8 +333,8 @@ EMBED_INLINE void busy_stage_init(const BusyCtx *args)
     unsigned int *const red_blue = args->busy->red_blue + (args->stage * pixels);
     unsigned int *const green = args->busy->green + (args->stage * pixels);
     unsigned int *const rest = args->busy->rest + (args->stage * pixels);
-    // the burn's level through the pulses, and where its middle cell lies with its twitch, a pixel off the ring where
-    // two waves that never line up are together at their heights
+    // the level of the burn through the pulses, and where its middle cell lies with its twitch. The twitch is a pixel
+    // off the ring, where two waves that never line up are together at their heights
     const unsigned int level_wave =
         (unsigned int)(EMBED_CALL(busy_wave, BusyCtx, .phase = args->stage * BUSY_PULSES) + 16);
     const unsigned int level_raw = BUSY_LEVEL_MIN + (level_wave * BUSY_LEVEL_STEP);
@@ -364,7 +367,7 @@ EMBED_INLINE void busy_stage_init(const BusyCtx *args)
                        .ring = args->ring, .palette = args->palette);
             EMBED_CALL(busy_burn_layout, BusyCtx, .pixel = &pixel, .across = column, .down = row, .head_x = head_x,
                        .head_y = head_y, .cell = args->cell, .level = level, .palette = args->palette);
-            // rounding in the gathering is not to take the pixel past the whole of 255 with what the ground adds
+            // the round in the collect must not take the pixel past the whole of 255 with what the ground adds
             const unsigned int max = 255u - pixel.rest;
             const unsigned int red = (pixel.red > max) ? max : pixel.red;
             const unsigned int gathered_green = (pixel.green > max) ? max : pixel.green;
@@ -376,8 +379,8 @@ EMBED_INLINE void busy_stage_init(const BusyCtx *args)
     }
 }
 
-// the pictures made in one cell for the circle's side at `scale`: the pixels saved from under it, each stage's lanes,
-// then what the pictures are made from: 1, or 0 with none made
+// the pictures, made in one cell for the side of the circle at `scale`. The cell holds the pixels kept from under it,
+// the lanes of each stage, and then the source of the pictures. The result is 1, or 0 with none made
 EMBED_INLINE int busy_pictures_init(const BusyCtx *args)
 {
     int scale = args->scale;
@@ -429,9 +432,9 @@ EMBED_INLINE int busy_pictures_init(const BusyCtx *args)
             // shares of 255 are bytes
             ring[at] = (unsigned char)on_ring;
             glow[at] = (unsigned char)((about > on_ring) ? about - on_ring : 0u);
-            // the pixel's stage of the turn: the one whose way round from the top it lies along max, twice its place
-            // from the center saving the middle of a pixel whole. A place inside a picture is far inside what an int
-            // represents
+            // the stage of the turn of the pixel: the stage whose way round from the top it lies along most. Twice its
+            // place from the center keeps the middle of a pixel whole. A place inside a picture is far inside what an
+            // int holds
             const int from_x = (2 * (int)column) + 1 - (int)side;
             const int from_y = (2 * (int)row) + 1 - (int)side;
             long long best = 0LL;
@@ -457,7 +460,7 @@ EMBED_INLINE int busy_pictures_init(const BusyCtx *args)
     return 1;
 }
 
-// the picture of the stage positioned in the circle's rectangle, no further than what was saved
+// the picture of the stage, positioned in the rectangle of the circle, no further than the kept pixels
 EMBED_INLINE void busy_stage_layout(const BusyCtx *args)
 {
     GuiBusy *busy = args->busy;
@@ -493,7 +496,7 @@ void gui_busy_draw(const GuiBusyFrameCfg *args)
     {
         return;
     }
-    // the rectangle's sides and place are not negative, it lying on the raster and not being empty
+    // the sides and place of the rectangle are not negative, because it lies on the raster and is not empty
     for (unsigned int row = 0u; row < (unsigned int)on.height; row += 1u)
     {
         memor.cpy(&(MemoriaCfg){
@@ -513,7 +516,7 @@ GuiRect gui_busy_redrawn(const GuiBusyFrameCfg *args)
         return (GuiRect){0, 0, 0, 0};
     }
     const GuiRect on = args->busy->under_rect;
-    // the rectangle's sides and place are not negative, it being saved from the raster
+    // the sides and place of the rectangle are not negative, because the code kept it from the raster
     for (unsigned int row = 0u; row < (unsigned int)on.height; row += 1u)
     {
         memor.cpy(&(MemoriaCfg){

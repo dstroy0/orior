@@ -147,7 +147,7 @@ static void limbs_divide(const uint32_t *top, size_t top_used, const uint32_t *b
 
 // x = floor(beta^t / d), beta = 2^32, for d of used limbs with its top limb nonzero and t >= used; x takes
 // t - used + 2 limbs. Each level halves the quotient's precision p: the top p/2 + 2 limbs of d give a reciprocal good
-// to half the limbs, shifted back up; one Newton step x + x (beta^t - d x) / beta^t squares its relative error; and
+// to half the limbs, shifted back up. One Newton step x + x (beta^t - d x) / beta^t squares its relative error; and
 // multiplying back fixes the last units exactly. Every product is on the ladder. The reciprocal costs a few
 // products. 0 when workspace cannot be allocated
 static int limbs_reciprocal(uint32_t *x, const uint32_t *d, size_t used, size_t t)

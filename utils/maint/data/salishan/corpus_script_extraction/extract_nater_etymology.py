@@ -62,7 +62,7 @@ def _repository_root():
     A marker the repository produces, such as build/, is absent from a linked worktree and a
     never-built clone, and a climb to it can pass this root and land in another checkout whose paths
     look valid. A marker infers the root. Git answers it. The climb below serves only an exported tree
-    with no git directory, and it looks for archive/src/python, which the repository tracks and every checkout
+    with no git directory. It looks for archive/src/python, which the repository tracks and every checkout
     of it holds.
 
     Git's own variables are cleared first. Inside a hook GIT_DIR is exported, and a rev-parse that
@@ -115,7 +115,7 @@ TARGET = os.path.join(
 
 # Retained in step with NATER_ETYM in hand_extraction/papers.py. ǝ is U+01DD and ə is U+0259, which NFC
 # does not unify, and this paper prints both. The apostrophe is deliberately absent for the same
-# reason it is absent from the other Nater paper: it is his ejective mark and also the closing quote
+# reason it is absent from the other Nater paper. It is his ejective mark and also the closing quote
 # of all 1275 glosses. Holding it makes every English gloss a word of the language.
 MARKS = "ʔʕɬłƛəχ7̓̔̕ʷ˽" + "ǝ√" + "áíúà" + "ᴗɢʁʒščɣλˑ"
 

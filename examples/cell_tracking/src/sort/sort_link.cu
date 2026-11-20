@@ -30,7 +30,7 @@
 
 #define SORT_SLICES (SORT_SLICES_A_DIRECTION * SORT_DIRECTIONS)
 
-// a tie list stores twice the capacity, and pass 2 fills it a batch of items at a time; one item's ties are at max the
+// a tie list stores twice the capacity, and pass 2 fills it a batch of items at a time. One item's ties are at max the
 // other frame's points, at max the capacity. Every batch takes at least one item
 #define SORT_LIST_CAPACITY(capacity_) (2ull * (unsigned long long)(capacity_))
 
@@ -66,7 +66,7 @@ typedef struct
 static SortResident s_sort_resident;
 
 // the weighted squared length between two places. Each difference is at max its axis's span. Once the span check
-// has passed every term and their sum are at max 2^63 - 1
+// passed every term and their sum are at max 2^63 - 1
 __host__ __device__ static unsigned long long sort_length(const int *one, const int *other, SortWeights weights)
 {
     unsigned long long length = 0ull;

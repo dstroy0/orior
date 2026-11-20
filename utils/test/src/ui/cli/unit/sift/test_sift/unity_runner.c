@@ -77,7 +77,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\sift\\test_sift\\test_sift.c");
+  UnityBegin("utils/test/src/ui/cli/unit/sift/test_sift/test_sift.c");
   run_test(test_the_sift_finds_what_the_plain_comparison_finds, "test_the_sift_finds_what_the_plain_comparison_finds", 110);
   run_test(test_a_search_without_case_agrees_with_the_plain_comparison, "test_a_search_without_case_agrees_with_the_plain_comparison", 141);
   run_test(test_a_search_without_case_finds_each_character_in_either_case, "test_a_search_without_case_finds_each_character_in_either_case", 147);

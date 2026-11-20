@@ -149,7 +149,7 @@ int main(void)
               "the menu's corners are short of its line's color at the top and the foot alike");
     cli_check(head_corner == foot_corner, "the foot's corner is rounded as the top's is");
 
-    // the catalog's titles positioned across the bar, each wide and in a row, and drawn on it; and titles given as a
+    // the catalog's titles positioned across the bar, each wide and in a row, and drawn on it. And titles given as a
     // stage of the claim positioned them, taken as they are
     char catalog_text[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea catalog_err_msg = {catalog_text, sizeof(catalog_text), 0ULL};

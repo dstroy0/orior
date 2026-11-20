@@ -97,8 +97,8 @@ static void hadamard_exact(OriorExactInteger *value, long long given)
 {
     orior_exact_zero(value);
     // the magnitude of the max negative word is one past the max positive, which the unsigned word represents
-    const unsigned long long magnitude = (given < 0) ? (0ull - (unsigned long long)given) : (unsigned long long)given;
-    value->limb[0] = (uint32_t)(magnitude & 0xffffffffull);
+    const unsigned long long magnitude = (given < 0) ? (0ULL - (unsigned long long)given) : (unsigned long long)given;
+    value->limb[0] = (uint32_t)(magnitude & 0xffffffffULL);
     value->limb[1] = (uint32_t)(magnitude >> 32);
     value->sign = (given > 0) ? 1 : ((given < 0) ? -1 : 0);
 }

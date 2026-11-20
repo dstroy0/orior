@@ -23,7 +23,7 @@ int query_trace_read(const std::string &path, QueryTrace *trace, std::string *er
     }
     std::string line;
     unsigned int number = 0u;
-    unsigned long long seen_bits = 0ull;
+    unsigned long long seen_bits = 0ULL;
     while (std::getline(file, line))
     {
         number += 1u;
@@ -40,7 +40,7 @@ int query_trace_read(const std::string &path, QueryTrace *trace, std::string *er
         std::getline(cells, name, '\t');
         std::getline(cells, gloss);
         const unsigned long long word = std::stoull(flag, nullptr, 16);
-        if ((word == 0ull) || ((word & (word - 1ull)) != 0ull) || ((seen_bits & word) != 0ull) || name.empty() ||
+        if ((word == 0ULL) || ((word & (word - 1ULL)) != 0ULL) || ((seen_bits & word) != 0ULL) || name.empty() ||
             (trace->flags.count(name) != 0u))
         {
             *error =
@@ -58,7 +58,7 @@ int query_trace_read(const std::string &path, QueryTrace *trace, std::string *er
 unsigned long long query_trace_flag(const QueryTrace &trace, const std::string &name)
 {
     const auto found = trace.flags.find(name);
-    return (found == trace.flags.end()) ? 0ull : found->second;
+    return (found == trace.flags.end()) ? 0ULL : found->second;
 }
 
 std::string query_trace_names(const QueryTrace &trace, unsigned long long word)
@@ -66,7 +66,7 @@ std::string query_trace_names(const QueryTrace &trace, unsigned long long word)
     std::string names;
     for (const auto &flag : trace.named)
     {
-        if ((word & flag.first) != 0ull)
+        if ((word & flag.first) != 0ULL)
         {
             names += (names.empty() ? "" : " ") + flag.second;
         }

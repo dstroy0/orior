@@ -239,11 +239,11 @@ def pulls(mine, machine, human, ranks=24):
 
     A total variation distance is a sum over words. It comes apart again into the words that
     made it. For one word the contribution to the margin is how far the file sits from the human
-    rate less how far it sits from the machine rate. Positive means that word is pulling the file
+    rate less how far it sits from the machine rate. Positive means that word pulls the file
     toward the machine pole.
 
     This is the part a phrase list cannot do. It names the words doing the work in this file,
-    including the ones nobody thought to write down, and it names them in the order they matter.
+    including the ones nobody thought to write down. It names them in the order they matter.
     """
     scored = []
     for word in set(mine) | set(machine) | set(human):

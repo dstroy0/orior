@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission. That permission is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
@@ -37,7 +37,7 @@
 /* Where the needle is lifted from. Every needle tested occurs at least once. */
 #define AGREEMENT_NEEDLE_AT 1000u
 
-/* The lengths under test. Zero and one are the bounds this driver exists for; the rest are ordinary
+/* The lengths under test. Zero and one are the bounds this driver exists for. The rest are ordinary
  * lengths present, a failure at a bound is distinguishable from an arm that is simply broken. */
 static const size_t AGREEMENT_LENGTHS[] = {0u, 1u, 2u, 3u, 4u, 16u, 64u};
 
@@ -81,8 +81,8 @@ static void grade(const char *what, size_t measured, size_t expected)
         failures += 1u;
     }
     // %zu, the definition the rest of this tree already uses for a size_t. gcc warns on it
-    // here because MinGW's headers assume msvcrt semantics; the runtime actually linked is the
-    // UCRT, which has handled %zu since Visual Studio 2015, and the warning is noise.
+    // here because MinGW's headers assume msvcrt semantics. The runtime actually linked is the
+    // UCRT, which handled %zu since Visual Studio 2015, and the warning is noise.
     //
     // Measured and not assumed, because an earlier revision of this file got it wrong in the
     // other direction: it widened every count to unsigned long long and recorded in a comment that

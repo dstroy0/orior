@@ -30,9 +30,9 @@ extern "C"
             memset(histogram, 0, sizeof(histogram));
             for (size_t at = 0u; at < count; at += 1u)
             {
-                histogram[(source[at] >> shift) & 0xFFull] += 1u;
+                histogram[(source[at] >> shift) & 0xFFULL] += 1u;
             }
-            if (histogram[(source[0] >> shift) & 0xFFull] == count)
+            if (histogram[(source[0] >> shift) & 0xFFULL] == count)
             {
                 continue;
             }
@@ -45,7 +45,7 @@ extern "C"
             }
             for (size_t at = 0u; at < count; at += 1u)
             {
-                const size_t digit = (size_t)((source[at] >> shift) & 0xFFull);
+                const size_t digit = (size_t)((source[at] >> shift) & 0xFFULL);
                 destination[histogram[digit]] = source[at];
                 histogram[digit] += 1u;
             }
@@ -85,9 +85,9 @@ extern "C"
             memset(histogram, 0, sizeof(histogram));
             for (size_t at = 0u; at < count; at += 1u)
             {
-                histogram[(source_keys[at] >> shift) & 0xFFull] += 1u;
+                histogram[(source_keys[at] >> shift) & 0xFFULL] += 1u;
             }
-            if (histogram[(source_keys[0] >> shift) & 0xFFull] == count)
+            if (histogram[(source_keys[0] >> shift) & 0xFFULL] == count)
             {
                 continue;
             }
@@ -100,7 +100,7 @@ extern "C"
             }
             for (size_t at = 0u; at < count; at += 1u)
             {
-                const size_t digit = (size_t)((source_keys[at] >> shift) & 0xFFull);
+                const size_t digit = (size_t)((source_keys[at] >> shift) & 0xFFULL);
                 destination_keys[histogram[digit]] = source_keys[at];
                 destination_values[histogram[digit]] = source_values[at];
                 histogram[digit] += 1u;

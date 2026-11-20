@@ -93,14 +93,14 @@ unsigned long long pi_tower_word(const PiWide &value)
 // reflected into the rotation one floor down, modulus mod multiplier on multiplier: Euclid's descent.
 int pi_tower_first_hit(PiWide multiplier, PiWide modulus, PiWide low, PiWide high, PiWide *step)
 {
-    const PiWide one = pi_tower_unsigned(1ull);
+    const PiWide one = pi_tower_unsigned(1ULL);
     std::vector<PiTowerLevel> levels;
     PiWide found;
     for (;;)
     {
         if (low.sign == 0)
         {
-            found = pi_tower_unsigned(0ull);
+            found = pi_tower_unsigned(0ULL);
             break;
         }
         if (multiplier.sign == 0)
@@ -187,16 +187,16 @@ PiWide pi_tower_arctan(unsigned long long x, unsigned int bits, unsigned long lo
 {
     const PiWide square = pi_tower_unsigned(x * x);
     PiWide power = pi_tower_quotient(pi_tower_power_two(bits), pi_tower_unsigned(x));
-    PiWide total = pi_tower_unsigned(0ull);
-    unsigned long long index = 0ull;
-    *terms = 0ull;
+    PiWide total = pi_tower_unsigned(0ULL);
+    unsigned long long index = 0ULL;
+    *terms = 0ULL;
     while (power.sign != 0)
     {
-        const PiWide term = pi_tower_quotient(power, pi_tower_unsigned((2ull * index) + 1ull));
-        total = ((index & 1ull) == 0ull) ? pi_tower_sum(total, term) : pi_tower_difference(total, term);
-        *terms += 1ull;
+        const PiWide term = pi_tower_quotient(power, pi_tower_unsigned((2ULL * index) + 1ULL));
+        total = ((index & 1ULL) == 0ULL) ? pi_tower_sum(total, term) : pi_tower_difference(total, term);
+        *terms += 1ULL;
         power = pi_tower_quotient(power, square);
-        index += 1ull;
+        index += 1ULL;
     }
     return total;
 }

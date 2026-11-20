@@ -8,7 +8,7 @@ Total power here is the signed residue fold summed in magnitude over all thirty-
 is the entire field with the sign folded out and nothing further discarded.
 
 Two things have to be separated. A monotone run while the field is still large is a real statement
-about the function. Rises after the field has reached its floor are not construction: each round is
+about the function. Rises after the field reached its floor are not construction: each round is
 its own seed. Consecutive rounds are independent draws and about half of them will land higher
 than the one before whatever the function does.
 

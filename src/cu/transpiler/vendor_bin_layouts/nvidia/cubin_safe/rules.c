@@ -18,7 +18,7 @@ static unsigned int cubin_register_of(unsigned long long low, unsigned long long
             {
                 const unsigned int whole = field[at] + bit;
                 const unsigned long long word = (whole < 64u) ? low : high;
-                value |= (unsigned int)((word >> (whole % 64u)) & 1ull) << bit;
+                value |= (unsigned int)((word >> (whole % 64u)) & 1ULL) << bit;
             }
             return value;
         }
@@ -77,7 +77,7 @@ static const SassForm *cubin_key_form(const SassMachine *machine, unsigned long 
 
 static unsigned long long cubin_word(const unsigned char *bytes)
 {
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     for (unsigned int byte = 0u; byte < 8u; byte += 1u)
     {
         value |= (unsigned long long)bytes[byte] << (8u * byte);
@@ -138,25 +138,25 @@ static unsigned long long s_bank_size;
 unsigned int cubin_safe(const SassMachine *machine, const unsigned char *code, unsigned long long code_size,
                         unsigned int registers, unsigned long long *at)
 {
-    *at = 0ull;
-    if ((code_size == 0ull) || ((code_size % 16ull) != 0ull))
+    *at = 0ULL;
+    if ((code_size == 0ULL) || ((code_size % 16ULL) != 0ULL))
     {
         return CUBIN_SAFE_SIZE;
     }
     unsigned int ungated = 0u;
-    for (unsigned long long place = 0ull; place < code_size; place += 16ull)
+    for (unsigned long long place = 0ULL; place < code_size; place += 16ULL)
     {
         *at = place;
         const unsigned long long low = cubin_word(&code[place]);
         const unsigned long long high = cubin_word(&code[place + 8u]);
-        const unsigned long long stall = (high >> CUBIN_STALL_SHIFT) & 0xfull;
+        const unsigned long long stall = (high >> CUBIN_STALL_SHIFT) & 0xfULL;
         // the vendor's verdict, where one is loaded (a launch, never a dry read): an encoding its reader called illegal
         // is blocked from the part, whatever our own gate reads it as
         if (cubin_safe_verdict_ready() && cubin_safe_verdict_gated(low, high))
         {
             return CUBIN_SAFE_GATED;
         }
-        if (((high >> CUBIN_WAIT_SHIFT) & 0x3full) != SASS_WAIT_EVERY)
+        if (((high >> CUBIN_WAIT_SHIFT) & 0x3fULL) != SASS_WAIT_EVERY)
         {
             return CUBIN_SAFE_WAIT;
         }
@@ -257,17 +257,17 @@ unsigned int cubin_safe_image(const SassMachine *machine, const unsigned char *i
     // the constant bank's sections are in the code sections' order, one a kernel; a container with fewer leaves the
     // bank's size unknown for the code sections past them
     const unsigned int banks = cubin_constant_sections(image, size, bank_offsets, bank_sizes, CUBIN_SAFE_SECTIONS);
-    *at = 0ull;
+    *at = 0ULL;
     if (sections == 0u)
     {
         return CUBIN_SAFE_SIZE;
     }
     for (unsigned int section = 0u; section < sections; section += 1u)
     {
-        unsigned long long inside = 0ull;
-        s_bank_size = (section < banks) ? bank_sizes[section] : 0ull;
+        unsigned long long inside = 0ULL;
+        s_bank_size = (section < banks) ? bank_sizes[section] : 0ULL;
         const unsigned int verdict = cubin_safe(machine, &image[offsets[section]], sizes[section], registers, &inside);
-        s_bank_size = 0ull;
+        s_bank_size = 0ULL;
         if (verdict != CUBIN_SAFE)
         {
             *at = offsets[section] + inside;

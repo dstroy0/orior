@@ -26,9 +26,9 @@ unsigned int deflate_distance_code(unsigned int distance)
 static unsigned long long deflate_key(const DeflateMatcher *matcher, unsigned long long at)
 {
     const unsigned long long key = ((unsigned long long)matcher->in[at] << 16u) |
-                                   ((unsigned long long)matcher->in[at + 1ull] << 8u) | matcher->in[at + 2ull];
-    unsigned long long folded = 0ull;
-    for (unsigned long long rest = key; rest != 0ull; rest >>= matcher->key_bits)
+                                   ((unsigned long long)matcher->in[at + 1ULL] << 8u) | matcher->in[at + 2ULL];
+    unsigned long long folded = 0ULL;
+    for (unsigned long long rest = key; rest != 0ULL; rest >>= matcher->key_bits)
     {
         folded ^= rest & matcher->mask;
     }
@@ -43,32 +43,32 @@ static void deflate_insert(DeflateMatcher *matcher, unsigned long long at)
     }
     const unsigned long long code = deflate_key(matcher, at);
     matcher->previous[at] = matcher->heads[code];
-    matcher->heads[code] = at + 1ull;
+    matcher->heads[code] = at + 1ULL;
 }
 
 static unsigned long long deflate_find(const DeflateMatcher *matcher, unsigned long long at,
                                        unsigned long long *distance)
 {
-    *distance = 0ull;
+    *distance = 0ULL;
     if ((matcher->in_bytes - at) < DEFLATE_MATCH_FLOOR)
     {
-        return 0ull;
+        return 0ULL;
     }
     const unsigned long long limit =
         ((matcher->in_bytes - at) < DEFLATE_MATCH_CEILING) ? (matcher->in_bytes - at) : DEFLATE_MATCH_CEILING;
-    unsigned long long best = 0ull;
+    unsigned long long best = 0ULL;
     unsigned long long candidate = matcher->heads[deflate_key(matcher, at)];
-    while (candidate != 0ull)
+    while (candidate != 0ULL)
     {
-        const unsigned long long earlier = candidate - 1ull;
+        const unsigned long long earlier = candidate - 1ULL;
         if ((at - earlier) > DEFLATE_WINDOW)
         {
             break;
         }
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         while ((length < limit) && (matcher->in[earlier + length] == matcher->in[at + length]))
         {
-            length += 1ull;
+            length += 1ULL;
         }
         if (length > best)
         {
@@ -81,7 +81,7 @@ static unsigned long long deflate_find(const DeflateMatcher *matcher, unsigned l
         }
         candidate = matcher->previous[earlier];
     }
-    return (best >= DEFLATE_MATCH_FLOOR) ? best : 0ull;
+    return (best >= DEFLATE_MATCH_FLOOR) ? best : 0ULL;
 }
 
 static void deflate_token(DeflateToken *tokens, unsigned long long *count, unsigned long long length,
@@ -91,36 +91,36 @@ static void deflate_token(DeflateToken *tokens, unsigned long long *count, unsig
     tokens[*count].length = (unsigned short)length;
     // a literal byte or a distance of at max 32768 fits in an unsigned short
     tokens[*count].value = (unsigned short)value;
-    *count += 1ull;
+    *count += 1ULL;
 }
 
 unsigned long long deflate_parse(DeflateMatcher *matcher, DeflateToken *tokens)
 {
-    unsigned long long count = 0ull;
-    unsigned long long at = 0ull;
+    unsigned long long count = 0ULL;
+    unsigned long long at = 0ULL;
     while (at < matcher->in_bytes)
     {
-        unsigned long long distance = 0ull;
+        unsigned long long distance = 0ULL;
         const unsigned long long length = deflate_find(matcher, at, &distance);
-        if (length == 0ull)
+        if (length == 0ULL)
         {
-            deflate_token(tokens, &count, 0ull, matcher->in[at]);
+            deflate_token(tokens, &count, 0ULL, matcher->in[at]);
             deflate_insert(matcher, at);
-            at += 1ull;
+            at += 1ULL;
             continue;
         }
         deflate_insert(matcher, at);
-        unsigned long long later_distance = 0ull;
+        unsigned long long later_distance = 0ULL;
         const unsigned long long later =
-            ((at + 1ull) < matcher->in_bytes) ? deflate_find(matcher, at + 1ull, &later_distance) : 0ull;
+            ((at + 1ULL) < matcher->in_bytes) ? deflate_find(matcher, at + 1ULL, &later_distance) : 0ULL;
         if (later > length)
         {
-            deflate_token(tokens, &count, 0ull, matcher->in[at]);
-            at += 1ull;
+            deflate_token(tokens, &count, 0ULL, matcher->in[at]);
+            at += 1ULL;
             continue;
         }
         deflate_token(tokens, &count, length, distance);
-        for (unsigned long long step = 1ull; step < length; step += 1ull)
+        for (unsigned long long step = 1ULL; step < length; step += 1ULL)
         {
             deflate_insert(matcher, at + step);
         }
@@ -147,8 +147,8 @@ int deflate_lengths(const unsigned long long *frequency, unsigned int count, uns
     unsigned int only = 0u;
     for (unsigned int symbol = 0u; symbol < count; symbol += 1u)
     {
-        used += (frequency[symbol] != 0ull) ? 1u : 0u;
-        only = (frequency[symbol] != 0ull) ? symbol : only;
+        used += (frequency[symbol] != 0ULL) ? 1u : 0u;
+        only = (frequency[symbol] != 0ULL) ? symbol : only;
     }
     if (used < 2u)
     {
@@ -172,7 +172,7 @@ int deflate_lengths(const unsigned long long *frequency, unsigned int count, uns
     unsigned int made = 0u;
     for (unsigned int symbol = 0u; symbol < count; symbol += 1u)
     {
-        if (frequency[symbol] == 0ull)
+        if (frequency[symbol] == 0ULL)
         {
             continue;
         }

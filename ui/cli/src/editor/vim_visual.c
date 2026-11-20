@@ -132,7 +132,7 @@ void cli_vim_chosen_run(const CliVimCtx *args)
         (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = g_cli_vim_state.view,
             .offset = ((unsigned long long)(args->at) * sizeof(CliVimView)) + offsetof(CliVimView, visual_head),
-            .src = &(CliPosition){(head).line, (head).col},
+            .src = &(CliPosition){head.line, head.col},
             .bytes = sizeof(CliPosition)});
         EMBED_CALL(cli_vim_commands_internal.chosen_drawn, CliVimCtx, .at = args->at, .key = args->key);
         return;

@@ -6,14 +6,14 @@
 // the box's voxels, 0 where an axis is empty or the count passes NOISE_ROOT_VOXELS_MAX
 static unsigned long long noise_root_voxels(const unsigned long long box[4])
 {
-    unsigned long long voxels = 1ull;
+    unsigned long long voxels = 1ULL;
     for (unsigned int axis = 0u; axis < 4u; axis += 1u)
     {
-        const int fits = (box[axis] != 0ull) && (box[axis] <= (NOISE_ROOT_VOXELS_MAX / voxels));
-        voxels = (fits != 0) ? (voxels * box[axis]) : 0ull;
-        if (voxels == 0ull)
+        const int fits = (box[axis] != 0ULL) && (box[axis] <= (NOISE_ROOT_VOXELS_MAX / voxels));
+        voxels = (fits != 0) ? (voxels * box[axis]) : 0ULL;
+        if (voxels == 0ULL)
         {
-            return 0ull;
+            return 0ULL;
         }
     }
     return voxels;
@@ -24,12 +24,12 @@ static void noise_root_next(unsigned long long place[4], const unsigned long lon
 {
     for (unsigned int axis = 4u; axis > 0u; axis -= 1u)
     {
-        place[axis - 1u] += 1ull;
+        place[axis - 1u] += 1ULL;
         if (place[axis - 1u] < box[axis - 1u])
         {
             return;
         }
-        place[axis - 1u] = 0ull;
+        place[axis - 1u] = 0ULL;
     }
 }
 
@@ -37,10 +37,10 @@ static void noise_root_next(unsigned long long place[4], const unsigned long lon
 static unsigned long long noise_root_pattern_place(const unsigned long long place[4],
                                                    const unsigned long long pattern[4])
 {
-    unsigned long long index = 0ull;
+    unsigned long long index = 0ULL;
     for (unsigned int axis = 0u; axis < 4u; axis += 1u)
     {
-        index = (index * pattern[axis]) + ((pattern[axis] == 1ull) ? 0ull : place[axis]);
+        index = (index * pattern[axis]) + ((pattern[axis] == 1ULL) ? 0ULL : place[axis]);
     }
     return index;
 }
@@ -50,20 +50,20 @@ static void noise_root_take(const NoiseRootRequest *request, const unsigned long
 {
     const unsigned long long *const low = request->low;
     const unsigned long long *const extent = request->extent;
-    unsigned long long at = 0ull;
-    for (unsigned long long frame = 0ull; frame < box[0]; frame += 1ull)
+    unsigned long long at = 0ULL;
+    for (unsigned long long frame = 0ULL; frame < box[0]; frame += 1ULL)
     {
-        for (unsigned long long z = 0ull; z < box[1]; z += 1ull)
+        for (unsigned long long z = 0ULL; z < box[1]; z += 1ULL)
         {
-            for (unsigned long long y = 0ull; y < box[2]; y += 1ull)
+            for (unsigned long long y = 0ULL; y < box[2]; y += 1ULL)
             {
                 // the volume is bounded. Its voxel count, and every place inside it, fits a word
                 const unsigned long long plane = (((low[0] + frame) * extent[1]) + low[1] + z) * extent[2];
                 const unsigned short *const row = &request->volume[((plane + low[2] + y) * extent[3]) + low[3]];
-                for (unsigned long long x = 0ull; x < box[3]; x += 1ull)
+                for (unsigned long long x = 0ULL; x < box[3]; x += 1ULL)
                 {
                     values[at] = row[x];
-                    at += 1ull;
+                    at += 1ULL;
                 }
             }
         }
@@ -79,15 +79,15 @@ static void noise_root_pattern(const int *values, const unsigned long long box[4
     noise_root_extent(term, box, extent);
     const unsigned long long cells = extent[0] * extent[1] * extent[2] * extent[3];
     memset(sums, 0, (size_t)cells * sizeof(unsigned long long));
-    unsigned long long place[4] = {0ull, 0ull, 0ull, 0ull};
-    for (unsigned long long at = 0ull; at < voxels; at += 1ull)
+    unsigned long long place[4] = {0ULL, 0ULL, 0ULL, 0ULL};
+    for (unsigned long long at = 0ULL; at < voxels; at += 1ULL)
     {
         // a box value is a lane, never negative
         sums[noise_root_pattern_place(place, extent)] += (unsigned long long)values[at];
         noise_root_next(place, box);
     }
     const unsigned long long shared = voxels / cells;
-    for (unsigned long long cell = 0ull; cell < cells; cell += 1ull)
+    for (unsigned long long cell = 0ULL; cell < cells; cell += 1ULL)
     {
         // a mean of lanes, rounded down, is a lane, which an int represents
         pattern[cell] = (int)(sums[cell] / shared);
@@ -100,8 +100,8 @@ static void noise_root_spread(const int *from, const unsigned long long box[4], 
 {
     unsigned long long extent[4];
     noise_root_extent(term, box, extent);
-    unsigned long long place[4] = {0ull, 0ull, 0ull, 0ull};
-    for (unsigned long long at = 0ull; at < voxels; at += 1ull)
+    unsigned long long place[4] = {0ULL, 0ULL, 0ULL, 0ULL};
+    for (unsigned long long at = 0ULL; at < voxels; at += 1ULL)
     {
         to[at] = from[at] + (sign * pattern[noise_root_pattern_place(place, extent)]);
         noise_root_next(place, box);
@@ -111,7 +111,7 @@ static void noise_root_spread(const int *from, const unsigned long long box[4], 
 static int noise_root_price(const NoiseRootRequest *request, const int *values, const unsigned long long extent[4],
                             unsigned long long *bits)
 {
-    *bits = 0ull;
+    *bits = 0ULL;
     return NOISE_DETECTOR_CHECK((request->cost(values, extent, bits, request->error) == 0L) &&
                                     (*bits <= NOISE_ROOT_BITS_MAX),
                                 values, request->error, ENGINE_ERROR_REQUEST);
@@ -124,15 +124,15 @@ extern "C" long noise_root_box(const NoiseRootRequest *request)
         return NOISE_DETECTOR_ERROR;
     }
     EngineError *const error = request->error;
-    unsigned long long box[4] = {0ull, 0ull, 0ull, 0ull};
+    unsigned long long box[4] = {0ULL, 0ULL, 0ULL, 0ULL};
     int inside = (request->volume != NULL) && (request->cost != NULL) && (request->measurement != NULL);
     for (unsigned int axis = 0u; inside && (axis < 4u); axis += 1u)
     {
         inside = (request->low[axis] < request->high[axis]) && (request->high[axis] <= request->extent[axis]);
-        box[axis] = (inside != 0) ? (request->high[axis] - request->low[axis]) : 0ull;
+        box[axis] = (inside != 0) ? (request->high[axis] - request->low[axis]) : 0ULL;
     }
-    const unsigned long long voxels = (inside != 0) ? noise_root_voxels(box) : 0ull;
-    if (!NOISE_DETECTOR_CHECK(voxels != 0ull, request, error, ENGINE_ERROR_REQUEST))
+    const unsigned long long voxels = (inside != 0) ? noise_root_voxels(box) : 0ULL;
+    if (!NOISE_DETECTOR_CHECK(voxels != 0ULL, request, error, ENGINE_ERROR_REQUEST))
     {
         return NOISE_DETECTOR_ERROR;
     }
@@ -150,7 +150,7 @@ extern "C" long noise_root_box(const NoiseRootRequest *request)
         noise_root_take(request, box, values);
     }
     ok = ok && noise_root_price(request, values, box, &measurement->box_bits);
-    long long max = 0ll;
+    long long max = 0LL;
     for (unsigned int term = 0u; ok && (term < NOISE_ROOT_TERMS); term += 1u)
     {
         unsigned long long extent[4];
@@ -199,7 +199,7 @@ extern "C" long noise_root_return(const NoiseReturnRequest *request)
     }
     const unsigned long long voxels = noise_root_voxels(request->box);
     if (!NOISE_DETECTOR_CHECK((request->residual != NULL) && (request->pattern != NULL) && (request->values != NULL) &&
-                                  (request->term < NOISE_ROOT_TERMS) && (voxels != 0ull),
+                                  (request->term < NOISE_ROOT_TERMS) && (voxels != 0ULL),
                               request, request->error, ENGINE_ERROR_REQUEST))
     {
         return NOISE_DETECTOR_ERROR;

@@ -18,7 +18,7 @@
 //   list:    a molecule's structures, the scored by repeated tournaments heaviest first, then the unscored in
 //            structure order, the first 25 written
 //
-// validate reserves the cfg's query library and places each molecule's answer in its list; test reads the test file
+// validate reserves the cfg's query library and places each molecule's answer in its list. Test reads the test file
 // after the train file, ranks its molecules against every spectrum of the train file and writes their lists' SMILES
 
 #include "rank.h"
@@ -240,7 +240,7 @@ static unsigned int rank_denominator_steps(ExactRecordProgram *program, unsigned
 
 // The envelope's two signs for the ratio e / n, n > 0, the envelope's fields read from member `member`:
 // c_high = COMPARE(2 e N_high, 2 D_high n + 1) and c_low = COMPARE(2 e N_low, 2 D_low n - 1). Neither side of either is
-// ever equal to the other; each sign is -1 or +1, and e / n is inside [D_low / N_low, D_high / N_high] exactly where
+// ever equal to the other. Each sign is -1 or +1, and e / n is inside [D_low / N_low, D_high / N_high] exactly where
 // c_high = -1 and c_low = +1
 static void rank_envelope_steps(ExactRecordProgram *program, const unsigned int *fields, unsigned int member,
                                 unsigned int error, unsigned int reference, unsigned int *high, unsigned int *low)
@@ -311,7 +311,7 @@ static int rank_sum_position(SimResults *results, RankField value, unsigned int 
     return ok;
 }
 
-// Sums each group's records on the device, three to a lane, pass after pass, until each group is one record; every
+// Sums each group's records on the device, three to a lane, pass after pass, until each group is one record. Every
 // group takes every pass, zero records filling a short lane; every sum ends in one layout. A pass positions its lanes'
 // records as three planes, lane l's three records record l of each: the sweep reads them with no index. *summed
 // stores group g's sum at g, then a zero record
@@ -1702,7 +1702,7 @@ int rank_run(SimResults *results, int count, char **arguments)
     }
 
     // each molecule's list: the chosen structures, then its unscored candidates in structure order, to 25. In validate
-    // the answer's place in it; in test the list's SMILES, each structure's from its first reference spectrum that
+    // the answer's place in it. In test the list's SMILES, each structure's from its first reference spectrum that
     // contains one, written as the molecule's line of the submission
     FILE *submission = NULL;
     std::vector<unsigned int> structure_smiles((size_t)structures + 1u, RANK_ABSENT);

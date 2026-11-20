@@ -20,7 +20,7 @@ typedef struct GuiWordmarkGlyphsCfg GuiWordmarkGlyphsCfg;
 typedef struct GuiWordmarkStillCfg GuiWordmarkStillCfg;
 
 // the durations in milliseconds: the pane's minimum visible time; the flight; TABVLA's slide up, the delay before it
-// fades out and the fade out; the delay before it fades in as the name appears and that fade in; and the frame time
+// fades out and the fade out. The delay before it fades in as the name appears and that fade in; and the frame time
 // while any of it moves
 #define GUI_WORDMARK_MIN_VISIBLE_MS 6000ULL
 #define GUI_WORDMARK_FLIGHT_MS 900ULL
@@ -32,7 +32,7 @@ typedef struct GuiWordmarkStillCfg GuiWordmarkStillCfg;
 #define GUI_WORDMARK_FRAME_MS 16ULL
 // the repository a press on the name opens, and the entry orior's folder saves the session last started in under
 
-// Where the large name is in a frame: the pixels of its em; the box round orior and the eye; TABVLA's box; and how
+// Where the large name is in a frame: the pixels of its em; the box round orior and the eye; TABVLA's box. And how
 // far TABVLA rises, in pixels, to be at the eye's middle, negative for up
 typedef struct
 {
@@ -51,15 +51,24 @@ typedef struct
     unsigned int cover;
 } GuiWordmarkSpan;
 
-// The wordmark: whether the eye is in the bar; whether the pane is, the view under it not drawn, when it was
-// displayed and whether TABVLA has come whole on it; whether the tree has been read; when the name went, 0 where it has
-// not, whether it still pours up the funnel, and the funnel's tip on the bar's foot; where orior and the eye was,
-// TABVLA's box, where its picture is positioned and how far it rises; the em the pictures were made at and the word's width
-// at it; the window's width and inside the places were taken for; orior and the eye as one mask, and in its one cell
-// the row the funnel positions, that row's sums and each mask row's ink, its first column and the column past its last; the
-// funnel's stages in a cell of their own while it pours, each stage's first span, the spans and their coverage, and
-// TABVLA's way up at each stage of its slide; TABVLA's picture, its cuts with their shade and their lip, with its own
-// alpha; the session last started in as orior's folder saves it; and whether less motion is asked for
+// The wordmark:
+//   - whether the eye is in the bar.
+//   - whether the pane exists, with the view under it not drawn. When the pane showed, and whether TABVLA came whole
+//     on it.
+//   - whether the code read the tree.
+//   - when the name went, 0 where it did not. Whether it still pours up the funnel, and the tip of the funnel on the
+//     foot of the bar.
+//   - where orior and the eye were, the box of TABVLA, where its picture sits and how far it rises.
+//   - the em that the code made the pictures at, and the width of the word at it.
+//   - the width of the window and the inside that the code took the places for.
+//   - orior and the eye as one mask. Its one cell holds the row that the funnel positions and the sums of that row. It
+//     also holds the ink of each mask row, its first column and the column past its last.
+//   - the stages of the funnel in a cell of their own while it pours: the first span of each stage, the spans and their
+//     coverage.
+//   - the way up of TABVLA at each stage of its slide.
+//   - the picture of TABVLA, its cuts with their shade and their lip, with its own alpha.
+//   - the session last started in, as the folder of orior saves it.
+//   - whether the user asks for less motion.
 typedef struct
 {
     int still;
@@ -95,30 +104,30 @@ typedef struct
 
 // the wordmark made with no eye in the bar and nothing located; and every cell of its given back
 void gui_wordmark_init(const GuiWordmarkStillCfg *args);
-// less motion asked for or no longer: asked for, TABVLA is whole with the name, the pane leaves with no flight, and
-// a flight under way ends with the eye home and nothing of the name saved
+// a request for less motion, or its end. With the request, TABVLA is whole with the name, and the pane leaves with no
+// flight. A flight under way then ends with the eye home, and the code keeps nothing of the name
 void gui_wordmark_still(const GuiWordmarkStillCfg *args);
-// the pane displayed, the name located on it from `now`; the eye home at once, every start after the first; and the tree
-// read, the pane leaving once it has was its least
+// the pane displayed, with the name on it from `now`. The eye goes home at once, at each start after the first. Then
+// the tree read: the pane leaves once its least time is past
 void gui_wordmark_are(const GuiWordmarkFrameCfg *args);
 void gui_wordmark_land(const GuiWordmarkStillCfg *args);
 void gui_wordmark_tree_read(const GuiWordmarkStillCfg *args);
 // the name's place in `frame`, on the frame's inside, as style.css sets it
 void gui_wordmark_position(const GuiWordmarkGlyphsCfg *args);
-// TABVLA's way down from its box, in pixels, and its opacity, 0 to 255,, as its transition and its animation
-// run; whether a frame is owed for what moved by `now`, the pane leaving and the funnel ending as the clock passes
-// them, the frame being what the funnel's tip is taken from; and the wordmark's next deadline, 0 for none
+// the way down of TABVLA from its box, in pixels, and its opacity, 0 to 255, as its transition and its animation run.
+// Then whether the window owes a frame for what moved by `now`. The pane leaves and the funnel ends as the clock passes
+// them. The tip of the funnel comes from that frame. Then the next deadline of the wordmark, 0 for none
 void gui_wordmark_under_at(const GuiWordmarkReadCfg *args);
 int gui_wordmark_tick(const GuiWordmarkFrameCfg *args);
 unsigned long long gui_wordmark_next_deadline_ms(const GuiWordmarkReadCfg *args);
-// the large name drawn as it is or goes: orior and the eye on the pane or up the funnel, and TABVLA; and
-// the square the eye is on in the bar, its size given the claim's numbers, empty where it has shrunk out; and the
-// eye drawn on it once it is home
+// the large name, drawn as it is or as it goes: orior and the eye on the pane or up the funnel, and TABVLA. Then the
+// square of the eye in the bar, its size from the numbers of the claim, empty where it shrank out. Then the eye, drawn
+// on it once it is home
 void gui_wordmark_draw(const GuiWordmarkFrameCfg *args);
 GuiRect gui_wordmark_logo_square(const GuiWordmarkFrameCfg *args);
 void gui_wordmark_logo_draw(const GuiWordmarkFrameCfg *args);
-// whether a press at x, y lands on the name: the eye once it is home, the large name where it was last drawn while it
-// is
+// whether a press at x, y lands on the name. That is the eye once it is home. While the large name shows, it is the
+// large name where the code last drew it
 int gui_wordmark_holds(const GuiWordmarkFrameCfg *args);
 struct GuiWordmarkFrameCfg
 {

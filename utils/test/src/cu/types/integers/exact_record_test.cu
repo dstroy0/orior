@@ -103,7 +103,7 @@ static int record_same(const RecordValue *left, const RecordValue *right)
     return (left->sign == right->sign) && (memcmp(left->limb, right->limb, sizeof(left->limb)) == 0);
 }
 
-// `bits` of two's complement at bit `offset` of `words`, as a magnitude and a sign; an output wider than the value
+// `bits` of two's complement at bit `offset` of `words`, as a magnitude and a sign. An output wider than the value
 // represents reads as sign 2, which equals no worked-out value
 static void record_at(const unsigned int *words, unsigned int offset, unsigned int bits, RecordValue *value)
 {

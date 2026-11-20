@@ -17,13 +17,13 @@
 
 // one line is an address and two numbers, at max 16 + 1 + 10 + 1 + 10 + 1 characters; this fits every line of
 // the max addresses a probe is given
-#define QUERY_INTERFACE_LINE 48ull
-static char s_query_interface_lines[(QUERY_INTERFACE_MAX * QUERY_INTERFACE_LINE) + 1ull];
+#define QUERY_INTERFACE_LINE 48ULL
+static char s_query_interface_lines[(QUERY_INTERFACE_MAX * QUERY_INTERFACE_LINE) + 1ULL];
 
 // `value` in hex written into `text`, which has room for 24
 static void query_interface_hex(char *text, unsigned long long value)
 {
-    VerbaLinea line = {text, 24ull, 0ull};
+    VerbaLinea line = {text, 24ULL, 0ULL};
     mmgr_line_hex(&line, value, 0u);
     mmgr_line_finish(&line);
 }
@@ -33,7 +33,7 @@ static void query_interface_hex(char *text, unsigned long long value)
 static void query_interface_lines_gathered(unsigned long long began)
 {
     qry_member_rings_settled();
-    VerbaLinea lines = {s_query_interface_lines, sizeof(s_query_interface_lines), 0ull};
+    VerbaLinea lines = {s_query_interface_lines, sizeof(s_query_interface_lines), 0ULL};
     unsigned long long at = began;
     const QryRecord *record = NULL;
     while (qry_member_read(&at, &record))
@@ -50,8 +50,8 @@ static void query_interface_lines_gathered(unsigned long long began)
 int query_interface_run(const QueryWalk *walk, const QueryInterfaceDriver *driver, unsigned long long *probes,
                         EngineError *error)
 {
-    *probes = 0ull;
-    unsigned long long next = 0ull;
+    *probes = 0ULL;
+    unsigned long long next = 0ULL;
     while (next < walk->count)
     {
         const unsigned long long left = walk->count - next;
@@ -81,14 +81,14 @@ int query_interface_run(const QueryWalk *walk, const QueryInterfaceDriver *drive
             return 0;
         }
         query_interface_lines_gathered(began);
-        *probes += 1ull;
+        *probes += 1ULL;
         if (!QUERY_INTERFACE_CHECK(answer.ending != INTERFACE_ENDING_NOT_STARTED, walk, error, ENGINE_ERROR_RESOURCE))
         {
             return 0;
         }
         const unsigned long long read = driver->read(walk, s_query_interface_lines, next, given, driver->answers);
         next += read;
-        if ((answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ull))
+        if ((answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ULL))
         {
             // a probe that exited clean answered every address it was given, or it wrote something else
             if (!QUERY_INTERFACE_CHECK(read == given, walk, error, ENGINE_ERROR_LOGIC))
@@ -105,7 +105,7 @@ int query_interface_run(const QueryWalk *walk, const QueryInterfaceDriver *drive
         }
         // the probe ended at the address after its last line: that address is answered by the ending
         driver->ended(walk, next, answer.fault, driver->answers);
-        next += 1ull;
+        next += 1ULL;
     }
     return 1;
 }
@@ -116,7 +116,7 @@ static unsigned long long query_interface_read(const QueryWalk *walk, const char
                                                unsigned long long given, void *answers)
 {
     Query *const queries = (Query *)answers;
-    unsigned long long read = 0ull;
+    unsigned long long read = 0ULL;
     const char *at = lines;
     while (read < given)
     {
@@ -148,7 +148,7 @@ static unsigned long long query_interface_read(const QueryWalk *walk, const char
         answer->bit = bit;
         answer->type = type;
         answer->fault = 0u;
-        read += 1ull;
+        read += 1ULL;
     }
     return read;
 }
@@ -169,6 +169,6 @@ static void query_interface_ended(const QueryWalk *walk, unsigned long long next
 unsigned long long query_interface_walk(const QueryWalk *walk, Query *answers, EngineError *error)
 {
     const QueryInterfaceDriver driver = {1, query_interface_read, query_interface_ended, answers};
-    unsigned long long probes = 0ull;
-    return (query_interface_run(walk, &driver, &probes, error) != 0) ? probes : 0ull;
+    unsigned long long probes = 0ULL;
+    return (query_interface_run(walk, &driver, &probes, error) != 0) ? probes : 0ULL;
 }

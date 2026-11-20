@@ -13,7 +13,7 @@ typedef struct GuiIconsCoverCfg GuiIconsCoverCfg;
 typedef struct GuiIconsCfg GuiIconsCfg;
 
 // the cache's entries, one rasterized icon each; when every entry is in use the cache is emptied and icons are
-// rasterized again on demand; the units of an icon's square; and the width of an icon's line in those units, as the
+// rasterized again on demand. The units of an icon's square; and the width of an icon's line in those units, as the
 // page draws them
 #define GUI_ICON_CACHE_ENTRIES 64u
 #define GUI_ICON_UNITS 16.0f

@@ -12,7 +12,7 @@ says when the trip to the card is worth taking.
 
 WHAT IS TIMED, AND WHY IT IS ALSO A GATE
 
-A benchmark that does not check its answer is timing an unknown. So every operation is run against
+A benchmark that does not check its answer times an unknown. So every operation is run against
 the routine it is meant to match, at every size, and a disagreement fails the run instead of being
 reported as a fast result. The pairs:
 

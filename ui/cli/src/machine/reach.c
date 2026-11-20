@@ -236,7 +236,7 @@ static void reach_entry(const CliEachNameIsFolderCfg *args)
             EMBED_CALL(reach_entry_add, ReachCtx, .read = read, .entry = one);
         }
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_machine_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_machine_owner);
 }
 
 // whether two paths name one place, as their parts compare, a separator at the end aside
@@ -417,7 +417,7 @@ struct CliReachCommand
 {
     const char *id;
     const char *command;
-    const char *const *word;
+    const char *const *word_list;
     unsigned int words;
     int ran;
     embed_atomic_word done;
@@ -445,10 +445,10 @@ typedef struct
 static CliReachInterface s_interface;
 
 // the wake function read from its word
-EMBED_INLINE void (*reach_woken(embed_atomic_uptr_value word))(void)
+EMBED_INLINE void (*reach_woken(embed_atomic_uptr_value stored))(void)
 {
     // Explicit cast reads the word as the function pointer stored in it
-    return (void (*)(void))(embed_word)word;
+    return (void (*)(void))(embed_word)stored;
 }
 
 // a command's thread woken: its command done, or its answer held
@@ -485,7 +485,8 @@ static void reach_released(const ReachCtx *args)
 {
     embed_u64 seen = 0u;
     (void)embed_ticket_ring_drain_release(&s_interface.turnstiles, &s_interface.ring, args->stamp, &seen);
-    embed_atomic_u32_store(&s_interface.taken, embed_ticket_of_stamp(args->stamp) + 1u);
+    // a ticket holds 32 bits at most, and the next ticket wraps to 0 as the 32 bit count of taken tickets does
+    embed_atomic_u32_store(&s_interface.taken, (embed_u32)(embed_ticket_of_stamp(args->stamp) + 1u));
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_interface.room);
 }
 
@@ -519,7 +520,7 @@ static int reach_received(const CliCommsRecvCfg *args)
     {
         return 1;
     }
-    const char *word[CLI_REACH_WORDS];
+    const char *given[CLI_REACH_WORDS];
     CliReachCommand command;
     command.id = args->body;
     unsigned long long at = cellul.len(&(CatenaFinitaCfg){.src = args->body, .cap = args->size}) + 1ULL;
@@ -529,10 +530,10 @@ static int reach_received(const CliCommsRecvCfg *args)
     command.words = fields - CLI_REACH_HEAD_FIELDS;
     for (unsigned int each = 0u; each < command.words; each += 1u)
     {
-        word[each] = args->body + at;
+        given[each] = args->body + at;
         at += cellul.len(&(CatenaFinitaCfg){.src = args->body + at, .cap = args->size - at}) + 1ULL;
     }
-    command.word = word;
+    command.word_list = given;
     command.ran = 0;
     embed_atomic_word_store(&command.done, 0u);
     const embed_u32 ticket = EMBED_ATOMIC_ADD_32(&s_interface.ticket, 1u);
@@ -666,7 +667,7 @@ int cli_reach_take(const CliReachCfg *args)
     while (reach_popped(&command, &stamp))
     {
         taken = 1;
-        command->ran = args->run(command->command, command->word, command->words);
+        command->ran = args->run(command->command, command->word_list, command->words);
         // A held command retains its id, and the held byte tells its requester to wait on. Its thread wakes at once, as
         // the interface's answer to the sending process waits on that thread. The window holds one command at a time,
         // so a second hold is refused

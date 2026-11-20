@@ -14,20 +14,20 @@
 // that a launch of a few thousand lanes reaches every processor and not only a few thread blocks' worth.
 static int cycle_record_resident(const CycleRecord *record, CycleCompiledLaunch program, EngineError *error)
 {
-    const unsigned long long share = (program.count + record->processors - 1ull) / record->processors;
-    const unsigned long long warps = ((share + 31ull) / 32ull) * 32ull;
+    const unsigned long long share = (program.count + record->processors - 1ULL) / record->processors;
+    const unsigned long long warps = ((share + 31ULL) / 32ULL) * 32ULL;
     // at max record->threads, itself at max CYCLE_BLOCK
     const unsigned int threads = (unsigned int)((warps < record->threads) ? warps : record->threads);
-    const unsigned long long needed = (program.count + threads - 1ull) / threads;
+    const unsigned long long needed = (program.count + threads - 1ULL) / threads;
     // the device's thread blocks at once are a small count, far under 2^31
     const unsigned int blocks = (unsigned int)((needed < record->resident) ? needed : record->resident);
     const unsigned long long register_bytes = threads * record->thread_bytes;
     EngineProgramBlock *const block = record->block;
     const unsigned long long ttl =
-        1000ull * cycle_environment_microseconds("CYCLE_RECORD_TTL", CYCLE_PROGRAM_TTL_MICROSECONDS);
-    const unsigned long long wdt = 1000ull * CYCLE_PROGRAM_WDT_MICROSECONDS;
+        1000ULL * cycle_environment_microseconds("CYCLE_RECORD_TTL", CYCLE_PROGRAM_TTL_MICROSECONDS);
+    const unsigned long long wdt = 1000ULL * CYCLE_PROGRAM_WDT_MICROSECONDS;
     const EngineSignum signature = block->signature;
-    const unsigned long long generation = block->generation + 1ull;
+    const unsigned long long generation = block->generation + 1ULL;
     memset(block, 0, sizeof(EngineProgramBlock));
     block->signature = signature;
     block->generation = generation;
@@ -66,7 +66,7 @@ static int cycle_record_resident(const CycleRecord *record, CycleCompiledLaunch 
         {
             break;
         }
-        block->launches += 1ull;
+        block->launches += 1ULL;
         block->owner = block->launches;
         block->state = ENGINE_PROGRAM_RUNNING;
         program.launch_number = block->launches;
@@ -165,7 +165,7 @@ static int cycle_record_launch(const CycleRecord *record, const CycleRecordLaunc
     return ok;
 }
 
-// CYCLE_RECORD_CHECK: the compiled program has run into the request's records; the interpreter runs the same lanes
+// CYCLE_RECORD_CHECK: the compiled program has run into the request's records. The interpreter runs the same lanes
 // into records of its own, and both runs' records and errors must be the same word for word. The compiled run's
 // errors are put back for the run to read
 static int cycle_record_check(const CycleRecord *record, CycleRecordLaunch launch, unsigned int blocks,
@@ -177,7 +177,7 @@ static int cycle_record_check(const CycleRecord *record, CycleRecordLaunch launc
     unsigned int compiled_error = 0u;
     unsigned int interpreted_error = 0u;
     unsigned int *interpreted = NULL;
-    unsigned long long interpreted_nanoseconds = 0ull;
+    unsigned long long interpreted_nanoseconds = 0ULL;
     int ok = CYCLE_STATUS_CHECK(
                  cudaMemcpy(&compiled_error, record->device_error, sizeof(unsigned int), cudaMemcpyDeviceToHost),
                  record->device_error, error) &&
@@ -229,7 +229,7 @@ extern "C" long cycle_record_run(const CycleRecordRunRequest *request)
         return CYCLE_ERROR;
     }
     EngineError *const error = request->error;
-    if (!CYCLE_CHECK((request->record != NULL) && (request->device_out != NULL) && (request->count != 0ull), request,
+    if (!CYCLE_CHECK((request->record != NULL) && (request->device_out != NULL) && (request->count != 0ULL), request,
                      error, ENGINE_ERROR_REQUEST))
     {
         return CYCLE_ERROR;
@@ -240,9 +240,9 @@ extern "C" long cycle_record_run(const CycleRecordRunRequest *request)
     for (unsigned int member = 0u; member < record->members; member += 1u)
     {
         // with no index, lane i reads record i of a member, or its one record where it has one
-        if (!CYCLE_CHECK((request->device_in[member] != NULL) && (request->bodies[member] != 0ull) &&
+        if (!CYCLE_CHECK((request->device_in[member] != NULL) && (request->bodies[member] != 0ULL) &&
                              ((request->device_index != NULL) || (request->count <= request->bodies[member]) ||
-                              (request->bodies[member] == 1ull)),
+                              (request->bodies[member] == 1ULL)),
                          &request->device_in[member], error, ENGINE_ERROR_REQUEST))
         {
             return CYCLE_ERROR;
@@ -260,14 +260,14 @@ extern "C" long cycle_record_run(const CycleRecordRunRequest *request)
     launch.step_count = record->steps;
     launch.members = record->members;
     launch.out_limbs = record->out_limbs;
-    const unsigned long long needed = (request->count + CYCLE_BLOCK - 1ull) / CYCLE_BLOCK;
+    const unsigned long long needed = (request->count + CYCLE_BLOCK - 1ULL) / CYCLE_BLOCK;
     const unsigned int blocks = (unsigned int)((needed < CYCLE_RECORD_BLOCKS_MAX) ? needed : CYCLE_RECORD_BLOCKS_MAX);
     const int compiled = (record->compiled != 0u) ? 1 : 0;
     const int report = cycle_environment_set("CYCLE_RECORD_REPORT");
     const int check = (compiled != 0) && (cycle_environment_set("CYCLE_RECORD_CHECK") != 0);
     unsigned int error_count = 1u;
     size_t stack = 0u;
-    unsigned long long nanoseconds = 0ull;
+    unsigned long long nanoseconds = 0ULL;
     int ok = CYCLE_STATUS_CHECK(cudaDeviceGetLimit(&stack, cudaLimitStackSize), &stack, error) &&
              CYCLE_STATUS_CHECK(cudaMemset(record->device_error, 0, sizeof(unsigned int)), record->device_error, error);
     ok = ok && cycle_record_launch(record, launch, blocks, compiled, (report != 0) ? &nanoseconds : NULL, error);
@@ -340,17 +340,17 @@ extern "C" long cycle_record_latch(const CycleRecordLatchRequest *request)
         return CYCLE_ERROR;
     }
     EngineError *const error = request->error;
-    if (!CYCLE_CHECK((request->records != NULL) && (request->first != NULL) && (request->count != 0ull) &&
+    if (!CYCLE_CHECK((request->records != NULL) && (request->first != NULL) && (request->count != 0ULL) &&
                          (request->out_limbs != 0u) && (request->bits != 0u) &&
                          (((unsigned long long)request->offset + request->bits) <=
-                          (32ull * (unsigned long long)request->out_limbs)),
+                          (32ULL * (unsigned long long)request->out_limbs)),
                      request, error, ENGINE_ERROR_REQUEST))
     {
         return CYCLE_ERROR;
     }
     unsigned long long *device_first = NULL;
     unsigned long long first = CYCLE_LATCH_NONE;
-    const unsigned long long needed = (request->count + CYCLE_BLOCK - 1ull) / CYCLE_BLOCK;
+    const unsigned long long needed = (request->count + CYCLE_BLOCK - 1ULL) / CYCLE_BLOCK;
     const unsigned int blocks = (unsigned int)((needed < CYCLE_RECORD_BLOCKS_MAX) ? needed : CYCLE_RECORD_BLOCKS_MAX);
     int ok = CYCLE_STATUS_CHECK(cudaMalloc((void **)&device_first, sizeof(unsigned long long)), &device_first, error) &&
              CYCLE_STATUS_CHECK(cudaMemcpy(device_first, &first, sizeof(unsigned long long), cudaMemcpyHostToDevice),
@@ -406,15 +406,15 @@ __global__ static void cycle_sum_kernel(const unsigned int *records, unsigned lo
     for (unsigned int limb = 0u; (begin < end) && (limb <= field_limbs); limb += 1u)
     {
         unsigned long long run = begin / group;
-        unsigned long long total = 0ull;
-        for (unsigned long long lane = begin; lane < end; lane += 1ull)
+        unsigned long long total = 0ULL;
+        for (unsigned long long lane = begin; lane < end; lane += 1ULL)
         {
             const unsigned long long here = lane / group;
             if (here != run)
             {
                 atomicAdd((limb < field_limbs) ? &totals[(run * field_limbs) + limb] : &negatives[run], total);
                 run = here;
-                total = 0ull;
+                total = 0ULL;
             }
             const unsigned int *const record = &records[lane * out_limbs];
             total += (limb < field_limbs) ? cycle_sum_limb(record, offset, bits, limb)
@@ -428,9 +428,9 @@ __global__ static void cycle_sum_kernel(const unsigned int *records, unsigned lo
 static void cycle_sum_add(unsigned int *sum, unsigned int limbs, unsigned int at, unsigned long long value)
 {
     unsigned long long carry = value;
-    for (unsigned int limb = at; (limb < limbs) && (carry != 0ull); limb += 1u)
+    for (unsigned int limb = at; (limb < limbs) && (carry != 0ULL); limb += 1u)
     {
-        const unsigned long long total = (unsigned long long)sum[limb] + (carry & 0xFFFFFFFFull);
+        const unsigned long long total = (unsigned long long)sum[limb] + (carry & 0xFFFFFFFFULL);
         sum[limb] = (unsigned int)total;
         carry = (carry >> 32u) + (total >> 32u);
     }
@@ -443,13 +443,13 @@ static void cycle_sum_subtract(unsigned int *sum, unsigned int limbs, unsigned i
     const unsigned int shift = bits % 32u;
     const unsigned int pieces[3] = {(unsigned int)(value << shift),
                                     (unsigned int)((shift == 0u) ? (value >> 32u) : (value >> (32u - shift))),
-                                    (unsigned int)((shift == 0u) ? 0ull : (value >> (64u - shift)))};
-    unsigned long long borrow = 0ull;
+                                    (unsigned int)((shift == 0u) ? 0ULL : (value >> (64u - shift)))};
+    unsigned long long borrow = 0ULL;
     for (unsigned int limb = at; limb < limbs; limb += 1u)
     {
         const unsigned long long piece = ((limb - at) < 3u) ? pieces[limb - at] : 0u;
         const unsigned long long taken = piece + borrow;
-        borrow = ((unsigned long long)sum[limb] < taken) ? 1ull : 0ull;
+        borrow = ((unsigned long long)sum[limb] < taken) ? 1ULL : 0ULL;
         sum[limb] = (unsigned int)((unsigned long long)sum[limb] + (borrow << 32u) - taken);
     }
 }
@@ -510,9 +510,9 @@ extern "C" long cycle_record_sum(const CycleRecordSumRequest *request)
     const unsigned long long runs = request->count / request->group;
     const unsigned int field_limbs = (request->bits + 31u) / 32u;
     const unsigned long long max = CYCLE_RECORD_BLOCKS_MAX * CYCLE_BLOCK;
-    const unsigned long long chunk = (request->count + max - 1ull) / max;
-    const unsigned long long threads = (request->count + chunk - 1ull) / chunk;
-    const unsigned int blocks = (unsigned int)((threads + CYCLE_BLOCK - 1ull) / CYCLE_BLOCK);
+    const unsigned long long chunk = (request->count + max - 1ULL) / max;
+    const unsigned long long threads = (request->count + chunk - 1ULL) / chunk;
+    const unsigned int blocks = (unsigned int)((threads + CYCLE_BLOCK - 1ULL) / CYCLE_BLOCK);
     const size_t total_bytes = (size_t)(runs * field_limbs) * sizeof(unsigned long long);
     const size_t negative_bytes = (size_t)runs * sizeof(unsigned long long);
     unsigned long long *totals = (unsigned long long *)malloc(total_bytes);
@@ -535,7 +535,7 @@ extern "C" long cycle_record_sum(const CycleRecordSumRequest *request)
                             error) &&
          CYCLE_STATUS_CHECK(cudaMemcpy(negatives, device_negatives, negative_bytes, cudaMemcpyDeviceToHost),
                             device_negatives, error);
-    for (unsigned long long run = 0ull; (ok != 0) && (run < runs); run += 1ull)
+    for (unsigned long long run = 0ULL; (ok != 0) && (run < runs); run += 1ULL)
     {
         unsigned int *const sum = &request->sums[run * request->sum_limbs];
         memset(sum, 0, request->sum_limbs * sizeof(unsigned int));

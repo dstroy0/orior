@@ -81,7 +81,7 @@ def synthesize_at(total, top, colatitudes, longitudes):
 
     Separable because the sum splits: a Legendre part depending only on the colatitude and a
     trigonometric part depending only on the longitude. Summing the basis at every point of a fine
-    grid costs the point count times 121; splitting it costs the row count times 121 plus the point
+    grid costs the point count times 121. Splitting it costs the row count times 121 plus the point
     count times 21, and returns the same numbers.
 
     sphere_field.synthesize does this on its own fixed grid of cell centers. This one takes the
@@ -424,7 +424,7 @@ def _check():
         failed += 1
 
     # The interpolant must be continuous across the diagonal where the two triangles meet, or the
-    # gradient measure is reading a seam this tool invented.
+    # gradient measure reads a seam this tool invented.
     middle = (float(triangle_value(corners, 0.5, 0.5)[0][0]),
               float(triangle_value(corners, 0.5 + 1e-9, 0.5)[0][0]))
     lines.append("  across the diagonal: %.6f and %.6f" % middle)

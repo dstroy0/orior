@@ -70,7 +70,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\home\\test_home\\test_home.c");
+  UnityBegin("utils/test/src/ui/cli/unit/home/test_home/test_home.c");
   run_test(test_the_menus_file_describes_hide, "test_the_menus_file_describes_hide", 43);
   run_test(test_the_menus_list_starts_empty, "test_the_menus_list_starts_empty", 50);
   run_test(test_the_hide_list_starts_empty, "test_the_hide_list_starts_empty", 55);

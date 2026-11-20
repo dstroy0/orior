@@ -75,7 +75,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\reply\\test_reply\\test_reply.c");
+  UnityBegin("utils/test/src/ui/cli/unit/reply/test_reply/test_reply.c");
   run_test(test_the_end_of_the_whole_reply_is_its_size, "test_the_end_of_the_whole_reply_is_its_size", 21);
   run_test(test_the_end_of_an_array_is_past_its_bracket, "test_the_end_of_an_array_is_past_its_bracket", 26);
   run_test(test_the_end_of_an_object_passes_the_brackets_inside_its_string, "test_the_end_of_an_object_passes_the_brackets_inside_its_string", 31);

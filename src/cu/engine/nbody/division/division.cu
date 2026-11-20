@@ -32,14 +32,14 @@ static unsigned int division_put(DivisionWriter *writer, EngineRecordOperation o
 
 static unsigned int division_constant(DivisionWriter *writer, unsigned long long value)
 {
-    return division_put(writer, ENGINE_RECORD_CONSTANT, (unsigned int)(value & 0xFFFFFFFFull),
+    return division_put(writer, ENGINE_RECORD_CONSTANT, (unsigned int)(value & 0xFFFFFFFFULL),
                         (unsigned int)(value >> 32u), 0u);
 }
 
 extern "C" long division_program(const DivisionRequest *request, EngineRecordStep program[DIVISION_STEPS],
                                  unsigned int outputs[DIVISION_OUTPUTS])
 {
-    if ((request->voxel_pm[0] == 0ull) || (request->voxel_pm[1] == 0ull) || (request->voxel_pm[2] == 0ull))
+    if ((request->voxel_pm[0] == 0ULL) || (request->voxel_pm[1] == 0ULL) || (request->voxel_pm[2] == 0ULL))
     {
         return DIVISION_ERROR;
     }
@@ -52,7 +52,7 @@ extern "C" long division_program(const DivisionRequest *request, EngineRecordSte
     const unsigned int child_mass = division_put(&writer, ENGINE_RECORD_FIELD, request->mass_field, 0u, DIVISION_CHILD);
     const unsigned int sibling_mass =
         division_put(&writer, ENGINE_RECORD_FIELD, request->mass_field, 0u, DIVISION_SIBLING);
-    const unsigned int one = division_constant(&writer, 1ull);
+    const unsigned int one = division_constant(&writer, 1ULL);
     const unsigned int dimensions = division_constant(&writer, ENGINE_AXES);
     const unsigned int joined = division_put(&writer, ENGINE_RECORD_SUM, child_mass, sibling_mass, 0u);
     const unsigned int parent_band = division_put(&writer, ENGINE_RECORD_LADDER, parent_mass, one, 0u);

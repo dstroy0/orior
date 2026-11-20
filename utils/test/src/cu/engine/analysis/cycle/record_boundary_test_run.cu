@@ -116,7 +116,7 @@ int boundary_narrow_enough(const BoundaryLoaded *loaded, const BoundaryProgram *
 }
 
 // flip one input bit b per lane pair and read the move at the first n outputs. For b >= REACH the move must be
-// exactly 2^b times column i of the map's matrix; for every b it must lie at bit b - bound or above. Each lane must
+// exactly 2^b times column i of the map's matrix. For every b it must lie at bit b - bound or above. Each lane must
 // also equal the host's map, and with readback the next n outputs must return the inputs. The greatest reach met
 // comes back in range_seen.
 void boundary_precision(BoundaryResults *results, BoundaryLoaded *loaded, const BoundaryProgram *program,

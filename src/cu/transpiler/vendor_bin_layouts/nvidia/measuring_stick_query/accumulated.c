@@ -6,7 +6,7 @@
 
 // The pieces, `count` of them, every one not set aside read as one raw run, each placed after the one before it: the
 // vendor reads them all at one start. Where it stops, the piece the stop lies in is set aside, STOPPED, and the run
-// read again without it, until it reads clean; the clean run's listing is `listing`, every line at its offset in that
+// read again without it, until it reads clean. The clean run's listing is `listing`, every line at its offset in that
 // run, and each piece's `start` its place in it. A stop at no address the run contains sets every piece left aside,
 // UNREAD, to be read alone. 1, or 0 where the vendor could not be run or the system gave no memory
 int msq_accumulated_read(MsqReader *reader, MsqPiece *pieces, size_t count, MsqListing *listing)
@@ -20,7 +20,7 @@ int msq_accumulated_read(MsqReader *reader, MsqPiece *pieces, size_t count, MsqL
     while (1)
     {
         size_t joined = 0u;
-        unsigned long long at = 0ull;
+        unsigned long long at = 0ULL;
         for (size_t piece = 0u; piece < count; piece += 1u)
         {
             pieces[piece].start = at;
@@ -47,7 +47,7 @@ int msq_accumulated_read(MsqReader *reader, MsqPiece *pieces, size_t count, MsqL
             free(runs);
             return msq_listing_read(reader->output, (size_t)reader->output_size, listing);
         }
-        unsigned long long address = 0ull;
+        unsigned long long address = 0ULL;
         size_t stopped = count;
         if (msq_stopped_at(reader->output, (size_t)reader->output_size, &address) && (address < at))
         {
@@ -101,7 +101,7 @@ void msq_pieces_cut(MsqListing *listing, const MsqPiece *pieces, size_t count, M
         MsqListing view = {&listing->lines[line], last - line, 0u, NULL};
         if (one->type == MSQ_PIECE_WORD)
         {
-            readings[one->index] = msq_listing_at(&view, 0ull);
+            readings[one->index] = msq_listing_at(&view, 0ULL);
         }
         else if (one->type == MSQ_PIECE_FRAME)
         {

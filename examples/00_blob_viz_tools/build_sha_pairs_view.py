@@ -30,7 +30,7 @@ TRACKING THE PAIRS
 
 The digest is traced round by round, sixty-four frames of two hundred and fifty-six bits, and the
 slider steps them. A pair that flips as the round advances is a pair the computation is still
-moving, and one that has settled has settled. At the last round the trace is the digest, printed so
+moving, and one that has settled settled. At the last round the trace is the digest, printed so
 it can be checked against any other implementation and not taken on trust.
 """
 

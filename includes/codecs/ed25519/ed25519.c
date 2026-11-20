@@ -44,24 +44,24 @@ static void ed25519_carried(Ed25519Field field)
 {
     for (unsigned int at = 0u; at < ED25519_LIMBS; at += 1u)
     {
-        field[at] += 65536ll;
+        field[at] += 65536LL;
         const long long carry = field[at] >> 16;
         if (at < (ED25519_LIMBS - 1u))
         {
-            field[at + 1u] += carry - 1ll;
+            field[at + 1u] += carry - 1LL;
         }
         else
         {
-            field[0] += 38ll * (carry - 1ll);
+            field[0] += 38LL * (carry - 1LL);
         }
-        field[at] -= carry * 65536ll;
+        field[at] -= carry * 65536LL;
     }
 }
 
 // `one` and `other` swapped where `swap` is 1 and left where it is 0, the same work either way
 static void ed25519_swapped(Ed25519Field one, Ed25519Field other, long long swap)
 {
-    const long long mask = ~(swap - 1ll);
+    const long long mask = ~(swap - 1LL);
     for (unsigned int at = 0u; at < ED25519_LIMBS; at += 1u)
     {
         const long long flip = mask & (one[at] ^ other[at]);
@@ -81,22 +81,22 @@ static void ed25519_packed(unsigned char out[32], const Ed25519Field in)
     ed25519_carried(field);
     for (unsigned int pass = 0u; pass < 2u; pass += 1u)
     {
-        less[0] = field[0] - 0xffedll;
+        less[0] = field[0] - 0xffedLL;
         for (unsigned int at = 1u; at < (ED25519_LIMBS - 1u); at += 1u)
         {
-            less[at] = field[at] - 0xffffll - ((less[at - 1u] >> 16) & 1ll);
-            less[at - 1u] &= 0xffffll;
+            less[at] = field[at] - 0xffffLL - ((less[at - 1u] >> 16) & 1LL);
+            less[at - 1u] &= 0xffffLL;
         }
-        less[15] = field[15] - 0x7fffll - ((less[14] >> 16) & 1ll);
-        const long long borrowed = (less[15] >> 16) & 1ll;
-        less[14] &= 0xffffll;
-        ed25519_swapped(field, less, 1ll - borrowed);
+        less[15] = field[15] - 0x7fffLL - ((less[14] >> 16) & 1LL);
+        const long long borrowed = (less[15] >> 16) & 1LL;
+        less[14] &= 0xffffLL;
+        ed25519_swapped(field, less, 1LL - borrowed);
     }
     for (unsigned int at = 0u; at < ED25519_LIMBS; at += 1u)
     {
         // a reduced limb contains 16 bits, its two bytes separated apart
-        out[2u * at] = (unsigned char)(field[at] & 0xffll);
-        out[(2u * at) + 1u] = (unsigned char)((field[at] >> 8) & 0xffll);
+        out[2u * at] = (unsigned char)(field[at] & 0xffLL);
+        out[(2u * at) + 1u] = (unsigned char)((field[at] >> 8) & 0xffLL);
     }
 }
 
@@ -125,7 +125,7 @@ static void ed25519_unpacked(Ed25519Field out, const unsigned char in[32])
     {
         out[at] = (long long)in[2u * at] + ((long long)in[(2u * at) + 1u] << 8);
     }
-    out[15] &= 0x7fffll;
+    out[15] &= 0x7fffLL;
 }
 
 static void ed25519_add(Ed25519Field out, const Ed25519Field one, const Ed25519Field other)
@@ -156,7 +156,7 @@ static void ed25519_mul(Ed25519Field out, const Ed25519Field one, const Ed25519F
     }
     for (unsigned int at = 0u; at < (ED25519_LIMBS - 1u); at += 1u)
     {
-        wide[at] += 38ll * wide[at + ED25519_LIMBS];
+        wide[at] += 38LL * wide[at + ED25519_LIMBS];
     }
     for (unsigned int at = 0u; at < ED25519_LIMBS; at += 1u)
     {
@@ -290,23 +290,23 @@ static void ed25519_reduced_wide(unsigned char out[32], long long wide[ED25519_W
 {
     for (int at = 63; at >= 32; at -= 1)
     {
-        long long carry = 0ll;
+        long long carry = 0LL;
         int by = at - 32;
         for (; by < (at - 12); by += 1)
         {
-            wide[by] += carry - (16ll * wide[at] * s_order[by - (at - 32)]);
-            carry = (wide[by] + 128ll) >> 8;
-            wide[by] -= carry * 256ll;
+            wide[by] += carry - (16LL * wide[at] * s_order[by - (at - 32)]);
+            carry = (wide[by] + 128LL) >> 8;
+            wide[by] -= carry * 256LL;
         }
         wide[by] += carry;
-        wide[at] = 0ll;
+        wide[at] = 0LL;
     }
-    long long carry = 0ll;
+    long long carry = 0LL;
     for (unsigned int by = 0u; by < 32u; by += 1u)
     {
         wide[by] += carry - ((wide[31] >> 4) * s_order[by]);
         carry = wide[by] >> 8;
-        wide[by] &= 255ll;
+        wide[by] &= 255LL;
     }
     for (unsigned int by = 0u; by < 32u; by += 1u)
     {
@@ -316,7 +316,7 @@ static void ed25519_reduced_wide(unsigned char out[32], long long wide[ED25519_W
     {
         wide[at + 1u] += wide[at] >> 8;
         // a reduced limb is one byte
-        out[at] = (unsigned char)(wide[at] & 255ll);
+        out[at] = (unsigned char)(wide[at] & 255LL);
     }
 }
 

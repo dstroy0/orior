@@ -82,7 +82,7 @@ static int current_is(const char *path, const char *text)
     return EMBED_CALL(query_count_name_internal.writer_current, QueryCountNameCtx, .writer = &s_run.writer, .path = path, .bytes_u8s = &bytes, .size_pointer = &size) && (size == CLI_UNITY_LENGTH(text)) && (memor.cmp(&(MemoriaCfg){.src = bytes, .other = text, .bytes = size}) == 0);
 }
 
-// a run over three files, the first refused and the rest accepted, once for the process; the test ignored where the machine has no
+// a run over three files, the first refused and the rest accepted, once for the process. The test ignored where the machine has no
 // tree or no C compiler
 static void run_settled(void)
 {

@@ -74,7 +74,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\host\\test_host\\test_host.c");
+  UnityBegin("utils/test/src/ui/cli/unit/host/test_host/test_host.c");
   run_test(test_a_wrapper_is_a_shell_script, "test_a_wrapper_is_a_shell_script", 27);
   run_test(test_a_wrapper_passes_its_program_and_arguments, "test_a_wrapper_passes_its_program_and_arguments", 33);
   run_test(test_a_wrapper_runs_on_the_host_in_the_working_directory_with_the_terminal_type, "test_a_wrapper_runs_on_the_host_in_the_working_directory_with_the_terminal_type", 39);

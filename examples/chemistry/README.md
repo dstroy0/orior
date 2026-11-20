@@ -45,7 +45,7 @@ structure, and it needs no coordinate to make the point.
 The second stage-four reading is a different measure with a different limit.
 `a_single_period_cannot_see_a_growing_one.py` reads a recurrence two ways. The engine's
 `measure.periodicity` finds one period by scoring a candidate against its own multiples, and
-`reference.periodic` builds the phase background at that period; both fix a single period. A periodic
+`reference.periodic` builds the phase background at that period. Both fix a single period. A periodic
 property along Z is not one period, because the shell lengths 2, 8, 8, 18, 18, 32 grow. The
 single-period reader goes flat on the growing recurrence while a reader passed the boundaries departs.
 Those boundaries are a supervised partition, ground truth from outside the sample. They come from

@@ -710,7 +710,7 @@ static void cli_flags_read(const CompileDbFlagsCtx *args)
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = CLI_COMPILE_WRITTEN, .joined = path);
     }
     g_cli_guard->persistent_buf_release(inputs.file, g_cli_compile_owner);
-    *(&inputs) = (CliInputs){0, NULL, 0u, 0u};
+    inputs = (CliInputs){0, NULL, 0u, 0u};
     CliStamped stamped = {"", 0ULL};
     const int there = EMBED_CALL(cli_compile_db_path_stamped_internal.compile_stamp, CliCompileDbPathStampedCtx,
                                  .path = path, .stamped = &stamped);

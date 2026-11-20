@@ -7,7 +7,7 @@
 // mantissa's low and high words. The outputs are double_fields_sign, double_fields_exp and double_fields_mant of
 // member 0, and double_fields_merge of member 1, in that order.
 
-#define DOUBLE_FIELDS_LOW(value_) ((unsigned int)((unsigned long long)(value_) & 0xFFFFFFFFull))
+#define DOUBLE_FIELDS_LOW(value_) ((unsigned int)((unsigned long long)(value_) & 0xFFFFFFFFULL))
 #define DOUBLE_FIELDS_HIGH(value_) ((unsigned int)((unsigned long long)(value_) >> 32u))
 
 static_assert(ENGINE_DOUBLE_SIGN_SHIFT >= 32u, "the sign is read from the high word");
@@ -16,9 +16,9 @@ static_assert(ENGINE_DOUBLE_MANT_BITS >= 32u, "the exponent is read from the hig
 static const EngineRecordStep s_double_fields_steps[] = {
     {ENGINE_RECORD_FIELD, 0u, 0u, 0u},
     {ENGINE_RECORD_FIELD, 1u, 0u, 0u},
-    {ENGINE_RECORD_CONSTANT, DOUBLE_FIELDS_LOW(1ull << (ENGINE_DOUBLE_SIGN_SHIFT - 32u)), 0u, 0u},
+    {ENGINE_RECORD_CONSTANT, DOUBLE_FIELDS_LOW(1ULL << (ENGINE_DOUBLE_SIGN_SHIFT - 32u)), 0u, 0u},
     {ENGINE_RECORD_QUOTIENT, 1u, 2u, 0u},
-    {ENGINE_RECORD_CONSTANT, DOUBLE_FIELDS_LOW(1ull << (ENGINE_DOUBLE_MANT_BITS - 32u)), 0u, 0u},
+    {ENGINE_RECORD_CONSTANT, DOUBLE_FIELDS_LOW(1ULL << (ENGINE_DOUBLE_MANT_BITS - 32u)), 0u, 0u},
     {ENGINE_RECORD_QUOTIENT, 1u, 4u, 0u},
     {ENGINE_RECORD_CONSTANT, ENGINE_DOUBLE_EXP_ALL, 0u, 0u},
     {ENGINE_RECORD_AND, 5u, 6u, 0u},
@@ -34,8 +34,8 @@ static const EngineRecordStep s_double_fields_steps[] = {
     {ENGINE_RECORD_PRODUCT, 15u, 16u, 0u},
     {ENGINE_RECORD_FIELD, 3u, 0u, 1u},
     {ENGINE_RECORD_AND, 18u, 6u, 0u},
-    {ENGINE_RECORD_CONSTANT, DOUBLE_FIELDS_LOW(1ull << ENGINE_DOUBLE_MANT_BITS),
-     DOUBLE_FIELDS_HIGH(1ull << ENGINE_DOUBLE_MANT_BITS), 0u},
+    {ENGINE_RECORD_CONSTANT, DOUBLE_FIELDS_LOW(1ULL << ENGINE_DOUBLE_MANT_BITS),
+     DOUBLE_FIELDS_HIGH(1ULL << ENGINE_DOUBLE_MANT_BITS), 0u},
     {ENGINE_RECORD_PRODUCT, 19u, 20u, 0u},
     {ENGINE_RECORD_FIELD, 4u, 0u, 1u},
     {ENGINE_RECORD_FIELD, 5u, 0u, 1u},

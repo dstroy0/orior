@@ -321,7 +321,7 @@ EMBED_INLINE unsigned long long head_put(const GridCtx *args)
 // lines and texts pointed into it until it is stored: 1, or 0 where the cell cannot meet it
 EMBED_INLINE int head_taken(const GridCtx *args)
 {
-    const unsigned long long columns = ((unsigned long long)args->count * sizeof(GridColumn) + 7ULL) & ~7ULL;
+    const unsigned long long columns = (args->count * sizeof(GridColumn) + 7ULL) & ~7ULL;
     const unsigned long long lines = (unsigned long long)args->rows * sizeof(GridLine);
     const unsigned long long bytes = columns + lines + args->size + 1ULL;
     unsigned char *const head = g_cli_guard->temporary_buf_alloc(bytes, g_cli_db_pane_owner);

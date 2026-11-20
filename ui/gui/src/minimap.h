@@ -44,7 +44,7 @@ typedef struct
 // does; the place it last was at; and the drag, whether one runs, where it began and the view's top then
 typedef struct
 {
-    const CliDocumentMap *lines;
+    CliDocumentMap *lines;
     int anchored;
     unsigned long long anchor_top;
     long long anchor_offset;

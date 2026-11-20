@@ -31,7 +31,7 @@ typedef struct
 unsigned int utf8_character(const Utf8AtCfg *args);
 unsigned int utf8_character_before(const Utf8EndCfg *args);
 // the first place from `at` below `size` whose byte the set `set` holds, `size` where none is; the first whose byte it
-// does not hold; the place past the last byte before `at` the set holds, and the place past the last it does not hold,
+// does not hold. The place past the last byte before `at` the set holds, and the place past the last it does not hold,
 // 0 where none is. A set is at max UTF8_SET_MAX bytes, and no walk reads a byte past the bounds it is given
 unsigned long long utf8_to_any(const Utf8SetCfg *args);
 unsigned long long utf8_end_any(const Utf8SetCfg *args);

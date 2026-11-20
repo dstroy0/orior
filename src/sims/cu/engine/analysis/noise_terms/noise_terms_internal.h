@@ -8,138 +8,138 @@
 
 #include "../../../../../cu/engine/analysis/noise_detector/noise_detector.h"
 
-#define TERMS_KEY 0x5445524D53ull
+#define TERMS_KEY 0x5445524D53ULL
 
 // 96 frames of 32 x 128 x 128: the structure function's lag 64 leaves 32 pairs a voxel
-#define TERMS_FRAMES 96ull
+#define TERMS_FRAMES 96ULL
 
-#define TERMS_DEPTH 32ull
+#define TERMS_DEPTH 32ULL
 
-#define TERMS_HEIGHT 128ull
+#define TERMS_HEIGHT 128ULL
 
-#define TERMS_WIDTH 128ull
+#define TERMS_WIDTH 128ULL
 
 // every measurement pools at one level: an offset of 20 and 100 electrons at gain 1, inside the means 40 to 199
-#define TERMS_OFFSET 20ull
+#define TERMS_OFFSET 20ULL
 
-#define TERMS_BACKGROUND 100ull
+#define TERMS_BACKGROUND 100ULL
 
-#define TERMS_READ_SQUARE 4ull
+#define TERMS_READ_SQUARE 4ULL
 
-#define TERMS_PATTERN_RANGE 8ull
+#define TERMS_PATTERN_RANGE 8ULL
 
 // a value's independent variance: the shot's S g^2 and the read's r^2, 104 lane units squared
 #define TERMS_VALUE_SQUARE (TERMS_BACKGROUND + TERMS_READ_SQUARE)
 
 // the shared offsets planted, each of variance 4 a frame
-#define TERMS_SHARED_SQUARE 4ull
+#define TERMS_SHARED_SQUARE 4ULL
 
 // flicker: octaves 0 to 5, each of variance 16, sustained 1 to 32 frames
-#define TERMS_FLICKER_SQUARE 16ull
+#define TERMS_FLICKER_SQUARE 16ULL
 
 #define TERMS_FLICKER_OCTAVES 6u
 
 // spikes of 256 electrons at one voxel-frame in 1024
-#define TERMS_SPIKE_DENOMINATOR 1024ull
+#define TERMS_SPIKE_DENOMINATOR 1024ULL
 
-#define TERMS_SPIKE_ELECTRONS 256ull
+#define TERMS_SPIKE_ELECTRONS 256ULL
 
 // z mixing: each plane but the first takes 1/8 of the plane before it, the way an interpolation along z would
-#define TERMS_MIX_EIGHTHS 1ull
+#define TERMS_MIX_EIGHTHS 1ULL
 
 // the constant boxes: one fixed at 0 and one at the lane's top
-#define TERMS_ZERO_BOX_VOXELS (3ull * 20ull * 40ull)
+#define TERMS_ZERO_BOX_VOXELS (3ULL * 20ULL * 40ULL)
 
-#define TERMS_TOP_BOX_VOXELS (1ull * 4ull * 4ull)
+#define TERMS_TOP_BOX_VOXELS (1ULL * 4ULL * 4ULL)
 
 // the tolerances: the whole-plane ratios within 2.5% (rows, columns) and 15% (the plane) of what the plant predicts.
 // Each frame difference shares a frame with the next. A ratio read over K lines spreads by about sqrt(3/K) of itself:
 // the rows and columns at about 9.6 standard errors planted and 12.6 in the null, the plane at 5.7 in the null and
 // 4.8 planted, over its 3040 planes
-#define TERMS_LINE_PARTS 25ll
+#define TERMS_LINE_PARTS 25LL
 
-#define TERMS_PLANE_PARTS 150ll
+#define TERMS_PLANE_PARTS 150LL
 
 // the shot laws are read at 16 electrons, where the moment pass resolves a block's fourth cumulant to about 1.4 lane
 // units to the fourth over the static blocks, and third to about 0.1
-#define TERMS_SHOT_BACKGROUND 16ull
+#define TERMS_SHOT_BACKGROUND 16ULL
 
 // the ladder's scene: 1 electron plus 1 a column along x, read at gain 2
-#define TERMS_LADDER_BACKGROUND 1ull
+#define TERMS_LADDER_BACKGROUND 1ULL
 
-#define TERMS_LADDER_RAMP 1ull
+#define TERMS_LADDER_RAMP 1ULL
 
-#define TERMS_LADDER_GAIN 2ll
+#define TERMS_LADDER_GAIN 2LL
 
 // the noise detector's static mask, copied to count its voxels by column: the quiet test's slope and floor
 // (noise_detector_lines.cu:159-161), the dimmest share (:24), the lane's top (noise_detector_internal.h:42) and
 // values (:44), and the moment pass's block of frames (:232)
-#define TERMS_QUIET_SLOPE 4ull
+#define TERMS_QUIET_SLOPE 4ULL
 
-#define TERMS_QUIET_FLOOR 32ull
+#define TERMS_QUIET_FLOOR 32ULL
 
-#define TERMS_STATIC_SHARE 4ull
+#define TERMS_STATIC_SHARE 4ULL
 
 #define TERMS_LANE_TOP 65535u
 
-#define TERMS_LANE_VALUES 65536ull
+#define TERMS_LANE_VALUES 65536ULL
 
-#define TERMS_MOMENT_BLOCK 5ull
+#define TERMS_MOMENT_BLOCK 5ULL
 
 // crosstalk along x: 1/8 of each neighbor's value after the draw
-#define TERMS_CROSSTALK_EIGHTHS 1ull
+#define TERMS_CROSSTALK_EIGHTHS 1ULL
 
 // charge before the gain: no light, gain 2, a reset variance of 4 beside the read's 4, and 16 dark electrons a frame
 // at the first exposure, 32 at the second, twice as long
-#define TERMS_CHARGE_GAIN 2ull
+#define TERMS_CHARGE_GAIN 2ULL
 
-#define TERMS_RESET_SQUARE 4ull
+#define TERMS_RESET_SQUARE 4ULL
 
-#define TERMS_DARK 16ull
+#define TERMS_DARK 16ULL
 
-#define TERMS_EXPOSURES 2ull
+#define TERMS_EXPOSURES 2ULL
 
 // thinning: 64 electrons of light, each counted electron retained with chance a / 4 for a from 1 to 4
-#define TERMS_THIN_LIGHT 64ull
+#define TERMS_THIN_LIGHT 64ULL
 
 #define TERMS_THIN_BITS 2u
 
-#define TERMS_THIN_STEPS 4ull
+#define TERMS_THIN_STEPS 4ULL
 
 // optical crosstalk: (1, 2, 1) / 4 along x over a plant along x of period 16 and amplitude 64
-#define TERMS_BLUR_EIGHTHS 2ull
+#define TERMS_BLUR_EIGHTHS 2ULL
 
-#define TERMS_BLUR_PERIOD 16ull
+#define TERMS_BLUR_PERIOD 16ULL
 
-#define TERMS_BLUR_AMPLITUDE 64ull
+#define TERMS_BLUR_AMPLITUDE 64ULL
 
-#define TERMS_BLUR_KEY 0x424C5552ull
+#define TERMS_BLUR_KEY 0x424C5552ULL
 
 // the structure function against the shared scale: a plant along x over the whole width, 60 to 180 electrons, and a
 // scale of 4 octaves of variance 1024 over 2^10, about 1 +- 6%
-#define TERMS_STRUCTURE_BACKGROUND 60ull
+#define TERMS_STRUCTURE_BACKGROUND 60ULL
 
-#define TERMS_STRUCTURE_AMPLITUDE 120ull
+#define TERMS_STRUCTURE_AMPLITUDE 120ULL
 
-#define TERMS_STRUCTURE_KEY 0x5354525543ull
+#define TERMS_STRUCTURE_KEY 0x5354525543ULL
 
-#define TERMS_SCALE_SQUARE 1024ull
+#define TERMS_SCALE_SQUARE 1024ULL
 
 #define TERMS_SCALE_OCTAVES 4u
 
 #define TERMS_SCALE_BITS 10u
 
 // the gain pattern: flat lights of 100, 200 and 400 electrons, each pixel's gain (1024 + p) / 1024, p in [-32, 32]
-#define TERMS_GAIN_PATTERN_RANGE 32ull
+#define TERMS_GAIN_PATTERN_RANGE 32ULL
 
 #define TERMS_GAIN_PATTERN_BITS 10u
 
 #define TERMS_FLAT_LIGHTS 3u
 
 // the offset pattern (DSNU): each pixel's offset in [0, 12], var(o) about 14 lane units squared
-#define TERMS_OFFSET_PATTERN_RANGE 12ull
+#define TERMS_OFFSET_PATTERN_RANGE 12ULL
 
-#define TERMS_MILLION 1000000ull
+#define TERMS_MILLION 1000000ULL
 
 // the halves' four cameras: the null, the gain pattern, the offset pattern, and both
 #define TERMS_HALVES_CAMERAS 4u

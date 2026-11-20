@@ -20,9 +20,9 @@ static unsigned int query_satisfied(const Query *query)
         // reads in a row. A counter that wraps between the reads still reads forward: the difference taken in the
         // word's own width is a forward step where it sits in the lower half of the word
         const unsigned int first = host_read(query->address);
-        const unsigned long long reads = (query->turns > 1ull) ? query->turns : 1ull;
+        const unsigned long long reads = (query->turns > 1ULL) ? query->turns : 1ULL;
         unsigned int then = first;
-        for (unsigned long long turn = 0ull; (turn < reads) && (then == first); turn += 1ull)
+        for (unsigned long long turn = 0ULL; (turn < reads) && (then == first); turn += 1ULL)
         {
             then = host_read(query->address);
         }
@@ -41,13 +41,13 @@ unsigned int query_advanced(unsigned int first, unsigned int then)
 
 unsigned int query_put(Query *query)
 {
-    const unsigned int clocked = (query->clock != 0ull) ? 1u : 0u;
+    const unsigned int clocked = (query->clock != 0ULL) ? 1u : 0u;
     const unsigned int start = (clocked != 0u) ? host_read(query->clock) : 0u;
     const unsigned int satisfied = query_satisfied(query);
     const unsigned int end = (clocked != 0u) ? host_read(query->clock) : 0u;
 
     // the clock's advance in its own width, which represents one wrap of the counter
-    query->cost = (clocked != 0u) ? (unsigned long long)(end - start) : 0ull;
+    query->cost = (clocked != 0u) ? (unsigned long long)(end - start) : 0ULL;
     query->cost_read = clocked;
     query->fault = 0u;
 
@@ -58,7 +58,7 @@ unsigned int query_put(Query *query)
     }
     // A bound is the max the answer may cost, and a cost nobody read cannot be displayed to be inside it: a bound with
     // no clock reads 0 and is never a verdict nobody measured
-    else if ((query->bound != 0ull) && ((clocked == 0u) || (query->cost > query->bound)))
+    else if ((query->bound != 0ULL) && ((clocked == 0u) || (query->cost > query->bound)))
     {
         query->type = QUERY_PAST_BOUND;
         query->bit = 0u;

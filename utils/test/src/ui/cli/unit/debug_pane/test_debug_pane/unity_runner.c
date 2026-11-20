@@ -80,7 +80,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\debug_pane\\test_debug_pane\\test_debug_pane.c");
+  UnityBegin("utils/test/src/ui/cli/unit/debug_pane/test_debug_pane/test_debug_pane.c");
   run_test(test_with_no_session_the_views_show_their_notices_and_no_step_acts, "test_with_no_session_the_views_show_their_notices_and_no_step_acts", 196);
   run_test(test_a_stop_reads_the_frames_the_first_chosen, "test_a_stop_reads_the_frames_the_first_chosen", 230);
   run_test(test_a_frame_in_the_tree_opens_at_its_line_and_one_outside_does_not, "test_a_frame_in_the_tree_opens_at_its_line_and_one_outside_does_not", 258);

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission. That permission is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
@@ -162,13 +162,13 @@ static int arm_compare(const OriorExactInteger *left, const OriorExactInteger *r
 static size_t arm_agreement(const OriorExactInteger *positions, const uint64_t *values, size_t count,
                             const OriorExactInteger *lag)
 {
-    // The shared search, with only the equality test swapped. The timing then measures the instruction
-    // set and not a second algorithm. This arm carried its own ordered search once, which measured
+    // The shared search, with only the equality test swapped. A time of it then measures the instruction
+    // set, and not a second algorithm. This arm carried its own ordered search once, which measured
     // the difference between two algorithms and reported it as the difference between two parts.
     return orior_exact_agreement_using(arm_equal, positions, values, count, lag);
 }
 
-/** @brief The arm as a driver sees it. Static storage. Returning its address is safe. */
+/** @brief The arm as a driver sees it. Static storage. A return of its address is safe. */
 static const OriorExactArm NEON_ARM = {
     "neon",
     arm_equal,

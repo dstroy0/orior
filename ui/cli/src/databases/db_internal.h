@@ -35,7 +35,7 @@ typedef struct CliDbStopCtx CliDbStopCtx;
 // many statements a connection's history stores; and how often, in rows, the place of a row buffered is marked, and how
 // many marks are stored
 #define CLI_DB_OPENS 4u
-#define CLI_DB_WAIT 15000ull
+#define CLI_DB_WAIT 15000ULL
 #define CLI_DB_HISTORY 1000u
 #define CLI_DB_RESULTS_EVERY 64u
 #define CLI_DB_RESULTS_MARKS (1u << 18u)

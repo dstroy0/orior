@@ -28,14 +28,14 @@
 #include <unistd.h>
 #endif
 
-#define INTERFACE_MILLION 1000000ull
-#define INTERFACE_THOUSAND 1000ull
-// how often a POSIX interface checks whether its probe has ended
-#define INTERFACE_POLL_MICROSECONDS 1000ull
+#define INTERFACE_MILLION 1000000ULL
+#define INTERFACE_THOUSAND 1000ULL
+// how often a POSIX interface checks whether its probe ended
+#define INTERFACE_POLL_MICROSECONDS 1000ULL
 // a probe's output is read back in pieces this long
 #define INTERFACE_READ_BYTES 4096u
-// the max a pipe's reader is waited on once the probe and every process it started have ended
-#define INTERFACE_DRAIN_MILLISECONDS 5000ull
+// the max a pipe's reader is waited on once the probe and every process it started ended
+#define INTERFACE_DRAIN_MILLISECONDS 5000ULL
 
 #define INTERFACE_CHECK(condition_, evacaddr_, error_, type_)                                                               \
     engine_error_check((condition_), (type_), ENGINE_MODULE_INTERFACE, (unsigned int)__LINE__, (const void *)(evacaddr_),   \

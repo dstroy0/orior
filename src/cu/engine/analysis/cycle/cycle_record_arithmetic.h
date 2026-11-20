@@ -23,7 +23,7 @@ struct CycleRecordLaunch
     unsigned int out_limbs;
 };
 
-#define CYCLE_RECORD_BLOCKS_MAX 4096ull
+#define CYCLE_RECORD_BLOCKS_MAX 4096ULL
 
 __device__ static inline unsigned int cycle_record_limb(const unsigned int *value, unsigned int limbs, unsigned int at)
 {
@@ -79,11 +79,11 @@ __device__ static inline void cycle_record_field(const unsigned int *atom, unsig
 
 __device__ static inline void cycle_record_negate(unsigned int *value, unsigned int limbs, unsigned int bits)
 {
-    unsigned long long carry = 1ull;
+    unsigned long long carry = 1ULL;
     for (unsigned int at = 0u; at < limbs; at += 1u)
     {
         const unsigned long long total = (unsigned long long)(~value[at]) + carry;
-        value[at] = (unsigned int)(total & 0xFFFFFFFFull);
+        value[at] = (unsigned int)(total & 0xFFFFFFFFULL);
         carry = total >> 32u;
     }
     const unsigned int left = bits - (32u * (limbs - 1u));
@@ -91,7 +91,7 @@ __device__ static inline void cycle_record_negate(unsigned int *value, unsigned 
 }
 
 // limb `at` of a register's two's complement: the magnitude's limb, or its complement where the sign is negative,
-// with `carry` running the negation's one up the limbs; it starts at 1 and the limbs are taken from the lowest up
+// with `carry` running the negation's one up the limbs. It starts at 1 and the limbs are taken from the lowest up
 __device__ static inline unsigned int cycle_record_complement(const unsigned int *value, unsigned int limbs,
                                                               unsigned int at, int sign, unsigned long long *carry)
 {
@@ -102,7 +102,7 @@ __device__ static inline unsigned int cycle_record_complement(const unsigned int
     }
     const unsigned long long total = (unsigned long long)(~limb_value) + *carry;
     *carry = total >> 32u;
-    return (unsigned int)(total & 0xFFFFFFFFull);
+    return (unsigned int)(total & 0xFFFFFFFFULL);
 }
 
 // the xor or the and of two registers' two's complements over `limbs`, read back as a magnitude; returns its sign.
@@ -114,8 +114,8 @@ __device__ static inline int cycle_record_bitwise(unsigned int operation, const 
                                                   unsigned int right_limbs, int right_sign, unsigned int *value,
                                                   unsigned int limbs)
 {
-    unsigned long long left_carry = 1ull;
-    unsigned long long right_carry = 1ull;
+    unsigned long long left_carry = 1ULL;
+    unsigned long long right_carry = 1ULL;
     for (unsigned int at = 0u; at < limbs; at += 1u)
     {
         const unsigned int one = cycle_record_complement(left, left_limbs, at, left_sign, &left_carry);
@@ -147,7 +147,7 @@ __device__ static inline int cycle_record_wrap(const unsigned int *source, unsig
         }
         return source_sign;
     }
-    unsigned long long carry = 1ull;
+    unsigned long long carry = 1ULL;
     for (unsigned int at = 0u; at < limbs; at += 1u)
     {
         value[at] = cycle_record_complement(source, source_limbs, at, source_sign, &carry);
@@ -167,12 +167,12 @@ __device__ static inline void cycle_record_add(const unsigned int *left, unsigne
                                                const unsigned int *right, unsigned int right_limbs, unsigned int *value,
                                                unsigned int limbs)
 {
-    unsigned long long carry = 0ull;
+    unsigned long long carry = 0ULL;
     for (unsigned int at = 0u; at < limbs; at += 1u)
     {
         const unsigned long long total = (unsigned long long)cycle_record_limb(left, left_limbs, at) +
                                          (unsigned long long)cycle_record_limb(right, right_limbs, at) + carry;
-        value[at] = (unsigned int)(total & 0xFFFFFFFFull);
+        value[at] = (unsigned int)(total & 0xFFFFFFFFULL);
         carry = total >> 32u;
     }
 }
@@ -181,13 +181,13 @@ __device__ static inline void cycle_record_subtract(const unsigned int *left, un
                                                     const unsigned int *right, unsigned int right_limbs,
                                                     unsigned int *value, unsigned int limbs)
 {
-    unsigned long long borrow = 0ull;
+    unsigned long long borrow = 0ULL;
     for (unsigned int at = 0u; at < limbs; at += 1u)
     {
-        const unsigned long long total = (1ull << 32u) + (unsigned long long)cycle_record_limb(left, left_limbs, at) -
+        const unsigned long long total = (1ULL << 32u) + (unsigned long long)cycle_record_limb(left, left_limbs, at) -
                                          (unsigned long long)cycle_record_limb(right, right_limbs, at) - borrow;
-        value[at] = (unsigned int)(total & 0xFFFFFFFFull);
-        borrow = (total < (1ull << 32u)) ? 1ull : 0ull;
+        value[at] = (unsigned int)(total & 0xFFFFFFFFULL);
+        borrow = (total < (1ULL << 32u)) ? 1ULL : 0ULL;
     }
 }
 
@@ -201,18 +201,18 @@ __device__ static inline void cycle_record_product(const unsigned int *left, uns
     }
     for (unsigned int low = 0u; low < left_limbs; low += 1u)
     {
-        unsigned long long carry = 0ull;
+        unsigned long long carry = 0ULL;
         for (unsigned int high = 0u; (high < right_limbs) && ((low + high) < limbs); high += 1u)
         {
             const unsigned long long total = ((unsigned long long)left[low] * (unsigned long long)right[high]) +
                                              (unsigned long long)value[low + high] + carry;
-            value[low + high] = (unsigned int)(total & 0xFFFFFFFFull);
+            value[low + high] = (unsigned int)(total & 0xFFFFFFFFULL);
             carry = total >> 32u;
         }
-        for (unsigned int at = low + right_limbs; (carry != 0ull) && (at < limbs); at += 1u)
+        for (unsigned int at = low + right_limbs; (carry != 0ULL) && (at < limbs); at += 1u)
         {
             const unsigned long long total = (unsigned long long)value[at] + carry;
-            value[at] = (unsigned int)(total & 0xFFFFFFFFull);
+            value[at] = (unsigned int)(total & 0xFFFFFFFFULL);
             carry = total >> 32u;
         }
     }
@@ -224,13 +224,13 @@ __device__ static int cycle_record_ladder(const unsigned int *numerator, unsigne
                                           unsigned int *band)
 {
     unsigned int reached[WIDE + 2u];
-    unsigned long long lower = 0ull;
-    unsigned long long upper = 1ull;
+    unsigned long long lower = 0ULL;
+    unsigned long long upper = 1ULL;
     unsigned int counted = 0u;
     int below = 1;
     for (unsigned int rung = 1u; (below != 0) && (rung < ENGINE_GOLDEN_RUNGS); rung += 1u)
     {
-        const unsigned int step[2] = {(unsigned int)(upper & 0xFFFFFFFFull), (unsigned int)(upper >> 32u)};
+        const unsigned int step[2] = {(unsigned int)(upper & 0xFFFFFFFFULL), (unsigned int)(upper >> 32u)};
         cycle_record_product(denominator, denominator_limbs, step, 2u, reached, denominator_limbs + 2u);
         below = (cycle_record_compare(reached, denominator_limbs + 2u, numerator, numerator_limbs) <= 0) ? 1 : 0;
         counted += (unsigned int)below;
@@ -303,7 +303,7 @@ __device__ static int cycle_record_divide(const unsigned int *top, unsigned int 
     if (divisor_used == 1u)
     {
         const unsigned long long divisor = (unsigned long long)bottom[0];
-        unsigned long long carried = 0ull;
+        unsigned long long carried = 0ULL;
         for (unsigned int at = numerator_used; at > 0u; at -= 1u)
         {
             const unsigned long long part = (carried << 32u) | (unsigned long long)top[at - 1u];
@@ -342,39 +342,39 @@ __device__ static int cycle_record_divide(const unsigned int *top, unsigned int 
                                         (unsigned long long)numerator[at + divisor_used - 1u];
         unsigned long long guess = part / lead;
         unsigned long long over = part % lead;
-        while ((guess >> 32u) != 0ull ||
+        while ((guess >> 32u) != 0ULL ||
                ((guess * next) > ((over << 32u) | (unsigned long long)numerator[at + divisor_used - 2u])))
         {
-            guess -= 1ull;
+            guess -= 1ULL;
             over += lead;
-            if ((over >> 32u) != 0ull)
+            if ((over >> 32u) != 0ULL)
             {
                 break;
             }
         }
-        unsigned long long borrow = 0ull;
+        unsigned long long borrow = 0ULL;
         for (unsigned int limb = 0u; limb < divisor_used; limb += 1u)
         {
             const unsigned long long taken = (guess * (unsigned long long)divisor[limb]) + borrow;
             const unsigned long long limb_value = (unsigned long long)numerator[at + limb];
-            numerator[at + limb] = (unsigned int)((limb_value - (taken & 0xFFFFFFFFull)) & 0xFFFFFFFFull);
-            borrow = (taken >> 32u) + ((limb_value < (taken & 0xFFFFFFFFull)) ? 1ull : 0ull);
+            numerator[at + limb] = (unsigned int)((limb_value - (taken & 0xFFFFFFFFULL)) & 0xFFFFFFFFULL);
+            borrow = (taken >> 32u) + ((limb_value < (taken & 0xFFFFFFFFULL)) ? 1ULL : 0ULL);
         }
         const unsigned long long limb_value = (unsigned long long)numerator[at + divisor_used];
-        numerator[at + divisor_used] = (unsigned int)((limb_value - borrow) & 0xFFFFFFFFull);
+        numerator[at + divisor_used] = (unsigned int)((limb_value - borrow) & 0xFFFFFFFFULL);
         if (limb_value < borrow)
         {
             // the guess was one too many (Knuth D6): add the divisor back
-            guess -= 1ull;
-            unsigned long long carry = 0ull;
+            guess -= 1ULL;
+            unsigned long long carry = 0ULL;
             for (unsigned int limb = 0u; limb < divisor_used; limb += 1u)
             {
                 const unsigned long long total =
                     (unsigned long long)numerator[at + limb] + (unsigned long long)divisor[limb] + carry;
-                numerator[at + limb] = (unsigned int)(total & 0xFFFFFFFFull);
+                numerator[at + limb] = (unsigned int)(total & 0xFFFFFFFFULL);
                 carry = total >> 32u;
             }
-            numerator[at + divisor_used] = (unsigned int)((numerator[at + divisor_used] + carry) & 0xFFFFFFFFull);
+            numerator[at + divisor_used] = (unsigned int)((numerator[at + divisor_used] + carry) & 0xFFFFFFFFULL);
         }
         if ((quotient != NULL) && (at < quotient_limbs))
         {

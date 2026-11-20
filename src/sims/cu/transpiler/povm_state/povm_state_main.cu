@@ -7,30 +7,30 @@ static unsigned int povm_states(PovmState *state)
 {
     unsigned int count = 0u;
     // pure states on the equator from rational t: ((1 - t^2) / (1 + t^2), 2t / (1 + t^2), 0), t = n / d
-    const long long turn[13][2] = {{0ll, 1ll},  {1ll, 3ll}, {1ll, 2ll}, {2ll, 3ll},  {1ll, 1ll},
-                                   {3ll, 2ll},  {2ll, 1ll}, {3ll, 1ll}, {-1ll, 2ll}, {-1ll, 1ll},
-                                   {-2ll, 1ll}, {1ll, 5ll}, {4ll, 7ll}};
+    const long long turn[13][2] = {{0LL, 1LL},  {1LL, 3LL}, {1LL, 2LL}, {2LL, 3LL},  {1LL, 1LL},
+                                   {3LL, 2LL},  {2LL, 1LL}, {3LL, 1LL}, {-1LL, 2LL}, {-1LL, 1LL},
+                                   {-2LL, 1LL}, {1LL, 5LL}, {4LL, 7LL}};
     for (unsigned int at = 0u; at < 13u; at += 1u)
     {
         const long long n = turn[at][0];
         const long long d = turn[at][1];
         state[count].bloch[0] = povm_fraction((d * d) - (n * n), (d * d) + (n * n));
-        state[count].bloch[1] = povm_fraction(2ll * n * d, (d * d) + (n * n));
-        state[count].bloch[2] = povm_fraction(0ll, 1ll);
+        state[count].bloch[1] = povm_fraction(2LL * n * d, (d * d) + (n * n));
+        state[count].bloch[2] = povm_fraction(0LL, 1LL);
         state[count].pure = 1;
         state[count].equator = 1;
         count += 1u;
     }
-    state[count].bloch[0] = povm_fraction(-1ll, 1ll);
-    state[count].bloch[1] = povm_fraction(0ll, 1ll);
-    state[count].bloch[2] = povm_fraction(0ll, 1ll);
+    state[count].bloch[0] = povm_fraction(-1LL, 1LL);
+    state[count].bloch[1] = povm_fraction(0LL, 1LL);
+    state[count].bloch[2] = povm_fraction(0LL, 1LL);
     state[count].pure = 1;
     state[count].equator = 1;
     count += 1u;
     // pure states off the equator: rational points of the sphere
-    const long long sphere[7][4] = {{2ll, 2ll, 1ll, 3ll}, {1ll, -2ll, 2ll, 3ll}, {2ll, 3ll, 6ll, 7ll},
-                                    {0ll, 0ll, 1ll, 1ll}, {0ll, 0ll, -1ll, 1ll}, {-2ll, 1ll, -2ll, 3ll},
-                                    {6ll, 6ll, 7ll, 11ll}};
+    const long long sphere[7][4] = {{2LL, 2LL, 1LL, 3LL}, {1LL, -2LL, 2LL, 3LL}, {2LL, 3LL, 6LL, 7LL},
+                                    {0LL, 0LL, 1LL, 1LL}, {0LL, 0LL, -1LL, 1LL}, {-2LL, 1LL, -2LL, 3LL},
+                                    {6LL, 6LL, 7LL, 11LL}};
     for (unsigned int at = 0u; at < 7u; at += 1u)
     {
         for (unsigned int axis = 0u; axis < POVM_AXES; axis += 1u)
@@ -43,11 +43,11 @@ static unsigned int povm_states(PovmState *state)
     }
     // mixed states: pure ones pulled toward the center, and the center itself
     const long long mixed[4][4] = {
-        {1ll, 1ll, 1ll, 6ll}, {2ll, 3ll, 6ll, 21ll}, {3ll, 4ll, 0ll, 10ll}, {0ll, 0ll, 0ll, 1ll}};
+        {1LL, 1LL, 1LL, 6LL}, {2LL, 3LL, 6LL, 21LL}, {3LL, 4LL, 0LL, 10LL}, {0LL, 0LL, 0LL, 1LL}};
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
-        state[count].bloch[0] = povm_fraction(2ll * mixed[at][0], 2ll * mixed[at][3]);
-        state[count].bloch[1] = povm_fraction(2ll * mixed[at][1], 2ll * mixed[at][3]);
+        state[count].bloch[0] = povm_fraction(2LL * mixed[at][0], 2LL * mixed[at][3]);
+        state[count].bloch[1] = povm_fraction(2LL * mixed[at][1], 2LL * mixed[at][3]);
         state[count].bloch[2] = povm_fraction(mixed[at][2], mixed[at][3]);
         state[count].pure = 0;
         state[count].equator = 0;
@@ -59,13 +59,13 @@ static unsigned int povm_states(PovmState *state)
 static void povm_frame_run(SimResults *results, PovmFrame *frame, const PovmState *state, unsigned int states)
 {
     VerbaLinea *const line = &results->line;
-    PovmNumber length_square = povm_fraction(0ll, 1ll);
+    PovmNumber length_square = povm_fraction(0LL, 1LL);
     const int complete = povm_frame_open(results, frame, &length_square);
     mmgr_line_put(line, "\n  ");
     mmgr_line_put(line, frame->name);
     mmgr_line_put(line, "\n    |v|^2 = ");
     povm_number_print(line, length_square);
-    mmgr_line_put(line, povm_number_equal(length_square, povm_fraction(1ll, 1ll)) ? " (rank one: a SIC)"
+    mmgr_line_put(line, povm_number_equal(length_square, povm_fraction(1LL, 1LL)) ? " (rank one: a SIC)"
                                                                                    : " (not rank one)");
     mmgr_line_put(line, "; the frame is c I, so the state comes back as r = ");
     sim_rational_print(line, frame->factor);
@@ -91,14 +91,14 @@ static void povm_frame_run(SimResults *results, PovmFrame *frame, const PovmStat
     {
         PovmNumber answer[POVM_OUTCOMES];
         povm_answers(frame, state[at].bloch, answer);
-        PovmNumber total = povm_fraction(0ll, 1ll);
+        PovmNumber total = povm_fraction(0LL, 1LL);
         int each = 1;
         for (unsigned int outcome = 0u; outcome < POVM_OUTCOMES; outcome += 1u)
         {
             each = each && (povm_number_sign(answer[outcome]) >= 0);
             total = povm_number_sum(total, answer[outcome]);
         }
-        probabilities += (each && povm_number_equal(total, povm_fraction(1ll, 1ll))) ? 1u : 0u;
+        probabilities += (each && povm_number_equal(total, povm_fraction(1LL, 1LL))) ? 1u : 0u;
         PovmNumber bloch[POVM_AXES];
         povm_state_from(frame, answer, bloch);
         int same = 1;
@@ -112,23 +112,23 @@ static void povm_frame_run(SimResults *results, PovmFrame *frame, const PovmStat
         if (state[at].pure != 0)
         {
             pure += 1u;
-            on_boundary += povm_number_equal(square, povm_fraction(1ll, 1ll)) ? 1u : 0u;
+            on_boundary += povm_number_equal(square, povm_fraction(1LL, 1LL)) ? 1u : 0u;
         }
         else
         {
             mixed += 1u;
-            inside += (povm_number_sign(povm_number_difference(povm_fraction(1ll, 1ll), square)) > 0) ? 1u : 0u;
+            inside += (povm_number_sign(povm_number_difference(povm_fraction(1LL, 1LL), square)) > 0) ? 1u : 0u;
         }
         for (unsigned int axis = 0u; axis < POVM_AXES; axis += 1u)
         {
             const PovmNumber direct = povm_number_product(
-                povm_fraction(1ll, 2ll), povm_number_sum(povm_fraction(1ll, 1ll), state[at].bloch[axis]));
+                povm_fraction(1LL, 2LL), povm_number_sum(povm_fraction(1LL, 1LL), state[at].bloch[axis]));
             crossings += povm_number_equal(povm_cross(frame, answer, axis), direct) ? 1u : 0u;
         }
         if (state[at].equator != 0)
         {
             // the 0/1 POVM reads z: every equator state answers 1/2, 1/2 there
-            same_magnitudes += povm_number_equal(povm_cross(frame, answer, 2u), povm_fraction(1ll, 2ll)) ? 1u : 0u;
+            same_magnitudes += povm_number_equal(povm_cross(frame, answer, 2u), povm_fraction(1LL, 2LL)) ? 1u : 0u;
             for (unsigned int outcome = 0u; outcome < POVM_OUTCOMES; outcome += 1u)
             {
                 equator_answer[equators][outcome] = answer[outcome];
@@ -204,7 +204,7 @@ static void povm_frame_run(SimResults *results, PovmFrame *frame, const PovmStat
     PovmNumber corner[POVM_OUTCOMES];
     for (unsigned int outcome = 0u; outcome < POVM_OUTCOMES; outcome += 1u)
     {
-        corner[outcome] = povm_fraction((outcome == 0u) ? 1ll : 0ll, 1ll);
+        corner[outcome] = povm_fraction((outcome == 0u) ? 1LL : 0LL, 1LL);
     }
     const PovmNumber corner_cross = povm_cross(frame, corner, 0u);
     sim_check(results, !povm_valid(frame, corner), "the distribution (1, 0, 0, 0) errors: it is no state");
@@ -217,11 +217,11 @@ static void povm_frame_run(SimResults *results, PovmFrame *frame, const PovmStat
     unsigned int valid = 0u;
     unsigned int valid_crossing = 0u;
     unsigned int invalid_axes_fine = 0u;
-    for (long long first = 0ll; first <= POVM_GRID; first += 1ll)
+    for (long long first = 0LL; first <= POVM_GRID; first += 1LL)
     {
-        for (long long second = 0ll; (first + second) <= POVM_GRID; second += 1ll)
+        for (long long second = 0LL; (first + second) <= POVM_GRID; second += 1LL)
         {
-            for (long long third = 0ll; (first + second + third) <= POVM_GRID; third += 1ll)
+            for (long long third = 0LL; (first + second + third) <= POVM_GRID; third += 1LL)
             {
                 const long long fourth = POVM_GRID - first - second - third;
                 PovmNumber answer[POVM_OUTCOMES];
@@ -280,7 +280,7 @@ int main(void)
         if (state[at].pure != 0)
         {
             pure_listed =
-                pure_listed && povm_number_equal(povm_dot(state[at].bloch, state[at].bloch), povm_fraction(1ll, 1ll));
+                pure_listed && povm_number_equal(povm_dot(state[at].bloch, state[at].bloch), povm_fraction(1LL, 1LL));
         }
     }
     sim_check(&results, pure_listed, "every listed pure state has |r|^2 = 1 exactly");

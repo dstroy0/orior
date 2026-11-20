@@ -157,7 +157,7 @@ CODEGEN_CORE void codegen_count_error(MachineFunction *lane)
     codegen_instr1(lane, OPCODE_GLOBAL_ADD_ATOMIC_WORD, wide);
 }
 
-// the lane's close. A lane that ran every step has stored each record word as its last put wrote it, and returns. A
+// the lane's close. A lane that ran every step stored each record word as its last put wrote it, and returns. A
 // lane errored leaves its record as its puts wrote it before it ended, as the interpreter does: errored at the open,
 // every word the steps write is 0; errored at a step, it stores the words it has in flight, their first put before
 // that step and their last put that step or a later one. Every other word is already in the record, written or 0

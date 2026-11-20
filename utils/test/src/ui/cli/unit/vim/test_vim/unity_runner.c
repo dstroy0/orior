@@ -83,7 +83,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\vim\\test_vim\\test_vim.c");
+  UnityBegin("utils/test/src/ui/cli/unit/vim/test_vim/test_vim.c");
   run_test(test_vims_steps_count_the_lines_copy_a_line_and_measure_a_spans_bytes, "test_vims_steps_count_the_lines_copy_a_line_and_measure_a_spans_bytes", 102);
   run_test(test_the_motions_move_over_words_blanks_punctuation_and_line_ends_with_counts, "test_the_motions_move_over_words_blanks_punctuation_and_line_ends_with_counts", 122);
   run_test(test_f_F_t_T_go_to_a_character_on_the_line_and_semicolon_and_comma_go_again, "test_f_F_t_T_go_to_a_character_on_the_line_and_semicolon_and_comma_go_again", 169);

@@ -30,7 +30,7 @@ int main(int count, char **arguments)
     // 15: pi_tower segment d [digits], d whole or base^exponent and 0 allowed, digits 1 to PI_TOWER_SEGMENT_MAX
     if ((count >= 3) && (count <= 4) && (strcmp(arguments[1], "segment") == 0))
     {
-        PiWide position = pi_tower_unsigned(0ull);
+        PiWide position = pi_tower_unsigned(0ULL);
         PiWide digits = pi_tower_unsigned(PI_TOWER_SEGMENT_DIGITS);
         const int placed = (strcmp(arguments[2], "0") == 0) || (pi_tower_request(arguments[2], &position) != 0);
         const int sized = (count == 3) || ((pi_tower_request(arguments[3], &digits) != 0) &&
@@ -58,7 +58,7 @@ int main(int count, char **arguments)
     // P = 3 n + 64 rounded up to a word, at least the walks' 384
     unsigned int precision = (((3u * to_bits) + 64u + 63u) / 64u) * 64u;
     precision = (precision < PI_TOWER_BITS) ? PI_TOWER_BITS : precision;
-    const unsigned long long needed = (3ull * (precision + PI_TOWER_GUARD)) + 64ull;
+    const unsigned long long needed = (3ULL * (precision + PI_TOWER_GUARD)) + 64ULL;
     mmgr_line_put(&results.line, "  resolutions 2^");
     mmgr_line_decimal(&results.line, from_bits, 1u);
     mmgr_line_put(&results.line, " to 2^");
@@ -70,10 +70,10 @@ int main(int count, char **arguments)
     mmgr_line_put(&results.line, " bits\n");
     if (needed > (unsigned long long)ORIOR_EXACT_BITS)
     {
-        unsigned long long limbs = 1ull;
-        while ((limbs * 32ull) < needed)
+        unsigned long long limbs = 1ULL;
+        while ((limbs * 32ULL) < needed)
         {
-            limbs *= 2ull;
+            limbs *= 2ULL;
         }
         mmgr_line_put(&results.line, "  the turn needs an exact width of ");
         mmgr_line_decimal(&results.line, needed, 1u);
@@ -116,8 +116,8 @@ static void pi_tower_fill(SimResults *results, const PiTowerTurn &turn, const st
                           const std::vector<PiWide> &floors, unsigned int from_bits, unsigned int to_bits,
                           const PiWide &walk_alpha)
 {
-    const PiWide one = pi_tower_unsigned(1ull);
-    const PiWide two = pi_tower_unsigned(2ull);
+    const PiWide one = pi_tower_unsigned(1ULL);
+    const PiWide two = pi_tower_unsigned(2ULL);
     int certain = 1;
     int walked = 1;
     int touched = 1;
@@ -159,7 +159,7 @@ static void pi_tower_fill(SimResults *results, const PiTowerTurn &turn, const st
 
         // cell 0 etched again: the least step after the fill whose place is below one cell
         PiWide home;
-        const int homed = pi_tower_first_hit_from(turn.multiplier, turn.modulus, covering, pi_tower_unsigned(0ull),
+        const int homed = pi_tower_first_hit_from(turn.multiplier, turn.modulus, covering, pi_tower_unsigned(0ULL),
                                                   pi_tower_difference(cell, one), &home);
         found_home = found_home && homed;
         // and the fill's last cell etched again after that: the second run's close
@@ -241,11 +241,11 @@ static void pi_tower_fill(SimResults *results, const PiTowerTurn &turn, const st
         }
         if (bits <= PI_TOWER_WALK_MAX)
         {
-            unsigned long long walked_last = 0ull;
-            unsigned long long stall = 0ull;
-            unsigned long long again = 0ull;
-            unsigned long long walked_home = 0ull;
-            unsigned long long walked_closing = 0ull;
+            unsigned long long walked_last = 0ULL;
+            unsigned long long stall = 0ULL;
+            unsigned long long again = 0ULL;
+            unsigned long long walked_home = 0ULL;
+            unsigned long long walked_closing = 0ULL;
             const unsigned long long walked_fill =
                 pi_tower_walk(walk_alpha, bits, &walked_last, &stall, &again, &walked_home, &walked_closing);
             walked = walked && (walked_fill == pi_tower_word(fill)) && (walked_last == pi_tower_word(last)) &&

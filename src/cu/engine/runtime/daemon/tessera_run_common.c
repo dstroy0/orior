@@ -26,7 +26,7 @@ unsigned long long run_now(void)
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
     // a monotonic clock's seconds and nanoseconds are not negative
-    return ((unsigned long long)now.tv_sec * RUN_MILLION) + ((unsigned long long)now.tv_nsec / 1000ull);
+    return ((unsigned long long)now.tv_sec * RUN_MILLION) + ((unsigned long long)now.tv_nsec / 1000ULL);
 #endif
 }
 
@@ -40,7 +40,7 @@ void run_pause(unsigned long long microseconds)
     // whole seconds of a pause fit a time_t
     pause.tv_sec = (time_t)(microseconds / RUN_MILLION);
     // the remainder is below a billion nanoseconds, which a long represents
-    pause.tv_nsec = (long)((microseconds % RUN_MILLION) * 1000ull);
+    pause.tv_nsec = (long)((microseconds % RUN_MILLION) * 1000ULL);
     nanosleep(&pause, NULL);
 #endif
 }
@@ -92,7 +92,7 @@ int run_arguments(int count, char **arguments, RunRequest *request)
     }
     request->command = at + 1;
     // a job requests its processors, or is the child of a tessera_run that has the ticket: one or the other
-    const int requests_processors = request->processors != 0ull;
+    const int requests_processors = request->processors != 0ULL;
     const int is_child = request->parent != NULL;
     return (at < count) && (request->command < count) && (requests_processors != is_child) &&
            !(is_child && request->child);
@@ -144,10 +144,10 @@ int run_signum(const RunRequest *request, char **arguments, int count, EngineSig
 {
     // the request is the name, then every word of the command, each ended by a zero byte
     const char *const name = (request->name != NULL) ? request->name : "";
-    unsigned long long bytes = strlen(name) + 1ull;
+    unsigned long long bytes = strlen(name) + 1ULL;
     for (int at = request->command; at < count; at += 1)
     {
-        bytes += strlen(arguments[at]) + 1ull;
+        bytes += strlen(arguments[at]) + 1ULL;
     }
     unsigned char *const text = (unsigned char *)malloc((size_t)bytes);
     if (text == NULL)
@@ -155,11 +155,11 @@ int run_signum(const RunRequest *request, char **arguments, int count, EngineSig
         return 0;
     }
     memcpy(text, name, strlen(name) + 1u);
-    unsigned long long at_byte = strlen(name) + 1ull;
+    unsigned long long at_byte = strlen(name) + 1ULL;
     for (int at = request->command; at < count; at += 1)
     {
         memcpy(text + at_byte, arguments[at], strlen(arguments[at]) + 1u);
-        at_byte += strlen(arguments[at]) + 1ull;
+        at_byte += strlen(arguments[at]) + 1ULL;
     }
     const ObsignatioSignumRequest hashed = {text, bytes, NULL, OBSIGNATIO_MODE_HASH, signum->bytes, ENGINE_SIGNUM_BYTES,
                                             error};
@@ -181,8 +181,8 @@ unsigned long long run_limit(const char *name, unsigned long long fallback)
 {
     const char *const text = getenv(name);
     char *end = NULL;
-    const unsigned long long milliseconds = (text != NULL) ? strtoull(text, &end, 10) : 0ull;
-    const int given = (text != NULL) && (end != text) && (*end == '\0') && (milliseconds != 0ull);
+    const unsigned long long milliseconds = (text != NULL) ? strtoull(text, &end, 10) : 0ULL;
+    const int given = (text != NULL) && (end != text) && (*end == '\0') && (milliseconds != 0ULL);
     return given ? (milliseconds * RUN_THOUSAND) : fallback;
 }
 

@@ -24,13 +24,37 @@ function connectionName(one) {
   return one.connectionId || (one.cloud ? one.organizationKey : one.serverUrl);
 }
 
+// The address with each slash at its end removed.
+function withoutTrailingSlashes(text) {
+  let end = text.length;
+  while (end > 0 && text[end - 1] === "/") {
+    end -= 1;
+  }
+  return text.slice(0, end);
+}
+
+// The address of SonarQube Cloud in the region.
+function cloudBase(region) {
+  return region === "US" ? "https://sonarqube.us" : "https://sonarcloud.io";
+}
+
+// How a connection last checked, as the panel shows it.
+function checkState(check) {
+  if (!check) {
+    return '<span class="quiet">Not checked</span>';
+  }
+  if (check.success) {
+    return "Connected";
+  }
+  return '<span class="fail">' + escaped(check.reason ?? "Not connected") + "</span>";
+}
+
 // The panel of every connection, how each last checked, and the binding of the tree.
 async function drawConnections() {
   await settingsRead();
   const rows = connections()
     .map((one) => {
-      const check = sonar.checks.get(one.connectionId);
-      const state = check ? (check.success ? "Connected" : `<span class="fail">${escaped(check.reason ?? "Not connected")}</span>`) : '<span class="quiet">Not checked</span>';
+      const state = checkState(sonar.checks.get(one.connectionId));
       const where = one.cloud ? `SonarQube Cloud ${escaped(one.region ?? "EU")}: ${escaped(one.organizationKey)}` : `SonarQube Server: ${escaped(one.serverUrl)}`;
       return `<tr><td>${escaped(connectionName(one))}<br><span class="quiet">${where}</span></td><td>${state}</td><td>${button("Edit", "connection-edit", one.connectionId)}${button("Check", "connection-check", one.connectionId)}${button("Remove", "connection-remove", one.connectionId)}</td></tr>`;
     })
@@ -40,24 +64,58 @@ async function drawConnections() {
     ? `<p>The tree is bound to <strong>${escaped(project.projectKey)}</strong> through ${escaped(project.connectionId)}.</p><div class="row">${button("Edit Binding", "binding-edit")}${button("Remove Binding", "binding-remove")}${button("Share Configuration", "binding-share")}</div>`
     : `<p class="quiet">The tree is bound to no project.</p><div class="row">${button("Add Binding", "binding-edit")}${button("Bind Automatically", "binding-auto")}</div>`;
   const newCode = [...sonar.newCode.values()][0];
+  const table = rows ? "<table>" + rows + "</table>" : '<p class="quiet">No connections.</p>';
+  let definition = "";
+  if (newCode) {
+    const unsupported = newCode.isSupported ? "" : ' <span class="quiet">(not supported)</span>';
+    definition = "<h2>New code</h2><p>" + escaped(newCode.newCodeDefinitionOrMessage) + unsupported + "</p>";
+  }
   await displayed(
     "connections",
-    `<h1>Connections</h1><div class="row">${button("Connect to SonarQube Server", "connection-new", "server")}${button("Connect to SonarQube Cloud", "connection-new", "cloud")}</div>${rows ? `<table>${rows}</table>` : '<p class="quiet">No connections.</p>'}<h2>Binding</h2>${binding}${newCode ? `<h2>New code</h2><p>${escaped(newCode.newCodeDefinitionOrMessage)}${newCode.isSupported ? "" : ' <span class="quiet">(not supported)</span>'}</p>` : ""}`,
+    `<h1>Connections</h1><div class="row">${button("Connect to SonarQube Server", "connection-new", "server")}${button("Connect to SonarQube Cloud", "connection-new", "cloud")}</div>${table}<h2>Binding</h2>${binding}${definition}`,
   );
+}
+
+// The connection a form starts from: the fields given, the retained connection `id`, or none.
+function connectionStart(id, values) {
+  if (values) {
+    return connectionFromFields(values);
+  }
+  return id ? connectionOf(id) : null;
+}
+
+// The token a form starts with: the field given, the token in the keychain, or none.
+async function tokenStart(one, values) {
+  if (values) {
+    return String(values.token ?? "");
+  }
+  if (!one) {
+    return "";
+  }
+  return (await orior.secrets.read(tokenKey(one)).catch(() => null)) ?? "";
+}
+
+// The fields of a form that name where a connection goes: a cloud organization and its region, or a server's address.
+function placeFields(cloud, one) {
+  if (!cloud) {
+    return `<label>Server URL<br><input name="serverUrl" value="${escaped(one?.serverUrl ?? "http://localhost:9000")}" size="50"></label>`;
+  }
+  const chosenRegion = one?.region ?? "EU";
+  const options = REGIONS.map((region) => "<option" + (chosenRegion === region ? " selected" : "") + ">" + region + "</option>").join("");
+  return `<label>Organization key<br><input name="organizationKey" value="${escaped(one?.organizationKey ?? "")}" size="40"></label><label>Region<br><select name="region">${options}</select></label>${button("List My Organizations", "connection-organizations")}`;
 }
 
 // The form a connection is made or edited with: a server's address, or a cloud organization and its
 // region, its name, its token, and whether it notifies; filled in from `values`, a form's fields, where
 // they are given.
 async function drawConnection(cloud, id, message, values) {
-  const one = values ? connectionFromFields(values) : id ? connectionOf(id) : null;
-  const token = values ? String(values.token ?? "") : one ? (await orior.secrets.read(tokenKey(one)).catch(() => null)) ?? "" : "";
-  const where = cloud
-    ? `<label>Organization key<br><input name="organizationKey" value="${escaped(one?.organizationKey ?? "")}" size="40"></label><label>Region<br><select name="region">${REGIONS.map((region) => `<option${(one?.region ?? "EU") === region ? " selected" : ""}>${region}</option>`).join("")}</select></label>${button("List My Organizations", "connection-organizations")}`
-    : `<label>Server URL<br><input name="serverUrl" value="${escaped(one?.serverUrl ?? "http://localhost:9000")}" size="50"></label>`;
+  const one = connectionStart(id, values);
+  const token = await tokenStart(one, values);
+  const where = placeFields(cloud, one);
+  const failed = message ? '<p class="fail">' + escaped(message) + "</p>" : "";
   await displayed(
     "connection",
-    `<h1>${one ? "Edit" : "New"} ${cloud ? "SonarQube Cloud" : "SonarQube Server"} connection</h1>${message ? `<p class="fail">${escaped(message)}</p>` : ""}<form>
+    `<h1>${one ? "Edit" : "New"} ${cloud ? "SonarQube Cloud" : "SonarQube Server"} connection</h1>${failed}<form>
 <input type="hidden" name="cloud" value="${cloud ? "1" : ""}"><input type="hidden" name="previous" value="${escaped(id ?? "")}">
 ${where}
 <label>Token<br><input name="token" type="password" value="${escaped(token)}" size="50"></label>${button("Generate Token", "connection-token")}
@@ -75,7 +133,7 @@ function connectionFromFields(fields) {
     const organizationKey = String(fields.organizationKey ?? "").trim();
     return { ...base, connectionId: base.connectionId || organizationKey, organizationKey, region: REGIONS.includes(fields.region) ? fields.region : "EU" };
   }
-  const serverUrl = String(fields.serverUrl ?? "").trim().replace(/\/+$/, "");
+  const serverUrl = withoutTrailingSlashes(String(fields.serverUrl ?? "").trim());
   return { ...base, connectionId: base.connectionId || serverUrl, serverUrl };
 }
 
@@ -137,7 +195,7 @@ onPressed("connection-token", async (value, fields) => {
   if (!(await started())) {
     return;
   }
-  const base = fields.cloud ? `https://${fields.region === "US" ? "sonarqube.us" : "sonarcloud.io"}` : String(fields.serverUrl ?? "").trim().replace(/\/+$/, "");
+  const base = fields.cloud ? cloudBase(fields.region) : withoutTrailingSlashes(String(fields.serverUrl ?? "").trim());
   const answer = await orior.server.request("sonarlint/generateToken", { baseServerUrl: base }).catch((error) => {
     logged(`Token: ${error.message}`);
     return null;

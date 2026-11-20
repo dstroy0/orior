@@ -72,7 +72,7 @@ unsigned int nrrd_fits_memory(unsigned long long bytes)
 
 unsigned int nrrd_multiply(unsigned long long left, unsigned long long right, unsigned long long *product)
 {
-    if ((left != 0ull) && (right > (NRRD_BYTES_LIMIT / left)))
+    if ((left != 0ULL) && (right > (NRRD_BYTES_LIMIT / left)))
     {
         return 0u;
     }
@@ -83,7 +83,7 @@ unsigned int nrrd_multiply(unsigned long long left, unsigned long long right, un
 unsigned int nrrd_fetch(const EngineIngestTools *tools, const char *path, unsigned long long offset,
                         unsigned long long bytes, unsigned char *out)
 {
-    if (bytes == 0ull)
+    if (bytes == 0ULL)
     {
         return 1u;
     }
@@ -94,7 +94,7 @@ unsigned int nrrd_fetch(const EngineIngestTools *tools, const char *path, unsign
 
 void nrrd_swap(unsigned char *bytes, unsigned long long total, unsigned int element_bytes)
 {
-    for (unsigned long long start = 0ull; start < total; start += element_bytes)
+    for (unsigned long long start = 0ULL; start < total; start += element_bytes)
     {
         for (unsigned int low = 0u; low < (element_bytes / 2u); low += 1u)
         {
@@ -114,14 +114,14 @@ static unsigned int nrrd_blank(char byte)
 NrrdSpan nrrd_trim(NrrdSpan span)
 {
     NrrdSpan trimmed = span;
-    while ((trimmed.length > 0ull) && nrrd_blank(trimmed.text[0u]))
+    while ((trimmed.length > 0ULL) && nrrd_blank(trimmed.text[0u]))
     {
         trimmed.text += 1u;
-        trimmed.length -= 1ull;
+        trimmed.length -= 1ULL;
     }
-    while ((trimmed.length > 0ull) && nrrd_blank(trimmed.text[trimmed.length - 1ull]))
+    while ((trimmed.length > 0ULL) && nrrd_blank(trimmed.text[trimmed.length - 1ULL]))
     {
-        trimmed.length -= 1ull;
+        trimmed.length -= 1ULL;
     }
     return trimmed;
 }
@@ -145,17 +145,17 @@ unsigned int nrrd_listed(NrrdSpan span, const char *const *words, size_t count)
 unsigned int nrrd_token(NrrdSpan *rest, NrrdSpan *token)
 {
     *rest = nrrd_trim(*rest);
-    if (rest->length == 0ull)
+    if (rest->length == 0ULL)
     {
         return 0u;
     }
     const char closing = (rest->text[0u] == '(') ? ')' : '\0';
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     unsigned int closed = 0u;
     while ((size < rest->length) && (closed == 0u) && ((closing != '\0') || !nrrd_blank(rest->text[size])))
     {
         closed = ((closing != '\0') && (rest->text[size] == closing)) ? 1u : 0u;
-        size += 1ull;
+        size += 1ULL;
     }
     token->text = rest->text;
     token->length = size;
@@ -166,23 +166,23 @@ unsigned int nrrd_token(NrrdSpan *rest, NrrdSpan *token)
 
 static unsigned int nrrd_unsigned(NrrdSpan span, unsigned long long *value)
 {
-    unsigned long long total = 0ull;
-    if (span.length == 0ull)
+    unsigned long long total = 0ULL;
+    if (span.length == 0ULL)
     {
         return 0u;
     }
-    for (unsigned long long at = 0ull; at < span.length; at += 1ull)
+    for (unsigned long long at = 0ULL; at < span.length; at += 1ULL)
     {
         if ((span.text[at] < '0') || (span.text[at] > '9'))
         {
             return 0u;
         }
         const unsigned long long digit = (unsigned long long)(span.text[at] - '0');
-        if (total > ((NRRD_BYTES_LIMIT - digit) / 10ull))
+        if (total > ((NRRD_BYTES_LIMIT - digit) / 10ULL))
         {
             return 0u;
         }
-        total = (total * 10ull) + digit;
+        total = (total * 10ULL) + digit;
     }
     *value = total;
     return 1u;
@@ -191,8 +191,8 @@ static unsigned int nrrd_unsigned(NrrdSpan span, unsigned long long *value)
 unsigned int nrrd_single(NrrdSpan value, unsigned long long *number)
 {
     NrrdSpan rest = value;
-    NrrdSpan token = {NULL, 0ull};
-    NrrdSpan after = {NULL, 0ull};
+    NrrdSpan token = {NULL, 0ULL};
+    NrrdSpan after = {NULL, 0ULL};
     return (nrrd_token(&rest, &token) && nrrd_unsigned(token, number) && !nrrd_token(&rest, &after)) ? 1u : 0u;
 }
 
@@ -246,12 +246,12 @@ unsigned int nrrd_space(NrrdSpan value, NrrdFields *fields)
 unsigned int nrrd_sizes(NrrdSpan value, NrrdFields *fields)
 {
     NrrdSpan rest = value;
-    NrrdSpan token = {NULL, 0ull};
+    NrrdSpan token = {NULL, 0ULL};
     unsigned int count = 0u;
     while (nrrd_token(&rest, &token))
     {
-        unsigned long long size = 0ull;
-        if ((count == ENGINE_ARRAY_RANK) || !nrrd_unsigned(token, &size) || (size == 0ull))
+        unsigned long long size = 0ULL;
+        if ((count == ENGINE_ARRAY_RANK) || !nrrd_unsigned(token, &size) || (size == 0ULL))
         {
             return 0u;
         }
@@ -265,7 +265,7 @@ unsigned int nrrd_sizes(NrrdSpan value, NrrdFields *fields)
 unsigned int nrrd_types(NrrdSpan value, NrrdFields *fields)
 {
     NrrdSpan rest = value;
-    NrrdSpan token = {NULL, 0ull};
+    NrrdSpan token = {NULL, 0ULL};
     unsigned int count = 0u;
     while (nrrd_token(&rest, &token))
     {
@@ -285,12 +285,12 @@ unsigned int nrrd_types(NrrdSpan value, NrrdFields *fields)
 unsigned int nrrd_directions(NrrdSpan value, NrrdFields *fields)
 {
     NrrdSpan rest = value;
-    NrrdSpan token = {NULL, 0ull};
+    NrrdSpan token = {NULL, 0ULL};
     unsigned int count = 0u;
     while (nrrd_token(&rest, &token))
     {
         const int vector =
-            (token.length >= 2ull) && (token.text[0u] == '(') && (token.text[token.length - 1ull] == ')');
+            (token.length >= 2ULL) && (token.text[0u] == '(') && (token.text[token.length - 1ULL] == ')');
         if ((count == ENGINE_ARRAY_RANK) || (!vector && !nrrd_equals(token, "none")))
         {
             return 0u;

@@ -73,7 +73,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\settings_chain\\test_settings_chain\\test_settings_chain.c");
+  UnityBegin("utils/test/src/ui/cli/unit/settings_chain/test_settings_chain/test_settings_chain.c");
   run_test(test_a_chain_follows_each_file_taken_the_one_taken_first, "test_a_chain_follows_each_file_taken_the_one_taken_first", 36);
   run_test(test_a_file_taken_twice_is_read_once_and_a_problem, "test_a_file_taken_twice_is_read_once_and_a_problem", 49);
   run_test(test_a_file_taken_that_is_not_there_is_a_problem, "test_a_file_taken_that_is_not_there_is_a_problem", 59);

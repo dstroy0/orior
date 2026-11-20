@@ -21,7 +21,7 @@ int schedule_program(const char *set, char *const *names, unsigned int count)
         fprintf(stderr, "  the tower did not answer how much it allocates\n");
         return 0;
     }
-    const unsigned long long cap = (unsigned long long)free_bytes / 3ull * 2ull;
+    const unsigned long long cap = (unsigned long long)free_bytes / 3ULL * 2ULL;
     FILE *const out = fopen(g_schedule_path, "w");
     if (out == NULL)
     {
@@ -37,7 +37,7 @@ int schedule_program(const char *set, char *const *names, unsigned int count)
     unsigned int written = 0u;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        unsigned long long head[4] = {0ull, 0ull, 0ull, 0ull};
+        unsigned long long head[4] = {0ULL, 0ULL, 0ULL, 0ULL};
         EngineError error;
         memset(&error, 0, sizeof(error));
         if (engine_iapx_head(set, names[at], head, &error) != 0L)
@@ -47,14 +47,14 @@ int schedule_program(const char *set, char *const *names, unsigned int count)
         }
         const unsigned long long frames = head[0];
         const unsigned long long voxels = head[1] * head[2] * head[3];
-        const unsigned long long each = (voxels * 2ull) + (voxels * ENGINE_RESIDUAL_LIMBS * sizeof(unsigned int)) +
+        const unsigned long long each = (voxels * 2ULL) + (voxels * ENGINE_RESIDUAL_LIMBS * sizeof(unsigned int)) +
                                         (voxels * sizeof(unsigned int)) +
-                                        ((voxels + 63ull) / 64ull * sizeof(unsigned long long));
-        unsigned long long chunk_frames = (each != 0ull) ? (cap / each) : 0ull;
-        chunk_frames = (chunk_frames < 2ull) ? 2ull : chunk_frames;
+                                        ((voxels + 63ULL) / 64ULL * sizeof(unsigned long long));
+        unsigned long long chunk_frames = (each != 0ULL) ? (cap / each) : 0ULL;
+        chunk_frames = (chunk_frames < 2ULL) ? 2ULL : chunk_frames;
         chunk_frames = (chunk_frames > frames) ? frames : chunk_frames;
-        const unsigned long long steps = (chunk_frames > 1ull) ? (chunk_frames - 1ull) : 1ull;
-        const unsigned long long chunks = ((frames > 1ull) ? (frames - 2ull + steps) : 0ull) / steps;
+        const unsigned long long steps = (chunk_frames > 1ULL) ? (chunk_frames - 1ULL) : 1ULL;
+        const unsigned long long chunks = ((frames > 1ULL) ? (frames - 2ULL + steps) : 0ULL) / steps;
         printf("    %-24s %llu frames of %llu voxels, %llu MiB each, %llu per chunk, %llu chunks\n", names[at], frames,
                voxels, each >> 20u, chunk_frames, chunks);
         for (unsigned long long chunk = 0u; chunk < chunks; chunk += 1u)

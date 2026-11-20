@@ -6,25 +6,25 @@
 static int dicom_decimal_parse(const unsigned char *text, unsigned long long length, DicomDecimal *out,
                                EngineError *error)
 {
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while ((at < length) && (text[at] == ' '))
     {
-        at += 1ull;
+        at += 1ULL;
     }
     unsigned long long end = length;
-    while ((end > at) && ((text[end - 1ull] == ' ') || (text[end - 1ull] == '\0')))
+    while ((end > at) && ((text[end - 1ULL] == ' ') || (text[end - 1ULL] == '\0')))
     {
-        end -= 1ull;
+        end -= 1ULL;
     }
     int negative = 0;
     if ((at < end) && ((text[at] == '+') || (text[at] == '-')))
     {
         negative = (text[at] == '-') ? 1 : 0;
-        at += 1ull;
+        at += 1ULL;
     }
     orior_exact_zero(&out->mantissa);
-    unsigned long long count = 0ull;
-    long long fraction = 0ll;
+    unsigned long long count = 0ULL;
+    long long fraction = 0LL;
     int seen_point = 0;
     while ((at < end) && (((text[at] >= '0') && (text[at] <= '9')) || ((text[at] == '.') && (seen_point == 0))))
     {
@@ -47,40 +47,40 @@ static int dicom_decimal_parse(const unsigned char *text, unsigned long long len
                 return 0;
             }
             out->mantissa = next;
-            count += 1ull;
-            fraction += (seen_point != 0) ? 1ll : 0ll;
+            count += 1ULL;
+            fraction += (seen_point != 0) ? 1LL : 0LL;
         }
-        at += 1ull;
+        at += 1ULL;
     }
-    long long exponent = 0ll;
+    long long exponent = 0LL;
     if ((at < end) && ((text[at] == 'e') || (text[at] == 'E')))
     {
-        at += 1ull;
+        at += 1ULL;
         int exponent_negative = 0;
         if ((at < end) && ((text[at] == '+') || (text[at] == '-')))
         {
             exponent_negative = (text[at] == '-') ? 1 : 0;
-            at += 1ull;
+            at += 1ULL;
         }
-        unsigned long long exponent_digits = 0ull;
+        unsigned long long exponent_digits = 0ULL;
         while ((at < end) && (text[at] >= '0') && (text[at] <= '9'))
         {
-            if (!DICOM_CHECK(exponent <= (((LLONG_MAX / 4ll) - 9ll) / 10ll), text, error, ENGINE_ERROR_REQUEST))
+            if (!DICOM_CHECK(exponent <= (((LLONG_MAX / 4LL) - 9LL) / 10LL), text, error, ENGINE_ERROR_REQUEST))
             {
                 return 0;
             }
             // one decimal digit's value, 0 to 9, fits a long long exactly
-            exponent = (exponent * 10ll) + (long long)(text[at] - '0');
-            exponent_digits += 1ull;
-            at += 1ull;
+            exponent = (exponent * 10LL) + (long long)(text[at] - '0');
+            exponent_digits += 1ULL;
+            at += 1ULL;
         }
-        if (!DICOM_CHECK(exponent_digits != 0ull, text, error, ENGINE_ERROR_REQUEST))
+        if (!DICOM_CHECK(exponent_digits != 0ULL, text, error, ENGINE_ERROR_REQUEST))
         {
             return 0;
         }
         exponent = (exponent_negative != 0) ? -exponent : exponent;
     }
-    if (!DICOM_CHECK((count != 0ull) && (at == end), text, error, ENGINE_ERROR_REQUEST))
+    if (!DICOM_CHECK((count != 0ULL) && (at == end), text, error, ENGINE_ERROR_REQUEST))
     {
         return 0;
     }
@@ -92,9 +92,9 @@ static int dicom_decimal_parse(const unsigned char *text, unsigned long long len
 int dicom_decimal_list(const unsigned char *text, unsigned long long length, unsigned int want, DicomDecimal *out,
                        EngineError *error)
 {
-    unsigned long long start = 0ull;
+    unsigned long long start = 0ULL;
     unsigned int found = 0u;
-    for (unsigned long long at = 0ull; at <= length; at += 1ull)
+    for (unsigned long long at = 0ULL; at <= length; at += 1ULL)
     {
         if ((at == length) || (text[at] == '\\'))
         {
@@ -104,7 +104,7 @@ int dicom_decimal_list(const unsigned char *text, unsigned long long length, uns
                 return 0;
             }
             found += 1u;
-            start = at + 1ull;
+            start = at + 1ULL;
         }
     }
     return DICOM_CHECK(found == want, text, error, ENGINE_ERROR_REQUEST);
@@ -195,27 +195,27 @@ int dicom_slice_key(const DicomDecimal *orientation, DicomSlice *slice, EngineEr
 static int dicom_uid_compare(const unsigned char *left, unsigned long long left_length, const unsigned char *right,
                              unsigned long long right_length)
 {
-    unsigned long long one = 0ull;
-    unsigned long long other = 0ull;
+    unsigned long long one = 0ULL;
+    unsigned long long other = 0ULL;
     while ((one < left_length) || (other < right_length))
     {
         unsigned long long one_end = one;
         while ((one_end < left_length) && (left[one_end] != '.'))
         {
-            one_end += 1ull;
+            one_end += 1ULL;
         }
         unsigned long long other_end = other;
         while ((other_end < right_length) && (right[other_end] != '.'))
         {
-            other_end += 1ull;
+            other_end += 1ULL;
         }
-        while (((one_end - one) > 1ull) && (left[one] == '0'))
+        while (((one_end - one) > 1ULL) && (left[one] == '0'))
         {
-            one += 1ull;
+            one += 1ULL;
         }
-        while (((other_end - other) > 1ull) && (right[other] == '0'))
+        while (((other_end - other) > 1ULL) && (right[other] == '0'))
         {
-            other += 1ull;
+            other += 1ULL;
         }
         const unsigned long long one_span = one_end - one;
         const unsigned long long other_span = other_end - other;
@@ -223,13 +223,13 @@ static int dicom_uid_compare(const unsigned char *left, unsigned long long left_
         {
             return (one_span < other_span) ? -1 : 1;
         }
-        const int differ = (one_span != 0ull) ? memcmp(left + one, right + other, (size_t)one_span) : 0;
+        const int differ = (one_span != 0ULL) ? memcmp(left + one, right + other, (size_t)one_span) : 0;
         if (differ != 0)
         {
             return (differ < 0) ? -1 : 1;
         }
-        one = (one_end < left_length) ? (one_end + 1ull) : one_end;
-        other = (other_end < right_length) ? (other_end + 1ull) : other_end;
+        one = (one_end < left_length) ? (one_end + 1ULL) : one_end;
+        other = (other_end < right_length) ? (other_end + 1ULL) : other_end;
     }
     return 0;
 }

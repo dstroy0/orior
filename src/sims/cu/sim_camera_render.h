@@ -12,21 +12,21 @@ static inline __host__ __device__ unsigned long long sim_thinned(unsigned long l
                                                                  unsigned long long count, unsigned long long numerator,
                                                                  unsigned int bits)
 {
-    const unsigned long long per_word = 64ull / bits;
-    const unsigned long long mask = (1ull << bits) - 1ull;
-    unsigned long long retained = 0ull;
-    unsigned long long word = 0ull;
-    for (unsigned long long done = 0ull; done < count; done += per_word)
+    const unsigned long long per_word = 64ULL / bits;
+    const unsigned long long mask = (1ULL << bits) - 1ULL;
+    unsigned long long retained = 0ULL;
+    unsigned long long word = 0ULL;
+    for (unsigned long long done = 0ULL; done < count; done += per_word)
     {
         unsigned long long draw = sim_counter_draw(key, counter, word);
         const unsigned long long left = count - done;
         const unsigned long long taken = (left < per_word) ? left : per_word;
-        for (unsigned long long electron = 0ull; electron < taken; electron += 1ull)
+        for (unsigned long long electron = 0ULL; electron < taken; electron += 1ULL)
         {
-            retained += ((draw & mask) < numerator) ? 1ull : 0ull;
+            retained += ((draw & mask) < numerator) ? 1ULL : 0ULL;
             draw >>= bits;
         }
-        word += 1ull;
+        word += 1ULL;
     }
     return retained;
 }
@@ -36,11 +36,11 @@ static inline __host__ __device__ long long sim_gain_spread(const SimCamera *cam
 {
     if (camera->gain_pattern_bits == 0u)
     {
-        return 0ll;
+        return 0LL;
     }
     // the range is below 2^32 in every camera here. The draw and the difference fit a long long
     return (long long)sim_draw_below(camera->key ^ SIM_GAIN_PATTERN_PURPOSE, pixel,
-                                     (2ull * camera->gain_pattern_range) + 1ull) -
+                                     (2ULL * camera->gain_pattern_range) + 1ULL) -
            (long long)camera->gain_pattern_range;
 }
 
@@ -48,11 +48,11 @@ static inline __host__ __device__ long long sim_gain_spread(const SimCamera *cam
 static inline __host__ __device__ unsigned long long sim_offset_pattern(const SimCamera *camera,
                                                                         unsigned long long pixel)
 {
-    if (camera->offset_pattern_range == 0ull)
+    if (camera->offset_pattern_range == 0ULL)
     {
-        return 0ull;
+        return 0ULL;
     }
-    return sim_draw_below(camera->key ^ SIM_OFFSET_PATTERN_PURPOSE, pixel, camera->offset_pattern_range + 1ull);
+    return sim_draw_below(camera->key ^ SIM_OFFSET_PATTERN_PURPOSE, pixel, camera->offset_pattern_range + 1ULL);
 }
 
 static inline __host__ __device__ long long sim_value(const SimCamera *camera, unsigned long long counter,
@@ -66,7 +66,7 @@ static inline __host__ __device__ long long sim_value(const SimCamera *camera, u
     if (camera->shot == SIM_SHOT_SYMMETRIC)
     {
         // a head count of at max 4 S is far below 2^62
-        collected = (long long)sim_binomial_half(camera->key ^ SIM_SHOT_PURPOSE, counter, 4ull * charge) - collected;
+        collected = (long long)sim_binomial_half(camera->key ^ SIM_SHOT_PURPOSE, counter, 4ULL * charge) - collected;
     }
     else
     {
@@ -77,11 +77,11 @@ static inline __host__ __device__ long long sim_value(const SimCamera *camera, u
         }
         else if (camera->shot == SIM_SHOT_HALF)
         {
-            count = sim_binomial_half(camera->key ^ SIM_SHOT_PURPOSE, counter, 2ull * charge);
+            count = sim_binomial_half(camera->key ^ SIM_SHOT_PURPOSE, counter, 2ULL * charge);
         }
         else if (camera->shot == SIM_SHOT_PAIRED)
         {
-            count = 2ull * sim_poisson_four_cumulants(camera->key ^ SIM_SHOT_PURPOSE, counter, charge / 2ull);
+            count = 2ULL * sim_poisson_four_cumulants(camera->key ^ SIM_SHOT_PURPOSE, counter, charge / 2ULL);
         }
         if (camera->thin_bits != 0u)
         {
@@ -90,38 +90,38 @@ static inline __host__ __device__ long long sim_value(const SimCamera *camera, u
         }
         if (camera->excess != 0u)
         {
-            count = 2ull * sim_binomial_half(camera->key ^ SIM_EXCESS_PURPOSE, counter, count);
+            count = 2ULL * sim_binomial_half(camera->key ^ SIM_EXCESS_PURPOSE, counter, count);
         }
         // a count of at max 4 S, doubled, is far below 2^62
         collected = (long long)count;
     }
-    long long read = 0ll;
-    if (camera->read_square != 0ull)
+    long long read = 0LL;
+    if (camera->read_square != 0ULL)
     {
         // a head count of at max 4 r^2 is far below 2^62
-        read = (long long)sim_binomial_half(camera->key ^ SIM_READ_PURPOSE, counter, 4ull * camera->read_square) -
-               (2ll * (long long)camera->read_square);
+        read = (long long)sim_binomial_half(camera->key ^ SIM_READ_PURPOSE, counter, 4ULL * camera->read_square) -
+               (2LL * (long long)camera->read_square);
     }
-    if (camera->reset_square != 0ull)
+    if (camera->reset_square != 0ULL)
     {
         // a head count of at max 4 kTC is far below 2^62
-        read += (long long)sim_binomial_half(camera->key ^ SIM_RESET_PURPOSE, counter, 4ull * camera->reset_square) -
-                (2ll * (long long)camera->reset_square);
+        read += (long long)sim_binomial_half(camera->key ^ SIM_RESET_PURPOSE, counter, 4ULL * camera->reset_square) -
+                (2LL * (long long)camera->reset_square);
     }
     // the offset, pattern and gain are each far below 2^31 in every camera here
     long long gained = (long long)camera->gain * collected;
     if (camera->gain_pattern_bits != 0u)
     {
-        const long long unit = 1ll << camera->gain_pattern_bits;
+        const long long unit = 1LL << camera->gain_pattern_bits;
         const long long scaled = gained * (unit + sim_gain_spread(camera, pixel));
         // the quotient toward minus infinity, then up by one with the chance of the remainder over the unit. The
         // gained count's mean is exact
-        const long long below = (scaled / unit) - ((((scaled % unit) != 0ll) && (scaled < 0ll)) ? 1ll : 0ll);
+        const long long below = (scaled / unit) - ((((scaled % unit) != 0LL) && (scaled < 0LL)) ? 1LL : 0LL);
         // the remainder lies in [0, unit). It re-signs exactly
         const unsigned long long remainder = (unsigned long long)(scaled - (below * unit));
         const unsigned long long chance =
             sim_draw_below(camera->key ^ SIM_GAIN_ROUND_PURPOSE, counter, (unsigned long long)unit);
-        gained = below + ((chance < remainder) ? 1ll : 0ll);
+        gained = below + ((chance < remainder) ? 1LL : 0LL);
     }
     return (long long)camera->offset + (long long)sim_pattern(camera, voxel) +
            (long long)sim_offset_pattern(camera, pixel) + gained + read;
@@ -138,27 +138,27 @@ static inline __host__ __device__ long long sim_shared(const SimCamera *camera, 
     const unsigned long long plane = (frame * scene->extent[0]) + (unsigned long long)place[0];
     const unsigned long long row = (plane * scene->extent[1]) + (unsigned long long)place[1];
     const unsigned long long column = (plane * scene->extent[2]) + (unsigned long long)place[2];
-    long long shared = 0ll;
-    if (camera->row_square != 0ull)
+    long long shared = 0LL;
+    if (camera->row_square != 0ULL)
     {
         shared += sim_centerd(camera->key ^ SIM_ROW_PURPOSE, row, camera->row_square);
     }
-    if (camera->column_square != 0ull)
+    if (camera->column_square != 0ULL)
     {
         shared += sim_centerd(camera->key ^ SIM_COLUMN_PURPOSE, column, camera->column_square);
     }
-    if (camera->plane_square != 0ull)
+    if (camera->plane_square != 0ULL)
     {
         shared += sim_centerd(camera->key ^ SIM_PLANE_PURPOSE, plane, camera->plane_square);
     }
-    for (unsigned int octave = 0u; (camera->flicker_square != 0ull) && (octave < camera->flicker_octaves); octave += 1u)
+    for (unsigned int octave = 0u; (camera->flicker_square != 0ULL) && (octave < camera->flicker_octaves); octave += 1u)
     {
         // octave o's draw is sustained for 2^o frames: its counter changes only when frame >> o does
         const unsigned long long index =
             ((((voxel * camera->flicker_octaves) + octave) * scene->frames) + (frame >> octave));
         shared += sim_centerd(camera->key ^ SIM_FLICKER_PURPOSE, index, camera->flicker_square);
     }
-    if ((camera->spike_denominator != 0ull) &&
+    if ((camera->spike_denominator != 0ULL) &&
         (sim_draw_below(camera->key ^ SIM_SPIKE_PURPOSE, counter, camera->spike_denominator) < camera->spike_numerator))
     {
         // a spike's electrons times the gain, like the signal's, are far below 2^62
@@ -193,11 +193,11 @@ static __global__ void sim_render_kernel(SimScene scene, SimCamera camera, unsig
     const unsigned long long pixel = voxel % (scene.extent[1] * scene.extent[2]);
     const long long value =
         sim_value(&camera, index, voxel, pixel, electrons) + sim_shared(&camera, &scene, frame, place, voxel, index);
-    if ((value < 0ll) || (value > SIM_LANE_MAX))
+    if ((value < 0LL) || (value > SIM_LANE_MAX))
     {
-        atomicAdd(clipped, 1ull);
+        atomicAdd(clipped, 1ULL);
     }
-    const long long clamped = (value < 0ll) ? 0ll : ((value > SIM_LANE_MAX) ? SIM_LANE_MAX : value);
+    const long long clamped = (value < 0LL) ? 0LL : ((value > SIM_LANE_MAX) ? SIM_LANE_MAX : value);
     // the value is clamped to the u16 lane's range just above
     lanes[index] = (unsigned short)clamped;
     if (truth == NULL)
@@ -209,7 +209,7 @@ static __global__ void sim_render_kernel(SimScene scene, SimCamera camera, unsig
         if (sim_body_inside(&scene.body[body], frame, place) != 0)
         {
             unsigned long long *const field = &truth[((frame * scene.bodies) + body) * SIM_TRUTH_FIELDS];
-            atomicAdd(&field[0], 1ull);
+            atomicAdd(&field[0], 1ULL);
             // each coordinate is non-negative inside the view
             atomicAdd(&field[1], (unsigned long long)place[0]);
             atomicAdd(&field[2], (unsigned long long)place[1]);
@@ -242,7 +242,7 @@ static inline int sim_render(SimResults *results, const SimScene *scene, const S
                  "render: bodies copy");
         launch.body = device_body;
     }
-    if (ok && (host_truth != NULL) && (truth_words != 0ull))
+    if (ok && (host_truth != NULL) && (truth_words != 0ULL))
     {
         ok = sim_status_check(results, cudaMalloc((void **)&device_truth, truth_words * sizeof(unsigned long long)),
                               "render: truth");
@@ -280,7 +280,7 @@ static inline int sim_render(SimResults *results, const SimScene *scene, const S
 static inline void sim_truth_host(const SimScene *scene, unsigned long long *truth)
 {
     memset(truth, 0, scene->frames * scene->bodies * SIM_TRUTH_FIELDS * sizeof(unsigned long long));
-    for (unsigned long long frame = 0ull; frame < scene->frames; frame += 1ull)
+    for (unsigned long long frame = 0ULL; frame < scene->frames; frame += 1ULL)
     {
         for (unsigned int index = 0u; index < scene->bodies; index += 1u)
         {
@@ -291,21 +291,21 @@ static inline void sim_truth_host(const SimScene *scene, unsigned long long *tru
             for (unsigned int axis = 0u; axis < SIM_AXES; axis += 1u)
             {
                 const long long center = sim_body_at(body, frame, axis);
-                low[axis] = ((center - body->range[axis]) < 0ll) ? 0ll : (center - body->range[axis]);
+                low[axis] = ((center - body->range[axis]) < 0LL) ? 0LL : (center - body->range[axis]);
                 // the extent is far below 2^63
-                const long long last = (long long)scene->extent[axis] - 1ll;
+                const long long last = (long long)scene->extent[axis] - 1LL;
                 high[axis] = ((center + body->range[axis]) > last) ? last : (center + body->range[axis]);
             }
             long long place[SIM_AXES];
-            for (place[0] = low[0]; place[0] <= high[0]; place[0] += 1ll)
+            for (place[0] = low[0]; place[0] <= high[0]; place[0] += 1LL)
             {
-                for (place[1] = low[1]; place[1] <= high[1]; place[1] += 1ll)
+                for (place[1] = low[1]; place[1] <= high[1]; place[1] += 1LL)
                 {
-                    for (place[2] = low[2]; place[2] <= high[2]; place[2] += 1ll)
+                    for (place[2] = low[2]; place[2] <= high[2]; place[2] += 1LL)
                     {
                         if (sim_body_inside(body, frame, place) != 0)
                         {
-                            field[0] += 1ull;
+                            field[0] += 1ULL;
                             // each coordinate is non-negative, clipped to the view above
                             field[1] += (unsigned long long)place[0];
                             field[2] += (unsigned long long)place[1];

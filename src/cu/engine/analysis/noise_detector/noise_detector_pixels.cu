@@ -47,7 +47,7 @@ extern "C" long noise_clips_set(const NoiseSetRequest *request)
     for (unsigned int sample = 0u; ok && (sample < request->count); sample += 1u)
     {
         const char *const name = request->samples[sample];
-        unsigned long long extent[4] = {0ull, 0ull, 0ull, 0ull};
+        unsigned long long extent[4] = {0ULL, 0ULL, 0ULL, 0ULL};
         unsigned short *volume = NULL;
         ok = NOISE_DETECTOR_CHECK(request->load(request->set, name, extent, &volume, error) == 0L, name, error,
                                   ENGINE_ERROR_REQUEST) &&
@@ -70,7 +70,7 @@ extern "C" long noise_clips_set(const NoiseSetRequest *request)
     if (ok != 0)
     {
         printf("  clips: %u samples in %llu ms; the counts are in %s, %s and %s\n", request->count,
-               (engine_clock_microseconds() - began) / 1000ull, paths[NOISE_TABLE_CLIPS], paths[NOISE_TABLE_VALUES],
+               (engine_clock_microseconds() - began) / 1000ULL, paths[NOISE_TABLE_CLIPS], paths[NOISE_TABLE_VALUES],
                paths[NOISE_TABLE_SPIKES]);
     }
     return (ok != 0) ? 0L : NOISE_DETECTOR_ERROR;
@@ -103,8 +103,8 @@ static long noise_pixels_sample(const unsigned short *volume, const unsigned lon
     const unsigned long long plane_voxels = extent[2] * extent[3];
     const unsigned long long voxels = depth * plane_voxels;
     // a pixel's squares total at max the sample's voxel-frames times 65535 squared
-    const int bounded = (frames >= 2ull) && (voxels != 0ull) && (frames <= (~0ull / voxels)) &&
-                        ((frames * voxels) <= (~0ull / (65535ull * 65535ull)));
+    const int bounded = (frames >= 2ULL) && (voxels != 0ULL) && (frames <= (~0ULL / voxels)) &&
+                        ((frames * voxels) <= (~0ULL / (65535ULL * 65535ULL)));
     if (!NOISE_DETECTOR_CHECK(bounded, extent, error, ENGINE_ERROR_REQUEST))
     {
         return NOISE_DETECTOR_ERROR;
@@ -116,28 +116,28 @@ static long noise_pixels_sample(const unsigned short *volume, const unsigned lon
     if (ok != 0)
     {
         memset(maps, 0, (size_t)NOISE_PIXEL_CELLS(plane_voxels) * sizeof(unsigned long long));
-        const unsigned long long middle = depth / 2ull;
+        const unsigned long long middle = depth / 2ULL;
         // frame by frame and plane by plane. The volume is read in order; the first frame also counts the voxels
-        for (unsigned long long frame = 0ull; frame < frames; frame += 1ull)
+        for (unsigned long long frame = 0ULL; frame < frames; frame += 1ULL)
         {
-            for (unsigned long long z = 0ull; z < depth; z += 1ull)
+            for (unsigned long long z = 0ULL; z < depth; z += 1ULL)
             {
-                const unsigned long long half = (z < middle) ? 0ull : 1ull;
+                const unsigned long long half = (z < middle) ? 0ULL : 1ULL;
                 const unsigned char *const plane_mask = &mask[z * plane_voxels];
                 const unsigned short *const lanes = &volume[(frame * voxels) + (z * plane_voxels)];
                 // the same plane one frame earlier; the first frame has none and reads itself
                 const unsigned short *const earlier =
-                    (frame != 0ull) ? &volume[((frame - 1ull) * voxels) + (z * plane_voxels)] : lanes;
-                for (unsigned long long pixel = 0ull; pixel < plane_voxels; pixel += 1ull)
+                    (frame != 0ULL) ? &volume[((frame - 1ULL) * voxels) + (z * plane_voxels)] : lanes;
+                for (unsigned long long pixel = 0ULL; pixel < plane_voxels; pixel += 1ULL)
                 {
                     if (plane_mask[pixel] == 0u)
                     {
                         continue;
                     }
                     unsigned long long *const cell = &maps[((pixel * NOISE_PIXEL_HALVES) + half) * NOISE_PIXEL_SUMS];
-                    cell[NOISE_PIXEL_VOXELS] += (frame == 0ull) ? 1ull : 0ull;
+                    cell[NOISE_PIXEL_VOXELS] += (frame == 0ULL) ? 1ULL : 0ULL;
                     cell[NOISE_PIXEL_VALUES] += lanes[pixel];
-                    if (frame != 0ull)
+                    if (frame != 0ULL)
                     {
                         const long long moved = (long long)lanes[pixel] - (long long)earlier[pixel];
                         // a square is never negative. It re-signs to unsigned long long exactly
@@ -157,11 +157,11 @@ static int noise_pixels_rows(FILE *table, const char *name, const unsigned long 
     const unsigned long long width = extent[3];
     const unsigned long long plane_voxels = extent[2] * width;
     int ok = 1;
-    for (unsigned long long pixel = 0ull; ok && (pixel < plane_voxels); pixel += 1ull)
+    for (unsigned long long pixel = 0ULL; ok && (pixel < plane_voxels); pixel += 1ULL)
     {
         const unsigned long long *const lower = &maps[(pixel * NOISE_PIXEL_HALVES) * NOISE_PIXEL_SUMS];
         const unsigned long long *const upper = &lower[NOISE_PIXEL_SUMS];
-        if ((lower[NOISE_PIXEL_VOXELS] == 0ull) && (upper[NOISE_PIXEL_VOXELS] == 0ull))
+        if ((lower[NOISE_PIXEL_VOXELS] == 0ULL) && (upper[NOISE_PIXEL_VOXELS] == 0ULL))
         {
             continue;
         }
@@ -192,11 +192,11 @@ extern "C" long noise_pixels_set(const NoiseSetRequest *request)
            " z planes below the middle and from it up\n");
     const unsigned long long began = engine_clock_microseconds();
     unsigned long long *maps = NULL;
-    unsigned long long max_cells = 0ull;
+    unsigned long long max_cells = 0ULL;
     for (unsigned int sample = 0u; ok && (sample < request->count); sample += 1u)
     {
         const char *const name = request->samples[sample];
-        unsigned long long extent[4] = {0ull, 0ull, 0ull, 0ull};
+        unsigned long long extent[4] = {0ULL, 0ULL, 0ULL, 0ULL};
         unsigned short *volume = NULL;
         ok = NOISE_DETECTOR_CHECK(request->load(request->set, name, extent, &volume, error) == 0L, name, error,
                                   ENGINE_ERROR_REQUEST);
@@ -206,10 +206,10 @@ extern "C" long noise_pixels_set(const NoiseSetRequest *request)
         {
             free(maps);
             maps = (unsigned long long *)malloc((size_t)cells * sizeof(unsigned long long));
-            max_cells = (maps != NULL) ? cells : 0ull;
+            max_cells = (maps != NULL) ? cells : 0ULL;
             ok = NOISE_DETECTOR_CHECK(maps != NULL, &maps, error, ENGINE_ERROR_RESOURCE);
         }
-        unsigned long long ceiling = 0ull;
+        unsigned long long ceiling = 0ULL;
         ok = ok && (noise_pixels_sample(volume, extent, maps, &ceiling, error) == 0L);
         free(volume);
         ok = ok && NOISE_DETECTOR_IO(noise_pixels_rows(table, name, extent, maps) != 0, table, error);
@@ -227,7 +227,7 @@ extern "C" long noise_pixels_set(const NoiseSetRequest *request)
     if (ok != 0)
     {
         printf("  pixels: %u samples in %llu ms; every pixel's sums are in %s\n", request->count,
-               (engine_clock_microseconds() - began) / 1000ull, path);
+               (engine_clock_microseconds() - began) / 1000ULL, path);
     }
     return (ok != 0) ? 0L : NOISE_DETECTOR_ERROR;
 }

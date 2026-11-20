@@ -80,7 +80,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\notebook_cells\\test_notebook_cells\\test_notebook_cells.c");
+  UnityBegin("utils/test/src/ui/cli/unit/notebook_cells/test_notebook_cells/test_notebook_cells.c");
   run_test(test_a_notebook_and_a_percent_script_read_as_the_same_rows, "test_a_notebook_and_a_percent_script_read_as_the_same_rows", 101);
   run_test(test_a_row_is_found_among_the_sorted_starts_of_the_cells, "test_a_row_is_found_among_the_sorted_starts_of_the_cells", 119);
   run_test(test_the_step_applies_each_message_to_the_cell_its_run_answers, "test_the_step_applies_each_message_to_the_cell_its_run_answers", 153);

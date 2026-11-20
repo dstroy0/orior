@@ -90,7 +90,7 @@ static int flatten_write_iapx(const char *path, const MaxTreeLayout *layout, cha
              FLATTEN_CHECK(memcmp(&read_orders, &orders[sample], sizeof(read_orders)) == 0, &read_orders, error,
                            ENGINE_ERROR_LOGIC);
     }
-    unsigned long long read_bodies = 0ull;
+    unsigned long long read_bodies = 0ULL;
     ok =
         ok && FLATTEN_IO(krep_words_read(file, &read_bodies, 1u) != 0, &read_bodies, error) &&
         FLATTEN_CHECK(read_bodies == bodies, &read_bodies, error, ENGINE_ERROR_LOGIC) &&
@@ -193,10 +193,10 @@ void flatten_release(FlattenResident *resident)
 
 static int flatten_header(const char *set, const char *name, unsigned int header[4], EngineError *error)
 {
-    unsigned long long extent[4] = {0ull, 0ull, 0ull, 0ull};
+    unsigned long long extent[4] = {0ULL, 0ULL, 0ULL, 0ULL};
     const int ok = FLATTEN_CHECK(engine_iapx_head(set, name, extent, error) == 0L, name, error, ENGINE_ERROR_REQUEST) &&
-                   FLATTEN_CHECK((extent[0] <= 0xFFFFFFFFull) && (extent[1] <= 0xFFFFFFFFull) &&
-                                     (extent[2] <= 0xFFFFFFFFull) && (extent[3] <= 0xFFFFFFFFull),
+                   FLATTEN_CHECK((extent[0] <= 0xFFFFFFFFULL) && (extent[1] <= 0xFFFFFFFFULL) &&
+                                     (extent[2] <= 0xFFFFFFFFULL) && (extent[3] <= 0xFFFFFFFFULL),
                                  extent, error, ENGINE_ERROR_REQUEST);
     for (unsigned int axis = 0u; axis < 4u; axis += 1u)
     {
@@ -205,7 +205,7 @@ static int flatten_header(const char *set, const char *name, unsigned int header
     return ok;
 }
 
-// each sample's orders, its own where the request gives them and the shared ones where it does not; an odd background
+// each sample's orders, its own where the request gives them and the shared ones where it does not. An odd background
 // order errors here, before any sample is read
 static int flatten_orders(const FlattenSetRequest *request, FlattenOrders *orders, EngineError *error)
 {
@@ -246,7 +246,7 @@ int flatten_set(const FlattenSetRequest *request)
         FLATTEN_CHECK(orders != NULL, &orders, error, ENGINE_ERROR_RESOURCE) && flatten_orders(request, orders, error);
     unsigned int largest[3] = {0u, 0u, 0u};
     unsigned int max_frames = 0u;
-    unsigned long long all_frames = 0ull;
+    unsigned long long all_frames = 0ULL;
     for (unsigned int sample = 0u; ok && (sample < count); sample += 1u)
     {
         unsigned int header[4] = {0u, 0u, 0u, 0u};
@@ -256,7 +256,7 @@ int flatten_set(const FlattenSetRequest *request)
             largest[axis] = (header[axis + 1u] > largest[axis]) ? header[axis + 1u] : largest[axis];
         }
         max_frames = (ok && (header[0] > max_frames)) ? header[0] : max_frames;
-        all_frames += ok ? (unsigned long long)header[0] : 0ull;
+        all_frames += ok ? (unsigned long long)header[0] : 0ULL;
     }
     if (ok == 0)
     {
@@ -280,20 +280,20 @@ int flatten_set(const FlattenSetRequest *request)
                        ENGINE_ERROR_RESOURCE);
     printf("  one frame at a time: the residual by the unit sweeps, stored in %u limbs a lane\n",
            ENGINE_RESIDUAL_LIMBS);
-    unsigned long long bodies = 0ull;
-    unsigned long long lost_bits = 0ull;
-    unsigned long long frames_done = 0ull;
-    unsigned long long proofs = 0ull;
-    unsigned long long read_us = 0ull;
-    unsigned long long device_us = 0ull;
-    unsigned long long residual_us = 0ull;
-    unsigned long long graded = 0ull;
-    unsigned long long graded_differ = 0ull;
+    unsigned long long bodies = 0ULL;
+    unsigned long long lost_bits = 0ULL;
+    unsigned long long frames_done = 0ULL;
+    unsigned long long proofs = 0ULL;
+    unsigned long long read_us = 0ULL;
+    unsigned long long device_us = 0ULL;
+    unsigned long long residual_us = 0ULL;
+    unsigned long long graded = 0ULL;
+    unsigned long long graded_differ = 0ULL;
     const unsigned long long began = engine_clock_microseconds();
     for (unsigned int sample = 0u; ok && (sample < count); sample += 1u)
     {
         unsigned long long mark = engine_clock_microseconds();
-        unsigned long long extent[4] = {0ull, 0ull, 0ull, 0ull};
+        unsigned long long extent[4] = {0ULL, 0ULL, 0ULL, 0ULL};
         unsigned short *volume = NULL;
         EngineSignum volume_root;
         ok = FLATTEN_CHECK(engine_iapx_load(set, names[sample], extent, &volume, &volume_root, NULL, error) == 0L,
@@ -358,7 +358,7 @@ int flatten_set(const FlattenSetRequest *request)
             ok = ok && ((wanted <= gathered_capacity) ||
                         FLATTEN_CHECK(engine_object_reserve(&gathered, &gathered_capacity, wanted, layout.limbs),
                                       &gathered, error, ENGINE_ERROR_RESOURCE));
-            unsigned long long lost = 0ull;
+            unsigned long long lost = 0ULL;
             MaxTreePackRequest pack;
             memset(&pack, 0, sizeof(pack));
             pack.error = error;
@@ -374,37 +374,37 @@ int flatten_set(const FlattenSetRequest *request)
                                                                    cudaMemcpyDeviceToHost),
                                                         gathered, error));
             device_us += engine_clock_microseconds() - mark;
-            bodies += ok ? (unsigned long long)found : 0ull;
+            bodies += ok ? (unsigned long long)found : 0ULL;
             lost_bits += lost;
             graded += (unsigned long long)(frame == 0u);
             graded_differ += (unsigned long long)differ;
             proofs += (unsigned long long)proof_count;
-            frames_done += ok ? 1ull : 0ull;
+            frames_done += ok ? 1ULL : 0ULL;
         }
         free(volume);
-        printf("  %-24s %4u frames, %8llu bodies so far\n", names[sample], ok ? header[0] : 0u, bodies);
+        printf("  %-24s %4u frames, %8LLU bodies so far\n", names[sample], ok ? header[0] : 0u, bodies);
         fflush(stdout);
     }
     const unsigned long long wall = engine_clock_microseconds() - began;
-    const unsigned long long bytes = bodies * (unsigned long long)layout.limbs * 4ull;
+    const unsigned long long bytes = bodies * (unsigned long long)layout.limbs * 4ULL;
     printf("\n  flattened %llu frames into %llu bodies, %llu per frame\n", frames_done, bodies,
-           (frames_done != 0ull) ? (bodies / frames_done) : 0ull);
+           (frames_done != 0ULL) ? (bodies / frames_done) : 0ULL);
     printf(
         "  gathered on the host: %llu bytes, %llu MiB, for the whole set; the device stored one frame's bodies, %llu "
         "at max\n",
-        bytes, bytes >> 20u, (device_capacity != 0u) ? (unsigned long long)(device_capacity - 1u) : 0ull);
+        bytes, bytes >> 20u, (device_capacity != 0u) ? (unsigned long long)(device_capacity - 1u) : 0ULL);
     printf("  component counts proved on %llu of %llu frames; round trip lost %llu bits\n", proofs, frames_done,
            lost_bits);
     printf("  codebook graded on %llu frames against the full exact key: %llu faces chosen differently\n", graded,
            graded_differ);
     printf("  %llu ms: loading and proving the .iapx %llu ms, the device %llu ms, of which the residual %llu ms\n",
-           wall / 1000ull, read_us / 1000ull, device_us / 1000ull, residual_us / 1000ull);
+           wall / 1000ULL, read_us / 1000ULL, device_us / 1000ULL, residual_us / 1000ULL);
     max_tree_profile_report();
     char iapx_path[ENGINE_PATH_CAPACITY];
     const int named = snprintf(iapx_path, sizeof(iapx_path), "%s/flattened.iapx", set);
     const int proved =
         ok && FLATTEN_CHECK((named > 0) && ((size_t)named < sizeof(iapx_path)), set, error, ENGINE_ERROR_REQUEST) &&
-        FLATTEN_CHECK((lost_bits == 0ull) && (proofs == frames_done), &proofs, error, ENGINE_ERROR_LOGIC);
+        FLATTEN_CHECK((lost_bits == 0ULL) && (proofs == frames_done), &proofs, error, ENGINE_ERROR_LOGIC);
     const int written = proved && flatten_write_iapx(iapx_path, &layout, names, orders, count, gathered, bodies, error);
     if (written)
     {

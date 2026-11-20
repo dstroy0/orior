@@ -76,7 +76,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\lossy\\test_lossy\\test_lossy.c");
+  UnityBegin("utils/test/src/ui/cli/unit/lossy/test_lossy/test_lossy.c");
   run_test(test_ascii_passes_through, "test_ascii_passes_through", 28);
   run_test(test_a_bad_byte_past_a_run_of_whole_words_of_ascii_is_found, "test_a_bad_byte_past_a_run_of_whole_words_of_ascii_is_found", 35);
   run_test(test_two_three_and_four_byte_sequences_pass_through, "test_two_three_and_four_byte_sequences_pass_through", 46);

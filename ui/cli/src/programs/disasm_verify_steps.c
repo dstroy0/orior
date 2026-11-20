@@ -225,7 +225,7 @@ unsigned int cli_disasm_functions(const CliDisasmVerifyIrCfg *args)
                                .names = args->names, .capacity = args->capacity)
                   : EMBED_CALL(cli_disasm_verify_ir_size.disasm_functions_define, CliDisasmVerifyIrSizeCfg,
                                .ir = (const char *)text, .size = size, .names = args->names, .capacity = args->capacity);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)text, (g_cli_programs_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)text, g_cli_programs_owner);
     if (count == 0u)
     {
         mmgr_line_put(err_msg, "the module defines no function");
@@ -364,7 +364,7 @@ const unsigned char *cli_disasm_ghidra(const CliDisasmVerifyCountCfg *args)
                      EMBED_CALL(cli_words_err_msg_internal.private_folder_init, CliWordsErrMsgCtx, .folder = project) &&
                      EMBED_CALL(cli_path_bytes_internal.private_file_write, CliPathBytesCtx, .path = script,
                                 .bytes = script_text, .size = script_size);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)script_text, (g_cli_programs_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)script_text, g_cli_programs_owner);
     // the symbols' names a line each, in a cell of the call sized to them
     const unsigned long long names_bytes = ((unsigned long long)count + 1ULL) * (CLI_NAME_MAX_LEN + 1ULL);
     char *const names_text = g_cli_guard->temporary_buf_alloc(names_bytes, g_cli_programs_owner);
@@ -442,7 +442,7 @@ const unsigned char *cli_disasm_ghidra(const CliDisasmVerifyCountCfg *args)
                                                  .size_pointer = size, .owner = g_cli_programs_owner);
     if ((text == NULL) || (*size == 0ULL))
     {
-        g_cli_guard->persistent_buf_release((void *)(embed_word)text, (g_cli_programs_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)text, g_cli_programs_owner);
         mmgr_line_put(err_msg, "Ghidra's script wrote nothing to ");
         mmgr_line_put(err_msg, args->into);
         mmgr_line_put(err_msg, ": the analyzer's log in the run's errors explains why");

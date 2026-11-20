@@ -37,7 +37,7 @@ static void tessera_put_long(unsigned char *bytes, unsigned int at, unsigned lon
     for (unsigned int byte = 0u; byte < 8u; byte += 1u)
     {
         // one byte of the long, taken from the bottom
-        bytes[at + byte] = (unsigned char)((value >> (8u * byte)) & 0xFFull);
+        bytes[at + byte] = (unsigned char)((value >> (8u * byte)) & 0xFFULL);
     }
 }
 
@@ -53,7 +53,7 @@ static unsigned int tessera_get_word(const unsigned char *bytes, unsigned int at
 
 static unsigned long long tessera_get_long(const unsigned char *bytes, unsigned int at)
 {
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     for (unsigned int byte = 0u; byte < 8u; byte += 1u)
     {
         value |= (unsigned long long)bytes[at + byte] << (8u * byte);

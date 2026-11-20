@@ -15,12 +15,12 @@
 int cli_random_bytes(const CliSizeBytesCtx *args)
 {
     unsigned char *const into = (unsigned char *)args->bytes_out;
-    unsigned long long supplied = 0ull;
+    unsigned long long supplied = 0ULL;
     while (supplied < args->size)
     {
         const unsigned long long left = args->size - supplied;
         // a piece is at max what a ULONG counts
-        const ULONG piece = (left > 0xFFFFFFFFull) ? 0xFFFFFFFFul : (ULONG)left;
+        const ULONG piece = (left > 0xFFFFFFFFULL) ? 0xFFFFFFFFUL : (ULONG)left;
         if (!RtlGenRandom(into + supplied, piece))
         {
             return 0;
@@ -73,17 +73,17 @@ unsigned long long cli_event_inheritable(void)
     SECURITY_ATTRIBUTES attributes = {sizeof(SECURITY_ATTRIBUTES), NULL, TRUE};
     const HANDLE event = CreateEventW(&attributes, FALSE, FALSE, NULL);
     // a handle is a pointer's width, which an unsigned long long stores
-    return (event != NULL) ? (unsigned long long)(embed_word)event : 0ull;
+    return (event != NULL) ? (unsigned long long)(embed_word)event : 0ULL;
 }
 
 int cli_event_set(const CliEventCtx *args)
 {
-    return (args->event != 0ull) && SetEvent((HANDLE)(embed_word)args->event);
+    return (args->event != 0ULL) && SetEvent((HANDLE)(embed_word)args->event);
 }
 
 void cli_event_close(const CliEventCtx *args)
 {
-    if (args->event != 0ull)
+    if (args->event != 0ULL)
     {
         CloseHandle((HANDLE)(embed_word)args->event);
     }
@@ -102,8 +102,8 @@ int cli_private_file_write(const CliPathBytesCtx *args)
 }
 
 // the seconds from 1601, where the system's clock begins, to 1970, and the clock's ticks in a second
-#define CLI_SYSTEM_EPOCH_SECONDS 11644473600ull
-#define CLI_SYSTEM_TICKS_SECOND 10000000ull
+#define CLI_SYSTEM_EPOCH_SECONDS 11644473600ULL
+#define CLI_SYSTEM_TICKS_SECOND 10000000ULL
 
 unsigned long long cli_booted_seconds(void)
 {
@@ -111,8 +111,8 @@ unsigned long long cli_booted_seconds(void)
     GetSystemTimeAsFileTime(&now);
     const unsigned long long ticks = ((unsigned long long)now.dwHighDateTime << 32u) | now.dwLowDateTime;
     const unsigned long long seconds = (ticks / CLI_SYSTEM_TICKS_SECOND) - CLI_SYSTEM_EPOCH_SECONDS;
-    const unsigned long long running = GetTickCount64() / 1000ull;
-    return (seconds > running) ? seconds - running : 0ull;
+    const unsigned long long running = GetTickCount64() / 1000ULL;
+    return (seconds > running) ? seconds - running : 0ULL;
 }
 
 void cli_clock_civil(const CliClockCivilCtx *args)
@@ -136,7 +136,7 @@ void cli_clock_civil(const CliClockCivilCtx *args)
 // the logon session this process's token is in, which every log in makes new, its id written in hexadecimal
 void cli_logon_by_name(const CliCapacityLogonCtx *args)
 {
-    VerbaLinea named = {args->logon, args->capacity_bytes, 0ull};
+    VerbaLinea named = {args->logon, args->capacity_bytes, 0ULL};
     HANDLE token = NULL;
     if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token))
     {

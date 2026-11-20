@@ -20,7 +20,7 @@
 // and a row one member measured and the other did not separates them. A refused or censored row is an answer, and
 // two members that cost the same and differ in what they refused are two members.
 //
-// What follows from the rule, and what stem_group_check.c checks: every member agrees with its anchor; no anchor
+// What follows from the rule, and what stem_group_check.c checks: every member agrees with its anchor. No anchor
 // agrees with an anchor placed before it; and the groups are the same whatever order the members are given in. A
 // group is a function of the whole set. A member added to the set can change which member anchors and so which
 // members share a stem, and every block written for a group is written again when the set changes.
@@ -31,7 +31,7 @@
 #define STEM_GROUP_ROWS 64u
 // the max members one set contains
 #define STEM_GROUP_MEMBERS 256u
-// the group a member is given before the rule has placed it
+// the group a member is given before the rule placed it
 #define STEM_GROUP_NONE 0xffffffffu
 
 // one member: a cost a row, which rows were measured, and the floor the member carries

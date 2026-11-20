@@ -38,7 +38,7 @@ import manifest  # noqa: E402,F401
 from measure.graph_realizable import connected_multigraph  # noqa: E402
 from representation.atom import element  # noqa: E402
 
-# assembly_from_atomic_properties sits in this directory; its valence reading is the ledger source, and
+# assembly_from_atomic_properties sits in this directory. Its valence reading is the ledger source, and
 # building on it retains one derivation of the bond count instead of two.
 import assembly_from_atomic_properties as assembly  # noqa: E402
 
@@ -111,7 +111,7 @@ def parse_existing(text):
 def verify_against_existing(built_keys, degree, out):
     """Verify the built space against the existing molecules, the way the crystal oracle checks a deposit.
 
-    The build never reads which molecules exist; it reads valences off the shells, and agreement with the
+    The build never reads which molecules exist. It reads valences off the shells, and agreement with the
     existing set is agreement with a truth the build did not use. Reported both ways: how many existing
     molecules the build covers, how many built formulae the existing set confirms, and the misses
     decomposed by the reason the gate gave, named and not waved at.

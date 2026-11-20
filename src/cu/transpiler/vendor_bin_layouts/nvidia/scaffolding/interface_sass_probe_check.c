@@ -112,12 +112,12 @@ unsigned int sass_machine_check(const SassMachine *machine, const SassListing *l
     for (unsigned int number = 0u; number <= listing->count; number += 1u)
     {
         const SassInstruction *const instruction = &listing->instructions[number];
-        const int listed = (number < listing->count) && ((instruction->low != 0ull) || (instruction->high != 0ull));
+        const int listed = (number < listing->count) && ((instruction->low != 0ULL) || (instruction->high != 0ULL));
         if (listed)
         {
             tally->checked += 1u;
-            unsigned long long low = 0ull;
-            unsigned long long high = 0ull;
+            unsigned long long low = 0ULL;
+            unsigned long long high = 0ULL;
             // a branch counts its target from itself, and a listing's own branch names where it is
             if (!sass_assemble(machine, instruction->text, instruction->address, instruction->address,
                                SASS_CONTROL_BASE, &low, &high))
@@ -127,7 +127,7 @@ unsigned int sass_machine_check(const SassMachine *machine, const SassListing *l
                 continue;
             }
             // the scheduler's bits are none of the text's, and the form carries whatever they were when it was seen
-            const unsigned long long control = 0xfffffe0000000000ull;
+            const unsigned long long control = 0xfffffe0000000000ULL;
             const int same_bits =
                 (low == instruction->low) && ((high | control) == (instruction->high | control));
             tally->same_bits += same_bits ? 1u : 0u;

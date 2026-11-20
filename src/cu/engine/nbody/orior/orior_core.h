@@ -214,7 +214,7 @@ extern "C"
      *       produced it: re-run the bench before quoting one.
      * @note THE NEEDLE LENGTH TERM CHANGES NO ANSWER ON THIS DATA. Scoring flatness alone ties this rule
      *       exactly, same rows and same cycles, on every row bench_dispatch scores. It is retained because a
-     *       tunable with no reader is an integration point, and it is named here so nobody concludes
+     *       tunable with no reader is an integration point. It is named here so nobody concludes
      *       from the code that it is carrying weight. Find a row where it pays or leave it inert.
      * @note The rule is read off the cycle measurements and belongs to the machine that produced them.
      *       Re-run bench_dispatch before trusting it on another part. It sweeps both thresholds instead
@@ -299,7 +299,7 @@ extern "C"
      *
      *           100 * total^2  >=  85 * distinct * sum(count^2)
      *
-     *       which is a comparison between two exact integers; where it is true, the corpus is flat and
+     *       which is a comparison between two exact integers. Where it is true, the corpus is flat and
      *       takes the short circuiting engine (0), and where it fails, the free order engine (1). No
      *       logarithm is taken, no power of two is
      *       approximated by a series, and the threshold is the exact rational 85/100 and not the

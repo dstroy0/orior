@@ -29,7 +29,7 @@ PAIRED = ("in and out differ", "repeat differs")
 
 
 def plane(title):
-    """A picture's ground, its frame and its title; and the point of a place on it, x and y from 0 to 1, y from -0.1
+    """A picture's ground, its frame and its title. And the point of a place on it, x and y from 0 to 1, y from -0.1
     to 1.15 to let an overshoot and a reversal show."""
     picture = Image.new("RGB", (WIDTH, HEIGHT), GROUND)
     draw = ImageDraw.Draw(picture)

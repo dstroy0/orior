@@ -82,7 +82,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\comms\\test_comms\\test_comms.c");
+  UnityBegin("utils/test/src/ui/cli/unit/comms/test_comms/test_comms.c");
   run_test(test_a_grant_names_its_channel_and_every_channel_under_it, "test_a_grant_names_its_channel_and_every_channel_under_it", 191);
   run_test(test_a_grant_names_no_other_channel, "test_a_grant_names_no_other_channel", 199);
   run_test(test_a_grant_is_within_one_that_names_every_channel_it_names, "test_a_grant_is_within_one_that_names_every_channel_it_names", 206);

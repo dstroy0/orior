@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission. That permission is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
@@ -58,7 +58,7 @@
 static int steer_sve_present(void)
 {
 #if ORIOR_STEER_SVE_CAN_DETECT
-    return ((getauxval(AT_HWCAP) & (unsigned long)HWCAP_SVE) != 0ul) ? 1 : 0;
+    return ((getauxval(AT_HWCAP) & (unsigned long)HWCAP_SVE) != 0UL) ? 1 : 0;
 #else
     return 0;
 #endif

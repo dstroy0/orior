@@ -15,7 +15,7 @@ void PairWork::chosen(const char *const *names, unsigned int count, const std::s
     {
         return;
     }
-    unsigned long long word = 0ull;
+    unsigned long long word = 0ULL;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         word |= query_trace_flag(s_query_trace, names[at]);
@@ -30,7 +30,7 @@ void PairWork::chose(const char *name, const std::string &link) const
     chosen(names, 1u, link);
 }
 
-// The conference a refused put calls, convened on the pair's thread once the teacher has called it (overseer.h). The
+// The conference a refused put calls, convened on the pair's thread once the teacher called it (overseer.h). The
 // learner passes its statement: what it put, the carrier, what the stand-in does and the stand-in as written. The
 // coherence sets hand what the pair was being queried as: the sets the bridge reads it into and what its texts show
 // of it. The counterexample passes the first case apart the pair contains, this run's or the bridge's. The ruling is
@@ -122,7 +122,7 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
     {
         work.bridge.push_back((!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line);
     }
-    if (!run_channel_open(carrier, 60000000ull))
+    if (!run_channel_open(carrier, 60000000ULL))
     {
         return 1;
     }
@@ -186,7 +186,7 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
         std::string reads;
     };
     // what every put reads of the engine: each chain's text and the host's answers to its cases, by its question
-    unsigned long long engine_read = 0xcbf29ce484222325ull;
+    unsigned long long engine_read = 0xcbf29ce484222325ULL;
     for (const auto &chain : work.carriers.texts)
     {
         engine_read = record_hash(chain.first.c_str(), chain.first.size() + 1u, engine_read);
@@ -198,7 +198,7 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
     }
     // The scheduler: the record's gray entries are the queue. A pair closed on the record's path, whose reads are as
     // they were, is settled: its verdict is the record's, and it is put no more, since a put runs again only where what
-    // it reads has changed. Every other pair, open, with no path, or reading what changed, is gray, and the rounds put
+    // it reads changed. Every other pair, open, with no path, or reading what changed, is gray, and the rounds put
     // the gray pairs alone
     std::map<std::string, KqrPath> recorded_paths;
     static KqrPath s_recorded;

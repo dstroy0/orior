@@ -11,7 +11,7 @@ unsigned int g_dicom_keyed;
 
 unsigned long long dicom_little(const unsigned char *bytes, unsigned int count)
 {
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     for (unsigned int place = count; place > 0u; place -= 1u)
     {
         value = (value << 8u) | (unsigned long long)bytes[place - 1u];
@@ -36,7 +36,7 @@ static int dicom_long_form(const char vr[2])
 
 int dicom_element(DicomWalk *walk, int explicit_vr, DicomElement *element, EngineError *error)
 {
-    if (!DICOM_CHECK((walk->at <= walk->length) && ((walk->length - walk->at) >= 8ull), &walk->at, error,
+    if (!DICOM_CHECK((walk->at <= walk->length) && ((walk->length - walk->at) >= 8ULL), &walk->at, error,
                      ENGINE_ERROR_REQUEST))
     {
         return 0;
@@ -48,8 +48,8 @@ int dicom_element(DicomWalk *walk, int explicit_vr, DicomElement *element, Engin
     element->element = (unsigned int)dicom_little(head + 2u, 2u);
     element->vr[0] = ' ';
     element->vr[1] = ' ';
-    unsigned long long length = 0ull;
-    unsigned long long header = 8ull;
+    unsigned long long length = 0ULL;
+    unsigned long long header = 8ULL;
     if (element->group == DICOM_ITEM_GROUP)
     {
         length = dicom_little(head + 4u, 4u);
@@ -62,12 +62,12 @@ int dicom_element(DicomWalk *walk, int explicit_vr, DicomElement *element, Engin
         element->vr[1] = (char)head[5];
         if (dicom_long_form(element->vr))
         {
-            if (!DICOM_CHECK((walk->length - walk->at) >= 12ull, head, error, ENGINE_ERROR_REQUEST))
+            if (!DICOM_CHECK((walk->length - walk->at) >= 12ULL, head, error, ENGINE_ERROR_REQUEST))
             {
                 return 0;
             }
             length = dicom_little(head + 8u, 4u);
-            header = 12ull;
+            header = 12ULL;
         }
         else
         {
@@ -80,7 +80,7 @@ int dicom_element(DicomWalk *walk, int explicit_vr, DicomElement *element, Engin
     }
     element->value_at = walk->at + header;
     element->undefined = (length == DICOM_UNDEFINED) ? 1 : 0;
-    element->value_length = (element->undefined != 0) ? 0ull : length;
+    element->value_length = (element->undefined != 0) ? 0ULL : length;
     if (!DICOM_CHECK((element->undefined != 0) || (element->value_length <= (walk->length - element->value_at)), head,
                      error, ENGINE_ERROR_REQUEST))
     {

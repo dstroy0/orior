@@ -21,32 +21,32 @@ static int terms_static_columns(const unsigned short *lanes, unsigned long long 
     const int ok = (totals != NULL) && (squares != NULL) && (least != NULL) && (max != NULL) && (mask != NULL) &&
                    (counted != NULL);
     memset(columns, 0, (size_t)TERMS_WIDTH * sizeof(unsigned long long));
-    *ceiling = 0ull;
+    *ceiling = 0ULL;
     if (ok != 0)
     {
         memset(least, 0xFF, (size_t)voxels * sizeof(unsigned short));
-        for (unsigned long long frame = 0ull; frame < TERMS_FRAMES; frame += 1ull)
+        for (unsigned long long frame = 0ULL; frame < TERMS_FRAMES; frame += 1ULL)
         {
             const unsigned short *const lane = &lanes[frame * voxels];
-            for (unsigned long long voxel = 0ull; voxel < voxels; voxel += 1ull)
+            for (unsigned long long voxel = 0ULL; voxel < voxels; voxel += 1ULL)
             {
                 totals[voxel] += lane[voxel];
                 least[voxel] = (lane[voxel] < least[voxel]) ? lane[voxel] : least[voxel];
                 max[voxel] = (lane[voxel] > max[voxel]) ? lane[voxel] : max[voxel];
-                if (frame != 0ull)
+                if (frame != 0ULL)
                 {
-                    const unsigned short before = lanes[((frame - 1ull) * voxels) + voxel];
+                    const unsigned short before = lanes[((frame - 1ULL) * voxels) + voxel];
                     const long long moved = (long long)lane[voxel] - (long long)before;
                     // a square is never negative. It re-signs to unsigned long long exactly
                     squares[voxel] += (unsigned long long)(moved * moved);
                 }
             }
         }
-        unsigned long long eligible = 0ull;
-        for (unsigned long long voxel = 0ull; voxel < voxels; voxel += 1ull)
+        unsigned long long eligible = 0ULL;
+        for (unsigned long long voxel = 0ULL; voxel < voxels; voxel += 1ULL)
         {
             const unsigned long long bound = (TERMS_QUIET_SLOPE * totals[voxel]) + (TERMS_QUIET_FLOOR * TERMS_FRAMES);
-            const int still = (squares[voxel] * TERMS_FRAMES) <= ((TERMS_FRAMES - 1ull) * bound);
+            const int still = (squares[voxel] * TERMS_FRAMES) <= ((TERMS_FRAMES - 1ULL) * bound);
             mask[voxel] = ((least[voxel] != 0u) && (max[voxel] != TERMS_LANE_TOP) &&
                            (least[voxel] != max[voxel]) && still)
                               ? 1u
@@ -54,22 +54,22 @@ static int terms_static_columns(const unsigned short *lanes, unsigned long long 
             if (mask[voxel] != 0u)
             {
                 // a mean of values that are each below 2^16 is below 2^16
-                counted[totals[voxel] / TERMS_FRAMES] += 1ull;
-                eligible += 1ull;
+                counted[totals[voxel] / TERMS_FRAMES] += 1ULL;
+                eligible += 1ULL;
             }
         }
-        const unsigned long long wanted = (eligible + TERMS_STATIC_SHARE - 1ull) / TERMS_STATIC_SHARE;
-        unsigned long long running = 0ull;
-        for (unsigned long long mean = 0ull; (mean < TERMS_LANE_VALUES) && (running < wanted); mean += 1ull)
+        const unsigned long long wanted = (eligible + TERMS_STATIC_SHARE - 1ULL) / TERMS_STATIC_SHARE;
+        unsigned long long running = 0ULL;
+        for (unsigned long long mean = 0ULL; (mean < TERMS_LANE_VALUES) && (running < wanted); mean += 1ULL)
         {
             running += counted[mean];
             *ceiling = mean;
         }
-        for (unsigned long long voxel = 0ull; voxel < voxels; voxel += 1ull)
+        for (unsigned long long voxel = 0ULL; voxel < voxels; voxel += 1ULL)
         {
             if ((mask[voxel] != 0u) && ((totals[voxel] / TERMS_FRAMES) <= *ceiling))
             {
-                columns[voxel % TERMS_WIDTH] += 1ull;
+                columns[voxel % TERMS_WIDTH] += 1ULL;
             }
         }
     }
@@ -135,20 +135,20 @@ void terms_ladder(SimResults *results, const unsigned short *lanes)
     mmgr_line_put(line, (measurement.convex != 0) ? "passes" : "fails");
     mmgr_line_ch(line, '\n');
     unsigned long long columns[TERMS_WIDTH];
-    unsigned long long ceiling = 0ull;
+    unsigned long long ceiling = 0ULL;
     const int copied = terms_static_columns(lanes, columns, &ceiling);
     sim_check(results, copied, "the static mask's copy");
-    unsigned long long members = 0ull;
-    unsigned long long last = 0ull;
-    for (unsigned long long x = 0ull; copied && (x < TERMS_WIDTH); x += 1ull)
+    unsigned long long members = 0ULL;
+    unsigned long long last = 0ULL;
+    for (unsigned long long x = 0ULL; copied && (x < TERMS_WIDTH); x += 1ULL)
     {
         members += columns[x];
-        last = (columns[x] != 0ull) ? x : last;
+        last = (columns[x] != 0ULL) ? x : last;
     }
     mmgr_line_put(line, "    the static voxels by column along x from column 0, every mean no more than ");
     mmgr_line_decimal(line, ceiling, 1u);
     mmgr_line_ch(line, ':');
-    for (unsigned long long x = 0ull; copied && (x <= last); x += 1ull)
+    for (unsigned long long x = 0ULL; copied && (x <= last); x += 1ULL)
     {
         mmgr_line_ch(line, ' ');
         mmgr_line_decimal(line, columns[x], 1u);
@@ -160,11 +160,11 @@ void terms_ladder(SimResults *results, const unsigned short *lanes)
               "the copied mask's voxels contain the ladder's blocks, retained and left out");
     const long long gain = TERMS_LADDER_GAIN;
     terms_ratio_within(results, "s2, the k2 line's slope", &measurement.cumulant[0].slope,
-                       &measurement.cumulant[0].denominator, gain, 1ull, 1ull, 50ull);
+                       &measurement.cumulant[0].denominator, gain, 1ULL, 1ULL, 50ULL);
     terms_ratio_within(results, "s3, the k3 line's slope", &measurement.cumulant[1].slope,
-                       &measurement.cumulant[1].denominator, gain * gain, 1ull, 2ull, 4ull);
+                       &measurement.cumulant[1].denominator, gain * gain, 1ULL, 2ULL, 4ULL);
     terms_ratio_within(results, "s4, the k4 line's slope", &measurement.cumulant[2].slope,
-                       &measurement.cumulant[2].denominator, gain * gain * gain, 1ull, 10ull, 1ull);
+                       &measurement.cumulant[2].denominator, gain * gain * gain, 1ULL, 10ULL, 1ULL);
     sim_check(results, measurement.tail != 0, "the k3 line has a slope, so the tail reads");
     if (measurement.tail == 0)
     {
@@ -172,9 +172,9 @@ void terms_ladder(SimResults *results, const unsigned short *lanes)
     }
     // the offset and the read variance are each far below 2^31
     terms_ratio_within(results, "O, where the k3 line crosses 0", &measurement.offset, &measurement.offset_denominator,
-                       (long long)TERMS_OFFSET, 1ull, 2ull, 1ull);
+                       (long long)TERMS_OFFSET, 1ULL, 2ULL, 1ULL);
     terms_ratio_within(results, "R^2, the k2 line at O", &measurement.read_square, &measurement.read_square_denominator,
-                       (long long)TERMS_READ_SQUARE, 1ull, 25ull, 10ull);
+                       (long long)TERMS_READ_SQUARE, 1ULL, 25ULL, 10ULL);
 }
 
 // crosstalk along x: every voxel takes alpha = TERMS_CROSSTALK_EIGHTHS / 8 of each x neighbor's value after the
@@ -183,15 +183,15 @@ void terms_ladder(SimResults *results, const unsigned short *lanes)
 void terms_crosstalk_mix(unsigned short *lanes, const unsigned short *drawn)
 {
     const unsigned long long rows = TERMS_FRAMES * TERMS_DEPTH * TERMS_HEIGHT;
-    for (unsigned long long row = 0ull; row < rows; row += 1ull)
+    for (unsigned long long row = 0ULL; row < rows; row += 1ULL)
     {
         const unsigned short *const from = &drawn[row * TERMS_WIDTH];
         unsigned short *const into = &lanes[row * TERMS_WIDTH];
-        for (unsigned long long x = 0ull; x < TERMS_WIDTH; x += 1ull)
+        for (unsigned long long x = 0ULL; x < TERMS_WIDTH; x += 1ULL)
         {
-            const unsigned long long left = (x != 0ull) ? from[x - 1ull] : 0ull;
-            const unsigned long long right = ((x + 1ull) < TERMS_WIDTH) ? from[x + 1ull] : 0ull;
-            const unsigned long long mixed = from[x] + (((TERMS_CROSSTALK_EIGHTHS * (left + right)) + 4ull) / 8ull);
+            const unsigned long long left = (x != 0ULL) ? from[x - 1ULL] : 0ULL;
+            const unsigned long long right = ((x + 1ULL) < TERMS_WIDTH) ? from[x + 1ULL] : 0ULL;
+            const unsigned long long mixed = from[x] + (((TERMS_CROSSTALK_EIGHTHS * (left + right)) + 4ULL) / 8ULL);
             // the scene's lanes are near 120. A lane plus a quarter of two more stays far below 65536
             into[x] = (unsigned short)mixed;
         }
@@ -218,27 +218,27 @@ void terms_crosstalk(SimResults *results, const unsigned short *lanes, unsigned 
     for (unsigned int axis = 0u; axis < NOISE_CROSSTALK_AXES; axis += 1u)
     {
         // the planted share is a few eighths, far below 2^31
-        const long long eighths = (axis == 1u) ? (long long)along_x_eighths : 0ll;
+        const long long eighths = (axis == 1u) ? (long long)along_x_eighths : 0LL;
         mmgr_line_put(&results->line, "    ");
         mmgr_line_put(&results->line, axis_names[axis]);
         mmgr_line_put(&results->line, ", over ");
         mmgr_line_decimal(&results->line, measurement.pairs[axis], 1u);
         mmgr_line_put(&results->line, " frame differences\n");
         OriorExactInteger twice;
-        const int doubled = sim_exact_scaled(&measurement.spread[axis], 2ull, &twice);
+        const int doubled = sim_exact_scaled(&measurement.spread[axis], 2ULL, &twice);
         sim_check(results, doubled && (measurement.spread[axis].sign > 0), "V is positive");
         if ((doubled == 0) || (measurement.spread[axis].sign <= 0))
         {
             continue;
         }
         // no share reads as 0, not 0/8
-        const unsigned long long eighth = (eighths != 0ll) ? 8ull : 1ull;
-        terms_ratio_within(results, "  alpha, C1 / (2 V)", &measurement.steps[axis][0], &twice, eighths, eighth, 1ull,
-                           1000ull);
+        const unsigned long long eighth = (eighths != 0LL) ? 8ULL : 1ULL;
+        terms_ratio_within(results, "  alpha, C1 / (2 V)", &measurement.steps[axis][0], &twice, eighths, eighth, 1ULL,
+                           1000ULL);
         terms_ratio_within(results, "  alpha^2, C2 / V", &measurement.steps[axis][1], &measurement.spread[axis],
-                           eighths * eighths, eighth * eighth, 1ull, 500ull);
-        terms_ratio_within(results, "  C3 / V", &measurement.steps[axis][2], &measurement.spread[axis], 0ll, 1ull, 1ull,
-                           500ull);
+                           eighths * eighths, eighth * eighth, 1ULL, 500ULL);
+        terms_ratio_within(results, "  C3 / V", &measurement.steps[axis][2], &measurement.spread[axis], 0LL, 1ULL, 1ULL,
+                           500ULL);
     }
 }
 
@@ -262,19 +262,19 @@ void terms_charge(SimResults *results, const unsigned short *bias, const unsigne
     const long long gain = (long long)camera->gain;
     const long long dark_electrons = (long long)camera->dark;
     terms_ratio_within(results, "O, the bias mean", &measurement.offset, &measurement.offset_denominator,
-                       (long long)camera->offset, 1ull, 1ull, 500ull);
+                       (long long)camera->offset, 1ULL, 1ULL, 500ULL);
     terms_ratio_within(results, "R^2 + kTC, the bias E[d^2] / 2", &measurement.level_free,
                        &measurement.level_free_denominator, (long long)(camera->read_square + camera->reset_square),
-                       1ull, 1ull, 100ull);
+                       1ULL, 1ULL, 100ULL);
     terms_ratio_within(results, "g D dt, the dark mean less the bias's", &measurement.dark_level,
-                       &measurement.dark_level_denominator, gain * dark_electrons, 1ull, 1ull, 100ull);
+                       &measurement.dark_level_denominator, gain * dark_electrons, 1ULL, 1ULL, 100ULL);
     terms_ratio_within(results, "g^2 D dt, the dark E[d^2] / 2 less the bias's", &measurement.dark_square,
-                       &measurement.dark_square_denominator, gain * gain * dark_electrons, 1ull, 1ull, 5ull);
+                       &measurement.dark_square_denominator, gain * gain * dark_electrons, 1ULL, 1ULL, 5ULL);
     sim_check(results, measurement.gain_read != 0, "the dark mean differs from the bias's, so g reads");
     if (measurement.gain_read != 0)
     {
-        terms_ratio_within(results, "g, their ratio", &measurement.gain, &measurement.gain_denominator, gain, 1ull,
-                           1ull, 300ull);
+        terms_ratio_within(results, "g, their ratio", &measurement.gain, &measurement.gain_denominator, gain, 1ULL,
+                           1ULL, 300ULL);
     }
 }
 
@@ -295,7 +295,7 @@ void terms_thinned(SimResults *results, const unsigned short *bias, const unsign
         return;
     }
     terms_ratio_within(results, "  g f', the lit ratio", &measurement.gain, &measurement.gain_denominator, expected,
-                       expected_denominator, 1ull, 200ull);
+                       expected_denominator, 1ULL, 200ULL);
 }
 
 // Row 16 read back: the light is blurred before the draw. Every column's mean over the frames, z and y is the
@@ -307,25 +307,25 @@ void terms_blur(SimResults *results, const unsigned short *lanes, const SimScene
     const unsigned long long plane = TERMS_HEIGHT * TERMS_WIDTH;
     const unsigned long long voxels = TERMS_DEPTH * plane;
     const unsigned long long samples = TERMS_FRAMES * TERMS_DEPTH * TERMS_HEIGHT;
-    unsigned long long worst = 0ull;
-    unsigned long long moved = 0ull;
-    for (unsigned long long x = 0ull; x < TERMS_WIDTH; x += 1ull)
+    unsigned long long worst = 0ULL;
+    unsigned long long moved = 0ULL;
+    for (unsigned long long x = 0ULL; x < TERMS_WIDTH; x += 1ULL)
     {
         // a column index is far below 2^63
-        const long long place[SIM_AXES] = {0ll, 0ll, (long long)x};
-        const unsigned long long light = sim_light(scene, camera, 0ull, place);
-        const unsigned long long planted = sim_signal(scene, 0ull, place);
+        const long long place[SIM_AXES] = {0LL, 0LL, (long long)x};
+        const unsigned long long light = sim_light(scene, camera, 0ULL, place);
+        const unsigned long long planted = sim_signal(scene, 0ULL, place);
         const unsigned long long shift = (light > planted) ? (light - planted) : (planted - light);
         moved = (shift > moved) ? shift : moved;
-        unsigned long long pattern = 0ull;
-        unsigned long long total = 0ull;
-        for (unsigned long long z = 0ull; z < TERMS_DEPTH; z += 1ull)
+        unsigned long long pattern = 0ULL;
+        unsigned long long total = 0ULL;
+        for (unsigned long long z = 0ULL; z < TERMS_DEPTH; z += 1ULL)
         {
-            for (unsigned long long y = 0ull; y < TERMS_HEIGHT; y += 1ull)
+            for (unsigned long long y = 0ULL; y < TERMS_HEIGHT; y += 1ULL)
             {
                 const unsigned long long voxel = (((z * TERMS_HEIGHT) + y) * TERMS_WIDTH) + x;
                 pattern += sim_pattern(camera, voxel);
-                for (unsigned long long frame = 0ull; frame < TERMS_FRAMES; frame += 1ull)
+                for (unsigned long long frame = 0ULL; frame < TERMS_FRAMES; frame += 1ULL)
                 {
                     total += lanes[(frame * voxels) + voxel];
                 }
@@ -341,6 +341,6 @@ void terms_blur(SimResults *results, const unsigned short *lanes, const SimScene
     mmgr_line_put(&results->line, " lane units; the kernel moves the planted light by up to ");
     mmgr_line_decimal(&results->line, moved, 1u);
     mmgr_line_put(&results->line, " electrons\n");
-    sim_check(results, (8ull * worst) <= samples, "every column's mean is the blurred light's within 1/8");
-    sim_check(results, moved > 1ull, "the kernel moves the planted light by more than 1 somewhere");
+    sim_check(results, (8ULL * worst) <= samples, "every column's mean is the blurred light's within 1/8");
+    sim_check(results, moved > 1ULL, "the kernel moves the planted light by more than 1 somewhere");
 }

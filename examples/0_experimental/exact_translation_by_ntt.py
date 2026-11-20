@@ -12,7 +12,7 @@
 # This reads no corpus. It sits in 0_experimental: a transform displayed working on two synthetic views
 # instead of a stage reading. It is the translation transform proposed in the image_transforms exact-arithmetic
 # chapter, built here atop the same exact-integer discipline as src/engine/c/no_rounding/ but not part
-# of that kernel. The kernel counts exact-value agreements at a lag; this counts overlap of two views
+# of that kernel. The kernel counts exact-value agreements at a lag. This counts overlap of two views
 # at every lag by convolution, which is a different operation and a new module.
 #
 # The shift between two views is the lag maximizing C(l) = sum_v a(v) b(v+l), the agreement of one view

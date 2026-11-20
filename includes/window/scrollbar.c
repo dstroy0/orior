@@ -214,7 +214,7 @@ void gui_scrollbar_first_at(const GuiScrollbarCfg *args)
     const GuiScrollbar *const bar = args->bar_read;
     if (!gui_scrollbar_needed(args))
     {
-        *args->first_out = 0ull;
+        *args->first_out = 0ULL;
         return;
     }
     const GuiRect thumb = gui_scrollbar_thumb(args);
@@ -225,6 +225,6 @@ void gui_scrollbar_first_at(const GuiScrollbarCfg *args)
     // the place on the track is not negative past the tests, and rounds to the nearest line
     *args->first_out =
         (room > 0)
-            ? ((((unsigned long long)start * max) + ((unsigned long long)room / 2ull)) / (unsigned long long)room)
-            : 0ull;
+            ? ((((unsigned long long)start * max) + ((unsigned long long)room / 2ULL)) / (unsigned long long)room)
+            : 0ULL;
 }

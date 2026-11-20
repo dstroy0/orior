@@ -238,7 +238,7 @@ static int construction_measure(const Ruleset *rules, const std::string &package
             "cd '" + work +
             "' && ghdl --synth --std=08 --out=verilog alone.vhd -e form_alone > alone.v 2> synth.log && "
             "yosys -s alone.ys > yosys.log 2>&1";
-        *cost = 0ull;
+        *cost = 0ULL;
         return !script.empty() && construction_write(work + "/alone.ys", script) && (system(synthesize.c_str()) == 0) &&
                construction_after(work + "/yosys.log", "(length=", cost);
     }
@@ -289,7 +289,7 @@ int main(int argc, char **argv)
     unsigned int unmeasured = 0u;
     for (const ConstructionForm &form : forms)
     {
-        unsigned long long cost = 0ull;
+        unsigned long long cost = 0ULL;
         if (construction_measure(rules, package, work, form, &cost) == 0)
         {
             unmeasured += 1u;
@@ -303,7 +303,7 @@ int main(int argc, char **argv)
     // the names packed eight bytes a word, least significant first, the last word padded with zeros
     const size_t name_words = (names.size() + 7u) / 8u;
     std::vector<unsigned long long> words(costs);
-    words.resize(costs.size() + name_words, 0ull);
+    words.resize(costs.size() + name_words, 0ULL);
     for (size_t at = 0u; at < names.size(); at += 1u)
     {
         words[costs.size() + (at / 8u)] |= (unsigned long long)(unsigned char)names[at] << (8u * (at % 8u));

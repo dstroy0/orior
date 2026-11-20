@@ -59,7 +59,7 @@ static void omega_dyadic(OriorExactInteger *value, const unsigned long long *cou
         OriorExactInteger part;
         OriorExactInteger scale;
         sim_exact_unsigned(&part, count[bits]);
-        sim_exact_unsigned(&scale, 1ull << (64u - bits));
+        sim_exact_unsigned(&scale, 1ULL << (64u - bits));
         OriorExactInteger product;
         (void)sim_exact_product(&part, &scale, &product);
         (void)sim_exact_sum(value, &product, value);
@@ -114,11 +114,11 @@ int main(int argc, char **argv)
     const unsigned int parsed_max = (counts.length < OMEGA_PARSED_MAX) ? counts.length : OMEGA_PARSED_MAX;
     for (unsigned int length = 2u; length <= parsed_max; length += 1u)
     {
-        unsigned long long closed = 0ull;
-        for (unsigned long long code = 0ull; code < (1ull << length); code += 1ull)
+        unsigned long long closed = 0ULL;
+        for (unsigned long long code = 0ULL; code < (1ULL << length); code += 1ULL)
         {
             unsigned int at = 0u;
-            closed += ((omega_parse(code, length, &at, 0u) != 0) && (at == length)) ? 1ull : 0ull;
+            closed += ((omega_parse(code, length, &at, 0u) != 0) && (at == length)) ? 1ULL : 0ULL;
         }
         counted = counted && (closed == omega_count(&counts, length, 0u));
     }
@@ -126,14 +126,14 @@ int main(int argc, char **argv)
     int ranked = 1;
     for (unsigned int length = 2u; (length <= 16u) && (length <= counts.length); length += 1u)
     {
-        for (unsigned long long index = 0ull; index < omega_count(&counts, length, 0u); index += 1ull)
+        for (unsigned long long index = 0ULL; index < omega_count(&counts, length, 0u); index += 1ULL)
         {
             std::vector<int> term;
             omega_unrank(&counts, length, 0u, index, term);
-            unsigned long long bits = 0ull;
+            unsigned long long bits = 0ULL;
             for (size_t at = 0u; at < term.size(); at += 1u)
             {
-                bits += (term[at] <= 0) ? 2ull : ((unsigned long long)term[at] + 1ull);
+                bits += (term[at] <= 0) ? 2ULL : ((unsigned long long)term[at] + 1ULL);
             }
             ranked = ranked && (bits == length) && (omega_end(term.data(), 0u) == term.size());
         }
@@ -150,7 +150,7 @@ int main(int argc, char **argv)
               "(x x x)(x x x) is proven to grow forever: it returns at its own head");
 
     // a run on the device is one tessera job. The kernel's run declares the count table it copies there, and the
-    // engine's run its first round's pool; the daemon measures the buffers each grows to and records that peak under
+    // engine's run its first round's pool. The daemon measures the buffers each grows to and records that peak under
     // the run's arguments
     const unsigned long long declared = (on_engine != 0) ? omega_engine_declared(&counts) : sizeof(counts.count);
     if (((on_engine != 0) || (on_device != 0)) && !sim_job_submit(&results, "chaitin_omega", argc, argv, declared))
@@ -162,9 +162,9 @@ int main(int argc, char **argv)
     const unsigned int workers = (std::thread::hardware_concurrency() == 0u) ? 1u : std::thread::hardware_concurrency();
     static OmegaResults fates;
     unsigned int device_threads = 0u;
-    unsigned long long host_runs = 0ull;
-    unsigned long long jobs_run = 0ull;
-    unsigned long long jobs_retained = 0ull;
+    unsigned long long host_runs = 0ULL;
+    unsigned long long jobs_run = 0ULL;
+    unsigned long long jobs_retained = 0ULL;
     const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
     OmegaEngineReport engine_report;
     memset(&engine_report, 0, sizeof(engine_report));
@@ -195,7 +195,7 @@ int main(int argc, char **argv)
         const unsigned int cross = (counts.length < OMEGA_CROSS_MAX) ? counts.length : OMEGA_CROSS_MAX;
         static OmegaResults host;
         omega_host(&counts, cross, workers, &host);
-        int alike = (host.contradictions == 0ull);
+        int alike = (host.contradictions == 0ULL);
         for (unsigned int length = 2u; length <= cross; length += 1u)
         {
             for (unsigned int fate = 0u; fate < 6u; fate += 1u)
@@ -204,7 +204,7 @@ int main(int argc, char **argv)
             }
             alike = alike && (host.max_steps[length] == fates.max_steps[length]) &&
                     (host.max_bits[length] == fates.max_bits[length]) &&
-                    ((host.fate[OMEGA_HALTS][length] == 0ull) ||
+                    ((host.fate[OMEGA_HALTS][length] == 0ULL) ||
                      ((host.steps_champion[length] == fates.steps_champion[length]) &&
                       (host.bits_champion[length] == fates.bits_champion[length])));
         }
@@ -256,7 +256,7 @@ int main(int argc, char **argv)
     omega_all_mass(all_down, 0);
     omega_all_mass(all_up, 1);
     omega_closed_mass(all_up, closed_up);
-    unsigned long long parsed = 0ull;
+    unsigned long long parsed = 0ULL;
     for (unsigned int length = 2u; length <= OMEGA_COUNTED; length += 1u)
     {
         parsed += all_down[length];
@@ -269,12 +269,12 @@ int main(int argc, char **argv)
     sim_check(&results, parsed <= OMEGA_ONE, "the counted parse mass stays below 1");
     std::vector<unsigned long long> normal_down;
     omega_normal_mass(normal_down);
-    unsigned long long normal_end = 0ull;
+    unsigned long long normal_end = 0ULL;
     int normal_within = 1;
     for (unsigned int length = 2u; length <= OMEGA_COUNTED; length += 1u)
     {
         normal_within = normal_within && (normal_down[length] <= closed_up[length]);
-        normal_end += (length > counts.length) ? normal_down[length] : 0ull;
+        normal_end += (length > counts.length) ? normal_down[length] : 0ULL;
     }
     sim_check(&results, normal_within, "the normal form mass is within the closed mass at every length");
 
@@ -285,18 +285,18 @@ int main(int argc, char **argv)
     OriorExactInteger four;
     OriorExactInteger programs;
     // a halt is a normal form reached or a type found
-    std::vector<unsigned long long> halted(counts.length + 1u, 0ull);
-    std::vector<unsigned long long> unsettled(counts.length + 1u, 0ull);
+    std::vector<unsigned long long> halted(counts.length + 1u, 0ULL);
+    std::vector<unsigned long long> unsettled(counts.length + 1u, 0ULL);
     for (unsigned int length = 0u; length <= counts.length; length += 1u)
     {
         halted[length] = fates.fate[OMEGA_HALTS][length] + fates.fate[OMEGA_TYPED][length];
         unsettled[length] = fates.fate[OMEGA_OPEN][length] + fates.fate[OMEGA_GREW][length];
     }
     omega_dyadic(&lower, halted.data(), counts.length);
-    sim_check(&results, fates.contradictions == 0ull,
+    sim_check(&results, fates.contradictions == 0ULL,
               "no term proven to loop or to grow forever has a simple type (every typable term halts)");
     omega_dyadic(&open, unsettled.data(), counts.length);
-    std::vector<unsigned long long> closed_counts(counts.length + 1u, 0ull);
+    std::vector<unsigned long long> closed_counts(counts.length + 1u, 0ULL);
     for (unsigned int length = 2u; length <= counts.length; length += 1u)
     {
         closed_counts[length] = omega_count(&counts, length, 0u);
@@ -304,7 +304,7 @@ int main(int argc, char **argv)
     omega_dyadic(&programs, closed_counts.data(), counts.length);
     // the fixed point's 2^-62 scaled to 2^-64
     sim_exact_unsigned(&tail, remaining);
-    sim_exact_unsigned(&four, 4ull);
+    sim_exact_unsigned(&four, 4ULL);
     (void)sim_exact_product(&tail, &four, &tail);
     (void)sim_exact_sum(&lower, &open, &upper);
     (void)sim_exact_sum(&upper, &tail, &upper);
@@ -329,7 +329,7 @@ int main(int argc, char **argv)
         shared += 1u;
     }
 
-    unsigned long long totals[6] = {0ull, 0ull, 0ull, 0ull, 0ull, 0ull};
+    unsigned long long totals[6] = {0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL};
     for (unsigned int fate = 0u; fate < 6u; fate += 1u)
     {
         for (unsigned int length = 0u; length <= counts.length; length += 1u)
@@ -439,12 +439,12 @@ int main(int argc, char **argv)
     sim_flush(&results);
     for (unsigned int length = 2u; length <= counts.length; length += 1u)
     {
-        if (fates.fate[OMEGA_HALTS][length] == 0ull)
+        if (fates.fate[OMEGA_HALTS][length] == 0ULL)
         {
             continue;
         }
         // a typed halt proves a normal form exists without writing it. Its size is still unknown
-        const int settled = ((unsettled[length] + fates.fate[OMEGA_TYPED][length]) == 0ull);
+        const int settled = ((unsettled[length] + fates.fate[OMEGA_TYPED][length]) == 0ULL);
         mmgr_line_decimal_columns(&results.line, length, 8u);
         mmgr_line_put(&results.line, settled ? "    " : "  >=");
         mmgr_line_decimal_columns(&results.line, fates.max_steps[length], 8u);
@@ -470,14 +470,14 @@ int main(int argc, char **argv)
     // gives only a lower bound, and the published value is the true max. The two meeting means the run
     // reached the max; past 33 the maxima outgrow any space here (327686 bits at 34)
     static const unsigned long long published_max[34] = {
-        0ull,  0ull,  0ull,  0ull,  4ull,  0ull,   6ull,   7ull,   8ull,   9ull,   10ull, 11ull,
-        12ull, 13ull, 14ull, 15ull, 16ull, 17ull,  18ull,  19ull,  20ull,  22ull,  24ull, 26ull,
-        30ull, 42ull, 52ull, 44ull, 58ull, 223ull, 160ull, 267ull, 298ull, 1812ull};
+        0ULL,  0ULL,  0ULL,  0ULL,  4ULL,  0ULL,   6ULL,   7ULL,   8ULL,   9ULL,   10ULL, 11ULL,
+        12ULL, 13ULL, 14ULL, 15ULL, 16ULL, 17ULL,  18ULL,  19ULL,  20ULL,  22ULL,  24ULL, 26ULL,
+        30ULL, 42ULL, 52ULL, 44ULL, 58ULL, 223ULL, 160ULL, 267ULL, 298ULL, 1812ULL};
     int published = 1;
     int bounded = 1;
     for (unsigned int length = 4u; (length <= 33u) && (length <= counts.length); length += 1u)
     {
-        const int settled = ((unsettled[length] + fates.fate[OMEGA_TYPED][length]) == 0ull);
+        const int settled = ((unsettled[length] + fates.fate[OMEGA_TYPED][length]) == 0ULL);
         published = published && (fates.max_bits[length] == published_max[length]);
         bounded = bounded && (fates.max_bits[length] <= published_max[length]) &&
                   ((settled == 0) || (fates.max_bits[length] == published_max[length]));

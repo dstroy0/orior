@@ -7,21 +7,21 @@
 
 int run_cpu(const RunChild *child, unsigned long long *microseconds)
 {
-    unsigned long long count = 0ull;
+    unsigned long long count = 0ULL;
     RunProcess *const processes = run_tree(child->pid, &count);
     if (processes == NULL)
     {
         return 0;
     }
-    unsigned long long ticks = 0ull;
-    for (unsigned long long at = 0ull; at < count; at += 1ull)
+    unsigned long long ticks = 0ULL;
+    for (unsigned long long at = 0ULL; at < count; at += 1ULL)
     {
-        ticks += processes[at].in_tree ? processes[at].ticks : 0ull;
+        ticks += processes[at].in_tree ? processes[at].ticks : 0ULL;
     }
     free(processes);
     const long hertz = sysconf(_SC_CLK_TCK);
     // the clock's ticks a second are positive where it answers
-    *microseconds = (hertz > 0L) ? ((ticks * RUN_MILLION) / (unsigned long long)hertz) : 0ull;
+    *microseconds = (hertz > 0L) ? ((ticks * RUN_MILLION) / (unsigned long long)hertz) : 0ULL;
     return hertz > 0L;
 }
 
@@ -61,7 +61,7 @@ int run_start(RunChild *child, char *const *words, int count, unsigned long long
         CPU_ZERO(&set);
         for (unsigned int processor = 0u; processor < RUN_PROCESSORS; processor += 1u)
         {
-            if (((mask >> processor) & 1ull) != 0ull)
+            if (((mask >> processor) & 1ULL) != 0ULL)
             {
                 CPU_SET(processor, &set);
             }
@@ -88,7 +88,7 @@ int run_start(RunChild *child, char *const *words, int count, unsigned long long
 #else
     child->watch = -1;
 #endif
-    // an interrupt or a hangup from the terminal reaches the command, which ends; this process waits for it, then
+    // an interrupt or a hangup from the terminal reaches the command, which ends. This process waits for it, then
     // releases its job or writes its last record
     signal(SIGINT, SIG_IGN);
     signal(SIGQUIT, SIG_IGN);
@@ -96,7 +96,7 @@ int run_start(RunChild *child, char *const *words, int count, unsigned long long
     return 1;
 }
 
-// 1 once the command has ended; it is left unreaped, and its tree's last reading still counts its own ticks
+// 1 once the command ended; it is left unreaped, and its tree's last reading still counts its own ticks
 int run_ended(RunChild *child, unsigned long long microseconds)
 {
     if (child->watch >= 0)
@@ -145,8 +145,8 @@ int run_finish(RunChild *child)
 // given; their count
 static unsigned long long run_living(const RunProcess *processes, unsigned long long count, int signal_number)
 {
-    unsigned long long living = 0ull;
-    for (unsigned long long at = 0ull; at < count; at += 1ull)
+    unsigned long long living = 0ULL;
+    for (unsigned long long at = 0ULL; at < count; at += 1ULL)
     {
         RunProcess now;
         const int alive = processes[at].in_tree && run_process_read(processes[at].pid, &now) && (now.state != 'Z');
@@ -155,7 +155,7 @@ static unsigned long long run_living(const RunProcess *processes, unsigned long 
             // a pid read from /proc is positive, and a pid_t represents it
             kill((pid_t)processes[at].pid, signal_number);
         }
-        living += alive ? 1ull : 0ull;
+        living += alive ? 1ULL : 0ULL;
     }
     return living;
 }
@@ -164,21 +164,21 @@ static unsigned long long run_living(const RunProcess *processes, unsigned long 
 // count ended by force
 unsigned long long run_end_command(RunChild *child, unsigned long long grace)
 {
-    unsigned long long count = 0ull;
+    unsigned long long count = 0ULL;
     RunProcess *const processes = run_tree(child->pid, &count);
     if (processes == NULL)
     {
         kill(child->pid, SIGKILL);
-        return 1ull;
+        return 1ULL;
     }
     unsigned long long living = run_living(processes, count, SIGTERM);
     const unsigned long long term_sent_at = run_now();
-    while ((living != 0ull) && ((run_now() - term_sent_at) < grace))
+    while ((living != 0ULL) && ((run_now() - term_sent_at) < grace))
     {
         run_pause(RUN_ENDING_MICROSECONDS);
         living = run_living(processes, count, 0);
     }
-    const unsigned long long forced = (living != 0ull) ? run_living(processes, count, SIGKILL) : 0ull;
+    const unsigned long long forced = (living != 0ULL) ? run_living(processes, count, SIGKILL) : 0ULL;
     free(processes);
     return forced;
 }
@@ -251,10 +251,10 @@ int run_process_read(unsigned long long pid, RunProcess *process)
     // the name may contain spaces and parentheses: the fields are read after its last ')', the state, the parent, nine
     // skipped, then the process's own user and system ticks and those of the children it waited for
     const char *const after_name = read ? strrchr(line, ')') : NULL;
-    unsigned long long user = 0ull;
-    unsigned long long system = 0ull;
-    unsigned long long children_user = 0ull;
-    unsigned long long children_system = 0ull;
+    unsigned long long user = 0ULL;
+    unsigned long long system = 0ULL;
+    unsigned long long children_user = 0ULL;
+    unsigned long long children_system = 0ULL;
     if ((after_name == NULL) ||
         (sscanf(after_name + 1, " %c %llu %*s %*s %*s %*s %*s %*s %*s %*s %*s %llu %llu %llu %llu", &process->state,
                 &process->parent, &user, &system, &children_user, &children_system) != 6))
@@ -277,9 +277,9 @@ RunProcess *run_tree(pid_t root, unsigned long long *count)
         return NULL;
     }
     RunProcess *processes = NULL;
-    unsigned long long capacity = 0ull;
+    unsigned long long capacity = 0ULL;
     int ok = 1;
-    *count = 0ull;
+    *count = 0ULL;
     for (const struct dirent *entry = readdir(listing); ok && (entry != NULL); entry = readdir(listing))
     {
         char *end = NULL;
@@ -291,7 +291,7 @@ RunProcess *run_tree(pid_t root, unsigned long long *count)
         }
         if (*count == capacity)
         {
-            capacity = (capacity == 0ull) ? 256ull : (capacity * 2ull);
+            capacity = (capacity == 0ULL) ? 256ULL : (capacity * 2ULL);
             RunProcess *const grown = (RunProcess *)realloc(processes, (size_t)capacity * sizeof(RunProcess));
             ok = grown != NULL;
             processes = ok ? grown : processes;
@@ -299,7 +299,7 @@ RunProcess *run_tree(pid_t root, unsigned long long *count)
         if (ok)
         {
             processes[*count] = read;
-            *count += 1ull;
+            *count += 1ULL;
         }
     }
     closedir(listing);
@@ -308,7 +308,7 @@ RunProcess *run_tree(pid_t root, unsigned long long *count)
         free(processes);
         return NULL;
     }
-    for (unsigned long long at = 0ull; at < *count; at += 1ull)
+    for (unsigned long long at = 0ULL; at < *count; at += 1ULL)
     {
         // a child's pid is positive. It converts exactly
         processes[at].in_tree = processes[at].pid == (unsigned long long)root;
@@ -317,9 +317,9 @@ RunProcess *run_tree(pid_t root, unsigned long long *count)
     while (added)
     {
         added = 0;
-        for (unsigned long long at = 0ull; at < *count; at += 1ull)
+        for (unsigned long long at = 0ULL; at < *count; at += 1ULL)
         {
-            for (unsigned long long parent = 0ull; !processes[at].in_tree && (parent < *count); parent += 1ull)
+            for (unsigned long long parent = 0ULL; !processes[at].in_tree && (parent < *count); parent += 1ULL)
             {
                 processes[at].in_tree = processes[parent].in_tree && (processes[parent].pid == processes[at].parent);
                 added = added || processes[at].in_tree;

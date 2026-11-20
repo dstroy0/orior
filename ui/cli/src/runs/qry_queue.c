@@ -62,9 +62,11 @@ static void cli_channel_run(void *context)
     CliChannel *const channel = (CliChannel *)context;
     for (;;)
     {
+        unsigned int wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_wake);
         while (channel->used == 0ULL)
         {
-            EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_wake);
+            EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_wake, .seen = wake_seen);
+            wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_wake);
         }
         const unsigned char *const at = EMBED_CALL(cli_bytes, QryQueueCtx, .channel = channel) + channel->tail;
         const CliQueued *const item = (const CliQueued *)(const void *)at;
@@ -139,12 +141,13 @@ void cli_qry_queue(const CliQryPathNameCfg *args)
     for (;;)
     {
         const unsigned long long end_capacity = CLI_QUEUE_BYTES - channel->head;
+        const unsigned int wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_wake);
         const unsigned long long wrap = (end_capacity < need) ? end_capacity : 0ULL;
         if ((CLI_QUEUE_BYTES - channel->used) >= (need + wrap))
         {
             break;
         }
-        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_wake);
+        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_wake, .seen = wake_seen);
     }
     const unsigned long long end_capacity = CLI_QUEUE_BYTES - channel->head;
     if (end_capacity < need)

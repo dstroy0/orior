@@ -334,7 +334,7 @@ void cli_gradle_check(const CliGradleTextSizeCtx *args)
                           EMBED_CALL(cli_version_catalog_text_size_aliases_internal.versions_aliases,
                                      CliVersionCatalogTextSizeAliasesCtx, .text = (const char *)catalog, .size = read,
                                      .aliases = &aliases);
-        g_cli_guard->persistent_buf_release((void *)(embed_word)catalog, (g_cli_gradle_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)catalog, g_cli_gradle_owner);
         if (!whole)
         {
             continue;

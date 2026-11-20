@@ -70,7 +70,7 @@ static void raster_faces_release(void)
         for (unsigned int face = 0u; face < 4u; face += 1u)
         {
             g_cli_guard->persistent_buf_release((void *)(embed_word)(s_typefaces->face_data[face]),
-                                                (g_cli_print_owner));
+                                                g_cli_print_owner);
         }
         g_cli_guard->persistent_buf_release(s_typefaces->cover, g_cli_print_owner);
     }

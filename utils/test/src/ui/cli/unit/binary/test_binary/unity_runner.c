@@ -81,7 +81,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\binary\\test_binary\\test_binary.c");
+  UnityBegin("utils/test/src/ui/cli/unit/binary/test_binary/test_binary.c");
   run_test(test_a_windows_program_releases_its_machine_imports_and_delayed_imports, "test_a_windows_program_releases_its_machine_imports_and_delayed_imports", 173);
   run_test(test_windows_a_system_library_is_the_systems, "test_windows_a_system_library_is_the_systems", 186);
   run_test(test_windows_a_library_in_oriors_folders_is_found_through_them, "test_windows_a_library_in_oriors_folders_is_found_through_them", 196);

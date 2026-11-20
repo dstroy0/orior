@@ -7,7 +7,7 @@
 //
 // A relation is a tuple of words and the word that goes with them. 1,1 -> 2 is a relation. It is not an addition,
 // because addition is a writing and this file contains none. Every system that computes at all agrees about 1,1 -> 2.
-// Nothing else can be assumed about a system nobody has met. Arithmetic is the shared ground; the
+// Nothing else can be assumed about a system nobody met. Arithmetic is the shared ground; the
 // writing that reaches it is the part that differs, and finding that writing is the compiler's work.
 //
 // The names below are coherence anchors. That is all they are: they let the compiler report which relations it has
@@ -119,7 +119,7 @@ static const LadderQuestion s_ladder_cases[] = {
     {LADDER_SAME, {0xffffffffu, 0x7fffffffu}, 2u, 0u, 0u, 0},
     {LADDER_SAME, {0x80000000u, 0x80000000u}, 2u, 0xffffffffu, 0u, 0},
     // a one moved until it is gone. The answer is the count of places, and no arrangement of gates produces it from
-    // the word it is given: it is measured by querying and not computed
+    // the word it is given. It is measured by querying and not computed
     {LADDER_PLACES, {1u}, 1u, 32u, 0u, 0},
     {LADDER_ADD, {1u, 1u}, 2u, 2u, 0u, 0},
     {LADDER_ADD, {1u, 0u}, 2u, 1u, 0u, 0},

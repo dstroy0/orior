@@ -275,7 +275,6 @@ int cli_gradle_read(const CliGradleTextSizeCtx *args)
     if ((script->block == NULL) || (script->stray == NULL) || (opened == NULL))
     {
         g_cli_guard->persistent_buf_release(opened, g_cli_gradle_owner);
-        CliGradleScript *const script = &g_cli_gradle;
         g_cli_guard->persistent_buf_release(script->stray, g_cli_gradle_owner);
         g_cli_guard->persistent_buf_release(script->block, g_cli_gradle_owner);
         g_cli_guard->persistent_buf_release(script->class_of, g_cli_gradle_owner);

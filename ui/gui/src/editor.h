@@ -59,8 +59,8 @@ typedef struct GuiEditorCfg GuiEditorCfg;
 // a name at GUI_EDITOR_NAME_COLORS or past it is read from the palette each time
 typedef struct
 {
-    const CliViewFrame *frame;
-    const CliDocumentNames *names;
+    CliViewFrame *frame;
+    CliDocumentNames *names;
     unsigned int caret_color;
     GuiRect caret_rect;
     int caret_saved;

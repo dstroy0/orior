@@ -8,7 +8,7 @@
 #
 #   Usage:  python examples/language/4_measure/descriptor_bakeoff.py
 #
-# Which character follows which is four thousand ninety six numbers and has carried every language claim
+# Which character follows which is four thousand ninety six numbers and carried every language claim
 # in this work. It has now been matched or beaten twice by something far smaller: a twenty one bin
 # histogram of word lengths tied it on families, and a three number ratio of scripts beat it nearly five
 # to one on Japanese authorship. So the question is whether there is any task here it wins.

@@ -7,7 +7,7 @@
 #   Usage:  from papers import EVERY
 #
 # One table, read by both checks. Two copies of it drift, and then the check that grades a reader
-# against a hand extraction is grading it against a different paper than the check that grades the
+# against a hand extraction grades it against a different paper than the check that grades the
 # hand extraction against its source.
 #
 # Both checks read corpus_script_extraction/paper_config.py, the only file where a paper is
@@ -32,7 +32,7 @@ from paper_config import PAPERS  # noqa: E402
 # draft_page_text.py writes build/papers/<stem>.page.txt for these, line for line with the
 # extraction, and the checks read that instead. Every rule it applies came off a rendered page, but
 # one of them guesses: page kʷ and page wist both arrive as w, and the draft labializes a w after the
-# consonants that take it. Until a person has read the pages, .page.txt is a draft and these two
+# consonants that take it. Until a person read the pages, .page.txt is a draft and these two
 # papers are still listed here.
 NOT_FAITHFUL = ("19-Lyon_ICSNL50_final-78", "2013_Lindley_Lyon")
 

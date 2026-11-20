@@ -440,7 +440,7 @@ EMBED_INLINE unsigned long long usages_name_at(const SymbolsUsagesCtx *args)
     if (languages != NULL)
     {
         g_cli_guard->persistent_buf_release(languages->languages.pair, g_cli_plugins_owner);
-        *(&languages->languages) = (CliLanguages){NULL, 0u, 0u};
+        languages->languages = (CliLanguages){NULL, 0u, 0u};
     }
     g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
     return length;
@@ -505,7 +505,7 @@ EMBED_INLINE int usages_across(const SymbolsUsagesCtx *args)
         }
         if (mapped && (text != NULL))
         {
-            g_cli_guard->persistent_buf_release((void *)(embed_word)((const unsigned char *)text), (g_cli_code_owner));
+            g_cli_guard->persistent_buf_release((void *)(embed_word)((const unsigned char *)text), g_cli_code_owner);
         }
         else
         {
@@ -536,7 +536,7 @@ EMBED_INLINE int usages_definition_dispatch(const SymbolsUsagesCtx *args)
                                       .path = args->defined, .text = text, .size = size, .err_msg = args->err_msg);
         if (mapped && (text != NULL))
         {
-            g_cli_guard->persistent_buf_release((void *)(embed_word)((const unsigned char *)text), (g_cli_code_owner));
+            g_cli_guard->persistent_buf_release((void *)(embed_word)((const unsigned char *)text), g_cli_code_owner);
         }
         else
         {
@@ -665,7 +665,7 @@ static int usages_request(const SymbolsUsagesCtx *args)
     cli_grown_end(&usages.regions);
     if (mapped && (text != NULL))
     {
-        g_cli_guard->persistent_buf_release((void *)(embed_word)((const unsigned char *)text), (g_cli_code_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)((const unsigned char *)text), g_cli_code_owner);
     }
     else
     {

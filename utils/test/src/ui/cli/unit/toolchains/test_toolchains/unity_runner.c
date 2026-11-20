@@ -105,7 +105,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\toolchains\\test_toolchains\\test_toolchains.c");
+  UnityBegin("utils/test/src/ui/cli/unit/toolchains/test_toolchains/test_toolchains.c");
   run_test(test_a_read_the_cells_refuse_reports_no_chosen_folder, "test_a_read_the_cells_refuse_reports_no_chosen_folder", 158);
   run_test(test_posix_a_login_shells_path_is_read, "test_posix_a_login_shells_path_is_read", 187);
   run_test(test_posix_a_shell_that_prints_nothing_has_no_path, "test_posix_a_shell_that_prints_nothing_has_no_path", 205);

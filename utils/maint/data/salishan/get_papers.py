@@ -17,7 +17,7 @@
 #
 # pdftotext writes Latin-1 unless told otherwise, and Latin-1 has neither ʔ, ə nor ɬ. A paper
 # converted that way still opens, still looks like a paper, and has had the language taken out of
-# it. Given -enc UTF-8 it retains the characters and reorders the page: it positions text out by position,
+# it. Given -enc UTF-8 it retains the characters and reorders the page. It positions text out by position,
 # and a running header then prints before the title it sits above while a two-column table comes out
 # interleaved.
 #
@@ -47,7 +47,7 @@ def _repository_root():
     A marker the repository produces, such as build/, is absent from a linked worktree and a
     never-built clone, and a climb to it can pass this root and land in another checkout whose paths
     look valid. A marker infers the root. Git answers it. The climb below serves only an exported tree
-    with no git directory, and it looks for archive/src/python, which the repository tracks and every checkout
+    with no git directory. It looks for archive/src/python, which the repository tracks and every checkout
     of it holds.
 
     Git's own variables are cleared first. Inside a hook GIT_DIR is exported, and a rev-parse that

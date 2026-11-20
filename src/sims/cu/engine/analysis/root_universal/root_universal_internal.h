@@ -15,15 +15,15 @@
 #include "../../../../../cu/engine/analysis/compression/compression.h"
 #include "../../../../../cu/engine/analysis/tower/tower.h"
 
-#define ROOT_KEY 0x524F4F54ull
+#define ROOT_KEY 0x524F4F54ULL
 
-#define ROOT_FOUNDER_PURPOSE 0x464F554Eull
+#define ROOT_FOUNDER_PURPOSE 0x464F554EULL
 
-#define ROOT_PROGRAM_PURPOSE 0x50524F47ull
+#define ROOT_PROGRAM_PURPOSE 0x50524F47ULL
 
-#define ROOT_FOLD_PURPOSE 0x464F4C44ull
+#define ROOT_FOLD_PURPOSE 0x464F4C44ULL
 
-#define ROOT_COST_PURPOSE 0x434F5354ull
+#define ROOT_COST_PURPOSE 0x434F5354ULL
 
 #define ROOT_FOUNDERS 6u
 

@@ -21,7 +21,7 @@ unsigned long long cli_clock_microseconds(void)
     // the counter and its frequency are not negative, and the frequency is not 0 on any Windows that runs orior
     const unsigned long long ticks = (unsigned long long)now.QuadPart;
     const unsigned long long per_second = (unsigned long long)frequency.QuadPart;
-    return ((ticks / per_second) * 1000000ull) + (((ticks % per_second) * 1000000ull) / per_second);
+    return ((ticks / per_second) * 1000000ULL) + (((ticks % per_second) * 1000000ULL) / per_second);
 }
 
 typedef struct
@@ -40,7 +40,7 @@ EMBED_INLINE SOCKET cli_connect_one(const WindowsConnectCtx *args)
     {
         return made;
     }
-    u_long waiting = 1ul;
+    u_long waiting = 1UL;
     (void)ioctlsocket(made, FIONBIO, &waiting);
     int connected = (connect(made, args->address->ai_addr, (int)args->address->ai_addrlen) == 0);
     if (!connected && (WSAGetLastError() == WSAEWOULDBLOCK))
@@ -54,7 +54,7 @@ EMBED_INLINE SOCKET cli_connect_one(const WindowsConnectCtx *args)
         struct timeval wait = {(long)(args->milliseconds / 1000u), (long)((args->milliseconds % 1000u) * 1000u)};
         connected = (select(0, NULL, &writable, &failed, &wait) == 1) && FD_ISSET(made, &writable);
     }
-    waiting = 0ul;
+    waiting = 0UL;
     (void)ioctlsocket(made, FIONBIO, &waiting);
     if (!connected)
     {
@@ -81,7 +81,7 @@ static int cli_connect_start(void)
 int cli_socket_listening(const CliErrMsgPortCtx *args)
 {
     unsigned int *port = args->port_pointer;
-    args->listener->handle = 0ull;
+    args->listener->handle = 0ULL;
     SOCKET made = cli_connect_start() ? socket(AF_INET, SOCK_STREAM, IPPROTO_TCP) : INVALID_SOCKET;
     struct sockaddr_in address;
     memor.set(&(MemoriaCfg){.dst = &address, .val = 0, .bytes = sizeof(address)});
@@ -101,31 +101,31 @@ int cli_socket_listening(const CliErrMsgPortCtx *args)
     }
     *port = ntohs(address.sin_port);
     // a socket is a pointer's width, which an unsigned long long stores; one past it so that 0 is for none
-    args->listener->handle = (unsigned long long)made + 1ull;
+    args->listener->handle = (unsigned long long)made + 1ULL;
     return 1;
 }
 
 int cli_socket_accept(const CliListenerCtx *args)
 {
-    args->peer->handle = 0ull;
-    const SOCKET made = (args->listener_read->handle != 0ull)
-                            ? accept((SOCKET)(args->listener_read->handle - 1ull), NULL, NULL)
+    args->peer->handle = 0ULL;
+    const SOCKET made = (args->listener_read->handle != 0ULL)
+                            ? accept((SOCKET)(args->listener_read->handle - 1ULL), NULL, NULL)
                             : INVALID_SOCKET;
     if (made == INVALID_SOCKET)
     {
         return 0;
     }
     // a socket is a pointer's width, which an unsigned long long stores; one past it so that 0 is for none
-    args->peer->handle = (unsigned long long)made + 1ull;
+    args->peer->handle = (unsigned long long)made + 1ULL;
     return 1;
 }
 
 int cli_socket_connected_time(const CliErrMsgCtx *args)
 {
     unsigned long long *resolved = args->resolved;
-    args->sock_out->handle = 0ull;
+    args->sock_out->handle = 0ULL;
     char service[16];
-    VerbaLinea service_line = {service, sizeof(service), 0ull};
+    VerbaLinea service_line = {service, sizeof(service), 0ULL};
     mmgr_line_decimal(&service_line, args->port, 0u);
     mmgr_line_finish(&service_line);
     (void)cli_connect_start();
@@ -165,7 +165,7 @@ int cli_socket_connected_time(const CliErrMsgCtx *args)
     const BOOL no_delay = TRUE;
     setsockopt(made, IPPROTO_TCP, TCP_NODELAY, (const char *)&no_delay, sizeof(no_delay));
     // a socket is a pointer's width, which an unsigned long long stores; one past it so that 0 is for none
-    args->sock_out->handle = (unsigned long long)made + 1ull;
+    args->sock_out->handle = (unsigned long long)made + 1ULL;
     return 1;
 }
 

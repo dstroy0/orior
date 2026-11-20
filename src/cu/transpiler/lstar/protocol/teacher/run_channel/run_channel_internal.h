@@ -86,7 +86,7 @@ typedef struct
     // 1 where the carrier's only word is `dry`, and the count of questions written so far
     int dry;
     unsigned int dry_written;
-    // 1 where the carrier's own words include --dry: it stops before the driver, every round through the airlock as a
+    // 1 where the carrier's own words include --dry. It stops before the driver, every round through the airlock as a
     // live one, and nothing it answers is stored in R
     int stopped;
     // 1 where the carrier whose answers are being read ended clean, exited with code 0: a refusal it wrote is the
@@ -99,14 +99,14 @@ typedef struct
 } RunChannel;
 
 // the room of the list of a round, a record at max half a ring
-#define RUN_LIST_ROOM (QRY_WRITER_RING_BYTES / 2ull)
+#define RUN_LIST_ROOM (QRY_WRITER_RING_BYTES / 2ULL)
 
 // how many registers past the highest its code names a container declares, as the part answered it, and the mark of
 // no answer: no refusal of a register past a kernel's count is then cleared
 #define RUN_REGISTERS_UNANSWERED 0xffffffffu
 
 // the max registers a kernel allots a thread, R254 the highest a field names short of RZ
-#define RUN_REGISTERS_MAX 255ull
+#define RUN_REGISTERS_MAX 255ULL
 
 // the max questions run_channel_put_many queries together, the rest queried after them
 #define RUN_QUESTIONS_MAX 65536u

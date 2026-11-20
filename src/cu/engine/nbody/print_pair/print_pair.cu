@@ -40,7 +40,7 @@ extern "C" long print_pair_program(EngineRecordStep program[PRINT_PAIR_STEPS], u
     }
     const unsigned int distance = PRINT_PAIR_DISTANCE + PRINT_PAIR_BANDS - 2u;
     const unsigned long long ceiling = PRINT_PAIR_CEILING;
-    print_pair_step(&program[distance + 1u], ENGINE_RECORD_CONSTANT, (unsigned int)(ceiling & 0xFFFFFFFFull),
+    print_pair_step(&program[distance + 1u], ENGINE_RECORD_CONSTANT, (unsigned int)(ceiling & 0xFFFFFFFFULL),
                     (unsigned int)(ceiling >> 32u), 0u);
     print_pair_step(&program[distance + 2u], ENGINE_RECORD_DIFFERENCE, distance + 1u, distance, 0u);
     outputs[0] = distance + 2u;

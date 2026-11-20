@@ -90,7 +90,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\devcontainer\\test_devcontainer\\test_devcontainer.c");
+  UnityBegin("utils/test/src/ui/cli/unit/devcontainer/test_devcontainer/test_devcontainer.c");
   run_test(test_the_container_is_created_from_its_image, "test_the_container_is_created_from_its_image", 123);
   run_test(test_the_tree_is_in_workspaces, "test_the_tree_is_in_workspaces", 130);
   run_test(test_the_containers_settings_name_the_folder, "test_the_containers_settings_name_the_folder", 136);

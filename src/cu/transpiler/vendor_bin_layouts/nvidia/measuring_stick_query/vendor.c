@@ -38,7 +38,7 @@ int msq_tables_read(void)
     char path[512];
     snprintf(path, sizeof(path), "build/vendor/nvidia/tables/%s_instructions.txt", part);
     const unsigned char *text = NULL;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     if (!qry_member_file_blob(path, &text, &size))
     {
         return 0;
@@ -52,10 +52,10 @@ int msq_tables_read(void)
 // containing the class's opcode: the disassembler reads each, and stops at none
 int msq_vendor_reads(const MsqBytes *piece)
 {
-    for (unsigned long long at = 0ull; (at + 16ull) <= piece->size; at += 16ull)
+    for (unsigned long long at = 0ULL; (at + 16ULL) <= piece->size; at += 16ULL)
     {
-        unsigned long long low = 0ull;
-        unsigned long long high = 0ull;
+        unsigned long long low = 0ULL;
+        unsigned long long high = 0ULL;
         memcpy(&low, piece->bytes + at, 8u);
         memcpy(&high, piece->bytes + at + 8u, 8u);
         if (tables_class_of(&s_tables, low, high) == NULL)

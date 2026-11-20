@@ -16,7 +16,7 @@ void sass_machine_listing(SassMachine *machine, const SassListing *listing)
         const SassInstruction *const instruction = &listing->instructions[number];
         SassForm *found_form = NULL;
         // an instruction the listing gave no encoding for shows nothing about how its form encodes
-        if ((instruction->low != 0ull) || (instruction->high != 0ull))
+        if ((instruction->low != 0ULL) || (instruction->high != 0ULL))
         {
             sass_machine_take(machine, instruction->text, instruction->low, instruction->high, &found_form);
         }
@@ -131,8 +131,8 @@ void sass_form_turned(const SassForm *form)
     s_high[0] = form->high;
     for (unsigned int bit = 0u; bit < SASS_BITS; bit += 1u)
     {
-        s_low[1u + bit] = s_low[0] ^ ((bit < 64u) ? (1ull << bit) : 0ull);
-        s_high[1u + bit] = s_high[0] ^ ((bit >= 64u) ? (1ull << (bit - 64u)) : 0ull);
+        s_low[1u + bit] = s_low[0] ^ ((bit < 64u) ? (1ULL << bit) : 0ULL);
+        s_high[1u + bit] = s_high[0] ^ ((bit >= 64u) ? (1ULL << (bit - 64u)) : 0ULL);
     }
 }
 

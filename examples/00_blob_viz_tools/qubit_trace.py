@@ -463,7 +463,7 @@ def reduced_state(state, retain, qubits=QUBITS):
     """The density matrix of the first `retain` qubits, with the rest traced out.
 
     Reshaping the amplitude vector into a matrix indexed by (retained, traced) and multiplying by its
-    own conjugate transpose IS the partial trace, and it is exact: no approximation and no sampling.
+    own conjugate transpose IS the partial trace. It is exact: no approximation and no sampling.
     """
     retained = 1 << retain
     rest = 1 << (qubits - retain)
@@ -630,7 +630,7 @@ def _optime():
     THIS IS A TEST OF THE DETECTOR AND NOT A DEMONSTRATION OF GROVER. The optimal iteration count
     for M marked items out of N is (pi/4) sqrt(N/M), which is known in advance and is NOT given to
     the detector. The detector sees only the step norms of the trace. If its turning point lands
-    on the prediction for every M then it is reading the geometry and not the setup.
+    on the prediction for every M then it reads the geometry and not the setup.
 
     The failure mode to watch is M large. At M marked items the optimum falls as one over the square
     root of M. By M = 64 out of 256 the optimum is under two iterations and there is no curve

@@ -124,8 +124,8 @@ static void cubin_run_xid_stored(unsigned long long xid, const char *text)
 static int cubin_run_event_xml(void *event, char *xml, size_t room)
 {
     static wchar_t s_wide[16384];
-    unsigned long used = 0ul;
-    unsigned long properties = 0ul;
+    unsigned long used = 0UL;
+    unsigned long properties = 0UL;
     if (!s_events.render(NULL, event, CUBIN_RUN_EVENTS_XML, (unsigned long)sizeof(s_wide), s_wide, &used, &properties))
     {
         return 0;
@@ -139,7 +139,7 @@ static unsigned long long cubin_run_event_number(const char *xml, const char *ta
 {
     const char *const opened = strstr(xml, tag);
     const char *const closed = (opened != NULL) ? strchr(opened, '>') : NULL;
-    return (closed != NULL) ? strtoull(closed + 1, NULL, 10) : 0ull;
+    return (closed != NULL) ? strtoull(closed + 1, NULL, 10) : 0ULL;
 }
 
 // the text of the driver's error in `xml` into `text`, which has room for `room`: its second datum, the first the
@@ -161,11 +161,11 @@ static unsigned int cubin_run_events_read(int store)
     static char s_xml[32768];
     char text[CUBIN_RUN_XID_TEXT];
     void *event[16];
-    unsigned long returned = 0ul;
+    unsigned long returned = 0UL;
     unsigned int read = 0u;
-    while (s_events.next(s_events_subscription, 16ul, event, 0ul, 0ul, &returned) && (returned != 0ul))
+    while (s_events.next(s_events_subscription, 16UL, event, 0UL, 0UL, &returned) && (returned != 0UL))
     {
-        for (unsigned long at = 0ul; at < returned; at += 1ul)
+        for (unsigned long at = 0UL; at < returned; at += 1UL)
         {
             if (store && cubin_run_event_xml(event[at], s_xml, sizeof(s_xml)))
             {
@@ -306,7 +306,7 @@ int cubin_run_telemetry_faulted(CubinRunStatus status)
         {
             break;
         }
-        if ((event.event_type & CUBIN_RUN_XID) != 0ull)
+        if ((event.event_type & CUBIN_RUN_XID) != 0ULL)
         {
             cubin_run_xid_stored(event.event_data, "");
         }

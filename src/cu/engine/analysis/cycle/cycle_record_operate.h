@@ -91,11 +91,11 @@ __device__ static int cycle_record_exact_quotient(const unsigned int *top, unsig
         cycle_record_product(divisor, (divisor_used < range) ? divisor_used : range, inverse, precise_limbs, stepped,
                              range);
         // 2 - d x modulo 2^(32 range): the two's complement of d x, plus 2
-        unsigned long long carry = 2ull;
+        unsigned long long carry = 2ULL;
         for (unsigned int at = 0u; at < range; at += 1u)
         {
-            const unsigned long long total = (unsigned long long)(~stepped[at]) + ((at == 0u) ? 1ull : 0ull) + carry;
-            stepped[at] = (unsigned int)(total & 0xFFFFFFFFull);
+            const unsigned long long total = (unsigned long long)(~stepped[at]) + ((at == 0u) ? 1ULL : 0ULL) + carry;
+            stepped[at] = (unsigned int)(total & 0xFFFFFFFFULL);
             carry = total >> 32u;
         }
         cycle_record_product(inverse, precise_limbs, stepped, range, grown, range);
@@ -105,7 +105,7 @@ __device__ static int cycle_record_exact_quotient(const unsigned int *top, unsig
         }
         precise_limbs = range;
     }
-    // the whole quotient lands in grown; the inverse and its step product then lie together, room for the whole
+    // the whole quotient lands in grown. The inverse and its step product then lie together, room for the whole
     // product of the quotient and the divisor
     unsigned int *const estimate = grown;
     cycle_record_product(numerator, work, inverse, work, estimate, work);

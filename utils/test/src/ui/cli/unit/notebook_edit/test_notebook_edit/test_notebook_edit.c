@@ -109,22 +109,22 @@ void test_the_notebooks_keys_are_taken_and_others_are_not(void)
 {
     const CliNotebookModel *const model = opened("edit.py", s_script);
     TEST_ASSERT_EQUAL_INT(
-        0, EMBED_CALL(cli_notebook_edit_key.key, CliNotebookEditKeyCfg, .key = "edit:a", .word = "Escape"));
+        0, EMBED_CALL(cli_notebook_edit_key.key, CliNotebookEditKeyCfg, .key = "edit:a", .pressed = "Escape"));
     focused(1u, 0ULL, 0ULL);
     TEST_ASSERT_EQUAL_INT(0,
-                          EMBED_CALL(cli_notebook_edit_key.key, CliNotebookEditKeyCfg, .key = "edit:a", .word = "a"));
+                          EMBED_CALL(cli_notebook_edit_key.key, CliNotebookEditKeyCfg, .key = "edit:a", .pressed = "a"));
     TEST_ASSERT_EQUAL_INT(
-        1, EMBED_CALL(cli_notebook_edit_key.key, CliNotebookEditKeyCfg, .key = "edit:a", .word = "Shift+Enter"));
+        1, EMBED_CALL(cli_notebook_edit_key.key, CliNotebookEditKeyCfg, .key = "edit:a", .pressed = "Shift+Enter"));
     TEST_ASSERT_EQUAL_UINT(2u, model->focused);
     TEST_ASSERT_EQUAL_INT(
-        1, EMBED_CALL(cli_notebook_edit_key.key, CliNotebookEditKeyCfg, .key = "edit:a", .word = "Escape"));
+        1, EMBED_CALL(cli_notebook_edit_key.key, CliNotebookEditKeyCfg, .key = "edit:a", .pressed = "Escape"));
     TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_NONE, model->focused);
     focused(1u, 0ULL, 0ULL);
     TEST_ASSERT_EQUAL_INT(
-        1, EMBED_CALL(cli_notebook_edit_key.key, CliNotebookEditKeyCfg, .key = "edit:a", .word = "Ctrl+Enter"));
+        1, EMBED_CALL(cli_notebook_edit_key.key, CliNotebookEditKeyCfg, .key = "edit:a", .pressed = "Ctrl+Enter"));
     focused(1u, 0ULL, 0ULL);
     TEST_ASSERT_EQUAL_INT(
-        1, EMBED_CALL(cli_notebook_edit_key.key, CliNotebookEditKeyCfg, .key = "edit:a", .word = "Meta+Enter"));
+        1, EMBED_CALL(cli_notebook_edit_key.key, CliNotebookEditKeyCfg, .key = "edit:a", .pressed = "Meta+Enter"));
 }
 
 void test_cells_added_changed_moved_cleared_and_deleted(void)
@@ -216,7 +216,7 @@ void test_the_cell_menu_refuses_a_move_past_either_end(void)
     TEST_ASSERT_EQUAL_INT(0, up_refused);
     TEST_ASSERT_EQUAL_INT(1, down_refused);
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_edit_menu.command, CliNotebookEditMenuCfg, .key = "edit:a",
-                                        .cell = CLI_NOTEBOOK_NONE, .output = CLI_NOTEBOOK_NONE, .word = "notebook-up"));
+                                        .cell = CLI_NOTEBOOK_NONE, .output = CLI_NOTEBOOK_NONE, .menu_word = "notebook-up"));
     TEST_ASSERT_EQUAL_INT(0, EMBED_CALL(cli_notebook_edit_menu.command, CliNotebookEditMenuCfg, .key = "edit:a",
-                                        .cell = 0u, .output = CLI_NOTEBOOK_NONE, .word = "file-open"));
+                                        .cell = 0u, .output = CLI_NOTEBOOK_NONE, .menu_word = "file-open"));
 }

@@ -21,11 +21,11 @@ typedef struct GuiBusySinceCfg GuiBusySinceCfg;
 // the milliseconds an ask is before the circle comes, and the least the circle is once it has come; a swirl's
 // stages, a power of two, and the shift from milliseconds to a stage; and the sizes in the page's pixels: the circle's
 // side, how far the ring's middle reaches from its center, and how far the circle saves from the editor's corner
-#define GUI_BUSY_SHOW_DELAY_MS 200ull
-#define GUI_BUSY_MIN_VISIBLE_MS 256ull
+#define GUI_BUSY_SHOW_DELAY_MS 200ULL
+#define GUI_BUSY_MIN_VISIBLE_MS 256ULL
 #define GUI_BUSY_STAGES 64u
 #define GUI_BUSY_STAGE_SHIFT 4u
-#define GUI_BUSY_STAGE_MS (1ull << GUI_BUSY_STAGE_SHIFT)
+#define GUI_BUSY_STAGE_MS (1ULL << GUI_BUSY_STAGE_SHIFT)
 #define GUI_BUSY_SIDE 20
 #define GUI_BUSY_REACH 7
 #define GUI_BUSY_EDGE 8

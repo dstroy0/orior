@@ -77,7 +77,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\trust\\test_trust\\test_trust.c");
+  UnityBegin("utils/test/src/ui/cli/unit/trust/test_trust/test_trust.c");
   run_test(test_a_program_as_fsmonitor_is_a_hook, "test_a_program_as_fsmonitor_is_a_hook", 45);
   run_test(test_gits_own_monitor_is_not_a_hook, "test_gits_own_monitor_is_not_a_hook", 50);
   run_test(test_a_key_of_another_section_is_not_a_hook, "test_a_key_of_another_section_is_not_a_hook", 55);

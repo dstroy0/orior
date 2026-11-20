@@ -27,13 +27,13 @@ typedef struct
 static unsigned long long sass_bits_read(unsigned long long low, unsigned long long high, unsigned int first,
                                          unsigned int bits)
 {
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     for (unsigned int bit = 0u; bit < bits; bit += 1u)
     {
         const unsigned int at = first + bit;
         const unsigned long long word = (at < 64u) ? low : high;
         const unsigned int place = (at < 64u) ? at : (at - 64u);
-        value |= ((word >> place) & 1ull) << bit;
+        value |= ((word >> place) & 1ULL) << bit;
     }
     return value;
 }
@@ -45,7 +45,7 @@ static long long sass_signed(unsigned long long value, unsigned int bits)
     {
         return (long long)value;
     }
-    const unsigned long long top = 1ull << (bits - 1u);
+    const unsigned long long top = 1ULL << (bits - 1u);
     return (long long)((value ^ top) - top);
 }
 
@@ -53,25 +53,25 @@ static long long sass_signed(unsigned long long value, unsigned int bits)
 static unsigned int sass_open_bits(const SassForm *form, const SassPlace *places, unsigned long long *low,
                                    unsigned long long *high)
 {
-    *low = 0ull;
-    *high = 0ull;
-    sass_bits_write(low, high, SASS_GUARD_FIRST, SASS_GUARD_BITS + 1u, ~0ull);
-    sass_bits_write(low, high, SASS_STALL_FIRST, 128u - SASS_STALL_FIRST, ~0ull);
+    *low = 0ULL;
+    *high = 0ULL;
+    sass_bits_write(low, high, SASS_GUARD_FIRST, SASS_GUARD_BITS + 1u, ~0ULL);
+    sass_bits_write(low, high, SASS_STALL_FIRST, 128u - SASS_STALL_FIRST, ~0ULL);
     for (unsigned int place = 0u; place < form->operands; place += 1u)
     {
         if (places[place].by_text != 0)
         {
             continue;
         }
-        sass_bits_write(low, high, places[place].value.first, places[place].value.bits, ~0ull);
+        sass_bits_write(low, high, places[place].value.first, places[place].value.bits, ~0ULL);
         if (places[place].has_offset != 0)
         {
-            sass_bits_write(low, high, places[place].offset.first, places[place].offset.bits, ~0ull);
+            sass_bits_write(low, high, places[place].offset.first, places[place].offset.bits, ~0ULL);
         }
         if (places[place].has_descriptor != 0)
         {
-            sass_bits_write(low, high, places[place].descriptor.first, places[place].descriptor.bits, ~0ull);
-            sass_bits_write(low, high, SASS_DESCRIPTOR_DISPLAYED, 1u, ~0ull);
+            sass_bits_write(low, high, places[place].descriptor.first, places[place].descriptor.bits, ~0ULL);
+            sass_bits_write(low, high, SASS_DESCRIPTOR_DISPLAYED, 1u, ~0ULL);
         }
     }
     // an operand the form carries and does not print is the operand's, whatever value an encoding gives it
@@ -80,13 +80,13 @@ static unsigned int sass_open_bits(const SassForm *form, const SassPlace *places
         const SassRun *const run = &form->run[number];
         if (run->operand >= form->operands)
         {
-            sass_bits_write(low, high, run->first, (run->last - run->first) + 1u, ~0ull);
+            sass_bits_write(low, high, run->first, (run->last - run->first) + 1u, ~0ULL);
         }
     }
     unsigned int count = 0u;
     for (unsigned int bit = 0u; bit < 64u; bit += 1u)
     {
-        count += (unsigned int)(((*low >> bit) & 1ull) + ((*high >> bit) & 1ull));
+        count += (unsigned int)(((*low >> bit) & 1ULL) + ((*high >> bit) & 1ULL));
     }
     return count;
 }
@@ -171,8 +171,8 @@ static int sass_holder_named(const SassHolder *holder, const SassHolder *sibling
         const unsigned long long given = sass_bits_read(low, high, field->first, field->bits);
         // the value a name is taken from is a multiplier of 0 or 1, a number 0 or 1 or the register RZ; a register
         // the two forms' encodings were seen with apart from that is the encoding's own and names nothing
-        const int naming = ((form->type[place] == SASS_OPERAND_IMMEDIATE) && (own <= 1ull)) ||
-                           ((form->type[place] == SASS_OPERAND_REGISTER) && (own == 255ull));
+        const int naming = ((form->type[place] == SASS_OPERAND_IMMEDIATE) && (own <= 1ULL)) ||
+                           ((form->type[place] == SASS_OPERAND_REGISTER) && (own == 255ULL));
         differs = differs || (naming && (own != theirs));
         away = away || (naming && (own != theirs) && (given != own));
     }
@@ -209,12 +209,12 @@ static const SassForm *sass_encoding_form(const SassMachine *machine, unsigned l
     {
         SassHolder holder;
         holder.form = &machine->form[number];
-        unsigned long long open_low = 0ull;
-        unsigned long long open_high = 0ull;
+        unsigned long long open_low = 0ULL;
+        unsigned long long open_high = 0ULL;
         if (placed != NULL)
         {
-            if (!placed[number].placed || (((low ^ holder.form->low) & ~placed[number].open_low) != 0ull) ||
-                (((high ^ holder.form->high) & ~placed[number].open_high) != 0ull))
+            if (!placed[number].placed || (((low ^ holder.form->low) & ~placed[number].open_low) != 0ULL) ||
+                (((high ^ holder.form->high) & ~placed[number].open_high) != 0ULL))
             {
                 continue;
             }
@@ -229,7 +229,7 @@ static const SassForm *sass_encoding_form(const SassMachine *machine, unsigned l
                 continue;
             }
             holder.open = sass_open_bits(holder.form, holder.places, &open_low, &open_high);
-            if ((((low ^ holder.form->low) & ~open_low) != 0ull) || (((high ^ holder.form->high) & ~open_high) != 0ull))
+            if ((((low ^ holder.form->low) & ~open_low) != 0ULL) || (((high ^ holder.form->high) & ~open_high) != 0ULL))
             {
                 continue;
             }
@@ -293,19 +293,19 @@ static void sass_operand_read(const SassForm *form, const SassInstructionParts *
         return;
     }
     const unsigned long long operand_value = sass_bits_read(low, high, place->value.first, place->value.bits);
-    const unsigned long long mask = (place->value.bits < 64u) ? ((1ull << place->value.bits) - 1ull) : ~0ull;
+    const unsigned long long mask = (place->value.bits < 64u) ? ((1ULL << place->value.bits) - 1ULL) : ~0ULL;
     const unsigned long long value =
         ((place->value.inverted != 0u) ? (~operand_value & mask) : operand_value) * place->value.scale;
     switch (form->type[at])
     {
     case SASS_OPERAND_REGISTER:
-        (value == 255ull) ? snprintf(operand, room, "%sRZ", mark) : snprintf(operand, room, "%sR%llu", mark, value);
+        (value == 255ULL) ? snprintf(operand, room, "%sRZ", mark) : snprintf(operand, room, "%sR%llu", mark, value);
         return;
     case SASS_OPERAND_UNIFORM:
-        (value == 63ull) ? snprintf(operand, room, "%sURZ", mark) : snprintf(operand, room, "%sUR%llu", mark, value);
+        (value == 63ULL) ? snprintf(operand, room, "%sURZ", mark) : snprintf(operand, room, "%sUR%llu", mark, value);
         return;
     case SASS_OPERAND_PREDICATE:
-        (value == 7ull) ? snprintf(operand, room, "%sPT", mark) : snprintf(operand, room, "%sP%llu", mark, value);
+        (value == 7ULL) ? snprintf(operand, room, "%sPT", mark) : snprintf(operand, room, "%sP%llu", mark, value);
         return;
     case SASS_OPERAND_IMMEDIATE:
         if (place->value.first == SASS_BRANCH_FIRST)
@@ -322,13 +322,13 @@ static void sass_operand_read(const SassForm *form, const SassInstructionParts *
     case SASS_OPERAND_LABEL:
         // a branch counts its target from the instruction after it, and the field stores a two's complement distance
         snprintf(operand, room, "`(0x%llx)",
-                 address + 16ull +
+                 address + 16ULL +
                      (unsigned long long)(sass_signed(value / place->value.scale, place->value.bits) *
                                           (long long)place->value.scale));
         return;
     case SASS_OPERAND_CONSTANT:
     {
-        unsigned long long bank = 0ull;
+        unsigned long long bank = 0ULL;
         sass_constant_value(base->operand[at], &bank);
         snprintf(operand, room, "%sc[0x%llx][0x%llx]", mark, bank, value);
         return;
@@ -336,10 +336,10 @@ static void sass_operand_read(const SassForm *form, const SassInstructionParts *
     case SASS_OPERAND_ADDRESS:
     {
         const unsigned long long offset =
-            (place->has_offset != 0) ? sass_bits_read(low, high, place->offset.first, place->offset.bits) : 0ull;
+            (place->has_offset != 0) ? sass_bits_read(low, high, place->offset.first, place->offset.bits) : 0ULL;
         const char *const wide = (strstr(base->operand[at], ".64") != NULL) ? ".64" : "";
         char named[16];
-        (value == 255ull) ? snprintf(named, sizeof(named), "RZ%s", wide)
+        (value == 255ULL) ? snprintf(named, sizeof(named), "RZ%s", wide)
                           : snprintf(named, sizeof(named), "R%llu%s", value, wide);
         // a memory operand that reads a descriptor names its uniform register, desc[] where bit 101 shows it and term[]
         // where it does not
@@ -353,7 +353,7 @@ static void sass_operand_read(const SassForm *form, const SassInstructionParts *
                 ? snprintf(operand_value, sizeof(operand_value), "%s[URZ]", displayed ? "desc" : "term")
                 : snprintf(operand_value, sizeof(operand_value), "%s[UR%llu]", displayed ? "desc" : "term", descriptor);
         }
-        (offset == 0ull) ? snprintf(operand, room, "%s[%s]", operand_value, named)
+        (offset == 0ULL) ? snprintf(operand, room, "%s[%s]", operand_value, named)
                          : snprintf(operand, room, "%s[%s+0x%llx]", operand_value, named, offset);
         return;
     }
@@ -378,12 +378,12 @@ int sass_encoding_read(const SassMachine *machine, unsigned long long low, unsig
     const unsigned long long guard = sass_bits_read(low, high, SASS_GUARD_FIRST, SASS_GUARD_BITS);
     const unsigned long long negated = sass_bits_read(low, high, SASS_GUARD_NOT, 1u);
     size_t at = 0u;
-    if ((guard != 7ull) || (negated != 0ull))
+    if ((guard != 7ULL) || (negated != 0ULL))
     {
         char predicate[16];
-        (guard == 7ull) ? snprintf(predicate, sizeof(predicate), "PT")
+        (guard == 7ULL) ? snprintf(predicate, sizeof(predicate), "PT")
                         : snprintf(predicate, sizeof(predicate), "P%llu", guard);
-        at += (size_t)snprintf(text + at, room - at, "@%s%s ", (negated != 0ull) ? "!" : "", predicate);
+        at += (size_t)snprintf(text + at, room - at, "@%s%s ", (negated != 0ULL) ? "!" : "", predicate);
     }
     at += (size_t)snprintf(text + at, (at < room) ? (room - at) : 0u, "%s", form->operation);
     for (unsigned int place = 0u; (place < form->operands) && (at < room); place += 1u)
@@ -407,7 +407,7 @@ int sass_loop_walk(const SassMachine *machine, const SassLoopWalk *walk, unsigne
         stopped = 1u;
         const unsigned long long guard = sass_bits_read(low, high, SASS_GUARD_FIRST, SASS_GUARD_BITS);
         const unsigned long long negated = sass_bits_read(low, high, SASS_GUARD_NOT, 1u);
-        if ((guard == walk->flag) && (negated == 0ull))
+        if ((guard == walk->flag) && (negated == 0ULL))
         {
             stopped = 2u;
             int lands = 0;
@@ -423,7 +423,7 @@ int sass_loop_walk(const SassMachine *machine, const SassLoopWalk *walk, unsigne
                     places[place].value.scale;
                 const long long distance = sass_signed(value / places[place].value.scale, places[place].value.bits) *
                                            (long long)places[place].value.scale;
-                const unsigned long long landing = walk->address + 16ull + (unsigned long long)distance;
+                const unsigned long long landing = walk->address + 16ULL + (unsigned long long)distance;
                 lands = lands || (landing == walk->target);
             }
             if (lands)

@@ -98,7 +98,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\db\\test_db\\test_db.c");
+  UnityBegin("utils/test/src/ui/cli/unit/db/test_db/test_db.c");
   run_test(test_connections_are_stored_each_by_its_name, "test_connections_are_stored_each_by_its_name", 202);
   run_test(test_a_name_another_connection_has_is_refused, "test_a_name_another_connection_has_is_refused", 208);
   run_test(test_a_connection_renamed_stays_in_its_position, "test_a_connection_renamed_stays_in_its_position", 218);

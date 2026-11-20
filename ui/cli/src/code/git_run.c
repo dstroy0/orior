@@ -304,9 +304,11 @@ int cli_git_result(const CliGitResultCtx *args)
     {
         cli_errors_read(work_state);
     }
+    unsigned int wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &work_state->wake);
     while (work_state->ended < ending)
     {
-        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &work_state->wake);
+        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &work_state->wake, .seen = wake_seen);
+        wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &work_state->wake);
     }
     args->result->ok =
         EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &work_state->spawned) == 0LL;

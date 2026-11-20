@@ -96,10 +96,10 @@ void sha256_bits(const void *data, unsigned long long bits, unsigned char digest
     unsigned int state[SHA256_STATE_WORDS];
     memcpy(state, s_initial_state, sizeof(state));
     // every whole block of the message, then the bytes past the last one, the padding positioned after them (section 5.1.1)
-    const unsigned long long whole_bytes = bits / 8ull;
-    const unsigned int spare_bits = (unsigned int)(bits % 8ull);
+    const unsigned long long whole_bytes = bits / 8ULL;
+    const unsigned int spare_bits = (unsigned int)(bits % 8ULL);
     const unsigned long long blocks = whole_bytes / SHA256_BLOCK_BYTES;
-    for (unsigned long long block = 0ull; block < blocks; block += 1ull)
+    for (unsigned long long block = 0ULL; block < blocks; block += 1ULL)
     {
         sha256_compress(state, &message[block * SHA256_BLOCK_BYTES]);
     }
@@ -116,7 +116,7 @@ void sha256_bits(const void *data, unsigned long long bits, unsigned char digest
         ((left + 1u + SHA256_LENGTH_BYTES) <= SHA256_BLOCK_BYTES) ? SHA256_BLOCK_BYTES : (2u * SHA256_BLOCK_BYTES);
     for (unsigned int at = 0u; at < SHA256_LENGTH_BYTES; at += 1u)
     {
-        tail[tail_bytes - 1u - at] = (unsigned char)((bits >> (8u * at)) & 0xFFull);
+        tail[tail_bytes - 1u - at] = (unsigned char)((bits >> (8u * at)) & 0xFFULL);
     }
     for (size_t block = 0u; block < tail_bytes; block += SHA256_BLOCK_BYTES)
     {
@@ -133,5 +133,5 @@ void sha256_bits(const void *data, unsigned long long bits, unsigned char digest
 
 void sha256(const void *data, size_t bytes, unsigned char digest[SHA256_BYTES])
 {
-    sha256_bits(data, 8ull * (unsigned long long)bytes, digest);
+    sha256_bits(data, 8ULL * (unsigned long long)bytes, digest);
 }

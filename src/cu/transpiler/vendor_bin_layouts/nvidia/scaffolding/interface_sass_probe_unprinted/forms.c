@@ -27,13 +27,13 @@ int unprinted_query(const UnprintedQuestion *question, unsigned int number, FILE
     {
         snprintf(span, sizeof(span), "%u-%u", question->first, (question->first + question->bits) - 1u);
     }
-    unsigned long long low = 0ull;
-    unsigned long long high = 0ull;
+    unsigned long long low = 0ULL;
+    unsigned long long high = 0ULL;
     const unsigned int count =
         unprinted_text(s_kernel_text, question->lines, s_query_text, sizeof(s_query_text))
             ? sass_assemble_lines(&s_machine, s_query_text, SASS_CONTROL_SAFE, s_code, sizeof(s_code))
             : 0u;
-    const int alone = (count != 0u) && sass_assemble(&s_machine, question->turned, 0ull, 0ull, SASS_CONTROL_SAFE,
+    const int alone = (count != 0u) && sass_assemble(&s_machine, question->turned, 0ULL, 0ULL, SASS_CONTROL_SAFE,
                                                      &low, &high);
     unsigned int place = 0u;
     if (!alone || (unprinted_find(s_code, count, low, high, &place, 1u) != 1u))
@@ -45,11 +45,11 @@ int unprinted_query(const UnprintedQuestion *question, unsigned int number, FILE
     }
     // the instruction read back through the machine file, which gives its text where the reader defines its field
     char read[SASS_MACHINE_TEXT];
-    if (!sass_encoding_read(&s_machine, low, high, 0ull, read, sizeof(read)) || (strcmp(read, question->turned) != 0))
+    if (!sass_encoding_read(&s_machine, low, high, 0ULL, read, sizeof(read)) || (strcmp(read, question->turned) != 0))
     {
         printf("  %s reads back as %s\n", question->turned, read);
     }
-    const unsigned long long code_size = 16ull * count;
+    const unsigned long long code_size = 16ULL * count;
     char value_text[64];
     unprinted_binary(unprinted_bits_read(low, high, question->first, question->bits), question->bits, value_text);
     char fixed[64] = "";
@@ -65,8 +65,8 @@ int unprinted_query(const UnprintedQuestion *question, unsigned int number, FILE
     printf("  %s, bits %s%s, the form contains %s, as printed %08x\n", question->turned, span, fixed, value_text,
            question->answer);
     int printed = 0;
-    const unsigned long long values = 1ull << question->bits;
-    for (unsigned long long value = 0ull; value < values; value += 1ull)
+    const unsigned long long values = 1ULL << question->bits;
+    for (unsigned long long value = 0ULL; value < values; value += 1ULL)
     {
         memcpy(s_turned, s_code, (size_t)code_size);
         unprinted_place_write(s_turned, place, question->fixed, UNPRINTED_FIXED, question->first, question->bits,
@@ -265,8 +265,8 @@ static void unprinted_tally_otherwise(UnprintedTally *tally, unsigned long long 
 static unsigned long long unprinted_value(unsigned int bits, unsigned long long own, unsigned long long index,
                                           unsigned long long *count)
 {
-    *count = (bits <= UNPRINTED_FIELD_MAX) ? (1ull << bits) : (unsigned long long)bits;
-    return (bits <= UNPRINTED_FIELD_MAX) ? index : (own ^ (1ull << index));
+    *count = (bits <= UNPRINTED_FIELD_MAX) ? (1ULL << bits) : (unsigned long long)bits;
+    return (bits <= UNPRINTED_FIELD_MAX) ? index : (own ^ (1ULL << index));
 }
 
 // One unprinted run of a form probed at its values, `copies` at a run, against `own`, what the form's own bits
@@ -278,9 +278,9 @@ static void unprinted_form_run(const unsigned int *places, unsigned int copies, 
                                UnprintedTally *tally)
 {
     const unsigned int bits = (run->last - run->first) + 1u;
-    unsigned long long count = 0ull;
-    unprinted_value(bits, field_value, 0ull, &count);
-    for (unsigned long long start = 0ull; start < count; start += copies)
+    unsigned long long count = 0ULL;
+    unprinted_value(bits, field_value, 0ULL, &count);
+    for (unsigned long long start = 0ULL; start < count; start += copies)
     {
         memcpy(s_turned, s_code, (size_t)code_size);
         for (unsigned int copy = 0u; (copy < copies) && ((start + copy) < count); copy += 1u)
@@ -371,8 +371,8 @@ void unprinted_forms(FILE *record)
         char instruction[SASS_MACHINE_TEXT];
         static char s_lines[4096];
         const char *why = "";
-        unsigned long long low = 0ull;
-        unsigned long long high = 0ull;
+        unsigned long long low = 0ULL;
+        unsigned long long high = 0ULL;
         unsigned int places[UNPRINTED_COPIES] = {0u, 0u, 0u, 0u};
         // a form that takes an address is probed once a run through the word it writes, and every other through the
         // copies of its result
@@ -388,12 +388,12 @@ void unprinted_forms(FILE *record)
                 ? sass_assemble_lines(&s_machine, s_query_text, SASS_CONTROL_SAFE, s_code, sizeof(s_code))
                 : 0u;
         const int alone =
-            (count != 0u) && sass_assemble(&s_machine, instruction, 0ull, 0ull, SASS_CONTROL_SAFE, &low, &high);
+            (count != 0u) && sass_assemble(&s_machine, instruction, 0ULL, 0ULL, SASS_CONTROL_SAFE, &low, &high);
         const int found = alone && (unprinted_find(s_code, count, low, high, places, UNPRINTED_COPIES) == copies);
         why = (!written) ? why : (!found ? "the question did not assemble, or its copies were not found" : why);
         unsigned int own[UNPRINTED_COPIES] = {0u, 0u, 0u, 0u};
         char ended[96] = "";
-        const int ran = found && unprinted_run(s_code, 16ull * count, own, ended, sizeof(ended));
+        const int ran = found && unprinted_run(s_code, 16ULL * count, own, ended, sizeof(ended));
         const int steady = ran && (memory || ((own[1] == own[0]) && (own[2] == own[0]) && (own[3] == own[0])));
         if (found && !ran)
         {
@@ -422,7 +422,7 @@ void unprinted_forms(FILE *record)
             const unsigned long long field_value = unprinted_bits_read(low, high, run->first, bits);
             UnprintedTally tally;
             memset(&tally, 0, sizeof(tally));
-            unprinted_form_run(places, copies, 16ull * count, run, field_value, own, &tally);
+            unprinted_form_run(places, copies, 16ULL * count, run, field_value, own, &tally);
             unread += (tally.alike == tally.queried) ? 1u : 0u;
             char digits[64];
             unprinted_binary(field_value, (bits < 63u) ? bits : 63u, digits);

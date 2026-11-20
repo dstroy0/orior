@@ -15,9 +15,9 @@
 #include <unistd.h>
 #endif
 
-#define STACK_UNCACHED_BLOCK (64ull << 20u)
+#define STACK_UNCACHED_BLOCK (64ULL << 20u)
 
-#define STACK_UNCACHED_ALIGN 4096ull
+#define STACK_UNCACHED_ALIGN 4096ULL
 
 extern "C" FILE *stack_open(const char *path, unsigned int header[4])
 {
@@ -81,16 +81,16 @@ extern "C" long long stack_file_size(const char *path)
 
 extern "C" long long stack_file_read(const EngineFileRange *range)
 {
-    if ((range == NULL) || (range->path == NULL) || ((range->out == NULL) && (range->bytes != 0ull)))
+    if ((range == NULL) || (range->path == NULL) || ((range->out == NULL) && (range->bytes != 0ULL)))
     {
         return ENGINE_BYTES_ERROR;
     }
     const unsigned long long first = range->offset;
     const unsigned long long last = range->offset + range->bytes;
-    const unsigned long long start = first & ~(STACK_UNCACHED_ALIGN - 1ull);
-    const unsigned long long span = ((last - start) + STACK_UNCACHED_ALIGN - 1ull) & ~(STACK_UNCACHED_ALIGN - 1ull);
+    const unsigned long long start = first & ~(STACK_UNCACHED_ALIGN - 1ULL);
+    const unsigned long long span = ((last - start) + STACK_UNCACHED_ALIGN - 1ULL) & ~(STACK_UNCACHED_ALIGN - 1ULL);
     const unsigned long long block =
-        (span < STACK_UNCACHED_BLOCK) ? ((span != 0ull) ? span : STACK_UNCACHED_ALIGN) : STACK_UNCACHED_BLOCK;
+        (span < STACK_UNCACHED_BLOCK) ? ((span != 0ULL) ? span : STACK_UNCACHED_ALIGN) : STACK_UNCACHED_BLOCK;
 #ifdef _WIN32
     HANDLE const file = CreateFileA(range->path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
                                     FILE_FLAG_NO_BUFFERING | FILE_FLAG_SEQUENTIAL_SCAN, NULL);
@@ -114,11 +114,11 @@ extern "C" long long stack_file_read(const EngineFileRange *range)
     int ok = (descriptor >= 0) && (posix_memalign(&aligned, (size_t)STACK_UNCACHED_ALIGN, (size_t)block) == 0);
     unsigned char *const buffer = (unsigned char *)aligned;
 #endif
-    unsigned long long copied = 0ull;
+    unsigned long long copied = 0ULL;
     int ended = 0;
     for (unsigned long long offset = start; ok && (ended == 0) && (offset < last); offset += block)
     {
-        unsigned long long got = 0ull;
+        unsigned long long got = 0ULL;
 #ifdef _WIN32
         DWORD read = 0u;
         ok = (ReadFile(file, buffer, (DWORD)block, &read, NULL) != 0);
@@ -126,7 +126,7 @@ extern "C" long long stack_file_read(const EngineFileRange *range)
 #else
         const ssize_t read = pread(descriptor, buffer, (size_t)block, (off_t)offset);
         ok = (read >= 0);
-        got = ok ? (unsigned long long)read : 0ull;
+        got = ok ? (unsigned long long)read : 0ULL;
 #endif
         ended = (got < block);
         const unsigned long long from = (offset > first) ? offset : first;
@@ -159,7 +159,7 @@ extern "C" long long stack_file_read(const EngineFileRange *range)
 extern "C" int stack_read_uncached(const char *path, unsigned long long lanes, unsigned short *volume)
 {
     const unsigned long long first = (unsigned long long)STACK_VOXELS_AT;
-    const unsigned long long last = first + (2ull * lanes);
+    const unsigned long long last = first + (2ULL * lanes);
 #ifdef _WIN32
     HANDLE const file = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
                                     FILE_FLAG_NO_BUFFERING | FILE_FLAG_SEQUENTIAL_SCAN, NULL);
@@ -185,9 +185,9 @@ extern "C" int stack_read_uncached(const char *path, unsigned long long lanes, u
              (posix_memalign(&aligned, (size_t)STACK_UNCACHED_ALIGN, (size_t)STACK_UNCACHED_BLOCK) == 0);
     unsigned char *const buffer = (unsigned char *)aligned;
 #endif
-    for (unsigned long long offset = 0ull; ok && (offset < last); offset += STACK_UNCACHED_BLOCK)
+    for (unsigned long long offset = 0ULL; ok && (offset < last); offset += STACK_UNCACHED_BLOCK)
     {
-        unsigned long long got = 0ull;
+        unsigned long long got = 0ULL;
 #ifdef _WIN32
         DWORD read = 0u;
         ok = (ReadFile(file, buffer, (DWORD)STACK_UNCACHED_BLOCK, &read, NULL) != 0);
@@ -195,7 +195,7 @@ extern "C" int stack_read_uncached(const char *path, unsigned long long lanes, u
 #else
         const ssize_t read = pread(descriptor, buffer, (size_t)STACK_UNCACHED_BLOCK, (off_t)offset);
         ok = (read >= 0);
-        got = ok ? (unsigned long long)read : 0ull;
+        got = ok ? (unsigned long long)read : 0ULL;
 #endif
         const unsigned long long from = (offset > first) ? offset : first;
         const unsigned long long to = ((offset + got) < last) ? (offset + got) : last;

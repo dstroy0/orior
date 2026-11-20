@@ -21,12 +21,12 @@ static void psi_value_product(const PsiValue *left, const PsiValue *right, PsiVa
 // the exponents grow by at least one a term and the rest is under a geometric series of ratio 1/gamma
 static void psi_series_upper(PsiValue *value, const PsiCase *psi_case, unsigned long long factor, unsigned int first)
 {
-    psi_value_add_term(value, sim_rational(1ll, 1ll), factor * psi_case->weight[first]);
-    psi_value_add_term(value, sim_rational(1ll, 1ll), factor * psi_case->weight[first + 1u]);
-    psi_value_add_term(value, sim_rational(2ll, 1ll), factor * psi_case->weight[first + 2u]);
+    psi_value_add_term(value, sim_rational(1LL, 1LL), factor * psi_case->weight[first]);
+    psi_value_add_term(value, sim_rational(1LL, 1LL), factor * psi_case->weight[first + 1u]);
+    psi_value_add_term(value, sim_rational(2LL, 1LL), factor * psi_case->weight[first + 2u]);
 }
 
-// The corrected chain at every scale. (3.11) gives |mu_k| >= gamma^-n beta(k) with the alphas cut at r <= k; the cut
+// The corrected chain at every scale. (3.11) gives |mu_k| >= gamma^-n beta(k) with the alphas cut at r <= k. The cut
 // tails move mu by at max sum_(p>=2) eps_(k,p), psi lying in [0, 1]. The images T_k have width (gamma - 2) b_k and
 // the ramps take rho = gamma^-(beta(k+1)+2) on each side. The supports U_k are disjoint when
 // gamma^-n beta(k) - sum_(p>=2) eps_(k,p) - (gamma - 2) eps_(k,2) sum_p alpha_p - 2 rho > 0, every sum an upper bound
@@ -41,8 +41,8 @@ static void psi_separate_all_scales(SimResults *results, const PsiCase *psi_case
     const unsigned long long base = psi_case->base;
     const unsigned int last = psi_case->depth - 3u;
     psi_value_zero(&alphas);
-    psi_value_add_term(&alphas, sim_rational(1ll, 1ll), 0ull);
-    for (unsigned long long coordinate = 1ull; coordinate < psi_case->dimension; coordinate += 1ull)
+    psi_value_add_term(&alphas, sim_rational(1LL, 1LL), 0ULL);
+    for (unsigned long long coordinate = 1ULL; coordinate < psi_case->dimension; coordinate += 1ULL)
     {
         psi_series_upper(&alphas, psi_case, coordinate, 1u);
     }
@@ -51,23 +51,23 @@ static void psi_separate_all_scales(SimResults *results, const PsiCase *psi_case
     for (unsigned int level = 1u; level <= last; level += 1u)
     {
         psi_value_zero(&tails);
-        for (unsigned long long coordinate = 1ull; coordinate < psi_case->dimension; coordinate += 1ull)
+        for (unsigned long long coordinate = 1ULL; coordinate < psi_case->dimension; coordinate += 1ULL)
         {
             psi_series_upper(&tails, psi_case, coordinate, level + 1u);
         }
         psi_value_zero(&remainder);
-        psi_series_upper(&remainder, psi_case, 1ull, level + 1u);
+        psi_series_upper(&remainder, psi_case, 1ULL, level + 1u);
         psi_value_product(&remainder, &alphas, &width);
         psi_value_zero(&slack);
-        psi_value_add_term(&slack, sim_rational(1ll, 1ll), psi_case->dimension * psi_case->weight[level]);
-        psi_value_add(&slack, &tails, sim_rational(-1ll, 1ll));
+        psi_value_add_term(&slack, sim_rational(1LL, 1LL), psi_case->dimension * psi_case->weight[level]);
+        psi_value_add(&slack, &tails, sim_rational(-1LL, 1LL));
         // the base is a small integer, far inside a word
-        psi_value_add(&slack, &width, sim_rational(2ll - (long long)base, 1ll));
-        psi_value_add_term(&slack, sim_rational(-2ll, 1ll), psi_case->weight[level + 1u] + 2ull);
+        psi_value_add(&slack, &width, sim_rational(2LL - (long long)base, 1LL));
+        psi_value_add_term(&slack, sim_rational(-2LL, 1LL), psi_case->weight[level + 1u] + 2ULL);
         narrow_ok += (psi_value_sign(&slack, base) > 0) ? 1u : 0u;
         // the paper's ramp, gamma^-beta(k+1)
-        psi_value_add_term(&slack, sim_rational(2ll, 1ll), psi_case->weight[level + 1u] + 2ull);
-        psi_value_add_term(&slack, sim_rational(-2ll, 1ll), psi_case->weight[level + 1u]);
+        psi_value_add_term(&slack, sim_rational(2LL, 1LL), psi_case->weight[level + 1u] + 2ULL);
+        psi_value_add_term(&slack, sim_rational(-2LL, 1LL), psi_case->weight[level + 1u]);
         wide_ok += (psi_value_sign(&slack, base) > 0) ? 1u : 0u;
     }
     sim_check(results, narrow_ok == last,
@@ -88,16 +88,16 @@ static void psi_separate_all_scales(SimResults *results, const PsiCase *psi_case
 // (gamma - 1) s, lies in ((gamma - 2 - q) s, (gamma - 1 - q) s); every half unit is tried
 static unsigned long long psi_gaps_shared(unsigned long long base, unsigned long long shifts)
 {
-    const long long period = 2ll * ((long long)base - 1ll);
-    unsigned long long max = 0ull;
-    for (long long place = 0ll; place < period; place += 1ll)
+    const long long period = 2LL * ((long long)base - 1LL);
+    unsigned long long max = 0ULL;
+    for (long long place = 0LL; place < period; place += 1LL)
     {
-        unsigned long long inside = 0ull;
-        for (long long shift = 0ll; shift < (long long)shifts; shift += 1ll)
+        unsigned long long inside = 0ULL;
+        for (long long shift = 0LL; shift < (long long)shifts; shift += 1LL)
         {
-            const long long start = ((((2ll * ((long long)base - 2ll - shift)) % period) + period) % period);
+            const long long start = ((((2LL * ((long long)base - 2LL - shift)) % period) + period) % period);
             const long long offset = (((place - start) % period) + period) % period;
-            inside += ((offset > 0ll) && (offset < 2ll)) ? 1ull : 0ull;
+            inside += ((offset > 0LL) && (offset < 2LL)) ? 1ULL : 0ULL;
         }
         max = (inside > max) ? inside : max;
     }
@@ -107,11 +107,11 @@ static unsigned long long psi_gaps_shared(unsigned long long base, unsigned long
 static void psi_cover(SimResults *results, const PsiCase *psi_case)
 {
     VerbaLinea *const line = &results->line;
-    const unsigned long long shifts = (2ull * psi_case->dimension) + 1ull;
+    const unsigned long long shifts = (2ULL * psi_case->dimension) + 1ULL;
     const unsigned long long allowed = psi_gaps_shared(psi_case->base, shifts);
     const unsigned long long crowded = psi_gaps_shared(psi_case->base, psi_case->base);
-    sim_check(results, allowed == 1ull, "with m = 2n shifts no point sits in two gaps of one coordinate");
-    sim_check(results, crowded == 2ull, "with m = gamma - 1 two shifts share a gap: gamma >= m + 2 is needed");
+    sim_check(results, allowed == 1ULL, "with m = 2n shifts no point sits in two gaps of one coordinate");
+    sim_check(results, crowded == 2ULL, "with m = gamma - 1 two shifts share a gap: gamma >= m + 2 is needed");
     mmgr_line_put(line, "     the shifts: with m + 1 = ");
     mmgr_line_decimal(line, shifts, 1u);
     mmgr_line_put(line, " a point sits in at max ");
@@ -138,7 +138,7 @@ int main(void)
 
     PsiCase planar;
     PsiCase spatial;
-    const int opened = psi_case_open(&planar, 2ull, 10ull, 60u) && psi_case_open(&spatial, 3ull, 10ull, 38u);
+    const int opened = psi_case_open(&planar, 2ULL, 10ULL, 60u) && psi_case_open(&spatial, 3ULL, 10ULL, 38u);
     sim_check(&results, opened, "the weights beta(L) fit the word to the chosen depths");
     if (opened == 0)
     {
@@ -159,7 +159,7 @@ int main(void)
         mmgr_line_decimal(line, psi_case->base, 1u);
         mmgr_line_put(line, " (Theorem 2.1 requires gamma >= 2n + 2)\n");
         sim_flush(&results);
-        for (unsigned long long tilt = psi_case->base - 2ull; tilt <= (psi_case->base - 1ull); tilt += 1ull)
+        for (unsigned long long tilt = psi_case->base - 2ULL; tilt <= (psi_case->base - 1ULL); tilt += 1ULL)
         {
             psi_exhaustive(&results, psi_case, &scale, tilt, measured_widest);
             psi_all_scales(&results, psi_case, &scale, tilt, measured_widest);
@@ -168,7 +168,7 @@ int main(void)
         mmgr_line_decimal(line, psi_case->dimension, 1u);
         mmgr_line_put(line, ": xi = sum_p alpha_p psi(x_p) on every point of D_k^n (Lemmas 3.4, 3.7, 3.8)\n");
         sim_flush(&results);
-        const unsigned int levels = (psi_case->dimension == 2ull) ? 3u : 2u;
+        const unsigned int levels = (psi_case->dimension == 2ULL) ? 3u : 2u;
         for (unsigned int level = 1u; level <= levels; level += 1u)
         {
             psi_separate(&results, psi_case, &scale, level);

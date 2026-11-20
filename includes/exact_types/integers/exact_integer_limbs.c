@@ -198,7 +198,7 @@ static void fermat_settle(uint32_t *value, size_t limbs)
     }
     if (borrow != 0u)
     {
-        // below zero by less than 2^n: adding 2^n + 1 is adding one to the wrapped words, the carry out giving 2^n
+        // below zero by less than 2^n: adding 2^n + 1 adds one to the wrapped words, the carry out giving 2^n
         uint32_t one = 1u;
         value[limbs] = limbs_accumulate(value, limbs, &one, 1u);
     }

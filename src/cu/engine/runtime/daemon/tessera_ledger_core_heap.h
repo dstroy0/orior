@@ -22,7 +22,7 @@
 #define TESSERA_CORE static inline
 #endif
 
-#define TESSERA_FOREVER 0xFFFFFFFFFFFFFFFFull
+#define TESSERA_FOREVER 0xFFFFFFFFFFFFFFFFULL
 
 // the max a call can add to each of a ledger's arrays: its jobs, its tracked peaks and its deadlines
 typedef struct
@@ -60,11 +60,11 @@ TESSERA_CORE int tessera_core_signum_same(const EngineSignum *left, const Engine
 TESSERA_CORE TesseraCapacity tessera_core_capacity(const TesseraLedger *ledger, TesseraCallKind type)
 {
     TesseraCapacity needed = {ledger->job_count, ledger->history_count, ledger->heap_count};
-    needed.jobs += (type == TESSERA_CALL_SUBMIT) ? 1ull : 0ull;
-    needed.history += ((type == TESSERA_CALL_RELEASE) || (type == TESSERA_CALL_REMEMBER)) ? 1ull : 0ull;
+    needed.jobs += (type == TESSERA_CALL_SUBMIT) ? 1ULL : 0ULL;
+    needed.history += ((type == TESSERA_CALL_RELEASE) || (type == TESSERA_CALL_REMEMBER)) ? 1ULL : 0ULL;
     needed.heap += ((type == TESSERA_CALL_SUBMIT) || (type == TESSERA_CALL_RELEASE) || (type == TESSERA_CALL_IDLE))
-                       ? 1ull
-                       : ((type == TESSERA_CALL_ADMIT) ? ledger->job_count : 0ull);
+                       ? 1ULL
+                       : ((type == TESSERA_CALL_ADMIT) ? ledger->job_count : 0ULL);
     return needed;
 }
 
@@ -83,10 +83,10 @@ TESSERA_CORE int tessera_core_heap_push(TesseraLedger *ledger, unsigned long lon
         return 0;
     }
     unsigned long long at = ledger->heap_count;
-    ledger->heap_count += 1ull;
-    while (at != 0ull)
+    ledger->heap_count += 1ULL;
+    while (at != 0ULL)
     {
-        const unsigned long long parent = (at - 1ull) / 2ull;
+        const unsigned long long parent = (at - 1ULL) / 2ULL;
         if (ledger->heap[parent].when <= when)
         {
             break;
@@ -102,17 +102,17 @@ TESSERA_CORE int tessera_core_heap_push(TesseraLedger *ledger, unsigned long lon
 
 TESSERA_CORE void tessera_core_heap_pop(TesseraLedger *ledger)
 {
-    ledger->heap_count -= 1ull;
+    ledger->heap_count -= 1ULL;
     const TesseraDeadline last = ledger->heap[ledger->heap_count];
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     for (;;)
     {
-        const unsigned long long left = (2ull * at) + 1ull;
+        const unsigned long long left = (2ULL * at) + 1ULL;
         if (left >= ledger->heap_count)
         {
             break;
         }
-        const unsigned long long right = left + 1ull;
+        const unsigned long long right = left + 1ULL;
         const unsigned long long least =
             ((right < ledger->heap_count) && (ledger->heap[right].when < ledger->heap[left].when)) ? right : left;
         if (last.when <= ledger->heap[least].when)
@@ -122,7 +122,7 @@ TESSERA_CORE void tessera_core_heap_pop(TesseraLedger *ledger)
         ledger->heap[at] = ledger->heap[least];
         at = least;
     }
-    if (ledger->heap_count != 0ull)
+    if (ledger->heap_count != 0ULL)
     {
         ledger->heap[at] = last;
     }
@@ -130,7 +130,7 @@ TESSERA_CORE void tessera_core_heap_pop(TesseraLedger *ledger)
 
 TESSERA_CORE TesseraJob *tessera_core_find(const TesseraLedger *ledger, unsigned long long identity)
 {
-    for (unsigned long long at = 0ull; at < ledger->job_count; at += 1ull)
+    for (unsigned long long at = 0ULL; at < ledger->job_count; at += 1ULL)
     {
         if (ledger->jobs[at].identity == identity)
         {
@@ -144,11 +144,11 @@ TESSERA_CORE void tessera_core_remove(TesseraLedger *ledger, const TesseraJob *j
 {
     // the job points into the array, and its distance from the start is its index
     const unsigned long long at = (unsigned long long)(job - ledger->jobs);
-    for (unsigned long long next = at + 1ull; next < ledger->job_count; next += 1ull)
+    for (unsigned long long next = at + 1ULL; next < ledger->job_count; next += 1ULL)
     {
-        ledger->jobs[next - 1ull] = ledger->jobs[next];
+        ledger->jobs[next - 1ULL] = ledger->jobs[next];
     }
-    ledger->job_count -= 1ull;
+    ledger->job_count -= 1ULL;
 }
 
 TESSERA_CORE unsigned long long tessera_core_blocked(const TesseraJob *job)
@@ -158,7 +158,7 @@ TESSERA_CORE unsigned long long tessera_core_blocked(const TesseraJob *job)
 
 TESSERA_CORE unsigned long long tessera_core_unallocated(const TesseraJob *job)
 {
-    return (job->reservation > job->used) ? (job->reservation - job->used) : 0ull;
+    return (job->reservation > job->used) ? (job->reservation - job->used) : 0ULL;
 }
 
 TESSERA_CORE void tessera_core_device(TesseraLedger *ledger, unsigned long long capacity, unsigned long long in_use)
@@ -169,8 +169,8 @@ TESSERA_CORE void tessera_core_device(TesseraLedger *ledger, unsigned long long 
 
 TESSERA_CORE long long tessera_core_headroom(const TesseraLedger *ledger)
 {
-    unsigned long long owed = 0ull;
-    for (unsigned long long at = 0ull; at < ledger->job_count; at += 1ull)
+    unsigned long long owed = 0ULL;
+    for (unsigned long long at = 0ULL; at < ledger->job_count; at += 1ULL)
     {
         if (ledger->jobs[at].state == TESSERA_JOB_RUNNING)
         {
@@ -184,7 +184,7 @@ TESSERA_CORE long long tessera_core_headroom(const TesseraLedger *ledger)
 
 TESSERA_CORE const TesseraHistory *tessera_core_history(const TesseraLedger *ledger, const EngineSignum *signum)
 {
-    for (unsigned long long at = 0ull; at < ledger->history_count; at += 1ull)
+    for (unsigned long long at = 0ULL; at < ledger->history_count; at += 1ULL)
     {
         if (tessera_core_signum_same(&ledger->history[at].signum, signum))
         {
@@ -204,19 +204,19 @@ TESSERA_CORE unsigned long long tessera_core_wants(const TesseraLedger *ledger, 
     return ((previous != NULL) && (previous->peak > total)) ? previous->peak : total;
 }
 
-// the bytes a waiting job has yet to find on the device: what it wants less what its process already has allocated
+// the bytes a waiting job has yet to find on the device: what it wants less what its process already allocated
 // there, which the device's measured use counts
 TESSERA_CORE unsigned long long tessera_core_needs(const TesseraLedger *ledger, const TesseraJob *job)
 {
     const unsigned long long wants = tessera_core_wants(ledger, job);
-    return (wants > job->request.located) ? (wants - job->request.located) : 0ull;
+    return (wants > job->request.located) ? (wants - job->request.located) : 0ULL;
 }
 
 TESSERA_CORE int tessera_core_submit(TesseraLedger *ledger, const TesseraJobRequest *request, unsigned long long now,
                                      unsigned long long *identity, TesseraEvent *event)
 {
-    *event = tessera_core_event(TESSERA_EVENT_NONE, 0ull, 0ull, 0ull);
-    if ((request->declared == 0ull) || (ledger->job_count >= ledger->job_capacity))
+    *event = tessera_core_event(TESSERA_EVENT_NONE, 0ULL, 0ULL, 0ULL);
+    if ((request->declared == 0ULL) || (ledger->job_count >= ledger->job_capacity))
     {
         return 0;
     }
@@ -226,24 +226,24 @@ TESSERA_CORE int tessera_core_submit(TesseraLedger *ledger, const TesseraJobRequ
     job->identity = ledger->next_identity;
     job->request = *request;
     job->state = over ? TESSERA_JOB_OVER_BUDGET : TESSERA_JOB_WAITING;
-    job->reservation = 0ull;
-    job->used = 0ull;
-    job->peak = 0ull;
-    job->measures = 0ull;
+    job->reservation = 0ULL;
+    job->used = 0ULL;
+    job->peak = 0ULL;
+    job->measures = 0ULL;
     job->submitted = now;
-    job->started = 0ull;
-    job->expected_end = 0ull;
-    job->grace_until = over ? tessera_core_sum(now, request->grace_microseconds) : 0ull;
-    job->next_sweep = 0ull;
+    job->started = 0ULL;
+    job->expected_end = 0ULL;
+    job->grace_until = over ? tessera_core_sum(now, request->grace_microseconds) : 0ULL;
+    job->next_sweep = 0ULL;
     if (over && !tessera_core_heap_push(ledger, job->grace_until, job->identity, TESSERA_EVENT_LOST))
     {
         return 0;
     }
-    ledger->job_count += 1ull;
-    ledger->next_identity += 1ull;
+    ledger->job_count += 1ULL;
+    ledger->next_identity += 1ULL;
     *identity = job->identity;
     *event = tessera_core_event(over ? TESSERA_EVENT_OVER_BUDGET : TESSERA_EVENT_NONE, job->identity, request->declared,
-                                (previous != NULL) ? previous->peak : 0ull);
+                                (previous != NULL) ? previous->peak : 0ULL);
     return 1;
 }
 
@@ -262,7 +262,7 @@ TESSERA_CORE int tessera_core_override(TesseraLedger *ledger, unsigned long long
 TESSERA_CORE int tessera_core_measure(TesseraLedger *ledger, unsigned long long identity, unsigned long long used,
                                       TesseraEvent *event)
 {
-    *event = tessera_core_event(TESSERA_EVENT_NONE, 0ull, 0ull, 0ull);
+    *event = tessera_core_event(TESSERA_EVENT_NONE, 0ULL, 0ULL, 0ULL);
     TesseraJob *const job = tessera_core_find(ledger, identity);
     if ((job == NULL) || (job->state != TESSERA_JOB_RUNNING))
     {
@@ -270,7 +270,7 @@ TESSERA_CORE int tessera_core_measure(TesseraLedger *ledger, unsigned long long 
     }
     job->used = used;
     job->peak = (used > job->peak) ? used : job->peak;
-    job->measures += 1ull;
+    job->measures += 1ULL;
     if (used > job->reservation)
     {
         job->reservation = used;
@@ -281,7 +281,7 @@ TESSERA_CORE int tessera_core_measure(TesseraLedger *ledger, unsigned long long 
 
 TESSERA_CORE int tessera_core_remember(TesseraLedger *ledger, const TesseraHistory *entry)
 {
-    for (unsigned long long at = 0ull; at < ledger->history_count; at += 1ull)
+    for (unsigned long long at = 0ULL; at < ledger->history_count; at += 1ULL)
     {
         if (tessera_core_signum_same(&ledger->history[at].signum, &entry->signum))
         {
@@ -294,7 +294,7 @@ TESSERA_CORE int tessera_core_remember(TesseraLedger *ledger, const TesseraHisto
         return 0;
     }
     ledger->history[ledger->history_count] = *entry;
-    ledger->history_count += 1ull;
+    ledger->history_count += 1ULL;
     return 1;
 }
 

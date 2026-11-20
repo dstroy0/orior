@@ -84,7 +84,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\version_catalog\\test_version_catalog\\test_version_catalog.c");
+  UnityBegin("utils/test/src/ui/cli/unit/version_catalog/test_version_catalog/test_version_catalog.c");
   run_test(test_a_catalog_reads_its_sections_in_order_with_no_error, "test_a_catalog_reads_its_sections_in_order_with_no_error", 61);
   run_test(test_a_librarys_alias_reads_its_module_and_version, "test_a_librarys_alias_reads_its_module_and_version", 122);
   run_test(test_a_bundles_alias_reads_its_libraries, "test_a_bundles_alias_reads_its_libraries", 137);

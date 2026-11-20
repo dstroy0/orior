@@ -15,7 +15,7 @@
 # never ends and hangs the part, and the display watchdog's reset under the run's load can hold a kernel DPC past its
 # watchdog and stop the whole machine with a DPC_WATCHDOG_VIOLATION. The runner holds every cubin to cubin_safe on the
 # host first, and a cubin holding a branch or a wait never reaches the driver. The per-pass timeout cap below ends a
-# waiting runner and cannot clear a part the kernel has wedged. The contexts that reach such a loop, and the bound an
+# waiting runner and cannot clear a part the kernel wedged. The contexts that reach such a loop, and the bound an
 # ask carries against them, are P9 of theory/workbooks/Lstar_protocol/query_protocol_table.md.
 set -u
 

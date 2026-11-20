@@ -31,7 +31,7 @@
 # right move is to declare where it comes from and not pick one.
 #
 # It comes from the reference. The grid is two degrees because the Richardson laboratory published
-# it at two degrees; the favored and allowed cutoffs below are the numbers MolProbity scores with,
+# it at two degrees. The favored and allowed cutoffs below are the numbers MolProbity scores with,
 # named here and not tuned. The decimal precision the angle is taken to is set far under the
 # grid so that it decides nothing. No number in this file was chosen to make a result come out, and
 # every stage that uses one reports it.

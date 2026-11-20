@@ -43,16 +43,16 @@ __device__ static long long device_overlap_moved(const OverlapView *view, unsign
 {
     const int *const lag = device_overlap_lag_of(view, label);
     unsigned int rest = position;
-    long long moved = 0ll;
-    long long stride = 1ll;
+    long long moved = 0LL;
+    long long stride = 1LL;
     for (unsigned int axis = view->axes; axis > 0u; axis -= 1u)
     {
         const long long extent = (long long)view->extents[axis - 1u];
         const long long coordinate = (long long)(rest % view->extents[axis - 1u]) + (long long)lag[axis - 1u];
         rest /= view->extents[axis - 1u];
-        if ((coordinate < 0ll) || (coordinate >= extent))
+        if ((coordinate < 0LL) || (coordinate >= extent))
         {
-            return -1ll;
+            return -1LL;
         }
         moved += coordinate * stride;
         stride *= extent;
@@ -75,21 +75,21 @@ __global__ static void overlap_kernel(const unsigned long long *positive_before,
     const unsigned int end = ((voxels - first) < BODY_OVERLAP_CHUNK) ? voxels : (first + BODY_OVERLAP_CHUNK);
     unsigned int written = (offsets != NULL) ? offsets[chunk] : 0u;
     unsigned int runs = 0u;
-    unsigned long long run_pair = 0ull;
+    unsigned long long run_pair = 0ULL;
     unsigned int run_length = 0u;
     for (unsigned int voxel = first; voxel < end; voxel += 1u)
     {
-        if ((positive_before[voxel / 64u] & (1ull << (voxel % 64u))) == 0ull)
+        if ((positive_before[voxel / 64u] & (1ULL << (voxel % 64u))) == 0ULL)
         {
             continue;
         }
         const long long moved = device_overlap_moved(&view, voxel, labels_before[voxel]);
-        if (moved < 0ll)
+        if (moved < 0LL)
         {
             continue;
         }
         const unsigned int there = (unsigned int)moved;
-        if ((positive_after[there / 64u] & (1ull << (there % 64u))) == 0ull)
+        if ((positive_after[there / 64u] & (1ULL << (there % 64u))) == 0ULL)
         {
             continue;
         }
@@ -176,19 +176,19 @@ extern "C" void body_overlap_release(void)
 
 static unsigned long long overlap_paged(unsigned long long bytes, unsigned long long page)
 {
-    return ((bytes + page) - 1ull) / page * page;
+    return ((bytes + page) - 1ULL) / page * page;
 }
 
 extern "C" unsigned long long body_overlap_bytes(unsigned long long voxels, unsigned long long runs,
                                                  unsigned long long page)
 {
-    const unsigned long long words = (voxels + 63ull) / 64ull;
-    const unsigned long long chunks = (voxels + BODY_OVERLAP_CHUNK - 1ull) / BODY_OVERLAP_CHUNK;
+    const unsigned long long words = (voxels + 63ULL) / 64ULL;
+    const unsigned long long chunks = (voxels + BODY_OVERLAP_CHUNK - 1ULL) / BODY_OVERLAP_CHUNK;
     // the runs' room as reserve_overlap grows it: half again over what is requested
-    const unsigned long long capacity = (runs + 1ull) + ((runs + 1ull) / 2ull);
-    return (2ull * overlap_paged(words * sizeof(unsigned long long), page)) +
-           (2ull * overlap_paged(voxels * sizeof(unsigned int), page)) +
-           (2ull * overlap_paged(chunks * sizeof(unsigned int), page)) +
+    const unsigned long long capacity = (runs + 1ULL) + ((runs + 1ULL) / 2ULL);
+    return (2ULL * overlap_paged(words * sizeof(unsigned long long), page)) +
+           (2ULL * overlap_paged(voxels * sizeof(unsigned int), page)) +
+           (2ULL * overlap_paged(chunks * sizeof(unsigned int), page)) +
            overlap_paged(capacity * sizeof(unsigned long long), page) +
            overlap_paged(capacity * sizeof(unsigned int), page);
 }
@@ -256,7 +256,7 @@ static int overlap_view(const BodyOverlapRequest *args, OverlapView *view)
     }
     memset(view, 0, sizeof(*view));
     view->axes = args->axes;
-    unsigned long long product = 1ull;
+    unsigned long long product = 1ULL;
     for (unsigned int axis = 0u; axis < args->axes; axis += 1u)
     {
         view->extents[axis] = args->extents[axis];
@@ -376,7 +376,7 @@ static long overlap_results(const BodyOverlapRequest *args, OverlapView view, co
                         continue;
                     }
                     args->peaks_before[written] = (unsigned int)(pairs[run] >> 32u);
-                    args->peaks_after[written] = (unsigned int)(pairs[run] & 0xFFFFFFFFull);
+                    args->peaks_after[written] = (unsigned int)(pairs[run] & 0xFFFFFFFFULL);
                     args->counts[written] = lengths[run];
                     written += 1u;
                 }

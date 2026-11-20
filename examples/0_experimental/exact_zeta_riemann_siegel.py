@@ -61,7 +61,7 @@
 # symmetric, Psi(1 - p) = Psi(p), and c_k(1) = (-1)^k c_k(0). Where x crosses nu + 1, S gains the term
 # 2 (nu + 1)^(-1/2) cos(theta - t ln(nu + 1)), which is 2 (-1)^(nu+1) cos(pi/8) / u to its first order,
 # and R turns from (-1)^(nu-1) sum c_k(1) u^-(2k+1) to (-1)^nu sum c_k(0) u^-(2k+1), a jump of
-# 2 (-1)^nu sum over even k of c_k(0) u^-(2k+1). The two jumps meet and Z is continuous; what is left of
+# 2 (-1)^nu sum over even k of c_k(0) u^-(2k+1). The two jumps meet and Z is continuous. What is left of
 # them is the jump of the terms R leaves out, the seam read by `seam`.
 #
 # Over each cell, with D = Z_RS - Z_EM and E = S - R, three sides: a = int |D| dp, b = int |E| dp, and
@@ -890,7 +890,7 @@ def c_value(n, count, digits, a, bits):
 
 def c_at(n, num, den, digits):
     """C_n(num / den), |num / den| <= 1, at digits + GUARD: count and 2 count Taylor terms, the second at
-    twice the extra digits, agreeing with the guard dropped; disagreement doubles count. An odd C_n
+    twice the extra digits, agreeing with the guard dropped. Disagreement doubles count. An odd C_n
     turns sign with z, and the series is read at |z|."""
     sign = 1 - 2 * (n % 2) * int(num < 0)
     num = abs(num)
@@ -972,7 +972,7 @@ class Vanishing:
         return self.signs[key]
 
     def past_zero(self, n, a, bits):
-        """An odd C_n is zero at 0 by parity; the sign just past 0 is the sign of its z coefficient,
+        """An odd C_n is zero at 0 by parity. The sign just past 0 is the sign of its z coefficient,
         read at digits and twice them until the two agree and read nonzero."""
         digits, decided = 40, 0
         while NOT(decided):
@@ -1248,7 +1248,7 @@ class Omitted:
 
 def omitted_exact(nu, cut, terms, digits):
     """a over the cell from the omitted curves, at digits + GUARD, by the series at count and 2 count
-    terms agreeing with the guard dropped; disagreement doubles count. The zeros are halved to the
+    terms agreeing with the guard dropped. Disagreement doubles count. The zeros are halved to the
     bits where a misplaced end moves a by less than the last place."""
     bits = 4 * (digits + GUARD)
     count, decided = 32, 0

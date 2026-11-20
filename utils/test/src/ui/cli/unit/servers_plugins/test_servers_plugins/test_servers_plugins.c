@@ -7,7 +7,7 @@
 #include "ui/cli/src/tests/test_runs.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
-// A language server in Python that answers initialize; for each file it is sent, reports one thing wrong in it and asks the editor a
+// A language server in Python that answers initialize. For each file it is sent, reports one thing wrong in it and asks the editor a
 // question; and reports the answer it receives
 static const char s_are_in[] = "import json, sys\n"
                                  "def read():\n"

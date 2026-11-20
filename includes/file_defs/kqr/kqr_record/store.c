@@ -62,7 +62,7 @@ void kqr_store_by(KqrRecord *record, const KqrQuery *query, Who who)
     {
         return;
     }
-    // the answer that resolves it, or the part's own word where the gate had gated it, takes its place, after a who
+    // the answer that resolves it, or the part's own word where the gate gated it, takes its place, after a who
     // record of `who` and before the who in force there again, where that one is another's
     Who there;
     const int there_has_who = krep_who_at(&record->file, at, &there);
@@ -103,7 +103,7 @@ void kqr_sample_by(KqrRecord *record, const KqrSample *sample, Who who)
 
 void kqr_mark(KqrRecord *record, unsigned int code, const char *value)
 {
-    unsigned long long word = 0ull;
+    unsigned long long word = 0ULL;
     if (code == KQR_CYCLE_RECORD)
     {
         word = kqr_text_number(record, value);
@@ -124,7 +124,7 @@ void kqr_mark(KqrRecord *record, unsigned int code, const char *value)
     }
     record->pending_code[record->pendings] = code;
     record->pending_word[record->pendings][0] = word;
-    record->pending_word[record->pendings][1] = 0ull;
+    record->pending_word[record->pendings][1] = 0ULL;
     record->pendings += 1u;
 }
 
@@ -167,7 +167,7 @@ int kqr_path_read(const KqrRecord *record, unsigned int at, KqrPath *out)
             memset(out, 0, sizeof(*out));
             kqr_text_copied(record, pair->word[0], out->first, sizeof(out->first));
             kqr_text_copied(record, pair->word[1], out->second, sizeof(out->second));
-            out->read = (pair->word[2] != 0ull);
+            out->read = (pair->word[2] != 0ULL);
             out->reads = pair->word[3];
             kqr_text_copied(record, pair->word[4], out->verdict, sizeof(out->verdict));
             return 1;
@@ -195,7 +195,7 @@ void kqr_path_add_by(KqrRecord *record, const KqrPath *path, Who who)
         return;
     }
     const unsigned long long words[5] = {kqr_text_number(record, path->first), kqr_text_number(record, path->second),
-                                         path->read ? 1ull : 0ull, path->read ? path->reads : 0ull,
+                                         path->read ? 1ULL : 0ULL, path->read ? path->reads : 0ULL,
                                          kqr_text_number(record, path->verdict)};
     if (krep_record_add(&record->file, KQR_PAIR_RECORD, words, 5u))
     {
@@ -269,7 +269,7 @@ size_t kqr_text_sliced(const KqrRecord *record, char *out, size_t cap, size_t at
     for (unsigned int at = from; at < past; at += 1u)
     {
         const KrepRecord *const entry = &record->file.record[at];
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         const char *words = NULL;
         switch (entry->code)
         {
@@ -349,7 +349,7 @@ size_t kqr_text_sliced(const KqrRecord *record, char *out, size_t cap, size_t at
             kqr_text_copied(record, entry->word[0], s_path.first, sizeof(s_path.first));
             kqr_text_copied(record, entry->word[1], s_path.second, sizeof(s_path.second));
             kqr_text_copied(record, entry->word[4], s_path.verdict, sizeof(s_path.verdict));
-            if (entry->word[2] != 0ull)
+            if (entry->word[2] != 0ULL)
             {
                 text_put("pair ");
                 text_put(s_path.first);

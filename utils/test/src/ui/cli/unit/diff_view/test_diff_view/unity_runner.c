@@ -76,7 +76,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\diff_view\\test_diff_view\\test_diff_view.c");
+  UnityBegin("utils/test/src/ui/cli/unit/diff_view/test_diff_view/test_diff_view.c");
   run_test(test_the_file_against_the_last_commit_positions_a_row_each_line, "test_the_file_against_the_last_commit_positions_a_row_each_line", 164);
   run_test(test_the_steps_wrap_and_follow_the_row_in_view, "test_the_steps_wrap_and_follow_the_row_in_view", 190);
   run_test(test_a_file_the_last_commit_lacks_puts_every_line_in, "test_a_file_the_last_commit_lacks_puts_every_line_in", 207);

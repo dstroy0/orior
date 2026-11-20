@@ -2,7 +2,7 @@
 
 usage: python tier_check.py <stem> [stem ...]
 
-residue.py checks that every row's text is the paper's; it cannot see a row given the wrong type,
+residue.py checks that every row's text is the paper's. It cannot see a row given the wrong type,
 a context line read as the transcription and every tier under it shifted one down. This does, for
 the rows of numbered examples, by three tests, each run only where the paper retains the convention
 it rests on (the majority of its rows do):

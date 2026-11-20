@@ -29,7 +29,7 @@ typedef struct CliDebugCtx CliDebugCtx;
 
 // the max requests sent to adapters at once, and the max bytes of a request's arguments
 #define CLI_DEBUG_ANSWERS 4u
-#define CLI_DEBUG_ARGS (1ull << 20u)
+#define CLI_DEBUG_ARGS (1ULL << 20u)
 
 // the max sessions at once, one adapter each; the exceptions one adapter can stop on; the max breakpoints the reader
 // placed that a session stores, and its data breakpoints, and those each list is taken with; and the nodes and bytes
@@ -48,10 +48,10 @@ typedef struct CliDebugCtx CliDebugCtx;
 // how long, in milliseconds, the adapter has to start, to be ready for breakpoints, and to launch the program; a
 // request about the stopped program may take; after it is initialized an adapter has to report it is ready before the
 // launch, as gdb does; and a build for debugging may take
-#define CLI_DEBUG_STARTING 30000ull
-#define CLI_DEBUG_REQUEST_TIMEOUT_MS 10000ull
-#define CLI_DEBUG_EARLY 150ull
-#define CLI_DEBUG_BUILDING 300000ull
+#define CLI_DEBUG_STARTING 30000ULL
+#define CLI_DEBUG_REQUEST_TIMEOUT_MS 10000ULL
+#define CLI_DEBUG_EARLY 150ULL
+#define CLI_DEBUG_BUILDING 300000ULL
 
 // the name of the breakpoints a step from Python into C sets on the tree's native code
 #define CLI_DEBUG_ACROSS "orior_across"

@@ -14,7 +14,7 @@
 # together. The collection a text came from was moving alongside everything else.
 #
 # Malagasy sets the same question up by geography. It is Austronesian, spoken in Madagascar, and its
-# nearest relatives are in Borneo across the Indian Ocean. Everything it has borrowed from since is
+# nearest relatives are in Borneo across the Indian Ocean. Everything it borrowed from since is
 # African and French. Descent points several thousand kilometers east and contact points at the coast it
 # sits off, and nothing here confounds the two the way everything in Europe does.
 #
@@ -76,7 +76,7 @@ def main():
             out.write("  %-12s errored in the gate: %s\n" % (label, gate))
             continue
         if len(text) < (SAME_LENGTH // 3):
-            # Said as itself. Printing the gate's note here read as though the gate had rejected a file
+            # Said as itself. Printing the gate's note here read as though the gate rejected a file
             # it passed, and Tagalog was reported as having no script known when it was simply short.
             out.write("  %-12s passed the gate and holds %d characters, under the %d needed\n"
                       % (label, len(text), SAME_LENGTH // 3))

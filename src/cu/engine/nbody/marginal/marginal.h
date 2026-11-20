@@ -18,7 +18,7 @@ extern "C"
 
 #define MARGINAL_TARGETS_MAX 64u
 
-#define MARGINAL_ARRANGEMENTS_MAX (1ull << 16u)
+#define MARGINAL_ARRANGEMENTS_MAX (1ULL << 16u)
 
 #define MARGINAL_TOTAL 0u
 

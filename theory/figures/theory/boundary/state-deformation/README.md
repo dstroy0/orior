@@ -83,7 +83,7 @@ The round computes two words and shifts the other six:
 
 Six of the eight words at round `r` are words from round `r - 1` in a new position, measured at 63
 of 63 rounds in `examples/proofing/state_deflection.py --check`. A surface computed from a state
-that is five sixths unchanged cannot jump; the autocorrelation this sequence shows is very
+that is five sixths unchanged cannot jump. The autocorrelation this sequence shows is very
 probably the shift register appearing in the shape.
 
 That is worth saying plainly because it is the interesting reading and not a deflation. The viewer

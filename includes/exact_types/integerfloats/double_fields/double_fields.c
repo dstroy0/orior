@@ -8,7 +8,7 @@ _Static_assert(sizeof(unsigned long long) == sizeof(double),
                "the bit pattern of a double does not fit unsigned long long");
 _Static_assert(1u + ENGINE_DOUBLE_EXP_BITS + ENGINE_DOUBLE_MANT_BITS == ENGINE_DOUBLE_BITS,
                "the three fields do not add up to the width of the value");
-_Static_assert((ENGINE_DOUBLE_SIGN_MASK | ENGINE_DOUBLE_EXP_MASK | ENGINE_DOUBLE_MANT_MASK) == 0xFFFFFFFFFFFFFFFFull,
+_Static_assert((ENGINE_DOUBLE_SIGN_MASK | ENGINE_DOUBLE_EXP_MASK | ENGINE_DOUBLE_MANT_MASK) == 0xFFFFFFFFFFFFFFFFULL,
                "the three field masks leave a gap");
 _Static_assert(((ENGINE_DOUBLE_SIGN_MASK & ENGINE_DOUBLE_EXP_MASK) == 0u) &&
                    ((ENGINE_DOUBLE_EXP_MASK & ENGINE_DOUBLE_MANT_MASK) == 0u) &&

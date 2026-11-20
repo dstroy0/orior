@@ -104,7 +104,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\highlight\\test_highlight\\test_highlight.c");
+  UnityBegin("utils/test/src/ui/cli/unit/highlight/test_highlight/test_highlight.c");
   run_test(test_a_string_of_thousands_of_characters_runs_to_its_closing_quote, "test_a_string_of_thousands_of_characters_runs_to_its_closing_quote", 217);
   run_test(test_a_line_is_colored_by_its_rules_and_ends_in_root, "test_a_line_is_colored_by_its_rules_and_ends_in_root", 254);
   run_test(test_each_bracket_is_a_token_of_its_own, "test_each_bracket_is_a_token_of_its_own", 260);

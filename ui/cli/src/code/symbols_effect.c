@@ -1450,7 +1450,7 @@ static void cli_effect_walk(const SymbolsEffectCtx *args)
         branch->read.capacity = 0u;
         if (from_disk)
         {
-            g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_code_owner));
+            g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_code_owner);
         }
     }
     g_cli_guard->persistent_buf_release(branch->declared, g_cli_code_owner);
@@ -1479,7 +1479,7 @@ CliEffect *cli_effect_init(const CliSymbolsPathNameCtx *args)
         if (languages != NULL)
         {
             g_cli_guard->persistent_buf_release(languages->languages.pair, g_cli_plugins_owner);
-            *(&languages->languages) = (CliLanguages){NULL, 0u, 0u};
+            languages->languages = (CliLanguages){NULL, 0u, 0u};
         }
         g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
         g_cli_guard->persistent_buf_release(effect, g_cli_code_owner);
@@ -1552,14 +1552,14 @@ void cli_effect_input_back(const CliSymbolsTextLengthCtx *args)
         if (args->effect->branch_read[at].from_disk)
         {
             g_cli_guard->persistent_buf_release((void *)(embed_word)(args->effect->branch_read[at].bytes),
-                                                (g_cli_code_owner));
+                                                g_cli_code_owner);
         }
     }
     g_cli_guard->persistent_buf_release(args->effect->branch_read, g_cli_code_owner);
     if (args->effect->languages != NULL)
     {
         g_cli_guard->persistent_buf_release(args->effect->languages->languages.pair, g_cli_plugins_owner);
-        *(&args->effect->languages->languages) = (CliLanguages){NULL, 0u, 0u};
+        args->effect->languages->languages = (CliLanguages){NULL, 0u, 0u};
     }
     g_cli_guard->persistent_buf_release(args->effect->languages, g_cli_code_owner);
     g_cli_guard->persistent_buf_release(args->effect, g_cli_code_owner);

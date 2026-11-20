@@ -60,13 +60,13 @@ struct PairWork
     const Ruleset *sass = NULL;
     const char *machine = NULL;
     Carriers carriers;
-    unsigned long seed = 1ul;
+    unsigned long seed = 1UL;
     std::vector<std::string> bridge;
     std::vector<std::string> keys;
     std::vector<std::set<unsigned long long>> cased;
     unsigned int conferences = 0u;
     unsigned int lessons_taught = 0u;
-    unsigned long long queries = 0ull;
+    unsigned long long queries = 0ULL;
     // every choice a put makes at a link, written to the log as `choice <flags> <link>` (pair.cu)
     void chosen(const char *const *names, unsigned int count, const std::string &link) const;
     void chose(const char *name, const std::string &link) const;

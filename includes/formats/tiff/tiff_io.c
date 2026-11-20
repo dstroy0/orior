@@ -31,7 +31,7 @@ int tiff_fail_named(TiffFile *file, const char *before, const char *name)
 
 int tiff_multiply(TiffFile *file, unsigned long long left, unsigned long long right, unsigned long long *product)
 {
-    if ((left != 0ull) && (right > (~0ull / left)))
+    if ((left != 0ULL) && (right > (~0ULL / left)))
     {
         return tiff_fail(file, "a size that does not fit in 64 bits");
     }
@@ -45,20 +45,20 @@ int tiff_reserve(TiffFile *file, unsigned char **buffer, unsigned long long *cap
     {
         return file->reason == NULL;
     }
-    const unsigned long long requested = (needed == 0ull) ? 1ull : needed;
+    const unsigned long long requested = (needed == 0ULL) ? 1ULL : needed;
     if ((unsigned long long)(size_t)requested != requested)
     {
         return tiff_fail(file, "a buffer larger than this machine can address");
     }
     free(*buffer);
     *buffer = (unsigned char *)malloc((size_t)requested);
-    *capacity = (*buffer != NULL) ? requested : 0ull;
+    *capacity = (*buffer != NULL) ? requested : 0ULL;
     return (*buffer != NULL) ? (file->reason == NULL) : tiff_fail(file, "out of memory");
 }
 
 int tiff_fetch(TiffFile *file, unsigned long long offset, unsigned long long bytes, unsigned char *out)
 {
-    if ((file->reason != NULL) || (bytes == 0ull))
+    if ((file->reason != NULL) || (bytes == 0ULL))
     {
         return file->reason == NULL;
     }
@@ -77,7 +77,7 @@ int tiff_fetch(TiffFile *file, unsigned long long offset, unsigned long long byt
 
 unsigned long long tiff_unpack(const TiffFile *file, const unsigned char *raw, unsigned int width)
 {
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     for (unsigned int position = 0u; position < width; position += 1u)
     {
         const unsigned int shift = file->big_endian ? (8u * (width - 1u - position)) : (8u * position);
@@ -102,7 +102,7 @@ int tiff_open(TiffFile *file, const char *path, const char *member, const Engine
     }
     file->file_bytes = (unsigned long long)size;
     unsigned char header[16u] = {0u};
-    if (!tiff_fetch(file, 0ull, 8ull, header))
+    if (!tiff_fetch(file, 0ULL, 8ULL, header))
     {
         return file->reason == NULL;
     }
@@ -114,18 +114,18 @@ int tiff_open(TiffFile *file, const char *path, const char *member, const Engine
     }
     file->big_endian = big;
     const unsigned long long version = tiff_unpack(file, &header[2u], 2u);
-    if (version == 42ull)
+    if (version == 42ULL)
     {
         file->first_ifd = tiff_unpack(file, &header[4u], 4u);
     }
-    else if (version == 43ull)
+    else if (version == 43ULL)
     {
         file->bigtiff = 1u;
-        if (!tiff_fetch(file, 0ull, 16ull, header))
+        if (!tiff_fetch(file, 0ULL, 16ULL, header))
         {
             return file->reason == NULL;
         }
-        if ((tiff_unpack(file, &header[4u], 2u) != 8ull) || (tiff_unpack(file, &header[6u], 2u) != 0ull))
+        if ((tiff_unpack(file, &header[4u], 2u) != 8ULL) || (tiff_unpack(file, &header[6u], 2u) != 0ULL))
         {
             return tiff_fail(file, "a BigTIFF header with an offset size other than 8");
         }
@@ -135,7 +135,7 @@ int tiff_open(TiffFile *file, const char *path, const char *member, const Engine
     {
         return tiff_fail_number(file, "TIFF version", version, "is not supported");
     }
-    return (file->first_ifd == 0ull) ? tiff_fail(file, "the file has no pages") : (file->reason == NULL);
+    return (file->first_ifd == 0ULL) ? tiff_fail(file, "the file has no pages") : (file->reason == NULL);
 }
 
 unsigned int tiff_type_bytes(unsigned int type)
@@ -187,9 +187,9 @@ int tiff_entry_integers(TiffFile *file, const TiffEntry *entry, unsigned long lo
     {
         return file->reason == NULL;
     }
-    for (unsigned long long position = count; position > 0ull; position -= 1ull)
+    for (unsigned long long position = count; position > 0ULL; position -= 1ULL)
     {
-        const unsigned long long element = position - 1ull;
+        const unsigned long long element = position - 1ULL;
         values[element] = tiff_unpack(file, &raw[element * width], width);
     }
     return file->reason == NULL;
@@ -198,22 +198,22 @@ int tiff_entry_integers(TiffFile *file, const TiffEntry *entry, unsigned long lo
 int tiff_entry_scalar(TiffFile *file, const TiffEntry *entry, unsigned long long fallback, unsigned long long *value)
 {
     *value = fallback;
-    return entry->present ? tiff_entry_integers(file, entry, value, 1ull) : (file->reason == NULL);
+    return entry->present ? tiff_entry_integers(file, entry, value, 1ULL) : (file->reason == NULL);
 }
 
 int tiff_ifd_next(TiffFile *file, unsigned long long ifd, unsigned long long *next)
 {
     const unsigned int count_bytes = file->bigtiff ? 8u : 2u;
     const unsigned int value_bytes = file->bigtiff ? 8u : 4u;
-    const unsigned long long entry_bytes = 4ull + (2ull * value_bytes);
+    const unsigned long long entry_bytes = 4ULL + (2ULL * value_bytes);
     unsigned char raw[8u] = {0u};
-    *next = 0ull;
+    *next = 0ULL;
     if (!tiff_fetch(file, ifd, count_bytes, raw))
     {
         return file->reason == NULL;
     }
     const unsigned long long entries = tiff_unpack(file, raw, count_bytes);
-    if ((entries == 0ull) || (entries > TIFF_ENTRIES_MAX))
+    if ((entries == 0ULL) || (entries > TIFF_ENTRIES_MAX))
     {
         return tiff_fail(file, "an IFD with no tags, or more tags than any image has");
     }

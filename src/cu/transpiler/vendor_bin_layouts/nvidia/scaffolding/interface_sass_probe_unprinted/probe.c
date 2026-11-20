@@ -26,7 +26,7 @@ unsigned long long unprinted_file_read(const char *path, unsigned char *bytes, u
     FILE *const file = fopen(path, "rb");
     if (file == NULL)
     {
-        return 0ull;
+        return 0ULL;
     }
     const unsigned long long read = (unsigned long long)fread(bytes, 1u, (size_t)room, file);
     fclose(file);
@@ -49,8 +49,8 @@ static void unprinted_bits_write(unsigned long long *low, unsigned long long *hi
     {
         const unsigned int at = first + bit;
         unsigned long long *const word = (at < 64u) ? low : high;
-        const unsigned long long mask = 1ull << (at % 64u);
-        *word = ((value >> bit) & 1ull) ? (*word | mask) : (*word & ~mask);
+        const unsigned long long mask = 1ULL << (at % 64u);
+        *word = ((value >> bit) & 1ULL) ? (*word | mask) : (*word & ~mask);
     }
 }
 
@@ -58,12 +58,12 @@ static void unprinted_bits_write(unsigned long long *low, unsigned long long *hi
 unsigned long long unprinted_bits_read(unsigned long long low, unsigned long long high, unsigned int first,
                                               unsigned int bits)
 {
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     for (unsigned int bit = 0u; bit < bits; bit += 1u)
     {
         const unsigned int at = first + bit;
         const unsigned long long word = (at < 64u) ? low : high;
-        value |= ((word >> (at % 64u)) & 1ull) << bit;
+        value |= ((word >> (at % 64u)) & 1ULL) << bit;
     }
     return value;
 }
@@ -71,7 +71,7 @@ unsigned long long unprinted_bits_read(unsigned long long low, unsigned long lon
 // the eight bytes at `bytes` as one word, the lowest first
 static unsigned long long unprinted_word_read(const unsigned char *bytes)
 {
-    unsigned long long word = 0ull;
+    unsigned long long word = 0ULL;
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
         word |= (unsigned long long)bytes[at] << (8u * at);
@@ -93,7 +93,7 @@ void unprinted_binary(unsigned long long value, unsigned int bits, char *text)
 {
     for (unsigned int bit = 0u; bit < bits; bit += 1u)
     {
-        text[bit] = ((value >> (bits - 1u - bit)) & 1ull) ? '1' : '0';
+        text[bit] = ((value >> (bits - 1u - bit)) & 1ULL) ? '1' : '0';
     }
     text[bits] = '\0';
 }
@@ -177,7 +177,7 @@ int unprinted_run(const unsigned char *code, unsigned long long code_size, unsig
     written.registers = UNPRINTED_REGISTERS;
     written.exit_count = cubin_exits_find(code, code_size, sass_exit_encoding(&s_machine), s_exits, UNPRINTED_EXITS);
     written.exits = s_exits;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     char cubin[1024];
     snprintf(cubin, sizeof(cubin), "%s/unprinted.cubin", s_folder);
     if (!cubin_write(&written, s_cubin, sizeof(s_cubin), &size) || !unprinted_file_write(cubin, s_cubin, size))
@@ -189,7 +189,7 @@ int unprinted_run(const unsigned char *code, unsigned long long code_size, unsig
     // waits would loop or stall the part and take the display down with it, and is blocked from the part here, never
     // passed to the driver. The register count is left open (UNPRINTED_REGISTERS), since which registers the part
     // allots is one of the things this probe reads
-    unsigned long long value_at = 0ull;
+    unsigned long long value_at = 0ULL;
     if (cubin_safe_image(&s_machine, s_cubin, size, written.registers, &value_at) != CUBIN_SAFE)
     {
         snprintf(ended, room, "blocked from the part by cubin_safe at byte %llu", value_at);
@@ -214,7 +214,7 @@ int unprinted_run(const unsigned char *code, unsigned long long code_size, unsig
         return 0;
     }
     const char *const line = strstr(s_output, "answered ");
-    if ((answer.ending != INTERFACE_ENDING_EXITED) || (answer.code != 0ull) || (line == NULL))
+    if ((answer.ending != INTERFACE_ENDING_EXITED) || (answer.code != 0ULL) || (line == NULL))
     {
         // the runner names the error the part raised on a line of its own, "error <number> <name>"
         const char *const raised = strstr(s_output, "error ");

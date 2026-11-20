@@ -13,7 +13,7 @@
 // compiler that has to be given an address and a word can be given them anywhere.
 //
 // A bus is any bus because a bus is these two. A window at an address is one writing of them, a serial line
-// clocking bits is another, a fabric's aperture a third; each is a few stores and loads at the addresses that drive
+// clocking bits is another, a fabric's aperture a third. Each is a few stores and loads at the addresses that drive
 // it, and each is found the same way as anything else here.
 //
 // What is on the bus is not a third relation. It is these two put to the bus's own addresses: read the word a part

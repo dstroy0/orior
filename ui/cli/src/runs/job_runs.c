@@ -104,7 +104,7 @@ EMBED_INLINE unsigned int run_place(const JobRunsCtx *args)
     for (unsigned int at = store->runs; at > 0u; at -= 1u)
     {
         unsigned long long number = 0ULL;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = store->run[(at - 1u)],
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = store->run[at - 1u],
                                                                 .offset = offsetof(CliJobRunsRun, run),
                                                                 .dst = &number,
                                                                 .bytes = sizeof(number)});
@@ -126,7 +126,7 @@ EMBED_INLINE void state_written(const JobRunsCtx *args)
     mmgr_line_decimal(&line, run->run, 1u);
     mmgr_line_ch(&line, ' ');
     // the state's bytes are fewer than its array's, far inside an unsigned int
-    run->word = (unsigned int)line.at;
+    run->word_at = (unsigned int)line.at;
     if (run->live)
     {
         mmgr_line_put(&line, "running");
@@ -345,7 +345,7 @@ EMBED_INLINE void line_read(const JobRunsCtx *args)
 // is never released, and the run that ended is
 EMBED_INLINE void runs_retained(const JobRunsCtx *args)
 {
-    CliJobRunsStore *const store = &g_cli_job_runs_store;
+    const CliJobRunsStore *const store = &g_cli_job_runs_store;
     CliJobRunsRun ended_run;
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = g_cli_job_runs_store.run[args->at], .offset = 0ULL, .dst = &ended_run, .bytes = sizeof(ended_run)});

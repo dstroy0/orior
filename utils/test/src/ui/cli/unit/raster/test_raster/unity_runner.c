@@ -80,7 +80,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\raster\\test_raster\\test_raster.c");
+  UnityBegin("utils/test/src/ui/cli/unit/raster/test_raster/test_raster.c");
   run_test(test_the_compression_is_smaller_than_the_page, "test_the_compression_is_smaller_than_the_page", 151);
   run_test(test_the_compression_restores_each_pixel, "test_the_compression_restores_each_pixel", 156);
   run_test(test_one_line_draws_one_page, "test_one_line_draws_one_page", 163);

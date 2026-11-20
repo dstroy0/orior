@@ -85,26 +85,35 @@ public class FunctionsDisassembled extends GhidraScript {
         FunctionManager functions = currentProgram.getFunctionManager();
         try (PrintWriter out = new PrintWriter(new FileWriter(arguments[1]))) {
             for (String name : wanted) {
-                if (name.isEmpty()) {
-                    continue;
-                }
-                out.println("== " + name);
-                Function function = named(name);
-                if (function == null) {
-                    continue;
-                }
-                Address entry = function.getEntryPoint();
-                Address last = function.getBody().getMaxAddress();
-                FunctionIterator following = functions.getFunctions(entry.next(), true);
-                while (following.hasNext()) {
-                    Address next = following.next().getEntryPoint();
-                    if (next.compareTo(entry) > 0) {
-                        last = next.previous();
-                        break;
-                    }
-                }
-                unitsWritten(out, entry, last);
+                functionWritten(out, functions, name);
             }
         }
+    }
+
+    // The line "== name" and the units of the function, or nothing where the line of the file is empty.
+    private void functionWritten(PrintWriter out, FunctionManager functions, String name) throws Exception {
+        if (name.isEmpty()) {
+            return;
+        }
+        out.println("== " + name);
+        Function function = named(name);
+        if (function == null) {
+            return;
+        }
+        Address entry = function.getEntryPoint();
+        unitsWritten(out, entry, lastAddress(functions, function));
+    }
+
+    // The address before the entry of the next function, or the last address of the body where no function follows.
+    private Address lastAddress(FunctionManager functions, Function function) {
+        Address entry = function.getEntryPoint();
+        FunctionIterator following = functions.getFunctions(entry.next(), true);
+        while (following.hasNext()) {
+            Address next = following.next().getEntryPoint();
+            if (next.compareTo(entry) > 0) {
+                return next.previous();
+            }
+        }
+        return function.getBody().getMaxAddress();
     }
 }

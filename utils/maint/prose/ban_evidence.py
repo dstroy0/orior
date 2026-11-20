@@ -20,7 +20,7 @@
 # papers      154 research papers under build/papers, 7.3 MB, human, same register
 # repository  every comment, docstring and page in this tree
 #
-# An earlier arrangement split the repository by whether this session had opened a file, and called
+# An earlier arrangement split the repository by whether this session opened a file, and called
 # the untouched half a person's prose. That split is void: the text of this repository is almost all
 # machine-written, across many sessions. Both halves had the same author. It explains the null
 # prose_distance.py returned, where the gap between those halves was the same sign at four symbol
@@ -33,7 +33,7 @@
 # Rates are per hundred thousand words, because the majority of these phrases are rare enough that per
 # thousand rounds everything to zero. A pattern that fires in the papers is a pattern describing
 # ordinary technical English, and banning it costs a writer a phrase they are entitled to. A pattern
-# that never fires in 154 papers and fires in the machine arm is doing the job the list claims.
+# that never fires in 154 papers and fires in the machine arm does the job the list claims.
 #
 # This does not decide anything on its own. A pattern can be absent from the papers because the
 # papers are linguistics and the phrase belongs to systems programming. The output is evidence for

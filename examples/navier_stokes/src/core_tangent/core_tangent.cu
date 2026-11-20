@@ -173,7 +173,7 @@ static size_t core_tangent_degree(const CoreTangentPowers &powers)
 //     Phi(Y) = sqrt(2 s_0 Y) sum e_k Y^k / (2 k + 1),
 // every e_k exact. The record contains each value whole.
 
-// The parts of the full tangent the principal system leaves out: the slope, P_eta in d/deta (e^(mu eta) P); the plain
+// The parts of the full tangent the principal system leaves out: the slope, P_eta in d/deta (e^(mu eta) P). The plain
 // terms, every term that takes no derivative; and the pressure, dp_k past k = 0. With every part off the full tangent is
 // the principal one, and with every part on it is the full one.
 typedef struct

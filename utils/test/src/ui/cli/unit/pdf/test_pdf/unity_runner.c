@@ -75,7 +75,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\pdf\\test_pdf\\test_pdf.c");
+  UnityBegin("utils/test/src/ui/cli/unit/pdf/test_pdf/test_pdf.c");
   run_test(test_120_lines_alloc_at_min_two_pages, "test_120_lines_alloc_at_min_two_pages", 76);
   run_test(test_it_starts_as_a_pdf_1_4, "test_it_starts_as_a_pdf_1_4", 81);
   run_test(test_it_ends_with_the_end_of_file_mark, "test_it_ends_with_the_end_of_file_mark", 86);

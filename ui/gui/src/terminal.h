@@ -52,8 +52,8 @@ typedef struct
 {
     CliTerminalPanel panel;
     CliTerminalView view[2];
-    const CliViewFrame *frame[2];
-    const CliDocumentNames *names[2];
+    CliViewFrame *frame[2];
+    CliDocumentNames *names[2];
 } GuiTerminal;
 
 // the columns and rows the pane `view` shows, 0 the one displayed and 1 the one beside it, into `columns` and `rows`, two

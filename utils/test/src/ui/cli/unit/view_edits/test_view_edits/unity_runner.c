@@ -82,7 +82,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\view_edits\\test_view_edits\\test_view_edits.c");
+  UnityBegin("utils/test/src/ui/cli/unit/view_edits/test_view_edits/test_view_edits.c");
   run_test(test_two_edits_are_written_with_the_cursor_at_the_first, "test_two_edits_are_written_with_the_cursor_at_the_first", 66);
   run_test(test_one_undo_takes_both_back_and_one_redo_brings_both_again, "test_one_undo_takes_both_back_and_one_redo_brings_both_again", 78);
   run_test(test_an_edit_after_them_is_a_step_of_its_own, "test_an_edit_after_them_is_a_step_of_its_own", 87);

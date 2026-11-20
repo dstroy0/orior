@@ -74,13 +74,13 @@ __device__ static inline void cycle_place_at(const CycleLaunch &launch, unsigned
 
 __device__ static inline void cycle_place_advance(const CycleLaunch &launch, CyclePlace &place)
 {
-    unsigned long long carry = 0ull;
+    unsigned long long carry = 0ULL;
     for (unsigned int axis = 3u; axis > 0u; axis -= 1u)
     {
         const unsigned int at = axis - 1u;
         place.digit[at] += launch.step_digit[axis] + carry;
-        carry = (place.digit[at] >= launch.extent[at]) ? 1ull : 0ull;
-        if (carry != 0ull)
+        carry = (place.digit[at] >= launch.extent[at]) ? 1ULL : 0ULL;
+        if (carry != 0ULL)
         {
             place.digit[at] -= launch.extent[at];
         }
@@ -158,7 +158,7 @@ __device__ static inline void cycle_sweep(const CycleLaunch &launch, const Devic
     unsigned long long column[WIDE + 2u];
     for (unsigned int at = 0u; at < used; at += 1u)
     {
-        column[at] = 0ull;
+        column[at] = 0ULL;
     }
     unsigned int first_row = 0u;
     while (first_row < sweep.row_limbs)
@@ -185,11 +185,11 @@ __device__ static inline void cycle_sweep(const CycleLaunch &launch, const Devic
             first_row += 1u;
         }
     }
-    unsigned long long carry = 0ull;
+    unsigned long long carry = 0ULL;
     for (unsigned int at = 0u; at < sweep.out_limbs; at += 1u)
     {
         const unsigned long long total = column[at] + carry;
-        value[at] = (unsigned int)(total & 0xFFFFFFFFull);
+        value[at] = (unsigned int)(total & 0xFFFFFFFFULL);
         carry = total >> 32u;
     }
 }
@@ -199,7 +199,7 @@ __device__ static inline void cycle_fold(unsigned int *total, unsigned int limbs
 {
     const unsigned int limb_shift = shift / 32u;
     const unsigned int part = shift % 32u;
-    unsigned long long carry = 0ull;
+    unsigned long long carry = 0ULL;
     for (unsigned int limb = 0u; limb < limbs; limb += 1u)
     {
         unsigned int shifted = 0u;
@@ -218,14 +218,14 @@ __device__ static inline void cycle_fold(unsigned int *total, unsigned int limbs
         if (negative != 0u)
         {
             const unsigned long long difference =
-                (1ull << 32u) + (unsigned long long)total[limb] - (unsigned long long)shifted - carry;
-            total[limb] = (unsigned int)(difference & 0xFFFFFFFFull);
-            carry = (difference < (1ull << 32u)) ? 1ull : 0ull;
+                (1ULL << 32u) + (unsigned long long)total[limb] - (unsigned long long)shifted - carry;
+            total[limb] = (unsigned int)(difference & 0xFFFFFFFFULL);
+            carry = (difference < (1ULL << 32u)) ? 1ULL : 0ULL;
         }
         else
         {
             const unsigned long long sum = (unsigned long long)total[limb] + (unsigned long long)shifted + carry;
-            total[limb] = (unsigned int)(sum & 0xFFFFFFFFull);
+            total[limb] = (unsigned int)(sum & 0xFFFFFFFFULL);
             carry = sum >> 32u;
         }
     }

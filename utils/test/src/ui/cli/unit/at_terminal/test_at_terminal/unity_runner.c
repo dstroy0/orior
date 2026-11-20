@@ -90,7 +90,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\at_terminal\\test_at_terminal\\test_at_terminal.c");
+  UnityBegin("utils/test/src/ui/cli/unit/at_terminal/test_at_terminal/test_at_terminal.c");
   run_test(test_gits_tests_and_transferred_settings_commands_run_at_the_terminal, "test_gits_tests_and_transferred_settings_commands_run_at_the_terminal", 143);
   run_test(test_the_windows_own_commands_do_not_run_at_the_terminal, "test_the_windows_own_commands_do_not_run_at_the_terminal", 152);
   run_test(test_word_wrap_reports_it_runs_in_a_window, "test_word_wrap_reports_it_runs_in_a_window", 159);

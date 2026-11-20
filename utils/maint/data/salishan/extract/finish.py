@@ -357,7 +357,7 @@ def main():
             names = [initials[part] for part in tagged.group(1).split("/")]
             one[4] = "%s, %s" % (one[4], one[1]) if one[4] else one[1]
             one[1] = names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
-    # A conversation opens each turn on its speaker's initials, (1) KBG: xwúy̓ nke ʔiƛ̓ʔiƛ̓tis; the
+    # A conversation opens each turn on its speaker's initials, (1) KBG: xwúy̓ nke ʔiƛ̓ʔiƛ̓tis. The
     # initials are parted from the line as a citation row of that speaker.
     if getattr(context, "TURNS", False):
         turned = []

@@ -24,19 +24,19 @@ int main(void)
 
     SimCamera camera;
     memset(&camera, 0, sizeof(camera));
-    camera.offset = 100ull;
-    camera.gain = 1ull;
-    camera.read_square = 3ull;
-    camera.pattern_range = 8ull;
-    camera.shot = 1ull;
+    camera.offset = 100ULL;
+    camera.gain = 1ULL;
+    camera.read_square = 3ULL;
+    camera.pattern_range = 8ULL;
+    camera.shot = 1ULL;
 
-    const unsigned long long extent[ROOT_EXTENTS][4] = {{4ull, 12ull, 48ull, 48ull}, {3ull, 13ull, 37ull, 41ull}};
+    const unsigned long long extent[ROOT_EXTENTS][4] = {{4ULL, 12ULL, 48ULL, 48ULL}, {3ULL, 13ULL, 37ULL, 41ULL}};
     RootVolume volume[ROOT_EXTENTS];
     memset(volume, 0, sizeof(volume));
     // both volumes' device lanes, the tower's and the coder's pools for the larger, and the table of the widest edge;
     // the coded stream, sized by the values, is left to the retained peak
     unsigned long long declared = (unsigned long long)ROOT_TABLE_CAPACITY * sizeof(unsigned int);
-    unsigned long long lanes_declared = 0ull;
+    unsigned long long lanes_declared = 0ULL;
     for (unsigned int shaped = 0u; shaped < ROOT_EXTENTS; shaped += 1u)
     {
         const unsigned long long lanes = extent[shaped][0] * extent[shaped][1] * extent[shaped][2] * extent[shaped][3];
@@ -45,7 +45,7 @@ int main(void)
     }
     declared += tower_reserve_bytes(lanes_declared) + compression_reserve_bytes(lanes_declared);
     int ok = sim_job_submit(&results, "root_universal", 0, NULL, declared);
-    unsigned long long lanes_max = 0ull;
+    unsigned long long lanes_max = 0ULL;
     for (unsigned int shaped = 0u; shaped < ROOT_EXTENTS; shaped += 1u)
     {
         ok = ok && root_volume_open(&results, &volume[shaped], extent[shaped]);
@@ -82,22 +82,22 @@ int main(void)
     for (unsigned int shaped = 0u; ok && (shaped < ROOT_EXTENTS); shaped += 1u)
     {
         RootVolume *const here = &volume[shaped];
-        unsigned long long plain_exact = 0ull;
-        unsigned long long edged_exact = 0ull;
-        unsigned long long changed = 0ull;
-        unsigned long long edge_count = 0ull;
+        unsigned long long plain_exact = 0ULL;
+        unsigned long long edged_exact = 0ULL;
+        unsigned long long changed = 0ULL;
+        unsigned long long edge_count = 0ULL;
         for (unsigned int drawn = 0u; ok && (drawn < ROOT_EXACT_VOLUMES); drawn += 1u)
         {
             camera.key = sim_draw(ROOT_KEY, ((unsigned long long)shaped * ROOT_EXACT_VOLUMES) + drawn);
             ok = root_volume_render(&results, here, &camera);
-            unsigned long long bits = 0ull;
+            unsigned long long bits = 0ULL;
             int exact = 0;
             ok = ok && root_crystal_trip(&results, here, NULL, 0u, crystal[0], &bits, &exact);
-            plain_exact += (exact != 0) ? 1ull : 0ull;
+            plain_exact += (exact != 0) ? 1ULL : 0ULL;
             root_program_draw(&program, here->floors, sim_draw(camera.key, ROOT_PROGRAM_PURPOSE), drawn == 0u);
             ok = ok && root_crystal_trip(&results, here, program.edge, program.count, crystal[1], &bits, &exact);
-            edged_exact += (exact != 0) ? 1ull : 0ull;
-            changed += (memcmp(crystal[0], crystal[1], (size_t)here->lanes * sizeof(int)) != 0) ? 1ull : 0ull;
+            edged_exact += (exact != 0) ? 1ULL : 0ULL;
+            changed += (memcmp(crystal[0], crystal[1], (size_t)here->lanes * sizeof(int)) != 0) ? 1ULL : 0ULL;
             edge_count += program.count;
         }
         mmgr_line_put(line, "  ");
@@ -119,9 +119,9 @@ int main(void)
                          "one table b(a(i))\n");
     mmgr_line_put(line, "  volumes  a,b = b(a)  b,a differs  a on 1, b on 2 differs\n");
     sim_flush(&results);
-    unsigned long long folds = 0ull;
-    unsigned long long orders = 0ull;
-    unsigned long long blocks = 0ull;
+    unsigned long long folds = 0ULL;
+    unsigned long long orders = 0ULL;
+    unsigned long long blocks = 0ULL;
     RootVolume *const folded = &volume[0];
     for (unsigned int drawn = 0u; ok && (drawn < ROOT_FOLD_VOLUMES); drawn += 1u)
     {
@@ -130,8 +130,8 @@ int main(void)
         unsigned int *const first = program.table[0];
         unsigned int *const second = program.table[1];
         unsigned int *const both = program.table[2];
-        root_permutation(first, ROOT_FOLD_BITS, sim_draw(camera.key, 1ull));
-        root_permutation(second, ROOT_FOLD_BITS, sim_draw(camera.key, 2ull));
+        root_permutation(first, ROOT_FOLD_BITS, sim_draw(camera.key, 1ULL));
+        root_permutation(second, ROOT_FOLD_BITS, sim_draw(camera.key, 2ULL));
         for (unsigned int index = 0u; index < (1u << ROOT_FOLD_BITS); index += 1u)
         {
             both[index] = second[first[index]];
@@ -159,9 +159,9 @@ int main(void)
         ok = ok && root_lift_crystal(&results, folded, swapped, 2u, crystal[2]);
         ok = ok && root_lift_crystal(&results, folded, split, 2u, crystal[3]);
         const size_t bytes = (size_t)folded->lanes * sizeof(int);
-        folds += (memcmp(crystal[0], crystal[1], bytes) == 0) ? 1ull : 0ull;
-        orders += (memcmp(crystal[0], crystal[2], bytes) != 0) ? 1ull : 0ull;
-        blocks += (memcmp(crystal[0], crystal[3], bytes) != 0) ? 1ull : 0ull;
+        folds += (memcmp(crystal[0], crystal[1], bytes) == 0) ? 1ULL : 0ULL;
+        orders += (memcmp(crystal[0], crystal[2], bytes) != 0) ? 1ULL : 0ULL;
+        blocks += (memcmp(crystal[0], crystal[3], bytes) != 0) ? 1ULL : 0ULL;
     }
     mmgr_line_decimal_columns(line, ROOT_FOLD_VOLUMES, 9u);
     mmgr_line_decimal_columns(line, folds, 12u);
@@ -181,21 +181,21 @@ int main(void)
     const unsigned int floors = folded->floors;
     const unsigned int place_first[ROOT_PLACES] = {0u, floors / 2u, floors, 0u};
     const unsigned int place_last[ROOT_PLACES] = {0u, floors / 2u, floors, floors};
-    unsigned long long plain_bits = 0ull;
+    unsigned long long plain_bits = 0ULL;
     unsigned long long cost[ROOT_COST_WIDTHS][ROOT_PLACES];
     memset(cost, 0, sizeof(cost));
-    unsigned long long trips = 0ull;
-    unsigned long long exact_trips = 0ull;
+    unsigned long long trips = 0ULL;
+    unsigned long long exact_trips = 0ULL;
     for (unsigned int drawn = 0u; ok && (drawn < ROOT_COST_VOLUMES); drawn += 1u)
     {
         camera.key = sim_draw(ROOT_KEY ^ ROOT_COST_PURPOSE, drawn);
         ok = root_volume_render(&results, folded, &camera);
-        unsigned long long bits = 0ull;
+        unsigned long long bits = 0ULL;
         int exact = 0;
         ok = ok && root_crystal_trip(&results, folded, NULL, 0u, NULL, &bits, &exact);
         plain_bits += bits;
-        trips += 1ull;
-        exact_trips += (exact != 0) ? 1ull : 0ull;
+        trips += 1ULL;
+        exact_trips += (exact != 0) ? 1ULL : 0ULL;
         for (unsigned int wide = 0u; ok && (wide < ROOT_COST_WIDTHS); wide += 1u)
         {
             for (unsigned int placed = 0u; ok && (placed < ROOT_PLACES); placed += 1u)
@@ -204,8 +204,8 @@ int main(void)
                                    sim_draw(camera.key, (wide * ROOT_PLACES) + placed));
                 ok = root_crystal_trip(&results, folded, program.edge, program.count, NULL, &bits, &exact);
                 cost[wide][placed] += bits;
-                trips += 1ull;
-                exact_trips += (exact != 0) ? 1ull : 0ull;
+                trips += 1ULL;
+                exact_trips += (exact != 0) ? 1ULL : 0ULL;
             }
         }
     }

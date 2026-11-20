@@ -98,7 +98,7 @@ extern "C"
     const TablesClass *tables_class_of(const TablesSet *set, unsigned long long low, unsigned long long high);
 
     // The bytes a read of `class_` takes in the encoding `low` and `high`: the choice its size operand's field stores,
-    // as the FORMAT lists the choices; four where the class names no size operand or the field stores a choice past
+    // as the FORMAT lists the choices. Four where the class names no size operand or the field stores a choice past
     // the list
     unsigned int tables_class_bytes(const TablesClass *class_, unsigned long long low, unsigned long long high);
 

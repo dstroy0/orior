@@ -76,33 +76,33 @@ unsigned long long cli_symbols_byte_at(const CliSymbolsSizeCtx *args);
 // what a leaf is, read off its token's name: the empty name; a name whose first segment is `string`, `comment`,
 // `number`, `identifier` or `predefined`, `keyword` or `type`; a name holding the segment `memory`, `parameter`,
 // `local` or `declaration`; a type's name holding the segment `number` or `string`
-#define CLI_LEAF_BLANK 0x0001ull
-#define CLI_LEAF_STRING 0x0002ull
-#define CLI_LEAF_COMMENT 0x0004ull
-#define CLI_LEAF_NUMBER 0x0008ull
-#define CLI_LEAF_NAME 0x0010ull
-#define CLI_LEAF_KEYWORD 0x0020ull
-#define CLI_LEAF_TYPE 0x0040ull
-#define CLI_LEAF_MEMORY 0x0080ull
-#define CLI_LEAF_PARAMETER 0x0100ull
-#define CLI_LEAF_LOCAL 0x0200ull
-#define CLI_LEAF_DECLARES 0x0400ull
-#define CLI_LEAF_OF_NUMBER 0x0800ull
-#define CLI_LEAF_OF_STRING 0x1000ull
+#define CLI_LEAF_BLANK 0x0001ULL
+#define CLI_LEAF_STRING 0x0002ULL
+#define CLI_LEAF_COMMENT 0x0004ULL
+#define CLI_LEAF_NUMBER 0x0008ULL
+#define CLI_LEAF_NAME 0x0010ULL
+#define CLI_LEAF_KEYWORD 0x0020ULL
+#define CLI_LEAF_TYPE 0x0040ULL
+#define CLI_LEAF_MEMORY 0x0080ULL
+#define CLI_LEAF_PARAMETER 0x0100ULL
+#define CLI_LEAF_LOCAL 0x0200ULL
+#define CLI_LEAF_DECLARES 0x0400ULL
+#define CLI_LEAF_OF_NUMBER 0x0800ULL
+#define CLI_LEAF_OF_STRING 0x1000ULL
 // and a directive's role, a segment of a name whose second segment is `directive`: `include`, `define`, `undef`, the
 // conditions `if`, `ifdef`, `ifndef`, `elif`, `else` and `endif`, `defined` in a condition, `continued`, the mark
 // that carries a directive on to the next line, and `test`, the attribute that marks a test
-#define CLI_LEAF_INCLUDE 0x2000ull
-#define CLI_LEAF_DEFINE 0x4000ull
-#define CLI_LEAF_UNDEF 0x8000ull
-#define CLI_LEAF_IF 0x10000ull
-#define CLI_LEAF_IFDEF 0x20000ull
-#define CLI_LEAF_IFNDEF 0x40000ull
-#define CLI_LEAF_ELIF 0x80000ull
-#define CLI_LEAF_ELSE 0x100000ull
-#define CLI_LEAF_ENDIF 0x200000ull
-#define CLI_LEAF_DEFINED 0x400000ull
-#define CLI_LEAF_CONTINUED 0x80000000ull
+#define CLI_LEAF_INCLUDE 0x2000ULL
+#define CLI_LEAF_DEFINE 0x4000ULL
+#define CLI_LEAF_UNDEF 0x8000ULL
+#define CLI_LEAF_IF 0x10000ULL
+#define CLI_LEAF_IFDEF 0x20000ULL
+#define CLI_LEAF_IFNDEF 0x40000ULL
+#define CLI_LEAF_ELIF 0x80000ULL
+#define CLI_LEAF_ELSE 0x100000ULL
+#define CLI_LEAF_ENDIF 0x200000ULL
+#define CLI_LEAF_DEFINED 0x400000ULL
+#define CLI_LEAF_CONTINUED 0x80000000ULL
 #define CLI_LEAF_DIRECTIVE                                                                                             \
     (CLI_LEAF_INCLUDE | CLI_LEAF_DEFINE | CLI_LEAF_UNDEF | CLI_LEAF_IF | CLI_LEAF_IFDEF | CLI_LEAF_IFNDEF |            \
      CLI_LEAF_ELIF | CLI_LEAF_ELSE | CLI_LEAF_ENDIF)
@@ -112,33 +112,33 @@ unsigned long long cli_symbols_byte_at(const CliSymbolsSizeCtx *args);
 // `otherwise` as well; `prefix`, a number's prefix; `memory`, an operator on what a name holds or where; and in a
 // string's name `include`, the file an include reaches, looked for beside the file including it first where it names
 // `adjacent` as well
-#define CLI_LEAF_REMAINDER 0x800000ull
-#define CLI_LEAF_JOIN 0x1000000ull
-#define CLI_LEAF_QUOTE 0x2000000ull
-#define CLI_LEAF_UNARY 0x4000000ull
-#define CLI_LEAF_CHOICE 0x8000000ull
-#define CLI_LEAF_PREFIX 0x10000000ull
-#define CLI_LEAF_INCLUDED 0x20000000ull
-#define CLI_LEAF_ADJACENT 0x40000000ull
-#define CLI_LEAF_OTHERWISE 0x100000000ull
+#define CLI_LEAF_REMAINDER 0x800000ULL
+#define CLI_LEAF_JOIN 0x1000000ULL
+#define CLI_LEAF_QUOTE 0x2000000ULL
+#define CLI_LEAF_UNARY 0x4000000ULL
+#define CLI_LEAF_CHOICE 0x8000000ULL
+#define CLI_LEAF_PREFIX 0x10000000ULL
+#define CLI_LEAF_INCLUDED 0x20000000ULL
+#define CLI_LEAF_ADJACENT 0x40000000ULL
+#define CLI_LEAF_OTHERWISE 0x100000000ULL
 // and the structure a grammar names: `open` and `close`, a bracket that opens or closes a pair; `region`, a bracket
 // whose pair encloses a region of statements; `statement`, the mark that ends a statement; `separator`, the mark
 // between the items of a list; `call`, a name a call names; `assign`, the operator that gives a name its value;
 // `function`, with `declaration`, the name a function is declared by; `depth`, a token whose `open` or `close`
 // counts the depth its pair is at; `module`, with `declaration`, the name a module is declared by; and `quoted`, a
 // name written in quotes
-#define CLI_LEAF_OPEN 0x200000000ull
-#define CLI_LEAF_CLOSE 0x400000000ull
-#define CLI_LEAF_REGION 0x800000000ull
-#define CLI_LEAF_STATEMENT 0x1000000000ull
-#define CLI_LEAF_SEPARATOR 0x2000000000ull
-#define CLI_LEAF_CALL 0x4000000000ull
-#define CLI_LEAF_ASSIGN 0x8000000000ull
-#define CLI_LEAF_FUNCTION 0x10000000000ull
-#define CLI_LEAF_DEPTH 0x20000000000ull
-#define CLI_LEAF_QUOTED 0x40000000000ull
-#define CLI_LEAF_TEST 0x80000000000ull
-#define CLI_LEAF_MODULE 0x100000000000ull
+#define CLI_LEAF_OPEN 0x200000000ULL
+#define CLI_LEAF_CLOSE 0x400000000ULL
+#define CLI_LEAF_REGION 0x800000000ULL
+#define CLI_LEAF_STATEMENT 0x1000000000ULL
+#define CLI_LEAF_SEPARATOR 0x2000000000ULL
+#define CLI_LEAF_CALL 0x4000000000ULL
+#define CLI_LEAF_ASSIGN 0x8000000000ULL
+#define CLI_LEAF_FUNCTION 0x10000000000ULL
+#define CLI_LEAF_DEPTH 0x20000000000ULL
+#define CLI_LEAF_QUOTED 0x40000000000ULL
+#define CLI_LEAF_TEST 0x80000000000ULL
+#define CLI_LEAF_MODULE 0x100000000000ULL
 
 // the operation an operator's name names in a segment past its first, 0 for none: `not`, `complement`, `multiply`,
 // `divide`, `remainder`, `add`, `subtract`, `shiftleft`, `shiftright`, `less`, `atmost`, `greater`, `atleast`, `equal`,

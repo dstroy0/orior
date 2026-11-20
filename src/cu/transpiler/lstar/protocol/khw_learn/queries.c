@@ -34,14 +34,14 @@ const char *s_fields;
 char s_ksc_path[1024];
 const char *s_machine_writer;
 
-// one question, how many the run has put, and the launches the question is timed over, 0 where it is untimed
+// one question, how many the run put, and the launches the question is timed over, 0 where it is untimed
 RunQuestion s_question;
 
 unsigned long long s_query_count;
 unsigned int s_launches;
 
 // One round's questions, SCHEDULER_ROUND_MAX at max, each with the code it carries, how many it settles and its
-// place in the round; how many the round contains
+// place in the round. How many the round contains
 RunQuestion *s_pool;
 
 static unsigned char s_pool_code[SCHEDULER_ROUND_MAX][KHW_PLACES * KHW_INSTRUCTION];
@@ -52,7 +52,7 @@ unsigned int s_pooled;
 // one word of an instruction, and one written back
 unsigned long long khw_word_read(const unsigned char *instruction, unsigned int byte)
 {
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
         value |= (unsigned long long)instruction[byte + at] << (8u * at);
@@ -64,18 +64,18 @@ void khw_word_write(unsigned char *instruction, unsigned int byte, unsigned long
 {
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
-        instruction[byte + at] = (unsigned char)((value >> (8u * at)) & 0xffull);
+        instruction[byte + at] = (unsigned char)((value >> (8u * at)) & 0xffULL);
     }
 }
 
 // the bits `first` to `last` of the instruction `low` and `high` make, and the pair with that run set to `value`
 unsigned long long khw_run_read(unsigned long long low, unsigned long long high, unsigned int first, unsigned int last)
 {
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     for (unsigned int bit = first; bit <= last; bit += 1u)
     {
         const unsigned long long word = (bit < 64u) ? low : high;
-        value |= ((word >> (bit % 64u)) & 1ull) << (bit - first);
+        value |= ((word >> (bit % 64u)) & 1ULL) << (bit - first);
     }
     return value;
 }
@@ -86,8 +86,8 @@ void khw_run_write(unsigned long long *low, unsigned long long *high, unsigned i
     for (unsigned int bit = first; bit <= last; bit += 1u)
     {
         unsigned long long *const word = (bit < 64u) ? low : high;
-        const unsigned long long one = (value >> (bit - first)) & 1ull;
-        *word = (*word & ~(1ull << (bit % 64u))) | (one << (bit % 64u));
+        const unsigned long long one = (value >> (bit - first)) & 1ULL;
+        *word = (*word & ~(1ULL << (bit % 64u))) | (one << (bit % 64u));
     }
 }
 
@@ -130,7 +130,7 @@ void khw_kernel_put(unsigned char *code)
     unsigned long long low = khw_word_read(store, 0u);
     unsigned long long high = khw_word_read(store, 8u);
     // P0, and the bit past the predicate's three, which negates the guard, clear
-    khw_run_write(&low, &high, s_guard_first, s_guard_first + s_guard_bits, 0ull);
+    khw_run_write(&low, &high, s_guard_first, s_guard_first + s_guard_bits, 0ULL);
     khw_word_write(store, 0u, low);
     khw_word_write(store, 8u, high);
 }
@@ -166,8 +166,8 @@ int khw_question_put(const unsigned int word[][2], unsigned int count, unsigned 
         s_question.word[place][0] = word[place][0];
         s_question.word[place][1] = word[place][1];
     }
-    s_query_count += 1ull;
-    unsigned long long before[4] = {0ull, 0ull, 0ull, 0ull};
+    s_query_count += 1ULL;
+    unsigned long long before[4] = {0ULL, 0ULL, 0ULL, 0ULL};
     run_channel_clocks(&before[0], &before[1], &before[2], &before[3]);
     const int put_answered = run_channel_put(&s_question);
     khw_round_printed(1u, before);
@@ -207,7 +207,7 @@ unsigned int khw_pooled(unsigned int place, unsigned long long low, unsigned lon
     question->code_size = (unsigned long long)s_kernel_places * KHW_INSTRUCTION;
     question->registers = s_registers;
     question->cases = count;
-    // the kernel put whole names the probe point the kernel listing gives, as every question does; only a kernel whose
+    // the kernel put whole names the probe point the kernel listing gives, as every question does. Only a kernel whose
     // listing names none, before its probe point is found, names none
     question->place = (place < s_kernel_places)                  ? place
                       : (s_kernel_probe_place < s_kernel_places) ? s_kernel_probe_place
@@ -227,7 +227,7 @@ unsigned int khw_pooled(unsigned int place, unsigned long long low, unsigned lon
 // channel's clocks against the readings `airlock_before` and `carried_before` taken before it
 void khw_round_printed(unsigned int count, const unsigned long long before[4])
 {
-    unsigned long long now[4] = {0ull, 0ull, 0ull, 0ull};
+    unsigned long long now[4] = {0ULL, 0ULL, 0ULL, 0ULL};
     run_channel_clocks(&now[0], &now[1], &now[2], &now[3]);
     printf("  round: %u question(s), airlock %.2f s (pop %.2f s, cross %.2f s), carrier %.2f s\n", count,
            (double)(now[0] - before[0]) / 1e9, (double)(now[1] - before[1]) / 1e9, (double)(now[2] - before[2]) / 1e9,
@@ -263,7 +263,7 @@ void khw_round_carried(void)
         printf("  the run stopped on a panic: no round after it reaches the part, and the pass ends with what the "
                "rounds before it left\n");
     }
-    unsigned long long before[4] = {0ull, 0ull, 0ull, 0ull};
+    unsigned long long before[4] = {0ULL, 0ULL, 0ULL, 0ULL};
     run_channel_clocks(&before[0], &before[1], &before[2], &before[3]);
     scheduler_round(s_pool_question, s_pool_settles, s_pooled);
     s_query_count += s_pooled;

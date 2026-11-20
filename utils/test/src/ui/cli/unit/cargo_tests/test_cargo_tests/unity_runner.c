@@ -91,7 +91,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\cargo_tests\\test_cargo_tests\\test_cargo_tests.c");
+  UnityBegin("utils/test/src/ui/cli/unit/cargo_tests/test_cargo_tests/test_cargo_tests.c");
   run_test(test_tests_are_found_end_strings_comments_and_lifetimes, "test_tests_are_found_end_strings_comments_and_lifetimes", 172);
   run_test(test_the_modules_a_file_names_are_found, "test_the_modules_a_file_names_are_found", 181);
   run_test(test_the_tokens_cell_is_the_size_of_their_count, "test_the_tokens_cell_is_the_size_of_their_count", 190);

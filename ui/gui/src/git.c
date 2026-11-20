@@ -182,12 +182,12 @@ EMBED_INLINE void git_stroke_draw(const GitCtx *args)
 {
     const GuiPaneCfg *const pane = args->pane;
     const GuiRect rect = pane->rect;
-    const float lane = (float)EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_GIT_LANE);
+    const float lane_width = (float)EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_GIT_LANE);
     const float middle = (float)rect.height / 2.0f;
     const float top = (args->stroke[2] != 0u) ? middle : 0.0f;
     const float bottom = (args->stroke[2] != 0u) ? (float)rect.height : middle;
-    const float x0 = (float)args->x + (lane / 2.0f) + ((float)args->stroke[0] * lane);
-    const float x1 = (float)args->x + (lane / 2.0f) + ((float)args->stroke[1] * lane);
+    const float x0 = (float)args->x + (lane_width / 2.0f) + ((float)args->stroke[0] * lane_width);
+    const float x1 = (float)args->x + (lane_width / 2.0f) + ((float)args->stroke[1] * lane_width);
     const float y0 = (float)rect.y + top;
     const float y1 = (float)rect.y + bottom;
     if (args->stroke[0] == args->stroke[1])
@@ -265,7 +265,7 @@ static void git_row_draw(const GuiPaneCfg *args)
         return;
     }
     const int gap = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_GIT_PAD);
-    const int lane = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_GIT_LANE);
+    const int lane_width = EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_GIT_LANE);
     int x = rect.x + gap;
     // the strokes, then the dot over them, hollow where the commit merges
     for (unsigned int at = 0u; at < row.strokes; at += 1u)
@@ -274,7 +274,7 @@ static void git_row_draw(const GuiPaneCfg *args)
                    .color = GUI_FRAME_FADED(palette->mark[s_tones[row.stroke[at][3] % 6u]], frame->side_share));
     }
     const float scale = (float)frame->scale / 100.0f;
-    const float dot_x = (float)x + ((float)lane / 2.0f) + ((float)row.lane_at * (float)lane);
+    const float dot_x = (float)x + ((float)lane_width / 2.0f) + ((float)row.lane_at * (float)lane_width);
     const float dot_y = (float)rect.y + ((float)rect.height / 2.0f);
     const GuiColor tone = GUI_FRAME_FADED(palette->mark[s_tones[row.color % 6u]], frame->side_share);
     EMBED_CALL(gui_raster_color.dot, GuiRasterColorCfg, .raster = args->raster, .color = tone, .x_f32 = dot_x,
@@ -287,7 +287,7 @@ static void git_row_draw(const GuiPaneCfg *args)
                    .radius_f32 = (GUI_GIT_MERGE_DOT_F32 - GUI_GIT_STROKE_F32) * scale, .clip = args->clip);
     }
     // the row's parts are far fewer pixels than an int counts
-    x += ((int)row.across * lane) + gap;
+    x += ((int)row.across * lane_width) + gap;
     // the day at the right, the author before it where authors show, and what is before them cut before the author
     int limit =
         rect.x + rect.width - EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = args, .x = GUI_GIT_RIGHT_PAD);

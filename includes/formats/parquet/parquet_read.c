@@ -102,7 +102,7 @@ static int parquet_open(const EngineIngestTools *tools, const char *path, const 
     if (strcmp(member, PARQUET_FOOTER_MEMBER) == 0)
     {
         ParquetBytes *const values = &resident->column.values;
-        values->room = resident->footer->footer_bytes + 1ull;
+        values->room = resident->footer->footer_bytes + 1ULL;
         values->bytes = (unsigned char *)malloc((size_t)values->room);
         ok = PARQUET_CHECK(values->bytes != NULL, values, error, ENGINE_ERROR_RESOURCE);
         if (ok)
@@ -138,7 +138,7 @@ static int parquet_open(const EngineIngestTools *tools, const char *path, const 
 static unsigned long long parquet_lanes(void)
 {
     const unsigned long long bytes = s_parquet_resident.column.values.count;
-    return (bytes == 0ull) ? 1ull : ((bytes / 2ull) + (bytes % 2ull));
+    return (bytes == 0ULL) ? 1ULL : ((bytes / 2ULL) + (bytes % 2ULL));
 }
 
 static void parquet_extent(EngineArrayExtent *extent)
@@ -189,18 +189,18 @@ static int parquet_side_fill(EngineSideBytes *side, EngineError *error)
     for (unsigned int place = 0u; place < 8u; place += 1u)
     {
         // one byte of the member's byte count is taken whole
-        count[place] = (unsigned char)((column->values.count >> (8u * place)) & 0xFFull);
+        count[place] = (unsigned char)((column->values.count >> (8u * place)) & 0xFFULL);
     }
     const unsigned char *const parts[PARQUET_SIDE_LEAVES_MAX] = {count, column->definition, column->repetition,
                                                                   column->lengths.bytes};
-    const unsigned long long sizes[PARQUET_SIDE_LEAVES_MAX] = {8ull, column->levels, column->levels,
+    const unsigned long long sizes[PARQUET_SIDE_LEAVES_MAX] = {8ULL, column->levels, column->levels,
                                                                 column->lengths.count};
     const int byte_array =
         (resident->leafed != 0) && (resident->footer->leaf[resident->leaf].physical == PARQUET_BYTE_ARRAY);
-    const unsigned long long leaves = (resident->leafed == 0) ? 1ull : (byte_array ? 4ull : 3ull);
-    unsigned long long byte_total = 0ull;
-    unsigned long long named = 0ull;
-    for (unsigned long long leaf = 0ull; leaf < leaves; leaf += 1ull)
+    const unsigned long long leaves = (resident->leafed == 0) ? 1ULL : (byte_array ? 4ULL : 3ULL);
+    unsigned long long byte_total = 0ULL;
+    unsigned long long named = 0ULL;
+    for (unsigned long long leaf = 0ULL; leaf < leaves; leaf += 1ULL)
     {
         byte_total += sizes[leaf];
         named += strlen(PARQUET_SIDE_NAMES[leaf]);
@@ -222,13 +222,13 @@ static int parquet_side_fill(EngineSideBytes *side, EngineError *error)
         parquet_side_release(side);
         return 0;
     }
-    unsigned long long byte_at = 0ull;
-    unsigned long long name_at = 0ull;
-    for (unsigned long long leaf = 0ull; leaf < leaves; leaf += 1ull)
+    unsigned long long byte_at = 0ULL;
+    unsigned long long name_at = 0ULL;
+    for (unsigned long long leaf = 0ULL; leaf < leaves; leaf += 1ULL)
     {
         const size_t name_length = strlen(PARQUET_SIDE_NAMES[leaf]);
         side->byte_start[leaf] = byte_at;
-        if (sizes[leaf] != 0ull)
+        if (sizes[leaf] != 0ULL)
         {
             memcpy(side->bytes + byte_at, parts[leaf], (size_t)sizes[leaf]);
         }
@@ -259,10 +259,10 @@ long long parquet_read(const EngineArrayRead *request)
     }
     EngineArrayExtent found;
     parquet_extent(&found);
-    const unsigned long long total = 2ull * found.sizes[0];
+    const unsigned long long total = 2ULL * found.sizes[0];
     const int agrees = (found.rank == request->extent->rank) && (found.sizes[0] == request->extent->sizes[0]) &&
                        (found.element_bytes == request->extent->element_bytes) &&
-                       (found.element_type == request->extent->element_type) && (request->first == 0ull) &&
+                       (found.element_type == request->extent->element_type) && (request->first == 0ULL) &&
                        (request->end == found.sizes[0]) && (total <= request->out_capacity);
     if (!PARQUET_CHECK(agrees, request->extent, error, ENGINE_ERROR_REQUEST))
     {
@@ -270,7 +270,7 @@ long long parquet_read(const EngineArrayRead *request)
         return -1LL;
     }
     const ParquetBytes *const values = &s_parquet_resident.column.values;
-    if (values->count != 0ull)
+    if (values->count != 0ULL)
     {
         memcpy(request->out, values->bytes, (size_t)values->count);
     }

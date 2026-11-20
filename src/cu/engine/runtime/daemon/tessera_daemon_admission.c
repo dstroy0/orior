@@ -44,7 +44,7 @@ static TesseraPeer *daemon_peer_of(unsigned long long identity)
 {
     for (TesseraPeer *peer = g_daemon.peers; peer != NULL; peer = peer->next)
     {
-        if ((identity != 0ull) && (peer->identity == identity))
+        if ((identity != 0ULL) && (peer->identity == identity))
         {
             return peer;
         }
@@ -54,19 +54,19 @@ static TesseraPeer *daemon_peer_of(unsigned long long identity)
 
 void daemon_device_read(void)
 {
-    unsigned long long capacity = 0ull;
-    unsigned long long in_use = 0ull;
+    unsigned long long capacity = 0ULL;
+    unsigned long long in_use = 0ULL;
     if (!tessera_measure_device(g_daemon.measure, &capacity, &in_use))
     {
         return;
     }
-    // the host's processors are in use by the jobs running on them, as each reports; the desktop's own work runs on
+    // the host's processors are in use by the jobs running on them, as each reports. The desktop's own work runs on
     // the cores reserved from the jobs and is not counted
-    for (unsigned long long at = 0ull; tessera_measure_host(g_daemon.measure) && (at < g_daemon.ledger.job_count);
-         at += 1ull)
+    for (unsigned long long at = 0ULL; tessera_measure_host(g_daemon.measure) && (at < g_daemon.ledger.job_count);
+         at += 1ULL)
     {
         const TesseraJob *const job = &g_daemon.ledger.jobs[at];
-        in_use += (job->state == TESSERA_JOB_RUNNING) ? job->used : 0ull;
+        in_use += (job->state == TESSERA_JOB_RUNNING) ? job->used : 0ULL;
     }
     tessera_ledger_device(&g_daemon.ledger, capacity, in_use);
 }
@@ -75,7 +75,7 @@ static void daemon_admit(unsigned long long now)
 {
     daemon_device_read();
     const unsigned long long start_limit = g_daemon.ledger.job_count;
-    if (start_limit == 0ull)
+    if (start_limit == 0ULL)
     {
         return;
     }
@@ -85,7 +85,7 @@ static void daemon_admit(unsigned long long now)
         return;
     }
     const unsigned long long made = tessera_ledger_admit(&g_daemon.ledger, now, events, start_limit);
-    for (unsigned long long at = 0ull; at < made; at += 1ull)
+    for (unsigned long long at = 0ULL; at < made; at += 1ULL)
     {
         TesseraPeer *const peer = daemon_peer_of(events[at].identity);
         if (peer != NULL)
@@ -109,7 +109,7 @@ void daemon_job_dropped(TesseraPeer *peer, unsigned long long now, const char *r
     }
     daemon_ticket_write(peer->identity, peer, job->peak, job->used, reason);
     tessera_ledger_release(&g_daemon.ledger, peer->identity, now, 0);
-    peer->identity = 0ull;
+    peer->identity = 0ULL;
     daemon_admit(now);
 }
 
@@ -118,10 +118,10 @@ void daemon_handle(TesseraPeer *peer, const TesseraFrame *frame)
     const unsigned long long now = daemon_now();
     if (frame->type == TESSERA_REQUEST_SUBMIT)
     {
-        const int acceptable = (peer->identity == 0ull) && (peer->lost_identity == 0ull) &&
+        const int acceptable = (peer->identity == 0ULL) && (peer->lost_identity == 0ULL) &&
                                (memcmp(frame->device, g_daemon.device, TESSERA_DEVICE_BYTES) == 0) &&
-                               (frame->luid == g_daemon.luid) && (frame->declared != 0ull) &&
-                               (frame->sweep_microseconds != 0ull);
+                               (frame->luid == g_daemon.luid) && (frame->declared != 0ULL) &&
+                               (frame->sweep_microseconds != 0ULL);
         TesseraJobRequest request;
         request.signum = frame->signum;
         request.declared = frame->declared;
@@ -129,22 +129,22 @@ void daemon_handle(TesseraPeer *peer, const TesseraFrame *frame)
         request.sweep_microseconds = frame->sweep_microseconds;
         request.idle_microseconds = frame->idle_microseconds;
         request.override_budget = frame->override_budget;
-        // the bytes the job's process already has allocated as it requests, its context and whatever it retained from
+        // the bytes the job's process already allocated as it requests, its context and whatever it retained from
         // an earlier job: read by its pid, or taken from its own report where no pid is read from outside
-        request.located = 0ull;
+        request.located = 0ULL;
         if (tessera_measure_reported(g_daemon.measure))
         {
             request.located = frame->measured;
         }
         else if (!tessera_measure_process(g_daemon.measure, peer->pid, &request.located))
         {
-            request.located = 0ull;
+            request.located = 0ULL;
         }
-        unsigned long long identity = 0ull;
+        unsigned long long identity = 0ULL;
         TesseraEvent event;
         if (!acceptable || !tessera_ledger_submit(&g_daemon.ledger, &request, now, &identity, &event))
         {
-            daemon_post(peer, TESSERA_NOTICE_ERROR, 0ull, frame->declared, 0ull);
+            daemon_post(peer, TESSERA_NOTICE_ERROR, 0ULL, frame->declared, 0ULL);
             return;
         }
         peer->identity = identity;
@@ -166,16 +166,16 @@ void daemon_handle(TesseraPeer *peer, const TesseraFrame *frame)
         daemon_admit(now);
         return;
     }
-    if ((frame->type == TESSERA_REQUEST_RELEASE) && (frame->identity == peer->identity) && (peer->identity != 0ull))
+    if ((frame->type == TESSERA_REQUEST_RELEASE) && (frame->identity == peer->identity) && (peer->identity != 0ULL))
     {
         const TesseraJob *const job = tessera_ledger_job(&g_daemon.ledger, peer->identity);
-        const unsigned long long reservation = (job != NULL) ? job->reservation : 0ull;
-        const unsigned long long peak = (job != NULL) ? job->peak : 0ull;
+        const unsigned long long reservation = (job != NULL) ? job->reservation : 0ULL;
+        const unsigned long long peak = (job != NULL) ? job->peak : 0ULL;
         if ((job != NULL) && tessera_ledger_release(&g_daemon.ledger, peer->identity, now, 1))
         {
             daemon_history_save();
             daemon_post(peer, TESSERA_NOTICE_RELEASED, peer->identity, reservation, peak);
-            peer->identity = 0ull;
+            peer->identity = 0ULL;
             daemon_admit(now);
             return;
         }
@@ -185,7 +185,7 @@ void daemon_handle(TesseraPeer *peer, const TesseraFrame *frame)
         // a process's own report is for its measure only where no pid is read from outside; it gets no answer
         TesseraEvent grew;
         if (tessera_measure_reported(g_daemon.measure) && (frame->identity == peer->identity) &&
-            (peer->identity != 0ull) &&
+            (peer->identity != 0ULL) &&
             tessera_ledger_measure(&g_daemon.ledger, peer->identity, frame->measured, &grew) &&
             (grew.type == TESSERA_EVENT_GREW))
         {
@@ -196,21 +196,21 @@ void daemon_handle(TesseraPeer *peer, const TesseraFrame *frame)
         daemon_admit(now);
         return;
     }
-    if ((frame->type == TESSERA_REQUEST_PRECALC_SAVED) && (peer->lost_identity != 0ull) &&
+    if ((frame->type == TESSERA_REQUEST_PRECALC_SAVED) && (peer->lost_identity != 0ULL) &&
         daemon_ticket_note(peer->lost_identity, peer, s_daemon_precalc))
     {
-        daemon_post(peer, TESSERA_NOTICE_RELEASED, peer->lost_identity, 0ull, 0ull);
-        peer->lost_identity = 0ull;
+        daemon_post(peer, TESSERA_NOTICE_RELEASED, peer->lost_identity, 0ULL, 0ULL);
+        peer->lost_identity = 0ULL;
         return;
     }
-    daemon_post(peer, TESSERA_NOTICE_ERROR, frame->identity, 0ull, 0ull);
+    daemon_post(peer, TESSERA_NOTICE_ERROR, frame->identity, 0ULL, 0ULL);
 }
 
 static void daemon_fired(const TesseraEvent *event, unsigned long long now)
 {
     if (event->type == TESSERA_EVENT_IDLE)
     {
-        if (g_daemon.peer_count == 0ull)
+        if (g_daemon.peer_count == 0ULL)
         {
             daemon_history_save();
 #if !defined(_WIN32)
@@ -235,11 +235,11 @@ static void daemon_fired(const TesseraEvent *event, unsigned long long now)
     if (event->type == TESSERA_EVENT_LOST)
     {
         const TesseraHistory *const previous = tessera_ledger_history(&g_daemon.ledger, &peer->signum);
-        const unsigned long long last_peak = (previous != NULL) ? previous->peak : 0ull;
-        daemon_ticket_write(peer->identity, peer, last_peak, 0ull, s_daemon_reason_grace);
+        const unsigned long long last_peak = (previous != NULL) ? previous->peak : 0ULL;
+        daemon_ticket_write(peer->identity, peer, last_peak, 0ULL, s_daemon_reason_grace);
         daemon_post(peer, TESSERA_NOTICE_LOST, peer->identity, peer->declared, last_peak);
         peer->lost_identity = peer->identity;
-        peer->identity = 0ull;
+        peer->identity = 0ULL;
         daemon_admit(now);
         return;
     }
@@ -250,7 +250,7 @@ static void daemon_fired(const TesseraEvent *event, unsigned long long now)
             daemon_job_dropped(peer, now, s_daemon_reason_ended);
             return;
         }
-        unsigned long long used = 0ull;
+        unsigned long long used = 0ULL;
         TesseraEvent grew;
         if (tessera_measure_process(g_daemon.measure, peer->pid, &used) &&
             tessera_ledger_measure(&g_daemon.ledger, peer->identity, used, &grew) && (grew.type == TESSERA_EVENT_GREW))

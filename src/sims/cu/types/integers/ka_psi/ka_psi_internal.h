@@ -10,7 +10,7 @@
 // never expanded.
 // 1. Sprecher's psi (2.4) reproduces the paper's counterexample exactly and its descents are counted.
 // 2. Koppen's psi, in two readings the paper gives: (2.9)/(2.10), which its proofs use, where the carried midpoint
-//    adds (gamma - 2)/2 units; and (2.7) as printed, which adds (gamma - 1)/2. On every point of D_1 to D_5 the
+//    adds (gamma - 2)/2 units. And (2.7) as printed, which adds (gamma - 1)/2. On every point of D_1 to D_5 the
 //    pair recursion (the scale step) equals the level-by-level recursion, psi is strictly increasing, its smallest
 //    gap is exactly gamma^-beta(L), and its largest gap is what the gap recursion predicts.
 // 3. Every scale, by the chained step: the smallest gap stays gamma^-beta(L) and the step stays monotone because
@@ -27,9 +27,9 @@
 #define PSI_EXHAUSTIVE 5u
 
 // the widest relative exponent the sign test expands into an exact power
-#define PSI_EXPAND_MAX 1024ull
+#define PSI_EXPAND_MAX 1024ULL
 
-#define PSI_KEY 0x505349ull
+#define PSI_KEY 0x505349ULL
 
 typedef struct
 {

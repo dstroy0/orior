@@ -23,7 +23,7 @@ typedef struct
 EMBED_INLINE void keychain_target(const WindowsKeychainCtx *args)
 {
     char text[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {text, sizeof(text), 0ull};
+    VerbaLinea line = {text, sizeof(text), 0ULL};
     mmgr_line_put(&line, "orior ");
     mmgr_line_put(&line, args->service);
     mmgr_line_ch(&line, ' ');
@@ -66,7 +66,7 @@ int cli_keychain_read(const CliServiceCtx *args)
     {
         return 0;
     }
-    VerbaLinea line = {out, args->capacity, 0ull};
+    VerbaLinea line = {out, args->capacity, 0ULL};
     EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &line,
                .text_bytes = found->CredentialBlob, .length = found->CredentialBlobSize);
     mmgr_line_finish(&line);

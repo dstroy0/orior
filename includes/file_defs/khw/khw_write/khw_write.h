@@ -21,28 +21,31 @@
 
 #define KHW_FORMS 16384u
 
-// how far a form has been queried, for a pass to query only what a cross-check has read before it: a discovered form
-// has only its relation, a turned form the runs its turns found but not which carry a register, a classified form the
-// operand runs its register-runs retained. A widening carries only a classified form, a turns pass only a discovered
-// one, a register pass only a turned one
+// how far the queries of a form went, so that a pass queries only what a cross-check read before it:
+//   - a discovered form has only its relation.
+//   - a turned form has the runs that its turns found, but not which runs carry a register.
+//   - a classified form has the operand runs that its register-runs kept.
+//
+// A widening carries only a classified form. A turns pass carries only a discovered form, and a register pass only a
+// turned form
 #define KHW_PHASE_DISCOVERED 0u
 
 #define KHW_PHASE_TURNED 1u
 
 #define KHW_PHASE_CLASSIFIED 2u
 
-// a frame form whose register-runs contain no run at a place of its relation's tuple answered no relation it contains a
-// field of: void, which no pass queries again and the vendor arranges nowhere, retained in the working set so that it
-// is not put again
+// a frame form can have register-runs with no run at a place of the tuple of its relation. Such a form answered no
+// relation that it holds a field of. It is void. No pass queries it again, and the vendor arranges it nowhere. The working set keeps it, so that
+// no pass puts it again
 #define KHW_PHASE_VOID 3u
 
-// the place of a run that carries no word of the relation's tuple, and the text it is written under
+// the place of a run that carries no word of the tuple of the relation, and the text that the answers write for it
 #define KHW_PLACE_NONE 0xffffffffu
 
 #define KHW_PLACE_NONE_TEXT "-"
 
-// what a run's operand is, stored beside its place: a register, a pair of registers an address is read through, a
-// number, or a predicate; and the character each is written as after the place in the answers and the working set
+// what the operand of a run is, which the code keeps beside its place. It is a register, a pair of registers that an
+// address comes through, a number, or a predicate. Then the character for each after the place in the answers and the working set
 #define KHW_KIND_REGISTER 0u
 
 #define KHW_KIND_ADDRESS 1u
@@ -55,22 +58,24 @@
 
 #define KHW_KIND_CHARACTERS "ranpc"
 
-// the name a form's relation is written under in the answers file, for the vendor's writer to name it from
+// the name of the relation of a form in the answers file, from which the writer of the vendor names it
 #define KHW_READS_LADDER "ladder."
 
-// the blob of the run the vendor's writer appends what it printed each time it ran in; the kernel it reads
+// the blob of the run the vendor's writer appends what it printed each time it ran in. The kernel it reads
 // out of the container is KERNEL_BLOB_NAME (kernel_blob.h)
 #define KHW_MACHINE_NAME "machine.txt"
 
-// the blobs of the run the forms are stored in: the forms the part answered for, which the vendor's writer
-// names and arranges, and the working set the passes of the split hand each other
+// the blobs of the run that hold the forms. One holds the forms that the part answered for, which the writer of the
+// vendor names and arranges. The other holds the working set that the passes of the split hand each other
 #define KHW_FORMS_NAME "forms.txt"
 
 #define KHW_WORK_NAME "forms_work.txt"
 
-// What the part answered of one form: the relation every case of it answered, whether the case's words were read in
-// the order the host put them or the other way round, whether the answers read a word signed, and the runs of bits
-// its operands sit in with the place each run writes or reads
+// What the part answered of one form:
+//   - the relation that each case of it answered.
+//   - whether the part read the words of the case in the order of the host, or the other way round.
+//   - whether the answers read a word as signed.
+//   - the runs of bits that its operands sit in, with the place that each run writes or reads.
 typedef struct
 {
     unsigned long long low;
@@ -87,13 +92,14 @@ typedef struct
     unsigned int place[KHW_RUNS];
     // what each run's operand is, one of KHW_KIND_*
     unsigned int type[KHW_RUNS];
-    // the frame relation the form answered, FRAME_RELATION_COUNT where it answered the ladder's `anchor`, and the
-    // relation's reading: the word a load reads, the register's word a store stores, a number's constant
+    // the frame relation that the form answered, FRAME_RELATION_COUNT where it answered the `anchor` of the ladder. Then
+    // the read of the relation. That is the word that a load reads, the word of the register that a store stores, or
+    // the constant of a number
     unsigned int frame;
     unsigned long long reading;
     // the count of the relation read's candidates that survived the gate, its reading (Q11)
     unsigned int survivors;
-    // how far the form has been queried, one of KHW_PHASE_*
+    // how far the queries of the form went, one of KHW_PHASE_*
     unsigned int phase;
 } KhwAnswered;
 

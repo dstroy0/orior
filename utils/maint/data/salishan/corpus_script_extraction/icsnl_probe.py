@@ -9,7 +9,7 @@
 #
 # Every measurement here so far needed a corpus with the grammar of each word written beside it, and no
 # such thing exists for any Salishan language. What does exist is description. The International
-# Conference on Salish and Neighboring Languages has met since 1966 and its papers are posted openly by
+# Conference on Salish and Neighboring Languages met since 1966 and its papers are posted openly by
 # the University of British Columbia, and those papers carry affix inventories, ordering templates and
 # glossed examples written down by people who did the field work.
 #
@@ -20,7 +20,7 @@
 # taken here.
 #
 # The volumes run to several megabytes and are born digital. The text comes out with pypdf and is retained
-# beside the file. The keyword pass afterward is a locator: it says which pages to open,
+# beside the file. The keyword pass afterward is a locator. It says which pages to open,
 # and nothing is concluded from a matched line until the page around it has been read.
 
 import io

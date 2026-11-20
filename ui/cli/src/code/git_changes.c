@@ -663,7 +663,7 @@ EMBED_INLINE void key_set(const ChangesCtx *args)
     }
     {
         // whether a line is left out is 0 or 1, which a byte carries
-        const unsigned char value = (unsigned char)now;
+        const unsigned char value = now;
         (void)g_cli_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = part->cell, .offset = part->out_at + args->key, .src = &value, .bytes = 1ULL});
     }

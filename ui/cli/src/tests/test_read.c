@@ -132,9 +132,11 @@ void cli_test_errors_start(const CliTestRunsWorkerLineCtx *args)
 void cli_test_errors_wait(const CliTestRunsWorkerLineCtx *args)
 {
     CliTestRun *const run = args->worker->run;
+    unsigned int wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &run->wake);
     while (!args->worker->errors_read)
     {
-        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &run->wake);
+        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &run->wake, .seen = wake_seen);
+        wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &run->wake);
     }
 }
 
@@ -147,7 +149,7 @@ const char *cli_test_file_read(const CliTestRunsPathCtx *args)
     if ((bytes != NULL) &&
         !EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = (const char *)bytes, .size = *size))
     {
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_tests_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_tests_owner);
         *size = 0ULL;
         return NULL;
     }
@@ -156,5 +158,5 @@ const char *cli_test_file_read(const CliTestRunsPathCtx *args)
 
 void cli_test_file_let_go(const CliTestRunsTextWorkerCtx *args)
 {
-    g_cli_guard->persistent_buf_release((void *)(embed_word)((const unsigned char *)args->text), (g_cli_tests_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)((const unsigned char *)args->text), g_cli_tests_owner);
 }

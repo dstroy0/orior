@@ -38,7 +38,7 @@ static void word_put(unsigned char *at, unsigned long long value)
     }
 }
 
-// the archive of three blocks: the first TABLES_BLOCK literal bytes, the head and dots; the second one sequence,
+// the archive of three blocks: the first TABLES_BLOCK literal bytes, the head and dots. The second one sequence,
 // `CLASS "a"\n` and a match twice its length over it; the third a match reaching back to the archive's first byte
 static const char s_head[] = "ARCHITECTURE \"Test\"\n";
 static const char s_class[] = "CLASS \"a\"\n";

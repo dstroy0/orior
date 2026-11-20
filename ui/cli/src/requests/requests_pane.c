@@ -707,7 +707,7 @@ EMBED_INLINE char *requests_body_positioned(const RequestsPaneCtx *args)
     {
         return NULL;
     }
-    CliJson *const json = &s_requests.answers;
+    const CliJson *const json = &s_requests.answers;
     unsigned long long length_of = 0ULL;
     const char *const body = EMBED_CALL(requests_string, RequestsPaneCtx, .json = json, .node = answer, .name = "body",
                                         .length_out = &length_of);
@@ -1332,7 +1332,7 @@ void cli_requests_pane_check(const CliRequestsPaneCfg *args)
 // line and its body, or its size where it is not text, every carriage return left out
 EMBED_INLINE void requests_answer_text(const RequestsPaneCtx *args)
 {
-    CliJson *const json = &s_requests.answers;
+    const CliJson *const json = &s_requests.answers;
     VerbaLinea *const line = args->line;
     unsigned long long length_of = 0ULL;
     const char *const failed = EMBED_CALL(requests_string, RequestsPaneCtx, .json = json, .node = args->node,

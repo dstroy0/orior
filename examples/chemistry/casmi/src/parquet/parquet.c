@@ -5,7 +5,7 @@
  * @brief Parquet footer and column chunk decoding over the engine's own codecs.
  *
  * Carries what the competition's files use and refuses the rest: PLAIN, PLAIN_DICTIONARY and
- * RLE_DICTIONARY values; RLE and bit-packed hybrid levels; data pages V1 and V2; uncompressed,
+ * RLE_DICTIONARY values; RLE and bit-packed hybrid levels. Data pages V1 and V2; uncompressed,
  * Snappy and Zstd bodies. A refusal is a return of ENGINE_BYTES_ERROR, never a partial column.
  */
 #include "casmi_config.h"
@@ -369,7 +369,7 @@ CASMI_ALWAYS_INLINE void parquet_value_skip(ParquetCursor *cursor, unsigned int 
             }
             depth += 1u;
         }
-        // The next value to skip is the innermost open container's next one; each container that has
+        // The next value to skip is the innermost open container's next one. Each container that has
         // none left closes, and when none is open the whole value has been skipped.
         next_type = CASMI_THRIFT_STOP;
         while ((depth != 0u) && (next_type == CASMI_THRIFT_STOP) && !cursor->broken)
@@ -565,7 +565,7 @@ CASMI_ALWAYS_INLINE int parquet_schema_element_read(ParquetCursor *cursor, Casmi
         }
         CasmiParquetLeaf *const leaf = &footer->leaf[footer->leaf_count];
         memcpy(leaf->path, path, path_bytes + 1ull);
-        // A physical type is 0 through 7 and a fixed width is a few bytes; the writer stored both as
+        // A physical type is 0 through 7 and a fixed width is a few bytes. The writer stored both as
         // i32; neither narrowing loses a value the format allows. An unknown type is refused when
         // its column is bounded.
         leaf->physical = (CasmiParquetPhysical)physical;
@@ -966,7 +966,7 @@ CASMI_ALWAYS_INLINE int parquet_hybrid_decode(const ParquetHybridRead *read)
         else
         {
             const unsigned long long groups = header >> 1u;
-            // A group of eight values takes bit_width bytes; at any nonzero width more groups than
+            // A group of eight values takes bit_width bytes. At any nonzero width more groups than
             // bytes left cannot fit; refusing them first prevents the product below from wrapping.
             if ((groups == 0ull) || ((read->bit_width != 0u) && (groups > (cursor.byte_count - cursor.position))))
             {
@@ -981,7 +981,7 @@ CASMI_ALWAYS_INLINE int parquet_hybrid_decode(const ParquetHybridRead *read)
             const unsigned long long packed_values = groups * 8ull;
             for (unsigned long long step = 0ull; (step < packed_values) && (written < read->value_count); step += 1ull)
             {
-                // A value of at max 32 bits starts within its first byte's low 7 bits; the eight
+                // A value of at max 32 bits starts within its first byte's low 7 bits. The eight
                 // bytes from that byte contain it whole; the window is cut short only at the run's end.
                 const unsigned long long first_bit = step * read->bit_width;
                 const unsigned long long first_byte = cursor.position + (first_bit >> 3u);

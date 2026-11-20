@@ -94,7 +94,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\disasm_verify\\test_disasm_verify\\test_disasm_verify.c");
+  UnityBegin("utils/test/src/ui/cli/unit/disasm_verify/test_disasm_verify/test_disasm_verify.c");
   run_test(test_the_ir_defines_two_functions_and_skips_its_declaration, "test_the_ir_defines_two_functions_and_skips_its_declaration", 97);
   run_test(test_the_irs_functions_are_counted_with_no_names_to_write, "test_the_irs_functions_are_counted_with_no_names_to_write", 104);
   run_test(test_a_defined_function_has_its_own_name_as_its_symbol, "test_a_defined_function_has_its_own_name_as_its_symbol", 109);

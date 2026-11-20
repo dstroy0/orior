@@ -97,7 +97,7 @@ HEARTBEAT_SECONDS = 30
 
 def streamed(command, cwd=ROOT, env=None, stall=STALL_SECONDS, seen=None):
     """A command run with its output streamed line by line through the harness's standard output, each line added to
-    `seen` where it is a list; its exit code.
+    `seen` where it is a list. Its exit code.
     A child that writes nothing is watched: while its processor time moves a heartbeat says so every
     HEARTBEAT_SECONDS; one whose time is stationary for `stall` seconds is ended and 124 is the exit code. A child whose work
     runs inside a container shows no processor time here; such a child is therefore run with no stall, the heartbeat alone."""

@@ -138,7 +138,7 @@ int khw_runs_read(KhwAnswered *answered, const char *text)
                 return 0;
             }
             // the none mark, with its type's character after it where the run is no register's, or the place with its
-            // character after it; the character's place among the four is its type, and no character is a register's
+            // character after it. The character's place among the four is its type, and no character is a register's
             char *end = NULL;
             const int none = (strncmp(place, KHW_PLACE_NONE_TEXT, strlen(KHW_PLACE_NONE_TEXT)) == 0);
             answered->place[run] = none ? KHW_PLACE_NONE : (unsigned int)strtoul(place, &end, 10);
@@ -176,7 +176,7 @@ const char *khw_relation_named(const KhwAnswered *answered, int with_reading, ch
 // printed
 int khw_answers_written(void)
 {
-    static char s_forms_bytes[QRY_WRITER_RING_BYTES / 2ull];
+    static char s_forms_bytes[QRY_WRITER_RING_BYTES / 2ULL];
     text_begun(s_forms_bytes, sizeof(s_forms_bytes));
     for (unsigned int at = 0u; at < s_names; at += 1u)
     {
@@ -210,7 +210,7 @@ int khw_answers_written(void)
 // retained apart from what the vendor arranges. 1, or 0 with the reason printed
 int khw_forms_work_written(void)
 {
-    static char s_work_bytes[QRY_WRITER_RING_BYTES / 2ull];
+    static char s_work_bytes[QRY_WRITER_RING_BYTES / 2ULL];
     text_begun(s_work_bytes, sizeof(s_work_bytes));
     for (unsigned int at = 0u; at < s_names; at += 1u)
     {

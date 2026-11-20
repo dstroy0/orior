@@ -35,7 +35,7 @@
 // <out>/NNNN.sass and its encodings <out>/NNNN.bin. Nothing goes to a device.
 //
 // Each kernel's trace is passed to the query run QRY names as the blob NNNN.trace, as every path's trace is unless
-// (qry_member.h); with no run's writer to take it, nothing is read.
+// (qry_member.h). With no run's writer to take it, nothing is read.
 extern "C"
 {
 #include "sass_assemble.h"
@@ -313,7 +313,7 @@ enum StickLeaf
     STICK_PARAMETER = 4
 };
 
-// an expression as read: what it is, its form, its text, its number, its count of forms and its width; the readings
+// an expression as read: what it is, its form, its text, its number, its count of forms and its width. The readings
 // of its parameters; where it is folded, the word it is as; and whether a flag is read as its complement
 struct StickReading
 {
@@ -328,7 +328,7 @@ struct StickReading
     int negated = 0;
 };
 
-// a register the kernel stores a value in, as sass.krs writes it, or the word a folded value is as; its width,
+// a register the kernel stores a value in, as sass.krs writes it, or the word a folded value is as. Its width,
 // whether its type is signed, and its type's place in s_types
 struct StickValue
 {
@@ -580,7 +580,7 @@ static std::string stick_pipe_choice(const std::string &instruction, std::string
     {
         const unsigned long bits = strtoul(std::string(found[3]).c_str(), NULL, 0);
         *writing = "IMAD.SHL.U32 " + std::string(found[1]) + ", " + std::string(found[2]) + ", " +
-                   std::to_string(1ul << bits) + ", RZ";
+                   std::to_string(1UL << bits) + ", RZ";
         return "SHF.L.U32";
     }
     if (std::regex_match(text, found, shifted_product))
@@ -667,7 +667,7 @@ static std::string stick_constant(const std::string &text)
     {
         return std::string();
     }
-    unsigned long long offset = 0ull;
+    unsigned long long offset = 0ULL;
     const std::string terms = found[2];
     size_t at = 0u;
     while (at < terms.size())
@@ -1561,7 +1561,7 @@ class StickKernel
         const std::string digits = bare.substr(before.size(), bare.size() - before.size() - after.size());
         char *end = NULL;
         const unsigned long long value = strtoull(digits.c_str(), &end, 0);
-        if ((end == NULL) || (*end != '\0') || (value > 0xFFFFFFFFull))
+        if ((end == NULL) || (*end != '\0') || (value > 0xFFFFFFFFULL))
         {
             return 0;
         }
@@ -1704,7 +1704,7 @@ class StickKernel
     }
 
     // `left` and `right` under binary operator `token`, each converted as C converts it. The logical operators take
-    // two flags and give one. A shift takes each side promoted and gives the left's type; every other operator takes
+    // two flags and give one. A shift takes each side promoted and gives the left's type. Every other operator takes
     // both sides in their common type, and a comparison gives a flag. An ordering, a quotient, a remainder and a
     // right shift are of their operands' type, and a signed one is written with its type's cast before each operand,
     // which the signed forms read. Equality reads no sign and takes no cast
@@ -1930,16 +1930,16 @@ class StickKernel
         std::transform(suffix.begin(), suffix.end(), suffix.begin(),
                        [](unsigned char character) { return (char)tolower(character); });
         const int unsigned_one = (suffix.find('u') != std::string::npos);
-        const int wide = (suffix.find("ll") != std::string::npos) || (number > 0xFFFFFFFFull);
-        if (number > 0xFFFFFFFFull)
+        const int wide = (suffix.find("ll") != std::string::npos) || (number > 0xFFFFFFFFULL);
+        if (number > 0xFFFFFFFFULL)
         {
             return refuse("a number wider than a word: " + token);
         }
         const int type = (wide != 0) ? stick_type_bare((unsigned_one != 0) ? "unsignedlonglong" : "longlong")
-                         : ((unsigned_one != 0) || (number > 0x7FFFFFFFull)) ? stick_type_bare("unsignedint")
+                         : ((unsigned_one != 0) || (number > 0x7FFFFFFFULL)) ? stick_type_bare("unsignedint")
                                                                              : stick_type_bare("int");
         StickTyped written{number_text((unsigned int)number), type, 1};
-        written.zero_one = (number <= 1ull);
+        written.zero_one = (number <= 1ULL);
         return written;
     }
     // each wide that is the pair a word begins, by the wide's name, and the words so stored
@@ -2884,7 +2884,7 @@ static void stick_round(const std::vector<StickSource> &sources,
     }
 }
 
-// sass.ksc written: what it contained that opens with each of `openings` dropped, and each of `found` taken; and the
+// sass.ksc written: what it contained that opens with each of `openings` dropped, and each of `found` taken. And the
 // pipes the part's .kdm records taken, for the rounds after to write by
 static void stick_folds_write(const Ruleset *sass, const std::set<std::string> &openings,
                               const std::set<std::string> &found)
@@ -3022,8 +3022,8 @@ int main(int argc, char **argv)
     const std::string out = argv[3];
     // engine.tsv, each kernel's line, and each kernel's <number>.sass, .bin and .registers, every one passed to the
     // run's writer as a file it writes as the run ends (qry_member_filed)
-    static char s_table_bytes[QRY_WRITER_RING_BYTES / 2ull];
-    VerbaLinea table = {s_table_bytes, sizeof(s_table_bytes), 0ull};
+    static char s_table_bytes[QRY_WRITER_RING_BYTES / 2ULL];
+    VerbaLinea table = {s_table_bytes, sizeof(s_table_bytes), 0ULL};
     mmgr_line_put(&table, "number\tanswer\tforms\tinstructions\tnote\n");
     unsigned int answered = 0u;
     unsigned int unfiled = 0u;

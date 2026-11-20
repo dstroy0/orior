@@ -12,30 +12,30 @@ static InterfaceFault interface_fault_of(unsigned long long code)
     {
     // an integer division by zero, one that overflows, and the floating-point traps from denormal operand to
     // underflow
-    case 0xC0000094ull:
-    case 0xC0000095ull:
-    case 0xC000008Dull:
-    case 0xC000008Eull:
-    case 0xC000008Full:
-    case 0xC0000090ull:
-    case 0xC0000091ull:
-    case 0xC0000092ull:
-    case 0xC0000093ull:
+    case 0xC0000094ULL:
+    case 0xC0000095ULL:
+    case 0xC000008DULL:
+    case 0xC000008EULL:
+    case 0xC000008FULL:
+    case 0xC0000090ULL:
+    case 0xC0000091ULL:
+    case 0xC0000092ULL:
+    case 0xC0000093ULL:
         return INTERFACE_FAULT_ARITHMETIC;
     // an access violation, and a page the system could not bring in
-    case 0xC0000005ull:
-    case 0xC0000006ull:
+    case 0xC0000005ULL:
+    case 0xC0000006ULL:
         return INTERFACE_FAULT_ADDRESS;
     // an illegal instruction, and a privileged one
-    case 0xC000001Dull:
-    case 0xC0000096ull:
+    case 0xC000001DULL:
+    case 0xC0000096ULL:
         return INTERFACE_FAULT_INSTRUCTION;
-    case 0xC00000FDull:
+    case 0xC00000FDULL:
         return INTERFACE_FAULT_STACK;
-    case 0x80000003ull:
+    case 0x80000003ULL:
         return INTERFACE_FAULT_TRAP;
     // the fail-fast a runtime ends itself with, abort among its callers
-    case 0xC0000409ull:
+    case 0xC0000409ULL:
         return INTERFACE_FAULT_ABORT;
     default:
         return INTERFACE_FAULT_OTHER;
@@ -294,7 +294,7 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
     }
     // a job the probe cannot join leaves only the probe itself to end at its limit
     const int joined = limited && AssignProcessToJobObject(job, started.hProcess);
-    InterfacePipe piped = {pipe_read, answer, 0ull};
+    InterfacePipe piped = {pipe_read, answer, 0ULL};
     const HANDLE reader = (pipe_read != NULL) ? CreateThread(NULL, 0u, interface_pipe_drained, &piped, 0u, NULL) : NULL;
     if ((pipe_read != NULL) && (reader == NULL))
     {
@@ -314,9 +314,9 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
     ResumeThread(started.hThread);
     CloseHandle(started.hThread);
     // a limit's milliseconds, rounded up, fit a DWORD below INFINITE for any limit under 49 days
-    const DWORD wait = (probe->limit_microseconds == 0ull)
+    const DWORD wait = (probe->limit_microseconds == 0ULL)
                            ? INFINITE
-                           : (DWORD)((probe->limit_microseconds + (INTERFACE_THOUSAND - 1ull)) / INTERFACE_THOUSAND);
+                           : (DWORD)((probe->limit_microseconds + (INTERFACE_THOUSAND - 1ULL)) / INTERFACE_THOUSAND);
     const int out_of_time = WaitForSingleObject(started.hProcess, wait) == WAIT_TIMEOUT;
     if (out_of_time && joined)
     {
@@ -337,7 +337,7 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
     {
         CloseHandle(job);
     }
-    // the pipe's reader ends at the pipe's end, once every process that owned its write end has ended; one a process
+    // the pipe's reader ends at the pipe's end, once every process that owned its write end ended. One a process
     // outside the job still owns is let go after INTERFACE_DRAIN_MILLISECONDS, its read so far retained
     if (reader != NULL)
     {
@@ -367,7 +367,7 @@ long interface_output_file_read(const InterfaceProbe *probe, InterfaceAnswer *an
         return -1L;
     }
     char piece[INTERFACE_READ_BYTES];
-    unsigned long long total = 0ull;
+    unsigned long long total = 0ULL;
     DWORD got = 0u;
     BOOL complete = ReadFile(file, piece, sizeof(piece), &got, NULL);
     while (complete && (got != 0u))

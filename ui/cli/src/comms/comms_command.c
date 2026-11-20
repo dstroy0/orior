@@ -143,9 +143,9 @@ int cli_comms_command_run(const CliCommsCommandCfg *args)
         return 1;
     case 4u: {
         // on or off by its word, else turned from what it is
-        const char *const word = (args->count != 0u) ? args->words[0] : "";
-        const int on = cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "on", .cap = 8ULL});
-        const int off = cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "off", .cap = 8ULL});
+        const char *const first_word = (args->count != 0u) ? args->words[0] : "";
+        const int on = cellul.eq(&(CatenaFinitaCfg){.src = first_word, .other = "on", .cap = 8ULL});
+        const int off = cellul.eq(&(CatenaFinitaCfg){.src = first_word, .other = "off", .cap = 8ULL});
         EMBED_CALL(cli_net.disable, CliNetCfg, .off = on || (!off && !cli_net_is_disable()));
         return 1;
     }

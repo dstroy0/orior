@@ -90,7 +90,7 @@ void orior_steer_probe_order(size_t *offsets, size_t count, const OriorFieldCens
  * @param[out] value Where the limbs are written [BORROWS].
  * @param[in]  from  The value to carry.
  * @note Base 2^32 least significant limb first, the layout exact_integer.h declares.
- *       Writing the two limbs directly is reading that declaration instead of reaching around it;
+ *       Writing the two limbs directly reads that declaration instead of reaching around it;
  *       there is no decimal text here to route through orior_exact_from_decimal and converting a
  *       counter to text to parse it back would be slower and just as exact.
  * @note limb[1] exists because the assert at the top of this file limits the engine to 8 limbs or
@@ -294,7 +294,7 @@ size_t steer_truthy_total(const uint8_t *alive, size_t alignments, size_t stride
  * @brief Turns falsy every alignment that disagrees at `offset`, over the whole population.
  *
  * @note Applied at stride one even where the ranking was sampled. The ranking is allowed to be
- *       approximate because it only picks between nulls; the survivor set is not, because the next
+ *       approximate because it only picks between nulls. The survivor set is not, because the next
  *       level ranks against it and an approximate survivor set would compound.
  */
 void steer_make_falsy(const uint8_t *corpus, size_t corpus_len, const uint8_t *needle, size_t needle_len,

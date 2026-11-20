@@ -70,7 +70,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\structure\\test_structure\\test_structure.c");
+  UnityBegin("utils/test/src/ui/cli/unit/structure/test_structure/test_structure.c");
   run_test(test_tokens_are_names_numbers_strings_and_signs, "test_tokens_are_names_numbers_strings_and_signs", 32);
   run_test(test_each_token_is_positioned_in_utf16_on_its_line, "test_each_token_is_positioned_in_utf16_on_its_line", 44);
 

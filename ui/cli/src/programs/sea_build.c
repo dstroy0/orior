@@ -373,13 +373,13 @@ int cli_sea_build(const CliSeaNodeCfg *args)
                                                    .size_pointer = &script_size, .owner = g_cli_sea_owner);
     if ((mapped == NULL) || (script_size >= CLI_SEA_SCRIPT))
     {
-        g_cli_guard->persistent_buf_release((void *)(embed_word)mapped, (g_cli_sea_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)mapped, g_cli_sea_owner);
         return EMBED_CALL(cli_fail, SeaBuildCtx, .path = args->main, .how = ": it could not be read",
                           .err_msg = args->err_msg);
     }
     const unsigned int required = EMBED_CALL(cli_sea_table.outside, CliSeaCfg, .text = (const char *)mapped,
                                              .found = s_requested, .capacity = CLI_SEA_REQUESTED);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)mapped, (g_cli_sea_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)mapped, g_cli_sea_owner);
     if (required != 0u)
     {
         mmgr_line_put(args->err_msg, args->main);
@@ -518,8 +518,8 @@ int cli_sea_build(const CliSeaNodeCfg *args)
         done && EMBED_CALL(cli_linux_copy, SeaBuildCtx, .program = program, .size = size, .data = data,
                            .data_size = data_size, .output = args->made, .sink = args->sink, .err_msg = args->err_msg);
 #endif
-    g_cli_guard->persistent_buf_release((void *)(embed_word)program, (g_cli_sea_owner));
-    g_cli_guard->persistent_buf_release((void *)(embed_word)data, (g_cli_sea_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)program, g_cli_sea_owner);
+    g_cli_guard->persistent_buf_release((void *)(embed_word)data, g_cli_sea_owner);
     if (done)
     {
         EMBED_CALL(cli_print, SeaBuildCtx, .sink = args->sink, .text = "turned the fuse to 1");

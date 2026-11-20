@@ -33,7 +33,7 @@ void cycle_format(std::string &text, const char *format, ...)
     va_start(arguments, format);
     const int written = vsnprintf(line, sizeof(line), format, arguments);
     va_end(arguments);
-    // a line the capacity does not fit is cut, and the source then fails to compile and never runs wrong; written is
+    // a line the capacity does not fit is cut, and the source then fails to compile and never runs wrong. Written is
     // read as a size only once it is known positive
     text.append(line, ((written > 0) && ((size_t)written < sizeof(line))) ? (size_t)written : sizeof(line) - 1u);
 }
@@ -175,11 +175,11 @@ std::string cycle_cache_folder(void)
 // a source's FNV-1a
 unsigned long long cycle_source_hash(const std::string &source)
 {
-    unsigned long long hash = 0xCBF29CE484222325ull;
+    unsigned long long hash = 0xCBF29CE484222325ULL;
     for (size_t at = 0u; at < source.size(); at += 1u)
     {
         // a source byte is read as its unsigned value
-        hash = (hash ^ (unsigned long long)(unsigned char)source[at]) * 0x100000001B3ull;
+        hash = (hash ^ (unsigned long long)(unsigned char)source[at]) * 0x100000001B3ULL;
     }
     return hash;
 }

@@ -6,7 +6,7 @@
 #
 #   Usage:  python maint/data/fetch/fetch_many_languages.py
 #
-# Under the tightest numbering four languages landed between 4.76 and 7.84 where they had spanned 15.61 to
+# Under the tightest numbering four languages landed between 4.76 and 7.84 where they spanned 15.61 to
 # 31.44 as given, and Greek at 141 symbols sat on the same value as German at 73. Four languages cannot
 # carry that, and all four use the same alphabet. What looks like convergence could be one writing
 # system measured four times.

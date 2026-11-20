@@ -32,7 +32,7 @@ CODEGEN_CORE void codegen_store_placed(MachineFunction *lane, const DeviceRecord
 }
 
 // the step's register written into the record's words at out_offset, out_bits of it, as two's complement where its sign
-// is negative, as cycle_put writes it; each word is the lane's own register until its last put
+// is negative, as cycle_put writes it. Each word is the lane's own register until its last put
 CODEGEN_CORE void codegen_put(MachineFunction *lane, const IrStep *at)
 {
     const DeviceRecordStep *const step = at->step;

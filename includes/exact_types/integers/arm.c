@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission. That permission is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
@@ -17,7 +17,7 @@
 
 #include "arm.h"
 
-/** @brief The arm as a driver sees it. Static storage. Returning its address is safe. */
+/** @brief The arm as a driver sees it. Static storage. A return of its address is safe. */
 static const OriorExactArm PORTABLE_ARM = {
     "portable",
     orior_exact_equal,

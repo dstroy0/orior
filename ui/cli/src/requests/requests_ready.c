@@ -92,7 +92,7 @@ EMBED_INLINE int ready_body_file(const RequestsReadyCtx *args)
     {
         *size = length;
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_requests_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_requests_owner);
     if (!whole)
     {
         mmgr_line_put(err_msg, args->name);

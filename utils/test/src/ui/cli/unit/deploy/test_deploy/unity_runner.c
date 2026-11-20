@@ -88,7 +88,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\deploy\\test_deploy\\test_deploy.c");
+  UnityBegin("utils/test/src/ui/cli/unit/deploy/test_deploy/test_deploy.c");
   run_test(test_a_pattern_leaves_out_a_name, "test_a_pattern_leaves_out_a_name", 98);
   run_test(test_a_pattern_leaves_out_a_name_in_any_folder, "test_a_pattern_leaves_out_a_name_in_any_folder", 103);
   run_test(test_a_folders_pattern_leaves_out_its_contents, "test_a_folders_pattern_leaves_out_its_contents", 108);

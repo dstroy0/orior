@@ -26,8 +26,8 @@ void mmio_close(HANDLE device)
 int mmio_extent(HANDLE device, unsigned long long *base, unsigned long long *size)
 {
     MmioExtent extent;
-    DWORD given = 0ul;
-    if (!DeviceIoControl(device, MMIO_IOCTL_EXTENT, NULL, 0ul, &extent, (DWORD)sizeof(extent), &given, NULL) ||
+    DWORD given = 0UL;
+    if (!DeviceIoControl(device, MMIO_IOCTL_EXTENT, NULL, 0UL, &extent, (DWORD)sizeof(extent), &given, NULL) ||
         (given != (DWORD)sizeof(extent)))
     {
         return 0;
@@ -47,7 +47,7 @@ int mmio_read(HANDLE device, unsigned int offset, unsigned int words, unsigned i
     request.offset = offset;
     request.words = words;
     const DWORD wanted = (DWORD)(words * (unsigned int)sizeof(unsigned int));
-    DWORD given = 0ul;
+    DWORD given = 0UL;
     if (!DeviceIoControl(device, MMIO_IOCTL_READ, &request, (DWORD)sizeof(request), out, wanted, &given, NULL) ||
         (given != wanted))
     {

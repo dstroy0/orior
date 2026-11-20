@@ -233,7 +233,7 @@ int cli_deploy_send_to(const CliDeployErrMsgCtx *args)
     }
     else
     {
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_deploy_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_deploy_owner);
     }
     (void)EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = tar);
     return sent &&

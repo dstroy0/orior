@@ -179,8 +179,7 @@ int cli_document_change_step(const CliChangeCfg *args)
     }
     // from a line: going down the first change that starts at or below it, the first of all where none does; going up
     // the last that starts above it, the last of all where none does
-    ChangesNearest nearest = {
-        (args->by < 0) ? args->line : args->line, 0, {0u, 0u, 0u, 0u}, 0u, 0, {0u, 0u, 0u, 0u}, 0u, 0u};
+    ChangesNearest nearest = {args->line, 0, {0u, 0u, 0u, 0u}, 0u, 0, {0u, 0u, 0u, 0u}, 0u, 0u};
     if (!EMBED_CALL(cli_document_out_key_head_input.changes, CliDocumentOutKeyHeadInputCfg, .key = args->key,
                     .each = changes_nearest_passed, .context = &nearest) ||
         (nearest.count == 0u))

@@ -58,9 +58,9 @@ void probe_form(ProbeWriter *writer, std::string &text, const char *name, const 
 static unsigned long long probe_mix(unsigned long long value)
 {
     // splitmix64's finalizer: every case's words from its number alone
-    value += 0x9E3779B97F4A7C15ull;
-    value = (value ^ (value >> 30u)) * 0xBF58476D1CE4E5B9ull;
-    value = (value ^ (value >> 27u)) * 0x94D049BB133111EBull;
+    value += 0x9E3779B97F4A7C15ULL;
+    value = (value ^ (value >> 30u)) * 0xBF58476D1CE4E5B9ULL;
+    value = (value ^ (value >> 27u)) * 0x94D049BB133111EBULL;
     return value ^ (value >> 31u);
 }
 
@@ -71,7 +71,7 @@ void probe_case(unsigned int number, unsigned int *in)
     {
         const unsigned long long drawn = probe_mix(((unsigned long long)number * PROBE_IN_WORDS) + word);
         // a drawn word's low 32 bits, and an edge's place below the edges' count
-        in[word] = ((drawn & 3ull) == 0ull) ? (unsigned int)(drawn >> 32u)
+        in[word] = ((drawn & 3ULL) == 0ULL) ? (unsigned int)(drawn >> 32u)
                                             : s_probe_edges[(unsigned int)((drawn >> 2u) % PROBE_EDGES)];
     }
 }
@@ -120,7 +120,7 @@ std::vector<ProbeQuestion> probe_questions(ProbeWriter *writer)
     form("word_add_middle", {t[9], t[1], t[4]});
     form("word_add_last", {t[10], t[2], t[5]});
     query("word_add_first, word_add_middle, word_add_last: 96 bits", 3u, [](const unsigned int *in, unsigned int *out) {
-        unsigned long long carry = 0ull;
+        unsigned long long carry = 0ULL;
         for (unsigned int limb = 0u; limb < 3u; limb += 1u)
         {
             const unsigned long long sum = (unsigned long long)in[limb] + in[3u + limb] + carry;
@@ -138,12 +138,12 @@ std::vector<ProbeQuestion> probe_questions(ProbeWriter *writer)
     form("word_sub_middle", {t[9], t[1], t[4]});
     form("word_sub_last", {t[10], t[2], t[5]});
     query("word_sub_first, word_sub_middle, word_sub_last: 96 bits", 3u, [](const unsigned int *in, unsigned int *out) {
-        unsigned long long borrow = 0ull;
+        unsigned long long borrow = 0ULL;
         for (unsigned int limb = 0u; limb < 3u; limb += 1u)
         {
             const unsigned long long difference = (unsigned long long)in[limb] - in[3u + limb] - borrow;
             out[limb] = (unsigned int)difference;
-            borrow = (difference >> 32u) & 1ull;
+            borrow = (difference >> 32u) & 1ULL;
         }
         return 1;
     });
@@ -162,14 +162,14 @@ std::vector<ProbeQuestion> probe_questions(ProbeWriter *writer)
     form("word_borrow_read", {t[11], p[0]});
     query("word_sub_first, word_sub_middle, word_sub_middle, word_borrow_read: 96 bits", 4u,
           [](const unsigned int *in, unsigned int *out) {
-              unsigned long long borrow = 0ull;
+              unsigned long long borrow = 0ULL;
               for (unsigned int limb = 0u; limb < 3u; limb += 1u)
               {
                   const unsigned long long difference = (unsigned long long)in[limb] - in[3u + limb] - borrow;
                   out[limb] = (unsigned int)difference;
-                  borrow = (difference >> 32u) & 1ull;
+                  borrow = (difference >> 32u) & 1ULL;
               }
-              out[3] = (borrow != 0ull) ? 0xFFFFFFFFu : 0u;
+              out[3] = (borrow != 0ULL) ? 0xFFFFFFFFu : 0u;
               return 1;
           });
     form("word_copy", {t[8], t[0]});
@@ -294,7 +294,7 @@ std::vector<ProbeQuestion> probe_questions(ProbeWriter *writer)
           [](const unsigned int *in, unsigned int *out) {
               const unsigned long long left = probe_pair(in[0], in[1]);
               const unsigned long long right = probe_pair(in[2], in[3]);
-              out[0] = (left != 0ull) ? 1u : 0u;
+              out[0] = (left != 0ULL) ? 1u : 0u;
               out[1] = (left == right) ? 1u : 0u;
               out[2] = (left < right) ? 1u : 0u;
               out[3] = ((left < right) && (in[4] != 0u)) ? 1u : 0u;
@@ -357,7 +357,7 @@ std::vector<ProbeQuestion> probe_questions(ProbeWriter *writer)
     form("wide_select", {w[3], w[0], w[1], p[0]});
     form("wide_unpack", {t[10], t[11], w[3]});
     query("wide_shl, wide_select", 4u, [](const unsigned int *in, unsigned int *out) {
-        const unsigned long long shifted = (in[2] < 64u) ? (probe_pair(in[0], in[1]) << in[2]) : 0ull;
+        const unsigned long long shifted = (in[2] < 64u) ? (probe_pair(in[0], in[1]) << in[2]) : 0ULL;
         const unsigned long long chosen = (in[5] != 0u) ? probe_pair(in[0], in[1]) : probe_pair(in[3], in[4]);
         out[0] = (unsigned int)shifted;
         out[1] = (unsigned int)(shifted >> 32u);
@@ -371,10 +371,10 @@ std::vector<ProbeQuestion> probe_questions(ProbeWriter *writer)
     form("wide_unpack", {t[8], t[9], w[2]});
     query("wide_div", 2u, [](const unsigned int *in, unsigned int *out) {
         const unsigned long long divisor = probe_pair(in[2], in[3]);
-        const unsigned long long quotient = (divisor != 0ull) ? (probe_pair(in[0], in[1]) / divisor) : 0ull;
+        const unsigned long long quotient = (divisor != 0ULL) ? (probe_pair(in[0], in[1]) / divisor) : 0ULL;
         out[0] = (unsigned int)quotient;
         out[1] = (unsigned int)(quotient >> 32u);
-        return divisor != 0ull;
+        return divisor != 0ULL;
     });
     // global_add_atomic_word, the one form the resident counts with and no other question reaches. What it leaves
     // cannot be read here: the only load the ruleset gives is ld.global.nc, which promises the location is not written

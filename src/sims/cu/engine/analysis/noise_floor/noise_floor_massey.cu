@@ -6,12 +6,12 @@
 static inline __host__ __device__ unsigned int floor_bit(const FloorStream *stream, unsigned int at)
 {
     // a bit is 0 or 1
-    return (unsigned int)((stream->word[at / 64u] >> (at % 64u)) & 1ull);
+    return (unsigned int)((stream->word[at / 64u] >> (at % 64u)) & 1ULL);
 }
 
 static inline __host__ __device__ void floor_flip(FloorStream *stream, unsigned int at)
 {
-    stream->word[at / 64u] ^= 1ull << (at % 64u);
+    stream->word[at / 64u] ^= 1ULL << (at % 64u);
 }
 
 static inline __host__ __device__ void floor_shifted_add(FloorStream *into, const FloorStream *from, unsigned int shift)
@@ -39,11 +39,11 @@ static __global__ void floor_massey_kernel(const FloorStream *streams, unsigned 
     FloorStream saved;
     for (unsigned int word = 0u; word < FLOOR_STREAM_WORDS; word += 1u)
     {
-        connection.word[word] = 0ull;
-        before.word[word] = 0ull;
+        connection.word[word] = 0ULL;
+        before.word[word] = 0ULL;
     }
-    connection.word[0] = 1ull;
-    before.word[0] = 1ull;
+    connection.word[0] = 1ULL;
+    before.word[0] = 1ULL;
     unsigned int length = 0u;
     unsigned int gap = 1u;
     for (unsigned int at = 0u; at < FLOOR_STREAM_BITS; at += 1u)
@@ -126,15 +126,15 @@ static void floor_seeded_stream(FloorStream *stream, unsigned int degree, unsign
                                 unsigned long long index)
 {
     memset(stream, 0, sizeof(*stream));
-    const unsigned long long range = (degree == 64u) ? 0xFFFFFFFFFFFFFFFFull : ((1ull << degree) - 1ull);
-    const unsigned long long taps = (sim_draw(key, (index * 4ull) + 0ull) & range) | (1ull << (degree - 1u));
-    unsigned long long state = sim_draw(key, (index * 4ull) + 1ull) & range;
-    state = (state == 0ull) ? 1ull : state;
+    const unsigned long long range = (degree == 64u) ? 0xFFFFFFFFFFFFFFFFULL : ((1ULL << degree) - 1ULL);
+    const unsigned long long taps = (sim_draw(key, (index * 4ULL) + 0ULL) & range) | (1ULL << (degree - 1u));
+    unsigned long long state = sim_draw(key, (index * 4ULL) + 1ULL) & range;
+    state = (state == 0ULL) ? 1ULL : state;
     for (unsigned int at = 0u; at < FLOOR_STREAM_BITS; at += 1u)
     {
         if (at < degree)
         {
-            if (((state >> at) & 1ull) != 0ull)
+            if (((state >> at) & 1ULL) != 0ULL)
             {
                 floor_flip(stream, at);
             }
@@ -144,7 +144,7 @@ static void floor_seeded_stream(FloorStream *stream, unsigned int degree, unsign
         for (unsigned int tap = 1u; tap <= degree; tap += 1u)
         {
             // one tap bit, 0 or 1
-            next ^= (unsigned int)((taps >> (tap - 1u)) & 1ull) & floor_bit(stream, at - tap);
+            next ^= (unsigned int)((taps >> (tap - 1u)) & 1ULL) & floor_bit(stream, at - tap);
         }
         if (next != 0u)
         {
@@ -161,20 +161,20 @@ void floor_mock(SimResults *results, FloorStream *streams, unsigned int *lengths
         // the draw is below the degree span, far under 2^32
         degree[index] = FLOOR_DEGREE_LEAST +
                         (unsigned int)sim_draw_below(FLOOR_KEY, index, (FLOOR_DEGREE_MAX - FLOOR_DEGREE_LEAST) + 1u);
-        floor_seeded_stream(&streams[index], degree[index], FLOOR_KEY ^ 0x5EEDull, index);
+        floor_seeded_stream(&streams[index], degree[index], FLOOR_KEY ^ 0x5EEDULL, index);
     }
     if (floor_massey(results, streams, FLOOR_STREAMS, lengths, regenerated) == 0)
     {
         return;
     }
-    unsigned long long within = 0ull;
-    unsigned long long rebuilt = 0ull;
-    unsigned long long description = 0ull;
+    unsigned long long within = 0ULL;
+    unsigned long long rebuilt = 0ULL;
+    unsigned long long description = 0ULL;
     for (unsigned int index = 0u; index < FLOOR_STREAMS; index += 1u)
     {
-        within += (lengths[index] <= degree[index]) ? 1ull : 0ull;
+        within += (lengths[index] <= degree[index]) ? 1ULL : 0ULL;
         rebuilt += regenerated[index];
-        description += 2ull * lengths[index];
+        description += 2ULL * lengths[index];
     }
     VerbaLinea *const line = &results->line;
     mmgr_line_put(line, "  the Kolmogorov mock: ");
@@ -194,7 +194,7 @@ void floor_mock(SimResults *results, FloorStream *streams, unsigned int *lengths
     mmgr_line_put(line, " of ");
     mmgr_line_decimal(line, (unsigned long long)FLOOR_STREAMS * FLOOR_STREAM_BITS, 1u);
     mmgr_line_put(line, " bits (");
-    sim_fraction_print(line, description * 100ull, (unsigned long long)FLOOR_STREAMS * FLOOR_STREAM_BITS, 2u);
+    sim_fraction_print(line, description * 100ULL, (unsigned long long)FLOOR_STREAMS * FLOOR_STREAM_BITS, 2u);
     mmgr_line_put(line, "%)\n");
     sim_check(results, within == FLOOR_STREAMS, "every seeded stream's complexity lies within its degree");
     sim_check(results, rebuilt == FLOOR_STREAMS, "every seeded stream regenerates from its recovered seed");
@@ -206,7 +206,7 @@ void floor_random(SimResults *results, FloorStream *streams, unsigned int *lengt
     {
         for (unsigned int word = 0u; word < FLOOR_STREAM_WORDS; word += 1u)
         {
-            streams[index].word[word] = sim_draw(FLOOR_KEY ^ 0xD1CEull, (index * FLOOR_STREAM_WORDS) + word);
+            streams[index].word[word] = sim_draw(FLOOR_KEY ^ 0xD1CEULL, (index * FLOOR_STREAM_WORDS) + word);
         }
     }
     if (floor_massey(results, streams, FLOOR_STREAMS, lengths, regenerated) == 0)
@@ -270,16 +270,16 @@ void floor_planes(SimResults *results, const unsigned short *lanes, unsigned lon
         mmgr_line_decimal(line, FLOOR_STREAM_BITS, 1u);
         mmgr_line_put(line, " consecutive lanes a plane\n    plane  mean complexity / n   streams read as random (at "
                              "least n/2 - 16)\n");
-        unsigned long long random_low_planes = 0ull;
+        unsigned long long random_low_planes = 0ULL;
         for (unsigned int plane = 0u; plane < FLOOR_PLANES; plane += 1u)
         {
-            unsigned long long total = 0ull;
-            unsigned long long random = 0ull;
+            unsigned long long total = 0ULL;
+            unsigned long long random = 0ULL;
             for (unsigned int stream = 0u; stream < per_plane; stream += 1u)
             {
                 const unsigned int length = lengths[(plane * per_plane) + stream];
                 total += length;
-                random += ((length + FLOOR_RANDOM_RANGE) >= (FLOOR_STREAM_BITS / 2u)) ? 1ull : 0ull;
+                random += ((length + FLOOR_RANDOM_RANGE) >= (FLOOR_STREAM_BITS / 2u)) ? 1ULL : 0ULL;
             }
             mmgr_line_put(line, "    ");
             mmgr_line_decimal_columns(line, plane, 5u);
@@ -290,9 +290,9 @@ void floor_planes(SimResults *results, const unsigned short *lanes, unsigned lon
             mmgr_line_put(line, " of ");
             mmgr_line_decimal(line, per_plane, 1u);
             mmgr_line_ch(line, '\n');
-            random_low_planes += ((plane == 0u) && (random == per_plane)) ? 1ull : 0ull;
+            random_low_planes += ((plane == 0u) && (random == per_plane)) ? 1ULL : 0ULL;
         }
-        sim_check(results, random_low_planes == 1ull, "the lowest bit plane reads as random on every stream");
+        sim_check(results, random_low_planes == 1ULL, "the lowest bit plane reads as random on every stream");
     }
     free(regenerated);
     free(lengths);
@@ -304,7 +304,7 @@ __global__ void floor_transfer_kernel(unsigned short *lanes, const unsigned int 
                                       FloorBins level, FloorBins coherent, FloorCoherence *coherence)
 {
     const unsigned long long index = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x;
-    if (index >= ((frames - 1ull) * voxels))
+    if (index >= ((frames - 1ULL) * voxels))
     {
         return;
     }
@@ -315,25 +315,25 @@ __global__ void floor_transfer_kernel(unsigned short *lanes, const unsigned int 
     const unsigned long long square = (unsigned long long)(difference * difference);
     const unsigned long long sum = (unsigned long long)lanes[later] + (unsigned long long)lanes[index];
     const int ok = signal[later] == signal[index];
-    atomicAdd(&coherence->pairs, 1ull);
+    atomicAdd(&coherence->pairs, 1ULL);
     if (ok)
     {
-        atomicAdd(&truth.count[signal[index]], 1ull);
+        atomicAdd(&truth.count[signal[index]], 1ULL);
         atomicAdd(&truth.total[signal[index]], square);
     }
-    atomicAdd(&level.count[sum], 1ull);
+    atomicAdd(&level.count[sum], 1ULL);
     atomicAdd(&level.total[sum], square);
-    if (((index % voxels) % columns) + 1ull >= columns)
+    if (((index % voxels) % columns) + 1ULL >= columns)
     {
         return;
     }
     // the neighbor's difference, like this one, is below 2^16 in magnitude
-    const long long beside = (long long)lanes[later + 1ull] - (long long)lanes[index + 1ull];
+    const long long beside = (long long)lanes[later + 1ULL] - (long long)lanes[index + 1ULL];
     const long long across = difference - beside;
     const unsigned long long quad =
-        sum + (unsigned long long)lanes[later + 1ull] + (unsigned long long)lanes[index + 1ull];
+        sum + (unsigned long long)lanes[later + 1ULL] + (unsigned long long)lanes[index + 1ULL];
     // the square of a difference of two differences is below 2^34
-    atomicAdd(&coherent.count[quad], 1ull);
+    atomicAdd(&coherent.count[quad], 1ULL);
     atomicAdd(&coherent.total[quad], (unsigned long long)(across * across));
     // a product of two differences is below 2^32 in magnitude; added modulo 2^64 it preserves its sign in the total
     const unsigned long long product = (unsigned long long)(difference * beside);
@@ -342,9 +342,9 @@ __global__ void floor_transfer_kernel(unsigned short *lanes, const unsigned int 
     atomicAdd(&coherence->neighbor_product_all, product);
     atomicAdd(&coherence->square_here_all, square);
     atomicAdd(&coherence->square_beside_all, beside_square);
-    if (ok && (signal[later + 1ull] == signal[index + 1ull]))
+    if (ok && (signal[later + 1ULL] == signal[index + 1ULL]))
     {
-        atomicAdd(&coherence->both_static, 1ull);
+        atomicAdd(&coherence->both_static, 1ULL);
         atomicAdd(&coherence->neighbor_product, product);
         atomicAdd(&coherence->square_here, square);
         atomicAdd(&coherence->square_beside, beside_square);

@@ -193,7 +193,7 @@ def main(argv):
     if "--cross" in argv:
         # THE CONFOUND KILLER. At an early round the nonces of ONE header share its bulk, a shared
         # arrangement could be the header and not a nonce law. If same-header spacing is far below
-        # cross-header spacing, the pattern is the header's; if same and cross agree and both sit below
+        # cross-header spacing, the pattern is the header's. If same and cross agree and both sit below
         # the fair null, the arrangement is shared across DIFFERENT headers, the real claim.
         directions = build_sha_sphere_view.place("spiral")
         basis = build_bend_view.source_basis(top, directions)

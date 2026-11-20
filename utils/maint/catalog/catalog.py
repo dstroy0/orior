@@ -56,7 +56,7 @@ def _repository_root():
     A marker the repository produces, such as build/, is absent from a linked worktree and a
     never-built clone, and a climb to it can pass this root and land in another checkout whose paths
     look valid. A marker infers the root. Git answers it. The climb below serves only an exported tree
-    with no git directory, and it looks for archive/src/python, which the repository tracks and every checkout
+    with no git directory. It looks for archive/src/python, which the repository tracks and every checkout
     of it holds.
 
     Git's own variables are cleared first. Inside a hook GIT_DIR is exported, and a rev-parse that
@@ -123,7 +123,7 @@ DOMAIN = {
 # file reports as NO DOMAIN and not numbered, and the hand-written header sits there looking issued.
 # Two sessions did that independently and neither was told by anything until --check was run.
 # That is the argument for running it instead of copying the shape of a number that is already there.
-# CHM joined the same way, after three chemistry examples had landed with no number and --check
+# CHM joined the same way, after three chemistry examples landed with no number and --check
 # failed on main naming them.
 #
 # EXP is the VIZ case again and not a ninth subject. 0_experimental holds work that reads no
@@ -134,7 +134,7 @@ DOMAIN = {
 
 # VIZ is not a domain in the sense the other eight are. Those name what a corpus is of, and the
 # viz tools read any blob: whatever arrives as points carrying values, with no domain in it. They
-# sit first in the listing for that reason, and they carry numbers because they are tools this
+# sit first in the listing for that reason. They carry numbers because they are tools this
 # work uses, and a number survives a file moving where a path does not.
 #
 # They take stage x, like anything not under a numbered pipeline directory. Reading a blob is not

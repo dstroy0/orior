@@ -8,46 +8,46 @@
 // 1 where the sample at `at` begins a record: a FIXED identifier with a LIVE sizing register in the next sample
 static int bus_enum_record(const unsigned int *types, unsigned long long count, unsigned long long at)
 {
-    return (((at + 1ull) < count) && (types[at] == HOST_FIXED) && (types[at + 1ull] == HOST_LIVE)) ? 1 : 0;
+    return (((at + 1ULL) < count) && (types[at] == HOST_FIXED) && (types[at + 1ULL] == HOST_LIVE)) ? 1 : 0;
 }
 
 int bus_enum_find(const unsigned int *types, unsigned long long count, unsigned long long *base,
                   unsigned long long *stride, unsigned long long *records)
 {
-    unsigned long long heads = 0ull;
-    unsigned long long first = 0ull;
-    unsigned long long previous = 0ull;
-    unsigned long long step = 0ull;
-    for (unsigned long long at = 0ull; at < count; at += 1ull)
+    unsigned long long heads = 0ULL;
+    unsigned long long first = 0ULL;
+    unsigned long long previous = 0ULL;
+    unsigned long long step = 0ULL;
+    for (unsigned long long at = 0ULL; at < count; at += 1ULL)
     {
         if (bus_enum_record(types, count, at) == 0)
         {
             continue;
         }
-        if (heads != 0ull)
+        if (heads != 0ULL)
         {
             const unsigned long long gap = at - previous;
-            step = ((step == 0ull) || (gap < step)) ? gap : step;
+            step = ((step == 0ULL) || (gap < step)) ? gap : step;
         }
         else
         {
             first = at;
         }
         previous = at;
-        heads += 1ull;
+        heads += 1ULL;
     }
-    if ((heads < 2ull) || (step == 0ull))
+    if ((heads < 2ULL) || (step == 0ULL))
     {
         return 0;
     }
     previous = first;
-    for (unsigned long long at = first + 1ull; at < count; at += 1ull)
+    for (unsigned long long at = first + 1ULL; at < count; at += 1ULL)
     {
         if (bus_enum_record(types, count, at) == 0)
         {
             continue;
         }
-        if (((at - previous) % step) != 0ull)
+        if (((at - previous) % step) != 0ULL)
         {
             return 0;
         }
@@ -62,14 +62,14 @@ int bus_enum_find(const unsigned int *types, unsigned long long count, unsigned 
 unsigned long long bus_enum_list(const unsigned int *types, const unsigned int *values, unsigned long long count,
                                  BusRecord *out, unsigned long long max)
 {
-    unsigned long long base = 0ull;
-    unsigned long long stride = 0ull;
-    unsigned long long records = 0ull;
+    unsigned long long base = 0ULL;
+    unsigned long long stride = 0ULL;
+    unsigned long long records = 0ULL;
     if (bus_enum_find(types, count, &base, &stride, &records) == 0)
     {
-        return 0ull;
+        return 0ULL;
     }
-    unsigned long long written = 0ull;
+    unsigned long long written = 0ULL;
     for (unsigned long long at = base; (at < count) && (written < max); at += stride)
     {
         if (bus_enum_record(types, count, at) == 0)
@@ -78,8 +78,8 @@ unsigned long long bus_enum_list(const unsigned int *types, const unsigned int *
         }
         out[written].sample = at;
         out[written].identifier = values[at];
-        out[written].width = host_width(values[at + 1ull]);
-        written += 1ull;
+        out[written].width = host_width(values[at + 1ULL]);
+        written += 1ULL;
     }
     return written;
 }

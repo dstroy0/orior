@@ -10,7 +10,7 @@
 # WHY THE CHECK IS NOT INSIDE THE C
 #
 # A library cannot be its own oracle. A second routine in bench_exact.c saying what an addition
-# should come to would carry whatever the author believed about the answer, and it would agree with
+# should come to would carry whatever the author believed about the answer. It would agree with
 # the first routine forever, including on the days both are wrong.
 #
 # A python integer is arbitrary precision and is implemented by somebody else. It has no fixed
@@ -61,7 +61,7 @@ def _repository_root():
     A marker the repository produces, such as build/, is absent from a linked worktree and a
     never-built clone, and a climb to it can pass this root and land in another checkout whose paths
     look valid. A marker infers the root. Git answers it. The climb below serves only an exported tree
-    with no git directory, and it looks for archive/src/python, which the repository tracks and every checkout
+    with no git directory. It looks for archive/src/python, which the repository tracks and every checkout
     of it holds.
 
     Git's own variables are cleared first. Inside a hook GIT_DIR is exported, and a rev-parse that

@@ -121,7 +121,7 @@ PART_HEAD = re.compile(r"^[A-Z][a-z]+(?: [a-z]+){0,2}$")
 
 
 def is_gloss(line):
-    """Whether a tier is a gloss: it holds a grammatical label in capitals, DET, 3POSS, 1SG.SBJ,
+    """Whether a tier is a gloss. It holds a grammatical label in capitals, DET, 3POSS, 1SG.SBJ,
     CTR\\STAT, where a transcription or a segmentation holds forms of the language. A clitic's join
     bounds a label too, Nater's PREP˽ART and Lyon and Czaykowska-Higgins's Q‿IPFV."""
     return bool(re.search(r"(?:^|[\s=\-.~+\\<\[(˽‿])(?:[123](?:SG|PL|POSS|ERG|OBJ|SBJ)|[A-Z]{2,})"
@@ -733,7 +733,7 @@ class Paper(object):
                 # end.
                 matches = list(re.finditer(r"(?<![\w’])%s(?![\w’]|%s)" % (re.escape(run), marks), body))
                 # A glottal apostrophe set upright after the italic characters ends the run short,
-                # -ɢəm’ and łic’ in Nater's Bella Coola; the form in the text takes it.
+                # -ɢəm’ and łic’ in Nater's Bella Coola. The form in the text takes it.
                 if not matches and not run.endswith("’") and "‘" not in run:
                     matches = list(re.finditer(r"(?<![\w’])%s(?![\w’])" % re.escape(run + "’"), body))
                     if matches:
@@ -777,9 +777,9 @@ class Paper(object):
                 # Nater's Tsimshianic vestiges.
                 found = next((one for one in matches if body[one.start() - 1:one.start()] == "√"), found)
                 # An italic prefix hyphened to an upright word, the kʷ of clausal kʷ-demonstratives
-                # in Reisinger's modals, is part of that word; the paper holds no form of it alone.
+                # in Reisinger's modals, is part of that word. The paper holds no form of it alone.
                 # The body closes a line's hyphen on the next line, √łaq-ANTIP in Nater's
-                # Tsimshianic vestiges, where the paper holds √łaq- alone; the word after the hyphen
+                # Tsimshianic vestiges, where the paper holds √łaq- alone. The word after the hyphen
                 # has to be lower-case English.
                 after = re.match(r"-([a-z]{3,})\b", body[found.end():])
                 if after and after.group(1) not in "".join(italics):
@@ -892,7 +892,7 @@ class Paper(object):
 
         def done(number):
             # A translation the reader opened and never closed, one whose line ends on a label
-            # split_translation does not know, is dropped with no row; say so, and the generator
+            # split_translation does not know, is dropped with no row. Say so, and the generator
             # can read the example in a block of its own.
             if state["mode"] == "open":
                 said, at = state["open"]
@@ -1094,7 +1094,7 @@ class Paper(object):
             else:
                 type = "segmentation" if state["tiers"] % 2 == 0 else "gloss"
                 if state.get("caps"):
-                    # The gloss holds capitals; the line over a gloss is its segmentation, and the
+                    # The gloss holds capitals. The line over a gloss is its segmentation, and the
                     # line over that the transcription where the example wraps all three tiers.
                     # Otherwise a tier is the type the one before it is not: a gloss the page sets
                     # over its own segmentation, (51c) in H. Davis's infinitives, is read as printed.
@@ -1185,7 +1185,7 @@ class Paper(object):
                         (lettered and re.search(r"(?<=[^\W\d_]|[̀-ͯ])%s(?=\s|$)" % mark, row[3]))
                 else:
                     # A digit after a capital located alone is a name's, L2 teachers in Sardinha's
-                    # first paper, and no mark; so is a section's number, begin in §2 by and
+                    # first paper, and no mark. So is a section's number, begin in §2 by and
                     # analysis (§3) in Martin.
                     alone = re.search(r"(?<=.)(?<![\s\d(=\-§])(?<!\d[.,:])(?<!\b[A-Z])%s(?:\s|$|[,.;:)])" % mark,
                                       row[3]) or \
@@ -1576,7 +1576,7 @@ class Paper(object):
                 opened = EXAMPLE.match(text)
                 if opened and opened.group(1).isdigit():
                     # A block can set a second example beside the first, the trees (32) and (33)
-                    # side by side in Forbes's transitivity; the next in sequence follows the last.
+                    # side by side in Forbes's transitivity. The next in sequence follows the last.
                     beside = re.findall(r"(?:^|\s{3,})\((\d+)\)", self.spaced[number])
                     state["highest"] = max([state.get("highest", 0)] + [int(one) for one in beside])
                 number = blocks[number](number, state["where"])
@@ -1794,7 +1794,7 @@ class Paper(object):
             for entry, at in self.references(end + 1, tail - 1, skip=skip):
                 self.add("references", A, "reference", entry, "page %d" % at)
             # A mark no row of the body carries can are on a reference, Toronto.18 after
-            # Mackenzie's Voyages in Nater's old records; its footnote follows that reference.
+            # Mackenzie's Voyages in Nater's old records. Its footnote follows that reference.
             if missing:
                 missing = self.place_footnotes(missing, write, placed=[one for one in found if one not in missing],
                                                spaced=spaced, glued=glued, types=("reference",), only=("reference",))

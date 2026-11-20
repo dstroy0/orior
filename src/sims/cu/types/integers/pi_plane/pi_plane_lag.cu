@@ -91,17 +91,17 @@ unsigned long long plane_spread(const unsigned char *bits, unsigned int count, u
 {
     const unsigned int classes = 1u << scale;
     const unsigned int size = count / classes;
-    std::vector<long long> ones(classes, 0ll);
+    std::vector<long long> ones(classes, 0LL);
     for (unsigned int bit = 0u; bit < classes * size; bit += 1u)
     {
         const unsigned int place = (by_block != 0) ? (bit / size) : (bit % classes);
         ones[place] += (long long)bits[bit];
     }
-    unsigned long long spread = 0ull;
+    unsigned long long spread = 0ULL;
     for (unsigned int place = 0u; place < classes; place += 1u)
     {
         // the size is below 2^15. It fits a signed word
-        const long long excess = (2ll * ones[place]) - (long long)size;
+        const long long excess = (2LL * ones[place]) - (long long)size;
         // a square is never negative
         spread += (unsigned long long)(excess * excess);
     }
@@ -115,24 +115,24 @@ std::vector<unsigned int> plane_depth(const PlaneExtent &extent)
     // the extents are below 2^16. They fit a signed word
     const long long height = (long long)extent.height;
     const long long width = (long long)extent.width;
-    const long long step_row[4] = {-1ll, 1ll, 0ll, 0ll};
-    const long long step_column[4] = {0ll, 0ll, -1ll, 1ll};
+    const long long step_row[4] = {-1LL, 1LL, 0LL, 0LL};
+    const long long step_column[4] = {0LL, 0LL, -1LL, 1LL};
     std::vector<unsigned int> depth(extent.cell.size(), 0u);
     std::vector<long long> frontier;
-    for (long long row = 0ll; row < height; row += 1ll)
+    for (long long row = 0LL; row < height; row += 1LL)
     {
-        for (long long column = 0ll; column < width; column += 1ll)
+        for (long long column = 0LL; column < width; column += 1LL)
         {
             // the row and column are inside the shape. The index is never negative
             const size_t index = (size_t)((row * width) + column);
-            if (extent.cell[index] < 0ll)
+            if (extent.cell[index] < 0LL)
             {
                 continue;
             }
             int edge = 0;
             for (unsigned int neighbor = 0u; neighbor < 4u; neighbor += 1u)
             {
-                edge = edge || (plane_cell_at(extent, row + step_row[neighbor], column + step_column[neighbor]) < 0ll);
+                edge = edge || (plane_cell_at(extent, row + step_row[neighbor], column + step_column[neighbor]) < 0LL);
             }
             if (edge)
             {
@@ -153,7 +153,7 @@ std::vector<unsigned int> plane_depth(const PlaneExtent &extent)
             {
                 const long long near_row = row + step_row[neighbor];
                 const long long near_column = column + step_column[neighbor];
-                if (plane_cell_at(extent, near_row, near_column) < 0ll)
+                if (plane_cell_at(extent, near_row, near_column) < 0LL)
                 {
                     continue;
                 }
@@ -182,22 +182,22 @@ unsigned long long plane_depth_spread(const PlaneExtent &extent, const std::vect
 {
     for (unsigned int level = 0u; level <= PLANE_DEPTHS; level += 1u)
     {
-        ones[level] = 0ull;
-        sizes[level] = 0ull;
+        ones[level] = 0ULL;
+        sizes[level] = 0ULL;
     }
     for (size_t index = 0u; index < extent.cell.size(); index += 1u)
     {
-        if (extent.cell[index] >= 0ll)
+        if (extent.cell[index] >= 0LL)
         {
             ones[depth[index]] += (unsigned long long)bits[extent.cell[index]];
-            sizes[depth[index]] += 1ull;
+            sizes[depth[index]] += 1ULL;
         }
     }
-    unsigned long long spread = 0ull;
+    unsigned long long spread = 0ULL;
     for (unsigned int level = 1u; level <= PLANE_DEPTHS; level += 1u)
     {
         // both counts are below 2^15. They fit a signed word
-        const long long excess = (2ll * (long long)ones[level]) - (long long)sizes[level];
+        const long long excess = (2LL * (long long)ones[level]) - (long long)sizes[level];
         // a square is never negative
         spread += (unsigned long long)(excess * excess);
     }

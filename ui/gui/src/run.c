@@ -204,9 +204,8 @@ EMBED_INLINE void run_line_draw(const RunCtx *args)
     {
         return;
     }
-    const GuiColor base = (line.stream == CLI_JOB_RUN_STDERR)    ? palette->error
-                          : (line.stream == CLI_JOB_RUN_COMMAND) ? palette->text_3
-                                                                 : palette->editor_text;
+    const GuiColor not_error = (line.stream == CLI_JOB_RUN_COMMAND) ? palette->text_3 : palette->editor_text;
+    const GuiColor base = (line.stream == CLI_JOB_RUN_STDERR) ? palette->error : not_error;
     float x = args->x_f32;
     unsigned long long at = 0ULL;
     for (unsigned int each = 0u; each < line.spans; each += 1u)

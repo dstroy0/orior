@@ -195,8 +195,8 @@ unsigned int sass_cubin_loops(SassProbe *probe, const SassMachine *machine, unsi
             max = (taken > max) ? taken : max;
         }
         spread = ((max - least) > spread) ? (max - least) : spread;
-        unsigned long long low = 0ull;
-        unsigned long long high = 0ull;
+        unsigned long long low = 0ULL;
+        unsigned long long high = 0ULL;
         const SassLoopWalk walk = {SASS_LOOP_AT, SASS_LOOP_TARGET, SASS_LOOP_FLAG, s_loop_live,
                                    (unsigned int)(sizeof(s_loop_live) / sizeof(s_loop_live[0]))};
         unsigned int step = 0u;

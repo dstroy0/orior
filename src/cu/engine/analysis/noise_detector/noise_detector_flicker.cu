@@ -9,11 +9,11 @@ __device__ static void noise_flicker_flush(unsigned long long *cells, unsigned i
     unsigned long long *const cell = &cells[((lag * NOISE_LEVEL_BINS) + level_bin) * NOISE_FLICKER_SUMS];
     for (unsigned int sum = 0u; sum < NOISE_FLICKER_SUMS; sum += 1u)
     {
-        if (run[sum] != 0ull)
+        if (run[sum] != 0ULL)
         {
             atomicAdd(&cell[sum], run[sum]);
         }
-        run[sum] = 0ull;
+        run[sum] = 0ULL;
     }
 }
 
@@ -26,20 +26,20 @@ __global__ static void noise_flicker_kernel(const unsigned short *lanes, unsigne
     __shared__ unsigned long long cells[NOISE_FLICKER_CELLS];
     for (unsigned int entry = threadIdx.x; entry < NOISE_FLICKER_CELLS; entry += blockDim.x)
     {
-        cells[entry] = 0ull;
+        cells[entry] = 0ULL;
     }
     __syncthreads();
     const unsigned long long jump = (unsigned long long)gridDim.x * blockDim.x;
     for (unsigned long long voxel = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x; voxel < voxels;
          voxel += jump)
     {
-        const int beside = ((voxel % width) + 1ull) < width;
+        const int beside = ((voxel % width) + 1ULL) < width;
         for (unsigned int lag = 0u; lag < NOISE_FLICKER_LAGS; lag += 1u)
         {
-            const unsigned long long apart = 1ull << lag;
-            unsigned long long run[NOISE_FLICKER_SUMS] = {0ull, 0ull, 0ull, 0ull};
+            const unsigned long long apart = 1ULL << lag;
+            unsigned long long run[NOISE_FLICKER_SUMS] = {0ULL, 0ULL, 0ULL, 0ULL};
             unsigned int run_bin = 0u;
-            for (unsigned long long frame = 0ull; (frame + apart) < frames; frame += 1ull)
+            for (unsigned long long frame = 0ULL; (frame + apart) < frames; frame += 1ULL)
             {
                 const unsigned long long early = (frame * voxels) + voxel;
                 const unsigned long long late = ((frame + apart) * voxels) + voxel;
@@ -47,24 +47,24 @@ __global__ static void noise_flicker_kernel(const unsigned short *lanes, unsigne
                 const unsigned int after = lanes[late];
                 const unsigned int summed_bin = (before + after) >> NOISE_LEVEL_BIN_SHIFT;
                 const unsigned int level_bin = (summed_bin < NOISE_LEVEL_BINS) ? summed_bin : (NOISE_LEVEL_BINS - 1u);
-                if ((level_bin != run_bin) && (run[NOISE_FLICKER_PAIRS] != 0ull))
+                if ((level_bin != run_bin) && (run[NOISE_FLICKER_PAIRS] != 0ULL))
                 {
                     noise_flicker_flush(cells, lag, run_bin, run);
                 }
                 run_bin = level_bin;
                 const long long moved = (long long)after - (long long)before;
-                run[NOISE_FLICKER_PAIRS] += 1ull;
+                run[NOISE_FLICKER_PAIRS] += 1ULL;
                 // a square is never negative. It re-signs to unsigned long long exactly
                 run[NOISE_FLICKER_SQUARES] += (unsigned long long)(moved * moved);
                 if (beside)
                 {
-                    const long long neighbor_moved = (long long)lanes[late + 1ull] - (long long)lanes[early + 1ull];
+                    const long long neighbor_moved = (long long)lanes[late + 1ULL] - (long long)lanes[early + 1ULL];
                     const long long against_neighbor = moved - neighbor_moved;
-                    run[NOISE_FLICKER_NEIGHBOR_PAIRS] += 1ull;
+                    run[NOISE_FLICKER_NEIGHBOR_PAIRS] += 1ULL;
                     run[NOISE_FLICKER_NEIGHBOR_SQUARES] += (unsigned long long)(against_neighbor * against_neighbor);
                 }
             }
-            if (run[NOISE_FLICKER_PAIRS] != 0ull)
+            if (run[NOISE_FLICKER_PAIRS] != 0ULL)
             {
                 noise_flicker_flush(cells, lag, run_bin, run);
             }
@@ -73,7 +73,7 @@ __global__ static void noise_flicker_kernel(const unsigned short *lanes, unsigne
     __syncthreads();
     for (unsigned int entry = threadIdx.x; entry < NOISE_FLICKER_CELLS; entry += blockDim.x)
     {
-        if (cells[entry] != 0ull)
+        if (cells[entry] != 0ULL)
         {
             atomicAdd(&sums[entry], cells[entry]);
         }
@@ -87,8 +87,8 @@ long noise_flicker_sample(const unsigned short *volume, const unsigned long long
     const unsigned long long voxels = extent[1] * extent[2] * extent[3];
     const unsigned long long width = extent[3];
     // every sum is at max one sample's pairs times the widest square, and so is every total the summary forms
-    const int bounded = (frames >= 2ull) && (voxels != 0ull) && (width != 0ull) && (frames <= (~0ull / voxels)) &&
-                        ((frames * voxels) <= (~0ull / NOISE_WIDEST_SQUARE));
+    const int bounded = (frames >= 2ULL) && (voxels != 0ULL) && (width != 0ULL) && (frames <= (~0ULL / voxels)) &&
+                        ((frames * voxels) <= (~0ULL / NOISE_WIDEST_SQUARE));
     if (!NOISE_DETECTOR_CHECK(bounded, extent, error, ENGINE_ERROR_REQUEST))
     {
         return NOISE_DETECTOR_ERROR;
@@ -104,8 +104,8 @@ long noise_flicker_sample(const unsigned short *volume, const unsigned long long
                                          device_lanes, error);
     if (ok != 0)
     {
-        const unsigned long long needed = (voxels + NOISE_DETECTOR_THREADS - 1ull) / NOISE_DETECTOR_THREADS;
-        const unsigned int blocks = (unsigned int)((needed < 65536ull) ? needed : 65536ull);
+        const unsigned long long needed = (voxels + NOISE_DETECTOR_THREADS - 1ULL) / NOISE_DETECTOR_THREADS;
+        const unsigned int blocks = (unsigned int)((needed < 65536ULL) ? needed : 65536ULL);
         noise_flicker_kernel<<<blocks, NOISE_DETECTOR_THREADS>>>(device_lanes, frames, voxels, width, device_sums);
         ok = NOISE_DETECTOR_STATUS_CHECK(cudaGetLastError(), device_sums, error) &&
              NOISE_DETECTOR_STATUS_CHECK(cudaMemcpy(sums, device_sums, sum_bytes, cudaMemcpyDeviceToHost), sums, error);
@@ -118,9 +118,9 @@ long noise_flicker_sample(const unsigned short *volume, const unsigned long long
 void noise_exact_word(OriorExactInteger *value, unsigned long long word)
 {
     orior_exact_zero(value);
-    value->limb[0] = (uint32_t)(word & 0xFFFFFFFFull);
+    value->limb[0] = (uint32_t)(word & 0xFFFFFFFFULL);
     value->limb[1] = (uint32_t)(word >> 32u);
-    value->sign = (word != 0ull) ? 1 : 0;
+    value->sign = (word != 0ULL) ? 1 : 0;
 }
 
 // (squares / pairs) against (first_squares / first_pairs), in thousandths rounded down: the four words multiplied
@@ -128,7 +128,7 @@ void noise_exact_word(OriorExactInteger *value, unsigned long long word)
 int noise_per_mille(unsigned long long squares, unsigned long long pairs, unsigned long long first_squares,
                     unsigned long long first_pairs, unsigned long long *per_mille)
 {
-    if ((pairs == 0ull) || (first_pairs == 0ull) || (first_squares == 0ull))
+    if ((pairs == 0ULL) || (first_pairs == 0ULL) || (first_squares == 0ULL))
     {
         return 0;
     }
@@ -140,7 +140,7 @@ int noise_per_mille(unsigned long long squares, unsigned long long pairs, unsign
     noise_exact_word(&numerator, squares);
     noise_exact_word(&factor, first_pairs);
     int ok = orior_exact_multiply(&numerator, &factor, &numerator) == ORIOR_EXACT_OK;
-    noise_exact_word(&factor, 1000ull);
+    noise_exact_word(&factor, 1000ULL);
     ok = ok && (orior_exact_multiply(&numerator, &factor, &numerator) == ORIOR_EXACT_OK);
     noise_exact_word(&denominator, first_squares);
     noise_exact_word(&factor, pairs);
@@ -150,7 +150,7 @@ int noise_per_mille(unsigned long long squares, unsigned long long pairs, unsign
     {
         ok = quotient.limb[limb] == 0u;
     }
-    *per_mille = ok ? (((unsigned long long)quotient.limb[1] << 32u) | quotient.limb[0]) : 0ull;
+    *per_mille = ok ? (((unsigned long long)quotient.limb[1] << 32u) | quotient.limb[0]) : 0ULL;
     return ok;
 }
 
@@ -186,11 +186,11 @@ static void noise_flicker_summary(const char *name, const unsigned long long ext
         printf("    %s", labels[type]);
         for (unsigned int lag = 0u; lag < NOISE_FLICKER_LAGS; lag += 1u)
         {
-            unsigned long long per_mille = 0ull;
+            unsigned long long per_mille = 0ULL;
             if (noise_per_mille(pooled[lag][types[type][0]], pooled[lag][types[type][1]], pooled[0][types[type][0]],
                                 pooled[0][types[type][1]], &per_mille))
             {
-                printf(" %6llu", per_mille);
+                printf(" %6LLU", per_mille);
             }
             else
             {
@@ -210,7 +210,7 @@ static int noise_flicker_rows(FILE *table, const char *name, const unsigned long
         for (unsigned int level_bin = 0u; ok && (level_bin < NOISE_LEVEL_BINS); level_bin += 1u)
         {
             const unsigned long long *const cell = &sums[((lag * NOISE_LEVEL_BINS) + level_bin) * NOISE_FLICKER_SUMS];
-            if ((cell[NOISE_FLICKER_PAIRS] == 0ull) && (cell[NOISE_FLICKER_NEIGHBOR_PAIRS] == 0ull))
+            if ((cell[NOISE_FLICKER_PAIRS] == 0ULL) && (cell[NOISE_FLICKER_NEIGHBOR_PAIRS] == 0ULL))
             {
                 continue;
             }
@@ -257,7 +257,7 @@ extern "C" long noise_flicker_set(const NoiseSetRequest *request)
     for (unsigned int sample = 0u; ok && (sample < request->count); sample += 1u)
     {
         const char *const name = request->samples[sample];
-        unsigned long long extent[4] = {0ull, 0ull, 0ull, 0ull};
+        unsigned long long extent[4] = {0ULL, 0ULL, 0ULL, 0ULL};
         unsigned short *volume = NULL;
         ok = NOISE_DETECTOR_CHECK(request->load(request->set, name, extent, &volume, error) == 0L, name, error,
                                   ENGINE_ERROR_REQUEST) &&
@@ -277,7 +277,7 @@ extern "C" long noise_flicker_set(const NoiseSetRequest *request)
     if (ok != 0)
     {
         printf("  flicker: %u samples in %llu ms; every sum is in %s\n", request->count,
-               (engine_clock_microseconds() - began) / 1000ull, path);
+               (engine_clock_microseconds() - began) / 1000ULL, path);
     }
     return (ok != 0) ? 0L : NOISE_DETECTOR_ERROR;
 }

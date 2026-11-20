@@ -16,7 +16,7 @@
 #define TESSERA_SELF_ADAPTERS 16u
 #define TESSERA_SELF_LOCAL_SEGMENTS 0
 #define TESSERA_SELF_CORES 64u
-#define TESSERA_SELF_RESERVED_CORES 2ull
+#define TESSERA_SELF_RESERVED_CORES 2ULL
 
 // dxcore's kernel-mode thunks, arranged as d3dkmthk.h positions them out
 typedef struct
@@ -74,7 +74,7 @@ int tessera_self_paravirtual(void)
 
 int tessera_self_measure(unsigned long long luid, unsigned long long *used)
 {
-    *used = 0ull;
+    *used = 0ULL;
 #if defined(_WIN32)
     (void)luid;
     return 0;
@@ -101,9 +101,9 @@ int tessera_self_measure(unsigned long long luid, unsigned long long *used)
         const unsigned long long named =
             ((unsigned long long)(unsigned int)adapters[at].luid.high << 32u) | adapters[at].luid.low;
         // an adapter index below sixteen fits an int
-        chosen = ((luid != 0ull) && (named == luid)) ? (int)at : chosen;
+        chosen = ((luid != 0ULL) && (named == luid)) ? (int)at : chosen;
     }
-    chosen = ((chosen < 0) && (luid == 0ull) && (listed.count == 1u)) ? 0 : chosen;
+    chosen = ((chosen < 0) && (luid == 0ULL) && (listed.count == 1u)) ? 0 : chosen;
     ok = ok && (chosen >= 0);
     if (ok)
     {
@@ -113,7 +113,7 @@ int tessera_self_measure(unsigned long long luid, unsigned long long *used)
         memory.adapter = adapters[chosen].adapter;
         memory.segment_group = TESSERA_SELF_LOCAL_SEGMENTS;
         ok = query(&memory) == 0;
-        *used = ok ? memory.usage : 0ull;
+        *used = ok ? memory.usage : 0ULL;
     }
     dlclose(library);
     return ok;
@@ -177,7 +177,7 @@ static unsigned int tessera_self_cores(unsigned long long cores[TESSERA_SELF_COR
         const int read = fgets(line, sizeof(line), siblings) != NULL;
         fclose(siblings);
         // the mask is hex words split by commas, the highest processors first: shifting drops those past sixty-four
-        unsigned long long mask = 0ull;
+        unsigned long long mask = 0ULL;
         for (const char *digit = line; read && (*digit != '\0'); digit += 1)
         {
             const int decimal = (*digit >= '0') && (*digit <= '9');
@@ -189,7 +189,7 @@ static unsigned int tessera_self_cores(unsigned long long cores[TESSERA_SELF_COR
                        (decimal ? (unsigned long long)(*digit - '0') : (unsigned long long)(*digit - 'a' + 10));
             }
         }
-        int known = mask == 0ull;
+        int known = mask == 0ULL;
         for (unsigned int at = 0u; !known && (at < count); at += 1u)
         {
             known = cores[at] == mask;
@@ -210,7 +210,7 @@ unsigned long long tessera_self_host_mask(void)
     const unsigned int count = tessera_self_cores(cores);
     if (count == 0u)
     {
-        return 0ull;
+        return 0ULL;
     }
     unsigned long long reserved = TESSERA_SELF_RESERVED_CORES;
     const char *const named = getenv("TESSERA_HOST_RESERVED_CORES");
@@ -222,19 +222,19 @@ unsigned long long tessera_self_host_mask(void)
     }
     // one core at least is always left to the jobs
     reserved = (reserved < count) ? reserved : (count - 1u);
-    unsigned long long mask = 0ull;
+    unsigned long long mask = 0ULL;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         mask |= cores[at];
     }
     // the reserved cores are the last ones, by their lowest logical processor
-    for (unsigned long long taken = 0ull; taken < reserved; taken += 1ull)
+    for (unsigned long long taken = 0ULL; taken < reserved; taken += 1ULL)
     {
         unsigned int last = 0u;
-        unsigned long long last_lowest = 0ull;
+        unsigned long long last_lowest = 0ULL;
         for (unsigned int at = 0u; at < count; at += 1u)
         {
-            const unsigned long long lowest = cores[at] & (~cores[at] + 1ull);
+            const unsigned long long lowest = cores[at] & (~cores[at] + 1ULL);
             if (lowest > last_lowest)
             {
                 last = at;
@@ -242,7 +242,7 @@ unsigned long long tessera_self_host_mask(void)
             }
         }
         mask &= ~cores[last];
-        cores[last] = 0ull;
+        cores[last] = 0ULL;
     }
     return mask;
 }

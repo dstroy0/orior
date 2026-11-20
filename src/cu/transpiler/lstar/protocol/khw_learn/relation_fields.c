@@ -33,7 +33,7 @@ static void khw_predicate_runs_read(KhwAnswered *form)
         if (predicate)
         {
             form->type[run] = KHW_KIND_PREDICATE;
-            form->place[run] = ((value == 0ull) && (strcmp(field, "guard") != 0)) ? words : KHW_PLACE_NONE;
+            form->place[run] = ((value == 0ULL) && (strcmp(field, "guard") != 0)) ? words : KHW_PLACE_NONE;
         }
         else if (value == KHW_FIRST_REGISTER)
         {

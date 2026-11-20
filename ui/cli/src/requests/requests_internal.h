@@ -184,7 +184,7 @@ typedef struct
 
 // the bytes a request's body and an answer's body as read are written in, each a line at their max, the answer's to
 // CLI_REQUESTS_BODY at max
-#define CLI_REQUESTS_HEAD_CAPACITY (1ull << 20u)
+#define CLI_REQUESTS_HEAD_CAPACITY (1ULL << 20u)
 
 // The work state a request is sent in: the request as it was made ready and its body, a line, the request as it goes on
 // each hop and its address taken apart, its answer, the answer's body as read, a line, and as undone,

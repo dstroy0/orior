@@ -352,7 +352,7 @@ typedef struct GuiWindow
 } GuiWindow;
 
 // the double-click window and the pixels a press may move and still count
-#define GUI_DOUBLE_CLICK_MS 500ull
+#define GUI_DOUBLE_CLICK_MS 500ULL
 #define GUI_CLICK_ADJACENT 4
 
 // the window begun: its glyphs read, its palette the dark scheme, its parts showing nothing: 1, or 0 with the reason

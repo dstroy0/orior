@@ -6,23 +6,23 @@
 // the numeric step's bump: value in hereditary base b with every b made b + 1, 0 where it leaves 64 bits
 static int goodstein_bump(unsigned long long value, unsigned long long base, unsigned long long *out)
 {
-    unsigned long long total = 0ull;
-    unsigned long long position = 0ull;
+    unsigned long long total = 0ULL;
+    unsigned long long position = 0ULL;
     unsigned long long rest = value;
-    while (rest != 0ull)
+    while (rest != 0ULL)
     {
         const unsigned long long digit = rest % base;
-        if (digit != 0ull)
+        if (digit != 0ULL)
         {
-            unsigned long long exponent = 0ull;
+            unsigned long long exponent = 0ULL;
             if ((goodstein_bump(position, base, &exponent) == 0) ||
-                (goodstein_add_term(&total, digit, base + 1ull, exponent) == 0))
+                (goodstein_add_term(&total, digit, base + 1ULL, exponent) == 0))
             {
                 return 0;
             }
         }
         rest /= base;
-        position += 1ull;
+        position += 1ULL;
     }
     *out = total;
     return 1;
@@ -51,7 +51,7 @@ static void goodstein_print(VerbaLinea *line, const GoodsteinNotation &form, uns
             mmgr_line_put(line, " + ");
         }
         const GoodsteinBlock &block = form.blocks[at];
-        if (block.origin == 0ull)
+        if (block.origin == 0ULL)
         {
             goodstein_print_term(line, block.exponent, block.coefficient, capacity);
             continue;
@@ -64,7 +64,7 @@ static void goodstein_print(VerbaLinea *line, const GoodsteinNotation &form, uns
             goodstein_print_term(line, goodstein_of(block.low, block.origin), block.coefficient, capacity);
         }
         mmgr_line_put(line, "; ");
-        mmgr_line_decimal(line, block.high - block.low + 1ull, 1u);
+        mmgr_line_decimal(line, block.high - block.low + 1ULL, 1u);
         mmgr_line_put(line, " terms]");
     }
 }
@@ -78,9 +78,9 @@ static void goodstein_print_term(VerbaLinea *line, const GoodsteinNotation &expo
         mmgr_line_decimal(line, coefficient, 1u);
         return;
     }
-    const int power_one = (exponent.blocks.size() == 1u) && (exponent.blocks[0].origin == 0ull) &&
-                          exponent.blocks[0].exponent.blocks.empty() && (exponent.blocks[0].coefficient == 1ull);
-    const int power_finite = (exponent.blocks.size() == 1u) && (exponent.blocks[0].origin == 0ull) &&
+    const int power_one = (exponent.blocks.size() == 1u) && (exponent.blocks[0].origin == 0ULL) &&
+                          exponent.blocks[0].exponent.blocks.empty() && (exponent.blocks[0].coefficient == 1ULL);
+    const int power_finite = (exponent.blocks.size() == 1u) && (exponent.blocks[0].origin == 0ULL) &&
                              exponent.blocks[0].exponent.blocks.empty();
     mmgr_line_ch(line, 'w');
     if (power_finite != 0)
@@ -97,7 +97,7 @@ static void goodstein_print_term(VerbaLinea *line, const GoodsteinNotation &expo
         goodstein_print(line, exponent, capacity);
         mmgr_line_ch(line, ')');
     }
-    if (coefficient != 1ull)
+    if (coefficient != 1ULL)
     {
         mmgr_line_ch(line, '.');
         mmgr_line_decimal(line, coefficient, 1u);
@@ -107,21 +107,21 @@ static void goodstein_print_term(VerbaLinea *line, const GoodsteinNotation &expo
 // 1. the bump preserves the tree
 static void goodstein_lemma(SimResults *results)
 {
-    unsigned long long tested = 0ull;
-    unsigned long long terminated = 0ull;
-    for (unsigned long long base = 2ull; base <= GOODSTEIN_LEMMA_BASE_MAX; base += 1ull)
+    unsigned long long tested = 0ULL;
+    unsigned long long terminated = 0ULL;
+    for (unsigned long long base = 2ULL; base <= GOODSTEIN_LEMMA_BASE_MAX; base += 1ULL)
     {
-        for (unsigned long long value = 0ull; value < GOODSTEIN_LEMMA_BELOW; value += 1ull)
+        for (unsigned long long value = 0ULL; value < GOODSTEIN_LEMMA_BELOW; value += 1ULL)
         {
-            unsigned long long bumped = 0ull;
+            unsigned long long bumped = 0ULL;
             if (goodstein_bump(value, base, &bumped) == 0)
             {
                 continue;
             }
             GoodsteinBudget budget = {GOODSTEIN_COMPARE_TERMS, 0};
-            const int order = goodstein_compare(goodstein_of(bumped, base + 1ull), goodstein_of(value, base), &budget);
-            tested += 1ull;
-            terminated += ((order == 0) && (budget.exhausted == 0)) ? 1ull : 0ull;
+            const int order = goodstein_compare(goodstein_of(bumped, base + 1ULL), goodstein_of(value, base), &budget);
+            tested += 1ULL;
+            terminated += ((order == 0) && (budget.exhausted == 0)) ? 1ULL : 0ULL;
         }
     }
     mmgr_line_put(&results->line, "  the bump preserves the tree: ");
@@ -131,26 +131,26 @@ static void goodstein_lemma(SimResults *results)
     mmgr_line_put(&results->line, " values below ");
     mmgr_line_decimal(&results->line, GOODSTEIN_LEMMA_BELOW, 1u);
     mmgr_line_put(&results->line, " at bases 2 to 6 whose bump fits 64 bits\n");
-    sim_check(results, (tested != 0ull) && (terminated == tested),
+    sim_check(results, (tested != 0ULL) && (terminated == tested),
               "every n bumped to base b + 1 has the hereditary tree n had in base b");
 }
 
 // 2. 2^^k is omega^^k
 static void goodstein_towers(SimResults *results)
 {
-    unsigned long long value = 1ull;
+    unsigned long long value = 1ULL;
     int same = 1;
     int climbs = 1;
     GoodsteinNotation below;
     for (unsigned int height = 1u; height <= GOODSTEIN_TOWER; height += 1u)
     {
         // 2^^height from 2^^(height - 1): 1, 2, 4, 16, 65536
-        unsigned long long next = 0ull;
-        same = same && (goodstein_power(2ull, value, &next) != 0);
+        unsigned long long next = 0ULL;
+        same = same && (goodstein_power(2ULL, value, &next) != 0);
         value = next;
         const GoodsteinNotation tower = goodstein_tower(height);
         GoodsteinBudget budget = {GOODSTEIN_COMPARE_TERMS, 0};
-        same = same && (goodstein_compare(goodstein_of(value, 2ull), tower, &budget) == 0) && (budget.exhausted == 0);
+        same = same && (goodstein_compare(goodstein_of(value, 2ULL), tower, &budget) == 0) && (budget.exhausted == 0);
         if (height > 1u)
         {
             GoodsteinBudget climb = {GOODSTEIN_COMPARE_TERMS, 0};
@@ -163,7 +163,7 @@ static void goodstein_towers(SimResults *results)
         mmgr_line_put(&results->line, " = ");
         mmgr_line_decimal(&results->line, value, 1u);
         mmgr_line_put(&results->line, " in hereditary base 2 is ");
-        goodstein_print(&results->line, goodstein_of(value, 2ull), &capacity);
+        goodstein_print(&results->line, goodstein_of(value, 2ULL), &capacity);
         mmgr_line_ch(&results->line, '\n');
     }
     sim_check(results, same, "2^^k in hereditary base 2 is omega^^k, for k = 1 to 4");
@@ -173,27 +173,27 @@ static void goodstein_towers(SimResults *results)
 // 3. the starts that finish
 static void goodstein_small(SimResults *results)
 {
-    const unsigned long long expected[3] = {1ull, 3ull, 5ull};
+    const unsigned long long expected[3] = {1ULL, 3ULL, 5ULL};
     int finish = 1;
     int values = 1;
-    for (unsigned long long start = 1ull; start <= 3ull; start += 1ull)
+    for (unsigned long long start = 1ULL; start <= 3ULL; start += 1ULL)
     {
-        GoodsteinNotation form = goodstein_of(start, 2ull);
+        GoodsteinNotation form = goodstein_of(start, 2ULL);
         unsigned long long numeric = start;
-        unsigned long long base = 2ull;
-        unsigned long long steps = 0ull;
+        unsigned long long base = 2ULL;
+        unsigned long long steps = 0ULL;
         while (!form.blocks.empty() && (steps < GOODSTEIN_SMALL_STEPS_MAX))
         {
-            unsigned long long bumped = 0ull;
+            unsigned long long bumped = 0ULL;
             values = values && (goodstein_bump(numeric, base, &bumped) != 0);
-            numeric = bumped - 1ull;
-            base += 1ull;
+            numeric = bumped - 1ULL;
+            base += 1ULL;
             values = values && (goodstein_decrement(form, base) != 0);
-            unsigned long long value = 0ull;
+            unsigned long long value = 0ULL;
             values = values && (goodstein_value(form, base, &value) != 0) && (value == numeric);
-            steps += 1ull;
+            steps += 1ULL;
         }
-        finish = finish && form.blocks.empty() && (numeric == 0ull) && (steps == expected[start - 1ull]);
+        finish = finish && form.blocks.empty() && (numeric == 0ULL) && (steps == expected[start - 1ULL]);
         mmgr_line_put(&results->line, "  start ");
         mmgr_line_decimal(&results->line, start, 1u);
         mmgr_line_put(&results->line, ": 0 after ");
@@ -208,7 +208,7 @@ static void goodstein_small(SimResults *results)
 static void goodstein_run(SimResults *results, unsigned long long start, int *falls, int *agrees,
                           unsigned long long *compared)
 {
-    GoodsteinNotation form = goodstein_of(start, 2ull);
+    GoodsteinNotation form = goodstein_of(start, 2ULL);
     unsigned int capacity = GOODSTEIN_PRINT_CAPACITY;
     mmgr_line_put(&results->line, "  start ");
     mmgr_line_decimal(&results->line, start, 1u);
@@ -217,25 +217,25 @@ static void goodstein_run(SimResults *results, unsigned long long start, int *fa
     mmgr_line_ch(&results->line, '\n');
     unsigned long long numeric = start;
     int numeric_fits = 1;
-    unsigned long long base = 2ull;
-    unsigned long long steps = 0ull;
-    unsigned long long fell = 0ull;
-    unsigned long long matched = 0ull;
+    unsigned long long base = 2ULL;
+    unsigned long long steps = 0ULL;
+    unsigned long long fell = 0ULL;
+    unsigned long long matched = 0ULL;
     int ok = 1;
     while (!form.blocks.empty() && (steps < GOODSTEIN_STEPS) && (ok != 0))
     {
         const GoodsteinNotation before = form;
         if (numeric_fits != 0)
         {
-            unsigned long long bumped = 0ull;
+            unsigned long long bumped = 0ULL;
             numeric_fits = goodstein_bump(numeric, base, &bumped);
-            numeric = bumped - 1ull;
+            numeric = bumped - 1ULL;
         }
-        base += 1ull;
+        base += 1ULL;
         ok = goodstein_decrement(form, base);
         GoodsteinBudget budget = {GOODSTEIN_COMPARE_TERMS, 0};
-        fell += ((ok != 0) && (goodstein_compare(form, before, &budget) < 0) && (budget.exhausted == 0)) ? 1ull : 0ull;
-        unsigned long long value = 0ull;
+        fell += ((ok != 0) && (goodstein_compare(form, before, &budget) < 0) && (budget.exhausted == 0)) ? 1ULL : 0ULL;
+        unsigned long long value = 0ULL;
         const int value_fits = goodstein_value(form, base, &value);
         if (numeric_fits != value_fits)
         {
@@ -243,10 +243,10 @@ static void goodstein_run(SimResults *results, unsigned long long start, int *fa
         }
         else if (numeric_fits != 0)
         {
-            matched += 1ull;
+            matched += 1ULL;
             *agrees = *agrees && (value == numeric);
         }
-        steps += 1ull;
+        steps += 1ULL;
     }
     *falls = *falls && (ok != 0) && (fell == steps) && (steps == GOODSTEIN_STEPS);
     *compared += matched;
@@ -276,17 +276,17 @@ int main(void)
     goodstein_towers(&results);
     goodstein_small(&results);
     sim_flush(&results);
-    const unsigned long long starts[3] = {4ull, 16ull, 65536ull};
+    const unsigned long long starts[3] = {4ULL, 16ULL, 65536ULL};
     int falls = 1;
     int agrees = 1;
-    unsigned long long compared[3] = {0ull, 0ull, 0ull};
+    unsigned long long compared[3] = {0ULL, 0ULL, 0ULL};
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
         goodstein_run(&results, starts[at], &falls, &agrees, &compared[at]);
     }
     sim_check(&results, falls,
               "the starts 4, 16 and 65536 run every step, and each step's ordinal falls below the last");
-    sim_check(&results, agrees && (compared[0] != 0ull) && (compared[1] != 0ull),
+    sim_check(&results, agrees && (compared[0] != 0ULL) && (compared[1] != 0ULL),
               "every value equals the numeric sequence's wherever that fits 64 bits, and fits exactly then");
     return sim_close(&results, "goodstein");
 }

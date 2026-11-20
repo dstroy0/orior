@@ -6,12 +6,12 @@
 // words += increment over PI_TOWER_WORDS, returning the carry out of the top word
 static unsigned long long pi_tower_words_add(unsigned long long *words, const unsigned long long *increment)
 {
-    unsigned long long carry = 0ull;
+    unsigned long long carry = 0ULL;
     for (unsigned int word = 0u; word < PI_TOWER_WORDS; word += 1u)
     {
         const unsigned long long added = words[word] + increment[word];
         const unsigned long long total = added + carry;
-        carry = ((added < words[word]) || (total < added)) ? 1ull : 0ull;
+        carry = ((added < words[word]) || (total < added)) ? 1ULL : 0ULL;
         words[word] = total;
     }
     return carry;
@@ -34,7 +34,7 @@ static int pi_tower_words_zero(const unsigned long long *words)
 {
     for (unsigned int word = 0u; word < PI_TOWER_WORDS; word += 1u)
     {
-        if (words[word] != 0ull)
+        if (words[word] != 0ULL)
         {
             return 0;
         }
@@ -45,12 +45,12 @@ static int pi_tower_words_zero(const unsigned long long *words)
 // 2^(64 PI_TOWER_WORDS) - words, the distance up to the next whole
 static void pi_tower_words_complement(const unsigned long long *words, unsigned long long *complement)
 {
-    unsigned long long carry = 1ull;
+    unsigned long long carry = 1ULL;
     for (unsigned int word = 0u; word < PI_TOWER_WORDS; word += 1u)
     {
         const unsigned long long flipped = ~words[word];
         complement[word] = flipped + carry;
-        carry = ((carry != 0ull) && (complement[word] == 0ull)) ? 1ull : 0ull;
+        carry = ((carry != 0ULL) && (complement[word] == 0ULL)) ? 1ULL : 0ULL;
     }
 }
 
@@ -61,7 +61,7 @@ static PiWide pi_tower_words_wide(const unsigned long long *words)
     for (unsigned int word = 0u; word < PI_TOWER_WORDS; word += 1u)
     {
         // the low and high halves of a 64-bit word each fit one 32-bit limb
-        value.limb[2u * word] = (uint32_t)(words[word] & 0xFFFFFFFFull);
+        value.limb[2u * word] = (uint32_t)(words[word] & 0xFFFFFFFFULL);
         // the high half, shifted down, is below 2^32
         value.limb[(2u * word) + 1u] = (uint32_t)(words[word] >> 32u);
     }
@@ -84,32 +84,32 @@ void pi_tower_billiard(SimResults *results, const PiWide &alpha, const std::vect
     {
         increment[word] =
             ((unsigned long long)alpha.limb[(2u * word) + 1u] << 32u) | (unsigned long long)alpha.limb[2u * word];
-        single[word] = 0ull;
+        single[word] = 0ULL;
         odd[word] = increment[word];
-        nearest[word] = ~0ull;
-        closest[word] = ~0ull;
+        nearest[word] = ~0ULL;
+        closest[word] = ~0ULL;
         twice[word] = increment[word];
     }
     const unsigned long long twice_carry = pi_tower_words_add(twice, increment);
-    const unsigned long long columns = 1ull << PI_TOWER_BILLIARD_BITS;
+    const unsigned long long columns = 1ULL << PI_TOWER_BILLIARD_BITS;
     // floor(alpha i) and floor(alpha (2i + 1)); A is below 2^P. Both start at 0
-    unsigned long long single_integer = 0ull;
-    unsigned long long odd_integer = 0ull;
-    unsigned long long segments = 0ull;
-    unsigned long long vertical = 0ull;
-    unsigned long long horizontal = 0ull;
-    unsigned long long corners = 0ull;
-    unsigned long long uncertain = 0ull;
-    unsigned long long zero = 0ull;
-    unsigned long long changes = 0ull;
-    unsigned long long run = 0ull;
-    unsigned long long longest = 0ull;
-    unsigned long long ahead = 0ull;
-    unsigned long long nearest_column = 0ull;
-    unsigned long long nearest_row = 0ull;
+    unsigned long long single_integer = 0ULL;
+    unsigned long long odd_integer = 0ULL;
+    unsigned long long segments = 0ULL;
+    unsigned long long vertical = 0ULL;
+    unsigned long long horizontal = 0ULL;
+    unsigned long long corners = 0ULL;
+    unsigned long long uncertain = 0ULL;
+    unsigned long long zero = 0ULL;
+    unsigned long long changes = 0ULL;
+    unsigned long long run = 0ULL;
+    unsigned long long longest = 0ULL;
+    unsigned long long ahead = 0ULL;
+    unsigned long long nearest_column = 0ULL;
+    unsigned long long nearest_row = 0ULL;
     int sign_before = 0;
     std::vector<unsigned long long> near_corners;
-    for (unsigned long long column = 0ull; column < columns; column += 1ull)
+    for (unsigned long long column = 0ULL; column < columns; column += 1ULL)
     {
         unsigned long long next[PI_TOWER_WORDS];
         for (unsigned int word = 0u; word < PI_TOWER_WORDS; word += 1u)
@@ -119,31 +119,31 @@ void pi_tower_billiard(SimResults *results, const PiWide &alpha, const std::vect
         const unsigned long long next_integer = single_integer + pi_tower_words_add(next, increment);
         // the real n alpha 2^P lies in (n A, n A + n): with the top word short of all ones, n < 2^320 cannot carry it
         // past a whole. The floor read from the carries is the real floor
-        uncertain += ((next[PI_TOWER_WORDS - 1u] == ~0ull) || (odd[PI_TOWER_WORDS - 1u] == ~0ull)) ? 1ull : 0ull;
-        corners += (pi_tower_words_zero(next) != 0) ? 1ull : 0ull;
-        zero += (pi_tower_words_zero(odd) != 0) ? 1ull : 0ull;
-        const unsigned long long bottom = (3ull * column) + single_integer;
-        const unsigned long long top = (3ull * (column + 1ull)) + next_integer;
-        for (unsigned long long row = bottom; row <= top; row += 1ull)
+        uncertain += ((next[PI_TOWER_WORDS - 1u] == ~0ULL) || (odd[PI_TOWER_WORDS - 1u] == ~0ULL)) ? 1ULL : 0ULL;
+        corners += (pi_tower_words_zero(next) != 0) ? 1ULL : 0ULL;
+        zero += (pi_tower_words_zero(odd) != 0) ? 1ULL : 0ULL;
+        const unsigned long long bottom = (3ULL * column) + single_integer;
+        const unsigned long long top = (3ULL * (column + 1ULL)) + next_integer;
+        for (unsigned long long row = bottom; row <= top; row += 1ULL)
         {
             // L = (-1)^(i + j) (d - alpha (2i + 1)) / 2, d = (2j + 1) - 3 (2i + 1) whole; the rows and 3 (2i + 1)
             // stay below 2^27 at 2^24 columns. Each fits a signed word
-            const long long range = (long long)((2ull * row) + 1ull) - (long long)(3ull * ((2ull * column) + 1ull));
+            const long long range = (long long)((2ULL * row) + 1ULL) - (long long)(3ULL * ((2ULL * column) + 1ULL));
             // alpha (2i + 1) lies strictly between odd_integer and odd_integer + 1. D is above it exactly when
             // d > odd_integer, which fits a signed word for the same reason
             const int above = range > (long long)odd_integer;
             // the parity of i + j, one bit, fits an int
-            const int positive = above ^ (int)((column + row) & 1ull);
-            if ((segments != 0ull) && (positive != sign_before))
+            const int positive = above ^ (int)((column + row) & 1ULL);
+            if ((segments != 0ULL) && (positive != sign_before))
             {
-                changes += 1ull;
+                changes += 1ULL;
                 longest = (run > longest) ? run : longest;
-                run = 0ull;
+                run = 0ULL;
             }
-            run += 1ull;
-            ahead += (positive != 0) ? 1ull : 0ull;
+            run += 1ULL;
+            ahead += (positive != 0) ? 1ULL : 0ULL;
             sign_before = positive;
-            segments += 1ull;
+            segments += 1ULL;
             // the nearest tie: |d - alpha (2i + 1)| below 1 when d is odd_integer or odd_integer + 1
             unsigned long long distance[PI_TOWER_WORDS];
             int near = 0;
@@ -155,7 +155,7 @@ void pi_tower_billiard(SimResults *results, const PiWide &alpha, const std::vect
                 }
                 near = 1;
             }
-            else if (range == ((long long)odd_integer + 1ll))
+            else if (range == ((long long)odd_integer + 1LL))
             {
                 pi_tower_words_complement(odd, distance);
                 near = 1;
@@ -171,7 +171,7 @@ void pi_tower_billiard(SimResults *results, const PiWide &alpha, const std::vect
             }
         }
         horizontal += top - bottom;
-        vertical += 1ull;
+        vertical += 1ULL;
         // how near the wall hit at x = i + 1 comes to a corner: alpha (i + 1)'s distance to a whole
         unsigned long long mirror[PI_TOWER_WORDS];
         pi_tower_words_complement(next, mirror);
@@ -182,7 +182,7 @@ void pi_tower_billiard(SimResults *results, const PiWide &alpha, const std::vect
             {
                 closest[word] = miss[word];
             }
-            near_corners.push_back(column + 1ull);
+            near_corners.push_back(column + 1ULL);
         }
         for (unsigned int word = 0u; word < PI_TOWER_WORDS; word += 1u)
         {
@@ -228,20 +228,20 @@ void pi_tower_billiard(SimResults *results, const PiWide &alpha, const std::vect
     mmgr_line_put(&results->line, ", ");
     mmgr_line_decimal(&results->line, nearest_row, 1u);
     mmgr_line_put(&results->line, "), where pi is nearest ");
-    mmgr_line_decimal(&results->line, (2ull * nearest_row) + 1ull, 1u);
+    mmgr_line_decimal(&results->line, (2ULL * nearest_row) + 1ULL, 1u);
     mmgr_line_ch(&results->line, '/');
-    mmgr_line_decimal(&results->line, (2ull * nearest_column) + 1ull, 1u);
+    mmgr_line_decimal(&results->line, (2ULL * nearest_column) + 1ULL, 1u);
     mmgr_line_put(&results->line, "\n    the record near-corners at the side walls: ");
     for (size_t at = 0u; at < near_corners.size(); at += 1u)
     {
         mmgr_line_decimal(&results->line, near_corners[at], 1u);
         mmgr_line_put(&results->line, (at + 1u < near_corners.size()) ? ", " : "\n");
     }
-    // pi is irrational. No corner and no zero L can occur on the real walk; what these two checks measure is that
+    // pi is irrational. No corner and no zero L can occur on the real walk. What these two checks measure is that
     // the integer turn's carries decide every floor (uncertain is 0). The walk read is the real one
-    sim_check(results, (corners == 0ull) && (uncertain == 0ull),
+    sim_check(results, (corners == 0ULL) && (uncertain == 0ULL),
               "no wall hit on the walk is a corner, and every floor on it is the real floor: one wall always wins");
-    sim_check(results, (zero == 0ull) && (uncertain == 0ull),
+    sim_check(results, (zero == 0ULL) && (uncertain == 0ULL),
               "no segment's angular momentum about the center is zero: one sense always leads");
     sim_check(results, matched && (floors_in_walk > 10u), "the walk's record near-corners are exactly the floors' q_j");
     sim_flush(results);
@@ -269,8 +269,8 @@ void pi_tower_residues(SimResults *results, const PiWide &walk_alpha, const std:
     int certain = 1;
     unsigned int walked = 0u;
     // p_(j-2) and p_(j-1), from p_(-1) = 1 and p_0 = 0
-    unsigned long long numerator_before = 1ull;
-    unsigned long long numerator = 0ull;
+    unsigned long long numerator_before = 1ULL;
+    unsigned long long numerator = 0ULL;
     mmgr_line_put(&results->line, "  the residue: floor j, pi's identity P/q, the residue q pi - P, and q steps "
                                    "walked as the permutation n -> n p mod q\n");
     for (size_t at = 0u; (at < denominators.size()) && (pi_tower_compare(denominators[at], limit) <= 0); at += 1u)
@@ -298,11 +298,11 @@ void pi_tower_residues(SimResults *results, const PiWide &walk_alpha, const std:
         unsigned long long place[PI_TOWER_WORDS];
         for (unsigned int word = 0u; word < PI_TOWER_WORDS; word += 1u)
         {
-            place[word] = 0ull;
+            place[word] = 0ULL;
         }
-        unsigned long long integer_sum = 0ull;
+        unsigned long long integer_sum = 0ULL;
         int floor_ok = 1;
-        for (unsigned long long step = 0ull; step < steps; step += 1ull)
+        for (unsigned long long step = 0ULL; step < steps; step += 1ULL)
         {
             // n p < 2^42. The permutation's whole part is a word's quotient
             floor_ok = floor_ok && (integer_sum == ((step * numerator) / steps));
@@ -311,14 +311,14 @@ void pi_tower_residues(SimResults *results, const PiWide &walk_alpha, const std:
         // at n = q the walk is at the residue: whole P past 3 q, and delta past it, or whole P - 1 and |delta|
         // short of the next
         const PiWide located = pi_tower_words_wide(place);
-        floor_ok = floor_ok && (integer_sum == ((negative != 0) ? (numerator - 1ull) : numerator)) &&
+        floor_ok = floor_ok && (integer_sum == ((negative != 0) ? (numerator - 1ULL) : numerator)) &&
                    (pi_tower_compare(located, (negative != 0) ? pi_tower_difference(modulus, size) : size) == 0);
         ok = ok && floor_ok;
         walked += 1u;
         mmgr_line_put(&results->line, "    ");
         mmgr_line_decimal(&results->line, at, 2u);
         mmgr_line_put(&results->line, "  ");
-        mmgr_line_decimal(&results->line, (3ull * steps) + numerator, 1u);
+        mmgr_line_decimal(&results->line, (3ULL * steps) + numerator, 1u);
         mmgr_line_ch(&results->line, '/');
         mmgr_line_decimal(&results->line, steps, 1u);
         mmgr_line_put(&results->line, "  residue ");

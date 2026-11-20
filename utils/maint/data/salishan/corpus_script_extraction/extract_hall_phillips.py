@@ -50,7 +50,7 @@ def _repository_root():
     A marker the repository produces, such as build/, is absent from a linked worktree and a
     never-built clone, and a climb to it can pass this root and land in another checkout whose paths
     look valid. A marker infers the root. Git answers it. The climb below serves only an exported tree
-    with no git directory, and it looks for archive/src/python, which the repository tracks and every checkout
+    with no git directory. It looks for archive/src/python, which the repository tracks and every checkout
     of it holds.
 
     Git's own variables are cleared first. Inside a hook GIT_DIR is exported, and a rev-parse that
@@ -110,7 +110,7 @@ QUOTED = re.compile(r"^['‘“]")
 
 # The paper's second gloss line segments each word into morphemes and joins them with a hyphen or an
 # equals sign, the positive evidence that a line is one. Without this test the branch below
-# called a line segmentation because nothing else had matched it, and page numbers, footnote prose
+# called a line segmentation because nothing else matched it, and page numbers, footnote prose
 # and the tails of wrapped sentences all went into the record under that name.
 SEGMENTED = re.compile(r"[-=]")
 

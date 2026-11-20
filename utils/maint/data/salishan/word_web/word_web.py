@@ -60,7 +60,7 @@ def _repository_root():
     A marker the repository produces, such as build/, is absent from a linked worktree and a
     never-built clone, and a climb to it can pass this root and land in another checkout whose paths
     look valid. A marker infers the root. Git answers it. The climb below serves only an exported tree
-    with no git directory, and it looks for archive/src/python, which the repository tracks and every checkout
+    with no git directory. It looks for archive/src/python, which the repository tracks and every checkout
     of it holds.
 
     Git's own variables are cleared first. Inside a hook GIT_DIR is exported, and a rev-parse that
@@ -281,7 +281,7 @@ def concept_profile(edges):
     """The web as a distribution, which the sift can be passed in place of byte pairs.
 
     Keyed on the concept and shape edges only. The context edges are a fact about one paper's
-    sections and do not transfer to a page nobody has read. They are in the web for reading and
+    sections and do not transfer to a page nobody read. They are in the web for reading and
     out of the profile for matching.
     """
     counts = collections.Counter()

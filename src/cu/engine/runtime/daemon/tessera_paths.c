@@ -53,12 +53,12 @@ static const char *tessera_environment(const char *name)
 
 static int tessera_line_done(VerbaLinea *line)
 {
-    return mmgr_line_finish(line) != 0ull;
+    return mmgr_line_finish(line) != 0ULL;
 }
 
 int tessera_path_endpoint(const unsigned char device[TESSERA_DEVICE_BYTES], char *path, unsigned int capacity)
 {
-    VerbaLinea line = {path, capacity, 0ull};
+    VerbaLinea line = {path, capacity, 0ULL};
 #if defined(_WIN32)
     mmgr_line_put(&line, s_tessera_pipe);
     // a runtime named apart (a test's) is a pipe of its own, as it is a folder of its own on Linux; a backslash, which
@@ -93,7 +93,7 @@ int tessera_path_endpoint(const unsigned char device[TESSERA_DEVICE_BYTES], char
 
 int tessera_path_state(const unsigned char device[TESSERA_DEVICE_BYTES], char *path, unsigned int capacity)
 {
-    VerbaLinea line = {path, capacity, 0ull};
+    VerbaLinea line = {path, capacity, 0ULL};
     const char *const chosen = tessera_environment("TESSERA_STATE");
     if (chosen != NULL)
     {
@@ -141,7 +141,7 @@ int tessera_path_lost(const unsigned char device[TESSERA_DEVICE_BYTES], unsigned
     {
         return 0;
     }
-    VerbaLinea line = {path, capacity, 0ull};
+    VerbaLinea line = {path, capacity, 0ULL};
     line.at = strlen(path);
     mmgr_line_ch(&line, TESSERA_SEPARATOR);
     mmgr_line_put(&line, s_tessera_lost);

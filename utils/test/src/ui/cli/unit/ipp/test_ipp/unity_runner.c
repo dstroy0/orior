@@ -83,7 +83,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\ipp\\test_ipp\\test_ipp.c");
+  UnityBegin("utils/test/src/ui/cli/unit/ipp/test_ipp/test_ipp.c");
   run_test(test_a_message_begins_with_its_version_code_and_id, "test_a_message_begins_with_its_version_code_and_id", 162);
   run_test(test_a_message_reads_its_code_id_and_counts_back, "test_a_message_reads_its_code_id_and_counts_back", 170);
   run_test(test_a_message_reads_its_groups_back, "test_a_message_reads_its_groups_back", 180);

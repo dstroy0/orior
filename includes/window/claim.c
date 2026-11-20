@@ -42,7 +42,7 @@ typedef struct
     int *last;
     int grown;
 } ClaimCtx;
-// a curve's y at the x `required`, 0 to 1: the curve's x and y at the parameter t, t found for x by halving
+// the y of a curve at the x `required`, 0 to 1: the x and y of the curve at the parameter t. A bisection finds t for x
 EMBED_INLINE double autohide_curve(const ClaimCtx *args)
 {
     double low = 0.0;
@@ -95,7 +95,7 @@ int gui_ease_table_read(const GuiAutohideShareCfg *args)
     {
         required = args->share;
     }
-    // a step of the table is GUI_FIXED_ONE over the steps, 1024; the way between two entries is positioned straight
+    // a step of the table is GUI_FIXED_ONE over the steps, 1024. The way between two entries is a straight line
     const int step = required / (GUI_FIXED_ONE / (int)GUI_EASE_STEPS);
     const int within = required % (GUI_FIXED_ONE / (int)GUI_EASE_STEPS);
     if (step >= (int)GUI_EASE_STEPS)
@@ -140,7 +140,7 @@ EMBED_INLINE unsigned long long slide_lasts_ms(const GuiAutohideSlideCfg *args)
 }
 
 // The bead: a spring that follows a target, in a slide's length. The target leaves the start and comes to the end
-// over CLAIM_BEAD_LEAD of the length on a smoothstep, so the bead holds a moment and then lets go. The spring's
+// over CLAIM_BEAD_LEAD of the length on a smoothstep. The bead then holds a moment and lets go. The spring's
 // frequency is 16 a length and its damping ratio is 0.5. The bead is 2 percent of the way at a tenth of the length
 // and 28 percent at a quarter. It goes past its end by about 4 percent at 0.6 of the length, and settles by the end
 #define CLAIM_BEAD_FREQUENCY 16.0
@@ -163,8 +163,8 @@ static void claim_bead_step(double along, double step, double start, double *dis
 
 // The spring's distance from its end and its speed at `along`, a share of the slide's length from 0 to 1. The slide
 // starts `start` from its end with `speed`, both in GUI_FIXED_ONE and a length. The spring runs in CLAIM_BEAD_STEPS
-// steps, and a share between two steps takes the part of a step it reaches. At 1 the distance is 0 exactly: the
-// spring's own small rest at 1 is taken away in proportion to `along`
+// steps, and a share between two steps takes the part of a step it reaches. At 1 the distance is 0 exactly. The code
+// removes the own small rest of the spring at 1 in proportion to `along`
 static void claim_bead_offset(double along, double start, double speed, double *distance, double *pace)
 {
     const double step = 1.0 / (double)CLAIM_BEAD_STEPS;
@@ -197,10 +197,12 @@ static void claim_bead_offset(double along, double start, double speed, double *
     *pace = now_pace - end_distance;
 }
 
-// The spring is linear in where it starts and how fast: its distance and speed at a share of the length are the start
-// times a path from a start of one at rest, plus the speed times a path from a start of none at a speed of one. The
-// four paths are made once, CLAIM_BEAD_STEPS and one entries each by GUI_FIXED_ONE, as the ease curves' tables are;
-// a frame reads them and positions the way between two entries straight
+// The spring is linear in where it starts and how fast. Its distance and speed at a share of the length are two parts.
+// The first is the start times a path from a start of one at rest. The second is the speed times a path from a start
+// of none at a speed of one.
+//
+// The code makes the four paths once, as it makes the tables of the ease curves. Each has CLAIM_BEAD_STEPS and one
+// entries, by GUI_FIXED_ONE. A frame reads them, and the way between two entries is a straight line
 static int s_bead_start_distance[CLAIM_BEAD_STEPS + 1u];
 static int s_bead_start_pace[CLAIM_BEAD_STEPS + 1u];
 static int s_bead_speed_distance[CLAIM_BEAD_STEPS + 1u];
@@ -282,7 +284,7 @@ int gui_slide_at(const GuiAutohideSlideCfg *args)
         return claim_bead_at(args->slide, ((args->time_ms - start) * (unsigned long long)GUI_FIXED_ONE) / lasts_ms,
                              NULL);
     }
-    // the way along the slide, a share of its length, below GUI_FIXED_ONE; the slide's span by the curve's number is
+    // the way along the slide, a share of its length, below GUI_FIXED_ONE. The slide's span by the curve's number is
     // within a long long and comes back to a number of GUI_FIXED_ONE
     const int share = (int)(((args->time_ms - start) * (unsigned long long)GUI_FIXED_ONE) / lasts_ms);
     const int eased = (args->curve == GUI_CURVE_EASE_OUT)
@@ -301,7 +303,7 @@ void gui_slide_to(const GuiAutohideTargetCfg *args)
     const unsigned long long now_ms = args->time_ms;
     GuiSlide *const slide = args->slide_out;
     const unsigned long long lasts_ms = (args->lasts_ms != 0ULL) ? args->lasts_ms : GUI_AUTOHIDE_ANIMATION_MS;
-    // A bead sent on from mid-way retains its number and its speed, so its path has no corner. Every other slide, and a
+    // A bead sent on from mid-way keeps its number and its speed. Its path thus has no corner. Every other slide, and a
     // bead at rest, starts again from rest
     if ((slide->curve == GUI_CURVE_BEAD) && (now_ms > slide->start_ms) && (now_ms < slide->start_ms + lasts_ms) &&
         ((slide->from != slide->to) || (slide->velocity != 0)))
@@ -412,7 +414,7 @@ EMBED_INLINE void autohide_targets(const ClaimCtx *args)
     EMBED_CALL(autohide_send, ClaimCtx, .claim = args->claim, .slide = &args->claim->reveal_tabs,
                .to = (displayed == GUI_AUTOHIDE_TABS) ? GUI_FIXED_ONE : 0, .delay_ms = 0ULL, .time_ms = args->time_ms);
     // An inset moves with its reveal, on the same curve and from the same moment. The work gives way as the part comes
-    // in, so the text never is under the part, and the two go together
+    // in. The text is then never under the part, and the two go together
     EMBED_CALL(autohide_send, ClaimCtx, .claim = args->claim, .slide = &args->claim->inset_top,
                .to = (displayed == GUI_AUTOHIDE_TOP) ? GUI_FIXED_ONE : 0, .delay_ms = 0ULL, .time_ms = args->time_ms);
     EMBED_CALL(autohide_send, ClaimCtx, .claim = args->claim, .slide = &args->claim->inset_left,
@@ -442,8 +444,8 @@ EMBED_INLINE void autohide_show(const ClaimCtx *args)
     autohide_targets(args);
 }
 
-// `zone`'s part displayed, or none: another edge's part displayed goes first, over its slide, and `zone`'s comes once it has
-// gone
+// the displayed part of `zone`, or none. The displayed part of another edge goes first, over its slide. The part of
+// `zone` comes after that part leaves
 EMBED_INLINE void autohide_reveal(const ClaimCtx *args)
 {
     const unsigned long long now_ms = args->time_ms;
@@ -508,8 +510,8 @@ unsigned int gui_autohide_zone(const GuiAutohideWidthCfg *args)
     {
         return GUI_AUTOHIDE_RIGHT;
     }
-    // the band under the work's inside top, a tabs row deep and below the head's band, is the tabs row's: a rest in it
-    // brings the row, a claim of its own; the band moves down with the work as the bar comes out
+    // the band under the inside top of the work is the band of the tabs row. It is a tabs row deep, and below the band
+    // of the head. A rest in it brings the row, a claim of its own. The band moves down with the work as the bar comes out
     const int tabs = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TABS_HEIGHT, .scale = args->scale);
     const int tabs_top = (args->work_top > band) ? args->work_top : band;
     if ((args->y >= tabs_top) && (args->y < tabs_top + tabs))
@@ -553,7 +555,7 @@ EMBED_INLINE float autohide_pace(const ClaimCtx *args)
     {
         return 0.0f;
     }
-    // A resting hand moves the pointer a few pixels to and fro. The net distance less that tremor is the distance the
+    // A hand at rest moves the pointer a few pixels to and fro. The net distance less that tremor is the distance the
     // pointer travels. The distance between two points of the window's pixels is far inside a float's reach
     const float travelled =
         arith_hypot_f32((float)(args->x - oldest->x), (float)(args->y - oldest->y)) - (float)GUI_AUTOHIDE_TREMOR_PX;
@@ -570,7 +572,7 @@ void gui_autohide_move(const GuiAutohidePointerCfg *args)
     }
     args->claim->pointer_x = args->x;
     args->claim->pointer_y = args->y;
-    // A menu open holds the claim: the pointer works in the menu, so the part displayed is and no part comes. The
+    // An open menu holds the claim. The pointer works in the menu, and thus the displayed part stays and no part comes. The
     // linger to hide begins again at each move, and runs out only after the menu closes
     if (args->menu_open)
     {
@@ -593,7 +595,7 @@ void gui_autohide_move(const GuiAutohidePointerCfg *args)
     {
         args->claim->preview_deadline_ms = now_ms + (2ULL * GUI_AUTOHIDE_TRAIL_WINDOW_MS);
     }
-    // a pointer passing through restarts its rest timer with each move: the rest begins once it slows
+    // a pointer that passes through starts its rest timer again with each move. The rest begins once it slows
     if ((args->zone != args->claim->zone_now) || passing)
     {
         args->claim->zone_now = args->zone;
@@ -822,8 +824,8 @@ unsigned long long gui_autohide_next_deadline_ms(const GuiAutohideCfg *args)
                                      .second_ms = args->autohide_read->preview_deadline_ms));
 }
 
-// a slat's grown share: coming in, it grows with its reveal; going, it is as long as it grew; outside the claim it
-// is whole
+// the grown share of a slat. As it comes in, it grows with its reveal. As it goes, it is as long as it grew. Outside
+// the claim it is whole
 EMBED_INLINE int autohide_grow(const ClaimCtx *args)
 {
     int *last = args->last;
@@ -834,8 +836,8 @@ EMBED_INLINE int autohide_grow(const ClaimCtx *args)
     }
     else if ((args->reveal > *last) || (args->reveal >= GUI_FIXED_ONE))
     {
-        // a bead's reveal goes past whole and settles back to it: the slat follows it there, and is as it grew
-        // only once the reveal goes below whole
+        // the reveal of a bead goes past whole and settles back to it. The slat follows it there. It is as it grew only
+        // once the reveal goes below whole
         grown = args->reveal;
     }
     else if (args->reveal == 0)

@@ -8,7 +8,7 @@
 // compiler on the device): each step's term and width, read from its operation and its operands' in step order, and
 // each register's linear form, which narrows the width where it is tighter. The host's keymath_record_encode runs it
 // and arranges the key; the device runs it in one thread, since each step reads the steps before it. A linear form's
-// terms are stored in an arena the caller gives, each form a run of it; an arena too small for the forms is reported,
+// terms are stored in an arena the caller gives, each form a run of it. An arena too small for the forms is reported,
 // and the caller gives a larger one and runs the encoding again, which decides the same
 
 #include "../../engine_config.h"
@@ -23,7 +23,7 @@
 
 // a coefficient or constant of a linear form stays within this. A sum of two and the product by a constant are then
 // checked in one word before either is formed: two at the limit sum to 2^63, past a signed word
-#define KEYMATH_COEFFICIENT_MAX (1ll << 62)
+#define KEYMATH_COEFFICIENT_MAX (1LL << 62)
 
 // the limbs a form's bound takes: an atom's register is at max 32 ENGINE_RECORD_LIMBS_MAX bits and a coefficient at
 // max 2^62. Each term is below 2^(32 ENGINE_RECORD_LIMBS_MAX + 63), and the sum of fewer than 2^32 of them below
@@ -99,7 +99,7 @@ struct KeymathCoreEncode
 KEYMATH_CORE unsigned int keymath_core_word_bits(unsigned long long value)
 {
     unsigned int bits = 0u;
-    while (value != 0ull)
+    while (value != 0ULL)
     {
         bits += 1u;
         value >>= 1u;
@@ -154,7 +154,7 @@ KEYMATH_CORE unsigned char keymath_core_never_negative(const EngineRecordStep *d
 
 KEYMATH_CORE long long keymath_core_magnitude(long long value)
 {
-    return (value < 0ll) ? -value : value;
+    return (value < 0LL) ? -value : value;
 }
 
 // left + right, each within KEYMATH_COEFFICIENT_MAX, into *sum; 0, and *sum 0, where the sum would pass it. The test
@@ -162,8 +162,8 @@ KEYMATH_CORE long long keymath_core_magnitude(long long value)
 KEYMATH_CORE int keymath_core_sum_fits(long long left, long long right, long long *sum)
 {
     const int fits =
-        (right >= 0ll) ? (left <= (KEYMATH_COEFFICIENT_MAX - right)) : (left >= (-KEYMATH_COEFFICIENT_MAX - right));
-    *sum = fits ? (left + right) : 0ll;
+        (right >= 0LL) ? (left <= (KEYMATH_COEFFICIENT_MAX - right)) : (left >= (-KEYMATH_COEFFICIENT_MAX - right));
+    *sum = fits ? (left + right) : 0LL;
     return fits;
 }
 
@@ -177,7 +177,7 @@ KEYMATH_CORE int keymath_core_push(KeymathCoreArena *arena, unsigned int atom, l
     }
     arena->terms[arena->used].atom = atom;
     arena->terms[arena->used].coefficient = coefficient;
-    arena->used += 1ull;
+    arena->used += 1ULL;
     return 1;
 }
 
@@ -187,10 +187,10 @@ KEYMATH_CORE int keymath_core_affine_add(KeymathCoreArena *arena, const KeymathC
                                          const KeymathCoreAffine *right, long long sign, KeymathCoreAffine *sum)
 {
     sum->first = arena->used;
-    sum->count = 0ull;
+    sum->count = 0ULL;
     int ok = keymath_core_sum_fits(left->constant, sign * right->constant, &sum->constant);
-    unsigned long long at_left = 0ull;
-    unsigned long long at_right = 0ull;
+    unsigned long long at_left = 0ULL;
+    unsigned long long at_right = 0ULL;
     while (ok && ((at_left < left->count) || (at_right < right->count)))
     {
         const KeymathCoreTerm *const left_term = &arena->terms[left->first + at_left];
@@ -200,15 +200,15 @@ KEYMATH_CORE int keymath_core_affine_add(KeymathCoreArena *arena, const KeymathC
         const int take_right =
             (at_left == left->count) || ((at_right < right->count) && (right_term->atom <= left_term->atom));
         const unsigned int atom = take_left ? left_term->atom : right_term->atom;
-        long long coefficient = 0ll;
-        ok = keymath_core_sum_fits(take_left ? left_term->coefficient : 0ll,
-                                   take_right ? (sign * right_term->coefficient) : 0ll, &coefficient);
-        at_left += take_left ? 1ull : 0ull;
-        at_right += take_right ? 1ull : 0ull;
-        if (ok && (coefficient != 0ll))
+        long long coefficient = 0LL;
+        ok = keymath_core_sum_fits(take_left ? left_term->coefficient : 0LL,
+                                   take_right ? (sign * right_term->coefficient) : 0LL, &coefficient);
+        at_left += take_left ? 1ULL : 0ULL;
+        at_right += take_right ? 1ULL : 0ULL;
+        if (ok && (coefficient != 0LL))
         {
             ok = keymath_core_push(arena, atom, coefficient);
-            sum->count += ok ? 1ull : 0ull;
+            sum->count += ok ? 1ULL : 0ULL;
         }
     }
     return ok;
@@ -220,12 +220,12 @@ KEYMATH_CORE int keymath_core_affine_scale(KeymathCoreArena *arena, const Keymat
                                            KeymathCoreAffine *scaled)
 {
     const long long max =
-        (factor == 0ll) ? KEYMATH_COEFFICIENT_MAX : (KEYMATH_COEFFICIENT_MAX / keymath_core_magnitude(factor));
+        (factor == 0LL) ? KEYMATH_COEFFICIENT_MAX : (KEYMATH_COEFFICIENT_MAX / keymath_core_magnitude(factor));
     int ok = keymath_core_magnitude(form->constant) <= max;
-    scaled->constant = ok ? (form->constant * factor) : 0ll;
+    scaled->constant = ok ? (form->constant * factor) : 0LL;
     scaled->first = arena->used;
-    scaled->count = 0ull;
-    for (unsigned long long at = 0ull; ok && (at < form->count) && (factor != 0ll); at += 1ull)
+    scaled->count = 0ULL;
+    for (unsigned long long at = 0ULL; ok && (at < form->count) && (factor != 0LL); at += 1ULL)
     {
         const KeymathCoreTerm term = arena->terms[form->first + at];
         ok = keymath_core_magnitude(term.coefficient) <= max;
@@ -233,7 +233,7 @@ KEYMATH_CORE int keymath_core_affine_scale(KeymathCoreArena *arena, const Keymat
         if (ok)
         {
             ok = keymath_core_push(arena, term.atom, term.coefficient * factor);
-            scaled->count += ok ? 1ull : 0ull;
+            scaled->count += ok ? 1ULL : 0ULL;
         }
     }
     return ok;
@@ -242,21 +242,21 @@ KEYMATH_CORE int keymath_core_affine_scale(KeymathCoreArena *arena, const Keymat
 // a magnitude of at max 2^62 shifted up by `shift` bits, added into the bound's limbs; the bound contains the sum
 KEYMATH_CORE void keymath_core_add_shifted(unsigned int *bound, unsigned long long magnitude, unsigned long long shift)
 {
-    const unsigned int part = (unsigned int)(shift % 32ull);
+    const unsigned int part = (unsigned int)(shift % 32ULL);
     // the shift is below 32 KEYMATH_BOUND_LIMBS, and its whole limbs fit an unsigned int
-    const unsigned int limb_shift = (unsigned int)(shift / 32ull);
+    const unsigned int limb_shift = (unsigned int)(shift / 32ULL);
     // the magnitude is at max 2^62, and shifted by fewer than 32 bits it spans at max three limbs
     const unsigned long long low = magnitude << part;
-    const unsigned long long high = (part == 0u) ? 0ull : (magnitude >> (64u - part));
-    const unsigned int added[3] = {(unsigned int)(low & 0xFFFFFFFFull), (unsigned int)(low >> 32u), (unsigned int)high};
-    unsigned long long carry = 0ull;
+    const unsigned long long high = (part == 0u) ? 0ULL : (magnitude >> (64u - part));
+    const unsigned int added[3] = {(unsigned int)(low & 0xFFFFFFFFULL), (unsigned int)(low >> 32u), (unsigned int)high};
+    unsigned long long carry = 0ULL;
     // past the three limbs added, the sum changes only while a carry runs
     for (unsigned int limb = limb_shift;
-         (limb < KEYMATH_BOUND_LIMBS) && (((limb - limb_shift) < 3u) || (carry != 0ull)); limb += 1u)
+         (limb < KEYMATH_BOUND_LIMBS) && (((limb - limb_shift) < 3u) || (carry != 0ULL)); limb += 1u)
     {
         const unsigned long long total =
             carry + bound[limb] + (((limb - limb_shift) < 3u) ? added[limb - limb_shift] : 0u);
-        bound[limb] = (unsigned int)(total & 0xFFFFFFFFull);
+        bound[limb] = (unsigned int)(total & 0xFFFFFFFFULL);
         carry = total >> 32u;
     }
 }

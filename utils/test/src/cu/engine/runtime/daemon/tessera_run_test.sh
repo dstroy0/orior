@@ -166,7 +166,7 @@ cat "$CHILDREN"/*.log 2> /dev/null
 check "the child of a killed parent found it gone, ended the command, logged it, and its records are retained" $?
 
 # 7: the parent stopped (Linux): it holds its record but retains no keepalive, and its child ends the command once the
-# unresponsive time passes; the stopped parent, let go again, passes on the child's exit
+# unresponsive time passes. The stopped parent, let go again, passes on the child's exit
 if [ "$WINDOWS" -eq 0 ]; then
     rm -rf "$CHILDREN"
     TESSERA_RUN_SILENT_MS=1000 TESSERA_RUN_UNRESPONSIVE_MS=3000 \

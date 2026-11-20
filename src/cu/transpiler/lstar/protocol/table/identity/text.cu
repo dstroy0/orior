@@ -5,7 +5,7 @@
 
 // The queue over the stick's questions (P13, the scheduler). Every question of the manifest is an entry of its
 // category, and R gives each what it reads: 1 where the part answers it as the host does on every case the host
-// computes it on, 0 where it answers one case otherwise or refuses it, and gray where nothing has settled it. A
+// computes it on, 0 where it answers one case otherwise or refuses it, and gray where nothing settled it. A
 // gray entry carries what retains it gray: the engine's note where the engine writes no chain for it, that the host
 // computes no answer to it, or that the gate blocks it from the part. A gray entry with a chain and a host answer is
 // put through the run channel, every case at once in a container declaring every register its file uses, and its
@@ -54,7 +54,7 @@ int identity_queue(const char *engine, const char *answers, const char *ksc, con
         printf("orior_klq_identity queue: %s lists no question\n", manifest);
         return 1;
     }
-    if (!run_channel_open(carrier, 60000000ull))
+    if (!run_channel_open(carrier, 60000000ULL))
     {
         return 1;
     }
@@ -65,7 +65,7 @@ int identity_queue(const char *engine, const char *answers, const char *ksc, con
     s_question.place = RUN_PLACE_NONE;
     std::vector<unsigned int> places;
     stall_cases(&s_question, &places);
-    unsigned long long queries = 0ull;
+    unsigned long long queries = 0ULL;
     // each category's entries counted by what came of them, in the order the manifest first names the category
     std::vector<std::string> categories;
     std::map<std::string, std::map<std::string, unsigned int>> counted;
@@ -175,7 +175,7 @@ int identity_text(const char *engine, const char *answers, const char *ksc, cons
     {
         bridge.push_back((!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line);
     }
-    if (!run_channel_open(carrier, 60000000ull))
+    if (!run_channel_open(carrier, 60000000ULL))
     {
         return 1;
     }
@@ -185,7 +185,7 @@ int identity_text(const char *engine, const char *answers, const char *ksc, cons
     s_question.place = RUN_PLACE_NONE;
     std::vector<unsigned int> places;
     stall_cases(&s_question, &places);
-    unsigned long long queries = 0ull;
+    unsigned long long queries = 0ULL;
     // a side put to the part: 1 where it answers as the host does on every case, 0 where it answers one apart, its
     // place in s_apart_at, and -1 where it is not queried
     const auto side_alike = [&](const std::string &number) -> int {

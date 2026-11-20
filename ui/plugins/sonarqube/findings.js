@@ -45,7 +45,7 @@ function everyFinding() {
   for (const [type, map] of [["issue", issues], ["hotspot", sonar.hotspots], ["taint", sonar.taints], ["risk", sonar.risks]]) {
     for (const [uri, diagnostics] of map) {
       for (const finding of diagnostics) {
-        all.push({ type: type, uri, finding });
+        all.push({ type, uri, finding });
       }
     }
   }
@@ -71,7 +71,7 @@ async function filtered({ uri, finding }, active) {
 }
 
 // The row of a finding: what it says, its rule, its place, and what can be done with it.
-async function findingRow({ type: type, uri, finding }, at) {
+async function findingRow({ type, uri, finding }, at) {
   const data = finding.data ?? {};
   const place = finding.range?.start ?? { line: 0, character: 0 };
   const path = (await treePathOf(uri)) ?? pathOfUri(uri);
@@ -92,7 +92,8 @@ async function findingRow({ type: type, uri, finding }, at) {
   if (type === "risk") {
     actions.push(button("Change Status", "risk-status", String(at)));
   }
-  return `<tr><td>${escaped(finding.message?.value ?? finding.message)}<br><span class="quiet">${escaped(TYPES[type])}${data.impactSeverity !== undefined ? ` | ${IMPACTS[data.impactSeverity] ?? ""}` : ""}${status} (${escaped(finding.code ?? "unknown")})</span></td><td>${escaped(path)}<br><span class="quiet">Ln ${place.line + 1}, Col ${place.character}</span></td><td>${actions.join("")}</td></tr>`;
+  const impact = data.impactSeverity === undefined ? "" : " | " + (IMPACTS[data.impactSeverity] ?? "");
+  return `<tr><td>${escaped(finding.message?.value ?? finding.message)}<br><span class="quiet">${escaped(TYPES[type])}${impact}${status} (${escaped(finding.code ?? "unknown")})</span></td><td>${escaped(path)}<br><span class="quiet">Ln ${place.line + 1}, Col ${place.character}</span></td><td>${actions.join("")}</td></tr>`;
 }
 
 // The findings listed, as the panel numbers them.
@@ -102,12 +103,9 @@ let listed = [];
 // new code.
 async function drawFindings() {
   const active = await orior.editor.active().catch(() => null);
-  const all = [];
-  for (const one of everyFinding()) {
-    if (await filtered(one, active)) {
-      all.push(one);
-    }
-  }
+  const every = everyFinding();
+  const kept = await Promise.all(every.map((one) => filtered(one, active)));
+  const all = every.filter((one, at) => kept[at]);
   listed = all;
   const section = async (title, part) => (part.length ? `<h2>${escaped(title)}</h2><table>${(await Promise.all(part.map((one) => findingRow(one, listed.indexOf(one))))).join("")}</table>` : "");
   let body;
@@ -142,7 +140,7 @@ onPressed("finding-show", async (value) => {
   if (!one) {
     return;
   }
-  const { type: type, uri, finding } = one;
+  const { type, uri, finding } = one;
   const data = finding.data ?? {};
   const place = finding.range?.start ?? { line: 0, character: 0 };
   const path = await treePathOf(uri);
@@ -202,38 +200,60 @@ function connectionOfTree() {
 
 // The places of an issue or hotspot: the file and line of each location, by flow, each a link to it,
 // and marks positioned on the lines they fall on.
+// What the panel adds after a location: that its file is missing or that its code changed.
+function locationNote(location) {
+  if (location.exists === false) {
+    return ' <span class="fail">(file missing)</span>';
+  }
+  return location.codeMatches === false ? ' <span class="quiet">(code changed)</span>' : "";
+}
+
+// The path in the tree of a location, or null where it is outside the tree.
+function locationPath(location) {
+  return location.uri ? treePathOf(location.uri) : orior.tree.relative(location.filePath).catch(() => null);
+}
+
 async function drawLocations(issue) {
   sonar.located = issue;
   const flows = issue.flows ?? [];
   const marks = new Map();
-  const place = async (location, label) => {
-    const path = location.uri ? await treePathOf(location.uri) : await orior.tree.relative(location.filePath).catch(() => null);
+  const place = (location, label, path) => {
     const line = Math.max(0, (location.textRange?.startLine ?? 1) - 1);
     if (path !== null) {
       const list = marks.get(path) ?? [];
-      list.push({ line, text: `${label} ${location.message ?? ""}`.trim() });
+      list.push({ line, text: (label + " " + (location.message ?? "")).trim() });
       marks.set(path, list);
     }
     const where = path ?? location.filePath;
-    const exists = location.exists === false ? ' <span class="fail">(file missing)</span>' : location.codeMatches === false ? ' <span class="quiet">(code changed)</span>' : "";
-    return `<li>${path === null ? escaped(where) : linked(`${where}:${line + 1}`, "location-open", `${path}\n${line}\n${location.textRange?.startLineOffset ?? 0}`)} ${escaped(location.message ?? "")}${exists}</li>`;
-  };
-  const main = await place({ uri: issue.fileUri, textRange: issue.textRange, message: issue.message, exists: true, codeMatches: issue.codeMatches }, "");
-  const sections = [];
-  for (const [at, flow] of flows.entries()) {
-    const items = [];
-    for (const [inner, location] of (flow.locations ?? []).slice().reverse().entries()) {
-      items.push(await place(location, `${flows.length > 1 ? `${at + 1}.` : ""}${inner + 1}`));
+    let named = escaped(where);
+    if (path !== null) {
+      named = linked(where + ":" + (line + 1), "location-open", path + "\n" + line + "\n" + (location.textRange?.startLineOffset ?? 0));
     }
-    sections.push(`<h3>${flows.length > 1 ? `Flow ${at + 1}` : "Locations"}</h3><ol>${items.join("")}</ol>`);
-  }
-  for (const [path, list] of marks) {
-    await orior.marks.set(path, list);
-  }
+    return `<li>${named} ${escaped(location.message ?? "")}${locationNote(location)}</li>`;
+  };
+  const first = { uri: issue.fileUri, textRange: issue.textRange, message: issue.message, exists: true, codeMatches: issue.codeMatches };
+  // Each flow lists its locations from the last to the first.
+  const ordered = flows.map((flow) => (flow.locations ?? []).slice().reverse());
+  // The paths of every location, read together, then the list built in order.
+  const paths = await Promise.all([first, ...ordered.flat()].map(locationPath));
+  const main = place(first, "", paths[0]);
+  let next = 1;
+  const sections = ordered.map((locations, at) => {
+    const prefix = flows.length > 1 ? at + 1 + "." : "";
+    const items = locations.map((location, inner) => {
+      const item = place(location, prefix + (inner + 1), paths[next]);
+      next += 1;
+      return item;
+    });
+    const title = flows.length > 1 ? "Flow " + (at + 1) : "Locations";
+    return `<h3>${title}</h3><ol>${items.join("")}</ol>`;
+  });
+  await Promise.all([...marks].map(([path, list]) => orior.marks.set(path, list)));
   sonar.markedPaths = [...marks.keys()];
+  const created = issue.creationDate ? " | " + escaped(issue.creationDate) : "";
   await displayed(
     "locations",
-    `<h1>${escaped(issue.message)}</h1><p class="quiet">${escaped(issue.ruleKey)}${issue.creationDate ? ` | ${escaped(issue.creationDate)}` : ""}</p><ul>${main}</ul>${sections.join("")}${button("Clear", "locations-clear")}`,
+    `<h1>${escaped(issue.message)}</h1><p class="quiet">${escaped(issue.ruleKey)}${created}</p><ul>${main}</ul>${sections.join("")}${button("Clear", "locations-clear")}`,
   );
   if (issue.shouldOpenRuleDescription) {
     await serverCommand("SonarLint.OpenStandaloneRuleDesc", issue.ruleKey);
@@ -270,9 +290,7 @@ onPressed("location-open", async (value) => {
 
 // The locations displayed cleared, and their marks taken off.
 async function locationsCleared() {
-  for (const path of sonar.markedPaths ?? []) {
-    await orior.marks.set(path, []);
-  }
+  await Promise.all((sonar.markedPaths ?? []).map((path) => orior.marks.set(path, [])));
   sonar.markedPaths = [];
   sonar.located = null;
   await orior.panels.hide("locations");

@@ -87,7 +87,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\validate\\test_validate\\test_validate.c");
+  UnityBegin("utils/test/src/ui/cli/unit/validate/test_validate/test_validate.c");
   run_test(test_the_lean_tool_reads_its_toolchain, "test_the_lean_tool_reads_its_toolchain", 87);
   run_test(test_the_lean_tool_reads_its_barriers, "test_the_lean_tool_reads_its_barriers", 92);
   run_test(test_comments_and_strings_are_not_code, "test_comments_and_strings_are_not_code", 102);

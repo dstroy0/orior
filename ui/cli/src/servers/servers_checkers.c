@@ -178,7 +178,7 @@ void cli_servers_run_checkers(const CliServersPathSizeRootSinkCtx *args)
     const int known = (ids != 0u) && EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
                                                 .languages_read = &languages, .path = path, .id_out = language);
     g_cli_guard->persistent_buf_release(languages.pair, g_cli_plugins_owner);
-    *(&languages) = (CliLanguages){NULL, 0u, 0u};
+    languages = (CliLanguages){NULL, 0u, 0u};
     if (!known)
     {
         return;

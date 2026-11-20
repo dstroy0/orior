@@ -88,7 +88,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\query_run\\test_query_run\\test_query_run.c");
+  UnityBegin("utils/test/src/ui/cli/unit/query_run/test_query_run/test_query_run.c");
   run_test(test_runs_of_a_folder_are_numbered_newest_first, "test_runs_of_a_folder_are_numbered_newest_first", 169);
   run_test(test_the_next_run_is_numbered_after_the_newest, "test_the_next_run_is_numbered_after_the_newest", 176);
   run_test(test_retention_stores_the_newest, "test_retention_stores_the_newest", 185);

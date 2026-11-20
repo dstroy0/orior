@@ -46,7 +46,7 @@ int asm_printer_ruleset_same(const AsmPrinterRuleset *left, const AsmPrinterRule
 // kernel's parameters by far: it is not passed by value
 __global__ void codegen_rules_build(AsmPrinterCoreBuild *build)
 {
-    if (codegen_device_thread() != 0ull)
+    if (codegen_device_thread() != 0ULL)
     {
         return;
     }
@@ -56,15 +56,15 @@ __global__ void codegen_rules_build(AsmPrinterCoreBuild *build)
 // `build`'s memory taken on the device, sized to its capacities, and `build` pointed at it
 static void codegen_rules_memory(DeviceArena *memory, AsmPrinterCoreBuild *build)
 {
-    build->word_start = codegen_device_take<unsigned int>(memory, (unsigned long long)build->word_capacity + 1ull);
-    build->word_length = codegen_device_take<unsigned int>(memory, (unsigned long long)build->word_capacity + 1ull);
-    build->word_characters = codegen_device_take<unsigned char>(memory, (unsigned long long)build->character_capacity + 1ull);
+    build->word_start = codegen_device_take<unsigned int>(memory, (unsigned long long)build->word_capacity + 1ULL);
+    build->word_length = codegen_device_take<unsigned int>(memory, (unsigned long long)build->word_capacity + 1ULL);
+    build->word_characters = codegen_device_take<unsigned char>(memory, (unsigned long long)build->character_capacity + 1ULL);
     build->part_pieces = codegen_device_take<unsigned int>(
-        memory, ((unsigned long long)build->part_capacity * ASM_PRINTER_PIECES) + 1ull);
-    build->part_lanes = codegen_device_take<unsigned int>(memory, (unsigned long long)build->part_capacity + 1ull);
-    build->form_parts = codegen_device_take<unsigned int>(memory, (unsigned long long)build->form_part_capacity + 1ull);
+        memory, ((unsigned long long)build->part_capacity * ASM_PRINTER_PIECES) + 1ULL);
+    build->part_lanes = codegen_device_take<unsigned int>(memory, (unsigned long long)build->part_capacity + 1ULL);
+    build->form_parts = codegen_device_take<unsigned int>(memory, (unsigned long long)build->form_part_capacity + 1ULL);
     build->placeholder_parameters =
-        codegen_device_take<unsigned int>(memory, (unsigned long long)build->placeholder_capacity + 1ull);
+        codegen_device_take<unsigned int>(memory, (unsigned long long)build->placeholder_capacity + 1ULL);
     build->steps = codegen_device_take<EngineRecordStep>(memory, build->step_capacity);
     for (unsigned int table = 0u; table < ASM_PRINTER_TABLES; table += 1u)
     {
@@ -90,7 +90,7 @@ static void codegen_rules_read(DeviceArena *device_arena, const AsmPrinterCoreBu
     codegen_device_read(device_arena, host->steps, ended->steps, ended->step_count);
     for (unsigned int table = 0u; table < ASM_PRINTER_TABLES; table += 1u)
     {
-        const unsigned long long rows = 1ull << ended->tables[table].index_bits;
+        const unsigned long long rows = 1ULL << ended->tables[table].index_bits;
         codegen_device_read(device_arena, host->values[table], ended->values[table], rows);
         host->tables[table].values = host->values[table];
     }
@@ -130,14 +130,14 @@ int asm_printer_ruleset_device(const Ruleset *rules, const TargetInfo *target, c
         build_arena.ok = 1;
         asm_printer_capacities(&flat, step_capacity, &build);
         codegen_rules_memory(&build_arena, &build);
-        AsmPrinterCoreBuild *const device_ended = codegen_device_copy(&build_arena, &build, 1ull);
+        AsmPrinterCoreBuild *const device_ended = codegen_device_copy(&build_arena, &build, 1ULL);
         AsmPrinterCoreBuild ended{};
         if (build_arena.ok != 0)
         {
             codegen_rules_build<<<1u, 1u>>>(device_ended);
             codegen_device_launched(&build_arena);
         }
-        codegen_device_read(&build_arena, &ended, device_ended, 1ull);
+        codegen_device_read(&build_arena, &ended, device_ended, 1ULL);
         if ((build_arena.ok != 0) && (ended.end == ASM_PRINTER_CORE_OK))
         {
             codegen_rules_read(&build_arena, &ended, &memory, &host);

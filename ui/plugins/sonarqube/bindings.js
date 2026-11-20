@@ -34,12 +34,17 @@ async function drawBinding(connectionId, message) {
     });
     projects = Object.entries(found ?? {})
       .sort(([, one], [, other]) => String(one).localeCompare(String(other)))
-      .map(([key, name]) => `<tr><td>${escaped(name)}<br><span class="quiet">${escaped(key)}</span></td><td>${button("Bind", "binding-project", `${chosenId}\n${key}`)}</td></tr>`)
+      .map(([key, name]) => {
+        const bind = button("Bind", "binding-project", chosenId + "\n" + key);
+        return `<tr><td>${escaped(name)}<br><span class="quiet">${escaped(key)}</span></td><td>${bind}</td></tr>`;
+      })
       .join("");
   }
+  const failed = message ? '<p class="fail">' + escaped(message) + "</p>" : "";
+  const table = projects ? "<table>" + projects + "</table>" : '<p class="quiet">No projects were found for this connection.</p>';
   await displayed(
     "binding",
-    `<h1>Bind the tree to a project</h1>${message ? `<p class="fail">${escaped(message)}</p>` : ""}<div class="row">${pick}</div><form class="row"><input name="key" placeholder="Project key" size="40">${button("Bind by Key", "binding-key", chosenId)}</form>${projects ? `<table>${projects}</table>` : '<p class="quiet">No projects were found for this connection.</p>'}`,
+    `<h1>Bind the tree to a project</h1>${failed}<div class="row">${pick}</div><form class="row"><input name="key" placeholder="Project key" size="40">${button("Bind by Key", "binding-key", chosenId)}</form>${table}`,
   );
 }
 
@@ -78,7 +83,10 @@ async function suggestionsOffered(suggestions) {
     return;
   }
   const rows = all
-    .map((one) => `<tr><td>${escaped(one.sonarProjectName || one.sonarProjectKey)}<br><span class="quiet">${escaped(one.sonarProjectKey)} | ${escaped(one.connectionId)}</span></td><td>${button("Bind", "binding-project", `${one.connectionId}\n${one.sonarProjectKey}`)}</td></tr>`)
+    .map((one) => {
+      const bind = button("Bind", "binding-project", one.connectionId + "\n" + one.sonarProjectKey);
+      return `<tr><td>${escaped(one.sonarProjectName || one.sonarProjectKey)}<br><span class="quiet">${escaped(one.sonarProjectKey)} | ${escaped(one.connectionId)}</span></td><td>${bind}</td></tr>`;
+    })
     .join("");
   await displayed("binding", `<h1>Suggested bindings</h1><table>${rows}</table>${button("Choose Manually", "binding-edit")}`);
 }
@@ -96,8 +104,11 @@ onPressed("binding-auto", async () => {
   }
   const folder = await folderUri();
   const suggestions = {};
-  for (const one of connections()) {
-    const found = await orior.server.request("sonarlint/getBindingSuggestion", { configScopeId: folder, connectionId: one.connectionId }).catch(() => null);
+  // The server answers each connection on its own, so the requests go together.
+  const answers = await Promise.all(
+    connections().map((one) => orior.server.request("sonarlint/getBindingSuggestion", { configScopeId: folder, connectionId: one.connectionId }).catch(() => null)),
+  );
+  for (const found of answers) {
     for (const [scope, list] of Object.entries(found?.suggestions ?? {})) {
       suggestions[scope] = [...(suggestions[scope] ?? []), ...list];
     }

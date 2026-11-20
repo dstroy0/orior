@@ -39,9 +39,9 @@ static int khw_differs_outside_operands(const KhwAnswered *form, const KhwAnswer
 {
     for (unsigned int bit = 0u; bit < (2u * 64u); bit += 1u)
     {
-        const unsigned long long one = (bit < 64u) ? ((form->low >> bit) & 1ull) : ((form->high >> (bit - 64u)) & 1ull);
+        const unsigned long long one = (bit < 64u) ? ((form->low >> bit) & 1ULL) : ((form->high >> (bit - 64u)) & 1ULL);
         const unsigned long long two =
-            (bit < 64u) ? ((other->low >> bit) & 1ull) : ((other->high >> (bit - 64u)) & 1ull);
+            (bit < 64u) ? ((other->low >> bit) & 1ULL) : ((other->high >> (bit - 64u)) & 1ULL);
         if (one == two)
         {
             continue;

@@ -553,7 +553,7 @@ EMBED_INLINE unsigned int cli_library_loaded(const BinaryElfCtx *args)
                            .name = loaded->needed[at], .by = library->name, .origin = more_origin, .dynamic = loaded);
         }
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)more, (g_cli_programs_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)more, g_cli_programs_owner);
     return queued;
 }
 

@@ -37,7 +37,7 @@ void sass_bits_write(unsigned long long *low, unsigned long long *high, unsigned
         const unsigned int at = first + bit;
         unsigned long long *const word = (at < 64u) ? low : high;
         const unsigned int place = (at < 64u) ? at : (at - 64u);
-        *word = (*word & ~(1ull << place)) | (((value >> bit) & 1ull) << place);
+        *word = (*word & ~(1ULL << place)) | (((value >> bit) & 1ULL) << place);
     }
 }
 
@@ -49,14 +49,14 @@ unsigned long long sass_register_value(const char *text)
 {
     if (strncmp(text, "RZ", 2u) == 0)
     {
-        return 255ull;
+        return 255ULL;
     }
     if (strncmp(text, "PT", 2u) == 0)
     {
-        return 7ull;
+        return 7ULL;
     }
     const char *const digits = text + ((text[0] == 'U') ? 2u : 1u);
-    return strtoull(digits, NULL, 10) + (sass_high_half(text) ? 1ull : 0ull);
+    return strtoull(digits, NULL, 10) + (sass_high_half(text) ? 1ULL : 0ULL);
 }
 
 // the offset a constant names, c[bank][offset], and the bank through `bank`. The offset may be a sum, each term after
@@ -65,10 +65,10 @@ unsigned long long sass_constant_value(const char *text, unsigned long long *ban
 {
     const char *const first = strchr(text, '[');
     const char *const second = (first != NULL) ? strchr(first + 1, '[') : NULL;
-    *bank = (first != NULL) ? strtoull(first + 1, NULL, 0) : 0ull;
+    *bank = (first != NULL) ? strtoull(first + 1, NULL, 0) : 0ULL;
     if (second == NULL)
     {
-        return 0ull;
+        return 0ULL;
     }
     char *walk = NULL;
     unsigned long long offset = strtoull(second + 1, &walk, 0);
@@ -84,8 +84,8 @@ static unsigned long long sass_address_value(const char *text, unsigned long lon
 {
     const char *const open = strrchr(text, '[');
     const char *const plus = (open != NULL) ? strchr(open, '+') : NULL;
-    *offset = (plus != NULL) ? strtoull(plus + 1, NULL, 0) : 0ull;
-    return (open != NULL) ? sass_register_value(open + 1) : 0ull;
+    *offset = (plus != NULL) ? strtoull(plus + 1, NULL, 0) : 0ULL;
+    return (open != NULL) ? sass_register_value(open + 1) : 0ULL;
 }
 
 // the value the operand at `place` of `parts` carries, and the field it wants to sit in through `wanted`; 0 where the
@@ -94,7 +94,7 @@ int sass_operand_value(const SassInstructionParts *parts, unsigned int place, un
                               unsigned long long target, unsigned long long *value, unsigned long long *offset)
 {
     const char *const text = parts->operand[place];
-    *offset = 0ull;
+    *offset = 0ULL;
     switch (parts->type[place])
     {
     case SASS_OPERAND_REGISTER:
@@ -121,7 +121,7 @@ int sass_operand_value(const SassInstructionParts *parts, unsigned int place, un
         return 1;
     case SASS_OPERAND_LABEL:
         // a branch counts its target from the instruction after it
-        *value = target - (address + 16ull);
+        *value = target - (address + 16ULL);
         return 1;
     default:
         return 0;
@@ -297,7 +297,7 @@ int sass_places_find(const SassForm *form, SassPlace *places, unsigned int *unpl
 // the scheduler's bits, every one of them above bit 63 and so in the high word alone
 static void sass_high_write(unsigned long long *high, unsigned int first, unsigned int bits, unsigned long long value)
 {
-    const unsigned long long mask = (1ull << bits) - 1ull;
+    const unsigned long long mask = (1ULL << bits) - 1ULL;
     *high = (*high & ~(mask << (first - 64u))) | ((value & mask) << (first - 64u));
 }
 
@@ -319,9 +319,9 @@ void sass_control_safe(const SassMachine *machine, const SassForm *form, unsigne
     const int read = (schedule == SASS_SCHEDULE_STORE) ||
                      (!fixed && sass_barrier_set(form->high, SASS_READ_BARRIER_FIRST));
     sass_high_write(high, SASS_STALL_FIRST, 4u, soonest);
-    sass_high_write(high, SASS_YIELD_FIRST, 1u, 0ull);
-    sass_high_write(high, SASS_WRITE_BARRIER_FIRST, 3u, wrote ? 0ull : SASS_BARRIER_NONE);
-    sass_high_write(high, SASS_READ_BARRIER_FIRST, 3u, read ? 1ull : SASS_BARRIER_NONE);
+    sass_high_write(high, SASS_YIELD_FIRST, 1u, 0ULL);
+    sass_high_write(high, SASS_WRITE_BARRIER_FIRST, 3u, wrote ? 0ULL : SASS_BARRIER_NONE);
+    sass_high_write(high, SASS_READ_BARRIER_FIRST, 3u, read ? 1ULL : SASS_BARRIER_NONE);
     sass_high_write(high, SASS_WAIT_FIRST, 6u, SASS_WAIT_EVERY);
-    sass_high_write(high, SASS_REUSE_FIRST, 4u, 0ull);
+    sass_high_write(high, SASS_REUSE_FIRST, 4u, 0ULL);
 }

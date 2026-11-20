@@ -12,7 +12,7 @@
 int vendor_writer_run(char *const *command, const char *machine_name, const char *program, const char *mode)
 {
     static char s_output[65536];
-    const InterfaceProbe probe = {command, NULL, 0ull};
+    const InterfaceProbe probe = {command, NULL, 0ULL};
     InterfaceAnswer answer = {0};
     answer.output = s_output;
     answer.output_capacity = sizeof(s_output);
@@ -21,14 +21,14 @@ int vendor_writer_run(char *const *command, const char *machine_name, const char
     qry_member_settled();
     const long ran = interface_probe_run(&probe, &answer, &error);
     qry_member_rings_settled();
-    if (answer.output_bytes != 0ull)
+    if (answer.output_bytes != 0ULL)
     {
         printf("%s", s_output);
         const unsigned long long output_len =
             (answer.output_bytes < (sizeof(s_output) - 1u)) ? answer.output_bytes : (sizeof(s_output) - 1u);
         qry_member_append(machine_name, s_output, output_len, QRY_ORDINARY);
     }
-    if ((ran != 0L) || (answer.ending != INTERFACE_ENDING_EXITED) || (answer.code != 0ull))
+    if ((ran != 0L) || (answer.ending != INTERFACE_ENDING_EXITED) || (answer.code != 0ULL))
     {
         printf("  %s: the vendor's writer%s%s did not end clean (%s, code %llx)\n", program, (mode != NULL) ? " " : "",
                (mode != NULL) ? mode : "", interface_ending_name(answer.ending), answer.code);

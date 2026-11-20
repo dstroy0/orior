@@ -104,7 +104,7 @@ std::string case_text(unsigned int at);
 thread_local unsigned int s_apart_at = 0xffffffffu;
 
 // The round: each pair put in a thread of its own runs while it is its turn, one at a time in the order of the bridge,
-// until it queries or is put. Every query a pair passes over waits for the round, and once every pair left has queried,
+// until it queries or is put. Every query a pair passes over waits for the round, and once every pair left queried,
 // the round's queries are carried together: the mundane in one process, each dangerous one in a process of its own. No
 // query waits on another query of the same round, since a pair queries its next only once its last is answered.
 // `s_turn` is the pair that runs, and -1 the thread that carries the queries
@@ -118,27 +118,27 @@ std::vector<std::vector<CarriedQuery>> s_round_queries;
 
 // what the rounds queried: the queries passed over, those answered from what was stored, and the processes that carried
 // the rest
-unsigned long long s_round_passed = 0ull;
+unsigned long long s_round_passed = 0ULL;
 
-unsigned long long s_round_recalled = 0ull;
+unsigned long long s_round_recalled = 0ULL;
 
-unsigned long long s_round_processes = 0ull;
+unsigned long long s_round_processes = 0ULL;
 
 // a question's identity, seven numbers: a hash of its code, its registers, its shape and launches, its count of cases
 // and a hash of its cases
 static KqrIdentity question_numbered(const RunQuestion *question)
 {
-    KqrIdentity identity = {0xcbf29ce484222325ull, question->registers, question->threads,    question->blocks,
-                            question->launches,    question->cases,     0xcbf29ce484222325ull};
-    for (unsigned long long at = 0ull; at < question->code_size; at += 1ull)
+    KqrIdentity identity = {0xcbf29ce484222325ULL, question->registers, question->threads,    question->blocks,
+                            question->launches,    question->cases,     0xcbf29ce484222325ULL};
+    for (unsigned long long at = 0ULL; at < question->code_size; at += 1ULL)
     {
-        identity.code = (identity.code ^ question->code[at]) * 0x100000001b3ull;
+        identity.code = (identity.code ^ question->code[at]) * 0x100000001b3ULL;
     }
     const unsigned char *const words = (const unsigned char *)question->word;
     const size_t bytes = (size_t)question->cases * sizeof(question->word[0]);
     for (size_t at = 0u; at < bytes; at += 1u)
     {
-        identity.cases_hash = (identity.cases_hash ^ words[at]) * 0x100000001b3ull;
+        identity.cases_hash = (identity.cases_hash ^ words[at]) * 0x100000001b3ULL;
     }
     return identity;
 }
@@ -223,13 +223,13 @@ void queries_answered(const std::vector<CarriedQuery> &carried)
     {
         RunQuestion *const question = carried[at].question;
         identities[at] = question_numbered(question);
-        s_round_passed += 1ull;
+        s_round_passed += 1ULL;
         const auto censored = timed_censored.find(identities[at]);
         if ((question->launches != 0u) && (censored != timed_censored.end()))
         {
             question->outcome = RUN_GATED;
             snprintf(question->refused, sizeof(question->refused), "%s", censored->second.c_str());
-            s_round_recalled += 1ull;
+            s_round_recalled += 1ULL;
             continue;
         }
         if (question->launches != 0u)
@@ -245,7 +245,7 @@ void queries_answered(const std::vector<CarriedQuery> &carried)
             !((s_found.answer == KQR_CENSORED) && run_channel_key_gated(s_found.refusal)))
         {
             answer_given(question, s_found);
-            s_round_recalled += 1ull;
+            s_round_recalled += 1ULL;
             continue;
         }
         const auto first = first_of.find(identities[at]);
@@ -271,7 +271,7 @@ void queries_answered(const std::vector<CarriedQuery> &carried)
     if (!mundane.empty())
     {
         run_channel_put_many(mundane.data(), (unsigned int)mundane.size());
-        s_round_processes += 1ull;
+        s_round_processes += 1ULL;
     }
     for (RunQuestion *const question : alone)
     {
@@ -284,19 +284,19 @@ void queries_answered(const std::vector<CarriedQuery> &carried)
             RunQuestion *const one[1] = {question};
             run_channel_put_many(one, 1u);
         }
-        s_round_processes += 1ull;
+        s_round_processes += 1ULL;
     }
     // timed queries of no shape of their own carried together, each timed over its own launches, and each other one
     // alone
     if (!timed_together.empty())
     {
         run_channel_put_many(timed_together.data(), (unsigned int)timed_together.size());
-        s_round_processes += 1ull;
+        s_round_processes += 1ULL;
     }
     for (RunQuestion *const question : timed)
     {
         run_channel_put(question);
-        s_round_processes += 1ull;
+        s_round_processes += 1ULL;
     }
     timed.insert(timed.end(), timed_together.begin(), timed_together.end());
     for (RunQuestion *const question : timed)
@@ -308,7 +308,7 @@ void queries_answered(const std::vector<CarriedQuery> &carried)
             s_sample.identity = question_numbered(question);
             s_sample.answer = answer;
             s_sample.nanoseconds = question->nanoseconds;
-            s_sample.launched = (question->max != 0ull) ? 1 : 0;
+            s_sample.launched = (question->max != 0ULL) ? 1 : 0;
             s_sample.least = question->least;
             s_sample.max = question->max;
             snprintf(s_sample.refusal, sizeof(s_sample.refusal), "%s",

@@ -112,7 +112,7 @@ CODEGEN_CORE void codegen_instr(MachineFunction *lane, unsigned int form, unsign
         item->scratch[1] = lane->wides;
         item->scratch[2] = lane->predicates;
     }
-    lane->count += 1ull;
+    lane->count += 1ULL;
     const unsigned int *const scratch = &lane->program->scratch[4u * form];
     lane->temps += scratch[0];
     lane->wides += scratch[1];
@@ -160,7 +160,7 @@ CODEGEN_CORE void codegen_take(MachineFunction *lane, const MachineInstr *item)
     {
         lane->items[lane->count] = *item;
     }
-    lane->count += 1ull;
+    lane->count += 1ULL;
 }
 
 // the next of a bank's registers for the step, the max any step took retained for the lane to declare
@@ -322,7 +322,7 @@ CODEGEN_CORE unsigned long long codegen_unit(unsigned int at)
                                                                 (unsigned long long)ENGINE_PROGRAM_DONE,
                                                                 (unsigned long long)ENGINE_PROGRAM_STOPPED,
                                                                 (unsigned long long)ENGINE_PROGRAM_YIELDED};
-    return (at < PROGRAM_UNIT_PARAMETERS) ? values[at] : 0ull;
+    return (at < PROGRAM_UNIT_PARAMETERS) ? values[at] : 0ULL;
 }
 
 // one register a lane uses: its bank, or REGCLASS_COUNT with the fixed register's place for a fixed register; its
@@ -339,7 +339,7 @@ struct CodegenClaim
     unsigned long long scratch_of;
 };
 
-#define CODEGEN_NO_ITEM 0xFFFFFFFFFFFFFFFFull
+#define CODEGEN_NO_ITEM 0xFFFFFFFFFFFFFFFFULL
 
 // register `bank` `number` of step `step` named by item `at`, claimed there where nothing named it before and released
 // there however often it is named after; `scratch_of` the item whose scratch it is, CODEGEN_NO_ITEM where it is no
@@ -385,8 +385,8 @@ CODEGEN_CORE unsigned int codegen_claims(const MachineInstr *items, unsigned lon
 {
     *collided = CODEGEN_NO_ITEM;
     unsigned int count = 0u;
-    unsigned long long step = 0ull;
-    for (unsigned long long at = 0ull; at < item_count; at += 1ull)
+    unsigned long long step = 0ULL;
+    for (unsigned long long at = 0ULL; at < item_count; at += 1ULL)
     {
         const MachineInstr *const item = &items[at];
         if (item->form >= OPCODE_COUNT)

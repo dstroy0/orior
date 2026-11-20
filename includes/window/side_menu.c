@@ -229,7 +229,7 @@ void gui_side_menu_draw(const GuiSideMenuFrameRasterCfg *args)
                        .y = button.y + ((button.height - (int)icon) / 2), .color = color, .clip = on);
         }
         // a tool's mark, a dot at the button's top right corner: the Problems tool's in the error's color while it is
-        // marked, the Runs tool's in signal while a run is live and in the error's color while a live run has panicked
+        // marked, the Runs tool's in signal while a run is live and in the error's color while a live run panicked
         int marked = 0;
         GuiColor mark_color = args->palette->error;
         if (cellul.eq(&(CatenaFinitaCfg){.src = g_gui_tools[at].name, .other = "problems", .cap = 32ULL}))

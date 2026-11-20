@@ -99,7 +99,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\servers\\test_servers\\test_servers.c");
+  UnityBegin("utils/test/src/ui/cli/unit/servers/test_servers/test_servers.c");
   run_test(test_params_that_did_not_fit_their_line_are_refused_with_no_server_reached, "test_params_that_did_not_fit_their_line_are_refused_with_no_server_reached", 266);
   run_test(test_the_projects_a_server_is_sent_are_found_to_six_folders_down_in_order, "test_the_projects_a_server_is_sent_are_found_to_six_folders_down_in_order", 281);
   run_test(test_a_check_stopped_releases_its_files_waiting_and_stays_on_and_reports_done, "test_a_check_stopped_releases_its_files_waiting_and_stays_on_and_reports_done", 326);

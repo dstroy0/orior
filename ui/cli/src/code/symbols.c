@@ -88,7 +88,7 @@ EMBED_INLINE void symbols_walk_released(const SymbolsCtx *args)
     if (walk->languages != NULL)
     {
         g_cli_guard->persistent_buf_release(walk->languages->languages.pair, g_cli_plugins_owner);
-        *(&walk->languages->languages) = (CliLanguages){NULL, 0u, 0u};
+        walk->languages->languages = (CliLanguages){NULL, 0u, 0u};
     }
     g_cli_guard->persistent_buf_release(walk->languages, g_cli_code_owner);
     g_cli_guard->persistent_buf_release(walk, g_cli_code_owner);
@@ -459,6 +459,7 @@ void cli_tree_list(const CliSymbolsContextCfg *args)
 {
     for (;;)
     {
+        const unsigned int wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_wake);
         if (!EMBED_CALL(cli_tree_rooted_at, SymbolsCtx, .root = args->root))
         {
             s_generation += 1ULL;
@@ -479,7 +480,7 @@ void cli_tree_list(const CliSymbolsContextCfg *args)
         {
             break;
         }
-        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_wake);
+        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_wake, .seen = wake_seen);
     }
     if (s_list_result)
     {
@@ -661,9 +662,11 @@ void cli_tree_mirror(const CliSymbolsRootCfg *args)
 
 void cli_tree_relist(const CliSymbolsContextCfg *args)
 {
+    unsigned int wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_wake);
     while (EMBED_CALL(cli_tree_rooted_at, SymbolsCtx, .root = args->root) && (s_listing == s_generation))
     {
-        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_wake);
+        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_wake, .seen = wake_seen);
+        wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_wake);
     }
     if (!EMBED_CALL(cli_tree_rooted_at, SymbolsCtx, .root = args->root) || !s_list_result)
     {
@@ -787,9 +790,11 @@ void cli_tree_on_walk(const CliSymbolsRootCfg *args)
     g_cli_tree_walking = 1;
     s_stop = 0;
     // the storage of the walk before is let go only once it has ended
+    unsigned int wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_wake);
     while (s_running)
     {
-        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_wake);
+        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_wake, .seen = wake_seen);
+        wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_wake);
     }
     // the walk's own cells live for the one walk on its thread: takes of the temporary tier, given back as it ends
     CliSymbolsLanguages *const languages = cli_symbols_languages_for_call();
@@ -799,7 +804,7 @@ void cli_tree_on_walk(const CliSymbolsRootCfg *args)
         if (languages != NULL)
         {
             g_cli_guard->persistent_buf_release(languages->languages.pair, g_cli_plugins_owner);
-            *(&languages->languages) = (CliLanguages){NULL, 0u, 0u};
+            languages->languages = (CliLanguages){NULL, 0u, 0u};
         }
         g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
         g_cli_tree_walking = 0;
@@ -863,7 +868,7 @@ void cli_tree_on_walk(const CliSymbolsRootCfg *args)
         if (s_walk->languages != NULL)
         {
             g_cli_guard->persistent_buf_release(s_walk->languages->languages.pair, g_cli_plugins_owner);
-            *(&s_walk->languages->languages) = (CliLanguages){NULL, 0u, 0u};
+            s_walk->languages->languages = (CliLanguages){NULL, 0u, 0u};
         }
         g_cli_guard->persistent_buf_release(s_walk->languages, g_cli_code_owner);
         g_cli_guard->persistent_buf_release(s_walk, g_cli_code_owner);
@@ -884,7 +889,7 @@ void cli_tree_branches_walk(const CliSymbolsRootCfg *args)
         if (languages != NULL)
         {
             g_cli_guard->persistent_buf_release(languages->languages.pair, g_cli_plugins_owner);
-            *(&languages->languages) = (CliLanguages){NULL, 0u, 0u};
+            languages->languages = (CliLanguages){NULL, 0u, 0u};
         }
         g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
         return;

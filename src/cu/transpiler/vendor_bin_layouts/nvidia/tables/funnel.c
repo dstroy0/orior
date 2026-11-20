@@ -58,9 +58,9 @@ int tables_record_read(const unsigned char *bytes, size_t size, size_t *at, Tabl
         length += 1u;
     }
     line[length] = '\0';
-    unsigned long long to = 0ull;
-    unsigned long long from = 0ull;
-    unsigned long long count = 0ull;
+    unsigned long long to = 0ULL;
+    unsigned long long from = 0ULL;
+    unsigned long long count = 0ULL;
     const char *read = line + 1;
     if ((line[0] != '<') || !line_number(&read, 1, &to) || !line_number(&read, 1, &from) ||
         !line_number(&read, 0, &count) || (*read != '>'))
@@ -97,7 +97,7 @@ int tables_archive(const unsigned char *bytes, size_t size)
     const unsigned long long zero = tables_word(bytes + 4u);
     const unsigned long long unpacked = tables_word(bytes + 8u);
     const unsigned long long packed = tables_word(bytes + 12u);
-    return (own == (unsigned long long)size) && (zero == 0ull) && (unpacked == TABLES_BLOCK) && (packed != 0ull) &&
+    return (own == (unsigned long long)size) && (zero == 0ULL) && (unpacked == TABLES_BLOCK) && (packed != 0ULL) &&
            (packed <= (unsigned long long)(size - 16u));
 }
 
@@ -184,7 +184,7 @@ int tables_unpacked(const unsigned char *bytes, size_t size, TablesText *text)
         const unsigned long long unpacked = tables_word(bytes + at);
         const unsigned long long packed = tables_word(bytes + at + 4u);
         at += 8u;
-        if ((packed == 0ull) || (packed > (unsigned long long)(size - at)) || (unpacked > TABLES_MAX))
+        if ((packed == 0ULL) || (packed > (unsigned long long)(size - at)) || (unpacked > TABLES_MAX))
         {
             return 0;
         }
@@ -204,7 +204,7 @@ unsigned int tables_funnelled(const unsigned char *bytes, size_t size, TablesTex
 {
     unsigned int found = 0u;
     int archive_read = 0;
-    unsigned long long buffer = 0ull;
+    unsigned long long buffer = 0ULL;
     int buffer_found = 0;
     size_t at = 0u;
     TablesRecord record;

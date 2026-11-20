@@ -26,12 +26,12 @@ static long long hdf5_lz4_frames(const Hdf5File *file, const unsigned char *in, 
     const unsigned long long total = hdf5_big(in, 8u);
     const unsigned long long declared = hdf5_big(&in[8u], 4u);
     const unsigned long long block = (declared > total) ? total : declared;
-    if ((total > (unsigned long long)capacity) || ((block == 0ull) && (total != 0ull)))
+    if ((total > (unsigned long long)capacity) || ((block == 0ULL) && (total != 0ULL)))
     {
         return -1LL;
     }
     size_t at = 12u;
-    unsigned long long made = 0ull;
+    unsigned long long made = 0ULL;
     while (made < total)
     {
         const unsigned long long piece = ((total - made) < block) ? (total - made) : block;
@@ -143,19 +143,19 @@ static void hdf5_chunk_copy(const Hdf5Gather *gather, const unsigned char *chunk
     int more = 1;
     while (more)
     {
-        unsigned long long source = 0ull;
-        unsigned long long target = 0ull;
+        unsigned long long source = 0ULL;
+        unsigned long long target = 0ULL;
         for (unsigned int axis = 0u; axis < rank; axis += 1u)
         {
             source += (position[axis] - origin[axis]) * gather->chunk_stride[axis];
-            target += (position[axis] - ((axis == 0u) ? gather->first : 0ull)) * gather->out_stride[axis];
+            target += (position[axis] - ((axis == 0u) ? gather->first : 0ULL)) * gather->out_stride[axis];
         }
         memcpy(&gather->out[target * element], &chunk[source * element], run);
         more = 0;
         for (unsigned int axis = rank - 1u; axis > 0u; axis -= 1u)
         {
             const unsigned int moving = axis - 1u;
-            position[moving] += 1ull;
+            position[moving] += 1ULL;
             if (position[moving] < high[moving])
             {
                 more = 1;
@@ -178,13 +178,13 @@ int hdf5_chunk_place(Hdf5Gather *gather, const unsigned long long *origin, unsig
     for (unsigned int axis = 0u; overlaps && (axis < object->rank); axis += 1u)
     {
         const unsigned long long span = object->chunk[axis];
-        if ((origin[axis] % span) != 0ull)
+        if ((origin[axis] % span) != 0ULL)
         {
             return hdf5_error(file, "a chunk that does not sit on the chunk grid");
         }
-        const unsigned long long bottom = (axis == 0u) ? gather->first : 0ull;
+        const unsigned long long bottom = (axis == 0u) ? gather->first : 0ULL;
         const unsigned long long top = (axis == 0u) ? gather->end : object->extent[axis];
-        const unsigned long long end = (origin[axis] > (~0ull - span)) ? ~0ull : (origin[axis] + span);
+        const unsigned long long end = (origin[axis] > (~0ULL - span)) ? ~0ULL : (origin[axis] + span);
         low[axis] = (origin[axis] > bottom) ? origin[axis] : bottom;
         high[axis] = (end < top) ? end : top;
         overlaps = (low[axis] < high[axis]);
@@ -199,7 +199,7 @@ int hdf5_chunk_place(Hdf5Gather *gather, const unsigned long long *origin, unsig
     {
         return hdf5_error(file, "an unfiltered chunk whose stored size is not the chunk size");
     }
-    if ((stored == 0ull) || (stored > hdf5_bytes_remaining(file, address)))
+    if ((stored == 0ULL) || (stored > hdf5_bytes_remaining(file, address)))
     {
         return hdf5_error(file, "a chunk that lies past the end of the file");
     }
@@ -282,7 +282,7 @@ int hdf5_chunk_tree(Hdf5Gather *gather, unsigned long long address, unsigned int
         else
         {
             const unsigned long long upper = hdf5_little(&next[8u], 8u);
-            const int ranges = (upper > (~0ull - object->chunk[0u])) || ((upper + object->chunk[0u]) > gather->first);
+            const int ranges = (upper > (~0ULL - object->chunk[0u])) || ((upper + object->chunk[0u]) > gather->first);
             const int needed = (origin[0u] < gather->end) && ranges;
             ok = !needed || hdf5_chunk_tree(gather, child_address, node_level - 1u, 0, depth + 1u);
         }
@@ -326,13 +326,13 @@ int hdf5_fixed_open(Hdf5File *file, const Hdf5Object *object, const Hdf5Gather *
     {
         return hdf5_error(file, "a fixed array header whose signature or checksum does not match");
     }
-    unsigned long long expected = 0ull;
+    unsigned long long expected = 0ULL;
     fixed->filtered = (client == 1u);
     const int entry_fits =
         fixed->filtered ? ((fixed->entry_bytes > (offset_bytes + 4u)) && (fixed->entry_bytes <= (offset_bytes + 12u)))
                         : (fixed->entry_bytes == offset_bytes);
     const int shaped = (client <= 1u) && (fixed->filtered == (object->filter_count > 0u)) && entry_fits &&
-                       (page_bits < 32u) && hdf5_product(gather->range, object->rank, 1ull, &expected) &&
+                       (page_bits < 32u) && hdf5_product(gather->range, object->rank, 1ULL, &expected) &&
                        (fixed->count == expected) && (fixed->count <= file->file_bytes);
     if (!shaped)
     {
@@ -343,13 +343,13 @@ int hdf5_fixed_open(Hdf5File *file, const Hdf5Object *object, const Hdf5Gather *
     {
         return 1;
     }
-    fixed->page_elements = 1ull << page_bits;
+    fixed->page_elements = 1ULL << page_bits;
     fixed->page_count = (fixed->count > fixed->page_elements)
-                            ? ((fixed->count + fixed->page_elements - 1ull) / fixed->page_elements)
-                            : 0ull;
+                            ? ((fixed->count + fixed->page_elements - 1ULL) / fixed->page_elements)
+                            : 0ULL;
     fixed->head_bytes = 6u + (size_t)offset_bytes;
-    fixed->prefix_bytes = fixed->head_bytes + (size_t)((fixed->page_count + 7ull) / 8ull) + HDF5_SEAL_BYTES;
-    const unsigned long long loaded = (fixed->page_count == 0ull)
+    fixed->prefix_bytes = fixed->head_bytes + (size_t)((fixed->page_count + 7ULL) / 8ULL) + HDF5_SEAL_BYTES;
+    const unsigned long long loaded = (fixed->page_count == 0ULL)
                                           ? (fixed->head_bytes + (fixed->count * fixed->entry_bytes) + HDF5_SEAL_BYTES)
                                           : fixed->prefix_bytes;
     fixed->prefix = hdf5_load(file, fixed->block, loaded);
@@ -381,7 +381,7 @@ int hdf5_fixed_entry(Hdf5File *file, Hdf5Fixed *fixed, unsigned long long linear
         return hdf5_error(file, "a chunk outside the fixed array");
     }
     const unsigned char *entry = NULL;
-    if (fixed->page_count == 0ull)
+    if (fixed->page_count == 0ULL)
     {
         entry = &fixed->prefix[fixed->head_bytes + (size_t)(linear * fixed->entry_bytes)];
     }
@@ -389,15 +389,15 @@ int hdf5_fixed_entry(Hdf5File *file, Hdf5Fixed *fixed, unsigned long long linear
     {
         const unsigned long long page = linear / fixed->page_elements;
         const unsigned long long within = linear % fixed->page_elements;
-        if ((fixed->prefix[fixed->head_bytes + (size_t)(page / 8ull)] & (0x80u >> (unsigned int)(page % 8ull))) == 0u)
+        if ((fixed->prefix[fixed->head_bytes + (size_t)(page / 8ULL)] & (0x80u >> (unsigned int)(page % 8ULL))) == 0u)
         {
             return 1;
         }
-        if ((fixed->page == NULL) || (fixed->page_loaded != (page + 1ull)))
+        if ((fixed->page == NULL) || (fixed->page_loaded != (page + 1ULL)))
         {
             free(fixed->page);
             fixed->page = NULL;
-            const unsigned long long elements = ((page + 1ull) == fixed->page_count)
+            const unsigned long long elements = ((page + 1ULL) == fixed->page_count)
                                                     ? (fixed->count - (page * fixed->page_elements))
                                                     : fixed->page_elements;
             const unsigned long long page_bytes = (elements * fixed->entry_bytes) + HDF5_SEAL_BYTES;
@@ -413,7 +413,7 @@ int hdf5_fixed_entry(Hdf5File *file, Hdf5Fixed *fixed, unsigned long long linear
                 fixed->page = NULL;
                 return hdf5_error(file, "a fixed array page whose checksum does not match");
             }
-            fixed->page_loaded = page + 1ull;
+            fixed->page_loaded = page + 1ULL;
         }
         entry = &fixed->page[(size_t)(within * fixed->entry_bytes)];
     }

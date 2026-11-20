@@ -4,8 +4,8 @@
 
 static int fermat_multiply(uint32_t *result, const uint32_t *left, const uint32_t *right, size_t limbs);
 
-// the cyclic transform of count = 2^depth ring elements in place, root 2^root_bits: bit-reversed order, then
-// butterflies (u, v) -> (u + w v, u - w v) with w a power of the root, every product by w a shift
+// the cyclic transform of count = 2^depth ring elements in place, root 2^root_bits. First comes bit-reversed order,
+// then butterflies (u, v) -> (u + w v, u - w v) with w a power of the root. Each product by w is a shift
 static void fermat_fourier(uint32_t *elements, size_t count, unsigned int depth, size_t limbs, size_t root_bits,
                            uint32_t *scratch, uint32_t *turned)
 {
@@ -43,9 +43,9 @@ static void fermat_fourier(uint32_t *elements, size_t count, unsigned int depth,
     }
 }
 
-// the inner ring for pieces of piece_bits in 2^depth parts: at least 2 piece_bits + depth + 2 bits. A signed
-// coefficient of the negacyclic product fits, and a multiple of the part count and of a limb; a ring past the base
-// case also leaves room to split in turn
+// the inner ring for pieces of piece_bits in 2^depth parts: at least 2 piece_bits + depth + 2 bits. It is a
+// multiple of the part count and of a limb, and a signed coefficient of the negacyclic product fits. A ring past the
+// base case also leaves room to split in turn
 static size_t fermat_inner_bits(size_t piece_bits, unsigned int depth)
 {
     const size_t least = (2u * piece_bits) + depth + 2u;
@@ -69,33 +69,33 @@ static unsigned long long fermat_ladder_cost(size_t limbs)
     {
         return (unsigned long long)limbs * limbs;
     }
-    return (3ull * fermat_ladder_cost((limbs + 1u) / 2u)) + (8ull * limbs);
+    return (3ULL * fermat_ladder_cost((limbs + 1u) / 2u)) + (8ULL * limbs);
 }
 
 static unsigned long long fermat_cost(size_t limbs, unsigned int *depth);
 
-// the modeled word operations of the transform at a depth: three transforms of 2^depth depth / 2 butterflies over
-// the inner ring's words, a few passes each, and the pointwise products at their own best; a split whose inner ring
-// is no smaller than the ring is never taken
+// the modeled word operations of the transform at a depth. That is three transforms of 2^depth depth / 2 butterflies
+// over the words of the inner ring, a few passes each. Then the pointwise products, each at its own best. The code
+// never takes a split whose inner ring is no smaller than the ring
 static unsigned long long fermat_cost_at(size_t limbs, unsigned int depth)
 {
     const size_t parts = (size_t)1u << depth;
     const size_t inner = fermat_inner_bits((limbs / parts) * LIMB_BITS, depth) / LIMB_BITS;
     if (inner >= limbs)
     {
-        return ~0ull;
+        return ~0ULL;
     }
     unsigned int inner_depth = 0u;
     const unsigned long long point = fermat_cost(inner, &inner_depth);
-    return (6ull * parts * depth * (inner + 1u)) + (4ull * parts * (inner + 1u)) + (parts * point);
+    return (6ULL * parts * depth * (inner + 1u)) + (4ULL * parts * (inner + 1u)) + (parts * point);
 }
 
-// the cheapest way to multiply in the ring of the given limbs: the depth of the transform, or 0 for the ladder
-// below; depths are tried near the balanced split of sqrt(n) pieces, where the inner ring is near sqrt(n) bits, and
-// the model's own recursion is therefore a few levels deep
+// the cheapest way to multiply in the ring of the given limbs: the depth of the transform, or 0 for the ladder below.
+// The code tries depths near the balanced split of sqrt(n) pieces, where the inner ring is near sqrt(n) bits. The own
+// recursion of the model is thus a few levels deep
 static unsigned long long fermat_cost(size_t limbs, unsigned int *depth)
 {
-    unsigned long long best = fermat_ladder_cost(limbs) + (2ull * limbs);
+    unsigned long long best = fermat_ladder_cost(limbs) + (2ULL * limbs);
     *depth = 0u;
     if (limbs <= (size_t)TRANSFORM_BASE_LIMBS)
     {
@@ -115,8 +115,8 @@ static unsigned long long fermat_cost(size_t limbs, unsigned int *depth)
     return best;
 }
 
-// the number of pieces a ring of the given limbs splits into, 2^depth pieces of whole limbs, chosen by the cost
-// model; 0 is the ladder below the transform
+// the number of pieces that a ring of the given limbs splits into, 2^depth pieces of whole limbs. The cost model
+// chooses it. 0 is the ladder below the transform
 static unsigned int fermat_depth(size_t limbs)
 {
     unsigned int depth = 0u;
@@ -124,10 +124,12 @@ static unsigned int fermat_depth(size_t limbs)
     return depth;
 }
 
-// Schonhage-Strassen modulo 2^n + 1: the value is cut into 2^depth pieces; the pieces are weighted by powers of
-// psi = 2^(n' / 2^depth), whose 2^depth-th power is -1 in the inner ring 2^n' + 1, which turns the cyclic transform
-// into the negacyclic product the outer ring needs; the transforms multiply point by point, recursively, and the
-// inverse transform, the division by 2^depth and the unweighting are shifts
+// Schonhage-Strassen modulo 2^n + 1. The code cuts the value into 2^depth pieces. Powers of psi = 2^(n' / 2^depth)
+// weight the pieces. The 2^depth-th power of psi is -1 in the inner ring 2^n' + 1. That turns the cyclic transform into
+// the negacyclic product that the outer ring needs.
+//
+// The transforms multiply point by point, by recursion. The inverse transform, the division by 2^depth and the removal
+// of the weights are shifts
 static int fermat_transform(uint32_t *result, const uint32_t *left, const uint32_t *right, size_t limbs,
                             unsigned int depth)
 {
@@ -185,7 +187,7 @@ static int fermat_transform(uint32_t *result, const uint32_t *left, const uint32
         (void)limbs_accumulate(&(below_zero ? negative : positive)[at * piece], total - (at * piece), coefficient,
                                width);
     }
-    // each sum folds into the ring, n bits at a time with alternating signs, 2^n being -1
+    // each sum folds into the ring, n bits at a time with signs in turn, because 2^n is -1
     uint32_t *const folded = product;
     memset(result, 0, (limbs + 1u) * sizeof(uint32_t));
     uint32_t *const chunk = (uint32_t *)calloc(limbs + 1u, sizeof(uint32_t));
@@ -268,8 +270,8 @@ static int fermat_multiply(uint32_t *result, const uint32_t *left, const uint32_
     return fermat_transform(result, left, right, limbs, depth);
 }
 
-// the product of used limbs by the transform, into wide (left_used + right_used limbs); 0 when workspace cannot be
-// allocated
+// the product of used limbs by the transform, into wide (left_used + right_used limbs). 0 when the allocation of the
+// workspace fails
 int transform_product(uint32_t *wide, const uint32_t *left, size_t left_used, const uint32_t *right, size_t right_used)
 {
     const size_t bits = (left_used + right_used) * LIMB_BITS;
@@ -295,8 +297,8 @@ int transform_product(uint32_t *wide, const uint32_t *left, size_t left_used, co
     return product_ok;
 }
 
-// the product by the rung of the ladder the operands reach, or by the transform alone when it is requested for; a rung
-// that cannot allocate its workspace steps down to the one below, and long multiplication needs none
+// the product by the rung of the ladder that the operands reach, or by the transform alone when the caller asks for it.
+// A rung that cannot allocate its workspace steps down to the rung below. Long multiplication needs no workspace
 static OriorExactStatus exact_multiply_by(const OriorExactInteger *left, const OriorExactInteger *right,
                                            OriorExactInteger *result, int transform_only)
 {
@@ -306,9 +308,9 @@ static OriorExactStatus exact_multiply_by(const OriorExactInteger *left, const O
         return ORIOR_EXACT_OK;
     }
 
-    // A factor using n limbs is at least 2^(32 * (n - 1)). The product of factors using n and m limbs
+    // A factor with n used limbs is at least 2^(32 * (n - 1)). The product of factors with n and m used limbs
     // is at least 2^(32 * (n + m - 2)). Where n + m passes the width by more than one limb, that
-    // product already overruns and nothing is multiplied.
+    // product already overruns, and the call multiplies nothing.
     const size_t left_used = magnitude_used(left->limb);
     const size_t right_used = magnitude_used(right->limb);
     const size_t range = left_used + right_used;

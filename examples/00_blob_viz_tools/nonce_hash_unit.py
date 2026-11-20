@@ -10,7 +10,7 @@ WHY THE PAIR AND NOT EITHER ALONE
 
 The nonce alone and the hash alone both read flat. The pair is not the same object: the hash is a
 deterministic function of the nonce and the header, a nonce and its own hash carry a link that a
-nonce and a stranger's hash do not. Reading the two as one unit is reading that link. The measure is
+nonce and a stranger's hash do not. Reading the two as one unit reads that link. The measure is
 local, because a link that is real locally can cancel over the whole unit exactly as it did for the
 nonce alone.
 
@@ -24,7 +24,7 @@ a higher local order than a unit that does not.
 THE CONFOUND, HANDLED IN THE NULL
 
 A winning hash has about seventy-eight leading zero bits by construction, a long solid run that is
-pure local order and tells nothing new: it is the hash winning, which is already known. So the null
+pure local order and tells nothing new. It is the hash winning, which is already known. So the null
 draws a unit with the SAME leading zeros, a random nonce and a hash of that many zeros then a random
 tail. The winning unit read against that null carries structure only if it beats a unit whose sole
 order is the leading zeros it shares. The pairing test exists for that.

@@ -13,11 +13,11 @@ __device__ static void noise_neighbors_flush(unsigned long long *cells, unsigned
     unsigned long long *const cell = &cells[((radius * NOISE_LEVEL_BINS) + level_bin) * NOISE_NEIGHBORS_SUMS];
     for (unsigned int sum = 0u; sum < NOISE_NEIGHBORS_SUMS; sum += 1u)
     {
-        if (run[sum] != 0ull)
+        if (run[sum] != 0ULL)
         {
             atomicAdd(&cell[sum], run[sum]);
         }
-        run[sum] = 0ull;
+        run[sum] = 0ULL;
     }
 }
 
@@ -30,7 +30,7 @@ __global__ static void noise_neighbors_kernel(const unsigned short *lanes, unsig
     __shared__ unsigned long long cells[NOISE_NEIGHBORS_CELLS];
     for (unsigned int entry = threadIdx.x; entry < NOISE_NEIGHBORS_CELLS; entry += blockDim.x)
     {
-        cells[entry] = 0ull;
+        cells[entry] = 0ULL;
     }
     __syncthreads();
     const unsigned long long voxels = depth * height * width;
@@ -41,42 +41,42 @@ __global__ static void noise_neighbors_kernel(const unsigned short *lanes, unsig
         const unsigned long long place[ENGINE_AXES] = {voxel / (height * width), (voxel / width) % height,
                                                        voxel % width};
         const unsigned long long extent[ENGINE_AXES] = {depth, height, width};
-        const unsigned long long stride[ENGINE_AXES] = {height * width, width, 1ull};
+        const unsigned long long stride[ENGINE_AXES] = {height * width, width, 1ULL};
         for (unsigned int radius = 0u; radius < NOISE_NEIGHBOR_RADII; radius += 1u)
         {
             // one voxel along each axis, then 2^(reach - 2) planes along z
             const unsigned int axis = (radius < ENGINE_AXES) ? radius : 0u;
-            const unsigned long long apart = (radius < ENGINE_AXES) ? 1ull : (1ull << (radius - 2u));
+            const unsigned long long apart = (radius < ENGINE_AXES) ? 1ULL : (1ULL << (radius - 2u));
             if ((place[axis] + apart) >= extent[axis])
             {
                 continue;
             }
             const unsigned long long next = voxel + (apart * stride[axis]);
-            unsigned long long run[NOISE_NEIGHBORS_SUMS] = {0ull, 0ull, 0ull, 0ull, 0ull};
+            unsigned long long run[NOISE_NEIGHBORS_SUMS] = {0ULL, 0ULL, 0ULL, 0ULL, 0ULL};
             unsigned int run_bin = 0u;
-            for (unsigned long long frame = 0ull; (frame + 1ull) < frames; frame += 1ull)
+            for (unsigned long long frame = 0ULL; (frame + 1ULL) < frames; frame += 1ULL)
             {
                 const unsigned int before = lanes[(frame * voxels) + voxel];
-                const unsigned int after = lanes[((frame + 1ull) * voxels) + voxel];
+                const unsigned int after = lanes[((frame + 1ULL) * voxels) + voxel];
                 const unsigned int summed_bin = (before + after) >> NOISE_LEVEL_BIN_SHIFT;
                 const unsigned int level_bin = (summed_bin < NOISE_LEVEL_BINS) ? summed_bin : (NOISE_LEVEL_BINS - 1u);
-                if ((level_bin != run_bin) && (run[NOISE_NEIGHBORS_PAIRS] != 0ull))
+                if ((level_bin != run_bin) && (run[NOISE_NEIGHBORS_PAIRS] != 0ULL))
                 {
                     noise_neighbors_flush(cells, radius, run_bin, run);
                 }
                 run_bin = level_bin;
                 const long long moved = (long long)after - (long long)before;
                 const long long next_moved =
-                    (long long)lanes[((frame + 1ull) * voxels) + next] - (long long)lanes[(frame * voxels) + next];
+                    (long long)lanes[((frame + 1ULL) * voxels) + next] - (long long)lanes[(frame * voxels) + next];
                 const long long product = moved * next_moved;
-                run[NOISE_NEIGHBORS_PAIRS] += 1ull;
+                run[NOISE_NEIGHBORS_PAIRS] += 1ULL;
                 // a square is never negative, and a product's magnitude re-signs to unsigned long long exactly
                 run[NOISE_NEIGHBORS_SQUARES] += (unsigned long long)(moved * moved);
                 run[NOISE_NEIGHBORS_OTHER_SQUARES] += (unsigned long long)(next_moved * next_moved);
-                run[NOISE_NEIGHBORS_RAISED] += (product > 0ll) ? (unsigned long long)product : 0ull;
-                run[NOISE_NEIGHBORS_LOWERED] += (product < 0ll) ? (unsigned long long)(-product) : 0ull;
+                run[NOISE_NEIGHBORS_RAISED] += (product > 0LL) ? (unsigned long long)product : 0ULL;
+                run[NOISE_NEIGHBORS_LOWERED] += (product < 0LL) ? (unsigned long long)(-product) : 0ULL;
             }
-            if (run[NOISE_NEIGHBORS_PAIRS] != 0ull)
+            if (run[NOISE_NEIGHBORS_PAIRS] != 0ULL)
             {
                 noise_neighbors_flush(cells, radius, run_bin, run);
             }
@@ -85,7 +85,7 @@ __global__ static void noise_neighbors_kernel(const unsigned short *lanes, unsig
     __syncthreads();
     for (unsigned int entry = threadIdx.x; entry < NOISE_NEIGHBORS_CELLS; entry += blockDim.x)
     {
-        if (cells[entry] != 0ull)
+        if (cells[entry] != 0ULL)
         {
             atomicAdd(&sums[entry], cells[entry]);
         }
@@ -98,8 +98,8 @@ long noise_neighbors_sample(const unsigned short *volume, const unsigned long lo
     const unsigned long long frames = extent[0];
     const unsigned long long voxels = extent[1] * extent[2] * extent[3];
     // every sum is at max one sample's pairs times the widest product, 65535 squared
-    const int bounded = (frames >= 2ull) && (voxels != 0ull) && (frames <= (~0ull / voxels)) &&
-                        ((frames * voxels) <= (~0ull / (65535ull * 65535ull)));
+    const int bounded = (frames >= 2ULL) && (voxels != 0ULL) && (frames <= (~0ULL / voxels)) &&
+                        ((frames * voxels) <= (~0ULL / (65535ULL * 65535ULL)));
     if (!NOISE_DETECTOR_CHECK(bounded, extent, error, ENGINE_ERROR_REQUEST))
     {
         return NOISE_DETECTOR_ERROR;
@@ -115,8 +115,8 @@ long noise_neighbors_sample(const unsigned short *volume, const unsigned long lo
                                          device_lanes, error);
     if (ok != 0)
     {
-        const unsigned long long needed = (voxels + NOISE_DETECTOR_THREADS - 1ull) / NOISE_DETECTOR_THREADS;
-        const unsigned int blocks = (unsigned int)((needed < 65536ull) ? needed : 65536ull);
+        const unsigned long long needed = (voxels + NOISE_DETECTOR_THREADS - 1ULL) / NOISE_DETECTOR_THREADS;
+        const unsigned int blocks = (unsigned int)((needed < 65536ULL) ? needed : 65536ULL);
         noise_neighbors_kernel<<<blocks, NOISE_DETECTOR_THREADS>>>(device_lanes, frames, extent[1], extent[2],
                                                                    extent[3], device_sums);
         ok = NOISE_DETECTOR_STATUS_CHECK(cudaGetLastError(), device_sums, error) &&
@@ -131,7 +131,7 @@ long noise_neighbors_sample(const unsigned short *volume, const unsigned long lo
 // / (squares + other squares). For equal spreads it is the correlation. 0 where nothing was summed.
 int noise_neighbors_per_mille(const unsigned long long cell[NOISE_NEIGHBORS_SUMS], long long *per_mille)
 {
-    if ((cell[NOISE_NEIGHBORS_SQUARES] == 0ull) && (cell[NOISE_NEIGHBORS_OTHER_SQUARES] == 0ull))
+    if ((cell[NOISE_NEIGHBORS_SQUARES] == 0ULL) && (cell[NOISE_NEIGHBORS_OTHER_SQUARES] == 0ULL))
     {
         return 0;
     }
@@ -143,7 +143,7 @@ int noise_neighbors_per_mille(const unsigned long long cell[NOISE_NEIGHBORS_SUMS
     noise_exact_word(&numerator, cell[NOISE_NEIGHBORS_RAISED]);
     noise_exact_word(&part, cell[NOISE_NEIGHBORS_LOWERED]);
     int ok = orior_exact_subtract(&numerator, &part, &numerator) == ORIOR_EXACT_OK;
-    noise_exact_word(&part, 2000ull);
+    noise_exact_word(&part, 2000ULL);
     ok = ok && (orior_exact_multiply(&numerator, &part, &numerator) == ORIOR_EXACT_OK);
     noise_exact_word(&denominator, cell[NOISE_NEIGHBORS_SQUARES]);
     noise_exact_word(&part, cell[NOISE_NEIGHBORS_OTHER_SQUARES]);
@@ -154,7 +154,7 @@ int noise_neighbors_per_mille(const unsigned long long cell[NOISE_NEIGHBORS_SUMS
         ok = quotient.limb[limb] == 0u;
     }
     // the magnitude is at max 2000, one limb; the sign is stored apart
-    *per_mille = ok ? ((long long)quotient.limb[0] * (long long)quotient.sign) : 0ll;
+    *per_mille = ok ? ((long long)quotient.limb[0] * (long long)quotient.sign) : 0LL;
     return ok;
 }
 
@@ -173,7 +173,7 @@ static void noise_neighbors_summary(const char *name, const unsigned long long s
         for (unsigned int displayed = 0u; displayed < NOISE_NEIGHBORS_DISPLAYED; displayed += 1u)
         {
             const unsigned int level_bin = NOISE_NEIGHBORS_DISPLAYED_BINS[displayed];
-            long long per_mille = 0ll;
+            long long per_mille = 0LL;
             if (noise_neighbors_per_mille(&sums[((radius * NOISE_LEVEL_BINS) + level_bin) * NOISE_NEIGHBORS_SUMS],
                                           &per_mille))
             {
@@ -198,7 +198,7 @@ static int noise_neighbors_rows(FILE *table, const char *name, const unsigned lo
         {
             const unsigned long long *const cell =
                 &sums[((radius * NOISE_LEVEL_BINS) + level_bin) * NOISE_NEIGHBORS_SUMS];
-            if (cell[NOISE_NEIGHBORS_PAIRS] == 0ull)
+            if (cell[NOISE_NEIGHBORS_PAIRS] == 0ULL)
             {
                 continue;
             }
@@ -245,7 +245,7 @@ extern "C" long noise_neighbors_set(const NoiseSetRequest *request)
     for (unsigned int sample = 0u; ok && (sample < request->count); sample += 1u)
     {
         const char *const name = request->samples[sample];
-        unsigned long long extent[4] = {0ull, 0ull, 0ull, 0ull};
+        unsigned long long extent[4] = {0ULL, 0ULL, 0ULL, 0ULL};
         unsigned short *volume = NULL;
         ok = NOISE_DETECTOR_CHECK(request->load(request->set, name, extent, &volume, error) == 0L, name, error,
                                   ENGINE_ERROR_REQUEST) &&
@@ -265,7 +265,7 @@ extern "C" long noise_neighbors_set(const NoiseSetRequest *request)
     if (ok != 0)
     {
         printf("  neighbors: %u samples in %llu ms; every sum is in %s\n", request->count,
-               (engine_clock_microseconds() - began) / 1000ull, path);
+               (engine_clock_microseconds() - began) / 1000ULL, path);
     }
     return (ok != 0) ? 0L : NOISE_DETECTOR_ERROR;
 }

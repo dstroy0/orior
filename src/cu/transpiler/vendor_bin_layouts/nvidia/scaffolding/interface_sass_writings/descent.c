@@ -40,8 +40,8 @@ int writings_descent_read(const char *record, unsigned int pairs, char **folders
         unsigned int placed_count = 0u;
         // the descent's cases as the run stores them, the descent's run having written them through its writer
         const unsigned char *cases = NULL;
-        unsigned long long cases_size = 0ull;
-        unsigned long long cases_at = 0ull;
+        unsigned long long cases_size = 0ULL;
+        unsigned long long cases_at = 0ULL;
         const int cases_read = qry_member_file_blob(cases_path, &cases, &cases_size);
         snprintf(path, sizeof(path), "%s/chains.txt", into);
         FILE *const chains = fopen(path, "rb");
@@ -56,9 +56,9 @@ int writings_descent_read(const char *record, unsigned int pairs, char **folders
         while ((placed_count < WRITINGS_CASES) && line_read(cases, cases_size, &cases_at, line, sizeof(line)))
         {
             const char *read = line;
-            unsigned long long word[3] = {0ull, 0ull, 0ull};
+            unsigned long long word[3] = {0ULL, 0ULL, 0ULL};
             if (line_number(&read, 1, &word[0]) && line_number(&read, 1, &word[1]) && line_number(&read, 1, &word[2]) &&
-                (word[0] <= 0xffffffffull) && (word[1] <= 0xffffffffull) && (word[2] <= 0xffffffffull))
+                (word[0] <= 0xffffffffULL) && (word[1] <= 0xffffffffULL) && (word[2] <= 0xffffffffULL))
             {
                 // the test above bounds each word inside 32 bits
                 placed[placed_count][0] = (unsigned int)word[0];
@@ -193,8 +193,8 @@ int writings_krs_read(const char *folder, const char *ruleset, const char *recor
 {
     // the ruleset as the run stores it, or the disk where the run stores none (qry_member_file)
     const unsigned char *rules = NULL;
-    unsigned long long rules_size = 0ull;
-    unsigned long long rules_at = 0ull;
+    unsigned long long rules_size = 0ULL;
+    unsigned long long rules_at = 0ULL;
     const int rules_read = writings_load(folder) && qry_member_file_blob(ruleset, &rules, &rules_size);
     FILE *const out = rules_read ? fopen(record, "wb") : NULL;
     if (out == NULL)

@@ -78,7 +78,7 @@ None of them is final, and the growth series below says why that matters.
 | single-element positions under full occupancy, declined as vacancies     | 10460                |
 
 The detector and the oracle report 6655 and 6662 shared positions from the same corpus, and the
-difference is the detector's early return: it treats an entry whose coordinates all fail to parse as
+difference is the detector's early return. It treats an entry whose coordinates all fail to parse as
 unreadable, and the oracle does not.
 
 ### The growth series
@@ -308,7 +308,7 @@ exact reading, and the run reports 3639, because a structure from which no needl
 are not failures of the cascade and they are not successes either. They are entries it never asked a
 question of.
 
-The median did not drift. It is reporting a mixture of two populations that fail the product rule in
+The median did not drift. It reports a mixture of two populations that fail the product rule in
 opposite directions, and `utils/maint/analysis/survey/sift_ratio_by_elements.py` separates them:
 
 | population            | structures | median of per-structure medians | share above 1 |
@@ -337,7 +337,7 @@ a structure holding one element every anchor matches compositionally at every oc
 rate is 1, and the rule predicts nothing is filtered. What filters an alignment there is whether the
 displacement lands on an occupied place at all, which is geometry the rule does not model. It
 over predicts and the ratio falls under 1. In a structure holding several elements the rates are
-genuinely below 1 and the rule's other assumption fails instead: it takes the anchors to be
+genuinely below 1 and the rule's other assumption fails instead. It takes the anchors to be
 positioned independently, and a lattice is where they are least so. It under predicts and the
 ratio rises well above 1.
 

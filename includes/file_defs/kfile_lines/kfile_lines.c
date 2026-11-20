@@ -52,20 +52,20 @@ int kfile_lines_read(KfileLines *file, const char *path)
     kfile_lines_free(file);
     // the file as the run stores it: its latest blob, or the file where the run stores none (qry_member_file)
     const unsigned char *bytes = NULL;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     if (!qry_member_file_blob(path, &bytes, &size))
     {
         return 1;
     }
     int ok = 1;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while (ok && (at < size))
     {
         // a file read whole is at max what a size_t counts
         const char *const start = (const char *)(bytes + at);
         const char *const end = (const char *)memchr(start, '\n', (size_t)(size - at));
         size_t length = (end != NULL) ? (size_t)(end - start) : (size_t)(size - at);
-        at += (unsigned long long)length + ((end != NULL) ? 1ull : 0ull);
+        at += (unsigned long long)length + ((end != NULL) ? 1ULL : 0ULL);
         length -= ((length != 0u) && (start[length - 1u] == '\r')) ? 1u : 0u;
         char *const copy = kfile_lines_copy(start, length);
         ok = (copy != NULL) && kfile_lines_room(file, 1u);
@@ -85,7 +85,7 @@ int kfile_lines_read(KfileLines *file, const char *path)
 int kfile_lines_write_by(const KfileLines *file, const char *path, Who who)
 {
     // the file put together in memory and passed whole to the run's writer, which writes it in the file's place
-    static char s_text_bytes[QRY_WRITER_RING_BYTES / 2ull];
+    static char s_text_bytes[QRY_WRITER_RING_BYTES / 2ULL];
     size_t written = 0u;
     for (unsigned int at = 0u; at < file->lines; at += 1u)
     {
@@ -96,16 +96,16 @@ int kfile_lines_write_by(const KfileLines *file, const char *path, Who who)
     }
     const unsigned long long time = verba_finis.ok(&(VerbaFinisCfg){.cap = sizeof(s_text_bytes), .at = written})
                                         ? qry_member_filed(path, s_text_bytes, written)
-                                        : 0ull;
+                                        : 0ULL;
     const char *const name = qry_member_file_name(path);
-    if ((time != 0ull) && (name != NULL))
+    if ((time != 0ULL) && (name != NULL))
     {
         // the file's row of the table files (files.oracle.tsv): the who that wrote it, its record and its name
-        unsigned long long row[4] = {0ull, 0ull, time, table_text(name, strlen(name))};
+        unsigned long long row[4] = {0ULL, 0ULL, time, table_text(name, strlen(name))};
         who_words(who, row);
         qry_member_append(TABLE_FILES, row, sizeof(row), QRY_CRITICAL);
     }
-    return time != 0ull;
+    return time != 0ULL;
 }
 
 void kfile_lines_free(KfileLines *file)
@@ -254,7 +254,7 @@ int kfile_lines_cut(char *text, unsigned long long size, const char ***lines, un
     *lines = NULL;
     *count = 0u;
     unsigned int ends = 0u;
-    for (unsigned long long at = 0ull; at < size; at += 1ull)
+    for (unsigned long long at = 0ULL; at < size; at += 1ULL)
     {
         ends += (text[at] == '\n') ? 1u : 0u;
     }
@@ -264,7 +264,7 @@ int kfile_lines_cut(char *text, unsigned long long size, const char ***lines, un
         return 0;
     }
     char *start = text;
-    for (unsigned long long at = 0ull; (at < size) && (*count < ends); at += 1ull)
+    for (unsigned long long at = 0ULL; (at < size) && (*count < ends); at += 1ULL)
     {
         if (text[at] == '\n')
         {
@@ -283,7 +283,7 @@ int kfile_lines_block_lines(const KfileLines *file, const char *lang, unsigned i
 {
     // the lines from `from` joined, each ended by a newline, and where each starts, for the block's places to be
     // turned back into lines
-    static char s_text_bytes[QRY_WRITER_RING_BYTES / 2ull];
+    static char s_text_bytes[QRY_WRITER_RING_BYTES / 2ULL];
     size_t joined = 0u;
     size_t *const starts = (size_t *)calloc((size_t)file->lines + 1u, sizeof(size_t));
     if (starts == NULL)
@@ -352,7 +352,7 @@ int kfile_lines_written_by(KfileLines *file, unsigned int first, const char *con
     unsigned char *const taken = (unsigned char *)calloc((size_t)file->lines + 1u, 1u);
     int written = (entries != NULL) && (whose != NULL) && (whose_has_who != NULL) && (taken != NULL);
     unsigned int entry_count = 0u;
-    Who now = {0u, 0u, 0u, 0ull};
+    Who now = {0u, 0u, 0u, 0ULL};
     int now_has_who = 0;
     for (unsigned int at = 0u; written && (at < file->lines); at += 1u)
     {
@@ -375,7 +375,7 @@ int kfile_lines_written_by(KfileLines *file, unsigned int first, const char *con
         qsort(entries, entry_count, sizeof(KfileLinesEntry), kfile_lines_entry_order);
     }
     KfileLines made = {NULL, 0u, 0u};
-    Who in_force = {0u, 0u, 0u, 0ull};
+    Who in_force = {0u, 0u, 0u, 0ULL};
     int in_force_has_who = 0;
     for (unsigned int line = 0u; written && (line < count); line += 1u)
     {

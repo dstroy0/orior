@@ -1597,11 +1597,11 @@ EMBED_INLINE unsigned long long xterm_text_run(const XtermCtx *args)
     {
         while ((at + 8ULL) <= args->size)
         {
-            unsigned long long word = 0ULL;
-            memor.cpy(&(MemoriaCfg){.dst = &word, .src = args->bytes + at, .bytes = 8u});
-            const unsigned long long rubout = word ^ (ones * 0x7fULL);
+            unsigned long long packed = 0ULL;
+            memor.cpy(&(MemoriaCfg){.dst = &packed, .src = args->bytes + at, .bytes = 8u});
+            const unsigned long long rubout = packed ^ (ones * 0x7fULL);
             const unsigned long long flagged =
-                ((word - (ones * 0x20ULL)) & ~word & highs) | ((rubout - ones) & ~rubout & highs) | (word & highs);
+                ((packed - (ones * 0x20ULL)) & ~packed & highs) | ((rubout - ones) & ~rubout & highs) | (packed & highs);
             if (flagged != 0ULL)
             {
                 break;

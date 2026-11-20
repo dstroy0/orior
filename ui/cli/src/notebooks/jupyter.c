@@ -211,11 +211,11 @@ EMBED_INLINE void jupyter_replace(const JupyterCtx *args)
 // prefix with no Python in it, stays as the spec writes it
 EMBED_INLINE void jupyter_program(const JupyterCtx *args)
 {
-    const char *const word = args->text;
-    int python = cellul.starts(&(CatenaFinitaCfg){.src = word, .other = "python", .cap = sizeof("python")});
-    for (unsigned int at = 6u; python && (word[at] != '\0'); at += 1u)
+    const char *const given = args->text;
+    int python = cellul.starts(&(CatenaFinitaCfg){.src = given, .other = "python", .cap = sizeof("python")});
+    for (unsigned int at = 6u; python && (given[at] != '\0'); at += 1u)
     {
-        python = ((word[at] >= '0') && (word[at] <= '9')) || (word[at] == '.');
+        python = ((given[at] >= '0') && (given[at] <= '9')) || (given[at] == '.');
     }
     VerbaLinea line = {args->out, args->capacity, 0ULL};
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_PATH_MAX_LEN - 1u});
@@ -243,7 +243,7 @@ EMBED_INLINE void jupyter_program(const JupyterCtx *args)
 #endif
         python = EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = program);
     }
-    mmgr_line_put(&line, python ? program : word);
+    mmgr_line_put(&line, python ? program : given);
     mmgr_line_finish(&line);
 }
 

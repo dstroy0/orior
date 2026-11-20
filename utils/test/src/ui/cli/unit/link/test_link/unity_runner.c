@@ -74,7 +74,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\link\\test_link\\test_link.c");
+  UnityBegin("utils/test/src/ui/cli/unit/link/test_link/test_link.c");
   run_test(test_user_at_host_colon_folder_is_ssh, "test_user_at_host_colon_folder_is_ssh", 27);
   run_test(test_an_ssh_address_names_its_host_as_the_machine, "test_an_ssh_address_names_its_host_as_the_machine", 36);
   run_test(test_a_written_address_parses_back_to_itself, "test_a_written_address_parses_back_to_itself", 47);

@@ -56,17 +56,17 @@ EMBED_INLINE void file_read_from(const WindowsFilesCtx *args)
 {
     unsigned char *bytes = args->bytes;
     unsigned long long *got = args->got;
-    *got = 0ull;
+    *got = 0ULL;
     int read_state = 1;
     while (read_state && (*got < args->count))
     {
         OVERLAPPED at;
         memor.set(&(MemoriaCfg){.dst = &at, .val = 0, .bytes = sizeof(at)});
         // the offset's low and high words, each what a DWORD stores
-        at.Offset = (DWORD)((args->from + *got) & 0xffffffffull);
+        at.Offset = (DWORD)((args->from + *got) & 0xffffffffULL);
         at.OffsetHigh = (DWORD)((args->from + *got) >> 32u);
         // one read takes at max what a DWORD counts
-        const DWORD chunk = (DWORD)(((args->count - *got) < 0x40000000ull) ? (args->count - *got) : 0x40000000ull);
+        const DWORD chunk = (DWORD)(((args->count - *got) < 0x40000000ULL) ? (args->count - *got) : 0x40000000ULL);
         DWORD read = 0u;
         const BOOL done = ReadFile(args->file, bytes + *got, chunk, &read, &at);
         // a read past the file's end is the file's end
@@ -86,7 +86,7 @@ int cli_file_read_at(const CliPathFromCtx *args)
 {
     unsigned long long *got = args->got;
     const HANDLE file = EMBED_CALL(file_open, WindowsFilesCtx, .path = args->path);
-    *got = 0ull;
+    *got = 0ULL;
     if (file == INVALID_HANDLE_VALUE)
     {
         return 0;
@@ -110,7 +110,7 @@ int cli_file_stamp(const CliPathSizeCtx *args)
     const unsigned long long ticks =
         ((unsigned long long)found.ftLastWriteTime.dwHighDateTime << 32u) | found.ftLastWriteTime.dwLowDateTime;
     // the file time counts tenths of a microsecond from 1601; 1970 is 11644473600 seconds after
-    *changed = (ticks >= 116444736000000000ull) ? ((ticks / 10000ull) - 11644473600000ull) : 0ull;
+    *changed = (ticks >= 116444736000000000ULL) ? ((ticks / 10000ULL) - 11644473600000ULL) : 0ULL;
     return 1;
 }
 
@@ -120,7 +120,7 @@ unsigned long long cli_wall_milliseconds(void)
     GetSystemTimeAsFileTime(&now);
     const unsigned long long ticks = ((unsigned long long)now.dwHighDateTime << 32u) | now.dwLowDateTime;
     // the file time counts tenths of a microsecond from 1601; 1970 is 11644473600 seconds after
-    return (ticks / 10000ull) - 11644473600000ull;
+    return (ticks / 10000ULL) - 11644473600000ULL;
 }
 
 int cli_move(const CliErrMsgFromCtx *args)
@@ -155,10 +155,10 @@ int cli_file_append(const CliPathBytesCtx *args)
     const unsigned char *at = (const unsigned char *)args->bytes;
     unsigned long long left = args->size;
     int written = 1;
-    while (written && (left > 0ull))
+    while (written && (left > 0ULL))
     {
         // a piece is at max a gibibyte, which a DWORD counts
-        const DWORD chunk = (DWORD)((left < (1ull << 30u)) ? left : (1ull << 30u));
+        const DWORD chunk = (DWORD)((left < (1ULL << 30u)) ? left : (1ULL << 30u));
         DWORD done = 0u;
         written = WriteFile(file, at, chunk, &done, NULL) && (done == chunk);
         at += done;
@@ -178,7 +178,7 @@ int cli_resource_add(const CliPathErrMsgCtx *args)
         mmgr_line_put(args->err_msg, ": the path or the name is too long");
         return 0;
     }
-    if (args->size > 0xffffffffull)
+    if (args->size > 0xffffffffULL)
     {
         mmgr_line_put(args->err_msg, "the blob is past 4 GB");
         return 0;
@@ -233,7 +233,7 @@ int cli_temporary_file_init(const CliFileTemporaryFileCtx *args)
         mmgr_line_hex(&named, random[at], 2u);
     }
     mmgr_line_put(&named, ".tmp");
-    if (mmgr_line_finish(&named) == 0ull)
+    if (mmgr_line_finish(&named) == 0ULL)
     {
         return 0;
     }
@@ -243,7 +243,7 @@ int cli_temporary_file_init(const CliFileTemporaryFileCtx *args)
                     CREATE_NEW, FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE, NULL);
     // a handle is a pointer's width, which an unsigned long long stores
     args->file_temporary_file_pointer->handle =
-        (made != INVALID_HANDLE_VALUE) ? (unsigned long long)(embed_word)made : 0ull;
+        (made != INVALID_HANDLE_VALUE) ? (unsigned long long)(embed_word)made : 0ULL;
     return made != INVALID_HANDLE_VALUE;
 }
 
@@ -252,17 +252,17 @@ int cli_temporary_file_write(const CliBytesCtx *args)
     const void *bytes = args->bytes;
     const HANDLE handle = (HANDLE)(embed_word)args->file_temporary_file_pointer_other->handle;
     const unsigned char *const from = (const unsigned char *)bytes;
-    unsigned long long done = 0ull;
+    unsigned long long done = 0ULL;
     int written = 1;
     while (written && (done < args->size))
     {
         OVERLAPPED place;
         memor.set(&(MemoriaCfg){.dst = &place, .val = 0, .bytes = sizeof(place)});
         // the offset's low and high words, each what a DWORD stores
-        place.Offset = (DWORD)((args->at + done) & 0xffffffffull);
+        place.Offset = (DWORD)((args->at + done) & 0xffffffffULL);
         place.OffsetHigh = (DWORD)((args->at + done) >> 32u);
         // a piece is at max a gibibyte, which a DWORD counts
-        const DWORD chunk = (DWORD)(((args->size - done) < (1ull << 30u)) ? (args->size - done) : (1ull << 30u));
+        const DWORD chunk = (DWORD)(((args->size - done) < (1ULL << 30u)) ? (args->size - done) : (1ULL << 30u));
         DWORD wrote = 0u;
         written = WriteFile(handle, from + done, chunk, &wrote, &place) && (wrote == chunk);
         done += wrote;
@@ -272,7 +272,7 @@ int cli_temporary_file_write(const CliBytesCtx *args)
 
 int cli_temporary_file_read(const CliSizeCtx *args)
 {
-    unsigned long long got = 0ull;
+    unsigned long long got = 0ULL;
     EMBED_CALL(file_read_from, WindowsFilesCtx,
                .file = (HANDLE)(embed_word)args->file_temporary_file_pointer_other->handle, .from = args->at,
                .bytes = (unsigned char *)args->bytes_out, .count = args->size, .got = &got);
@@ -281,10 +281,10 @@ int cli_temporary_file_read(const CliSizeCtx *args)
 
 void cli_temporary_file_let_go(const CliFileTemporaryFileCtx *args)
 {
-    if (args->file_temporary_file_pointer->handle != 0ull)
+    if (args->file_temporary_file_pointer->handle != 0ULL)
     {
         CloseHandle((HANDLE)(embed_word)args->file_temporary_file_pointer->handle);
     }
-    args->file_temporary_file_pointer->handle = 0ull;
+    args->file_temporary_file_pointer->handle = 0ULL;
 }
 #endif

@@ -78,7 +78,7 @@ extern "C"
         unsigned long long microseconds;
     } InterfaceAnswer;
 
-    // runs one probe to its end and fills the answer. 0 once the probe has ended, however it ended; -1 where the interface
+    // runs one probe to its end and fills the answer. 0 once the probe ended, however it ended; -1 where the interface
     // itself failed (the output file could not be made or read, or a started probe could not be waited on), with the
     // error raised in module ENGINE_MODULE_INTERFACE
     long interface_probe_run(const InterfaceProbe *probe, InterfaceAnswer *answer, EngineError *error);
@@ -86,7 +86,7 @@ extern "C"
     // The launch queue, shared by every process on the host that starts a child through the interface: at max
     // INTERFACE_LAUNCHES_AT_ONCE children run at once, and INTERFACE_LAUNCH_SPACING_MILLISECONDS pass between one
     // start and the next. interface_probe_run takes a place before it starts a probe, signals the start is made once it
-    // is, which delays the next start off for the spacing, and gives the place back when the probe has ended. A
+    // is, which delays the next start off for the spacing, and gives the place back when the probe ended. A
     // program that starts a child of its own, the compilers the query crate starts, paces itself by the same two
     // numbers
 #define INTERFACE_LAUNCHES_AT_ONCE 4u

@@ -64,7 +64,7 @@ struct ProbeQuestion
 #define PROBE_PREDICATES 4u
 #define PROBE_DECLARED 1024u
 
-// the ruleset's written forms and a writer for its forms, which marks the text broken where a form is not written; the
+// the ruleset's written forms and a writer for its forms, which marks the text broken where a form is not written. The
 // next scratch register of each bank a construct may take
 struct ProbeWriter
 {

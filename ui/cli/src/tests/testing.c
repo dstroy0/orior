@@ -265,7 +265,7 @@ void cli_test_rules_get(const CliTestingRulesCfg *args)
         const int read = EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = text, .size = size) &&
                          EMBED_CALL(cli_testing_rules.test_rules_in, CliTestingRulesCfg, .text = text, .size = size,
                                     .section = s_sections[at], .rules = args->rules);
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_tests_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_tests_owner);
         if (read)
         {
             return;

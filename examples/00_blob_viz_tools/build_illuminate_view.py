@@ -235,7 +235,7 @@ TEMPLATE = """<title>Illuminating With The Chain</title>
   <div class="flag">
   <p>The degenerate source is the control that makes the rest mean anything: every beam pointed the
   same way reaches rank 2 and loses 139 bits. Parallel beams all read one line through the object.
-  Their shadows cannot separate sources that differ off that line. If it had recovered the
+  Their shadows cannot separate sources that differ off that line. If it recovered the
   object anyway, direction would never have mattered and the entropy would be decoration.</p>
   </div>
 

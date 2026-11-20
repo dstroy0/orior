@@ -524,6 +524,6 @@ int cli_symbols_head_read(const CliSymbolsLanguagesCtx *args)
         read.count = 0u;
         read.capacity = 0u;
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_code_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_code_owner);
     return found;
 }

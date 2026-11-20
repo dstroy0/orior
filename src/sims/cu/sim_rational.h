@@ -8,7 +8,7 @@
 
 #include "sim.h"
 
-#define SIM_RATIONAL_SMALL_MAX (1ull << 62)
+#define SIM_RATIONAL_SMALL_MAX (1ULL << 62)
 
 // the denominator is always positive
 typedef struct
@@ -30,9 +30,9 @@ static inline void sim_rational_status_check(int ok)
 
 static inline long long sim_rational_gcd(long long left, long long right)
 {
-    long long first = (left < 0ll) ? -left : left;
-    long long second = (right < 0ll) ? -right : right;
-    while (second != 0ll)
+    long long first = (left < 0LL) ? -left : left;
+    long long second = (right < 0LL) ? -right : right;
+    while (second != 0LL)
     {
         const long long rest = first % second;
         first = second;
@@ -64,17 +64,17 @@ static inline int sim_rational_small(const OriorExactInteger *value, long long *
 
 static inline void sim_rational_settle(SimRational *value)
 {
-    long long numerator = 0ll;
-    long long denominator = 0ll;
+    long long numerator = 0LL;
+    long long denominator = 0LL;
     if ((sim_rational_small(&value->numerator, &numerator) == 0) ||
-        (sim_rational_small(&value->denominator, &denominator) == 0) || (denominator <= 0ll))
+        (sim_rational_small(&value->denominator, &denominator) == 0) || (denominator <= 0LL))
     {
         // a gcd or a division that fails leaves the value as it was, exact and not in lowest terms, and marks the run
         OriorExactInteger common;
         OriorExactInteger one;
         const int found = (orior_exact_gcd(&value->numerator, &value->denominator, &common) == ORIOR_EXACT_OK);
         sim_rational_status_check(found);
-        sim_exact_unsigned(&one, 1ull);
+        sim_exact_unsigned(&one, 1ULL);
         if ((found != 0) && (orior_exact_compare(&common, &one) > 0))
         {
             OriorExactInteger top;
@@ -91,7 +91,7 @@ static inline void sim_rational_settle(SimRational *value)
         return;
     }
     const long long common = sim_rational_gcd(numerator, denominator);
-    if (common > 1ll)
+    if (common > 1LL)
     {
         sim_exact_signed(&value->numerator, numerator / common);
         sim_exact_signed(&value->denominator, denominator / common);
@@ -101,13 +101,13 @@ static inline void sim_rational_settle(SimRational *value)
 static inline SimRational sim_rational(long long numerator, long long denominator)
 {
     SimRational value;
-    if (denominator == 0ll)
+    if (denominator == 0LL)
     {
         g_sim_rational_wide = 1;
-        denominator = 1ll;
-        numerator = 0ll;
+        denominator = 1LL;
+        numerator = 0LL;
     }
-    const long long sign = (denominator < 0ll) ? -1ll : 1ll;
+    const long long sign = (denominator < 0LL) ? -1LL : 1LL;
     sim_exact_signed(&value.numerator, sign * numerator);
     sim_exact_signed(&value.denominator, sign * denominator);
     sim_rational_settle(&value);
@@ -152,7 +152,7 @@ static inline SimRational sim_rational_reciprocal(SimRational value)
     if (value.numerator.sign == 0)
     {
         g_sim_rational_wide = 1;
-        return sim_rational(0ll, 1ll);
+        return sim_rational(0LL, 1LL);
     }
     SimRational turned;
     turned.numerator = value.denominator;
@@ -193,8 +193,8 @@ static inline int sim_rational_equal(SimRational left, SimRational right)
 // a reduced fraction when it fits a word; wider, the exact value truncated to 12 places
 static inline void sim_rational_print(VerbaLinea *line, SimRational value)
 {
-    long long numerator = 0ll;
-    long long denominator = 1ll;
+    long long numerator = 0LL;
+    long long denominator = 1LL;
     if ((sim_rational_small(&value.numerator, &numerator) == 0) ||
         (sim_rational_small(&value.denominator, &denominator) == 0))
     {
@@ -202,13 +202,13 @@ static inline void sim_rational_print(VerbaLinea *line, SimRational value)
         return;
     }
     const long long common = sim_rational_gcd(numerator, denominator);
-    if (common > 1ll)
+    if (common > 1LL)
     {
         numerator /= common;
         denominator /= common;
     }
     mmgr_line_decimal_signed(line, numerator);
-    if (denominator != 1ll)
+    if (denominator != 1LL)
     {
         mmgr_line_ch(line, '/');
         // the denominator stays positive
@@ -224,16 +224,16 @@ static inline unsigned long long sim_exact_bits(const OriorExactInteger *value)
         unsigned int word = value->limb[limb - 1u];
         if (word != 0u)
         {
-            unsigned long long bits = 32ull * (limb - 1u);
+            unsigned long long bits = 32ULL * (limb - 1u);
             while (word != 0u)
             {
-                bits += 1ull;
+                bits += 1ULL;
                 word >>= 1u;
             }
             return bits;
         }
     }
-    return 0ull;
+    return 0ULL;
 }
 
 // base^power exactly, by repeated squaring
@@ -241,11 +241,11 @@ static inline int sim_exact_power(unsigned long long base, unsigned long long po
 {
     OriorExactInteger square;
     OriorExactInteger next;
-    sim_exact_unsigned(result, 1ull);
+    sim_exact_unsigned(result, 1ULL);
     sim_exact_unsigned(&square, base);
-    while (power != 0ull)
+    while (power != 0ULL)
     {
-        if ((power & 1ull) != 0ull)
+        if ((power & 1ULL) != 0ULL)
         {
             if (sim_exact_product(result, &square, &next) == 0)
             {
@@ -254,7 +254,7 @@ static inline int sim_exact_power(unsigned long long base, unsigned long long po
             *result = next;
         }
         power >>= 1u;
-        if (power != 0ull)
+        if (power != 0ULL)
         {
             if (sim_exact_product(&square, &square, &next) == 0)
             {

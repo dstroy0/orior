@@ -16,7 +16,7 @@
  * @return Count of failures.
  *
  * THE TRICHOTOMY IS A CLAIM, AND THIS TEST ATTACKS IT. The guide states that a descent takes
- * one of exactly three branches: it stops when the destroy test fires, it recurses when a level
+ * one of exactly three branches. It stops when the destroy test fires, it recurses when a level
  * prunes, and it errors, not running at all, when the question is malformed. The fourth branch it denies
  * is cycling, returning to a state already occupied.
  *

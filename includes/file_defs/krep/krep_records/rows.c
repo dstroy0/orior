@@ -26,11 +26,11 @@ void krep_half_put(unsigned char *bytes, unsigned int half)
 int krep_number_read(const unsigned char *bytes, unsigned long long size, unsigned long long *at,
                      unsigned long long *value)
 {
-    *value = 0ull;
+    *value = 0ULL;
     for (unsigned int taken = 0u; (taken < KREP_NUMBER_MAX) && (*at < size); taken += 1u)
     {
         const unsigned char byte = bytes[*at];
-        *at += 1ull;
+        *at += 1ULL;
         *value |= (unsigned long long)(byte & 0x7fu) << (7u * taken);
         if ((byte & 0x80u) == 0u)
         {
@@ -46,11 +46,11 @@ static unsigned int krep_number_put(unsigned char *bytes, unsigned long long val
     unsigned int taken = 0u;
     do
     {
-        const unsigned char low = (unsigned char)(value & 0x7full);
+        const unsigned char low = (unsigned char)(value & 0x7fULL);
         value >>= 7u;
-        bytes[taken] = (unsigned char)(low | ((value != 0ull) ? 0x80u : 0u));
+        bytes[taken] = (unsigned char)(low | ((value != 0ULL) ? 0x80u : 0u));
         taken += 1u;
-    } while (value != 0ull);
+    } while (value != 0ULL);
     return taken;
 }
 
@@ -67,10 +67,10 @@ size_t krep_number_added(char *out, size_t cap, size_t at, unsigned long long va
 // a 64-bit FNV-1a hash of `length` bytes at `bytes`
 static unsigned long long krep_hash(const char *bytes, unsigned long long length)
 {
-    unsigned long long hash = 0xcbf29ce484222325ull;
-    for (unsigned long long at = 0ull; at < length; at += 1ull)
+    unsigned long long hash = 0xcbf29ce484222325ULL;
+    for (unsigned long long at = 0ULL; at < length; at += 1ULL)
     {
-        hash = (hash ^ (unsigned char)bytes[at]) * 0x100000001b3ull;
+        hash = (hash ^ (unsigned char)bytes[at]) * 0x100000001b3ULL;
     }
     return hash;
 }
@@ -85,7 +85,7 @@ unsigned long long krep_row_passed(KrepFile *file, unsigned long long key, const
 {
     static const unsigned char s_zeros[8] = {0u};
     const unsigned long long opening[KREP_ROW_OPENING] = {key, who[0], who[1], change};
-    static char s_row_bytes[QRY_WRITER_RING_BYTES / 2ull];
+    static char s_row_bytes[QRY_WRITER_RING_BYTES / 2ULL];
     size_t row = verba_textus.put_n(&(VerbaTextusCfg){.out = s_row_bytes,
                                                       .cap = sizeof(s_row_bytes),
                                                       .at = 0u,
@@ -104,9 +104,9 @@ unsigned long long krep_row_passed(KrepFile *file, unsigned long long key, const
                                                .text = (const char *)s_zeros,
                                                .text_len = (8u - (size % 8u)) % 8u});
     const unsigned long long sequence = (!verba_finis.ok(&(VerbaFinisCfg){.cap = sizeof(s_row_bytes), .at = row}))
-                                            ? 0ull
+                                            ? 0ULL
                                             : qry_member_append(file->table, s_row_bytes, row, priority);
-    file->key = (sequence != 0ull) ? file->key : 0ull;
+    file->key = (sequence != 0ULL) ? file->key : 0ULL;
     return sequence;
 }
 
@@ -114,8 +114,8 @@ unsigned long long krep_row_passed(KrepFile *file, unsigned long long key, const
 // nearest one's before it, zeros where none is
 void krep_who_words_at(const KrepFile *file, unsigned int at, unsigned long long *words)
 {
-    words[0] = 0ull;
-    words[1] = 0ull;
+    words[0] = 0ULL;
+    words[1] = 0ULL;
     if ((at < file->records) && (file->record[at].code == KREP_RECORD_WHO))
     {
         if (file->record[at].count == 2u)
@@ -144,7 +144,7 @@ void krep_record_row(KrepFile *file, unsigned int at, const unsigned long long *
 // the row of the text of the number `number` of `file`, of no who, passed to its table
 void krep_text_row(KrepFile *file, unsigned int number)
 {
-    static const unsigned long long s_none[2] = {0ull, 0ull};
+    static const unsigned long long s_none[2] = {0ULL, 0ULL};
     const unsigned long long numbers[2] = {number, file->text_length[number - 1u]};
     krep_row_passed(file, file->key, s_none, KREP_ROW_TEXT, numbers, 2u, file->text[number - 1u],
                     file->text_length[number - 1u], QRY_ORDINARY);
@@ -200,7 +200,7 @@ unsigned long long krep_text_taken(KrepFile *file, const char *bytes, unsigned l
 {
     if (!krep_text_slots_grown(file))
     {
-        return 0ull;
+        return 0ULL;
     }
     if (file->texts == file->text_room)
     {
@@ -208,14 +208,14 @@ unsigned long long krep_text_taken(KrepFile *file, const char *bytes, unsigned l
         char **const larger = (char **)realloc(file->text, (size_t)grown * sizeof(char *));
         if (larger == NULL)
         {
-            return 0ull;
+            return 0ULL;
         }
         file->text = larger;
         unsigned long long *const lengths =
             (unsigned long long *)realloc(file->text_length, (size_t)grown * sizeof(unsigned long long));
         if (lengths == NULL)
         {
-            return 0ull;
+            return 0ULL;
         }
         file->text_length = lengths;
         file->text_room = grown;
@@ -224,7 +224,7 @@ unsigned long long krep_text_taken(KrepFile *file, const char *bytes, unsigned l
     char *const copy = (char *)malloc((size_t)length + 1u);
     if (copy == NULL)
     {
-        return 0ull;
+        return 0ULL;
     }
     memcpy(copy, bytes, (size_t)length);
     copy[length] = '\0';
@@ -236,7 +236,7 @@ unsigned long long krep_text_taken(KrepFile *file, const char *bytes, unsigned l
     {
         file->text_slot[slot] = file->texts;
     }
-    if (file->key != 0ull)
+    if (file->key != 0ULL)
     {
         krep_text_row(file, file->texts);
     }

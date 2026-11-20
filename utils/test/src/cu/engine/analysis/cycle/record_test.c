@@ -128,7 +128,7 @@ int main(void)
     atoms[0] = host_atoms(program.in_limbs[0], HOST_TEST_LANES);
     ran = host_run(&results, &program, 0, atoms, one_body, NULL, &records);
     free(records);
-    // the divisor taken bare errors once a lane's is zero; the numerator divided exactly by the divisor plus one
+    // the divisor taken bare errors once a lane's is zero. The numerator divided exactly by the divisor plus one
     // errors once a lane's does not divide
     HostProgram bare;
     host_bare_divisor(&bare);

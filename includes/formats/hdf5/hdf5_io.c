@@ -35,7 +35,7 @@ void hdf5_report(const Hdf5File *file)
 
 unsigned long long hdf5_little(const unsigned char *bytes, unsigned int width)
 {
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     for (unsigned int place = 0u; place < width; place += 1u)
     {
         value |= ((unsigned long long)bytes[place]) << (8u * place);
@@ -45,7 +45,7 @@ unsigned long long hdf5_little(const unsigned char *bytes, unsigned int width)
 
 unsigned long long hdf5_big(const unsigned char *bytes, unsigned int width)
 {
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     for (unsigned int place = 0u; place < width; place += 1u)
     {
         value = (value << 8u) | (unsigned long long)bytes[place];
@@ -57,7 +57,7 @@ unsigned long long hdf5_take(Hdf5Cursor *cursor, unsigned int width)
 {
     const int fits = !cursor->broken && (width <= 8u) && ((cursor->length - cursor->at) >= width);
     cursor->broken = !fits;
-    const unsigned long long value = fits ? hdf5_little(&cursor->bytes[cursor->at], width) : 0ull;
+    const unsigned long long value = fits ? hdf5_little(&cursor->bytes[cursor->at], width) : 0ULL;
     cursor->at += fits ? width : 0u;
     return value;
 }
@@ -74,7 +74,7 @@ const unsigned char *hdf5_span(Hdf5Cursor *cursor, unsigned long long width)
 unsigned int hdf5_log2(unsigned long long value)
 {
     unsigned int bits = 0u;
-    while ((value >> bits) > 1ull)
+    while ((value >> bits) > 1ULL)
     {
         bits += 1u;
     }
@@ -83,12 +83,12 @@ unsigned int hdf5_log2(unsigned long long value)
 
 int hdf5_power_of_two(unsigned long long value)
 {
-    return (value != 0ull) && ((value & (value - 1ull)) == 0ull);
+    return (value != 0ULL) && ((value & (value - 1ULL)) == 0ULL);
 }
 
 unsigned long long hdf5_all_ones(unsigned int width)
 {
-    return (width >= 8u) ? ~0ull : ((1ull << (8u * width)) - 1ull);
+    return (width >= 8u) ? ~0ULL : ((1ULL << (8u * width)) - 1ULL);
 }
 
 int hdf5_undefined(const Hdf5File *file, unsigned long long address)
@@ -102,7 +102,7 @@ int hdf5_product(const unsigned long long *values, unsigned int count, unsigned 
     unsigned long long total = start;
     for (unsigned int place = 0u; place < count; place += 1u)
     {
-        if ((values[place] != 0ull) && (total > (~0ull / values[place])))
+        if ((values[place] != 0ULL) && (total > (~0ULL / values[place])))
         {
             return 0;
         }
@@ -215,12 +215,12 @@ uint32_t hdf5_fletcher32(const unsigned char *bytes, size_t length)
 unsigned long long hdf5_bytes_remaining(const Hdf5File *file, unsigned long long address)
 {
     const unsigned long long start = file->base + address;
-    return ((start < file->base) || (start > file->file_bytes)) ? 0ull : (file->file_bytes - start);
+    return ((start < file->base) || (start > file->file_bytes)) ? 0ULL : (file->file_bytes - start);
 }
 
 int hdf5_fetch(Hdf5File *file, unsigned long long address, unsigned long long bytes, unsigned char *out)
 {
-    if ((bytes == 0ull) || (bytes > hdf5_bytes_remaining(file, address)))
+    if ((bytes == 0ULL) || (bytes > hdf5_bytes_remaining(file, address)))
     {
         return hdf5_error(file, "a structure that lies past the end of the file");
     }
@@ -235,13 +235,13 @@ int hdf5_fetch(Hdf5File *file, unsigned long long address, unsigned long long by
 unsigned char *hdf5_load(Hdf5File *file, unsigned long long address, unsigned long long bytes)
 {
     const size_t length = (size_t)bytes;
-    if (file->budget == 0ull)
+    if (file->budget == 0ULL)
     {
         (void)hdf5_error(file, "more reads than any sane file needs");
         return NULL;
     }
-    file->budget -= 1ull;
-    if (((unsigned long long)length != bytes) || (bytes == 0ull) || (bytes > hdf5_bytes_remaining(file, address)))
+    file->budget -= 1ULL;
+    if (((unsigned long long)length != bytes) || (bytes == 0ULL) || (bytes > hdf5_bytes_remaining(file, address)))
     {
         (void)hdf5_error(file, "a structure that lies past the end of the file");
         return NULL;

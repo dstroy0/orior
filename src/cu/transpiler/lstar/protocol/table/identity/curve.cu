@@ -25,7 +25,7 @@ static int curve_point(const std::vector<unsigned char> &code, const std::vector
     question->blocks = CURVE_THREADS / threads;
     question->launches = CURVE_LAUNCHES;
     const int alike = question_alike(code, host, places, question, queries);
-    *nanoseconds = alike ? (question->nanoseconds / CURVE_LAUNCHES) : 0ull;
+    *nanoseconds = alike ? (question->nanoseconds / CURVE_LAUNCHES) : 0ULL;
     run_print(table, "%s threads %u blocks %u registers %u: %s %llu ns a launch%s%s\n", task.c_str(), threads,
               question->blocks, registers, alike ? "alike" : "apart", *nanoseconds, alike ? "" : ", ",
               alike ? "" : question->refused);
@@ -60,10 +60,10 @@ int identity_curve(const char *engine, const char *answers, const char *ksc, con
     }
     const StallField stall = fields["stall"];
     const std::vector<StallField> registers = {fields["rd"], fields["ra"], fields["rb"]};
-    const unsigned long long longest = (1ull << stall.bits) - 1ull;
-    const unsigned int highest = (unsigned int)((1ull << fields["rd"].bits) - 1ull);
+    const unsigned long long longest = (1ULL << stall.bits) - 1ULL;
+    const unsigned int highest = (unsigned int)((1ULL << fields["rd"].bits) - 1ULL);
     std::map<std::string, std::vector<std::string>> host = host_answers_read(answers);
-    if (!run_channel_open(carrier, 60000000ull))
+    if (!run_channel_open(carrier, 60000000ULL))
     {
         return 1;
     }
@@ -74,7 +74,7 @@ int identity_curve(const char *engine, const char *answers, const char *ksc, con
     s_question.place = RUN_PLACE_NONE;
     std::vector<unsigned int> places;
     stall_cases(&s_question, &places);
-    unsigned long long queries = 0ull;
+    unsigned long long queries = 0ULL;
     std::vector<std::string> rows;
     for (const std::string &task : tasks)
     {
@@ -96,7 +96,7 @@ int identity_curve(const char *engine, const char *answers, const char *ksc, con
             }
         }
         unsigned int soonest_threads = 0u;
-        unsigned long long soonest = 0ull;
+        unsigned long long soonest = 0ULL;
         // the walk for the fewest starts at the registers the chain names where the engine gives them
         const unsigned int mark = chain_registers(engine, task);
         unsigned int fewest = (mark != 0u) ? mark : (named + 1u);
@@ -107,7 +107,7 @@ int identity_curve(const char *engine, const char *answers, const char *ksc, con
             // part refuses at the fewest it refuses at every count, since more registers take more of it
             std::map<long long, unsigned long long> times;
             const auto declaring_alike = [&](long long count) -> int {
-                unsigned long long time = 0ull;
+                unsigned long long time = 0ULL;
                 const int alike = curve_point(code, host[task], places, &s_question, &queries, task, threads,
                                               (unsigned int)count, &time, &table);
                 times[count] = time;
@@ -139,7 +139,7 @@ int identity_curve(const char *engine, const char *answers, const char *ksc, con
             unsigned int sustained = 0u;
             for (unsigned int step = 0u; (sustained < CURVE_SUSTAIN) && (step < CURVE_QUERIES_MAX); step += 1u)
             {
-                unsigned long long again = 0ull;
+                unsigned long long again = 0ULL;
                 if (curve_point(code, host[task], places, &s_question, &queries, task, threads, fewest, &again, &table))
                 {
                     sustained = curve_band_widened(&band, again) ? 0u : (sustained + 1u);
@@ -153,7 +153,7 @@ int identity_curve(const char *engine, const char *answers, const char *ksc, con
                 unsigned int past = 0u;
                 for (unsigned int step = 0u; step < CURVE_QUERIES_MAX; step += 1u)
                 {
-                    unsigned long long time = 0ull;
+                    unsigned long long time = 0ULL;
                     if (!curve_point(code, host[task], places, &s_question, &queries, task, threads,
                                      (unsigned int)count, &time, &table))
                     {
@@ -168,7 +168,7 @@ int identity_curve(const char *engine, const char *answers, const char *ksc, con
                     {
                         return 0;
                     }
-                    unsigned long long bounced = 0ull;
+                    unsigned long long bounced = 0ULL;
                     if (curve_point(code, host[task], places, &s_question, &queries, task, threads, fewest, &bounced,
                                     &table) &&
                         curve_band_widened(&band, bounced))

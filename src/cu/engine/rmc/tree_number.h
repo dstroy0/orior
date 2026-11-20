@@ -57,7 +57,7 @@ static unsigned int tree_symbol(unsigned long long number, unsigned int place)
 // a symbol written into a tree's number at `place`, the rest of it left alone
 static unsigned long long tree_written(unsigned long long number, unsigned int place, unsigned int symbol)
 {
-    unsigned long long weight = 1ull;
+    unsigned long long weight = 1ULL;
     for (unsigned int step = 0u; step < place; step += 1u)
     {
         weight *= TREE_SYMBOLS;

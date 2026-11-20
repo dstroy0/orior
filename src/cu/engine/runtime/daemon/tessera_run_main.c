@@ -21,7 +21,7 @@ int main(int count, char **arguments)
     const unsigned long long mask = tessera_self_host_mask();
     // a processor count is at max sixty-four, represented whole
     const unsigned long long given = (unsigned long long)engine_word_population(mask);
-    if ((mask == 0ull) || (request.processors > given))
+    if ((mask == 0ULL) || (request.processors > given))
     {
         fprintf(stderr, "  tessera_run: requests %llu processors, and the host gives jobs %llu\n", request.processors,
                 given);
@@ -61,7 +61,7 @@ int main(int count, char **arguments)
     }
     const unsigned long long waited = run_now() - submitted_at;
     fprintf(stderr,
-            "  tessera_run: %s admitted after %llu.%03llu s, %llu.%03llu of %llu processors reserved, on processors "
+            "  tessera_run: %s admitted after %llu.%03LLU s, %llu.%03LLU of %llu processors reserved, on processors "
             "0x%llx at below normal priority\n",
             label, waited / RUN_MILLION, (waited % RUN_MILLION) / RUN_THOUSAND, ticket.granted / TESSERA_HOST_PROCESSOR,
             ticket.granted % TESSERA_HOST_PROCESSOR, given, mask);
@@ -77,7 +77,7 @@ int main(int count, char **arguments)
     // the whole processors of the reservation, and never none: a job reserves its tracked peak where that is more than
     // it named, and the count of whole ones in it is what the command may run on
     const unsigned long long whole = ticket.granted / TESSERA_HOST_PROCESSOR;
-    if (!run_processors_named((whole != 0ull) ? whole : 1ull))
+    if (!run_processors_named((whole != 0ULL) ? whole : 1ULL))
     {
         fprintf(stderr, "  tessera_run: the processors granted were not passed on to %s\n", label);
     }
@@ -96,7 +96,7 @@ int main(int count, char **arguments)
     const unsigned long long ran = run_now() - started;
     if (tessera_job_release(client, &ticket, &error) == 0L)
     {
-        fprintf(stderr, "  tessera_run: %s released after %llu.%03llu s, exit %d, peak %llu.%03llu processors\n", label,
+        fprintf(stderr, "  tessera_run: %s released after %llu.%03LLU s, exit %d, peak %llu.%03LLU processors\n", label,
                 ran / RUN_MILLION, (ran % RUN_MILLION) / RUN_THOUSAND, code, ticket.last_peak / TESSERA_HOST_PROCESSOR,
                 ticket.last_peak % TESSERA_HOST_PROCESSOR);
     }

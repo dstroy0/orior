@@ -79,7 +79,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\sea\\test_sea\\test_sea.c");
+  UnityBegin("utils/test/src/ui/cli/unit/sea/test_sea/test_sea.c");
   run_test(test_a_scripts_modules_from_outside_node_are_named, "test_a_scripts_modules_from_outside_node_are_named", 81);
   run_test(test_nodes_own_modules_are_not_named, "test_nodes_own_modules_are_not_named", 93);
   run_test(test_a_script_that_requires_an_outside_module_is_refused_and_its_memory_released, "test_a_script_that_requires_an_outside_module_is_refused_and_its_memory_released", 99);

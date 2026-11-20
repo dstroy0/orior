@@ -16,9 +16,9 @@ extern "C"
     static inline unsigned long long frame_greatest(int (*predicate)(unsigned long long, void *), void *context,
                                                     unsigned long long truthy, unsigned long long falsy)
     {
-        while ((falsy - truthy) > 1ull)
+        while ((falsy - truthy) > 1ULL)
         {
-            const unsigned long long middle = truthy + ((falsy - truthy) / 2ull);
+            const unsigned long long middle = truthy + ((falsy - truthy) / 2ULL);
             if (predicate(middle, context) != 0)
             {
                 truthy = middle;

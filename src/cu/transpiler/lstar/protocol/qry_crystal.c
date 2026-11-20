@@ -29,7 +29,7 @@
 
 // the max bytes of the .qry one sample takes, which bounds what the device stores while it lifts one: two bytes a lane
 // and four a coefficient, with the tower's blocks beside them
-#define QRY_CRYSTAL_PART (256ull << 20u)
+#define QRY_CRYSTAL_PART (256ULL << 20u)
 
 // the max samples a set contains, and the source folder the samples are read from while the set is made, inside it
 #define QRY_CRYSTAL_PARTS 4096u
@@ -92,7 +92,7 @@ static int qry_crystal_written(const char *qry, const char *set)
     static char *s_named[QRY_CRYSTAL_PARTS];
     static unsigned long long s_sizes[QRY_CRYSTAL_PARTS];
     unsigned int parts = 0u;
-    unsigned long long total = 0ull;
+    unsigned long long total = 0ULL;
     int whole = 1;
     while (whole && (parts < QRY_CRYSTAL_PARTS))
     {
@@ -134,14 +134,14 @@ static int qry_crystal_written(const char *qry, const char *set)
     }
     // each sample loaded again and checked against the .qry byte for byte
     FILE *const again = whole ? fopen(qry, "rb") : NULL;
-    unsigned long long differ = 0ull;
+    unsigned long long differ = 0ULL;
     for (unsigned int part = 0u; whole && (part < parts); part += 1u)
     {
         const EngineSampleRecord *const record = &s_records[part];
-        whole = (record->crystal_written != 0ull) && (record->crystal_read != 0ull) && (record->sealed != 0ull) &&
-                (record->voxels_differ == 0ull) && (record->pixels_differ == 0ull) &&
-                (record->chunks_differ == 0ull) && (record->roots_differ == 0ull) && (record->extent_differ == 0ull);
-        unsigned long long extent[4] = {0ull, 0ull, 0ull, 0ull};
+        whole = (record->crystal_written != 0ULL) && (record->crystal_read != 0ULL) && (record->sealed != 0ULL) &&
+                (record->voxels_differ == 0ULL) && (record->pixels_differ == 0ULL) &&
+                (record->chunks_differ == 0ULL) && (record->roots_differ == 0ULL) && (record->extent_differ == 0ULL);
+        unsigned long long extent[4] = {0ULL, 0ULL, 0ULL, 0ULL};
         unsigned short *lanes = NULL;
         EngineSignum root;
         memset(&error, 0, sizeof(error));
@@ -149,9 +149,9 @@ static int qry_crystal_written(const char *qry, const char *set)
                 (engine_iapx_load(set, s_names[part], extent, &lanes, &root, NULL, &error) != ENGINE_ERROR) &&
                 ((extent[0] * extent[1] * extent[2] * extent[3]) == s_sizes[part]) &&
                 (fread(bytes, 1u, (size_t)s_sizes[part], again) == (size_t)s_sizes[part]);
-        for (unsigned long long at = 0ull; whole && (at < s_sizes[part]); at += 1ull)
+        for (unsigned long long at = 0ULL; whole && (at < s_sizes[part]); at += 1ULL)
         {
-            differ += (lanes[at] != (unsigned short)bytes[at]) ? 1ull : 0ull;
+            differ += (lanes[at] != (unsigned short)bytes[at]) ? 1ULL : 0ULL;
         }
         free(lanes);
         if (!whole)
@@ -172,7 +172,7 @@ static int qry_crystal_written(const char *qry, const char *set)
         remove(path);
     }
     QRY_CRYSTAL_FOLDER_REMOVED(source);
-    if (!whole || (differ != 0ull))
+    if (!whole || (differ != 0ULL))
     {
         fprintf(stderr, "qry_crystal: %s did not match as the set %s: %llu bytes differ\n", qry, set, differ);
         return 0;
@@ -192,7 +192,7 @@ static int qry_crystal_read(const char *set, const char *qry)
     }
     int whole = 1;
     unsigned int parts = 0u;
-    unsigned long long total = 0ull;
+    unsigned long long total = 0ULL;
     unsigned char *bytes = NULL;
     for (; whole && (parts < QRY_CRYSTAL_PARTS); parts += 1u)
     {
@@ -206,7 +206,7 @@ static int qry_crystal_read(const char *set, const char *qry)
             break;
         }
         fclose(sample_file);
-        unsigned long long extent[4] = {0ull, 0ull, 0ull, 0ull};
+        unsigned long long extent[4] = {0ULL, 0ULL, 0ULL, 0ULL};
         unsigned short *lanes = NULL;
         EngineSignum root;
         EngineError error;
@@ -216,13 +216,13 @@ static int qry_crystal_read(const char *set, const char *qry)
         unsigned char *const larger = whole ? (unsigned char *)realloc(bytes, (size_t)count + 1u) : NULL;
         whole = whole && (larger != NULL);
         bytes = (larger != NULL) ? larger : bytes;
-        for (unsigned long long at = 0ull; whole && (at < count); at += 1ull)
+        for (unsigned long long at = 0ULL; whole && (at < count); at += 1ULL)
         {
             // a lane of an unsigned byte represents that byte
             bytes[at] = (unsigned char)lanes[at];
         }
         whole = whole && (fwrite(bytes, 1u, (size_t)count, file) == (size_t)count);
-        total += whole ? count : 0ull;
+        total += whole ? count : 0ULL;
         free(lanes);
         if (!whole)
         {

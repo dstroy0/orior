@@ -69,7 +69,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\containers\\test_containers\\test_containers.c");
+  UnityBegin("utils/test/src/ui/cli/unit/containers/test_containers/test_containers.c");
   run_test(test_an_unknown_action_is_refused, "test_an_unknown_action_is_refused", 35);
 
   return UNITY_END();

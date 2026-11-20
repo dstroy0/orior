@@ -12,8 +12,8 @@
 static int krep_rows_viewed(const unsigned char *bytes, unsigned long long size, unsigned long long key, KrepFile *view)
 {
     const unsigned long long words = size / sizeof(unsigned long long);
-    unsigned long long at = 0ull;
-    int ok = ((size % sizeof(unsigned long long)) == 0ull);
+    unsigned long long at = 0ULL;
+    int ok = ((size % sizeof(unsigned long long)) == 0ULL);
     while (ok && ((at + KREP_ROW_OPENING) <= words))
     {
         unsigned long long opening[KREP_ROW_OPENING];
@@ -29,15 +29,15 @@ static int krep_rows_viewed(const unsigned char *bytes, unsigned long long size,
             ok = 0;
             break;
         }
-        unsigned long long number[3] = {0ull, 0ull, 0ull};
+        unsigned long long number[3] = {0ULL, 0ULL, 0ULL};
         memcpy(number, bytes + (at * sizeof(unsigned long long)), given * sizeof(unsigned long long));
         at += given;
         // a head's and a text's bytes, filled out to whole words, and a put's and a set's words
         const unsigned long long following = ((change == KREP_ROW_HEAD) || (change == KREP_ROW_TEXT))
-                                                 ? ((number[given - 1u] + 7ull) / 8ull)
+                                                 ? ((number[given - 1u] + 7ULL) / 8ULL)
                                              : (change == KREP_ROW_PUT) ? number[2]
                                              : (change == KREP_ROW_SET) ? number[1]
-                                                                        : 0ull;
+                                                                        : 0ULL;
         if (following > (words - at))
         {
             ok = 0;
@@ -52,11 +52,11 @@ static int krep_rows_viewed(const unsigned char *bytes, unsigned long long size,
         }
         // a place, a code and a count read here are each at max what an unsigned int represents, as bounded to it
         const int counted =
-            (number[0] <= 0xffffffffull) && (number[1] <= 0xffffffffull) && (number[2] <= 0xffffffffull);
+            (number[0] <= 0xffffffffULL) && (number[1] <= 0xffffffffULL) && (number[2] <= 0xffffffffULL);
         switch (change)
         {
         case KREP_ROW_TEXT:
-            ok = (number[0] == (view->texts + 1ull)) &&
+            ok = (number[0] == (view->texts + 1ULL)) &&
                  (krep_text_taken(view, (const char *)after, number[1]) == number[0]);
             break;
         case KREP_ROW_PUT:
@@ -87,9 +87,9 @@ int krep_viewed(const KrepFile *file, KrepFile *view)
 {
     krep_open(view, file->type);
     const size_t named = strlen(file->table);
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     const QryRecord *record = NULL;
-    int ok = (file->key != 0ull);
+    int ok = (file->key != 0ULL);
     while (ok && qry_member_read(&at, &record))
     {
         if ((record->name_length == named) && (memcmp(QRY_RECORD_NAME(record), file->table, named) == 0))
@@ -131,7 +131,7 @@ static int krep_head_of(const QryRecord *record, const char *table, const char *
     for (unsigned int at = 0u; sought && (at < 4u); at += 1u)
     {
         // the type's four bytes are the low first in its word
-        type[at] = (char)((opening[KREP_ROW_OPENING] >> (8u * at)) & 0xffull);
+        type[at] = (char)((opening[KREP_ROW_OPENING] >> (8u * at)) & 0xffULL);
     }
     type[4] = '\0';
     return sought;
@@ -148,29 +148,29 @@ static void krep_viewed_error(char *error, size_t room, const char *first, const
 
 int krep_viewed_at(const char *path, const char *table, const char *name, KrepFile *view, char *error, size_t room)
 {
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const unsigned char *const bytes = qry_member_file_mapped(path, &size);
     char type[5] = "";
-    unsigned long long key = 0ull;
-    unsigned long long at = 0ull;
+    unsigned long long key = 0ULL;
+    unsigned long long at = 0ULL;
     const QryRecord *record = NULL;
-    while ((bytes != NULL) && (key == 0ull) && qry_record_read(bytes, size, &at, &record))
+    while ((bytes != NULL) && (key == 0ULL) && qry_record_read(bytes, size, &at, &record))
     {
-        key = krep_head_of(record, table, name, type) ? record->time : 0ull;
+        key = krep_head_of(record, table, name, type) ? record->time : 0ULL;
     }
-    if (key == 0ull)
+    if (key == 0ULL)
     {
         krep_viewed_error(error, room, path, (bytes == NULL) ? "" : ": the table ",
                           (bytes == NULL) ? ": the run could not be read" : table);
     }
-    krep_open(view, (key != 0ull) ? type : "\0\0\0\0");
-    int ok = (key != 0ull);
-    at = 0ull;
+    krep_open(view, (key != 0ULL) ? type : "\0\0\0\0");
+    int ok = (key != 0ULL);
+    at = 0ULL;
     while (ok && qry_record_read(bytes, size, &at, &record))
     {
         ok = !krep_row_of(record, table) || krep_rows_viewed(QRY_RECORD_BLOB(record), record->blob_length, key, view);
     }
-    if ((key != 0ull) && !ok)
+    if ((key != 0ULL) && !ok)
     {
         krep_viewed_error(error, room, path, ": a row of ", table);
         krep_open(view, type);
@@ -190,9 +190,9 @@ unsigned long long krep_text_number(KrepFile *file, const char *bytes, unsigned 
 
 const char *krep_text(const KrepFile *file, unsigned long long number, unsigned long long *length)
 {
-    if ((number == 0ull) || (number > file->texts))
+    if ((number == 0ULL) || (number > file->texts))
     {
-        *length = 0ull;
+        *length = 0ULL;
         return NULL;
     }
     *length = file->text_length[number - 1u];

@@ -56,14 +56,14 @@
 #define OMEGA_COMPUTER_REWRITE_TOKENS 2048u
 
 // the lazy machine's beta steps a run when the request names none
-#define OMEGA_COMPUTER_STEPS_DEFAULT (1ull << 25u)
+#define OMEGA_COMPUTER_STEPS_DEFAULT (1ULL << 25u)
 
 // the lazy machine's beta steps a run for a program the rewriting proves never halts: by Church and Rosser it halts at
 // no depth, and the run only checks that it does not
-#define OMEGA_COMPUTER_NEVER_STEPS (1ull << 16u)
+#define OMEGA_COMPUTER_NEVER_STEPS (1ULL << 16u)
 
 // the lazy machine's cells a run: thunks, environment cells and spine cells together
-#define OMEGA_COMPUTER_CELLS_MAX (1ull << 27u)
+#define OMEGA_COMPUTER_CELLS_MAX (1ULL << 27u)
 
 // the max tokens a normal form is read back to
 #define OMEGA_COMPUTER_TOKENS_MAX 65536u

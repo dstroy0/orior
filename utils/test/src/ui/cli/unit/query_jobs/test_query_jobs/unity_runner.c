@@ -83,7 +83,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\query_jobs\\test_query_jobs\\test_query_jobs.c");
+  UnityBegin("utils/test/src/ui/cli/unit/query_jobs/test_query_jobs/test_query_jobs.c");
   run_test(test_every_command_of_the_query_is_a_protocol_job_run_by_orior, "test_every_command_of_the_query_is_a_protocol_job_run_by_orior", 93);
   run_test(test_the_course_is_titled_protocol, "test_the_course_is_titled_protocol", 107);
   run_test(test_the_course_starts_from_the_vendors_tables, "test_the_course_starts_from_the_vendors_tables", 112);

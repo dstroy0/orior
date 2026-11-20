@@ -5,7 +5,7 @@
 
 WHY THIS IS THE QUESTION AND NOT A DIFFERENT ONE
 
-Reading the FINAL state is reading the digest, because the digest is the feed-forward of all sixty
+Reading the FINAL state reads the digest, because the digest is the feed-forward of all sixty
 four rounds. That is trivially informative and completely useless: to have the final state you have
 already done the work. Nothing is saved.
 
@@ -30,7 +30,7 @@ THE NULL IS MATCHED AND DRAWN, NOT DERIVED
 The same features are correlated against a SHUFFLED pairing of nonce to digest, which destroys any
 real relationship while preserving every marginal distribution. The bar is then the largest
 correlation the shuffled data produces over the same number of features, because reporting the
-loudest of many against a single-feature threshold manufactures findings. This tree has made that
+loudest of many against a single-feature threshold manufactures findings. This tree made that
 mistake and the rule is written in anisotropy_detector.py.
 """
 

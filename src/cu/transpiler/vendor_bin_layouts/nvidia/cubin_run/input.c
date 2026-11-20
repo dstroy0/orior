@@ -26,10 +26,10 @@ QryShared *s_run = NULL;
 unsigned long long cubin_run_input(const char *name, unsigned char *bytes, unsigned long long room)
 {
     const unsigned char *blob = NULL;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     if (!qry_member_blob(name, &blob, &size, NULL) || (size >= room))
     {
-        return 0ull;
+        return 0ULL;
     }
     // the blob fits `bytes`, whose count a size_t represents
     memcpy(bytes, blob, (size_t)size);
@@ -41,9 +41,9 @@ unsigned long long cubin_run_input(const char *name, unsigned char *bytes, unsig
 unsigned long long cubin_run_query_key(const char *code_path)
 {
     const unsigned char *blob = NULL;
-    unsigned long long size = 0ull;
-    unsigned long long sequence = 0ull;
-    return qry_member_blob(code_path, &blob, &size, &sequence) ? sequence : 0ull;
+    unsigned long long size = 0ULL;
+    unsigned long long sequence = 0ULL;
+    return qry_member_blob(code_path, &blob, &size, &sequence) ? sequence : 0ULL;
 }
 
 // the gate's verdict on the query `query_key`, `verdict` and the byte `at` it blocked at, a row of the run's table of
@@ -52,14 +52,14 @@ void cubin_run_verdict_row(unsigned long long query_key, unsigned int verdict, u
 {
     const char *const reason = cubin_safe_name(verdict);
     const int gated = (verdict != CUBIN_SAFE);
-    unsigned long long row[2u + 6] = {0ull,
-                                      0ull,
+    unsigned long long row[2u + 6] = {0ULL,
+                                      0ULL,
                                       query_key,
                                       verdict,
-                                      gated ? 1ull : 0ull,
-                                      gated ? at : 0ull,
+                                      gated ? 1ULL : 0ULL,
+                                      gated ? at : 0ULL,
                                       table_text(reason, strlen(reason)),
-                                      dry ? 0ull : 1ull};
+                                      dry ? 0ULL : 1ULL};
     who_words(WHO_HERE, row);
     qry_member_append(CUBIN_RUN_VERDICTS, row, sizeof(row), QRY_ORDINARY);
 }
@@ -71,7 +71,7 @@ void cubin_run_launch_row(unsigned long long query_key, unsigned int outcome, un
                           const char *message)
 {
     unsigned long long row[2u + 7] = {
-        0ull, 0ull, query_key, outcome, launches, nanoseconds, least, max, table_text(message, strlen(message))};
+        0ULL, 0ULL, query_key, outcome, launches, nanoseconds, least, max, table_text(message, strlen(message))};
     who_words(WHO_HERE, row);
     qry_member_append(CUBIN_RUN_LAUNCHES, row, sizeof(row), QRY_ORDINARY);
 }
@@ -123,8 +123,8 @@ int cubin_run_cases(const char *name)
         unsigned int words[CUBIN_RUN_IN_WORDS] = {0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u};
         const char *at = line;
         unsigned int read = 0u;
-        unsigned long long word = 0ull;
-        while ((read < CUBIN_RUN_IN_WORDS) && line_number(&at, 1, &word) && (word <= 0xffffffffull))
+        unsigned long long word = 0ULL;
+        while ((read < CUBIN_RUN_IN_WORDS) && line_number(&at, 1, &word) && (word <= 0xffffffffULL))
         {
             // the test above bounds the word inside 32 bits
             words[read] = (unsigned int)word;
@@ -147,19 +147,19 @@ int cubin_run_cases(const char *name)
 }
 
 // the rooms the carrier's answer, its dry record and its call are gathered in, each at max what a record contains
-static char s_answer_bytes[QRY_WRITER_RING_BYTES / 2ull];
-static char s_dry_bytes[QRY_WRITER_RING_BYTES / 2ull];
-static char s_call_bytes[QRY_WRITER_RING_BYTES / 2ull];
-VerbaLinea s_answers_line = {s_answer_bytes, sizeof(s_answer_bytes), 0ull};
-VerbaLinea s_dry_line = {s_dry_bytes, sizeof(s_dry_bytes), 0ull};
-VerbaLinea s_call_line = {s_call_bytes, sizeof(s_call_bytes), 0ull};
+static char s_answer_bytes[QRY_WRITER_RING_BYTES / 2ULL];
+static char s_dry_bytes[QRY_WRITER_RING_BYTES / 2ULL];
+static char s_call_bytes[QRY_WRITER_RING_BYTES / 2ULL];
+VerbaLinea s_answers_line = {s_answer_bytes, sizeof(s_answer_bytes), 0ULL};
+VerbaLinea s_dry_line = {s_dry_bytes, sizeof(s_dry_bytes), 0ULL};
+VerbaLinea s_call_line = {s_call_bytes, sizeof(s_call_bytes), 0ULL};
 
 // What `line` contains given whole as `name`: passed to the run at `priority`, a blob of its own after any of
 // the name before it. `carried` where it was given, 2 where it was not, and what was written let go either way
 int cubin_run_member_written(VerbaLinea *line, const char *name, unsigned int priority, int carried)
 {
     const int given = mmgr_line_ok(line) && (qry_member_append(name, line->out, line->at, priority) != 0);
-    line->at = 0ull;
+    line->at = 0ULL;
     return given ? carried : 2;
 }
 

@@ -33,9 +33,9 @@ extern "C" unsigned long long tower_reserve_bytes(unsigned long long lanes)
 {
     // past 2^60 lanes the two int slices alone pass the plan's 2^62 bytes, which spoils it; errored here before the
     // product could wrap
-    if ((lanes == 0ull) || (lanes > (1ull << 60u)))
+    if ((lanes == 0ULL) || (lanes > (1ULL << 60u)))
     {
-        return 0ull;
+        return 0ULL;
     }
     DevicePoolTakeRequest takes[TOWER_SLICES];
     // a size_t represents 64 bits, which device_pool asserts. The lane count converts exactly
@@ -45,12 +45,12 @@ extern "C" unsigned long long tower_reserve_bytes(unsigned long long lanes)
 
 unsigned long long tower_lanes(const unsigned long long *extent)
 {
-    unsigned long long lanes = 1ull;
+    unsigned long long lanes = 1ULL;
     for (unsigned int axis = 0u; axis < 4u; axis += 1u)
     {
-        if ((extent[axis] == 0ull) || (lanes > (0xFFFFFFFFFFFFFFFFull / extent[axis])))
+        if ((extent[axis] == 0ULL) || (lanes > (0xFFFFFFFFFFFFFFFFULL / extent[axis])))
         {
-            return 0ull;
+            return 0ULL;
         }
         lanes *= extent[axis];
     }
@@ -68,14 +68,14 @@ static int tower_edge_check(const TowerEdge *edges, unsigned int edge_count, uns
         {
             return 0;
         }
-        const unsigned long long entries = 1ull << edge->index_bits;
+        const unsigned long long entries = 1ULL << edge->index_bits;
         unsigned char *const seen = (unsigned char *)calloc((size_t)entries, sizeof(unsigned char));
         if (!TOWER_CHECK(seen != NULL, edge, error, ENGINE_ERROR_RESOURCE))
         {
             return 0;
         }
         int permutation = 1;
-        for (unsigned long long index = 0ull; (permutation != 0) && (index < entries); index += 1ull)
+        for (unsigned long long index = 0ULL; (permutation != 0) && (index < entries); index += 1ULL)
         {
             const unsigned int value = edge->forward[index];
             if ((value >= entries) || (seen[value] != 0u))
@@ -118,7 +118,7 @@ static void tower_active_extent(const std::vector<TowerStep> &floors, const unsi
     {
         for (unsigned int axis = 0u; axis < 4u; axis += 1u)
         {
-            out[axis] = (floors.back().extent[axis] + 1ull) / 2ull;
+            out[axis] = (floors.back().extent[axis] + 1ULL) / 2ULL;
         }
     }
 }
@@ -130,13 +130,13 @@ static int tower_edge_run(const TowerEdge *edges, unsigned int edge_count, const
     TowerStep region;
     memset(&region, 0, sizeof(region));
     // the global strides are the full-extent strides, fixed constant across the in-place lifting levels
-    region.stride[3] = 1ull;
+    region.stride[3] = 1ULL;
     region.stride[2] = extent[3];
     region.stride[1] = extent[2] * extent[3];
     region.stride[0] = extent[1] * extent[2] * extent[3];
     unsigned long long active[4];
     tower_active_extent(floors, extent, floor_at, active);
-    region.count = 1ull;
+    region.count = 1ULL;
     for (unsigned int axis = 0u; axis < 4u; axis += 1u)
     {
         region.extent[axis] = active[axis];
@@ -152,7 +152,7 @@ static int tower_edge_run(const TowerEdge *edges, unsigned int edge_count, const
         {
             continue;
         }
-        const unsigned long long entries = 1ull << edge->index_bits;
+        const unsigned long long entries = 1ULL << edge->index_bits;
         if (tower_edge_reserve((unsigned int)entries, error) == 0)
         {
             return 0;
@@ -166,7 +166,7 @@ static int tower_edge_run(const TowerEdge *edges, unsigned int edge_count, const
             {
                 return 0;
             }
-            for (unsigned long long index = 0ull; index < entries; index += 1ull)
+            for (unsigned long long index = 0ULL; index < entries; index += 1ULL)
             {
                 inverted[edge->forward[index]] = (unsigned int)index;
             }
@@ -201,7 +201,7 @@ extern "C" long tower_lift(const TowerLiftRequest *request)
     }
     const unsigned long long lanes = tower_lanes(request->extent);
     TowerResident *const resident = &g_tower_resident;
-    if (!TOWER_CHECK(lanes != 0ull, request->extent, error, ENGINE_ERROR_REQUEST) ||
+    if (!TOWER_CHECK(lanes != 0ULL, request->extent, error, ENGINE_ERROR_REQUEST) ||
         (tower_reserve((size_t)lanes, error) == 0))
     {
         return TOWER_ERROR;
@@ -231,7 +231,7 @@ extern "C" long tower_lift(const TowerLiftRequest *request)
         for (unsigned int axis = 0u; (ok != 0) && (axis < 4u); axis += 1u)
         {
             TowerStep step = floors[level];
-            if (step.extent[axis] < 2ull)
+            if (step.extent[axis] < 2ULL)
             {
                 continue;
             }
@@ -272,7 +272,7 @@ extern "C" long tower_capacity(const unsigned long long extent[4], int **coeffic
         return TOWER_ERROR;
     }
     const unsigned long long lanes = tower_lanes(extent);
-    if (!TOWER_CHECK(lanes != 0ull, extent, error, ENGINE_ERROR_REQUEST) || (tower_reserve((size_t)lanes, error) == 0))
+    if (!TOWER_CHECK(lanes != 0ULL, extent, error, ENGINE_ERROR_REQUEST) || (tower_reserve((size_t)lanes, error) == 0))
     {
         return TOWER_ERROR;
     }
@@ -294,7 +294,7 @@ extern "C" long tower_lower(const TowerLowerRequest *request)
     }
     const unsigned long long lanes = tower_lanes(request->extent);
     TowerResident *const resident = &g_tower_resident;
-    if (!TOWER_CHECK((lanes != 0ull) && (lanes <= resident->lanes), request->extent, error, ENGINE_ERROR_REQUEST))
+    if (!TOWER_CHECK((lanes != 0ULL) && (lanes <= resident->lanes), request->extent, error, ENGINE_ERROR_REQUEST))
     {
         return TOWER_ERROR;
     }
@@ -311,7 +311,7 @@ extern "C" long tower_lower(const TowerLowerRequest *request)
         for (unsigned int axis = 4u; (ok != 0) && (axis > 0u); axis -= 1u)
         {
             TowerStep step = floors[level - 1u];
-            if (step.extent[axis - 1u] < 2ull)
+            if (step.extent[axis - 1u] < 2ULL)
             {
                 continue;
             }

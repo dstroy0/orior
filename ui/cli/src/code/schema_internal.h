@@ -130,7 +130,7 @@ extern const char *const g_cli_schema_bundled[5][2];
 #define CLI_SCHEMA_DOCUMENTS 32u
 #define CLI_SCHEMA_MISSING 64u
 #define CLI_SCHEMA_STORE_NODES_CAPACITY (1u << 18u)
-#define CLI_SCHEMA_STORE_TEXT_CAPACITY (16ull << 20u)
+#define CLI_SCHEMA_STORE_TEXT_CAPACITY (16ULL << 20u)
 #define CLI_SCHEMA_DEEPEST 64u
 
 // The schemas a check reaches, each by its URL or its path, read into one tree in a cell of its own, and those it could

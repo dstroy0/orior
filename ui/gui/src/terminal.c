@@ -42,7 +42,7 @@ typedef struct
     int solid;
     const char *token;
     unsigned long long length;
-    const char *word;
+    const char *expected;
     CliTerminalStyle *style_out;
 } TerminalCtx;
 
@@ -50,7 +50,7 @@ typedef struct
 // taking it off
 typedef struct
 {
-    const char *word;
+    const char *name;
     unsigned int mark;
 } TerminalMark;
 
@@ -205,7 +205,8 @@ EMBED_INLINE void terminal_cell(const TerminalCtx *args)
         place.x + EMBED_CALL(terminal_scaled, TerminalCtx, .frame = args->frame, .pixels = GUI_TERMINAL_PAD_SIDE);
     const int top =
         place.y + EMBED_CALL(terminal_scaled, TerminalCtx, .frame = args->frame, .pixels = GUI_TERMINAL_PAD_TOP);
-    const int down = (args->y > top) ? ((args->y - top) / ((row > 0) ? row : 1)) : 0;
+    const int row_height = (row > 0) ? row : 1;
+    const int down = (args->y > top) ? ((args->y - top) / row_height) : 0;
     const int across = (args->x > left) ? (((args->x - left) + (cell / 2)) / cell) : 0;
     // a pane's rows and columns are far inside what an int represents, and neither count is below one
     const int last_row = (displayed->rows > 0u) ? ((int)displayed->rows - 1) : 0;
@@ -493,12 +494,12 @@ EMBED_INLINE void terminal_cell_draw(const TerminalCtx *args)
     }
 }
 
-// whether the `length` bytes at `token` are the word `word` whole
+// whether the `length` bytes at `token` are the word `expected` whole
 EMBED_INLINE int terminal_word_is(const TerminalCtx *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = 32ULL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->expected, .cap = 32ULL});
     return (args->length == length) &&
-           (memor.cmp(&(MemoriaCfg){.src = args->token, .other = args->word, .bytes = length}) == 0);
+           (memor.cmp(&(MemoriaCfg){.src = args->token, .other = args->expected, .bytes = length}) == 0);
 }
 
 // the number the `size` bytes at `text` write, their first nine digits at max
@@ -538,12 +539,12 @@ EMBED_INLINE int terminal_token_read(const TerminalCtx *args)
     const char *const tail = args->token + head + 1u;
     const unsigned long long tail_length = args->length - head - 1u;
     CliTerminalStyle *const style = args->style_out;
-    if (EMBED_CALL(terminal_word_is, TerminalCtx, .token = tail, .length = tail_length, .word = "reset"))
+    if (EMBED_CALL(terminal_word_is, TerminalCtx, .token = tail, .length = tail_length, .expected = "reset"))
     {
         *style = (CliTerminalStyle){CLI_TERMINAL_COLOR_DEFAULT, CLI_TERMINAL_COLOR_DEFAULT, 0u};
         return 1;
     }
-    if (EMBED_CALL(terminal_word_is, TerminalCtx, .token = tail, .length = tail_length, .word = "normal"))
+    if (EMBED_CALL(terminal_word_is, TerminalCtx, .token = tail, .length = tail_length, .expected = "normal"))
     {
         style->marks &= ~(CLI_TERMINAL_BOLD | CLI_TERMINAL_DIM);
         return 1;
@@ -551,16 +552,16 @@ EMBED_INLINE int terminal_token_read(const TerminalCtx *args)
     for (unsigned int at = 0u; at < (sizeof(s_terminal_marks) / sizeof(s_terminal_marks[0])); at += 1u)
     {
         const TerminalMark *const one = &s_terminal_marks[at];
-        const unsigned long long word_length = cellul.len(&(CatenaFinitaCfg){.src = one->word, .cap = 32ULL});
+        const unsigned long long word_length = cellul.len(&(CatenaFinitaCfg){.src = one->name, .cap = 32ULL});
         const int matched = (tail_length >= word_length) &&
-                            (memor.cmp(&(MemoriaCfg){.src = tail, .other = one->word, .bytes = word_length}) == 0);
+                            (memor.cmp(&(MemoriaCfg){.src = tail, .other = one->name, .bytes = word_length}) == 0);
         if (matched && (tail_length == word_length))
         {
             style->marks |= one->mark;
             return 1;
         }
         if (matched && EMBED_CALL(terminal_word_is, TerminalCtx, .token = tail + word_length,
-                                  .length = tail_length - word_length, .word = s_off))
+                                  .length = tail_length - word_length, .expected = s_off))
         {
             style->marks &= ~one->mark;
             return 1;
@@ -587,25 +588,25 @@ EMBED_INLINE int terminal_token_read(const TerminalCtx *args)
     {
         *color = CLI_TERMINAL_COLOR_INDEXED | sixteen;
     }
-    else if (EMBED_CALL(terminal_word_is, TerminalCtx, .token = part, .length = part_length, .word = "default"))
+    else if (EMBED_CALL(terminal_word_is, TerminalCtx, .token = part, .length = part_length, .expected = "default"))
     {
         *color = CLI_TERMINAL_COLOR_DEFAULT;
     }
-    else if (EMBED_CALL(terminal_word_is, TerminalCtx, .token = part, .length = part_length, .word = "index"))
+    else if (EMBED_CALL(terminal_word_is, TerminalCtx, .token = part, .length = part_length, .expected = "index"))
     {
         *color = CLI_TERMINAL_COLOR_INDEXED | (number & 0xffu);
     }
-    else if (EMBED_CALL(terminal_word_is, TerminalCtx, .token = part, .length = part_length, .word = "direct"))
+    else if (EMBED_CALL(terminal_word_is, TerminalCtx, .token = part, .length = part_length, .expected = "direct"))
     {
         *color = CLI_TERMINAL_COLOR_DIRECT;
     }
     else
     {
-        const int red = EMBED_CALL(terminal_word_is, TerminalCtx, .token = part, .length = part_length, .word = "red");
+        const int red = EMBED_CALL(terminal_word_is, TerminalCtx, .token = part, .length = part_length, .expected = "red");
         const int green =
-            EMBED_CALL(terminal_word_is, TerminalCtx, .token = part, .length = part_length, .word = "green");
+            EMBED_CALL(terminal_word_is, TerminalCtx, .token = part, .length = part_length, .expected = "green");
         const int blue =
-            EMBED_CALL(terminal_word_is, TerminalCtx, .token = part, .length = part_length, .word = "blue");
+            EMBED_CALL(terminal_word_is, TerminalCtx, .token = part, .length = part_length, .expected = "blue");
         const unsigned int shift = red ? 16u : (green ? 8u : 0u);
         const unsigned int parts = ((*color & CLI_TERMINAL_COLOR_TYPE) == CLI_TERMINAL_COLOR_DIRECT) ? *color : 0u;
         *color = (red || green || blue) ? (CLI_TERMINAL_COLOR_DIRECT | (parts & 0x00ffffffu & ~(0xffu << shift)) |

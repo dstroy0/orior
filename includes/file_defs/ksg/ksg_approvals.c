@@ -43,7 +43,7 @@ static void ksg_word_put(unsigned long long value, unsigned char *out)
 
 static unsigned long long ksg_word_got(const unsigned char *bytes)
 {
-    unsigned long long word = 0ull;
+    unsigned long long word = 0ULL;
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
         word |= (unsigned long long)bytes[at] << (8u * at);
@@ -70,7 +70,7 @@ static int ksg_random(unsigned char *bytes, unsigned long long size)
     {
         return 0;
     }
-    unsigned long long got = 0ull;
+    unsigned long long got = 0ULL;
     while (got < size)
     {
         const ssize_t read_now = read(source, bytes + got, (size_t)(size - got));
@@ -206,7 +206,7 @@ int ksg_public_read(const char *public_path, KsaApproval *key)
 static int ksg_list_read(const char *path)
 {
     static char s_listed[KSG_PATH_MAX_LEN];
-    s_list.count = 0ull;
+    s_list.count = 0ULL;
     FILE *const file = ksg_path_with(path, KSA_SUFFIX, s_listed) ? fopen(s_listed, "rb") : NULL;
     if (file == NULL)
     {
@@ -218,16 +218,16 @@ static int ksg_list_read(const char *path)
     ksg_head_of(KSA_KIND, head);
     int whole = (fread(stored_head, 1u, sizeof(stored_head), file) == sizeof(stored_head)) &&
                 (memcmp(stored_head, head, sizeof(head)) == 0) && (fread(word, 1u, sizeof(word), file) == sizeof(word));
-    const unsigned long long count = whole ? ksg_word_got(word) : 0ull;
+    const unsigned long long count = whole ? ksg_word_got(word) : 0ULL;
     whole = whole && (count <= KSA_APPROVALS_MAX);
-    for (unsigned long long at = 0ull; whole && (at < count); at += 1ull)
+    for (unsigned long long at = 0ULL; whole && (at < count); at += 1ULL)
     {
         KsaApproval *const approval = &s_list.approval[at];
         unsigned char sizes[16];
         whole = (fread(approval->tag, 1u, KSA_TAG_BYTES, file) == KSA_TAG_BYTES) &&
                 (fread(sizes, 1u, sizeof(sizes), file) == sizeof(sizes));
-        const unsigned long long key_bytes = whole ? ksg_word_got(sizes) : 0ull;
-        const unsigned long long signature_bytes = whole ? ksg_word_got(sizes + 8u) : 0ull;
+        const unsigned long long key_bytes = whole ? ksg_word_got(sizes) : 0ULL;
+        const unsigned long long signature_bytes = whole ? ksg_word_got(sizes + 8u) : 0ULL;
         whole = whole && (key_bytes <= KSA_KEY_MAX) && (signature_bytes <= KSA_SIGNATURE_MAX) &&
                 (fread(approval->key, 1u, (size_t)key_bytes, file) == key_bytes) &&
                 (fread(approval->signature, 1u, (size_t)signature_bytes, file) == signature_bytes);
@@ -236,7 +236,7 @@ static int ksg_list_read(const char *path)
         approval->signature_bytes = (unsigned int)signature_bytes;
     }
     (void)fclose(file);
-    s_list.count = whole ? count : 0ull;
+    s_list.count = whole ? count : 0ULL;
     return whole;
 }
 
@@ -250,12 +250,12 @@ static int ksg_list_written(const char *path)
     {
         return 0;
     }
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     ksg_head_of(KSA_KIND, s_bytes);
     at += KREP_HEAD_BYTES;
     ksg_word_put(s_list.count, s_bytes + at);
     at += 8u;
-    for (unsigned long long one = 0ull; one < s_list.count; one += 1ull)
+    for (unsigned long long one = 0ULL; one < s_list.count; one += 1ULL)
     {
         const KsaApproval *const approval = &s_list.approval[one];
         memcpy(s_bytes + at, approval->tag, KSA_TAG_BYTES);
@@ -297,10 +297,10 @@ int ksg_approval_added(const char *secret_path, const char *path, const unsigned
         ksg_print(": the list of approvals beside it is not whole\n");
         return 0;
     }
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while ((at < s_list.count) && !ksg_same_key(&s_list.approval[at], &approval))
     {
-        at += 1ull;
+        at += 1ULL;
     }
     if (at == KSA_APPROVALS_MAX)
     {
@@ -311,7 +311,7 @@ int ksg_approval_added(const char *secret_path, const char *path, const unsigned
         return 0;
     }
     s_list.approval[at] = approval;
-    s_list.count += (at == s_list.count) ? 1ull : 0ull;
+    s_list.count += (at == s_list.count) ? 1ULL : 0ULL;
     if (!ksg_list_written(path))
     {
         ksg_print(path);
@@ -336,7 +336,7 @@ int ksg_approvals_checked(const char *path, const unsigned char *trailer, const 
         return 0;
     }
     int whole = 1;
-    for (unsigned long long at = 0ull; at < s_list.count; at += 1ull)
+    for (unsigned long long at = 0ULL; at < s_list.count; at += 1ULL)
     {
         const KsaApproval *const approval = &s_list.approval[at];
         const KsaScheme *const scheme = ksa_scheme_tagged(approval->tag);
@@ -351,10 +351,10 @@ int ksg_approvals_checked(const char *path, const unsigned char *trailer, const 
     }
     for (unsigned int one = 0u; one < count; one += 1u)
     {
-        unsigned long long at = 0ull;
+        unsigned long long at = 0ULL;
         while ((at < s_list.count) && !(s_verified[at] && ksg_same_key(&s_list.approval[at], &required[one])))
         {
-            at += 1ull;
+            at += 1ULL;
         }
         if (at == s_list.count)
         {
@@ -365,7 +365,7 @@ int ksg_approvals_checked(const char *path, const unsigned char *trailer, const 
             ksg_print_flush();
         }
     }
-    if (s_list.count == 0ull)
+    if (s_list.count == 0ULL)
     {
         ksg_print("  no approvals\n");
     }

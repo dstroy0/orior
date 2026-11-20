@@ -76,7 +76,7 @@ def _repository_root():
     A marker the repository produces, such as build/, is absent from a linked worktree and a
     never-built clone, and a climb to it can pass this root and land in another checkout whose paths
     look valid. A marker infers the root. Git answers it. The climb below serves only an exported tree
-    with no git directory, and it looks for archive/src/python, which the repository tracks and every checkout
+    with no git directory. It looks for archive/src/python, which the repository tracks and every checkout
     of it holds.
 
     Git's own variables are cleared first. Inside a hook GIT_DIR is exported, and a rev-parse that
@@ -297,7 +297,7 @@ def corpus_at(readers):
     """How large the pure corpus was as each paper joined it, in adjacent byte pairs.
 
     EVERY is in the order the papers were read. Accumulating along it is the history itself and
-    not a reconstruction of one. A reader point sits at the size the corpus had reached when that
+    not a reconstruction of one. A reader point sits at the size the corpus reached when that
     paper was added, and that puts it on the same axis as the algorithm curve beside it.
     """
     sizes = {}
@@ -661,7 +661,7 @@ def covered():
 
 
 def settled(papers, carried):
-    """The joint bound recomputed as each paper joined the corpus, and how much of it has settled.
+    """The joint bound recomputed as each paper joined the corpus, and how much of it settled.
 
     A number is worth reporting to the digit that has stopped moving and no further. The way to find
     that digit is not to pick a format, it is to watch the number as the evidence arrives and see

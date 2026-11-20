@@ -78,7 +78,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\net\\test_net\\test_net.c");
+  UnityBegin("utils/test/src/ui/cli/unit/net/test_net/test_net.c");
   run_test(test_host_of_a_url_drops_scheme_port_path_and_query, "test_host_of_a_url_drops_scheme_port_path_and_query", 25);
   run_test(test_host_of_a_scp_style_ssh_address, "test_host_of_a_scp_style_ssh_address", 30);
   run_test(test_host_of_an_ssh_url_drops_the_user_and_port, "test_host_of_an_ssh_url_drops_the_user_and_port", 35);

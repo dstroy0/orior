@@ -240,7 +240,7 @@ def twist_profile(machine):
         the RESPONSE is the change in total entanglement under that twist
 
     A vertex whose complementation barely moves the total is RIGID: the graph resists being twisted
-    there. One that swings it is FREE. That distribution is the profile, and it is a property of the
+    there. One that swings it is FREE. That distribution is the profile. It is a property of the
     shape and not of any choice made here, because every vertex is twisted and none is picked.
 
     Returns two lists of signed changes, one per vertex: the change in entanglement and the change

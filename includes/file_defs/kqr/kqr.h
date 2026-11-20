@@ -8,7 +8,7 @@
 // A query is stored by its identity, seven numbers: the hash of its code, the registers, threads, blocks and launches
 // it is put with, its count of cases and the hash of its cases. What came back is one of five codes, KQR_ANSWERS with
 // the word of every case, and the others with the refusal, the one text a query retains. A query that timed out is
-// queried again until an answer resolves it, and the answer takes its place; so does a query the gate censored, where
+// queried again until an answer resolves it, and the answer takes its place. So does a query the gate censored, where
 // the gate admits it later, since the part never saw it. A timed query is put every time and stored as a sample of its
 // own.
 //
@@ -70,7 +70,7 @@ typedef struct
     unsigned long long cases_hash;
 } KqrIdentity;
 
-// one untimed query and what came back: its identity; its answer, one of the five codes; and the word of every case
+// one untimed query and what came back: its identity; its answer, one of the five codes. And the word of every case
 // where it answered, or the refusal where it did not
 typedef struct
 {

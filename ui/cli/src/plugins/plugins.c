@@ -133,7 +133,7 @@ EMBED_INLINE void cli_each_lock(const PluginsCtx *args)
         // a plugin's bytes are its JSON's text
         const CliPlugin plugin = {user.name[at], "user", folder, (const char *)bytes, size};
         EMBED_CALL(args->each, CliEachPluginCfg, .context = args->context, .plugin = &plugin);
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_plugins_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_plugins_owner);
     }
     g_cli_guard->persistent_buf_release(user.name, g_cli_plugins_owner);
 }

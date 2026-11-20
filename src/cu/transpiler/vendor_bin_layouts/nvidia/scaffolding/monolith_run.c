@@ -82,7 +82,7 @@ static unsigned int monolith_expected(unsigned int precept, unsigned int left, u
 static unsigned int monolith_chain(unsigned int precept, unsigned int word, unsigned int right, unsigned long long steps)
 {
     unsigned int current = word;
-    for (unsigned long long step = 0ull; step < steps; step += 1ull)
+    for (unsigned long long step = 0ULL; step < steps; step += 1ULL)
     {
         current = precept_applied((unsigned char)precept, current, right);
     }
@@ -105,8 +105,8 @@ static int monolith_answers(CUfunction entry, CUdeviceptr in, CUdeviceptr out, u
         {0xdeadbeefu, 33u}, {0x80000000u, 4u}, {0x7fffffffu, 1u}, {0xffffffffu, 0x12345678u},
     };
     const unsigned int case_count = (unsigned int)(sizeof(cases) / sizeof(cases[0]));
-    unsigned long long least = ~0ull;
-    unsigned long long max = 0ull;
+    unsigned long long least = ~0ULL;
+    unsigned long long max = 0ULL;
     for (unsigned int at = 0u; at < case_count; at += 1u)
     {
         const unsigned int given[MONOLITH_IN_WORDS] = {cases[at][0], cases[at][1], 0u};
@@ -157,7 +157,7 @@ static int monolith_costs(CUfunction entry, unsigned int turns, unsigned int cos
     static unsigned long long s_max[MONOLITH_SECTIONS];
     for (unsigned int section = 0u; section < MONOLITH_SECTIONS; section += 1u)
     {
-        s_least[section] = ~0ull;
+        s_least[section] = ~0ULL;
     }
     unsigned int last[MONOLITH_SECTIONS] = {0u};
     unsigned int left = MONOLITH_COST_LEFT;
@@ -165,7 +165,7 @@ static int monolith_costs(CUfunction entry, unsigned int turns, unsigned int cos
     unsigned int flag = 1u;
     for (unsigned int run = 0u; run < cost_runs; run += 1u)
     {
-        unsigned long long counted[MONOLITH_SECTIONS] = {0ull};
+        unsigned long long counted[MONOLITH_SECTIONS] = {0ULL};
         void *arguments[6] = {&left, &right, &turns, &flag, &cycles, &sink};
         const int ran = (cuLaunchKernel(entry, 1u, 1u, 1u, 1u, 1u, 1u, 0u, NULL, arguments, NULL) == CUDA_SUCCESS) &&
                         (cuCtxSynchronize() == CUDA_SUCCESS) &&

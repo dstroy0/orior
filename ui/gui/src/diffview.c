@@ -367,7 +367,8 @@ EMBED_INLINE void diffview_scrolled(const DiffviewCtx *args)
     // the scroll and the rows are far fewer than an int counts
     const long long required = (long long)work->work->scroll + (long long)args->rows;
     // the clamped scroll lies between 0 and `max`, inside an unsigned int
-    work->work->scroll = (required < 0LL) ? 0u : ((required > (long long)max) ? max : (unsigned int)required);
+    const unsigned int below_max = (required > (long long)max) ? max : (unsigned int)required;
+    work->work->scroll = (required < 0LL) ? 0u : below_max;
     if (args->on)
     {
         (void)EMBED_CALL(cli_diff_view_at_row_length.step, CliDiffViewAtRowLengthCfg, .direction = 0,
@@ -443,7 +444,7 @@ static unsigned int diffview_key(const GuiWorkCfg *args)
     static const char *const s_edits[5] = {"Backspace", "Delete", "Enter", "Tab", "Shift+Tab"};
     const int displayed = (int)EMBED_CALL(diffview_displayed, DiffviewCtx, .work = args);
     // the rows are far fewer than an int counts
-    const int turns[6] = {-1, 1, -displayed, displayed, -(int)0x3fffffff, (int)0x3fffffff};
+    const int turns[6] = {-1, 1, -displayed, displayed, -0x3fffffff, 0x3fffffff};
     if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "F7", .cap = 16ULL}) ||
         cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "Shift+F7", .cap = 16ULL}))
     {

@@ -18,14 +18,14 @@ static int khw_form_line_read(const char *text, char *operation, size_t operatio
 int khw_form_listed(const unsigned char *bytes, unsigned long long size, unsigned long long low,
                     unsigned long long high)
 {
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     char line[512];
     while (line_read(bytes, size, &at, line, sizeof(line)))
     {
         char operation[64];
         char types[256];
-        unsigned long long listed_low = 0ull;
-        unsigned long long listed_high = 0ull;
+        unsigned long long listed_low = 0ULL;
+        unsigned long long listed_high = 0ULL;
         if ((strncmp(line, "form ", 5u) == 0) &&
             khw_form_line_read(line + 5, operation, sizeof(operation), types, sizeof(types), &listed_low,
                                &listed_high) &&
@@ -54,14 +54,14 @@ int khw_vendor_run(const char *mode, const char *answers)
 unsigned int khw_forms_read(const char *name)
 {
     const unsigned char *bytes = NULL;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     if (!qry_member_blob(name, &bytes, &size, NULL))
     {
         return 0u;
     }
     char line[2048];
     unsigned int read = 0u;
-    unsigned long long next = 0ull;
+    unsigned long long next = 0ULL;
     while ((read < KHW_FORMS) && line_read(bytes, size, &next, line, sizeof(line)))
     {
         if ((line[0] == '#') || (line[0] == '\n') || (line[0] == '\0'))
@@ -98,7 +98,7 @@ unsigned int khw_forms_read(const char *name)
         if (strncmp(relation, FRAME_READS, frame_prefix) == 0)
         {
             char *const dot = strchr(relation + frame_prefix, '.');
-            answered.reading = (dot != NULL) ? strtoull(dot + 1, NULL, 16) : 0ull;
+            answered.reading = (dot != NULL) ? strtoull(dot + 1, NULL, 16) : 0ULL;
             if (dot != NULL)
             {
                 *dot = '\0';

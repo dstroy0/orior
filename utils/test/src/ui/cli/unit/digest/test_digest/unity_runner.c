@@ -85,7 +85,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\digest\\test_digest\\test_digest.c");
+  UnityBegin("utils/test/src/ui/cli/unit/digest/test_digest/test_digest.c");
   run_test(test_sha1_of_the_empty_string, "test_sha1_of_the_empty_string", 60);
   run_test(test_sha1_of_abc, "test_sha1_of_abc", 65);
   run_test(test_sha1_of_two_blocks, "test_sha1_of_two_blocks", 70);

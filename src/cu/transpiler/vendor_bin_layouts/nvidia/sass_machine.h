@@ -115,7 +115,7 @@ typedef struct
     char text[SASS_MACHINE_TEXT];
 } SassForm;
 
-// the max operations the part has answered a soonest read for
+// the max operations the part answered a soonest read for
 #define SASS_MACHINE_SOONEST 256u
 
 // one operation's soonest read as the part answered it: the fewest cycles between it and an instruction that reads
@@ -180,7 +180,7 @@ unsigned long long sass_exit_encoding(const SassMachine *machine);
 #define SASS_STALL_MAX_LEN 15u
 #define SASS_WAIT_EVERY 0x3fu
 // the bits of the low word that name an operation and its operands' types, its operation key
-#define SASS_OPERATION_MASK 0xfffull
+#define SASS_OPERATION_MASK 0xfffULL
 
 // 1 where `operation` transfers control or waits, which run on the part can loop or stall it: a branch, a call, a
 // return, a barrier, a sleep and a trap. A straight instruction falls through to the next and cannot loop by itself
@@ -212,7 +212,7 @@ int sass_barrier_set(unsigned long long high, unsigned int first);
 unsigned int sass_operation_schedule(const SassMachine *machine, const char *operation, unsigned int *soonest);
 
 // an instruction stored in `machine` as a form where it contains none of that form yet, `low` and `high` its encoding
-// and `text` the instruction it was seen as; the form it was stored as, or the one already there, through `taken`,
+// and `text` the instruction it was seen as. The form it was stored as, or the one already there, through `taken`,
 // whose runs the caller fills. 1, or 0 where the machine is full, counted in machine->refused
 int sass_machine_take(SassMachine *machine, const char *text, unsigned long long low, unsigned long long high,
                       SassForm **taken);

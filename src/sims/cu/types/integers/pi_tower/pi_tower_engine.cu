@@ -13,15 +13,15 @@ void pi_tower_engine(SimResults *results, int count, char **arguments, const PiT
     unsigned int window = 0u;
     const PiWide tower_position = pi_tower_depth_position(pi_tower_unsigned(depth), &window);
     std::vector<PiTowerBbp> plans(PI_TOWER_PUBLISHED_COUNT + 1u);
-    int planned = lanes != 0ull;
-    unsigned long long declared = 0ull;
+    int planned = lanes != 0ULL;
+    unsigned long long declared = 0ULL;
     for (size_t at = 0u; (planned != 0) && (at < plans.size()); at += 1u)
     {
         const PiWide position = (at < PI_TOWER_PUBLISHED_COUNT)
-                                    ? pi_tower_unsigned(s_pi_tower_published[at].position - 1ull)
+                                    ? pi_tower_unsigned(s_pi_tower_published[at].position - 1ULL)
                                     : tower_position;
         planned = pi_tower_bbp_plan(&plans[at], position, lanes, &error);
-        const unsigned long long bytes = (planned != 0) ? pi_tower_bbp_bytes(&plans[at]) : 0ull;
+        const unsigned long long bytes = (planned != 0) ? pi_tower_bbp_bytes(&plans[at]) : 0ULL;
         declared = (bytes > declared) ? bytes : declared;
     }
     sim_check(results, planned, "engine: keymath encodes and the scheduler arranges the term, tail and pair programs");
@@ -58,7 +58,7 @@ void pi_tower_engine(SimResults *results, int count, char **arguments, const PiT
     const int ran = pi_tower_bbp_sum(results, tower, 0, &run);
     const unsigned int certified = (ran != 0) ? pi_tower_bbp_certified(tower, run.sum) : 0u;
     pi_tower_bbp_print(results, tower, &run, certified);
-    const unsigned long long engine_cell = (ran != 0) ? pi_tower_bbp_cell(tower, run.sum, window) : 0ull;
+    const unsigned long long engine_cell = (ran != 0) ? pi_tower_bbp_cell(tower, run.sum, window) : 0ULL;
     const unsigned long long exact_cell =
         pi_tower_word(pi_tower_quotient(turn.multiplier, pi_tower_power_two(turn.precision - depth)));
     mmgr_line_put(&results->line, "    the cell at 2^");
@@ -83,17 +83,17 @@ void pi_tower_deep(SimResults *results, int count, char **arguments, const PiWid
 {
     EngineError error;
     memset(&error, 0, sizeof(error));
-    const PiWide word = pi_tower_unsigned(64ull);
+    const PiWide word = pi_tower_unsigned(64ULL);
     const PiWide precision = pi_tower_product(
-        pi_tower_quotient(pi_tower_sum(pi_tower_sum(pi_tower_product(depth, pi_tower_unsigned(3ull)), word),
-                                       pi_tower_unsigned(63ull)),
+        pi_tower_quotient(pi_tower_sum(pi_tower_sum(pi_tower_product(depth, pi_tower_unsigned(3ULL)), word),
+                                       pi_tower_unsigned(63ULL)),
                           word),
         word);
     const PiWide needed = pi_tower_sum(
-        pi_tower_product(pi_tower_sum(precision, pi_tower_unsigned(PI_TOWER_GUARD)), pi_tower_unsigned(3ull)), word);
+        pi_tower_product(pi_tower_sum(precision, pi_tower_unsigned(PI_TOWER_GUARD)), pi_tower_unsigned(3ULL)), word);
     // the exact width a host turn would need, as a power of two of limbs
     unsigned int width = 0u;
-    while (pi_tower_compare(pi_tower_product(pi_tower_power_two(width), pi_tower_unsigned(32ull)), needed) < 0)
+    while (pi_tower_compare(pi_tower_product(pi_tower_power_two(width), pi_tower_unsigned(32ULL)), needed) < 0)
     {
         width += 1u;
     }
@@ -111,7 +111,7 @@ void pi_tower_deep(SimResults *results, int count, char **arguments, const PiWid
     const PiWide position = pi_tower_depth_position(depth, &window);
     PiTowerBbp bbp;
     const unsigned long long lanes = pi_tower_bbp_lanes();
-    const int planned = (lanes != 0ull) && pi_tower_bbp_plan(&bbp, position, lanes, &error);
+    const int planned = (lanes != 0ULL) && pi_tower_bbp_plan(&bbp, position, lanes, &error);
     sim_check(results, planned, "engine: keymath encodes and the scheduler arranges the term, tail and pair programs");
     if (planned == 0)
     {
@@ -155,8 +155,8 @@ void pi_tower_deep(SimResults *results, int count, char **arguments, const PiWid
 // a whole number of decimal digits, from the text up to the first character that is not one; 0 where there are none
 static int pi_tower_digits(const char **text, PiWide *value)
 {
-    const PiWide ten = pi_tower_unsigned(10ull);
-    *value = pi_tower_unsigned(0ull);
+    const PiWide ten = pi_tower_unsigned(10ULL);
+    *value = pi_tower_unsigned(0ULL);
     const char *walk = *text;
     while ((*walk >= '0') && (*walk <= '9'))
     {
@@ -195,7 +195,7 @@ int pi_tower_request(const char *text, PiWide *value)
             return 0;
         }
         // base^exponent by squaring, over the exponent's bits from the top
-        *value = pi_tower_unsigned(1ull);
+        *value = pi_tower_unsigned(1ULL);
         for (unsigned int bit = pi_tower_bit_length(exponent); (bit > 0u) && (g_pi_tower_error == 0); bit -= 1u)
         {
             *value = pi_tower_product(*value, *value);

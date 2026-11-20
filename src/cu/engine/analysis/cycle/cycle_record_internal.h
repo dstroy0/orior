@@ -26,9 +26,9 @@ template <unsigned int WIDE, unsigned int DIVIDES> __global__ static void cycle_
         {
             const unsigned long long body = (launch.index != NULL)
                                                 ? (unsigned long long)launch.index[(lane * launch.members) + member]
-                                                : ((launch.bodies[member] == 1ull) ? 0ull : lane);
+                                                : ((launch.bodies[member] == 1ULL) ? 0ULL : lane);
             ok = ok && (body < launch.bodies[member]);
-            atom[member] = &launch.in[member][((ok != 0) ? body : 0ull) * launch.in_limbs[member]];
+            atom[member] = &launch.in[member][((ok != 0) ? body : 0ULL) * launch.in_limbs[member]];
         }
         unsigned int *const record = &launch.out[lane * launch.out_limbs];
         for (unsigned int limb = 0u; limb < launch.out_limbs; limb += 1u)
@@ -71,10 +71,10 @@ template <unsigned int WIDE, unsigned int DIVIDES> __global__ static void cycle_
             {
                 for (unsigned int limb = 0u; limb < step.limbs; limb += 1u)
                 {
-                    value[limb] = (limb == 0u) ? (unsigned int)(lane & 0xFFFFFFFFull)
+                    value[limb] = (limb == 0u) ? (unsigned int)(lane & 0xFFFFFFFFULL)
                                                : ((limb == 1u) ? (unsigned int)(lane >> 32u) : 0u);
                 }
-                *sign_out = (lane == 0ull) ? 0 : 1;
+                *sign_out = (lane == 0ULL) ? 0 : 1;
             }
             else
             {

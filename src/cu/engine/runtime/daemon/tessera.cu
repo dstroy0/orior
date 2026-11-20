@@ -24,7 +24,7 @@ __global__ void tessera_device_run(TesseraLedger *ledger, const TesseraCall *cal
         {
             break;
         }
-        at += 1ull;
+        at += 1ULL;
     }
     *stopped = at;
 }
@@ -38,17 +38,17 @@ static int tessera_device_grow(void **items, unsigned long long *capacity, unsig
     {
         return 1;
     }
-    unsigned long long grown_capacity = (*capacity == 0ull) ? 1ull : *capacity;
+    unsigned long long grown_capacity = (*capacity == 0ULL) ? 1ULL : *capacity;
     while (grown_capacity < wanted)
     {
-        grown_capacity *= 2ull;
+        grown_capacity *= 2ULL;
     }
     void *grown = NULL;
     if (cudaMalloc(&grown, (size_t)grown_capacity * size) != cudaSuccess)
     {
         return 0;
     }
-    if ((count != 0ull) && (cudaMemcpy(grown, *items, (size_t)count * size, cudaMemcpyDeviceToDevice) != cudaSuccess))
+    if ((count != 0ULL) && (cudaMemcpy(grown, *items, (size_t)count * size, cudaMemcpyDeviceToDevice) != cudaSuccess))
     {
         cudaFree(grown);
         return 0;
@@ -75,14 +75,14 @@ int tessera_device_open(TesseraDevice *device, unsigned long long capacity)
 {
     memset(device, 0, sizeof(*device));
     TesseraLedger *const host_ledger = &device->host_ledger;
-    host_ledger->next_identity = 1ull;
-    const unsigned long long first_capacity = (capacity == 0ull) ? 1ull : capacity;
+    host_ledger->next_identity = 1ULL;
+    const unsigned long long first_capacity = (capacity == 0ULL) ? 1ULL : capacity;
     const int ok =
-        tessera_device_grow((void **)&host_ledger->jobs, &host_ledger->job_capacity, 0ull, first_capacity,
+        tessera_device_grow((void **)&host_ledger->jobs, &host_ledger->job_capacity, 0ULL, first_capacity,
                             sizeof(TesseraJob)) &&
-        tessera_device_grow((void **)&host_ledger->history, &host_ledger->history_capacity, 0ull, first_capacity,
+        tessera_device_grow((void **)&host_ledger->history, &host_ledger->history_capacity, 0ULL, first_capacity,
                             sizeof(TesseraHistory)) &&
-        tessera_device_grow((void **)&host_ledger->heap, &host_ledger->heap_capacity, 0ull, first_capacity,
+        tessera_device_grow((void **)&host_ledger->heap, &host_ledger->heap_capacity, 0ULL, first_capacity,
                             sizeof(TesseraDeadline)) &&
         (cudaMalloc((void **)&device->ledger, sizeof(TesseraLedger)) == cudaSuccess) &&
         (cudaMemcpy(device->ledger, host_ledger, sizeof(TesseraLedger), cudaMemcpyHostToDevice) == cudaSuccess);
@@ -105,7 +105,7 @@ void tessera_device_close(TesseraDevice *device)
 int tessera_device_calls(TesseraDevice *device, const TesseraCall *calls, unsigned long long count,
                          TesseraAnswer *answers)
 {
-    if (count == 0ull)
+    if (count == 0ULL)
     {
         return 1;
     }
@@ -117,7 +117,7 @@ int tessera_device_calls(TesseraDevice *device, const TesseraCall *calls, unsign
         (cudaMalloc((void **)&device_answers, (size_t)count * sizeof(TesseraAnswer)) == cudaSuccess) &&
         (cudaMalloc((void **)&stopped, sizeof(unsigned long long)) == cudaSuccess) &&
         (cudaMemcpy(device_calls, calls, (size_t)count * sizeof(TesseraCall), cudaMemcpyHostToDevice) == cudaSuccess);
-    unsigned long long first = 0ull;
+    unsigned long long first = 0ULL;
     while (ok && (first < count))
     {
         tessera_device_run<<<1, 1>>>(device->ledger, device_calls, first, count, device_answers, stopped);
@@ -154,9 +154,9 @@ int tessera_device_read(const TesseraDevice *device, TesseraLedger *copy)
     }
     *copy = host_ledger;
     // one more of each than it contains, and an empty array is not a null pointer
-    copy->job_capacity = host_ledger.job_count + 1ull;
-    copy->history_capacity = host_ledger.history_count + 1ull;
-    copy->heap_capacity = host_ledger.heap_count + 1ull;
+    copy->job_capacity = host_ledger.job_count + 1ULL;
+    copy->history_capacity = host_ledger.history_count + 1ULL;
+    copy->heap_capacity = host_ledger.heap_count + 1ULL;
     copy->jobs = (TesseraJob *)malloc((size_t)copy->job_capacity * sizeof(TesseraJob));
     copy->history = (TesseraHistory *)malloc((size_t)copy->history_capacity * sizeof(TesseraHistory));
     copy->heap = (TesseraDeadline *)malloc((size_t)copy->heap_capacity * sizeof(TesseraDeadline));

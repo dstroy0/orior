@@ -78,7 +78,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\shape\\test_shape\\test_shape.c");
+  UnityBegin("utils/test/src/ui/cli/unit/shape/test_shape/test_shape.c");
   run_test(test_an_expression_placeholder_matches_each_complete_call, "test_an_expression_placeholder_matches_each_complete_call", 70);
   run_test(test_an_expression_placeholder_writes_its_text_back, "test_an_expression_placeholder_writes_its_text_back", 84);
   run_test(test_a_name_placeholder_matches_one_name_and_the_same_both_times, "test_a_name_placeholder_matches_one_name_and_the_same_both_times", 89);

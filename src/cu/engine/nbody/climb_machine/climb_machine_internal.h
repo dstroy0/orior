@@ -149,21 +149,21 @@ __device__ static inline unsigned long long machine_bits(const unsigned long lon
                                                          unsigned long long bit)
 {
     const unsigned long long word = bit >> 6u;
-    const unsigned int shift = (unsigned int)(bit & 63ull);
+    const unsigned int shift = (unsigned int)(bit & 63ULL);
     unsigned long long value = positive[base_word + word] >> shift;
-    if ((shift != 0u) && ((word + 1ull) < words))
+    if ((shift != 0u) && ((word + 1ULL) < words))
     {
-        value |= positive[base_word + word + 1ull] << (64u - shift);
+        value |= positive[base_word + word + 1ULL] << (64u - shift);
     }
     return value;
 }
 
 __device__ static inline unsigned int machine_ones(unsigned long long value)
 {
-    const unsigned long long pairs = value - ((value >> 1u) & 0x5555555555555555ull);
-    const unsigned long long nibbles = (pairs & 0x3333333333333333ull) + ((pairs >> 2u) & 0x3333333333333333ull);
-    const unsigned long long bytes = (nibbles + (nibbles >> 4u)) & 0x0F0F0F0F0F0F0F0Full;
-    return (unsigned int)((bytes * 0x0101010101010101ull) >> 56u);
+    const unsigned long long pairs = value - ((value >> 1u) & 0x5555555555555555ULL);
+    const unsigned long long nibbles = (pairs & 0x3333333333333333ULL) + ((pairs >> 2u) & 0x3333333333333333ULL);
+    const unsigned long long bytes = (nibbles + (nibbles >> 4u)) & 0x0F0F0F0F0F0F0F0FULL;
+    return (unsigned int)((bytes * 0x0101010101010101ULL) >> 56u);
 }
 
 __device__ static inline unsigned int machine_agreeing(const unsigned long long *positive, unsigned long long words,
@@ -175,7 +175,7 @@ __device__ static inline unsigned int machine_agreeing(const unsigned long long 
     for (unsigned int done = 0u; done < count; done += 64u)
     {
         const unsigned int take = ((count - done) < 64u) ? (count - done) : 64u;
-        const unsigned long long mask = (take == 64u) ? 0xFFFFFFFFFFFFFFFFull : ((1ull << take) - 1ull);
+        const unsigned long long mask = (take == 64u) ? 0xFFFFFFFFFFFFFFFFULL : ((1ULL << take) - 1ULL);
         const unsigned long long differing = (machine_bits(positive, own_word, words, own_bit + done) ^
                                               machine_bits(positive, other_word, words, other_bit + done)) &
                                              mask;
@@ -204,9 +204,9 @@ __device__ static inline unsigned int machine_leaf_at(unsigned long long voxel, 
     const unsigned long long rows = (unsigned long long)geometry.depth * geometry.height;
     const unsigned long long row = voxel / geometry.width;
     const unsigned long long base = resident * (unsigned long long)run_capacity;
-    const unsigned long long offsets = resident * (rows + 1ull);
+    const unsigned long long offsets = resident * (rows + 1ULL);
     const unsigned int first = row_first[offsets + row];
-    const unsigned int end = row_first[offsets + row + 1ull];
+    const unsigned int end = row_first[offsets + row + 1ULL];
     const unsigned int empty = (unsigned int)(end <= first);
     unsigned int low = (empty != 0u) ? 0u : first;
     unsigned int high = (empty != 0u) ? 1u : end;

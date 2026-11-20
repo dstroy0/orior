@@ -150,7 +150,7 @@ void qry_writer_raised(void)
     // nothing is raised: the writer runs at the level it was started at
 }
 
-// A process no signal reaches has ended; one the writer may not signal, or one ended and not yet waited on by its
+// A process no signal reaches ended. One the writer may not signal, or one ended and not yet waited on by its
 // parent, runs as far as the writer can tell
 int qry_writer_process_ended(unsigned long long process)
 {
@@ -170,7 +170,7 @@ unsigned long long qry_member_file_read(const char *path, unsigned char *bytes, 
         }
         return QRY_MEMBER_UNREAD;
     }
-    // the file read to its end, since a file of /proc gives a length of 0 and contains its text all the same; one byte
+    // the file read to its end, since a file of /proc gives a length of 0 and contains its text all the same. One byte
     // more than `room` has room for leaves it unread
     unsigned long long done = 0ULL;
     for (;;)
@@ -204,7 +204,7 @@ QryShared *qry_member_shared(const char *path)
     {
         return NULL;
     }
-    // the writer sizes the object after it names it; one not yet sized, or whose whole the writer has not written yet,
+    // the writer sizes the object after it names it. One not yet sized, or whose whole the writer has not written yet,
     // is no run yet
     struct stat st;
     if ((fstat(memory, &st) != 0) || ((unsigned long long)st.st_size < sizeof(QryShared)))

@@ -69,16 +69,16 @@ static OriorExactInteger plane_arctan(unsigned long long x, unsigned int bits, u
 {
     const OriorExactInteger square = plane_exact_unsigned(x * x);
     OriorExactInteger power = plane_quotient(plane_power_two(bits), plane_exact_unsigned(x));
-    OriorExactInteger total = plane_exact_unsigned(0ull);
-    unsigned long long index = 0ull;
-    *terms = 0ull;
+    OriorExactInteger total = plane_exact_unsigned(0ULL);
+    unsigned long long index = 0ULL;
+    *terms = 0ULL;
     while (power.sign != 0)
     {
-        const OriorExactInteger term = plane_quotient(power, plane_exact_unsigned((2ull * index) + 1ull));
-        total = ((index & 1ull) == 0ull) ? plane_sum(total, term) : plane_difference(total, term);
-        *terms += 1ull;
+        const OriorExactInteger term = plane_quotient(power, plane_exact_unsigned((2ULL * index) + 1ULL));
+        total = ((index & 1ULL) == 0ULL) ? plane_sum(total, term) : plane_difference(total, term);
+        *terms += 1ULL;
         power = plane_quotient(power, square);
-        index += 1ull;
+        index += 1ULL;
     }
     return total;
 }
@@ -87,20 +87,20 @@ static OriorExactInteger plane_arctan(unsigned long long x, unsigned int bits, u
 int plane_bits(SimResults *results, unsigned int count, std::vector<unsigned char> *bits)
 {
     const unsigned int precision = count + PLANE_GUARD;
-    unsigned long long fifth_terms = 0ull;
-    unsigned long long far_terms = 0ull;
-    const OriorExactInteger fifth = plane_arctan(5ull, precision, &fifth_terms);
-    const OriorExactInteger far = plane_arctan(239ull, precision, &far_terms);
-    const OriorExactInteger middle = plane_difference(plane_product(fifth, plane_exact_unsigned(16ull)),
-                                                       plane_product(far, plane_exact_unsigned(4ull)));
+    unsigned long long fifth_terms = 0ULL;
+    unsigned long long far_terms = 0ULL;
+    const OriorExactInteger fifth = plane_arctan(5ULL, precision, &fifth_terms);
+    const OriorExactInteger far = plane_arctan(239ULL, precision, &far_terms);
+    const OriorExactInteger middle = plane_difference(plane_product(fifth, plane_exact_unsigned(16ULL)),
+                                                       plane_product(far, plane_exact_unsigned(4ULL)));
     const OriorExactInteger spread =
-        plane_exact_unsigned((16ull * (fifth_terms + 1ull)) + (4ull * (far_terms + 1ull)));
+        plane_exact_unsigned((16ULL * (fifth_terms + 1ULL)) + (4ULL * (far_terms + 1ULL)));
     const OriorExactInteger guard = plane_power_two(PLANE_GUARD);
     const OriorExactInteger below = plane_quotient(plane_difference(middle, spread), guard);
     const OriorExactInteger above = plane_quotient(plane_sum(middle, spread), guard);
     const int agree = (s_plane_error == 0) && (orior_exact_compare(&below, &above) == 0);
     const OriorExactInteger turn =
-        plane_difference(below, plane_product(plane_exact_unsigned(3ull), plane_power_two(count)));
+        plane_difference(below, plane_product(plane_exact_unsigned(3ULL), plane_power_two(count)));
     bits->assign(count, 0u);
     for (unsigned int place = 1u; place <= count; place += 1u)
     {
@@ -108,12 +108,12 @@ int plane_bits(SimResults *results, unsigned int count, std::vector<unsigned cha
         // one bit of a 32-bit limb, taken from the bottom after the shift
         (*bits)[place - 1u] = (unsigned char)((turn.limb[bit / 32u] >> (bit % 32u)) & 1u);
     }
-    unsigned long long leading = 0ull;
+    unsigned long long leading = 0ULL;
     for (unsigned int place = 0u; place < 64u; place += 1u)
     {
         leading = (leading << 1u) | (unsigned long long)(*bits)[place];
     }
-    unsigned long long ones = 0ull;
+    unsigned long long ones = 0ULL;
     for (unsigned int place = 0u; place < count; place += 1u)
     {
         ones += (unsigned long long)(*bits)[place];
@@ -150,15 +150,15 @@ int plane_extent_place(PlaneExtent *extent, const std::string &name, const std::
         right = std::max(right, columns[bit]);
     }
     // both spans are at least one and below the bit count. They widen to unsigned exactly
-    extent->height = (unsigned long long)(bottom - top + 1ll);
-    extent->width = (unsigned long long)(right - left + 1ll);
-    extent->cell.assign((size_t)(extent->height * extent->width), -1ll);
+    extent->height = (unsigned long long)(bottom - top + 1LL);
+    extent->width = (unsigned long long)(right - left + 1LL);
+    extent->cell.assign((size_t)(extent->height * extent->width), -1LL);
     for (size_t bit = 0u; bit < rows.size(); bit += 1u)
     {
         // the offsets from the top left corner are never negative
         const size_t index =
             (size_t)((unsigned long long)(rows[bit] - top) * extent->width + (unsigned long long)(columns[bit] - left));
-        if (extent->cell[index] >= 0ll)
+        if (extent->cell[index] >= 0LL)
         {
             return 0;
         }
@@ -186,14 +186,14 @@ int plane_tower(PlaneExtent *extent, unsigned int count)
 {
     std::vector<long long> rows(count);
     std::vector<long long> columns(count);
-    long long row = 0ll;
-    long long start = 0ll;
+    long long row = 0LL;
+    long long start = 0LL;
     for (unsigned int bit = 0u; bit < count; bit += 1u)
     {
-        if ((long long)bit >= start + row + 1ll)
+        if ((long long)bit >= start + row + 1LL)
         {
-            start += row + 1ll;
-            row += 1ll;
+            start += row + 1LL;
+            row += 1LL;
         }
         rows[bit] = row;
         // the bit's index is below 2^15. It fits a signed word
@@ -204,7 +204,7 @@ int plane_tower(PlaneExtent *extent, unsigned int count)
 
 int plane_half(const PlanePoint &point)
 {
-    return (point.y < 0ll) || ((point.y == 0ll) && (point.x < 0ll));
+    return (point.y < 0LL) || ((point.y == 0LL) && (point.x < 0LL));
 }
 
 // by the square of the radius, then counterclockwise from the positive x axis, in integers
@@ -222,7 +222,7 @@ bool plane_ring_before(const PlanePoint &left, const PlanePoint &right)
     {
         return left_half < right_half;
     }
-    return ((left.x * right.y) - (left.y * right.x)) > 0ll;
+    return ((left.x * right.y) - (left.y * right.x)) > 0LL;
 }
 
 bool plane_raster_before(const PlanePoint &left, const PlanePoint &right)

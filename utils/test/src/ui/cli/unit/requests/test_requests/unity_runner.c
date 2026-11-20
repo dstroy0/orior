@@ -105,7 +105,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\requests\\test_requests\\test_requests.c");
+  UnityBegin("utils/test/src/ui/cli/unit/requests/test_requests/test_requests.c");
   run_test(test_a_files_three_requests_and_its_variable_are_read, "test_a_files_three_requests_and_its_variable_are_read", 229);
   run_test(test_a_requests_name_method_continued_address_and_line_are_read, "test_a_requests_name_method_continued_address_and_line_are_read", 238);
   run_test(test_a_requests_headers_are_read_and_it_has_no_body, "test_a_requests_headers_are_read_and_it_has_no_body", 248);

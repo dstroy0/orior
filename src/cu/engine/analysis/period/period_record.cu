@@ -9,7 +9,7 @@
 #include "../../../../../includes/exact_types/integers/exact_record/exact_record.h"
 
 // a sweep's index names a voxel by an output one bit wider than its register, 32 bits a limb
-#define PERIOD_RECORD_VOXELS_MAX (1ull << 31u)
+#define PERIOD_RECORD_VOXELS_MAX (1ULL << 31u)
 
 #define PERIOD_RECORD_PLACE_BITS 31u
 
@@ -27,9 +27,9 @@
 #define PERIOD_RECORD_KEYED_LIMBS 3u
 
 // period_round's two multipliers
-#define PERIOD_RECORD_MIX_FIRST 0x9E3779B1ull
+#define PERIOD_RECORD_MIX_FIRST 0x9E3779B1ULL
 
-#define PERIOD_RECORD_MIX_SECOND 0x85EBCA77ull
+#define PERIOD_RECORD_MIX_SECOND 0x85EBCA77ULL
 
 #define PERIOD_RECORD_SLICES 7u
 
@@ -41,7 +41,7 @@ typedef struct
 } PeriodProgram;
 
 // the four programs and the pool, made once a process. The agreement reads a voxel, the voxel a lag on, and the shared
-// record; the key writes each voxel's place and key; the place reads a keyed record through the order and writes its
+// record; the key writes each voxel's place and key. The place reads a keyed record through the order and writes its
 // place; the gather reads a voxel through those places
 typedef struct
 {
@@ -238,7 +238,7 @@ static DevicePoolPlan period_record_plan(unsigned long long voxels, EngineError 
         {&resident->pool, voxels * limb, (void **)&resident->places, error},
         {&resident->pool, PERIOD_RECORD_KEY_LIMBS * limb, (void **)&resident->shared, error},
         {&resident->pool, PERIOD_VALUES * limb, (void **)&resident->histogram, error}};
-    DevicePoolPlan plan = {0ull, 0ull, 0};
+    DevicePoolPlan plan = {0ULL, 0ULL, 0};
     for (unsigned int at = 0u; at < PERIOD_RECORD_SLICES; at += 1u)
     {
         takes[at] = requests[at];
@@ -256,7 +256,7 @@ static int period_record_reserve(unsigned long long voxels, EngineError *error)
         return 1;
     }
     device_pool_release(&resident->pool);
-    resident->voxels = 0ull;
+    resident->voxels = 0ULL;
     DevicePoolTakeRequest takes[PERIOD_RECORD_SLICES];
     const DevicePoolPlan plan = period_record_plan(voxels, error, takes);
     const DevicePoolReserveRequest reserve = {&plan, &resident->pool, error};
@@ -265,15 +265,15 @@ static int period_record_reserve(unsigned long long voxels, EngineError *error)
     {
         ok = device_pool_take(&takes[at]) == 0L;
     }
-    resident->voxels = (ok != 0) ? voxels : 0ull;
+    resident->voxels = (ok != 0) ? voxels : 0ULL;
     return ok;
 }
 
 extern "C" unsigned long long period_record_reserve_bytes(unsigned long long voxels)
 {
-    if ((voxels == 0ull) || (voxels > PERIOD_RECORD_VOXELS_MAX))
+    if ((voxels == 0ULL) || (voxels > PERIOD_RECORD_VOXELS_MAX))
     {
-        return 0ull;
+        return 0ULL;
     }
     DevicePoolTakeRequest takes[PERIOD_RECORD_SLICES];
     const DevicePoolPlan plan = period_record_plan(voxels, NULL, takes);
@@ -314,7 +314,7 @@ static int period_record_agreement(const unsigned int *data, unsigned long long 
         sweep.device_in[2] = resident->shared;
         sweep.bodies[0] = voxels;
         sweep.bodies[1] = lanes;
-        sweep.bodies[2] = 1ull;
+        sweep.bodies[2] = 1ULL;
         sweep.count = lanes;
         // the agreement's records take the keyed records' room, which no step reads while the agreement is counted
         sweep.device_out = resident->keyed;
@@ -347,7 +347,7 @@ static int period_record_null(const PeriodRequest *request, const PeriodLattice 
     memset(&sweep, 0, sizeof(sweep));
     sweep.record = resident->key.record;
     sweep.device_in[0] = resident->shared;
-    sweep.bodies[0] = 1ull;
+    sweep.bodies[0] = 1ULL;
     sweep.count = voxels;
     sweep.device_out = resident->keyed;
     sweep.error = error;
@@ -375,7 +375,7 @@ static int period_record_null(const PeriodRequest *request, const PeriodLattice 
         PeriodAxis drawn;
         period_axis_open(lattice, axis, &drawn);
         period_strongest(same, &drawn);
-        height->numerator = (drawn.candidate != 0ull) ? drawn.margin.numerator : 0ull;
+        height->numerator = (drawn.candidate != 0ULL) ? drawn.margin.numerator : 0ULL;
         height->denominator = drawn.pairs_per_lag;
     }
     return ok;
@@ -414,7 +414,7 @@ extern "C" long period_record_read(const PeriodRequest *request)
         return PERIOD_ERROR;
     }
     PeriodLattice lattice;
-    unsigned long long voxels = 0ull;
+    unsigned long long voxels = 0ULL;
     if ((period_record_open(request, &lattice, &voxels, error) == 0) ||
         (period_request_valid(request, lattice.lag_total) == 0))
     {
@@ -423,33 +423,33 @@ extern "C" long period_record_read(const PeriodRequest *request)
     PeriodRecordResident *const resident = &g_period_record;
     const unsigned long long entries = lattice.lag_total;
     const unsigned long long draws = request->draws;
-    const size_t agreement_entries = (size_t)((entries != 0ull) ? entries : 1ull);
+    const size_t agreement_entries = (size_t)((entries != 0ULL) ? entries : 1ULL);
     unsigned int *const histogram = (unsigned int *)malloc(PERIOD_VALUES * sizeof(unsigned int));
     unsigned long long *const agreement = (unsigned long long *)calloc(agreement_entries, sizeof(unsigned long long));
     unsigned long long *const shuffled_agreement =
         (unsigned long long *)calloc(agreement_entries, sizeof(unsigned long long));
-    const size_t band_count = (size_t)((draws != 0ull) ? (draws * lattice.rank) : 1ull);
+    const size_t band_count = (size_t)((draws != 0ULL) ? (draws * lattice.rank) : 1ULL);
     PeriodMargin *const bands = (PeriodMargin *)calloc(band_count, sizeof(PeriodMargin));
-    unsigned long long band_counts[ENGINE_ARRAY_RANK] = {0ull};
+    unsigned long long band_counts[ENGINE_ARRAY_RANK] = {0ULL};
     int ok = PERIOD_CHECK((histogram != NULL) && (agreement != NULL) && (shuffled_agreement != NULL) && (bands != NULL),
                           request, error, ENGINE_ERROR_RESOURCE) &&
              PERIOD_STATUS_CHECK(cudaMemset(resident->histogram, 0, PERIOD_VALUES * sizeof(unsigned int)),
                                  resident->histogram, error);
     if (ok != 0)
     {
-        const unsigned long long needed = (voxels + PERIOD_THREADS - 1ull) / PERIOD_THREADS;
+        const unsigned long long needed = (voxels + PERIOD_THREADS - 1ULL) / PERIOD_THREADS;
         // the block count is bounded below the record machine's block limit, far below 2^31
-        const unsigned int blocks = (unsigned int)((needed < 4096ull) ? needed : 4096ull);
+        const unsigned int blocks = (unsigned int)((needed < 4096ULL) ? needed : 4096ULL);
         period_histogram_kernel<<<blocks, PERIOD_THREADS>>>(request->device_lanes, voxels, resident->histogram);
         ok = PERIOD_STATUS_CHECK(cudaGetLastError(), resident->histogram, error) &&
              PERIOD_STATUS_CHECK(cudaMemcpy(histogram, resident->histogram, PERIOD_VALUES * sizeof(unsigned int),
                                             cudaMemcpyDeviceToHost),
                                  histogram, error);
     }
-    unsigned long long collisions = 0ull;
+    unsigned long long collisions = 0ULL;
     if (ok != 0)
     {
-        unsigned long long counted = 0ull;
+        unsigned long long counted = 0ULL;
         for (unsigned int value = 0u; value < PERIOD_VALUES; value += 1u)
         {
             counted += histogram[value];
@@ -468,17 +468,17 @@ extern "C" long period_record_read(const PeriodRequest *request)
     measurement->voxels = voxels;
     measurement->collisions = collisions;
     measurement->draws = draws;
-    for (unsigned long long draw = 0ull; (ok != 0) && (voxels >= 2ull) && (draw < draws); draw += 1ull)
+    for (unsigned long long draw = 0ULL; (ok != 0) && (voxels >= 2ULL) && (draw < draws); draw += 1ULL)
     {
         for (unsigned int axis = 0u; (ok != 0) && (axis < lattice.rank); axis += 1u)
         {
             PeriodMargin height;
             ok = period_record_null(request, &lattice, (draw * lattice.rank) + axis, axis,
                                     &shuffled_agreement[lattice.first[axis]], &height, error);
-            if ((ok != 0) && (height.numerator != 0ull))
+            if ((ok != 0) && (height.numerator != 0ULL))
             {
                 bands[(axis * draws) + band_counts[axis]] = height;
-                band_counts[axis] += 1ull;
+                band_counts[axis] += 1ULL;
             }
         }
     }
@@ -487,7 +487,7 @@ extern "C" long period_record_read(const PeriodRequest *request)
         period_select(&agreement[lattice.first[axis]], &lattice, axis, &bands[axis * draws], band_counts[axis],
                       (request->null_top != NULL) ? &request->null_top[axis] : NULL, &measurement->axis[axis]);
     }
-    if ((ok != 0) && (request->agreement != NULL) && (entries != 0ull))
+    if ((ok != 0) && (request->agreement != NULL) && (entries != 0ULL))
     {
         memcpy(request->agreement, agreement, (size_t)entries * sizeof(unsigned long long));
     }
@@ -514,12 +514,12 @@ extern "C" long period_record_draw(const PeriodRequest *request, unsigned long l
         return PERIOD_ERROR;
     }
     PeriodLattice lattice;
-    unsigned long long voxels = 0ull;
+    unsigned long long voxels = 0ULL;
     if (period_record_open(request, &lattice, &voxels, error) == 0)
     {
         return PERIOD_ERROR;
     }
-    const size_t agreement_entries = (size_t)((lattice.lag_total != 0ull) ? lattice.lag_total : 1ull);
+    const size_t agreement_entries = (size_t)((lattice.lag_total != 0ULL) ? lattice.lag_total : 1ULL);
     unsigned long long *const shuffled_agreement =
         (unsigned long long *)calloc(agreement_entries, sizeof(unsigned long long));
     int ok = PERIOD_CHECK(shuffled_agreement != NULL, request, error, ENGINE_ERROR_RESOURCE);
@@ -527,9 +527,9 @@ extern "C" long period_record_draw(const PeriodRequest *request, unsigned long l
     {
         PeriodAxis open;
         period_axis_open(&lattice, axis, &open);
-        heights[axis].numerator = 0ull;
+        heights[axis].numerator = 0ULL;
         heights[axis].denominator = open.pairs_per_lag;
-        if (voxels >= 2ull)
+        if (voxels >= 2ULL)
         {
             ok = period_record_null(request, &lattice, (draw * lattice.rank) + axis, axis,
                                     &shuffled_agreement[lattice.first[axis]], &heights[axis], error);

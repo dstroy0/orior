@@ -157,7 +157,7 @@ def turn_between(before, after, order=1):
     """The rotation that carries one lit set to another, in radians, read off the phase.
 
     Positive is the direction the longitudes run. The coefficients carry exp(-i m longitude). The
-    phase moves against the rotation and undoing that minus is undoing the convention they are
+    phase moves against the rotation and undoing that minus undoes the convention they are
     written in. Order one is asked by default because it pins the angle down without a wrap of its
     own; a higher order divides the angle and returns it only up to its own fraction of a turn.
 

@@ -46,7 +46,7 @@ EMBED_INLINE unsigned long long form_starts_bytes(const FormCtx *args)
 // its bytes, through a cell of the call's own, the value written and the starts after it moved
 EMBED_INLINE void form_set(const FormCtx *args)
 {
-    CliJobRunsStore *const store = &g_cli_job_runs_store;
+    const CliJobRunsStore *const store = &g_cli_job_runs_store;
     if ((store->form == NULL) || (args->param >= store->form_params))
     {
         return;
@@ -221,7 +221,7 @@ void cli_job_runs_values_fill(const CliJobRunsCtx *args)
         }
         // each word of a choice of many a value of its own, any other value whole, each with its end
         const int many = EMBED_CALL(form_type_is, FormCtx, .type = one->type, .text = CLI_JOB_RUNS_TYPE_MANY);
-        char word[CLI_JOB_RUNS_FIELD_MAX];
+        char field_text[CLI_JOB_RUNS_FIELD_MAX];
         for (unsigned long long at = 0ULL; at < length;)
         {
             unsigned long long end = at;
@@ -231,10 +231,10 @@ void cli_job_runs_values_fill(const CliJobRunsCtx *args)
             }
             if (end > at)
             {
-                memor.cpy(&(MemoriaCfg){.dst = word, .src = value + at, .bytes = end - at});
-                word[end - at] = '\0';
+                memor.cpy(&(MemoriaCfg){.dst = field_text, .src = value + at, .bytes = end - at});
+                field_text[end - at] = '\0';
                 EMBED_CALL(cli_catalog_key_values.values_append, CliCatalogKeyValuesCfg, .values_out = args->values,
-                           .key = key, .value = word);
+                           .key = key, .value = field_text);
             }
             at = end + 1ULL;
         }

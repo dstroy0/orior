@@ -45,9 +45,9 @@
 int main(int count, char **words)
 {
     int raw = 0;
-    unsigned long long from = 0ull;
-    unsigned long long to = ~0ull;
-    unsigned long long slice = 0ull;
+    unsigned long long from = 0ULL;
+    unsigned long long to = ~0ULL;
+    unsigned long long slice = 0ULL;
     const char *table = NULL;
     const char *blob = NULL;
     int latest = 0;
@@ -104,13 +104,13 @@ int main(int count, char **words)
         return 2;
     }
     // a k-file's records are counted by an unsigned int, and a record past what it counts is past every record
-    const unsigned int record_from = (from > 0xffffffffull) ? 0xffffffffu : (unsigned int)from;
-    const unsigned int record_slice = (slice > 0xffffffffull) ? 0u : (unsigned int)slice;
+    const unsigned int record_from = (from > 0xffffffffULL) ? 0xffffffffu : (unsigned int)from;
+    const unsigned int record_slice = (slice > 0xffffffffULL) ? 0u : (unsigned int)slice;
     int read = 1;
     for (; given < count; given += 1)
     {
         const unsigned char *bytes = NULL;
-        unsigned long long size = 0ull;
+        unsigned long long size = 0ULL;
         if (blob != NULL)
         {
             read = kdecode_blobs(words[given], blob, latest) && read;

@@ -23,9 +23,11 @@ static CliWake s_wake = CLI_WAKE_INIT;
 
 CliRequestsWorkState *cli_requests_work_state_alloc(void)
 {
+    unsigned int wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_wake);
     while (s_capacities_used == CLI_REQUESTS_WORK_STATES)
     {
-        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_wake);
+        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_wake, .seen = wake_seen);
+        wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_wake);
     }
     // a free work state: its read state, the body, the raw answer and the answer undone in its fixed bytes, which the
     // request's thread reads and writes while the request goes

@@ -84,7 +84,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\pg\\test_pg\\test_pg.c");
+  UnityBegin("utils/test/src/ui/cli/unit/pg/test_pg/test_pg.c");
   run_test(test_scrams_final_message_has_rfc_7677s_proof, "test_scrams_final_message_has_rfc_7677s_proof", 153);
   run_test(test_scrams_signature_is_rfc_7677s, "test_scrams_signature_is_rfc_7677s", 159);
   run_test(test_the_server_reports_its_version, "test_the_server_reports_its_version", 165);

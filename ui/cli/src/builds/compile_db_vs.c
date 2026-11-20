@@ -61,54 +61,54 @@ static int cli_vs_read(void)
         "-property", "installationPath", NULL};
     CliRunResult *const run_result = cli_run_result_alloc();
     char why[CLI_NAME_MAX_LEN];
-    VerbaLinea unstarted = {why, sizeof(why), 0ull};
+    VerbaLinea unstarted = {why, sizeof(why), 0ULL};
     if (!EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = vswhere_args, .folder = NULL, .settings = NULL,
                     .count = 0u, .run_result = run_result, .err_msg = &unstarted))
     {
         EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
         return 0;
     }
-    unsigned long long from = 0ull;
+    unsigned long long from = 0ULL;
     unsigned long long to = run_result->out_size;
     while ((from < to) && EMBED_CALL(cli_white, CompileDbVsCtx, .character = run_result->out[from]))
     {
-        from += 1ull;
+        from += 1ULL;
     }
-    while ((to > from) && EMBED_CALL(cli_white, CompileDbVsCtx, .character = run_result->out[to - 1ull]))
+    while ((to > from) && EMBED_CALL(cli_white, CompileDbVsCtx, .character = run_result->out[to - 1ULL]))
     {
-        to -= 1ull;
+        to -= 1ULL;
     }
     char place[CLI_PATH_MAX_LEN];
-    const unsigned long long length = ((to - from) < CLI_PATH_MAX_LEN) ? (to - from) : 0ull;
+    const unsigned long long length = ((to - from) < CLI_PATH_MAX_LEN) ? (to - from) : 0ULL;
     memor.cpy(&(MemoriaCfg){.dst = place, .src = run_result->out + from, .bytes = length});
     place[length] = '\0';
     char vcvars[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = place, .relative = "VC/Auxiliary/Build/vcvars64.bat",
                .joined = vcvars);
-    if ((length == 0ull) || !EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = vcvars))
+    if ((length == 0ULL) || !EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = vcvars))
     {
         EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
         return 0;
     }
     char line[CLI_PATH_MAX_LEN * 2u];
-    VerbaLinea called = {line, sizeof(line), 0ull};
+    VerbaLinea called = {line, sizeof(line), 0ULL};
     mmgr_line_put(&called, "call \"");
     mmgr_line_put(&called, vcvars);
     mmgr_line_put(&called, "\" >nul && set");
     mmgr_line_finish(&called);
     const char *const shell[5] = {"cmd", "/d", "/c", line, NULL};
-    unstarted.at = 0ull;
+    unstarted.at = 0ULL;
     if (!EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = shell, .folder = NULL, .settings = NULL, .count = 0u,
                     .run_result = run_result, .err_msg = &unstarted) ||
-        (run_result->code != 0ll))
+        (run_result->code != 0LL))
     {
         EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
         return 0;
     }
-    VerbaLinea vs_text = {s_vs.text, sizeof(s_vs.text), 0ull};
+    VerbaLinea vs_text = {s_vs.text, sizeof(s_vs.text), 0ULL};
     int include = 0;
     s_vs.count = 0u;
-    for (unsigned long long at = 0ull; at < run_result->out_size;)
+    for (unsigned long long at = 0ULL; at < run_result->out_size;)
     {
         const CliTextLine bounds = EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = run_result->out, .at = at,
                                               .size = run_result->out_size);
@@ -116,7 +116,7 @@ static int cli_vs_read(void)
         unsigned long long size = end - at;
         size -= bounds.stop - bounds.cut;
         const char *const row = run_result->out + at;
-        at = end + 1ull;
+        at = end + 1ULL;
         const char *const equals = memor.chr(&(MemoriaCfg){.src = row, .val = '=', .bytes = size});
         if ((equals == NULL) || (s_vs.count >= 1024u))
         {
@@ -130,7 +130,7 @@ static int cli_vs_read(void)
         mmgr_line_ch(&vs_text, '\0');
         const char *const value = vs_text.out + vs_text.at;
         EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &vs_text,
-                   .text_bytes = (const unsigned char *)equals + 1, .length = size - name_size - 1ull);
+                   .text_bytes = (const unsigned char *)equals + 1, .length = size - name_size - 1ULL);
         mmgr_line_ch(&vs_text, '\0');
         if (!mmgr_line_ok(&vs_text))
         {

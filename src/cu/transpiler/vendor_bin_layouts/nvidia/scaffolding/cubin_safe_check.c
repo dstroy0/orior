@@ -35,7 +35,7 @@ static void check_put(unsigned char *bytes, unsigned long long value)
 // `high` with its scheduler's bits set to the safe word's stall and wait, its barriers set to none
 static unsigned long long check_safe_high(unsigned long long high)
 {
-    const unsigned long long scheduler = ~0ull << (SASS_STALL_FIRST - 64u);
+    const unsigned long long scheduler = ~0ULL << (SASS_STALL_FIRST - 64u);
     high &= ~scheduler;
     high |= (unsigned long long)SASS_STALL_MAX_LEN << (SASS_STALL_FIRST - 64u);
     high |= (unsigned long long)SASS_BARRIER_NONE << (SASS_WRITE_BARRIER_FIRST - 64u);
@@ -47,7 +47,7 @@ static unsigned long long check_safe_high(unsigned long long high)
 // `high`, already containing the safe word, with its stall set to `stall`
 static unsigned long long check_stalled(unsigned long long high, unsigned int stall)
 {
-    high &= ~(0xfull << (SASS_STALL_FIRST - 64u));
+    high &= ~(0xfULL << (SASS_STALL_FIRST - 64u));
     return high | ((unsigned long long)stall << (SASS_STALL_FIRST - 64u));
 }
 
@@ -62,8 +62,8 @@ static void check_instruction(unsigned int place, unsigned long long low, unsign
 static void check_verdict_allot(const char *name, unsigned int instructions, unsigned int registers,
                                 unsigned int wanted)
 {
-    unsigned long long at = 0ull;
-    const unsigned int verdict = cubin_safe(&s_machine, s_code, 16ull * instructions, registers, &at);
+    unsigned long long at = 0ULL;
+    const unsigned int verdict = cubin_safe(&s_machine, s_code, 16ULL * instructions, registers, &at);
     s_checks += 1u;
     if (verdict != wanted)
     {
@@ -107,7 +107,7 @@ static const SassForm *check_form_seen(const char *text)
 // `low` with its guard set to PT, the predicate always true: three bits of its number at 12 and the negation at 15
 static unsigned long long check_unguarded(unsigned long long low)
 {
-    return (low & ~0xf000ull) | 0x7000ull;
+    return (low & ~0xf000ULL) | 0x7000ULL;
 }
 
 // 1 where some form of the machine sits under the operation key `key`
@@ -130,8 +130,8 @@ static int check_ungated(const SassForm *form, unsigned long long *low)
     char text[256];
     for (unsigned int bit = 12u; bit < 64u; bit += 1u)
     {
-        const unsigned long long turned = form->low ^ (1ull << bit);
-        if (!sass_encoding_read(&s_machine, turned, check_safe_high(form->high), 0ull, text, sizeof(text)))
+        const unsigned long long turned = form->low ^ (1ULL << bit);
+        if (!sass_encoding_read(&s_machine, turned, check_safe_high(form->high), 0ULL, text, sizeof(text)))
         {
             *low = turned;
             return 1;
@@ -166,9 +166,9 @@ static void check_cases(void)
         check_instruction(0u, check_unguarded(never->low), check_safe_high(never->high));
         check_verdict("EXIT !PT, which no thread takes", 1u, CUBIN_SAFE_EXIT);
     }
-    check_instruction(0u, exit_low, exit_high & ~(0xfull << (SASS_STALL_FIRST - 64u)));
+    check_instruction(0u, exit_low, exit_high & ~(0xfULL << (SASS_STALL_FIRST - 64u)));
     check_verdict("an EXIT with no stall", 1u, CUBIN_SAFE);
-    check_instruction(0u, exit_low, exit_high & ~(0x3full << (SASS_WAIT_FIRST - 64u)));
+    check_instruction(0u, exit_low, exit_high & ~(0x3fULL << (SASS_WAIT_FIRST - 64u)));
     check_verdict("an EXIT waiting on nothing", 1u, CUBIN_SAFE_WAIT);
     check_instruction(0u, branch->low, check_safe_high(branch->high));
     check_instruction(1u, exit_low, exit_high);
@@ -183,13 +183,13 @@ static void check_cases(void)
     check_verdict("an IADD3 stalled one cycle, then an EXIT", 2u, CUBIN_SAFE);
     // a fixed result's barrier is never released
     check_instruction(0u, straight->low,
-                      check_safe_high(straight->high) & ~(7ull << (SASS_WRITE_BARRIER_FIRST - 64u)));
+                      check_safe_high(straight->high) & ~(7ULL << (SASS_WRITE_BARRIER_FIRST - 64u)));
     check_verdict("an IADD3 setting write barrier 0", 2u, CUBIN_SAFE_BARRIER);
     // the self branch past the last exit is never reached and is not read
     check_instruction(0u, exit_low, exit_high);
     check_instruction(1u, branch->low, branch->high);
     check_verdict("an EXIT then the self branch", 2u, CUBIN_SAFE);
-    unsigned long long ungated = 0ull;
+    unsigned long long ungated = 0ULL;
     if (check_ungated(straight, &ungated))
     {
         check_instruction(0u, ungated, check_safe_high(straight->high));
@@ -199,7 +199,7 @@ static void check_cases(void)
         check_instruction(2u, exit_low, exit_high);
         check_verdict("two instructions no form matches", 3u, CUBIN_SAFE_UNGATED);
     }
-    for (unsigned long long key = 0ull; key <= SASS_OPERATION_MASK; key += 1ull)
+    for (unsigned long long key = 0ULL; key <= SASS_OPERATION_MASK; key += 1ULL)
     {
         if (!check_key_known(key))
         {
@@ -244,13 +244,13 @@ static void check_fault(const char *name, int part_faulted, int status, unsigned
 // the launch cases, which need no machine file
 static void check_launches(void)
 {
-    check_launch("a launch reached inside the bound", 0, 1000ull, CUBIN_SAFE);
-    check_launch("a launch the driver timed out", CUBIN_SAFE_STATUS_LAUNCH_TIMEOUT, 0ull, CUBIN_SAFE_LAUNCH_TIMEOUT);
+    check_launch("a launch reached inside the bound", 0, 1000ULL, CUBIN_SAFE);
+    check_launch("a launch the driver timed out", CUBIN_SAFE_STATUS_LAUNCH_TIMEOUT, 0ULL, CUBIN_SAFE_LAUNCH_TIMEOUT);
     check_launch("a launch not reached yet, inside the bound", CUBIN_SAFE_STATUS_NOT_READY, CUBIN_SAFE_LAUNCH_BOUND,
                  CUBIN_SAFE);
-    check_launch("a launch not reached past the bound", CUBIN_SAFE_STATUS_NOT_READY, CUBIN_SAFE_LAUNCH_BOUND + 1ull,
+    check_launch("a launch not reached past the bound", CUBIN_SAFE_STATUS_NOT_READY, CUBIN_SAFE_LAUNCH_BOUND + 1ULL,
                  CUBIN_SAFE_LAUNCH_TIMEOUT);
-    check_launch("a launch the part refused", 700, 0ull, CUBIN_SAFE);
+    check_launch("a launch the part refused", 700, 0ULL, CUBIN_SAFE);
     check_fault("a launch the part did not fault", 0, 0, CUBIN_SAFE);
     check_fault("a launch the part stamped a critical error", 1, 0, CUBIN_SAFE_LAUNCH_FAULT);
     check_fault("a launch the driver named an illegal address", 0, CUBIN_SAFE_STATUS_ILLEGAL_ADDRESS,
@@ -301,11 +301,11 @@ static void check_registers(void)
     // R40 in that field, a register an eight-register kernel never allotted
     if (field < 64u)
     {
-        low = (low & ~(0xffull << field)) | (40ull << field);
+        low = (low & ~(0xffULL << field)) | (40ULL << field);
     }
     else
     {
-        high = (high & ~(0xffull << (field - 64u))) | (40ull << (field - 64u));
+        high = (high & ~(0xffULL << (field - 64u))) | (40ULL << (field - 64u));
     }
     check_instruction(0u, low, high);
     check_verdict_allot("a form naming a register an 8-register kernel lacks", 1u, 8u, CUBIN_SAFE_REGISTER);
@@ -315,10 +315,10 @@ static void check_registers(void)
 // field, the vendor's 14 bits from bit 40; else refused
 static void check_constant(const char *text, int wanted, unsigned long long words)
 {
-    unsigned long long low = 0ull;
-    unsigned long long high = 0ull;
-    const int assembled = sass_assemble(&s_machine, text, 0ull, 0ull, SASS_CONTROL_SAFE, &low, &high);
-    const unsigned long long written = (low >> 40u) & 0x3fffull;
+    unsigned long long low = 0ULL;
+    unsigned long long high = 0ULL;
+    const int assembled = sass_assemble(&s_machine, text, 0ULL, 0ULL, SASS_CONTROL_SAFE, &low, &high);
+    const unsigned long long written = (low >> 40u) & 0x3fffULL;
     const int right = wanted ? (assembled && (written == words)) : !assembled;
     s_checks += 1u;
     s_failed += right ? 0u : 1u;
@@ -331,12 +331,12 @@ static void check_constant(const char *text, int wanted, unsigned long long word
 // part of a word or past the bank, is refused and not cut
 static void check_constants(void)
 {
-    check_constant("MOV R1, c[0x0][0x160+0x10]", 1, 0x5cull);
-    check_constant("MOV R1, c[0x0][0x160+0x18]", 1, 0x5eull);
-    check_constant("MOV R1, c[0x0][0x28]", 1, 0xaull);
-    check_constant("MOV R1, c[0x0][0x200]", 1, 0x80ull);
-    check_constant("MOV R1, c[0x0][0x162]", 0, 0ull);
-    check_constant("MOV R1, c[0x0][0x10000]", 0, 0ull);
+    check_constant("MOV R1, c[0x0][0x160+0x10]", 1, 0x5cULL);
+    check_constant("MOV R1, c[0x0][0x160+0x18]", 1, 0x5eULL);
+    check_constant("MOV R1, c[0x0][0x28]", 1, 0xaULL);
+    check_constant("MOV R1, c[0x0][0x200]", 1, 0x80ULL);
+    check_constant("MOV R1, c[0x0][0x162]", 0, 0ULL);
+    check_constant("MOV R1, c[0x0][0x10000]", 0, 0ULL);
 }
 
 int main(int count, char **words)
@@ -359,7 +359,7 @@ int main(int count, char **words)
         {
             fclose(file);
         }
-        unsigned long long where = 0ull;
+        unsigned long long where = 0ULL;
         const unsigned int verdict = cubin_safe_image(&s_machine, s_image, size, 0u, &where);
         safe += (verdict == CUBIN_SAFE) ? 1u : 0u;
         printf("  %s: %s at byte %llu\n", words[at], cubin_safe_name(verdict), where);

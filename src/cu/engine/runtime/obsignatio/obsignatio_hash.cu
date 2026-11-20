@@ -10,8 +10,8 @@ extern "C" long obsignatio_signum(const ObsignatioSignumRequest *request)
         return OBSIGNATIO_ERROR;
     }
     EngineError *const error = request->error;
-    if (OBSIGNATIO_CHECK(((request->bytes != NULL) || (request->count == 0ull)) &&
-                             ((request->out != NULL) || (request->out_bytes == 0ull)) &&
+    if (OBSIGNATIO_CHECK(((request->bytes != NULL) || (request->count == 0ULL)) &&
+                             ((request->out != NULL) || (request->out_bytes == 0ULL)) &&
                              obsignatio_mode_valid(request->mode, request->key),
                          request, error) == 0)
     {
@@ -37,10 +37,10 @@ __global__ void obsignatio_chunk_kernel(const unsigned char *bytes, unsigned lon
         const unsigned long long remain = length - start;
         // the take is at max one chunk's 1024 bytes. It fits an unsigned int
         const unsigned int take = (remain < OBSIGNATIO_CHUNK_BYTES) ? (unsigned int)remain : OBSIGNATIO_CHUNK_BYTES;
-        const ObsignatioSource source = {&bytes[message * stride], NULL, 0ull, 0ull, length};
+        const ObsignatioSource source = {&bytes[message * stride], NULL, 0ULL, 0ULL, length};
         ObsignatioNode node;
         obsignatio_chunk(key.words, mode, &source, start, take, chunk, &node);
-        if (chunks == 1ull)
+        if (chunks == 1ULL)
         {
             obsignatio_root(&node, &signa[message * OBSIGNATIO_SIGNUM_BYTES], OBSIGNATIO_SIGNUM_BYTES);
         }

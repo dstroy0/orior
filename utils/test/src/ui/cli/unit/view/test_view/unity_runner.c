@@ -218,7 +218,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\view\\test_view\\test_view.c");
+  UnityBegin("utils/test/src/ui/cli/unit/view/test_view/test_view.c");
   run_test(test_the_view_displayed_and_the_one_displayed_before_it_are_known_by_their_places, "test_the_view_displayed_and_the_one_displayed_before_it_are_known_by_their_places", 258);
   run_test(test_a_wheel_moves_the_top_by_its_rows_from_where_it_is_and_stops_at_the_texts_ends, "test_a_wheel_moves_the_top_by_its_rows_from_where_it_is_and_stops_at_the_texts_ends", 366);
   run_test(test_a_wheel_takes_the_top_no_further_down_than_the_line_it_is_bounded_at, "test_a_wheel_takes_the_top_no_further_down_than_the_line_it_is_bounded_at", 386);

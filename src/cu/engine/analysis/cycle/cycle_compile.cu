@@ -5,7 +5,7 @@
 // CYCLE_RECORD_HOST_C=1 builds each lane written as C source (code_generator("c.krs")) with the host's C++ compiler in
 // place of NVRTC: the lane and its resident (program_unit) under a host prelude that reads the CUDA names they use
 // with each host thread a thread block of one thread. The text is compiled to a shared library in the cache folder,
-// cached there by its text, and loaded; its resident, cycle_program, runs the lanes on the host's threads, as many as
+// cached there by its text, and loaded. Its resident, cycle_program, runs the lanes on the host's threads, as many as
 // $CYCLE_HOST_THREADS names, else the host's hardware threads. The run copies the lane's
 // inputs from the device and its records and errors back: the check (CYCLE_RECORD_CHECK=1) checks it against the
 // interpreter as it checks the device's. On Windows the compiler is nvcc handing the source to the host compiler
@@ -245,7 +245,7 @@ static void cycle_host_library_close(void *library)
 
 // The host text of a C lane found in this process, else in the cache folder, else compiled there and cached, then
 // loaded. The cache contains the text beside its library, and a library is used only where the text beside it is this
-// text byte for byte; each is written beside its name and renamed to it, and no reader finds half a file. 0 where
+// text byte for byte. Each is written beside its name and renamed to it, and no reader finds half a file. 0 where
 // there is no cache folder, or the compile or the load failed
 int cycle_host_program_load(const EngineRecordLayout *layout, CycleRecord *record, const std::string &source,
                             unsigned int places, unsigned long long written, int report)
@@ -257,7 +257,7 @@ int cycle_host_program_load(const EngineRecordLayout *layout, CycleRecord *recor
     {
         if (s_cycle_host_programs[at].source == text)
         {
-            s_cycle_host_programs[at].holders += 1ull;
+            s_cycle_host_programs[at].holders += 1ULL;
             record->host_program = s_cycle_host_programs[at].entry;
             record->host_grid = s_cycle_host_programs[at].grid;
             record->compiled = 1u;
@@ -288,7 +288,7 @@ int cycle_host_program_load(const EngineRecordLayout *layout, CycleRecord *recor
     snprintf(name, sizeof(name), "%016llx.host", cycle_source_hash(text));
     const std::string stem = folder + separator + name;
     const int found = cycle_host_file_read(stem + ".cpp") == text;
-    unsigned long long compile_nanoseconds = 0ull;
+    unsigned long long compile_nanoseconds = 0ULL;
     std::string log;
     if (!found)
     {
@@ -321,7 +321,7 @@ int cycle_host_program_load(const EngineRecordLayout *layout, CycleRecord *recor
     program.library = cycle_host_library_open(stem + CYCLE_HOST_LIBRARY);
     program.entry = NULL;
     program.grid = NULL;
-    program.holders = 1ull;
+    program.holders = 1ULL;
     if (program.library != NULL)
     {
 #if defined(_WIN32)
@@ -373,8 +373,8 @@ void cycle_host_program_release(CycleHostEntry entry)
     {
         if (s_cycle_host_programs[at].entry == entry)
         {
-            s_cycle_host_programs[at].holders -= 1ull;
-            if (s_cycle_host_programs[at].holders == 0ull)
+            s_cycle_host_programs[at].holders -= 1ULL;
+            if (s_cycle_host_programs[at].holders == 0ULL)
             {
                 cycle_host_library_close(s_cycle_host_programs[at].library);
                 s_cycle_host_programs.erase(s_cycle_host_programs.begin() + (std::ptrdiff_t)at);
@@ -401,14 +401,14 @@ static unsigned int cycle_host_threads(unsigned long long lanes)
     const char *const named = getenv("CYCLE_HOST_THREADS");
     char *end = NULL;
     const unsigned long long requested =
-        ((named != NULL) && (named[0] >= '0') && (named[0] <= '9')) ? strtoull(named, &end, 10) : 0ull;
+        ((named != NULL) && (named[0] >= '0') && (named[0] <= '9')) ? strtoull(named, &end, 10) : 0ULL;
     const unsigned long long hardware = std::thread::hardware_concurrency();
     const unsigned long long threads =
-        ((requested != 0ull) && (end != NULL) && (*end == '\0')) ? requested : ((hardware != 0ull) ? hardware : 1ull);
+        ((requested != 0ULL) && (end != NULL) && (*end == '\0')) ? requested : ((hardware != 0ULL) ? hardware : 1ULL);
     const unsigned long long used = (threads < lanes) ? threads : lanes;
     // at max the lanes and at max what the environment or the hardware names; a run of more than 2^32 - 1 threads
     // is limited to that
-    return (unsigned int)((used == 0ull) ? 1ull : ((used > 0xFFFFFFFFull) ? 0xFFFFFFFFull : used));
+    return (unsigned int)((used == 0ULL) ? 1ULL : ((used > 0xFFFFFFFFULL) ? 0xFFFFFFFFULL : used));
 }
 
 // The host program run resident, as the device's is (cycle_record_resident): its block arranged for this run, then
@@ -446,10 +446,10 @@ int cycle_host_resident(const CycleRecord *record, CycleCompiledLaunch program, 
     program.error = error_count.data();
     EngineProgramBlock *const block = record->block;
     const unsigned long long ttl =
-        1000ull * cycle_environment_microseconds("CYCLE_RECORD_TTL", CYCLE_PROGRAM_TTL_MICROSECONDS);
-    const unsigned long long wdt = 1000ull * CYCLE_PROGRAM_WDT_MICROSECONDS;
+        1000ULL * cycle_environment_microseconds("CYCLE_RECORD_TTL", CYCLE_PROGRAM_TTL_MICROSECONDS);
+    const unsigned long long wdt = 1000ULL * CYCLE_PROGRAM_WDT_MICROSECONDS;
     const EngineSignum signature = block->signature;
-    const unsigned long long generation = block->generation + 1ull;
+    const unsigned long long generation = block->generation + 1ULL;
     memset(block, 0, sizeof(EngineProgramBlock));
     block->signature = signature;
     block->generation = generation;
@@ -479,12 +479,12 @@ int cycle_host_resident(const CycleRecord *record, CycleCompiledLaunch program, 
         {
             break;
         }
-        block->launches += 1ull;
+        block->launches += 1ULL;
         block->owner = block->launches;
         block->state = ENGINE_PROGRAM_RUNNING;
         program.launch_number = block->launches;
-        hot.launch_start = 0ull;
-        hot.finished = 0ull;
+        hot.launch_start = 0ULL;
+        hot.finished = 0ULL;
         record->host_grid(threads);
         const auto began = std::chrono::steady_clock::now();
         std::vector<std::thread> started;

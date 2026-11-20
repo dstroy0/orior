@@ -239,7 +239,7 @@ int main(void)
     cli_check(EMBED_CALL(gui_preferences_palette_change.press, GuiPreferencesPaletteChangeCfg, .preferences = &preferences, .palette = palette, .x = close_mark.x + 4, .y = close_mark.y + 4, .change = &change) && (change.type == GUI_PREFERENCE_CLOSED) && !preferences.displayed, "a press on the close mark closes it");
     preferences.displayed = 1;
 
-    // one section drawn at a time, how bright each thing is telling them apart
+    // one section drawn at a time, how bright each thing tells them apart
     GuiRaster raster;
     cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 1200u, .height = 800u), "a raster to draw on");
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){0, 0, 1200, 800}, .color = palette->background_fill);
@@ -382,7 +382,7 @@ int main(void)
     (void)EMBED_CALL(gui_preferences_palette_change.release, GuiPreferencesPaletteChangeCfg, .preferences = &preferences, .palette = palette, .x = colors_name.x + 3, .y = colors_name.y + 3, .change = &change, .time_ms = 7100ULL);
     cli_check((preferences.buttons.pressed == GUI_BEAD_TOOLS_MAX) && (preferences.buttons.press[GUI_PREFERENCES_COLORS].to == GUI_FIXED_ONE), "the press let go springs the bead back");
 
-    // the palettes' list at the grid's left: Window and each language plugin named, a row a palette; the one chosen
+    // the palettes' list at the grid's left: Window and each language plugin named, a row a palette. The one chosen
     // gives the grid its colors, a plugin's tokens alone from the first the window passes in
     static GuiPaletteOwn plugin;
     EMBED_CALL(gui_palette_scheme.own_init, GuiPaletteCfg, .own = &plugin, .scheme = GUI_SCHEME_DARK);

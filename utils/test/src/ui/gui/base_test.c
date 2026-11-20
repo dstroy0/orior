@@ -180,7 +180,7 @@ int main(void)
     const GuiColor half_surface = (palette->surface & 0x00ffffffu) | ((((GUI_ALPHA_OF(palette->surface) * 8u) + 8u) / 16u) << 24u);
     cli_check(pixel(&raster, frame.tabs.x + 10, frame.tabs.y + (frame.tabs.height / 2)) == EMBED_CALL(gui_color.over, GuiRasterCfg, .background_color = palette->background_fill, .color = half_surface),
               "halfway through the claim a pixel of the tabs row is its surface at half its alpha over the lattice");
-    // the side pane halfway gone: its ground where it is at the part halfway, and the side it has left the lattice
+    // the side pane halfway gone: its ground where it is at the part halfway, and the side it left the lattice
     numbers.claim = 0;
     claimed(&frame, &numbers);
     EMBED_CALL(gui_frame_displayed.side, GuiFrameDisplayedCfg, .frame = &frame, .displayed = 1, .away = GUI_FIXED_ONE / 2);

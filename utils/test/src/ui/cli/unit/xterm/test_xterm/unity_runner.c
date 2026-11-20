@@ -72,7 +72,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\xterm\\test_xterm\\test_xterm.c");
+  UnityBegin("utils/test/src/ui/cli/unit/xterm/test_xterm/test_xterm.c");
   run_test(test_a_line_without_a_sequence_is_its_text_with_no_span, "test_a_line_without_a_sequence_is_its_text_with_no_span", 42);
   run_test(test_a_color_and_its_reset_are_one_span_without_the_escape_bytes, "test_a_color_and_its_reset_are_one_span_without_the_escape_bytes", 49);
   run_test(test_bold_a_bright_color_and_a_change_of_color_are_a_span_each, "test_bold_a_bright_color_and_a_change_of_color_are_a_span_each", 57);

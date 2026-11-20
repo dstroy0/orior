@@ -16,7 +16,7 @@ typedef struct GuiDocksCfg GuiDocksCfg;
 // how long a panel's arrival takes, in milliseconds
 #define GUI_DOCKS_ARRIVING_MS 140ULL
 
-// The docks: the panel's arrival, a slide of the way it has left, from all of it to none
+// The docks: the panel's arrival, a slide of the way it left, from all of it to none
 typedef struct
 {
     GuiSlide arrive;
@@ -26,7 +26,7 @@ typedef struct
 void gui_docks_init(const GuiDocksCfg *args);
 // the panel displayed at `time_ms`: its arrival begun, or none where motion is `still`
 void gui_docks_show(const GuiDocksCfg *args);
-// the share of its way the panel has left at `time_ms`, GUI_FIXED_ONE as it begins and 0 arrived; and when the arrival
+// the share of its way the panel left at `time_ms`, GUI_FIXED_ONE as it begins and 0 arrived; and when the arrival
 // ends, 0 where none runs at `time_ms`
 int gui_docks_away(const GuiDocksCfg *args);
 unsigned long long gui_docks_arrive_end_ms(const GuiDocksCfg *args);

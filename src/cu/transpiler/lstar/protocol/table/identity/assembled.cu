@@ -14,12 +14,12 @@ static char s_writer_output[4096];
 
 std::vector<std::vector<unsigned char>> vendor_assembled(const char *machine, const std::vector<std::string> &texts)
 {
-    static unsigned long long s_call = 0ull;
+    static unsigned long long s_call = 0ULL;
     std::vector<std::vector<unsigned char>> codes(texts.size());
     // the vendor's writer the query crate named, the latest IDENTITY_WRITER of the run
     static IdentityWriter s_writer;
     const unsigned char *named = NULL;
-    unsigned long long named_size = 0ull;
+    unsigned long long named_size = 0ULL;
     if (!qry_member_blob(IDENTITY_WRITER, &named, &named_size, NULL) || (named_size != sizeof(s_writer)) || texts.empty())
     {
         return codes;
@@ -29,13 +29,13 @@ std::vector<std::vector<unsigned char>> vendor_assembled(const char *machine, co
     s_writer.part[sizeof(s_writer.part) - 1u] = '\0';
     s_writer.layout[sizeof(s_writer.layout) - 1u] = '\0';
     s_writer.mnemonics[sizeof(s_writer.mnemonics) - 1u] = '\0';
-    s_call += 1ull;
+    s_call += 1ULL;
     std::string passed = "call " + std::to_string(s_call) + "\n";
     for (const std::string &text : texts)
     {
         passed += text + "\f\n";
     }
-    if (qry_member_append(ASSEMBLE_TEXTS, passed.data(), passed.size(), QRY_ORDINARY) == 0ull)
+    if (qry_member_append(ASSEMBLE_TEXTS, passed.data(), passed.size(), QRY_ORDINARY) == 0ULL)
     {
         return codes;
     }
@@ -43,7 +43,7 @@ std::vector<std::vector<unsigned char>> vendor_assembled(const char *machine, co
     char *command[] = {s_writer.program,        s_writer.part,          const_cast<char *>(machine),
                        s_writer.layout,         s_writer.mnemonics,     const_cast<char *>(ASSEMBLE_TEXTS),
                        const_cast<char *>("assemble"), NULL};
-    const InterfaceProbe probe = {command, NULL, 0ull};
+    const InterfaceProbe probe = {command, NULL, 0ULL};
     InterfaceAnswer answer = {};
     answer.output = s_writer_output;
     answer.output_capacity = sizeof(s_writer_output);
@@ -52,14 +52,14 @@ std::vector<std::vector<unsigned char>> vendor_assembled(const char *machine, co
     qry_member_settled();
     const long ran = interface_probe_run(&probe, &answer, &error);
     qry_member_rings_settled();
-    if ((ran != 0L) || (answer.ending != INTERFACE_ENDING_EXITED) || (answer.code != 0ull))
+    if ((ran != 0L) || (answer.ending != INTERFACE_ENDING_EXITED) || (answer.code != 0ULL))
     {
         printf("orior_klq_identity: the vendor's writer did not assemble: %s\n", s_writer_output);
         return codes;
     }
     const unsigned char *bytes = NULL;
-    unsigned long long size = 0ull;
-    unsigned long long call = 0ull;
+    unsigned long long size = 0ULL;
+    unsigned long long call = 0ULL;
     unsigned int count = 0u;
     if (!qry_member_blob(ASSEMBLE_CODE, &bytes, &size, NULL) || (size < (sizeof(call) + sizeof(count))))
     {
@@ -79,7 +79,7 @@ std::vector<std::vector<unsigned char>> vendor_assembled(const char *machine, co
         unsigned int instructions = 0u;
         memcpy(&instructions, bytes + at, sizeof(instructions));
         at += sizeof(instructions);
-        const unsigned long long length = 16ull * instructions;
+        const unsigned long long length = 16ULL * instructions;
         if ((at + length) > size)
         {
             break;

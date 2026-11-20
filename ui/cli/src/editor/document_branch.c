@@ -375,9 +375,9 @@ EMBED_INLINE void branch_index_append(const DocumentBranchCtx *args)
         entry = (entry + 1u) & (args->one->state_indexed - 1u);
     }
     {
-        const unsigned int word = args->at + 1u;
+        const unsigned int stored_value = args->at + 1u;
         (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
-            .cell = args->one->state_index, .offset = entry * sizeof(word), .src = &word, .bytes = sizeof(word)});
+            .cell = args->one->state_index, .offset = entry * sizeof(stored_value), .src = &stored_value, .bytes = sizeof(stored_value)});
     }
 }
 
@@ -656,12 +656,12 @@ EMBED_INLINE int branch_runs_capacity(const DocumentBranchCtx *args)
                                     .dst = work + used,
                                     .bytes = (unsigned long long)words * sizeof(*work)});
             {
-                const unsigned int word = used;
+                const unsigned int stored_value = used;
                 (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
                     .cell = lines->words,
-                    .offset = (((unsigned long long)CLI_DOC_WORD_RUNS * lines->lines) + line) * sizeof(word),
-                    .src = &word,
-                    .bytes = sizeof(word)});
+                    .offset = (((unsigned long long)CLI_DOC_WORD_RUNS * lines->lines) + line) * sizeof(stored_value),
+                    .src = &stored_value,
+                    .bytes = sizeof(stored_value)});
             }
             used += words;
         }
@@ -686,12 +686,12 @@ EMBED_INLINE void branch_runs_save(const DocumentBranchCtx *args)
 {
     const CliStoredLines *const lines = &args->one->lines;
     {
-        const unsigned int word = CLI_DOC_NO_RUNS;
+        const unsigned int stored_value = CLI_DOC_NO_RUNS;
         (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = lines->words,
-            .offset = (((unsigned long long)CLI_DOC_WORD_RUNS * lines->lines) + args->line) * sizeof(word),
-            .src = &word,
-            .bytes = sizeof(word)});
+            .offset = (((unsigned long long)CLI_DOC_WORD_RUNS * lines->lines) + args->line) * sizeof(stored_value),
+            .src = &stored_value,
+            .bytes = sizeof(stored_value)});
     }
     const unsigned long long words = CLI_DOC_RECORD_HEAD + (2ULL * args->leaves->runs);
     if (((args->one->run_used + words) > args->one->run_capacity) &&
@@ -713,12 +713,12 @@ EMBED_INLINE void branch_runs_save(const DocumentBranchCtx *args)
                             .src = args->leaves->name,
                             .bytes = args->leaves->runs * sizeof(unsigned int)});
     {
-        const unsigned int word = args->one->run_used;
+        const unsigned int stored_value = args->one->run_used;
         (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = lines->words,
-            .offset = (((unsigned long long)CLI_DOC_WORD_RUNS * lines->lines) + args->line) * sizeof(word),
-            .src = &word,
-            .bytes = sizeof(word)});
+            .offset = (((unsigned long long)CLI_DOC_WORD_RUNS * lines->lines) + args->line) * sizeof(stored_value),
+            .src = &stored_value,
+            .bytes = sizeof(stored_value)});
     }
     // the words written lie within the capacity, which an unsigned int counts
     args->one->run_used += (unsigned int)words;
@@ -805,7 +805,7 @@ EMBED_INLINE void branch_roles_read(const DocumentBranchCtx *args)
     {
         // the rank saved plus 1, a name's place among no more than CLI_DOC_RANKS
         unsigned int roles = 0u;
-        if ((place) < args->one->roles_capacity)
+        if (place < args->one->roles_capacity)
         {
             (void)g_cli_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = args->one->roles,
@@ -1512,22 +1512,22 @@ EMBED_INLINE unsigned int branch_found_append(const DocumentBranchCtx *args)
         const unsigned int scope_size = record[3];
         const int written = (scope_size != CLI_DOC_NONE) && (scope_size != CLI_DOC_SCOPE_SAME);
         {
-            const unsigned int word = *entering;
+            const unsigned int stored_value = *entering;
             (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = lines->words,
-                .offset = (((unsigned long long)CLI_DOC_WORD_BEGUN * lines->lines) + line) * sizeof(word),
-                .src = &word,
-                .bytes = sizeof(word)});
+                .offset = (((unsigned long long)CLI_DOC_WORD_BEGUN * lines->lines) + line) * sizeof(stored_value),
+                .src = &stored_value,
+                .bytes = sizeof(stored_value)});
         }
         const unsigned int ends = EMBED_CALL(branch_state_ended, DocumentBranchCtx, .one = args->one, .record = record,
                                              .text = ended, .read = &scoped);
         {
-            const unsigned int word = ends;
+            const unsigned int stored_value = ends;
             (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = lines->words,
-                .offset = (((unsigned long long)CLI_DOC_WORD_ENDED * lines->lines) + line) * sizeof(word),
-                .src = &word,
-                .bytes = sizeof(word)});
+                .offset = (((unsigned long long)CLI_DOC_WORD_ENDED * lines->lines) + line) * sizeof(stored_value),
+                .src = &stored_value,
+                .bytes = sizeof(stored_value)});
         }
         unsigned int regions_word = 0u;
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
@@ -1537,12 +1537,12 @@ EMBED_INLINE unsigned int branch_found_append(const DocumentBranchCtx *args)
             .bytes = sizeof(regions_word)});
         args->one->regions_moved = args->one->regions_moved || (regions_word != record[1]);
         {
-            const unsigned int word = record[1];
+            const unsigned int stored_value = record[1];
             (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = lines->words,
-                .offset = (((unsigned long long)CLI_DOC_WORD_REGIONS * lines->lines) + line) * sizeof(word),
-                .src = &word,
-                .bytes = sizeof(word)});
+                .offset = (((unsigned long long)CLI_DOC_WORD_REGIONS * lines->lines) + line) * sizeof(stored_value),
+                .src = &stored_value,
+                .bytes = sizeof(stored_value)});
         }
         const CliLeaves saved = {NULL, runs, found_col, found_col + runs, NULL, NULL, NULL, record[4]};
         const int transferred = (line >= hand_from) && (line < hand_to);
@@ -1554,12 +1554,12 @@ EMBED_INLINE unsigned int branch_found_append(const DocumentBranchCtx *args)
         else
         {
             {
-                const unsigned int word = CLI_DOC_NO_RUNS;
+                const unsigned int stored_value = CLI_DOC_NO_RUNS;
                 (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
                     .cell = lines->words,
-                    .offset = (((unsigned long long)CLI_DOC_WORD_RUNS * lines->lines) + line) * sizeof(word),
-                    .src = &word,
-                    .bytes = sizeof(word)});
+                    .offset = (((unsigned long long)CLI_DOC_WORD_RUNS * lines->lines) + line) * sizeof(stored_value),
+                    .src = &stored_value,
+                    .bytes = sizeof(stored_value)});
             }
         }
         if (transferred)
@@ -2250,7 +2250,7 @@ unsigned int cli_document_openers(const CliDocumentKeyLineCfg *args)
 // run or the names' roles are not read yet
 static unsigned int run_roles_locked(const CliDocumentKeyLineCfg *args)
 {
-    CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
+    const CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
     if ((one == NULL) || (args->line >= one->lines.lines) || !one->roles_complete)
     {
         return 0u;
@@ -2446,23 +2446,23 @@ int cli_document_colored_by(const CliDocumentKeyGrammarCfg *args)
         {
             (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = one->lines.words,
-                .offset = (((unsigned long long)(CLI_DOC_WORD_BEGUN)*one->lines.lines) + (line)) * sizeof(unsigned int),
+                .offset = (((unsigned long long)(CLI_DOC_WORD_BEGUN)*one->lines.lines) + line) * sizeof(unsigned int),
                 .src = &(unsigned int){CLI_DOC_UNCOLORED},
                 .bytes = sizeof(unsigned int)});
             (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = one->lines.words,
-                .offset = (((unsigned long long)(CLI_DOC_WORD_ENDED)*one->lines.lines) + (line)) * sizeof(unsigned int),
+                .offset = (((unsigned long long)(CLI_DOC_WORD_ENDED)*one->lines.lines) + line) * sizeof(unsigned int),
                 .src = &(unsigned int){CLI_DOC_UNCOLORED},
                 .bytes = sizeof(unsigned int)});
             (void)g_cli_guard->movable_buf_write(
                 &(CarcerMovableCfg){.cell = one->lines.words,
-                                    .offset = (((unsigned long long)(CLI_DOC_WORD_REGIONS)*one->lines.lines) + (line)) *
+                                    .offset = (((unsigned long long)(CLI_DOC_WORD_REGIONS)*one->lines.lines) + line) *
                                               sizeof(unsigned int),
                                     .src = &(unsigned int){0u},
                                     .bytes = sizeof(unsigned int)});
             (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = one->lines.words,
-                .offset = (((unsigned long long)(CLI_DOC_WORD_RUNS)*one->lines.lines) + (line)) * sizeof(unsigned int),
+                .offset = (((unsigned long long)(CLI_DOC_WORD_RUNS)*one->lines.lines) + line) * sizeof(unsigned int),
                 .src = &(unsigned int){CLI_DOC_NO_RUNS},
                 .bytes = sizeof(unsigned int)});
         }
@@ -2481,7 +2481,7 @@ int cli_document_colored_by(const CliDocumentKeyGrammarCfg *args)
 // walk coming to it
 EMBED_INLINE void branch_cache_moved(const DocumentBranchCtx *args)
 {
-    CliStoredText *const one = args->one;
+    const CliStoredText *const one = args->one;
     const CliStoredLines *const lines = &one->lines;
     const unsigned int was_from = one->cached_from;
     const unsigned int was_to = (one->cached_to < lines->lines) ? one->cached_to : lines->lines;
@@ -2490,12 +2490,12 @@ EMBED_INLINE void branch_cache_moved(const DocumentBranchCtx *args)
         if ((line < args->from) || (line >= args->to))
         {
             {
-                const unsigned int word = CLI_DOC_NO_RUNS;
+                const unsigned int stored_value = CLI_DOC_NO_RUNS;
                 (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
                     .cell = lines->words,
-                    .offset = (((unsigned long long)CLI_DOC_WORD_RUNS * lines->lines) + line) * sizeof(word),
-                    .src = &word,
-                    .bytes = sizeof(word)});
+                    .offset = (((unsigned long long)CLI_DOC_WORD_RUNS * lines->lines) + line) * sizeof(stored_value),
+                    .src = &stored_value,
+                    .bytes = sizeof(stored_value)});
             }
         }
     }
@@ -2505,12 +2505,12 @@ EMBED_INLINE void branch_cache_moved(const DocumentBranchCtx *args)
         if (!passed && !EMBED_CALL(branch_runs_existing, DocumentBranchCtx, .one_read = one, .line = line))
         {
             {
-                const unsigned int word = CLI_DOC_UNCOLORED;
+                const unsigned int stored_value = CLI_DOC_UNCOLORED;
                 (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
                     .cell = lines->words,
-                    .offset = (((unsigned long long)CLI_DOC_WORD_BEGUN * lines->lines) + line) * sizeof(word),
-                    .src = &word,
-                    .bytes = sizeof(word)});
+                    .offset = (((unsigned long long)CLI_DOC_WORD_BEGUN * lines->lines) + line) * sizeof(stored_value),
+                    .src = &stored_value,
+                    .bytes = sizeof(stored_value)});
             }
         }
     }
@@ -2868,7 +2868,7 @@ EMBED_INLINE unsigned int branch_word_units(const DocumentBranchCtx *args)
     const unsigned int *const col = record + CLI_DOC_RECORD_HEAD;
     const unsigned int name = col[runs + args->name];
     unsigned int roles = 0u;
-    if ((name) < one->roles_capacity)
+    if (name < one->roles_capacity)
     {
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = one->roles,
                                                                 .offset = (unsigned long long)(name) * sizeof(roles),

@@ -6,7 +6,7 @@
 static unsigned int max_tree_bits_for(unsigned long long bound)
 {
     unsigned int bits = 1u;
-    while ((bits < 64u) && ((bound >> bits) != 0ull))
+    while ((bits < 64u) && ((bound >> bits) != 0ULL))
     {
         bits += 1u;
     }
@@ -29,7 +29,7 @@ extern "C" void max_tree_layout(unsigned int depth, unsigned int height, unsigne
     layout->bits[MAX_TREE_FIELD_SUM_Z] = max_tree_bits_for(voxels * range[0]);
     layout->bits[MAX_TREE_FIELD_SUM_Y] = max_tree_bits_for(voxels * range[1]);
     layout->bits[MAX_TREE_FIELD_SUM_X] = max_tree_bits_for(voxels * range[2]);
-    layout->bits[MAX_TREE_FIELD_PEAK] = max_tree_bits_for((voxels > 0ull) ? (voxels - 1ull) : 0ull);
+    layout->bits[MAX_TREE_FIELD_PEAK] = max_tree_bits_for((voxels > 0ULL) ? (voxels - 1ULL) : 0ULL);
     layout->bits[MAX_TREE_FIELD_TOUCHES] = 6u;
     layout->bits[MAX_TREE_FIELD_MASS] = max_tree_bits_for(voxels);
     layout->bits[MAX_TREE_FIELD_LEVEL] = (ENGINE_RESIDUAL_LIMBS * 32u) - 1u;
@@ -85,14 +85,14 @@ __global__ static void max_tree_pack_bodies_kernel(const EngineBody *bodies, uns
     unsigned int lost = 0u;
     for (unsigned int moment = 0u; moment < 6u; moment += 1u)
     {
-        const unsigned int limbs[2] = {(unsigned int)(body->moments[moment] & 0xFFFFFFFFull),
+        const unsigned int limbs[2] = {(unsigned int)(body->moments[moment] & 0xFFFFFFFFULL),
                                        (unsigned int)(body->moments[moment] >> 32u)};
         lost += max_tree_put_field(magnitude, layout.offset[MAX_TREE_FIELD_MOMENT_ZZ + moment],
                                    layout.bits[MAX_TREE_FIELD_MOMENT_ZZ + moment], limbs, 2u);
     }
     for (unsigned int axis = 0u; axis < 3u; axis += 1u)
     {
-        const unsigned int limbs[2] = {(unsigned int)(body->sums[axis] & 0xFFFFFFFFull),
+        const unsigned int limbs[2] = {(unsigned int)(body->sums[axis] & 0xFFFFFFFFULL),
                                        (unsigned int)(body->sums[axis] >> 32u)};
         lost += max_tree_put_field(magnitude, layout.offset[MAX_TREE_FIELD_SUM_Z + axis],
                                    layout.bits[MAX_TREE_FIELD_SUM_Z + axis], limbs, 2u);
@@ -144,11 +144,11 @@ extern "C" long max_tree_pack(const MaxTreePackRequest *request)
             device_lost);
         ok = MAX_TREE_STATUS_CHECK(cudaGetLastError(), request->device_magnitudes, error);
     }
-    unsigned long long lost = 0ull;
+    unsigned long long lost = 0ULL;
     ok = ok && MAX_TREE_STATUS_CHECK(cudaMemcpy(&lost, device_lost, sizeof(unsigned long long), cudaMemcpyDeviceToHost),
                                      device_lost, error);
     cudaFree(device_lost);
     *request->mismatches = lost;
-    ok = ok && MAX_TREE_CHECK(lost == 0ull, request->device_magnitudes, error, ENGINE_ERROR_LOGIC);
+    ok = ok && MAX_TREE_CHECK(lost == 0ULL, request->device_magnitudes, error, ENGINE_ERROR_LOGIC);
     return (ok != 0) ? (long)bodies : MAX_TREE_ERROR;
 }

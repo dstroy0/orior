@@ -54,10 +54,10 @@
 
 // the values each operand is put through: zero, the small numbers, and the edges of every width
 static const unsigned long long s_values[] = {
-    0x0ull,          0x1ull,          0x2ull,          0x3ull,          0x7full,
-    0x80ull,         0xffull,         0x100ull,        0x7fffull,       0x8000ull,
-    0xffffull,       0x7fffffffull,   0x80000000ull,   0xffffffffull,   0x100000000ull,
-    0x7fffffffffffffffull, 0x8000000000000000ull, 0xffffffffffffffffull};
+    0x0ULL,          0x1ULL,          0x2ULL,          0x3ULL,          0x7fULL,
+    0x80ULL,         0xffULL,         0x100ULL,        0x7fffULL,       0x8000ULL,
+    0xffffULL,       0x7fffffffULL,   0x80000000ULL,   0xffffffffULL,   0x100000000ULL,
+    0x7fffffffffffffffULL, 0x8000000000000000ULL, 0xffffffffffffffffULL};
 
 #define IDENTITY_VALUES (sizeof(s_values) / sizeof(s_values[0]))
 
@@ -245,8 +245,8 @@ static inline const Ruleset *identity_ruleset(void)
 {
     static char s_path[IDENTITY_PATH_MAX_LEN];
     const unsigned char *named = NULL;
-    unsigned long long size = 0ull;
-    if (!qry_member_blob(IDENTITY_RULESET, &named, &size, NULL) || (size == 0ull) || (size >= sizeof(s_path)))
+    unsigned long long size = 0ULL;
+    if (!qry_member_blob(IDENTITY_RULESET, &named, &size, NULL) || (size == 0ULL) || (size >= sizeof(s_path)))
     {
         return NULL;
     }
@@ -260,8 +260,8 @@ static inline const Ruleset *identity_ruleset(void)
 static inline unsigned long identity_seed(void)
 {
     const unsigned char *seed_bytes = NULL;
-    unsigned long long size = 0ull;
-    unsigned long long seed = 1ull;
+    unsigned long long size = 0ULL;
+    unsigned long long seed = 1ULL;
     if (qry_member_blob(IDENTITY_SEED, &seed_bytes, &size, NULL) && (size == sizeof(seed)))
     {
         memcpy(&seed, seed_bytes, sizeof(seed));

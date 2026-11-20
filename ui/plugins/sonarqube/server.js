@@ -5,6 +5,15 @@
 // it with, and what it says of itself: its log, what it is doing, the pages it opens, and the
 // questions it asks of the reader.
 
+// The platform that the server gets told of, from the agent of the page.
+function platformName() {
+  const agent = globalThis.navigator?.userAgent ?? "";
+  if (agent.includes("Windows")) {
+    return "win32";
+  }
+  return agent.includes("Mac") ? "darwin" : "linux";
+}
+
 // The options the server starts with: who asks, the folder of the analyzers that run JavaScript and
 // TypeScript, the connections and the rules as the settings hold them, and no usage statistics.
 function initializationOptions() {
@@ -16,7 +25,7 @@ function initializationOptions() {
     workspaceName: "",
     firstSecretDetected: false,
     showVerboseLogs: settings.output.showVerboseLogs,
-    platform: (globalThis.navigator?.userAgent ?? "").includes("Windows") ? "win32" : (globalThis.navigator?.userAgent ?? "").includes("Mac") ? "darwin" : "linux",
+    platform: platformName(),
     architecture: "x64",
     additionalAttributes: {},
     enableNotebooks: true,
@@ -88,7 +97,8 @@ function chosen(text, actions) {
   questions += 1;
   const number = questions;
   const answered = new Promise((resolve) => waiting.set(number, resolve));
-  void displayed("ask", `<p>${escaped(text)}</p><div class="row">${actions.map((action, at) => button(action, "answer", `${number}:${at}`)).join("")}${button("Dismiss", "answer", `${number}:-1`)}</div>`);
+  const answers = actions.map((action, at) => button(action, "answer", number + ":" + at)).join("");
+  void displayed("ask", `<p>${escaped(text)}</p><div class="row">${answers}${button("Dismiss", "answer", number + ":-1")}</div>`);
   return answered;
 }
 

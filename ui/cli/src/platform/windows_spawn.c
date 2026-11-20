@@ -75,7 +75,7 @@ EMBED_INLINE void cli_word_quote(const WindowsSpawnCtx *args)
     mmgr_line_ch(args->line, '"');
     unsigned int slashes = 0u;
     const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_POOL_BYTES});
-    for (unsigned long long at = 0ull; at < whole;)
+    for (unsigned long long at = 0ULL; at < whole;)
     {
         const unsigned long long stop = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
                                                    .text = args->word, .at = at, .size = whole, .set = "\\\"");
@@ -88,12 +88,12 @@ EMBED_INLINE void cli_word_quote(const WindowsSpawnCtx *args)
         at = run_end;
         if ((run_end < whole) && (args->word[run_end] == '"'))
         {
-            for (unsigned long long added = stop; added <= run_end; added += 1ull)
+            for (unsigned long long added = stop; added <= run_end; added += 1ULL)
             {
                 mmgr_line_ch(args->line, '\\');
             }
             mmgr_line_ch(args->line, '"');
-            at = run_end + 1ull;
+            at = run_end + 1ULL;
         }
     }
     for (unsigned int added = 0u; added < slashes; added += 1u)
@@ -140,7 +140,7 @@ EMBED_INLINE int cli_environment(const WindowsSpawnCtx *args)
     {
         return 0;
     }
-    unsigned long long used = 0ull;
+    unsigned long long used = 0ULL;
     int fits = 1;
     for (const wchar_t *entry = own; fits && (entry[0] != L'\0'); entry += wcslen(entry) + 1u)
     {
@@ -149,8 +149,8 @@ EMBED_INLINE int cli_environment(const WindowsSpawnCtx *args)
         {
             named = EMBED_CALL(cli_by_name, WindowsSpawnCtx, .entry = entry, .name = names[at]);
         }
-        const unsigned long long length = wcslen(entry) + 1ull;
-        fits = (used + length + 1ull) < args->capacity;
+        const unsigned long long length = wcslen(entry) + 1ULL;
+        fits = (used + length + 1ULL) < args->capacity;
         if (!named && fits)
         {
             memor.cpy(&(MemoriaCfg){.dst = args->block + used, .src = entry, .bytes = length * sizeof(wchar_t)});
@@ -165,17 +165,17 @@ EMBED_INLINE int cli_environment(const WindowsSpawnCtx *args)
             continue;
         }
         char entry[CLI_PATH_MAX_LEN * 8u];
-        VerbaLinea line = {entry, sizeof(entry), 0ull};
+        VerbaLinea line = {entry, sizeof(entry), 0ULL};
         mmgr_line_put(&line, args->settings[at].name);
         mmgr_line_ch(&line, '=');
         mmgr_line_put(&line, args->settings[at].value);
-        fits = mmgr_line_finish(&line) != 0ull;
+        fits = mmgr_line_finish(&line) != 0ULL;
         // the capacity left is below what an int counts
         const int written =
-            fits ? MultiByteToWideChar(CP_UTF8, 0, entry, -1, args->block + used, (int)(args->capacity - used - 1ull))
+            fits ? MultiByteToWideChar(CP_UTF8, 0, entry, -1, args->block + used, (int)(args->capacity - used - 1ULL))
                  : 0;
         fits = written > 0;
-        used += fits ? (unsigned long long)written : 0ull;
+        used += fits ? (unsigned long long)written : 0ULL;
     }
     args->block[used] = L'\0';
     return fits;
@@ -191,13 +191,13 @@ EMBED_INLINE WindowsSpawnCell *cli_spawn_prepare(const WindowsSpawnCtx *args)
         mmgr_line_put(args->err_msg, "no memory is left to start the command");
         return NULL;
     }
-    VerbaLinea line = {cell->line, sizeof(cell->line), 0ull};
+    VerbaLinea line = {cell->line, sizeof(cell->line), 0ULL};
     for (unsigned int at = 0u; args->words[at] != NULL; at += 1u)
     {
         mmgr_line_put(&line, (at != 0u) ? " " : "");
         EMBED_CALL(cli_word_quote, WindowsSpawnCtx, .line = &line, .word = args->words[at]);
     }
-    if ((mmgr_line_finish(&line) == 0ull) ||
+    if ((mmgr_line_finish(&line) == 0ULL) ||
         (MultiByteToWideChar(CP_UTF8, 0, cell->line, -1, cell->wide, CLI_LINE_BYTES) == 0) ||
         ((args->folder != NULL) &&
          (MultiByteToWideChar(CP_UTF8, 0, args->folder, -1, cell->folder, CLI_PATH_MAX_LEN) == 0)) ||
@@ -375,7 +375,7 @@ static int cli_spawn_with(const WindowsSpawnCtx *args)
     cell->inherited[2] = err_write;
     // a handle is a pointer's width, which an unsigned long long stores
     cell->inherited[3] = (HANDLE)(embed_word)args->inherited_handle;
-    const unsigned int handles_listed = (args->inherited_handle != 0ull) ? 4u : 3u;
+    const unsigned int handles_listed = (args->inherited_handle != 0ULL) ? 4u : 3u;
     const LPPROC_THREAD_ATTRIBUTE_LIST attributes = (LPPROC_THREAD_ATTRIBUTE_LIST)(void *)cell->attributes;
     const int listed = piped && EMBED_CALL(cli_spawn_attributes, WindowsSpawnCtx, .cell = cell,
                                            .job = (job != NULL) ? &job : NULL, .inherited = handles_listed);
@@ -583,7 +583,7 @@ int cli_spawn_terminal_resize(const CliColsCtx *args)
 {
     const COORD size = {EMBED_CALL(cli_terminal_extent, WindowsSpawnCtx, .count = args->cols),
                         EMBED_CALL(cli_terminal_extent, WindowsSpawnCtx, .count = args->rows)};
-    return (args->spawned_read->group != 0ull) &&
+    return (args->spawned_read->group != 0ULL) &&
            SUCCEEDED(ResizePseudoConsole((HPCON)(embed_word)args->spawned_read->group, size));
 }
 
@@ -594,22 +594,22 @@ void cli_spawn_terminal_hung_up(const CliColsCtx *args)
 
 void cli_spawn_terminal_close(const CliSpawnedCtx *args)
 {
-    if (args->spawned->group != 0ull)
+    if (args->spawned->group != 0ULL)
     {
         ClosePseudoConsole((HPCON)(embed_word)args->spawned->group);
     }
-    args->spawned->group = 0ull;
+    args->spawned->group = 0ULL;
 }
 
 int cli_spawn_write(const CliPipeHandleCtx *args)
 {
     unsigned long long size = args->size;
     const unsigned char *at = (const unsigned char *)args->bytes;
-    while ((size > 0ull) && (args->pipe_handle != 0ull))
+    while ((size > 0ULL) && (args->pipe_handle != 0ULL))
     {
         DWORD written = 0u;
         // a piece is at max a gibibyte, which a DWORD counts
-        const DWORD chunk = (DWORD)((size < (1ull << 30u)) ? size : (1ull << 30u));
+        const DWORD chunk = (DWORD)((size < (1ULL << 30u)) ? size : (1ULL << 30u));
         if (!WriteFile((HANDLE)(embed_word)args->pipe_handle, at, chunk, &written, NULL) || (written == 0u))
         {
             return 0;
@@ -617,15 +617,15 @@ int cli_spawn_write(const CliPipeHandleCtx *args)
         at += written;
         size -= written;
     }
-    return size == 0ull;
+    return size == 0ULL;
 }
 
 void cli_spawn_input_close(const CliSpawnedCtx *args)
 {
-    if (args->spawned->in != 0ull)
+    if (args->spawned->in != 0ULL)
     {
         CloseHandle((HANDLE)(embed_word)args->spawned->in);
-        args->spawned->in = 0ull;
+        args->spawned->in = 0ULL;
     }
 }
 
@@ -633,11 +633,11 @@ unsigned long long cli_spawn_read(const CliCapacityPipeHandleCtx *args)
 {
     DWORD read = 0u;
     // a piece is at max a gibibyte, which a DWORD counts
-    const DWORD chunk = (DWORD)((args->capacity < (1ull << 30u)) ? args->capacity : (1ull << 30u));
-    if ((args->pipe_handle == 0ull) ||
+    const DWORD chunk = (DWORD)((args->capacity < (1ULL << 30u)) ? args->capacity : (1ULL << 30u));
+    if ((args->pipe_handle == 0ULL) ||
         !ReadFile((HANDLE)(embed_word)args->pipe_handle, args->piece, chunk, &read, NULL))
     {
-        return 0ull;
+        return 0ULL;
     }
     return read;
 }
@@ -645,10 +645,10 @@ unsigned long long cli_spawn_read(const CliCapacityPipeHandleCtx *args)
 unsigned long long cli_spawn_waiting(const CliCapacityPipeHandleCtx *args)
 {
     DWORD waiting = 0u;
-    if ((args->pipe_handle == 0ull) ||
+    if ((args->pipe_handle == 0ULL) ||
         !PeekNamedPipe((HANDLE)(embed_word)args->pipe_handle, NULL, 0u, NULL, &waiting, NULL))
     {
-        return 0ull;
+        return 0ULL;
     }
     return waiting;
 }
@@ -680,7 +680,7 @@ int cli_spawn_poll(const CliSpawnedCtx *args)
 
 void cli_spawn_group_end(const CliGroupCtx *args)
 {
-    if (args->group != 0ull)
+    if (args->group != 0ULL)
     {
         TerminateJobObject((HANDLE)(embed_word)args->group, 1u);
     }
@@ -692,7 +692,7 @@ void cli_spawn_close(const CliSpawnedCtx *args)
                                            args->spawned->group, args->spawned->in};
     for (unsigned int at = 0u; at < 5u; at += 1u)
     {
-        if (handles[at] != 0ull)
+        if (handles[at] != 0ULL)
         {
             CloseHandle((HANDLE)(embed_word)handles[at]);
         }
@@ -714,13 +714,13 @@ int cli_spawn_interrupt(const CliColsCtx *args)
 void cli_spawn_tree_end(const CliIdCtx *args)
 {
     char number[24];
-    VerbaLinea line = {number, sizeof(number), 0ull};
+    VerbaLinea line = {number, sizeof(number), 0ULL};
     mmgr_line_decimal(&line, args->id_u64, 1u);
     mmgr_line_finish(&line);
     const char *const words[6] = {"taskkill", "/T", "/F", "/PID", number, NULL};
     CliSpawned killer;
     char err_buf[CLI_PATH_MAX_LEN];
-    VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ull};
+    VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ULL};
     if (EMBED_CALL(cli_words_err_msg_internal.spawn, CliWordsErrMsgCtx, .spawned = &killer, .words = words,
                    .folder = NULL, .settings = NULL, .count = 0u, .detached = 1, .err_msg = &err_msg))
     {
@@ -752,9 +752,9 @@ unsigned int cli_path_folders(const CliCapacityFoldersCtx *args)
         {
             if ((at > from) && (count < capacity))
             {
-                VerbaLinea line = {args->folders[count], CLI_PATH_MAX_LEN, 0ull};
+                VerbaLinea line = {args->folders[count], CLI_PATH_MAX_LEN, 0ULL};
                 mmgr_line_put_n(&line, from, (unsigned long long)(at - from));
-                count += (mmgr_line_finish(&line) != 0ull) ? 1u : 0u;
+                count += (mmgr_line_finish(&line) != 0ULL) ? 1u : 0u;
             }
             if (at[0] == '\0')
             {
@@ -769,7 +769,7 @@ unsigned int cli_path_folders(const CliCapacityFoldersCtx *args)
 
 void cli_path_join(const CliPathCountSizeCtx *args)
 {
-    VerbaLinea line = {args->path_out, args->size, 0ull};
+    VerbaLinea line = {args->path_out, args->size, 0ULL};
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         mmgr_line_put(&line, (at != 0u) ? ";" : "");

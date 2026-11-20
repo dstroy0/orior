@@ -137,7 +137,7 @@ static const char *output_file(const char *output_name, unsigned int output, cha
     return index_path;
 }
 
-// probes a named output after the whole command line has parsed and before anything is written: its directories are
+// probes a named output after the whole command line parsed and before anything is written: its directories are
 // made, as open_output makes them, and its file is opened to append, which never truncates, and closed. A file that
 // would not open to read before the probe, and is empty after it, is taken as made by the probe and removed (a removal
 // that fails leaves it, empty). 0 when the directories or the file would not open. A file that opened to read, or

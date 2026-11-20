@@ -97,7 +97,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\trunk\\test_trunk\\test_trunk.c");
+  UnityBegin("utils/test/src/ui/cli/unit/trunk/test_trunk/test_trunk.c");
   run_test(test_git_lists_the_tree, "test_git_lists_the_tree", 72);
   run_test(test_each_file_is_a_branch, "test_each_file_is_a_branch", 78);
   run_test(test_each_folder_is_a_branch, "test_each_folder_is_a_branch", 85);

@@ -383,7 +383,7 @@ EMBED_INLINE unsigned int runs_lessons_read(const QryListedCtx *args)
         if ((line_end - at > RUNS_LESSON_LENGTH) &&
             (memor.cmp(&(MemoriaCfg){.src = text + at, .other = RUNS_LESSON, .bytes = RUNS_LESSON_LENGTH}) == 0))
         {
-            unsigned int word[3] = {RUNS_TEXT, RUNS_TEXT, RUNS_TEXT};
+            unsigned int kinds[3] = {RUNS_TEXT, RUNS_TEXT, RUNS_TEXT};
             unsigned long long from = at + RUNS_LESSON_LENGTH;
             for (unsigned int each = 0u; each < 3u; each += 1u)
             {
@@ -394,21 +394,21 @@ EMBED_INLINE unsigned int runs_lessons_read(const QryListedCtx *args)
                                .size = line_end, .set = " \t");
                 if (word_end > from)
                 {
-                    word[each] = EMBED_CALL(pool_append, QryListedCtx, .pool = runs->text, .used = &runs->used,
+                    kinds[each] = EMBED_CALL(pool_append, QryListedCtx, .pool = runs->text, .used = &runs->used,
                                             .capacity = RUNS_TEXT, .text = text + from, .length = word_end - from);
                 }
                 from = word_end;
             }
-            if ((word[0] != RUNS_TEXT) && (word[1] != RUNS_TEXT) && (word[2] != RUNS_TEXT))
+            if ((kinds[0] != RUNS_TEXT) && (kinds[1] != RUNS_TEXT) && (kinds[2] != RUNS_TEXT))
             {
-                runs->lesson[runs->lessons] = (RunsLesson){word[0], word[1], word[2]};
+                runs->lesson[runs->lessons] = (RunsLesson){kinds[0], kinds[1], kinds[2]};
                 runs->lessons += 1u;
                 count += 1u;
             }
         }
         at = end + 1ULL;
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)((const unsigned char *)text), (g_cli_qry_listing_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)((const unsigned char *)text), g_cli_qry_listing_owner);
     return count;
 }
 

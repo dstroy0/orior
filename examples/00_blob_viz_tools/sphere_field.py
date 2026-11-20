@@ -44,7 +44,7 @@ deposits nothing.
 WHAT IS MEASURED AND WHAT IS CHOSEN
 
 Nothing here picks a direction for a source. A source whose direction is averaged away contributes
-to degree zero alone, and a boundary carrying power above degree zero is reporting that a direction
+to degree zero alone, and a boundary carrying power above degree zero reports that a direction
 was picked somewhere. `spread` does that averaging, and comparing a run against it separates the
 structure in the data from the structure in the map that placed it.
 
@@ -300,7 +300,7 @@ def live_modes(spectrum, floor):
 def spot_radians(radius_fraction):
     """Angular radius of the spot one source prints, from its depth.
 
-    The spectrum falls as (r/R)^l. The degree where it has dropped by e is 1 / ln(R/r) and the
+    The spectrum falls as (r/R)^l. The degree where it dropped by e is 1 / ln(R/r) and the
     angular scale is its reciprocal. A source at the center returns pi, since its spot is the whole
     sphere, and there the claim that a spot is larger than its source becomes a number.
     """
@@ -342,7 +342,7 @@ def cap_radius(profile, level):
     """The angle at which a profile crosses `level`, in radians, by walking a monotone table.
 
     Returns zero where the peak never reaches the level, and pi where the profile stays above it
-    everywhere. The second case is a source deep enough that its circle has swallowed the sphere,
+    everywhere. The second case is a source deep enough that its circle swallowed the sphere,
     and reporting it as a circle of radius pi retains the caller from treating a swallowed sphere as
     a missing spot.
     """
@@ -409,7 +409,7 @@ def distinguishable(radii):
 
     The surface is continuous and two circle centers can be any distance apart. The sphere
     discriminates without limit until the circles are asked to be told apart. Once they are, the
-    count is the sphere's area over one circle's area, and it is finite the moment the circles have
+    count is the sphere's area over one circle's area. It is finite the moment the circles have
     any size at all. This is the same area law the mode count reports, arrived at by measuring the
     spots instead of counting the harmonics, and the two agreeing is worth more than either alone.
     """

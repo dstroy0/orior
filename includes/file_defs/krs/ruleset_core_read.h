@@ -16,8 +16,9 @@ CODEGEN_CORE int ruleset_core_ended(RulesetCoreRead *read, unsigned int end, uns
     return 0;
 }
 
-// one entry of a ruleset, `type` the first word of its line and `rest` the rest of the line, read against the
-// ruleset's schema, as ruleset_entry reads it: 1 where the entry is valid, else 0 and why in the read's end
+// one entry of a ruleset, read against the schema of the ruleset, as ruleset_entry reads it. `type` is the first word
+// of its line, and `rest` is the rest of the line. The result is 1 where the entry is valid, else 0 with the reason in
+// the end of the read
 CODEGEN_CORE int ruleset_core_entry(RulesetCoreRead *read, RulesetCoreSpan type, RulesetCoreSpan rest)
 {
     const RulesetCoreSchema *const schema = &read->schema;
@@ -36,9 +37,11 @@ CODEGEN_CORE int ruleset_core_entry(RulesetCoreRead *read, RulesetCoreSpan type,
     const RulesetCoreSpan *const parameters = &read->words[1];
     const unsigned int parameter_count = (head_count == 0u) ? 0u : (head_count - 1u);
     RulesetCoreTemplate form = {0u, 0u, 0u};
-    // the head: the ruleset's name, the toolchain that builds its text, where its header comes from, and the three a
-    // file may leave out: shared, 1 where the lane stores the file and its signs in shared memory; write_ports, the
-    // memory writes its text can make in one state; and part, the part whose .krs and .kdm are read after the file
+    // the head: the name of the ruleset, the toolchain that builds its text, and where its header comes from. Then the
+    // three values that a file can leave out:
+    //   - shared, 1 where the lane stores the file and its signs in shared memory.
+    //   - write_ports, the memory writes that its text can make in one state.
+    //   - part, the part whose .krs and .kdm the read takes after the file.
     if (ruleset_core_is(read, type, "ruleset") || ruleset_core_is(read, type, "toolchain") ||
         ruleset_core_is(read, type, "header") || ruleset_core_is(read, type, "shared") ||
         ruleset_core_is(read, type, "write_ports") || ruleset_core_is(read, type, "part"))
@@ -97,8 +100,8 @@ CODEGEN_CORE int ruleset_core_entry(RulesetCoreRead *read, RulesetCoreSpan type,
         read->form_given[named] = (unsigned char)RULESET_CORE_GIVEN;
         return 1;
     }
-    // a nop and an err are a form's head with no equals and no text: both write nothing, and a lane that decides an
-    // err is refused where one that decides a nop is written without it
+    // a nop and an err are the head of a form with no equals and no text. Both write nothing. A lane that decides an
+    // err gets a refusal. A lane that decides a nop gets its text without it
     if (ruleset_core_is(read, type, "nop") || ruleset_core_is(read, type, "err"))
     {
         const unsigned int named = ruleset_core_find(read, schema->forms, schema->form_count, name);
@@ -134,9 +137,9 @@ CODEGEN_CORE int ruleset_core_entry(RulesetCoreRead *read, RulesetCoreSpan type,
     return ruleset_core_ended(read, RULESET_CORE_NO_KIND, 0u, type);
 }
 
-// one line of the construct being read, as ruleset_pseudo_line reads it: `end` closes it, and any other line is a
-// form, or a construct given before it in the file, and its arguments, split at spaces. 1 where the line is valid, else
-// 0 and why in the read's end
+// one line of the construct in the read, as ruleset_pseudo_line reads it. `end` closes it. Any other line is a form,
+// or a construct that the file gives before it, and its arguments, split at spaces. The result is 1 where the line is
+// valid, else 0 with the reason in the end of the read
 CODEGEN_CORE int ruleset_core_pseudo_line(RulesetCoreRead *read, RulesetCoreSpan line)
 {
     const RulesetCoreSchema *const schema = &read->schema;
@@ -156,7 +159,7 @@ CODEGEN_CORE int ruleset_core_pseudo_line(RulesetCoreRead *read, RulesetCoreSpan
     const unsigned int named = (word_count == 0u)
                                    ? schema->form_count
                                    : ruleset_core_find(read, schema->forms, schema->form_count, read->words[0]);
-    // a form or construct the file has given already: one given later, or the construct itself, would make a loop
+    // a form or construct that the file gave before. A later one, or the construct itself, makes a loop
     if ((named == schema->form_count) || (read->form_given[named] == 0u) ||
         ((word_count - 1u) != schema->form_parameters[named]))
     {
@@ -203,10 +206,12 @@ CODEGEN_CORE int ruleset_core_pseudo_line(RulesetCoreRead *read, RulesetCoreSpan
     return 1;
 }
 
-// Each place of a given form that names a fixed register written as the register's text, once every fixed register is
-// given: the piece before the place, the register and the piece after it one piece, written past the characters read.
-// The pieces of one form are folded into the piece being written while it ends the characters, and copied only where it
-// does not. 0 where the characters the read was given cannot contain them
+// Each place of a given form that names a fixed register, written as the text of the register. This runs once the file
+// gives each fixed register.
+//
+// The piece before the place, the register and the piece after it become one piece, written past the read characters.
+// The pieces of one form fold into the piece in the write while it ends the characters. The code copies them only
+// where it does not. The result is 0 where the characters of the read cannot hold them
 CODEGEN_CORE int ruleset_core_fixed_folded(RulesetCoreRead *read)
 {
     for (unsigned int named = 0u; named < read->schema.form_count; named += 1u)
@@ -265,10 +270,12 @@ CODEGEN_CORE int ruleset_core_fixed_folded(RulesetCoreRead *read)
     return 1;
 }
 
-// the file read into the read against its schema, as ruleset_read reads it past opening the file: its first line is
-// krs 1, every entry is valid, and every bank, fixed register and form the code generator names is given with the
-// ruleset's name, toolchain and header, else the read ends with why. A line that begins with # is a comment, and a
-// blank line is nothing
+// the file, read into the read against its schema, as ruleset_read reads it after it opens the file. Its first line
+// is krs 1, and each entry is valid.
+//
+// The file gives each bank, fixed register and form that the code generator names, with the name, toolchain and header
+// of the ruleset. Else the read ends with the reason. A line that begins with # is a comment, and a blank line is
+// nothing
 CODEGEN_CORE void ruleset_core_read(RulesetCoreRead *read)
 {
     const RulesetCoreSchema *const schema = &read->schema;
@@ -315,7 +322,7 @@ CODEGEN_CORE void ruleset_core_read(RulesetCoreRead *read)
     while ((at < read->text_length) && (ok != 0))
     {
         const unsigned int end = ruleset_core_find_character(read, file, (unsigned char)'\n', at);
-        // a checkout that ends its lines with a carriage return as well leaves each line as it was written
+        // a checkout that also ends its lines with a carriage return keeps each line as its writer wrote it
         const unsigned int line_end = ((end > at) && (read->text[end - 1u] == '\r')) ? (end - 1u) : end;
         const RulesetCoreSpan line = {at, line_end - at};
         number += 1u;
@@ -368,8 +375,8 @@ CODEGEN_CORE void ruleset_core_read(RulesetCoreRead *read)
             return;
         }
     }
-    // a form of the schema the file does not give is open (P10): its mark stays 0, the file reads, and a lane that
-    // decides the form is refused where it is written (ruleset_opcode_text), as one that decides an err is
+    // a form of the schema that the file does not give is open (P10). Its mark stays 0, and the file reads. A lane that
+    // decides the form gets a refusal where the code writes it (ruleset_opcode_text), as a lane that decides an err does
     if (!ruleset_core_fixed_folded(read))
     {
         ruleset_core_ended(read, RULESET_CORE_FORM_WRONG, 0u, none);

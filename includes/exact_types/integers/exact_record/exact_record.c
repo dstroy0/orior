@@ -79,13 +79,13 @@ static unsigned int exact_record_append(ExactRecordProgram *program, EngineRecor
     step->right = right;
     step->member = member;
     program->known[program->count] = (unsigned char)(known != 0);
-    program->values[program->count] = known ? value : 0ll;
+    program->values[program->count] = known ? value : 0LL;
     program->count += 1u;
     return program->count - 1u;
 }
 
 // the bound a known value lies within
-#define EXACT_RECORD_KNOWN_BOUND (1ll << 62)
+#define EXACT_RECORD_KNOWN_BOUND (1LL << 62)
 
 static int exact_record_small(long long value)
 {
@@ -95,15 +95,15 @@ static int exact_record_small(long long value)
 // a known value as steps: its constant, or 0 less its magnitude below zero
 static unsigned int exact_record_fold(ExactRecordProgram *program, long long value)
 {
-    if (value >= 0ll)
+    if (value >= 0LL)
     {
-        return exact_record_append(program, ENGINE_RECORD_CONSTANT, (unsigned int)((unsigned long long)value & 0xFFFFFFFFull),
+        return exact_record_append(program, ENGINE_RECORD_CONSTANT, (unsigned int)((unsigned long long)value & 0xFFFFFFFFULL),
                                    (unsigned int)((unsigned long long)value >> 32u), 0u, 1, value);
     }
-    const unsigned int zero = exact_record_append(program, ENGINE_RECORD_CONSTANT, 0u, 0u, 0u, 1, 0ll);
+    const unsigned int zero = exact_record_append(program, ENGINE_RECORD_CONSTANT, 0u, 0u, 0u, 1, 0LL);
     const unsigned long long magnitude = (unsigned long long)(-value);
     const unsigned int constant_reg =
-        exact_record_append(program, ENGINE_RECORD_CONSTANT, (unsigned int)(magnitude & 0xFFFFFFFFull),
+        exact_record_append(program, ENGINE_RECORD_CONSTANT, (unsigned int)(magnitude & 0xFFFFFFFFULL),
                             (unsigned int)(magnitude >> 32u), 0u, 1, -value);
     return exact_record_append(program, ENGINE_RECORD_DIFFERENCE, zero, constant_reg, 0u, 1, value);
 }
@@ -131,9 +131,9 @@ static int exact_record_value(EngineRecordOperation operation, long long a, long
         return exact_record_small(*out);
     case ENGINE_RECORD_PRODUCT:
     {
-        const long long size_a = (a < 0ll) ? -a : a;
-        const long long size_b = (b < 0ll) ? -b : b;
-        if ((size_a != 0ll) && (size_b >= EXACT_RECORD_KNOWN_BOUND / size_a))
+        const long long size_a = (a < 0LL) ? -a : a;
+        const long long size_b = (b < 0LL) ? -b : b;
+        if ((size_a != 0LL) && (size_b >= EXACT_RECORD_KNOWN_BOUND / size_a))
         {
             return 0;
         }
@@ -141,19 +141,19 @@ static int exact_record_value(EngineRecordOperation operation, long long a, long
         return 1;
     }
     case ENGINE_RECORD_QUOTIENT:
-        *out = (b != 0ll) ? a / b : 0ll;
-        return b != 0ll;
+        *out = (b != 0LL) ? a / b : 0LL;
+        return b != 0LL;
     case ENGINE_RECORD_REMAINDER:
-        *out = (b != 0ll) ? a % b : 0ll;
-        return b != 0ll;
+        *out = (b != 0LL) ? a % b : 0LL;
+        return b != 0LL;
     case ENGINE_RECORD_EXACT_QUOTIENT:
-        *out = (b != 0ll) ? a / b : 0ll;
-        return (b != 0ll) && ((a % b) == 0ll);
+        *out = (b != 0LL) ? a / b : 0LL;
+        return (b != 0LL) && ((a % b) == 0LL);
     case ENGINE_RECORD_COMPARE:
         *out = (long long)(a > b) - (long long)(a < b);
         return 1;
     case ENGINE_RECORD_ABSOLUTE:
-        *out = (a < 0ll) ? -a : a;
+        *out = (a < 0LL) ? -a : a;
         return 1;
     case ENGINE_RECORD_AND:
         *out = a & b;
@@ -168,9 +168,9 @@ static int exact_record_value(EngineRecordOperation operation, long long a, long
             *out = a;
             return 1;
         }
-        const long long whole = 1ll << right;
+        const long long whole = 1LL << right;
         long long residue = a % whole;
-        residue += (residue < 0ll) ? whole : 0ll;
+        residue += (residue < 0LL) ? whole : 0LL;
         *out = (residue >= (whole >> 1u)) ? residue - whole : residue;
         return 1;
     }
@@ -188,46 +188,46 @@ unsigned int exact_record_step(ExactRecordProgram *program, EngineRecordOperatio
                     (operation == ENGINE_RECORD_COMPARE) || (operation == ENGINE_RECORD_AND) ||
                     (operation == ENGINE_RECORD_XOR);
     const int one = (operation == ENGINE_RECORD_ABSOLUTE) || (operation == ENGINE_RECORD_WRAP);
-    long long a = 0ll;
-    long long b = 0ll;
+    long long a = 0LL;
+    long long b = 0LL;
     const int left_known = (two || one) && exact_record_known(program, left, &a);
     const int right_known = two && exact_record_known(program, right, &b);
-    long long value = 0ll;
+    long long value = 0LL;
     if ((left_known && (one || right_known)) && exact_record_value(operation, a, b, right, &value))
     {
         return exact_record_fold(program, value);
     }
     // a sum with 0, a product with 1 or 0, a quotient by 1
-    if (((operation == ENGINE_RECORD_SUM) || (operation == ENGINE_RECORD_DIFFERENCE)) && right_known && (b == 0ll))
+    if (((operation == ENGINE_RECORD_SUM) || (operation == ENGINE_RECORD_DIFFERENCE)) && right_known && (b == 0LL))
     {
         return left;
     }
-    if ((operation == ENGINE_RECORD_SUM) && left_known && (a == 0ll))
+    if ((operation == ENGINE_RECORD_SUM) && left_known && (a == 0LL))
     {
         return right;
     }
-    if ((operation == ENGINE_RECORD_PRODUCT) && ((left_known && (a == 0ll)) || (right_known && (b == 0ll))))
+    if ((operation == ENGINE_RECORD_PRODUCT) && ((left_known && (a == 0LL)) || (right_known && (b == 0LL))))
     {
-        return exact_record_fold(program, 0ll);
+        return exact_record_fold(program, 0LL);
     }
-    if ((operation == ENGINE_RECORD_PRODUCT) && left_known && (a == 1ll))
+    if ((operation == ENGINE_RECORD_PRODUCT) && left_known && (a == 1LL))
     {
         return right;
     }
     if (((operation == ENGINE_RECORD_PRODUCT) || (operation == ENGINE_RECORD_QUOTIENT) ||
          (operation == ENGINE_RECORD_EXACT_QUOTIENT)) &&
-        right_known && (b == 1ll))
+        right_known && (b == 1LL))
     {
         return left;
     }
-    return exact_record_append(program, operation, left, right, member, 0, 0ll);
+    return exact_record_append(program, operation, left, right, member, 0, 0LL);
 }
 
 unsigned int exact_record_constant(ExactRecordProgram *program, unsigned long long value)
 {
     const int known = value < (unsigned long long)EXACT_RECORD_KNOWN_BOUND;
-    return exact_record_append(program, ENGINE_RECORD_CONSTANT, (unsigned int)(value & 0xFFFFFFFFull),
-                               (unsigned int)(value >> 32u), 0u, known, known ? (long long)value : 0ll);
+    return exact_record_append(program, ENGINE_RECORD_CONSTANT, (unsigned int)(value & 0xFFFFFFFFULL),
+                               (unsigned int)(value >> 32u), 0u, known, known ? (long long)value : 0LL);
 }
 
 unsigned int exact_record_signed(ExactRecordProgram *program, long long value)
@@ -236,17 +236,17 @@ unsigned int exact_record_signed(ExactRecordProgram *program, long long value)
     {
         return exact_record_fold(program, value);
     }
-    const unsigned long long magnitude = (value < 0ll) ? (0ull - (unsigned long long)value) : (unsigned long long)value;
+    const unsigned long long magnitude = (value < 0LL) ? (0ULL - (unsigned long long)value) : (unsigned long long)value;
     const unsigned int constant_reg = exact_record_constant(program, magnitude);
-    return (value < 0ll) ? exact_record_negate(program, constant_reg) : constant_reg;
+    return (value < 0LL) ? exact_record_negate(program, constant_reg) : constant_reg;
 }
 
 unsigned int exact_record_power_two(ExactRecordProgram *program, unsigned int bits)
 {
-    unsigned int out = exact_record_constant(program, 1ull << (bits % 63u));
+    unsigned int out = exact_record_constant(program, 1ULL << (bits % 63u));
     for (unsigned int at = 0u; at < bits / 63u; at += 1u)
     {
-        out = exact_record_product(program, out, exact_record_constant(program, 1ull << 63u));
+        out = exact_record_product(program, out, exact_record_constant(program, 1ULL << 63u));
     }
     return out;
 }
@@ -255,9 +255,9 @@ unsigned int exact_record_mask(ExactRecordProgram *program, unsigned int bits)
 {
     if (bits < 64u)
     {
-        return exact_record_constant(program, (bits == 0u) ? 0ull : (~0ull >> (64u - bits)));
+        return exact_record_constant(program, (bits == 0u) ? 0ULL : (~0ULL >> (64u - bits)));
     }
-    return exact_record_difference(program, exact_record_power_two(program, bits), exact_record_constant(program, 1ull));
+    return exact_record_difference(program, exact_record_power_two(program, bits), exact_record_constant(program, 1ULL));
 }
 
 static unsigned int exact_record_field_at(ExactRecordProgram *program, unsigned int bits, unsigned int offset)
@@ -336,7 +336,7 @@ unsigned int exact_record_exact_quotient(ExactRecordProgram *program, unsigned i
 
 unsigned int exact_record_negate(ExactRecordProgram *program, unsigned int value)
 {
-    return exact_record_difference(program, exact_record_constant(program, 0ull), value);
+    return exact_record_difference(program, exact_record_constant(program, 0ULL), value);
 }
 
 unsigned int exact_record_absolute(ExactRecordProgram *program, unsigned int value)
@@ -346,12 +346,12 @@ unsigned int exact_record_absolute(ExactRecordProgram *program, unsigned int val
 
 unsigned int exact_record_down(ExactRecordProgram *program, unsigned int left, unsigned int right)
 {
-    return exact_record_difference(program, exact_record_quotient(program, left, right), exact_record_constant(program, 1ull));
+    return exact_record_difference(program, exact_record_quotient(program, left, right), exact_record_constant(program, 1ULL));
 }
 
 unsigned int exact_record_up(ExactRecordProgram *program, unsigned int left, unsigned int right)
 {
-    return exact_record_sum(program, exact_record_quotient(program, left, right), exact_record_constant(program, 1ull));
+    return exact_record_sum(program, exact_record_quotient(program, left, right), exact_record_constant(program, 1ULL));
 }
 
 unsigned int exact_record_wrap(ExactRecordProgram *program, unsigned int value, unsigned int bits)
@@ -376,13 +376,13 @@ unsigned int exact_record_above(ExactRecordProgram *program, unsigned int left, 
 {
     const unsigned int c = exact_record_step(program, ENGINE_RECORD_COMPARE, left, right, 0u);
     return exact_record_quotient(program, exact_record_sum(program, c, exact_record_absolute(program, c)),
-                                 exact_record_constant(program, 2ull));
+                                 exact_record_constant(program, 2ULL));
 }
 
 // 1 - [left > right] - [right > left]
 unsigned int exact_record_equal(ExactRecordProgram *program, unsigned int left, unsigned int right)
 {
-    const unsigned int once = exact_record_difference(program, exact_record_constant(program, 1ull),
+    const unsigned int once = exact_record_difference(program, exact_record_constant(program, 1ULL),
                                                       exact_record_above(program, left, right));
     return exact_record_difference(program, once, exact_record_above(program, right, left));
 }
@@ -390,10 +390,10 @@ unsigned int exact_record_equal(ExactRecordProgram *program, unsigned int left, 
 unsigned int exact_record_select(ExactRecordProgram *program, unsigned int flag, unsigned int if_one,
                                  unsigned int if_zero)
 {
-    long long known = 0ll;
+    long long known = 0LL;
     if (exact_record_known(program, flag, &known))
     {
-        return (known != 0ll) ? if_one : if_zero;
+        return (known != 0LL) ? if_one : if_zero;
     }
     return exact_record_sum(program, if_zero,
                             exact_record_product(program, flag, exact_record_difference(program, if_one, if_zero)));
@@ -445,7 +445,7 @@ unsigned int exact_record_lookup(ExactRecordProgram *program, unsigned int index
 unsigned int exact_record_power(ExactRecordProgram *program, unsigned int base, unsigned int exponent,
                                 unsigned int exponent_bits)
 {
-    const unsigned int one = exact_record_constant(program, 1ull);
+    const unsigned int one = exact_record_constant(program, 1ULL);
     unsigned int power = one;
     for (unsigned int bit = exponent_bits; bit > 0u; bit -= 1u)
     {
@@ -468,10 +468,10 @@ static unsigned int exact_record_limbs_times(unsigned int *value, unsigned int l
     {
         return 1u;
     }
-    const unsigned long long part[2] = {factor & 0xFFFFFFFFull, factor >> 32u};
+    const unsigned long long part[2] = {factor & 0xFFFFFFFFULL, factor >> 32u};
     for (unsigned int row = 0u; row < 2u; row += 1u)
     {
-        unsigned long long carry = 0ull;
+        unsigned long long carry = 0ULL;
         for (unsigned int at = 0u; at < limbs; at += 1u)
         {
             // (2^32 - 1)^2 + 2 (2^32 - 1) is 2^64 - 1, and the total fits the word
@@ -491,7 +491,7 @@ unsigned int exact_record_power_of(ExactRecordProgram *program, unsigned long lo
                                    unsigned int exponent_bits)
 {
     // a known exponent by squares: its bits are known, and the table's index would be a constant narrower than it
-    long long known = 0ll;
+    long long known = 0LL;
     if (exact_record_known(program, exponent, &known))
     {
         return exact_record_power(program, exact_record_constant(program, base), exponent, exponent_bits);
@@ -565,12 +565,12 @@ unsigned int exact_record_power_of(ExactRecordProgram *program, unsigned long lo
         }
         power = exact_record_product(program, power, row);
     }
-    return (nibbles == 0u) ? exact_record_constant(program, 1ull) : power;
+    return (nibbles == 0u) ? exact_record_constant(program, 1ULL) : power;
 }
 
 unsigned int exact_record_two_to(ExactRecordProgram *program, unsigned int exponent, unsigned int exponent_bits)
 {
-    const unsigned int one = exact_record_constant(program, 1ull);
+    const unsigned int one = exact_record_constant(program, 1ULL);
     unsigned int power = one;
     for (unsigned int bit = 0u; bit < exponent_bits; bit += 1u)
     {
@@ -584,7 +584,7 @@ unsigned int exact_record_two_to(ExactRecordProgram *program, unsigned int expon
 unsigned int exact_record_bits_of(unsigned long long value)
 {
     unsigned int bits = 0u;
-    while ((bits < 64u) && ((value >> bits) != 0ull))
+    while ((bits < 64u) && ((value >> bits) != 0ULL))
     {
         bits += 1u;
     }

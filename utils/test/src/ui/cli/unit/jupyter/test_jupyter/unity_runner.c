@@ -83,7 +83,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\jupyter\\test_jupyter\\test_jupyter.c");
+  UnityBegin("utils/test/src/ui/cli/unit/jupyter/test_jupyter/test_jupyter.c");
   run_test(test_a_signed_message_reads_back_with_its_type, "test_a_signed_message_reads_back_with_its_type", 302);
   run_test(test_a_signed_message_reads_back_with_its_content, "test_a_signed_message_reads_back_with_its_content", 314);
   run_test(test_a_forged_message_does_not_read_back, "test_a_forged_message_does_not_read_back", 326);

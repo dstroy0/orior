@@ -259,6 +259,6 @@ unsigned int cli_json_file_alloc(const CliJsonTreeErrMsgCfg *args)
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = args->json,
                    .text = (const char *)bytes, .size = size, .nodes_more = args->nodes_more,
                    .text_more = args->text_more, .err_msg = args->err_msg, .owner = args->owner);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_text_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_text_owner);
     return root;
 }

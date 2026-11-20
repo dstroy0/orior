@@ -309,7 +309,7 @@ int cli_symbols_reads(const CliSymbolsPathNameCfg *args)
     if (read != NULL)
     {
         g_cli_guard->persistent_buf_release(read->languages.pair, g_cli_plugins_owner);
-        *(&read->languages) = (CliLanguages){NULL, 0u, 0u};
+        read->languages = (CliLanguages){NULL, 0u, 0u};
     }
     g_cli_guard->persistent_buf_release(read, g_cli_code_owner);
     return reads;
@@ -327,7 +327,7 @@ void cli_symbols_declare(const CliSymbolsPathTextSizeCfg *args)
     if (read != NULL)
     {
         g_cli_guard->persistent_buf_release(read->languages.pair, g_cli_plugins_owner);
-        *(&read->languages) = (CliLanguages){NULL, 0u, 0u};
+        read->languages = (CliLanguages){NULL, 0u, 0u};
     }
     g_cli_guard->persistent_buf_release(read, g_cli_code_owner);
 }

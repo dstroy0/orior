@@ -17,7 +17,7 @@
 // Every name but the disassembler's is a blob of the run, the .qry QRY names (qry_member.h): the list, a line
 // a question, `<code> <registers> <cases> <answers> <probe> [<launches>]` (run_channel.h), each question's code, and
 // the container the carrier popped for it as <answers stem>.cubin. Every container is the kernel the system accepted
-// with the question's code in it; the code of each, as the part would be passed it, is read out of the container's code
+// with the question's code in it. The code of each, as the part would be passed it, is read out of the container's code
 // section.
 //
 // The vendor reads a raw run of encodings (nvdisasm --binary <architecture>) only from a file's path: each run is
@@ -78,16 +78,16 @@ int main(int count, char **words)
         return 2;
     }
     const unsigned char *list = NULL;
-    unsigned long long list_size = 0ull;
+    unsigned long long list_size = 0ULL;
     if (!qry_member_blob(list_name, &list, &list_size, NULL))
     {
         fprintf(stderr, "orior_measuring_stick_query: the run's buffer contains no %s\n", list_name);
         return 2;
     }
-    // a question with a probe is read by its probe instruction, among every other's; one with none, the kernel's own,
+    // a question with a probe is read by its probe instruction, among every other's. One with none, the kernel's own,
     // is read whole, once a code
     size_t lines = 0u;
-    for (unsigned long long at = 0ull; at < list_size; at += 1ull)
+    for (unsigned long long at = 0ULL; at < list_size; at += 1ULL)
     {
         lines += (list[at] == '\n') ? 1u : 0u;
     }
@@ -97,18 +97,18 @@ int main(int count, char **words)
         return 2;
     }
     size_t question_count = 0u;
-    for (unsigned long long at = 0ull; at < list_size;)
+    for (unsigned long long at = 0ULL; at < list_size;)
     {
         const unsigned char *const end = (const unsigned char *)memchr(list + at, '\n', (size_t)(list_size - at));
         const size_t length = (end != NULL) ? (size_t)(end - (list + at)) : (size_t)(list_size - at);
         char line[1024];
         snprintf(line, sizeof(line), "%.*s", (int)length, (const char *)(list + at));
-        at += (unsigned long long)length + 1ull;
+        at += (unsigned long long)length + 1ULL;
         char code_name[256];
         char cases_name[256];
         char answers_name[256];
         unsigned int registers = 0u;
-        unsigned long long probe_place = 0ull;
+        unsigned long long probe_place = 0ULL;
         const char *read = line;
         if (!line_word(&read, code_name, sizeof(code_name)) || !line_unsigned(&read, &registers) ||
             !line_word(&read, cases_name, sizeof(cases_name)) ||
@@ -130,10 +130,10 @@ int main(int count, char **words)
         question->place = probe_place;
         question->registers = registers;
         question->placed =
-            (probe_place < (question->code.size / 16ull)) && (((probe_place * 16ull) + 16ull) <= question->code.size);
+            (probe_place < (question->code.size / 16ULL)) && (((probe_place * 16ULL) + 16ULL) <= question->code.size);
         if (question->placed)
         {
-            memcpy(question->word, question->code.bytes + (probe_place * 16ull), 16u);
+            memcpy(question->word, question->code.bytes + (probe_place * 16ULL), 16u);
         }
         question_count += 1u;
     }
@@ -156,12 +156,12 @@ int main(int count, char **words)
         MsqQuestion *const question = &questions[place];
         if (question->placed)
         {
-            const MsqBytes word = {question->word, 16ull};
+            const MsqBytes word = {question->word, 16ULL};
             question->word_index = msq_distinct_index(&place_words, &word);
-            const MsqBytes tail = {question->code.bytes + ((question->place + 1ull) * 16ull),
-                                   question->code.size - ((question->place + 1ull) * 16ull)};
+            const MsqBytes tail = {question->code.bytes + ((question->place + 1ULL) * 16ULL),
+                                   question->code.size - ((question->place + 1ULL) * 16ULL)};
             question->tail_index = msq_distinct_index(&tails, &tail);
-            const MsqBytes prefix = {question->code.bytes, question->place * 16ull};
+            const MsqBytes prefix = {question->code.bytes, question->place * 16ULL};
             question->prefix_index = msq_distinct_index(&prefixes, &prefix);
             question->piece_key[0] = question->prefix_index;
             question->piece_key[1] = question->tail_index;
@@ -221,17 +221,17 @@ int main(int count, char **words)
     size_t placed = 0u;
     for (size_t word = 0u; whole && (word < place_words.count); word += 1u)
     {
-        run_pieces[placed] = (MsqPiece){MSQ_PIECE_WORD, word, place_words.items[word], 0ull, MSQ_PIECE_READ};
+        run_pieces[placed] = (MsqPiece){MSQ_PIECE_WORD, word, place_words.items[word], 0ULL, MSQ_PIECE_READ};
         placed += 1u;
     }
     for (size_t frame = 0u; whole && (frame < frame_count); frame += 1u)
     {
-        run_pieces[placed] = (MsqPiece){MSQ_PIECE_FRAME, frame, framed[frame], 0ull, MSQ_PIECE_READ};
+        run_pieces[placed] = (MsqPiece){MSQ_PIECE_FRAME, frame, framed[frame], 0ULL, MSQ_PIECE_READ};
         placed += 1u;
     }
     for (size_t tail = 0u; whole && (tail < tails.count); tail += 1u)
     {
-        run_pieces[placed] = (MsqPiece){MSQ_PIECE_TAIL, tail, tails.items[tail], 0ull, MSQ_PIECE_READ};
+        run_pieces[placed] = (MsqPiece){MSQ_PIECE_TAIL, tail, tails.items[tail], 0ULL, MSQ_PIECE_READ};
         placed += 1u;
     }
     // a piece containing an instruction the vendor's own instruction set reads as no class is one its disassembler
@@ -243,7 +243,7 @@ int main(int count, char **words)
     }
     MsqReader reader;
     memset(&reader, 0, sizeof(reader));
-    reader.output_room = 8ull << 20u;
+    reader.output_room = 8ULL << 20u;
     reader.output = whole ? (char *)malloc((size_t)reader.output_room) : NULL;
     // the accumulated run's listing, which every reading and frame of it points into until the cross ends
     MsqListing accumulated;
@@ -349,8 +349,8 @@ int main(int count, char **words)
         for (size_t line = 0u; line < frame->listing.count; line += 1u)
         {
             const MsqLine *const read_line = &frame->listing.lines[line];
-            unsigned long long frame_reached = 0ull;
-            const int in_code = (read_line->offset + 16ull) <= question->code.size;
+            unsigned long long frame_reached = 0ULL;
+            const int in_code = (read_line->offset + 16ULL) <= question->code.size;
             if (in_code && msq_register_reached(read_line->body, question->registers, &frame_reached))
             {
                 char why[200];
@@ -380,7 +380,7 @@ int main(int count, char **words)
         const char *const body = ((type == MSQ_READ) && (reading->body != NULL)) ? reading->body : "";
         char why[256] = "";
         unsigned int clearing = 0u;
-        unsigned long long reached = 0ull;
+        unsigned long long reached = 0ULL;
         MsqRegisters written;
         msq_registers_written(body, &written);
         long long overwritten = -1;
@@ -389,7 +389,7 @@ int main(int count, char **words)
             const MsqRegisters *const read_from = &addressed[question->tail_index];
             for (unsigned int number = 0u; (overwritten < 0) && (number < MSQ_REGISTERS); number += 1u)
             {
-                if ((written.bits[number / 64u] & read_from->bits[number / 64u] & (1ull << (number % 64u))) != 0ull)
+                if ((written.bits[number / 64u] & read_from->bits[number / 64u] & (1ULL << (number % 64u))) != 0ULL)
                 {
                     overwritten = (long long)number;
                 }
@@ -441,10 +441,10 @@ int main(int count, char **words)
         gated_count += gated_question ? 0u : 1u;
         // the blocked encoding, the question's own code at its probe
         const unsigned char *code = NULL;
-        unsigned long long code_size = 0ull;
+        unsigned long long code_size = 0ULL;
         const int coded = qry_member_blob(question->code_name, &code, &code_size, NULL) &&
-                          (question->place < (code_size / 16ull)) && (((question->place * 16ull) + 16ull) <= code_size);
-        msq_gate_reported(&verdicts, question, coded ? (code + (question->place * 16ull)) : NULL, why, clearing);
+                          (question->place < (code_size / 16ULL)) && (((question->place * 16ULL) + 16ULL) <= code_size);
+        msq_gate_reported(&verdicts, question, coded ? (code + (question->place * 16ULL)) : NULL, why, clearing);
     }
     const unsigned long long readings_count = accumulated_calls + atomic_load(&pool.calls);
     char head[256];

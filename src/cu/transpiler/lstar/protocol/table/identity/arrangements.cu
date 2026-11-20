@@ -99,8 +99,8 @@ const Word *word_produced(const std::vector<PreceptNode> &nodes)
             {
                 PreceptCase given = {};
                 given.operands = 2u;
-                given.operand[0] = (unsigned int)(s_values[left] & 0xffffffffull);
-                given.operand[1] = (unsigned int)(s_values[right] & 0xffffffffull);
+                given.operand[0] = (unsigned int)(s_values[left] & 0xffffffffULL);
+                given.operand[1] = (unsigned int)(s_values[right] & 0xffffffffULL);
                 unsigned int by_word = 0u;
                 unsigned int by_nodes = 0u;
                 alike = precept_value(word->node, word->nodes, &given, &by_word) &&
