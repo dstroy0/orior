@@ -2,27 +2,36 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // A parquet file as an ingest source: every leaf of every row group a member, each sealed whole
 //
-// A parquet file is a source the way an archive is: the ingest names its members and seals each. The members are the
-// file's footer, named `footer`, and every leaf of every row group, named `<row group>/<leaf path>` with the row group
-// counted from 0 and the leaf's dotted path as the schema gives it, `0/ms2_mzs.list.element`. parquet_members lists
-// the footer first, then each row group in the file's order and its leaves in the schema's order. Nothing is dropped.
+// A parquet file is a source in the way that an archive is. The ingest names its members and seals each.
 //
-// A member's lanes are its bytes, two to a lane, the first byte the low half and an odd last byte padded with 0: the
-// footer's own bytes for `footer`, and for a leaf the values its column chunk stores, in the file's order, each as
-// the bytes the file stores it in. A DOUBLE stays its eight little-endian bytes and no floating point value is formed.
-// A BYTE_ARRAY value is its bytes, one after the other. A null has no value and no bytes. A member of no bytes has
-// one lane of 0.
+// The members are the footer of the file, named `footer`, and each leaf of each row group. The name of a leaf
+// is `<row group>/<leaf path>`, with the row group counted from 0. The leaf path has dots as the schema gives it, such
+// as `0/ms2_mzs.list.element`.
 //
-// What the lanes do not carry is the member's side, each part a leaf of the side bytes stored exact beside the lanes:
-//   bytes       the member's byte count, eight bytes little-endian, which strips the pad;
-//   definition  a leaf's definition levels, a byte each, one a level, in the file's order;
-//   repetition  its repetition levels, the same;
-//   lengths     a BYTE_ARRAY leaf's value lengths, four bytes little-endian each, one a value.
-// The levels distinguish every null and every empty list: a value is present where its definition level is the leaf's
-// ceiling, and a row starts where its repetition level is 0.
+// parquet_members lists the footer first. Then it lists each row group in the order of the file, and its leaves in the
+// order of the schema. It drops nothing.
 //
-// Pages V1 and V2, PLAIN, PLAIN_DICTIONARY and RLE_DICTIONARY values, RLE and bit-packed levels, and uncompressed,
-// Snappy and Zstd bodies are read. Anything else is refused whole and nothing is sealed of the member.
+// The lanes of a member are its bytes, two to a lane. The first byte is the low half, and an odd last byte gets a pad
+// of 0.
+//   - for `footer`, the lanes are the own bytes of the footer.
+//   - for a leaf, they are the values that its column chunk stores, in the order of the file. Each is the bytes that
+//     the file stores it in.
+//
+// A DOUBLE stays its eight little-endian bytes, and the code forms no floating point value. A BYTE_ARRAY value is its
+// bytes, one after the other. A null has no value and no bytes. A member of no bytes has one lane of 0.
+//
+// The side of the member is what the lanes do not carry. Each part is a leaf of the side bytes, stored exact beside the
+// lanes:
+//   - bytes: the byte count of the member, eight bytes little-endian, which strips the pad.
+//   - definition: the definition levels of a leaf, a byte each, one a level, in the order of the file.
+//   - repetition: its repetition levels, the same.
+//   - lengths: the value lengths of a BYTE_ARRAY leaf, four bytes little-endian each, one a value.
+//
+// The levels tell each null and each empty list apart. A value is present where its definition level is the ceiling
+// of the leaf. A row starts where its repetition level is 0.
+//
+// The reader reads pages V1 and V2, and PLAIN, PLAIN_DICTIONARY and RLE_DICTIONARY values. It reads RLE and bit-packed
+// levels, and uncompressed, Snappy and Zstd bodies. It refuses anything else whole, and seals nothing of the member.
 #ifndef PARQUET_H
 #define PARQUET_H
 
@@ -37,8 +46,9 @@ extern "C"
     // parquet, the member is not one of its own, or its column chunk does not decode
     long parquet_describe(const EngineDescribeRequest *request);
 
-    // the member's lanes into request->out and its side into request->side where that is given. The lane bytes written,
-    // or -1 where the member does not read or the extent is not the one parquet_describe gave
+    // the lanes of the member into request->out, and its side into request->side where the caller gives that. The
+    // result is the written lane bytes. It is -1 where the member does not read, or the extent is not the one that
+    // parquet_describe gave
     long long parquet_read(const EngineArrayRead *request);
 
     // every member of the parquet file at `path`, in the order above, each name allocated and the list ended by NULL,
