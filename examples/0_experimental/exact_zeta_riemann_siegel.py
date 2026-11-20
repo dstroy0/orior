@@ -810,8 +810,8 @@ TABLE_IV_AT_ONE = (
     "-0.00000248337616645216969898765435537919977772834558",
     "0.00000001501251599634484404172738666926505568514695",
 )
-# The sum rows of Table IV and Table V, two routes to the same C_n(1), differ by up to 5 units of the
-# 50th place, and that is the bar.
+# The sum rows of Table IV and Table V are two routes to the same C_n(1). They differ by up to 5 units of the 50th
+# place, and that is the bar.
 TABLE_SPREAD = 5
 TOP_C = 24
 ZERO_BITS = 128
@@ -834,8 +834,8 @@ def lam(l):
 
 
 def d_row(n):
-    """d_k^(n) for k = 0 .. floor(3n / 4): d_k^(n+1) = (3n + 1 - 4k)(3n + 2 - 4k) d_k^(n) + d_(k-1)^(n), and
-    where 3(n + 1) = 4k the entry is lambda_(k/3) instead."""
+    """d_k^(n) for k = 0 .. floor(3n / 4): `d_k^(n+1) = (3n + 1 - 4k)(3n + 2 - 4k) d_k^(n) + d_(k-1)^(n)`. Where
+    `3(n + 1) = 4k`, the entry is lambda_(k/3)."""
     while len(D_ROWS) <= n:
         m = len(D_ROWS) - 1
         prev = D_ROWS[-1] + [0]
@@ -851,9 +851,9 @@ def d_row(n):
 def phi_terms(j):
     """The coefficient of z^(2j) in F, as (power of pi, root, numerator, denominator).
 
-    F(z) = cos(pi z^2 / 2 + 3pi/8) sec(pi z), and the product of the two series puts
-    sign |E_2(j-m)| / (2^m m! (2(j - m))!) pi^(2j - m) at each m, times sin(pi/8) where m is even and
-    cos(pi/8) where m is odd, the sign running +, -, -, + in m mod 4."""
+    `F(z) = cos(pi z^2 / 2 + 3pi/8) sec(pi z)`. The product of the two series puts
+    `sign |E_2(j-m)| / (2^m m! (2(j - m))!) pi^(2j - m)` at each m. That is times sin(pi/8) where m is even, and
+    cos(pi/8) where m is odd. The sign runs +, -, -, + in m mod 4."""
     out = []
     for m in range(j + 1):
         num, den = euler_abs(j - m), 2 ** m * factorial(m) * factorial(2 * (j - m))
@@ -889,8 +889,8 @@ class Curve:
         return self.phi[j]
 
     def gamma(self, n, count):
-        """The first `count` coefficients: 2^(-2n) sum over k of d_k C(i + m, m) pi^(2k - 2n) phi at
-        z^(i + m), m = 3n - 4k, zero where i + m is odd."""
+        """The first `count` coefficients: `2^(-2n) sum over k of d_k C(i + m, m) pi^(2k - 2n) phi` at z^(i + m),
+        with `m = 3n - 4k`. Zero where i + m is odd."""
         out = []
         for i in range(count):
             total = 0
@@ -917,9 +917,9 @@ def c_value(n, count, digits, a, bits):
 
 
 def c_at(n, num, den, digits):
-    """C_n(num / den), |num / den| <= 1, at digits + GUARD: count and 2 count Taylor terms, the second at
-    twice the extra digits, agreeing with the guard dropped. Disagreement doubles count. An odd C_n
-    turns sign with z, and the series is read at |z|."""
+    """C_n(num / den), |num / den| <= 1, at digits + GUARD. The code takes count and 2 count Taylor terms, the second
+    at twice the extra digits, and they must agree with the guard dropped. Disagreement doubles count. An odd C_n
+    turns sign with z, and the code reads the series at |z|."""
     sign = 1 - 2 * (n % 2) * int(num < 0)
     num = abs(num)
     count, decided = 64, 0
@@ -940,7 +940,7 @@ def c_at(n, num, den, digits):
 
 def rs_cut_at(key, cut):
     """S and R at x = nu + p, each at `digits`, with R through C_cut from the exact curves:
-    R = (-1)^(nu-1) sum over n <= cut of C_n(1 - 2p) u^-(2n+1), u^-(2n+1) = x^(-1/2) x^-n."""
+    `R = (-1)^(nu-1) sum over n <= cut of C_n(1 - 2p) u^-(2n+1)`, with `u^-(2n+1) = x^(-1/2) x^-n`."""
     nu, p, digits = key
     work = digits + GUARD
     scale = 10 ** work
@@ -972,8 +972,8 @@ def c_read(v, digits, places):
 
 
 def c_verdict(n, a, bits, places=24):
-    """C_n(a / 2^bits) read at `places` by count and 2 count terms, the second at twice the extra
-    digits, which must agree; disagreement doubles count and a reading of zero doubles the places."""
+    """C_n(a / 2^bits), read at `places` by count and 2 count terms, the second at twice the extra digits. The two
+    must agree. Disagreement doubles count, and a reading of zero doubles the places."""
     count, decided = 64, 0
     while NOT(decided):
         extra = count + 3 * n
@@ -1015,8 +1015,8 @@ class Vanishing:
         return [first(n, 0, m)] + [self.sign_at(n, j, m) for j in range(1, 2 ** m + 1)]
 
     def zeros(self, n, bits, start=6):
-        """The sign changes on 2^m and 2^(m+1) parts, m growing until the two counts agree, each halved
-        to `bits`. Returns the left ends, a over 2^bits, and m."""
+        """The sign changes on 2^m and 2^(m+1) parts. The count m grows until the two counts agree, and the code halves
+        each to `bits`. Returns the left ends, a over 2^bits, and m."""
         m = start
         row, finer = self.row(n, m), self.row(n, m + 1)
         while len(changes(row)) - len(changes(finer)):
@@ -1033,8 +1033,8 @@ class Vanishing:
         return found, m
 
     def edge(self, n, parts=14):
-        """The count of sign changes on [1 - 2^-6, 1] at 2^parts and 2^(parts+1) parts of [0, 1]: the zeros
-        of the even C_n crowd toward z = 1, and two between neighbors of the coarse grid would not show there."""
+        """The count of sign changes on [1 - 2^-6, 1] at 2^parts and 2^(parts+1) parts of [0, 1]. The zeros of the
+        even C_n crowd toward z = 1. Two zeros between adjacent points of the coarse grid do not show there."""
         counts = []
         for m in (parts, parts + 1):
             base = (1 << m) - (1 << (m - 6))
@@ -1043,8 +1043,8 @@ class Vanishing:
 
 
 def seam_against_c(nu, digits=20, top=16):
-    """The seam of Z_RS at x = nu + 1, and the jump of the terms R leaves out, from the exact C_k(1):
-    -2 (-1)^nu sum over even k from 6 to `top` of C_k(1) u^-(2k+1), u = sqrt(nu + 1). Returns both."""
+    """The seam of Z_RS at x = nu + 1, and the jump of the terms that R leaves out, from the exact C_k(1). The jump is
+    `-2 (-1)^nu sum over even k from 6 to top of C_k(1) u^-(2k+1)`, with `u = sqrt(nu + 1)`. Returns both."""
     scale = 10 ** digits
     root = naturals._integer_sqrt((nu + 1) * scale * scale)
     predicted = 0
@@ -1189,9 +1189,9 @@ def signed(v, places):
 
 
 def omitted_side(nu, cut, terms, m, digits):
-    """a over [nu, nu + 1] from the exact curves alone: the terms R through C_cut leaves out,
-    C_k(1 - 2p) x^(-k - 1/2) for k = cut + 1 to cut + terms, integrated in |.| on 2^m parts with each
-    corner fixed. Times 2^(m+1) and at 10^(digits + GUARD): only ratios between cells are read."""
+    """a over [nu, nu + 1], from the exact curves alone. These are the terms that R through C_cut leaves out,
+    `C_k(1 - 2p) x^(-k - 1/2)` for k = cut + 1 to cut + terms. The code integrates them in |.| on 2^m parts, with each
+    corner fixed. Times 2^(m+1), and at 10^(digits + GUARD). The code reads only ratios between cells."""
     steps = 1 << m
     scale = 10 ** (digits + GUARD)
     f = []
@@ -1205,8 +1205,8 @@ def omitted_side(nu, cut, terms, m, digits):
 
 
 def weight_series(k, nu, count, scale):
-    """(1 - z / (2X))^(-k - 1/2), X = nu + 1/2, as its first `count` coefficients in z at `scale`: the one
-    at z^j is the product over i < j of (2k + 1 + 2i), over j! 2^j (2 nu + 1)^j."""
+    """`(1 - z / (2X))^(-k - 1/2)`, with X = nu + 1/2, as its first `count` coefficients in z at `scale`. The one at
+    z^j is the product over i < j of (2k + 1 + 2i), over `j! 2^j (2 nu + 1)^j`."""
     out, num, den = [], 1, 1
     for j in range(count):
         out.append(scale * num // den)
@@ -1216,12 +1216,13 @@ def weight_series(k, nu, count, scale):
 
 
 class Omitted:
-    """The curves R through C_cut leaves out over the cell [nu, nu + 1], as one power series in z = 1 - 2p,
-    and a, the integral of its |.| over p, in closed form between its zeros. No grid.
+    """The curves that R through C_cut leaves out over the cell [nu, nu + 1], as one power series in z = 1 - 2p. Then
+    a, the integral of its |.| over p, in closed form between its zeros. No grid.
 
-    x = nu + p = X - z / 2 with X = nu + 1/2. Then C_k(z) x^(-k - 1/2) = X^(-1/2) (2 / (2 nu + 1))^k C_k(z)
-    (1 - z / (2X))^(-k - 1/2), every factor but X^(-1/2) a series with rational coefficients times the
-    curve's own. Between two zeros the integral is the antiderivative's difference, term by term."""
+    `x = nu + p = X - z / 2`, with X = nu + 1/2. Then
+    `C_k(z) x^(-k - 1/2) = X^(-1/2) (2 / (2 nu + 1))^k C_k(z) (1 - z / (2X))^(-k - 1/2)`. Each factor but X^(-1/2) is
+    a series with rational coefficients times the own coefficients of the curve.
+    Between two zeros, the integral is the difference of the antiderivative, term by term."""
 
     def __init__(self, nu, cut, terms, count, work):
         self.nu, self.count, self.work = nu, count, work
@@ -1249,8 +1250,8 @@ class Omitted:
         return acc * a >> bits
 
     def zeros(self, bits, start=6):
-        """The sign changes on [-1, 1] at 2^(m+1) and 2^(m+2) parts, m growing until the two counts agree,
-        each halved to 2^-bits. Returns them as a over 2^bits."""
+        """The sign changes on [-1, 1] at 2^(m+1) and 2^(m+2) parts. The count m grows until the two counts agree, and
+        the code halves each to 2^-bits. Returns them as a over 2^bits."""
         m = start
         row, finer = ([self.above(a, d) for a in range(-(1 << d), (1 << d) + 1)] for d in (m, m + 1))
         while len(changes(row)) - len(changes(finer)):
@@ -1275,9 +1276,9 @@ class Omitted:
 
 
 def omitted_exact(nu, cut, terms, digits):
-    """a over the cell from the omitted curves, at digits + GUARD, by the series at count and 2 count
-    terms agreeing with the guard dropped. Disagreement doubles count. The zeros are halved to the
-    bits where a misplaced end moves a by less than the last place."""
+    """a over the cell from the omitted curves, at digits + GUARD, by the series at count and 2 count terms. They must
+    agree with the guard dropped, and disagreement doubles count. The code halves the zeros to the bits where a
+    misplaced end moves a by less than the last place."""
     bits = 4 * (digits + GUARD)
     count, decided = 32, 0
     while NOT(decided):
@@ -1292,8 +1293,8 @@ def omitted_exact(nu, cut, terms, digits):
 
 
 def omitted_main(first, last, cut, terms=3, digits=24, m=9):
-    """a over cells first to last from the omitted exact curves in closed form, its exponent between
-    cells, and the trapezoid on 2^m parts with corners fixed as the second route."""
+    """a over cells first to last, from the omitted exact curves in closed form, and its exponent between cells. The
+    second route is the trapezoid on 2^m parts, with corners fixed."""
     out = sys.stdout
     sides = {}
     for nu in range(first, last + 1):
@@ -1318,10 +1319,11 @@ def omitted_main(first, last, cut, terms=3, digits=24, m=9):
 # and moves on a torus inside that sphere. Z = 2 Re sum z_n + R is its shadow on the diagonal.
 
 def theta_prime_route(t, digits, shift, terms):
-    """theta'(t) = Re psi(1/4 + it/2) / 2 - ln(pi) / 2 at `digits`: psi by Stirling's series at
-    w = 1/4 + it/2 + shift with `terms` Bernoulli terms, less 1 / (1/4 + it/2 + k) for each k below shift.
+    """`theta'(t) = Re psi(1/4 + it/2) / 2 - ln(pi) / 2` at `digits`. psi comes from the series of Stirling at
+    `w = 1/4 + it/2 + shift`, with `terms` Bernoulli terms, less `1 / (1/4 + it/2 + k)` for each k below shift.
 
-    w = (a + ib) / d as in exact_zeta_gram.theta_route, and Re w^(-2j) = Re (a - ib)^(2j) d^(2j) / (a^2 + b^2)^(2j)."""
+    `w = (a + ib) / d` as in exact_zeta_gram.theta_route, and
+    `Re w^(-2j) = Re (a - ib)^(2j) d^(2j) / (a^2 + b^2)^(2j)`."""
     scale = 10 ** digits
     big_t, q = t
     unit = 10 ** q
@@ -1345,7 +1347,7 @@ def theta_prime_route(t, digits, shift, terms):
 
 
 def theta_prime_at(t, digits):
-    """theta'(t) at `digits` by the routes at N and 2N, N doubling until they agree with the guard dropped."""
+    """theta'(t) at `digits` by the routes at N and 2N. N doubles until they agree with the guard dropped."""
     n_sum = 1
     one, two = (theta_prime_route(t, digits, n, n) for n in (1, 2))
     while toward_zero(one) - toward_zero(two):
@@ -1355,8 +1357,9 @@ def theta_prime_at(t, digits):
 
 
 def inv_powers(a, b, d, size, scale, top):
-    """Re and Im of 1 / W^m for m = 1 to top at `scale`, W = (a + i b) / d: 1 / W^m = d^m (a - i b)^m / size^m,
-    size = a^2 + b^2. (a - i b)^m is carried by multiplying the running power by (a - i b)."""
+    """Re and Im of 1 / W^m for m = 1 to top at `scale`, with `W = (a + i b) / d`. Then
+    `1 / W^m = d^m (a - i b)^m / size^m`, with `size = a^2 + b^2`. The code carries (a - i b)^m by a multiply of the
+    current power by (a - i b)."""
     out = []
     pr, pi = 1, 0
     d_power, size_power = 1, 1
@@ -1369,9 +1372,11 @@ def inv_powers(a, b, d, size, scale, top):
 
 
 def theta_derivs_route(t, digits, shift, terms):
-    """theta''(t) and theta'''(t) at `digits` by Stirling for psi' and psi'' at w = 1/4 + it/2 + shift, shifted
-    back by `shift` reflections. theta'' = -Im psi'(w) / 4 and theta''' = -Re psi''(w) / 8, from
-    psi'(W) = 1/W + 1/(2 W^2) + sum_k B_2k / W^(2k+1) and psi''(W) = -1/W^2 - 1/W^3 - sum_k B_2k (2k+1) / W^(2k+2)."""
+    """theta''(t) and theta'''(t) at `digits`, by Stirling for psi' and psi'' at `w = 1/4 + it/2 + shift`. The code
+    shifts them back by `shift` reflections. `theta'' = -Im psi'(w) / 4`, and `theta''' = -Re psi''(w) / 8`. These
+    come from:
+      - `psi'(W) = 1/W + 1/(2 W^2) + sum_k B_2k / W^(2k+1)`.
+      - `psi''(W) = -1/W^2 - 1/W^3 - sum_k B_2k (2k+1) / W^(2k+2)`."""
     scale = 10 ** digits
     big_t, q = t
     unit = 10 ** q
@@ -1394,7 +1399,7 @@ def theta_derivs_route(t, digits, shift, terms):
 
 
 def theta_derivs_at(t, digits):
-    """theta'' and theta''' at `digits` by the routes at N and 2N, N doubling until both agree."""
+    """The second and third derivatives of theta at `digits`, by the routes at N and 2N. N doubles until both agree."""
     n_sum = 1
     one, two = (theta_derivs_route(t, digits, n, n) for n in (1, 2))
     while toward_zero(one[0]) - toward_zero(two[0]) or toward_zero(one[1]) - toward_zero(two[1]):
@@ -1404,13 +1409,16 @@ def theta_derivs_at(t, digits):
 
 
 def state_at(nu, p, cut, digits):
-    """The fix: the exact state of Z at x = nu + p, for dead reckoning. Returns t; theta and its first three
-    derivatives; the wave-sum part of Z, Z', Z'' and Z''' exactly, each the sum of its waves' vectors; R's
-    value; the per-wave (w, w') for reading which wave carries the momentum; and magnitude bounds on R', R''
-    and R''' from the C_k bounds.
+    """The fix: the exact state of Z at x = nu + p, for dead reckoning. Returns:
+      - t, and theta with its first three derivatives.
+      - the wave-sum part of Z and its first three derivatives exactly, each the sum of the vectors of its waves.
+      - the value of R.
+      - the per-wave (w, w'), to read which wave carries the momentum.
+      - magnitude bounds on the first three derivatives of R, from the C_k bounds.
 
-    Wave n is 2 n^(-1/2) cos(phi_n), phi_n = theta - t ln n, so phi_n' = theta' - ln n, phi_n'' = theta'',
-    phi_n''' = theta'''. Z's momentum Z' is the sum over n of -2 n^(-1/2) sin(phi_n) phi_n', a vector sum."""
+    Wave n is `2 n^(-1/2) cos(phi_n)`, with `phi_n = theta - t ln n`. Then `phi_n' = theta' - ln n`. The second and
+    third derivatives of phi_n equal those of theta. The momentum Z' of Z is the sum over n of
+    `-2 n^(-1/2) sin(phi_n) phi_n'`, a vector sum."""
     work = digits + GUARD
     scale = 10 ** work
     big_p, q = p
