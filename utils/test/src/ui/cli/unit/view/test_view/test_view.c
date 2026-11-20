@@ -1937,10 +1937,10 @@ void test_a_views_change_is_reported_once_and_its_words_and_map_come_off_the_wal
     (void)mmgr_line_finish(&s_view_words_line);
     TEST_ASSERT_GREATER_OR_EQUAL_UINT(1u, s_view_words_count);
     CLI_TEST_ASSERT_CONTAINS("main", s_view_words);
-    (void)EMBED_CALL(cli_view_table.changed_alloc, CliViewCfg, .key = s_key);
+    (void)EMBED_CALL(cli_view_table.changed_clear, CliViewCfg, .key = s_key);
     typed("x");
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_view_table.changed_alloc, CliViewCfg, .key = s_key));
-    TEST_ASSERT_FALSE(EMBED_CALL(cli_view_table.changed_alloc, CliViewCfg, .key = s_key));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_view_table.changed_clear, CliViewCfg, .key = s_key));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_view_table.changed_clear, CliViewCfg, .key = s_key));
     CliDocumentMap *const map = EMBED_CALL(cli_document_map.map_alloc, CliDocumentMapCfg, .key = s_key, .first = 0ull,
                                            .last = 4ull, .tab = 4u, .owner = g_cli_text_owner);
     TEST_ASSERT_NOT_NULL(map);

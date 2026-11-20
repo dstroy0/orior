@@ -305,7 +305,7 @@ int cli_view_path(const CliViewPathTypeCfg *args);
 int cli_view_served_set(const CliViewFullCfg *args);
 int cli_view_serve(const CliViewFullTypeCfg *args);
 int cli_view_serving(const CliViewFullCfg *args);
-int cli_view_changed_alloc(const CliViewCfg *args);
+int cli_view_changed_clear(const CliViewCfg *args);
 // the save point of the view under `key`, the place in its steps its file was last written at, as Scintilla retains
 // one: put where the view is now; lost, so the text reads modified until it is put again; and whether the text is
 // modified, the view located anywhere but its save point or the steps it marked let go: 1, else 0, and 0 where no
@@ -426,16 +426,16 @@ typedef struct
 {
     int (*open)(const CliViewCfg *args);
     void (*close)(const CliViewCfg *args);
-    int (*changed_alloc)(const CliViewCfg *args);
+    int (*changed_clear)(const CliViewCfg *args);
     void (*saved)(const CliViewCfg *args);
     void (*unsaved)(const CliViewCfg *args);
     int (*modified)(const CliViewCfg *args);
 } CliViewNs;
-EMBED_TABLE_LAYOUT(CliViewNs, open, close, changed_alloc, saved, unsaved, modified);
+EMBED_TABLE_LAYOUT(CliViewNs, open, close, changed_clear, saved, unsaved, modified);
 EMBED_TABLE_STORAGE CliViewNs cli_view_table EMBED_UNUSED = {
     .open = cli_view_open,
     .close = cli_view_close,
-    .changed_alloc = cli_view_changed_alloc,
+    .changed_clear = cli_view_changed_clear,
     .saved = cli_view_saved,
     .unsaved = cli_view_unsaved,
     .modified = cli_view_modified,

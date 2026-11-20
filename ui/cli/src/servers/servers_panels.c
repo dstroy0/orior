@@ -1873,7 +1873,7 @@ static void panels_sync_post(const PanelsCtx *args)
     {
         return;
     }
-    if (!EMBED_CALL(cli_view_table.changed_alloc, CliViewCfg, .key = key))
+    if (!EMBED_CALL(cli_view_table.changed_clear, CliViewCfg, .key = key))
     {
         return;
     }

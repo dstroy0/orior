@@ -80,7 +80,7 @@ int cli_notebook_cell_focus(const CliNotebookEditFocusCfg *args)
     const CliViewInput placed = {.type = CLI_VIEW_POSITION, .row = args->line, .column = args->column};
     (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = key, .input = &placed,
                      .err_msg = args->err_msg);
-    (void)EMBED_CALL(cli_view_table.changed_alloc, CliViewCfg, .key = key);
+    (void)EMBED_CALL(cli_view_table.changed_clear, CliViewCfg, .key = key);
     EMBED_CALL(cli_notebook_model_internal.rows_settled, CliNotebookModelCtx, .model = model, .cell = args->cell);
     return 1;
 }
@@ -115,7 +115,7 @@ int cli_notebook_cell_input(const CliNotebookEditFocusCfg *args)
                .output = CLI_NOTEBOOK_NONE, .out = key);
     (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = key, .input = args->input,
                      .err_msg = args->err_msg);
-    if (!EMBED_CALL(cli_view_table.changed_alloc, CliViewCfg, .key = key))
+    if (!EMBED_CALL(cli_view_table.changed_clear, CliViewCfg, .key = key))
     {
         return 1;
     }
@@ -139,7 +139,8 @@ int cli_notebook_cell_input(const CliNotebookEditFocusCfg *args)
 
 int cli_notebook_cell_key(const CliNotebookEditKeyCfg *args)
 {
-    const CliNotebookModel *const model = EMBED_CALL(cli_notebook_model_internal.of, CliNotebookModelCtx, .key = args->key);
+    const CliNotebookModel *const model =
+        EMBED_CALL(cli_notebook_model_internal.of, CliNotebookModelCtx, .key = args->key);
     if ((model == NULL) || (model->focused == CLI_NOTEBOOK_NONE))
     {
         return 0;
@@ -473,7 +474,8 @@ int cli_notebook_cell_command(const CliNotebookEditMenuCfg *args)
     unsigned int named_at = CLI_NOTEBOOK_NONE;
     for (unsigned int at = 0u; at < (sizeof(s_words) / sizeof(s_words[0])); at += 1u)
     {
-        named_at = cellul.eq(&(CatenaFinitaCfg){.src = args->menu_word, .other = s_words[at], .cap = 32ULL}) ? at : named_at;
+        named_at =
+            cellul.eq(&(CatenaFinitaCfg){.src = args->menu_word, .other = s_words[at], .cap = 32ULL}) ? at : named_at;
     }
     if ((named_at == CLI_NOTEBOOK_NONE) || (cell >= model->cells))
     {

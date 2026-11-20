@@ -6614,7 +6614,7 @@ int cli_view_save(const CliViewSaveCfg *args)
     return written;
 }
 
-int cli_view_changed_alloc(const CliViewCfg *args)
+int cli_view_changed_clear(const CliViewCfg *args)
 {
     CliView copy;
     CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key, .copy = &copy);
