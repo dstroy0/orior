@@ -4,7 +4,6 @@
 # file moves, since a moved file starts again at zero under its new name.
 .githooks/pre-commit	40
 examples/00_blob_viz_tools/aimed_arms.py	22
-examples/00_blob_viz_tools/arm_draw.py	65
 examples/00_blob_viz_tools/arm_rank.py	24
 examples/00_blob_viz_tools/beam_illuminate.py	32
 examples/00_blob_viz_tools/beam_rows.py	29
@@ -13,7 +12,6 @@ examples/00_blob_viz_tools/blind_view_template.html	2
 examples/00_blob_viz_tools/bloch_cost.py	15
 examples/00_blob_viz_tools/bloch_reach.py	37
 examples/00_blob_viz_tools/block_view_template.html	1
-examples/00_blob_viz_tools/boundary_count.py	65
 examples/00_blob_viz_tools/boundary_read.py	31
 examples/00_blob_viz_tools/build_beam_view.py	21
 examples/00_blob_viz_tools/build_blind_view.py	24
@@ -28,7 +26,6 @@ examples/00_blob_viz_tools/build_plot_view.py	16
 examples/00_blob_viz_tools/build_pool_view.py	63
 examples/00_blob_viz_tools/build_room_view.py	35
 examples/00_blob_viz_tools/build_scope_view.py	14
-examples/00_blob_viz_tools/build_sha_clock_view.py	65
 examples/00_blob_viz_tools/build_sha_pairs_view.py	17
 examples/00_blob_viz_tools/build_sha_room_view.py	57
 examples/00_blob_viz_tools/build_sha_sphere_view.py	24
@@ -581,7 +578,6 @@ src/cu/engine/nbody/max_tree/max_tree_device_overlap_kernels.cu	1
 src/cu/engine/nbody/max_tree/max_tree_nodes.c	2
 src/cu/engine/nbody/orior/orior.h	4
 src/cu/engine/nbody/orior/orior_core.c	28
-src/cu/engine/nbody/orior/orior_core.h	64
 src/cu/engine/nbody/orior/orior_engines.h	25
 src/cu/engine/nbody/orior/orior_field.c	27
 src/cu/engine/nbody/orior/orior_internal.h	3
@@ -1056,7 +1052,6 @@ utils/maint/data/salishan/corpus_script_extraction/extract_alexander_davis.py	26
 utils/maint/data/salishan/corpus_script_extraction/extract_garcia.py	54
 utils/maint/data/salishan/corpus_script_extraction/extract_hall_ctr.py	31
 utils/maint/data/salishan/corpus_script_extraction/extract_hall_phillips.py	40
-utils/maint/data/salishan/corpus_script_extraction/extract_hilbert.py	64
 utils/maint/data/salishan/corpus_script_extraction/extract_kim_twana.py	12
 utils/maint/data/salishan/corpus_script_extraction/extract_lafontaine_janzen.py	33
 utils/maint/data/salishan/corpus_script_extraction/extract_lindley_lyon.py	63
