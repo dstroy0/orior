@@ -491,7 +491,6 @@ includes/file_defs/khw/khw_machine_write/opening.h	2
 includes/file_defs/khw/khw_write/forms.c	8
 includes/file_defs/khw/khw_write/written.c	9
 includes/file_defs/klang/klang.h	1
-includes/file_defs/klq/klq_write/klq_write.cu	15
 includes/file_defs/klq/query_trace.h	3
 includes/file_defs/kqr/kqr.h	13
 includes/file_defs/kqr/kqr_merge.c	5

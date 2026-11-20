@@ -5,19 +5,28 @@
 //
 //   orior_klq_write <folder> <ruleset>...
 //
-// Each ruleset is read as its code generator reads it, its files checked against each other and its schema
-// (ruleset_core_relation.h). The bridge is keyed by the schema's form names, which are gnascor's and no target's, and
-// stores at each key the pairs whose sameness the text leaves open: names one word apart with texts the same but for
-// their modifiers, and a form that opens another's literal operands. A pair put to no case is open with its count of
-// cases alike, 0. A language's .klm keys each name it gives that the schema names, and names each relation of the map
-// from the language to the bridge on its own line: a name one text with another in the language, which the bridge
-// exists as two keys (breaks), and a name given as another type than a form (type). No name of a language collapses
-// onto the bridge, which witnesses no two names one text. A name the schema does not name has no key, and is open
+// The writer reads each ruleset as its code generator reads it. It checks its files against each other and its schema
+// (ruleset_core_relation.h).
 //
-// The bridge's identities between texts and between slices with their verdicts, its primitives and its chains, are no
-// ruleset's: each line is stored as the bridge recorded it and written after the keys. A pair the bridge recorded a
-// verdict for, put to the part, is written with that verdict, and with the set, the concept and the intent
-// orior_klq_decoder read it into
+// The keys of the bridge are the form names of the schema, which belong to gnascor and to no target. At each key the
+// bridge stores the pairs whose sameness the text leaves open:
+//   - names one word apart, with texts that are the same but for their modifiers.
+//   - a form that opens the literal operands of another.
+//
+// A pair put to no case is open, with its count of cases alike at 0.
+//
+// The .klm of a language keys each name that it gives and that the schema names. It names each relation of the map
+// from the language to the bridge on its own line:
+//   - a name that is one text with another in the language, which the bridge holds as two keys (breaks).
+//   - a name given as a type other than a form (type).
+//
+// No name of a language collapses onto the bridge, which witnesses no two names as one text. A name that the schema
+// does not name has no key, and is open.
+//
+// The identities of the bridge between texts and between slices with their verdicts, its primitives and its chains,
+// belong to no ruleset. The writer stores each line as the bridge recorded it, and writes it after the keys.
+// A pair that the bridge recorded a verdict for, put to the part, goes out with that verdict. It also goes out with the
+// set, the concept and the intent that orior_klq_decoder read it into
 #include "../../qry/writer/qry_member.h"
 #include "code_generator.h"
 #include "target_internal.h"
@@ -42,8 +51,8 @@ struct LanguageSet
 // each type of entry that gives a name, as its line's first word writes it
 static const char *const s_type_written[] = {"form", "nop", "err", "construct"};
 
-// the language's map and the bridge, each put together here and then passed to the run's writer as its file, and the
-// bytes each contains so far, the room once a write did not fit
+// the map of the language and the bridge. The code puts each together here, and then passes it to the writer of the run
+// as its file. Then the bytes that each holds so far, or the room once a write did not fit
 static char s_map_bytes[QRY_WRITER_RING_BYTES / 2ULL];
 static size_t s_map_at;
 static char s_bridge_bytes[QRY_WRITER_RING_BYTES / 2ULL];
@@ -86,7 +95,7 @@ static int entry_keyed(const LanguageSet *set, const RulesetSchema *schema, unsi
            (ruleset_find(schema->forms, schema->form_count, entry_name(set, at)) < schema->form_count);
 }
 
-// the ruleset `file` read into `set` the way its code generator reads it. 1 where its files were read
+// the ruleset `file` read into `set` the way its code generator reads it. 1 where the read of its files succeeded
 static int language_read(const char *file, LanguageSet *set)
 {
     const RulesetSchema *const schema = code_generator(file).schema();
@@ -103,8 +112,8 @@ static int language_read(const char *file, LanguageSet *set)
     return 1;
 }
 
-// the language `stem` read into `set` against `schema`, its map to the bridge written to `path`. 1 where it was
-// written
+// the language `stem` read into `set` against `schema`, its map to the bridge written to `path`. 1 where the write
+// succeeded
 static int map_write(const std::string &path, const std::string &stem, const LanguageSet *set,
                      const RulesetSchema *schema)
 {
@@ -158,7 +167,7 @@ static int map_write(const std::string &path, const std::string &stem, const Lan
     return 1;
 }
 
-// the pair `key`, `other` stored at its key in `pairs`, where it is not stored already
+// the pair `key`, `other`, stored at its key in `pairs`, where `pairs` does not hold it yet
 static void pair_add(std::vector<std::pair<std::string, std::string>> *pairs, const std::string &key,
                      const std::string &other)
 {
@@ -224,12 +233,13 @@ int main(int argc, char **argv)
         }
     }
     const std::string path = folder + "/Lstar.klq";
-    // every line the bridge contains that no ruleset writes, its identities between texts and between slices with their
-    // verdicts, its primitives and its chains, stored whole: each line that is not the bridge's first, a key, a pair or
-    // a line beneath a pair, written again after the keys as it was read
+    // each line of the bridge that no ruleset writes, stored whole. That is its identities between texts and between
+    // slices with their verdicts, its primitives and its chains.
+    // After the keys, the code writes again each other line. Those are the lines that are not the first of the bridge,
+    // a key, a pair or a line beneath a pair. It writes each as the read found it
     std::vector<std::string> identities;
-    // each pair's verdict as the bridge recorded it, the sets of our coherence orior_klq_decoder read it into, its
-    // metas and then its set, its concept and its intent, each written again beneath the pair
+    // the verdict of each pair as the bridge recorded it, and the sets of our coherence that orior_klq_decoder read it
+    // into. That is its metas, then its set, its concept and its intent. The code writes each again beneath the pair
     std::map<std::string, std::string> verdicts;
     std::map<std::string, std::vector<std::string>> sets;
     std::map<std::string, std::string> relations;
