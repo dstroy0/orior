@@ -1318,9 +1318,11 @@ static int owner_own(void)
         s_owner.starting = 0;
         return 0;
     }
+    unsigned int wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_started);
     while (s_owner.starting)
     {
-        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_started);
+        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_started, .seen = wake_seen);
+        wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_started);
     }
     return s_owner.owning;
 }

@@ -204,9 +204,11 @@ EMBED_INLINE void cli_search_run(const FilesSearchCtx *args)
         started = 1u;
     }
     s_search.stores = started;
+    unsigned int wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_search.wake);
     while (EMBED_ATOMIC_LOAD(&s_search.workers) > 0u)
     {
-        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_search.wake);
+        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_search.wake, .seen = wake_seen);
+        wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_search.wake);
     }
     EMBED_CALL(cli_search_ordered, FilesSearchCtx, .out = out);
 }

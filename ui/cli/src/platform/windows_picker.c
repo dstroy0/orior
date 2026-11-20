@@ -88,9 +88,11 @@ int cli_file_pick(const CliPathCapacityCtx *args)
     {
         return 0;
     }
+    unsigned int wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_done);
     while (!pick.done)
     {
-        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_done);
+        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_done, .seen = wake_seen);
+        wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_done);
     }
     return pick.chosen;
 }

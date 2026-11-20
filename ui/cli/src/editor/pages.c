@@ -92,9 +92,11 @@ EMBED_INLINE void pages_let_go(const PagesCtx *args)
         *link = args->one->next;
     }
     args->one->index.cancel = 1;
+    unsigned int wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &g_cli_index_wake);
     while (args->one->index.read_state)
     {
-        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &g_cli_index_wake);
+        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &g_cli_index_wake, .seen = wake_seen);
+        wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &g_cli_index_wake);
     }
     (void)g_cli_guard->movable_buf_release(args->one->piece, g_cli_editor_owner);
     (void)g_cli_guard->movable_buf_release(args->one->index.start, g_cli_editor_owner);

@@ -233,6 +233,7 @@ void cli_runs_wait(const CliRunnerErrMsgRunNumberCfg *args)
     for (;;)
     {
         int going = 0;
+        const unsigned int wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &g_cli_runs_wake);
         for (unsigned int at = 0u; at < CLI_RUNS_MAX; at += 1u)
         {
             going = going || (g_cli_runs[at].used && (g_cli_runs[at].run == args->run_number) && !g_cli_runs[at].ended);
@@ -241,7 +242,7 @@ void cli_runs_wait(const CliRunnerErrMsgRunNumberCfg *args)
         {
             break;
         }
-        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &g_cli_runs_wake);
+        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &g_cli_runs_wake, .seen = wake_seen);
     }
 }
 

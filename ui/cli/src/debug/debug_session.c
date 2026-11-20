@@ -138,6 +138,7 @@ CliDebugAnswer *cli_debug_answer_alloc(void)
     CliDebugAnswer *answer = NULL;
     while (answer == NULL)
     {
+        const unsigned int wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_answers_wake);
         unsigned int at = 0u;
         while ((at < CLI_DEBUG_ANSWERS) && (answer == NULL))
         {
@@ -146,7 +147,7 @@ CliDebugAnswer *cli_debug_answer_alloc(void)
         }
         if (answer == NULL)
         {
-            EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_answers_wake);
+            EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_answers_wake, .seen = wake_seen);
         }
     }
     answer->reserved = 1;

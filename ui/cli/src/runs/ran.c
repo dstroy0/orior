@@ -306,9 +306,11 @@ int cli_run_result_within(const CliWordsCtx *args)
         cli_errors_read(work_state);
     }
     work_state->finished = 1;
+    unsigned int wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &work_state->wake);
     while (work_state->ended < ending)
     {
-        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &work_state->wake);
+        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &work_state->wake, .seen = wake_seen);
+        wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &work_state->wake);
     }
     args->run_result->out = out;
     args->run_result->out_size = out_size;

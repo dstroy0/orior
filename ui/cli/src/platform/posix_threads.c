@@ -111,14 +111,6 @@ static int wake_sleep(const PosixThreadsCtx *args)
                                : EMBED_WAIT_INFINITE);
 }
 
-void cli_wake_wait(const CliWakeCtx *args)
-{
-    // The word's wait compares the word with seen before it sleeps, so a wake that lands first ends it at once. The
-    // sleep has no timer: it ends when the word moves
-    (void)EMBED_CALL(wake_sleep, PosixThreadsCtx, .wake = args->wake,
-                     .seen = embed_atomic_word_load(&args->wake->generation), .milliseconds = EMBED_WAIT_INFINITE);
-}
-
 int cli_wake_wait_for(const CliWakeCtx *args)
 {
     return EMBED_CALL(wake_sleep, PosixThreadsCtx, .wake = args->wake,

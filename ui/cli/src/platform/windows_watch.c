@@ -209,9 +209,11 @@ void cli_watch_system_stop(void)
         return;
     }
     SetEvent(s_watch.stopped);
+    unsigned int wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_watch.wake);
     while (!s_watch.ended)
     {
-        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_watch.wake);
+        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_watch.wake, .seen = wake_seen);
+        wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_watch.wake);
     }
     CloseHandle(s_watch.stopped);
     s_watch.running = 0;

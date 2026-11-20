@@ -237,9 +237,11 @@ static int run_sends(void)
             run_send(&s_sending[index]);
         }
     }
+    unsigned int wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_send_wake);
     while (s_going > 0u)
     {
-        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_send_wake);
+        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_send_wake, .seen = wake_seen);
+        wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_send_wake);
     }
     int every = 1;
     for (unsigned int index = 0u; index < run->positions; index += 1u)

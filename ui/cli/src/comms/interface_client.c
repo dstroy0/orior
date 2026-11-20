@@ -311,9 +311,11 @@ const char *cli_ipc_name(const CliIpcCfg *args)
 void cli_ipc_leave(const CliIpcClientCfg *args)
 {
     EMBED_CALL(cli_ipc_internal.shut, CliIpcCtx, .end = &args->client->end);
+    unsigned int wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &args->client->wake);
     while (EMBED_ATOMIC_LOAD(&args->client->read_state) != 0u)
     {
-        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &args->client->wake);
+        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &args->client->wake, .seen = wake_seen);
+        wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &args->client->wake);
     }
     CliIpcEntry *entry = NULL;
     embed_u64 stamp = 0u;

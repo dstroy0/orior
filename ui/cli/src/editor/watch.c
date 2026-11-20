@@ -282,9 +282,11 @@ static void cli_batch(void *context)
     int going = 1;
     while (going)
     {
+        unsigned int wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_watching.wake);
         while ((s_watching.waiting.count == 0u) && !s_watching.overflowed && !s_watching.stop)
         {
-            EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_watching.wake);
+            EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_watching.wake, .seen = wake_seen);
+            wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_watching.wake);
         }
         if (s_watching.stop)
         {
@@ -352,9 +354,11 @@ void cli_watch_stop(void)
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_watching.wake);
     cli_watch_system_stop();
     const unsigned int threads = s_watching.polling ? 2u : 1u;
+    unsigned int wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_watching.wake);
     while (s_watching.ended < threads)
     {
-        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_watching.wake);
+        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_watching.wake, .seen = wake_seen);
+        wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_watching.wake);
     }
     s_watching.running = 0;
 }

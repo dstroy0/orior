@@ -437,9 +437,11 @@ void cli_watch_system_stop(void)
     }
     const unsigned long long one = 1ULL;
     (void)write(s_watch.stopped, &one, sizeof(one));
+    unsigned int wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_watch.wake);
     while (!s_watch.ended)
     {
-        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_watch.wake);
+        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_watch.wake, .seen = wake_seen);
+        wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_watch.wake);
     }
     s_watch.folder = NULL;
     s_watch.names = NULL;

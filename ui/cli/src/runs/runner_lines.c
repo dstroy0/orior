@@ -216,9 +216,11 @@ void cli_run_output_relay(const CliRunnerRunSpawnedCtx *args)
         EMBED_CALL(cli_stream_lines_print, RunnerLinesCtx, .transport = err);
     }
     EMBED_CALL(cli_stream_lines_print, RunnerLinesCtx, .transport = out);
+    unsigned int wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_transferred_wake);
     while (threaded && !err->ended)
     {
-        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_transferred_wake);
+        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_transferred_wake, .seen = wake_seen);
+        wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_transferred_wake);
     }
     g_cli_guard->persistent_buf_release(out_transport.pending, g_cli_runs_owner);
     g_cli_guard->persistent_buf_release(err_transport.pending, g_cli_runs_owner);

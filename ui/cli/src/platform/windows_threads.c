@@ -32,14 +32,6 @@ void embed_word_wake(embed_atomic_word *word)
     WakeByAddressAll(&word->value);
 }
 
-void cli_wake_wait(const CliWakeCtx *args)
-{
-    // The wait compares the word with seen before it sleeps, so a wake that lands first ends it at once. The sleep
-    // has no timer: it ends when the word moves
-    embed_atomic_word_value seen = embed_atomic_word_load(&args->wake->generation);
-    (void)WaitOnAddress(&args->wake->generation.value, &seen, sizeof(seen), INFINITE);
-}
-
 int cli_wake_wait_for(const CliWakeCtx *args)
 {
     embed_atomic_word_value seen = embed_atomic_word_load(&args->wake->generation);

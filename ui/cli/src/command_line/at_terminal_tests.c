@@ -286,9 +286,11 @@ int cli_at_terminal_tests(const CliAtTerminalRootCfg *args)
         s_covered.lines = 0ULL;
         return 0;
     }
+    unsigned int wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_wake);
     while (!s_done)
     {
-        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_wake);
+        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_wake, .seen = wake_seen);
+        wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_wake);
     }
     VerbaLinea *const into = s_good ? args->out : err_msg;
     EMBED_CALL(tests_lines_write, AtTerminalTestsCtx, .lines = &s_failed, .into = into);

@@ -132,9 +132,11 @@ void cli_test_errors_start(const CliTestRunsWorkerLineCtx *args)
 void cli_test_errors_wait(const CliTestRunsWorkerLineCtx *args)
 {
     CliTestRun *const run = args->worker->run;
+    unsigned int wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &run->wake);
     while (!args->worker->errors_read)
     {
-        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &run->wake);
+        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &run->wake, .seen = wake_seen);
+        wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &run->wake);
     }
 }
 

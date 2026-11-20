@@ -540,9 +540,9 @@ typedef struct
     unsigned int priority;
 } CliThread;
 
-// the lock, which the caller owns, given back while the thread waits on the wake, and taken again as it wakes; every
-// thread waiting woken; and a thread started on `thread`, let go to end on its own: 1, or 0 where it could not start
-void cli_wake_wait(const CliWakeCtx *args);
+// each thread that waits on the wake, woken; and a thread started on `thread`, let go to end on its own: 1, or 0 where
+// it could not start. An untimed wait has no form that reads the generation itself. That read comes after the test of
+// the waiter, and a wake between the two is lost to a sleep that no timer ends
 void cli_wake_all(const CliWakeCtx *args);
 // the wake's generation, read before a waiter tests its condition; and a sleep until the generation moves off `seen`,
 // which no wake landing after that read can be lost to
@@ -1381,16 +1381,14 @@ EMBED_TABLE_STORAGE CliWordsWordsNs cli_words_words_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*wake_wait)(const CliWakeCtx *args);
     void (*wake_all)(const CliWakeCtx *args);
     unsigned int (*wake_read)(const CliWakeCtx *args);
     void (*wake_wait_seen)(const CliWakeCtx *args);
     int (*wake_wait_for)(const CliWakeCtx *args);
     int (*wake_wait_seen_for)(const CliWakeCtx *args);
 } CliWakeNs;
-EMBED_TABLE_LAYOUT(CliWakeNs, wake_wait, wake_all, wake_read, wake_wait_seen, wake_wait_for, wake_wait_seen_for);
+EMBED_TABLE_LAYOUT(CliWakeNs, wake_all, wake_read, wake_wait_seen, wake_wait_for, wake_wait_seen_for);
 EMBED_TABLE_STORAGE CliWakeNs cli_wake_internal EMBED_UNUSED = {
-    .wake_wait = cli_wake_wait,
     .wake_all = cli_wake_all,
     .wake_read = cli_wake_read,
     .wake_wait_seen = cli_wake_wait_seen,
