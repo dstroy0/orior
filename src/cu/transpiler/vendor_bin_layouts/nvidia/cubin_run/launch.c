@@ -31,11 +31,11 @@ static void cubin_run_host_yield(void)
 #endif
 }
 
-// 1 where the last launch broke cubin_safe's rule 6: the process launches nothing after it and leaves what the launch
+// 1 where the last launch broke cubin_safe's rule 7: the process launches nothing after it and leaves what the launch
 // stays where it is, since a launch the part has not given back may still use it
 int s_launch_timed_out = 0;
 
-// 1 where the last launch broke cubin_safe's rule 7, read from the part's fault telemetry or the driver's own word on
+// 1 where the last launch broke cubin_safe's rule 8, read from the part's fault telemetry or the driver's own word on
 // the stop event: the part faulted, its context corrupt, and the launch is answered as refused
 int s_launch_faulted = 0;
 
@@ -74,7 +74,7 @@ static CubinRunStatus cubin_run_room(const CubinRunDriver *driver, CubinRunAddre
     return status;
 }
 
-// One launch of `function` over `arguments` carried under cubin_safe's rule 6: alone between two events the part stamps
+// One launch of `function` over `arguments` carried under cubin_safe's rule 7: alone between two events the part stamps
 // from its own timer, its stop event read without waiting on it until the part reaches it, the driver gives an error,
 // or CUBIN_SAFE_LAUNCH_BOUND passes on the host's clock. Its block latency in nanoseconds into `nanoseconds`. 0, the
 // status the driver gave, or CUDA_ERROR_LAUNCH_TIMEOUT where the rule was broken, the driver's own or the bound's
@@ -87,7 +87,7 @@ static CubinRunStatus cubin_run_bounded(const CubinRunDriver *driver, void *func
     {
         return CUBIN_SAFE_STATUS_LAUNCH_TIMEOUT;
     }
-    // every fault already stamped thrown away first; only one the launch to come stamps then counts against it (rule 7)
+    // every fault already stamped thrown away first; only one the launch to come stamps then counts against it (rule 8)
     const unsigned long long drain_began = cubin_run_host_now();
     cubin_run_telemetry_drain();
     const unsigned long long launch_began = cubin_run_host_now();
@@ -116,7 +116,7 @@ static CubinRunStatus cubin_run_bounded(const CubinRunDriver *driver, void *func
         }
         cubin_run_host_yield();
     }
-    // rule 7: the part's fault telemetry read, and the driver's own word on the stop event with it. A launch that
+    // rule 8: the part's fault telemetry read, and the driver's own word on the stop event with it. A launch that
     // faulted the part halts the process and is answered as refused, named by the driver's error or, where only the
     // stamp caught it, as a failed launch
     const unsigned long long faulted_began = cubin_run_host_now();
@@ -150,7 +150,7 @@ unsigned long long s_timed_max;
 // boundary to find it
 unsigned int s_part_registers = CUBIN_RUN_REGISTERS_UNREAD;
 
-// `launches` launches of `function` over `arguments`, one at a time, each under cubin_safe's rule 6, their block
+// `launches` launches of `function` over `arguments`, one at a time, each under cubin_safe's rule 7, their block
 // latencies summed into `nanoseconds` and the least and the max of them into s_timed_least and s_timed_max: 0, or the
 // status the driver gave the first launch that did not return clean, none launched after it. The timer is the part's
 // and not the host's, and counts the same whatever clock the part's multiprocessors run at

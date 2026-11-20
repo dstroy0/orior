@@ -211,7 +211,7 @@ static void check_cases(void)
     }
 }
 
-// rule 6 checked against what it reports of one launch: the driver's status on the stop event and the nanoseconds the
+// rule 7 checked against what it reports of one launch: the driver's status on the stop event and the nanoseconds the
 // host read it
 static void check_launch(const char *name, int status, unsigned long long waited, unsigned int wanted)
 {
@@ -226,7 +226,7 @@ static void check_launch(const char *name, int status, unsigned long long waited
     printf("  %s: %s\n", name, cubin_safe_name(verdict));
 }
 
-// rule 7 checked against what it reports of one launch: the part's fault stamp and the driver's status on the stop
+// rule 8 checked against what it reports of one launch: the part's fault stamp and the driver's status on the stop
 // event
 static void check_fault(const char *name, int part_faulted, int status, unsigned int wanted)
 {

@@ -63,7 +63,7 @@
 //
 //      The answer for the launch is a refusal, and R then blocks it from the part ever after. Nothing launches after
 //      it in that process. This catches an out-of-range register that the part faults on in microseconds. The bound
-//      of rule 6, read for a launch that runs too long, never sees it.
+//      of rule 7, read for a launch that runs too long, never sees it.
 //
 // Where the tables step pulls the vendor's instruction set, rules 2 and 3 read the class of each encoding off it as
 // well. They treat an operation that it names as a control transfer or a wait. The name that the form of the machine

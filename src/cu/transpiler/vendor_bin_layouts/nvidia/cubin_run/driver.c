@@ -4,7 +4,7 @@
 #include "cubin_run_internal.h"
 
 // The part's fault telemetry, the driver's management layer (NVML), reached by name and by its own entry points as the
-// driver is, and nothing of its vendor's toolchain compiled against. What cubin_safe's rule 7 reads after each launch:
+// driver is, and nothing of its vendor's toolchain compiled against. What cubin_safe's rule 8 reads after each launch:
 // the Xid critical errors the part stamps against the device
 typedef struct
 {
@@ -263,7 +263,7 @@ int cubin_run_telemetry_open(void)
     const int events = cubin_run_events_open();
     if (!management && !events)
     {
-        fprintf(stderr, "the part's fault telemetry was not reached: rule 7 does not guard this run\n");
+        fprintf(stderr, "the part's fault telemetry was not reached: rule 8 does not guard this run\n");
         return 0;
     }
     return 1;

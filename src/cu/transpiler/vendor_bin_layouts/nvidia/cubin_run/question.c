@@ -394,8 +394,8 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
             fprintf(stderr, "the driver was not reached\n");
             return 2;
         }
-        // the part's fault telemetry opened beside the driver, for rule 7 to read after each launch; a run goes on
-        // under rule 6 alone where it is not there, the warning printed
+        // the part's fault telemetry opened beside the driver, for rule 8 to read after each launch; a run goes on
+        // under rule 7 alone where it is not there, the warning printed
         cubin_run_telemetry_open();
         s_driver_opened = 1;
     }
