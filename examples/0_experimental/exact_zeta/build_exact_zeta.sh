@@ -19,7 +19,7 @@ EXACT="$TOP/includes/exact_types/integers"
 OUT="$TOP/build/exact_zeta/$(uname -s | tr "[:upper:]" "[:lower:]")"
 mkdir -p "$OUT"
 
-USAGE="usage: build_exact_zeta.sh zeros|gram|phase|certificate|arrival [arguments]"
+USAGE="usage: build_exact_zeta.sh zeros|gram|phase|certificate|arrival|spherical [arguments]"
 if [ $# -lt 1 ]; then
     echo "$USAGE"
     exit 2
@@ -32,6 +32,7 @@ case "$NAME" in
     phase) PROGRAM=exact_zeta_phase LIMBS=1024u ;;
     certificate) PROGRAM=zeta_zero_certificate LIMBS=1024u ;;
     arrival) PROGRAM=exact_zeta_arrival LIMBS=32u ;;
+    spherical) PROGRAM=exact_zeta_spherical LIMBS=256u ;;
     *) echo "$USAGE"; exit 2 ;;
 esac
 

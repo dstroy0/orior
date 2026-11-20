@@ -2,27 +2,31 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // Catalog: EXP-x-024
 //
-// The waves m^(-1/2) e^(-i t ln m) at the boundaries t = 2pi n^2, every wave a lane, swept on the device as a program of
-// the record machine, one job on the device's tessera daemon.
+// The waves m^(-1/2) e^(-i t ln m) at the boundaries t = 2pi n^2, on the device. Every wave is a lane. The program
+// runs on the record machine, as one job on the tessera daemon of the device.
 //
 //   Usage:  exact_zeta_arrival <input> <output>
 //
-// At t = 2pi n^2 wave m is at u = e^(-2pi i n^2 ln m). Its phase has the constant second difference 4pi ln m in n:
-// from one boundary to the next a lane steps by its relation alone, u <- u r and r <- r q, with
-// r = e^(-2pi i (2n + 1) ln m) and q = e^(-4pi i ln m), each product divided by the scale S = 2^62 and wrapped to 64
-// bits. Each boundary's reading is m^(-1/2) u where m < n and 0 otherwise, and the sum across lanes,
-// V_n = sum over m < n of m^(-1/2) e^(-2pi i n^2 ln m), is taken on the device by cycle_record_sum, exact. A sweep
-// covers B boundaries; its state, the last u and r, is the next sweep's first member, read where the sweep wrote it.
+// At t = 2pi n^2, wave m is at u = e^(-2pi i n^2 ln m). In n, its phase has the constant second difference 4pi ln m.
+// Thus a lane steps from one boundary to the next by its relation alone: u <- u r and r <- r q. Here
+// r = e^(-2pi i (2n + 1) ln m) and q = e^(-4pi i ln m). Each product divides by the scale S = 2^62 and wraps to 64
+// bits.
 //
-// The input, written by exact_zeta_arrival.py, little-endian 64-bit integers: M, n0, sweeps, B, K and G, then for
-// each lane from 1 to M: u, r and q, each its real part then its imaginary part, and m^(-1/2), each times S, two's
-// complement. The lanes are M / G runs of G, summed run by run, and a lane's m is its place in its run, 1 to G. K lanes
-// of the first sweep are run on the host too, from the exact integer library.
+// The reading of a boundary is m^(-1/2) u where m < n, and 0 otherwise. The device takes the exact sum across lanes
+// with cycle_record_sum: V_n = sum over m < n of m^(-1/2) e^(-2pi i n^2 ln m). A sweep covers B boundaries. The
+// state of a sweep is the last u and r. The next sweep reads that state as its first member, where the sweep wrote it.
 //
-// The output: the line "sum_limbs L", one line a boundary, "n", then each run's sum, its real part and its imaginary
-// part, L hex limbs each, least significant first, two's complement times S; then "host 1" where the host's records of
-// the first sweep equal the device's word for word over K lanes, else "host 0", and the line
-// "steps P out_limbs O compiled C".
+// The input is little-endian 64-bit integers, from exact_zeta/exact_zeta_arrival.c. First come M, n0, sweeps, B, K
+// and G. Then each lane from 1 to M gives u, r and q, and m^(-1/2). Each of u, r and q gives its real part, then its
+// imaginary part. Every value is times S, in two's complement.
+//
+// The lanes are M / G runs of G, and the device sums them run by run. The m of a lane is its place in its run, 1 to
+// G. The host also runs K lanes of the first sweep, on the exact integer library.
+//
+// The output starts with the line "sum_limbs L". Then each boundary has one line: "n", then the sum of each run, as
+// its real part and its imaginary part. Each part is L hex limbs, least significant first, in two's complement, times
+// S. Then comes "host 1" where the records of the host for the first sweep equal those of the device over K lanes.
+// Else it is "host 0". The last line is "steps P out_limbs O compiled C".
 
 #include "../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../src/cu/engine/analysis/key_schedule/key_schedule.h"
@@ -75,8 +79,9 @@ static void arrival_turn(ArrivalProgram *program, unsigned int *re, unsigned int
     *im = arrival_step(program, ENGINE_RECORD_WRAP, imaginary_scaled, ARRIVAL_WIDTH, 0u);
 }
 
-// B boundaries. Fields 0 to 3 are the state, u and r, in member 0; 4 to 7 are q, m^(-1/2) and m in member 1; 8 is n0 in
-// member 2. outputs[2j] and outputs[2j + 1] are boundary j's reading, and outputs[2B] on are the last u and r
+// B boundaries. Fields 0 to 3 are the state, u and r, in member 0. Fields 4 to 7 are q, m^(-1/2) and m, in member 1.
+// Field 8 is n0, in member 2. The reading of boundary j is outputs[2j] and outputs[2j + 1]. The last u and r are
+// outputs[2B] and on.
 static void arrival_build(ArrivalProgram *program, unsigned int floors, std::vector<unsigned int> *outputs)
 {
     unsigned int u_re = arrival_step(program, ENGINE_RECORD_FIELD_SIGNED, 0u, 0u, 0u);

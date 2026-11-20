@@ -112,7 +112,6 @@ examples/0_experimental/exact_navier_stokes_cascade.py	17
 examples/0_experimental/exact_navier_stokes_on_torus.py	38
 examples/0_experimental/exact_residue_code_detects_uncertainty.py	20
 examples/0_experimental/exact_translation_by_ntt.py	22
-examples/0_experimental/exact_zeta_arrival.cu	8
 examples/0_experimental/exact_zeta_arrival.py	20
 examples/0_experimental/exact_zeta_arrival.sh	1
 examples/0_experimental/exact_zeta_carrier.py	13

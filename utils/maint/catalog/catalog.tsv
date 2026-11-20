@@ -80,7 +80,7 @@ EXP-x-025	live	examples/0_experimental/exact_zeta/zeta_zero_certificate.c
 EXP-x-026	live	examples/0_experimental/exact_zeta/exact_zeta_phase.c
 EXP-x-027	live	examples/0_experimental/exact_zeta_lobes.py
 EXP-x-028	live	examples/0_experimental/exact_zeta_turing.py
-EXP-x-029	live	examples/0_experimental/exact_zeta_spherical.py
+EXP-x-029	live	examples/0_experimental/exact_zeta/exact_zeta_spherical.c
 EXP-x-030	live	examples/0_experimental/exact_zeta_miss_map.py
 EXP-x-031	live	examples/0_experimental/exact_zeta_tension.py
 EXP-x-032	live	examples/0_experimental/exact_zeta_form_factor.py
