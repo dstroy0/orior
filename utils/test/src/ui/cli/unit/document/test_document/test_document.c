@@ -724,6 +724,18 @@ void test_the_walks_telemetry_switches_on_and_off_around_a_walk(void)
     TEST_ASSERT_EQUAL_UINT64(2ull, shape.lines);
 }
 
+// the words a call passes, each put after the others with a space, and their count
+static char s_words[1024];
+static VerbaLinea s_words_line;
+static unsigned int s_words_count;
+
+static void word_noted(const CliEachTextLengthCfg *args)
+{
+    mmgr_line_put_n(&s_words_line, args->text, args->length);
+    mmgr_line_ch(&s_words_line, ' ');
+    s_words_count += 1u;
+}
+
 void test_the_names_on_a_texts_lines_come_once_each_the_cursors_own_left_out(void)
 {
     static const char s_names[] = "alpha beta\nalp gamma\nalpha x\n";
@@ -735,12 +747,15 @@ void test_the_names_on_a_texts_lines_come_once_each_the_cursors_own_left_out(voi
     TEST_ASSERT_TRUE(EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = "c", .key = grammar, .err_msg = &err_msg));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = "words", .grammar = grammar, .named = 1));
     cli_document_walk();
-    CliDocumentWords *const words = EMBED_CALL(cli_document_words.words_alloc, CliDocumentWordsCfg, .key = "words", .first = 0ull, .last = 2ull, .cursor = {1ull, 3ull}, .owner = g_cli_text_owner);
-    TEST_ASSERT_NOT_NULL(words);
-    TEST_ASSERT_EQUAL_UINT(3u, words->count);
-    CLI_TEST_ASSERT_CONTAINS("beta", words->text);
-    CLI_TEST_ASSERT_CONTAINS("gamma", words->text);
-    g_cli_guard->persistent_buf_release(words, g_cli_text_owner);
+    const unsigned long long held = mmgr_owner_in_use(g_cli_editor_owner);
+    s_words_count = 0u;
+    s_words_line = (VerbaLinea){s_words, sizeof(s_words), 0ull};
+    EMBED_CALL(cli_document_words.words_each, CliDocumentWordsCfg, .key = "words", .first = 0ull, .last = 2ull, .cursor = {1ull, 3ull}, .each = word_noted, .context = NULL);
+    (void)mmgr_line_finish(&s_words_line);
+    TEST_ASSERT_EQUAL_UINT(3u, s_words_count);
+    CLI_TEST_ASSERT_CONTAINS("beta", s_words);
+    CLI_TEST_ASSERT_CONTAINS("gamma", s_words);
+    TEST_ASSERT_EQUAL_UINT64(held, mmgr_owner_in_use(g_cli_editor_owner));
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "words");
 }
 

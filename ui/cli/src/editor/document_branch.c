@@ -27,6 +27,16 @@
 #include "highlight.h"
 #include "pages.h"
 
+// The words of a text in one cell of the temporary tier, for one call of cli_document_words_each: each one's start
+// among `text` and its length
+typedef struct
+{
+    unsigned int count;
+    unsigned long long *at;
+    unsigned int *length;
+    char *text;
+} CliDocumentWords;
+
 // A walker: a thread of its own walking one text at a time, what it runs, the line its steps' colors are written into,
 // taken once and emptied for each step, and whether it walks, under the lock
 typedef struct
@@ -3043,14 +3053,14 @@ static CliDocumentWords *words_alloc_locked(const CliDocumentWordsCfg *args)
                .units_pointer = &units);
     CliDocumentWords *const words = g_cli_guard->temporary_buf_alloc(
         sizeof(*words) + (max * (sizeof(unsigned long long) + sizeof(unsigned int))) + (3ULL * units) + 1ULL,
-        args->owner);
+        g_cli_editor_owner);
     unsigned long long capacity = 16ULL;
     while (capacity < (2ULL * max))
     {
         capacity *= 2ULL;
     }
     unsigned int (*const table)[2] =
-        (words != NULL) ? g_cli_guard->temporary_buf_alloc(capacity * sizeof(*table), args->owner) : NULL;
+        (words != NULL) ? g_cli_guard->temporary_buf_alloc(capacity * sizeof(*table), g_cli_editor_owner) : NULL;
     if (words != NULL)
     {
         words->count = 0u;
@@ -3066,16 +3076,22 @@ static CliDocumentWords *words_alloc_locked(const CliDocumentWordsCfg *args)
                    .cursor_col = args->cursor.col);
     }
     EMBED_CALL(cli_document_internal.holder_end, CliDocumentCtx, .one = one);
-    g_cli_guard->persistent_buf_release(table, args->owner);
+    g_cli_guard->persistent_buf_release(table, g_cli_editor_owner);
     return words;
 }
 
-CliDocumentWords *cli_document_words_alloc(const CliDocumentWordsCfg *args)
+void cli_document_words_each(const CliDocumentWordsCfg *args)
 {
     cli_document_lock_take();
-    CliDocumentWords *const answer = words_alloc_locked(args);
+    CliDocumentWords *const words = words_alloc_locked(args);
     cli_document_lock_give();
-    return answer;
+    // the words go to the caller with the lock given back: the list is this call's own
+    for (unsigned int at = 0u; (words != NULL) && (at < words->count); at += 1u)
+    {
+        EMBED_CALL(args->each, CliEachTextLengthCfg, .context = args->context, .text = words->text + words->at[at],
+                   .length = words->length[at]);
+    }
+    g_cli_guard->persistent_buf_release(words, g_cli_editor_owner);
 }
 
 void cli_document_walk(void)
@@ -3143,6 +3159,22 @@ char *cli_document_text_alloc(const CliDocumentKeyCfg *args)
     char *const answer = text_alloc_locked(args);
     cli_document_lock_give();
     return answer;
+}
+
+int cli_document_text_each(const CliDocumentKeyCfg *args)
+{
+    unsigned long long size = 0ULL;
+    cli_document_lock_take();
+    char *const text = EMBED_CALL(text_alloc_locked, CliDocumentKeyCfg, .key = args->key, .size_pointer = &size,
+                                  .owner = g_cli_editor_owner);
+    cli_document_lock_give();
+    // the text goes to the caller with the lock given back: the cell is this call's own
+    if (text != NULL)
+    {
+        EMBED_CALL(args->each, CliEachTextLengthCfg, .context = args->context, .text = text, .length = size);
+    }
+    g_cli_guard->persistent_buf_release(text, g_cli_editor_owner);
+    return text != NULL;
 }
 
 static int file_put_locked(const CliDocumentOutCfg *args)
@@ -3236,22 +3268,18 @@ EMBED_INLINE void branch_lines_paged(const DocumentBranchCtx *args)
     g_cli_guard->persistent_buf_release(starts, g_cli_editor_owner);
 }
 
-static char *lines_alloc_locked(const CliDocumentKeyCfg *args)
+// the lines from `first` to `last` of the text under `key` put after `text`, and the state the first is entered in
+// written into `state`: 1, or 0 where no text is stored under `key`
+static int lines_put_locked(const CliDocumentKeyCfg *args, VerbaLinea *text)
 {
-    unsigned long long *size = args->size_pointer;
-    CliGrownLine written;
-    cli_grown_begin(&written, CLI_DOC_COLORS_CAPACITY, args->owner);
-    const int made = written.cell != NULL;
-    VerbaLinea *const text = &written.line;
     const CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
-    const int found = one != NULL;
     VerbaLinea entered = {args->state, args->capacity, 0ULL};
     // a paged text's lines, read through the pages with the lock given back: its key, and the lines asked
     char paged[CLI_NAME_MAX_LEN];
     paged[0] = '\0';
     unsigned int from = 0u;
     unsigned int to = 0u;
-    if (made && (one != NULL))
+    if (one != NULL)
     {
         EMBED_CALL(branch_lines_stored, DocumentBranchCtx, .one_read = one, .first_u64 = args->first,
                    .last_u64 = args->last, .first_pointer = &from, .end_pointer = &to, .entered = &entered,
@@ -3265,6 +3293,25 @@ static char *lines_alloc_locked(const CliDocumentKeyCfg *args)
     {
         args->state[0] = '\0';
     }
+    return one != NULL;
+}
+
+int cli_document_lines_read(const CliDocumentKeyCfg *args)
+{
+    cli_document_lock_take();
+    const int found = lines_put_locked(args, args->out);
+    cli_document_lock_give();
+    return found && mmgr_line_ok(args->out);
+}
+
+static char *lines_alloc_locked(const CliDocumentKeyCfg *args)
+{
+    unsigned long long *size = args->size_pointer;
+    CliGrownLine written;
+    cli_grown_begin(&written, CLI_DOC_COLORS_CAPACITY, args->owner);
+    const int made = written.cell != NULL;
+    VerbaLinea *const text = &written.line;
+    const int found = made && lines_put_locked(args, text);
     const int reserved = made && found && mmgr_line_ok(text);
     if (made && !reserved)
     {
@@ -3281,6 +3328,23 @@ char *cli_document_lines_alloc(const CliDocumentKeyCfg *args)
     char *const answer = lines_alloc_locked(args);
     cli_document_lock_give();
     return answer;
+}
+
+int cli_document_lines_each(const CliDocumentKeyCfg *args)
+{
+    unsigned long long size = 0ULL;
+    cli_document_lock_take();
+    char *const text = EMBED_CALL(lines_alloc_locked, CliDocumentKeyCfg, .key = args->key, .first = args->first,
+                                  .last = args->last, .size_pointer = &size, .state = args->state,
+                                  .capacity = args->capacity, .owner = g_cli_editor_owner);
+    cli_document_lock_give();
+    // the lines go to the caller with the lock given back: the cell is this call's own
+    if (text != NULL)
+    {
+        EMBED_CALL(args->each, CliEachTextLengthCfg, .context = args->context, .text = text, .length = size);
+    }
+    g_cli_guard->persistent_buf_release(text, g_cli_editor_owner);
+    return text != NULL;
 }
 
 static int bounds_locked(const CliDocumentKeyLowCfg *args)

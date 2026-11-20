@@ -545,10 +545,9 @@ EMBED_INLINE int effect_sift_lex(const EffectSiftCtx *args)
     }
     CliEffectSiftDeclaring declaring = {args->each, args->context, origin,
                                         placed,     args->effect,  (CliEffectSifted *)sifted};
-    leaved =
-        leaved && EMBED_CALL(cli_symbols_path_internal.leaves_declare, CliSymbolsPathCtx,
-                             .languages = args->effect->languages, .path = args->path, .state = "root", .text = joined,
-                             .size = used, .read = args->read, .each = effect_sift_declaring, .context = &declaring);
+    leaved = leaved && EMBED_CALL(cli_symbols_path_internal.leaves_declare, CliSymbolsPathCtx, .path = args->path,
+                                  .state = "root", .text = joined, .size = used, .read = args->read,
+                                  .each = effect_sift_declaring, .context = &declaring);
     // each leaf moved to the bytes and the line of the branch its lexed line came from
     for (unsigned int at = 0u; leaved && (at < args->read->count); at += 1u)
     {
@@ -709,14 +708,15 @@ EMBED_INLINE int effect_sift_read(const EffectSiftCtx *args)
     unsigned char *const declares = sifted.declares;
     // the directives by the marks the branch's grammar names, then the view's lines where the walk starts here, then
     // each name the walk sifts for; a grammar that names no mark has no directive sifted
-    const char *const mark = cli_symbols_directive_mark(
-        &(CliSymbolsReadLanguagesCtx){.read_symbols_languages_pointer = effect->languages, .path = args->path});
-    const char *const continued = cli_symbols_directive_continued(
-        &(CliSymbolsReadLanguagesCtx){.read_symbols_languages_pointer = effect->languages, .path = args->path});
-    const unsigned long long mark_length = cellul.len(&(CatenaFinitaCfg){.src = mark, .cap = CLI_SYMBOLS_MARK_MAX});
-    CliEffectSiftHit hit = {
-        &sifted, mark_length, 1,         0u,
-        0u,      0u,          continued, cellul.len(&(CatenaFinitaCfg){.src = continued, .cap = CLI_SYMBOLS_MARK_MAX})};
+    CliLanguageGrammar grammar = {0};
+    (void)cli_symbols_grammar_read(&(CliSymbolsGrammarReadCtx){.path = args->path, .grammar_out = &grammar});
+    const char *const mark = grammar.directive_mark;
+    const char *const continued = grammar.directive_continued;
+    const unsigned long long mark_length = cellul.len(&(CatenaFinitaCfg){.src = mark, .cap = CLI_LANGUAGE_MARK_MAX});
+    CliEffectSiftHit hit = {&sifted,   mark_length,
+                            1,         0u,
+                            0u,        0u,
+                            continued, cellul.len(&(CatenaFinitaCfg){.src = continued, .cap = CLI_LANGUAGE_MARK_MAX})};
     if (leaved && (mark_length != 0ULL))
     {
         (void)EMBED_CALL(cli_sift_length.find_all, CliSiftLengthCfg, .text = (const unsigned char *)text,
@@ -1428,8 +1428,8 @@ static void cli_effect_walk(const SymbolsEffectCtx *args)
             ? EMBED_CALL(effect_sift_read, EffectSiftCtx, .effect = effect, .path = path, .bytes = text, .size = size,
                          .read = &branch->read, .each = declares ? cli_effect_declaring : NULL,
                          .context = declares ? &declaring : NULL, .starting = !from_disk, .upto = args->upto)
-            : EMBED_CALL(cli_symbols_path_internal.leaves_declare, CliSymbolsPathCtx, .languages = effect->languages,
-                         .path = path, .state = "root", .text = text, .size = size, .read = &branch->read,
+            : EMBED_CALL(cli_symbols_path_internal.leaves_declare, CliSymbolsPathCtx, .path = path, .state = "root",
+                         .text = text, .size = size, .read = &branch->read,
                          .each = declares ? cli_effect_declaring : NULL, .context = declares ? &declaring : NULL);
     branch->read_at =
         (leaved && effect->slicing)
@@ -1463,7 +1463,6 @@ CliEffect *cli_effect_init(const CliSymbolsPathNameCtx *args)
     int slicing = args->slicing;
     // the effect lives for the one walk that takes it: a cell of the temporary tier
     CliEffect *const effect = g_cli_guard->temporary_buf_alloc(sizeof(CliEffect), g_cli_code_owner);
-    CliSymbolsLanguages *const languages = (effect != NULL) ? cli_symbols_languages_read() : NULL;
     // the walk's lists and texts in one cell, each at its max
     const unsigned long long branch_bytes = CLI_EFFECT_LIST_MAX * sizeof(CliEffectBranchRead);
     const unsigned long long macro_bytes = CLI_EFFECT_LIST_MAX * sizeof(CliEffectMacro);
@@ -1471,23 +1470,16 @@ CliEffect *cli_effect_init(const CliSymbolsPathNameCtx *args)
     const unsigned long long leaf_bytes = CLI_EFFECT_VALUES_MAX * sizeof(CliEffectValueLeaf);
     const unsigned long long walked_bytes = CLI_EFFECT_LIST_MAX * sizeof(unsigned int);
     const unsigned long long list_bytes = branch_bytes + macro_bytes + seen_bytes + leaf_bytes + walked_bytes;
-    char *const cell = (languages != NULL)
+    char *const cell = (effect != NULL)
                            ? g_cli_guard->temporary_buf_alloc(list_bytes + CLI_EFFECT_TEXT_CAPACITY, g_cli_code_owner)
                            : NULL;
     if (cell == NULL)
     {
-        if (languages != NULL)
-        {
-            g_cli_guard->persistent_buf_release(languages->languages.pair, g_cli_plugins_owner);
-            languages->languages = (CliLanguages){NULL, 0u, 0u};
-        }
-        g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
         g_cli_guard->persistent_buf_release(effect, g_cli_code_owner);
         mmgr_line_put(args->err_msg, "the cells cannot meet the walk");
         return NULL;
     }
     effect->text = (VerbaLinea){cell + list_bytes, CLI_EFFECT_TEXT_CAPACITY, 0ULL};
-    effect->languages = languages;
     memor.cpy(&(MemoriaCfg){.dst = effect->root, .src = g_cli_tree_root, .bytes = CLI_PATH_MAX_LEN});
     effect->start = args->path;
     effect->start_text = NULL;
@@ -1556,11 +1548,5 @@ void cli_effect_input_back(const CliSymbolsTextLengthCtx *args)
         }
     }
     g_cli_guard->persistent_buf_release(args->effect->branch_read, g_cli_code_owner);
-    if (args->effect->languages != NULL)
-    {
-        g_cli_guard->persistent_buf_release(args->effect->languages->languages.pair, g_cli_plugins_owner);
-        args->effect->languages->languages = (CliLanguages){NULL, 0u, 0u};
-    }
-    g_cli_guard->persistent_buf_release(args->effect->languages, g_cli_code_owner);
     g_cli_guard->persistent_buf_release(args->effect, g_cli_code_owner);
 }

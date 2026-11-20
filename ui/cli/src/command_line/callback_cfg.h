@@ -267,6 +267,13 @@ typedef struct
 typedef struct
 {
     void *context;
+    const char *text;
+    unsigned long long length;
+} CliEachTextLengthCfg;
+
+typedef struct
+{
+    void *context;
     unsigned int pid;
     const char *name;
     const char *command;

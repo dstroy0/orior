@@ -98,7 +98,6 @@ EMBED_INLINE const char *plugins_by_name(const ServersPluginsCtx *args)
 typedef struct
 {
     CliPluginServer *plugin;
-    CliLanguages languages;
 } CliPluginHanding;
 
 void cli_servers_plugin_stop(const CliServersRootSinkCfg *args)

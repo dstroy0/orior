@@ -24,13 +24,12 @@ typedef struct
     int reported;
 } CliServersBatchLanguage;
 
-// The batch, a cell taken with its lock and given back with it: its languages and the languages known. Its files'
+// The batch, a cell taken with its lock and given back with it: its languages. Its files'
 // paths, packed one after another, the place of each, and what each goes to, are cells of their own, sized to the
 // batch's files
 typedef struct
 {
     CliServersBatchLanguage language[CLI_SERVERS_BATCH_LANGUAGES];
-    CliLanguages known;
 } CliServersBatch;
 
 // the batch and how many languages it is of, under its lock, and the cells a batch is allocated in
@@ -103,7 +102,6 @@ unsigned int cli_servers_check_files(const CliServersFilesCtx *args)
         s_batch = NULL;
         return 0u;
     }
-    EMBED_CALL(cli_plugins_table.languages, CliPluginsCfg, .languages = &s_batch->known);
     s_languages = 0u;
     const int blocked = EMBED_CALL(cli_trust_tree_words.block, CliTrustTreeWordsCfg, .tree = args->root);
     unsigned int waiting = 0u;
@@ -111,8 +109,8 @@ unsigned int cli_servers_check_files(const CliServersFilesCtx *args)
     for (unsigned int file = 0u; (file < args->count) && (waiting < max); file += 1u)
     {
         char id[CLI_NAME_MAX_LEN];
-        if (!EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
-                        .languages_read = &s_batch->known, .path = args->files[file], .id_out = id))
+        if (!EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg, .path = args->files[file],
+                        .id_out = id))
         {
             continue;
         }
@@ -164,8 +162,6 @@ unsigned int cli_servers_check_files(const CliServersFilesCtx *args)
             EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = s_batch->language[at].server);
         }
     }
-    g_cli_guard->persistent_buf_release(s_batch->known.pair, g_cli_plugins_owner);
-    s_batch->known = (CliLanguages){NULL, 0u, 0u};
     const unsigned int queued = EMBED_CALL(cli_servers_count_internal.check_queue, CliServersCountCtx, .paths = paths,
                                            .waiting = waiting_on, .count = waiting, .sink = args->sink);
     g_cli_guard->persistent_buf_release(waiting_on, g_cli_servers_check_owner);

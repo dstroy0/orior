@@ -114,8 +114,8 @@ EMBED_INLINE int found_declared_alloc(void)
     }
     if (work->count != 0u)
     {
-        memor.cpy(
-            &(MemoriaCfg){.dst = grown, .src = work->declared, .bytes = (embed_word)work->count * sizeof(TestsDeclared)});
+        memor.cpy(&(MemoriaCfg){
+            .dst = grown, .src = work->declared, .bytes = (embed_word)work->count * sizeof(TestsDeclared)});
     }
     g_cli_guard->persistent_buf_release(work->declared, g_cli_tests_owner);
     work->declared = grown;
@@ -138,8 +138,12 @@ static void found_declared(const CliDeclaredCfg *args)
         return;
     }
     // the name is in the copy the walk reads, which holds each line at the text's own bytes
-    work->declared[work->count] = (TestsDeclared){
-        class_of, (unsigned long long)(args->name - work->read.first), (unsigned int)args->length, args->line, args->line, 0};
+    work->declared[work->count] = (TestsDeclared){class_of,
+                                                  (unsigned long long)(args->name - work->read.first),
+                                                  (unsigned int)args->length,
+                                                  args->line,
+                                                  args->line,
+                                                  0};
     work->count += 1u;
 }
 
@@ -343,17 +347,9 @@ EMBED_INLINE int found_read(const TestingFoundCtx *args)
     work->capacity = 0u;
     work->refused = 0;
     work->line_start = NULL;
-    CliSymbolsLanguages *const languages = cli_symbols_languages_read();
-    const int leaved =
-        (languages != NULL) &&
-        EMBED_CALL(cli_symbols_path_internal.leaves_declare, CliSymbolsPathCtx, .languages = languages,
-                   .path = args->file, .state = "root", .text = args->text, .size = args->size, .read = &work->read,
-                   .each = found_declared, .context = work);
-    if (languages != NULL)
-    {
-        g_cli_guard->persistent_buf_release(languages->languages.pair, g_cli_plugins_owner);
-    }
-    g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
+    const int leaved = EMBED_CALL(cli_symbols_path_internal.leaves_declare, CliSymbolsPathCtx, .path = args->file,
+                                  .state = "root", .text = args->text, .size = args->size, .read = &work->read,
+                                  .each = found_declared, .context = work);
     if (!leaved || work->refused)
     {
         return 0;
@@ -402,8 +398,7 @@ static void found_in(const TestingFoundCtx *args)
         {
             const TestsDeclared *const function = &s_work_state->declared[s_work_state->test_function[at]];
             const unsigned int class_at = s_work_state->test_class[at];
-            const TestsDeclared *const class_of =
-                (class_at != TESTS_NONE) ? &s_work_state->declared[class_at] : NULL;
+            const TestsDeclared *const class_of = (class_at != TESTS_NONE) ? &s_work_state->declared[class_at] : NULL;
             char id[CLI_PATH_MAX_LEN * 2u];
             char class_name[CLI_NAME_MAX_LEN];
             char name[CLI_NAME_MAX_LEN];

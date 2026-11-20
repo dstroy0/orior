@@ -208,6 +208,13 @@ unsigned int cli_document_walkers(void);
 // entered in written into `state`, `capacity` bytes, root where it is not colored yet, empty where it does not fit:
 // NULL where no text is stored under `key` or the cells cannot meet the lines (document_branch.c)
 char *cli_document_lines_alloc(const CliDocumentKeyCfg *args);
+// the same lines put after `out`, the caller's line, and the state written as above: 1, or 0 where no text is stored
+// under `key` or `out` cannot hold the lines (document_branch.c)
+int cli_document_lines_read(const CliDocumentKeyCfg *args);
+// the same lines read into a cell of the document module for this call alone, given to `each` with `context` with the
+// lock given back, and the state written as above. The cell goes back before the call returns: 1, or 0 where no text
+// is stored under `key` or the cells cannot meet the lines (document_branch.c)
+int cli_document_lines_each(const CliDocumentKeyCfg *args);
 // the lines of the text under `key` read for it, from `*low` to before `*high`: a paged text's those the page holds,
 // and every line of any other: 1, or 0 where no text is stored under `key` (document_branch.c)
 int cli_document_bounds(const CliDocumentKeyLowCfg *args);
@@ -215,6 +222,10 @@ int cli_document_bounds(const CliDocumentKeyLowCfg *args);
 // for `owner`, given back with persistent_buf_release, its bytes into `size`: NULL where no text read whole is stored
 // under `key` or the cells cannot meet it (document_branch.c)
 char *cli_document_text_alloc(const CliDocumentKeyCfg *args);
+// the same text read into a cell of the document module for this call alone and given to `each` with `context` with
+// the lock given back. The cell goes back before the call returns: 1, or 0 where no text read whole is stored under
+// `key` or the cells cannot meet it (document_branch.c)
+int cli_document_text_each(const CliDocumentKeyCfg *args);
 // the text read whole stored under `key` put into `out` as its file had it, a line at a time, its characters as the
 // file was read and each line but the last ended as the text's lines were read, by a newline or a carriage return and a
 // newline; `out` passes its bytes on as it fills, as the file writer's line does: 1, or 0 with the reason written where
@@ -284,27 +295,20 @@ typedef struct
     const CellOwner *owner;
 } CliDocumentMapCfg;
 CliDocumentMap *cli_document_map_alloc(const CliDocumentMapCfg *args);
-// The words of a text in one cell: each one's start among `text` and its length
-typedef struct
-{
-    unsigned int count;
-    unsigned long long *at;
-    unsigned int *length;
-    char *text;
-} CliDocumentWords;
 // the runs the walk has saved on the lines from `first` to `last` of the text under `key` read for the names among
-// them, each of two units or more once, the one `cursor` is in or at the end of left out, in a cell of `owner`,
-// sized to them. A paged text holds no units here and gives none: the cell, or NULL where no text is stored under the
-// key or the cells cannot meet it
+// them, each of two units or more once, the one `cursor` is in or at the end of left out. Each name goes to `each`
+// with `context` as UTF-8 before the call returns. The list lives in the document module for this call alone. A paged
+// text holds no units here and gives none
 typedef struct
 {
     const char *key;
     unsigned long long first;
     unsigned long long last;
     CliPosition cursor;
-    const CellOwner *owner;
+    void (*each)(const CliEachTextLengthCfg *args);
+    void *context;
 } CliDocumentWordsCfg;
-CliDocumentWords *cli_document_words_alloc(const CliDocumentWordsCfg *args);
+void cli_document_words_each(const CliDocumentWordsCfg *args);
 // the lines that open the regions the line `line` of the text under `key` is inside, read off its lines' regions
 // as they were colored, outermost first, into `opener`, `max` at max, the innermost saved where more are open:
 // how many, 0 where no text is stored under `key`; and the folds of the text under `key`, as the walk passes them on,
@@ -337,6 +341,9 @@ struct CliDocumentKeyCfg
     char *state;
     unsigned long long capacity;
     const CellOwner *owner;
+    VerbaLinea *out;
+    void (*each)(const CliEachTextLengthCfg *args);
+    void *context;
 };
 
 struct CliDocumentErrMsgCfg
@@ -646,12 +653,18 @@ EMBED_TABLE_STORAGE CliDocumentKeyGrammarNs cli_document_key_grammar EMBED_UNUSE
 typedef struct
 {
     char *(*lines_alloc)(const CliDocumentKeyCfg *args);
+    int (*lines_read)(const CliDocumentKeyCfg *args);
+    int (*lines_each)(const CliDocumentKeyCfg *args);
     char *(*text_alloc)(const CliDocumentKeyCfg *args);
+    int (*text_each)(const CliDocumentKeyCfg *args);
 } CliDocumentKeyNs;
-EMBED_TABLE_LAYOUT(CliDocumentKeyNs, lines_alloc, text_alloc);
+EMBED_TABLE_LAYOUT(CliDocumentKeyNs, lines_alloc, lines_read, lines_each, text_alloc, text_each);
 EMBED_TABLE_STORAGE CliDocumentKeyNs cli_document_key EMBED_UNUSED = {
     .lines_alloc = cli_document_lines_alloc,
+    .lines_read = cli_document_lines_read,
+    .lines_each = cli_document_lines_each,
     .text_alloc = cli_document_text_alloc,
+    .text_each = cli_document_text_each,
 };
 
 typedef struct
@@ -734,11 +747,11 @@ EMBED_TABLE_STORAGE CliDocumentMapNs cli_document_map EMBED_UNUSED = {
 
 typedef struct
 {
-    CliDocumentWords *(*words_alloc)(const CliDocumentWordsCfg *args);
+    void (*words_each)(const CliDocumentWordsCfg *args);
 } CliDocumentWordsNs;
-EMBED_TABLE_LAYOUT(CliDocumentWordsNs, words_alloc);
+EMBED_TABLE_LAYOUT(CliDocumentWordsNs, words_each);
 EMBED_TABLE_STORAGE CliDocumentWordsNs cli_document_words EMBED_UNUSED = {
-    .words_alloc = cli_document_words_alloc,
+    .words_each = cli_document_words_each,
 };
 
 #endif

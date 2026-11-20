@@ -16,7 +16,7 @@
 
 // The round, under its lock, each part in a cell of its size given back as the round ends: the tree's files one after
 // another, each ended by a 0, and a place for each; the files to check again; each changed file's toolchain; the
-// toolchains the round is of, the language each serves, and how many there are and may be; and the languages known
+// toolchains the round is of, the language each serves, and how many there are and may be
 typedef struct
 {
     char *tree_paths;
@@ -29,7 +29,6 @@ typedef struct
     char (*tool_language)[CLI_NAME_MAX_LEN];
     unsigned int tools;
     unsigned int tools_max;
-    CliLanguages *languages;
 } CliServersChanged;
 
 static CliServersChanged s_batch;
@@ -68,8 +67,8 @@ typedef struct
 EMBED_INLINE unsigned int changed_tool_get(const ServersChangedCtx *args)
 {
     char id[CLI_NAME_MAX_LEN];
-    if (!EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
-                    .languages_read = s_batch.languages, .path = args->file, .id_out = id))
+    if (!EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg, .path = args->file,
+                    .id_out = id))
     {
         return CLI_SERVERS_CHANGED_NONE;
     }
@@ -369,7 +368,7 @@ EMBED_INLINE void changed_emit(const ServersChangedCtx *args)
     g_cli_guard->persistent_buf_release(uris, g_cli_servers_owner);
 }
 
-// the round's cells given back, the languages' pairs first, and the round cleared
+// the round's cells given back, and the round cleared
 EMBED_INLINE void changed_released(void)
 {
     g_cli_guard->persistent_buf_release(s_batch.tree_paths, g_cli_servers_owner);
@@ -378,12 +377,6 @@ EMBED_INLINE void changed_released(void)
     g_cli_guard->persistent_buf_release(s_batch.file_tool, g_cli_servers_owner);
     g_cli_guard->persistent_buf_release(s_batch.tool, g_cli_servers_owner);
     g_cli_guard->persistent_buf_release(s_batch.tool_language, g_cli_servers_owner);
-    if (s_batch.languages != NULL)
-    {
-        g_cli_guard->persistent_buf_release(s_batch.languages->pair, g_cli_plugins_owner);
-        *s_batch.languages = (CliLanguages){NULL, 0u, 0u};
-    }
-    g_cli_guard->persistent_buf_release(s_batch.languages, g_cli_servers_owner);
     memor.set(&(MemoriaCfg){.dst = &s_batch, .val = 0, .bytes = sizeof(s_batch)});
 }
 
@@ -411,15 +404,12 @@ EMBED_INLINE int changed_alloc(const ServersChangedCtx *args)
                             ? g_cli_guard->temporary_buf_alloc(
                                   ((unsigned long long)args->count + 1ULL) * sizeof(unsigned int), g_cli_servers_owner)
                             : NULL;
-    s_batch.languages = (s_batch.file_tool != NULL)
-                            ? g_cli_guard->temporary_buf_alloc(sizeof(CliLanguages), g_cli_servers_owner)
-                            : NULL;
-    if (s_batch.languages == NULL)
+    if (s_batch.file_tool == NULL)
     {
         return 0;
     }
-    EMBED_CALL(cli_plugins_table.languages, CliPluginsCfg, .languages = s_batch.languages);
-    s_batch.tools_max = s_batch.languages->count;
+    // each changed file goes to one toolchain at most
+    s_batch.tools_max = args->count;
     const unsigned long long names = ((unsigned long long)s_batch.tools_max + 1ULL) * CLI_NAME_MAX_LEN;
     s_batch.tool = g_cli_guard->temporary_buf_alloc(names, g_cli_servers_owner);
     s_batch.tool_language =

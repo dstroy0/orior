@@ -81,13 +81,13 @@ int main(void)
   UnityBegin("utils/test/src/ui/cli/unit/shape/test_shape/test_shape.c");
   run_test(test_an_expression_placeholder_matches_each_complete_call, "test_an_expression_placeholder_matches_each_complete_call", 70);
   run_test(test_an_expression_placeholder_writes_its_text_back, "test_an_expression_placeholder_writes_its_text_back", 84);
-  run_test(test_a_name_placeholder_matches_one_name_and_the_same_both_times, "test_a_name_placeholder_matches_one_name_and_the_same_both_times", 89);
-  run_test(test_an_expression_named_twice_matches_the_same_text_both_times, "test_an_expression_named_twice_matches_the_same_text_both_times", 94);
-  run_test(test_statements_match_end_spaces_and_comments, "test_statements_match_end_spaces_and_comments", 99);
-  run_test(test_statements_are_written_back_unchanged, "test_statements_are_written_back_unchanged", 104);
-  run_test(test_an_expression_last_in_a_pattern_allocs_the_remainder_of_its_statement, "test_an_expression_last_in_a_pattern_allocs_the_remainder_of_its_statement", 110);
-  run_test(test_a_string_is_one_token, "test_a_string_is_one_token", 115);
-  run_test(test_a_search_sizes_its_memory_to_its_text_and_releases_it, "test_a_search_sizes_its_memory_to_its_text_and_releases_it", 120);
+  run_test(test_a_name_placeholder_matches_one_name_and_the_same_both_times, "test_a_name_placeholder_matches_one_name_and_the_same_both_times", 90);
+  run_test(test_an_expression_named_twice_matches_the_same_text_both_times, "test_an_expression_named_twice_matches_the_same_text_both_times", 95);
+  run_test(test_statements_match_end_spaces_and_comments, "test_statements_match_end_spaces_and_comments", 100);
+  run_test(test_statements_are_written_back_unchanged, "test_statements_are_written_back_unchanged", 105);
+  run_test(test_an_expression_last_in_a_pattern_allocs_the_remainder_of_its_statement, "test_an_expression_last_in_a_pattern_allocs_the_remainder_of_its_statement", 111);
+  run_test(test_a_string_is_one_token, "test_a_string_is_one_token", 116);
+  run_test(test_a_search_sizes_its_memory_to_its_text_and_releases_it, "test_a_search_sizes_its_memory_to_its_text_and_releases_it", 121);
 
   return UNITY_END();
 }

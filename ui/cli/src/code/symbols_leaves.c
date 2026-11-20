@@ -315,9 +315,9 @@ static void cli_leaves_line(const CliLeavesEachCfg *args)
 
 int cli_symbols_leaves_save(const CliSymbolsPathCtx *args)
 {
-    return EMBED_CALL(cli_symbols_path_internal.leaves_declare, CliSymbolsPathCtx, .languages = args->languages,
-                      .path = args->path, .state = args->state, .text = args->text, .size = args->size,
-                      .read = args->read, .each = NULL, .context = NULL);
+    return EMBED_CALL(cli_symbols_path_internal.leaves_declare, CliSymbolsPathCtx, .path = args->path,
+                      .state = args->state, .text = args->text, .size = args->size, .read = args->read, .each = NULL,
+                      .context = NULL);
 }
 
 int cli_symbols_leaves_declare(const CliSymbolsPathCtx *args)
@@ -327,8 +327,8 @@ int cli_symbols_leaves_declare(const CliSymbolsPathCtx *args)
     *read = (CliLeafRead){args->text, NULL, 0u, 0u, 0u, NULL, 0, args->each, args->context, 0};
     read->size = size;
     return EMBED_CALL(cli_symbols_path_read_languages_text_internal.leaves_in, CliSymbolsPathReadLanguagesTextCtx,
-                      .read_symbols_languages_pointer_other = args->languages, .path = args->path, .state = args->state,
-                      .text = args->text, .size = size, .each_leaves_each = cli_leaves_line, .context = read) &&
+                      .path = args->path, .state = args->state, .text = args->text, .size = size,
+                      .each_leaves_each = cli_leaves_line, .context = read) &&
            !read->refused;
 }
 
@@ -339,8 +339,8 @@ int cli_symbols_leaves_temporary(const CliSymbolsPathCtx *args)
     *read = (CliLeafRead){args->text, NULL, 0u, 0u, 0u, NULL, 0, NULL, NULL, 1};
     read->size = size;
     return EMBED_CALL(cli_symbols_path_read_languages_text_internal.leaves_in, CliSymbolsPathReadLanguagesTextCtx,
-                      .read_symbols_languages_pointer_other = args->languages, .path = args->path, .state = args->state,
-                      .text = args->text, .size = size, .each_leaves_each = cli_leaves_line, .context = read) &&
+                      .path = args->path, .state = args->state, .text = args->text, .size = size,
+                      .each_leaves_each = cli_leaves_line, .context = read) &&
            !read->refused;
 }
 
@@ -351,9 +351,8 @@ int cli_symbols_language_leaves_save(const CliSymbolsTextCtx *args)
     *read = (CliLeafRead){args->text, NULL, 0u, 0u, 0u, NULL, 0, NULL, NULL, 0};
     read->size = size;
     return EMBED_CALL(cli_symbols_read_languages_text_internal.language_leaves_in, CliSymbolsReadLanguagesTextCtx,
-                      .read_symbols_languages_pointer_other = args->languages, .id = args->id,
-                      .state = (args->state != NULL) ? args->state : "root",
-                      .text = args->text, .size = size, .each_leaves_each = cli_leaves_line, .context = read) &&
+                      .id = args->id, .state = (args->state != NULL) ? args->state : "root", .text = args->text,
+                      .size = size, .each_leaves_each = cli_leaves_line, .context = read) &&
            !read->refused;
 }
 

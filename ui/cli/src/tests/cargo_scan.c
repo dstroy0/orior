@@ -92,29 +92,21 @@ void cli_cargo_tokens(const CliCargoTestsCtx *args)
     g_cli_cargo_scan.tokens = NULL;
     g_cli_cargo_scan.token_capacity = 0ULL;
     g_cli_cargo_scan.token_count = 0u;
-    CliSymbolsLanguages *const languages = cli_symbols_languages_read();
-    if (languages == NULL)
-    {
-        return;
-    }
     CliLeafRead read;
-    const int leaved =
-        EMBED_CALL(cli_symbols_text_internal.language_leaves_save, CliSymbolsTextCtx, .languages = languages,
-                   .id = "rust", .text = args->text, .size = args->size, .read = &read);
+    const int leaved = EMBED_CALL(cli_symbols_text_internal.language_leaves_save, CliSymbolsTextCtx, .id = "rust",
+                                  .text = args->text, .size = args->size, .read = &read);
     if (leaved)
     {
         EMBED_CALL(scan_tokens_append, CargoScanCtx, .read = &read);
         const unsigned long long counted = g_cli_cargo_scan.token_count;
-        g_cli_cargo_scan.tokens = (counted != 0ULL)
-                                      ? g_cli_guard->temporary_buf_alloc(counted * sizeof(CliRustToken), g_cli_cargo_owner)
-                                      : NULL;
+        g_cli_cargo_scan.tokens =
+            (counted != 0ULL) ? g_cli_guard->temporary_buf_alloc(counted * sizeof(CliRustToken), g_cli_cargo_owner)
+                              : NULL;
         g_cli_cargo_scan.token_capacity = (g_cli_cargo_scan.tokens != NULL) ? counted : 0ULL;
         EMBED_CALL(scan_tokens_append, CargoScanCtx, .read = &read);
         g_cli_cargo_scan.token_count = (unsigned int)g_cli_cargo_scan.token_capacity;
     }
     g_cli_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
-    g_cli_guard->persistent_buf_release(languages->languages.pair, g_cli_plugins_owner);
-    g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
 }
 
 // the type of the token at `at`, CLI_RUST_NONE past the tokens

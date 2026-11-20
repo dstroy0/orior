@@ -38,7 +38,29 @@ typedef struct
     const CarcerMovableEntry *found;
     unsigned int count;
     unsigned int capacity;
+    const CarcerMovableEntry *list;
+    unsigned long long *used;
+    const char *text;
+    unsigned long long length;
 } SymbolsFindCtx;
+
+// `length` bytes of `text` and a zero after them written into the found list's cell `list` at `*used`, which moves past
+// them: the offset they start at
+EMBED_INLINE unsigned int find_text_put(const SymbolsFindCtx *args)
+{
+    const unsigned long long at = *args->used;
+    const char end = '\0';
+    if (args->length != 0ULL)
+    {
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = args->list, .offset = at, .src = args->text, .bytes = args->length});
+    }
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = args->list, .offset = at + args->length, .src = &end, .bytes = sizeof(end)});
+    *args->used = at + args->length + 1ULL;
+    // the list's cell is far smaller than an unsigned int counts
+    return (unsigned int)at;
+}
 // the declaration's own line, `line` counted from 0 in the file at `path`, written with the whitespace at either end
 // left off, cut to CLI_SYMBOL_LINE_MAX bytes: nothing where the file is not read or has no such line
 EMBED_INLINE void find_line_write(const SymbolsFindCtx *args)
@@ -201,7 +223,7 @@ EMBED_INLINE unsigned int cli_rank_in(const SymbolsFindCtx *args)
     return args->count + ((args->count < args->capacity) ? 1u : 0u);
 }
 
-CliFoundDeclarations *cli_tree_declarations_alloc(const CliSymbolsQueryMaxCfg *args)
+const CarcerMovableEntry *cli_tree_declarations_alloc(const CliSymbolsQueryMaxCfg *args)
 {
     // The ranked list is a movable cell of this call's own. Callers on the view thread and on the workers search at
     // once, and a list that the calls share mixes their results
@@ -238,19 +260,19 @@ CliFoundDeclarations *cli_tree_declarations_alloc(const CliSymbolsQueryMaxCfg *a
                                .count = count, .capacity = capacity);
         }
     }
-    // each found's name, type, path and line of text in one line positioned after the list, a line of text no longer
-    // than its max
+    // Each found's name, type, path and line of text after the list's entries, a line of text no longer than its max.
+    // The list is a movable cell of the caller's own, and each text is written into it at its offset
     const unsigned long long text_capacity =
         (count * ((3ULL * CLI_PATH_MAX_LEN) + (4ULL * CLI_SYMBOL_LINE_MAX))) + 1ULL;
-    // the caller gives the list back within its call: a cell of the temporary tier
-    CliFoundDeclarations *const declarations = g_cli_guard->temporary_buf_alloc(
-        sizeof(*declarations) + (count * sizeof(CliFoundDeclaration)) + text_capacity, args->owner);
+    const unsigned long long texts_at = CLI_FOUND_DECLARATION_AT(count);
+    const CarcerMovableEntry *const declarations =
+        g_cli_guard->movable_buf_alloc(texts_at + text_capacity, args->owner);
     if (declarations != NULL)
     {
-        declarations->count = count;
-        declarations->reading = g_cli_tree_walking;
-        declarations->found = (CliFoundDeclaration *)(void *)(declarations + 1);
-        VerbaLinea text = {(char *)(void *)(declarations->found + count), text_capacity, 0ULL};
+        const CliFoundDeclarations head = {count, g_cli_tree_walking};
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = declarations, .src = &head, .bytes = sizeof(head)});
+        unsigned long long used = texts_at;
         for (unsigned int at = 0u; at < count; at += 1u)
         {
             CliScored entry;
@@ -267,23 +289,31 @@ CliFoundDeclarations *cli_tree_declarations_alloc(const CliSymbolsQueryMaxCfg *a
             const char *const path =
                 EMBED_CALL(cli_symbols_tree_branch_scratch.branch_copy_path, CliSymbolsTreeBranchScratchCfg,
                            .branch = branch, .scratch_read = scratch);
-            CliFoundDeclaration *const found = &declarations->found[at];
-            found->line = symbol->line;
-            found->name = text.out + text.at;
-            EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &text,
+            // each text written in this call's own array first, then into the list's cell at its offset
+            CliFoundDeclaration found = {0u, 0u, 0u, 0u, symbol->line};
+            char piece[CLI_PATH_MAX_LEN];
+            VerbaLinea written = mmgr_line_over(piece, sizeof(piece));
+            EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &written,
                        .text_bytes = (const unsigned char *)(scratch + symbol->name), .length = symbol->length);
-            mmgr_line_ch(&text, '\0');
-            found->type = text.out + text.at;
-            mmgr_line_put(&text, scratch + symbol->type);
-            mmgr_line_ch(&text, '\0');
-            found->path = text.out + text.at;
-            mmgr_line_put(&text, path);
-            mmgr_line_ch(&text, '\0');
-            found->text = text.out + text.at;
+            found.name = EMBED_CALL(find_text_put, SymbolsFindCtx, .list = declarations, .used = &used, .text = piece,
+                                    .length = mmgr_line_finish(&written));
+            written = mmgr_line_over(piece, sizeof(piece));
+            mmgr_line_put(&written, scratch + symbol->type);
+            found.type = EMBED_CALL(find_text_put, SymbolsFindCtx, .list = declarations, .used = &used, .text = piece,
+                                    .length = mmgr_line_finish(&written));
+            written = mmgr_line_over(piece, sizeof(piece));
+            mmgr_line_put(&written, path);
+            found.path = EMBED_CALL(find_text_put, SymbolsFindCtx, .list = declarations, .used = &used, .text = piece,
+                                    .length = mmgr_line_finish(&written));
             char full[CLI_PATH_MAX_LEN];
             EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = g_cli_tree_root, .relative = path, .joined = full);
-            EMBED_CALL(find_line_write, SymbolsFindCtx, .path = full, .line = symbol->line, .out = &text);
-            mmgr_line_ch(&text, '\0');
+            char line_text[4ULL * CLI_SYMBOL_LINE_MAX];
+            VerbaLinea lined = mmgr_line_over(line_text, sizeof(line_text));
+            EMBED_CALL(find_line_write, SymbolsFindCtx, .path = full, .line = symbol->line, .out = &lined);
+            found.text = EMBED_CALL(find_text_put, SymbolsFindCtx, .list = declarations, .used = &used,
+                                    .text = line_text, .length = mmgr_line_finish(&lined));
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                .cell = declarations, .offset = CLI_FOUND_DECLARATION_AT(at), .src = &found, .bytes = sizeof(found)});
         }
     }
     g_cli_guard->persistent_buf_release(scratch, g_cli_code_owner);

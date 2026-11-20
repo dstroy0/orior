@@ -40,7 +40,6 @@ typedef struct
     unsigned long long size;
     CliShapeWalk *walk;
     unsigned long long byte;
-    CliSymbolsLanguages *languages;
     const char *language;
     const char *pattern;
     const char *template_text;
@@ -56,7 +55,7 @@ EMBED_INLINE CliTextPosition search_walk(const ShapeSearchCtx *args)
     {
         unsigned long long length = 0ULL;
         const unsigned int character = EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = args->src, .size = size,
-                                               .at = args->walk->at, .length = &length);
+                                                  .at = args->walk->at, .length = &length);
         args->walk->at += length;
         if (character == '\n')
         {
@@ -75,13 +74,11 @@ EMBED_INLINE CliTextPosition search_walk(const ShapeSearchCtx *args)
 // the pattern read as its parts into the matcher's storage: their count, 0 where its language is none read here
 EMBED_INLINE unsigned int search_pattern(const ShapeSearchCtx *args)
 {
-    CliSymbolsLanguages *languages = args->languages;
     const char *language = args->language;
     unsigned long long size = args->size;
     s_work_state->holes.count = 0u;
-    if (!EMBED_CALL(cli_shape_languages_internal.tokens, CliShapeLanguagesCtx, .languages = languages,
-                    .language = language, .src = args->pattern, .size = size, .tokens = &s_work_state->parts,
-                    .holes = &s_work_state->holes))
+    if (!EMBED_CALL(cli_shape_languages_internal.tokens, CliShapeLanguagesCtx, .language = language,
+                    .src = args->pattern, .size = size, .tokens = &s_work_state->parts, .holes = &s_work_state->holes))
     {
         return 0u;
     }
@@ -208,15 +205,13 @@ void cli_shape_search(const CliShapeLanguagesCfg *args)
         return;
     }
     s_work_state->matcher.pattern = pattern + from;
-    s_work_state->matcher.part_count =
-        EMBED_CALL(search_pattern, ShapeSearchCtx, .languages = args->languages, .language = args->language,
-                   .pattern = pattern + from, .size = to - from);
+    s_work_state->matcher.part_count = EMBED_CALL(search_pattern, ShapeSearchCtx, .language = args->language,
+                                                  .pattern = pattern + from, .size = to - from);
     s_work_state->matcher.hole_of = s_work_state->hole_of;
     s_work_state->matcher.holes = &s_work_state->holes;
     if ((s_work_state->matcher.part_count == 0u) ||
-        !EMBED_CALL(cli_shape_languages_internal.tokens, CliShapeLanguagesCtx, .languages = args->languages,
-                    .language = args->language, .src = src, .size = args->size, .tokens = &s_work_state->code,
-                    .holes = NULL))
+        !EMBED_CALL(cli_shape_languages_internal.tokens, CliShapeLanguagesCtx, .language = args->language, .src = src,
+                    .size = args->size, .tokens = &s_work_state->code, .holes = NULL))
     {
         g_cli_guard->persistent_buf_release(s_work_state->matcher.ends, g_cli_shape_owner);
         s_work_state->matcher.ends = NULL;

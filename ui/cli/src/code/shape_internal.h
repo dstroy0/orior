@@ -109,7 +109,6 @@ unsigned int cli_shape_bind(const CliShapeCtx *args);
 
 struct CliShapeLanguagesCtx
 {
-    CliSymbolsLanguages *languages;
     const char *language;
     const char *src;
     unsigned long long size;

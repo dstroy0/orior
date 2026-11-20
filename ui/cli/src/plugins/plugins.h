@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // plugins.h: plugins, what the window takes in from outside its own code (plugins.c finds and reads them,
-// plugins_draft.c writes one from a few answers, plugins_text.c positions one out and creates it). A language plugin is a
-// folder named by its id containing plugin.json:
+// plugins_draft.c writes one from a few answers, plugins_text.c positions one out and creates it). A language plugin is
+// a folder named by its id containing plugin.json:
 //
 //   id, name, version       the plugin's own name for itself, the name it shows, and its version
 //   type                    "language", "tool" for a tool plugin, which the validation reads, or "script" for a
@@ -52,6 +52,7 @@ typedef struct CliPluginsJsonCfg CliPluginsJsonCfg;
 typedef struct CliPluginsErrMsgJsonSpecTypeCfg CliPluginsErrMsgJsonSpecTypeCfg;
 typedef struct CliPluginsIdKeyCfg CliPluginsIdKeyCfg;
 typedef struct CliPluginsLanguagesPathCfg CliPluginsLanguagesPathCfg;
+typedef struct CliPluginsGrammarOfCfg CliPluginsGrammarOfCfg;
 typedef struct CliPluginsJsonOutCfg CliPluginsJsonOutCfg;
 typedef struct CliPluginsEachCfg CliPluginsEachCfg;
 typedef struct CliPluginsIdEachCfg CliPluginsIdEachCfg;
@@ -60,13 +61,26 @@ typedef struct CliPluginsEachIdCfg CliPluginsEachIdCfg;
 typedef struct CliPluginIdCfg CliPluginIdCfg;
 typedef struct CliPluginsIdNameValueCfg CliPluginsIdNameValueCfg;
 typedef struct CliPluginsIdNameCfg CliPluginsIdNameCfg;
-typedef struct CliPluginsCfg CliPluginsCfg;
 typedef struct CliPluginsRootCfg CliPluginsRootCfg;
 typedef struct CliPluginsTreeCfg CliPluginsTreeCfg;
 
 // the max keys of extensions, names and paths the languages contain, and the max plugins the reader installs
 #define CLI_LANGUAGE_PAIRS 4096u
 #define CLI_USER_PLUGINS 1024u
+// the max languages with a grammar, and the max bytes of a directive's mark
+#define CLI_LANGUAGE_GRAMMARS 1024u
+#define CLI_LANGUAGE_MARK_MAX 16u
+
+// The grammar of one language as the caller reads it: the language's id, the key the colorer stores the grammar under,
+// whether its tokens name a declaration, and the marks a directive's line and its carrying on start by, empty for none
+typedef struct
+{
+    char id[CLI_NAME_MAX_LEN];
+    char key[CLI_NAME_MAX_LEN];
+    int declares;
+    char directive_mark[CLI_LANGUAGE_MARK_MAX];
+    char directive_continued[CLI_LANGUAGE_MARK_MAX];
+} CliLanguageGrammar;
 
 // the bytes a plugin's text and its sample are written in, as a plugin is written
 #define CLI_PLUGIN_TEXT_CAPACITY (1ULL << 20u)
@@ -97,23 +111,6 @@ typedef struct
     unsigned long long size;
 } CliPlugin;
 
-// One key an extension, whole name or pattern of paths opens by, and the id of the language it opens as
-typedef struct
-{
-    char key[CLI_NAME_MAX_LEN];
-    char id[CLI_NAME_MAX_LEN];
-} CliLanguagePair;
-
-// The language each extension, whole name and pattern of paths opens as: `/<name>` for a whole name, `?<pattern>` for
-// a pattern, and the extension itself; each key with its language id, a later plugin's located in for an earlier's,
-// in a cell of `capacity`, released through persistent_buf_release
-typedef struct
-{
-    CliLanguagePair *pair;
-    unsigned int count;
-    unsigned int capacity;
-} CliLanguages;
-
 typedef struct
 {
     void *context;
@@ -122,11 +119,14 @@ typedef struct
 
 // every plugin passed to `each`: those that come with orior, then the reader's, each in the order of its id
 void cli_plugins_each(const CliPluginsEachCfg *args);
-// the language each extension opens as, by the language plugins, a reader's plugin located in for one that comes with
-// orior, a key whose capacity could not be taken left out; the same for a caller giving it back within its call, from
-// the temporary tier; and the languages' cell given back, either way
-void cli_plugins_languages(const CliPluginsCfg *args);
-void cli_plugins_languages_for_call(const CliPluginsCfg *args);
+// The language each extension, whole name and pattern of paths opens as, read anew from the language plugins into the
+// table the plugins module owns, a reader's plugin located in for one that comes with orior. The next call of
+// cli_plugins_language_for reads the new table. The reader's plugins folder, made where it is absent, kept open from
+// the window's start to its end: a change under it reads the table again on the watch's thread. And the table given
+// back as the program ends
+void cli_plugins_languages_changed(void);
+void cli_plugins_watch_start(void);
+void cli_plugins_languages_end(void);
 // the grammar of the language plugin `id` stored for the colorer under `plugin:<id>`, its key written into `key`,
 // sized for CLI_NAME_MAX_LEN: read from the plugin.json of the plugin of that id that is, and read again only where
 // that text changed since it was stored. 1, or 0 with why given (plugins_grammar.c)
@@ -157,10 +157,15 @@ void cli_plugins_palettes_each(const CliPluginsEachIdCfg *args);
 // under the reader's plugins folder in a folder of the id, where it is in for the one that comes with orior: 1,
 // or 0 where no plugin of the id carries a palette or the file could not be written (plugins_palette.c)
 int cli_plugins_palette_set(const CliPluginsIdNameValueCfg *args);
-// the language the file at `path` opens as, of those `languages` gives, into `id`, sized for CLI_NAME_MAX_LEN: by
-// its whole name where a plugin names it, by a plugin's pattern of paths where one takes it, and by its extension where
-// neither does. 1, or 0 where none does
+// the language the file at `path` opens as, of those the plugins module's table gives, into `id_out`, sized for
+// CLI_NAME_MAX_LEN: by its whole name where a plugin names it, by a plugin's pattern of paths where one takes it, and
+// by its extension where neither does. 1, or 0 where none does. The table is read from the plugins at the first call
 int cli_plugins_language_for(const CliPluginsLanguagesPathCfg *args);
+// the grammar of the language the file at `path` opens as, or of the language `id`, into the caller's record
+// `grammar_out`: its id, the key the colorer stores it under, whether its tokens name a declaration, and the marks a
+// directive's line and its carrying on start by. Where `store` is 1, the grammar goes to the colorer at the first ask,
+// and the plugins module keeps that it went. 1, or 0 where the language has no grammar or its grammar refuses to store
+int cli_plugins_grammar_of(const CliPluginsGrammarOfCfg *args);
 // the tree a plugin's tables are read from, as the window opens it; and that tree into `tree`, sized for
 // CLI_PATH_MAX_LEN: 1, or 0 where none is open (plugins_tables.c)
 void cli_plugins_set_tree(const CliPluginsRootCfg *args);
@@ -265,9 +270,16 @@ struct CliPluginsIdKeyCfg
     VerbaLinea *err_msg;
 };
 
+struct CliPluginsGrammarOfCfg
+{
+    const char *path;
+    const char *id;
+    int store;
+    CliLanguageGrammar *grammar_out;
+};
+
 struct CliPluginsLanguagesPathCfg
 {
-    const CliLanguages *languages_read;
     const char *path;
     char *id_out;
 };
@@ -329,11 +341,6 @@ struct CliPluginsIdNameCfg
     const char *name;
 };
 
-struct CliPluginsCfg
-{
-    CliLanguages *languages;
-};
-
 struct CliPluginsRootCfg
 {
     const char *root;
@@ -364,17 +371,6 @@ EMBED_TABLE_STORAGE CliPluginsIdEachNs cli_plugins_id_each EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*languages)(const CliPluginsCfg *args);
-    void (*languages_for_call)(const CliPluginsCfg *args);
-} CliPluginsNs;
-EMBED_TABLE_LAYOUT(CliPluginsNs, languages, languages_for_call);
-EMBED_TABLE_STORAGE CliPluginsNs cli_plugins_table EMBED_UNUSED = {
-    .languages = cli_plugins_languages,
-    .languages_for_call = cli_plugins_languages_for_call,
-};
-
-typedef struct
-{
     int (*grammar_store)(const CliPluginsIdKeyCfg *args);
 } CliPluginsIdKeyNs;
 EMBED_TABLE_LAYOUT(CliPluginsIdKeyNs, grammar_store);
@@ -385,10 +381,12 @@ EMBED_TABLE_STORAGE CliPluginsIdKeyNs cli_plugins_id_key EMBED_UNUSED = {
 typedef struct
 {
     int (*language_for)(const CliPluginsLanguagesPathCfg *args);
+    int (*grammar_of)(const CliPluginsGrammarOfCfg *args);
 } CliPluginsLanguagesPathNs;
-EMBED_TABLE_LAYOUT(CliPluginsLanguagesPathNs, language_for);
+EMBED_TABLE_LAYOUT(CliPluginsLanguagesPathNs, language_for, grammar_of);
 EMBED_TABLE_STORAGE CliPluginsLanguagesPathNs cli_plugins_languages_path EMBED_UNUSED = {
     .language_for = cli_plugins_language_for,
+    .grammar_of = cli_plugins_grammar_of,
 };
 
 typedef struct

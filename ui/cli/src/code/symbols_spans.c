@@ -359,11 +359,9 @@ EMBED_INLINE unsigned int spans_leaf_at(const SymbolsSpansCtx *args)
 
 int cli_symbols_spans(const CliSymbolsPathTextSizeContextErrMsgFromSymbolPositionCfg *args)
 {
-    CliSymbolsLanguages *const languages = cli_symbols_languages_for_call();
     CliLeafRead read = {args->text, NULL, 0u, 0u, 0u, NULL, 0, NULL, NULL, 0};
-    const int leaved = (languages != NULL) && EMBED_CALL(cli_symbols_path_internal.leaves_save, CliSymbolsPathCtx,
-                                                         .languages = languages, .path = args->path, .state = "root",
-                                                         .text = args->text, .size = args->size, .read = &read);
+    const int leaved = EMBED_CALL(cli_symbols_path_internal.leaves_save, CliSymbolsPathCtx, .path = args->path,
+                                  .state = "root", .text = args->text, .size = args->size, .read = &read);
     if (leaved && (read.count > 0u))
     {
         CliSpans spans = {&read,
@@ -413,17 +411,11 @@ int cli_symbols_spans(const CliSymbolsPathTextSizeContextErrMsgFromSymbolPositio
         EMBED_CALL(spans_dispatch, SymbolsSpansCtx, .spans = &spans, .first = 0u, .from = 0ULL, .last = read.count - 1u,
                    .to = args->size);
     }
-    const int refused = (languages != NULL) && read.refused;
+    const int refused = read.refused;
     g_cli_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
     read.leaf = NULL;
     read.count = 0u;
     read.capacity = 0u;
-    if (languages != NULL)
-    {
-        g_cli_guard->persistent_buf_release(languages->languages.pair, g_cli_plugins_owner);
-        languages->languages = (CliLanguages){NULL, 0u, 0u};
-    }
-    g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
     if (refused)
     {
         mmgr_line_put(args->err_msg, "the cells cannot meet the text's leaves");
@@ -473,12 +465,9 @@ EMBED_INLINE unsigned int spans_bracket_at(const SymbolsSpansCtx *args)
 
 int cli_symbols_pair(const CliSymbolsPathTextSizeStateCfg *args)
 {
-    CliSymbolsLanguages *const languages = cli_symbols_languages_for_call();
     CliLeafRead read = {args->text, NULL, 0u, 0u, 0u, NULL, 0, NULL, NULL, 1};
-    const int leaved =
-        (languages != NULL) &&
-        EMBED_CALL(cli_symbols_path_internal.leaves_temporary, CliSymbolsPathCtx, .languages = languages,
-                   .path = args->path, .state = args->state, .text = args->text, .size = args->size, .read = &read);
+    const int leaved = EMBED_CALL(cli_symbols_path_internal.leaves_temporary, CliSymbolsPathCtx, .path = args->path,
+                                  .state = args->state, .text = args->text, .size = args->size, .read = &read);
     const unsigned int bracket =
         leaved ? EMBED_CALL(spans_bracket_at, SymbolsSpansCtx, .read = &read,
                             .byte = EMBED_CALL(spans_byte_get, SymbolsSpansCtx, .text = args->text, .size = args->size,
@@ -516,11 +505,5 @@ int cli_symbols_pair(const CliSymbolsPathTextSizeStateCfg *args)
     read.leaf = NULL;
     read.count = 0u;
     read.capacity = 0u;
-    if (languages != NULL)
-    {
-        g_cli_guard->persistent_buf_release(languages->languages.pair, g_cli_plugins_owner);
-        languages->languages = (CliLanguages){NULL, 0u, 0u};
-    }
-    g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
     return paired;
 }

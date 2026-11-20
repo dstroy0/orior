@@ -81,6 +81,7 @@ typedef struct CliGroupCtx CliGroupCtx;
 typedef struct CliIdCtx CliIdCtx;
 typedef struct CliFileTemporaryFileCtx CliFileTemporaryFileCtx;
 typedef struct CliThreadCtx CliThreadCtx;
+typedef struct CliFolderWatchCtx CliFolderWatchCtx;
 typedef struct CliTreeCtx CliTreeCtx;
 
 // the longest path and the longest line the command line handles, as the query's
@@ -570,6 +571,11 @@ typedef void (*CliChangeFn)(const CliEachPathTypeCfg *args);
 // waited for (platform/windows_watch.c, platform/posix_watch.c)
 int cli_watch_system_start(const CliRootContextCtx *args);
 void cli_watch_system_stop(void);
+// the folder `folder` and all under it kept open as one of the program's own files from its start to its end, `changed`
+// called on the watch's own thread once a change rests: 1, or 0 where every watch is in use or the system refuses;
+// and every such watch stopped, each thread waited for (platform/folder_watch.c)
+int cli_folder_watch_start(const CliFolderWatchCtx *args);
+void cli_folder_watch_stop(void);
 int cli_thread_start(const CliThreadCtx *args);
 // the calling thread put at `priority`, one of CLI_PRIORITY_WORK and the rest; its id, which no other live thread has;
 // and the processor given up to any thread waiting for it (platform/windows_threads.c, platform/posix_threads.c)
@@ -1194,6 +1200,12 @@ struct CliFileTemporaryFileCtx
     CliTemporaryFile *file_temporary_file_pointer;
 };
 
+struct CliFolderWatchCtx
+{
+    const char *folder;
+    void (*changed)(void);
+};
+
 struct CliThreadCtx
 {
     CliThread *thread;
@@ -1725,6 +1737,15 @@ typedef struct
 EMBED_TABLE_LAYOUT(CliThreadNs, thread_start);
 EMBED_TABLE_STORAGE CliThreadNs cli_thread_internal EMBED_UNUSED = {
     .thread_start = cli_thread_start,
+};
+
+typedef struct
+{
+    int (*start)(const CliFolderWatchCtx *args);
+} CliFolderWatchNs;
+EMBED_TABLE_LAYOUT(CliFolderWatchNs, start);
+EMBED_TABLE_STORAGE CliFolderWatchNs cli_folder_watch_internal EMBED_UNUSED = {
+    .start = cli_folder_watch_start,
 };
 
 typedef struct

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // sql.c: a text's tokens off the leaves the SQL grammar plugin's walk saves, begun in the state of the dialect the
 // database writes; its statements; and the statement a place is in
+#include "sql.h"
 #include "../code/symbols_internal.h"
 #include "../command_line/pool.h"
-#include "sql.h"
 #include "../text/text.h"
 
 unsigned int cli_sql_dialect(const CliSqlCfg *args)
@@ -86,19 +86,15 @@ int cli_sql_tokens(const CliSqlTextLengthDialectCfg *args)
 {
     CliSqlTokens *const tokens = args->tokens;
     *tokens = (CliSqlTokens){NULL, 0u};
-    CliSymbolsLanguages *const languages = cli_symbols_languages_read();
-    if (languages == NULL)
-    {
-        return 0;
-    }
     CliLeafRead read;
-    const int leaved = EMBED_CALL(cli_symbols_text_internal.language_leaves_save, CliSymbolsTextCtx,
-                                  .languages = languages, .id = "sql", .state = s_states[args->dialect],
-                                  .text = args->text, .size = args->length, .read = &read);
+    const int leaved =
+        EMBED_CALL(cli_symbols_text_internal.language_leaves_save, CliSymbolsTextCtx, .id = "sql",
+                   .state = s_states[args->dialect], .text = args->text, .size = args->length, .read = &read);
     int taken = leaved;
     if (leaved && (read.count != 0u))
     {
-        tokens->at = g_cli_guard->temporary_buf_alloc((unsigned long long)read.count * sizeof(CliSqlToken), g_cli_db_owner);
+        tokens->at =
+            g_cli_guard->temporary_buf_alloc((unsigned long long)read.count * sizeof(CliSqlToken), g_cli_db_owner);
         taken = tokens->at != NULL;
         for (unsigned int at = 0u; taken && (at < read.count); at += 1u)
         {
@@ -112,8 +108,6 @@ int cli_sql_tokens(const CliSqlTextLengthDialectCfg *args)
         }
     }
     g_cli_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
-    g_cli_guard->persistent_buf_release(languages->languages.pair, g_cli_plugins_owner);
-    g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
     return taken;
 }
 
