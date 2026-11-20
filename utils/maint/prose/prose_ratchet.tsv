@@ -527,7 +527,6 @@ includes/formats/dicom/dicom_read.c	3
 includes/formats/parquet/parquet.h	10
 includes/formats/parquet/parquet_internal.h	4
 includes/formats/parquet/parquet_read.c	8
-includes/formats/parquet/parquet_thrift.c	11
 includes/frame_buffer/framebuffer.h	4
 includes/glass/glass.c	1
 includes/glass/glass.h	5

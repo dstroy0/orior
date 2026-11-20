@@ -17,7 +17,7 @@ _Static_assert((7u * (PARQUET_VARINT_BYTES_MAX - 1u)) < 64u,
 #define PARQUET_FIELD_ID_LEAST (-32768LL)
 #define PARQUET_FIELD_ID_MAX 32767LL
 
-// one open container of a Thrift value being skipped: a struct's fields, or a list's or map's values
+// one open container of a Thrift value in a skip: the fields of a struct, or the values of a list or map
 typedef struct
 {
     unsigned int container_type;
@@ -64,7 +64,8 @@ unsigned long long parquet_varint_read(ParquetCursor *cursor)
             cursor->broken = 1u;
             return 0ULL;
         }
-        // widened to 64 bits before the shift, which reaches 63, and the last group was limited to the bits below 64
+        // widened to 64 bits before the shift, which reaches 63. The code above limited the last group to the bits below
+        // 64
         value |= (unsigned long long)group_bits << (7u * group);
         if ((byte & 0x80u) == 0u)
         {
@@ -94,7 +95,7 @@ unsigned long long parquet_nonnegative_read(ParquetCursor *cursor)
         cursor->broken = 1u;
         return 0ULL;
     }
-    // negative values were refused above, and the conversion is exact
+    // the code above refused negative values, and the conversion is exact
     return (unsigned long long)value;
 }
 
@@ -152,7 +153,7 @@ static void parquet_scalar_skip(ParquetCursor *cursor, unsigned int type)
     {
     case PARQUET_THRIFT_TRUE:
     case PARQUET_THRIFT_FALSE:
-        // a struct field's boolean is carried in its type code and takes no byte
+        // the type code of a struct field carries its boolean, which takes no byte
         break;
     case PARQUET_THRIFT_BYTE:
         parquet_byte_read(cursor);
@@ -177,8 +178,8 @@ static void parquet_scalar_skip(ParquetCursor *cursor, unsigned int type)
     }
 }
 
-// skip one value of any type, nested containers included, without recursion: each open struct, list or map is a
-// frame, and a value nested deeper than PARQUET_THRIFT_DEPTH_MAX breaks the cursor
+// skip one value of any type, with nested containers, without recursion. Each open struct, list or map is a frame. A
+// value nested deeper than PARQUET_THRIFT_DEPTH_MAX breaks the cursor
 void parquet_value_skip(ParquetCursor *cursor, unsigned int type)
 {
     ParquetThriftFrame frame[PARQUET_THRIFT_DEPTH_MAX];
@@ -214,7 +215,7 @@ void parquet_value_skip(ParquetCursor *cursor, unsigned int type)
             {
                 const unsigned long long entry_count = parquet_varint_read(cursor);
                 const unsigned int map_types = (entry_count != 0ULL) ? parquet_byte_read(cursor) : 0u;
-                // every entry takes at least one byte: more entries than bytes left is refused, and the doubling
+                // each entry takes at least one byte. The code refuses more entries than bytes left, and the double
                 // that counts keys and values apart does not wrap
                 cursor->broken |= (entry_count > (cursor->byte_count - cursor->position)) ? 1u : 0u;
                 opened->values_left = (cursor->broken != 0u) ? 0ULL : (2ULL * entry_count);
@@ -223,8 +224,8 @@ void parquet_value_skip(ParquetCursor *cursor, unsigned int type)
             }
             depth += 1u;
         }
-        // the next value to skip is the innermost open container's next one. Each container that has none left
-        // closes, and when none is open the whole value is skipped
+        // the next value to skip is the next value of the innermost open container. Each container that has none left
+        // closes. When none is open, the skip of the whole value ends
         next_type = PARQUET_THRIFT_STOP;
         while ((depth != 0u) && (next_type == PARQUET_THRIFT_STOP) && (cursor->broken == 0u))
         {
@@ -238,7 +239,7 @@ void parquet_value_skip(ParquetCursor *cursor, unsigned int type)
                 innermost->values_left -= 1ULL;
                 // a map counts down from an even total, and an odd count left means a key comes next
                 next_type = ((innermost->values_left & 1ULL) != 0ULL) ? innermost->key_type : innermost->value_type;
-                // a boolean inside a list or map is one byte, not a type code carrying the value
+                // a boolean inside a list or map is one byte, not a type code that carries the value
                 next_type = ((next_type == PARQUET_THRIFT_TRUE) || (next_type == PARQUET_THRIFT_FALSE))
                                 ? PARQUET_THRIFT_BYTE
                                 : next_type;
