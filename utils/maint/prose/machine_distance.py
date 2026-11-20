@@ -2,39 +2,36 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
-# Find the machine register in this tree by measuring against a written sample of it.
+# Find the machine register in this tree by a measurement against a written sample of it.
 #
 #   Usage:  python utils/maint/prose/machine_distance.py [<root> ...] [--worst N]
 #
 # WHY A POSITIVE CONTROL CHANGES THE QUESTION
 #
-# Every earlier attempt here had one pole. english_sift scores a text against ordinary English,
-# ban_evidence scores a phrase against 154 human papers, prose_era dates a text against six decades
-# of them. All three ask how far a text sits from something human. None of them can say what it
-# sits near instead, and a detector with one pole is a detector that can only ever report a
-# distance from normal.
+# The other instruments here have one pole. The english_sift tool scores a text against ordinary English, and
+# ban_evidence scores a phrase against 154 human papers. The prose_era tool dates a text against six decades of them.
+# All three ask how far a text sits from something human. None of them can say what it sits near instead. A detector
+# with one pole can only ever report a distance from normal.
 #
-# utils/maint/prose/fixtures/machine_reference.md is the other pole. It is a page written deliberately
-# in the machine register, at full strength, by the machine, about the work being done in this
-# repository. Matching the subject makes it usable, because it is not a distance to a 1667 epic or
-# to a linguistics paper. Genre, locale and era are all retained fixed and the only thing left free
+# utils/maint/prose/fixtures/machine_reference.md is the other pole. It is a page in the machine register, at full
+# strength, by the machine, about the work in this repository. The match of subject makes it usable, because it is not a
+# distance to a 1667 epic or to a linguistics paper. Genre, locale and era all stay fixed, and the only thing left free
 # to vary is the register.
 #
 # THE SPLIT boundary_check ALREADY USES
 #
-# Two poles, and every file joined to whichever it is nearer. There is no threshold in that and no
-# label anybody supplied: a file's verdict is which of the two references it resembles more, and
-# the margin between the two distances says how firmly. The papers are the human pole.
+# Two poles, and every file joins whichever it is nearer. There is no threshold in that, and no label that anybody
+# supplied. A file's verdict is which of the two references it resembles more, and the margin between the two distances
+# says how firmly. The papers are the human pole.
 #
 # WHAT WOULD MAKE THIS WRONG
 #
-# The positive pole is one page by one writer on one day. It is a sample of the register, not the
-# register, and a file can sit near it for sharing a subject and not a voice. The margin column
-# is there for that: a file inside the resolution reported at the foot is not placed by this, and
-# the honest answer for it is that nothing was read.
+# The positive pole is one page by one writer on one day. It is a sample of the register, and not the register. A file
+# can sit near it for a shared subject, and not a shared voice. The margin column is there for that. This does not place
+# a file inside the resolution reported at the foot, and the honest answer for it is that the instrument read nothing.
 #
-# The fixture must never be repaired. docs_check skips the directory holding it for that reason,
-# and repairing it would delete the only positive sample the instrument has.
+# The fixture must never get a repair. The docs_check tool skips the directory that holds it for that reason, and a
+# repair would delete the only positive sample that the instrument has.
 
 import io
 import math
@@ -56,19 +53,19 @@ from english_gate import english_only, english_words  # noqa: E402
 
 # The poles, best provenance first.
 #
-# session_prose.txt is the machine's own messages, taken out of a transcript by session_prose.py.
-# Nobody has to trust a label for it: the turns were written by the model that wrote them. It is
-# also the largest machine sample available here.
+# session_prose.txt is the machine's own messages, taken out of a transcript by session_prose.py. Nobody needs to trust
+# a label for it: the turns come from the model itself. It is also the largest machine sample here.
 SESSION = os.path.join(ROOT, "build", "corpora", "session_prose.txt")
 
 # The published fallback, whose label nobody outside can verify.
 FETCHED = os.path.join(ROOT, "build", "corpora", "machine_prose.txt")
 
-# A file carries this much prose before it is placed. Under it one sentence decides the verdict.
+# A file carries this much prose before the instrument places it. Under it, one sentence decides the verdict.
 LEAST = 500
 
-# Words naming what this repository is about. They are the subject and both poles discuss it.
-# Leaving them in would join a file to whichever pole happened to mention anchors more often.
+# Words that name what this repository is about. They are the subject, and both poles discuss it. With them in, a file
+# would join whichever pole happened to mention anchors more often.
+# docs-check: quoting
 SUBJECT = set("""
 anchor anchors sift sifting corpus corpora prose text texts word words phrase phrases file files
 repository tree code line lines comment comments document documents page pages check checker
@@ -80,14 +77,14 @@ cowlitz nlekepmxcin thompson okanagan nsyilxcn statimcets comox saanich songish 
 cowichan chilliwack bella coola nater lyon hilbert davis mellesmoen kye wolfe robertson garcia
 icsnl ubcwpl proceedings conference gloss glosses glossing morpheme morphemes affix affixes
 """.split())
+# docs-check: end quoting
 
 # The medium, which is not the register.
 #
-# The machine pole is a chat transcript and the files under test are documents. A transcript says
-# you and your and I'll and that's because somebody is being spoken to; a README never does. Left
-# in, those words dominate the comparison and it measures which medium a text is in. The explain
-# mode showed it plainly: you, it's, that's, your, me and i'll were the strongest single pulls away
-# from the machine pole, in a file that could not have used them.
+# The machine pole is a chat transcript, and the files under test are documents. A transcript says you and your and I'll
+# and that's, because it speaks to somebody, and a README never does. Left in, those words dominate the comparison, and
+# it measures which medium a text is in. The explain mode shows it plainly. You, it's, that's, your, me and i'll are the
+# strongest single pulls away from the machine pole, in a file that could not use them.
 # docs-check: quoting
 MEDIUM = set("""
 i i'm i'll i've me my mine myself we we're we'll we've our ours us
@@ -97,13 +94,12 @@ let's ok okay yes no yeah sure thanks please sorry hi hello
 """.split())
 # docs-check: end quoting
 
-# The two groups --decompose sorts a margin into.
+# The two groups that --decompose sorts a margin into.
 #
-# SHAPE is the parataxis signature: short present tense declaratives joined with and. A file written
-# that way runs high on is and and and low on of, in, as and be, because those are the words
-# subordination needs and this house style does not subordinate. Section 6 of the documentation
-# standard requires exactly that. A margin carried by this group is the standard being followed
-# and is not a defect. Both worst files put 42 percent of their margin here.
+# SHAPE is the parataxis signature: short present tense declaratives joined with and. A file in that style runs high on
+# is and and, and low on of, in, as and be. Those are the words that subordination needs, and this house style does not
+# subordinate. Section 6 of the documentation standard requires exactly that. A margin that this group carries is the
+# standard at work, and not a defect. Both worst files put 42 percent of their margin here.
 SHAPE = set("is and of in are as be to the a that it for this with by on".split())
 
 # ABSOLUTE is what the standard already governs under No Uncited Absolutes. It carries 4.1 percent
@@ -115,9 +111,8 @@ ABSOLUTE = set("every no nothing only never always all none any cannot not".spli
 def words_of(text):
     """The English words of a text, with the shared subject removed.
 
-    Both stages of english_gate run first. Without them the human pole is 31 percent non-English,
-    and every comparison against it reads how much Salishan a text prints before it reads a word of
-    anybody's register. That fault was in three measurements here before it was found.
+    Both stages of english_gate run first. Without them the human pole is 31 percent non-English. Every comparison
+    against it then reads how much Salishan a text prints, before it reads a word of anybody's register.
     """
     return [
         one
@@ -128,13 +123,13 @@ def words_of(text):
 
 # How many words of each pole the comparison runs over.
 #
-# The first arrangement compared full word distributions and placed nothing. The positive pole is
-# one page of about 1200 words and the human pole is 982,000, and a total variation over every word
-# either of them uses is then almost entirely sampling noise: the machine pole's own halves sat
-# 0.5942 apart while the largest margin any file reached was 0.0675. Nothing could clear that.
+# A comparison of full word distributions places nothing. The positive pole is one page of about 1200 words, and the
+# human pole is 982,000. A total variation over every word that either of them uses is then almost all sampling noise.
+# The own halves of the machine pole sit far further apart than the largest margin that any file reaches, and nothing
+# can clear that.
 #
-# Restricting to the commonest words of each pole is the same move web() makes with its 64 ranks. A
-# register lives in the words it reaches for often, and the tail is where the sampling noise is.
+# A limit to the commonest words of each pole is the same move that web() makes with its 64 ranks. A register lives in
+# the words that it reaches for often, and the tail is where the sampling noise is.
 RANKS = 150
 
 
@@ -166,9 +161,9 @@ def profile(words):
 
 
 def counted_table(path, keys):
-    """A distribution read from a counted table: the first `keys` columns name it, the next counts it.
+    """A distribution read from a counted table: the first `keys` columns name it, and the next counts it.
 
-    The corpus is counted once. voice_count.py writes the words and voice_web.py writes the pairs.
+    The tools count the corpus once. voice_count.py writes the words, and voice_web.py writes the pairs.
     """
     counts = {}
     total = 0
@@ -197,15 +192,14 @@ def distance(first, second):
 
 
 def web_profile(words, run=2):
-    """A distribution over runs of `run` adjacent words. The word web instead of the bag of words.
+    """A distribution over runs of `run` adjacent words: the word web instead of the bag of words.
 
-    A bag of words is invariant under permutation: shuffle the corpus and every count is identical.
-    The null permutation against a bag is therefore exactly zero, and this repository already
-    records the general form of that in the ledger, where collision entropy carries the same
-    invariance and cannot separate a corpus from its own shuffle.
+    A bag of words does not change under permutation: shuffle the corpus, and every count stays identical. The null
+    permutation against a bag is therefore exactly zero. The ledger of this repository already records the general form
+    of that. Collision entropy carries the same invariance, and cannot separate a corpus from its own shuffle.
 
-    Register is a fact about arrangement. A habit of phrasing is which word gets reached for after
-    which, and an adjacent pair is the smallest reading a shuffle destroys.
+    Register is a fact about arrangement. A habit of phrase is which word comes after which, and an adjacent pair is the
+    smallest reading that a shuffle destroys.
     """
     counts = {}
     total = 0
@@ -228,8 +222,8 @@ def shuffled(words, seed):
 def prose_of_path(path, where=None):
     """The prose of one file, for the explain mode.
 
-    `where` is the tree the path is relative to, and defaults to this repository. It is a parameter
-    because the caller may be measuring another repository.
+    `where` is the tree that the path is relative to, and it defaults to this repository. It is a parameter because the
+    caller may measure another repository.
     """
     return prose_distance.prose_of(os.path.join(where or prose_distance.ROOT, path))
 
@@ -237,13 +231,12 @@ def prose_of_path(path, where=None):
 def pulls(mine, machine, human, ranks=24):
     """Which words carry one file toward the machine pole, and which carry it away.
 
-    A total variation distance is a sum over words. It comes apart again into the words that
-    made it. For one word the contribution to the margin is how far the file sits from the human
-    rate less how far it sits from the machine rate. Positive means that word pulls the file
-    toward the machine pole.
+    A total variation distance is a sum over words, and it comes apart again into the words that made it. For one word,
+    the contribution to the margin is the distance of the file from the human rate, less its distance from the machine
+    rate. Positive means that the word pulls the file toward the machine pole.
 
-    This is the part a phrase list cannot do. It names the words doing the work in this file,
-    including the ones nobody thought to write down. It names them in the order they matter.
+    A phrase list cannot do this part. It names the words that do the work in this file, the ones that nobody wrote down
+    among them, in the order that they matter.
     """
     scored = []
     for word in set(mine) | set(machine) | set(human):
@@ -258,11 +251,11 @@ def pulls(mine, machine, human, ranks=24):
 
 
 def halves(text):
-    """A text split by alternating its sentences, for a resolution floor.
+    """A text split by alternate sentences, for a resolution floor.
 
-    Alternating and not cutting at the midpoint. The ledger records that a midpoint cut lands on a
-    document boundary and reports the distance between whichever documents it separated, inflating
-    every floor by 1.35 to 3.64 times.
+    Alternate sentences, and not a cut at the midpoint. The ledger records that a midpoint cut lands on a document
+    boundary. It then reports the distance between whichever documents it separated, and that inflates every floor by
+    1.35 to 3.64 times.
     """
     parts = [one for one in re.split(r"(?<=[.!?])\s+", text) if one.strip()]
     if len(parts) < 8:
@@ -272,16 +265,15 @@ def halves(text):
 
 # What margin a text of this length reaches when a human wrote it.
 #
-# The first arrangement printed one floor, 0.0811, taken by splitting 728,017 words of papers in
-# half, and judged a 514 word README against it. Those are not the same measurement. A profile built
-# from 514 words is sparse and sits far from both poles, and the difference of two large distances
-# is not the difference of two small ones. The number was doing duty it could not do at either end:
-# too strict on a short file and far too lenient on a long one.
+# One floor for all lengths does not work. A floor from a split of the whole paper set in half does not measure the same
+# thing as a short README. A profile from a few hundred words is sparse, and sits far from both poles. The difference of
+# two large distances is not the difference of two small ones. One number would be too strict on a short file, and far
+# too lenient on a long one.
 #
-# Measured instead. Half the papers withheld as the reference pole, the other half cut into disjoint
-# blocks, each block scored the way a repository file is scored. Every block is human. The spread
-# is what the instrument does to a text of that length. Reference pole 372,922 words, probe pool
-# 366,833 words, machine pole 35,303 words, the two poles 0.3356 apart.
+# The table is a measurement. Half the papers stay out as the reference pole, and the other half go into disjoint
+# blocks. The code scores each block the way it scores a repository file. Every block is human, and the spread is what
+# the instrument does to a text of that length. Reference pole 372,922 words, probe pool 366,833 words, machine pole
+# 35,303 words, the two poles 0.3356 apart.
 #
 #   words  blocks   median      p95      p99    worst
 #     250    1467  -0.1000  -0.0199   0.0099   0.0356
@@ -294,11 +286,10 @@ def halves(text):
 #   22000      16  -0.2446  -0.1942  -0.1468  -0.1349
 #   42000       8  -0.2585  -0.2445  -0.2443  -0.2442
 #
-# The median falls as the block grows, because a longer sample resolves both poles better and the
-# gap between two better-resolved distances widens. The worst column is what a file is compared
-# against: the highest margin any human block of that length reached. A file above it is outside
-# everything 366,833 words of human writing did at its own size. These numbers belong to the two
-# poles that produced them. Run --band to measure them again when either pole changes.
+# The median falls as the block grows. A longer sample resolves both poles better, and the gap between two
+# better-resolved distances widens. A file goes against the worst column: the highest margin that any human block of
+# that length reached. A file above it is outside everything that 366,833 words of human writing did at its own size.
+# These numbers belong to the two poles that produced them. Run --band to measure them again when either pole changes.
 HUMAN_BAND = (
     (250, -0.1000, 0.0356),
     (500, -0.1257, 0.0299),
@@ -313,12 +304,11 @@ HUMAN_BAND = (
 
 
 def band_at(count):
-    """The median and the highest margin a human text of this many words reached.
+    """The median and the highest margin that a human text of this many words reached.
 
-    Interpolated on the logarithm of the word count, because the table is spaced by doubling and the
-    sampling error moves with the square root of the sample. Outside the measured range the end row
-    is returned unchanged. A 200 word file is judged by the 250 word row and a 200,000 word file by
-    the 42,000 word one.
+    The code interpolates on the logarithm of the word count. Each row of the table has about twice the words of the row
+    before. The sampling error moves with the square root of the sample. Outside the measured range, the code returns
+    the end row unchanged. The 250 word row judges a 200 word file, and the 42,000 word row a 200,000 word file.
     """
     if count <= HUMAN_BAND[0][0]:
         return HUMAN_BAND[0][1], HUMAN_BAND[0][2]
@@ -340,11 +330,10 @@ def band_at(count):
 def measure_band(out, machine_text, human_text):
     """Measure HUMAN_BAND again, for when either pole changes.
 
-    The reference pole has to be excluded from the blocks it scores. Sentences alternate into a
-    reference half and a probe half, the probe half is cut into disjoint blocks, and each block is
-    scored the way a repository file is. Alternating and not cutting at the midpoint, for the reason
-    recorded on halves: a midpoint cut lands on a paper boundary and reports the distance between
-    whichever papers it separated.
+    The blocks must exclude the reference pole. Sentences alternate into a reference half and a probe half. The code
+    cuts the probe half into disjoint blocks, and scores each block the way it scores a repository file. Alternate
+    sentences, and not a cut at the midpoint, for the reason on halves. A midpoint cut lands on a paper boundary, and
+    reports the distance between whichever papers it separated.
     """
     reference_text, probe_text = halves(human_text)
     if not reference_text:
@@ -400,17 +389,17 @@ def main():
     if "--worst" in sys.argv:
         worst = int(sys.argv[sys.argv.index("--worst") + 1])
 
-    # The tree under measurement, which is not always this one. A path accepted and then ignored
-    # passes a caller measuring another repository this one's number with no indication of
-    # it. The path is echoed for the same reason the file count is: a number with no subject named
-    # beside it is a number somebody will attach to the wrong thing.
+    # The tree under measurement, which is not always this one. A path accepted and then ignored would give a caller
+    # that measures another repository the number of this one, with no sign of it. The output echoes the path for the
+    # same reason as the file count. A number with no subject named beside it is a number that somebody will attach to
+    # the wrong thing.
     where, roots = prose_distance.named_roots(sys.argv)
     if where is not None:
         out.write("\n  measuring %s\n" % where.replace("\\", "/"))
 
-    # The fetched million words are the pole. The hand-written fixture stays as a check on it: it
-    # was written to be the register at full strength. It should land near the fetched pole, and
-    # if it does not then one of the two is not what it claims.
+    # The fetched million words are the pole. The hand-written fixture stays as a check on it, because it is the
+    # register at full strength by design. It should land near the fetched pole. If it does not, one of the two is not
+    # what it claims.
     fixture_text = ""
     if os.path.isfile(FIXTURE):
         with open(FIXTURE, encoding="utf-8", errors="replace") as handle:
@@ -444,8 +433,8 @@ def main():
         out.write("  no human pole in %s\n" % os.path.relpath(WORDS, ROOT))
         out.flush()
         return 1
-    # the papers themselves are not read. A pole is every word and how often it was used, and
-    # voice.tsv is that, counted once by voice_count.py over the corpus
+    # the instrument does not read the papers themselves. A pole is every word and how often it occurs, and voice.tsv is
+    # that, counted once by voice_count.py over the corpus
     human_text = ""
 
     machine_all = words_of(machine_text)
@@ -461,12 +450,10 @@ def main():
     out.write("    compared over the %d commonest words of the two\n" % len(vocabulary))
     out.write("    they sit %.4f apart\n" % distance(machine, human))
 
-    # The floor. Each pole split by alternating sentences and its two halves measured against each
-    # other. A file whose margin is under this is not placed by the instrument.
-    # The floor is taken on the same axis the margin is, and the first arrangement did not do that.
-    # It measured the margin over the rank-limited vocabulary and the floor over every word either
-    # pole used. A margin of 0.03 was then asked to clear a floor of 0.59 that belonged to a
-    # different instrument. A floor has to be the resolution of the measurement actually made.
+    # The floor. The code splits each pole by alternate sentences, and measures its two halves against each other. The
+    # instrument does not place a file whose margin is under this. The floor must sit on the same axis as the margin:
+    # the resolution of the measurement actually made. A floor over every word that either pole uses belongs to a
+    # different instrument than a margin over the rank-limited vocabulary.
     floors = []
     for name, text in (("machine", machine_text), ("human", human_text[:400000])):
         first, second = halves(text)
@@ -577,18 +564,16 @@ def main():
         out.flush()
         return 0
 
-    # One file's margin split into the words that make it, with no remainder.
+    # The margin of one file, split into the words that make it, with no remainder.
     #
-    # The margin is a difference of two total variation distances and total variation is a sum over
-    # words. The margin is a sum over words and every term is one word's share of the verdict:
+    # The margin is a difference of two total variation distances, and total variation is a sum over words. The margin
+    # is therefore a sum over words, and every term is the share of one word in the verdict:
     #
     #     margin = sum over w of 0.5 * ( |file(w) - human(w)| - |file(w) - machine(w)| )
     #
-    # An editor needs this to know whether a file can be repaired. The explain mode above names the
-    # words; this one says how much of the reading each is worth, and the answer decided a repair
-    # pass here. Cutting unearned absolutes out of the ledger moved 33 sites and the margin fell
-    # 0.0021, which looked like a failed repair until this ran: absolutes are 4.1 percent of that
-    # file's margin and 33 edits spent on them can do no more than that.
+    # An editor needs this to know whether a repair can work on a file. The explain mode above names the words, and this
+    # says how much of the reading each is worth. An edit pass can move the margin by no more than the share of the
+    # words that it touches.
     if "--decompose" in sys.argv:
         wanted = sys.argv[sys.argv.index("--decompose") + 1].replace("\\", "/")
         text = prose_of_path(wanted, where)
@@ -615,10 +600,9 @@ def main():
         terms.sort(reverse=True)
         total = sum(one[0] for one in terms)
 
-        # Shares are a fraction of the margin, and a file sitting near zero has almost no margin to
-        # take a fraction of. hourly-supposition.md came to +0.0040 and printed a cumulative 1563
-        # percent. That is arithmetic and not a reading. Below a tenth of the smallest human
-        # band row the shares come out and the contributions are on their own.
+        # Shares are a fraction of the margin, and a file near zero has almost no margin to take a fraction of. A margin
+        # that small gives a cumulative share of many hundred percent, and that is arithmetic and not a reading. Below a
+        # tenth of the smallest human band row, the shares come out, and the contributions stand on their own.
         readable = abs(total) >= 0.01
 
         out.write("\n  %s, %d words\n" % (wanted, count))
@@ -732,9 +716,9 @@ def main():
             % distance(webs["machine"], webs["human"])
         )
 
-    # The whole tree as one web. A single file holds a few hundred words and its web is nearly all
-    # noise. No web distance is reported per file for that reason. The repository as one body is
-    # 400,000 words and is the reading a web can actually be asked for.
+    # The whole tree as one web. A single file holds a few hundred words, and its web is nearly all noise. For that
+    # reason, the output reports no web distance per file. The repository as one body is 400,000 words, and that reading
+    # is one that a web can give.
     whole = []
     for path in prose_distance.repository_files(where, roots):
         if "fixtures" in path:
