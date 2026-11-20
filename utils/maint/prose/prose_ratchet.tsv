@@ -254,7 +254,7 @@ examples/chemistry/casmi/src/casmi_config.h	3
 examples/chemistry/casmi/src/check/lane_check.cu	32
 examples/chemistry/casmi/src/mass/isotope_table.c	16
 examples/chemistry/casmi/src/mass/mass.c	3
-examples/chemistry/casmi/src/mass/mass.h	13
+examples/chemistry/casmi/src/mass/mass.h	11
 examples/chemistry/casmi/src/parquet/parquet.c	39
 examples/chemistry/casmi/src/parquet/parquet.h	9
 examples/chemistry/casmi/src/rank/rank.cu	17
@@ -477,12 +477,12 @@ includes/exact_types/integers/arm_neon.c	11
 includes/exact_types/integers/arm_sve.c	19
 includes/exact_types/integers/exact_integer.h	12
 includes/exact_types/integers/exact_integer_add.c	19
-includes/exact_types/integers/exact_integer_api.h	85
+includes/exact_types/integers/exact_integer_api.h	84
 includes/exact_types/integers/exact_integer_decimal.c	13
 includes/exact_types/integers/exact_integer_divide.c	15
 includes/exact_types/integers/exact_integer_gcd.c	5
 includes/exact_types/integers/exact_integer_hash.c	12
-includes/exact_types/integers/exact_integer_internal.h	11
+includes/exact_types/integers/exact_integer_internal.h	10
 includes/exact_types/integers/exact_integer_limbs.c	8
 includes/exact_types/integers/exact_integer_multiply.c	18
 includes/exact_types/integers/exact_integer_widths.h	42
@@ -707,11 +707,11 @@ src/cu/engine/nbody/max_tree/max_tree_device_overlap_kernels.cu	1
 src/cu/engine/nbody/max_tree/max_tree_nodes.c	2
 src/cu/engine/nbody/orior/orior.h	5
 src/cu/engine/nbody/orior/orior_core.c	28
-src/cu/engine/nbody/orior/orior_core.h	65
-src/cu/engine/nbody/orior/orior_descent.h	118
+src/cu/engine/nbody/orior/orior_core.h	64
+src/cu/engine/nbody/orior/orior_descent.h	115
 src/cu/engine/nbody/orior/orior_engines.h	25
 src/cu/engine/nbody/orior/orior_field.c	27
-src/cu/engine/nbody/orior/orior_field.h	79
+src/cu/engine/nbody/orior/orior_field.h	72
 src/cu/engine/nbody/orior/orior_internal.h	4
 src/cu/engine/nbody/orior/orior_steer.c	29
 src/cu/engine/nbody/orior/orior_steer_count.c	21
@@ -723,7 +723,7 @@ src/cu/engine/nbody/orior/scan_avx512.c	15
 src/cu/engine/nbody/orior/scan_neon.c	16
 src/cu/engine/nbody/orior/scan_sve.c	14
 src/cu/engine/render/orior_raster.c	13
-src/cu/engine/render/orior_raster.h	85
+src/cu/engine/render/orior_raster.h	80
 src/cu/engine/render/orior_raster_internal.h	5
 src/cu/engine/render/orior_raster_output.c	19
 src/cu/engine/render/raster.cu	2
@@ -1472,7 +1472,7 @@ utils/test/src/cu/engine/nbody/max_tree/max_tree_levels_test_agree.c	2
 utils/test/src/cu/engine/nbody/max_tree/max_tree_levels_test_draw.c	3
 utils/test/src/cu/engine/nbody/max_tree/max_tree_levels_test_internal.h	2
 utils/test/src/cu/engine/nbody/orior/test_adversarial_cases.c	42
-utils/test/src/cu/engine/nbody/orior/test_adversarial_internal.h	37
+utils/test/src/cu/engine/nbody/orior/test_adversarial_internal.h	36
 utils/test/src/cu/engine/nbody/orior/test_adversarial_joint.c	27
 utils/test/src/cu/engine/nbody/orior/test_adversarial_plans.c	41
 utils/test/src/cu/engine/nbody/orior/test_adversarial_projection.c	11

@@ -24,6 +24,8 @@ _CHECKER = []
 # A Doxygen tag at the start of a comment line, with @ before its name. Only the names Doxygen gives its commands
 # count, because a style sheet in a comment also opens a line with @, as @media does. The backslash form is not
 # read, because TeX in a comment opens a line with \ref or \par too.
+# The mark of a Doxygen comment on the member before it, in either of its forms
+MEMBER_MARK = re.compile(r"/\*\*<|//[/!]<")
 DOXYGEN_TAG = re.compile(
     r"^@(?:param|tparam|return|returns|retval|brief|details|note|warning|attention|remark|remarks|see|sa|pre|post|"
     r"throws|throw|exception|invariant|todo|deprecated|since|file|defgroup|ingroup|addtogroup|struct|enum|def|"
@@ -46,9 +48,18 @@ def comment_text(said):
 
     A Doxygen tag, such as @param, @return or @note, opens an entry of its own. The checker starts a
     sentence only before a capital letter, a digit, a back quote or a bracket. This view gives each
-    tag line the mark of a list item, and the checker then reads the tag and its lines as one item."""
-    text = [MARKER.sub("", line).strip() for line in said]
-    return ["- " + line if DOXYGEN_TAG.match(line) else line for line in text]
+    tag line the mark of a list item, and the checker then reads the tag and its lines as one item. A
+    comment on a member after its code, /**< or ///<, is an item of its own too, without the code."""
+    text = []
+    for line in said:
+        member = MEMBER_MARK.search(line)
+        if member:
+            # a member's own comment, after the code it documents, is an item of its own
+            text.append("- " + line[member.end():].replace("*/", "").strip())
+            continue
+        stripped = MARKER.sub("", line).strip()
+        text.append("- " + stripped if DOXYGEN_TAG.match(stripped) else stripped)
+    return text
 
 
 def ste_findings(said):
