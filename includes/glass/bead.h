@@ -35,9 +35,9 @@ typedef struct GuiBeadBlitCfg GuiBeadBlitCfg;
 #define GUI_BEAD_SINK 0.06
 #define GUI_BEAD_SQUISH 0.03
 #define GUI_BEAD_INDEX 1.333
-// The bead's outline over a button: a dome, the superellipse, round at every point; or a tab, a rectangle with its top
-// corners rounded by the atlas's radius and its foot flat on the row's line, the dome's profile rising from every
-// edge to a flat top
+// The outline of the bead over a button. A dome is the superellipse, round at each point. A tab is a rectangle with its
+// top corners rounded by the radius of the atlas. Its foot is flat on the line of the row. Its profile is that of the
+// dome, and it rises from each edge to a flat top
 #define GUI_BEAD_SHAPE_DOME 0u
 #define GUI_BEAD_SHAPE_TAB 1u
 // the four colors a bead is lit with, their places in `colors`
@@ -47,16 +47,17 @@ typedef struct GuiBeadBlitCfg GuiBeadBlitCfg;
 #define GUI_BEAD_COLOR_SHADOW 3u
 #define GUI_BEAD_COLORS 4u
 
-// Plane A packs a pixel as [mask:8 | mix:8 | dy:8 | dx:8]. dx and dy are the signed offsets the pixel reads from. mix
-// is the share of 255 of the frosted ground in the pixel, 255 outside the bead and 0 inside it. mask is 0 where the
-// pixel is untouched, and the blit skips it. Plane B holds the light as premultiplied 0xAARRGGBB
+// Plane A packs a pixel as [mask:8 | mix:8 | dy:8 | dx:8]. The fields dx and dy are the signed offsets that the pixel
+// reads from. The field mix is the share of 255 of the frosted ground in the pixel, 255 outside the bead and 0 inside
+// it. The field mask is 0 where nothing touches the pixel, and the blit skips it. Plane B holds the light as
+// premultiplied 0xAARRGGBB
 #define GUI_BEAD_DX_OF(word_) ((int)(((word_) & 0xffu) ^ 0x80u) - 0x80)
 #define GUI_BEAD_DY_OF(word_) ((int)((((word_) >> 8u) & 0xffu) ^ 0x80u) - 0x80)
 #define GUI_BEAD_MIX_OF(word_) (((word_) >> 16u) & 0xffu)
 #define GUI_BEAD_MASK_OF(word_) (((word_) >> 24u) & 0xffu)
 
-// A light above the glass: its place across and down in the caller's pixels, its height above the glass in pixels,
-// and its strength, 1.0 for the key light
+// A light above the glass: its place across and down in the pixels of the caller, and its height above the glass in
+// pixels. Then its strength, 1.0 for the key light
 typedef struct
 {
     double x;
@@ -65,15 +66,20 @@ typedef struct
     double strength;
 } GuiLight;
 
-// The atlas: its cells raster; the largest button's width and height it is baked for; its margin round the button
-// and its reach, each in pixels; the beads' shape and, for tabs, their top corners' radius in pixels; the cell's
-// width and height; the row stride of every plane; how many buttons it
-// holds frames for, each button's cell top left in the caller's pixels with the button's own width and height, 0 for
-// the largest's, its bead positioned from the cell's top left corner inside the margin; the lights and the bead's four
-// colors they are lit with; and a bit a button, set once its frames are baked. The raster's rows hold, in order: each
-// button's frames, each frame's plane A then plane B; three patches with the reach as a margin. And three planes of
-// float work for the bake. The patches are the blit's own scratch. A button's frames bake the first time the bead is
-// drawn on it
+// The atlas:
+//   - its cells raster.
+//   - the width and height of the largest button that the bake serves.
+//   - its margin round the button and its reach, each in pixels.
+//   - the shape of the beads and, for tabs, the radius of their top corners in pixels.
+//   - the width and height of the cell, and the row stride of each plane.
+//   - how many buttons it holds frames for. Each button has the top left of its cell in the pixels of the caller.
+//     It also has its own width and height, 0 for those of the largest. Its bead sits from that corner inside the margin.
+//   - the lights, and the four colors of the bead that they light it with.
+//   - a bit a button, which the bake of its frames sets.
+//
+// The rows of the raster hold, in order, the frames of each button, each frame plane A then plane B. Then come three
+// patches with the reach as a margin, and three planes of float work for the bake. The patches are the own scratch of
+// the blit. The frames of a button bake the first time that the bead goes onto it
 typedef struct
 {
     GuiRaster cells;
@@ -97,23 +103,29 @@ typedef struct
 
 // an atlas with nothing arranged or baked
 void gui_bead_init(const GuiBeadBakeCfg *args);
-// the bytes the atlas's raster takes for `tools` buttons `width` by `height` pixels with the margin `pad` and the
-// reach `reach`, 0 where the sizes are refused as the bake refuses them
+// the bytes that the raster of the atlas takes for `tools` buttons `width` by `height` pixels, with the margin `pad`
+// and the reach `reach`. 0 where the bake refuses the sizes
 unsigned long long gui_bead_bytes(const GuiBeadBakeCfg *args);
-// the atlas arranged for `tools` buttons `width` by `height` pixels at max, the margin `pad` round each and the
-// reach `reach`, their beads of `shape` with the corner `radius`, over `pixels`, which hold `gui_bead_bytes` of the
-// same sizes; their cells' top lefts `cells` with each button's own width and height, 0 for the max, lit by
-// `light_count` of `lights` in `colors`, GUI_BEAD_COLORS of them: 1, or 0 where there are no pixels, a size is 0,
-// the cell is too tall, the reach is below 3 or there are too many tools. A button whose frames are baked for the
-// same sizes, shape, place, lights and colors retains them. Any other bakes again when the bead is next drawn on it
+// the atlas arranged for `tools` buttons `width` by `height` pixels at max, with the margin `pad` round each and the
+// reach `reach`. Their beads are of `shape` with the corner `radius`, over `pixels`, which hold `gui_bead_bytes` of
+// the same sizes.
+// The top lefts of their cells are `cells`, with the own width and height of each button, 0 for the max. The
+// `light_count` lights of `lights` light them in `colors`, GUI_BEAD_COLORS of them.
+// The result is 1, or 0 where there are no pixels or a size is 0. It is also 0 where the cell is too tall, the reach
+// is below 3 or there are too many tools.
+//
+// A button whose frames had a bake for the same sizes, shape, place, lights and colors keeps them. Any other button
+// bakes again when the bead next goes onto it
 int gui_bead_bake(const GuiBeadBakeCfg *args);
-// the frames of the button `tool` baked where they are not: 1, or 0 where the atlas is not arranged
+// the frames of the button `tool`, baked where they are not yet. The result is 1, or 0 where the atlas has no
+// arrangement
 int gui_bead_tool_bake(const GuiBeadBlitCfg *args);
 // the frame of the press share `press`, in `one` from rest: 0 at rest, `one` pressed whole, below 0 in the wobble
 unsigned int gui_bead_frame(const GuiBeadCfg *args);
-// the frame `frame` of the button `tool` blitted with the cell's top left at x, y on `raster`, inside `clip` where
-// that is not empty, at `opacity` of 255: the button's frames baked where they are not, the patch under the cell
-// copied into the atlas's scratch, frosted, read through the refraction, mixed and lit
+// the frame `frame` of the button `tool`, blitted with the top left of the cell at x, y on `raster`, at `opacity` of
+// 255. It stays inside `clip` where that is not empty.
+// The call bakes the frames of the button where they are not yet. It copies the patch under the cell into the scratch
+// of the atlas. It frosts the patch, reads it through the refraction, mixes it and lights it
 void gui_bead_blit(const GuiBeadBlitCfg *args);
 
 struct GuiBeadCfg
