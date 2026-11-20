@@ -915,8 +915,14 @@ void cli_view_watch(const CliViewAtCfg *args)
     s_watcher = args->watcher;
 }
 
+// On the view thread: every answer the pair workers pushed popped and its cell given back (view_pair_answers_taken)
+static void view_pair_answers_taken(void);
+
 void cli_view_close(const CliViewCfg *args)
 {
+    // an answer of a pair ask that landed before the close holds a cell of the views' owner until it is taken; a
+    // closed document leaves none behind
+    view_pair_answers_taken();
     CliView copy;
     CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key, .copy = &copy);
     if ((view != NULL) && (s_watcher != NULL) && (s_watcher->closing != NULL))
