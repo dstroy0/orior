@@ -120,7 +120,7 @@ def read_field(path, want):
 
     with io.open(path, newline="", encoding="utf-8") as handle:
         for row in csv.DictReader(handle):
-            if row["type"] != want:
+            if row["kind"] != want:
                 continue
             first = int(row["a"])
             second = int(row["b"])

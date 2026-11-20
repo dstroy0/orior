@@ -29,7 +29,7 @@ def load():
     packed = {}
     with open(SOURCE, newline="") as handle:
         for row in csv.DictReader(handle):
-            if row["type"] != "residue":
+            if row["kind"] != "residue":
                 continue
             packed.setdefault(row["source"], {}).setdefault(int(row["round"]), {})[
                 int(row["a"])] = float(row["value"])

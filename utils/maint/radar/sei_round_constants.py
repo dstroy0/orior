@@ -15,44 +15,39 @@ there is no signal at all. Second, whether it correlates with anything about K_t
 
     python utils/maint/radar/sei_round_constants.py
 
-The constants are read from the tree and never retyped, because a transcription error here would
-manufacture exactly the correlation being looked for.
+The constants come from the cube roots of the first sixty-four primes, through natural_constants.py.
+Nothing retypes them, because a transcription error here would make exactly the correlation that
+the test looks for.
 """
 
 import csv
 import math
 import os
-import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 SOURCE = os.path.join(ROOT, "build", "bench", "shadows.csv")
-CONSTANTS = os.path.join(ROOT, "src", "engine", "c", "sha256", "bench", "bench_depth_cuda.cu")
+PROOFING = os.path.join(ROOT, "examples", "proofing")
+if PROOFING not in sys.path:
+    sys.path.insert(0, PROOFING)
+
+import natural_constants  # noqa: E402
 
 CLEAN_FIRST = 8
 CLEAN_LAST = 16
 
 
 def load_constants():
-    with open(CONSTANTS) as handle:
-        text = handle.read()
-    found = re.findall(r"0x([0-9a-fA-F]{8})u", text)
-    seen = []
-    for item in found:
-        value = int(item, 16)
-        if value not in seen:
-            seen.append(value)
-        if len(seen) == 64:
-            break
-    return seen
+    """The sixty-four round constants, from the cube roots of the first sixty-four primes."""
+    return list(natural_constants.round_constants())
 
 
 def load_fold():
     by_round = {}
     with open(SOURCE, newline="") as handle:
         for row in csv.DictReader(handle):
-            if row["type"] != "residue":
+            if row["kind"] != "residue":
                 continue
             by_round.setdefault(int(row["round"]), {})[int(row["a"])] = float(row["value"])
     return by_round

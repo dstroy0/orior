@@ -115,7 +115,7 @@ def standardized_spectrum():
     by_depth = {}
     with io.open(SHADOWS, newline="", encoding="utf-8") as handle:
         for row in csv.DictReader(handle):
-            if row["type"] != "residue":
+            if row["kind"] != "residue":
                 continue
             by_depth.setdefault(int(row["round"]), {})[int(row["a"])] = float(row["value"])
 

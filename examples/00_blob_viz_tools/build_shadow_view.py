@@ -41,7 +41,7 @@ def read_shadows(path):
 
     with open(path, newline="") as handle:
         for row in csv.DictReader(handle):
-            type = row["type"]
+            type = row["kind"]
             a = int(row["a"])
             b = int(row["b"])
             at = int(row["round"]) - 1

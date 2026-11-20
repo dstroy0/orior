@@ -24,7 +24,7 @@ def load():
     by_round = {}
     with open(SOURCE, newline="") as handle:
         for row in csv.DictReader(handle):
-            if row["type"] != "residue":
+            if row["kind"] != "residue":
                 continue
             by_round.setdefault(int(row["round"]), {})[int(row["a"])] = float(row["value"])
     return by_round
