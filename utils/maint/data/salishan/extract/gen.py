@@ -1265,10 +1265,9 @@ class Paper(object):
         return waiting
 
     def display(self, start, count, who=A, type="note", gloss="set as an example", per_line=False):
-        """Write the count printed lines of a display from line start, a template, a list or a
-        generalization set as an example: a row to each lettered item with its wrapped lines run
-        on, or one row where it has no characters. With per_line, a tree, each printed line is a row
-        of its own. Returns the line after it."""
+        """Write the count printed lines of a display from line start: a template, a list, or a generalization set as
+        an example. Each lettered item gets a row, with its wrapped lines run on. Where it has no characters, it gets one
+        row. With per_line, for a tree, each printed line is a row of its own. Returns the line after it."""
         label = EXAMPLE.match(self.text(start)).group(1)
         number, done, items = start, 0, []
         running = self.running_numbers_set()
@@ -1293,9 +1292,9 @@ class Paper(object):
         return number
 
     def footnote(self, mark, parts, page, names=(), languages=(), where=None, gloss=None):
-        """Write a footnote from its lines: its prose a note to each stretch between the examples it
-        sets, the examples read as the body's are, and the cited forms, names and languages of each
-        stretch after it."""
+        """Write a footnote from its lines. Its prose becomes a note for each stretch between the examples that it
+        sets. The code reads the examples as those of the body. The cited forms, names and languages of each stretch
+        come after it."""
         where = where or "footnote %s" % mark
         prose, index = [], 0
 
@@ -1316,9 +1315,8 @@ class Paper(object):
         first = True
         while index < len(parts):
             number = parts[index]
-            # A sentence can wrap onto a body example's number, not offered for (33) and / (34)
-            # probably reflects, in note 11 of Davis, Griffin, Huijsmans and Mellesmoen: that
-            # number opens no example.
+            # A sentence can wrap onto the number of a body example. Note 11 of Davis, Griffin, Huijsmans and
+            # Mellesmoen has `not offered for (33) and / (34) probably reflects`. That number opens no example.
             opened = EXAMPLE.match(self.text(number))
             if opened and opened.group(1).isdigit() and \
                     re.search(r"(?:\b(?:and|or|nor|for|of|than|with)|,)$", self.text(parts[index - 1]).rstrip()):
@@ -1351,8 +1349,8 @@ class Paper(object):
         return False
 
     def glyph_rows(self, page):
-        """The glyphs of a page grouped into printed rows, each a list of (left edge, glyph) in
-        reading order: a glyph joins the row whose baseline lies within 2.5 points of its own."""
+        """The glyphs of a page grouped into printed rows, each a list of (left edge, glyph) in read order. A glyph
+        joins the row whose baseline lies within 2.5 points of its own."""
         if not hasattr(self, "_glyph_rows"):
             self._glyph_rows = {}
         if page not in self._glyph_rows:
@@ -1375,9 +1373,9 @@ class Paper(object):
         return self._glyph_rows[page]
 
     def word_positions(self, number):
-        """[(left edge, word)] for the words of line number, each word's edge that of its first
-        glyph on the page: the line is aligned to the printed row that holds the majority of its characters,
-        marks and superscripts aside, and a column's words can be told by where they are."""
+        """[(left edge, word)] for the words of line number. The edge of each word is that of its first glyph on the
+        page. The code aligns the line to the printed row that holds most of its characters, with marks and
+        superscripts aside. The place of the words of a column then tells them apart."""
         import difflib
         import unicodedata
 
@@ -1408,23 +1406,28 @@ class Paper(object):
             edges = [at[one] for one in range(index, index + count) if one in at]
             found.append((edges[0] if edges else None, word))
             index += count
-        # A word none of whose characters was matched is just right of the word before it.
+        # A word with no matched character is just right of the word before it.
         for place, (left, word) in enumerate(found):
             if left is None:
                 found[place] = ((found[place - 1][0] + 0.1) if place else 0.0, word)
         return found
 
     def columns(self, start, where=None, skip=(), language=L, label=None):
-        """Read an example set in columns from line start and return the line after it: a header
-        line of lettered forms, (13) a. sasaxosem b. sasaxost c. saxwat, or of numbered ones,
-        (5) hasem (6) kwetem, then the tiers under them, each word given to the column it is
-        under on the page (word_positions). A column's text on a line is a row of the type its
-        shape gives: [..] phonetic, /../ phonemic, {..} underlying, ‘..’ a translation, (..) a
-        note, a label in capitals or a form broken by hyphens a gloss, the header's forms the
-        transcription. Lettered parts set in a later header line, c. t’oz’.’em Joe, open new
-        columns. The example ends at a line located left of its first column, prose at the margin
-        or on a paragraph's indent, or at a new example. label names an example the paper numbers
-        twice, 35:2 for the second (35)."""
+        """Read an example set in columns from line start, and return the line after it.
+
+        It opens on a header line of lettered forms, as `(13) a. sasaxosem b. sasaxost c. saxwat`, or of numbered
+        ones, as `(5) hasem (6) kwetem`. The tiers come under them. Each word goes to the column that it is under on
+        the page (word_positions).
+
+        The text of a column on a line is a row of the type that its shape gives:
+          - [..] phonetic, /../ phonemic, and {..} underlying.
+          - ‘..’ a translation, and (..) a note.
+          - a label in capitals, or a form broken by hyphens, a gloss.
+          - the forms of the header, the transcription.
+
+        Lettered parts set in a later header line open new columns, as `c. t’oz’.’em Joe`. The example ends at a line
+        left of its first column. It also ends at prose at the margin or on the indent of a paragraph, and at a new
+        example. The argument label names an example that the paper numbers twice, 35:2 for the second (35)."""
         number = label or EXAMPLE.match(self.text(start)).group(1)
         running = self.running_numbers_set()
         counts = {}
@@ -1466,8 +1469,8 @@ class Paper(object):
         last = {}
 
         def add(label, text, line, first):
-            # A translation or note that wraps inside its column, ‘several people kicking
-            # unspecified / object(s); playing soccer’, runs on from the line it opened on.
+            # A translation or note that wraps inside its column runs on from the line that it opened on. An example
+            # is `‘several people kicking unspecified / object(s); playing soccer’`.
             before = last.get(label)
             if not first and before is not None and (
                     before[3].startswith("‘") and not re.search(r"’\W*$", before[3]) or
@@ -1513,10 +1516,10 @@ class Paper(object):
         return line
 
     def indented_runs(self, start, end, skip=()):
-        """[[line, ...]] for each block quotation from line start to end: a run of two lines or
-        more, every one of them set 10 points or more in from the edge the majority of the body's lines
-        start at. A paragraph sets in its first line alone. A quotation runs on over a page break,
-        its running number and the page's blank lines."""
+        """[[line, ...]] for each block quotation from line start to end. That is a run of two lines or more, each set
+        10 points or more in from the edge where most lines of the body start.
+        A paragraph sets in its first line alone. A quotation runs on over a page break, its running number and the
+        blank lines of the page."""
         running = self.running_numbers_set() | set(self.volume_header())
         skip = set(skip) | running
         edges, lefts = {}, {}
@@ -1536,7 +1539,7 @@ class Paper(object):
             if number in skip or number not in lefts and not self.text(number).strip() and not current:
                 continue
             if current and number not in lefts:
-                # A blank line: the run goes on where the next line is set in on the next page.
+                # A blank line. The run goes on where the next line sits in from the edge on the next page.
                 after = next((one for one in range(number + 1, end + 1) if one in lefts), None)
                 if after is not None and self.page(after) != self.page(current[-1]) and \
                         lefts[after] >= margin + 10 and \
@@ -1559,14 +1562,17 @@ class Paper(object):
 
     def flow(self, first, last, where, headings=None, skip=(), blocks=None, names=(), languages=(),
              restarts=None):
-        """Walk the body from line first to last and add its rows: a heading row at each line of
-        headings ({line: label}), a numbered example wherever one opens, a block's own rows where
-        blocks ({line: function(line, where) returning the line after the block}) has one, and the
-        prose between them as a note to a paragraph, split at the lines the page indents. Each
-        paragraph's cited forms, names and languages follow it. Lines in skip (footnotes, table
-        notes) and page numbers are passed over. restarts ({heading label: prefix}) names the
-        sections whose examples number from (1) again, each example's rows put under the prefix,
-        §3.3 (1) line 1. Returns the section it ends in."""
+        """Walk the body from line first to last, and add its rows:
+          - a heading row at each line of headings ({line: label}).
+          - a numbered example wherever one opens.
+          - the own rows of a block where blocks ({line: function(line, where) that returns the line after the
+            block}) has one.
+          - the prose between them, as a note to a paragraph, split at the lines that the page indents.
+
+        The cited forms, names and languages of each paragraph follow it. The code skips lines in skip (footnotes,
+        table notes) and page numbers.
+        restarts ({heading label: prefix}) names the sections whose examples number from (1) again. The rows of each
+        example go under the prefix, as §3.3 (1) line 1. Returns the section that it ends in."""
         headings, blocks, restarts = headings or {}, blocks or {}, restarts or {}
         starts = self.paragraph_starts()
         running = self.running_numbers_set()
@@ -1609,10 +1615,10 @@ class Paper(object):
                 number = blocks[number](number, state["where"])
                 state["broken"] = state.get("example")
                 continue
-            # A roman-numbered line in the body is a list item, a paragraph of its own; a footnote's
-            # own examples are numbered (i), (ii) and read in footnote().
-            # Its wrapped lines hang indented under it, and the first line at the margin after it
-            # opens the next paragraph.
+            # A roman-numbered line in the body is a list item, a paragraph of its own. The own examples of a footnote
+            # have numbers (i), (ii), and footnote() reads them.
+            # Its wrapped lines hang indented under it, and the first line at the margin after it opens the next
+            # paragraph.
             if re.match(r"^\([ivx]{1,4}\)", text):
                 flush()
                 paragraph.append(number)
@@ -1630,15 +1636,15 @@ class Paper(object):
                     paragraph.append(number)
                     number += 1
                     continue
-            # Examples are numbered in order; a line of prose that wraps to open on a reference,
-            # (4) features a subjunctive ..., names a number already set. One that names a number
-            # ahead, (67) or an argument (68) modifier, has no gloss under it before the next
-            # example opens; a number past the next in sequence counts only where one does.
+            # Examples carry numbers in order. A line of prose that wraps to open on a reference names a number already
+            # set, as `(4) features a subjunctive ...`.
+            # A line that names a number ahead, as `(67) or an argument (68) modifier`, has no gloss under it before the
+            # next example opens. A number past the next in sequence counts only where one does.
             opened = EXAMPLE.match(text)
-            # A line that carries on a sentence the paragraph left open, the speaker utters / (26)
-            # while still seeing the bear, is prose even with the next number in sequence. A stop
-            # can carry a footnote's mark, the human series:4, set a space off in Forbes's (34b). 13.
-            # The mark can run to three digits, the examples in (134):110 of Lyon's 2011 paper.
+            # A line that carries on a sentence that the paragraph left open is prose, even with the next number in
+            # sequence. An example is `the speaker utters / (26) while still seeing the bear`.
+            # A stop can carry the mark of a footnote, set a space off, as `the human series:4` in (34b) of Forbes.
+            # 13. The mark can run to three digits, as the examples in `(134):110` of the 2011 paper of Lyon.
             carries_on = paragraph and number not in starts and \
                 not re.search(r"[.:;!?)\]’”][*∗†]?(?: ?\d{1,3}(?:,\d{1,3})*)?\s*$", self.text(paragraph[-1])) and \
                 all(self.text(one).strip() for one in range(paragraph[-1] + 1, number)
@@ -1668,10 +1674,12 @@ class Paper(object):
     # A whole paper.
 
     def front(self, authors, languages=()):
-        """The front matter of page 1: the title, the lines it wraps onto, each author a name row
-        and each line under an author (a university, an e-mail) a note, the abstract to the
-        keywords, the keywords, and the volume's header. The paper's languages follow. Returns the
-        keywords' last line."""
+        """The front matter of page 1:
+          - the title, and the lines that it wraps onto.
+          - each author as a name row, and each line under an author, such as a university or an e-mail, as a note.
+          - the abstract up to the keywords, the keywords, and the header of the volume.
+
+        The languages of the paper follow. Returns the last line of the keywords."""
         header = set(self.volume_header())
         keywords = self.find(r"^Key ?words?:", 1, 200)
         abstract = self.find(r"^Abstract[:.]", 1, keywords or 200)
@@ -1690,10 +1698,11 @@ class Paper(object):
                  "page 1%s" % (", carries footnote " + mark if mark else ""))
         current = None
         done = set()
-        # An abstract set under the author with no label, JeongEun Lee's and Peter Jacobs's in the
-        # 2012 volume: five lines of prose or more, each but the last 35 characters long or more, run
-        # to the first section heading. It is one note, as a labeled abstract is. It never opens on
-        # the author's department, Andie Diane Palmer's in the 2013 volume, which stays a note of its own.
+        # An abstract set under the author with no label, as those of JeongEun Lee and Peter Jacobs in the 2012
+        # volume. It is five lines of prose or more, each but the last 35 characters long or more, and it runs to the
+        # first section heading. It is one note, as a labeled abstract is.
+        # It never opens on the department of the author, as that of Andie Diane Palmer in the 2013 volume, which
+        # stays a note of its own.
         plain = []
         if not abstract and not keywords:
             tail = [one for one in lines if one > first_author]
@@ -1713,9 +1722,9 @@ class Paper(object):
                 continue
             text = self.text(number)
             names = [name for name in authors if name in text]
-            # Authors set side by side, each over a column of their own: John Lyon over California
-            # State University, Fresno and Ewa Czaykowska-Higgins over University of Victoria. Each
-            # line under them splits at its wide gaps into a piece for each author.
+            # Authors set side by side, each over a column of their own. An example is John Lyon over California State
+            # University, Fresno, and Ewa Czaykowska-Higgins over University of Victoria. Each line under them splits at
+            # its wide gaps into a piece for each author.
             under = []
             for below in lines[lines.index(number) + 1:]:
                 if any(name in self.text(below) for name in authors):
@@ -1741,7 +1750,7 @@ class Paper(object):
                 for name in names:
                     self.add("front", A, "name", name, "author")
                     self.mentioned.add(("name", name))
-                # A line holding more than the names, their commas and marks, prints it all.
+                # A line that holds more than the names, their commas and marks, prints it all.
                 rest = text
                 for name in names:
                     rest = rest.replace(name, "")
@@ -1754,9 +1763,9 @@ class Paper(object):
             self.add("front", A, "note", self.joined(range(abstract, close or abstract + 1)), "page 1, the abstract")
         if plain:
             self.add("front", A, "note", self.joined(plain), "page 1, the abstract")
-        # Keywords that end a line on a comma run onto the next, modal-temporal interactions under
-        # Reisinger's, and so do keywords whose next line opens in lower case, lexical and structural
-        # / copying in Nater's Tsimshianic vestiges.
+        # Keywords that end a line on a comma run onto the next, as `modal-temporal interactions` under those of
+        # Reisinger. So do keywords whose next line opens in lowercase, as `lexical and structural / copying` in the
+        # Tsimshianic vestiges of Nater.
         wrapped = keywords
         while wrapped and wrapped < self.last and (self.text(wrapped).endswith(",") or
                                                    self.text(wrapped + 1)[:1].islower()):
@@ -1773,16 +1782,18 @@ class Paper(object):
     def standard(self, authors, names=(), languages=(), front_languages=1, displays=None, blocks=None,
                  references=r"^References$", notes_title=tuple(TITLE_MARKS), restarts=None, appendix=None,
                  headings=None, spaced=None, glued=None):
-        """Write the whole paper the common way: the front matter, the notes on the title, the body
-        from the keywords to the references with its headings, examples, displays and blocks, each
-        footnote after the paragraph that carries its mark, and the references an entry a row.
-        glued passes to place_footnotes().
-        displays maps an example number to its printed line count; restarts passes to flow(), and
-        spaced to place_footnotes(). With
-        appendix, a pattern, the references end at the first line after them it matches, and the
-        generator writes what follows. Returns the footnotes found."""
-        # A language's name the paper sets in italics, St'át'imcets in Davis, Huijsmans and
-        # Mellesmoen's second paper, is a language row and no cited form.
+        """Write the whole paper the common way:
+          - the front matter, and the notes on the title.
+          - the body from the keywords to the references, with its headings, examples, displays and blocks.
+          - each footnote, after the paragraph that carries its mark.
+          - the references, an entry a row.
+
+        The argument glued passes to place_footnotes(). The argument displays maps an example number to its printed
+        line count. The argument restarts passes to flow(), and spaced to place_footnotes().
+        With appendix, a pattern, the references end at the first line after them that it matches. The generator then
+        writes what follows. Returns the found footnotes."""
+        # The name of a language that the paper sets in italics is a language row, and no cited form. An example is
+        # St'át'imcets in the second paper of Davis, Huijsmans and Mellesmoen.
         self.language_names = {name for name, _ in languages}
         start = self.front(authors, languages[:front_languages])
         found = self.page_footnotes()
@@ -1830,9 +1841,9 @@ class Paper(object):
         return found
 
     def languages_by_tag(self, tags, speakers=None):
-        """Set the language of each example's own rows from the tag at the right of its
-        translation, or from a consultant's initials there: {tag: language}, {initials: language}.
-        Every lettered part takes the language of the example. Returns the examples left untagged."""
+        """Set the language of the own rows of each example from the tag at the right of its translation. The
+        initials of a consultant there also set it. The maps are {tag: language} and {initials: language}. Each lettered part takes the language
+        of the example. Returns the examples left with no tag."""
         found = {}
         # An example's own label, with the footnote it is in: footnote 17 (ii), (12).
         label = re.compile(r"^((?:footnote \S+ )?\((?:\d+|[ivx]+))[a-z]?\) line")
@@ -1879,15 +1890,15 @@ class Paper(object):
             self.rows.append([where, who, type, form, gloss])
 
     def retain(self, row, lines=None):
-        """A row a person read off the page, its fields as they are, a row of four having no gloss,
-        and its form bound to lines where lines is given."""
+        """A row that a person read off the page, its fields as they are. A row of four has no gloss. Its form binds
+        to lines, where the caller gives lines."""
         if lines is not None:
             self.on(lines, row[3])
         self.rows.append(list(row))
 
     def write_oracle(self, header):
-        """Write the oracle of the rows retain() took, under header, with no ops file: the oracle is the
-        rows as they are, and check_papers.sh runs no finish over it."""
+        """Write the oracle of the rows that retain() took, under header, with no ops file. The oracle is the rows as
+        they are, and check_papers.sh runs no finish over it."""
         target = os.path.join(ORACLES, self.stem + ".oracle.tsv")
         with open(target, "w", encoding="utf-8", newline="\n") as handle:
             handle.write("\t".join(header) + "\n")
@@ -1914,8 +1925,8 @@ class Paper(object):
         return out
 
     def write(self):
-        """Write ops/<stem>.ops and say how many rows it adds. An ops file whose ops are unchanged is left
-        as it is, its stamp line included, and the closed corpus's inventory does not move."""
+        """Write ops/<stem>.ops and say how many rows it adds. An ops file whose ops do not change stays
+        as it is, its stamp line too, and the closed corpus's inventory does not move."""
         target = os.path.join(PRIVATE, "ops", self.stem + ".ops")
         body = "\n".join(self.ops()) + "\n"
         held = None
