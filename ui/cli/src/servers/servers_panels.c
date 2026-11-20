@@ -458,50 +458,38 @@ EMBED_INLINE int panels_hover_local_run(const PanelsCtx *args)
         {
             number[at] = first + at;
         }
-        const CarcerMovableEntry *const runs =
-            EMBED_CALL(cli_document_runs.runs_alloc, CliDocumentRunsCfg, .key = ask->key, .number = number,
-                       .count = count, .mirrored = 0, .owner = g_cli_servers_owner);
-        if (runs == NULL)
+        if (!EMBED_CALL(cli_document_runs.runs_walk, CliDocumentRunsCfg, .key = ask->key, .number = number,
+                        .count = count, .mirrored = 0))
         {
             break;
         }
-        CliDocumentRuns runs_head = {0u, 0u};
-        (void)g_cli_guard->movable_buf_read(
-            &(CarcerMovableCfg){.cell = runs, .dst = &runs_head, .bytes = sizeof(runs_head)});
         for (unsigned long long at = count; (at > 0ULL) && !ended; at -= 1ULL)
         {
             const unsigned long long line = first + at - 1ULL;
-            CliDocumentLineRuns one = {0u, 0u};
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-                .cell = runs, .offset = CLI_DOCUMENT_RUNS_LINE_AT(at - 1ULL), .dst = &one, .bytes = sizeof(one)});
-            const unsigned long long col_at =
-                (unsigned long long)runs_head.words_at + ((unsigned long long)one.at * sizeof(unsigned int));
-            const unsigned long long name_at = col_at + ((unsigned long long)one.runs * sizeof(unsigned int));
+            const unsigned int runs = EMBED_CALL(cli_document_line_run_table.count, CliDocumentLineRunCfg,
+                                                 .key = ask->key, .line = line, .mirrored = 0);
             unsigned long long units_count = 0ULL;
             (void)EMBED_CALL(cli_document_line.line_units, CliDocumentLineUnitsCfg, .key = ask->key, .line = line,
                              .count = &units_count);
-            for (unsigned int run = 0u; run < one.runs; run += 1u)
+            for (unsigned int run = 0u; run < runs; run += 1u)
             {
                 unsigned int name = 0u;
-                (void)g_cli_guard->movable_buf_read(
-                    &(CarcerMovableCfg){.cell = runs,
-                                        .offset = name_at + ((unsigned long long)run * sizeof(name)),
-                                        .dst = &name,
-                                        .bytes = sizeof(name)});
+                unsigned int bounds[2] = {0u, 0u};
+                (void)EMBED_CALL(cli_document_line_run_table.read, CliDocumentLineRunCfg, .key = ask->key, .line = line,
+                                 .mirrored = 0, .run = run, .column = &bounds[0], .name = &name);
                 ended = ended || ((name == head) && (line < ask->line));
                 const int is_parameter = name == parameter;
                 if (!is_parameter && (name != local))
                 {
                     continue;
                 }
-                unsigned int bounds[2] = {0u, 0u};
-                (void)g_cli_guard->movable_buf_read(
-                    &(CarcerMovableCfg){.cell = runs,
-                                        .offset = col_at + ((unsigned long long)run * sizeof(*bounds)),
-                                        .dst = bounds,
-                                        .bytes = (((run + 1u) < one.runs) ? 2u : 1u) * sizeof(*bounds)});
+                if ((run + 1u) < runs)
+                {
+                    (void)EMBED_CALL(cli_document_line_run_table.read, CliDocumentLineRunCfg, .key = ask->key,
+                                     .line = line, .mirrored = 0, .run = run + 1u, .column = &bounds[1]);
+                }
                 const unsigned long long from = bounds[0];
-                const unsigned long long to = ((run + 1u) < one.runs) ? bounds[1] : units_count;
+                const unsigned long long to = ((run + 1u) < runs) ? bounds[1] : units_count;
                 // a run longer than the word's bytes is not the word, as each unit is a byte of it at the least
                 if ((to > units_count) || (from >= to) || ((to - from) >= CLI_PANELS_WORD))
                 {
@@ -524,7 +512,6 @@ EMBED_INLINE int panels_hover_local_run(const PanelsCtx *args)
                 }
             }
         }
-        (void)g_cli_guard->movable_buf_release(runs, g_cli_servers_owner);
         end = first;
     }
     if (type == NULL)

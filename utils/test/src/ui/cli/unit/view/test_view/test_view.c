@@ -1239,13 +1239,8 @@ void test_the_frame_carries_the_head_lines_of_the_regions_the_top_line_is_in_as_
     TEST_ASSERT_EQUAL_UINT64(0ull, sticky->number);
     TEST_ASSERT_EQUAL_UINT64(8ull, sticky->length);
     TEST_ASSERT_EQUAL_MEMORY("int main", frame->bytes + sticky->text, 8u);
-    TEST_ASSERT_NOT_NULL(frame->runs);
-    CliDocumentLineRuns sticky_runs = {0u, 0u};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = frame->runs,
-                                                            .offset = CLI_DOCUMENT_RUNS_LINE_AT(frame->count),
-                                                            .dst = &sticky_runs,
-                                                            .bytes = sizeof(sticky_runs)});
-    TEST_ASSERT_TRUE(sticky_runs.runs > 0u);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_line_run_table.count, CliDocumentLineRunCfg, .key = frame->key,
+                                .line = sticky->number, .mirrored = 1) > 0u);
     cli_view_frame_release(&(CliViewAtCfg){.frame = frame});
 }
 

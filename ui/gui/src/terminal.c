@@ -667,26 +667,15 @@ EMBED_INLINE void terminal_view_draw(const TerminalCtx *args)
         const unsigned long long line = frame->row[y].number;
         const char *const text = frame->bytes + frame->row[y].text;
         const unsigned long long length = frame->row[y].length;
-        // A line's runs are in the frame's runs cell as its columns and then each run's token's place in the table,
-        // none where that cell could not be met. The line's entry is read once, and each run's column and name are
-        // read as the draw reaches it
-        CliDocumentLineRuns runs = {0u, 0u};
-        CliDocumentRuns runs_head = {0u, 0u};
-        if (frame->runs != NULL)
-        {
-            (void)g_cli_guard->movable_buf_read(
-                &(CarcerMovableCfg){.cell = frame->runs, .dst = &runs_head, .bytes = sizeof(runs_head)});
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-                .cell = frame->runs, .offset = CLI_DOCUMENT_RUNS_LINE_AT(y), .dst = &runs, .bytes = sizeof(runs)});
-        }
-        const unsigned long long columns_at =
-            (unsigned long long)runs_head.words_at + ((unsigned long long)runs.at * sizeof(unsigned int));
-        const unsigned long long names_at = columns_at + ((unsigned long long)runs.runs * sizeof(unsigned int));
+        // A line's runs are the document's: their count is read once, and each run's column and its token's place as
+        // the draw reaches it
+        const unsigned int runs = EMBED_CALL(cli_document_line_run_table.count, CliDocumentLineRunCfg,
+                                             .key = frame->key, .line = line, .mirrored = 1);
         unsigned int next_column = 0u;
-        if (runs.runs != 0u)
+        if (runs != 0u)
         {
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-                .cell = frame->runs, .offset = columns_at, .dst = &next_column, .bytes = sizeof(next_column)});
+            (void)EMBED_CALL(cli_document_line_run_table.read, CliDocumentLineRunCfg, .key = frame->key, .line = line,
+                             .mirrored = 1, .run = 0u, .column = &next_column);
         }
         const int on_chosen = selected && (line >= from.line) && (line <= to.line);
         const unsigned long long chosen_from = (line == from.line) ? from.col : 0ULL;
@@ -701,22 +690,16 @@ EMBED_INLINE void terminal_view_draw(const TerminalCtx *args)
         CliTerminalStyle style = {CLI_TERMINAL_COLOR_DEFAULT, CLI_TERMINAL_COLOR_DEFAULT, 0u};
         while ((at < length) && (x < displayed->columns))
         {
-            while ((next < runs.runs) && (units >= next_column))
+            while ((next < runs) && (units >= next_column))
             {
                 unsigned int name = 0u;
-                (void)g_cli_guard->movable_buf_read(
-                    &(CarcerMovableCfg){.cell = frame->runs,
-                                        .offset = names_at + ((unsigned long long)next * sizeof(name)),
-                                        .dst = &name,
-                                        .bytes = sizeof(name)});
+                (void)EMBED_CALL(cli_document_line_run_table.read, CliDocumentLineRunCfg, .key = frame->key,
+                                 .line = line, .mirrored = 1, .run = next, .name = &name);
                 unsigned int following = 0u;
-                if ((next + 1u) < runs.runs)
+                if ((next + 1u) < runs)
                 {
-                    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-                        .cell = frame->runs,
-                        .offset = columns_at + ((unsigned long long)(next + 1u) * sizeof(following)),
-                        .dst = &following,
-                        .bytes = sizeof(following)});
+                    (void)EMBED_CALL(cli_document_line_run_table.read, CliDocumentLineRunCfg, .key = frame->key,
+                                     .line = line, .mirrored = 1, .run = next + 1u, .column = &following);
                 }
                 // the run's token name read from the grammar store, cut to the 63 bytes its reading looks at
                 char token[CLI_NAME_MAX_LEN];
@@ -726,7 +709,7 @@ EMBED_INLINE void terminal_view_draw(const TerminalCtx *args)
                 const unsigned long long measured = mmgr_line_finish(&token_line);
                 const unsigned long long token_length = (measured < 63ULL) ? measured : 63ULL;
                 token[token_length] = '\0';
-                const unsigned long long run_end = ((next + 1u) < runs.runs) ? following : (units + (length - at));
+                const unsigned long long run_end = ((next + 1u) < runs) ? following : (units + (length - at));
                 const unsigned long long run_size = (run_end > units) ? (run_end - units) : 0ULL;
                 const unsigned long long within = (run_size < (length - at)) ? run_size : (length - at);
                 // a keyword is an escape sequence among the characters, a byte to each of its units: it takes no

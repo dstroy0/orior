@@ -226,7 +226,6 @@ typedef struct
     unsigned long long first_u64;
     unsigned long long last_u64;
     int mirrored;
-    const CarcerMovableEntry *runs_out;
     unsigned int roles;
     int renames;
     unsigned int names;
@@ -2581,125 +2580,135 @@ EMBED_INLINE unsigned long long branch_runs_walked(const DocumentBranchCtx *args
     return words;
 }
 
-// the words read at a time as a record's columns or names go from the text's runs cell into a runs cell
-#define CLI_DOC_RUNS_CHUNK 256u
-
-// `size_u64` words copied from the text's runs cell at the word `first_u64` into the runs cell `runs_out` at the byte
-// `last_u64`, a chunk at a time through this call's own array
-EMBED_INLINE void branch_runs_words_put(const DocumentBranchCtx *args)
-{
-    unsigned int chunk[CLI_DOC_RUNS_CHUNK];
-    unsigned long long done = 0ULL;
-    while (done < args->size_u64)
-    {
-        const unsigned long long left = args->size_u64 - done;
-        const unsigned long long step = (left < CLI_DOC_RUNS_CHUNK) ? left : CLI_DOC_RUNS_CHUNK;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->one_read->run,
-                                                                .offset = (args->first_u64 + done) * sizeof(*chunk),
-                                                                .dst = chunk,
-                                                                .bytes = step * sizeof(*chunk)});
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->runs_out,
-                                                                 .offset = args->last_u64 + (done * sizeof(*chunk)),
-                                                                 .src = chunk,
-                                                                 .bytes = step * sizeof(*chunk)});
-        done += step;
-    }
-}
-
-// The runs of the `capacity` lines `number` names put in the movable cell `runs_out`, each line's columns, then its
-// names, those at or past `columns` left off where it is not 0. Each record is read in the text's runs cell at its
-// place, and its words go across a chunk at a time
-EMBED_INLINE void branch_runs_put(const DocumentBranchCtx *args)
-{
-    const CliStoredText *const one = args->one_read;
-    const CliStoredLines *const lines = &one->lines;
-    const CarcerMovableEntry *const read = args->runs_out;
-    const unsigned long long words_at = CLI_DOCUMENT_RUNS_LINE_AT(args->capacity);
-    unsigned int used = 0u;
-    for (unsigned long long at = 0ULL; at < args->capacity; at += 1ULL)
-    {
-        CliDocumentLineRuns entry = {used, 0u};
-        const unsigned long long line = args->number[at];
-        unsigned int word_6 = 0u;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = lines->words,
-            .offset = (((unsigned long long)CLI_DOC_WORD_RUNS * lines->lines) + line) * sizeof(word_6),
-            .dst = &word_6,
-            .bytes = sizeof(word_6)});
-        const unsigned int place = (line < lines->lines) ? word_6 : CLI_DOC_NO_RUNS;
-        if (place != CLI_DOC_NO_RUNS)
-        {
-            unsigned int recorded = 0u;
-            (void)g_cli_guard->movable_buf_read(
-                &(CarcerMovableCfg){.cell = one->run,
-                                    .offset = (unsigned long long)place * sizeof(recorded),
-                                    .dst = &recorded,
-                                    .bytes = sizeof(recorded)});
-            const unsigned long long col_at = (unsigned long long)place + CLI_DOC_RECORD_HEAD;
-            unsigned int runs = recorded;
-            unsigned int last = 0u;
-            while ((args->columns != 0ULL) && (runs > 1u))
-            {
-                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = one->run,
-                                                                        .offset = (col_at + runs - 1u) * sizeof(last),
-                                                                        .dst = &last,
-                                                                        .bytes = sizeof(last)});
-                if (last < args->columns)
-                {
-                    break;
-                }
-                runs -= 1u;
-            }
-            EMBED_CALL(branch_runs_words_put, DocumentBranchCtx, .one_read = one, .runs_out = read, .first_u64 = col_at,
-                       .last_u64 = words_at + ((unsigned long long)used * sizeof(unsigned int)), .size_u64 = runs);
-            EMBED_CALL(branch_runs_words_put, DocumentBranchCtx, .one_read = one, .runs_out = read,
-                       .first_u64 = col_at + recorded,
-                       .last_u64 = words_at + ((unsigned long long)(used + runs) * sizeof(unsigned int)),
-                       .size_u64 = runs);
-            entry.runs = runs;
-            used += 2u * runs;
-        }
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
-            .cell = read, .offset = CLI_DOCUMENT_RUNS_LINE_AT(at), .src = &entry, .bytes = sizeof(entry)});
-    }
-}
-
-static const CarcerMovableEntry *runs_alloc_locked(const CliDocumentRunsCfg *args)
+static int runs_walk_locked(const CliDocumentRunsCfg *args)
 {
     CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
     if (one == NULL)
     {
-        return NULL;
+        return 0;
     }
     EMBED_CALL(cli_document_internal.holder_add, CliDocumentCtx, .one = one);
     one->refused =
         one->refused || (one->paged && !EMBED_CALL(cli_document_internal.paged_count, CliDocumentCtx, .one = one));
-    const unsigned long long columns = args->mirrored ? one->columns : 0ULL;
-    const unsigned long long words =
-        EMBED_CALL(branch_runs_walked, DocumentBranchCtx, .one = one, .number = args->number, .capacity = args->count,
-                   .columns = columns, .mirrored = args->mirrored);
-    // the runs of a frame in a movable cell sized to them: the head, a line's entry for each line, then the words
-    const unsigned long long words_at = CLI_DOCUMENT_RUNS_LINE_AT(args->count);
-    const CarcerMovableEntry *const read =
-        g_cli_guard->movable_buf_alloc(words_at + (words * sizeof(unsigned int)), args->owner);
-    if (read != NULL)
-    {
-        // the lines asked and the words' offset are inside the cell, whose size an unsigned int counts
-        const CliDocumentRuns head = {(unsigned int)args->count, (unsigned int)words_at};
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = read, .src = &head, .bytes = sizeof(head)});
-        EMBED_CALL(branch_runs_put, DocumentBranchCtx, .one_read = one, .runs_out = read, .number = args->number,
-                   .capacity = args->count, .columns = columns);
-    }
+    (void)EMBED_CALL(branch_runs_walked, DocumentBranchCtx, .one = one, .number = args->number, .capacity = args->count,
+                     .columns = args->mirrored ? one->columns : 0ULL, .mirrored = args->mirrored);
     EMBED_CALL(cli_document_internal.holder_end, CliDocumentCtx, .one = one);
-    return read;
+    return 1;
 }
 
-const CarcerMovableEntry *cli_document_runs_alloc(const CliDocumentRunsCfg *args)
+int cli_document_runs_walk(const CliDocumentRunsCfg *args)
 {
+    // the walk colors a bundle with the lock given back, so it starts and ends under the lock
     cli_document_lock_take();
-    const CarcerMovableEntry *const answer = runs_alloc_locked(args);
+    const int walked = runs_walk_locked(args);
     cli_document_lock_give();
-    return answer;
+    return walked;
+}
+
+// the place of the record of runs the line `line` saves in the text's runs cell: CLI_DOC_NO_RUNS where it saves none
+EMBED_INLINE unsigned int branch_runs_place(const DocumentBranchCtx *args)
+{
+    const CliStoredLines *const lines = &args->one_read->lines;
+    unsigned int place = CLI_DOC_NO_RUNS;
+    if (args->line < lines->lines)
+    {
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = lines->words,
+            .offset = (((unsigned long long)CLI_DOC_WORD_RUNS * lines->lines) + args->line) * sizeof(place),
+            .dst = &place,
+            .bytes = sizeof(place)});
+    }
+    return place;
+}
+
+// how many runs the record at `place` holds, those that start at or past `columns` left off where it is not 0
+EMBED_INLINE unsigned int branch_record_runs(const DocumentBranchCtx *args)
+{
+    const CliStoredText *const one = args->one_read;
+    unsigned int recorded = 0u;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = one->run,
+                            .offset = (unsigned long long)args->place * sizeof(recorded),
+                            .dst = &recorded,
+                            .bytes = sizeof(recorded)});
+    const unsigned long long col_at = (unsigned long long)args->place + CLI_DOC_RECORD_HEAD;
+    unsigned int runs = recorded;
+    unsigned int last = 0u;
+    while ((args->columns != 0ULL) && (runs > 1u))
+    {
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = one->run, .offset = (col_at + runs - 1u) * sizeof(last), .dst = &last, .bytes = sizeof(last)});
+        if (last < args->columns)
+        {
+            break;
+        }
+        runs -= 1u;
+    }
+    return runs;
+}
+
+// the line asked of the text `one_read`, its lines' count where it is past them: a line of a text is among the lines
+// it counts, which an unsigned int counts
+EMBED_INLINE unsigned int branch_line_asked(const DocumentBranchCtx *args)
+{
+    const unsigned int lines = args->one_read->lines.lines;
+    return (args->first_u64 < lines) ? (unsigned int)args->first_u64 : lines;
+}
+
+unsigned int cli_document_line_runs(const CliDocumentLineRunCfg *args)
+{
+    const CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
+    if (one == NULL)
+    {
+        return 0u;
+    }
+    const unsigned int place =
+        EMBED_CALL(branch_runs_place, DocumentBranchCtx, .one_read = one,
+                   .line = EMBED_CALL(branch_line_asked, DocumentBranchCtx, .one_read = one, .first_u64 = args->line));
+    return (place == CLI_DOC_NO_RUNS) ? 0u
+                                      : EMBED_CALL(branch_record_runs, DocumentBranchCtx, .one_read = one,
+                                                   .place = place, .columns = args->mirrored ? one->columns : 0ULL);
+}
+
+int cli_document_line_run(const CliDocumentLineRunCfg *args)
+{
+    const CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
+    if (one == NULL)
+    {
+        return 0;
+    }
+    const unsigned int place =
+        EMBED_CALL(branch_runs_place, DocumentBranchCtx, .one_read = one,
+                   .line = EMBED_CALL(branch_line_asked, DocumentBranchCtx, .one_read = one, .first_u64 = args->line));
+    if ((place == CLI_DOC_NO_RUNS) ||
+        (args->run >= EMBED_CALL(branch_record_runs, DocumentBranchCtx, .one_read = one, .place = place,
+                                 .columns = args->mirrored ? one->columns : 0ULL)))
+    {
+        return 0;
+    }
+    // a record holds its count, then its columns, then its names
+    unsigned int recorded = 0u;
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = one->run,
+                                                            .offset = (unsigned long long)place * sizeof(recorded),
+                                                            .dst = &recorded,
+                                                            .bytes = sizeof(recorded)});
+    const unsigned long long col_at = (unsigned long long)place + CLI_DOC_RECORD_HEAD;
+    if (args->column != NULL)
+    {
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = one->run,
+                                                                .offset = (col_at + args->run) * sizeof(unsigned int),
+                                                                .dst = args->column,
+                                                                .bytes = sizeof(unsigned int)});
+    }
+    if (args->name != NULL)
+    {
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = one->run,
+                                .offset = (col_at + recorded + args->run) * sizeof(unsigned int),
+                                .dst = args->name,
+                                .bytes = sizeof(unsigned int)});
+    }
+    return 1;
 }
 
 // the bars of the line a record saves positioned on the map: a run with a name a bar, the empty name a gap, and the gap

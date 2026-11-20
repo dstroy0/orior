@@ -237,35 +237,33 @@ int cli_document_file_put(const CliDocumentOutCfg *args);
 // outside them colored with no runs passed on: 1, or 0 where no text is stored under `key`. A text stored passes every
 // line's runs on until the page names the lines it mirrors (document_branch.c)
 int cli_document_cache(const CliDocumentKeyFromCfg *args);
-// Where a line's runs are among `word`, its columns then its names, and how many
-typedef struct
-{
-    unsigned int at;
-    unsigned int runs;
-} CliDocumentLineRuns;
-// The head of the runs of some lines off what the walk saved, at the start of their movable cell: how many lines it
-// holds, and the offset in the cell of its words. After the head comes a CliDocumentLineRuns for each line asked, then
-// the words, each an unsigned int, a line's columns then its names
-typedef struct
-{
-    unsigned int lines;
-    unsigned int words_at;
-} CliDocumentRuns;
-// the offset in the runs' cell of the line `line`'s CliDocumentLineRuns
-#define CLI_DOCUMENT_RUNS_LINE_AT(line)                                                                                \
-    (sizeof(CliDocumentRuns) + ((unsigned long long)(line) * sizeof(CliDocumentLineRuns)))
-// the `count` lines at `number`, in order, of the text under `key` walked where they save no runs that are, and their
-// runs in a movable cell of `owner`, sized to them, given back with movable_buf_release; `mirrored` as
-// cli_document_runs_write reads it: the cell, or NULL where no text is stored under the key or the cells cannot meet it
+// the `count` lines at `number`, in order, of the text under `key` walked where they save no runs yet, and the lines a
+// mirrored view shows recorded where `mirrored` is 1: 1, or 0 where no text is stored under the key (document_branch.c)
 typedef struct
 {
     const char *key;
     const unsigned long long *number;
     unsigned long long count;
     int mirrored;
-    const CellOwner *owner;
 } CliDocumentRunsCfg;
-const CarcerMovableEntry *cli_document_runs_alloc(const CliDocumentRunsCfg *args);
+int cli_document_runs_walk(const CliDocumentRunsCfg *args);
+// A read of the runs the document saves for the line `line` of the text under `key`. Where `mirrored` is 1, the line's
+// runs end at the columns its mirrored view shows. `run` is a run of the line, `column` takes its first column, and
+// `name` takes its name's place among the names the text's tokens take
+typedef struct
+{
+    const char *key;
+    unsigned long long line;
+    int mirrored;
+    unsigned int run;
+    unsigned int *column;
+    unsigned int *name;
+} CliDocumentLineRunCfg;
+// how many runs the line saves: 0 where it saves none or no text is stored under `key` (document_branch.c)
+unsigned int cli_document_line_runs(const CliDocumentLineRunCfg *args);
+// the run `run`'s column and name written where each is not NULL: 1, or 0 where the line saves no run `run`
+// (document_branch.c)
+int cli_document_line_run(const CliDocumentLineRunCfg *args);
 // One bar of the minimap, a run the grammar names: its first cell, its width in cells and its name
 typedef struct
 {
@@ -734,11 +732,22 @@ EMBED_TABLE_STORAGE CliDocumentNamesNs cli_document_names EMBED_UNUSED = {
 
 typedef struct
 {
-    const CarcerMovableEntry *(*runs_alloc)(const CliDocumentRunsCfg *args);
+    int (*runs_walk)(const CliDocumentRunsCfg *args);
 } CliDocumentRunsNs;
-EMBED_TABLE_LAYOUT(CliDocumentRunsNs, runs_alloc);
+EMBED_TABLE_LAYOUT(CliDocumentRunsNs, runs_walk);
 EMBED_TABLE_STORAGE CliDocumentRunsNs cli_document_runs EMBED_UNUSED = {
-    .runs_alloc = cli_document_runs_alloc,
+    .runs_walk = cli_document_runs_walk,
+};
+
+typedef struct
+{
+    unsigned int (*count)(const CliDocumentLineRunCfg *args);
+    int (*read)(const CliDocumentLineRunCfg *args);
+} CliDocumentLineRunNs;
+EMBED_TABLE_LAYOUT(CliDocumentLineRunNs, count, read);
+EMBED_TABLE_STORAGE CliDocumentLineRunNs cli_document_line_run_table EMBED_UNUSED = {
+    .count = cli_document_line_runs,
+    .read = cli_document_line_run,
 };
 
 typedef struct

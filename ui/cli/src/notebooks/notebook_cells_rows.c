@@ -556,45 +556,22 @@ int cli_notebook_model_frame_alloc(const CliNotebookCellsFrameCfg *args)
         bytes += (part[at].lines != NULL) ? part[at].size : 0ULL;
     }
     bytes += (unsigned long long)count * ROWS_SENTENCE;
-    const unsigned long long head = sizeof(CliNotebookFrame) +
-                                    ((unsigned long long)count * sizeof(CliNotebookFrameRow)) +
-                                    ((unsigned long long)parts * sizeof(CliNotebookFramePart));
+    const unsigned long long head =
+        sizeof(CliNotebookFrame) + ((unsigned long long)count * sizeof(CliNotebookFrameRow));
     // the frame is the caller's for one call, released as the caller ends with it
     unsigned char *const cell = g_cli_guard->temporary_buf_alloc(head + bytes + 1ULL, g_cli_notebook_open_owner);
     CliNotebookFrame *const frame = (CliNotebookFrame *)(void *)cell;
     if (frame != NULL)
     {
-        *frame = (CliNotebookFrame){
-            model->top,
-            count,
-            total,
-            model->focused,
-            parts,
-            (CliNotebookFrameRow *)(void *)(cell + sizeof(CliNotebookFrame)),
-            (CliNotebookFramePart *)(void *)(cell + sizeof(CliNotebookFrame) +
-                                             ((unsigned long long)count * sizeof(CliNotebookFrameRow))),
-            (char *)(cell + head),
-            NULL};
+        *frame = (CliNotebookFrame){model->top,
+                                    count,
+                                    total,
+                                    model->focused,
+                                    (CliNotebookFrameRow *)(void *)(cell + sizeof(CliNotebookFrame)),
+                                    (char *)(cell + head),
+                                    NULL};
     }
     VerbaLinea positioned = {(frame != NULL) ? frame->bytes : NULL, bytes + 1ULL, 0ULL};
-    for (unsigned int at = 0u; (frame != NULL) && (at < parts); at += 1u)
-    {
-        char key[CLI_PATH_MAX_LEN + CLI_NOTEBOOK_KEY_MORE];
-        EMBED_CALL(cli_notebook_model_internal.key, CliNotebookModelCtx, .model = model, .cell = part[at].cell,
-                   .output = part[at].output, .out = key);
-        const unsigned long long lines = part[at].last - part[at].first + 1ULL;
-        unsigned long long *const number =
-            g_cli_guard->temporary_buf_alloc(lines * sizeof(unsigned long long), g_cli_notebook_open_owner);
-        for (unsigned long long line = 0ULL; (number != NULL) && (line < lines); line += 1ULL)
-        {
-            number[line] = part[at].first + line;
-        }
-        frame->part[at].runs = (number != NULL) ? EMBED_CALL(cli_document_runs.runs_alloc, CliDocumentRunsCfg,
-                                                             .key = key, .number = number, .count = lines,
-                                                             .mirrored = 0, .owner = g_cli_notebook_open_owner)
-                                                : NULL;
-        g_cli_guard->persistent_buf_release(number, g_cli_notebook_open_owner);
-    }
     // each row's text, the next line of its part's lines, or its part's lines whole, and its sentence
     for (unsigned int at = 0u; (frame != NULL) && (at < count); at += 1u)
     {
@@ -650,10 +627,6 @@ void cli_notebook_model_frame_release(const CliNotebookCellsFrameCfg *args)
     if (frame == NULL)
     {
         return;
-    }
-    for (unsigned int at = 0u; at < frame->parts; at += 1u)
-    {
-        (void)g_cli_guard->movable_buf_release(frame->part[at].runs, g_cli_notebook_open_owner);
     }
     if (frame->view != NULL)
     {

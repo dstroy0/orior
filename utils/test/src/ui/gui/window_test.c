@@ -551,13 +551,10 @@ static void cells_rounds_checked(void)
 static unsigned int row_runs(unsigned int row)
 {
     const CliViewFrame *const frame = s_window.editor.frame;
-    CliDocumentLineRuns one = {0u, 0u};
-    if ((frame != NULL) && (frame->runs != NULL) && (row < frame->count))
-    {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = frame->runs, .offset = CLI_DOCUMENT_RUNS_LINE_AT(row), .dst = &one, .bytes = sizeof(one)});
-    }
-    return one.runs;
+    return ((frame != NULL) && (row < frame->count))
+               ? EMBED_CALL(cli_document_line_run_table.count, CliDocumentLineRunCfg, .key = frame->key,
+                            .line = frame->row[row].number, .mirrored = 1)
+               : 0u;
 }
 
 // the window stepped until the row `row` has runs or `milliseconds` pass: its runs
@@ -610,23 +607,11 @@ static unsigned int row_runs_copied(unsigned int row, unsigned int *words, unsig
     {
         return 0u;
     }
-    CliDocumentRuns head = {0u, 0u};
-    CliDocumentLineRuns line = {0u, 0u};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = frame->runs, .dst = &head, .bytes = sizeof(head)});
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-        .cell = frame->runs, .offset = CLI_DOCUMENT_RUNS_LINE_AT(row), .dst = &line, .bytes = sizeof(line)});
-    const unsigned long long columns_at =
-        (unsigned long long)head.words_at + ((unsigned long long)line.at * sizeof(*words));
     for (unsigned int at = 0u; at < runs; at += 1u)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = frame->runs,
-                                                                .offset = columns_at + (at * sizeof(*words)),
-                                                                .dst = &words[2u * at],
-                                                                .bytes = sizeof(*words)});
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = frame->runs,
-                                                                .offset = columns_at + ((runs + at) * sizeof(*words)),
-                                                                .dst = &words[(2u * at) + 1u],
-                                                                .bytes = sizeof(*words)});
+        (void)EMBED_CALL(cli_document_line_run_table.read, CliDocumentLineRunCfg, .key = frame->key,
+                         .line = frame->row[row].number, .mirrored = 1, .run = at, .column = &words[2u * at],
+                         .name = &words[(2u * at) + 1u]);
     }
     return runs;
 }

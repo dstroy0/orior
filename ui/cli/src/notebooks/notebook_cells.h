@@ -103,25 +103,16 @@ typedef struct
     unsigned int part_line;
 } CliNotebookFrameRow;
 
-// A run of rows positioned from the lines of one text: their runs, as the walk saved them, in a cell of the open
-// notebooks' owner, NULL where the text is not colored
-typedef struct
-{
-    const CarcerMovableEntry *runs;
-} CliNotebookFramePart;
-
 // A notebook's frame, every count and pointer the window draws from, immutable once positioned: the model's top row,
 // the rows positioned from it, the rows of the notebook, the cell being edited, CLI_NOTEBOOK_NONE for none, and its
-// view's frame, NULL for none; the rows; the parts; and the bytes the rows' texts and sentences are in
+// view's frame, NULL for none; the rows; and the bytes the rows' texts and sentences are in
 typedef struct
 {
     unsigned long long top;
     unsigned int count;
     unsigned int rows;
     unsigned int focused;
-    unsigned int parts;
     CliNotebookFrameRow *row;
-    CliNotebookFramePart *part;
     char *bytes;
     CliViewFrame *view;
 } CliNotebookFrame;

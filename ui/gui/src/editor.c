@@ -524,25 +524,15 @@ EMBED_INLINE void editor_line_draw(const EditorCtx *args)
     const char *const text = frame->bytes + args->line_line_pointer->text;
     // a tab stops at the columns the view's indentation sets, as the CLI positions them
     const unsigned long long tab = (frame->indent_size != 0u) ? frame->indent_size : GUI_TAB_COLUMNS;
-    // A line's runs are in the frame's runs cell as its columns and then its names, none where that cell could not be
-    // met. The line's entry is read once, and each run's column and name are read as the draw reaches it
-    CliDocumentLineRuns runs = {0u, 0u};
-    CliDocumentRuns runs_head = {0u, 0u};
-    if (frame->runs != NULL)
-    {
-        (void)g_cli_guard->movable_buf_read(
-            &(CarcerMovableCfg){.cell = frame->runs, .dst = &runs_head, .bytes = sizeof(runs_head)});
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = frame->runs, .offset = CLI_DOCUMENT_RUNS_LINE_AT(args->at), .dst = &runs, .bytes = sizeof(runs)});
-    }
-    const unsigned long long columns_at =
-        (unsigned long long)runs_head.words_at + ((unsigned long long)runs.at * sizeof(unsigned int));
-    const unsigned long long names_at = columns_at + ((unsigned long long)runs.runs * sizeof(unsigned int));
+    // A line's runs are the document's: their count is read once, and each run's column and name as the draw reaches it
+    const unsigned long long line_number = args->line_line_pointer->number;
+    const unsigned int runs = EMBED_CALL(cli_document_line_run_table.count, CliDocumentLineRunCfg, .key = frame->key,
+                                         .line = line_number, .mirrored = 1);
     unsigned int next_column = 0u;
-    if (runs.runs != 0u)
+    if (runs != 0u)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = frame->runs, .offset = columns_at, .dst = &next_column, .bytes = sizeof(next_column)});
+        (void)EMBED_CALL(cli_document_line_run_table.read, CliDocumentLineRunCfg, .key = frame->key,
+                         .line = line_number, .mirrored = 1, .run = 0u, .column = &next_column);
     }
     unsigned long long at = 0ULL;
     unsigned long long units = 0ULL;
@@ -586,24 +576,18 @@ EMBED_INLINE void editor_line_draw(const EditorCtx *args)
     }
     while (at < args->line_line_pointer->length)
     {
-        while ((next < runs.runs) && (units >= next_column))
+        while ((next < runs) && (units >= next_column))
         {
             unsigned int name = 0u;
-            (void)g_cli_guard->movable_buf_read(
-                &(CarcerMovableCfg){.cell = frame->runs,
-                                    .offset = names_at + ((unsigned long long)next * sizeof(name)),
-                                    .dst = &name,
-                                    .bytes = sizeof(name)});
+            (void)EMBED_CALL(cli_document_line_run_table.read, CliDocumentLineRunCfg, .key = frame->key,
+                             .line = line_number, .mirrored = 1, .run = next, .name = &name);
             color = EMBED_CALL(gui_editor_palette.color, GuiEditorPaletteCfg, .editor_read = editor, .palette = palette,
                                .name = name);
             next += 1u;
-            if (next < runs.runs)
+            if (next < runs)
             {
-                (void)g_cli_guard->movable_buf_read(
-                    &(CarcerMovableCfg){.cell = frame->runs,
-                                        .offset = columns_at + ((unsigned long long)next * sizeof(next_column)),
-                                        .dst = &next_column,
-                                        .bytes = sizeof(next_column)});
+                (void)EMBED_CALL(cli_document_line_run_table.read, CliDocumentLineRunCfg, .key = frame->key,
+                                 .line = line_number, .mirrored = 1, .run = next, .column = &next_column);
             }
         }
         unsigned long long consumed = 0ULL;
