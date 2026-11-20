@@ -97,15 +97,15 @@ void gui_tip_draw(const GuiTipRasterCfg *args)
                                               .glyphs = args->glyphs, .face = GUI_FACE_HEAD, .size = size,
                                               .text = tip->keys, .length = keys_length)
                                  : 0.0f;
-    // the widths are pixels, a few hundred at max, so the sum rounds up into an int
+    // the widths are pixels, a few hundred at max. The sum thus rounds up into an int
     const int text_width = (int)(label_width + ((keys_length != 0ULL) ? ((float)gap + keys_width) : 0.0f) + 0.5f);
     const int line = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PANEL_TEXT_LINE, .scale = scale);
     const int pixel_width = text_width + (2 * pad_x);
     const int pixel_height = line + (2 * pad_y);
     if (tip->beside)
     {
-        // the box at the button's right, off it by its own distance, centred on the button's row, and held inside the
-        // bounds: at the button's left where the right has no room
+        // the box at the right of the button, off it by its own distance, and centered on the row of the button. It
+        // stays inside the bounds. It goes at the left of the button where the right has no room
         int x = tip->anchor.x + tip->anchor.width + off;
         if (x + pixel_width > args->bounds.x + args->bounds.width)
         {
@@ -120,8 +120,8 @@ void gui_tip_draw(const GuiTipRasterCfg *args)
     }
     else
     {
-        // the box is off the button by its own distance, so the anchor it is placed under grows by that less the
-        // panel's own offset, and centres on the button by backing up half the width the box has over it
+        // the box is off the button by its own distance. The anchor that it sits under thus grows by that, less the own
+        // offset of the panel. It centers on the button by a step back of half the width that the box has over it
         const GuiRect anchor = {tip->anchor.x, tip->anchor.y - (off - GUI_PANEL_OFF), tip->anchor.width,
                                 tip->anchor.height + (2 * (off - GUI_PANEL_OFF))};
         tip->rect = EMBED_CALL(gui_panel_width.place, GuiPanelWidthCfg, .anchor = anchor, .pixel_width = pixel_width,
