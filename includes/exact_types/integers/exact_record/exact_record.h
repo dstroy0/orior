@@ -5,18 +5,20 @@
 
 #include "../../../../src/cu/engine/engine.h"
 
-// The exact integer's arithmetic on the device, as steps of a record program. A program is built here on the host and
-// every value it names is a register the device allocates for a lane: each call writes the steps of one operation and
-// returns the step that contains its result. Nothing here computes a lane's value on the host; the host arranges
-// constants, fields and tables.
+// The arithmetic of the exact integer on the device, as steps of a record program. The host builds a program here. Each
+// value that it names is a register that the device allocates for a lane.
+// Each call writes the steps of one operation and returns the step that holds its result. Nothing here computes the
+// value of a lane on the host. The host arranges constants, fields and tables.
 //
-// Every value is exact. A quotient rounds toward zero, and down and up give the integers below and above it whatever
-// the signs, the outward pair a stored value is read through. A register's width is the bound keymath finds at imprint;
-// wrap and narrow give a value its own width where the caller knows the bound.
+// Each value is exact. A quotient rounds toward zero. Down and up give the integers below and above it, whatever the
+// signs: the outward pair that a read of a stored value goes through.
+// The width of a register is the bound that keymath finds at imprint. Wrap and narrow give a value its own width where
+// the caller knows the bound.
 //
-// A step whose operands are all constants the program knows, each below 2^62 in size, is the constant it gives: the
-// program writes that constant and no step for the operation, and a sum with 0, a product with 1 or 0 and a quotient
-// by 1 give their other operand or 0. A value every lane shares alike, an exponent the program sets, costs no step.
+// A step whose operands are all known constants, each below 2^62 in size, is the constant that it gives. The program
+// writes that constant and no step for the operation.
+// A sum with 0, a product with 1 or 0 and a quotient by 1 give their other operand or 0. A value that each lane shares
+// alike, such as an exponent that the program sets, costs no step.
 
 #ifdef __cplusplus
 extern "C"
@@ -42,7 +44,7 @@ extern "C"
         // each step's value where the program knows it, a constant below 2^62 in size, and 1 there in `known`
         long long *values;
         unsigned char *known;
-        // 1 where a step, field or table could not be allocated; every later call then writes nothing and returns 0
+        // 1 where the allocation of a step, field or table failed. Each later call then writes nothing and returns 0
         int failed;
     } ExactRecordProgram;
 
@@ -143,7 +145,7 @@ extern "C"
 
     // ---- tables and powers ----
 
-    // a table of 2^index_bits rows, each out_bits wide, rows of (out_bits + 31) / 32 limbs; the values are copied.
+    // a table of 2^index_bits rows, each out_bits wide, rows of (out_bits + 31) / 32 limbs. The call copies the values.
     // Returns the table's number, the right of its ENGINE_RECORD_TABLE step
     unsigned int exact_record_table(ExactRecordProgram *program, unsigned int index_bits, unsigned int out_bits,
                                     const unsigned int *values);
@@ -151,20 +153,20 @@ extern "C"
     // the row the low index_bits of `index` select
     unsigned int exact_record_lookup(ExactRecordProgram *program, unsigned int index, unsigned int table);
 
-    // base^exponent, both registers, the exponent known in [0, 2^exponent_bits): square and multiply over the
-    // exponent's bits from the top, each bit read by a quotient by its power of two
+    // base^exponent, both registers, with the exponent known in [0, 2^exponent_bits). It is square and multiply over the
+    // bits of the exponent from the top. A quotient by its power of two reads each bit
     unsigned int exact_record_power(ExactRecordProgram *program, unsigned int base, unsigned int exponent,
                                     unsigned int exponent_bits);
 
-    // base^exponent for a constant base, the exponent a register known in [0, 2^exponent_bits): from the exponent's
-    // top nibble down, the power is raised to the 16th by four squares and multiplied by base^(the nibble) from a
-    // table of base^v, v below 16. With base 2 it is the lane's own power of two
+    // base^exponent for a constant base, with the exponent a register known in [0, 2^exponent_bits). From the top
+    // nibble of the exponent down, four squares raise the power to the 16th. Then it multiplies by base^(the nibble)
+    // from a table of base^v, v below 16. With base 2 it is the own power of two of the lane
     unsigned int exact_record_power_of(ExactRecordProgram *program, unsigned long long base, unsigned int exponent,
                                        unsigned int exponent_bits);
 
-    // 2^exponent, the exponent a register known in [0, 2^exponent_bits): the product over its bits j of 2^(2^j) where
-    // bit j is set, its register 2^exponent_bits and twice exponent_bits bits wide at max, where power_of's table
-    // rows make it wider
+    // 2^exponent, with the exponent a register known in [0, 2^exponent_bits). It is the product over its bits j of
+    // 2^(2^j) where bit j is 1. Its register is 2^exponent_bits and twice exponent_bits bits wide at max, where the
+    // table rows of power_of make it wider
     unsigned int exact_record_two_to(ExactRecordProgram *program, unsigned int exponent, unsigned int exponent_bits);
 
     // ---- widths ----
