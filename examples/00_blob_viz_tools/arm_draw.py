@@ -2,61 +2,51 @@
 
     python examples/00_blob_viz_tools/arm_draw.py --check
 
-WHAT IS BEING TESTED
+WHAT THIS TESTS
 
-`theory/workbooks/orior/arm-records.md` states that an arm is identified by its topology together with its weight, and
-that a shape is one realization of that. If the claim holds, then redrawing an arm as a different
-shape carrying the same topology and the same weight leaves every character of the reading unchanged. A
-reading that moves under such a redraw depends on how the arm was drawn, and that is a defect in the
-reading.
+`theory/workbooks/orior/arm-records.md` states that the topology of an arm and its weight together identify it, and that
+a shape is one realization of that. Take a redraw of an arm as a different shape, with the same topology and the same
+weight. If the claim holds, that redraw leaves every character of the reading unchanged. A reading that moves under such
+a redraw depends on the drawing of the arm, and that is a defect in the reading.
 
-That makes it a null in the sense `null_harness` uses: a move that cannot change the answer, whose
-measured residual is the reading's own grain. This module holds the drawings and measures the
-residual. `null_harness` imports the measurement and reports the floor beside the others.
+That makes it a null in the sense that `null_harness` uses: a move that cannot change the answer, whose measured
+residual is the reading's own grain. This module holds the drawings, and measures the residual. `null_harness` imports
+the measurement, and reports the floor beside the others.
 
 THE ARM SET
 
-Eight sign octants and one graded arm, the graded one carrying the height coordinate as its weight.
-That weight is the degree one harmonic's own pattern. Eight indicator arms alone would leave the
-graded row of the record's three-types table untested, and two of the drawings below behave
-differently on integer weights than on real ones.
+Eight sign octants and one graded arm, which carries the height coordinate as its weight. That weight is the own pattern
+of the degree one harmonic. Eight indicator arms alone would leave the graded row of the three-types table of the record
+untested. Two of the drawings below also behave differently on integer weights than on real ones.
 
 THE DRAWINGS
+  - `reference`: the sign of each coordinate, tested directly. The test compares every other drawing against this one.
+  - `point cloud`: no shape at all. The weights go out per placement point, through a text round trip, the way a stored
+    record would go.
+  - `rotated frame`: the same arms stated in a rotated frame, with the frame carried through the query. It is the same
+    region in mathematics, reached by different arithmetic.
+  - `recombination`: the character of each octant built as a difference of two other arms, and not read. It applies to
+    the eight indicators, where containment holds.
+  - `dwell on a line`: the support is the golden spiral taken as a curve. The dwell along it is the arm's weight at that
+    place on the curve, and the sampling rule is incidence at integer parameter. A one-dimensional arm reads a
+    three-dimensional object.
 
-    reference        the sign of each coordinate, tested directly. Every other drawing is compared
-                     against this one.
-    point cloud      no shape at all. The weights are written out per placement point, taken
-                     through a text round trip the way a stored record would be.
-    rotated frame    the same arms stated in a rotated frame, with the frame carried through the
-                     query. Mathematically the same region, reached by different arithmetic.
-    recombination    each octant's character built as a difference of two other arms instead of being
-                     read. Applies to the eight indicators, where containment holds.
-    dwell on a line  the support is the golden spiral taken as a curve, the dwell along it is the
-                     arm's weight at that place on the curve, and the sampling rule is incidence at
-                     integer parameter. A one-dimensional arm reading a three-dimensional object.
-
-The curve in the last drawing is written with different arithmetic from `golden_place`, since two
-calls to one piece of code agree for reasons that have nothing to do with the claim under test.
+The curve in the last drawing uses different arithmetic from `golden_place`. Two calls to one piece of code agree for
+reasons that have nothing to do with the claim under test.
 
 THE DRAWINGS THAT ARE NOT REDRAWS
 
-Four faults are retained here and declared as redraws, and a measurement that fails to catch them is not
-measuring anything. Each is an implementation somebody would write, and none was invented to be
-easy.
-
-    orientation dropped   the arms stated in a rotated frame while the object is read in the
-                          original one. This is the fault the required orientation field exists to
-                          prevent.
-    normalized by the arm the character divided by the arm's own weight total instead of by the lit
-                          count. That computes what fraction of the arm is lit, instead of what
-                          fraction of the lit set is in the arm. Both sound reasonable. A line arm
-                          and a body arm disagree under it, and a change of dimension leaks into a
-                          character that way.
-    face nudged           one face moved just far enough that a single lit point changes arm. The
-                          smallest change of topology available.
-    record shortened      the stored record written at six significant figures. Harmless on
-                          indicator weights and not harmless on graded ones. The graded arm sits
-                          in the set for this reason.
+This file keeps four faults here, and declares them as redraws. A measurement that fails to catch them measures nothing.
+Each is an implementation that somebody would write, and none of them is easy by design.
+  - `orientation dropped`: the arms stated in a rotated frame, while the code reads the object in the original one. The
+    required orientation field exists to prevent this fault.
+  - `normalized by the arm`: the character divided by the arm's own weight total, and not by the lit count. That
+    computes what fraction of the arm is lit, and not what fraction of the lit set is in the arm. Both sound reasonable.
+    A line arm and a body arm disagree under it, and a change of dimension leaks into a character that way.
+  - `face nudged`: one face moved just far enough that a single lit point changes arm. That is the smallest change of
+    topology available.
+  - `record shortened`: the stored record written at six significant figures. That is harmless on indicator weights, and
+    not harmless on graded ones. The graded arm sits in the set for this reason.
 """
 
 import math
@@ -70,8 +60,8 @@ import boundary_read
 
 TAU = 2.0 * math.pi
 
-# The frame the rotated drawing is stated in. Two turns about different axes, at angles with no
-# relation to the placement. No coordinate is spared the arithmetic.
+# The frame of the rotated drawing. Two turns about different axes, at angles with no relation to the placement. Every
+# coordinate goes through the arithmetic.
 FRAME_DOWN, FRAME_AROUND = 0.7853981633974483, 1.2566370614359172
 
 
@@ -103,7 +93,7 @@ def applied(matrix, vector):
 
 
 def a_frame():
-    """The rotation taking arm frame coordinates to world coordinates."""
+    """The rotation that takes arm frame coordinates to world coordinates."""
     return composed(turn_about_y(FRAME_AROUND), turn_about_x(FRAME_DOWN))
 
 
@@ -115,12 +105,12 @@ IDENTITY = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
 # -------------------------------------------------------------------------------------------------
 
 class Arm(object):
-    """A region a reading takes one character from.
+    """A region that a reading takes one character from.
 
-    `weight` holds a real value per placement point. `origin` and `orientation` are required because
-    recombination needs the overlap structure. `extent` and `sampling` are retained when a shape is how
-    the arm was stated, and `sampling` carries the rule taking that shape onto the placement, since
-    two arms with the same support and different sampling rules are two different arms.
+    `weight` holds a real value per placement point. A record must carry `origin` and `orientation`, because
+    recombination needs the overlap structure. `extent` and `sampling` stay when a shape is how the arm came in.
+    `sampling` carries the rule that takes that shape onto the placement, because two arms with the same support and
+    different sampling rules are two different arms.
     """
 
     __slots__ = ("name", "origin", "orientation", "weight", "extent", "sampling")
@@ -153,9 +143,9 @@ def worst_character_gap(before, after):
 def worst_weight_gap(before, after):
     """What the claim is actually about: the arm itself, point by point.
 
-    Characters are sums, and a sum hides a pair of moves that cancel inside it. Two points swapping
-    arms leaves both characters where they were while the arms are no longer the arms. Comparing the
-    weights directly cannot be fooled that way, and it costs one pass.
+    Characters are sums, and a sum hides a pair of moves that cancel inside it. Two points that swap arms leave both
+    characters where they were, while the arms are no longer the arms. A direct comparison of the weights cannot fall
+    for that, and it costs one pass.
     """
     worst = 0.0
     for one, two in zip(before, after):
@@ -212,8 +202,8 @@ def by_sign_test(points):
 def by_point_cloud(points, digits=17):
     """No shape. The weights written out per point and read back, the way a stored record would be.
 
-    `digits` is how the record is written. Seventeen significant figures round trip a double
-    exactly. Fewer does not, and the fault list uses that.
+    `digits` is how the code writes the record. Seventeen significant figures round trip a double exactly. Fewer do not,
+    and the fault list uses that.
     """
     out = []
     for one in by_sign_test(points):
@@ -226,13 +216,12 @@ def by_point_cloud(points, digits=17):
 def by_rotated_frame(points, carry_the_frame=True):
     """The same arms stated in a rotated frame.
 
-    The three faces of an octant are half spaces through the origin. Expressing each face normal in
-    the arm's frame and the query point in the same frame leaves every dot product mathematically
-    where it was, since a rotation preserves them, and moves it in the last bits. The graded arm
-    carries its axis through the same frame.
+    The three faces of an octant are half spaces through the origin. The code expresses each face normal in the arm's
+    frame, and the query point in the same frame. That leaves every dot product where it was in mathematics, because a
+    rotation preserves them, and moves it in the last bits. The graded arm carries its axis through the same frame.
 
-    With `carry_the_frame` off, the normals move and the query does not. That is the fault the
-    orientation field exists to prevent, and it is retained here to be caught.
+    With `carry_the_frame` off, the normals move and the query does not. The orientation field exists to prevent that
+    fault, and this file keeps it here for the test to catch.
     """
     frame = a_frame()
     back = transposed(frame)
@@ -273,9 +262,9 @@ def spiral_at(parameter, count):
 def by_dwell_on_a_line(points):
     """A one-dimensional support, sampled onto the placement by incidence at integer parameter.
 
-    The arm is a line with a particle on it. The support is the golden spiral taken as a curve, the
-    dwell at each place along it is the arm's weight there, and the sampling rule states how the
-    dwell reaches the placement. Nothing about this arm has the dimension of the object it reads.
+    The arm is a line with a particle on it. The support is the golden spiral taken as a curve. The dwell at each place
+    along it is the arm's weight there, and the sampling rule states how the dwell reaches the placement. Nothing about
+    this arm has the dimension of the object that it reads.
     """
     count = len(points)
     weights = [[0.0] * count for _ in range(8)]
@@ -294,14 +283,14 @@ def by_dwell_on_a_line(points):
 
 
 def by_recombination(points, live):
-    """Each octant's character built as a difference of two arms instead of read from one.
+    """The character of each octant built as a difference of two arms, and not read from one.
 
-    Where arm A contains arm B, the character of A minus the character of B is the character of A without B.
-    Octant `q` and its sibling `q ^ 1` differ in the sign of the last coordinate alone, and together
-    they are the arm holding both. So the character of `q` comes back as the character of the pair minus
-    the character of the sibling, from two arms neither of which is `q`.
+    Where arm A contains arm B, the character of A minus the character of B is the character of A without B. Octant `q`
+    and its sibling `q ^ 1` differ in the sign of the last coordinate alone, and together they are the arm that holds
+    both. The character of `q` therefore comes back as the character of the pair less the character of the sibling, from
+    two arms neither of which is `q`.
 
-    This returns characters and not arms, since the point of it is that no arm for `q` is measured.
+    This returns characters and not arms, because the point of it is that no arm for `q` gets a measurement.
     """
     plain = by_sign_test(points)
     count = len(points)
@@ -336,9 +325,9 @@ def smallest_lit_face_gap(points, live):
 def by_nudged_face(points, live):
     """One face moved just far enough that a single lit point changes arm.
 
-    The first face sits at zero and the test admits a point at zero or above. Moving the face to the
-    smallest lit first coordinate and admitting only points strictly beyond it takes that single
-    point across and leaves every other point where it was.
+    The first face sits at zero, and the test admits a point at zero or above. A move of the face to the smallest lit
+    first coordinate, with only points strictly beyond it admitted, takes that single point across. It leaves every
+    other point where it was.
     """
     edge = smallest_lit_face_gap(points, live)
     count = len(points)
@@ -353,18 +342,17 @@ def by_nudged_face(points, live):
 
 
 # -------------------------------------------------------------------------------------------------
-# The pre-check, which decides what a clean residual is allowed to mean.
+# The pre-check, which decides what a clean residual may mean.
 # -------------------------------------------------------------------------------------------------
 
 def face_clearance(points):
     """The nearest approach of any placement point to any arm face, and where it happens.
 
-    A sign octant's three faces are the coordinate planes. A point's distance to the nearest of them
-    is therefore the smallest of its three coordinates in absolute value. Comparing that against the
-    arithmetic the redraw rounds at settles in advance whether a point can cross a face: clearance
-    far above the rounding means no crossing is available and a clean residual is arithmetic.
-    Clearance at or under it means the sign convention decided the answer, and a clean residual is
-    a clean residual and not a proof.
+    The three faces of a sign octant are the coordinate planes. The distance of a point to the nearest of them is
+    therefore the smallest of its three coordinates in absolute value. A comparison of that against the arithmetic that
+    the redraw rounds at settles in advance whether a point can cross a face. Clearance far above the rounding means
+    that no crossing is available, and a clean residual is arithmetic. Clearance at or under it means that the sign
+    convention decided the answer. A clean residual is then a clean residual, and not a proof.
     """
     gaps = [min(abs(x), abs(y), abs(z)) for x, y, z in points]
     nearest = min(gaps)
@@ -372,22 +360,21 @@ def face_clearance(points):
 
 
 def points_on_a_face(points):
-    """Placement indices sitting exactly on a face, where the sign convention alone decides.
+    """Placement indices that sit exactly on a face, where the sign convention alone decides.
 
-    The golden placement puts index 0 here at every count. Its longitude is `0 * GOLDEN`, which is
-    exactly zero, and the sine of that is exactly zero. Its third coordinate is exactly zero.
-    Nothing about this is a rounding accident and no placement size avoids it.
+    The golden placement puts index 0 here at every count. Its longitude is `0 * GOLDEN`, which is exactly zero, and the
+    sine of that is exactly zero. Its third coordinate is exactly zero. Nothing about this is a rounding accident, and
+    no placement size avoids it.
     """
     return [at for at, (x, y, z) in enumerate(points)
             if x == 0.0 or y == 0.0 or z == 0.0]
 
 
 def on_face_decided_by(points, at):
-    """For a point sitting on a face, what the rotated drawing decided its side by.
+    """For a point that sits on a face, what the rotated drawing decided its side by.
 
-    Returns the carried dot product against each face the point's plain coordinate is zero on. A
-    face crossing is available exactly when one of these comes back negative, and the magnitude
-    says how little was located between the two answers.
+    Returns the carried dot product against each face that the point's plain coordinate is zero on. A face crossing is
+    available exactly when one of these comes back negative. The magnitude says how little lay between the two answers.
     """
     back = transposed(a_frame())
     normals = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
@@ -402,10 +389,10 @@ def on_face_decided_by(points, at):
 
 
 def frame_rounding(points):
-    """What the rotated drawing rounds at, measured over the placement instead of assumed.
+    """What the rotated drawing rounds at, measured over the placement and not assumed.
 
-    The worst departure of a carried dot product from the plain coordinate it is mathematically
-    equal to. This is the scale a face crossing has to be separated from.
+    The worst departure of a carried dot product from the plain coordinate that it equals in mathematics. A face
+    crossing must stand apart from this scale.
     """
     back = transposed(a_frame())
     normals = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
@@ -424,11 +411,11 @@ def frame_rounding(points):
 # -------------------------------------------------------------------------------------------------
 
 def compared(points, live, drawn):
-    """One drawing against the reference, at the three levels a redraw can move something.
+    """One drawing against the reference, at the three levels where a redraw can move something.
 
-    `weight` is the arm itself, `points` is its topology, `character` is what a caller reads. The
-    claim in `theory/workbooks/orior/arm-records.md` is about the first two. The third is a consequence and is
-    reported because it is the quantity anybody would have checked.
+    `weight` is the arm itself, `points` is its topology, and `character` is what a caller reads. The claim in
+    `theory/workbooks/orior/arm-records.md` is about the first two. The third is a consequence. The report gives it
+    because it is the quantity that anybody would check.
     """
     plain = by_sign_test(points)
     return {
@@ -456,15 +443,15 @@ def redraw_residuals(points, live):
 
 
 def fault_residuals(points, live):
-    """Every drawing that is not a redraw, as {fault: the three gaps}. Each has to be caught."""
+    """Every drawing that is not a redraw, as {fault: the three gaps}. The test must catch each."""
     plain = by_sign_test(points)
     out = {}
     out["orientation dropped"] = compared(
         points, live, by_rotated_frame(points, carry_the_frame=False))
     out["one face nudged"] = compared(points, live, by_nudged_face(points, live))
     out["record at six figures"] = compared(points, live, by_point_cloud(points, digits=6))
-    # This fault leaves every arm untouched and moves only the division. It has no reading at
-    # the first two levels. It is a fault in the character and is caught there.
+    # This fault leaves every arm untouched, and moves only the division. It has no reading at the first two levels. It
+    # is a fault in the character, and the test catches it there.
     out["normalized by the arm"] = {
         "weight": 0.0,
         "points": 0,
@@ -479,9 +466,9 @@ STRUCTURAL_FAULTS = ("orientation dropped", "normalized by the arm", "one face n
 def faults_caught(points, live):
     """Whether every drawing that is not a redraw moved a character. The gate on this null.
 
-    Three of the four move a character by more than a millionth. The fourth writes the record at six
-    significant figures, which cannot touch an indicator weight and does touch a graded one. It
-    is limited to moving something at all.
+    Three of the four move a character by more than a millionth. The fourth writes the record at six significant
+    figures, which cannot touch an indicator weight, and does touch a graded one. Its test asks only whether it moves
+    something at all.
     """
     faults = fault_residuals(points, live)
     if not all(faults[name]["character"] > 1e-6 for name in STRUCTURAL_FAULTS):
@@ -513,11 +500,11 @@ def a_lit_set(total):
 
 
 def a_lit_set_holding_the_faces(points, total):
-    """The same lit set with every on-face point forced lit.
+    """The same lit set, with every point on a face forced lit.
 
-    The default lit set leaves index 0 dark, and index 0 is the point sitting exactly on a face. So
-    the characters could not have moved for it whatever the drawings did, and a pass over that lit set
-    says nothing about the case the pre-check flags. This one makes the drawings carry it.
+    The default lit set leaves index 0 dark, and index 0 is the point that sits exactly on a face. The characters
+    therefore cannot move for it, whatever the drawings do. A pass over that lit set says nothing about the case that
+    the pre-check flags. This one makes the drawings carry it.
     """
     live = set(a_lit_set(total))
     live.update(points_on_a_face(points))
@@ -547,8 +534,8 @@ def _check():
     say("  lit weight %d. One point changing arm moves a character by %.3e" % (len(live), step))
     say("")
 
-    # The engine's pre-check. Whether a point can cross a face is decided by the placement and the
-    # arithmetic, before any drawing runs, and it settles what a clean residual is allowed to mean.
+    # The engine's pre-check. The placement and the arithmetic decide whether a point can cross a face, before any
+    # drawing runs. That settles what a clean residual may mean.
     nearest, at_index = face_clearance(points)
     on_face = points_on_a_face(points)
     rounding = frame_rounding(points)
@@ -616,9 +603,8 @@ def _check():
         row(name, good[name])
     say("")
 
-    # The default lit set leaves index 0 dark, and index 0 is the point on the face. A pass over
-    # that set alone would say nothing about the case the pre-check flags. The drawings are made
-    # to carry it.
+    # The default lit set leaves index 0 dark, and index 0 is the point on the face. A pass over that set alone would
+    # say nothing about the case that the pre-check flags. The test makes the drawings carry it.
     if on_face:
         held = a_lit_set_holding_the_faces(points, count)
         say("  the same redraws with the on-face points forced lit, weight %d" % len(held))
