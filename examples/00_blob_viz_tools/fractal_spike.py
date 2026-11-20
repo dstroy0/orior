@@ -1,10 +1,11 @@
-"""What an eye's WIDTH is worth, and what knowing a source's position is worth.
+"""What the WIDTH of an eye is worth, and what the position of a source is worth to know.
 
-    python examples/00_blob_viz_tools/fractal_spike.py            the ladder, the nulls, and the width sweep
-    python examples/00_blob_viz_tools/fractal_spike.py --check    grade the instrument before trusting a number
+    `python examples/00_blob_viz_tools/fractal_spike.py`            the ladder, the nulls, and the width sweep
+    `python examples/00_blob_viz_tools/fractal_spike.py --check`    grade the instrument before any number counts
 
 THE QUESTION:
 
+docs-check: quoting
     "we can represent this problem however we want in as many dimensions as we want and if a qubit
      knows its position and a null permutation gives identity then the demon arm sweeping infinite
      space"
@@ -13,52 +14,54 @@ THE QUESTION:
     "The shape if were 3d looks like a jellyfish with 4 balloons"
     "It's like four fractal spikes between those at oblique angles from the balloons and a larger
      spike in the center"
+docs-check: end quoting
 
-WHAT IS ALREADY SETTLED AND IS NOT RE-ARGUED HERE. The stacked reading closes: arms take the rank to
-the SOURCE COUNT, measured at 64, 128, 256, 512 and 1024, with arms-to-closure equal to sources - 81
-every time, the 81 being the degree-8 harmonic block's own rank. There is no missing rank to find,
-and the reason is not empirical. At bandlimit L every function on the sphere lives in an (L+1)^2
-dimensional space, and EVERY reading of ANY type - a region integral, a line integral, a point
-evaluation, an integral against any measure whatever - is a linear functional on that space. The
-span of all conceivable integrals is therefore exactly (L+1)^2, and no integral nobody thought
-of yet exceeds it. Beams added 175 dimensions at degree 8 not because a line integral escapes the
-space but because the region rows did not span it: 81 + 175 = 256.
+WHAT IS ALREADY SETTLED, AND THIS FILE DOES NOT ARGUE IT AGAIN. The stacked reading closes: arms take the rank to
+the SOURCE COUNT. The measurements at 64, 128, 256, 512 and 1024 give arms-to-closure equal to sources - 81 every
+time. The 81 is the own rank of the degree-8 harmonic block. No rank is absent, and the reason is not empirical.
 
-SO "A FUNDAMENTAL INTEGRAL WE DON'T KNOW" HAS NO ROOM TO EXIST at fixed degree. That branch closes
-by dimension counting and this file does not test it. The other branch is wide open, because rank
-is not the scarce thing. CONDITIONING is, and the difference shows twice: degree 15 complete at a
-least singular value of 3.5e-3 against degree 16 at 1.5e-1, and the orthogonal spiral offset where
-the concurrent set comes out best conditioned at 8.18e+02 against 3.74e+09, seven orders of
-magnitude at IDENTICAL rank.
+At bandlimit L, every function on the sphere lives in a space of (L+1)^2 dimensions. EVERY reading of ANY type is a
+linear functional on that space. That holds for a region integral, a line integral, a point evaluation, or an
+integral against any measure whatever. The span of all conceivable integrals is therefore exactly (L+1)^2, and no
+integral that nobody thought of yet exceeds it. Beams added 175 dimensions at degree 8, and not because a line integral escapes the space.
+The region rows did not span it: 81 + 175 = 256.
 
-WHAT THIS FILE MEASURES, in the order the measurements force it.
+"A FUNDAMENTAL INTEGRAL WE DON'T KNOW" THEREFORE HAS NO ROOM TO EXIST at fixed degree. A count of dimensions closes
+that branch, and this file does not test it. The other branch is wide open, because rank is not the scarce thing.
+CONDITIONING is, and the difference shows twice:
+  - degree 15 is complete at a least singular value of 3.5e-3, against degree 16 at 1.5e-1.
+  - at the orthogonal spiral offset, the concurrent set comes out best conditioned at 8.18e+02 against 3.74e+09.
+    That is seven orders of magnitude at IDENTICAL rank.
 
-1. THE MACRO LADDER LOSES. Widths doubling from the source spacing to the shell diameter - four
-   rungs, which is where the four balloons come from and the number is derived, log2(9.02) = 3.17 -
-   condition at best 2.4e+03 against 6.0e+01 for the single scale already in use. Every variant of
-   the ladder is worse than not having it. The count exponent is swept over 0, 1 and 2 and not
-   picked, and all three lose.
+WHAT THIS FILE MEASURES, in the order that the measurements force it.
 
-2. THE SELF-SIMILAR LAYOUT IS REAL BUT SMALL. Against its own null - the same multiset of widths
-   with the assignment shuffled - the ladder wins by four orders of magnitude at exponent 0 and
-   loses at exponent 1. So layout matters and is worth a factor of a few against width's factor of
-   ten million. It is the second-order term.
+1. THE MACRO LADDER LOSES. Widths double from the source spacing to the shell diameter in four rungs.
+   That is where the four balloons come from, and the number follows: log2(9.02) = 3.17. The ladder
+   conditions at best 2.4e+03, against 6.0e+01 for the single scale already in use. Every variant of
+   the ladder is worse than none. The count exponent sweeps over 0, 1 and 2 with no pick, and all
+   three lose.
 
-3. WIDTH IS THE WHOLE EFFECT AND THE DERIVED FLOOR IS THE WRONG BOUND. Taking the source spacing
-   as a delta limit makes the shipped BEAM_WIDTH of 0.10 a defect for sitting below it. The
-   measurement says it works because it sits below it: a near-delta row is nearly a
-   row of the identity, a stack of them is nearly orthogonal, while a wide row is nearly the
-   monopole and a stack of those is nearly rank one. Narrow wins by construction.
+2. THE SELF-SIMILAR LAYOUT IS REAL BUT SMALL. Its own null is the same multiset of widths with the
+   assignment shuffled. Against it, the ladder wins by four orders of magnitude at exponent 0, and
+   loses at exponent 1. Layout therefore matters, and is worth a factor of a few. Width is worth a
+   factor of ten million. Layout is the second-order term.
 
-4. AND THEN THE NULL PICKS UP THE TURF. The narrow sweep reports condition 4.86 at width 0.003
-   with the rank never breaking, and that number measures the AIMING instead of the instrument.
-   `beam_set` aims beam `at` at source `(at * 7 + 1) % 256`, and 7 is coprime to 256. The aiming
-   is a PERMUTATION: one beam pointed at each source. Shrink the width and the matrix becomes a
-   permuted identity for free. The aimed instrument is built out of the answer.
+3. WIDTH IS ALL OF THE EFFECT, AND THE DERIVED FLOOR IS THE WRONG BOUND. A delta limit at the source
+   spacing would make the shipped BEAM_WIDTH of 0.10 a defect, because it sits below it. The
+   measurement says that it works because it sits below it. A near-delta row is nearly a row of the
+   identity, and a stack of them is nearly orthogonal. A wide row is nearly the monopole, and a stack
+   of those is nearly rank one. Narrow wins by construction.
 
-THE RESULT THIS FILE EXISTS FOR is the gap between those two aimings, because it is the price of
-the question's first clause - "if a qubit knows its position":
+4. AND THEN THE NULL PICKS UP THE TURF. The narrow sweep reports condition 4.86 at width 0.003, and
+   the rank never breaks. That number measures the AIM, and not the instrument. `beam_set` aims beam
+   `at` at source `(at * 7 + 1) % 256`, and 7 is coprime to 256. The aim is a PERMUTATION: one beam
+   points at each source. Shrink the width, and the matrix becomes a permuted identity for free. The
+   aimed instrument comes from the answer.
 
+THE RESULT THIS FILE EXISTS FOR is the gap between those two aims. It is the price of the first clause of the
+question, "if a qubit knows its position":
+
+docs-check: quoting
     width / spacing      aimed cond    blind cond    blind rank
               1.000       2.77e+02      3.44e+02           256
               0.707        5.40e+01      8.32e+01           256     <- shipped BEAM_WIDTH
@@ -66,22 +69,22 @@ the question's first clause - "if a qubit knows its position":
               0.250       1.01e+01      2.74e+02           256
               0.088       6.35e+00      6.10e+08           256
               0.022       4.86e+00      1.28e+13           130
+docs-check: end quoting
 
-The aimed column slides to 4.86 and never breaks. The blind column has a genuine MINIMUM at half
-the source spacing and then collapses eleven orders of magnitude, taking 126 sources with it into
-rows that touch nothing at all. Knowing the position is worth 13x in conditioning and the whole
-difference between a complete reading and a third of the object invisible. That is the null
-permutation with a number on it, and the number has to be paid in advance: the aiming IS the
-position, an instrument that uses it has been passed what it was built to find.
+The aimed column slides to 4.86 and never breaks. The blind column has a genuine MINIMUM at half the source
+spacing. It then collapses eleven orders of magnitude, and takes 126 sources with it into rows that touch nothing at
+all. The known position is worth 13x in conditioning, and all of the difference between a complete reading and an
+object a third invisible. That is the null permutation with a number on it, and the price comes in advance. The aim
+IS the position, and an instrument that uses it holds what it must find.
 
-THE SHIPPED WIDTH IS A QUARTER TOO WIDE, found blind. 0.10 conditions at 8.32e+01 and 0.0687
-conditions at 6.23e+01, with both complete and neither using a source position.
+THE SHIPPED WIDTH IS A QUARTER TOO WIDE, found blind. 0.10 conditions at 8.32e+01 and 0.0687 conditions at 6.23e+01,
+both complete, and neither uses a source position.
 
-WHAT IS NOT TESTED HERE and is the obvious next thing: the interleaved oblique arrangement, four
-narrow sets placed in the GAPS of the wide ones and not along the same golden directions. Every
-rung in this file draws from the same golden placement at its own count. The wide and narrow
-rungs point down nearly the same lines and the wide rungs are largely redundant. That is a real
-defect in the ladder as built and it is the likely reason layout came out second-order.
+WHAT THIS FILE DOES NOT TEST, and the obvious next thing, is the interleaved oblique arrangement. That is four narrow
+sets in the GAPS of the wide ones, and not along the same golden directions. Every rung in this file draws from the
+same golden placement at its own count. The wide and narrow rungs point down nearly the same lines, and the wide rungs
+are largely redundant. That is a real defect in the ladder as built, and the likely reason that layout came out
+second-order.
 """
 
 import math
@@ -100,46 +103,41 @@ import boundary_read
 
 TOTAL = beam_rows.COUNT
 
-# How many independent blind aimings each width is graded over. Three is the smallest number that
-# gives a RANGE and not a point, and the range is what gets reported: a single blind draw is a
-# single shot and this tree has already shipped one of those and had to retract it.
+# How many independent blind aims the code grades each width over. Three is the smallest number that gives a RANGE and
+# not a point, and the report gives the range. A single blind draw is a single shot, and a single shot is not a result.
 BLIND_SEEDS = (3, 11, 29)
 
 
 def limits():
     """(delta limit, monopole limit), the two ends of the available width range.
 
-    BOTH ARE FORCED BY THE SOURCES. They sit on a shell of radius DEPTH, COUNT of them. The area
-    per source is 4 pi DEPTH^2 / COUNT and the typical spacing is its root. Below that a beam reads
-    one source and is a point probe. Above the shell's diameter it reads every source at nearly
-    equal weight and is a monopole carrying one number.
+    THE SOURCES FORCE BOTH. They sit on a shell of radius DEPTH, COUNT of them. The area per source is 4 pi DEPTH^2 /
+    COUNT, and the typical spacing is its root. Below that, a beam reads one source and is a point probe. Above the
+    diameter of the shell, it reads every source at nearly equal weight, and is a monopole with one number.
 
-    NEITHER END IS A USABILITY BOUND AND THE FIRST VERSION OF THIS FILE ASSUMED THE LOWER ONE WAS.
-    See the module docstring: conditioning improves straight through the delta limit, and what
-    actually stops it is a source falling BETWEEN beams, which is a rank floor and is measured
-    and not derived.
+    NEITHER END IS A USABILITY BOUND, AND THE LOWER ONE IN PARTICULAR IS NOT. See the module docstring. Conditioning
+    improves straight through the delta limit. What actually stops it is a source that falls BETWEEN beams, which is a
+    rank floor, measured and not derived.
     """
     spacing = beam_rows.DEPTH * math.sqrt(4.0 * math.pi / beam_rows.COUNT)
     return spacing, 2.0 * beam_rows.DEPTH
 
 
 def ladder(exponent):
-    """(width, count) per rung: widths doubling from the delta limit, counts as width^-exponent.
+    """(width, count) per rung: widths that double from the delta limit, counts as width^-exponent.
 
-    THE RUNG COUNT IS DERIVED AT BOTH ENDS. Widths double from the delta limit until they pass the
-    monopole limit. The count is floor(log2(diameter / spacing)) + 1 and nothing is chosen. At
-    COUNT = 256 on a shell of 0.62 the ratio is 9.02 and the ladder has FOUR rungs.
+    THE RUNG COUNT FOLLOWS AT BOTH ENDS. Widths double from the delta limit until they pass the monopole limit. The
+    count is floor(log2(diameter / spacing)) + 1, and nothing is a choice. At COUNT = 256 on a shell of 0.62, the ratio
+    is 9.02, and the ladder has FOUR rungs.
 
-    THE COUNT EXPONENT IS AN ARGUMENT, SWEPT AND NOT PICKED. Three values are defensible and
-    they disagree. Choosing one would be the judgment this tree does
-    not allow:
+    THE COUNT EXPONENT IS AN ARGUMENT, SWEPT AND NOT PICKED. Three values are defensible, and they disagree. A choice of
+    one would be the judgment that this tree does not allow:
+      - 0: equal beams per rung. Every scale gets the same look.
+      - 1: equal total beam thickness per rung. No scale dominates the reading.
+      - 2: equal area coverage. A tiling of a 2-sphere with patches of size w takes area / w^2 of them, the literal
+        self-similar tiling.
 
-        0   equal beams per rung. Every scale gets the same look
-        1   equal total beam thickness per rung. No scale dominates the reading
-        2   equal area coverage, since tiling a 2-sphere with patches of size w takes area / w^2 of
-            them, the literal self-similar tiling
-
-    All three are reported. A result that depends on which one IS the result.
+    The function reports all three. A result that depends on which one IS the result.
     """
     spacing, widest = limits()
     widths = []
@@ -161,15 +159,14 @@ def ladder(exponent):
 def spike_plan(rungs, shuffle_seed=None):
     """(origin, direction, width) per beam on the ladder, or with the widths shuffled.
 
-    WITH A SEED THE WIDTHS ARE PERMUTED ACROSS ALL THE DIRECTIONS. That retains the multiset of widths
-    exactly and destroys the correspondence between a beam's width and its place in the layout,
-    the only thing "self-similar" adds over "multi-scale". Without this null any gain gets
-    credited to self-similarity when a spread of widths at all would have done it.
+    WITH A SEED, THE CODE PERMUTES THE WIDTHS ACROSS ALL THE DIRECTIONS. That keeps the multiset of widths exactly. It
+    destroys the correspondence between the width of a beam and its place in the layout, the only thing that
+    "self-similar" adds over "multi-scale". Without this null, self-similarity gets the credit for any gain, even where
+    any spread of widths would do the same.
 
-    THE PLAN IS RETURNED SEPARATELY FROM THE ROWS so `--check` can test the invariant the null
-    actually claims. The weights are SUPPOSED to differ - a wide beam pointed somewhere dense
-    picks up more - and the multiset of widths is what must not. A row COUNT and a total-weight
-    difference are the wrong pair.
+    THE FUNCTION RETURNS THE PLAN APART FROM THE ROWS, and `--check` can then test the invariant that the null actually
+    claims. The weights SHOULD differ: a wide beam pointed somewhere dense picks up more. The multiset of widths must
+    not. A row COUNT and a difference in total weight are the wrong pair.
     """
     plan = []
     for width, count in rungs:
@@ -196,18 +193,16 @@ def spike_set(points, rungs, shuffle_seed=None):
 
 
 def one_scale(points, count, width, blind=False, seed=0):
-    """`count` beams at a single width. `blind` aims them WITHOUT using a source position.
+    """`count` beams at a single width. `blind` aims them WITHOUT a source position.
 
-    THE DEFAULT AIMING KNOWS THE ANSWER AND THAT INVALIDATES ANY NARROW-BEAM RESULT. `targets` is
-    the same golden placement as the sources and the step 7 is coprime to 256. The aiming is a
-    permutation with exactly one beam per source. Narrow the width and the matrix becomes a permuted
-    identity by construction: conditioning goes to 1 and the rank cannot break. The number then
-    measures the aiming.
+    THE DEFAULT AIM KNOWS THE ANSWER, AND THAT VOIDS ANY NARROW-BEAM RESULT. `targets` is the same golden placement as
+    the sources, and the step 7 is coprime to 256. The aim is a permutation with exactly one beam per source. Narrow the
+    width, and the matrix becomes a permuted identity by construction: conditioning goes to 1, and the rank cannot
+    break. The number then measures the aim.
 
-    The blind control
-    draws aiming directions independently of the sources, a narrow beam misses, its row goes to
-    zero, that source becomes unreadable and the rank falls. That is the real floor, and the gap
-    between the two columns is what the position is worth.
+    The blind control draws its aim directions apart from the sources. A narrow beam misses, its row goes to zero, that
+    source becomes unreadable, and the rank falls. That is the real floor, and the gap between the two columns is what
+    the position is worth.
     """
     origins = boundary_read.golden_place(count)
     if blind:
@@ -231,23 +226,22 @@ def one_scale(points, count, width, blind=False, seed=0):
 def gap_filling(already, count, pool=8):
     """`count` directions placed greedily in the GAPS of `already`, by farthest-point selection.
 
-    Each pick maximizes the MINIMUM angle to everything placed so far, the deterministic
-    version of "between those". Candidates come from a golden set `pool` times larger than the
-    number wanted. The pool is derived from the request instead of being a chosen constant.
+    Each pick maximizes the MINIMUM angle to all that is already placed, the deterministic form of "between those".
+    Candidates come from a golden set `pool` times larger than the number wanted. The request sets the pool, and no
+    constant does.
 
-    THIS COSTS NO KNOWLEDGE OF THE OBJECT. The aimed permutation that reaches condition
-    4.857e+00 uses the SOURCE positions: it is passed the answer. This
-    uses only the directions of the beams already placed, which the instrument chose itself. A gain
-    here is therefore free in a way the aimed gain never was, and it stays legal under the blind
-    control.
+    THIS COSTS NO KNOWLEDGE OF THE OBJECT. The aimed permutation that reaches condition 4.857e+00 uses the SOURCE
+    positions: it holds the answer. This uses only the directions of the beams already placed, which the instrument
+    chose itself. A gain here is therefore free in a way that the aimed gain never was, and it stays legal under the
+    blind control.
     """
     candidates = numpy.array(boundary_read.golden_place(count * pool), dtype=float)
     taken = numpy.zeros(len(candidates), dtype=bool)
 
-    # THE NEAREST-PLACED COSINE IS CARRIED FORWARD AND NOT RECOMPUTED. Scanning every candidate
-    # against every placed direction on every pick is O(count^2 * pool) dot products in Python
-    # and does not finish. Each pick only ever RAISES a candidate's nearest
-    # cosine. One max against the newly placed direction updates the whole column.
+    # THE CODE CARRIES THE NEAREST-PLACED COSINE FORWARD, AND DOES NOT COMPUTE IT AGAIN. A scan of every candidate
+    # against every placed direction on every pick is O(count^2 * pool) dot products in Python, and does not finish.
+    # Each pick only ever RAISES the nearest cosine of a candidate. One max against the newly placed direction updates
+    # the whole column.
     if len(already):
         nearest = candidates.dot(numpy.array(already, dtype=float).T).max(axis=1)
     else:
@@ -267,18 +261,17 @@ def gap_filling(already, count, pool=8):
 def oblique_set(points, rungs, offset, shuffle_seed=None, straight=False):
     """The jellyfish: wide rungs on golden directions, narrow rungs in their gaps, aimed obliquely.
 
-    THE DEFECT THIS FIXES IS REAL. Every rung of `spike_set` draws from the same golden
-    placement at its own count, and golden_place(17) shares its first directions with
-    golden_place(137). The wide balloons and the narrow spikes point down nearly the same lines.
-    The wide rungs are therefore largely redundant, the likely reason the layout
-    effect comes out second-order.
+    THE DEFECT THIS FIXES IS REAL. Every rung of `spike_set` draws from the same golden placement at its own count, and
+    golden_place(17) shares its first directions with golden_place(137). The wide balloons and the narrow spikes point
+    down nearly the same lines. The wide rungs are therefore largely redundant, the likely reason that the layout effect
+    comes out second-order.
 
-    `offset` is the impact parameter as a fraction of the shell radius: 0 aims through the center
-    and 1 grazes the shell. It is SWEPT by the caller and not picked here. `straight` aims every
-    beam at the center instead, which isolates obliquity from gap-filling.
+    `offset` is the impact parameter as a fraction of the shell radius: 0 aims through the center, and 1 grazes the
+    shell. The caller SWEEPS it, and nothing picks it here. `straight` aims every beam at the center instead, which
+    isolates obliquity from the fill of gaps.
 
-    The center spike is one beam of the narrowest width straight through the origin, the
-    longest chord available and the only row in the set that reads every shell crossing.
+    The center spike is one beam of the narrowest width straight through the origin. It is the longest chord available,
+    and the only row in the set that reads every shell crossing.
     """
     widest = max(width for width, _count in rungs)
     plan = []
@@ -464,9 +457,8 @@ def _check():
     spacing, widest = limits()
     truth = _binary_truth()
 
-    # THE LADDER'S SHAPE MUST BE DERIVED AND NOT DRIFT. Four rungs is log2(diameter/spacing), and
-    # if the source count or shell depth changes this number must change with it and not stay
-    # at four because four was written down once.
+    # THE LADDER'S SHAPE MUST FOLLOW FROM THE GEOMETRY, AND NOT DRIFT. Four rungs is log2(diameter/spacing). If the
+    # source count or shell depth changes, this number must change with it, and not stay at a fixed four.
     rungs, _ = ladder(1)
     want = int(math.log(widest / spacing, 2.0)) + 1
     lines.append("  ladder rungs %d, derived %d, from a range of %.3f x"
@@ -475,8 +467,8 @@ def _check():
         lines.append("    FAIL the rung count is not the derived one")
         failed += 1
 
-    # Every exponent must place exactly TOTAL beams, or the sets being compared differ in row count
-    # and the comparison is between two different instruments.
+    # Every exponent must place exactly TOTAL beams. Otherwise the sets under comparison differ in row count, and the
+    # comparison is between two different instruments.
     for exponent in (0, 1, 2):
         placed = sum(count for _, count in ladder(exponent)[0])
         lines.append("  exponent %d places %d beams" % (exponent, placed))
@@ -513,9 +505,8 @@ def _check():
         lines.append("         not measuring what the docstring says it measures")
         failed += 1
 
-    # THE POSITIVE CONTROL FOR THE BLIND NULL. At the widest usable width a blind aiming must still
-    # be COMPLETE, or the null is broken and not informative and every collapse it reports is
-    # an artifact of the aiming code.
+    # THE POSITIVE CONTROL FOR THE BLIND NULL. At the widest usable width, a blind aim must still be COMPLETE. Otherwise
+    # the null is broken and not informative, and every collapse that it reports is an artifact of the aim code.
     rank, condition, _error = measure(harmonics,
                                       one_scale(points, TOTAL, spacing, blind=True, seed=3), truth)
     lines.append("  blind aiming at the delta limit: rank %d of %d, condition %.3e"
@@ -525,8 +516,8 @@ def _check():
         lines.append("         the blind collapse reported at narrow widths proves nothing")
         failed += 1
 
-    # THE NEGATIVE CONTROL. A blind aiming far below the floor must NOT be complete. Without this,
-    # the claim "the rank breaks" has no counterpart and the sweep could be reporting noise.
+    # THE NEGATIVE CONTROL. A blind aim far below the floor must NOT be complete. Without this, the claim "the rank
+    # breaks" has no counterpart, and the sweep could report noise.
     rank, _condition, _error = measure(
         harmonics, one_scale(points, TOTAL, spacing / 64.0, blind=True, seed=3), truth)
     lines.append("  blind aiming at 1/64 of the spacing: rank %d of %d" % (rank, TOTAL))
@@ -544,10 +535,9 @@ def _check():
         lines.append("         not the value of knowing a position")
         failed += 1
 
-    # TWO CODE PATHS THAT MUST AGREE EXACTLY. `offset = 0` aims at 0 * side, the origin,
-    # and `straight = True` aims at the origin directly. They are written separately and reach the
-    # same beam. They must produce bit-identical rows. If they drift, the obliquity result is
-    # comparing two instruments and not two aimings, and 12.69x of it is an artifact.
+    # TWO CODE PATHS THAT MUST AGREE EXACTLY. `offset = 0` aims at 0 * side, the origin, and `straight = True` aims at
+    # the origin directly. The two are separate code, and reach the same beam. They must produce bit-identical rows. If
+    # they drift, the obliquity result compares two instruments and not two aims, and 12.69x of it is an artifact.
     rungs, _ = ladder(2)
     by_offset = oblique_set(points, rungs, 0.0)
     by_flag = oblique_set(points, rungs, 0.5, straight=True)
@@ -558,9 +548,9 @@ def _check():
         lines.append("         comparison is between two instruments and not two aimings")
         failed += 1
 
-    # GAP FILLING MUST ACTUALLY FILL GAPS. Directions chosen in the gaps of a placed set must sit
-    # further from it than a fresh golden set of the same size would, or "between those" is a name
-    # for something the code is not doing.
+    # GAP FILL MUST ACTUALLY FILL GAPS. Directions chosen in the gaps of a placed set must sit further from it than a
+    # fresh golden set of the same size would. Otherwise "between those" is a name for something that the code does not
+    # do.
     base = boundary_read.golden_place(64)
     filled = numpy.array(gap_filling(base, 16), dtype=float)
     naive = numpy.array(boundary_read.golden_place(16), dtype=float)
@@ -574,8 +564,8 @@ def _check():
         lines.append("         fresh golden set, so the selection is not filling gaps")
         failed += 1
 
-    # THE CEILING. No reading set may exceed the source count, the dimension-counting
-    # claim in the docstring. If one does, that claim is wrong and so is the conclusion.
+    # THE CEILING. No reading set may exceed the source count, the claim of the docstring that counts dimensions. If one
+    # does, that claim is wrong, and so is the conclusion.
     everything = numpy.vstack([harmonics, spike_set(points, rungs),
                                one_scale(points, TOTAL, beam_rows.BEAM_WIDTH)])
     rank, _values = arm_rank.rank_of(everything)
