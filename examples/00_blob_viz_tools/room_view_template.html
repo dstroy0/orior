@@ -5110,11 +5110,11 @@
     },
   );
 
-  // One row of opacity per boundary, built from the shells and not written out. The panel
-  // cannot fall out of step with how many there are.
+  // One row of opacity per boundary, built from the shells, and not written out. The panel cannot fall
+  // out of step with how many there are.
   //
-  // A translucent boundary is drawn on both faces and adds light twice. Three of them at the faint
-  // value one shell wants stack six additive layers and lift the whole room off black before anything
+  // A translucent boundary draws on both faces, and adds light twice. Three of them at the faint value
+  // that one shell wants stack six additive layers. They lift the whole room off black before anything
   // is lit.
   var VEIL_FAINT = 3;
   var veilBox = document.getElementById("veils");
@@ -5138,9 +5138,10 @@
     veilBox.appendChild(row);
 
     // Its own sensitivity, because each boundary reads the interior from its own distance. The slider
-    // is the conduction time the surface is left to smooth for, and it is the constituent's sphere of
-    // influence on that surface: at nothing a constituent prints a spot, and turned up the spots
-    // spread into each other and the surface reads as a nebula.
+    // is the conduction time that the surface smooths for. It is the sphere of influence of the
+    // constituent on that surface.
+    // At nothing, a constituent prints a spot. Turned up, the spots spread into each other, and the
+    // surface reads as a nebula.
     var fine = document.createElement("div");
     fine.className = "row";
     fine.innerHTML =
@@ -5158,11 +5159,13 @@
     veilBox.appendChild(fine);
   }
 
-  // Translucent looks through to the bulk; opaque reads the surface. Crossing between them swaps the
-  // material, because one blend cannot do both: additive brightens and never occludes, and a lit
-  // surface that writes depth cannot also be a faint window. Nothing about the interior is skipped
-  // while a boundary is closed. The bodies retain stepping, retain being confined and retain depositing,
-  // and what they deposited is on the outside of the surface now being read, the claim.
+  // Translucent looks through to the bulk, and opaque reads the surface. A change between them swaps
+  // the material, because one blend cannot do both. Additive brightens and never occludes. A lit
+  // surface that writes depth cannot also be a faint window.
+  //
+  // The code skips nothing about the interior while a boundary stays shut. The bodies still step, stay
+  // confined and leave deposits. Their deposits are on the outside of the surface that the reader
+  // reads now. That is the claim.
   var SOLID_FROM = 0.34;
 
   function dressShell(one, amount) {
@@ -5173,9 +5176,9 @@
         one.mesh.material = one.glass;
       }
     } else {
-      // Clamped just short of one so the surface never becomes a flat cut-out. A boundary is still a
-      // boundary when the faintest trace of what is behind it survives, and the topology reads
-      // better against that than against a solid plate.
+      // Clamped just short of one, and the surface never becomes a flat cut-out. A boundary is still a
+      // boundary when the faintest trace of what is behind it survives. The topology reads better
+      // against that than against a solid plate.
       one.solid.opacity =
         0.72 + 0.28 * Math.min(1, (amount - SOLID_FROM) / (1 - SOLID_FROM));
       if (one.mesh.material !== one.solid) {
@@ -5198,10 +5201,10 @@
         },
       );
 
-      // Squared. The low end of the travel is where the spots are still separate. Conduction acts
-      // as exp(-l(l+1)tau), which takes the fine degrees away in the first sliver of the range and
-      // then has almost nothing left to do; linear travel would spend nine tenths of the slider on
-      // a surface that is already featureless.
+      // Squared. The low end of the travel is where the spots are still separate. Conduction acts as
+      // exp(-l(l+1)tau). That takes the fine degrees away in the first sliver of the range, and then
+      // has almost nothing left to do. Linear travel spends nine tenths of the slider on a surface
+      // that is already featureless.
       bind(
         "sens" + which,
         "sens" + which + "Out",
@@ -5222,8 +5225,8 @@
     })(v2);
   }
 
-  // One set of beam controls and a choice of which source they are carrying, and not three rows
-  // per source. The reader carries one at a time.
+  // One set of beam controls, and a choice of the source that they control, and not three rows per
+  // source. The reader carries one at a time.
   var pickBox = document.getElementById("pick");
 
   function loadPicker() {
@@ -5241,14 +5244,15 @@
   }
   loadPicker();
 
-  // Sources come and go while the reader watches, because how many there are is the question the
-  // parallax answers and asking it means changing the answer and looking again. One source gives a
-  // line and no depth; two give depth; more give it again from another side and divide the same light
-  // budget further. The cost of asking arrives in the picture at the moment of asking.
+  // Sources come and go while the reader watches. How many there are is the question that the
+  // parallax answers, and to ask it is to change the answer and look again.
+  // One source gives a line and no depth, and two give depth. More give it again from another side,
+  // and divide the same light budget further. The cost of the question arrives in the picture at the
+  // moment of the question.
   //
-  // Every source is re-placed whenever the count changes. Dropping a new one into a gap would leave
-  // the others where a different count put them, and the arrangement would carry the history of
-  // how the reader got here instead of the count they are on.
+  // The code places each source again whenever the count changes. A new one dropped into a gap
+  // leaves the others where a different count put them. The arrangement then carries the path of the
+  // reader to here, and not the count that they are on.
   function spreadSources() {
     for (var q = 0; q < sources.length; q++) {
       sources[q].ang = Math.round((360 * q) / sources.length + 40) % 360;
@@ -5291,9 +5295,9 @@
     sourcesChanged();
   }
 
-  // Taken out of the scene and disposed, and not merely hidden. A light left in the scene goes on
-  // costing a shadow pass whether anything can see it, and the whole reason the count is worth
-  // changing is that it costs something.
+  // Taken out of the scene and disposed, and not only hidden. A light left in the scene still costs a
+  // shadow pass, whether anything can see it or not. The count is worth a change only because it
+  // costs something.
   function dropSource() {
     if (sources.length <= 1) {
       return;
@@ -5309,11 +5313,11 @@
     // The lamp owns its geometry and material. Both go with it.
     gone.lamp.geometry.dispose();
     gone.lamp.material.dispose();
-    // The cone owns neither. CONE_SPRAY_GEO and CONE_MAT are built once and shared by every source,
-    // and a source costs one aimed point cloud instead of a new one. Disposing them here frees the
-    // buffers out from under every source still in the room: taking one source away stops the spray on
-    // all of them, with no error and a picture that has simply stopped moving. This removes the mesh
-    // from the scene.
+    // The cone owns neither. The code builds CONE_SPRAY_GEO and CONE_MAT once, and each source shares
+    // them. A source costs one aimed point cloud, and not a new one.
+    // A dispose of them here frees the buffers out from under each source still in the room. The
+    // removal of one source then stops the spray on all of them, with no error, and the picture stops.
+    // This removes the mesh from the scene.
     sourcesChanged();
   }
 
@@ -5384,9 +5388,9 @@
 
   document.getElementById("core").value = DATA.core || "sphere";
   document.getElementById("core").addEventListener("change", function (event) {
-    // The shape the lights are contained by, swapped under them while they are moving. Nothing about the
-    // cloud is rebuilt: the same population carries on against a different wall, the only
-    // way to see that the wall being a different shape changes nothing about what is contained.
+    // The shape that holds the lights, swapped under them while they move. The code builds nothing of
+    // the cloud again. The same population carries on against a different wall. That is the only way
+    // to see that a wall of a different shape changes nothing about what it holds.
     state.core = event.target.value;
     setCore(state.core);
     shadowStale = true;
@@ -5511,11 +5515,13 @@
   window.addEventListener("resize", fit);
   fit();
 
-  // Opening appearance through the shared control bar's model. The schema is the build's one settings
-  // source: a value of the wrong type or out of range is named in the report below and never applied,
-  // and a key the build leaves out retains the page default. The bar governs the chrome the room can
-  // honor, the theme and how present the boxes are, and the opacity opens on the panel's own slider.
-  // The backdrop is the renderer's own black, a color this page neither takes nor offers.
+  // The open appearance, through the model of the shared control bar. The single settings source of the build
+  // is the schema. The report below names a value of the wrong type or out of range, and the
+  // page never applies it. A key that the build leaves out keeps the page default.
+  //
+  // The bar governs the chrome that the room can honor: the theme, and how present the boxes are. The
+  // opacity opens on the own slider of the panel. The backdrop is the own black of the renderer, a
+  // color that this page neither takes nor offers.
   (function () {
     var SCHEMA = DATA.schema || {};
     var SET = DATA.settings || {};
@@ -5535,8 +5541,8 @@
       sheer.dispatchEvent(new Event("input"));
     }
 
-    // The report line. A refusal is named; otherwise the keys the build set are listed, and an empty
-    // settings object opens at the page defaults and says so.
+    // The report line. It names a refusal. Else it lists the keys that the build set. An empty settings
+    // object opens at the page defaults, and says so.
     var reportEl = document.getElementById("open-report");
     if (reportEl) {
       reportEl.classList.remove("refused");
@@ -5552,16 +5558,16 @@
   })();
 
   // ---------------------------------------------------------------------------------------------
-  // The wall the lights are contained by, whatever shape it has been given.
+  // The wall that holds the lights, whatever its shape.
   //
-  // Each shape supplies one number that is under one inside and over one outside, and the outward
-  // direction where it is over. That is all confinement needs, and writing it that way is the claim
-  // being made: a curved wall, a flat-faced one and one with a point on it are the same wall as far
-  // as anything inside is concerned. Every one of them is closed, the part that matters.
+  // Each shape gives one number that is under one inside and over one outside, and the outward
+  // direction where it is over. That is all that confinement needs.
+  // The form of the code is the claim. A curved wall, a flat-faced wall and a wall with a point on it
+  // are the same wall to anything inside. Each of them has no opening, the part that matters.
   //
-  // The normal is the shape's own and never the direction back to the middle. Those agree on a
-  // sphere, and a light bouncing off a cube by its radial direction slides along
-  // the faces toward the corners and piles up there. It looks like physics and it is a wrong normal.
+  // The normal is the own normal of the shape, and never the direction back to the middle. Those
+  // agree on a sphere. A light that bounces off a cube by its radial direction slides along the faces
+  // toward the corners, and piles up there. It looks like physics, and it is a wrong normal.
   // ---------------------------------------------------------------------------------------------
 
   var pos = new THREE.Vector3();
@@ -5592,8 +5598,8 @@
       return q;
     }
     if (type === "cone") {
-      // Apex up, base down. The room allowed at a height closes to nothing at the point, a light
-      // heading for the tip runs out of room instead of reaching it.
+      // Apex up, base down. The room at a height closes to nothing at the point. A light that heads for
+      // the tip runs out of room, and does not reach it.
       rho = Math.sqrt(x * x + z * z);
       allowed = Math.max(1e-4, (a * (b - y)) / (2 * b));
       var qSide = rho / allowed;
@@ -5617,10 +5623,10 @@
     return q;
   }
 
-  // A body turned back at a surface, whichever side of it the body is on. Outward is the direction
-  // the measure grows in. The boundary below a band is the same test with the sign flipped: a body
-  // in the second band is retained off the first from the outside exactly as it is retained inside the
-  // second, and one routine does both.
+  // A body turned back at a surface, on whichever side of it the body is. Outward is the direction in
+  // which the measure grows. The boundary below a band is the same test with the sign flipped.
+  // The code keeps a body in the second band off the first from the outside, exactly as it keeps it
+  // inside the second. One routine does both.
   function turnBack(k, type, a, b, fromInside) {
     var reach = measure(type, atX[k], atY[k], atZ[k], a, b, norm);
     var over = fromInside ? reach > 1 : reach < 1;
@@ -5631,17 +5637,17 @@
     var along = vX[k] * norm.x + vY[k] * norm.y + vZ[k] * norm.z;
     var facing = fromInside ? along > 0 : along < 0;
     if (facing) {
-      // The speed it arrived with is the speed it leaves with. A light that lost a little here
-      // would drain the cloud inward over a few minutes, slowly enough to read as the scene
-      // settling and not as a leak.
+      // The speed that it arrived with is the speed that it leaves with. A light that loses a little
+      // here drains the cloud inward over a few minutes. That is slow enough to read as the scene at
+      // rest, and not as a leak.
       vX[k] -= 2 * along * norm.x;
       vY[k] -= 2 * along * norm.y;
       vZ[k] -= 2 * along * norm.z;
     }
 
-    // Put it back on the wall. Every one of these shapes is star-shaped about the middle. Pulling
-    // straight in or pushing straight out reaches the surface, and for the three whose measure scales
-    // with the position it lands on it exactly. The cone is checked again because its measure does not.
+    // Put it back on the wall. Each of these shapes has a star shape about the middle. A pull straight in
+    // or a push straight out reaches the surface. For the three whose measure scales with the
+    // position, it lands on it exactly. The code checks the cone again, because its measure does not.
     if (reach > 1e-6) {
       var back = 1 / reach;
       atX[k] *= back;
@@ -5696,9 +5702,9 @@
         passers.setMatrixAt(wrotePass++, mat);
       }
 
-      // A halo belongs to the interior as much as the light does. At full size it reaches past the
-      // boundary and draws light outside a surface nothing inside is able to cross. Capped by the room
-      // left, measured the same way the wall is.
+      // A halo belongs to the interior as much as the light does. At full size, it reaches past the
+      // boundary, and draws light outside a surface that nothing inside can cross. The rest of the
+      // room caps it, measured in the same way as the wall.
       var slack = Math.max(
         0,
         1 - measure(type, atX[k], atY[k], atZ[k], mine, mine * squash, norm),
@@ -5726,15 +5732,16 @@
   // ---------------------------------------------------------------------------------------------
   // Callouts.
   //
-  // A label rides the thing it names. Pinned to a screen corner it goes on saying the right words
-  // about the wrong place the moment the view turns, and the leader that has to reach it from there
-  // rakes diagonally across the object the reader is trying to look at. Placed near its target, the
-  // leader is short, local, and touches the box instead of crossing it.
+  // A label rides the thing that it names. Pinned to a screen corner, it says the right words about
+  // the wrong place as soon as the view turns. The leader that reaches it from there rakes across
+  // the object that the reader looks at.
+  // Near its target, the leader is short and local, and touches the box, and does not cross it.
   //
-  // The offset is carried in the object's own apparent scale and not in pixels. Pull back and the
-  // object shrinks toward the middle of the frame, a label at a fixed pixel offset drifts out to
-  // the edges and leaves the thing it names behind; scaled, it closes in as the object does. Dragging
-  // sets that offset and not a position, a label the reader moved goes on tracking.
+  // The offset is in the own apparent scale of the object, and not in pixels. On a pull back, the
+  // object shrinks toward the middle of the frame. A label at a fixed pixel offset drifts out to the
+  // edges, and leaves the thing that it names behind.
+  // Scaled, it closes in as the object does. A drag sets that offset, and not a position. A label
+  // that the reader moved still tracks.
   // ---------------------------------------------------------------------------------------------
 
   var flatPoint = new THREE.Vector3();
