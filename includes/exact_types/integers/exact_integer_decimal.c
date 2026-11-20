@@ -87,7 +87,7 @@ static int magnitude_add_small(uint32_t *value, size_t *used, uint32_t added)
  */
 static int magnitude_scale_by_ten(uint32_t *value, size_t *used, uint32_t power)
 {
-    // Nine powers of ten at a time, the max that fits a limb without overflowing it.
+    // Nine powers of ten at a time, the max that fits a limb with no overflow.
     while (power > 0u)
     {
         const uint32_t step = (power > LIMB_DECIMAL_DIGITS) ? LIMB_DECIMAL_DIGITS : power;
@@ -122,7 +122,7 @@ OriorExactStatus orior_exact_scale_by_ten(OriorExactInteger *value, uint32_t pow
 }
 
 /**
- * @brief Whether a byte is one of the four whitespace characters decimal text may be padded with.
+ * @brief Whether a byte is one of the four whitespace characters that can pad decimal text.
  *
  * @param[in] one The byte.
  * @return        1 for a space, tab, carriage return or line feed, 0 otherwise.
@@ -153,8 +153,8 @@ static int decimal_is_digit(char one)
  * @param[out] layout Where the parts sit [BORROWS].
  * @return            ORIOR_EXACT_OK, or ORIOR_EXACT_NOT_DECIMAL where the text breaks the grammar
  *                    orior_exact_from_decimal documents.
- * @note Runs to the end of the text before any digit is accumulated. A malformed text is therefore
- *       ORIOR_EXACT_NOT_DECIMAL even where its digits would also overrun the width.
+ * @note Runs to the end of the text before it accumulates a digit. A malformed text is thus
+ *       ORIOR_EXACT_NOT_DECIMAL even where its digits also overrun the width.
  */
 static OriorExactStatus decimal_layout(const char *text, size_t length, DecimalLayout *layout)
 {
@@ -232,9 +232,10 @@ static OriorExactStatus decimal_layout(const char *text, size_t length, DecimalL
  * @param[in]     from  First digit.
  * @param[in]     to    One past the last digit.
  * @return              1 where the magnitude ran off the top limb, 0 otherwise.
- * @note Takes nine digits a step. The magnitude is multiplied by 10^9 and the nine digits are added
- *       as one limb. A text overruns the width in nine digit steps exactly where it overruns one
- *       digit at a time, because every partial value is at max the finished one.
+ * @note Takes nine digits a step. The call multiplies the magnitude by 10^9 and adds the nine digits
+ *       as one limb.
+ * @note A text overruns the width in nine digit steps exactly where it overruns one digit at a time.
+ *       Each partial value is at max the finished one.
  * @warning On a return of 1 `value` contains a wrapped magnitude. Callers run this on a copy they
  *          discard on error.
  */
@@ -272,9 +273,9 @@ static int magnitude_accumulate_digits(uint32_t *value, size_t *used, const char
  * @param[in]  text        Decimal text [BORROWS].
  * @param[in]  length      How many bytes of text.
  * @param[in]  digits      Decimal places to carry both results at.
- * @param[out] value       Staging integer the value is read into [BORROWS].
- * @param[out] uncertainty Staging integer the uncertainty is read into [BORROWS].
- * @param[out] carried     Where 1 or 0 is written for a bracketed uncertainty [BORROWS].
+ * @param[out] value       Staging integer for the value [BORROWS].
+ * @param[out] uncertainty Staging integer for the uncertainty [BORROWS].
+ * @param[out] carried     Where the call writes 1 or 0 for a bracketed uncertainty [BORROWS].
  * @return                 ORIOR_EXACT_OK, ORIOR_EXACT_NOT_DECIMAL or ORIOR_EXACT_WILL_NOT_FIT.
  * @note The shared body of orior_exact_from_decimal and orior_exact_from_measured. One reading of
  *       the grammar serves both, and the two entries cannot accept different text.
@@ -291,9 +292,9 @@ static OriorExactStatus decimal_read(const char *text, size_t length, uint32_t d
         return layout_status;
     }
 
-    // Trailing zeros after the point are not places. 1.2300 and 1.23 are one number, and ".000" is
-    // zero at no places. Counting the zeros errored 1.2300 at a scale that accepted 1.23, and
-    // dropping every digit of ".000" with no digit left behind errored on a zero outright.
+    // Zeros at the end after the point are not places. 1.2300 and 1.23 are one number, and ".000" is
+    // zero at no places. A count of those zeros refuses 1.2300 at a scale that accepts 1.23. A drop of
+    // each digit of ".000" must leave one digit, or the read refuses a zero.
     size_t trimmed_to = layout.fraction_to;
     while ((trimmed_to > layout.fraction_from) && (text[trimmed_to - 1u] == '0'))
     {
@@ -312,7 +313,7 @@ static OriorExactStatus decimal_read(const char *text, size_t length, uint32_t d
     {
         return ORIOR_EXACT_WILL_NOT_FIT;
     }
-    // places is at max digits, checked above. The difference fits the uint32_t it is passed as.
+    // places is at max digits, as the check above found. The difference fits the uint32_t that carries it.
     if (magnitude_scale_by_ten(value->limb, &value_used, digits - (uint32_t)places) != 0)
     {
         return ORIOR_EXACT_WILL_NOT_FIT;
@@ -321,7 +322,7 @@ static OriorExactStatus decimal_read(const char *text, size_t length, uint32_t d
     orior_exact_zero(uncertainty);
     if (layout.carried != 0)
     {
-        // The bracketed digits count units of the last place printed, trailing zeros included.
+        // The bracketed digits count units of the last printed place, with the zeros at the end.
         const size_t printed = layout.fraction_to - layout.fraction_from;
         if (printed > (size_t)digits)
         {
