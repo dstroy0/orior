@@ -9,13 +9,13 @@
 
 #include "../arith/arith.h"
 
-// the bytes a block's parts are aligned to, and a page's gutter, the empty pixels kept right of and below a glyph
+// the alignment of the parts of a block in bytes, and the gutter of a page, the empty pixels right of and below a glyph
 #define ATLAS_ALIGN 64ULL
 #define ATLAS_ALIGNED(bytes_) ((((embed_u64)(bytes_)) + ATLAS_ALIGN - 1ULL) & ~(ATLAS_ALIGN - 1ULL))
 #define ATLAS_GUTTER 1u
 
-// the gamma each contrast band lifts coverage through, the band of the most contrast first: that band lifts text as
-// the window's text gamma lifts it, and each band of less contrast lifts it more
+// the gamma that each contrast band lifts coverage through, the band of the most contrast first. That band lifts text
+// as the text gamma of the window lifts it. Each band of less contrast lifts it more
 static const float s_band_gamma[GUI_COMPOSITOR_BANDS] = {1.4f, 1.6f, 1.8f, 2.0f};
 
 typedef struct
@@ -192,7 +192,7 @@ int gui_compositor_glyph_range(const GuiCompositorGlyphRangeCfg *args)
     {
         return 0;
     }
-    // a range takes entries no glyph is baked in yet
+    // a range takes entries that hold no baked glyph yet
     for (embed_u64 at = compositor->reserved; at < (compositor->reserved + entries); at += 1u)
     {
         if (compositor->entry[at].baked)
@@ -212,8 +212,8 @@ int gui_compositor_glyph_range(const GuiCompositorGlyphRangeCfg *args)
     return 1;
 }
 
-// The place on the page where a glyph `width` by `height` sits lowest, then furthest left, into `x_out` and `y_out`:
-// the segment it starts at, or the page's segments where it fits nowhere
+// The place on the page where a glyph `width` by `height` sits lowest, then furthest left, into `x_out` and `y_out`.
+// The result is the segment where it starts, or the segments of the page where it fits nowhere
 EMBED_INLINE embed_u32 atlas_page_fit(const AtlasCtx *args)
 {
     const GuiCompositorPage *const page = args->page;
@@ -249,9 +249,9 @@ EMBED_INLINE embed_u32 atlas_page_fit(const AtlasCtx *args)
     return best;
 }
 
-// The glyph's box `width` by `height` put on the page's skyline at the segment `at`, whose left it starts at and whose
-// height it sits on at `y_out`: a new segment for its top, the segments under it shortened or taken out, and the
-// neighboring segments of one height joined
+// The box of the glyph, `width` by `height`, put on the skyline of the page at the segment `at`. It starts at the left
+// of that segment, and sits on its height at `y_out`.
+// A new segment goes on its top, and the segments under it get shorter or go. Segments side by side of one height join
 EMBED_INLINE void atlas_page_take(const AtlasCtx *args)
 {
     GuiCompositorPage *const page = args->page;
@@ -332,8 +332,8 @@ EMBED_INLINE void atlas_page_evict(const AtlasCtx *args)
     }
 }
 
-// A place on a page for a box `width` by `height`, the page into `at`'s place: the page, or atlas_pages where every
-// page is full and every full page is kept by a range. The page drawn from least recently is let go first
+// A place on a page for a box `width` by `height`, with the page in the place of `at`. The result is the page. It is
+// atlas_pages where each page is full and a range keeps each full page. The page with the oldest draw goes first
 EMBED_INLINE embed_u32 atlas_room(const AtlasCtx *args)
 {
     GuiCompositor *const compositor = args->compositor;

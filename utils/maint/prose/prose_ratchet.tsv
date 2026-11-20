@@ -457,7 +457,6 @@ includes/codecs/sha512/sha512.c	1
 includes/codecs/zip/zip.h	2
 includes/codecs/zip/zip_archive.c	2
 includes/codecs/zip/zip_index.c	2
-includes/compositor/atlas.c	8
 includes/exact_types/integerfloats/edouble/edouble_record.c	5
 includes/exact_types/integers/arm.c	2
 includes/exact_types/integers/arm_cuda.h	7
