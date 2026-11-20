@@ -2451,8 +2451,8 @@
 
   var sincePierce = 0;
   var showAxes = false;
-  // Reused across retraces, and the comparator is named so it is one function instead of a closure
-  // built fresh on every sort.
+  // The code uses this again across retraces. The comparator has a name. It is a single function,
+  // and not a closure built fresh on each sort.
   var pierceOrder = [];
   function byReachOut(a, c) {
     return c.reach - a.reach;
@@ -2465,19 +2465,20 @@
   var markScale = new THREE.Vector3();
   var markTurn = new THREE.Quaternion();
   var markTint = new THREE.Color();
-  // One color per fate. The population is read off the picture. The two that arrive are warm and
-  // the three that do not are cold, which puts the survivors forward without a caption saying so.
-  var PIERCE_TINT = new THREE.Color(0x8ad4ff); // the run in, every member of the bundle
-  var ABSORB_TINT = new THREE.Color(0x2f4a63); // stopped at the surface
-  var SURFACE_TINT = new THREE.Color(0x4f7fa8); // turned at the surface and lost
-  var LENSED_TINT = new THREE.Color(0x7fd0c8); // bent all the way through, never colliding
-  var OFF_TINT = new THREE.Color(0xffa14d); // survived, arrives pointing elsewhere
-  var BALLISTIC_TINT = new THREE.Color(0xfff0b0); // untouched, straight across, the rarest
+  // One color per fate, and the reader reads the population off the picture. The two that arrive are
+  // warm, and the three that do not are cold. That puts the survivors forward with no caption.
+
+  var PIERCE_TINT = new THREE.Color(0x8ad4ff); // The run in, each member of the bundle.
+  var ABSORB_TINT = new THREE.Color(0x2f4a63); // Stopped at the surface.
+  var SURFACE_TINT = new THREE.Color(0x4f7fa8); // Turned at the surface, and lost.
+  var LENSED_TINT = new THREE.Color(0x7fd0c8); // Bent all the way through, with no collision.
+  var OFF_TINT = new THREE.Color(0xffa14d); // Survived, and arrives pointed elsewhere.
+  var BALLISTIC_TINT = new THREE.Color(0xfff0b0); // Untouched, straight across, the rarest.
   var SCATTER_TINT = new THREE.Color(0xffd36b);
 
-  // One refraction. The normal points out of the shell and the beam is heading in. The incidence
-  // cosine is the negated dot. A ray past the critical angle reflects instead of crossing, and it is
-  // returned as a miss.
+  // One refraction. The normal points out of the shell, and the beam heads in. The incidence cosine is
+  // the negated dot. A ray past the critical angle reflects, and does not cross. The call returns it
+  // as a miss.
   function refract(dir, norm, ratio, into) {
     var cosIn = -dir.dot(norm);
     var sinSq = ratio * ratio * (1 - cosIn * cosIn);
@@ -2493,7 +2494,7 @@
     return true;
   }
 
-  // A fixed roll per source and ray, a member of the bundle retains its fate while the reader looks.
+  // A fixed roll per source and ray. A member of the bundle keeps its fate while the reader looks.
   function roll(source, ray, salt) {
     var x = (source * 73856093) ^ (ray * 19349663) ^ (salt * 83492791);
     x = (x ^ (x >>> 13)) * 1274126177;
@@ -2501,7 +2502,7 @@
     return ((x >>> 0) % 100000) / 100000;
   }
 
-  // The pair whose diameter lies max nearly along a direction: the dimensionally coherent opposite.
+  // The pair whose diameter lies most nearly along a direction: the dimensionally coherent opposite.
   function coherentPair(dx, dy, dz) {
     var best = -1,
       bestDot = -1;
@@ -2532,8 +2533,8 @@
     var mark = 0;
     depCount = 0;
 
-    // The shells the beam meets coming in, outermost first. Reused, because the retrace runs ten
-    // times a second and the shell count changes only when the reader changes it.
+    // The shells that the beam meets on the way in, outermost first. The code uses this again. The
+    // retrace runs ten times a second, and the shell count changes only when the reader changes it.
     pierceOrder.length = 0;
     for (var b = 0; b < shells.length; b++) {
       pierceOrder.push(shells[b]);
@@ -2545,13 +2546,13 @@
       var one = sources[s];
 
       for (var r = 0; r < RAYS_PER; r++) {
-        // Aimed across the beam profile and not all at the middle. The bundle has the width the
-        // spray has. Two rolls give an offset inside the cone the source is pointing.
+        // Aimed across the beam profile, and not all at the middle. The bundle has the width of the
+        // spray. Two rolls give an offset inside the cone that the source points.
         var spreadA = roll(s, r, 1) * 6.2831853;
         var spreadR = Math.sqrt(roll(s, r, 2)) * SPRAY_WIDE * 0.55;
         rayFrom.copy(one.at);
         rayDir.copy(one.at).multiplyScalar(-1).normalize();
-        // Two directions across the beam, taken from whichever axis is least parallel to it.
+        // Two directions across the beam, taken from the axis that is least parallel to it.
         rayNorm.set(0, 1, 0);
         if (Math.abs(rayDir.y) > 0.9) {
           rayNorm.set(1, 0, 0);
@@ -2565,13 +2566,13 @@
 
         var fate = roll(s, r, 3);
 
-        // The first shell this ray meets going in, the outermost one the source is not
-        // already inside of.
-        // bandOuter already carries SHELL, a reach is in world units and must not be scaled by it
-        // again. And a source sits between shells by default, at 19.2 against shells at 11.2, 19.1
-        // and 32.4. Reaching for the outermost unconditionally asks for a crossing that lies
-        // behind the ray. Either mistake returns a negative distance and the whole trace comes back
-        // empty.
+        // The first shell that this ray meets on the way in: the outermost one that the source is not
+        // already inside.
+        //
+        // bandOuter already carries SHELL. A reach is in world units, and the code must not scale it
+        // by SHELL again. A source sits between shells by default, at 19.2 against shells at 11.2,
+        // 19.1 and 32.4. A reach for the outermost shell with no condition asks for a crossing behind
+        // the ray. Either error returns a negative distance, and the whole trace comes back empty.
         var here = rayFrom.length();
         var hit = null;
         for (var q = 0; q < order.length; q++) {
@@ -2595,12 +2596,12 @@
         }
         rayNext.copy(rayFrom).addScaledVector(rayDir, step);
 
-        // The run in, drawn faintly for every member of the bundle.
+        // The run in, drawn faintly for each member of the bundle.
         seg = positionPierce(seg, rayFrom, rayNext, PIERCE_TINT, 0.16);
 
         if (fate < FATE_ABSORBED) {
-          // Stopped at the surface, and this is the majority of the beam.
-          // All of its energy lands here, absorption is the heaviest deposit of the five.
+          // Stopped at the surface, and this is most of the beam. All of its energy lands here.
+          // Absorption is the heaviest deposit of the five.
           mark = positionMark(mark, rayNext, rad[0] * 0.5, ABSORB_TINT);
           depCount = positionDeposit(depCount, rayNext, 1.0);
           continue;
@@ -2610,8 +2611,8 @@
         rayNorm.copy(rayNext).normalize();
 
         if (fate < FATE_SURFACE) {
-          // Turned hard where it met the boundary and lost soon after. It gets a short stub along
-          // the surface and no further.
+          // Turned hard where it met the boundary, and lost soon after. It gets a short stub along the
+          // surface, and nothing past it.
           rayNext
             .set(rayDir.x, rayDir.y, rayDir.z)
             .reflect(rayNorm)
@@ -2619,13 +2620,13 @@
             .add(rayFrom);
           seg = positionPierce(seg, rayFrom, rayNext, SURFACE_TINT, 0.45);
           mark = positionMark(mark, rayFrom, rad[0] * 0.7, SURFACE_TINT);
-          // Turned at the surface and lost. The majority of it stays where it turned.
+          // Turned at the surface, and lost. Most of it stays where it turned.
           depCount = positionDeposit(depCount, rayFrom, 0.7);
           continue;
         }
 
-        // Warped on the way in. A boundary asked to read finer structure is the denser medium. The
-        // sensitivity the reader set is the index that bends this ray.
+        // Warped on the way in. A boundary set to read finer structure is the denser medium. The
+        // sensitivity that the reader set is the index that bends this ray.
         var sens = litOf[hit.index] ? litOf[hit.index].sens : 0.001;
         var index = 1 + Math.min(0.45, sens * 40);
         if (!refract(rayDir, rayNorm, 1 / index, rayNext)) {
@@ -2635,8 +2636,8 @@
         rayDir.copy(rayNext);
 
         if (fate < FATE_LENSED) {
-          // Bent by the constituents the whole way across and never colliding with one. Drawn as a
-          // few pieces with the bend accumulating. The path curves instead of turning once.
+          // Bent by the constituents the whole way across, with no collision. The draw is a few
+          // pieces, and the bend adds up. The path curves, and does not turn once.
           var curl = (roll(s, r, 4) - 0.5) * 0.5;
           var lit = 0.4;
           for (var k = 0; k < CURVE_STEPS; k++) {
@@ -2645,15 +2646,15 @@
               .addScaledVector(rayDir, (reach * 2) / CURVE_STEPS);
             seg = positionPierce(seg, rayFrom, rayNext, LENSED_TINT, lit);
             rayFrom.copy(rayNext);
-            // A small turn each piece, the lensing by what it passes without touching.
+            // A small turn each piece: the lens effect of what it passes and does not touch.
             rayDir.applyAxisAngle(rayNorm, curl / CURVE_STEPS).normalize();
           }
           continue;
         }
 
         // The two fates that reach the interior object. Both scatter off the pair whose diameter runs
-        // max nearly along the arriving beam, because a bit and its antipode are one object and that
-        // pair is what a beam interacts with coherently.
+        // most nearly along the beam as it arrives. A bit and its antipode are one object, and a beam
+        // interacts with that pair coherently.
         var pair = coherentPair(rayDir.x, rayDir.y, rayDir.z);
         if (pair < 0) {
           continue;
@@ -2675,28 +2676,29 @@
         var tint = ballistic ? BALLISTIC_TINT : OFF_TINT;
         var lit = ballistic ? 0.95 : 0.5;
 
-        // The run to the scatterer is always a line, since that stretch is the beam arriving and not
+        // The run to the scatterer is always a line. That stretch is the beam as it arrives, and not
         // an axis of the object.
         seg = positionPierce(seg, rayFrom, rayNext, tint, lit);
         mark = positionMark(mark, rayNext, rad[0] * (ballistic ? 1.9 : 1.2), tint);
 
-        // The scattering itself deposits, and this is the deposit that carries the interior. It sits
-        // at the pair's own radius and not at the boundary. The depth kernel widens it on the
-        // way out and it arrives as a broad faint cap. A ballistic member gives up little, since it
-        // leaves with its direction intact, and one that arrives off direction gave up more.
+        // The scatter itself deposits, and this deposit carries the interior. It sits at the own
+        // radius of the pair, and not at the boundary. The depth kernel widens it on the way out, and
+        // it arrives as a broad faint cap.
+        // A ballistic member gives up little, because it leaves with its direction intact. A member
+        // that arrives off direction gave up more.
         depCount = positionDeposit(depCount, rayNext, ballistic ? 0.25 : 0.6);
         rayFrom.copy(rayNext);
 
         if (ballistic) {
-          // Untouched. It carries straight across to the other end of that diameter and out. This
-          // is the component that arrives with its direction intact and it is the rarest of them.
+          // Untouched. It carries straight across to the other end of that diameter, and out. This is
+          // the part that arrives with its direction intact, and it is the rarest of them.
           rayNext.set(
             atX[pick === ea ? eb : ea],
             atY[pick === ea ? eb : ea],
             atZ[pick === ea ? eb : ea],
           );
         } else {
-          // Survived and arrives pointing somewhere else. The turn is large deliberately.
+          // Survived, and arrives pointed somewhere else. The turn is large by design.
           rayNorm
             .set(roll(s, r, 5) - 0.5, roll(s, r, 6) - 0.5, roll(s, r, 7) - 0.5)
             .normalize();
@@ -2707,9 +2709,9 @@
             .add(rayFrom);
         }
 
-        // The leg away, as particles by default and as a line when the axes are asked for. Both
-        // carry the same fate and the same color. Switching between them changes what is in the
-        // way and never what is being reported.
+        // The leg away, as particles by default, and as a line when the reader asks for the axes.
+        // Both carry the same fate and the same color. A switch between them changes what is in the
+        // way, and never what the view reports.
         if (showAxes) {
           seg = positionPierce(seg, rayFrom, rayNext, tint, lit);
           mark = positionMark(mark, rayNext, rad[0] * 1.5, tint);
@@ -2734,21 +2736,21 @@
     if (markMesh.instanceColor) {
       markMesh.instanceColor.needsUpdate = true;
     }
-    // A retrace positions a new set of deposits, any stored boundary reading that summed the old ones is
-    // out of date. The counter says so without the key having to name every deposit.
+    // A retrace positions a new set of deposits. A stored boundary reading that summed the old ones is
+    // then out of date. The counter says so, and the key does not need to name each deposit.
     transportGen++;
   }
 
-  // How brightly a path is drawn, against how brightly its events are.
+  // The brightness of a path, against the brightness of its events.
   //
-  // A bundle of a few hundred paths drawn at full strength is a thicket, and the thicket hides the
-  // thing it was drawn to show: where each ray ended and what stopped it. The events are marks, and
-  // a mark competing with three lines crossing it loses.
+  // A bundle of a few hundred paths at full strength is a thicket. The thicket hides what it must
+  // show: where each ray ended, and what stopped it. The events are marks, and a mark loses against
+  // three lines that cross it.
   //
-  // So the paths default to the ground. The material blends additively, a gain near zero puts a
-  // line at the background color exactly -- it contributes almost nothing and the geometry is still
-  // faintly there, which is enough to read a direction from without reading it instead of the marks.
-  // The checkbox lights them for anyone tracing one path end to end.
+  // The paths thus default to the ground. The material blends additively, and a gain near zero puts a
+  // line at the background color exactly. It adds almost nothing, and the geometry is still faintly
+  // there. That is enough to read a direction from, and the marks still lead.
+  // The checkbox lights them for a reader who traces one path end to end.
   var pathLit = false;
   var PATH_DIM = 0.09;
 
@@ -2785,12 +2787,12 @@
     return mark + 1;
   }
 
-  // A survivor drawn as particles along its path instead of as a line.
+  // A survivor drawn as particles along its path, and not as a line.
   //
-  // The axis a survivor scatters from is a diameter of the object, and a diameter drawn as a solid
-  // line lies across everything else in the interior. Once the constituents are bisected by sticks of
-  // their own, those diameters are in the way of the measurement and not part of it. Particles
-  // are the usual rendering and the axes are a thing to switch on when the geometry is the question.
+  // The axis that a survivor scatters from is a diameter of the object. A diameter drawn as a solid
+  // line lies across all else in the interior. Once sticks of their own bisect the constituents, those
+  // diameters are in the way of the measurement, and not part of it. Particles are the usual render,
+  // and the reader switches the axes on when the geometry is the question.
   var trackAt = new THREE.Vector3();
 
   function positionTrack(mark, from, to, count, size, tint) {
@@ -2812,19 +2814,19 @@
       if (tail < 0) {
         tail = 0;
       }
-      // h runs 0 at the apex to 1 at the mouth; y is 0.5 down to -0.5; radius widens with h.
+      // h runs 0 at the apex to 1 at the mouth. y is 0.5 down to -0.5. The radius widens with h.
       var hh = phase,
         ht = tail;
       var rh = SPRAY_WIDE * hh * sprayRad[i],
         rt = SPRAY_WIDE * ht * sprayRad[i];
 
-      // The curve away, and it is deliberately small. A scatterer leaves with too much speed to turn
-      // quickly. The bend accumulates as the logarithm of the distance run: almost nothing over the
-      // first stretch, and never sharpening however far it goes. A constant curvature instead would
-      // arc every streak into the same circle, which says turning is free.
+      // The curve away, small by design. A scatterer leaves with too much speed to turn quickly. The
+      // bend grows as the logarithm of the distance run. It is almost nothing over the first stretch,
+      // and never gets sharp, however far it goes.
+      // A constant curvature arcs each streak into the same circle, which says that a turn is free.
       //
-      // Scaled by the angle off the pole. The great center beam runs straight and only the
-      // scattered wings curl. What did the scattering is what has to pay to change direction.
+      // Scaled by the angle off the pole. The great center beam runs straight, and only the scattered
+      // wings curl. The thing that scattered must pay to change direction.
       var bend = (SPRAY_CURL * sprayRad[i]) / LOG_FOUR;
       var angH = sprayAng[i] + bend * Math.log(1 + 3 * hh);
       var angT = sprayAng[i] + bend * Math.log(1 + 3 * ht);
@@ -2836,8 +2838,9 @@
       CONE_POS[at + 4] = 0.5 - ht;
       CONE_POS[at + 5] = rt * Math.sin(angT);
 
-      // The particle's own color, thinned along the axis as the beam spreads and faded down the tail
-      // of the streak so the head leads. Written every frame because both fades ride the phase.
+      // The own color of the particle, thinned along the axis as the beam spreads, and faded down the
+      // tail of the streak. The head then leads. The code writes it each frame, because both fades ride
+      // the phase.
       var fade = 1 - 0.55 * hh;
       CONE_LIT[at] = sprayR[i] * fade;
       CONE_LIT[at + 1] = sprayG[i] * fade;
@@ -2854,8 +2857,8 @@
   function makeSource(hue, ang, alt, out, label) {
     var light = new THREE.PointLight(hue, 0, BEAM_REACH, 1.0);
     light.castShadow = true;
-    // Sized against the count this source brings the total to, adding a twelfth source does not
-    // ask for a gigabyte of depth texture. Each light retains whatever size it was built with.
+    // Sized against the count that this source brings the total to. A twelfth source then does not ask
+    // for a gigabyte of depth texture. Each light keeps the size of its build.
     SHADOW_MAP = shadowSizeFor(sources.length + 1);
     light.shadow.mapSize.width = SHADOW_MAP;
     light.shadow.mapSize.height = SHADOW_MAP;
@@ -2864,18 +2867,18 @@
     light.shadow.bias = -0.0022;
     scene.add(light);
 
-    // The source is a point, small enough to sit inside its label. A source has no size worth drawing.
-    // It gets almost none.
+    // The source is a point, small enough to sit inside its label. A source has no size worth a draw,
+    // and it gets almost none.
     var lamp = new THREE.Mesh(
       new THREE.SphereGeometry(LAMP_SIZE * 0.22, 10, 8),
       new THREE.MeshBasicMaterial({ color: hue }),
     );
     scene.add(lamp);
 
-    // The spray of neutrinos, a neon point cloud shaped into a cone with its apex on the source. It
-    // lights nothing and casts nothing: it is the beam made visible and never a second source. The
-    // geometry and material are shared across sources. This is one point cloud aimed instead of a new
-    // one built.
+    // The spray of neutrinos, a neon point cloud in the shape of a cone, with its apex on the source.
+    // It lights nothing and casts nothing. It is the beam made visible, and never a second source.
+    // The sources share the geometry and material. This aims one point cloud, and does not build a new
+    // one.
     var cone = new THREE.LineSegments(CONE_SPRAY_GEO, CONE_MAT);
     cone.frustumCulled = false;
     scene.add(cone);
