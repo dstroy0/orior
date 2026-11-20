@@ -10,15 +10,15 @@
  * @brief The exact measure on a CUDA device, parallel over positions instead of over limbs.
  * @author dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
  *
- * @note The vectorized arms widen one comparison. This one does not widen a comparison at all: it
- *       gives one position to each thread and runs the whole search for that position there. The
- *       limb arithmetic on the device is the portable arithmetic, transcribed for the device and
- *       checked against the host the same way every other arm is.
+ * @note The vectorized arms widen one comparison. This one does not widen a comparison at all. It
+ *       gives one position to each thread, and runs the whole search for that position there.
+ * @note The limb arithmetic on the device is the portable arithmetic, transcribed for the device.
+ *       The tests check it against the host, in the same way as each other arm.
  * @note A big integer is a fixed width limb array here exactly as it is on the host. A device can
  *       store one for that reason alone. The representation is a transform of the value, and the
  *       device carries the same transform, one warp's worth of limbs at a time.
- * @note Only `agreement` is passed over. A single comparison is far too small to be worth a bus
- *       crossing. The arm's `equal` and `compare` stay on the host and are the portable ones.
+ * @note The arm passes only `agreement` to the device. A single comparison is far too small for a
+ *       bus crossing. The arm's `equal` and `compare` stay on the host and are the portable ones.
  */
 #ifndef ORIOR_EXACT_GPU_H
 #define ORIOR_EXACT_GPU_H
@@ -34,22 +34,22 @@ extern "C"
      * @brief Whether a usable CUDA device is present.
      *
      * @return 1 where at least one device answered, 0 otherwise.
-     * @note Queried at run time. A binary built with CUDA still runs on machines with no device, and the
-     *       arm has to report itself absent there instead of failing inside a launch.
+     * @note Asks at run time. A program built with CUDA still runs on machines with no device. There the
+     *       arm must report that it is absent, and not fail inside a launch.
      */
     int orior_exact_cuda_available(void);
 
     /**
      * @brief The name and compute capability of the device this arm would use.
      *
-     * @param[out] text  Where the description is written [BORROWS].
+     * @param[out] text  Where the call writes the description [BORROWS].
      * @param[in]  capacity  How many bytes `text` contains.
-     * @return           1 where a description was written, 0 where no device answered.
+     * @return           1 where the call wrote a description, 0 where no device answered.
      */
     int orior_exact_cuda_describe(char *text, size_t capacity);
 
     /**
-     * @brief Counts agreeing places over a sorted run, one position per thread.
+     * @brief Counts the places that agree over a sorted run, one position per thread.
      *
      * @param[in] positions Positions, ascending [BORROWS].
      * @param[in] values    The value located at each position [BORROWS].
