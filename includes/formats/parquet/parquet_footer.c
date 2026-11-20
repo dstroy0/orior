@@ -19,8 +19,8 @@ typedef struct
     unsigned long long path_bytes;
 } ParquetSchemaFrame;
 
-// read one schema element and place it: the root opens the walk, an element with children opens a frame, and an
-// element without children is the footer's next leaf
+// read one schema element and place it. The root opens the walk. An element with children opens a frame. An element
+// without children is the next leaf of the footer
 static int parquet_schema_element_read(ParquetCursor *cursor, ParquetFooter *footer, ParquetSchemaFrame *stack,
                                        unsigned int *depth, char *path)
 {
@@ -95,8 +95,8 @@ static int parquet_schema_element_read(ParquetCursor *cursor, ParquetFooter *foo
     path[path_bytes] = '\0';
     if (children == 0ULL)
     {
-        // a physical type is 0 through 7 and a fixed width a few bytes, both stored as i32, and an unknown type is
-        // refused where its column is read; a width past an unsigned int is refused here
+        // a physical type is 0 through 7 and a fixed width a few bytes, both stored as i32. The read of a column refuses
+        // an unknown type. This code refuses a width past an unsigned int
         if ((footer->leaf_count >= PARQUET_LEAVES_MAX) || (fixed_bytes > UINT_MAX) || (physical > UINT_MAX))
         {
             return 0;
@@ -198,8 +198,8 @@ static int parquet_column_metadata_read(ParquetCursor *cursor, const ParquetLeaf
         else if ((field_id == 4LL) && (type == PARQUET_THRIFT_I32))
         {
             const unsigned long long codec = parquet_nonnegative_read(cursor);
-            // a codec is 0 through 7, stored as i32. One past it is stored as the last unknown one, and an unknown
-            // codec is refused where a page is decoded
+            // a codec is 0 through 7, stored as i32. The code stores one past it as the last unknown codec. The decode of a
+            // page refuses an unknown codec
             chunk->codec = (ParquetCodec)((codec <= (unsigned long long)PARQUET_LZ4_RAW) ? codec : 0xFFULL);
         }
         else if ((field_id == 5LL) && (type == PARQUET_THRIFT_I64))
@@ -231,8 +231,8 @@ static int parquet_column_metadata_read(ParquetCursor *cursor, const ParquetLeaf
             return 0;
         }
     }
-    // a writer that stores no dictionary may still write the field as zero: a dictionary offset counts only where it
-    // is nonzero and ahead of the first data page
+    // a writer that stores no dictionary can still write the field as zero. A dictionary offset counts only where it is
+    // nonzero and ahead of the first data page
     const int has_dictionary = (dictionary_page_offset != 0ULL) && (dictionary_page_offset < data_page_offset);
     chunk->first_byte = has_dictionary ? dictionary_page_offset : data_page_offset;
     return path_seen;
@@ -342,7 +342,7 @@ static int parquet_file_metadata_read(ParquetCursor *cursor, ParquetFooter *foot
                     return 0;
                 }
             }
-            // the count was limited to PARQUET_ROW_GROUPS_MAX above and fits an unsigned int
+            // the code above limited the count to PARQUET_ROW_GROUPS_MAX, and it fits an unsigned int
             footer->row_group_count = (unsigned int)count;
         }
         else
@@ -372,7 +372,7 @@ int parquet_footer_read(const EngineIngestTools *tools, const char *path, Parque
     {
         return 0;
     }
-    // the size was checked at twelve or more above, and the conversion is exact
+    // the check above found the size at twelve or more, and the conversion is exact
     const unsigned long long file_size = (unsigned long long)file_bytes;
     unsigned char trailer[PARQUET_TRAILER_BYTES];
     EngineFileRange range;
@@ -402,7 +402,7 @@ int parquet_footer_read(const EngineIngestTools *tools, const char *path, Parque
     range.bytes = footer_bytes;
     range.out = text;
     ParquetCursor cursor = {text, footer_bytes, 0ULL, 0u};
-    // the footer's bytes are limited to 16 MiB above, and the count converts exactly
+    // the code above limits the bytes of the footer to 16 MiB, and the count converts exactly
     const int read = (tools->read(&range) == (long long)footer_bytes);
     const int decoded = read && parquet_file_metadata_read(&cursor, footer) && (cursor.broken == 0u);
     free(text);

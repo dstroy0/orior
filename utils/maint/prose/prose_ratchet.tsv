@@ -528,7 +528,6 @@ includes/formats/cfg_json/cfg_json.c	5
 includes/formats/dicom/dicom_parse.c	1
 includes/formats/dicom/dicom_read.c	3
 includes/formats/parquet/parquet.h	10
-includes/formats/parquet/parquet_footer.c	12
 includes/formats/parquet/parquet_internal.h	4
 includes/formats/parquet/parquet_read.c	8
 includes/formats/parquet/parquet_thrift.c	11
