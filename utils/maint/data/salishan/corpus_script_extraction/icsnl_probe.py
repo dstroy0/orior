@@ -20,7 +20,7 @@
 # taken here.
 #
 # The volumes run to several megabytes and are born digital. The text comes out with pypdf and is retained
-# beside the file. The keyword pass afterward is a locator: it says which pages to open,
+# beside the file. The keyword pass afterward is a locator. It says which pages to open,
 # and nothing is concluded from a matched line until the page around it has been read.
 
 import io

@@ -22,9 +22,9 @@ The tool makes four changes, and each change only moves, removes or inflects a w
              letter. The next word must be an English word of the voice table. A semicolon in code, in a quotation
              or in brackets stays.
 
-  sentence   ", and" or ", so" before a clause with its own subject becomes a full stop. The tool removes "and". It
-             keeps "so" with a capital letter, and the next word gets a capital letter. A comma before them on the same line can
-             mark a list, and the line then stays.
+  sentence   ", and", ", so", ", but" or a colon before a clause with a pronoun subject becomes a full stop. The tool
+             removes "and". It keeps "so" or "but" with a capital letter, and the next word gets a capital letter. A
+             comma or a colon before them on the same line can mark a list, and the line then stays.
 
 The checker counts the findings of the file before and after each change. A change stays only where the count of
 the file falls and no rule of the file gets more findings. The docs check then holds each file to its ratchet at
@@ -71,7 +71,7 @@ PROGRESSIVE = re.compile(r"(?<![\w'-])(is|are) ([a-z]+ing)\b")
 # takes its place. Without an object the -ing word can be an adjective, and it stays.
 OBJECT_OPENERS = {"a", "an", "the", "this", "that", "these", "those", "it", "its", "them", "their", "each", "every",
                   "all", "any", "no", "one", "his", "her"}
-JOINED = re.compile(r"(?<=[A-Za-z0-9)\]\"']), (and|so) ([a-z][a-z]+)\b")
+JOINED = re.compile(r"(?<=[A-Za-z0-9)\]\"'])(?:, (and|so|but)|(:)) ([a-z][a-z]+)\b")
 # The pronouns that open a clause with its own subject. A conjunction before one of them joins two clauses, and a full
 # stop can take the place of the comma and the conjunction. A determiner such as "the" can open the next item of a
 # list as well as a clause, and it is not one of them.
@@ -207,18 +207,18 @@ def candidates(part):
             found.append((hit.start(), hit.end(), form))
     # a comma before the joined clause on the same line can mark a list, and the tool does not split the line there
     for hit in JOINED.finditer(part):
-        word = hit.group(2)
+        joint = hit.group(1) or hit.group(2)
+        word = hit.group(3)
         before = part[:hit.start()]
         if (word not in SUBJECT_OPENERS) or ("," in before) or (":" in before) or not outside_code(part, hit.start()):
             continue
-        if (hit.group(1) == "so") and (word in ("a", "an")):
+        if len(re.findall(r"[A-Za-z]+", before)) < 4 or len(re.findall(r"[A-Za-z]+", part[hit.end():])) < 3:
             continue
-        if len(re.findall(r"[A-Za-z]+", part[:hit.start()])) < 4 or len(re.findall(r"[A-Za-z]+", part[hit.end():])) < 3:
-            continue
-        if hit.group(1) == "and":
-            found.append((hit.start(), hit.start(2) + 1, ". " + word[0].upper()))
+        if joint in ("and", ":"):
+            found.append((hit.start(), hit.start(3) + 1, ". " + word[0].upper()))
         else:
-            found.append((hit.start(), hit.start(1) + 1, ". S"))
+            # "so" and "but" stay, each with a capital letter
+            found.append((hit.start(), hit.start(1) + 1, ". " + joint[0].upper()))
     for hit in HAVE.finditer(part):
         participle = hit.group(2)
         regular = participle.endswith("ed") and len(participle) > 4 and participle not in NOT_PARTICIPLE

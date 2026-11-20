@@ -8,7 +8,7 @@ never ARRANGEMENT. A bag of words is invariant under permutation - shuffle the c
 count is identical - and so it cannot separate a text from its own shuffle, and it cannot say WHICH
 sentences carry the register. That is not a flaw in the tool, it is what a bag of words is.
 
-The gap is what this measures. Generated text is close to MEMORYLESS: it is sampled token by token
+The gap is what this measures. Generated text is close to MEMORYLESS. It is sampled token by token
 from a context window, and so its long-range structure is whatever that window carries. Human
 writing is not memoryless. A person holds a subject across paragraphs and returns to it, and so
 dependence survives to ranges no window covers.

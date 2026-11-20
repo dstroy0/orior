@@ -93,7 +93,7 @@ static inline __device__ unsigned int omega_device_end(const short *term, unsign
     return at;
 }
 
-// a token started under the open frames: it fills one of the top frame's children, and a lambda or an
+// a token started under the open frames. It fills one of the top frame's children, and a lambda or an
 // application opens a frame of its own
 static inline __device__ void omega_device_open(unsigned char *stack, unsigned int base, unsigned int *top, short token)
 {

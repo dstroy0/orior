@@ -64,7 +64,7 @@ Depends on impero.
 
 **Search**: the [sift](docs/sift.md), the [permutation null](docs/method.md) and shift agreement.
 
-The engine measures the structure in an object against a permutation null: it retains the object's counts, shuffles their order, and measures what the shuffle destroyed, with nothing rounded, estimated or trained. The transpiler compiles a program written in [gnascor](docs/gnascor.md) into each target language. Angluin's L\*, with U\*, the overseer and the conference, works out the definitions of a target that nobody described.
+The engine measures the structure in an object against a permutation null. It retains the object's counts, shuffles their order, and measures what the shuffle destroyed, with nothing rounded, estimated or trained. The transpiler compiles a program written in [gnascor](docs/gnascor.md) into each target language. Angluin's L\*, with U\*, the overseer and the conference, works out the definitions of a target that nobody described.
 
 What the work claims, what it does not claim, and the results are on the [home page of the docs](docs/index.md). [Areas of research](docs/research.md) has every result, including the ones that failed, and [Where to start reading](docs/research_papers.md) lists the twenty-four research papers.
 

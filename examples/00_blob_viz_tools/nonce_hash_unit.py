@@ -24,7 +24,7 @@ a higher local order than a unit that does not.
 THE CONFOUND, HANDLED IN THE NULL
 
 A winning hash has about seventy-eight leading zero bits by construction, a long solid run that is
-pure local order and tells nothing new: it is the hash winning, which is already known. So the null
+pure local order and tells nothing new. It is the hash winning, which is already known. So the null
 draws a unit with the SAME leading zeros, a random nonce and a hash of that many zeros then a random
 tail. The winning unit read against that null carries structure only if it beats a unit whose sole
 order is the leading zeros it shares. The pairing test exists for that.

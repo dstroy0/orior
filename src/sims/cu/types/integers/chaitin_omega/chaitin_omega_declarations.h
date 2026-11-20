@@ -135,7 +135,7 @@ void omega_normal_mass(std::vector<unsigned long long> &normal_closed);
 
 // Simple types by unification (Hindley): a type is a variable or an arrow, stored in a union-find. Every simply
 // typable term is strongly normalizing (Tait 1967). A type found is a certificate that the term halts, with
-// no step run and no normal form written: it settles terms whose normal forms outgrow any space.
+// no step run and no normal form written. It settles terms whose normal forms outgrow any space.
 typedef struct
 {
     std::vector<unsigned int> parent;

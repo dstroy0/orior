@@ -430,7 +430,7 @@ def fold_row(fold):
     scatter = sorted(m["residual_steps"] for m in misses)
     # under us: within one step of the arc. A miss past it is read as a curl of the field at a scale the walk has not
     # reached, and its own radius and turn say where it is. The far misses' distance over the core's ninetieth
-    # percentile is the separation: it rises as the core tightens under the walk and the far misses are apart as
+    # percentile is the separation. It rises as the core tightens under the walk and the far misses are apart as
     # single dots
     near = [m for m in misses if m["residual_steps"] <= 1.0]
     far = [m for m in misses if m["residual_steps"] > 1.0]

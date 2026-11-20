@@ -28,7 +28,7 @@ because a gap is visible and an invention is not.
 SELF CONTAINED
 
 One file, no network, no CDN, no interpreter. That is the tree's convention for these pages and it
-is the property that makes a page worth retention: it opens in five years on a machine with none of
+is the property that makes a page worth retention. It opens in five years on a machine with none of
 this installed. The output location is resolved through `out_path` so the tool never writes beside
 itself.
 """

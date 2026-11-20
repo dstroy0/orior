@@ -35,7 +35,7 @@
 #
 # Surprise is mean bits per byte pair. Lower sits closer to English. The papers fix the scale. A
 # repository file inside the papers' own spread reads the way a human technical page reads, and one
-# above all of them does not. Nothing here is a verdict on a sentence: it ranks files by how far
+# above all of them does not. Nothing here is a verdict on a sentence. It ranks files by how far
 # they sit from English, which says where to look, and a person still reads the file.
 
 import io

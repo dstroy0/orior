@@ -140,7 +140,7 @@ CODEGEN_CORE void ruleset_core_relation_counts(RulesetCoreRelations *relations, 
 //                entry of `to`
 //     ABSENT     a name `from` gives and no entry of `to` does, which a file of `to` added undoes: open
 //
-// Each of the others is a line a lane cannot be read through as it is (P8): it is true between two languages that
+// Each of the others is a line a lane cannot be read through as it is (P8). It is true between two languages that
 // each write their own names rightly, and is no verdict on either set
 #define RULESET_CORE_MAP_BREAKS 0u
 #define RULESET_CORE_MAP_COLLAPSES 1u

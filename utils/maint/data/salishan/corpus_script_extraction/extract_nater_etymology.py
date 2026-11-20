@@ -115,7 +115,7 @@ TARGET = os.path.join(
 
 # Retained in step with NATER_ETYM in hand_extraction/papers.py. ǝ is U+01DD and ə is U+0259, which NFC
 # does not unify, and this paper prints both. The apostrophe is deliberately absent for the same
-# reason it is absent from the other Nater paper: it is his ejective mark and also the closing quote
+# reason it is absent from the other Nater paper. It is his ejective mark and also the closing quote
 # of all 1275 glosses. Holding it makes every English gloss a word of the language.
 MARKS = "ʔʕɬłƛəχ7̓̔̕ʷ˽" + "ǝ√" + "áíúà" + "ᴗɢʁʒščɣλˑ"
 

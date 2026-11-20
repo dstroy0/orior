@@ -60,7 +60,7 @@ int sass_encoding_places_built(SassMachine *machine);
 // instruction that takes a loop back: its guard is the flag the loop is steered on alone, and it is taken
 // only where the flag is true; one of its label or immediate operands, added to the address after it and limited to the
 // field's own width, lands on `target`; and its first operand writes neither a register the loop uses nor the flag.
-// The walk is a bumper a caller turns on or off and stops at any step of: it never changes the encoding, and with it
+// The walk is a bumper a caller turns on or off and stops at any step of. It never changes the encoding, and with it
 // off whatever was emitted is what runs.
 typedef struct
 {

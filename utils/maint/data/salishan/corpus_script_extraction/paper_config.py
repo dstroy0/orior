@@ -121,7 +121,7 @@ ROBERTSON = SHARED + "̣čš"
 # character while ə́ has no composed form and retains its acute located alone.
 WOLFE = SHARED + "ʸːɛεέŋᶿθǰčšĺ" + "áéíóú" + "̌́"
 
-# Nater's voiceless words. The apostrophe is deliberately absent: it is his ejective mark and also
+# Nater's voiceless words. The apostrophe is deliberately absent. It is his ejective mark and also
 # the closing quote of every gloss, and carrying it makes every English gloss a word of the language.
 NATER_VOICELESS = SHARED + "̩̌"
 

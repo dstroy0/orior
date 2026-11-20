@@ -86,7 +86,7 @@ typedef struct
     // 1 where the carrier's only word is `dry`, and the count of questions written so far
     int dry;
     unsigned int dry_written;
-    // 1 where the carrier's own words include --dry: it stops before the driver, every round through the airlock as a
+    // 1 where the carrier's own words include --dry. It stops before the driver, every round through the airlock as a
     // live one, and nothing it answers is stored in R
     int stopped;
     // 1 where the carrier whose answers are being read ended clean, exited with code 0: a refusal it wrote is the

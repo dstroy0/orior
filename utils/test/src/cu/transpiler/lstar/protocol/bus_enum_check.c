@@ -35,7 +35,7 @@ static int find(const unsigned int *types, unsigned long long count, unsigned lo
 
 int main(int count_of_words, char **words)
 {
-    // the classify probe and the width probe over memory the test owns: it retains what the probe puts, is left as it
+    // the classify probe and the width probe over memory the test owns. It retains what the probe puts, is left as it
     // was found, and sized gives width 0, since memory gives back the ones it was put
     static volatile unsigned int owned[4] = {0x01020304u, 0u, 0xdeadbeefu, 0xffffffffu};
     for (unsigned int at = 0u; at < 4u; at += 1u)

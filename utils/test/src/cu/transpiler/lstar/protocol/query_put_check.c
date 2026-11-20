@@ -79,7 +79,7 @@ int main(void)
     Query counts = {0};
     counts.address = clock;
     counts.qualifier = QUERY_ADVANCES;
-    // The counter is maintained in hundred-nanosecond counts and is stepped once per clock interrupt: it moves by a
+    // The counter is maintained in hundred-nanosecond counts and is stepped once per clock interrupt. It moves by a
     // whole interrupt at a time and a query is far shorter than one. The ADVANCES query reads until the counter moves,
     // and every clocked query below is put until the counter moves under it. Each cap is far past the reads one
     // interrupt takes

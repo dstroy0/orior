@@ -2,7 +2,7 @@
 
 Read only. Hits mempool.space's public API, which needs no key and carries no account data. Each
 response gives the fields a header is built from. The corpus can be verified offline afterwards
-without trusting the explorer's own hash: we rebuild the 80 byte header, hash it ourselves, and
+without trusting the explorer's own hash. We rebuild the 80 byte header, hash it ourselves, and
 compare against the id the explorer reported. A disagreement means either our algorithm or their
 record is wrong, and the test says which.
 

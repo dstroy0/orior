@@ -372,7 +372,7 @@ def _check():
         lines.append("    FAIL rows taken from the kernel do not reach it, so the measure is broken")
         failed += 1
 
-    # A beam row must be a line and not a blob: it must light far fewer than every source, or the
+    # A beam row must be a line and not a blob. It must light far fewer than every source, or the
     # beam is so wide it is a monopole and carries no line information at all.
     row = beam_row((-ORIGIN_RADIUS, 0.0, 0.0), (1.0, 0.0, 0.0), points)
     lit = int((row > 0.01).sum())

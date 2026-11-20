@@ -253,7 +253,7 @@ int main(int count, char **word)
         }
         if (chains == 0u)
         {
-            // an operator no arrangement of this length reaches. Reporting so is the point: it is what the part has to
+            // an operator no arrangement of this length reaches. Reporting so is the point. It is what the part has to
             // be queried about outright, or what a longer chain has to be found for
             section_text(s_anchor_text[anchor]);
             section_text("\t0\t-\t-\t0\n");

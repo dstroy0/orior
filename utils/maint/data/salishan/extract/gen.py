@@ -121,7 +121,7 @@ PART_HEAD = re.compile(r"^[A-Z][a-z]+(?: [a-z]+){0,2}$")
 
 
 def is_gloss(line):
-    """Whether a tier is a gloss: it holds a grammatical label in capitals, DET, 3POSS, 1SG.SBJ,
+    """Whether a tier is a gloss. It holds a grammatical label in capitals, DET, 3POSS, 1SG.SBJ,
     CTR\\STAT, where a transcription or a segmentation holds forms of the language. A clitic's join
     bounds a label too, Nater's PREP˽ART and Lyon and Czaykowska-Higgins's Q‿IPFV."""
     return bool(re.search(r"(?:^|[\s=\-.~+\\<\[(˽‿])(?:[123](?:SG|PL|POSS|ERG|OBJ|SBJ)|[A-Z]{2,})"

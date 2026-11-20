@@ -1420,7 +1420,7 @@
     armGeo.setAttribute("color", new THREE.BufferAttribute(lit, 3));
     // Normal blending and no depth test, both deliberate.
     //
-    // Additive blending makes the arms invisible: they sit inside the shells, the shell interiors are
+    // Additive blending makes the arms invisible. They sit inside the shells, the shell interiors are
     // pale, and adding a mid-tone color to a pale background changes almost nothing. Normal blending
     // puts the color on the screen instead of adding it to what is already there.
     //
@@ -1890,7 +1890,7 @@
   // travel. Both come off a surface that never moved.
   //
   // This is also what makes an opaque boundary honest. Close the surface and the interior is hidden,
-  // but nothing about the interior stopped: it is still moving, still confined, still depositing, and
+  // but nothing about the interior stopped. It is still moving, still confined, still depositing, and
   // what it deposits is on the outside of the surface being read. The smears sit clear of the skin so
   // that a solid boundary occludes the far side of the cloud and never the near side of its own
   // record, the difference between hiding a thing and reading it.
@@ -3213,7 +3213,7 @@
   // The drawn room is unchanged by its existence.
   //
   // The room's other pages hold a population that moves on its own and is read while it moves. A
-  // computation does not move on its own: it advances because an operation was performed, and the
+  // computation does not move on its own. It advances because an operation was performed, and the
   // honest clock for it is the operation count and not the wall clock. So the reader gets the
   // operation index directly, to drag or to let run at a rate they choose, and nothing here advances
   // unless one of those two says it does.
@@ -3912,7 +3912,7 @@
       }
 
       // Read as a departure from the mean and never as an amount. What lands on a boundary is not a
-      // quantity of light with a floor at nothing: it is a field with a mean, and the structure is
+      // quantity of light with a floor at nothing. It is a field with a mean, and the structure is
       // where it is above and below that mean. Scaled from its own minimum instead, every map
       // comes out as brightness rising from a dark side and the cold half of the sky is drawn as
       // absence. There are hot spots and there are cold spots, and both are something.

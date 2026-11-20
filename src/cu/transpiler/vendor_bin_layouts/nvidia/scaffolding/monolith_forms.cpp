@@ -2630,7 +2630,7 @@ static int forms_read(const char *questions_path, const char *listing, const cha
         int loaded = 0;
         int numbered = 0;
         // A probe classifies an operator only where what it varies shows in the answer. A numbered probe whose number
-        // the answer does not carry is one the system folded: it answered as it would for a value of its own and gave
+        // the answer does not carry is one the system folded. It answered as it would for a value of its own and gave
         // the classifier nothing of the form. A register the probe puts that the answer names nowhere is folded the
         // same way, the system retaining the value without an instruction of its own. Either is gated, and a probe the
         // system cannot fold decides instead. What a system folds is its own, written to its .ksc; nothing here names

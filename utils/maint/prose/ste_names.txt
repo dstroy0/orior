@@ -4,6 +4,7 @@
 # The industry terms of computing, signal processing, graphics, typography, machine learning, numerical analysis and
 # physics, as their glossaries give them.
 aliasing
+ascending
 binding
 bitstring
 blending
@@ -29,14 +30,18 @@ conditioning
 counting
 coupling
 crossfading
+crossing
 damping
 debugging
 decoding
+descending
 docstring
 doping
 downsampling
+drawing
 embedding
 encoding
+ending
 engineering
 error-correcting
 error-detecting
@@ -48,6 +53,7 @@ floating
 folding
 formatting
 globbing
+grouping
 halting
 handling
 hardening
@@ -72,9 +78,11 @@ marking
 masking
 matching
 mining
+moving
 narrowing
 non-breaking
 nonradiating
+numbering
 opening
 ordering
 oversampling
@@ -83,6 +91,7 @@ packing
 padding
 paging
 parsing
+pending
 pooling
 post-processing
 preprocessing
@@ -91,10 +100,13 @@ programming
 pruning
 quantizing
 quoting
+reading
 rendering
 reordering
+reporting
 rounding
 routing
+running
 sampling
 saturating
 scaffolding
@@ -108,6 +120,7 @@ shaping
 shuffling
 sibling
 signing
+sizing
 slicing
 smoothing
 snapping
@@ -115,6 +128,7 @@ sorting
 space-filling
 spacing
 spanning
+splitting
 spreading
 staging
 steering
@@ -132,6 +146,7 @@ tooling
 tracing
 tracking
 training
+truncating
 typesetting
 undersampling
 warning
@@ -140,6 +155,7 @@ widening
 winding
 windowing
 wrapping
+writing
 z-fighting
 zero-padding
 #

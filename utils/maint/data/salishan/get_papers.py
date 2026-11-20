@@ -17,7 +17,7 @@
 #
 # pdftotext writes Latin-1 unless told otherwise, and Latin-1 has neither ʔ, ə nor ɬ. A paper
 # converted that way still opens, still looks like a paper, and has had the language taken out of
-# it. Given -enc UTF-8 it retains the characters and reorders the page: it positions text out by position,
+# it. Given -enc UTF-8 it retains the characters and reorders the page. It positions text out by position,
 # and a running header then prints before the title it sits above while a two-column table comes out
 # interleaved.
 #

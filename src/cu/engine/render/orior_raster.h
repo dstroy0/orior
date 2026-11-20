@@ -261,7 +261,7 @@ extern "C"
      *                        it.
      * @return                1 where the volume was written, 0 where the configuration errored.
      *
-     * @note THE HOST ARM. orior_volume_render is the entry a caller should use: it prefers the device
+     * @note THE HOST ARM. orior_volume_render is the entry a caller should use. It prefers the device
      *       and falls back here, the same way orior_raster_render does for a sheet. This arm and
      *       orior_volume_device stay public because a grader has to call one specific arm and compare
      *       it against the other. That comparison is the only check on the device copy.
