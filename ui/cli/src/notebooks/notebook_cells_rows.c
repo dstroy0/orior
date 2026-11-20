@@ -15,7 +15,7 @@
 
 // A run of rows of one text's consecutive lines, as the frame's take gathers it: the cell and the output whose text
 // it is, CLI_NOTEBOOK_NONE for the source, the first line and the last, the first of its rows, whether its one row
-// shows the text whole, and its lines read
+// shows the text whole, whether its lines read, their bytes, and the last line the read reached
 typedef struct
 {
     unsigned int cell;
@@ -24,10 +24,28 @@ typedef struct
     unsigned long long last;
     unsigned int row;
     int whole;
-    char *lines;
+    int found;
     unsigned long long size;
-    unsigned long long taken;
+    unsigned long long reached;
 } RowsPart;
+
+// the bytes of a part's lines and the last line they reach, measured off the lines the document gives
+static void rows_part_measured(const CliEachTextLengthCfg *args)
+{
+    RowsPart *const part = (RowsPart *)args->context;
+    unsigned long long breaks = 0ULL;
+    unsigned long long at = 0ULL;
+    const char *found = memor.chr(&(MemoriaCfg){.src = args->text, .val = '\n', .bytes = args->length});
+    while (found != NULL)
+    {
+        breaks += 1ULL;
+        at = (unsigned long long)(found - args->text) + 1ULL;
+        found = memor.chr(&(MemoriaCfg){.src = args->text + at, .val = '\n', .bytes = args->length - at});
+    }
+    part->found = 1;
+    part->size = args->length;
+    part->reached = part->first + breaks;
+}
 
 typedef struct
 {
@@ -502,7 +520,7 @@ EMBED_INLINE unsigned int parts_gathered(const NotebookRowsCtx *args)
                                                                 .dst = &one,
                                                                 .bytes = sizeof(one)});
         const unsigned long long last = whole ? (one.lines - 1ULL) : row[at].line;
-        part[parts] = (RowsPart){row[at].cell, output, row[at].line, last, at, whole, NULL, 0ULL, 0ULL};
+        part[parts] = (RowsPart){row[at].cell, output, row[at].line, last, at, whole, 0, 0ULL, 0ULL};
         row_part[at] = parts;
         parts += 1u;
     }
@@ -543,17 +561,16 @@ int cli_notebook_model_frame_alloc(const CliNotebookCellsFrameCfg *args)
     }
     const unsigned int parts = EMBED_CALL(parts_gathered, NotebookRowsCtx, .model_read = model, .rows_read = row,
                                           .count = count, .part = part, .row_part = row_part);
-    // each part's lines read, and the bytes the rows' sentences take
+    // each part's lines measured, and the bytes the rows' sentences take
     unsigned long long bytes = 0ULL;
     for (unsigned int at = 0u; at < parts; at += 1u)
     {
         char key[CLI_PATH_MAX_LEN + CLI_NOTEBOOK_KEY_MORE];
         EMBED_CALL(cli_notebook_model_internal.key, CliNotebookModelCtx, .model = model, .cell = part[at].cell,
                    .output = part[at].output, .out = key);
-        part[at].lines = EMBED_CALL(cli_document_key.lines_alloc, CliDocumentKeyCfg, .key = key,
-                                    .first = part[at].first, .last = part[at].last, .size_pointer = &part[at].size,
-                                    .state = NULL, .capacity = 0ULL, .owner = g_cli_notebook_open_owner);
-        bytes += (part[at].lines != NULL) ? part[at].size : 0ULL;
+        (void)EMBED_CALL(cli_document_key.lines_each, CliDocumentKeyCfg, .key = key, .first = part[at].first,
+                         .last = part[at].last, .each = rows_part_measured, .context = &part[at]);
+        bytes += part[at].found ? part[at].size : 0ULL;
     }
     bytes += (unsigned long long)count * ROWS_SENTENCE;
     const unsigned long long head =
@@ -572,24 +589,28 @@ int cli_notebook_model_frame_alloc(const CliNotebookCellsFrameCfg *args)
                                     NULL};
     }
     VerbaLinea positioned = {(frame != NULL) ? frame->bytes : NULL, bytes + 1ULL, 0ULL};
-    // each row's text, the next line of its part's lines, or its part's lines whole, and its sentence
+    // each row's text, the next line of its part's lines, or its part's lines whole, read into the frame, and its
+    // sentence
     for (unsigned int at = 0u; (frame != NULL) && (at < count); at += 1u)
     {
         CliNotebookFrameRow *const framed = &frame->row[at];
         *framed = (CliNotebookFrameRow){row[at], positioned.at, 0ULL, 0ULL, 0ULL, row_part[at], 0u};
-        RowsPart *const one = (row_part[at] != CLI_NOTEBOOK_NONE) ? &part[row_part[at]] : NULL;
-        if ((one != NULL) && (one->lines != NULL))
+        const RowsPart *const one = (row_part[at] != CLI_NOTEBOOK_NONE) ? &part[row_part[at]] : NULL;
+        if ((one != NULL) && one->found)
         {
-            const char *const from = one->lines + one->taken;
-            const unsigned long long left = one->size - one->taken;
-            const char *const end = (one->whole || (left == 0ULL))
-                                        ? NULL
-                                        : memor.chr(&(MemoriaCfg){.src = from, .val = '\n', .bytes = left});
-            const unsigned long long length = (end != NULL) ? (unsigned long long)(end - from) : left;
-            mmgr_line_put_n(&positioned, from, length);
-            framed->length = length;
+            const unsigned long long line = one->first + (unsigned long long)(at - one->row);
+            char key[CLI_PATH_MAX_LEN + CLI_NOTEBOOK_KEY_MORE];
+            EMBED_CALL(cli_notebook_model_internal.key, CliNotebookModelCtx, .model = model, .cell = one->cell,
+                       .output = one->output, .out = key);
+            const unsigned long long before = positioned.at;
+            if (one->whole || (line <= one->reached))
+            {
+                (void)EMBED_CALL(cli_document_key.lines_read, CliDocumentKeyCfg, .key = key,
+                                 .first = one->whole ? one->first : line, .last = one->whole ? one->reached : line,
+                                 .out = &positioned);
+            }
+            framed->length = positioned.at - before;
             framed->part_line = at - one->row;
-            one->taken += length + ((end != NULL) ? 1ULL : 0ULL);
         }
         framed->label = positioned.at;
         const unsigned int which =
@@ -600,10 +621,6 @@ int cli_notebook_model_frame_alloc(const CliNotebookCellsFrameCfg *args)
         EMBED_CALL(sentence_written, NotebookRowsCtx, .model_read = model, .which = which, .cell = row[at].cell,
                    .output = row[at].output, .out = &positioned);
         framed->label_length = positioned.at - framed->label;
-    }
-    for (unsigned int at = 0u; at < parts; at += 1u)
-    {
-        g_cli_guard->persistent_buf_release(part[at].lines, g_cli_notebook_open_owner);
     }
     g_cli_guard->persistent_buf_release(scratch, g_cli_notebook_open_owner);
     if (frame == NULL)

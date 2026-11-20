@@ -5657,6 +5657,31 @@ static int s_pair_ring_positioned;
 static ViewPairRead s_pair_answer;
 static ViewPairRead s_pair_request;
 
+// The pair read over the lines about a cursor: the request, the state of the first line, the first line and the
+// cursor's line, and the pair and bracket the read finds
+typedef struct
+{
+    ViewPairRead *read;
+    const char *state;
+    unsigned long long first;
+    unsigned long long line;
+    CliSymbolPosition found[2];
+    int bracket;
+} ViewPairLines;
+
+// the bracket pair at the cursor read off the lines the document gives
+static void view_pair_lines(const CliEachTextLengthCfg *args)
+{
+    ViewPairLines *const lines = (ViewPairLines *)args->context;
+    // a place in a text a view shows is below 2^32 lines and columns
+    lines->read->found =
+        EMBED_CALL(cli_symbols_path_text_size_state.pair, CliSymbolsPathTextSizeStateCfg, .path = lines->read->path,
+                   .state = (lines->state[0] != '\0') ? lines->state : "root", .text = args->text, .size = args->length,
+                   .at_symbol_position = (CliSymbolPosition){(unsigned int)(lines->line - lines->first),
+                                                             (unsigned int)lines->read->cursor.col},
+                   .pair = lines->found, .bracket_pointer = &lines->bracket);
+}
+
 // The bracket pair at the cursor of `read` within `reach` lines of it, into its `pair` and `found`: the bracket that
 // ends at the cursor, else the one that starts at it, first and the one it pairs with second. The lines read start
 // from the state the tree keeps for the first of them. Returns whether a bracket of a pair stands at the cursor at
@@ -5676,29 +5701,20 @@ static int view_pair_within(const ViewCtx *args)
     const unsigned long long first = (start < line) ? start : line;
     const unsigned long long last = (end > line) ? end : line;
     char state[CLI_VIEW_STATE];
-    unsigned long long size = 0ULL;
-    char *const text = EMBED_CALL(cli_document_key.lines_alloc, CliDocumentKeyCfg, .key = args->read->key,
-                                  .first = first, .last = last, .size_pointer = &size, .state = state,
-                                  .capacity = sizeof(state), .owner = g_cli_views_owner);
-    if (text == NULL)
+    state[0] = '\0';
+    ViewPairLines lines = {args->read, state, first, line, {{0u, 0u}, {0u, 0u}}, 0};
+    if (!EMBED_CALL(cli_document_key.lines_each, CliDocumentKeyCfg, .key = args->read->key, .first = first,
+                    .last = last, .state = state, .capacity = sizeof(state), .each = view_pair_lines,
+                    .context = &lines))
     {
         return 0;
     }
-    CliSymbolPosition found[2] = {{0u, 0u}, {0u, 0u}};
-    int bracket = 0;
-    // a place in a text a view shows is below 2^32 lines and columns
-    args->read->found = EMBED_CALL(
-        cli_symbols_path_text_size_state.pair, CliSymbolsPathTextSizeStateCfg, .path = args->read->path,
-        .state = (state[0] != '\0') ? state : "root", .text = text, .size = size,
-        .at_symbol_position = (CliSymbolPosition){(unsigned int)(line - first), (unsigned int)args->read->cursor.col},
-        .pair = found, .bracket_pointer = &bracket);
-    g_cli_guard->persistent_buf_release(text, g_cli_views_owner);
     for (unsigned int at = 0u; args->read->found && (at < 2u); at += 1u)
     {
-        args->read->pair[at].line = first + found[at].line;
-        args->read->pair[at].col = found[at].col;
+        args->read->pair[at].line = first + lines.found[at].line;
+        args->read->pair[at].col = lines.found[at].col;
     }
-    return bracket;
+    return lines.bracket;
 }
 
 // The bracket pair at the cursor of `read`, into its `pair` and `found`. The cursor's line alone is read first, and a

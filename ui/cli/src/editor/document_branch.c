@@ -3089,8 +3089,10 @@ char *cli_document_text_alloc(const CliDocumentKeyCfg *args)
 int cli_document_text_each(const CliDocumentKeyCfg *args)
 {
     unsigned long long size = 0ULL;
+    cli_document_lock_take();
     char *const text = EMBED_CALL(text_alloc_locked, CliDocumentKeyCfg, .key = args->key, .size_pointer = &size,
                                   .owner = g_cli_editor_owner);
+    cli_document_lock_give();
     // the text goes to the caller: the cell is this call's own
     if (text != NULL)
     {
@@ -3221,7 +3223,9 @@ static int lines_put_locked(const CliDocumentKeyCfg *args, VerbaLinea *text)
 
 int cli_document_lines_read(const CliDocumentKeyCfg *args)
 {
+    cli_document_lock_take();
     const int found = lines_put_locked(args, args->out);
+    cli_document_lock_give();
     return found && mmgr_line_ok(args->out);
 }
 
@@ -3243,20 +3247,14 @@ static char *lines_alloc_locked(const CliDocumentKeyCfg *args)
     return reserved ? written.cell : NULL;
 }
 
-char *cli_document_lines_alloc(const CliDocumentKeyCfg *args)
-{
-    cli_document_lock_take();
-    char *const answer = lines_alloc_locked(args);
-    cli_document_lock_give();
-    return answer;
-}
-
 int cli_document_lines_each(const CliDocumentKeyCfg *args)
 {
     unsigned long long size = 0ULL;
+    cli_document_lock_take();
     char *const text = EMBED_CALL(lines_alloc_locked, CliDocumentKeyCfg, .key = args->key, .first = args->first,
                                   .last = args->last, .size_pointer = &size, .state = args->state,
                                   .capacity = args->capacity, .owner = g_cli_editor_owner);
+    cli_document_lock_give();
     // the lines go to the caller: the cell is this call's own
     if (text != NULL)
     {

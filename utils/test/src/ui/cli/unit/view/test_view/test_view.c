@@ -123,16 +123,17 @@ static void assert_at(unsigned long long line, unsigned long long col, unsigned 
     TEST_ASSERT_EQUAL_UINT64(anchor_col, anchor.col);
 }
 
+// the lines the document gives asserted to read as the text the context holds
+static void lines_match(const CliEachTextLengthCfg *args)
+{
+    CLI_TEST_ASSERT_TEXT((const char *)args->context, args->text, args->length);
+}
+
 // the text's lines from `first` to before `last` asserted to read as `required`, joined by "\n"
 static void assert_reads(unsigned long long first, unsigned long long last, const char *required)
 {
-    unsigned long long size = 0ull;
-    char *const lines =
-        EMBED_CALL(cli_document_key.lines_alloc, CliDocumentKeyCfg, .key = s_key, .first = first, .last = last - 1ull,
-                   .size_pointer = &size, .state = NULL, .capacity = 0ull, .owner = g_checks_owner);
-    TEST_ASSERT_NOT_NULL(lines);
-    CLI_TEST_ASSERT_TEXT(required, lines, size);
-    g_cli_guard->persistent_buf_release(lines, g_checks_owner);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key.lines_each, CliDocumentKeyCfg, .key = s_key, .first = first,
+                                .last = last - 1ull, .each = lines_match, .context = (void *)required));
 }
 
 // how many lines the text has

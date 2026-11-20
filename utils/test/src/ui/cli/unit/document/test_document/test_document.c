@@ -132,6 +132,12 @@ static unsigned long long branch_text_written(void)
     return text.at;
 }
 
+// the lines the document gives, which the branch check reads only for the state they enter in
+static void lines_given(const CliEachTextLengthCfg *args)
+{
+    (void)args;
+}
+
 // a branch viewed far from its first line, walked and edited, what each step answered recorded, once for the process
 static void branch_run_result(void)
 {
@@ -150,19 +156,9 @@ static void branch_run_result(void)
     s_branch_step[6] =
         EMBED_CALL(cli_document_key_from.cache, CliDocumentKeyFromCfg, .key = "branch", .from = 100ull, .to = 110ull);
     // the second line enters in the comment's state, which the states' index answers by its number
-    unsigned long long entered_size = 0ull;
-    char *const second = cli_document_lines_alloc(&(CliDocumentKeyCfg){.key = "branch",
-                                                                       .first = 1ull,
-                                                                       .last = 1ull,
-                                                                       .size_pointer = &entered_size,
-                                                                       .state = s_branch_entered,
-                                                                       .capacity = sizeof(s_branch_entered),
-                                                                       .owner = g_cli_editor_owner});
-    s_branch_step[7] = second != NULL;
-    if (second != NULL)
-    {
-        g_cli_guard->persistent_buf_release(second, g_cli_editor_owner);
-    }
+    s_branch_step[7] =
+        EMBED_CALL(cli_document_key.lines_each, CliDocumentKeyCfg, .key = "branch", .first = 1ull, .last = 1ull,
+                   .state = s_branch_entered, .capacity = sizeof(s_branch_entered), .each = lines_given);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "branch");
 }
 

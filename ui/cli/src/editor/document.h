@@ -204,13 +204,10 @@ void cli_document_telemetry_on(void);
 void cli_document_telemetry_off(void);
 // how many walkers walk the texts' colors out on threads of their own now (document_branch.c)
 unsigned int cli_document_walkers(void);
-// the lines from `first` to `last` of the text under `key` as UTF-8, each but the last followed by "\n", in a cell
-// taken for `owner`, given back with persistent_buf_release, their bytes into `size`, and the state the first is
-// entered in written into `state`, `capacity` bytes, root where it is not colored yet, empty where it does not fit:
-// NULL where no text is stored under `key` or the cells cannot meet the lines (document_branch.c)
-char *cli_document_lines_alloc(const CliDocumentKeyCfg *args);
-// the same lines put after `out`, the caller's line, and the state written as above: 1, or 0 where no text is stored
-// under `key` or `out` cannot hold the lines (document_branch.c)
+// The lines from `first` to `last` of the text under `key` go after `out`, the caller's line, as UTF-8. A "\n"
+// follows each line but the last. The state of the first line goes into `state`, `capacity` bytes. The state is root
+// where the walk has not colored the line, and empty where it does not fit. Returns 1, or 0 where `key` holds no text
+// or `out` cannot hold the lines (document_branch.c)
 int cli_document_lines_read(const CliDocumentKeyCfg *args);
 // the same lines read into a cell of the document module for this call alone and given to `each` with `context`, and
 // the state written as above. The cell goes back before the call returns: 1, or 0 where no text is stored under `key`
@@ -651,15 +648,13 @@ EMBED_TABLE_STORAGE CliDocumentKeyGrammarNs cli_document_key_grammar EMBED_UNUSE
 
 typedef struct
 {
-    char *(*lines_alloc)(const CliDocumentKeyCfg *args);
     int (*lines_read)(const CliDocumentKeyCfg *args);
     int (*lines_each)(const CliDocumentKeyCfg *args);
     char *(*text_alloc)(const CliDocumentKeyCfg *args);
     int (*text_each)(const CliDocumentKeyCfg *args);
 } CliDocumentKeyNs;
-EMBED_TABLE_LAYOUT(CliDocumentKeyNs, lines_alloc, lines_read, lines_each, text_alloc, text_each);
+EMBED_TABLE_LAYOUT(CliDocumentKeyNs, lines_read, lines_each, text_alloc, text_each);
 EMBED_TABLE_STORAGE CliDocumentKeyNs cli_document_key EMBED_UNUSED = {
-    .lines_alloc = cli_document_lines_alloc,
     .lines_read = cli_document_lines_read,
     .lines_each = cli_document_lines_each,
     .text_alloc = cli_document_text_alloc,
