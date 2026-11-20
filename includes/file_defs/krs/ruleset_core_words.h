@@ -5,13 +5,16 @@
 #ifndef RULESET_CORE_WORDS_H
 #define RULESET_CORE_WORDS_H
 
-// The .krs reader past opening the file, word for word the host's (target_parse.cu and target_rulesets.cu): the
-// file's lines read against the schema into each bank's, fixed register's and
-// form's written form and each construct's lines, and the scratch each form takes (ruleset_scratch). A string the host
-// stored is a span of the file or of the texts the reader writes; a list is a span of one list the reader appends to.
-// The device runs it in one thread (codegen_reader.cu), since each line is read against every line before it.
-// The memory is the caller's, sized from the file (ruleset_core_capacities), which no read passes. Where the host
-// errored, the read ends with why, and the caller writes the host's reason from it
+// The .krs reader after the file opens, word for word the reader of the host (target_parse.cu and target_rulesets.cu).
+// It reads the lines of the file against the schema. They go into the written form of each bank, fixed register and
+// form, and into the lines of each construct. It also finds the scratch that each form takes (ruleset_scratch).
+//
+// A string that the host stored is a span of the file or of the texts that the reader writes. A list is a span of one
+// list that the reader appends to.
+//
+// The device runs it in one thread (codegen_reader.cu), because the reader reads each line against each line before
+// it. The memory belongs to the caller, sized from the file (ruleset_core_capacities), and no read goes past it. Where
+// the host had an error, the read ends with the reason, and the caller writes the reason of the host from it
 
 #include "../../../src/cu/engine/rmc/machine_ir_types.h"
 
@@ -20,16 +23,17 @@
 #define RULESET_CORE_PARAMETER 1u
 #define RULESET_CORE_SCRATCH 2u
 
-// How a form was given, stored in form_given. A ruleset gives every form of its schema one of three ways, and each
-// way is deliberate: there is no way to leave a form blank and have it pass.
+// How the file gave a form, stored in form_given. A ruleset gives each form of its schema in one of three ways, and
+// each way is deliberate. A blank form cannot pass.
 //
-//     form <name> <parameter>... = <text>   the language writes this, and the text is how
-//     nop <name> <parameter>...             the language needs no instruction here, or has no such thing at all
-//     err <name> <parameter>...             the operation is an error on this language
+//   - form <name> <parameter>... = <text>   the language writes this, and the text is how.
+//   - nop <name> <parameter>...             the language needs no instruction here, or has no such thing at all.
+//   - err <name> <parameter>...             the operation is an error on this language.
 //
-// A nop writes nothing and the lane goes on without it. An err writes nothing and breaks the lane: a program that
-// needs one is refused, in place of being written with a hole in it. `form` with nothing after the equals is not a
-// third meaning, it is a file that has not specified which of these it means, and the read ends on it
+// A nop writes nothing, and the lane goes on without it. An err writes nothing and breaks the lane. The writer refuses
+// a program that needs one, and does not write it with a hole in it.
+// A `form` with nothing after the equals is not a third way. It is a file that does not say which of these it is, and
+// the read ends on it
 #define RULESET_CORE_NOT_GIVEN 0u
 #define RULESET_CORE_GIVEN 1u
 #define RULESET_CORE_GIVEN_NOP 2u
@@ -100,15 +104,17 @@ struct RulesetCoreLine
     unsigned int argument_count;
 };
 
-// a Pseudo: its lines, a span of the reader's lines, which one construct's are since one is read at a time
+// a Pseudo: its lines, a span of the lines of the reader. The span holds the lines of one construct, because the reader
+// reads one at a time
 struct RulesetCoreConstruct
 {
     unsigned int line_first;
     unsigned int line_count;
 };
 
-// a read: the schema and the file, the capacities the caller sized, what the reader writes, and how it ended: the end,
-// the line it ended on, the bank, register or form it names and the word of the file it names
+// a read: the schema and the file, the capacities that the caller sized, and what the reader writes. Then how it ended:
+// the end and the line that it ended on. Then the bank, register or form that it names, and the word of the file that
+// it names
 struct RulesetCoreRead
 {
     RulesetCoreSchema schema;
@@ -158,8 +164,8 @@ struct RulesetCoreRead
 // folds it into the register's text (ruleset_core_fixed_folded)
 #define RULESET_CORE_FIXED_PLACE 0x40000000u
 
-// a placeholder from this to RULESET_CORE_FIXED_PLACE names scratch register `number` of bank `bank`, taken by the
-// writing: the bank in the bits from 16 and the number in the 16 below
+// a placeholder from this to RULESET_CORE_FIXED_PLACE names scratch register `number` of bank `bank`, which the write
+// takes. The bank is in the bits from 16, and the number in the 16 below
 #define RULESET_CORE_SCRATCH_PLACE 0x20000000u
 #define RULESET_CORE_SCRATCH_PLACEHOLDER(bank_, number_) (RULESET_CORE_SCRATCH_PLACE + ((bank_) << 16u) + (number_))
 #define RULESET_CORE_SCRATCH_BANK(placeholder_) (((placeholder_) - RULESET_CORE_SCRATCH_PLACE) >> 16u)
@@ -190,8 +196,8 @@ CODEGEN_CORE int ruleset_core_is(const RulesetCoreRead *read, RulesetCoreSpan wo
     return ruleset_core_equal(&read->text[word.first], word.length, (const unsigned char *)literal, length);
 }
 
-// the place of `character` in the file's span `within` from `from` on, or its length where it is not there, as
-// std::string::find gives it and the length is for npos
+// the place of `character` in the span `within` of the file from `from` on, or its length where it is not there. This
+// is as std::string::find gives it, with the length for npos
 CODEGEN_CORE unsigned int ruleset_core_find_character(const RulesetCoreRead *read, RulesetCoreSpan within,
                                                    unsigned char character, unsigned int from)
 {
@@ -261,8 +267,9 @@ CODEGEN_CORE void ruleset_core_character(RulesetCoreRead *read, unsigned char ch
     read->pieces[read->piece_count - 1u].length += 1u;
 }
 
-// the span `inner` of the file read as a scratch register, `bank:digits`: the bank one of the schema's, by its place,
-// into `bank`, and the number, five digits at max and below 65536, into `number`. 1 where it is one, else 0
+// the span `inner` of the file, read as a scratch register, `bank:digits`. The bank, one of the banks of the schema,
+// goes by its place into `bank`. The number, five digits at max and below 65536, goes into `number`. 1 where it is
+// one, else 0
 CODEGEN_CORE int ruleset_core_scratch_word(const RulesetCoreRead *read, RulesetCoreSpan inner, unsigned int *bank,
                                            unsigned int *number)
 {
@@ -297,11 +304,13 @@ CODEGEN_CORE int ruleset_core_scratch_word(const RulesetCoreRead *read, RulesetC
     return counted && (value < 0x10000u);
 }
 
-// the file's span `text` cut at its parameters into `form`: \t, \n and \\ are a tab, a line's end and a backslash,
-// and {p} is parameter p's argument where p is one of the `count` `parameters`, each a span of `parameter_characters`.
-// With `fixed_places`, {r} where r names a fixed register of the schema is that register, its placeholder marked past
-// RULESET_CORE_FIXED_PLACE, and {b:n} where b is a bank of the schema is scratch register n of it, taken by the
-// writing (RULESET_CORE_SCRATCH_PLACEHOLDER). 0 where a backslash begins no escape the format knows
+// the span `text` of the file, cut at its parameters into `form`. The escapes \t, \n and \\ are a tab, the end of a
+// line and a backslash. The text {p} is the argument of parameter p, where p is one of the `count` `parameters`. Each
+// is a span of `parameter_characters`.
+//
+// With `fixed_places`, the text {r} is a fixed register r of the schema, with its placeholder marked past
+// RULESET_CORE_FIXED_PLACE. The text {b:n} is scratch register n of bank b of the schema, which the write takes
+// (RULESET_CORE_SCRATCH_PLACEHOLDER). 0 where a backslash begins no escape that the format knows
 CODEGEN_CORE int ruleset_core_split(RulesetCoreRead *read, RulesetCoreSpan text, const unsigned char *parameter_characters,
                                     const RulesetCoreSpan *parameters, unsigned int count, int fixed_places,
                                     RulesetCoreTemplate *form)
