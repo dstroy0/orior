@@ -28,7 +28,7 @@ examples/00_blob_viz_tools/build_scope_view.py	14
 examples/00_blob_viz_tools/build_sha_pairs_view.py	17
 examples/00_blob_viz_tools/build_sha_room_view.py	57
 examples/00_blob_viz_tools/build_sha_sphere_view.py	24
-examples/00_blob_viz_tools/build_shadow_view.py	2
+examples/00_blob_viz_tools/build_shadow_view.py	1
 examples/00_blob_viz_tools/build_shapes_view.py	2
 examples/00_blob_viz_tools/build_sound_view.py	10
 examples/00_blob_viz_tools/build_sources_view.py	3
@@ -37,7 +37,7 @@ examples/00_blob_viz_tools/build_spiral_view.py	11
 examples/00_blob_viz_tools/build_step_view.py	4
 examples/00_blob_viz_tools/build_survey_view.py	14
 examples/00_blob_viz_tools/build_sweep_view.py	23
-examples/00_blob_viz_tools/build_voxel_view.py	4
+examples/00_blob_viz_tools/build_voxel_view.py	3
 examples/00_blob_viz_tools/chain_kat.py	24
 examples/00_blob_viz_tools/chart_view_template.html	5
 examples/00_blob_viz_tools/conserved.py	20
@@ -1186,7 +1186,7 @@ utils/maint/prose/ste_check.py	9
 utils/maint/prose/voice_count.py	10
 utils/maint/prose/voice_pdftotext.sh	10
 utils/maint/prose/voice_web.py	6
-utils/maint/radar/radar_assay.py	17
+utils/maint/radar/radar_assay.py	16
 utils/maint/radar/radar_receive.py	31
 utils/maint/radar/sei_round_constants.py	13
 utils/maint/repotools/docs/docs_maint/math_hazards.py	17
