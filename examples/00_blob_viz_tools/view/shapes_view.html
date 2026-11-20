@@ -20,7 +20,7 @@ on any of them or raised from it. generate_template.py builds it through build_s
 
    The look every page shares, and the one set of controls: buttons, number fields, selects, sliders, switches,
    rows, sections, tables and notes. A page sets data-theme and data-face on its root and adds rules for its own
-   elements after these. Color is soft electric light on a cold dark ground: a blue that runs into violet and fades
+   elements after these. Color is soft electric light on a cold dark ground. A blue that runs into violet and fades
    to nothing marks an edge, a filled slider and a chosen button. The status colors are the Okabe-Ito set and stay
    apart from it, because they carry data. Every size sits on a 4 px grid. */
   :root {
@@ -81,7 +81,7 @@ on any of them or raised from it. generate_template.py builds it through build_s
   html, body { margin: 0; height: 100%; overflow: hidden; background: var(--page); color: var(--ink); font: var(--text)/1.5 var(--font); -webkit-font-smoothing: antialiased; }
   ::selection { background: color-mix(in oklab, var(--blue) 35%, transparent); }
 
-  /* The glass every floating surface is made of, with the fading seam along its top edge. */
+  /* The glass of each floating surface, with the seam that fades along its top edge. */
   .box, .glass {
     position: fixed; box-sizing: border-box; padding: 10px 12px; border-radius: 12px;
     background: var(--seam) top / 100% 1px no-repeat, linear-gradient(180deg, var(--glass-top), var(--glass-low));
@@ -135,7 +135,7 @@ on any of them or raised from it. generate_template.py builds it through build_s
   select option { background: var(--void); color: var(--ink); }
   select:hover, input[type=number]:hover, input[type=text]:hover, textarea:hover { border-color: color-mix(in oklab, var(--blue) 40%, transparent); background-color: var(--control-hi); }
 
-  /* Sliders: the track is a stroke that fades to nothing at both ends, the fill rises out of nothing and is
+  /* Sliders: the track is a stroke that fades to nothing at both ends. The fill rises out of nothing and is
      brightest under the thumb, and the thumb carries its own light. */
   input[type=range] {
     --fill: 0%; appearance: none; -webkit-appearance: none; width: 100%; min-width: 0; height: 20px; margin: 0;
@@ -233,9 +233,9 @@ on any of them or raised from it. generate_template.py builds it through build_s
 /* orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
    SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-   The floating toolbar EV.toolbar emits. Closed, it is its menu button alone. Open, its glass grows out of that
-   button, across and down, to the toolbar's full size; closing runs the same way back. Nothing inside it scrolls
-   or shows a scrollbar while it is closed. */
+   The floating toolbar that EV.toolbar emits. When it closes, it is its menu button alone. When it opens, its glass
+   grows out of that button, across and down, to the full size of the toolbar. It closes the same way back. Nothing
+   inside it scrolls or shows a scrollbar until it opens. */
   .toolbar {
     --button: 34px;
     position: fixed; top: 12px; z-index: 6; box-sizing: border-box; width: var(--panel-w);
@@ -316,22 +316,22 @@ const EV = {};
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// The floating toolbar emitter. A page passes EV.toolbar a spec and gets back one toolbar in a corner: a menu button
-// that opens it, and folding sections of rows. Every control is emitted with the id the spec gives it, and the page
-// binds its controls by id as it would hand-written markup. A slider's value shows in an output whose id is the
-// slider's id followed by "Out".
+// The floating toolbar emitter. A page passes EV.toolbar a spec, and gets back one toolbar in a corner. The toolbar has
+// a menu button that opens it, and sections of rows that fold. Each control comes out with the id that the spec gives
+// it. The page binds its controls by id as it would hand-written markup. The value of a slider shows in an output
+// whose id is the id of the slider followed by "Out".
 //
-//   EV.toolbar({ id, title, corner: "top-left" | "top-right", open, onToggle(open), sections: [
-//     { title, open, rows: [
-//       { range: id, label, min, max, step, value, title },
-//       { select: id, label, options: [[value, text], { group, options: [[value, text], ...] }, ...], value, title },
-//       { number: id, label, min, max, step, value },
-//       { switches: [{ id, label, checked, tone, title }, ...] },
-//       { buttons: [{ id, text, title, icon }, ...], label },
-//       { note: id, text },
-//       { node: element, label },
-//     ] },
-//   ] })
+//   `EV.toolbar({ id, title, corner: "top-left" | "top-right", open, onToggle(open), sections: [`
+//     `{ title, open, rows: [`
+//       `{ range: id, label, min, max, step, value, title },`
+//       `{ select: id, label, options: [[value, text], { group, options: [[value, text], ...] }, ...], value, title },`
+//       `{ number: id, label, min, max, step, value },`
+//       `{ switches: [{ id, label, checked, tone, title }, ...] },`
+//       `{ buttons: [{ id, text, title, icon }, ...], label },`
+//       `{ note: id, text },`
+//       `{ node: element, label },`
+//     `] },`
+//   `] })`
 //
 // The toolbar returned carries root, isOpen() and setOpen(open). Escape inside it closes it and gives the focus back
 // to its button.
@@ -344,7 +344,7 @@ EV.element = (tag, properties, children) => {
   return made;
 };
 
-// A slider's fill follows its value, however the value is set: by the pointer, by the keys, or by a program.
+// The fill of a slider follows its value, whatever sets the value: the pointer, the keys, or a program.
 EV.fillSlider = (slider) => {
   const own = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
   const paint = () => {
@@ -499,22 +499,25 @@ EV.rateMeter = () => {
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// A frame loop that reports on itself. EV.watchLoop runs a page's step once per turn inside a guard and asks
-// EV.nextTurn for the next one. No page schedules its own frames. A throw stops the loop. A loop awake for
-// its patience that has turned fewer than twice is reported: one turn is what a dead loop gives, because setup
-// has already drawn a correct still frame and the first turn throws. A hidden page is not
-// judged; the browser holds its frames, and the count starts again when the page is seen.
+// A frame loop that reports on itself. EV.watchLoop runs the step of a page once per turn inside a guard, and asks
+// EV.nextTurn for the next one. No page schedules its own frames. A throw stops the loop.
+//
+// The code reports a loop that stays awake for its patience and turns fewer than twice. One turn is what a dead loop
+// gives, because setup draws a correct still frame first, and then the first turn throws.
+// The code does not judge a hidden page. The browser holds its frames, and the count starts again when the page
+// shows.
 //
 // A loop runs for the life of the page or on demand. A step that returns false has nothing left to draw, and
-// the loop sleeps until the page wakes it. Every loop starts asleep, and a sleeping loop is healthy.
+// the loop sleeps until the page wakes it. Each loop starts asleep, and a loop that sleeps is healthy.
 //
 //   const loop = EV.watchLoop("scope view", (now) => { draw(now); }, { vsync: () => view.vsync, settle });
 //   loop.wake();
 //
-// vsync, when given, is asked before every turn. Without it every turn waits for the refresh. settle, when
-// given, returns a promise the next uncapped turn waits on. A turn never queues behind unfinished work.
+// The loop asks vsync, when the page gives it, before each turn. Without it, each turn waits for the refresh. settle,
+// when the page gives it, returns a promise that the next uncapped turn waits on. A turn never queues behind
+// unfinished work.
 //
-// window.__loopHealth is read fresh on every access and covers every loop on the page: ok is true, false, or
+// Each access of window.__loopHealth reads it fresh, and it covers each loop on the page. Its ok is true, false, or
 // null before the first verdict. Turns counts them all; why and detail come from the loop that settled the
 // verdict; loops holds each loop's own record. A failure also shows on the page in a line at the top. A page
 // whose loop cannot start at all, with no device to draw on, says so through EV.noLoop and shows its own reason.
@@ -661,9 +664,11 @@ EV.watchLoop = (label, step, options = {}) => {
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// Every setting has a type and a range, stored in EV.VIEW_SCHEME by name. Applying a view is partial: names
-// it does not carry retain their values. A name the scheme does not have, a fraction, a value of the wrong type
-// or one outside its range is reported by name and not applied.
+// Each setting has a type and a range, stored in EV.VIEW_SCHEME by name. A view applies in part: names that it
+// does not carry keep their values. The code reports by name, and does not apply, these:
+//   - a name that the scheme does not have.
+//   - a fraction.
+//   - a value of the wrong type, or one outside its range.
 
 EV.defaultView = () => {
   const view = {};
@@ -699,7 +704,7 @@ EV.errorValue = (rule, value) => {
   return Array.isArray(value) && value.every(integer) ? null : "a list of cell numbers";
 };
 
-// Applies a view section over a view. Returns what was applied and what errored, by name.
+// Applies a view section over a view. Returns, by name, what it applied and what errored.
 EV.applyView = (view, section) => {
   const applied = [];
   const error = [];
@@ -744,7 +749,7 @@ EV.nextPower = (count) => {
   return power;
 };
 
-// The adapter, the device and the canvas context, or a throw that says which is missing. Device errors go to the
+// The adapter, the device and the canvas context, or a throw that says which one is absent. Device errors go to the
 // console under the label.
 EV.openDevice = async (canvas, label) => {
   if (!navigator.gpu) {
@@ -796,8 +801,8 @@ EV.readHead = async (reader, count) => {
   return pending;
 };
 
-// The rest of a stream, its head already read, positioned into the landing from a byte place; nothing lands past the limit.
-// Returns the stream's whole length.
+// The rest of a stream, its head already read, put into `landing` from a byte place. Nothing lands past the
+// limit. Returns the full length of the stream.
 EV.streamInto = async (reader, landing, at, limit, head) => {
   let written = 0;
   let value = head;

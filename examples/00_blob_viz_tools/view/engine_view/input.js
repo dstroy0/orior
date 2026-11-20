@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// The controls, the pointer and the keys, loading, saving, and window.engineView for a program to drive the page.
+// The controls, the pointer and the keys, load and save, and window.engineView for a program to drive the page.
 
 // Each control by element id: the view setting it writes, and how its value reads.
 EV.CONTROLS = [
@@ -108,7 +108,7 @@ EV.bindLights = (app) => {
   EV.$("lightFewer").addEventListener("click", () => { app.view.lights.pop(); EV.showView(app); });
   EV.$("lightMore").addEventListener("click", () => {
     const count = app.view.lights.length;
-    // A new light is placed a golden angle round from the last, halfway up.
+    // A new light goes a golden angle round from the last, halfway up.
     app.view.lights.push({ turn: ((count ? app.view.lights[count - 1].turn : 0) + 137) % 360, tilt: 45, strength: 160 });
     app.lightPick = count;
     EV.showView(app);
@@ -125,8 +125,8 @@ EV.bindLights = (app) => {
   }
 };
 
-// A marker for each light, where its direction points out of the volume's center on the screen. Dragging one turns
-// the light by half a degree a pixel across and tilts it by half a degree a pixel up.
+// A marker for each light, where its direction points out of the center of the volume on the screen. A drag of one
+// turns the light by half a degree a pixel across, and tilts it by half a degree a pixel up.
 EV.paintLightHandles = (app) => {
   const layer = EV.$("lightHandles");
   if (!app.object) {
@@ -196,7 +196,7 @@ EV.choose = (app, cells, mode) => {
   }
 };
 
-// The raw voxels of the slice, when the page is served beside the stacks. A file opened from disk has none.
+// The raw voxels of the slice, when the server gives the page beside the stacks. A file opened from disk has none.
 EV.fetchRaw = async (app) => {
   const header = app.object && app.object.header;
   const note = EV.$("rawNote");
@@ -204,7 +204,7 @@ EV.fetchRaw = async (app) => {
     note.textContent = app.fromFile ? "The microscope image needs the page served beside the stacks; cells are drawn without it." : "";
     return;
   }
-  // The whole frame is fetched once: the projection reads every layer, and a slice reads one without a new fetch.
+  // The code fetches the full frame once. The projection reads each layer, and a slice reads one without a new fetch.
   const frame = Math.min(app.progress >= 2048 ? app.frame + 1 : app.frame, header.frames - 1);
   const key = `${app.sample}|${frame}`;
   if (app.rawKey === key) {
@@ -281,8 +281,8 @@ EV.openSource = async (app, sources, sample, fromFile) => {
     EV.applyView(app.view, parsed.view);
   }
   EV.applyView(app.view, retained);
-  // What the object's .cfg says about the specimen: the voxel's size and the membrane's thickness, both in picometers,
-  // give the wall's inset as the membrane in voxels times 65536.
+  // What the .cfg of the object says about the specimen: the size of the voxel and the thickness of the membrane, both
+  // in picometers. They give the inset of the wall as the membrane in voxels times 65536.
   const specimen = EV.specimen(object.cfgText);
   app.specimen = specimen;
   app.wallInset = specimen.voxel_pm[2] ? Math.floor((specimen.membrane_pm * 65536) / specimen.voxel_pm[2]) : 0;
@@ -296,7 +296,7 @@ EV.openSource = async (app, sources, sample, fromFile) => {
   app.progress = 0;
   app.heading = 0;
   app.playing = false;
-  // The resolve reads the sections' offsets from the layout. The layout is written for this object first.
+  // The resolve reads the offsets of the sections from the layout. The code writes the layout for this object first.
   EV.fit(gpu);
   EV.writeLayout(gpu, EV.layoutValues(app, EV.frameRange(app), EV.regions(app)));
   app.resolveMs = await EV.resolveRuns(gpu);
@@ -482,7 +482,7 @@ EV.bindPointer = (app) => {
       app.dirty = true;
       return;
     }
-    // Hovering: the cell under the pointer, read back at max every 80 ms.
+    // Hover: the cell under the pointer, read back at max once in 80 ms.
     const now = performance.now();
     if (!app.object || app.picking || now - (app.hoverAt || 0) < 80) {
       return;
@@ -535,7 +535,7 @@ EV.bindPointer = (app) => {
     EV.showView(app);
   }, { passive: false });
 
-  // Dropping a sample's .vbo and .ibo anywhere opens them.
+  // A drop of the .vbo and .ibo of a sample anywhere opens them.
   const drop = EV.$("drop");
   window.addEventListener("dragover", (event) => { event.preventDefault(); drop.hidden = false; });
   window.addEventListener("dragleave", (event) => { if (!event.relatedTarget) drop.hidden = true; });
@@ -647,7 +647,7 @@ EV.exposeApi = (app) => {
     },
     csv: () => EV.csv(app),
     sections: () => object().header,
-    // Every function and table the page is built from, for a program that wants to look further in.
+    // Each function and table that the page comes from, for a program that wants to look further in.
     internals: EV,
   };
 };

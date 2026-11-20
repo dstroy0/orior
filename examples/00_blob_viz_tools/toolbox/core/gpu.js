@@ -18,7 +18,7 @@ EV.nextPower = (count) => {
   return power;
 };
 
-// The adapter, the device and the canvas context, or a throw that says which is missing. Device errors go to the
+// The adapter, the device and the canvas context, or a throw that says which one is absent. Device errors go to the
 // console under the label.
 EV.openDevice = async (canvas, label) => {
   if (!navigator.gpu) {
@@ -70,8 +70,8 @@ EV.readHead = async (reader, count) => {
   return pending;
 };
 
-// The rest of a stream, its head already read, positioned into the landing from a byte place; nothing lands past the limit.
-// Returns the stream's whole length.
+// The rest of a stream, its head already read, put into `landing` from a byte place. Nothing lands past the
+// limit. Returns the full length of the stream.
 EV.streamInto = async (reader, landing, at, limit, head) => {
   let written = 0;
   let value = head;

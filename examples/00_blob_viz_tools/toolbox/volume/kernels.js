@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// The engine view's shaders. Every position is integer arithmetic in doubled voxel units until the clip boundary,
-// where one conversion to f32 passes it to the rasterizer. Every pick is a select; nothing is discarded. A primitive
-// that should not be drawn is moved outside the clip volume in the vertex stage.
+// The shaders of the engine view. Each position is integer arithmetic in doubled voxel units until the clip boundary,
+// where one conversion to f32 passes it to the rasterizer. Each pick is a select, and no shader discards. The vertex
+// stage moves a primitive that must not show outside the clip volume.
 
 EV.LAYOUT_WORDS = 88;
 
@@ -22,7 +22,7 @@ EV.LAYOUT = [
   "typical_voxels", "slide", "spare86", "spare87",
 ];
 
-// Fields read as signed integers; every other field is unsigned.
+// Fields read as signed integers. Each other field reads as unsigned.
 EV.SIGNED = new Set(["yaw_cos", "yaw_sin", "pitch_cos", "pitch_sin", "zoom", "pan_x", "pan_y", "half_w", "half_h",
   "spread", "z_scale", "light_x", "light_y", "light_z", "slice_x0", "slice_y0", "slice_scale", "soft_radius", "slice_w", "slice_h",
   "light0_x", "light0_y", "light0_z", "light1_x", "light1_y", "light1_z", "light2_x", "light2_y", "light2_z",
@@ -58,7 +58,7 @@ fn chosen_bit(cell: u32) -> u32 {
   return (chosen[cell >> 5u] >> (cell & 31u)) & 1u;
 }`;
 
-// Each leaf in range: its runs where it is retained, else zero; past the range, zero.
+// Each leaf in range: its runs where it stays, else zero. Past the range, zero.
 EV.RETAIN = EV.PRELUDE + `
 @group(0) @binding(0) var<storage, read> obj: array<u32>;
 @group(0) @binding(1) var<uniform> position: Layout;
@@ -75,7 +75,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
   prefix[select(position.pow2, slot, slot < position.pow2)] = obj[at + 3u] * retained;
 }`;
 
-// One Sklansky level: every slot with the level's bit set adds the last slot of the half block below it.
+// One Sklansky level: every element with the level's bit set adds the last element of the half block below it.
 EV.LEVEL = EV.PRELUDE + `
 struct Level { bit: u32, spare0: u32, spare1: u32, spare2: u32 }
 @group(0) @binding(0) var<uniform> level: Level;
@@ -91,7 +91,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
   prefix[select(position.pow2, slot, slot < position.pow2)] += prefix[min(source, position.pow2)];
 }`;
 
-// Each run in range lands at its leaf's retained runs before it plus its place in its leaf; a run not retained lands in slot 0.
+// Each run in range lands at its leaf's retained runs before it plus its place in its leaf; a run not retained lands in position 0.
 EV.SCATTER = EV.PRELUDE + `
 @group(0) @binding(0) var<storage, read> obj: array<u32>;
 @group(0) @binding(1) var<uniform> position: Layout;

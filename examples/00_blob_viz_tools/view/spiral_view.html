@@ -194,22 +194,25 @@ EV.rateMeter = () => {
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// A frame loop that reports on itself. EV.watchLoop runs a page's step once per turn inside a guard and asks
-// EV.nextTurn for the next one. No page schedules its own frames. A throw stops the loop. A loop awake for
-// its patience that has turned fewer than twice is reported: one turn is what a dead loop gives, because setup
-// has already drawn a correct still frame and the first turn throws. A hidden page is not
-// judged; the browser holds its frames, and the count starts again when the page is seen.
+// A frame loop that reports on itself. EV.watchLoop runs the step of a page once per turn inside a guard, and asks
+// EV.nextTurn for the next one. No page schedules its own frames. A throw stops the loop.
+//
+// The code reports a loop that stays awake for its patience and turns fewer than twice. One turn is what a dead loop
+// gives, because setup draws a correct still frame first, and then the first turn throws.
+// The code does not judge a hidden page. The browser holds its frames, and the count starts again when the page
+// shows.
 //
 // A loop runs for the life of the page or on demand. A step that returns false has nothing left to draw, and
-// the loop sleeps until the page wakes it. Every loop starts asleep, and a sleeping loop is healthy.
+// the loop sleeps until the page wakes it. Each loop starts asleep, and a loop that sleeps is healthy.
 //
 //   const loop = EV.watchLoop("scope view", (now) => { draw(now); }, { vsync: () => view.vsync, settle });
 //   loop.wake();
 //
-// vsync, when given, is asked before every turn. Without it every turn waits for the refresh. settle, when
-// given, returns a promise the next uncapped turn waits on. A turn never queues behind unfinished work.
+// The loop asks vsync, when the page gives it, before each turn. Without it, each turn waits for the refresh. settle,
+// when the page gives it, returns a promise that the next uncapped turn waits on. A turn never queues behind
+// unfinished work.
 //
-// window.__loopHealth is read fresh on every access and covers every loop on the page: ok is true, false, or
+// Each access of window.__loopHealth reads it fresh, and it covers each loop on the page. Its ok is true, false, or
 // null before the first verdict. Turns counts them all; why and detail come from the loop that settled the
 // verdict; loops holds each loop's own record. A failure also shows on the page in a line at the top. A page
 // whose loop cannot start at all, with no device to draw on, says so through EV.noLoop and shows its own reason.

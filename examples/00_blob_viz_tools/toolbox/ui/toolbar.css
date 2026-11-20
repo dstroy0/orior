@@ -1,9 +1,9 @@
 /* orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
    SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-   The floating toolbar EV.toolbar emits. Closed, it is its menu button alone. Open, its glass grows out of that
-   button, across and down, to the toolbar's full size; closing runs the same way back. Nothing inside it scrolls
-   or shows a scrollbar while it is closed. */
+   The floating toolbar that EV.toolbar emits. When it closes, it is its menu button alone. When it opens, its glass
+   grows out of that button, across and down, to the full size of the toolbar. It closes the same way back. Nothing
+   inside it scrolls or shows a scrollbar until it opens. */
   .toolbar {
     --button: 34px;
     position: fixed; top: 12px; z-index: 6; box-sizing: border-box; width: var(--panel-w);

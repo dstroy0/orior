@@ -1,16 +1,20 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// Smooth cells. The blur: each run is an ellipsoid drawn as the ellipse it projects to, bright at its center and
-// falling smoothly to nothing. The runs of one cell merge into one translucent blob from every angle. The wall: each
-// cell's solid ellipsoid of equal second moments, less the membrane, drawn into a texture of cell numbers; the
-// composite traces a line wherever that number changes, in a lighter tone of the cell's color, over the blur. The
-// wall is one smooth surface per cell. No layer of the volume shows in it.
+// Smooth cells. The blur: each run is an ellipsoid drawn as the ellipse it projects to. It is bright at its center,
+// and falls smoothly to nothing. The runs of one cell merge into one translucent blob from each angle.
 //
-// Positions are integers up to the clip boundary, as everywhere; past it the ellipses and the blend are display
-// arithmetic in f32 and feed no count. The blend is weighted, blended order-independent transparency (McGuire and
-// Bavoil, 2013): every splat adds its weighted color to one target and multiplies its transparency into another, and
-// the composite divides the first by its weight and positions the result over the page by the second. No sort is needed.
+// The wall: the solid ellipsoid of each cell, of equal second moments, less the membrane. It goes into a texture of
+// cell numbers. The composite traces a line where that number changes, in a lighter tone of the color of the cell, over
+// the blur. The wall is one smooth surface per cell. No layer of the volume shows in it.
+//
+// Positions are integers up to the clip boundary, as everywhere. Past it, the ellipses and the blend are display
+// arithmetic in f32, and feed no count.
+//
+// The blend uses weighted, blended order-independent transparency (McGuire and Bavoil, 2013). Each splat adds its
+// weighted color to one target, and multiplies its transparency into another.
+// The composite divides the first by its weight, and puts the result over the page by the second. No sort is
+// necessary.
 // Splats and walls take the same palette, the same step and a dissolve grain like the run's box. The smooth cells
 // move and shimmer as the voxel cells do.
 
@@ -38,21 +42,24 @@ struct WallDrawn {
 }
 
 // How far into the volume a point lies along the view: 0 at the nearest point the volume can reach and 1 at the
-// farthest. The view depth is clip z * 16384 - 8192 doubled units, and no point of the volume lies farther from its
-// center than the length of its half diagonal, width, height and depth * z_scale / 2 doubled units.
+// farthest. The view depth is `clip z * 16384 - 8192` doubled units. No point of the volume lies farther from its
+// center than the length of its half diagonal, `width, height and depth * z_scale / 2` doubled units.
 fn farness(clip_z: f32) -> f32 {
   let reach = length(vec3<f32>(f32(position.width), f32(position.height), f32(i32(position.depth) * position.z_scale) * 0.5));
   return clamp((clip_z * 16384.0 - 8192.0 + reach) / (2.0 * reach), 0.0, 1.0);
 }
 
 // One run as an ellipsoid in the volume, drawn as the exact ellipse it projects to. Its three semi-axes lie along x, y
-// and z: along x half the run's length plus a reach of soft_radius halves of a voxel, along y that reach, and along z
-// that reach in layers plus half a layer. Neighboring rows and layers overlap from every angle and the density does
-// not band by layer. The reach grows with distance, by 35% at the far side. Far cells soften a little while near
-// ones retain their shape.
+// and z:
+//   - along x, half the length of the run plus a reach of soft_radius halves of a voxel.
+//   - along y, that reach.
+//   - along z, that reach in layers plus half a layer.
+//
+// Rows and layers next to each other overlap from each angle, and the density does not band by layer. The reach grows
+// with distance, by 35% at the far side. Far cells soften a little, and near ones keep their shape.
 //
 // An ellipsoid with semi-axis vectors a, b, c projects orthographically to the ellipse of points p with
-// p' M^-1 p <= 1, M = a a' + b b' + c c' taken on the screen: the same ellipse from any turn and tilt.
+// `p' M^-1 p <= 1`, where `M = a a' + b b' + c c'` on the screen. It is the same ellipse from any turn and tilt.
 @vertex
 fn soft(@builtin(vertex_index) vertex: u32, @builtin(instance_index) instance: u32) -> SoftOut {
   let run = compact[instance + 1u];
@@ -80,7 +87,7 @@ fn soft(@builtin(vertex_index) vertex: u32, @builtin(instance_index) instance: u
   let a = across_x * (f32(span) * 0.5 + reach);
   let b = across_y * reach;
   let c = across_z * (reach + 0.5);
-  // Half a pixel added on the diagonal retains an ellipse seen edge on from collapsing to a line.
+  // Half a pixel added on the diagonal stops an ellipse seen edge on from a collapse to a line.
   let m00 = a.x * a.x + b.x * b.x + c.x * c.x + 0.25;
   let m01 = a.x * a.y + b.x * b.y + c.x * c.y;
   let m11 = a.y * a.y + b.y * b.y + c.y * c.y + 0.25;
@@ -111,11 +118,13 @@ fn falloff_of(input: SoftOut) -> f32 {
   return clamp(1.0 - q, 0.0, 1.0);
 }
 
-// A Gaussian: the ellipse's edge lies at two and a half standard deviations. With the reach of one and a half rows
-// and two layers the deviation is 0.6 of a row and 0.8 of a layer, and Gaussians positioned at that spacing sum to a density
-// that ripples by under 1%: no row or layer shows as a band from any angle. The blend's weight falls as the fourth
-// power of the distance into the volume, a thousand to one from the near side to the far. A near cell holds its own
-// pixels against everything behind it; a far splat is also drawn at 70% of its opacity.
+// A Gaussian: the edge of the ellipse lies at two and a half standard deviations. With the reach of one and a half
+// rows and two layers, the deviation is 0.6 of a row and 0.8 of a layer.
+// Gaussians at that spacing sum to a density that ripples by under 1%. No row or layer shows as a band from any angle.
+//
+// The weight of the blend falls as the fourth power of the distance into the volume. It is a thousand to one from the
+// near side to the far. A near cell holds its own pixels against all that is behind it. A far splat also shows at 70%
+// of its opacity.
 @fragment
 fn soft_fragment(input: SoftOut) -> SoftDrawn {
   let d = input.local;
@@ -128,11 +137,12 @@ fn soft_fragment(input: SoftOut) -> SoftDrawn {
 
 @group(0) @binding(6) var<storage, read> shape: array<i32>;
 
-// A cell's ellipsoid: the solid ellipsoid with the cell's own second moments, drawn as the ellipse it projects to. A
-// solid ellipsoid's second moment along a semi-axis of length r is r^2 / 5. With the moments C in voxels squared the
-// projected ellipse is M = 5 P C P', P taking a voxel along x and y and a layer along z to the screen. The wall is
-// shrunk by the membrane; the body is not. Both ride the cell's step and dissolve by the cell's grain across a
-// transition.
+// The ellipsoid of a cell: the solid ellipsoid with the own second moments of the cell, drawn as the ellipse it
+// projects to. The second moment of a solid ellipsoid along a semi-axis of length r is r^2 / 5.
+// With the moments C in voxels squared, the projected ellipse is `M = 5 P C P'`. P takes a voxel along x and y, and a
+// layer along z, to the screen.
+// The membrane shrinks the wall, but not the body. Both move by the step of the cell, and dissolve by the grain of the
+// cell across a transition.
 fn cell_ellipse(vertex: u32, cell: u32, wall: bool) -> SoftOut {
   let frame = frame_of_cell(cell);
   let size = obj[position.cells_at + 4u * cell];
@@ -183,19 +193,22 @@ fn cell_ellipse(vertex: u32, cell: u32, wall: bool) -> SoftOut {
   out.cell = cell + 1u;
   let far = farness(projected.z);
   out.far = far;
-  // How much of its ellipsoid the cell fills: its voxels over the ellipsoid's volume, 4/3 pi times the product of the
-  // semi-axes, sqrt(125 det C). A compact cell is near 1; a sprawling object of many cells joined is near 0, and its
-  // body and wall fade out as the share falls from 0.4 to 0.1. They also fade out as the cell grows from 8 to 32 times
-  // the median cell of its frame, typical_voxels: a solid fused object is compact but far larger than any one cell.
-  // Either way one fused object cannot cover the cells around it, and it still shows through its runs' blur.
+  // How much of its ellipsoid the cell fills: its voxels over the volume of the ellipsoid. That volume is 4/3 pi times
+  // the product of the semi-axes, `sqrt(125 det C)`.
+  // A compact cell is near 1. A wide object of many joined cells is near 0, and its body and wall fade out as the share
+  // falls from 0.4 to 0.1.
+  //
+  // They also fade out as the cell grows from 8 to 32 times the median cell of its frame, typical_voxels. A solid fused
+  // object is compact, but far larger than any one cell.
+  // Either way, one fused object cannot cover the cells around it, and it still shows through the blur of its runs.
   let spread = xx * (yy * zz - zy * zy) - yx * (yx * zz - zy * zx) + zx * (yx * zy - yy * zx);
   let compact = clamp(f32(size) / (4.18879 * sqrt(max(125.0 * spread, 0.0001))), 0.0, 1.0);
-  // Cells of one lineage share a color; each is lifted or dimmed by up to a sixth by its own number so neighbors of one
+  // Cells of one lineage share a color. Its own number lifts or dims each by up to a sixth, so that neighbors of one
   // lineage still read as separate cells.
   let own = 0.84 + 0.32 * f32((cell * 2246822519u) >> 24u) / 255.0;
   let tone = min(lit(cell, frame, 256u).rgb * own, vec3<f32>(1.0));
-  // A wall's tone is lifted toward white and its alpha carries its nearness and solidity. The composite fades walls
-  // with distance and sprawl; a body's tone is the cell's own at the body's opacity times its solidity.
+  // The tone of a wall goes toward white, and its alpha carries its nearness and solidity. The composite fades walls
+  // with distance and spread. The tone of a body is that of the cell, at the opacity of the body times its solidity.
   let typical = f32(max(position.typical_voxels, 1u));
   let solid = smoothstep(0.1, 0.4, compact) * (1.0 - smoothstep(8.0 * typical, 32.0 * typical, f32(size)));
   out.color = select(vec4<f32>(tone, solid * f32(position.body_alpha) / 255.0),
@@ -203,23 +216,26 @@ fn cell_ellipse(vertex: u32, cell: u32, wall: bool) -> SoftOut {
   return out;
 }
 
-// The map's flat cells: each cell's ellipsoid turned by the camera, yaw about z and then tilt about the turned x,
-// projected orthographically by dropping the view depth, and fitted so the volume's half diagonal, map_reach doubled
-// units, fills the square texture of cell numbers. Nothing of zoom, pan or spread applies. The composite fills each
-// cell's ellipse with its color and outlines it; the nearest cell is in front.
-// The plane stays overhead and never turns: a place on it is where the cell is seen from straight above, positioned
-// on the same still image the map draws under it. The map holds while the view moves. Row zero is at the top,
-// as the image has it, and the clip space counts the other way.
+// The flat cells of the map. The camera turns the ellipsoid of each cell, yaw about z and then tilt about the turned x.
+// An orthographic projection drops the view depth. The fit makes the half diagonal of the volume, map_reach doubled
+// units, fill the square texture of cell numbers.
+//
+// Nothing of zoom, pan or spread applies. The composite fills the ellipse of each cell with its color and outlines it.
+// The nearest cell is in front.
+//
+// The plane stays overhead and never turns. A place on it is where the cell shows from straight above, on the same
+// still image that the map draws under it. The map holds while the view moves. Row zero is at the top, as the image
+// has it, and the clip space counts the other way.
 fn map_place(x: i32, y: i32, z: i32) -> vec3<f32> {
   let across = f32(x * position.slice_scale) / f32(256 * max(position.slice_w, 1));
   let down = f32(y * position.slice_scale) / f32(256 * max(position.slice_h, 1));
   let reach = f32(position.map_reach);
-  // Overhead, the nearest cell is the highest one. Its own height is the depth it is written at.
+  // Overhead, the nearest cell is the highest one. Its own height is the depth that the shader writes for it.
   return vec3<f32>(across, -down, (f32(z) + reach) / (2.0 * reach));
 }
 
-// What the camera makes of a step in the volume: the cells retain the shape the view gives them as it turns, and
-// that shape is what falls on the plane below. Only the shape turns; where it falls does not.
+// What the camera makes of a step in the volume. The cells keep the shape that the view gives them as it turns.
+// That shape is what falls on the plane below. Only the shape turns, and the place where it falls does not.
 fn map_turn(x: i32, y: i32, z: i32) -> vec2<f32> {
   let x1 = (position.yaw_cos * x - position.yaw_sin * y) >> 14u;
   let y1 = (position.yaw_sin * x + position.yaw_cos * y) >> 14u;
@@ -238,7 +254,7 @@ fn map_cell(@builtin(vertex_index) vertex: u32, @builtin(instance_index) instanc
   let half = vec2<f32>(f32(${EV.MAP_SIZE}) * 0.5);
   let projected = map_place(middle.x, middle.y, middle.z);
   let center = projected.xy * half;
-  // Where it falls is overhead and still; what falls is the shape the camera is making of it.
+  // Where it falls is overhead and still. What falls is the shape that the camera makes of it.
   let turned = map_turn(middle.x, middle.y, middle.z) * half;
   let per_x = (map_turn(middle.x + 64, middle.y, middle.z) * half - turned) / 32.0;
   let per_y = (map_turn(middle.x, middle.y + 64, middle.z) * half - turned) / 32.0;
@@ -266,7 +282,7 @@ fn map_cell(@builtin(vertex_index) vertex: u32, @builtin(instance_index) instanc
   let eased = u32(ease(position.progress));
   let displayed = select(select(false, grain < eased, frame == position.frame_now + 1u), grain >= eased, frame == position.frame_now);
   let retained = select(true, chosen_bit(cell) == 1u, position.only_chosen == 1u) && (size >= position.min_voxels);
-  // A fused object is left off the map as it is left out of the bodies: by its share of its ellipsoid and its size.
+  // A fused object stays off the map, as it stays out of the bodies, by its share of its ellipsoid and its size.
   let spread = xx * (yy * zz - zy * zy) - yx * (yx * zz - zy * zx) + zx * (yx * zy - yy * zx);
   let compact = clamp(f32(size) / (4.18879 * sqrt(max(125.0 * spread, 0.0001))), 0.0, 1.0);
   let typical = f32(max(position.typical_voxels, 1u));
@@ -293,9 +309,9 @@ fn map_cell_fragment(input: SoftOut) -> MapDrawn {
   return MapDrawn(input.cell, select(1.0, input.place.z, falloff > 0.0));
 }
 
-// The plane holds the whole volume and not its near face: every cell adds its own color where its ellipse
-// covers, nothing tested against depth and nothing hidden behind anything else. The weight added beside the
-// color is what the composite divides by. A place many cells reach reads as all of their colors together.
+// The plane holds the full volume, and not its near face. Each cell adds its own color where its ellipse covers.
+// No test against depth occurs, and nothing hides behind another thing. The weight added beside the color is what
+// the composite divides by. A place many cells reach reads as all of their colors together.
 @fragment
 fn map_paint_fragment(input: SoftOut) -> @location(0) vec4<f32> {
   let falloff = falloff_of(input);
@@ -313,9 +329,9 @@ fn body_cell(@builtin(vertex_index) vertex: u32, @builtin(instance_index) instan
   return cell_ellipse(vertex, instance, false);
 }
 
-// One light's contribution at a surface normal seen from the front: diffuse by the cosine to the light, and a soft
-// highlight where the normal halves the way between the light and the eye. A light is its direction in view space, x
-// right, y up, z toward the eye, times 256, and its strength of 255.
+// The part of one light at a surface normal seen from the front. It is diffuse by the cosine to the light, with a soft
+// highlight where the normal halves the way between the light and the eye.
+// A light is its direction in view space times 256, with x right, y up and z toward the eye, and its strength of 255.
 fn light_at(normal: vec3<f32>, x: i32, y: i32, z: i32, strength: u32, on: bool) -> f32 {
   let toward = normalize(vec3<f32>(f32(x), f32(y), f32(z)) + vec3<f32>(0.0, 0.0, 0.0001));
   let diffuse = max(dot(normal, toward), 0.0);
@@ -324,9 +340,9 @@ fn light_at(normal: vec3<f32>, x: i32, y: i32, z: i32, strength: u32, on: bool) 
   return select(0.0, (diffuse + highlight) * f32(strength) / 255.0, on);
 }
 
-// A cell's body, lit: the ellipse read as the front of its ellipsoid, the normal tilting from facing the eye at the
-// center to lying in the screen at the rim, shaded by every light that is on, and blended like the blur with its
-// alpha easing out toward the rim.
+// The body of a cell, lit. The ellipse reads as the front of its ellipsoid. The normal tilts from the eye at the
+// center to the plane of the screen at the rim. Each light that is on shades it.
+// It blends like the blur, and its alpha eases out toward the rim.
 @fragment
 fn body_fragment(input: SoftOut) -> SoftDrawn {
   let d = input.local;
@@ -348,11 +364,13 @@ fn body_fragment(input: SoftOut) -> SoftDrawn {
   return SoftDrawn(vec4<f32>(color * alpha * weight, alpha * weight), vec4<f32>(alpha));
 }
 
-// The wall's cell at a pixel is the nearest cell there, and between cells at one depth the one whose ellipse is max
-// central: the depth written is the view depth plus the distance from the ellipse's center, scaled to about two voxels
-// of depth. The depth test retains cells in front and settles touching cells by their rounded shapes. Outside an
-// ellipse the depth is 1, which never passes the cleared depth. The region outside every cell retains cell 0 and the
-// wall between a cell and the outside follows the ellipses' rounded union.
+// The cell of the wall at a pixel is the nearest cell there. Between cells at one depth, it is the cell whose ellipse
+// is most central.
+//
+// The written depth is the view depth plus the distance from the center of the ellipse, scaled to about two voxels of
+// depth. The depth test keeps cells in front, and settles cells that touch by their rounded shapes.
+// Outside an ellipse, the depth is 1, which never passes the cleared depth. The region outside each cell keeps cell 0.
+// The wall between a cell and the outside follows the rounded union of the ellipses.
 @fragment
 fn wall_soft_fragment(input: SoftOut) -> WallDrawn {
   let falloff = falloff_of(input);
@@ -367,14 +385,15 @@ EV.SOFT_COMPOSITE = EV.PRELUDE + `
 @group(0) @binding(4) var<uniform> position: Layout;
 @group(0) @binding(5) var raw: texture_3d<u32>;
 
-// The slide under the cells: the microscope's own voxels, gathered along the very ray the view is looking down.
-// The image and what the engine made of it are in the same place at the same turn. The pixel is carried back
-// through the turn, the brightest voxel along it is, and the slider says how much of it is seen against the
-// representation. Nothing of the two is drawn twice: one fades in as the other fades out.
+// The slide under the cells: the own voxels of the microscope, gathered along the same ray that the view looks down.
+// The image and what the engine made of it are in the same place at the same turn.
+// The pixel goes back through the turn, and the brightest voxel along it is the value. The slider says how much of it
+// shows against the representation. Nothing of the two shows twice: one fades in as the other fades out.
 fn slide_gray(pixel: vec2<i32>) -> vec2<f32> {
   let wide = i32(position.half_w);
   let high = i32(position.half_h);
-  // Back through the view's own placing: the pixel as the turned place it came from, before the zoom and the pan.
+  // Back through the own placement of the view: the pixel as the turned place it came from, before the zoom and the
+  // pan.
   let across = (((pixel.x - wide) * 256 * 128) / max(position.zoom, 1) - position.pan_x * 128 / max(position.zoom, 1)) / 128;
   let up = (((high - pixel.y) * 256 * 128) / max(position.zoom, 1) - position.pan_y * 128 / max(position.zoom, 1)) / 128;
   let reach = i32(position.map_reach);
@@ -414,8 +433,8 @@ fn wall_at(pixel: vec2<i32>) -> u32 {
 @fragment
 fn compose(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
   let pixel = vec2<i32>(at.xy);
-  // Alpha smoothing: both blend targets are read through a 3 by 3 tent, weights 1 2 1 by 1 2 1 over 16, before the
-  // color is resolved. The edges of blobs and the grain of the dissolve soften by a pixel.
+  // Alpha smoothing: the shader reads both blend targets through a 3 by 3 tent, weights 1 2 1 by 1 2 1 over 16,
+  // before it resolves the color. The edges of blobs and the grain of the dissolve soften by a pixel.
   let limit = vec2<i32>(textureDimensions(accumulated)) - vec2<i32>(1);
   var sum = vec4<f32>(0.0);
   var clear = 0.0;
@@ -439,14 +458,14 @@ fn compose(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
     }
   }
   let edge = (own != 0u) && differs;
-  // A wall is drawn at its tone's alpha: full for a near compact cell, 65% at the far side, less with sprawl.
+  // A wall shows at the alpha of its tone: full for a near compact cell, 65% at the far side, and less with spread.
   let wall_tone = textureLoad(wall_tones, pixel, 0);
   let wall_alpha = select(0.0, f32(position.wall_alpha) / 255.0, edge && (position.wall_on == 1u)) * wall_tone.a;
   let wall = wall_tone.rgb;
   let alpha = blob_alpha + wall_alpha * (1.0 - blob_alpha);
   let mixed = (blob * blob_alpha * (1.0 - wall_alpha) + wall * wall_alpha) / max(alpha, 0.00001);
-  // The slider between what the microscope saw and what the engine made of it: at nothing only the cells are,
-  // at full only the slide, and between them each is there in its own measure, in the same place at the same turn.
+  // The slider between what the microscope saw and what the engine made of it. At nothing, only the cells show, and
+  // at full, only the slide. Between them, each shows in its own measure, in the same place at the same turn.
   let slide = f32(position.slide) / 255.0;
   let seen = slide_gray(pixel);
   let slide_alpha = seen.y * slide;

@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// The page's state and its clock. The .cfg view holds the targets; the live values ease toward them every frame.
-// A turn, a zoom, a spread, a choice and a frame change all move instead of jumping. Angles are held in sixteenths of
-// a degree and turned through the integer sine table.
+// The state of the page and its clock. The .cfg view holds the targets, and the live values ease toward them each
+// frame. A turn, a zoom, a spread, a choice and a frame change all move, and do not jump. Angles are in sixteenths of
+// a degree, and they turn through the integer sine table.
 
 EV.$ = (id) => document.getElementById(id);
 
@@ -38,14 +38,14 @@ EV.regions = (app) => {
   const header = app.object.header;
   const showSlice = app.view.slice;
   const side = Math.floor(Math.min(canvas.height * 0.42, canvas.width * 0.34));
-  // The map holds still in a square; the shapes turning on it may leave its corners.
+  // The map holds still in a square. The shapes that turn on it can leave its corners.
   const scale = Math.max(1, Math.floor((side * 256) / Math.max(header.width, header.height)));
   const sliceWidth = side;
   const sliceHeight = side;
   const margin = Math.floor(12 * ratio);
   const sliceX = canvas.width - sliceWidth - margin;
   const sliceY = canvas.height - sliceHeight - Math.floor(70 * ratio);
-  // The cells sit below what is written over them: the menu and the copyright line under it.
+  // The cells sit below what the page writes over them: the menu, and the copyright line under it.
   const under = Math.floor(64 * ratio);
   return { view: [0, under, canvas.width, Math.max(1, canvas.height - under)],
            slice: showSlice ? [sliceX, sliceY, sliceWidth, sliceHeight] : null, scale };
@@ -92,9 +92,9 @@ EV.layoutValues = (app, range, regions) => {
   };
 };
 
-// Each light as a direction toward it, times 256: in the volume's own frame for the voxel faces, and turned by the camera
-// into view space, x right, y up, z toward the eye, for the lit bodies. A light is fixed to the volume. Turning the
-// camera turns its light with the cells. Integers throughout.
+// Each light as a direction toward it, times 256. For the voxel faces, it is in the own frame of the volume. For the
+// lit bodies, the camera turns it into view space, with x right, y up and z toward the eye.
+// A light stays fixed to the volume. A turn of the camera turns its light with the cells. Integers throughout.
 EV.lightVectors = (app) => {
   const live = app.live;
   const yc = EV.cosine16(live.turn);
@@ -257,9 +257,9 @@ EV.frameLoop = (app, now) => {
   app.turns += 1;
 };
 
-// The frame loop runs under the toolbox's watch, which reports a throw or a loop that stops turning. With vsync
-// the view is drawn at max once per display refresh, and only when something changed. Without it every turn
-// draws, and the next turn waits for the card to finish the last one. The rate is the card's own and the queue
+// The frame loop runs under the watch of the toolbox, which reports a throw or a loop that stops its turns. With
+// vsync, the view draws at max once per display refresh, and only when something changed. Without it, each turn
+// draws, and the next turn waits for the card to finish the last one. The rate is that of the card, and the queue
 // never grows.
 EV.startLoop = (app) => {
   app.meter = EV.rateMeter();

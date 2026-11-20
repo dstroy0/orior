@@ -45,7 +45,8 @@ fn box(@builtin(vertex_index) vertex: u32, @builtin(instance_index) instance: u3
   return out;
 }
 
-// A cell as one blob at its centroid, the size of a cube of its volume, riding its step across the transition.
+// A cell as one blob at its centroid, the size of a cube of its volume, that moves by its step across the
+// transition.
 @vertex
 fn blob(@builtin(vertex_index) vertex: u32, @builtin(instance_index) instance: u32) -> Out {
   let cell = instance;

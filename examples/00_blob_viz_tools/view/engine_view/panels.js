@@ -298,9 +298,10 @@ EV.paintPanels = (app) => {
   }
 };
 
-// Labels for the chosen cells of the frames on screen, with leader lines. In a row along the top they are sorted by
-// their cell's position so leaders do not cross, and crossing pairs left over are swapped; riding, they sit beside
-// their cell. A dragged label stays where it is put; a double click lets it go.
+// Labels for the chosen cells of the frames on screen, with leader lines. In a row along the top, the code sorts them
+// by the position of their cell, so that leaders do not cross. It swaps the pairs that still cross.
+// When they move with their cell, they sit beside it. A dragged label stays where the user puts it, and a double
+// click lets it go.
 EV.paintTags = (app) => {
   const tags = EV.$("tags");
   const leads = EV.$("leads");
@@ -414,7 +415,7 @@ EV.paintLines = (app) => {
 };
 
 EV.afterRender = (app, regions) => {
-  // The right column stops above the slice when the slice is displayed.
+  // The right column stops above the slice when the slice shows.
   const ratio = window.devicePixelRatio || 1;
   const right = EV.$("right");
   const bottom = regions && regions.slice ? Math.floor(regions.slice[1] / ratio) - 12 : window.innerHeight - 80;

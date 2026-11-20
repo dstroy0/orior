@@ -1,9 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// Every setting has a type and a range, held in EV.VIEW_SCHEME by name. Applying a view is partial: names
-// it does not carry retain their values. A name the scheme does not have, a fraction, a value of the wrong type
-// or one outside its range is reported by name and not applied.
+// Each setting has a type and a range, stored in EV.VIEW_SCHEME by name. A view applies in part: names that it
+// does not carry keep their values. The code reports by name, and does not apply, these:
+//   - a name that the scheme does not have.
+//   - a fraction.
+//   - a value of the wrong type, or one outside its range.
 
 EV.defaultView = () => {
   const view = {};
@@ -39,7 +41,7 @@ EV.errorValue = (rule, value) => {
   return Array.isArray(value) && value.every(integer) ? null : "a list of cell numbers";
 };
 
-// Applies a view section over a view. Returns what was applied and what errored, by name.
+// Applies a view section over a view. Returns, by name, what it applied and what errored.
 EV.applyView = (view, section) => {
   const applied = [];
   const error = [];

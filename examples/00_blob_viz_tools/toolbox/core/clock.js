@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
 // When the next turn of a frame loop runs. With vsync, once per display refresh. Without it, as soon as the turn
-// before has left the main thread, through a message port that the browser does not hold to the refresh. A hidden
+// before left the main thread, through a message port that the browser does not hold to the refresh. A hidden
 // page always waits for the refresh: an uncapped loop never runs in a tab no one sees. The meter counts the turns
 // that actually ran, per second, over half-second windows.
 

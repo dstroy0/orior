@@ -1,22 +1,22 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// The floating toolbar emitter. A page passes EV.toolbar a spec and gets back one toolbar in a corner: a menu button
-// that opens it, and folding sections of rows. Every control is emitted with the id the spec gives it, and the page
-// binds its controls by id as it would hand-written markup. A slider's value shows in an output whose id is the
-// slider's id followed by "Out".
+// The floating toolbar emitter. A page passes EV.toolbar a spec, and gets back one toolbar in a corner. The toolbar has
+// a menu button that opens it, and sections of rows that fold. Each control comes out with the id that the spec gives
+// it. The page binds its controls by id as it would hand-written markup. The value of a slider shows in an output
+// whose id is the id of the slider followed by "Out".
 //
-//   EV.toolbar({ id, title, corner: "top-left" | "top-right", open, onToggle(open), sections: [
-//     { title, open, rows: [
-//       { range: id, label, min, max, step, value, title },
-//       { select: id, label, options: [[value, text], { group, options: [[value, text], ...] }, ...], value, title },
-//       { number: id, label, min, max, step, value },
-//       { switches: [{ id, label, checked, tone, title }, ...] },
-//       { buttons: [{ id, text, title, icon }, ...], label },
-//       { note: id, text },
-//       { node: element, label },
-//     ] },
-//   ] })
+//   `EV.toolbar({ id, title, corner: "top-left" | "top-right", open, onToggle(open), sections: [`
+//     `{ title, open, rows: [`
+//       `{ range: id, label, min, max, step, value, title },`
+//       `{ select: id, label, options: [[value, text], { group, options: [[value, text], ...] }, ...], value, title },`
+//       `{ number: id, label, min, max, step, value },`
+//       `{ switches: [{ id, label, checked, tone, title }, ...] },`
+//       `{ buttons: [{ id, text, title, icon }, ...], label },`
+//       `{ note: id, text },`
+//       `{ node: element, label },`
+//     `] },`
+//   `] })`
 //
 // The toolbar returned carries root, isOpen() and setOpen(open). Escape inside it closes it and gives the focus back
 // to its button.
@@ -29,7 +29,7 @@ EV.element = (tag, properties, children) => {
   return made;
 };
 
-// A slider's fill follows its value, however the value is set: by the pointer, by the keys, or by a program.
+// The fill of a slider follows its value, whatever sets the value: the pointer, the keys, or a program.
 EV.fillSlider = (slider) => {
   const own = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
   const paint = () => {

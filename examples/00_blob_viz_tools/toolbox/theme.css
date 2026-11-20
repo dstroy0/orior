@@ -3,7 +3,7 @@
 
    The look every page shares, and the one set of controls: buttons, number fields, selects, sliders, switches,
    rows, sections, tables and notes. A page sets data-theme and data-face on its root and adds rules for its own
-   elements after these. Color is soft electric light on a cold dark ground: a blue that runs into violet and fades
+   elements after these. Color is soft electric light on a cold dark ground. A blue that runs into violet and fades
    to nothing marks an edge, a filled slider and a chosen button. The status colors are the Okabe-Ito set and stay
    apart from it, because they carry data. Every size sits on a 4 px grid. */
   :root {
@@ -64,7 +64,7 @@
   html, body { margin: 0; height: 100%; overflow: hidden; background: var(--page); color: var(--ink); font: var(--text)/1.5 var(--font); -webkit-font-smoothing: antialiased; }
   ::selection { background: color-mix(in oklab, var(--blue) 35%, transparent); }
 
-  /* The glass every floating surface is made of, with the fading seam along its top edge. */
+  /* The glass of each floating surface, with the seam that fades along its top edge. */
   .box, .glass {
     position: fixed; box-sizing: border-box; padding: 10px 12px; border-radius: 12px;
     background: var(--seam) top / 100% 1px no-repeat, linear-gradient(180deg, var(--glass-top), var(--glass-low));
@@ -118,7 +118,7 @@
   select option { background: var(--void); color: var(--ink); }
   select:hover, input[type=number]:hover, input[type=text]:hover, textarea:hover { border-color: color-mix(in oklab, var(--blue) 40%, transparent); background-color: var(--control-hi); }
 
-  /* Sliders: the track is a stroke that fades to nothing at both ends, the fill rises out of nothing and is
+  /* Sliders: the track is a stroke that fades to nothing at both ends. The fill rises out of nothing and is
      brightest under the thumb, and the thumb carries its own light. */
   input[type=range] {
     --fill: 0%; appearance: none; -webkit-appearance: none; width: 100%; min-width: 0; height: 20px; margin: 0;

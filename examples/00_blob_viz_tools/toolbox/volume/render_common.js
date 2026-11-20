@@ -3,9 +3,9 @@
 //
 // The drawing shaders: boxes warped out of runs, cells as blobs, links and edges as lines, and the slice.
 //
-// A frame change is a transition, never a cut. Across one transition the runs of frame t slide by their cell's
-// step toward its children and dissolve out, while the runs of frame t + 1 slide in from their parents and dissolve
-// in; progress runs 0 to 4096 and is eased by an integer smoothstep. The dissolve grain is a hash of the run.
+// A frame change is a transition, never a cut. Across one transition, the runs of frame t slide by the step of their
+// cell toward its children, and dissolve out. The runs of frame t + 1 slide in from their parents, and dissolve in.
+// Progress runs 0 to 4096, and an integer smoothstep eases it. The dissolve grain is a hash of the run.
 
 EV.RENDER_BINDINGS = `
 @group(0) @binding(0) var<storage, read> obj: array<u32>;
@@ -100,7 +100,8 @@ fn frame_of_cell(cell: u32) -> u32 {
   return frame;
 }
 
-// Shaded, faded by age, grayed where cells are chosen and this one is not, lifted where it is hovered or glows.
+// Shaded, faded by age, and grayed where the user chose other cells and not this one. Lifted where the pointer
+// hovers on it, or where it glows.
 fn lit(cell: u32, frame: u32, shade: u32) -> vec4<f32> {
   let base = (paint(cell) * shade) / 256u;
   let age = select(0u, position.frame_now - frame, frame < position.frame_now);

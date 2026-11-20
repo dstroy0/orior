@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
 // The object as the host holds it: the header, the small sections copied out of the mapped buffer, and what the
-// panels read from them. The runs stay on the card. Every number here is an integer; a fraction is displayed by
-// integer division to the places asked for. The object is two files, positioned end to end in one buffer: the .vbo (the
-// header, frames, leaves, cells, runs and the .cfg) and the .ibo (its own short header, the links and the edges). A
-// run is two words, its first voxel in the frame and its length; the header's version is 2.
+// panels read from them. The runs stay on the card. Each number here is an integer. A fraction shows by integer
+// division to the places that the caller asks for.
+// The object is two files, end to end in one buffer:
+//   - the .vbo: the header, frames, leaves, cells, runs and the .cfg.
+//   - the .ibo: its own short header, the links and the edges.
+//
+// A run is two words, its first voxel in the frame and its length. The version of the header is 2.
 
 EV.MAGIC = 0x314F4256;
 EV.VERSION = 2;
@@ -152,10 +155,11 @@ EV.indexObject = (header, mapped) => {
   return object;
 };
 
-// Each cell's second moments about its centroid, from its runs, exact: six per cell, zz yy xx zy zx yx, in voxels
-// squared (z in layers) times 256, floored, with each voxel's own spread of 1/12 added on the diagonal. A run of length
-// n from x0 at row y, layer z adds n, n x0 + n(n-1)/2, and n x0^2 + x0 n(n-1) + (n-1)n(2n-1)/6 to its sums. The sums
-// of a view of 2^22 voxels stay below 2^53. They are held exactly; the covariance products are taken in BigInt.
+// The second moments of each cell about its centroid, from its runs, exact. There are six per cell, zz yy xx zy zx yx,
+// in voxels squared (z in layers) times 256, floored. The own spread of 1/12 of each voxel goes on the diagonal.
+// A run of length n from x0 at row y, layer z adds n, `n x0 + n(n-1)/2`, and `n x0^2 + x0 n(n-1) + (n-1)n(2n-1)/6` to
+// its sums. The sums of a view of 2^22 voxels stay below 2^53.
+// A double holds them exactly, and the code takes the covariance products in BigInt.
 EV.cellShapes = (header, all, cells) => {
   const total = header.cell_total;
   const sums = new Float64Array(total * 9);
@@ -220,8 +224,8 @@ EV.lineage = (object, seeds) => {
   return [...seen].sort((left, right) => left - right);
 };
 
-// What a reader should look at, each item naming its frame and cells. Rankings, never cutoffs: the max linked and
-// the largest cells are listed first, and the reader decides where concern starts.
+// What a reader must look at, and each item names its frame and cells. Rankings, never cutoffs: the most linked and
+// the largest cells come first, and the reader decides where concern starts.
 EV.reviewList = (object) => {
   const header = object.header;
   const items = [];
@@ -256,8 +260,10 @@ EV.reviewList = (object) => {
   return items;
 };
 
-// Divisions, ends and starts of one frame: a cell with two or more children, a cell with none where the frame has
-// links onward, and a cell with no parent where the frame before has links into it.
+// Divisions, ends and starts of one frame:
+//   - a cell with two or more children.
+//   - a cell with none, where the frame has links onward.
+//   - a cell with no parent, where the frame before has links into it.
 EV.frameEvents = (object, frame) => {
   const table = object.frames;
   const first = table[10 * frame + 5];

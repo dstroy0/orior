@@ -1,12 +1,16 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// The map. The image holds still: the frame seen from above, as the brightest voxel of each column, or one layer's
-// voxels. The cells on it are flat and move with the camera: each cell's ellipsoid is turned by the camera's yaw and
-// tilt and projected orthographically into a square texture of cell numbers (map_cell, in the smooth shaders), and as
-// the camera turns the flat cells shift as the volume does. The composite reads that texture and the image at each pixel of
-// the map square, fills each cell with its color over the windowed intensity, and outlines it where a neighboring
-// texel belongs to another cell. Integers until the texture reads.
+// The map. The image holds still: the frame seen from above, as the brightest voxel of each column, or the voxels of
+// one layer. The cells on it are flat and move with the camera.
+//
+// The yaw and tilt of the camera turn the ellipsoid of each cell. An orthographic projection puts it into a square
+// texture of cell numbers, map_cell in the smooth shaders. As the camera turns, the flat cells shift as the volume
+// does.
+//
+// The composite reads that texture and the image at each pixel of the map square. It fills each cell with its color
+// over the windowed intensity. It outlines the cell where a texel next to it belongs to another cell.
+// Integers until the texture reads.
 
 EV.MAP_SIZE = 512;
 
@@ -35,17 +39,20 @@ fn slice_paint(@builtin(position) at: vec4<f32>) -> Drawn {
   let right = i32(at.x) - position.slice_x0;
   let down = i32(at.y) - position.slice_y0;
   let inside = (right >= 0) && (down >= 0) && (right < position.slice_w) && (down < position.slice_h);
-  // The image: the volume itself positioned flat on the plane. The square's pixel is a place on that plane, in the same
-  // doubled and centered units the cells are turned in, and the ray behind it is walked back through the volume by
-  // the camera's own turn read the other way round: what the cells' turn scatters out, this gathers in. The
-  // brightest voxel along the ray is. So the whole volume is on the plane, and none of it is a box held still.
-  // The plane is overhead and holds still. The pixel is the column straight under it, the image centered in
-  // the square with row zero at the top. Nothing here turns; only what falls on the plane does.
+  // The image: the volume itself, flat on the plane. The pixel of the square is a place on that plane, in the same
+  // doubled and centered units that the cells turn in.
+  // The ray behind it goes back through the volume by the own turn of the camera, read the other way round. What the
+  // turn of the cells scatters out, this gathers in.
+  // The brightest voxel along the ray is the value. So the full volume is on the plane, and no part of it is a still
+  // box.
+  //
+  // The plane is overhead and holds still. The pixel is the column straight under it, with the image centered in
+  // the square and row zero at the top. Nothing here turns. Only what falls on the plane turns.
   let column = vec2<i32>(i32(position.width) / 2 + ((right - position.slice_w / 2) * 256) / max(position.slice_scale, 1),
                          i32(position.height) / 2 + ((down - position.slice_h / 2) * 256) / max(position.slice_scale, 1));
   let on_image = (column.x >= 0) && (column.y >= 0) && (column.x < i32(position.width)) && (column.y < i32(position.height));
-  // The whole volume is given up onto that one place: the brightest voxel of the column located for all of it,
-  // or one layer where the map is asked for a layer.
+  // The full volume goes onto that one place: the brightest voxel of the column, found over all of it. Where the map
+  // asks for a layer, it is that one layer.
   let layers = select(1u, position.depth, position.map_projection == 1u);
   let first_layer = select(position.slice_z, 0u, position.map_projection == 1u);
   let at_column = clamp(column, vec2<i32>(0), vec2<i32>(i32(position.width) - 1, i32(position.height) - 1)) * i32(position.raw_on);
@@ -66,12 +73,12 @@ fn slice_paint(@builtin(position) at: vec4<f32>) -> Drawn {
   let filled = id != 0u;
   let cell = select(0u, id - 1u, filled);
   let picked = chosen_bit(cell) * u32(filled);
-  // The plane's color is every cell that reaches this place, divided by how much of them reached it. A cell
-  // behind another still shows through: the whole volume flattened and not its nearest face.
+  // The color of the plane is each cell that reaches this place, divided by how much of them reached it. A cell
+  // behind another still shows through: the full volume flattened, and not its nearest face.
   let gathered = textureLoad(painted, clamp(texel, vec2<i32>(0), vec2<i32>(size - 1)), 0);
   let reached = gathered.a;
   let flattened = vec3<u32>(clamp(gathered.rgb / max(reached, 0.0001), vec3<f32>(0.0), vec3<f32>(1.0)) * 255.0);
-  // How much of the plane this place holds, one cell's worth of cover being the whole.
+  // How much of the plane this place holds, where the cover of one cell is the whole.
   let covered = u32(clamp(reached, 0.0, 1.0) * 255.0);
   let alpha = select((covered * 88u) / 255u, 255u, outline && filled);
   let tone = select(flattened, vec3<u32>(255u), outline && filled && (picked == 1u));

@@ -1,10 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// The view section of a .cfg: every setting the page has, by the name the .cfg uses, with its type and its range.
-// The tracker copies this section into each object untouched and the page opens in it. Applying a .cfg is partial:
-// names it does not carry retain their values. A name the scheme does not have, a fraction, a value of the wrong type
-// or one outside its range is reported by name and not applied.
+// The view section of a .cfg: each setting of the page, by the name that the .cfg uses, with its type and its range.
+// The tracker copies this section into each object untouched, and the page opens in it. A .cfg applies in part: names
+// that it does not carry keep their values. The code reports by name, and does not apply, these:
+//   - a name that the scheme does not have.
+//   - a fraction.
+//   - a value of the wrong type, or one outside its range.
 
 EV.VIEW_SCHEME = {
   face: { type: "word", words: ["human", "machine"], fallback: "human" },

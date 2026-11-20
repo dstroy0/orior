@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// The card's side: the device, every pipeline compiled before anything is timed, the object streamed from the wire
-// or a file straight into one mapped storage buffer, the compaction, the passes and the one-pixel pick.
+// The side of the card. It holds the device, and each pipeline, compiled before any timer starts. It streams the
+// object from the wire or a file straight into one mapped storage buffer. It also holds the compaction, the passes and
+// the one-pixel pick.
 
 EV.startGpu = async (canvas) => {
   const { device, context, format, adapter } = await EV.openDevice(canvas, "[engine view]");
@@ -38,7 +39,7 @@ EV.startGpu = async (canvas) => {
     draw(linesModule, "link", "paint_fragment", "line-list", { format: "depth24plus", depthWriteEnabled: false, depthCompare: "less" }, quiet),
     draw(linesModule, "edge", "paint_fragment", "line-list", above, quiet),
     draw(softModule, "map_cell", "map_cell_fragment", "triangle-list", solid, [{ format: "r32uint" }]),
-    // The plane's color: no depth at all, every cell adding into what is already there.
+    // The color of the plane: no depth at all, and each cell adds into what is already there.
     device.createRenderPipelineAsync({
       layout: "auto",
       vertex: { module: softModule, entryPoint: "map_cell" },
@@ -127,8 +128,8 @@ EV.fit = (gpu) => {
   });
 };
 
-// The raw voxels of one whole frame, every layer, or none: a 1 by 1 by 1 texture retains the binding whole when no
-// stack is served.
+// The raw voxels of one full frame, each layer, or none. A 1 by 1 by 1 texture keeps the binding whole when the server
+// gives no stack.
 EV.setRaw = (gpu, voxels, width, height, depth) => {
   gpu.rawTexture?.destroy();
   gpu.rawTexture = gpu.device.createTexture({
@@ -139,8 +140,8 @@ EV.setRaw = (gpu, voxels, width, height, depth) => {
   }
   gpu.rawOn = voxels ? 1 : 0;
   gpu.compositeGroup = null;
-  // The composite of the view reads these voxels too, for the slide under the cells. Its group is made again
-  // against the texture that is now and never against the one just let go.
+  // The composite of the view reads these voxels too, for the slide under the cells. The code makes its group again
+  // against the current texture, and never against the one just let go.
   if (gpu.composeGroup) {
     gpu.composeGroup = gpu.device.createBindGroup({
       layout: gpu.pipelines.softCompose.getBindGroupLayout(0),
@@ -278,8 +279,8 @@ EV.writeChosen = (gpu, chosen) => {
   gpu.device.queue.writeBuffer(gpu.held.chosen, 0, bits);
 };
 
-// Counts the retained runs of each leaf in range, prefix sums them in place, scatters the retained runs into one list and
-// writes the draw count where drawIndirect reads it. The layout must already hold the range.
+// Counts the retained runs of each leaf in range, and prefix sums them in place. Scatters the retained runs into one
+// list, and writes the draw count where drawIndirect reads it. The layout must already hold the range.
 EV.compact = async (gpu, leafSpan, runSpan) => {
   const began = performance.now();
   const groups = gpu.held.groups;
@@ -325,8 +326,8 @@ EV.render = (gpu, plan) => {
     ids.setBindGroup(0, held.groups.mapIds);
     ids.draw(6, plan.cellCount, 0, plan.cellFirst);
     ids.end();
-    // The same cells again with no depth between them, adding their colors into the plane. The plane holds
-    // the whole volume and not the face of it nearest the camera.
+    // The same cells again with no depth between them, and they add their colors into the plane. The plane holds
+    // the full volume, and not the face of it nearest the camera.
     const painted = encoder.beginRenderPass({
       colorAttachments: [{ view: held.painted.createView(), clearValue: { r: 0, g: 0, b: 0, a: 0 },
                            loadOp: "clear", storeOp: "store" }],
@@ -381,7 +382,7 @@ EV.render = (gpu, plan) => {
     pass.setBindGroup(0, held.groups.box);
     pass.drawIndirect(gpu.drawn, 0);
   } else if (plan.body === 1) {
-    // The boxes still fill the pick target and the depth, unseen. A smooth cell is picked where its voxels are.
+    // The boxes still fill the pick target and the depth, unseen. The pick finds a smooth cell where its voxels are.
     pass.setPipeline(p.boxPick);
     pass.setBindGroup(0, held.groups.boxPick);
     pass.drawIndirect(gpu.drawn, 0);
