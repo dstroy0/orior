@@ -572,7 +572,6 @@ includes/window/base.c	20
 includes/window/base.h	18
 includes/window/block.c	6
 includes/window/block.h	8
-includes/window/busy.c	22
 includes/window/busy.h	12
 includes/window/button.c	6
 includes/window/button.h	7
