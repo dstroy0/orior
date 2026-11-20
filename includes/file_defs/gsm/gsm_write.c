@@ -4,16 +4,21 @@
 //
 //     orior_gsm_write <part> <path.khw> <layout> <mnemonics> <machine writer>
 //
-// The face is relational (src/lng/transpiler_gsm_parser.md): a case is the operands and then the answer the relation
-// is valid, 1,1->2. A form enters the part's machine file only where the part answered one relation on every case of it
-// (khw_write.c), and those cases are the ladder's (ladder.h), which the host computes. The vendor's writer (`machine
-// writer` above, run through the interface) reads the machine file and passes back each form that answered a relation
-// and whether the answers read a word signed; each relation so answered is written once, as every two-word case of it
-// the ladder is valid, the answer read signed where the part's was. <part>.gsm is written beside the machine file, a
-// case a line in the ladder's order, and each word in decimal.
+// The face is relational (src/lng/transpiler_gsm_parser.md). A case is the operands, and then the answer for which the
+// relation is valid, 1,1->2.
 //
-// It runs in a query run, the .qry QRY names (qry_member.h): the forms the vendor's writer passes back are the blob
-// GSM_FORMS_NAME of the run, and what it prints is passed to the run as GSM_MACHINE_NAME.
+// A form enters the machine file of the part only where the part answered one relation on each case of it
+// (khw_write.c). Those cases are the cases of the ladder (ladder.h), which the host computes.
+//
+// The writer of the vendor (`machine writer` above, run through the interface) reads the machine file. It passes back
+// each form that answered a relation, and whether the answers read a word as signed.
+//
+// The tool writes each answered relation once, as each two-word case of it for which the ladder is valid. It reads the
+// answer as signed where the answer of the part was. It writes <part>.gsm beside the machine file, a case a line in the
+// order of the ladder, and each word in decimal.
+//
+// It runs in a query run, the .qry that QRY names (qry_member.h). The forms that the writer of the vendor passes back
+// are the blob GSM_FORMS_NAME of the run. What it prints goes to the run as GSM_MACHINE_NAME.
 #include "../../../src/cu/transpiler/lstar/protocol/counterexample/ladder.h"
 #include "../../parsers/line_read.h"
 #include "../qry/writer/qry_member.h"
@@ -24,7 +29,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// the name a form's relation is passed back under, as khw_write writes it
+// the name for the relation of a form in the pass back, as khw_write writes it
 #define GSM_READS_LADDER "ladder."
 
 // the blobs of the run the vendor's writer passes: the forms it passes back, and what it printed
@@ -38,9 +43,9 @@ static const char *const s_anchor_text[] = {LADDER_ANCHORS(LADDER_TEXT)};
 // each relation the part answered, read unsigned and read signed
 static int s_answered[LADDER_ANCHOR_COUNT][2];
 
-// The vendor's writer run through the interface in its krs mode, passed the part, the machine file, the container
-// layout, the vendor's table and the name to give the forms as (vendor_writer_run.h), its output passed to the run as
-// GSM_MACHINE_NAME. 1 where it ended clean
+// The writer of the vendor, run through the interface in its krs mode (vendor_writer_run.h). It gets the part, the
+// machine file, the container layout, the table of the vendor and the name for the forms.
+// Its output goes to the run as GSM_MACHINE_NAME. The result is 1 where it ended clean
 static int gsm_vendor_run(char *const *word)
 {
     // the interface's command is a list of words it does not write to; the casts only meet its declared type
@@ -48,8 +53,9 @@ static int gsm_vendor_run(char *const *word)
     return vendor_writer_run(command, GSM_MACHINE_NAME, "orior_gsm_write", NULL);
 }
 
-// the relations the forms the vendor's writer passed back, the `size` bytes at `bytes`, answered, into s_answered. A
-// line whose relation is none the ladder satisfies is left out. The count of forms read
+// the relations that the forms answered, into s_answered. The forms are the `size` bytes at `bytes` that the writer of
+// the vendor passed back. The code skips a line whose relation is none that the ladder satisfies. The result is the
+// count of read forms
 static unsigned int gsm_relations_read(const unsigned char *bytes, unsigned long long size)
 {
     char line[1024];

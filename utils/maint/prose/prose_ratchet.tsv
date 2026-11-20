@@ -467,7 +467,6 @@ includes/exact_types/integers/exact_integer_gcd.c	5
 includes/exact_types/integers/exact_integer_internal.h	8
 includes/exact_types/integers/exact_integer_limbs.c	8
 includes/exact_types/integers/exact_record/exact_record.c	5
-includes/file_defs/gsm/gsm_write.c	9
 includes/file_defs/kcs/kcs.h	1
 includes/file_defs/kdm/kdm.c	2
 includes/file_defs/kdm/kdm.h	8
