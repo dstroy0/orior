@@ -3236,22 +3236,18 @@ EMBED_INLINE void branch_lines_paged(const DocumentBranchCtx *args)
     g_cli_guard->persistent_buf_release(starts, g_cli_editor_owner);
 }
 
-static char *lines_alloc_locked(const CliDocumentKeyCfg *args)
+// the lines from `first` to `last` of the text under `key` put after `text`, and the state the first is entered in
+// written into `state`: 1, or 0 where no text is stored under `key`
+static int lines_put_locked(const CliDocumentKeyCfg *args, VerbaLinea *text)
 {
-    unsigned long long *size = args->size_pointer;
-    CliGrownLine written;
-    cli_grown_begin(&written, CLI_DOC_COLORS_CAPACITY, args->owner);
-    const int made = written.cell != NULL;
-    VerbaLinea *const text = &written.line;
     const CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
-    const int found = one != NULL;
     VerbaLinea entered = {args->state, args->capacity, 0ULL};
     // a paged text's lines, read through the pages with the lock given back: its key, and the lines asked
     char paged[CLI_NAME_MAX_LEN];
     paged[0] = '\0';
     unsigned int from = 0u;
     unsigned int to = 0u;
-    if (made && (one != NULL))
+    if (one != NULL)
     {
         EMBED_CALL(branch_lines_stored, DocumentBranchCtx, .one_read = one, .first_u64 = args->first,
                    .last_u64 = args->last, .first_pointer = &from, .end_pointer = &to, .entered = &entered,
@@ -3265,6 +3261,25 @@ static char *lines_alloc_locked(const CliDocumentKeyCfg *args)
     {
         args->state[0] = '\0';
     }
+    return one != NULL;
+}
+
+int cli_document_lines_read(const CliDocumentKeyCfg *args)
+{
+    cli_document_lock_take();
+    const int found = lines_put_locked(args, args->out);
+    cli_document_lock_give();
+    return found && mmgr_line_ok(args->out);
+}
+
+static char *lines_alloc_locked(const CliDocumentKeyCfg *args)
+{
+    unsigned long long *size = args->size_pointer;
+    CliGrownLine written;
+    cli_grown_begin(&written, CLI_DOC_COLORS_CAPACITY, args->owner);
+    const int made = written.cell != NULL;
+    VerbaLinea *const text = &written.line;
+    const int found = made && lines_put_locked(args, text);
     const int reserved = made && found && mmgr_line_ok(text);
     if (made && !reserved)
     {

@@ -556,15 +556,14 @@ EMBED_INLINE int panels_hover_local_run(const PanelsCtx *args)
     {
         return 0;
     }
-    unsigned long long size = 0ULL;
-    char state[CLI_NAME_MAX_LEN];
-    char *const line_text = EMBED_CALL(cli_document_key.lines_alloc, CliDocumentKeyCfg, .key = ask->key,
-                                       .first = found_line, .last = found_line, .size_pointer = &size, .state = state,
-                                       .capacity = sizeof(state), .owner = g_cli_servers_owner);
-    if (line_text == NULL)
+    char line_text[CLI_PANELS_LINE_MAX];
+    VerbaLinea read = {line_text, sizeof(line_text), 0ULL};
+    if (!EMBED_CALL(cli_document_key.lines_read, CliDocumentKeyCfg, .key = ask->key, .first = found_line,
+                    .last = found_line, .state = NULL, .capacity = 0ULL, .out = &read))
     {
         return 0;
     }
+    const unsigned long long size = read.at;
     const unsigned long long start = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg,
                                                 .text = line_text, .at = 0ULL, .size = size, .set = " \t");
     EMBED_CALL(panels_defined, PanelsCtx, .hover_ask = ask, .path = ask->path, .line = found_line, .text = line_text,
@@ -580,7 +579,6 @@ EMBED_INLINE int panels_hover_local_run(const PanelsCtx *args)
         EMBED_CALL(panels_declaration_write, PanelsCtx, .text = "", .type = type, .path = ask->path, .line = found_line,
                    .out = out);
     }
-    g_cli_guard->persistent_buf_release(line_text, g_cli_servers_owner);
     if ((out != NULL) && !mmgr_line_ok(out))
     {
         out->at = begun;
@@ -1778,73 +1776,66 @@ static void panels_signature_tree_done(void *context)
 #define PANELS_SERVE_CHANGE 1u
 #define PANELS_SERVE_VIEW 2u
 
-// A serve job: what it does; the file's whole path and its language; the view's first and last lines and the lines
-// that open the regions around its first line, outermost first; the problems' sink; and the size of the text that
-// follows the job in its cell
+// A serve job: what it does; the file's whole path and its language; the view's key, whose text the job reads; the
+// view's first and last lines and the lines that open the regions around its first line, outermost first; and the
+// problems' sink
 struct PanelsServeJob
 {
     unsigned int does;
     char full[CLI_PATH_MAX_LEN];
     char language[CLI_NAME_MAX_LEN];
+    char key[CLI_NAME_MAX_LEN];
     unsigned int first;
     unsigned int last;
     unsigned int openers;
     unsigned int opener[CLI_PANELS_OPENERS];
     CliServersSink sink;
-    unsigned long long size;
 };
 
-// one serve job on a thread of the servers, lined up by the view thread, which goes on at once. The server's open and
-// change cut a slice, and the slice cut walks the file and its includes
+// One serve job on a thread of the servers, lined up by the view thread, which goes on at once. An open or a change
+// reads the view's text under the document's lock on this thread and gives it back after the send. The server's open
+// and change cut a slice, and the slice cut walks the file and its includes
 static void panels_serve_job(const CliServersJobCfg *args)
 {
     const PanelsServeJob *const job = (const PanelsServeJob *)args->job;
-    const char *const text = args->job + sizeof(*job);
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea ignored = {why, sizeof(why), 0ULL};
-    if (job->does == PANELS_SERVE_OPEN)
-    {
-        int served = 0;
-        (void)EMBED_CALL(cli_servers_root.open, CliServersRootCfg, .root = s_panels.root, .path = job->full,
-                         .language = job->language, .text = text, .size = job->size, .sink = &job->sink,
-                         .served = &served, .err_msg = &ignored);
-    }
-    else if (job->does == PANELS_SERVE_CHANGE)
-    {
-        (void)EMBED_CALL(cli_servers_root.change, CliServersRootCfg, .path = job->full, .text = text, .size = job->size,
-                         .err_msg = &ignored);
-    }
-    else
+    if (job->does == PANELS_SERVE_VIEW)
     {
         char output_text[16];
         VerbaLinea output = {output_text, sizeof(output_text), 0ULL};
         (void)EMBED_CALL(cli_servers_path_out_err_msg.view, CliServersPathOutErrMsgCfg, .path = job->full,
                          .first = job->first, .last = job->last, .opener = job->opener, .openers = job->openers,
                          .out = &output, .err_msg = &ignored);
+        return;
     }
+    unsigned long long size = 0ULL;
+    char *const text = EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = job->key,
+                                  .size_pointer = &size, .owner = g_cli_servers_owner);
+    if (text == NULL)
+    {
+        return;
+    }
+    if (job->does == PANELS_SERVE_OPEN)
+    {
+        int served = 0;
+        (void)EMBED_CALL(cli_servers_root.open, CliServersRootCfg, .root = s_panels.root, .path = job->full,
+                         .language = job->language, .text = text, .size = size, .sink = &job->sink, .served = &served,
+                         .err_msg = &ignored);
+    }
+    else
+    {
+        (void)EMBED_CALL(cli_servers_root.change, CliServersRootCfg, .path = job->full, .text = text, .size = size,
+                         .err_msg = &ignored);
+    }
+    g_cli_guard->persistent_buf_release(text, g_cli_servers_owner);
 }
 
-// the serve job `job` with `size` bytes of `text` after it positioned in a cell of this call's own and passed to a
-// thread of the servers in a cell of theirs: 1, or 0 where the cells cannot meet it
+// the serve job `job` passed to a thread of the servers: 1, or 0 where the jobs ring is full
 static int panels_serve_later(const PanelsCtx *args)
 {
-    char *const positioned = g_cli_guard->temporary_buf_alloc(sizeof(*args->job) + args->size, g_cli_servers_owner);
-    if (positioned == NULL)
-    {
-        return 0;
-    }
-    memor.cpy(&(MemoriaCfg){.dst = positioned, .src = args->job, .bytes = sizeof(*args->job)});
-    ((PanelsServeJob *)(void *)positioned)->size = args->size;
-    if (args->size != 0ULL)
-    {
-        // a text the editor holds fits a embed_word
-        memor.cpy(
-            &(MemoriaCfg){.dst = positioned + sizeof(*args->job), .src = args->text, .bytes = (embed_word)args->size});
-    }
-    const int passed = EMBED_CALL(cli_servers_run_internal.later, CliServersRunCtx, .run = panels_serve_job,
-                                  .job = positioned, .size = sizeof(*args->job) + args->size);
-    g_cli_guard->persistent_buf_release(positioned, g_cli_servers_owner);
-    return passed;
+    return EMBED_CALL(cli_servers_run_internal.later, CliServersRunCtx, .run = panels_serve_job, .job = args->job,
+                      .size = sizeof(*args->job));
 }
 
 // the view under `key` opened in its language's server: the open lined up for a thread of the servers with the view's
@@ -1866,18 +1857,15 @@ static void panels_open_send(const PanelsCtx *args)
     {
         return;
     }
-    // the document has no lock of its own, so its text is read on the view thread
-    unsigned long long size = 0ULL;
-    char *const text = EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = args->key,
-                                  .size_pointer = &size, .owner = g_cli_servers_owner);
-    if (text == NULL)
+    VerbaLinea keyed = {job.key, sizeof(job.key), 0ULL};
+    mmgr_line_put(&keyed, args->key);
+    if (mmgr_line_finish(&keyed) == 0ULL)
     {
         return;
     }
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_panels.root, .relative = path, .joined = job.full);
     job.sink = cli_servers_problems_sink(&(CliServersProblemsCfg){.root = s_panels.root});
-    const int lined = EMBED_CALL(panels_serve_later, PanelsCtx, .job = &job, .text = text, .size = size);
-    g_cli_guard->persistent_buf_release(text, g_cli_servers_owner);
+    const int lined = EMBED_CALL(panels_serve_later, PanelsCtx, .job = &job);
     if (lined && EMBED_CALL(cli_view_full.served_set, CliViewFullCfg, .key = args->key, .full = job.full))
     {
         s_panels.view_sent = 0;
@@ -1920,13 +1908,11 @@ static void panels_sync_post(const PanelsCtx *args)
         return;
     }
     s_panels.changed = 0;
-    unsigned long long size = 0ULL;
-    char *const text = EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = key, .size_pointer = &size,
-                                  .owner = g_cli_servers_owner);
-    if (text != NULL)
+    VerbaLinea keyed = {job.key, sizeof(job.key), 0ULL};
+    mmgr_line_put(&keyed, key);
+    if (mmgr_line_finish(&keyed) != 0ULL)
     {
-        (void)EMBED_CALL(panels_serve_later, PanelsCtx, .job = &job, .text = text, .size = size);
-        g_cli_guard->persistent_buf_release(text, g_cli_servers_owner);
+        (void)EMBED_CALL(panels_serve_later, PanelsCtx, .job = &job);
     }
 }
 
@@ -1964,7 +1950,7 @@ EMBED_INLINE void panels_view_send(const PanelsCtx *args)
     job.last = (unsigned int)last;
     job.openers = EMBED_CALL(cli_document_key_line.openers, CliDocumentKeyLineCfg, .key = key, .line = job.first,
                              .opener = job.opener, .max_u32 = CLI_PANELS_OPENERS);
-    if (EMBED_CALL(panels_serve_later, PanelsCtx, .job = &job, .text = NULL, .size = 0ULL))
+    if (EMBED_CALL(panels_serve_later, PanelsCtx, .job = &job))
     {
         s_panels.view_sent = 1;
         s_panels.view_rows = rows;

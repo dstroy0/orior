@@ -208,6 +208,9 @@ unsigned int cli_document_walkers(void);
 // entered in written into `state`, `capacity` bytes, root where it is not colored yet, empty where it does not fit:
 // NULL where no text is stored under `key` or the cells cannot meet the lines (document_branch.c)
 char *cli_document_lines_alloc(const CliDocumentKeyCfg *args);
+// the same lines put after `out`, the caller's line, and the state written as above: 1, or 0 where no text is stored
+// under `key` or `out` cannot hold the lines (document_branch.c)
+int cli_document_lines_read(const CliDocumentKeyCfg *args);
 // the lines of the text under `key` read for it, from `*low` to before `*high`: a paged text's those the page holds,
 // and every line of any other: 1, or 0 where no text is stored under `key` (document_branch.c)
 int cli_document_bounds(const CliDocumentKeyLowCfg *args);
@@ -337,6 +340,7 @@ struct CliDocumentKeyCfg
     char *state;
     unsigned long long capacity;
     const CellOwner *owner;
+    VerbaLinea *out;
 };
 
 struct CliDocumentErrMsgCfg
@@ -646,11 +650,13 @@ EMBED_TABLE_STORAGE CliDocumentKeyGrammarNs cli_document_key_grammar EMBED_UNUSE
 typedef struct
 {
     char *(*lines_alloc)(const CliDocumentKeyCfg *args);
+    int (*lines_read)(const CliDocumentKeyCfg *args);
     char *(*text_alloc)(const CliDocumentKeyCfg *args);
 } CliDocumentKeyNs;
-EMBED_TABLE_LAYOUT(CliDocumentKeyNs, lines_alloc, text_alloc);
+EMBED_TABLE_LAYOUT(CliDocumentKeyNs, lines_alloc, lines_read, text_alloc);
 EMBED_TABLE_STORAGE CliDocumentKeyNs cli_document_key EMBED_UNUSED = {
     .lines_alloc = cli_document_lines_alloc,
+    .lines_read = cli_document_lines_read,
     .text_alloc = cli_document_text_alloc,
 };
 
