@@ -457,6 +457,12 @@ typedef struct
     CliPosition to;
 } TerminalCopied;
 
+// one run of plain text written into the clipboard's units
+static void terminal_run_copied(const CliEachTextLengthCfg *args)
+{
+    (void)cli_clipboard_units_append_text(&(CliSizeTextCtx){.size = args->length, .text = args->text});
+}
+
 // the selection's span of the lines the document gives written to the clipboard
 static void terminal_copied(const CliEachTextLengthCfg *args)
 {
@@ -487,22 +493,17 @@ static void terminal_copied(const CliEachTextLengthCfg *args)
         line += (character == (unsigned int)'\n') ? 1ULL : 0ULL;
         at += (consumed != 0ULL) ? consumed : 1ULL;
     }
-    // the SGR sequences the text carries for its colors are no characters of the copy. The filter takes them out in
-    // place. It works on a copy of the span that this call owns
+    // The SGR sequences the text carries for its colors are no characters of the copy. Each run between them goes
+    // straight into the clipboard's own units. A byte of UTF-8 makes one unit at most. The span's bytes are thus a
+    // bound on the units
     const unsigned long long length = (end > start) ? (end - start) : 0ULL;
-    unsigned char *const span_copy = g_cli_guard->temporary_buf_alloc(length + 1ULL, g_cli_terminal_owner);
-    if (span_copy == NULL)
+    if (!cli_clipboard_units_take(&(CliClipboardUnitsCtx){.count = length, .breaks = 0ULL}))
     {
         return;
     }
-    memor.cpy(&(MemoriaCfg){.dst = span_copy, .src = text + start, .bytes = length});
-    const unsigned long long copied = (length != 0ULL) ? EMBED_CALL(cli_terminal_xterm_plain, CliTerminalXtermPlainCfg,
-                                                                    .bytes = span_copy, .size = length)
-                                                       : 0ULL;
-    // the bytes the filter left read as text are the same bytes
-    (void)EMBED_CALL(cli_size_text_internal.clipboard_text_write, CliSizeTextCtx, .size = copied,
-                     .text = (const char *)span_copy);
-    g_cli_guard->persistent_buf_release(span_copy, g_cli_terminal_owner);
+    EMBED_CALL(cli_terminal_xterm_plain_each, CliTerminalXtermPlainEachCfg, .text = text + start, .size = length,
+               .each = terminal_run_copied, .context = NULL);
+    (void)cli_clipboard_units_put(&(CliClipboardUnitsCtx){.count = 0ULL});
 }
 
 // the selection of the tab's view written to the clipboard, the selection let go: 1, or 0 where nothing is chosen

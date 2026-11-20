@@ -120,9 +120,10 @@ typedef struct
 // whether `character` is in a file URI as it is
 EMBED_INLINE int clipboard_unreserved(const PosixClipboardCtx *args)
 {
-    return ((args->character >= 'a') && (args->character <= 'z')) || ((args->character >= 'A') && (args->character <= 'Z')) ||
-           ((args->character >= '0') && (args->character <= '9')) || (args->character == '-') || (args->character == '.') ||
-           (args->character == '_') || (args->character == '~') || (args->character == '/');
+    return ((args->character >= 'a') && (args->character <= 'z')) ||
+           ((args->character >= 'A') && (args->character <= 'Z')) ||
+           ((args->character >= '0') && (args->character <= '9')) || (args->character == '-') ||
+           (args->character == '.') || (args->character == '_') || (args->character == '~') || (args->character == '/');
 }
 
 // `path` written as a file URI, each byte a URI does not save written as `%XX`
@@ -178,11 +179,11 @@ static unsigned int clipboard_uris_read(const PosixClipboardCtx *args)
             while (character < end)
             {
                 const unsigned int high = (character + 2ULL < end) ? EMBED_CALL(cli_text_byte.hex_digit, CliTextByteCfg,
-                                                                             .byte = args->list[character + 1ULL])
-                                                                : 16u;
+                                                                                .byte = args->list[character + 1ULL])
+                                                                   : 16u;
                 const unsigned int low = (character + 2ULL < end) ? EMBED_CALL(cli_text_byte.hex_digit, CliTextByteCfg,
-                                                                            .byte = args->list[character + 2ULL])
-                                                               : 16u;
+                                                                               .byte = args->list[character + 2ULL])
+                                                                  : 16u;
                 const int escaped = (args->list[character] == '%') && (high < 16u) && (low < 16u);
                 // two hexadecimal digits make a byte, below 256
                 mmgr_line_ch(&decoded, escaped ? (char)((high << 4u) | low) : args->list[character]);
@@ -1214,12 +1215,11 @@ EMBED_INLINE void owner_piece_send(const PosixClipboardCtx *args)
     {
         return;
     }
-    // the next piece read out of the content's cell into a cell of this call and sent; the text that units_put made goes
-    // from the system's pages where it lies
+    // the next piece read out of the content's cell into a cell of this call and sent. The text that units_put made
+    // goes from the system's pages where it lies
     const CarcerMovableEntry *const content = s_owner.content[s_owner.piece_of];
     const int paged = (content == NULL) && owner_content_held(s_owner.piece_of);
-    const unsigned long long left =
-        ((content != NULL) || paged) ? s_owner.size[s_owner.piece_of] - s_owner.sent : 0ULL;
+    const unsigned long long left = ((content != NULL) || paged) ? s_owner.size[s_owner.piece_of] - s_owner.sent : 0ULL;
     const unsigned long long piece = (left < CLI_X11_SENT_MAX) ? left : CLI_X11_SENT_MAX;
     if (paged)
     {
@@ -1545,6 +1545,38 @@ int cli_clipboard_units_append(const CarcerMovableCfg *args)
     return read;
 }
 
+int cli_clipboard_units_append_text(const CliSizeTextCtx *args)
+{
+    if (s_units == NULL)
+    {
+        return 0;
+    }
+    for (unsigned long long at = 0ULL; at < args->size;)
+    {
+        unsigned long long length = 0ULL;
+        const unsigned int character =
+            cli_text_character(&(CliTextAtCfg){.text = args->text, .at = at, .size = args->size, .length = &length});
+        at += (length != 0ULL) ? length : 1ULL;
+        const unsigned long long units = (character >= 0x10000u) ? 2ULL : 1ULL;
+        if (units > (s_units_capacity - s_units_at))
+        {
+            return 0;
+        }
+        if (character >= 0x10000u)
+        {
+            s_units[s_units_at] = (unsigned short)(0xd800u + ((character - 0x10000u) >> 10u));
+            s_units[s_units_at + 1ULL] = (unsigned short)(0xdc00u + ((character - 0x10000u) & 0x3ffu));
+        }
+        else
+        {
+            // a character below the second plane is one unit
+            s_units[s_units_at] = (unsigned short)character;
+        }
+        s_units_at += units;
+    }
+    return 1;
+}
+
 int cli_clipboard_units_break(const CliClipboardUnitsCtx *args)
 {
     (void)args;
@@ -1632,8 +1664,8 @@ const unsigned short *cli_clipboard_units_open(const CliClipboardUnitsCtx *args)
         return NULL;
     }
     // the units start past the text's bytes, at a boundary of a unit
-    unsigned short *const units = (unsigned short *)(void *)(s_held_pages + CLI_CLIPBOARD_PASTE_BYTES +
-                                                              sizeof(unsigned short));
+    unsigned short *const units =
+        (unsigned short *)(void *)(s_held_pages + CLI_CLIPBOARD_PASTE_BYTES + sizeof(unsigned short));
     unsigned long long count = 0ULL;
     for (unsigned long long at = 0ULL; at < text.at;)
     {

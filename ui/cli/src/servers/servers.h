@@ -302,11 +302,10 @@ int cli_servers_view(const CliServersPathOutErrMsgCfg *args);
 void cli_servers_plugin_stop(const CliServersRootSinkCfg *args);
 int cli_servers_plugin_request(const CliServersErrMsgCfg *args);
 int cli_servers_plugin_notify(const CliServersErrMsgCfg *args);
-// the text of a file as the editor has it, where the editor has it open, into `out`: 1, or 0 where it has none; and
-// the same copied into a cell of its size with a 0 after, its size into `size`: the cell, or NULL where the editor
-// has none or the cell could not be taken
+// The text of a file that the editor has open goes into `out` a window at a time. The measure writes the bytes of that
+// text into `size`. Each returns 1, or 0 where the editor has no text of the file
 int cli_servers_text_get(const CliServersPathOutErrMsgFromToCfg *args);
-char *cli_servers_text_alloc(const CliServersPathSizeTypeCfg *args);
+int cli_servers_text_measure(const CliServersPathSizeTypeCfg *args);
 
 // what the server of `path` answers at `line`, `col`: a hover as Markdown, `null` for none; the definitions, each
 // `{"path", "line", "col"}`; the completions, orior's own reading's of a build file or JSON first, each an item; every
@@ -588,11 +587,11 @@ EMBED_TABLE_STORAGE CliServersErrMsgNs cli_servers_err_msg EMBED_UNUSED = {
 
 typedef struct
 {
-    char *(*text_alloc)(const CliServersPathSizeTypeCfg *args);
+    int (*text_measure)(const CliServersPathSizeTypeCfg *args);
 } CliServersPathSizeTypeNs;
-EMBED_TABLE_LAYOUT(CliServersPathSizeTypeNs, text_alloc);
+EMBED_TABLE_LAYOUT(CliServersPathSizeTypeNs, text_measure);
 EMBED_TABLE_STORAGE CliServersPathSizeTypeNs cli_servers_path_size_type EMBED_UNUSED = {
-    .text_alloc = cli_servers_text_alloc,
+    .text_measure = cli_servers_text_measure,
 };
 
 typedef struct

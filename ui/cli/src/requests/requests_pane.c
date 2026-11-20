@@ -96,15 +96,14 @@ typedef struct
 
 static RequestsPane s_requests = {.open = {0u, 0u, 1u}};
 
-// A send: its thread, the tree, the file and the request's line, the file's text taken on the view's thread and let
-// go on the worker, and what it read: the answers' JSON with its bytes, or why it failed
+// A send: its thread, the tree, the file, the key its text is open under, and the request's line. It also holds what
+// it read: the answers' JSON with its bytes, or why it failed. The worker reads the text through the document
 typedef struct
 {
     CliThread thread;
     char root[CLI_PATH_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
-    char *text;
-    unsigned long long size;
+    char key[CLI_PATH_MAX_LEN];
     unsigned long long line;
     const CarcerMovableEntry *answer;
     unsigned long long answer_length;
@@ -981,17 +980,16 @@ EMBED_INLINE const char *requests_env_name(const RequestsPaneCtx *args)
                : NULL;
 }
 
-// a send's worker: the answers stored for its request read into a cell of the call's own, written into a movable cell
-// the send owns, or why not, then passed to the view's thread through the arrived word, and the view's thread woken;
-// the file's text it was passed let go
-static void requests_send_run(void *context)
+// The answers stored for the send's request, read off the text the document gives into a cell of the call's own. They
+// go into a movable cell the send owns, or the send keeps why not
+static void requests_send_text(const CliEachTextLengthCfg *args)
 {
-    RequestsSend *const send = context;
+    RequestsSend *const send = (RequestsSend *)args->context;
     unsigned long long length_of = 0ULL;
     VerbaLinea why = {send->why, sizeof(send->why), 0ULL};
     char *const written =
-        EMBED_CALL(requests_written, RequestsPaneCtx, .root = send->root, .path = send->path, .text = send->text,
-                   .length = send->size, .line_at = send->line, .at = 0u, .length_out = &length_of, .err_msg = &why);
+        EMBED_CALL(requests_written, RequestsPaneCtx, .root = send->root, .path = send->path, .text = args->text,
+                   .length = args->length, .line_at = send->line, .at = 0u, .length_out = &length_of, .err_msg = &why);
     send->answer = (written != NULL) ? g_cli_guard->movable_buf_alloc(length_of + 1ULL, g_cli_requests_owner) : NULL;
     if (send->answer != NULL)
     {
@@ -1001,47 +999,23 @@ static void requests_send_run(void *context)
     g_cli_guard->persistent_buf_release(written, g_cli_requests_owner);
     send->answer_length = (send->answer != NULL) ? length_of : 0ULL;
     send->why_length = (send->answer == NULL) ? why.at : 0ULL;
-    g_cli_guard->persistent_buf_release(send->text, g_cli_requests_owner);
-    send->text = NULL;
+}
+
+// A send's worker reads the text through the document and stores the answers. It passes them to the view's thread
+// through the arrived word and wakes the view's thread
+static void requests_send_run(void *context)
+{
+    RequestsSend *const send = context;
+    send->answer = NULL;
+    send->answer_length = 0ULL;
+    send->why_length = 0ULL;
+    (void)EMBED_CALL(cli_document_key.text_each, CliDocumentKeyCfg, .key = send->key, .each = requests_send_text,
+                     .context = send);
     EMBED_ATOMIC_STORE(&s_arrived, 1u);
     if (s_woken != NULL)
     {
         s_woken();
     }
-}
-
-// The copy the pane takes of a text: its cell and its bytes
-typedef struct
-{
-    char *text;
-    unsigned long long length;
-} RequestsTextCopied;
-
-// the text the document gives copied into a temporary cell of the pane's own, a NUL after it
-static void requests_text_copied(const CliEachTextLengthCfg *args)
-{
-    RequestsTextCopied *const copied = (RequestsTextCopied *)args->context;
-    copied->text = g_cli_guard->temporary_buf_alloc(args->length + 1ULL, g_cli_requests_owner);
-    if (copied->text != NULL)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = copied->text, .src = args->text, .bytes = args->length});
-        copied->text[args->length] = '\0';
-        copied->length = args->length;
-    }
-}
-
-// The text under `key` goes whole into a cell of the pane's own, and its byte count into `out`'s place. Returns the
-// cell, or NULL where `key` holds no text or the cells cannot meet it
-EMBED_INLINE char *requests_text_alloc(const RequestsPaneCtx *args)
-{
-    RequestsTextCopied copied = {NULL, 0ULL};
-    if (args->key != NULL)
-    {
-        (void)EMBED_CALL(cli_document_key.text_each, CliDocumentKeyCfg, .key = args->key, .each = requests_text_copied,
-                         .context = &copied);
-    }
-    *args->length_out = copied.length;
-    return copied.text;
 }
 
 // where `asked` names no view, the displayed view's key, its path and its cursor's line put in it, and the tree's root
@@ -1085,23 +1059,22 @@ int cli_requests_pane_send(const CliRequestsPaneCfg *args)
     {
         return 0;
     }
-    unsigned long long length_of = 0ULL;
-    char *const text = EMBED_CALL(requests_text_alloc, RequestsPaneCtx, .key = args->key, .length_out = &length_of);
-    if (text == NULL)
+    CliShape shape;
+    if ((args->key == NULL) ||
+        !EMBED_CALL(cli_document_text.shape, CliDocumentTextCfg, .key = args->key, .shape = &shape))
     {
         return 0;
     }
     const unsigned long long root_length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_PATH_MAX_LEN});
     const unsigned long long path_length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_PATH_MAX_LEN});
-    if ((root_length >= CLI_PATH_MAX_LEN) || (path_length >= CLI_PATH_MAX_LEN))
+    const unsigned long long key_length = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_PATH_MAX_LEN});
+    if ((root_length >= CLI_PATH_MAX_LEN) || (path_length >= CLI_PATH_MAX_LEN) || (key_length >= CLI_PATH_MAX_LEN))
     {
-        g_cli_guard->persistent_buf_release(text, g_cli_requests_owner);
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = s_send.root, .src = args->root, .bytes = root_length + 1ULL});
     memor.cpy(&(MemoriaCfg){.dst = s_send.path, .src = args->path, .bytes = path_length + 1ULL});
-    s_send.text = text;
-    s_send.size = length_of;
+    memor.cpy(&(MemoriaCfg){.dst = s_send.key, .src = args->key, .bytes = key_length + 1ULL});
     s_send.line = args->line;
     s_send.answer = NULL;
     s_send.answer_length = 0ULL;
@@ -1112,8 +1085,6 @@ int cli_requests_pane_send(const CliRequestsPaneCfg *args)
     if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_send.thread))
     {
         EMBED_ATOMIC_STORE(&s_running, 0u);
-        g_cli_guard->persistent_buf_release(s_send.text, g_cli_requests_owner);
-        s_send.text = NULL;
         return 0;
     }
     EMBED_CALL(requests_rows_positioned, RequestsPaneCtx, .at = 0u);
@@ -1189,26 +1160,24 @@ int cli_requests_pane_step(const CliRequestsPaneCfg *args)
     return changed || followed;
 }
 
-int cli_requests_pane_follow(const CliRequestsPaneCfg *args)
+// The follow of a request: the ask, the bytes of its path, and what the follow gives
+typedef struct
 {
+    const CliRequestsPaneCfg *ask;
+    unsigned long long path_length;
+    int result;
+} RequestsFollowed;
+
+// The pane follows the request at the ask's line of the text the document gives. It takes the answers where the
+// request is a new one, or where the ask forces it
+static void requests_follow_read(const CliEachTextLengthCfg *each)
+{
+    RequestsFollowed *const followed = (RequestsFollowed *)each->context;
+    const CliRequestsPaneCfg *const args = followed->ask;
+    const unsigned long long path_length = followed->path_length;
+    const char *const text = each->text;
+    const unsigned long long size = each->length;
     unsigned long long length_of = 0ULL;
-    const unsigned long long key_length =
-        (args->key != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_PATH_MAX_LEN}) : 0ULL;
-    const unsigned long long path_length =
-        (args->path != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_PATH_MAX_LEN}) : 0ULL;
-    if ((args->root == NULL) || (key_length == 0ULL) || (key_length >= CLI_PATH_MAX_LEN) ||
-        (path_length >= CLI_PATH_MAX_LEN))
-    {
-        return 0;
-    }
-    memor.cpy(&(MemoriaCfg){.dst = s_requests.view_key, .src = args->key, .bytes = key_length + 1ULL});
-    s_requests.view_line = args->line;
-    char *const text = EMBED_CALL(requests_text_alloc, RequestsPaneCtx, .key = args->key, .length_out = &length_of);
-    if (text == NULL)
-    {
-        return 0;
-    }
-    const unsigned long long size = length_of;
     char request[REQUESTS_KEY];
     VerbaLinea request_line = {request, sizeof(request), 0ULL};
     char why[CLI_ERR_MSG_MAX_LEN];
@@ -1224,8 +1193,7 @@ int cli_requests_pane_follow(const CliRequestsPaneCfg *args)
         (memor.cmp(&(MemoriaCfg){.src = request, .other = s_requests.request, .bytes = request_line.at}) == 0);
     if (same_request && !args->force)
     {
-        g_cli_guard->persistent_buf_release(text, g_cli_requests_owner);
-        return 0;
+        return;
     }
     memor.cpy(&(MemoriaCfg){.dst = s_requests.path, .src = args->path, .bytes = path_length + 1ULL});
     s_requests.followed = 1;
@@ -1236,15 +1204,33 @@ int cli_requests_pane_follow(const CliRequestsPaneCfg *args)
     char *const written =
         EMBED_CALL(requests_written, RequestsPaneCtx, .root = args->root, .path = args->path, .text = text,
                    .length = size, .line_at = args->line, .at = 0u, .length_out = &length_of);
-    g_cli_guard->persistent_buf_release(text, g_cli_requests_owner);
+    followed->result = 1;
     if (written == NULL)
     {
         EMBED_CALL(requests_answers_taken, RequestsPaneCtx, .text = "", .length = 0ULL);
-        return 1;
+        return;
     }
     EMBED_CALL(requests_answers_taken, RequestsPaneCtx, .text = written, .length = length_of);
     g_cli_guard->persistent_buf_release(written, g_cli_requests_owner);
-    return 1;
+}
+
+int cli_requests_pane_follow(const CliRequestsPaneCfg *args)
+{
+    const unsigned long long key_length =
+        (args->key != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_PATH_MAX_LEN}) : 0ULL;
+    const unsigned long long path_length =
+        (args->path != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_PATH_MAX_LEN}) : 0ULL;
+    if ((args->root == NULL) || (key_length == 0ULL) || (key_length >= CLI_PATH_MAX_LEN) ||
+        (path_length >= CLI_PATH_MAX_LEN))
+    {
+        return 0;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = s_requests.view_key, .src = args->key, .bytes = key_length + 1ULL});
+    s_requests.view_line = args->line;
+    RequestsFollowed followed = {args, path_length, 0};
+    (void)EMBED_CALL(cli_document_key.text_each, CliDocumentKeyCfg, .key = args->key, .each = requests_follow_read,
+                     .context = &followed);
+    return followed.result;
 }
 
 void cli_requests_pane_env(const CliRequestsPaneCfg *args)
@@ -1620,39 +1606,60 @@ int cli_requests_pane_compare(const CliRequestsPaneCfg *args)
     return s_requests.compared_cell != NULL;
 }
 
+// The curl line of a request. It holds the ask, the line for an error, the cell for its JSON string and the line over
+// that cell, and whether the curl line came
+typedef struct
+{
+    const CliRequestsPaneCfg *ask;
+    VerbaLinea *err_msg;
+    char *quoted;
+    VerbaLinea quoted_line;
+    int curled;
+} RequestsCurled;
+
+// The curl line of the request at the ask's line of the text the document gives, as a JSON string. The read counts
+// it, then writes it into a cell of its size
+static void requests_curl_read(const CliEachTextLengthCfg *each)
+{
+    RequestsCurled *const curl = (RequestsCurled *)each->context;
+    const CliRequestsPaneCfg *const args = curl->ask;
+    char counting_bytes[REQUESTS_COUNTING];
+    VerbaLinea counting = {counting_bytes, sizeof(counting_bytes), 0ULL, requests_counted, NULL, 0ULL};
+    CliRequestsTextCfg text_asked = {.text = each->text,
+                                     .size = each->length,
+                                     .out = &counting,
+                                     .err_msg = curl->err_msg,
+                                     .line = args->line,
+                                     .root = args->root,
+                                     .path = args->path,
+                                     .env = EMBED_CALL(requests_env_name, RequestsPaneCtx, .at = 0u)};
+    const int counted = cli_requests_text_table.curl(&text_asked);
+    const unsigned long long bytes = counting.flushed + counting.at;
+    curl->quoted = counted ? g_cli_guard->temporary_buf_alloc(bytes + 1ULL, g_cli_requests_owner) : NULL;
+    curl->quoted_line = (VerbaLinea){curl->quoted, (curl->quoted != NULL) ? bytes + 1ULL : 0ULL, 0ULL};
+    text_asked.out = &curl->quoted_line;
+    curl->curled =
+        (curl->quoted != NULL) && cli_requests_text_table.curl(&text_asked) && mmgr_line_ok(&curl->quoted_line);
+}
+
 int cli_requests_pane_curl(const CliRequestsPaneCfg *args)
 {
     CliRequestsPaneCfg asked = *args;
     EMBED_CALL(requests_view_taken, RequestsPaneCtx, .asked = &asked);
     args = &asked;
-    unsigned long long length_of = 0ULL;
-    char *const text = EMBED_CALL(requests_text_alloc, RequestsPaneCtx, .key = args->key, .length_out = &length_of);
-    if ((text == NULL) || (args->root == NULL) || (args->path == NULL))
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    RequestsCurled curl = {args, &err_msg, NULL, {NULL, 0ULL, 0ULL}, 0};
+    if ((args->root == NULL) || (args->path == NULL) ||
+        !EMBED_CALL(cli_document_key.text_each, CliDocumentKeyCfg, .key = args->key, .each = requests_curl_read,
+                    .context = &curl))
     {
-        g_cli_guard->persistent_buf_release(text, g_cli_requests_owner);
         mmgr_line_put(args->out, "");
         return 0;
     }
-    // the curl line as a JSON string, counted, written into a cell of its size and read as its characters
-    char counting_bytes[REQUESTS_COUNTING];
-    VerbaLinea counting = {counting_bytes, sizeof(counting_bytes), 0ULL, requests_counted, NULL, 0ULL};
-    char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-    CliRequestsTextCfg text_asked = {.text = text,
-                                     .size = length_of,
-                                     .out = &counting,
-                                     .err_msg = &err_msg,
-                                     .line = args->line,
-                                     .root = args->root,
-                                     .path = args->path,
-                                     .env = EMBED_CALL(requests_env_name, RequestsPaneCtx, .at = 0u)};
-    int curled = cli_requests_text_table.curl(&text_asked);
-    const unsigned long long bytes = counting.flushed + counting.at;
-    char *const quoted = curled ? g_cli_guard->temporary_buf_alloc(bytes + 1ULL, g_cli_requests_owner) : NULL;
-    VerbaLinea quoted_line = {quoted, (quoted != NULL) ? bytes + 1ULL : 0ULL, 0ULL};
-    text_asked.out = &quoted_line;
-    curled = (quoted != NULL) && cli_requests_text_table.curl(&text_asked) && mmgr_line_ok(&quoted_line);
-    g_cli_guard->persistent_buf_release(text, g_cli_requests_owner);
+    char *const quoted = curl.quoted;
+    const VerbaLinea quoted_line = curl.quoted_line;
+    const int curled = curl.curled;
     CliJson read = {0};
     char json_why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea json_err = {json_why, sizeof(json_why), 0ULL};

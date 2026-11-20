@@ -5,8 +5,8 @@
 // once, whether the symbol can be renamed and the edits that rename it, and the signature of the call the cursor is
 // in. An answer requested while no server has the file open is none, but a usage, a rename and what it would change,
 // which report there is no server to query. A file given its server as slices is asked of the tree alone: its
-// definition, references and renames are the tree's (code/references.c), its completions the names the tree has in effect
-// at the place (symbols_complete.c), and what the tree does not answer is none
+// definition, references and renames are the tree's (code/references.c), its completions the names the tree has in
+// effect at the place (symbols_complete.c), and what the tree does not answer is none
 #include "../builds/builds.h"
 #include "../code/schema.h"
 #include "../code/symbols.h"
@@ -191,8 +191,8 @@ EMBED_INLINE void request_tree_complete(const ServersRequestCtx *args)
                .out = &own_line);
     unsigned long long size = 0ULL;
     char *const text = (mmgr_line_finish(&own_line) != 0ULL)
-                           ? EMBED_CALL(cli_servers_path_size_type.text_alloc, CliServersPathSizeTypeCfg, .path = path,
-                                        .size_pointer = &size)
+                           ? EMBED_CALL(cli_servers_path_size_type_internal.text_alloc, CliServersPathSizeTypeCtx,
+                                        .path = path, .size_pointer = &size)
                            : NULL;
     char quiet[256];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ULL};
@@ -224,7 +224,7 @@ CliServerItems *cli_servers_items_alloc(const CliServersAskCfg *args)
         memor.cpy(&(MemoriaCfg){.dst = root, .src = g_cli_servers.checked_root, .bytes = sizeof(root)});
         unsigned long long size = 0ULL;
         char *const text = (root[0] != '\0')
-                               ? EMBED_CALL(cli_servers_path_size_type.text_alloc, CliServersPathSizeTypeCfg,
+                               ? EMBED_CALL(cli_servers_path_size_type_internal.text_alloc, CliServersPathSizeTypeCtx,
                                             .path = path, .size_pointer = &size)
                                : NULL;
         if ((text != NULL) && (EMBED_CALL(cli_builds_path.build_type_get, CliBuildsPathCfg, .path = path) != 0u))

@@ -238,7 +238,7 @@ int cli_servers_text_get(const CliServersPathOutErrMsgFromToCfg *args)
     return 1;
 }
 
-char *cli_servers_text_alloc(const CliServersPathSizeTypeCfg *args)
+char *cli_servers_text_alloc(const CliServersPathSizeTypeCtx *args)
 {
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = args->path, .key_out = key);
@@ -264,4 +264,25 @@ char *cli_servers_text_alloc(const CliServersPathSizeTypeCfg *args)
         reserved[one.text_size] = '\0';
     }
     return reserved;
+}
+
+int cli_servers_text_measure(const CliServersPathSizeTypeCfg *args)
+{
+    char key[CLI_PATH_MAX_LEN];
+    EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = args->path, .key_out = key);
+    const unsigned int place =
+        EMBED_CALL(cli_keyed_key_adjacent.find, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_texts, .key = key);
+    *args->size_pointer = 0ULL;
+    if (place == CLI_KEYED_NONE)
+    {
+        return 0;
+    }
+    CliKeyedEntry one = {0};
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = g_cli_servers_texts.page[place / CLI_KEYED_PAGE],
+                            .offset = (embed_word)(place % CLI_KEYED_PAGE) * sizeof(one),
+                            .dst = &one,
+                            .bytes = sizeof(one)});
+    *args->size_pointer = one.text_size;
+    return 1;
 }
