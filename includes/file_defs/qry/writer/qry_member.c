@@ -15,17 +15,17 @@ static int s_found = 0;
 static char s_path[QRY_WRITER_TOP_MAX_LEN];
 static unsigned long long s_joins = 0ULL;
 
-// the ring a thread of this process took, a module of the run each, one producer each ring, and the join of the run
-// it was taken in
+// the ring that a thread of this process took, a module of the run each, one producer each ring. Then the join of the
+// run of that take
 static _Thread_local QryRing *s_ring = NULL;
 static _Thread_local unsigned long long s_ring_join = 0ULL;
 
-// 1 once this process's exit is set to give its ring back (qry_member_exited)
+// 1 once the exit of this process gives its ring back (qry_member_exited)
 static _Atomic int s_exit_set = 0;
 
-// At this process's exit, the ring its exiting thread took given back once the writer has taken all it contains, or
-// at once where the writer ended, and the run's memory let go: a ring outlives none of its members, which the run
-// has a fixed count of rings for
+// At the exit of this process, the ring that its last thread took goes back once the writer takes all that it holds.
+// It goes back at once where the writer ended. The memory of the run then goes.
+// A ring outlives none of its members, because the run has a fixed count of rings for them
 static void qry_member_exited(void)
 {
     if ((s_run != NULL) && (s_ring != NULL) && (s_ring_join == s_joins))
@@ -259,7 +259,7 @@ int qry_member_viewed_read(QryShared *run, unsigned long long *at, const QryReco
 
 int qry_member_read(unsigned long long *at, const QryRecord **record)
 {
-    // a walk begins once what this thread passed is taken into the run, so that it reads what this thread wrote
+    // a walk begins once the run takes in what this thread passed. The walk then reads what this thread wrote
     if (*at == 0ULL)
     {
         qry_member_settled();
@@ -307,7 +307,7 @@ int qry_member_latest(const char *name, const QryRecord **record, unsigned long 
 
 int qry_member_file(const char *path, const QryRecord **record)
 {
-    // a file the run takes in fits half a ring, as every record does, and is appended from its bytes mapped
+    // a file that the run takes in fits half a ring, as each record does. The code appends it from its mapped bytes
     const char *const name = qry_member_file_name(path);
     if (name == NULL)
     {
