@@ -23,7 +23,7 @@
   }
 
   .toolbar-head { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; height: var(--button); }
-  .toolbar-title { font-size: 11px; font-weight: 600; character-spacing: 0.01em; color: var(--ink); opacity: 0; transition: opacity 160ms var(--ease); }
+  .toolbar-title { font-size: 11px; font-weight: 600; letter-spacing: 0.01em; color: var(--ink); opacity: 0; transition: opacity 160ms var(--ease); }
   .toolbar.open .toolbar-title { opacity: 1; transition-delay: 120ms; }
 
   /* The menu button retains its own glass: closed, it reads as a whole button. Its three lines turn into a cross. */

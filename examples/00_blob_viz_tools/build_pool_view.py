@@ -499,17 +499,17 @@ TEMPLATE = """<title>Worker Pool</title>
     padding-block: 28px; padding-left: 20px; padding-right: 20px;
   }
   .sheet { max-width: 940px; margin: 0 auto; }
-  h1 { font-size: 19px; character-spacing: 0.14em; text-transform: uppercase;
+  h1 { font-size: 19px; letter-spacing: 0.14em; text-transform: uppercase;
        margin: 0 0 4px; font-weight: 600; }
   .sub { color: var(--dim); margin: 0 0 26px; font-size: 12.5px; }
-  h2 { font-size: 11px; character-spacing: 0.2em; text-transform: uppercase; color: var(--dim);
+  h2 { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--dim);
        margin: 30px 0 10px; font-weight: 600; }
   .grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
   .cell { background: var(--panel); border: 1px solid var(--edge); border-radius: 3px;
           padding: 11px 13px; }
   .cell.gone { border-style: dashed; }
   .cell.gone .value { color: var(--dim); }
-  .label { font-size: 10.5px; character-spacing: 0.13em; text-transform: uppercase;
+  .label { font-size: 10.5px; letter-spacing: 0.13em; text-transform: uppercase;
            color: var(--dim); margin-bottom: 5px; }
   .value { font-size: 21px; font-variant-numeric: tabular-nums; }
   .note { font-size: 11px; color: var(--dim); margin-top: 5px; }
@@ -517,7 +517,7 @@ TEMPLATE = """<title>Worker Pool</title>
   .warn { color: var(--hot); font-size: 12px; margin: 12px 0 0; max-width: 68ch; }
   table { border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 13px; }
   th, td { text-align: right; padding: 5px 15px 5px 0; }
-  th { color: var(--dim); font-weight: 600; font-size: 10.5px; character-spacing: 0.13em;
+  th { color: var(--dim); font-weight: 600; font-size: 10.5px; letter-spacing: 0.13em;
        text-transform: uppercase; border-bottom: 1px solid var(--edge); }
   tr.best td { color: var(--good); font-weight: 600; }
   .trace { width: 100%%; height: 110px; display: block; margin-top: 6px; }

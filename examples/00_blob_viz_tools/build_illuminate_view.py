@@ -187,10 +187,10 @@ TEMPLATE = """<title>Illuminating With The Chain</title>
          font: 14px/1.6 "SF Mono", "Cascadia Mono", Consolas, monospace;
          padding-block: 32px; padding-left: 20px; padding-right: 20px; }
   .sheet { max-width: 880px; margin: 0 auto; }
-  h1 { font-size: 21px; character-spacing: 0.12em; text-transform: uppercase; margin: 0 0 6px;
+  h1 { font-size: 21px; letter-spacing: 0.12em; text-transform: uppercase; margin: 0 0 6px;
        font-weight: 600; text-wrap: balance; }
   .sub { color: var(--dim); margin: 0 0 28px; font-size: 12.5px; max-width: 70ch; }
-  h2 { font-size: 11px; character-spacing: 0.2em; text-transform: uppercase; color: var(--dim);
+  h2 { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--dim);
        margin: 34px 0 12px; font-weight: 600; }
   p { max-width: 70ch; }
   .bar { display: grid; grid-template-columns: 110px 1fr 90px 140px; gap: 12px;
@@ -212,7 +212,7 @@ TEMPLATE = """<title>Illuminating With The Chain</title>
           min-width: 560px; }
   th, td { text-align: right; padding: 6px 14px 6px 0; }
   td.name, th.name { text-align: left; }
-  th { color: var(--dim); font-weight: 600; font-size: 10px; character-spacing: 0.12em;
+  th { color: var(--dim); font-weight: 600; font-size: 10px; letter-spacing: 0.12em;
        text-transform: uppercase; border-bottom: 1px solid var(--edge); }
   td.bad { color: var(--bad); font-weight: 600; }
   td.good { color: var(--good); font-weight: 600; }

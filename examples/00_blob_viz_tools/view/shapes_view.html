@@ -91,7 +91,7 @@ on any of them or raised from it. generate_template.py builds it through build_s
     scrollbar-width: thin; scrollbar-color: color-mix(in oklab, var(--blue) 28%, transparent) transparent;
   }
   .box:not(:hover):not(:focus-within), .glass:not(:hover):not(:focus-within) { scrollbar-color: transparent transparent; }
-  .box h4 { margin: 0 0 8px; font-size: 11px; font-weight: 600; character-spacing: 0.01em; color: var(--ink); cursor: move; user-select: none; }
+  .box h4 { margin: 0 0 8px; font-size: 11px; font-weight: 600; letter-spacing: 0.01em; color: var(--ink); cursor: move; user-select: none; }
 
   /* A row: its label, its control, and the value the control holds, on the same three columns everywhere. */
   .row { display: grid; grid-template-columns: 92px minmax(0, 1fr) 48px; align-items: center; column-gap: 8px; min-height: 24px; }
@@ -107,7 +107,7 @@ on any of them or raised from it. generate_template.py builds it through build_s
   /* Buttons. */
   button {
     height: 26px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--control-edge); background: var(--control);
-    color: var(--control-ink); font: 500 11.5px/1 var(--font); character-spacing: 0.005em; cursor: pointer;
+    color: var(--control-ink); font: 500 11.5px/1 var(--font); letter-spacing: 0.005em; cursor: pointer;
     transition: border-color 120ms var(--ease), background-color 120ms var(--ease), box-shadow 160ms var(--ease), color 120ms var(--ease);
   }
   button:hover { border-color: color-mix(in oklab, var(--blue) 38%, transparent); background: var(--control-hi); color: var(--ink); }
@@ -190,7 +190,7 @@ on any of them or raised from it. generate_template.py builds it through build_s
   details.section:first-of-type { border-top: 0; }
   details.section > summary {
     list-style: none; display: flex; align-items: center; gap: 8px; height: 30px; cursor: pointer; user-select: none;
-    font-size: 11px; font-weight: 600; character-spacing: 0.01em; color: var(--ink);
+    font-size: 11px; font-weight: 600; letter-spacing: 0.01em; color: var(--ink);
   }
   details.section > summary::-webkit-details-marker { display: none; }
   details.section > summary::after {
@@ -255,7 +255,7 @@ on any of them or raised from it. generate_template.py builds it through build_s
   }
 
   .toolbar-head { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; height: var(--button); }
-  .toolbar-title { font-size: 11px; font-weight: 600; character-spacing: 0.01em; color: var(--ink); opacity: 0; transition: opacity 160ms var(--ease); }
+  .toolbar-title { font-size: 11px; font-weight: 600; letter-spacing: 0.01em; color: var(--ink); opacity: 0; transition: opacity 160ms var(--ease); }
   .toolbar.open .toolbar-title { opacity: 1; transition-delay: 120ms; }
 
   /* The menu button retains its own glass: closed, it reads as a whole button. Its three lines turn into a cross. */

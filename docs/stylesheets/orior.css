@@ -68,7 +68,7 @@
 .md-tabs__link {
   font-family: var(--orior-head-font);
   font-weight: 500;
-  character-spacing: 0.01em;
+  letter-spacing: 0.01em;
   opacity: 0.72;
 }
 
@@ -85,7 +85,7 @@
 .md-header__title {
   font-family: var(--orior-head-font);
   font-weight: 700;
-  character-spacing: -0.02em;
+  letter-spacing: -0.02em;
 }
 
 .md-search__form {
@@ -213,7 +213,7 @@
   font-size: 2.1em;
   font-weight: 700;
   line-height: 1.15;
-  character-spacing: -0.025em;
+  letter-spacing: -0.025em;
   text-wrap: balance;
 }
 
@@ -221,7 +221,7 @@
   margin-top: 2.2em;
   font-size: 1.45em;
   font-weight: 650;
-  character-spacing: -0.015em;
+  letter-spacing: -0.015em;
   text-wrap: balance;
 }
 
@@ -238,7 +238,7 @@
 .md-typeset h3 {
   font-size: 1.12em;
   font-weight: 650;
-  character-spacing: -0.01em;
+  letter-spacing: -0.01em;
 }
 
 .md-typeset a {
@@ -456,7 +456,7 @@
   font-size: 4.2rem;
   font-weight: 700;
   line-height: 1;
-  character-spacing: -0.055em;
+  letter-spacing: -0.055em;
   color: #ffffff;
 }
 
@@ -474,7 +474,7 @@
   font-size: 1.2rem;
   font-weight: 500;
   line-height: 1.4;
-  character-spacing: -0.005em;
+  letter-spacing: -0.005em;
   color: #e8e6f7;
 }
 
@@ -538,7 +538,7 @@
   font-size: 1.6rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums lining-nums;
-  character-spacing: -0.03em;
+  letter-spacing: -0.03em;
   line-height: 1.1;
   color: var(--md-default-fg-color);
 }
@@ -627,7 +627,7 @@
 .md-typeset .grid.cards strong {
   font-family: var(--orior-head-font);
   font-weight: 650;
-  character-spacing: -0.01em;
+  letter-spacing: -0.01em;
 }
 
 .md-typeset .grid.cards .lg {

@@ -16,7 +16,7 @@ breaking
 caching
 casting
 chaining
-character-spacing
+letter-spacing
 checking
 circuiting
 closing
