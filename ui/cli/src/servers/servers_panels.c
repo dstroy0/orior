@@ -1723,6 +1723,28 @@ void cli_servers_panels_text(const CliServersPanelsCfg *args)
 static void panels_signature_tree_run(void *context);
 static void panels_signature_tree_done(void *context);
 
+// A signature's lines as the document gives them: the ask they answer, the state the first line enters in, and the
+// cursor's line among them
+typedef struct
+{
+    PanelsSignatureAsk *ask;
+    char state[CLI_PANELS_STATE];
+    unsigned long long line;
+} PanelsSignatureLines;
+
+// the tree's signature of the call read off the lines the document gives
+static void panels_signature_lines_read(const CliEachTextLengthCfg *args)
+{
+    PanelsSignatureLines *const lines = (PanelsSignatureLines *)args->context;
+    PanelsSignatureAsk *const ask = lines->ask;
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea ignored = {why, sizeof(why), 0ULL};
+    ask->found =
+        EMBED_CALL(cli_symbols_path_text_size_out.signature_read, CliSymbolsPathTextSizeOutCfg, .path = ask->path,
+                   .text = args->text, .size = args->length, .state = (lines->state[0] != '\0') ? lines->state : "root",
+                   .line = lines->line, .col = ask->cursor.col, .err_msg = &ignored, .store = &s_panels.signature);
+}
+
 // the signature asked for the call the cursor is in, the tree's first, the cursor's place recorded as the one asked
 // about
 EMBED_INLINE void panels_signature_ask(const PanelsCtx *args)
@@ -1757,22 +1779,10 @@ static void panels_signature_tree_run(void *context)
         (line > (CLI_PANELS_SIGNATURE_LINES - 1ULL)) ? (line - (CLI_PANELS_SIGNATURE_LINES - 1ULL)) : 0ULL;
     const unsigned long long start = (reach > low) ? reach : low;
     const unsigned long long top = (start < line) ? start : line;
-    char state[CLI_PANELS_STATE];
-    unsigned long long size = 0ULL;
-    char *const text =
-        EMBED_CALL(cli_document_key.lines_alloc, CliDocumentKeyCfg, .key = ask->key, .first = top, .last = line,
-                   .size_pointer = &size, .state = state, .capacity = sizeof(state), .owner = g_cli_servers_owner);
-    if (text == NULL)
-    {
-        return;
-    }
-    char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea ignored = {why, sizeof(why), 0ULL};
-    ask->found =
-        EMBED_CALL(cli_symbols_path_text_size_out.signature_read, CliSymbolsPathTextSizeOutCfg, .path = ask->path,
-                   .text = text, .size = size, .state = (state[0] != '\0') ? state : "root", .line = line - top,
-                   .col = ask->cursor.col, .err_msg = &ignored, .store = &s_panels.signature);
-    g_cli_guard->persistent_buf_release(text, g_cli_servers_owner);
+    PanelsSignatureLines lines = {ask, {0}, line - top};
+    (void)EMBED_CALL(cli_document_key.lines_each, CliDocumentKeyCfg, .key = ask->key, .first = top, .last = line,
+                     .state = lines.state, .capacity = sizeof(lines.state), .each = panels_signature_lines_read,
+                     .context = &lines);
 }
 
 // the tree's answer is, where one was written into the store
@@ -1806,9 +1816,27 @@ struct PanelsServeJob
     CliServersSink sink;
 };
 
-// One serve job on a thread of the servers, lined up by the view thread, which goes on at once. An open or a change
-// reads the view's text under the document's lock on this thread and gives it back after the send. The server's open
-// and change cut a slice, and the slice cut walks the file and its includes
+// the view's text the document gives sent to the job's server: opened in it, or sent as its changed text
+static void panels_serve_text(const CliEachTextLengthCfg *args)
+{
+    const PanelsServeJob *const job = (const PanelsServeJob *)args->context;
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea ignored = {why, sizeof(why), 0ULL};
+    if (job->does == PANELS_SERVE_OPEN)
+    {
+        int served = 0;
+        (void)EMBED_CALL(cli_servers_root.open, CliServersRootCfg, .root = s_panels.root, .path = job->full,
+                         .language = job->language, .text = args->text, .size = args->length, .sink = &job->sink,
+                         .served = &served, .err_msg = &ignored);
+        return;
+    }
+    (void)EMBED_CALL(cli_servers_root.change, CliServersRootCfg, .path = job->full, .text = args->text,
+                     .size = args->length, .err_msg = &ignored);
+}
+
+// One serve job on a thread of the servers, lined up by the view thread, which goes on at once. For an open or a
+// change, the document reads the view's text on this thread and gives it to panels_serve_text. The server's open and
+// change cut a slice, and the slice cut walks the file and its includes
 static void panels_serve_job(const CliServersJobCfg *args)
 {
     const PanelsServeJob *const job = (const PanelsServeJob *)args->job;
@@ -1823,26 +1851,8 @@ static void panels_serve_job(const CliServersJobCfg *args)
                          .out = &output, .err_msg = &ignored);
         return;
     }
-    unsigned long long size = 0ULL;
-    char *const text = EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = job->key,
-                                  .size_pointer = &size, .owner = g_cli_servers_owner);
-    if (text == NULL)
-    {
-        return;
-    }
-    if (job->does == PANELS_SERVE_OPEN)
-    {
-        int served = 0;
-        (void)EMBED_CALL(cli_servers_root.open, CliServersRootCfg, .root = s_panels.root, .path = job->full,
-                         .language = job->language, .text = text, .size = size, .sink = &job->sink, .served = &served,
-                         .err_msg = &ignored);
-    }
-    else
-    {
-        (void)EMBED_CALL(cli_servers_root.change, CliServersRootCfg, .path = job->full, .text = text, .size = size,
-                         .err_msg = &ignored);
-    }
-    g_cli_guard->persistent_buf_release(text, g_cli_servers_owner);
+    (void)EMBED_CALL(cli_document_key.text_each, CliDocumentKeyCfg, .key = job->key, .each = panels_serve_text,
+                     .context = (void *)(embed_word)job);
 }
 
 // the serve job `job` passed to a thread of the servers: 1, or 0 where the jobs ring is full

@@ -3161,6 +3161,22 @@ char *cli_document_text_alloc(const CliDocumentKeyCfg *args)
     return answer;
 }
 
+int cli_document_text_each(const CliDocumentKeyCfg *args)
+{
+    unsigned long long size = 0ULL;
+    cli_document_lock_take();
+    char *const text = EMBED_CALL(text_alloc_locked, CliDocumentKeyCfg, .key = args->key, .size_pointer = &size,
+                                  .owner = g_cli_editor_owner);
+    cli_document_lock_give();
+    // the text goes to the caller with the lock given back: the cell is this call's own
+    if (text != NULL)
+    {
+        EMBED_CALL(args->each, CliEachTextLengthCfg, .context = args->context, .text = text, .length = size);
+    }
+    g_cli_guard->persistent_buf_release(text, g_cli_editor_owner);
+    return text != NULL;
+}
+
 static int file_put_locked(const CliDocumentOutCfg *args)
 {
     const CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
@@ -3312,6 +3328,23 @@ char *cli_document_lines_alloc(const CliDocumentKeyCfg *args)
     char *const answer = lines_alloc_locked(args);
     cli_document_lock_give();
     return answer;
+}
+
+int cli_document_lines_each(const CliDocumentKeyCfg *args)
+{
+    unsigned long long size = 0ULL;
+    cli_document_lock_take();
+    char *const text = EMBED_CALL(lines_alloc_locked, CliDocumentKeyCfg, .key = args->key, .first = args->first,
+                                  .last = args->last, .size_pointer = &size, .state = args->state,
+                                  .capacity = args->capacity, .owner = g_cli_editor_owner);
+    cli_document_lock_give();
+    // the lines go to the caller with the lock given back: the cell is this call's own
+    if (text != NULL)
+    {
+        EMBED_CALL(args->each, CliEachTextLengthCfg, .context = args->context, .text = text, .length = size);
+    }
+    g_cli_guard->persistent_buf_release(text, g_cli_editor_owner);
+    return text != NULL;
 }
 
 static int bounds_locked(const CliDocumentKeyLowCfg *args)
