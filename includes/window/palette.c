@@ -9,20 +9,31 @@
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "verba_scribo/verba_linea.h"
 
-// the dark scheme: --bg, --surface, --well, --deep; --fg, --fg-2, --fg-3; --line; --signal, --link, --hover, --fail;
-// --ink and --glass-tint, the ink at --bar-opacity; --bar-fg, --bar-title, --bar-title-hover, --bar-bright, --bar-path,
-// --status-fg; --ed-bg at --editor-opacity, --ed-fg, --ed-num, --ed-current, --ed-sel, --ed-sel-idle, --ed-caret,
-// --ed-guide, --fg at 18% for a table's grid lines and at 8% for its header row's ground, --ed-same,
-// --ed-widget-line, --ed-match, --ed-match-on, --ed-mini-sel, --ed-mini-match, --ed-mini-slider, --ed-mini-slider-on,
-// --plasma-dusk, --fuse-fire, --bar-signal at 18%, --ink at 50%, --ed-error, --ed-warning, --ed-note, --open-fg,
-// --bar-mark, --lifted, the color .wordmark-under's rule makes, --deep at 80% with black and its OKLCH lightness by
-// 1.15, --fuse-ash, --fuse-burn, --fuse-fire, the white the page's plasma lights its core with, --link at 65% of each
-// channel for the work's right and foot lines, --signal at 35% for its left line, --status-fg at 60% for Silence,
-// white for the grain, --text at 10% for a button's glass and at 30% for its line, the bead's glint, white at 90%,
-// its caustic, a warm white at 70%, its rim, black at 85%, and its shadow, black at 45%, the pointer's glass, the
-// selection's violet at 35%, its rim from --link to --fuse-fire, its glint, white at 70%, and its shadow, black at 35%,
-// --lattice-1 to --lattice-3,
-// --t1 to --t8, --t0 to --t15
+// the dark scheme:
+//   - `--bg`, `--surface`, `--well` and `--deep`.
+//   - `--fg`, `--fg-2`, `--fg-3` and `--line`.
+//   - `--signal`, `--link`, `--hover` and `--fail`.
+//   - `--ink`, and `--glass-tint`, the ink at `--bar-opacity`.
+//   - `--bar-fg`, `--bar-title`, `--bar-title-hover`, `--bar-bright`, `--bar-path` and `--status-fg`.
+//   - `--ed-bg` at `--editor-opacity`, `--ed-fg`, `--ed-num`, `--ed-current`, `--ed-sel`, `--ed-sel-idle`,
+//     `--ed-caret` and `--ed-guide`.
+//   - `--fg` at 18% for the grid lines of a table, and at 8% for the ground of its header row.
+//   - `--ed-same`, `--ed-widget-line`, `--ed-match` and `--ed-match-on`.
+//   - `--ed-mini-sel`, `--ed-mini-match`, `--ed-mini-slider` and `--ed-mini-slider-on`.
+//   - `--plasma-dusk`, `--fuse-fire`, `--bar-signal` at 18%, and `--ink` at 50%.
+//   - `--ed-error`, `--ed-warning`, `--ed-note`, `--open-fg`, `--bar-mark` and `--lifted`.
+//   - the color that the rule of `.wordmark-under` makes: `--deep` at 80% with black, and its OKLCH lightness by 1.15.
+//   - `--fuse-ash`, `--fuse-burn`, `--fuse-fire`, and the white that the plasma of the page lights its core with.
+//   - `--link` at 65% of each channel for the right and foot lines of the work, and `--signal` at 35% for its left
+//     line.
+//   - `--status-fg` at 60% for Silence, and white for the grain.
+//   - `--text` at 10% for the glass of a button, and at 30% for its line.
+//   - the glint of the bead, white at 90%, and its caustic, a warm white at 70%. Its rim is black at 85%, and its
+//     shadow black at 45%.
+//   - the glass of the pointer, the violet of the selection at 35%. Its rim goes from `--link` to `--fuse-fire`. Its
+//     glint is white at 70%, and its shadow black at 35%.
+//   - `--lattice-1` to `--lattice-3`.
+//   - `--t1` to `--t8`, and `--t0` to `--t15`.
 static const GuiPalette s_dark = {
     GUI_RGB(0x13u, 0x13u, 0x31u),
     GUI_RGB(0x1cu, 0x19u, 0x40u),
@@ -149,8 +160,8 @@ void gui_palette_opacity_layout(const GuiPaletteOwnBarPercentCfg *args)
         (args->own->colors.editor_background & 0x00ffffffu) | ((((args->editor_percent * 255u) + 50u) / 100u) << 24u);
 }
 
-// A color of the palette by name: its name, where it lies in the palette, and where a second field that is the same
-// color lies, 0 for none, the ground lying first and never being a second field
+// A color of the palette by name: its name and where it lies in the palette. Then where a second field of the same
+// color lies, 0 for none. The ground lies first, and is never a second field
 typedef struct
 {
     const char *name;
@@ -158,8 +169,8 @@ typedef struct
     unsigned long long also;
 } PaletteNamed;
 
-// each color named for what it colors, in the form an editor's theme names a color: the fuse's fire also lines the
-// displayed tab, and a file icon's color goes by its hue, as a terminal's does
+// each color named for what it colors, in the form that the theme of an editor names a color. The fire of the fuse also
+// lines the displayed tab. The color of a file icon goes by its hue, as the color of a terminal does
 #define PALETTE_NAMED(name_, field_) {name_, offsetof(GuiPalette, field_), 0ULL}
 #define PALETTE_NAMED_AT(name_, field_, at_) {name_, offsetof(GuiPalette, field_) + ((at_) * sizeof(GuiColor)), 0ULL}
 static const PaletteNamed s_named[] = {
@@ -292,7 +303,7 @@ typedef struct
     char *under;
     unsigned long long size;
 } PaletteCtx;
-// the color lying at `offset` of the palette
+// the color at `offset` of the palette
 EMBED_INLINE GuiColor palette_at(const PaletteCtx *args)
 {
     return *(const GuiColor *)(const void *)((const unsigned char *)args->palette + args->offset);
@@ -338,7 +349,8 @@ void gui_palette_value_text(const GuiPaletteSizeColorCfg *args)
     VerbaLinea line = {args->text, args->size, 0ULL};
     mmgr_line_ch(&line, '#');
     const unsigned int opaque = (GUI_ALPHA_OF(args->color) == 0xffu) && !args->alpha_always;
-    // red, green and blue, and the alpha where it is not opaque or is asked for always, the high digit of each first
+    // red, green and blue, and the alpha where it is not opaque or where the caller always asks for it. The high digit
+    // of each comes first
     const unsigned int shifts[4] = {16u, 8u, 0u, 24u};
     for (unsigned int part = 0u; part < (opaque ? 3u : 4u); part += 1u)
     {
@@ -382,7 +394,7 @@ int gui_palette_value_read(const GuiPaletteTextCfg *args)
         }
         value = (value << 4u) | read;
     }
-    // six digits are red, green and blue under the current alpha; eight end in their own alpha
+    // six digits give red, green and blue under the current alpha. Eight end in their own alpha
     *color = (digits == 6ULL) ? (value | (args->current & 0xff000000u)) : ((value >> 8u) | (value << 24u));
     return 1;
 }
@@ -410,8 +422,9 @@ static const unsigned short s_linear[256] = {
     63795u, 64372u, 64952u, 65535u,
 };
 
-// a color's light as WCAG 2 weighs it and adds its flare of a twentieth, on a scale of twenty times the linear table's:
-// red, green and blue by their weights in ten-thousandths, the flare whole at that scale, the alpha passed over
+// the light of a color as WCAG 2 weighs it, plus its flare of a twentieth. The scale is twenty times that of the linear
+// table. Red, green and blue go by their weights in ten-thousandths. The flare is whole at that scale, and the alpha
+// does not count
 EMBED_INLINE unsigned int palette_light(const PaletteCtx *args)
 {
     const unsigned int weighed = (2126u * s_linear[GUI_RED_OF(args->color)]) +
@@ -433,8 +446,8 @@ unsigned int gui_palette_contrast(const GuiPaletteForegroundCfg *args)
                                             : ((under_light * 10u) / foreground_light);
 }
 
-// A color of text whose contrast is checked and a color it is drawn on, each where it lies in the palette: a token is
-// drawn on the editor's background
+// A color of text whose contrast the check reads, and a color that the text sits on, each where it lies in the palette.
+// A token sits on the background of the editor
 typedef struct
 {
     unsigned long long foreground_color;
@@ -450,8 +463,8 @@ static const PaletteContrast s_contrasts[] = {
     {offsetof(GuiPalette, link), offsetof(GuiPalette, background_fill)},
 };
 
-// whether `foreground_color` is under the least over the color lying at `back`: 1, with its contrast and that color's
-// name
+// whether `foreground_color` is under the least contrast over the color at `back`. The result is 1, with its contrast
+// and the name of that color
 EMBED_INLINE int palette_low(const PaletteCtx *args)
 {
     GuiColor foreground_color = args->foreground_color;
