@@ -2,10 +2,11 @@
 
 usage: python page_text.py <stem>
 
-pypdfium2 builds each line from the characters' boxes and puts a space where the page leaves a gap,
-which recovers the word breaks a text layer glued together (betweenallomorphsissensitiveto:). The
-result is written to pagetext/<stem>.txt with the same ===== page N ===== markers, where
-residue.source_dir reads it in place of the text layer. Prints how many tokens the two texts share.
+pypdfium2 builds each line from the boxes of the characters, and puts a space where the page leaves a
+gap. That recovers the word breaks that a text layer glued together (betweenallomorphsissensitiveto:).
+The script writes the result to pagetext/<stem>.txt with the same ===== page N ===== markers.
+The reader residue.source_dir reads it there in place of the text layer. Prints how many tokens the two texts
+share.
 """
 import ctypes
 import hashlib
@@ -34,18 +35,18 @@ import tables  # noqa: E402
 WINDOWS_FONTS = "C:/Windows/Fonts"
 SYSTEM_FONTS = {"Times New Roman": "times.ttf", "Times New Roman,Italic": "timesi.ttf",
                 "Times New Roman,Bold": "timesbd.ttf", "Times New Roman,BoldItalic": "timesbi.ttf"}
-# System faces that hold the substitution and size tables a subset drops, with the face's index in
-# its collection: the subscript 𝑒, 𝑡 and ST of McKay's 2019 formulas, and her tall ⟦ ⟧, are glyphs
-# the subset's cmap does not reach.
+# System faces that hold the substitution and size tables that a subset drops, with the index of the
+# face in its collection. The subscript 𝑒, 𝑡 and ST of McKay's 2019 formulas, and her tall ⟦ ⟧, are
+# glyphs that the cmap of the subset does not reach.
 VARIANT_FONTS = {"Cambria Math": ("cambria.ttc", 1)}
 _VARIANTS = {}
 
 
 def variant_characters(name, characters):
-    """{glyph id: [code point]} for each glyph of the system face name that its cmap does not reach
-    and a GSUB single or alternate substitution, or a MATH size variant, makes from one glyph it
-    does: that glyph's code point. Empty where the paper's program, whose cmap is characters, does not
-    number its glyphs as the system face does."""
+    """{glyph id: [code point]} for each glyph of the system face name that its cmap does not reach.
+    A GSUB single or alternate substitution, or a MATH size variant, makes it from one glyph that the
+    cmap does reach. The result is the code point of that glyph. Empty where the program of the
+    paper, whose cmap is characters, does not number its glyphs as the system face does."""
     face, index = VARIANT_FONTS[name]
     if name not in _VARIANTS:
         program = TTFont(os.path.join(WINDOWS_FONTS, face), fontNumber=index)
@@ -92,8 +93,8 @@ def tounicode_entries(font):
                                             block):
             low, high = int(low, 16), int(high, 16)
             if target.startswith("<"):
-                # A range steps the last UTF-16 unit of its target, which can be the low half of a
-                # surrogate pair or the last character of several, as the CMap specification has it.
+                # A range steps the last UTF-16 unit of its target, as the CMap specification has it.
+                # That unit can be the low half of a surrogate pair, or the last character of several.
                 units = bytes.fromhex(target[1:-1] or "0000")
                 units = units if len(units) % 2 == 0 and units else b"\x00" + units
                 last = int.from_bytes(units[-2:], "big")
@@ -139,7 +140,7 @@ def font_characters(font):
 
 
 def tounicode_stream(entries):
-    """A ToUnicode CMap holding entries, {glyph id: text}, one bfchar each."""
+    """A ToUnicode CMap that holds entries, {glyph id: text}, one bfchar each."""
     items = sorted(entries.items())
     lines = ["/CIDInit /ProcSet findresource begin", "12 dict begin", "begincmap",
              "/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def",
@@ -156,16 +157,20 @@ def tounicode_stream(entries):
     return stream
 
 
-# The 2008 volume's PDFs set their text in CID TrueType subsets with no ToUnicode and a font program
-# stripped of its cmap and glyph names, and each page carries its own subset that numbers the glyphs
-# afresh: the Times-Roman of Thompson's page 1 and of its page 2 give one character two codes. The text
-# layer is a cipher (2&'1 for this). A glyph is known by its outline instead: the decomposed contours
-# and advance width, hashed. A glyph copied from a system face has the same key as the system face's
-# own glyph, and OUTLINE_FACES names the face to look in for each font; a glyph of a face the system
-# lacks is named in outline_characters.tsv, each outline read by eye off outline_sheet.py's drawing and
-# checked in the decoded text. Adobe's Times-Roman, which Windows lacks, is looked for in TeX Gyre
-# Termes, the clone of its shapes MiKTeX installs. Its outlines are no copy, and outline_match.py
-# names those glyphs by raster.
+# The PDFs of the 2008 volume set their text in CID TrueType subsets with no ToUnicode. Their font
+# program has no cmap and no glyph names. Each page carries its own subset, which numbers the glyphs
+# afresh. The Times-Roman of page 1 and of page 2 of Thompson give one character two codes. The text
+# layer is a cipher (2&'1 for this).
+#
+# The code thus knows a glyph by its outline: the decomposed contours and advance width, hashed. A
+# glyph copied from a system face has the same key as the own glyph of the system face. OUTLINE_FACES
+# names the face to look in for each font.
+#
+# outline_characters.tsv names a glyph of a face that the system lacks. A person reads each outline by
+# eye off the drawing of outline_sheet.py, and checks it in the decoded text.
+# Windows lacks the Times-Roman of Adobe. The code looks for it in TeX Gyre Termes, the clone of its
+# shapes that MiKTeX installs. Its outlines are no copy, and outline_match.py names those glyphs by
+# raster.
 TERMES = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "MiKTeX", "fonts", "opentype", "public",
                       "tex-gyre", "texgyretermes-")
 OUTLINE_FACES = {"TimesNewRomanPSMT": "times.ttf", "TimesNewRomanPS-BoldMT": "timesbd.ttf",
@@ -192,11 +197,12 @@ def outline_key(glyphset, name, advance):
 
 
 def face_keys(face):
-    """{outline key: text} for every glyph a system face's cmap maps. Where several code points
-    draw one outline, the right single quote and the modifier apostrophe of Times New Roman, the
-    text is a character Windows-1252 holds, as Word exports, then a character of the IPA block, the
-    schwa ə of Lucida Sans Unicode, which draws the turned e ǝ alike, in Mattina's 2008 forms, and
-    failing that the lowest code point past the private use area."""
+    """{outline key: text} for each glyph that the cmap of a system face maps. Several code points can
+    draw one outline, such as the right single quote and the modifier apostrophe of Times New Roman.
+    The text is then a character that Windows-1252 holds, as Word exports.
+    Next is a character of the IPA block, such as the schwa ə of Lucida Sans Unicode in the 2008 forms
+    of Mattina. That face draws the turned e ǝ alike. Else it is the lowest code point past the private
+    use area."""
     if face not in _FACE_KEYS:
         font = system_face(face)
         glyphset, units = font.getGlyphSet(), font["head"].unitsPerEm
@@ -267,7 +273,7 @@ def outlined_fonts(path):
             # The code is the glyph id only where the CIDFont maps them one to one.
             if program is None or str(descendant.get("/CIDToGIDMap", "/Identity")) != "/Identity":
                 continue
-            # A face embedded twice is told apart by a *1 after its name, TimesNewRoman,Italic*1.
+            # A *1 after its name tells apart a face embedded twice, TimesNewRoman,Italic*1.
             name = re.sub(r"^[A-Z]{6}\+|\*\d+$", "", str(font.get("/BaseFont", "")).lstrip("/"))
             tt = TTFont(io.BytesIO(program.get_object().get_data()))
             glyphset, units = tt.getGlyphSet(), tt["head"].unitsPerEm
@@ -311,12 +317,15 @@ def outlined_fonts(path):
 
 
 def mapped_fonts(path, maps, added=False):
-    """A paper whose simple fonts carry no ToUnicode and number their glyphs from 1, written again
-    with a one-byte ToUnicode for each font maps names, {font name without its subset tag: {code:
-    text}}. pdfium reads such a font's codes as control characters, drops U+0002 and U+0003 from
-    its text, and sets no character at all for a drawn code 32, the w of Denzer-King's wis; with the
-    map it gives the characters. With added, a map adds to the codes the font's own ToUnicode gives.
-    Returns (the PDF's bytes, a line for each font given a map)."""
+    """A paper whose simple fonts carry no ToUnicode and number their glyphs from 1, written again. It
+    gets a one-byte ToUnicode for each font that maps names, {font name without its subset tag: {code:
+    text}}.
+
+    The library pdfium reads the codes of such a font as control characters, and drops U+0002 and U+0003 from its
+    text. It sets no character at all for a drawn code 32, the w of wis in Denzer-King. With the map,
+    it gives the characters.
+    With added, a map adds to the codes that the own ToUnicode of the font gives. Returns (the bytes of
+    the PDF, a line for each font given a map)."""
     reader = pypdf.PdfReader(path)
     writer = pypdf.PdfWriter(clone_from=reader)
     seen, report = set(), []
@@ -359,17 +368,18 @@ def mapped_fonts(path, maps, added=False):
 
 
 def mended_fonts(path):
-    """A paper whose Type0 fonts give a character's glyph a space in ToUnicode, pro ides and howe er in
-    Nater's 2019 paper and the whole run of Jantzen's small capitals, written again with the character
-    the font program itself maps to that glyph. A font is mended only where its program agrees with
-    every single character the ToUnicode names. Returns (the mended PDF's bytes, or None where no font
-    needed it, and a line for each font mended or left alone)."""
+    """A paper whose Type0 fonts give the glyph of a character a space in ToUnicode. Examples are pro ides
+    and howe er in the 2019 paper of Nater, and the whole run of the small capitals of Jantzen.
+    The code writes it again with the character that the font program itself maps to that glyph. It
+    mends a font only where its program agrees with each single character that the ToUnicode names.
+    Returns (the bytes of the mended PDF, or None where no font needed it, and a line for each font
+    mended or left alone)."""
     reader = pypdf.PdfReader(path)
     writer = pypdf.PdfWriter(clone_from=reader)
     seen, report, changed = set(), [], False
-    # A face whose ToUnicode names no character to check its program by, the bold italic -mín and -tín
-    # of McKay's 2019 headings, is mended where another face of its family in the same paper agrees
-    # with its program on ten characters and disagrees on none.
+    # A face whose ToUnicode names no character to check its program by. An example is the bold italic
+    # -mín and -tín of the 2019 headings of McKay. The code mends it where another face of its family in the same
+    # paper agrees with its program on ten characters, and disagrees on none.
     unchecked, vouched = [], set()
     for page in writer.pages:
         fonts = page.get("/Resources", {}).get("/Font", {})
@@ -389,16 +399,16 @@ def mended_fonts(path):
                     agree += ord(text) in characters[gid]
                     if ord(text) not in characters[gid]:
                         disagree.append(gid)
-            # A ligature's glyph is given its characters, fi for ﬁ, as a ToUnicode gives them.
+            # The glyph of a ligature gets its characters, fi for ﬁ, as a ToUnicode gives them.
             given = {gid: unicodedata.normalize("NFKC", chr(min(characters[gid])))
                      if 0xFB00 <= min(characters[gid]) <= 0xFB06 else chr(min(characters[gid])) for gid in blank
                      if gid in characters and not any(chr(point).isspace() for point in characters[gid])}
             name = str(font["/BaseFont"]).lstrip("/")
-            # The program draws the page, and where it agrees with twenty of the ToUnicode's characters
-            # for each it does not, the few it does not are the ToUnicode's own faults: „ and ‟ for
-            # the ‘ and ’ Laturnus's Times New Roman draws. A program embedded in the paper
-            # draws it, and needs no ten characters to agree where none disagrees: Griffin's
-            # 2019 bold qəǰi, whose ToUnicode names the ə alone.
+            # The program draws the page. It can agree with twenty of the characters of the ToUnicode
+            # for each that it does not. The few that do not are the own faults of the ToUnicode. An
+            # example is „ and ‟ for the ‘ and ’ that the Times New Roman of Laturnus draws.
+            # A program embedded in the paper draws it. It needs no ten characters to agree where none
+            # disagrees, as in the 2019 bold qəǰi of Griffin, whose ToUnicode names the ə alone.
             descendant = font["/DescendantFonts"][0].get_object()
             descriptor = descendant.get("/FontDescriptor")
             embedded = descriptor is not None and "/FontFile2" in descriptor.get_object()
@@ -435,18 +445,18 @@ def mended_fonts(path):
     return data.getvalue(), report
 
 
-# Papers read before mended_fonts, whose oracles were checked against the fonts as they are. Each
-# has a font that gives one mark or one dotless character a space, the ̌ of č or the ȷ of ǰ, and the
-# mend would change what their ops and hand rows are keyed to. A paper leaves this list when its
-# oracle is rebuilt on the mended fonts.
+# Papers read before mended_fonts, whose oracles hold the check against the fonts as they are. Each
+# has a font that gives one mark or one dotless character a space, the ̌ of č or the ȷ of ǰ. The mend
+# changes the key of their ops and hand rows. A paper leaves this list when its oracle gets a new
+# build on the mended fonts.
 UNMENDED = tables.members("UNMENDED")
 _OPENED = {}
 
 
 def paper_document(stem):
-    """(pdfium document, [line per font mended or left alone], whether any font was mended) for a
-    paper, its fonts mended by mended_fonts unless it is in UNMENDED. Retained per stem, since gen.py
-    opens a paper several times."""
+    """(pdfium document, [line per font mended or left alone], whether the code mended a font) for a
+    paper. The call mended_fonts mends its fonts, unless it is in UNMENDED. Kept per stem, because gen.py opens
+    a paper several times."""
     if stem not in _OPENED:
         path = os.path.join(CORPUS, "papers", stem + ".pdf")
         if stem in PAPER_OUTLINED:
@@ -461,8 +471,8 @@ def paper_document(stem):
 
 
 def layer_text(stem):
-    """A paper's text layer, papers/<stem>.txt, pypdf's extract_text of each page. For a paper whose
-    fonts were mended, the same extract_text of the mended pages, since the layer holds the spaces
+    """The text layer of a paper, papers/<stem>.txt, the extract_text of pypdf of each page. For a paper
+    with mended fonts, it is the same extract_text of the mended pages. The layer holds the spaces that
     the fonts gave."""
     data = _OPENED[stem][2] if stem in _OPENED else None
     if data is None:
@@ -489,34 +499,36 @@ class OnePage(object):
         return self.document[self.number]
 
 
-# Papers whose hand ops are keyed to the layer's spacing, where pdfium's line and the glyph line
-# would respace a layer line they read alike: pr eferred in ZenkICSNL60 is preferred on the page.
-# Such a paper does not build once respaced, and leaves this list when its ops are moved to the
-# page's spacing and its oracle is rebuilt.
+# Papers whose hand ops key to the spacing of the layer. There, the line of pdfium and the glyph line
+# respace a layer line that they read alike: `pr eferred` in ZenkICSNL60 is `preferred` on the page.
+# Such a paper does not build once respaced. It leaves this list when its ops move to the spacing of the
+# page and its oracle gets a new build.
 LAYER_SPACED = tables.members("LAYER_SPACED")
-# Papers typed and scanned, whose page text a person transcribed from the scan, a line for each line
-# the page prints and each page under its ===== page N ===== marker.
+# Papers typed and scanned, whose page text a person transcribed from the scan. There is a line for
+# each line that the page prints, and each page is under its ===== page N ===== marker.
 TRANSCRIBED_FROM_SCAN = tables.members("TRANSCRIBED_FROM_SCAN")
-# The two characters a font's ToUnicode gives one glyph, and the character the glyph draws: ə and the
-# Cyrillic ә in one box, in Stewart, Noguchi, Sardinha and Davis's 2011 and 2012 papers.
+# The two characters that the ToUnicode of a font gives one glyph, and the character that the glyph
+# draws. An example is ə and the Cyrillic ә in one box, in the 2011 and 2012 papers of Stewart, Noguchi,
+# Sardinha and Davis.
 CLOSEUP_UNJOINED = tables.members("CLOSEUP_UNJOINED")
 ONE_GLYPH = {"əә": "ə"}
-# The character a font's ToUnicode gives for each mark, in wlwlmelst and Janzen's paper: ƛ for the
-# comma above in the running text and w in the bold title, ə for the acute and x for the dot below.
+# The character that the ToUnicode of a font gives for each mark, in the paper of wlwlmelst and
+# Janzen. It gives ƛ for the comma above in the running text and w in the bold title. It gives ə for
+# the acute, and x for the dot below.
 MARK_OF = {"ƛ": COMMA_ABOVE, "w": COMMA_ABOVE, "ə": ACUTE, "x": DOT_BELOW}
 
 
 # Glyphs a paper's text layer can drop where pdfium retains them: the tilde operator of reduplication.
 DROPPED = "∼"
-# A font that maps the characters it draws to the private use area, which the text layer drops: [o for
-# [p̓oq̓] `‘grey’` in Huijsmans. Each code point was read off a 600 dpi render of the page named, with
-# pua_crops.py.
+# A font that maps the characters that it draws to the private use area, which the text layer drops:
+# [o for [p̓oq̓] `‘grey’` in Huijsmans. A person read each code point off a 600 dpi render of the
+# named page, with pua_crops.py.
 PRIVATE_USE = tables.gather("PRIVATE_USE")
 
 
-# The modifier character for each character a page sets small and raised after another character: the
-# labialized [pɔqʷs] and palatalized čʸε of John Hamilton Davis's bracketed forms, which the text
-# layer flattens to pɔqws and čyε.
+# The modifier character for each character that a page sets small and raised after another
+# character. Examples are the labialized [pɔqʷs] and the palatalized čʸε of the bracketed forms of
+# John Hamilton Davis. The text layer flattens them to pɔqws and čyε.
 MODIFIER = {"w": "ʷ", "y": "ʸ", "θ": "ᶿ", "ε": "ᵋ", "ɛ": "ᵋ", "o": "ᵒ", "a": "ᵃ", "h": "ʰ", "j": "ʲ",
             "n": "ⁿ", "m": "ᵐ", "ə": "ᵊ", "l": "ˡ", "x": "ˣ", "s": "ˢ", "ʔ": "ˀ", "ʕ": "ˤ", "ɣ": "ˠ",
             "i": "ⁱ", "u": "ᵘ", "e": "ᵉ", "t": "ᵗ", "k": "ᵏ", "p": "ᵖ", "b": "ᵇ", "d": "ᵈ", "g": "ᶢ",
@@ -530,19 +542,27 @@ SUBSCRIPT = dict(zip("0123456789", "₀₁₂₃₄₅₆₇₈₉"))
 
 def raised_characters(textpage, mapping=None, ciphers=None, found=None, lifted=None, mark_base=False,
                    lowered=False):
-    """The glyphs of a page with no space among them, and {position: modifier character} for each
-    character set at under 0.85 of the size of the character before it and raised a fifth of that size
-    over its baseline. A digit is a footnote's mark and stays, and so does a character raised after
-    a digit, the th of 19th. A private-use glyph mapping names is taken as the characters it draws,
-    and the ʷ after van Eijk's private-use k̓ is raised after a character. ciphers, the paper's
-    PAPER_CIPHERS entry, gives each glyph as its font means it, and Bird's raised SILDoulosIPA ´
-    is read as the ə it draws. found, where given, collects {index in textpage: modifier character}
-    for each raised character. lifted holds the indexes of the raised characters the glyph rows already
-    write as their modifiers: each is among the glyphs as its modifier and is left out of
-    the positions returned. With mark_base, an apostrophe after a character leaves that character the
-    one a raised character is measured against, the ʷ of [k’ʷ]. With lowered, a digit set at under
-    0.85 of the size of the character, ∅ or bracket before it and lowered a tenth of that size under
-    its baseline is an index, the subscript of Bill₁ and ∅₁ in Cable's co-reference examples."""
+    """The glyphs of a page with no space among them, and {position: modifier character}. That holds each
+    character set at under 0.85 of the size of the character before it, and raised a fifth of that
+    size over its baseline.
+
+    A digit is the mark of a footnote and stays, and so does a character raised after a digit, the th
+    of 19th. The code takes a private-use glyph that mapping names as the characters that it draws.
+    The code treats the ʷ after the private-use k̓ of van Eijk as raised after a character.
+
+    ciphers, the PAPER_CIPHERS entry of the paper, gives each glyph as its font means it. The code
+    reads the raised SILDoulosIPA ´ of Bird as the ə that it draws. The argument found, where given, collects {index
+    in textpage: modifier character} for each raised character.
+
+    lifted holds the indexes of the raised characters that the glyph rows already write as their
+    modifiers. Each is among the glyphs as its modifier, and the returned positions omit it.
+
+    With mark_base, an apostrophe after a character leaves that character as the reference for a
+    raised character, the ʷ of [k’ʷ].
+
+    With lowered, a digit can sit under 0.85 of the size of the character, ∅ or bracket before it. Where
+    it also sits a tenth of that size under its baseline, it is an index. Examples are the subscripts of Bill₁
+    and ∅₁ in the co-reference examples of Cable."""
     glyphs, raised = [], {}
     base = None
     x, y = ctypes.c_double(), ctypes.c_double()
@@ -589,12 +609,16 @@ def raised_characters(textpage, mapping=None, ciphers=None, found=None, lifted=N
 
 def raise_characters(document, merged, mapping=None, ciphers=None, lifted=None, mark_base=False, lowered=False):
     """merged, a page text with its ===== page N ===== markers, with each raised character of the page
-    written as its modifier: the page's glyphs are aligned to the text's characters page by page.
-    mapping is the paper's PRIVATE_USE characters and ciphers its PAPER_CIPHERS entry. lifted, where
-    given, holds for each page the indexes of the raised characters the glyph rows already wrote as
-    their modifiers, and those are not set again. mark_base is raised_characters's. Every read ends
-    here, and each pair of ONE_GLYPH is then written as the one character its glyph draws. Returns the text and a defects row to each
-    line changed."""
+    written as its modifier. The code aligns the glyphs of the page to the characters of the text, page
+    by page.
+
+    mapping is the PRIVATE_USE characters of the paper, and ciphers its PAPER_CIPHERS entry. The
+    argument lifted, where given, holds for each page the indexes of the raised characters that the glyph rows already
+    wrote as their modifiers. The code does not set those again. mark_base is that of
+    raised_characters.
+
+    Each read ends here. The code then writes each pair of ONE_GLYPH as the one character that its
+    glyph draws. Returns the text, and a defects row for each changed line."""
     import difflib
     out, repairs, page, lines = [], [], 0, []
 
