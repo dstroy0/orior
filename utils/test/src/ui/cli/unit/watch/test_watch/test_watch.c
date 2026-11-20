@@ -42,8 +42,8 @@ static void change_recorded(const CliEachPathTypeCfg *args)
 }
 
 // the test fixture: a first poll of the tree, one file changed, one file added, then a second poll. The changes go
-// into s_seen with a NUL terminator. A tree's first reading stays in memory until its process ends, so the fixture
-// runs once per process
+// into s_seen with a NUL terminator. The fixture runs once per process: a tree's first reading stays in memory until
+// its process ends
 static void tree_polled(void)
 {
     static int s_polled = 0;
