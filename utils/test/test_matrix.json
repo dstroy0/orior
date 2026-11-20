@@ -47,6 +47,16 @@
         "includes/codecs/ed25519"
       ]
     },
+    "pbkdf2": {
+      "desc": "HMAC-SHA-512 and PBKDF2 against RFC 4231, Wycheproof and the BIP-39 vectors of trezor/python-mnemonic, fetched by hash.",
+      "script": "utils/test/includes/codecs/pbkdf2/pbkdf2_check.sh",
+      "src": [
+        "+<../includes/codecs/pbkdf2/*>"
+      ],
+      "tests": [
+        "includes/codecs/pbkdf2"
+      ]
+    },
     "ksg": {
       "desc": "A file's seal against what ksg.h specifies.",
       "script": "utils/test/includes/file_defs/ksg/ksg_check.sh",

@@ -477,11 +477,11 @@ int main(void)
                      (unsigned long long)counters.survivors);
 
         // THE HONEST COST STACK. Enumeration is cheap. The survivors cost. A match of each one against
-        // a target needs a PBKDF2 derivation: about 250/sec on one thread, by pbkdf2_check. Thus the
-        // two-word case is survivors / 250 seconds of the expensive step.
-        (void)printf("  matching survivors to a target is the expensive step: at ~250 seeds/sec/thread\n");
+        // a target needs a PBKDF2 derivation: about 400/sec on one thread, by bench_pbkdf2. Thus the
+        // two-word case is survivors / 400 seconds of the expensive step.
+        (void)printf("  matching survivors to a target is the expensive step: at ~400 seeds/sec/thread\n");
         (void)printf("  the %llu survivors of this two-word template cost about %.0f s per thread.\n",
-                     (unsigned long long)counters.survivors, (double)counters.survivors / 250.0);
+                     (unsigned long long)counters.survivors, (double)counters.survivors / 400.0);
         (void)printf("\n  Recursion made enumeration free. It did not make the fitness test free,\n");
         (void)printf("  and nothing can: that is the one constraint that does not factor.\n\n");
     }

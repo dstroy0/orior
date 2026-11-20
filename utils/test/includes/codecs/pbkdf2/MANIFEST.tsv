@@ -1,0 +1,5 @@
+file	sha256	source	what
+rfc4231.txt	72178527ce93500e730bc8eb182b857e583096d652b64ece0879c52ba1df973b	https://www.rfc-editor.org/rfc/rfc4231.txt	RFC 4231, the HMAC-SHA-512 rows of test cases 1 to 7
+hmac_sha512_test.json	b6c90477bdb4a6fc8ee3d1f7b2c0b69a8dfffab34718abaa6cabd71cc2ba1207	https://raw.githubusercontent.com/C2SP/wycheproof/65ca494727a52944c204441c860b039e6786b99b/testvectors_v1/hmac_sha512_test.json	Wycheproof HMAC-SHA512, valid and invalid tags
+pbkdf2_hmacsha512_test.json	6a764a448b7a283478340d58f5dc20455524e8589a935fb0d66fb851e997b1c8	https://raw.githubusercontent.com/C2SP/wycheproof/65ca494727a52944c204441c860b039e6786b99b/testvectors_v1/pbkdf2_hmacsha512_test.json	Wycheproof PBKDF2-HMAC-SHA512
+vectors.json	fa3b937b7cff9c9b8ecd3aa011faeb8d6dd67993174b72326e83f4de8fdb30f8	https://raw.githubusercontent.com/trezor/python-mnemonic/b57a5ad77a981e743f4167ab2f7927a55c1e82a8/vectors.json	Trezor BIP-39 vectors, english, passphrase TREZOR
