@@ -657,8 +657,9 @@ def raise_characters(document, merged, mapping=None, ciphers=None, lifted=None, 
             continue
         lines.append(line)
     flush()
-    # A font whose ToUnicode gives one glyph two characters writes each ə of Stewart's Kwak'wala as ə
-    # and the Cyrillic ә, both in the one box: nəәpʔiden for the nəpʔiden the page prints.
+    # A font whose ToUnicode gives one glyph two characters writes each ə of the Kwak'wala of Stewart
+    # as ə and the Cyrillic ә, both in the one box. It gives nəәpʔiden for the nəpʔiden that the page
+    # prints.
     page = 0
     for at, line in enumerate(out):
         marker = re.match(r"^===== page (\d+) =====$", line)
@@ -703,8 +704,8 @@ def put_back(line, source):
 
 
 def misread_mark(symbol, box, size, last):
-    """The combining mark a character glyph is for, where the font's ToUnicode names a mark as a
-    character, or None. The mark glyphs are 0.12 to 0.18 em wide and under 0.4 em tall, against 0.4 em
+    """The mark that a character glyph carries over it, where the ToUnicode of the font names a mark as
+    a character, or None. The mark glyphs are 0.12 to 0.18 em wide and under 0.4 em tall, against 0.4 em
     wide and more for the characters themselves."""
     left, bottom, right, top = box
     if last is None or symbol not in MARK_OF or (right - left) >= 0.25 * size or \
@@ -718,8 +719,8 @@ def misread_mark(symbol, box, size, last):
 
 
 def accent_lost(symbol, box, size):
-    """A plain vowel whose glyph is as tall as an accented one, 0.69 em for the é of weʔxstés
-    against 0.47 for e: the font's ToUnicode dropped the acute of a precomposed character. The i and í
+    """A plain vowel whose glyph is as tall as an accented one, 0.69 em for the é of weʔxstés against
+    0.47 for e. The ToUnicode of the font dropped the acute of a precomposed character. The i and í
     of the same font are equally tall, and acute_on_i reads the í from the ink over it."""
     left, bottom, right, top = box
     return symbol in "aeouə" and (top - bottom) > 0.6 * size
@@ -749,9 +750,9 @@ def ink_over(image, box, size, page_height, scale):
 def acute_on_i(image, box, size, page_height, scale):
     """Whether an i the text layer gives is an í on the page.
 
-    wlwlmelst and Janzen's font maps í to i and gives both one box, 0.22 em wide. The page prints
-    the acute as a slanted stroke 12 to 16 pixels wide at 600 dpi and 11 pt, with 70 to 100 dark
-    pixels, and the dot of i 8 to 10 wide with 56 to 69. The dot of a bold i is as wide as an acute
+    The font of wlwlmelst and Janzen maps í to i, and gives both one box, 0.22 em wide. The page
+    prints the acute as a slanted stroke 12 to 16 pixels wide at 600 dpi and 11 pt, with 70 to 100
+    dark pixels. It prints the dot of i 8 to 10 wide, with 56 to 69. The dot of a bold i is as wide as an acute
     and holds over 125. Measured over all 1007 i of the paper."""
     ink, wide, tall = ink_over(image, box, size, page_height, scale)
     unit = scale * size
@@ -761,9 +762,9 @@ def acute_on_i(image, box, size, page_height, scale):
 def word_gaps(document):
     """The glyph gaps of a paper in em, inside the text layer's words and at its spaces.
 
-    Two neighboring characters on one baseline with no space between them in the text layer are one
-    word, and the gap between their boxes is a gap inside a word. With a space between them the gap
-    is a word space, or a space the layer inserted inside a word."""
+    Two adjacent characters on one baseline with no space between them in the text layer are one
+    word. The gap between their boxes is then a gap inside a word. With a space between them, the gap
+    is a word space, or a space that the layer put inside a word."""
     inside, spaced = [], []
     for number in range(len(document)):
         textpage = document[number].get_textpage()
@@ -800,14 +801,16 @@ def calibrated_share(document):
 
 
 def gap_lines(document, share=0.18, marks=None, wide=False, fonts=False, held_wide=False):
-    """Each line of every page rebuilt from the characters' boxes, a space where the page leaves one.
+    """Each line of each page, built again from the boxes of the characters, with a space where the page
+    leaves one.
 
-    pdfium's own text retains the spaces its layer holds and no others. Here two neighboring glyphs on
-    one line are two words where the gap between their boxes is wider than share of the font size.
-    A word space measures about 0.22 em on these pages and the gap inside a word 0.12 em at max,
-    at the narrow box of an apostrophe, which finds the space a justified line printed and the
-    layer dropped: withinarm’sreach is within arm’s reach on the page. A glyph that starts left of
-    the one before it on a lower baseline opens a new line.
+    The own text of pdfium keeps the spaces that its layer holds, and no others. Here two adjacent
+    glyphs on one line are two words where the gap between their boxes is wider than share of the font
+    size.
+    A word space measures about 0.22 em on these pages, and the gap inside a word 0.12 em at max, at
+    the narrow box of an apostrophe. That finds the space that a justified line printed and the layer
+    dropped: withinarm’sreach is within arm’s reach on the page.
+    A glyph that starts left of the one before it on a lower baseline opens a new line.
     """
     lines = []
     for number in range(len(document)):
@@ -853,8 +856,8 @@ def gap_lines(document, share=0.18, marks=None, wide=False, fonts=False, held_wi
             mark = misread_mark(symbol, box, size, last) if marks is not None else None
             if mark:
                 marks.append(symbol)
-                # The mark goes on the character its box sits over or under, after any mark already
-                # on it: the stream can set a dot below after the characters that follow its own.
+                # The mark goes on the character that its box sits over or under, after any mark
+                # already on it. The stream can set a dot below after the characters that follow its own.
                 middle = (box[0] + box[2]) / 2
                 under = [at for at, one in enumerate(boxes) if one is not None and one[0] <= middle <= one[2]]
                 at = under[-1] + 1 if under else len(current)
@@ -878,24 +881,24 @@ def gap_lines(document, share=0.18, marks=None, wide=False, fonts=False, held_wi
             # A character given back its acute with no precomposed form, ə́, is two characters, and
             # its base character answers for it.
             base = symbol[0]
-            # A combining mark sits over its character and has no gap of its own.
+            # A mark that combines sits over its character, and has no gap of its own.
             # A digit sits narrower than its advance, and (11) is no two words.
             if last is not None and not unicodedata.combining(base) and \
                     not symbol.isdigit() and not (current and current[-1].isdigit()):
                 # Punctuation closes on the word before it and opens on the word after it.
-                # With fonts, a change of face or size across the gap marks a word space at a
-                # narrower gap: the small capitals of EXCL meet the bold of get.forgotten 0.15 em
-                # on in Davis's (11), where a word's own gaps reach 0.14 em, St'át'imcets.
-                # A character with a mark can come from a second regular face, z̓ in cunám̓-ən, and
-                # only weight, slant and size count, between two characters.
+                # With fonts, a change of face or size across the gap marks a word space at a narrower
+                # gap. The small capitals of EXCL meet the bold of get.forgotten 0.15 em on in (11) of
+                # Davis. There the own gaps of a word reach 0.14 em, St'át'imcets.
+                # A character with a mark can come from a second regular face, z̓ in cunám̓-ən. Only
+                # weight, slant and size count, between two characters.
                 changed = fonts and base.isalpha() and current[-1].isalpha() and (
                     face(font_name(textpage, index)) != face(last_font) or
                     abs(size - last_size) > 0.1 * size)
                 gap_share = 0.08 if changed else share
-                # A typewriter face sets each glyph in the same advance, and a narrow character leaves
-                # a wide gap on either side: recognize, never recogni ze, in the Courier of
-                # Lonsdale and Matsushita's Figure 1. Between two of its glyphs only the layer's
-                # own spaces are.
+                # A typewriter face sets each glyph in the same advance, and a narrow character leaves a
+                # wide gap on either side. An example is recognize, never recogni ze, in the Courier of
+                # Figure 1 of Lonsdale and Matsushita. Between two of its glyphs, only the own spaces
+                # of the layer count.
                 if left - last[2] > gap_share * size and current[-1] != " " and \
                         symbol not in ",.;:!?)]’”" and current[-1] not in "([‘“" and \
                         not (MONOSPACE.search(font_name(textpage, index)) and
@@ -903,10 +906,11 @@ def gap_lines(document, share=0.18, marks=None, wide=False, fonts=False, held_wi
                     # With wide, a column's gap between two cells of a tier is three spaces.
                     current.append("   " if wide and left - last[2] > 0.6 * size else " ")
                     boxes.append(None)
-                # With held_wide, a column's gap is three spaces where the layer holds the space, between
-                # the captions (a) and (b) of Menon's side-by-side figures. open_columns reads
-                # without it: the widened gaps would part the moras µµ of Mellesmoen and
-                # Urbanczyk's (37b) from its row's other cells.
+                # With held_wide, the gap of a column is three spaces where the layer holds the space.
+                # An example is the gap between the captions (a) and (b) of the side-by-side figures of
+                # Menon.
+                # The reader open_columns reads without it. The widened gaps part the moras µµ of (37b)
+                # of Mellesmoen and Urbanczyk from the other cells of its row.
                 elif held_wide and current[-1] == " " and left - last[2] > 0.6 * size:
                     current[-1] = "   "
             current.append(symbol)
@@ -921,10 +925,10 @@ def gap_lines(document, share=0.18, marks=None, wide=False, fonts=False, held_wi
 
 
 def glyph_size(textpage, index):
-    """The size in points glyph index is set at. pdfium gives the text state's font size, and a
-    paper that sets its type at size 1 and scales it by the text matrix, Mellesmoen's ICSNL 57
-    paper at 1 by 10.08, reads 1 there; its size is then that times the matrix's scale. A size
-    of 4 or more is taken as given, the size every other paper here was read at."""
+    """The size in points of glyph index. pdfium gives the font size of the text state. A paper can set
+    its type at size 1 and scale it by the text matrix, such as the ICSNL 57 paper of Mellesmoen at 1
+    by 10.08. That reads 1 there, and its size is then that times the scale of the matrix.
+    The code takes a size of 4 or more as given. That is the size of each other paper here."""
     size = pdfium_c.FPDFText_GetFontSize(textpage.raw, index) or 10
     if size >= 4:
         return size
@@ -935,33 +939,37 @@ def glyph_size(textpage, index):
 
 
 def font_name(textpage, index):
-    """The name of the font glyph index is set in, NimbusRomNo9L-ReguItal or the like."""
+    """The name of the font of glyph index, NimbusRomNo9L-ReguItal or the like."""
     buffer = ctypes.create_string_buffer(128)
     flags = ctypes.c_int()
     pdfium_c.FPDFText_GetFontInfo(textpage.raw, index, buffer, 128, ctypes.byref(flags))
     return buffer.value.decode("latin-1")
 
 
-# A font whose ToUnicode puts its characters at a fixed offset from their own codes: the name after the
-# subset prefix, then the lowest and highest code it uses and the offset to take off. McClay and
-# Birdstone set their small-capital gloss labels in Brill-Roman at U+0614 to U+062D, Arabic characters
-# in the text layer, IND as U+061C U+0621 U+0617, and pdfium's bidi order scrambles them there.
+# A font whose ToUnicode puts its characters at a fixed offset from their own codes. Each entry holds
+# the name after the subset prefix, then the lowest and highest code that it uses, and the offset to
+# take off.
+# McClay and Birdstone set their small-capital gloss labels in Brill-Roman at U+0614 to U+062D. Those
+# are Arabic characters in the text layer, IND as U+061C U+0621 U+0617. The bidi order of pdfium
+# scrambles them there.
 FONT_CIPHERS = {"Brill-Roman": (0x614, 0x62D, 0x5D3)}
-# A paper whose font puts every code it sets at an offset, by the font's name: each range, lowest
-# and highest code, with the offset to take off.
+# A paper whose font puts each code that it sets at an offset, by the name of the font. Each range has
+# a lowest and highest code, with the offset to take off.
 PAPER_CIPHERS = tables.gather("PAPER_CIPHERS")
-# A paper whose simple fonts carry no map to Unicode, given one before it is read: by the font's
-# name without its subset tag, each code and the text its glyph draws.
+# A paper whose simple fonts carry no map to Unicode, with one given before the read. The entry goes
+# by the name of the font without its subset tag, with each code and the text that its glyph draws.
 PAPER_TOUNICODE = tables.gather("PAPER_TOUNICODE")
 # Papers whose PAPER_TOUNICODE maps add to the faces' own ToUnicode.
 PAPER_TOUNICODE_ADDED = tables.members("PAPER_TOUNICODE_ADDED")
-# A paper that draws characters as images, by the first ten hex digits of the SHA-1 of each bitmap's
-# pixels and size: the characters it is for, ' for the comma above. Read in rows mode only.
+# A paper that draws characters as images. The key is the first ten hex digits of the SHA-1 of the
+# pixels and size of each bitmap. The value is the characters that it is for, ' for the comma above.
+# Read in rows mode only.
 PAPER_IMAGES = tables.gather("PAPER_IMAGES")
 # Papers that draw the glottal mark as an apostrophe over its character, q and y of stsq̓éy̓ in Ignace,
-# Ignace and Lyon: the stream sets it after the line, its middle over the character and its bottom
-# above the character's top, and the rows would read it into the line above, transfor’mers. Each is
-# set on its character as the comma above. Read in rows mode only.
+# Ignace and Lyon. The stream sets it after the line, with its middle over the character and its
+# bottom above the top of the character.
+# The rows then read it into the line above, transfor’mers. The code sets each on its character as
+# the comma above. Read in rows mode only.
 PAPER_OVERSET = tables.members("PAPER_OVERSET")
 # Papers whose word-space share the calibration sets too low, read in rows mode. The calibration
 # counts only gaps between two characters.
@@ -970,9 +978,9 @@ PAPER_SHARE = tables.gather("PAPER_SHARE")
 PAPER_TRACKED = tables.members("PAPER_TRACKED")
 # Faces whose word spaces the stream alone sets, by paper, read in rows mode.
 PAPER_STREAM_FACES = tables.gather("PAPER_STREAM_FACES")
-# Papers that underline a character with a rule drawn under it, the k̲, x̲ and g̲ of the U'mista
-# orthography in Black's k̲ina̲m=ox̲=da ga̲la mix̲a, where the font holds no underlined character. Each
-# rule a character wide is set on its character as the macron below. Read in rows mode only.
+# Papers that underline a character with a rule drawn under it. Examples are the k̲, x̲ and g̲ of the
+# U'mista orthography in k̲ina̲m=ox̲=da ga̲la mix̲a of Black. There the font holds no underlined character. The
+# code sets each rule a character wide on its character as the macron below. Read in rows mode only.
 PAPER_UNDERLINED = tables.members("PAPER_UNDERLINED")
 UNDER_RULE = "̱"
 # The characters the U'mista orthography underlines, a̲ for schwa, g̲, k̲ and x̲, and the schwa Black's
@@ -981,14 +989,18 @@ UNDERLINED_CHARACTERS = set("agkxə")
 
 
 def under_rules(page, glyphs):
-    """Set the macron below on each glyph of glyphs a short rule is drawn under: a filled path
-    under 0.15 em high whose level is within 0.3 em of the characters' bottoms and below their
-    middles, over one to four characters side by side, the characters whose middles it spans. Its
-    width is 0.6 to 1.6 times theirs and 0.1 em more: one rule underlines g̲a̲ of Black's
-    g̲a̲ls=ox̲=da, and the rule under 'a̲m in (14a) runs under its apostrophe too. A g's
-    descender reaches under the rule, which is on the row's baseline. The corners and stubs
-    of the table (32) span no character's width and are passed over, and the underline of a caption
-    runs the length of its words and is left alone. Returns the count set."""
+    """Set the macron below on each glyph of glyphs with a short rule drawn under it. The rule is a
+    filled path under 0.15 em high. Its level is within 0.3 em of the bottoms of the characters, and
+    below their middles.
+    It lies over one to four characters side by side, the characters whose middles it spans. Its width
+    is 0.6 to 1.6 times theirs, and 0.1 em more.
+
+    One rule underlines g̲a̲ of g̲a̲ls=ox̲=da of Black. The rule under 'a̲m in (14a) runs under its
+    apostrophe too. The descender of a g reaches under the rule, which is on the baseline of the row.
+
+    The corners and stubs of the table (32) span the width of no character, and the code skips them.
+    The underline of a caption runs the length of its words, and the code leaves it alone. Returns
+    the count set."""
     count = 0
     for one in page.get_objects(filter=[pdfium_c.FPDF_PAGEOBJ_PATH], max_depth=3):
         left, bottom, right, top = one.get_bounds()
@@ -998,8 +1010,9 @@ def under_rules(page, glyphs):
                  and abs(level - glyph[1][1]) < 0.3 * glyph[2] and level < (glyph[1][1] + glyph[1][3]) / 2]
         if not 1 <= len(under) <= 4:
             continue
-        # A rule under two characters or more underlines a character of the orthography each, or else a
-        # word for emphasis, #-Noun and gukʷ in the schema of Black's (7), which is left alone.
+        # A rule under two characters or more underlines a character of the orthography each. Else it
+        # underlines a word for emphasis, #-Noun and gukʷ in the schema of (7) of Black. The code leaves
+        # that alone.
         if len(under) > 1 and not all(glyph[0][:1] in UNDERLINED_CHARACTERS for glyph in under):
             continue
         span = max(glyph[1][2] for glyph in under) - min(glyph[1][0] for glyph in under)
@@ -1018,35 +1031,37 @@ PAPER_STRUCK = tables.members("PAPER_STRUCK")
 # -take_back and bring_pl_cisl of Mattina's 2008 Tables 12 and 13. Read in rows mode only.
 PAPER_UNDERSCORED = tables.members("PAPER_UNDERSCORED")
 STRIKE_RULE = "̶"
-# Papers that set a spacing acute alone for a stressed vowel left unwritten, Rude's 2012 Nez Perce
-# underlying forms /t´yam/ and /p´qʷn/. Read in rows mode only.
+# Papers that set a spacing acute alone for a stressed vowel left unwritten. Examples are the 2012 Nez
+# Perce base forms /t´yam/ and /p´qʷn/ of Rude. Read in rows mode only.
 PAPER_LONE_ACUTE = tables.members("PAPER_LONE_ACUTE")
 # Papers that draw a glyph back over the stream space set before it, Lyon's 2010 iʔ. Read in rows
 # mode only.
 PAPER_DRAWN_BACK = tables.members("PAPER_DRAWN_BACK")
-# Papers that raise a character after an apostrophe set on the character before it, Smith's 2011 ejective
-# [k’ʷ] and [q’ʷ]: the apostrophe is passed over and the ʷ is measured against the k. Read in rows
-# mode only.
+# Papers that raise a character after an apostrophe set on the character before it. Examples are the
+# 2011 ejective [k’ʷ] and [q’ʷ] of Smith. The code skips the apostrophe, and measures the ʷ against
+# the k. Read in rows mode only.
 PAPER_MARK_BASE = tables.members("PAPER_MARK_BASE")
 MARK_BASES = "’'ʼ"
-# Papers whose stream sets a mark ahead of the character it is over: the comma above of Lyon's
-# 2011 k̓ʷúl̓-nt-n, which TIPA draws before the k and before the l. A mark with no character under it
+# Papers whose stream sets a mark ahead of the character that it is over. An example is the comma
+# above of the 2011 k̓ʷúl̓-nt-n of Lyon, which TIPA draws before the k and before the l. A mark with no character under it
 # yet waits for the page's glyphs, and the character under its middle takes it. Read in rows mode only.
 PAPER_MARKS_AHEAD = tables.members("PAPER_MARKS_AHEAD")
 # Papers that set an index as a lowered digit, Bill₁ and ∅₁ in Cable's co-reference examples, which
 # the glyph rows read as a plain one. Read in rows mode only.
 PAPER_SUBSCRIPTED = tables.members("PAPER_SUBSCRIPTED")
-# Papers whose tables are ruled grids with cells that wrap, Nater's 2013 lexicon: the glyph rows
-# read a cell of two lines into the lines of the cells beside it, *ƛ’əp ‘deep (water)’ over
-# (Ku02:143) as (*Kƛu’ǝ0p2‘:d14ee3p) (water)’. Each grid is read cell by cell instead, a line to a
-# table row. Read in rows mode only.
+# Papers whose tables are grids of rules, with cells that wrap, such as the 2013 lexicon of Nater. The
+# glyph rows read a cell of two lines into the lines of the cells beside it. They read *ƛ’əp ‘deep
+# (water)’ over (Ku02:143) as (*Kƛu’ǝ0p2‘:d14ee3p) (water)’.
+# The code reads each grid cell by cell, a line to a table row. Read in rows mode only.
 PAPER_RULED = tables.members("PAPER_RULED")
-# A horizontal rule is a path under RULE points high and wider than it is high, a vertical rule
-# the other way. A dashed rule is drawn a cell high at a time, its bounds RULE_DASHED points wide
-# with the stroke's width: the dashed column rules of Mellesmoen's 2017 tableaux, 2pt wide and 18pt
-# high, and it counts where it is RULE_LONG times as long as it is wide. Two rules within RULE_JOIN
-# points of each other are one edge: Word draws a cell's corner as a small square of its own beside
-# the rule.
+# A horizontal rule is a path under RULE points high, and wider than it is high. A vertical rule is
+# the other way.
+#
+# The draw of a dashed rule goes a cell high at a time, with its bounds RULE_DASHED points wide with
+# the width of the stroke. Examples are the dashed column rules of the 2017 tableaux of Mellesmoen,
+# 2pt wide and 18pt high. It counts where it is RULE_LONG times as long as it is wide.
+# Two rules within RULE_JOIN points of each other are one edge. Word draws the corner of a cell as a
+# small square of its own beside the rule.
 RULE = 1.2
 RULE_DASHED = 2.5
 RULE_LONG = 4
