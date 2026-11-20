@@ -2,105 +2,138 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // Catalog: EXP-x-028
 //
-// The automata of Turing's method over one cell of the Riemann-Siegel formula, as programs of the record machine on
-// the device, one job on the device's tessera daemon. The machine one level up, exact_zeta_turing.py, runs a cell
-// at a time and joins the cells.
+// The automata of the method of Turing over one cell of the Riemann-Siegel formula. They are programs of the record
+// machine on the device, one job on the tessera daemon of the device. The machine one level up, exact_zeta_turing.py,
+// runs a cell at a time and joins the cells.
 //
 //   Usage:  exact_zeta_turing <input> <output>
 //           exact_zeta_turing serve
 //
-// With `serve`, the program reads two lines a run from its input, the run's input path and its output path, and
-// answers each with the line "done" and the run's code once the output is written. Every program is imprinted, positioned
-// out and loaded onto the device once for the process, under its steps, fields, members and outputs, and each later
-// stage whose program matches runs on the one loaded.
+// With `serve`, the program reads two lines a run from its input: the input path of the run, and its output path. It
+// answers each with the line "done" and the code of the run, once it writes the output.
+// The program imprints, positions and loads each program onto the device once for the process. It keys each under its
+// steps, fields, members and outputs. Each later stage whose program matches runs on the loaded one.
 //
-// Point j of cell nu is at t = 2 pi s, s = x^2 = S / 2^p, S = nu^2 2^p + j (2 nu + 1), for j below P = 2^p: the
-// lattice is even in t, and in theta to within 1 / nu across the cell. Every value is an integer at the scale 2^62,
-// and a step that takes a product back to that scale divides by 2^31 twice, toward zero, an error below one unit;
-// the bound on every value's error is the machine's to enforce, from the program's own steps.
+// Point j of cell nu is at `t = 2 pi s`, with `s = x^2 = S / 2^p` and `S = nu^2 2^p + j (2 nu + 1)`, for j below
+// `P = 2^p`. The lattice is even in t, and in theta to within 1 / nu across the cell.
+// Each value is an integer at the scale 2^62. A step that takes a product back to that scale divides by 2^31 twice,
+// toward zero, with an error below one unit. The machine enforces the bound on the error of each value, from the own
+// steps of the program.
 //
-// The logarithm folds: ln(V / 2^b) = f ln 2 + 2 artanh((V - 2^(b + f)) / (V + 2^(b + f))), where 2^f is the product
-// over i of 1 + [V > 2^(b + i)]; the artanh's argument lies in [0, 1/3]. w^(-1/2) is Newton's rule
-// y (3 - w y^2) / 2 from 2^(-g - 1), where 2^g is the product over i of 1 + [w > 4^i]; it starts within a factor 2
-// of the root and below it. Each lane works out its own.
+// The logarithm folds: `ln(V / 2^b) = f ln 2 + 2 artanh((V - 2^(b + f)) / (V + 2^(b + f)))`. 2^f is the product over i
+// of `1 + [V > 2^(b + i)]`. The argument of artanh lies in [0, 1/3].
+// w^(-1/2) is the rule of Newton, `y (3 - w y^2) / 2`, from 2^(-g - 1), where 2^g is the product over i of
+// `1 + [w > 4^i]`. It starts within a factor 2 of the root and below it. Each lane works out its own.
 //
-// The pole stage, one lane a k <= nu: ln k and k^(-1/2), and for the multiple evaluation each pole's place, weight
-// and charge.
+// The pole stage, one lane a k <= nu: ln k and k^(-1/2). For the multiple evaluation, it also gives the place, weight
+// and charge of each pole.
 //
-// The point stage, one lane a point: theta / pi = s ln s - s - 1/8 + 1 / (96 pi^2 s) + 7 / (46080 pi^4 s^3) +
-// 31 / (2580480 pi^6 s^5); x = s s^(-1/2); each C_n(z), z = 1 - 2 (x - nu), by Horner's rule over its Taylor
-// coefficients; x^(-1/2); and R = (-1)^(nu - 1) x^(-1/2) times the sum over n below the curve count of C_n(z) x^(-n),
-// by Horner's rule in 1 / x.
+// The point stage, one lane a point:
+//   - `theta / pi = s ln s - s - 1/8 + 1 / (96 pi^2 s) + 7 / (46080 pi^4 s^3) + 31 / (2580480 pi^6 s^5)`.
+//   - `x = s s^(-1/2)`.
+//   - each C_n(z), with `z = 1 - 2 (x - nu)`, by the rule of Horner over its Taylor coefficients.
+//   - x^(-1/2).
+//   - `R = (-1)^(nu - 1) x^(-1/2)` times the sum over n below the curve count of `C_n(z) x^(-n)`, by the rule of Horner
+//     in 1 / x.
 //
-// The pair stage, one lane a pair (j, k), lane (j - start) nu + k - 1, reads its pole's record and its point's record
-// through the index: the phase over pi, theta / pi - 2 s ln k, taken modulo 2 into [-1, 1) by a wrap, which leaves
-// cos(pi Q) as it is; cos(pi s) by Horner's rule in s^2 over (-1)^k pi^(2k) / (2k)!; and the term k^(-1/2) cos(pi s).
-// It runs in pieces of points from `start` up, and the sum over each point's nu lanes is the main sum's half.
+// The pair stage, one lane a pair (j, k), lane `(j - start) nu + k - 1`. It reads the record of its pole and the record
+// of its point through the index:
+//   - the phase over pi, `theta / pi - 2 s ln k`, taken modulo 2 into [-1, 1) by a wrap, which leaves `cos(pi Q)` as
+//     it is.
+//   - `cos(pi s)` by the rule of Horner in s^2 over `(-1)^k pi^(2k) / (2k)!`.
+//   - the term `k^(-1/2) cos(pi s)`.
+//
+// It runs in pieces of points from `start` up. The sum over the nu lanes of each point is the half of the main sum.
 //
 // The verdict stage, one lane a point, reads the sums, the point records and the shared record as its three members:
-// Z = 2 sum + R, its sign where |Z| exceeds the bound, else 0, theta / pi less and more its
-// bound, and each times the step of S, 2 nu + 1, the same at every point and from the cell's last point to the next
-// cell's point 0; and w = exp(i theta) F, its real part the main sum's half, its imaginary part the multiple
-// evaluation's and 0 by pairs.
+//   - `Z = 2 sum + R`, and its sign where |Z| exceeds the bound, else 0.
+//   - theta / pi less and more its bound, and each times the step of S, 2 nu + 1. That step is the same at each point,
+//     and from the last point of the cell to point 0 of the next cell.
+//   - `w = exp(i theta) F`. Its real part is the half of the main sum. Its imaginary part is that of the multiple
+//     evaluation, and 0 by pairs.
 //
-// The count stage, one lane a point q, reads the verdict records at q, q - 1 and q - 2 as its three members: a zero
-// ends at q where q's sign is certified and the last certified sign before it, one or two points back, is the other;
-// it gives that, S at q and at the zero's other end, and a mark where q follows two uncertified points.
+// The count stage, one lane a point q, reads the verdict records at q, q - 1 and q - 2 as its three members. A zero
+// ends at q where the sign of q has a certificate. The last certified sign before it, one or two points back, must be
+// the other sign.
+// It gives that, S at q and at the other end of the zero, and a mark where q follows two uncertified points.
 //
-// Over the first certified point F of the cell, the device sums: the less-steps over [0, F) and [F, P), the
-// more-steps over [1, F] and (F, P), the zeros and their S at each end over [0, F] and (F, P), and the marks over
-// (F, P).
+// Over the first certified point F of the cell, the device sums:
+//   - the less-steps over [0, F) and [F, P), and the more-steps over [1, F] and (F, P).
+//   - the zeros and their S at each end, over [0, F] and (F, P).
+//   - the marks over (F, P).
 //
-// The main sum's half comes from the pair stage, or from the multiple evaluation below, or from both, the method
-// word 0, 1 or 2, or from the pair stage at listed points, 4; with both, the verdict is the multiple evaluation's and
-// the max the two Z differ by is written.
+// The half of the main sum comes from the pair stage, or from the multiple evaluation below, or from both. That is the
+// method word 0, 1 or 2. It can also come from the pair stage at listed points, 4. With both, the verdict is that of
+// the multiple evaluation, and the code writes the max difference of the two Z.
 //
-// Method 3 is Euler-Maclaurin, which is valid at every t: zeta = sum over n < N of n^(-s) + N^(-s) C, the pole stage
-// takes k <= N, the pair stage the N - 1 terms of each point, and the Euler-Maclaurin stage C and the term
-// Re(exp(i theta) N^(-s) C); the verdict takes Z = sum + that term, with no doubling, and its bound is the machine's.
-// Method 4 is the listed points: the pairs at the points j of the lattice of 2^p the input lists, as many as its
-// points word, in place of every point of the cell. The point stage reads j from the list and gives S last, the pair
-// and verdict stages read S from it, and the count runs over the points in the order listed. It certifies the signs
-// at those points alone, for the steps of a coarser run that can hide a pair.
+// Method 3 is Euler-Maclaurin, which is valid at each t: `zeta = sum over n < N of n^(-s) + N^(-s) C`.
+//   - the pole stage takes k <= N, and the pair stage the N - 1 terms of each point.
+//   - the Euler-Maclaurin stage gives C, and the term `Re(exp(i theta) N^(-s) C)`.
+//   - the verdict takes `Z = sum + that term`, with no double, and the machine gives its bound.
 //
-// The multiple evaluation runs each of its programs many times a cell: the host checks a stage's first run over
-// `checked` lanes and each later run over its first lane. A check copies back only the records its lanes read and
-// runs in parts of 8 lanes or more on host threads beside the device's next runs, at max half the cores at once; every
-// check is settled before the output is written.
+// Method 4 is the listed points: the pairs at the points j of the lattice of 2^p that the input lists. There are as
+// many as its points word. They take the place of each point of the cell.
+// The point stage reads j from the list, and gives S last. The pair and verdict stages read S from it, and the count
+// runs over the points in the order of the list. It certifies the signs at those points alone, for the steps of a
+// coarser run that can hide a pair.
 //
-// The input, little-endian: 64-bit words points (2^p), checked, nu, p, L, K, J, Newton steps, piece, method, the
-// expansions' order, beta, E, R, for method 3 Euler-Maclaurin's N and M, else 0 and 0, and 1 where every point is
-// to be listed, 2 where every point is to be listed with Z' and each step's flag, by the multiple evaluation or at
-// the listed points, 3 where every point is to be listed with theta / pi less and more its bound, else 0, and the
-// curve count C, then the constants, each a 64-bit word count w, w 32-bit limbs of its magnitude least
-// significant first, and a 64-bit sign word: ln 2, the J coefficients of each of C_0 to C_(C - 1) in turn, the L
-// constants 1 / (2k + 1) of artanh, the K constants of cos, 1 / (96 pi^2), 7 / (46080 pi^4), 31 / (2580480 pi^6),
-// the bound on Z, the bound on theta / pi, pi, the E constants 1 / (n + 1)! of
-// E1, the R constants of S, for method 3 the M - 1 ratios r_k for k from 2 to M, with the listing word 2 h / 3 and
-// the margin, every one at 2^62, and for method 4 the listed points j, one 64-bit word each.
+// The multiple evaluation runs each of its programs many times a cell. The host checks the first run of a stage over
+// `checked` lanes, and each later run over its first lane.
+// A check copies back only the records that its lanes read. It runs in parts of 8 lanes or more on host threads,
+// beside the next runs of the device, at max half the cores at once. Each check settles before the code writes the
+// output.
 //
-// The output: lines "key value" and "key value value ...", values signed hexadecimal: the cell, its first and last
-// certified points and point 0, each with its sign, S, and theta / pi less and more its bound, the sums, with the
-// listing word 2 the steps past F that are clean and those flagged, Z at two points for the positive control, the
-// host's checks of every stage and sum, each 1 where they equal the device's word for word, the steps of each
-// program, with both methods the max the two Z differ by and the point it falls at, and where the input requests, each
-// point's sign, S, Z and w, with the twist the shift and each point's exp(i theta) F' / 2^shift, and with the
-// listing word 2 the flag of the step that ends at the point, and with the listing word 3 theta / pi less and more
-// its bound.
+// The input, little-endian 64-bit words:
+//   - points (2^p), checked, nu, p, L, K, J, Newton steps, piece, method, the order of the expansions, beta, E and R.
+//   - for method 3, N and M of Euler-Maclaurin, else 0 and 0.
+//   - the listing word:
+//       - 1 to list each point.
+//       - 2 to list each point with Z' and the flag of each step, by the multiple evaluation or at the listed points.
+//       - 3 to list each point with theta / pi less and more its bound.
+//       - else 0.
+//   - the curve count C.
+//   - the constants. Each is a 64-bit word count w, w 32-bit limbs of its magnitude least significant first, and a
+//     64-bit sign word.
 //
-// The twist: the pole stage again with a and every charge times -i ln k / 2^shift, 2^shift at least ln nu, and the
-// multiple evaluation over those poles gives F' / 2^shift at every point, F' = dF/dt. The poles and the weighted poles
-// are at the same places and run as two sets of one evaluation, one run a stage over both, the near field's one a
-// set: its lanes find their points from their own numbers. The twist stage turns it by
-// exp(i theta) beside w; (exp(i theta) F') / w = F'/F, the twist (arg F)' its imaginary part and the swell (ln |F|)'
-// its real part. It places no point and certifies no sign.
+// The constants, each at 2^62, in order:
+//   - ln 2, and the J coefficients of each of C_0 to C_(C - 1) in turn.
+//   - the L constants 1 / (2k + 1) of artanh, and the K constants of cos.
+//   - 1 / (96 pi^2), 7 / (46080 pi^4) and 31 / (2580480 pi^6).
+//   - the bound on Z, the bound on theta / pi, and pi.
+//   - the E constants 1 / (n + 1)! of E1, and the R constants of S.
+//   - for method 3, the M - 1 ratios r_k for k from 2 to M.
+//   - with the listing word 2, h / 3 and the margin.
+//   - for method 4, the listed points j, one 64-bit word each.
 //
-// The slope stage gives Z' at each point, the main sum's slope: from the twist, or at the listed points from the
-// pairs' sums of k^(-1/2) sin(phi) and k^(-1/2) ln k sin(phi), with theta' = ln s / 2. The margin stage, one lane a
-// step, bounds the cubic through Z and Z' at the step's ends in the hull of its four Bezier points, and calls the step
-// clean where all four carry the ends' certified sign past the margin, the machine's bound on the cubic's distance
-// from Z over the step. A clean step contains no zero. A step is flagged where it is not clean and its ends are not
-// certified signs that change.
+// The output is lines "key value" and "key value value ...", with values in signed hexadecimal:
+//   - the cell, its first and last certified points, and point 0. Each has its sign, S, and theta / pi less and more
+//     its bound.
+//   - the sums. With the listing word 2, the steps past F that are clean, and those flagged.
+//   - Z at two points for the positive control.
+//   - the checks of the host of each stage and sum, each 1 where they equal the word of the device word for word.
+//   - the steps of each program.
+//   - with both methods, the max difference of the two Z, and the point where it falls.
+//   - where the input asks, the sign, S, Z and w of each point. With the twist, the shift and the
+//     `exp(i theta) F' / 2^shift` of each point. With the listing word 2, the flag of the step that ends at the point.
+//     With the listing word 3, theta / pi less and more its bound.
+//
+// The twist: the pole stage again, with a and each charge times `-i ln k / 2^shift`, and 2^shift at least ln nu. The
+// multiple evaluation over those poles gives `F' / 2^shift` at each point, with `F' = dF/dt`.
+//
+// The poles and the weighted poles are at the same places, and run as two sets of one evaluation, one run a stage over
+// both. The near field has one a set, and its lanes find their points from their own numbers.
+// The twist stage turns it by exp(i theta) beside w. `(exp(i theta) F') / w = F'/F`: the twist `(arg F)'` is its
+// imaginary part, and the swell `(ln |F|)'` its real part. It places no point and certifies no sign.
+//
+// The slope stage gives Z' at each point, the slope of the main sum. That comes from the twist, or at the listed
+// points from the sums of the pairs of `k^(-1/2) sin(phi)` and `k^(-1/2) ln k sin(phi)`, with `theta' = ln s / 2`.
+//
+// The margin stage, one lane a step, bounds the cubic through Z and Z' at the ends of the step. The bound is the hull
+// of its four Bezier points.
+// It calls the step clean where all four carry the certified sign of the ends past the margin. The margin is the bound
+// of the machine on the distance of the cubic from Z over the step.
+// A clean step holds no zero. The code flags a step where it is not clean, and its ends do not carry certified signs
+// that change.
 
 #include "../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../src/cu/engine/analysis/key_schedule/key_schedule.h"
@@ -126,11 +159,12 @@
 #include <thread>
 #include <vector>
 
-// the seconds the run spends imprinting, arranging and loading programs, and in the host's checks with the copies
-// back they read, each summed over every stage
+// the seconds that the run spends on the imprint, layout and load of programs. Then the seconds on the checks of the
+// host with the copies back that they read. Each is a sum over each stage
 static double turing_load_seconds = 0.0;
 static double turing_check_seconds = 0.0;
-// of the loading, the seconds keymath's imprint takes and the scheduler's layout, the rest the device's load
+// of the load, the seconds of the imprint of keymath and of the layout of the scheduler, and the rest the load of the
+// device
 static double turing_imprint_seconds = 0.0;
 static double turing_layout_seconds = 0.0;
 
@@ -139,22 +173,24 @@ static double turing_now(void)
     return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
 }
 
-// the scale every value is stored at, 2^62, and the half of it one division takes
+// the scale of each stored value, 2^62, and the half of it that one division takes
 #define TURING_SCALE_BITS 62u
 #define TURING_HALF_BITS 31u
-// the widths below are set from the input before any program is built, each at least its floor and as wide as the
-// input requests, and no input is turned away for its size: a width reached is the engine's signal to fold the
-// arithmetic or schedule the run again, at the layout and the device's allocation, and never here. nu and every k and x
-// below 2^turing_nu_bits, s below 2^(2 turing_nu_bits), and the lanes of a pair run below 2^turing_lane_bits
+// the code sets the widths below from the input before it builds any program. Each is at least its floor, and as
+// wide as the input asks. The code turns no input away for its size.
+// A width reached is the signal for the engine to fold the arithmetic, or schedule the run again at the layout and the
+// allocation of the device, and never here. The values nu and each k and x are below 2^turing_nu_bits, and s below
+// 2^(2 turing_nu_bits). The lanes of a pair run below 2^turing_lane_bits
 #define TURING_NU_FLOOR 16u
 #define TURING_LANE_FLOOR 24u
 static unsigned int turing_nu_bits = TURING_NU_FLOOR;
 static unsigned int turing_lane_bits = TURING_LANE_FLOOR;
-// a quotient retains its dividend's width at imprint, and the wrap to turing_scaled_bits gives it the width its value
-// has: every value taken back is below 2^(turing_scaled_bits - 1) in size, by the bounds exact_zeta_turing.py verifies,
-// and a value inside the wrap's range passes it unchanged. The width is set from the input before any program is built:
-// 80 bits, or wider where the multiple evaluation's 1 / D at its top level l = p - beta requires,
-// |1 / D| <= 2^l / (6 pi) < 2^(l - 4), stored at the scale in 63 + l - 4 bits, which 60 + l covers
+// a quotient keeps the width of its dividend at imprint. The wrap to turing_scaled_bits gives it the width of its
+// value. Each value taken back is below 2^(turing_scaled_bits - 1) in size, by the bounds that exact_zeta_turing.py
+// verifies. A value inside the range of the wrap passes it unchanged.
+// The code sets the width from the input before it builds any program: 80 bits, or wider where the 1 / D of the
+// multiple evaluation needs it. That is at its top level `l = p - beta`, with `|1 / D| <= 2^l / (6 pi) < 2^(l - 4)`,
+// stored at the scale in 63 + l - 4 bits, which 60 + l covers
 #define TURING_SCALED_FLOOR 80u
 static unsigned int turing_scaled_bits = TURING_SCALED_FLOOR;
 // every coefficient of an expansion, and every value the transform carries, wrapped to one width, which positions every
@@ -165,8 +201,8 @@ static unsigned int turing_scaled_bits = TURING_SCALED_FLOOR;
 // the width of S, nu^2 2^p + j (2 nu + 1), below (nu + 1)^2 2^p, with two bits more
 #define TURING_S_FLOOR 58u
 static unsigned int turing_s_bits = TURING_S_FLOOR;
-// the lanes of an indexed run of the multiple evaluation: below 8 P, and below the leaves' count and the near
-// field's, each at max ((2 nu + 1) turing_nu_bits + 9 W) nu
+// the lanes of an indexed run of the multiple evaluation: below 8 P. They are also below the count of the leaves and
+// of the near field, each at max `((2 nu + 1) turing_nu_bits + 9 W) nu`
 #define TURING_OS_LANE_FLOOR 26u
 static unsigned int turing_os_lane_bits = TURING_OS_LANE_FLOOR;
 
@@ -181,7 +217,7 @@ static unsigned int turing_bits_of(unsigned long long v)
     }
     return bits;
 }
-// an array a stage stores live across its steps, each value below 2 in size, wrapped to two limbs a register: the
+// an array that a stage keeps live across its steps, each value below 2 in size, wrapped to two limbs a register. The
 // register file stores the array beside the steps that read it
 #define TURING_LIVE_BITS 64u
 
@@ -210,19 +246,20 @@ typedef struct
     std::vector<unsigned int> put_field;
     std::vector<std::vector<unsigned int> > put_limbs;
     std::vector<long long> put_sign;
-    // a shared field TURING_EXP_BITS wide containing 0, added to each expansion value before its wrap: a field is as
-    // wide as it is positioned, which gives every expansion's outputs one width whatever bound the imprint finds on the value
+    // a shared field TURING_EXP_BITS wide that holds 0, added to each expansion value before its wrap. A field is as
+    // wide as its place. That gives the outputs of each expansion one width, whatever bound the imprint finds
     int anchored;
     unsigned int anchor_field;
     unsigned int anchor_member;
-    // the sweeps the stage has run: the first is checked over `checked` lanes, each later one over its first lane
+    // the sweeps of the stage so far. The first has its check over `checked` lanes, and each later one over its first
+    // lane
     unsigned int swept;
     // 1 where its key, layout and device record are the process's, cached for every stage whose program matches
     int cached;
 } TuringStage;
 
-// a program imprinted, arranged and loaded once for the process, under its steps, fields, members and outputs, which
-// are all the imprint and the layout read
+// a program imprinted, arranged and loaded once for the process, under its steps, fields, members and outputs. Those
+// are all that the imprint and the layout read
 typedef struct
 {
     EngineRecordKey key;
@@ -356,7 +393,7 @@ static unsigned int turing_wrap(TuringProgram *program, unsigned int value, unsi
     return turing_op(program, ENGINE_RECORD_WRAP, value, bits);
 }
 
-// a shared field containing a constant, filled when the stage is sealed
+// a shared field that holds a constant, filled when the stage seals
 static unsigned int turing_const_field(TuringStage *stage, const TuringConstant &constant)
 {
     const unsigned int field = turing_field(&stage->program, constant.bits);
