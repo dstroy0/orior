@@ -16,11 +16,15 @@ typedef struct GuiFrameHolesCfg GuiFrameHolesCfg;
 typedef struct GuiFrameDisplayedCfg GuiFrameDisplayedCfg;
 typedef struct GuiFramePixelsCfg GuiFramePixelsCfg;
 
-// the parts' sizes in the page's pixels: the bar's height, --bar-height; the status bar's; the side_menu's width,
-// --side_menu-width; the frame's gap at the right, --frame-right; the side pane's width, --side; the tabs row's height,
-// --tabs-tall; the minimap's width, .ed-mini; the work's padding, top, right, bottom and left; the work's corner
-// radius; a window control's width, the gap between the controls and how far their row ends from the bar's right end,
-// the frame's gap, so the close control's right edge is on the work's
+// the sizes of the parts in the pixels of the page:
+//   - the height of the bar, --bar-height, and the height of the status bar.
+//   - the width of the side_menu, --side_menu-width, and the gap of the frame at the right, --frame-right.
+//   - the width of the side pane, --side, and the height of the tabs row, --tabs-tall.
+//   - the width of the minimap, .ed-mini.
+//   - the padding of the work, top, right, bottom and left, and the radius of its corners.
+//   - the width of a window control, and the gap between the controls.
+//   - how far their row ends from the right end of the bar. That is the gap of the frame, and the right edge of the
+//     close control is then on the right edge of the work.
 #define GUI_TOP_MENU_HEIGHT 42
 #define GUI_STATUS_HEIGHT 22
 #define GUI_SIDE_MENU_WIDTH 47
@@ -45,17 +49,19 @@ typedef struct GuiFramePixelsCfg GuiFramePixelsCfg;
 #define GUI_CONTROLS_BEVEL 8
 #define GUI_HOLE_SNAP 2
 
-// the bar's tools left of the controls, in the page's pixels: a button's side, the gap between buttons, how many there
-// are, and the gap between them and the controls, the bar's 0.7rem
+// the tools of the bar, left of the controls, in the pixels of the page. They are the side of a button, the gap between
+// buttons and how many buttons there are. Last is the gap between them and the controls, the 0.7rem of the bar
 #define GUI_TOP_MENU_TOOL 30
 #define GUI_TOP_MENU_TOOL_GAP 2
 #define GUI_TOP_MENU_TOOLS 4
 #define GUI_TOP_MENU_TOOLS_GAP 11
 
-// the terminal's panel in the page's pixels: its least height, min-height; what it leaves the views above it at the
-// least, the 16rem of its max-height; the share of the window's height it reaches at max, in percent, the 75vh of
-// its max-height; its top line; its side_menu of tabs under that with the side_menu's foot line; and how far below its place
-// the panel starts as it shows, coming up to it
+// the panel of the terminal in the pixels of the page:
+//   - its least height, min-height.
+//   - the least that it leaves the views above it, the 16rem of its max-height.
+//   - the most share of the height of the window that it reaches, in percent, the 75vh of its max-height.
+//   - its top line, and its side_menu of tabs under that, with the foot line of the side_menu.
+//   - how far below its place the panel starts as it shows. It then comes up to its place.
 #define GUI_TERMINAL_MIN 96
 #define GUI_TERMINAL_SHELL_MIN 256
 #define GUI_TERMINAL_MAX_PERCENT 75
@@ -73,11 +79,12 @@ typedef struct GuiFramePixelsCfg GuiFramePixelsCfg;
 
 // a number of 1 in the frame's arithmetic: every share the parts move on is a whole word, 16 bits of it a fraction
 #define GUI_FIXED_ONE 65536
-// the parts a fading part's share is at, sixteenths, which the base positions the part's ground at and its colors fade
-// by, so each stage of a fade positions the colors every fade before it positioned
+// the parts where the share of a part that fades can be, in sixteenths. The base positions the ground of the part at
+// these parts, and its colors fade by them. Each stage of a fade then positions the colors that each earlier fade
+// positioned
 #define GUI_FRAME_PARTS 16
-// `color_` at `share_`, a number of GUI_FIXED_ONE from 0 to it, of its alpha, rounded: a fading part's color. The color
-// itself at a whole share, with no arithmetic
+// `color_` at `share_` of its alpha, a number of GUI_FIXED_ONE from 0 to it, rounded. That is the color of a part that
+// fades. At a whole share it is the color itself, with no arithmetic
 #define GUI_FRAME_FADED(color_, share_)                                                                                \
     (((share_) >= GUI_FIXED_ONE)                                                                                       \
          ? (GuiColor)(color_)                                                                                          \
@@ -87,12 +94,15 @@ typedef struct GuiFramePixelsCfg GuiFramePixelsCfg;
                         (unsigned long long)GUI_FIXED_ONE)                                                             \
              << 24u)))
 
-// The claim's numbers, each 0 to GUI_FIXED_ONE as the page's claim runs them: the claim, GUI_FIXED_ONE while the work
-// has taken the edges' parts' inset; each edge's reveal, 1 while its part is back; the controls' way down from the
-// bar's place while the bar is away; each edge's inset, 1 once the work has given the part its inset; each slat's grown
-// share along its edge; the controls' opacity; the point along each edge its slat is pulled from, in pixels, -1 for
-// the middle; and the head's, the foot's, the left's and the controls' reveals read again the lag behind, which a
-// pane's far edge trails at
+// The numbers of the claim, each 0 to GUI_FIXED_ONE, as the claim of the page runs them:
+//   - the claim, GUI_FIXED_ONE while the work takes the inset of the parts of the edges.
+//   - the reveal of each edge, 1 while its part is back.
+//   - the way down of the controls from the place of the bar, while the bar is away.
+//   - the inset of each edge, 1 after the work gives the part its inset.
+//   - the grown share of each slat along its edge, and the opacity of the controls.
+//   - the point along each edge that its slat pulls from, in pixels, -1 for the middle.
+//   - the reveals of the head, the foot, the left and the controls, read again one lag behind. The far edge of a pane
+//     trails at that lag.
 typedef struct
 {
     int claim;
@@ -118,8 +128,9 @@ typedef struct
     int lag_down;
 } GuiAutohideNumbers;
 
-// The four edges of a pane in the frame's words, each a count of pixels with sixteen bits of fraction: where the
-// pane's tint runs, an edge that falls between two pixel rows or columns positioned at its share of the one it falls in
+// The four edges of a pane in the words of the frame, each a count of pixels with sixteen bits of fraction. They show
+// where the tint of the pane runs. An edge between two pixel rows or columns goes at its share of the row or column
+// that holds it
 typedef struct
 {
     int left;
@@ -128,30 +139,41 @@ typedef struct
     int bottom;
 } GuiEdges;
 
-// The frame: the window's size and scale it was arranged for, whether a side is displayed, the terminal's height asked in
-// the page's pixels, 0 while its panel is closed, and the claim's numbers it is positioned for; each part's rectangle, the
-// side's of no width where none is displayed, the terminal's panel at the inside's foot under both and its views under its
-// side_menu, none while it is closed, the map's at the editor's right, the
-// bar's, the side_menu's and the status bar's located off the window while the claim holds them away; each of those
-// three as the slat its edge shows, the part's rectangle cut to its grown share and spanning from the part's place to
-// its place at its reveal's lagged number, and the edges of each slat's pane and of the controls' in the frame's words,
-// spanning the same; each slat met with its part's own span across, the pane as the frame draws it; the controls'
-// glass pane with its lip, spanning from the controls' place to their lagged one, and the pane's share of the glass, 0
-// while the controls are in the bar; the controls' opacity; the panes'
-// corner radius; the work's; the tabs row whole, its foot at the foot of the row displayed, risen out of the work's head as
-// the claim takes it away, with the share of it displayed, which is its opacity, GUI_FIXED_ONE whole; the map whole, its
-// left at the left of the map's column, past the editor's right edge as the claim closes the column; and the side pane
-// as it slides: the share of its way gone, GUI_FIXED_ONE gone and 0 located, the side's rectangle moved up and toward
-// the left by that share of its own size, which is where the pane is drawn, and the share of it displayed, its opacity at
-// the parts a fading part's share is at; and the terminal's panel as it arrives: the share of its way left,
-// GUI_FIXED_ONE as it begins and 0 arrived, the panel's rectangle and its views' moved down by that share of
-// GUI_TERMINAL_ARRIVES, which is where the panel is drawn, and the share of it displayed, its opacity at those parts; and
-// the preview's mode, one of GUI_FRAME_PREVIEW_*, with its rectangle: none while it is off, the editor's right half
-// beside the text, and the editor's whole rectangle alone, the editor left no width under it. Last, the editor's two
-// scrollbars: the one down its right side and the one along its foot, each a scrollbar's width taken from the
-// editor's own rectangle, none where the editor has no room for them. The tabs are in one side_menu, and the tabs row is
-// a window on that side_menu. `tabs_left` is the number of pixels of the side_menu that are left of the row. The window sets
-// it, and the layout does not change it
+// The frame. It holds:
+//   - the size and scale of the window of its layout, and whether a side shows.
+//   - the requested height of the terminal in the pixels of the page, 0 while its panel does not show.
+//   - the numbers of the claim that it positions for.
+//   - the rectangle of each part. The side has no width where none shows.
+//   - the panel of the terminal at the foot of the inside, under both, with its views under its side_menu. It has none
+//     while the panel does not show.
+//   - the rectangle of the map at the right of the editor.
+//   - the rectangles of the bar, the side_menu and the status bar, off the window while the claim holds them away.
+//   - each of those three as the slat that its edge shows. That is the rectangle of the part, cut to its grown share.
+//     It spans from the place of the part to its place at the lagged number of its reveal.
+//   - the edges of the pane of each slat and of the controls in the words of the frame, with the same span.
+//   - each slat met with the own span across of its part. The frame draws the pane there.
+//   - the glass pane of the controls with its lip, from the place of the controls to their lagged place.
+//   - the share of the glass of that pane, 0 while the controls are in the bar, and the opacity of the controls.
+//   - the radius of the corners of the panes, and of the work.
+//   - the whole tabs row, with its foot at the foot of the shown row. It rises out of the head of the work as the claim
+//     takes it away.
+//   - the shown share of the tabs row, which is its opacity, GUI_FIXED_ONE whole.
+//   - the whole map, with its left at the left of the column of the map. It goes past the right edge of the editor as
+//     the claim shuts the column.
+//   - the side pane as it slides: the share of its way gone, GUI_FIXED_ONE gone and 0 in place.
+//   - the rectangle of the side, moved up and toward the left by that share of its own size. The pane draws there.
+//   - the shown share of the side pane, its opacity at the parts of a part that fades.
+//   - the panel of the terminal as it arrives: the share of its way left, GUI_FIXED_ONE as it starts and 0 in place.
+//   - the rectangles of the panel and of its views, moved down by that share of GUI_TERMINAL_ARRIVES. The panel draws
+//     there.
+//   - the shown share of the panel, its opacity at those parts.
+//   - the mode of the preview, one of GUI_FRAME_PREVIEW_*, with its rectangle. It has none while it is off.
+//   - beside the text, the preview has the right half of the editor. Alone, it has the whole rectangle of the editor,
+//     and the editor keeps no width under it.
+//   - the two scrollbars of the editor, one down its right side and one along its foot. Each takes the width of a
+//     scrollbar from the own rectangle of the editor. There are none where the editor has no room for them.
+//   - `tabs_left`. The tabs are in one side_menu, and the tabs row is a window on that side_menu. `tabs_left` is the
+//     number of pixels of the side_menu left of the row. The window sets it, and the layout does not change it.
 typedef struct
 {
     unsigned int width;
@@ -215,23 +237,27 @@ typedef struct
 int gui_scale(const GuiFramePixelsCfg *args);
 // the parts arranged for a window `width` by `height` at `scale`, with no side displayed and no claim
 void gui_frame_layout(const GuiFrameScaleCfg *args);
-// the work's inside positioned again with a side displayed at its left where `displayed` is 1, the tabs row and the editor past
-// it, its pane `away` of its way gone, or with no side where it is 0; and with the terminal's panel `height` page's
-// pixels tall at its foot, between its least and its max, `away` of its way below its place as it arrives, or with
-// none where `height` is 0
+// the inside of the work, positioned again. Where `displayed` is 1, a side shows at its left, and the tabs row and the
+// editor are past it. Its pane is `away` of its way gone. Where `displayed` is 0, there is no side.
+//
+// The panel of the terminal is `height` pixels of the page tall, at its foot, between its least and its max. It is
+// `away` of its way below its place as it arrives. There is no panel where `height` is 0
 void gui_frame_side(const GuiFrameDisplayedCfg *args);
 void gui_frame_terminal(const GuiFrameDisplayedCfg *args);
 // the work's inside positioned again with the preview's mode `displayed`: off, the editor whole. Beside, the editor's right
 // half the preview's; alone, the editor's rectangle the preview's and the editor left none of its width
 void gui_frame_preview(const GuiFrameDisplayedCfg *args);
-// the parts positioned again for the claim's `numbers`: the work grown to the window less the gap on every side as the
-// claim runs, the bar, the side_menu and the status bar slid off and back as their reveals run, each a pane located in
-// from the window's edges by the gap, the work giving each its inset as its inset runs, the tabs row and the map away
-// inside the work until their edges' reveals, and the controls moved down from the bar's place as their way down runs
+// the parts positioned again for the `numbers` of the claim:
+//   - the work grows to the window less the gap on each side as the claim runs.
+//   - the bar, the side_menu and the status bar slide off and back as their reveals run. Each is a pane, in from the
+//     edges of the window by the gap.
+//   - the work gives each part its inset as its inset runs.
+//   - the tabs row and the map are away inside the work until the reveals of their edges.
+//   - the controls move down from the place of the bar as their way down runs.
 void gui_frame_autohide(const GuiFrameCfg *args);
-// the holes the parts displayed make in the work while the claim holds, each a slat's rectangle grown by the claim's
-// share of the gap, cut to the work and snapped to the work's edges it comes within two gaps of, into `holes`, sized
-// for four: their count
+// the holes that the shown parts make in the work while the claim holds, into `holes`, with room for four. Each is the
+// rectangle of a slat, grown by the share of the gap that the claim gives. It cuts to the work, and snaps to each edge
+// of the work within two gaps of it. The result is their count
 unsigned int gui_frame_holes(const GuiFrameHolesCfg *args);
 struct GuiFrameScaleCfg
 {
