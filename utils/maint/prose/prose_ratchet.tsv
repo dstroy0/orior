@@ -954,7 +954,6 @@ utils/maint/analysis/survey/read_length_stability.py	13
 utils/maint/analysis/survey/sift_ratio_by_elements.py	13
 utils/maint/audit/agglomerate.py	10
 utils/maint/audit/anisotropy_detector.py	6
-utils/maint/audit/audit_compiler.ps1	18
 utils/maint/audit/audit_constants.py	10
 utils/maint/audit/audit_diff.py	8
 utils/maint/audit/audit_seeds.ps1	4

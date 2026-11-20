@@ -15,11 +15,11 @@
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)))
-$src = Join-Path $root "src"
-$engine = Join-Path $src "engine" "c" "sha256" "core"
+$src = Join-Path $root "examples" "miner"
+$engine = Join-Path $src "core"
 # Not $bench: the loops below bind that name to each source in turn.
-$benchDirectory = Join-Path $src "engine" "c" "sha256" "bench"
-$format = Join-Path $src "engine" "c" "sha256" "format"
+$benchDirectory = Join-Path $root "utils" "bench"
+$format = Join-Path $src "format"
 $work = Join-Path $root "build" "audit" "seeds"
 $compiler = "g++"
 

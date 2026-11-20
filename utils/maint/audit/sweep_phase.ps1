@@ -20,8 +20,8 @@ $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)))
 $work = Join-Path $root "build" "audit" "phase"
-$core = Join-Path $root "src" "engine" "c" "sha256" "core"
-$benchDirectory = Join-Path $root "src" "engine" "c" "sha256" "bench"
+$core = Join-Path $root "examples" "miner" "core"
+$benchDirectory = Join-Path $root "utils" "bench"
 $compiler = "g++"
 
 New-Item -ItemType Directory -Force -Path $work | Out-Null

@@ -30,8 +30,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent.parent
 BLOCKS = ROOT / "utils" / "maint" / "chain" / "blocks.json"
-CORE = ROOT / "src" / "engine" / "c" / "sha256" / "core"
-BENCH = ROOT / "src" / "engine" / "c" / "sha256" / "bench"
+CORE = ROOT / "examples" / "miner" / "core"
+BENCH = ROOT / "utils" / "bench"
 WORK = ROOT / "build" / "audit" / "headers"
 
 ROW = re.compile(r"^\s+(0|1/2|1|2|3|4|inf)\s+(\S+)\s+(\S+)\s+(\S+)\s")
