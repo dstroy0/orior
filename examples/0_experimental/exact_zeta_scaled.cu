@@ -2,65 +2,85 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // Catalog: EXP-x-035
 //
-// Turing's method in scaled form over a range of cells of the lattice in u, t = 2 pi u^4: the remainder, ln u, theta /
-// pi, the main sum, Z's sign, the sign changes, Turing's sums and N, swept on the device as programs of the record
-// machine, one job on the device's tessera daemon. Every value is a mantissa in a register and a binary exponent the
-// program stores: a product multiplies the mantissas and adds the exponents, and a power of two is where a mantissa is
-// positioned in the record. No value is stored at a fixed scale. The quotients are reads below and above, outward, at the
-// width the value is read at.
+// The method of Turing in scaled form, over a range of cells of the lattice in u, with `t = 2 pi u^4`. It sweeps the
+// remainder, ln u, theta / pi, the main sum, the sign of Z, the sign changes, the sums of Turing and N. These run on
+// the device as programs of the record machine, one job on the tessera daemon of the device.
+//
+// Each value is a mantissa in a register, and a binary exponent that the program stores. A product multiplies the
+// mantissas and adds the exponents. A power of two is the place of a mantissa in the record.
+// No value has a fixed scale. The quotients are reads below and above, outward, at the width of the read.
 //
 //   Usage:  exact_zeta_scaled <first> <last> <E> <W> <rate>
 //
-// Every constant the cells read is a program's output on the device: pi, the logarithms, the roots, cos's and theta's
-// constants, Gabcke's curves from the Euler numbers, the Bernoulli numbers, the verdict's bound, and each cell's
-// lattice, the least b that gives it `rate` points or more for each unit theta / pi rises across it. Cells `first` to
-// `last` run in turn, from cell 10, where Trudgian's bound is valid; N at each cell's point P / 4 and 3P / 4 is
-// determined by Turing's method, and the sign changes between, and across each seam to the next cell, must number N's
-// rise. From cell 1, cells 1 to 9 run by Euler-Maclaurin, and their sign changes from t = 2 pi to cell 10's point P / 4
-// must number N there. The report goes to stdout.
+// Each constant that the cells read is the output of a program on the device:
+//   - pi, the logarithms, the roots, and the constants of cos and theta.
+//   - the curves of Gabcke from the Euler numbers, and the Bernoulli numbers.
+//   - the bound of the verdict.
+//   - the lattice of each cell: the least b that gives it `rate` points or more for each unit that theta / pi rises
+//     across it.
 //
-// Lane l is at u = U / 2^b, U = U_0 + l, U_0 the least U with U^2 >= nu 4^b, over every U with U^2 < (nu + 1) 4^b.
-// Then x = u^2 = U^2 / 4^b, s = u^4, z = 1 - 2 (x - nu) = Zt / 4^b with Zt = 4^b - 2 (U^2 - nu 4^b), and
-// x^(-1/2) = 2^b / U, each exact: no root is taken and nothing is divided by 2 pi.
+// Cells `first` to `last` run in turn, from cell 10, where the bound of Trudgian is valid. The method of Turing gives N
+// at the points P / 4 and 3P / 4 of each cell.
+// The sign changes between them, and across each seam to the next cell, must number the rise of N. From cell 1, cells
+// 1 to 9 run by Euler-Maclaurin. Their sign changes from `t = 2 pi` to the point P / 4 of cell 10 must number N there.
+// The report goes to stdout.
 //
-// The curves: C_n(z) is the sum over j of g_(n,j) z^j, each g a mantissa at the exponent -E, bounded below and above at
-// 2^-X, X = E + 16, by Horner's rule: each step turns both ends by Zt, the lesser and greater of the two products
-// taken by Zt's sign, reads the quotients by 4^b outward and adds g_j. With x^(-n) = 4^(bn) / U^(2n), every factor
-// positive, T = sum over n of C_n 4^(bn) U^(2 (K - n)) is evaluated at both ends exactly, by Horner's rule in U^2, and
-// the remainder s sum over n of C_n(z) x^(-n - 1/2), s = (-1)^(nu - 1), lies between s T 2^b / (2^X U^(2K + 1)) at its
-// two ends: one program gives the two ends, the denominator U^(2K + 1) and U^2.
+// Lane l is at `u = U / 2^b`, with `U = U_0 + l`. U_0 is the least U with `U^2 >= nu 4^b`, over each U with
+// `U^2 < (nu + 1) 4^b`.
+// Then `x = u^2 = U^2 / 4^b`, `s = u^4`, `z = 1 - 2 (x - nu) = Zt / 4^b` with `Zt = 4^b - 2 (U^2 - nu 4^b)`, and
+// `x^(-1/2) = 2^b / U`. Each is exact: the code takes no root, and divides nothing by 2 pi.
 //
-// The logarithm: ln u = ln(U_0 / 2^b) + A, A = ln(U / U_0) = 2 artanh(l / D), D = U + U_0: one series a lane serves
-// theta and every term of the main sum, and ln(U_0 / 2^b) is the cell's. With c_k = Lambda / (2k + 1), Lambda the
-// least common multiple of the odd numbers below 2L, the first L terms of the series are 2 l S / (Lambda D^(2L - 1))
-// with S = sum over k < L of c_k l^(2k) D^(2(L - 1 - k)), an integer read by Horner's rule in l^2 against the powers
-// of D^2. Every term is positive and each is below (l / D)^2 times the one before it: the rest past the last term is
-// positive and below 2 l^(2L + 1) / ((2L + 1) D^(2L - 1) (D^2 - l^2)): the stage gives A below and above at 2^-Y,
-// Y = W + 16, the sum read below, and the sum and the rest read above.
+// The curves: C_n(z) is the sum over j of `g_(n,j) z^j`, each g a mantissa at the exponent -E. The rule of Horner
+// bounds it below and above at 2^-X, with `X = E + 16`.
+// Each step turns both ends by Zt, the lesser and greater of the two products taken by the sign of Zt. It reads the
+// quotients by 4^b outward, and adds g_j.
 //
-// theta / pi = 4 u^4 ln u - u^4 - 1/8 + 1 / (96 pi^2 u^4) + 7 / (46080 pi^4 u^12) + 31 / (2580480 pi^6 u^20) + R / pi,
-// |R| < 1 / (3322 t^7) for t >= 10 (Gabcke's thesis, introduction, (4) and (5)), at t = 2 pi u^4. The stored constants
-// come at 2^-W, each below and above: ln(U_0 / 2^b), 1 / (96 pi^2), 7 / (46080 pi^4), 31 / (2580480 pi^6), and
-// 1 / (425216 pi^8) above, the bound on |R| / pi times u^28. With u^4 = U^4 / 16^b, each term is a quotient by a power
-// of two or a power of U^4, read at 2^-Y outward: one program reads the log stage's records as member 1 and gives
-// theta / pi below and above.
+// With `x^(-n) = 4^(bn) / U^(2n)`, each factor is positive. `T = sum over n of C_n 4^(bn) U^(2 (K - n))` is exact at
+// both ends, by the rule of Horner in U^2.
+// The remainder, `s sum over n of C_n(z) x^(-n - 1/2)` with `s = (-1)^(nu - 1)`, lies between
+// `s T 2^b / (2^X U^(2K + 1))` at its two ends. One program gives the two ends, the denominator U^(2K + 1) and U^2.
 //
-// The main sum: Z = 2 sum over n to nu of n^(-1/2) cos(pi phi_n) + R, phi_n = theta / pi - 2 u^4 ln n, one lane a
-// pair (point, n), each pole's record a body read through the index. The phase stage reads phi_n at 2^-W below and
-// above and folds it to [0, 1/2] by cos's symmetries; the cos stage evaluates cos's series in y = m^2 below and above
-// by Horner's rule over stored coefficients, each step read outward; the term stages take the term below and above, and
-// the device sums them over each point.
+// The logarithm: `ln u = ln(U_0 / 2^b) + A`, with `A = ln(U / U_0) = 2 artanh(l / D)` and `D = U + U_0`. One series a
+// lane serves theta and each term of the main sum, and ln(U_0 / 2^b) belongs to the cell.
 //
-// The verdict: Z's bracket, the sums doubled, R added, and Gabcke's bound on R_K and the coefficient reads on either
-// side, over one denominator, and Z's sign where the bracket contains no zero. The change stage reads each point's sign
-// against the next, and the device sums the changes over the cell.
+// Let `c_k = Lambda / (2k + 1)`, with Lambda the least common multiple of the odd numbers below 2L. The first L terms
+// of the series are `2 l S / (Lambda D^(2L - 1))`.
+// Here `S = sum over k < L of c_k l^(2k) D^(2(L - 1 - k))`, an integer read by the rule of Horner in l^2 against the
+// powers of D^2.
 //
-// The count: the clock stage reads theta / pi at every point at 2^-W below and above, and the Turing stage, one lane a
-// step, positions each step's share of the sums of Turing's method over the window below point P / 4 and the one past
-// point 3P / 4, which the device sums over the cell; the count stage computes N at the two points from them.
+// Each term is positive, and each is below (l / D)^2 times the one before it. The rest past the last term is positive,
+// and below `2 l^(2L + 1) / ((2L + 1) D^(2L - 1) (D^2 - l^2))`.
+// The stage gives A below and above at 2^-Y, with `Y = W + 16`. It reads the sum below, and the sum and the rest
+// above.
 //
-// Every stage's records over its first 64 lanes are run again on the host and must equal the device's word for word,
-// and every sum the device takes, the host's over the same records.
+// `theta / pi = 4 u^4 ln u - u^4 - 1/8 + 1 / (96 pi^2 u^4) + 7 / (46080 pi^4 u^12)`
+// `+ 31 / (2580480 pi^6 u^20) + R / pi`.
+// Here `|R| < 1 / (3322 t^7)` for t >= 10, at `t = 2 pi u^4` (Gabcke's thesis, introduction, (4) and (5)).
+// The stored constants come at 2^-W, each below and above: ln(U_0 / 2^b), 1 / (96 pi^2), 7 / (46080 pi^4),
+// 31 / (2580480 pi^6). Above, there is also 1 / (425216 pi^8), the bound on |R| / pi times u^28.
+// With `u^4 = U^4 / 16^b`, each term is a quotient by a power of two or a power of U^4, read at 2^-Y outward. One
+// program reads the records of the log stage as member 1, and gives theta / pi below and above.
+//
+// The main sum: `Z = 2 sum over n to nu of n^(-1/2) cos(pi phi_n) + R`, with `phi_n = theta / pi - 2 u^4 ln n`. There
+// is one lane a pair (point, n), and the record of each pole is a body read through the index.
+//   - the phase stage reads phi_n at 2^-W below and above, and folds it to [0, 1/2] by the symmetries of cos.
+//   - the cos stage evaluates the series of cos in `y = m^2` below and above, by the rule of Horner over stored
+//     coefficients. It reads each step outward.
+//   - the term stages take the term below and above, and the device sums them over each point.
+//
+// The verdict: the bracket of Z, with the sums doubled and R added. It holds the bound of Gabcke on R_K, and the
+// coefficient reads on either side, over one denominator.
+// The sign of Z holds where the bracket contains no zero. The change stage reads the sign of each point against the
+// next, and the device sums the changes over the cell.
+//
+// The count:
+//   - the clock stage reads theta / pi at each point at 2^-W, below and above.
+//   - the Turing stage, one lane a step, gives the share of each step of the sums of the method of Turing. That is
+//     over the window below point P / 4, and the one past point 3P / 4. The device sums them over the cell.
+//   - the count stage computes N at the two points from them.
+//
+// The host runs the records of each stage over its first 64 lanes again, and they must equal those of the device word
+// for word. The same holds for each sum that the device takes, against that of the host over the same records.
 
 #include "../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../src/cu/engine/analysis/key_schedule/key_schedule.h"
@@ -87,7 +107,7 @@ typedef struct
     unsigned int shared_bits;
 } ScaledProgram;
 
-// a value: the register storing its mantissa and the binary exponent the program stores for it
+// a value: the register that stores its mantissa, and the binary exponent that the program stores for it
 typedef struct
 {
     unsigned int reg;
@@ -139,8 +159,8 @@ static unsigned int scaled_constant(ScaledProgram *program, unsigned long long v
                        (unsigned int)(value >> 32u), 0u);
 }
 
-// a field of the shared record, `bits` wide and signed, positioned at the record's next bit. The step that reads it is
-// written where it is read, and the register is live only from there to its reader
+// a field of the shared record, `bits` wide and signed, at the next bit of the record. The code writes the step that
+// reads it where it reads it, and the register is live only from there to its reader
 static unsigned int scaled_field(ScaledProgram *program, unsigned int bits)
 {
     const unsigned int field = (unsigned int)program->field_bits.size();
@@ -233,10 +253,12 @@ static unsigned int scaled_down(ScaledProgram *program, unsigned int left, unsig
 static unsigned int scaled_up(ScaledProgram *program, unsigned int left, unsigned int right);
 static unsigned int scaled_bits_of(unsigned long long value);
 
-// the remainder's curves C_0 to C_K at u = U / 2^b, each bounded below and above at 2^-X, and T = sum over n of
-// C_n 4^(bn) U^(2 (K - n)) at both ends: the record contains s, U_0 and every g_(n,j) at its width gamma_bits[n][j], at
-// 2^-E. Zt = 4^b - 2V, V = U^2 - nu 4^b, the remainder of U^2 by 4^b where nu 4^b <= U^2 < (nu + 1) 4^b. The outputs:
-// s T at its lower end, the denominator U^(2K + 1), U^2, and s T at its upper end, each end at 2^(b - X)
+// the curves C_0 to C_K of the remainder at `u = U / 2^b`, each bounded below and above at 2^-X. Also
+// `T = sum over n of C_n 4^(bn) U^(2 (K - n))` at both ends.
+// The record holds s, U_0 and each g_(n,j) at its width gamma_bits[n][j], at 2^-E. `Zt = 4^b - 2V`, with
+// `V = U^2 - nu 4^b`, the remainder of U^2 by 4^b where `nu 4^b <= U^2 < (nu + 1) 4^b`.
+// The outputs: s T at its lower end, the denominator U^(2K + 1), U^2, and s T at its upper end, each end at
+// 2^(b - X)
 static void scaled_curves_build(ScaledStage *stage, unsigned int b, unsigned int x, unsigned int big_e,
                                 unsigned int first_bits, const std::vector<std::vector<unsigned int>> &gamma_bits)
 {
@@ -314,7 +336,7 @@ static void scaled_curves_build(ScaledStage *stage, unsigned int b, unsigned int
         high = scaled_step(program, ENGINE_RECORD_SUM, scaled_step(program, ENGINE_RECORD_PRODUCT, high, square, 0u),
                            scaled_step(program, ENGINE_RECORD_PRODUCT, c_high, scale, 0u), 0u);
     }
-    // s T: the ends as they are where s is 1, turned and swapped where it is -1
+    // s T: the ends as they are where s is 1. Where it is -1, the code turns and swaps them
     const unsigned int sign = scaled_read(program, sign_field);
     const unsigned int positive = scaled_above(program, sign, scaled_constant(program, 0ull));
     const unsigned int first =
@@ -339,9 +361,10 @@ static void scaled_curves_build(ScaledStage *stage, unsigned int b, unsigned int
     scaled_output(stage, "remainder_high", scaled_step(program, ENGINE_RECORD_PRODUCT, sign, second, 0u), exponent);
 }
 
-// the logarithm A = ln(U / U_0) = 2 artanh(l / D), D = U + U_0, below and above at 2^-Y: 2 l S / (Lambda D^(2L - 1))
-// read below, and above with the rest past the last term, below 2 l^(2L + 1) / ((2L + 1) D^(2L - 1) (D^2 - l^2)),
-// added and read above. The record contains U_0, `first_bits` wide, the c_k at their widths, Lambda and 2L + 1
+// the logarithm `A = ln(U / U_0) = 2 artanh(l / D)`, with `D = U + U_0`, below and above at 2^-Y.
+// `2 l S / (Lambda D^(2L - 1))` reads below. Above, the rest past the last term, below
+// `2 l^(2L + 1) / ((2L + 1) D^(2L - 1) (D^2 - l^2))`, adds in before the read.
+// The record holds U_0, `first_bits` wide, the c_k at their widths, Lambda and 2L + 1
 static void scaled_log_build(ScaledStage *stage, unsigned int b, unsigned int y, unsigned int first_bits,
                              const std::vector<unsigned int> &c_bits, unsigned int lambda_bits, unsigned int odd_bits)
 {
@@ -399,11 +422,15 @@ static void scaled_log_build(ScaledStage *stage, unsigned int b, unsigned int y,
                   -(long long)y);
 }
 
-// theta / pi at u = U / 2^b below and above at 2^-Y, Y > W, from the log stage's records as member 1 and the stored
-// constants at 2^-W: ln(U_0 / 2^b), 1 / (96 pi^2), 7 / (46080 pi^4) and 31 / (2580480 pi^6) below and above, and the
-// bound on |R_theta| / pi times u^28 above, each field `widths[k]` wide in that order, U_0's `first_bits` wide. With
-// u^4 = U^4 / 16^b and ln u = ln(U_0 / 2^b) + A, every term is read at 2^-Y outward: u^4 (4 ln u - 1), the cell's
-// 1/8, the three powers of 1 / u^4 and the bound past them, each a quotient by a power of two or a power of U^4
+// theta / pi at `u = U / 2^b`, below and above at 2^-Y, with Y > W. It comes from the records of the log stage as
+// member 1, and from the stored constants at 2^-W:
+//   - ln(U_0 / 2^b), 1 / (96 pi^2), 7 / (46080 pi^4) and 31 / (2580480 pi^6), below and above.
+//   - the bound on |R_theta| / pi times u^28, above.
+//
+// Each field is `widths[k]` wide, in that order, and U_0 is `first_bits` wide. With `u^4 = U^4 / 16^b` and
+// `ln u = ln(U_0 / 2^b) + A`, the code reads each term at 2^-Y outward.
+// The terms are `u^4 (4 ln u - 1)`, the 1/8 of the cell, the three powers of 1 / u^4, and the bound past them. Each
+// is a quotient by a power of two or a power of U^4
 static void scaled_theta_build(ScaledStage *stage, unsigned int b, unsigned int w, unsigned int y,
                                unsigned int first_bits, const std::vector<unsigned int> &widths, const ScaledStage *log)
 {
@@ -476,8 +503,9 @@ static void scaled_theta_build(ScaledStage *stage, unsigned int b, unsigned int 
     scaled_output(stage, "high", scaled_step(program, ENGINE_RECORD_DIFFERENCE, ends[1], eighth, 0u), -(long long)y);
 }
 
-// the pole's record, one a body, read through the index as member 0: U_0, then ln n below and above and n^(-1/2)
-// below and above at 2^-W, then B, the bound on cos's rest at 2^-W; every program that reads it positions it alike
+// the record of the pole, one a body, read through the index as member 0. It holds U_0, then ln n and n^(-1/2), each
+// below and above at 2^-W. Then it holds B, the bound on the rest of cos at 2^-W. Each program that reads it lays it
+// out alike
 enum
 {
     SCALED_POLE_FIRST,
@@ -500,15 +528,21 @@ static std::vector<unsigned int> scaled_pole_fields(ScaledProgram *program, cons
     return fields;
 }
 
-// the phase phi_n = theta / pi - 2 u^4 ln n at lane (point, n), point nu + n - 1, read at 2^-W below and above and
-// folded: theta / pi is bounded below and above at 2^-Y by the theta stage's records, member 1 read for the lower end
-// and member 2 for the upper, and u^4 ln n = U^4 Ln 2^(Y - W) / 16^b at 2^-Y, so that over 16^b the phase at 2^-Y is
-// Theta 16^b - 2 U^4 Ln 2^(Y - W), Theta and Ln each below and above; a and c, the quotients by 16^b 2^(Y - W) less 1
-// and more 1, are below and above phi 2^W. cos is even and of period 2: a's remainder by 2^(W + 1), its magnitude
-// m, 2^(W + 1) - m where m passes 2^W, and 2^W - m with the sign turned where m passes 2^(W - 1), leave m in
-// [0, 2^(W - 1)] with cos(pi a 2^-W) = s cos(pi m 2^-W). The outputs: y = m^2 at 2^-2W, s, and c - a, which bounds
-// |phi - a 2^-W| by 2^-W times it. Where `fixed` is set, theta / pi's lower end is for both, a value represented
-// exactly: the phase is then theta~ / pi - 2 u^4 ln n, theta~ that end times pi
+// the phase `phi_n = theta / pi - 2 u^4 ln n` at lane (point, n), point nu + n - 1, read at 2^-W below and above,
+// and folded.
+//
+// The records of the theta stage bound theta / pi below and above at 2^-Y. Member 1 gives the lower end, and member
+// 2 the upper. `u^4 ln n = U^4 Ln 2^(Y - W) / 16^b` at 2^-Y.
+// So over 16^b, the phase at 2^-Y is `Theta 16^b - 2 U^4 Ln 2^(Y - W)`, with Theta and Ln each below and above.
+// The values a and c, the quotients by `16^b 2^(Y - W)` less 1 and more 1, are below and above `phi 2^W`.
+//
+// cos is even and of period 2. Take the remainder of a by 2^(W + 1), and its magnitude m. Use `2^(W + 1) - m` where
+// m passes 2^W, and `2^W - m` with the sign turned where m passes 2^(W - 1).
+// That leaves m in [0, 2^(W - 1)], with `cos(pi a 2^-W) = s cos(pi m 2^-W)`. The outputs are `y = m^2` at 2^-2W, s,
+// and c - a, which bounds `|phi - a 2^-W|` by 2^-W times it.
+//
+// With `fixed`, the lower end of theta / pi serves for both, an exact value. The phase is then
+// `theta~ / pi - 2 u^4 ln n`, with theta~ that end times pi
 static void scaled_phase_build(ScaledStage *stage, unsigned int b, unsigned int w, unsigned long long nu,
                                unsigned int lane_bits, const std::vector<unsigned int> &pole_widths,
                                const ScaledStage *theta, int fixed)
@@ -564,8 +598,8 @@ static void scaled_phase_build(ScaledStage *stage, unsigned int b, unsigned int 
                   scaled_step(program, ENGINE_RECORD_DIFFERENCE, one,
                               scaled_step(program, ENGINE_RECORD_SUM, past_half, past_half, 0u), 0u),
                   0);
-    // c - a represented within W + 3 bits: its remainder by 2^(W + 1), and 2^(W + 1) more where that is not c - a
-    // itself, so that a spread of 2^(W + 1) or more still bounds |cos(pi phi) - s cos(pi m 2^-W)| by 2 or more
+    // c - a within W + 3 bits: its remainder by 2^(W + 1), and 2^(W + 1) more where that is not c - a itself.
+    // Then a spread of 2^(W + 1) or more still bounds `|cos(pi phi) - s cos(pi m 2^-W)|` by 2 or more
     const unsigned int spread = scaled_step(program, ENGINE_RECORD_DIFFERENCE, c, a, 0u);
     const unsigned int remainder = scaled_step(program, ENGINE_RECORD_REMAINDER, spread, period, 0u);
     scaled_output(
@@ -576,11 +610,12 @@ static void scaled_phase_build(ScaledStage *stage, unsigned int b, unsigned int 
         -(long long)w);
 }
 
-// cos(pi m 2^-W) by its first J terms, sum over j < J of (-1)^j k_j (y 4^-W)^j, k_j = pi^(2j) / (2j)!: each k_j
-// bounded at 2^-W below, its magnitude in the record, and the sum bounded below and above at 2^-X, X = W + 16, by
-// Horner's rule, y never negative, each step's quotient by 4^W read outward. The rest past J terms and the k_j's reads,
-// y 2^-2W at max 1/4, together lie within B 2^-W, B the pole record's. The phase's sign s turns the two ends, s v
-// below and above, and its spread passes on
+// `cos(pi m 2^-W)` by its first J terms, `sum over j < J of (-1)^j k_j (y 4^-W)^j`, with `k_j = pi^(2j) / (2j)!`.
+// Each k_j has a bound at 2^-W below, its magnitude in the record. The rule of Horner bounds the sum below and above
+// at 2^-X, with `X = W + 16`.
+// The value y is never negative, and each step reads its quotient by 4^W outward.
+// The rest past J terms and the reads of the k_j, with `y 2^-2W` at max 1/4, together lie within `B 2^-W`, with B
+// that of the pole record. The sign s of the phase turns the two ends, s v below and above, and its spread passes on
 static void scaled_cos_build(ScaledStage *stage, const std::vector<unsigned int> &k_bits, unsigned int w,
                              const ScaledStage *phase)
 {
@@ -640,10 +675,12 @@ static void scaled_cos_build(ScaledStage *stage, const std::vector<unsigned int>
     scaled_output(stage, "spread", scaled_read_before(program, spread_field), phase->exponents[2]);
 }
 
-// the term n^(-1/2) cos(pi phi_n), below where `side` is 0 and above where it is 1, at 2^-(X + W), from the pole's
-// record as member 0 and the cos stage's as member 1: cos(pi phi) lies within (B + 4 (c - a)) 2^-W of s v, pi below
-// 4, and s v between the cos stage's two ends; and the product with [r_lo, r_hi] takes r_hi at a lower end below zero
-// and r_lo at one above, and at an upper end the other way
+// the term `n^(-1/2) cos(pi phi_n)`, below where `side` is 0 and above where it is 1, at 2^-(X + W). It reads the
+// record of the pole as member 0, and that of the cos stage as member 1.
+// `cos(pi phi)` lies within `(B + 4 (c - a)) 2^-W` of s v, with pi below 4, and s v between the two ends of the cos
+// stage.
+// The product with [r_lo, r_hi] takes r_hi at a lower end below zero, and r_lo at one above. At an upper end, it is
+// the other way
 static void scaled_term_build(ScaledStage *stage, unsigned int side, unsigned int w,
                               const std::vector<unsigned int> &pole_widths, const ScaledStage *cos)
 {
@@ -673,15 +710,20 @@ static void scaled_term_build(ScaledStage *stage, unsigned int side, unsigned in
                   -(x + (long long)w));
 }
 
-// Z at the point against zero: Z = 2 sum + R and |Z - 2 sum - R| < G + E_r, G = d_K t^(-(2K + 3) / 4) at max
-// d_K (2 pi nu^2)^(-(2K + 3) / 4) over the cell (Gabcke's thesis, Satz 3.2.2, for t >= 200) and E_r the bound on the
-// curves' coefficient reads, the two together B 2^-W, B the shared record's. With D = U^(2K + 1), R = r 2^least / D,
-// the sums at 2^-S and e the least of -S + 1, least and -W, Z D 2^-e is an integer: 2 sum D 2^(-S + 1 - e) +
-// r 2^(least - e) -+ B D 2^(-W - e). Z > 0 where sum_lo D 2^(-S + 1 - e) > T_lo 2^c, and Z < 0 where
-// T_hi 2^c > sum_hi D 2^(-S + 1 - e), c the lesser of least - e and -W - e, T_lo = B D 2^(-W - e - c) - r 2^(least - e
-// - c) and T_hi = -(B D 2^(-W - e - c) + r 2^(least - e - c)): each side sums before a power of two is positioned on, and the
-// verdict positions 2^c on where it compares. The tolerance gives T_lo where `side` is 0, with D, and T_hi where it is 1,
-// from the remainder's records as member 1, r its lower end for T_lo and its upper end for T_hi
+// Z at the point against zero: `Z = 2 sum + R` and `|Z - 2 sum - R| < G + E_r`. Here
+// `G = d_K t^(-(2K + 3) / 4)` at max `d_K (2 pi nu^2)^(-(2K + 3) / 4)` over the cell (Gabcke's thesis, Satz 3.2.2,
+// for t >= 200). E_r is the bound on the coefficient reads of the curves. The two together are `B 2^-W`, with B that
+// of the shared record.
+//
+// With `D = U^(2K + 1)` and `R = r 2^least / D`, take the sums at 2^-S, and e the least of -S + 1, least and -W.
+// Then `Z D 2^-e` is an integer: `2 sum D 2^(-S + 1 - e) + r 2^(least - e) -+ B D 2^(-W - e)`.
+// `Z > 0` where `sum_lo D 2^(-S + 1 - e) > T_lo 2^c`. `Z < 0` where `T_hi 2^c > sum_hi D 2^(-S + 1 - e)`.
+// Here c is the lesser of least - e and -W - e, with `T_lo = B D 2^(-W - e - c) - r 2^(least - e - c)` and
+// `T_hi = -(B D 2^(-W - e - c) + r 2^(least - e - c))`.
+//
+// Each side sums before the code puts a power of two on it, and the verdict puts 2^c on where it compares. The
+// tolerance gives T_lo where `side` is 0, with D, and T_hi where it is 1.
+// It reads the records of the remainder as member 1: r is the lower end for T_lo, and the upper end for T_hi
 static void scaled_tolerance_build(ScaledStage *stage, unsigned int side, unsigned int bound_bits,
                                    const ScaledStage *curves, long long least_shift, long long bound_shift)
 {
@@ -705,10 +747,11 @@ static void scaled_tolerance_build(ScaledStage *stage, unsigned int side, unsign
     scaled_output(stage, "denominator", scaled_read_before(program, denominator_field), 0);
 }
 
-// one side of Z's sign at the point: the term sums below and above as member 0, one body a point, `sum_bits` wide each
-// and positioned `sum_stride` bits apart, and the tolerance of `side` as member 1, 2^c on it and 2^(-S + 1 - e) on the sum.
-// Where `side` is 0 the output is [Z > 0]; where it is 1, member 2 is that side's records and the output is the sign,
-// 1, -1, or 0 where neither is true
+// one side of the sign of Z at the point. Member 0 is the term sums below and above, one body a point, `sum_bits`
+// wide each and `sum_stride` bits apart. Member 1 is the tolerance of `side`, with 2^c on it and 2^(-S + 1 - e) on the
+// sum.
+// Where `side` is 0, the output is [Z > 0]. Where it is 1, member 2 is the records of that side, and the output is
+// the sign: 1, -1, or 0 where neither is true
 static void scaled_verdict_build(ScaledStage *stage, unsigned int side, unsigned int sum_bits, unsigned int sum_stride,
                                  long long sum_shift, long long common_shift, const ScaledStage *tolerance,
                                  const ScaledStage *above)
@@ -736,8 +779,8 @@ static void scaled_verdict_build(ScaledStage *stage, unsigned int side, unsigned
                   scaled_step(program, ENGINE_RECORD_DIFFERENCE, scaled_read_also(program, above_field), below, 0u), 0);
 }
 
-// a sign change between neighboring points: 1 where the verdicts at points l and l + 1, members 1 and 2, are of
-// opposite signs, and 0 where either is 0 or they agree
+// a sign change between points next to each other. It is 1 where the verdicts at points l and l + 1, members 1 and 2,
+// have opposite signs. It is 0 where either is 0, or they agree
 static void scaled_change_build(ScaledStage *stage, const ScaledStage *verdict)
 {
     ScaledProgram *const program = &stage->program;
@@ -749,8 +792,9 @@ static void scaled_change_build(ScaledStage *stage, const ScaledStage *verdict)
     scaled_output(stage, "change", scaled_above(program, scaled_constant(program, 0ull), product), 0);
 }
 
-// the clock at the point: theta / pi read at 2^-W below and above, the quotients of theta / pi's ends at 2^-Y by
-// 2^(Y - W) less 1 and more 1, from the theta stage's records as members 1 and 2; and U^4 at 4^-2b
+// the clock at the point: theta / pi read at 2^-W below and above. These are the quotients of the ends of theta / pi at
+// 2^-Y by 2^(Y - W), less 1 and more 1. They come from the records of the theta stage as members 1 and 2. Also
+// U^4 at 4^-2b
 static void scaled_clock_build(ScaledStage *stage, unsigned int b, unsigned int w, unsigned int first_bits,
                                const ScaledStage *theta)
 {
@@ -780,10 +824,11 @@ static void scaled_clock_build(ScaledStage *stage, unsigned int b, unsigned int 
                   -4ll * (long long)b);
 }
 
-// Turing's sums over the cell, one lane a step i from point i to i + 1, the change at the step as member 0 and the
-// clock at points i and i + 1 as members 1 and 2, d_i = x^2 at i + 1 less x^2 at i, x^2 = U^4 / 16^b. Below point a,
-// the window under N at point a: d_i Theta_i below, and at a change, U_i^4 and 1. From point e on, the window over N
-// at point e: d_i Theta_(i + 1) above, and at a change, U_(i + 1)^4 and 1. Between them, the changes alone
+// the sums of Turing over the cell, one lane a step i from point i to i + 1. Member 0 is the change at the step, and
+// members 1 and 2 the clock at points i and i + 1. `d_i = x^2 at i + 1 less x^2 at i`, with `x^2 = U^4 / 16^b`.
+//   - below point a, the window under N at point a: d_i Theta_i below, and at a change, U_i^4 and 1.
+//   - from point e on, the window over N at point e: d_i Theta_(i + 1) above, and at a change, U_(i + 1)^4 and 1.
+//   - between them, the changes alone.
 static void scaled_turing_build(ScaledStage *stage, unsigned int lane_bits, unsigned long long a, unsigned long long e,
                                 const ScaledStage *change, const ScaledStage *clock)
 {
@@ -866,7 +911,7 @@ static void scaled_put(unsigned int *record, unsigned int offset, unsigned int b
     }
 }
 
-// the record a stage's fields are positioned into, sized to them
+// the record that holds the fields of a stage, sized to them
 static void scaled_open_shared(ScaledStage *stage)
 {
     stage->shared.assign((stage->program.shared_bits + 31u) / 32u + 1u, 0u);
@@ -879,8 +924,8 @@ typedef struct
     long long sign;
 } ScaledWide;
 
-// the poles' records, one a body, positioned as scaled_pole_fields positions them in the stage's program, which is arranged: U_0,
-// four values a pole, and B
+// the records of the poles, one a body, laid out as scaled_pole_fields lays them out in the program of the stage.
+// They hold U_0, four values a pole, and B
 static void scaled_pole_records(ScaledStage *stage, const ScaledWide &first, const ScaledWide &bound,
                                 const std::vector<ScaledWide> &values)
 {
@@ -1075,8 +1120,8 @@ static int scaled_sweep(SimResults *job, ScaledStage *stage, unsigned long long 
                                        lanes,
                                        device_out,
                                        error};
-    // a run the device does not finish is reported, and runs once more; its records are checked against the host's
-    // either way
+    // the code reports a run that the device does not finish, and runs it once more. It checks its records against
+    // those of the host either way
     int ran = ok && (cycle_record_run(&run) == (long)lanes);
     if (ok && !ran)
     {
@@ -1161,9 +1206,12 @@ static void scaled_release(ScaledStage *stage)
 
 // THE CONSTANTS, ON THE DEVICE
 //
-// Every constant the stages read is a program's output: pi by Machin's arctangents, each logarithm by artanh, every
-// root by Newton's rule on integers, cos's coefficients, theta's, Gabcke's curves from the Euler numbers, and each
-// bound. A value read at a width is read below and above it, the bracket outward.
+// Each constant that the stages read is the output of a program:
+//   - pi by the arctangents of Machin, and each logarithm by artanh.
+//   - each root by the rule of Newton on integers.
+//   - the coefficients of cos and of theta, the curves of Gabcke from the Euler numbers, and each bound.
+//
+// A value read at a width reads below and above it, with the bracket outward.
 
 static ScaledWide scaled_wide_small(long long value)
 {
