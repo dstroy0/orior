@@ -47,8 +47,8 @@ typedef struct
     unsigned int *out;
 } ParquetHybridRead;
 
-// everything one column chunk's decode carries from page to page. `scratch` contains one page's levels or indices at a
-// time, and each page's levels are stored in the column at levels_done
+// each thing that the decode of one column chunk carries from page to page. `scratch` holds the levels or indices of
+// one page at a time. The column stores the levels of each page at levels_done
 typedef struct
 {
     const EngineIngestTools *tools;
@@ -97,8 +97,8 @@ static unsigned int parquet_level_width(unsigned int max)
     return width;
 }
 
-// one hybrid run of RLE runs and bit-packed groups into read->out, stopping at read->value_count. Bit-packed values
-// are read least significant bit first
+// one hybrid run of RLE runs and bit-packed groups into read->out, up to read->value_count. The call reads bit-packed
+// values least significant bit first
 static int parquet_hybrid_decode(const ParquetHybridRead *read)
 {
     if (read->bit_width > PARQUET_HYBRID_BITS_MAX)
@@ -131,7 +131,7 @@ static int parquet_hybrid_decode(const ParquetHybridRead *read)
             }
             for (unsigned long long step = 0ULL; (step < run) && (written < read->value_count); step += 1ULL)
             {
-                // the value was limited to a mask of at max 32 bits and fits an unsigned int
+                // the mask of at max 32 bits limits the value, and it fits an unsigned int
                 read->out[written] = (unsigned int)value;
                 written += 1ULL;
             }
@@ -139,8 +139,8 @@ static int parquet_hybrid_decode(const ParquetHybridRead *read)
         else
         {
             const unsigned long long groups = header >> 1u;
-            // a group of eight values takes bit_width bytes: at any nonzero width more groups than bytes left do not
-            // fit, and refusing them first prevents the product below from wrapping
+            // a group of eight values takes bit_width bytes. At any nonzero width, more groups than bytes left do not
+            // fit. A refusal of them first stops a wrap of the product below
             if ((groups == 0ULL) || ((read->bit_width != 0u) && (groups > (cursor.byte_count - cursor.position))))
             {
                 return 0;
@@ -154,8 +154,8 @@ static int parquet_hybrid_decode(const ParquetHybridRead *read)
             const unsigned long long packed_values = groups * 8ULL;
             for (unsigned long long step = 0ULL; (step < packed_values) && (written < read->value_count); step += 1ULL)
             {
-                // a value of at max 32 bits starts within its first byte's low 7 bits. The eight bytes from that
-                // byte contain it whole; the window is cut short only at the run's end
+                // a value of at max 32 bits starts within the low 7 bits of its first byte. The eight bytes from that
+                // byte hold it whole. Only the end of the run cuts the window short
                 const unsigned long long first_bit = step * read->bit_width;
                 const unsigned long long first_byte = cursor.position + (first_bit >> 3u);
                 const unsigned long long bytes_left = packed_end - first_byte;
@@ -264,8 +264,8 @@ static int parquet_page_header_read(ParquetCursor *cursor, ParquetPageHeader *he
     return 1;
 }
 
-// one page body through the chunk's codec, which fills request->out_capacity exactly. Uncompressed, Snappy and Zstd
-// are read, through the engine's own decoders
+// one page body through the codec of the chunk, which fills request->out_capacity exactly. The call reads
+// uncompressed, Snappy and Zstd pages, through the own decoders of the engine
 static int parquet_body_inflate(const EngineIngestTools *tools, const EngineBytesRequest *request, ParquetCodec codec)
 {
     const int carried = (codec == PARQUET_UNCOMPRESSED) || (codec == PARQUET_SNAPPY) || (codec == PARQUET_ZSTD);
@@ -278,8 +278,8 @@ static int parquet_body_inflate(const EngineIngestTools *tools, const EngineByte
     return (written >= 0LL) && ((unsigned long long)written == request->out_capacity);
 }
 
-// a dictionary page, decoded into bytes of its own. A BYTE_ARRAY dictionary's entries are stored as the offset past
-// each one's four-byte length and the length; a fixed-width one is its entries one after the other
+// a dictionary page, decoded into bytes of its own. A BYTE_ARRAY dictionary stores each entry as the offset past its
+// four-byte length, and the length. A fixed-width dictionary is its entries one after the other
 static int parquet_dictionary_page_decode(ParquetColumnWalk *walk, const ParquetPageHeader *header,
                                           const unsigned char *body)
 {
@@ -307,11 +307,12 @@ static int parquet_dictionary_page_decode(ParquetColumnWalk *walk, const Parquet
     const unsigned long long entries = header->level_count;
     if (walk->value_width != 0u)
     {
-        // a fixed-width dictionary is its entries' bytes and nothing past them; dividing leaves the product unformed
+        // a fixed-width dictionary is the bytes of its entries and nothing past them. A division leaves the product
+        // unformed
         walk->dictionary_count = entries;
         return entries <= (header->uncompressed_bytes / walk->value_width);
     }
-    // every BYTE_ARRAY entry takes at least its four-byte length, which bounds the tables before they are made
+    // each BYTE_ARRAY entry takes at least its four-byte length, which bounds the tables before the call makes them
     if (entries > (header->uncompressed_bytes / 4ULL))
     {
         return 0;
@@ -343,8 +344,8 @@ static int parquet_dictionary_page_decode(ParquetColumnWalk *walk, const Parquet
     return 1;
 }
 
-// one page's levels, decoded into the scratch and stored in `levels` at levels_done, each a byte. A level whose ceiling
-// is zero is not stored and decodes to zeros; one past its ceiling is refused
+// the levels of one page, decoded into the scratch and stored in `levels` at levels_done, each a byte. The call does not
+// store a level whose ceiling is zero, and that level decodes to zeros. The call refuses a level past its ceiling
 static int parquet_levels_store(ParquetColumnWalk *walk, const ParquetHybridRead *read, unsigned int max,
                                 unsigned char *levels)
 {
@@ -400,7 +401,7 @@ static int parquet_value_store(ParquetColumnWalk *walk, const unsigned char *byt
     unsigned char little[4];
     for (unsigned int place = 0u; place < 4u; place += 1u)
     {
-        // a BYTE_ARRAY length is stored as four bytes and was read from them, and each byte is taken whole
+        // a BYTE_ARRAY length is four bytes, and the code read it from them. The code takes each byte whole
         little[place] = (unsigned char)((length >> (8u * place)) & 0xFFULL);
     }
     return parquet_bytes_append(&walk->column->values, bytes, length) &&
@@ -453,7 +454,8 @@ static int parquet_values_decode(ParquetColumnWalk *walk, unsigned int encoding,
     }
     if (width != 0u)
     {
-        // present is at max the chunk's level count, which the page's bytes bound before the product is formed
+        // present is at max the level count of the chunk, which the bytes of the page bound before the code forms the
+        // product
         return (present <= (values->byte_count / width)) &&
                parquet_bytes_append(&walk->column->values, values->bytes, present * width);
     }
@@ -476,7 +478,7 @@ static int parquet_values_decode(ParquetColumnWalk *walk, unsigned int encoding,
     return 1;
 }
 
-// rows and present values from one page's stored levels: a repetition level of zero starts a row, and a definition
+// rows and present values from the stored levels of one page. A repetition level of zero starts a row. A definition
 // level at its ceiling is a present value. The present count returns through *present
 static int parquet_rows_count(ParquetColumnWalk *walk, unsigned long long level_count, unsigned long long *present)
 {
@@ -536,8 +538,8 @@ static int parquet_data_page_decode(ParquetColumnWalk *walk, const ParquetPageHe
     }
     else
     {
-        // a V2 page stores its levels uncompressed and unprefixed ahead of the values, which alone are compressed,
-        // and only where the header specifies so
+        // a V2 page stores its levels uncompressed and with no prefix ahead of the values. Only the values have
+        // compression, and only where the header says so
         const unsigned long long level_bytes = header->repetition_bytes + header->definition_bytes;
         if ((header->repetition_bytes > header->compressed_bytes) ||
             (header->definition_bytes > (header->compressed_bytes - header->repetition_bytes)) ||
@@ -641,8 +643,8 @@ int parquet_column_read(const EngineIngestTools *tools, const char *path, const 
     {
         return 0;
     }
-    // the levels are stored a byte each, the values and lengths grow from the room the chunk states, and a page's
-    // levels or indices are decoded a word each into the scratch
+    // the code stores the levels a byte each. The values and lengths grow from the room that the chunk states. The
+    // code decodes the levels or indices of a page a word each into the scratch
     const size_t levels = (size_t)chunk->level_count + 1u;
     unsigned char *const chunk_bytes = (unsigned char *)malloc((size_t)chunk->compressed_bytes + 1u);
     walk.page_bytes = (unsigned char *)malloc((size_t)chunk->uncompressed_bytes + 1u);
@@ -665,7 +667,7 @@ int parquet_column_read(const EngineIngestTools *tools, const char *path, const 
         range.offset = chunk->first_byte;
         range.bytes = chunk->compressed_bytes;
         range.out = chunk_bytes;
-        // the chunk's compressed bytes were stored in memory above, a size that fits a long long
+        // the code above stored the compressed bytes of the chunk in memory, a size that fits a long long
         ok = PARQUET_CHECK(tools->read(&range) == (long long)chunk->compressed_bytes, path, error,
                            ENGINE_ERROR_REQUEST) &&
              PARQUET_CHECK(parquet_pages_decode(&walk, chunk_bytes), chunk, error, ENGINE_ERROR_REQUEST) &&
