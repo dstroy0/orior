@@ -11,14 +11,14 @@
  * @author dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
  *
  * @note Written for the Raspberry Pi 5, which is a Cortex-A76 at aarch64. NEON is mandatory in the
- *       base aarch64 architecture. On a 64 bit ARM build there is nothing to detect and the arm
- *       is always available. A 32 bit ARM build is a different matter and is gated below.
+ *       base aarch64 architecture. On a 64 bit ARM build there is nothing to detect, and the arm
+ *       is always available. A 32 bit ARM build is different, and a gate below handles it.
  * @note A NEON register is 128 bits and contains four 32 bit limbs against AVX2's eight. The loop is
  *       otherwise identical. The arithmetic belongs to the representation and not to the
  *       instruction set, and every arm has to return what the portable one returns.
  * @note vceqq_u32 sets a lane to all ones where the two limbs match. There is no movemask on NEON.
- *       The four lanes are folded to one 64 bit pair with vminvq_u32, which returns the smallest
- *       lane: that is zero exactly when some lane failed to match.
+ *       The code folds the four lanes to one 64 bit pair with vminvq_u32, which returns the
+ *       smallest lane. That is zero exactly when a lane did not match.
  */
 
 #include "arm.h"
@@ -43,7 +43,7 @@
  * @param[in] right Second magnitude [BORROWS].
  * @return          1 where every limb matches, 0 otherwise.
  * @note Walks from the top limb down. At a scale of 1024 decimal digits a deposited value carries
- *       hundreds of trailing zero digits. The low limbs are zero on both sides and carry nothing.
+ *       hundreds of zero digits at its end. The low limbs are zero on both sides and carry nothing.
  */
 static int neon_magnitude_equal(const uint32_t *left, const uint32_t *right)
 {
@@ -76,8 +76,8 @@ static int neon_magnitude_equal(const uint32_t *left, const uint32_t *right)
  * @param[in] left  First magnitude [BORROWS].
  * @param[in] right Second magnitude [BORROWS].
  * @return          -1 where left is smaller, 1 where it is larger, 0 where they are equal.
- * @note The vector reports a block differs and not which limb differs first. The block containing the
- *       highest difference is walked backward one limb at a time. That runs at max four scalar
+ * @note The vector reports that a block differs, and not which limb differs first. The code walks the
+ *       block with the highest difference backward one limb at a time. That runs at max four scalar
  *       steps, once per comparison.
  */
 static int neon_magnitude_compare(const uint32_t *left, const uint32_t *right)
@@ -151,7 +151,7 @@ static int arm_compare(const OriorExactInteger *left, const OriorExactInteger *r
 }
 
 /**
- * @brief Counts agreeing places over a sorted run, using the NEON comparison throughout.
+ * @brief Counts the places that agree over a sorted run, with the NEON comparison throughout.
  *
  * @param[in] positions Positions, ascending [BORROWS].
  * @param[in] values    The value located at each position [BORROWS].

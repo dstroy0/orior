@@ -461,7 +461,6 @@ includes/compositor/atlas.c	8
 includes/exact_types/integerfloats/edouble/edouble_record.c	5
 includes/exact_types/integers/arm.c	2
 includes/exact_types/integers/arm_cuda.h	7
-includes/exact_types/integers/arm_neon.c	8
 includes/exact_types/integers/exact_integer_gcd.c	5
 includes/exact_types/integers/exact_record/exact_record.c	5
 includes/file_defs/kcs/kcs.h	1
