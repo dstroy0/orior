@@ -33,9 +33,9 @@ static char s_given[KRS_FORMS][KRS_LINE * 2u];
 static char s_given_name[KRS_FORMS][KRS_NAME];
 static unsigned int s_givens;
 
-// The vendor's writer run through the interface in its krs mode, passed the part, the machine file, the container
-// layout, the vendor's table and the name to give the forms as (vendor_writer_run.h), its output passed to the run as
-// KRS_MACHINE_NAME. 1 where it ended clean
+// The writer of the vendor, run through the interface in its krs mode (vendor_writer_run.h). It gets the part, the
+// machine file, the container layout, the table of the vendor and the name for the forms.
+// Its output goes to the run as KRS_MACHINE_NAME. The result is 1 where it ended clean
 int krs_vendor_run(char *const *word)
 {
     // the interface's command is a list of words it does not write to; the casts only meet its declared type
@@ -43,9 +43,10 @@ int krs_vendor_run(char *const *word)
     return vendor_writer_run(command, KRS_MACHINE_NAME, "orior_krs_write", NULL);
 }
 
-// the forms the vendor's writer appended, the `size` bytes at `bytes` (forms_blob.h), read row by row into s_form, and
-// those answering a frame relation into s_frame_form. A row whose relation is none the ladder satisfies and no frame
-// relation is left out. The count read into s_form
+// the forms that the writer of the vendor appended, the `size` bytes at `bytes` (forms_blob.h), read row by row into
+// s_form. Those that answer a frame relation also go into s_frame_form.
+// The code skips a row whose relation is none that the ladder satisfies, and no frame relation. The result is the
+// count read into s_form
 unsigned int krs_forms_read(const unsigned char *bytes, unsigned long long size)
 {
     s_forms = 0u;
@@ -65,8 +66,9 @@ unsigned int krs_forms_read(const unsigned char *bytes, unsigned long long size)
         {
             anchor = (strcmp(s_anchor_text[each], name) == 0) ? each : anchor;
         }
-        // a frame relation's form, and a predicate relation's, is written as the schema's form the table beside this
-        // writer maps it to, a predicate relation read signed under its relation with `.signed` after it
+        // the form of a frame relation or of a predicate relation goes out as a form of the schema. That is the form
+        // that the table beside this writer maps it to. A predicate relation read as signed goes under its relation with `.signed` after
+        // it
         const int predicate = (anchor != (unsigned int)LADDER_ANCHOR_COUNT) && ladder_predicate(anchor);
         if ((strncmp(row.relation, KRS_READS_FRAME, strlen(KRS_READS_FRAME)) == 0) || predicate)
         {
@@ -123,7 +125,7 @@ unsigned int krs_costs_read(const char *path)
     return s_costs;
 }
 
-// the cost stored for the form first seen as `low` and `high`, or NULL where none is stored
+// the stored cost for the form that first came as `low` and `high`, or NULL where the store holds none
 static const KrsCost *krs_cost_of(unsigned long long low, unsigned long long high)
 {
     for (unsigned int at = 0u; at < s_costs; at += 1u)
@@ -211,9 +213,10 @@ unsigned int krs_fewest_operands(const unsigned int *writer, unsigned int writer
     return (found == writers) ? 0u : found;
 }
 
-// The form P6 gives a word, of the `writers` forms in `writer`: c_1, the form of least m, where the next least m is
-// past it by more than s, the greatest spread of them. Its place in `writer`, or `writers` where a form has no cost
-// stored or the least do not separate, the survivors then one cost
+// The form that P6 gives a word, of the `writers` forms in `writer`. It is c_1, the form of least m, where the next least
+// m is past it by more than s, the greatest spread of them.
+// The result is its place in `writer`. It is `writers` where a form has no stored cost or the least do not separate.
+// The survivors are then one cost
 unsigned int krs_ranked(const unsigned int *writer, unsigned int writers)
 {
     unsigned int first = writers;
