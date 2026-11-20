@@ -72,12 +72,12 @@ EXP-x-017	live	examples/0_experimental/exact_navier_stokes/exact_navier_stokes_c
 EXP-x-018	live	examples/0_experimental/exact_congruent_number.py
 EXP-x-019	live	examples/0_experimental/exact_descent_rank.py
 EXP-x-020	live	examples/0_experimental/magnitude_vector_transfer.py
-EXP-x-021	live	examples/0_experimental/exact_zeta_zeros.py
-EXP-x-022	live	examples/0_experimental/exact_zeta_gram.py
+EXP-x-021	live	examples/0_experimental/exact_zeta/exact_zeta_zeros.c
+EXP-x-022	live	examples/0_experimental/exact_zeta/exact_zeta_gram.c
 EXP-x-023	live	examples/0_experimental/exact_zeta_riemann_siegel.py
 EXP-x-024	live	examples/0_experimental/exact_zeta_arrival.py
-EXP-x-025	live	examples/0_experimental/zeta_zero_certificate.py
-EXP-x-026	live	examples/0_experimental/exact_zeta_phase.py
+EXP-x-025	live	examples/0_experimental/exact_zeta/zeta_zero_certificate.c
+EXP-x-026	live	examples/0_experimental/exact_zeta/exact_zeta_phase.c
 EXP-x-027	live	examples/0_experimental/exact_zeta_lobes.py
 EXP-x-028	live	examples/0_experimental/exact_zeta_turing.py
 EXP-x-029	live	examples/0_experimental/exact_zeta_spherical.py

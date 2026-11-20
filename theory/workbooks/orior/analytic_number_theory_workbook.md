@@ -2,7 +2,7 @@
 
 **Purpose:** Record what the engine's exact arithmetic shows when it is pointed at analytic number
 theory, one poke at a time, claiming nothing. **Scope:** `examples/0_experimental/exact_zeta_values.py`,
-`examples/0_experimental/exact_zeta_zeros.py`, `examples/0_experimental/exact_zeta_gram.py`,
+`examples/0_experimental/exact_zeta/exact_zeta_zeros.c`, `examples/0_experimental/exact_zeta/exact_zeta_gram.c`,
 `examples/0_experimental/exact_zeta_riemann_siegel.py`, `examples/0_experimental/exact_zeta_arrival.py`,
 `evidence/proofs/posits/proof_set_theory.py`, and this file.
 
