@@ -7,32 +7,29 @@
 
     python examples/00_blob_viz_tools/boundary_count.py --check
 
-THE CLAIM BEING TESTED
+THE CLAIM UNDER TEST
 
-A boundary holds a number of separable readings set by its own measure divided by the finest detail
-reaching it, raised to the dimension of the boundary. Shape does not enter. If that is right the
-same constant comes back off a sphere, a cube and an octahedron, and off a boundary in two, three,
-four, five and six dimensions. If it moves with the shape, the account is wrong and no other part of
-this directory survives it.
+A boundary holds a number of separable readings that its own measure sets. That number is the measure divided by the
+finest detail that reaches it, raised to the dimension of the boundary. Shape does not enter. If that is right, the same
+constant comes back off a sphere, a cube and an octahedron. It also comes back off a boundary in two, three, four, five
+and six dimensions. If it moves with the shape, the account is wrong, and no other part of this directory survives it.
 
 WHY TWO ROUTES
 
-The count is arrived at by packing: points are dropped on the surface and retained where they sit
-further than one resolution from everything already retained, which is a direct measure of how many
-distinguishable places the surface has. The measure is arrived at separately, in closed form from
-the shape's own geometry. Neither computation reads the other.
+The count comes from a packing. The code drops points on the surface, and keeps each that sits further than one
+resolution from all that it already kept. That is a direct measure of how many distinguishable places the surface has.
+The measure comes separately, in closed form from the geometry of the shape. Neither computation reads the other.
 
-Dividing one by the other has to give the same number every time. That is a real test because the
-two can disagree: a packing count that tracked the volume instead of the surface, or a shape whose
-corners contained more readings than its faces, would show up as a constant that moves. Computing the
-count as area over resolution squared and then checking it against area over resolution squared
-would show nothing at all. That is the version this avoids.
+One divided by the other must give the same number every time. That is a real test, because the two can disagree. A
+packing count that tracked the volume instead of the surface would show up as a constant that moves. So would a shape
+whose corners had more readings than its faces. A count computed as area over resolution squared, and then checked
+against area over resolution squared, would show nothing at all. That is the version this avoids.
 
 WHAT WOULD FAIL IT
 
-A constant that drifts with the shape at fixed dimension. A constant whose drift with dimension is
-anything other than the packing density falling, which it must, since spheres pack worse as the
-room to miss each other grows. Both are visible in the table this prints.
+A constant that drifts with the shape at fixed dimension. A constant whose drift with dimension is anything other than
+the fall of the packing density. That fall must happen, because spheres pack worse as the room to miss each other grows.
+Both are visible in the table that this prints.
 """
 
 import math
@@ -44,14 +41,12 @@ from math import comb
 def gamma_half(twice):
     """Gamma of an integer or half-integer, given twice its argument. Exact for both parities.
 
-    The half-integer arm climbs from Gamma(1/2) by halves: Gamma(k + 1/2) is root pi times the
-    product of (2j - 1)/2 for j up to k. Written with (2j + 1)/2 it starts one step along and
-    returns twice the right answer at every odd argument, which is invisible in isolation and
-    reaches the surface measure of every odd-dimensional sphere as a factor of two.
+    The half-integer arm climbs from Gamma(1/2) by halves: Gamma(k + 1/2) is root pi times the product of (2j - 1)/2 for
+    j up to k. With (2j + 1)/2, it starts one step along, and returns twice the right answer at every odd argument. That
+    error is invisible in isolation, and reaches the surface measure of every odd-dimensional sphere as a factor of two.
 
-    It was caught by the packing count disagreeing with it, and only in odd dimensions. Nothing
-    about the number itself looks wrong; it is a plausible size and it varies plausibly. Two routes
-    to one quantity is what turned it up.
+    The packing count catches it, because it disagrees with it, and only in odd dimensions. Nothing about the number
+    itself looks wrong: it is a plausible size, and it varies plausibly. Two routes to one quantity turn it up.
     """
     if twice % 2 == 0:
         out = 1.0
@@ -86,9 +81,9 @@ def on_sphere(dims, radius, draw):
 
 
 def on_cube(dims, half, draw):
-    """Uniform over the surface: a facet first, then a place on it. Facets are equal. The facet
-    is drawn flat. Drawing a point in the solid and pushing it out instead would crowd the corners,
-    the mistake that makes a cube look like it holds more than it does."""
+    """Uniform over the surface: a facet first, then a place on it. Facets are equal, and the code draws the facet flat.
+    A point drawn in the solid and pushed out instead would crowd the corners. That mistake makes a cube look like it
+    holds more than it does."""
     axis = draw.randrange(dims)
     point = [draw.uniform(-half, half) for _ in range(dims)]
     point[axis] = half if draw.random() < 0.5 else -half
@@ -113,11 +108,11 @@ def on_octahedron(half, draw):
 
 
 def pack(points, apart):
-    """How many of these can be retained with none closer than `apart` to another retained one.
+    """How many of these the code can keep, with none closer than `apart` to another kept one.
 
-    Greedy, in the order they arrive. Greedy packing is not the densest packing and does not need
-    to be: it is the same procedure on every shape. Whatever it loses it loses equally, and what
-    is being compared is one shape against another and never against a theoretical best.
+    Greedy, in the order they arrive. Greedy packing is not the densest packing, and does not need to be: it is the same
+    procedure on every shape. Whatever it loses, it loses equally. The comparison is one shape against another, and
+    never against a theoretical best.
     """
     retained = []
     limit = apart * apart
@@ -141,12 +136,11 @@ def pack(points, apart):
 def run(name, dims, measure, maker, tries, seed, target=52):
     """Packs at whatever resolution puts the count near `target`, then reports the constant.
 
-    The resolution is found and never chosen. A gap fixed by hand packs thousands of points at two
-    dimensions and nothing at nineteen. The counts stop being comparable long before the shapes
-    do, and the test ends up measuring which dimension the gap happened to suit. Searching for the
-    gap that lands on one count holds the statistics still and leaves the shape as the only thing
-    varying. It costs nothing in fairness either: if the law holds, the constant does not depend on
-    the resolution. Finding the resolution cannot flatter it.
+    The code finds the resolution, and never chooses it. A gap fixed by hand packs thousands of points at two
+    dimensions, and nothing at nineteen. The counts lose comparability long before the shapes do. The test would then
+    measure which dimension the gap happened to suit. A search for the gap that lands on one count holds the statistics
+    still, and leaves the shape as the only variable. It costs nothing in fairness either: if the law holds, the
+    constant does not depend on the resolution, and the search cannot flatter it.
     """
     draw = random.Random(seed)
     points = [maker(draw) for _ in range(tries)]
@@ -171,14 +165,13 @@ def run(name, dims, measure, maker, tries, seed, target=52):
 def typical(maker, seed, pairs=900):
     """The middle distance between two points drawn on this surface.
 
-    This decides whether a packing count means anything. A gap far below it is picking points
-    out of a crowd, which is packing. A gap approaching it picks the few pairs that happen to
-    be unusually far apart, which is a fact about the sample and not about the surface.
+    This decides whether a packing count means anything. A gap far below it picks points out of a crowd, which is
+    packing. A gap near it picks the few pairs that happen to be unusually far apart. That is a fact about the sample,
+    and not about the surface.
 
-    In high dimensions every pair of points on a sphere sits at very nearly the same distance from
-    every other. The room between the smallest useful gap and the largest possible one closes.
-    Past that this method has nothing left to measure, and the honest output is to say so instead of
-    printing whatever the arithmetic returned.
+    In high dimensions, every pair of points on a sphere sits at very nearly the same distance from every other. The
+    room between the smallest useful gap and the largest possible one closes. Past that, this method has nothing left to
+    measure. The honest output then says so, and does not print whatever the arithmetic returned.
     """
     draw = random.Random(seed)
     gaps = []
@@ -197,28 +190,27 @@ def typical(maker, seed, pairs=900):
 def harmonics_upto(dims, top):
     """Exactly how many harmonics of degree at max `top` live on the sphere in this dimension.
 
-    Whole numbers throughout. Degree l on the sphere in n dimensions carries
-    C(l+n-1, n-1) - C(l+n-3, n-1) harmonics, and summing that to L telescopes to the two terms
-    below. No estimate, no draw, no floating point: the count is an integer and it is this integer.
+    Whole numbers throughout. Degree l on the sphere in n dimensions carries C(l+n-1, n-1) - C(l+n-3, n-1) harmonics.
+    Its sum to L telescopes to the two terms below. No estimate, no draw, no floating point: the count is an integer,
+    and it is this integer.
 
-    The sampling argument was going wrong here, and not going short of samples.
-    Packing was being counted by dropping points and looking, and in nineteen dimensions the number
-    to be counted is larger than any pool that can be dropped. Counting it instead of measuring it
-    removes the pool from the question. Arbitrary precision is not the thing that helps here, since
-    nothing was being rounded. What helps is that the quantity was always an integer with a formula.
+    A sample here goes wrong, and not for a lack of samples. A count of a packing drops points and looks. In nineteen
+    dimensions, the number to count is larger than any pool that a drop can make. A count by formula, and not a
+    measurement, removes the pool from the question. Arbitrary precision does not help here, because nothing rounds.
+    What helps is that the quantity is an integer with a formula.
     """
     return comb(top + dims - 1, dims - 1) + comb(top + dims - 2, dims - 1)
 
 
 def weyl_upto(dims, top):
-    """What the area law predicts that count should be, from the measure of the surface alone.
+    """What the area law predicts that count to be, from the measure of the surface alone.
 
-    Weyl's law: the number of eigenvalues below lambda goes as the volume of the unit ball in the
-    boundary's own dimension, times the boundary's measure, times lambda to half that dimension,
-    over two pi to that dimension. The eigenvalue at degree L is L(L + n - 2).
+    Weyl's law: the number of eigenvalues below lambda goes as the volume of the unit ball in the boundary's own
+    dimension, times the boundary's measure. That product goes times lambda to half that dimension, over two pi to that
+    dimension. The eigenvalue at degree L is L(L + n - 2).
 
-    Nothing here reads the count above. One side is combinatorics on a sphere, the other is a
-    measure and a power, and they have no term in common.
+    Nothing here reads the count above. One side is combinatorics on a sphere, the other is a measure and a power, and
+    they have no term in common.
     """
     edge = dims - 1
     lam = float(top) * (top + dims - 2)
@@ -264,15 +256,13 @@ def _check():
     print("  %-12s %5s %7s %9s %12s %10s  %s" %
           ("shape", "dims", "retained", "gap", "measure", "constant", "resolved"))
 
-    # A packing count is only about the surface while there are candidates to spare. Past that the
-    # count stops being what the geometry allows and becomes what the pool contained, and in high
-    # dimensions the pool gives out early: points drawn on a sphere in nineteen dimensions are
-    # very nearly all at the same distance from one another. Nothing is learned about packing
-    # from a few thousand of them however carefully they are counted.
+    # A packing count is only about the surface while there are candidates to spare. Past that, the count no longer
+    # shows what the geometry allows: it shows what the pool contained. In high dimensions the pool gives out early.
+    # Points drawn on a sphere in nineteen dimensions are very nearly all at the same distance from one another. A few
+    # thousand of them teach nothing about packing, however carefully the code counts them.
     #
-    # So every row is run twice, at one pool and at double it. A row whose constant moves when it
-    # is given more candidates was measuring the pool. Reporting it anyway is how a number like
-    # eight hundred ends up in a table looking like a result.
+    # Every row therefore runs twice, at one pool and at double it. A row whose constant moves with more candidates
+    # measured the pool. A report of it anyway is how a number like eight hundred ends up in a table as a result.
     across = []
     for dims in range(2, 20):
         got = run("sphere", dims, sphere_measure(dims, 1.0),
@@ -325,9 +315,8 @@ def _check():
         print("  FAIL the exact count and the area law disagree")
         bad += 1
 
-    # The remainder has to fall as the degree climbs, or what is being seen is a disagreement
-    # wearing a small number instead of a law with an error term. Quadrupling the degree should
-    # quarter it.
+    # The remainder must fall as the degree climbs. Otherwise it is a disagreement with a small number, and not a law
+    # with an error term. A degree four times higher should quarter it.
     close = []
     for top in (8000, 32000, 128000, 512000):
         close.append(abs(harmonics_upto(19, top) / weyl_upto(19, top) - 1.0))
