@@ -7,7 +7,6 @@ examples/00_blob_viz_tools/aimed_arms.py	22
 examples/00_blob_viz_tools/arm_draw.py	65
 examples/00_blob_viz_tools/arm_rank.py	24
 examples/00_blob_viz_tools/beam_illuminate.py	32
-examples/00_blob_viz_tools/beam_read.py	67
 examples/00_blob_viz_tools/beam_rows.py	29
 examples/00_blob_viz_tools/bend_view_template.html	11
 examples/00_blob_viz_tools/blind_view_template.html	2
@@ -770,7 +769,6 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/bus_clock.c	13
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_listing.c	24
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_listing.h	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_listing/cut.c	5
-src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_run.c	69
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_run/cubin_run_internal.h	25
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_run/driver.c	19
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_run/input.c	11
@@ -1081,7 +1079,6 @@ utils/maint/data/salishan/corpus_script_extraction/line_breaks.py	10
 utils/maint/data/salishan/corpus_script_extraction/mary_george_repair.py	11
 utils/maint/data/salishan/corpus_script_extraction/mellesmoen_kye_repair.py	26
 utils/maint/data/salishan/corpus_script_extraction/page_text.py	10
-utils/maint/data/salishan/corpus_script_extraction/paper_config.py	69
 utils/maint/data/salishan/corpus_script_extraction/paper_structure.py	6
 utils/maint/data/salishan/corpus_script_extraction/pdf_fonts.py	6
 utils/maint/data/salishan/corpus_script_extraction/repairs.py	29
