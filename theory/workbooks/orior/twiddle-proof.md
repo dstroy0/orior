@@ -228,7 +228,7 @@ alone, and comparing the digest before and after says which of the two happened 
 
 ## On the card, where a second silent wrong answer was waiting
 
-The transform these constants exist for runs in `src/bench/bench_ntt_cuda.cu`, over the three moduli
+The transform these constants exist for runs in `utils/bench/bench_ntt_cuda.cu`, over the three moduli
 below, each carrying its Proth witness in the source beside it:
 
 | modulus | shape | witness | order |

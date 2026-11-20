@@ -53,7 +53,7 @@ LOG = os.path.join(ROOT, "miner.log")
 BASELINE = os.path.join(ROOT, "miner_baseline.log")
 CORPUS = os.path.join(ROOT, "utils", "maint", "chain", "blocks_deep.json")
 
-# Measured by src/import/hardware/device_scaling.sh on this card. Recorded and not recomputed,
+# Measured by utils/maint/hardware/device_scaling.sh on this card. Recorded and not recomputed,
 # because the measurement takes minutes and the page should build in under a second.
 SCALING = ((1, 2124.70, 1.000), (2, 1414.73, 0.666), (3, 1478.99, 0.696), (4, 1750.24, 0.824))
 
@@ -563,7 +563,7 @@ TEMPLATE = """<title>Worker Pool</title>
   <p class="note wide">Concurrent miner processes on one card are time-sliced, and worse than
   time-sliced: two lose a third of the aggregate and it never recovers past one. So the pool is one
   device process, and parallelism belongs in streams inside it. Measured by
-  src/import/hardware/device_scaling.sh.</p>
+  utils/maint/hardware/device_scaling.sh.</p>
 
   <footer>Every figure above is read from nvidia-smi, miner_totals.txt, miner.log or
   blocks_deep.json at build time. Anything unreadable is displayed as absent and not filled in.
