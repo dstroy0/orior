@@ -6,8 +6,9 @@
 
 #include "ruleset_core_words.h"
 
-// where a form's scratch is being arranged: the form, the line of its construct being read, 1 once that line's
-// arguments are taken and its form arranged, and where the registers it has taken begin among those taken
+// where the code arranges the scratch of a form. It holds the form, and the line of its construct in the read. It holds
+// 1 once the code took the arguments of that line and arranged its form. It holds where the registers of the form
+// begin among the taken registers
 struct RulesetCoreFrame
 {
     unsigned int name;
@@ -17,10 +18,13 @@ struct RulesetCoreFrame
     unsigned int taken_first;
 };
 
-// the scratch of every form of a read ruleset: the constructs, lines and arguments read, each form's placeholders from
-// form_placeholder_first[form] to form_placeholder_first[form + 1] of form_placeholders, the banks at places 0, 1 and
-// 2, and the memory the caller gives: the scratch itself, four words a form, which forms are counted, a frame a form,
-// and the registers taken, as many as there are arguments
+// the scratch of each form of a read ruleset:
+//   - the read constructs, lines and arguments.
+//   - the placeholders of each form, from form_placeholder_first[form] to form_placeholder_first[form + 1] of
+//     form_placeholders.
+//   - the banks at places 0, 1 and 2.
+//   - the memory that the caller gives: the scratch itself, four words a form, and which forms the code counted. Then
+//     a frame a form, and the taken registers, as many as there are arguments.
 struct RulesetCoreScratch
 {
     const RulesetCoreConstruct *constructs;
@@ -37,7 +41,8 @@ struct RulesetCoreScratch
     unsigned int *taken_number;
 };
 
-// form `name`'s frame begun where it is not counted yet, as ruleset_scratch_of begins; the frames allocated returned
+// the frame of form `name`, begun where the code did not count it yet, as ruleset_scratch_of begins. The result is the
+// allocated frames
 CODEGEN_CORE unsigned int ruleset_core_scratch_enter(RulesetCoreScratch *scratch, unsigned int name, unsigned int depth,
                                                      unsigned int taken_top)
 {
@@ -53,10 +58,14 @@ CODEGEN_CORE unsigned int ruleset_core_scratch_enter(RulesetCoreScratch *scratch
     return depth + 1u;
 }
 
-// the scratch form `name` takes in one writing, arranged into its four words of the scratch once and marked counted, as
-// ruleset_scratch_of positions it out: each scratch register its lines name, once, and what each form its lines write takes,
-// which a construct given before it in the file arranged, and the recursion ends. The host's recursion is bounded
-// in the frames, a form each at max, each line's form arranged before the line's scratch is added, as the host adds it
+// the scratch that form `name` takes in one write, as ruleset_scratch_of puts it out. The code arranges it into its
+// four words of the scratch once, and marks it as counted.
+//
+// It is each scratch register that its lines name, once, and what each form that its lines write takes. A construct
+// that the file gave before it arranged that, and the recursion ends.
+//
+// The frames bound the recursion of the host, a form each at max. The code arranges the form of each line before it
+// adds the scratch of the line, as the host adds it
 CODEGEN_CORE void ruleset_core_scratch_of(RulesetCoreScratch *scratch, unsigned int name)
 {
     unsigned int taken_top = 0u;
@@ -113,8 +122,8 @@ CODEGEN_CORE void ruleset_core_scratch_of(RulesetCoreScratch *scratch, unsigned 
     }
 }
 
-// the scratch each form of the ruleset takes in one writing, four words a form by its place in the schema, as
-// ruleset_scratch positions it out
+// the scratch that each form of the ruleset takes in one write, four words a form by its place in the schema. This is
+// as ruleset_scratch puts it out
 CODEGEN_CORE void ruleset_core_scratch(RulesetCoreScratch *scratch)
 {
     for (unsigned int word = 0u; word < (4u * scratch->form_count); word += 1u)
@@ -125,8 +134,8 @@ CODEGEN_CORE void ruleset_core_scratch(RulesetCoreScratch *scratch)
     {
         scratch->counted[name] = 0u;
     }
-    // a form given as text takes each scratch register its text names, once, before any construct that writes it is
-    // arranged; a bank past the three breaks the lane, as a construct's does
+    // a form given as text takes each scratch register that its text names, once. This comes before the code arranges a
+    // construct that writes it. A bank past the three breaks the lane, as a bank of a construct does
     for (unsigned int name = 0u; name < scratch->form_count; name += 1u)
     {
         if (scratch->constructs[name].line_count != 0u)
