@@ -460,7 +460,6 @@ includes/codecs/zip/zip_archive.c	2
 includes/codecs/zip/zip_index.c	2
 includes/compositor/atlas.c	8
 includes/compositor/compositor.c	15
-includes/coverage/coverage.c	17
 includes/coverage/coverage.h	11
 includes/exact_types/integerfloats/decimal_double/decimal_double.c	9
 includes/exact_types/integerfloats/edouble/edouble_record.c	5
