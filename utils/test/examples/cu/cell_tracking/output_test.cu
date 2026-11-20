@@ -1,48 +1,96 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// S11, the output (cell_tracking/src/output/output_graph), every point retained. A synthetic set written as .points and
-// .links runs through output_graph_set: a chain of four frames in a 4 x 5 x 6 view whose points carry two limbs of
-// levels, with a link at a cost past 32 bits, a gate pair left unchosen, an end whose prediction lies outside the view,
-// a start, an empty frame and two starts after it; a sample of no frames; and a second sample of two frames whose links
-// cross. Its node ids count from 1 again while the submission's row ids run on. Every row of the nodes and of the
-// submission, and every line of the counts, is checked against text worked by hand. Then S7's divisions (src/divide): a
-// .divide beside the chain, where A divides taking D, which started, and one beside second, where P divides taking R
-// from Q, which ends; every row and count is checked against the hand's again, daughter two's state split. A .divide of
-// no divisions beside each sample writes the undivided set's nodes and submission byte for byte. Then S9's faces
-// (src/faces): a .faces beside each sample, written by hand, where the chain's B ends with its prediction past a face
-// and left, D starts carried back past one and entered and ends predicted past another and left, E starts at the last
-// frame carried back past one and entered, and A, carried back past one, has its link in and is no start; every state
-// and count is checked against the hand's, and the submission is the undivided set's byte for byte. With chain's
-// .divide and second's beside them too, D is daughter two, split and left and no start. Then each of thirteen broken
-// samples runs after the good chain, and the set errors with nothing written past the headers: .links frames or a view
-// that disagree with the .points, a pair whose sources are not the frame's points, a chosen link past the points, two
-// links into one point and two out of one, a pair whose chosen count is not its gate's, a .links or a .points with a
-// word past its last frame, a .links that stops a pair short, a voxel outside the view, a sample with no .links, and
-// a name with a comma. Malformed requests error. A copy of second with its .divide as worked writes after the good
-// chain, and each of fourteen broken .divide files in its place errors on the same way: a head cut short, frames or a
-// view not the .points', a CRC-64 not its .links', a count past the frame's points, a parent past them, parents out
-// of order, daughter one not the parent's link, daughter two daughter one or past the points, daughter two not from
-// the point named, a division taking from a point that divides (on a fork), a division cut short, and a word past the
-// last pair. A copy of the chain with its .faces as worked writes after the good chain, and each of fifteen broken
-// .faces files in its place errors on the same way: a head cut short, frames or a view not the .points', a CRC-64 not
-// its .links', a frame's count not its points', a flag no .faces sets, back-prediction faces not its place's,
-// prediction faces on a point the .links does not flag outside, a first-frame flag off frame 0, a last frame's point
-// without its flag, a carried flag on a point with no link out, an entering or a leaving verdict dropped, a point cut
-// short, and a word past the last frame. Then the faults: through the seam output_graph.cu provides for the test alone
-// (OUTPUT_TEST_FAULTS), H4 fed one end too many on each frame pair, which the one-to-one links cannot make happen, on
-// the set as worked and divided; second's .divide taken away between the two passes and put beside it there;
-// second's .faces rewritten between the passes with R carried back past a face, every count the same, and taken away
-// there; and "second" rewritten between the passes, once with a link fewer and once with its links crossed the other
-// way, every count the same; each errors with nothing of second's written. And, with no seam, a nodes file and a
-// submission opened for reading, which no row can be written to: the set errors, and output_close, which the driver
-// closes both with, fails on the file. What the C library returns on such a file is printed. The test is host work
-// and touches no device. It is no job.
+// S11, the output (cell_tracking/src/output/output_graph), every point kept. A synthetic set written as .points and
+// .links runs through output_graph_set. It has three samples:
+//   - a chain of four frames in a 4 x 5 x 6 view, whose points carry two limbs of levels. It has a link at a cost past
+//     32 bits, a gate pair left unchosen, and an end whose prediction lies outside the view. It also has a start, an
+//     empty frame, and two starts after it.
+//   - a sample of no frames.
+//   - a second sample of two frames whose links cross. Its node ids count from 1 again, while the row ids of the
+//     submission run on.
 //
-// The test links no engine_*.cu. Engine_sample_path below restates engine/engine_*.cu's, and output_graph.cu's paths
-// are built by the restatement here: a change to either format must be made in both. The CRC-64 the .divide and the
-// .faces carry is taken a bit at a time here, apart from cu/includes/codecs/crc/crc.h's table, which output_graph.cu
-// takes it by.
+// The test checks every row of the nodes and of the submission, and every line of the counts, against text worked by
+// hand.
+//
+// Then S7's divisions (src/divide): a .divide beside the chain, where A divides and takes D, which started. Another
+// sits beside second, where P divides and takes R from Q, which ends. The test checks every row and count against the
+// hand's again, with the split state on daughter two. A .divide of no divisions beside each sample writes the nodes and
+// submission of the undivided set byte for byte.
+//
+// Then S9's faces (src/faces): a .faces beside each sample, written by hand. In the chain:
+//   - B ends with its prediction past a face, and leaves.
+//   - D starts carried back past one and enters, and ends predicted past another and leaves.
+//   - E starts at the last frame carried back past one, and enters.
+//   - A, carried back past one, has its link in and is no start.
+//
+// The test checks every state and count against the hand's, and the submission is that of the undivided set byte for
+// byte. With the .divide of chain and of second beside them too, D is daughter two, split and left and no start.
+//
+// Then each of thirteen broken samples runs after the good chain, and the set errors with nothing written past the
+// headers. The breaks are:
+//   - .links frames or a view that disagree with the .points.
+//   - a pair whose sources are not the points of the frame.
+//   - a chosen link past the points.
+//   - two links into one point, and two out of one.
+//   - a pair whose chosen count is not that of its gate.
+//   - a .links or a .points with a word past its last frame.
+//   - a .links that stops a pair short.
+//   - a voxel outside the view.
+//   - a sample with no .links.
+//   - a name with a comma.
+//
+// Malformed requests error.
+//
+// A copy of second with its .divide as worked writes after the good chain. Each of fourteen broken .divide files in its
+// place errors in the same way:
+//   - a head cut short.
+//   - frames or a view not those of the .points.
+//   - a CRC-64 not that of its .links.
+//   - a count past the points of the frame, or a parent past them.
+//   - parents out of order.
+//   - daughter one not the link of the parent.
+//   - daughter two equal to daughter one, or past the points.
+//   - daughter two not from the point named.
+//   - a division that takes from a point that divides (on a fork).
+//   - a division cut short.
+//   - a word past the last pair.
+//
+// A copy of the chain with its .faces as worked writes after the good chain. Each of fifteen broken .faces files in its
+// place errors in the same way:
+//   - a head cut short.
+//   - frames or a view not those of the .points.
+//   - a CRC-64 not that of its .links.
+//   - a count of a frame not that of its points.
+//   - a flag that no .faces sets.
+//   - back-prediction faces not those of its place.
+//   - prediction faces on a point that the .links does not flag as outside.
+//   - a first-frame flag off frame 0.
+//   - a point of the last frame without its flag.
+//   - a carried flag on a point with no link out.
+//   - an entry or an exit verdict dropped.
+//   - a point cut short.
+//   - a word past the last frame.
+//
+// Then the faults, through the seam that output_graph.cu provides for the test alone (OUTPUT_TEST_FAULTS):
+//   - H4 gets one end too many on each frame pair, which the one-to-one links cannot cause, on the set as worked and
+//     divided.
+//   - the test takes the .divide of second away between the two passes, and puts it beside second there.
+//   - the test rewrites the .faces of second between the passes, with R carried back past a face and every count the
+//     same. It then takes that file away there.
+//   - the test rewrites "second" between the passes, once with a link fewer and once with its links crossed the other
+//     way, every count the same.
+//
+// Each errors with nothing of second's written.
+//
+// With no seam, the test opens a nodes file and a submission for reading, and no row can go to them. The set errors,
+// and output_close, which the driver closes both with, fails on the file. The test prints what the C library returns on
+// such a file. The test is host work and touches no device. It is no job.
+//
+// The test links no engine_*.cu. Engine_sample_path below restates that of engine/engine_*.cu, and the restatement here
+// builds the paths of output_graph.cu. A change to either format must go in both. This file takes the CRC-64 that the
+// .divide and the .faces carry a bit at a time. That is apart from the table of cu/includes/codecs/crc/crc.h, which
+// output_graph.cu takes it by.
 #ifndef OUTPUT_TEST_FAULTS
 #error "output_test is built with OUTPUT_TEST_FAULTS (test/output_test.sh): its faults are the seam's"
 #endif
@@ -73,11 +121,11 @@
 #define OUTPUT_TEST_NODES_HEADER "the nodes header, which open_output writes\n"
 
 // the test links no engine_*.cu: the engine's sample path, restated as cu/engine/engine_files.cu's engine_sample_path
-// writes it. A change to that format must be made here too
+// writes it. A change to that format must go here too
 extern "C" int engine_sample_path(char *out, size_t capacity, const char *set, const char *sample, const char *suffix)
 {
     const int written = snprintf(out, capacity, "%s/%s/%s%s", set, sample, sample, suffix);
-    // a non-negative length is compared whole against the capacity
+    // the code compares a non-negative length whole against the capacity
     return (written > 0) && ((size_t)written < capacity);
 }
 
@@ -115,7 +163,7 @@ static void output_test_put(OutputTestWords *words, unsigned int word)
 static int output_test_path(char *path, size_t capacity, const char *set, const char *name)
 {
     const int written = snprintf(path, capacity, "%s/%s", set, name);
-    // a non-negative length is compared whole against the capacity
+    // the code compares a non-negative length whole against the capacity
     return (written > 0) && ((size_t)written < capacity);
 }
 
@@ -131,9 +179,9 @@ static int output_test_directory(const char *set, const char *sample)
     return 1;
 }
 
-// a sample's .points: its head (frames, depth, height, width, limbs, bits), the readings and the cumulative count, 0
-// here, which S11 passes over, then each frame's count, voxels and levels, each point's levels `limbs` words of
-// 0xA5A5A5A5; `trailing` adds one word past the last frame
+// a sample's .points: its head (frames, depth, height, width, limbs, bits), the readings, and the cumulative count, 0
+// here, which S11 passes over. Then each frame's count, voxels and levels, with the levels of each point `limbs` words
+// of 0xA5A5A5A5. `trailing` adds one word past the last frame
 static int output_test_points(const char *set, const char *sample, const unsigned int head[6],
                               const unsigned int *counts, const unsigned int *voxels, int trailing)
 {
@@ -205,8 +253,8 @@ static void output_test_source(OutputTestWords *words, unsigned int flags)
     }
 }
 
-// a gate pair record: source, target, the cost as its low word then its high, a weight and a component S11 does not
-// read, and the flags
+// a gate pair record: source, target, and the cost as its low word then its high. Then a weight and a component that
+// S11 does not read, and the flags
 static void output_test_gate(OutputTestWords *words, unsigned int source, unsigned int target, unsigned long long cost,
                              unsigned int flags)
 {
@@ -241,9 +289,14 @@ static const char *const OUTPUT_FLAW_NAMES[OUTPUT_FLAWS] = {
     "chosen", "trailing", "short", "points_trailing", "points_outside", "missing"};
 
 // the chain: 4 frames in a 4 x 5 x 6 view, two limbs of levels a point. Frame 0 contains A (voxel 7), B (50) and C
-// (100), frame 1 A (8) and D (119), frame 2 nothing, frame 3 E (0) and F (31). A links on at cost 2^32 + 5; C to D is
-// in the gate and not chosen; B ends with its prediction outside the view and C ends inside it; A and D end at frame 1,
-// D's prediction outside; D starts at frame 1, E and F at frame 3. A flaw breaks it one way. Written as `sample`
+// (100), frame 1 A (8) and D (119), frame 2 nothing, and frame 3 E (0) and F (31).
+//   - A links on at cost 2^32 + 5.
+//   - C to D is in the gate and not chosen.
+//   - B ends with its prediction outside the view, and C ends inside it.
+//   - A and D end at frame 1, with the prediction of D outside.
+//   - D starts at frame 1, and E and F at frame 3.
+//
+// A flaw breaks it one way. Written as `sample`
 static int output_test_chain_as(const char *set, const char *sample, OutputFlaw flaw)
 {
     const unsigned int head[6] = {4u, 4u, 5u, 6u, 2u, 34u};
@@ -307,8 +360,8 @@ static int output_test_empty(const char *set)
            output_test_links(set, "empty", &words);
 }
 
-// how "second" is written: as worked by hand; with Q to R left unchosen, a link fewer, which changes its counts. Or
-// with its links crossed the other way, P to R and Q to S, which preserves every count
+// how the test writes "second": as worked by hand, or with Q to R left unchosen, a link fewer, which changes its
+// counts. Or with its links crossed the other way, P to R and Q to S, which keeps every count
 typedef enum
 {
     OUTPUT_SECOND_WORKED = 0,
@@ -372,8 +425,8 @@ static int output_test_fork(const char *set, const char *sample)
            output_test_links(set, sample, &words);
 }
 
-// CRC-64/XZ a bit at a time from its reflected polynomial, restated apart from cu/includes/codecs/crc/crc.h's table: over
-// `count` bytes, carried on from `crc`
+// CRC-64/XZ a bit at a time from its reflected polynomial, over `count` bytes, carried on from `crc`. This restates it
+// apart from the table of cu/includes/codecs/crc/crc.h
 static unsigned long long output_test_crc_bytes(unsigned long long crc, const unsigned char *bytes, size_t count)
 {
     for (size_t at = 0u; at < count; at += 1u)
@@ -436,10 +489,11 @@ static const char *const OUTPUT_DIVIDE_NAMES[OUTPUT_DIVIDE_FLAWS] = {
 // .divide and .faces open with the same six words: the frames, the view and the CRC-64 of the .links
 static_assert(DIVIDE_HEADER_WORDS == FACES_HEADER_WORDS, "the .divide head and the .faces head are one layout");
 
-// a file the output reads beside the sample's .links, written as `suffix`: its head (the .points' frames and view
-// given, and the CRC-64 of the .links, `skew` added), then `blocks` blocks, each its count from `counts` and that many
-// records of `record_words` words from `records`, in order, and `extra` words of 0 past the last block. `head_words` of
-// the head are written, the blocks only when that is all of it, and `short_by` words are taken off the end
+// a file that the output reads beside the sample's .links, written as `suffix`. Its head holds the frames and view of
+// the .points given, and the CRC-64 of the .links with `skew` added. Then come `blocks` blocks, each its count from
+// `counts` and that many records of `record_words` words from `records`, in order. Then `extra` words of 0 follow the
+// last block. The function writes `head_words` of the head, the blocks only when that is all of it, and takes
+// `short_by` words off the end
 static int output_test_beside(const char *set, const char *sample, const char *suffix, const unsigned int view[4],
                               unsigned long long skew, unsigned int blocks, const unsigned int *counts,
                               const unsigned int *records, unsigned int record_words, unsigned int extra,
@@ -510,7 +564,7 @@ static void output_test_undivide(const char *set, const char *sample)
     }
 }
 
-// chain's .divide: at frames 0 and 1, A divides, retaining its link to A and taking D, which starts, as daughter two
+// chain's .divide: at frames 0 and 1, A divides, keeps its link to A, and takes D, which starts, as daughter two
 static int output_test_chain_divide(const char *set)
 {
     const unsigned int view[4] = {4u, 4u, 5u, 6u};
@@ -519,9 +573,9 @@ static int output_test_chain_divide(const char *set)
     return output_test_divide(set, "chain", view, 0ull, counts, divisions, 0u, DIVIDE_HEADER_WORDS, 0u);
 }
 
-// a copy of second as `sample` and its .divide, as worked or broken one way. As worked, P divides, retaining its link
-// to S and taking R from Q, which ends. A count past the frame's points is written with its three divisions' words, and
-// a short .divide stops after its count
+// a copy of second as `sample` and its .divide, as worked or broken one way. As worked, P divides, keeps its link to S,
+// and takes R from Q, which ends. A count past the points of the frame goes out with the words of its three divisions,
+// and a short .divide stops after its count
 static int output_test_second_divide(const char *set, const char *sample, OutputDivideFlaw flaw)
 {
     unsigned int view[4] = {2u, 1u, 2u, 3u};
@@ -551,7 +605,7 @@ static int output_test_second_divide(const char *set, const char *sample, Output
         divisions[3] = DIVIDE_NONE;
         break;
     case OUTPUT_DIVIDE_ORDER: {
-        // Q divides first, taking S from P; then P, which comes before Q
+        // Q divides first, and takes S from P; then P, which comes before Q
         const unsigned int two[2u * DIVIDE_WORDS] = {1u, 0u, 1u, 0u, 0u, 1u, 0u, 1u};
         memcpy(divisions, two, sizeof(two));
         counts[0] = 2u;
@@ -567,7 +621,7 @@ static int output_test_second_divide(const char *set, const char *sample, Output
                               (flaw == OUTPUT_DIVIDE_SHORT) ? DIVIDE_WORDS : 0u);
 }
 
-// fork's .divide for "divides": P takes T, which starts; then Q, retaining its link to R, takes S from P, which divides
+// fork's .divide for "divides": P takes T, which starts. Then Q keeps its link to R and takes S from P, which divides
 static int output_test_fork_divide(const char *set, const char *sample)
 {
     const unsigned int view[4] = {2u, 1u, 2u, 3u};
@@ -618,13 +672,15 @@ static const char *const OUTPUT_FACES_NAMES[OUTPUT_FACES_FLAWS] = {
 #define OUTPUT_TEST_BACK(faces_) ((unsigned int)(faces_) << FACES_BACK_SHIFT)
 #define OUTPUT_TEST_AHEAD(faces_) ((unsigned int)(faces_) << FACES_AHEAD_SHIFT)
 
-// a copy of the chain as `sample` and its .faces, as worked by hand or broken one way. Frame 0's points are first and
-// carry their places back: A (0, 1, 1), B (1, 3, 2), which ends with its prediction past the high x face and leaves,
-// and C (3, 1, 4), whose own neighborhood the high x face cuts. At frame 1 A, which A links into, is carried back
-// below the low x face, is no start, and enters nothing; D, which starts, is carried back past the high z face and
-// enters, and ends with its prediction past the high y face and leaves. At frame 3, the last, E is carried back below
-// the low z face and enters, and F, inside, does not. No point is carried by a link out: A and D end at frame 1 and
-// frame 3 has none
+// a copy of the chain as `sample` and its .faces, as worked by hand or broken one way.
+//   - frame 0: its points are first and carry their places back. A is at (0, 1, 1). B is at (1, 3, 2), and ends with
+//     its prediction past the high x face and leaves. C is at (3, 1, 4), and the high x face cuts its own neighborhood.
+//   - frame 1: A, which A links into, carries back below the low x face, is no start, and enters nothing. D, which
+//     starts, carries back past the high z face and enters, and ends with its prediction past the high y face and
+//     leaves.
+//   - frame 3, the last: E carries back below the low z face and enters, and F, inside, does not.
+//
+// No link out carries a point: A and D end at frame 1, and frame 3 has none
 static int output_test_chain_faces(const char *set, const char *sample, OutputFacesFlaw flaw)
 {
     unsigned int view[4] = {4u, 4u, 5u, 6u};
@@ -690,8 +746,8 @@ static int output_test_empty_faces(const char *set)
 }
 
 // second's .faces, beside second as it is: P and Q, at frame 0, carry their places back. At frame 1, the last, R
-// is carried back to (0, 1, 2), or with `moved` past the high x face, and S below the low x face. R and S have their
-// links in. Neither is a start and neither enters, and no count moves with R
+// carries back to (0, 1, 2), or with `moved` past the high x face, and S below the low x face. R and S have their links
+// in. Neither is a start, neither enters, and no count moves with R
 static int output_test_second_faces(const char *set, int moved)
 {
     const unsigned int view[4] = {2u, 1u, 2u, 3u};
@@ -853,7 +909,7 @@ static int output_test_counts(char *expected, size_t capacity, const OutputTestL
 {
     int written = snprintf(expected, capacity, "  %-24s %6s %10s %10s %s\n", "sample", "frames", "nodes", "edges",
                            "ends (outside the view; max a frame), starts (max a frame); H4");
-    // a non-negative length is compared whole against the capacity left
+    // the code compares a non-negative length whole against the capacity left
     int ok = (written > 0) && ((size_t)written < capacity);
     size_t used = ok ? (size_t)written : 0u;
     for (unsigned int line = 0u; ok && (line < 3u); line += 1u)
@@ -867,8 +923,8 @@ static int output_test_counts(char *expected, size_t capacity, const OutputTestL
     return ok && (written > 0) && ((size_t)written < (capacity - used));
 }
 
-// the counts, worked by hand: the chain's ends are B and C at frame 0 and A and D at frame 1, B and D predicted
-// outside; its starts D at frame 1 and E and F at frame 3
+// the counts, worked by hand. The chain's ends are B and C at frame 0, and A and D at frame 1, with B and D predicted
+// outside. Its starts are D at frame 1, and E and F at frame 3
 static int output_test_report(char *expected, size_t capacity)
 {
     const OutputTestLine lines[3] = {{"chain", 4ull, 7ull, 1ull, "4 (2; 2), 3 (2); satisfied on 3 of 3 frame pairs"},
@@ -911,8 +967,9 @@ static const char OUTPUT_TEST_DIVIDED_SUBMISSION[] = OUTPUT_SUBMISSION_HEADER "0
                                                                               "13,second,edge,-1,-1,-1,-1,-1,1,4\n"
                                                                               "14,second,edge,-1,-1,-1,-1,-1,1,3\n";
 
-// the divided set's counts, worked by hand. The chain's A divides at frame 0, taking D, which started. D no longer
-// starts; second's P divides, taking R from Q, which now ends. Each .divide's division and its move are counted
+// the divided set's counts, worked by hand. The chain's A divides at frame 0, and takes D, which started. D no longer
+// starts. second's P divides, and takes R from Q, which now ends. The counts hold the division of each .divide and its
+// move
 static int output_test_divided_report(char *expected, size_t capacity)
 {
     const OutputTestLine lines[3] = {
@@ -932,10 +989,12 @@ static int output_test_divided_report(char *expected, size_t capacity)
                               "  the submission: 15 rows after the header, 11 node rows and 4 edge rows\n");
 }
 
-// the set with a .faces beside each sample: the rows are the undivided set's but for three states. The chain's B, an
-// end whose prediction crosses a face, left (0x020); D, a start carried back across one that ends crossing another,
-// entered and left (0x021); E, a start carried back across one, entered (0x001). A, carried back across a face, has
-// its link in and is none of them, and so are second's R and S
+// the set with a .faces beside each sample: the rows are those of the undivided set, but for three states.
+//   - the chain's B, an end whose prediction crosses a face, left (0x020).
+//   - D, a start carried back across one, that ends and crosses another, entered and left (0x021).
+//   - E, a start carried back across one, entered (0x001).
+//
+// A, carried back across a face, has its link in and is none of them, and so are second's R and S
 static const char OUTPUT_TEST_FACED_NODES[] = OUTPUT_TEST_NODES_HEADER
     "chain\t0\t0\t0\t1\t1\t0\t0\t1\t0\t4294967301\t0\t0\t1\t0\t0\t0\t-1\t0\t-1\t1\t0\t-1\t0\t-1\n"
     "chain\t0\t1\t1\t3\t2\t0\t1\t1\t-1\t0\t0\t-1\t0\t0\t0\t0\t-1\t0\t-1\t2\t32\t-1\t0\t-1\n"
@@ -974,9 +1033,9 @@ static int output_test_faced_report(char *expected, size_t capacity)
                               "  the submission: 14 rows after the header, 11 node rows and 3 edge rows\n");
 }
 
-// the faced set with chain's .divide and second's: the divided rows, and the states the .faces give on the output's
-// links. D, daughter two, has its link in. It split (0x008) and left (0x020) but entered nothing: 0x028. The
-// .faces is the sort's links' and was checked against them before the .divide
+// the faced set with chain's .divide and second's: the divided rows, and the states that the .faces give on the links
+// of the output. D, daughter two, has its link in. It split (0x008) and left (0x020) but entered nothing: 0x028. The
+// .faces is the sort's links', and the test checks it against them before the .divide
 static const char OUTPUT_TEST_FACED_DIVIDED_NODES[] = OUTPUT_TEST_NODES_HEADER
     "chain\t0\t0\t0\t1\t1\t0\t0\t1\t0\t4294967301\t0\t0\t2\t0\t0\t0\t-1\t0\t-1\t1\t0\t-1\t0\t-1\n"
     "chain\t0\t1\t1\t3\t2\t0\t1\t1\t-1\t0\t0\t-1\t0\t0\t0\t0\t-1\t0\t-1\t2\t32\t-1\t0\t-1\n"
@@ -990,8 +1049,8 @@ static const char OUTPUT_TEST_FACED_DIVIDED_NODES[] = OUTPUT_TEST_NODES_HEADER
     "second\t1\t0\t0\t1\t2\t0\t0\t1\t-1\t0\t0\t-1\t0\t0\t0\t0\t-1\t0\t0\t3\t8\t-1\t0\t0\n"
     "second\t1\t1\t0\t0\t0\t0\t1\t1\t-1\t0\t0\t-1\t0\t0\t0\t0\t-1\t0\t0\t4\t0\t-1\t0\t-1\n";
 
-// the faced and divided set's counts, worked by hand: the chain still ends at B, C, A and D, B and D leaving, and
-// starts at E and F alone, E entering; second's Q, which R was taken from, ends inside the view
+// the faced and divided set's counts, worked by hand. The chain still ends at B, C, A and D, with B and D on the way
+// out. It starts at E and F alone, with E on the way in. second's Q, which R came from, ends inside the view
 static int output_test_faced_divided_report(char *expected, size_t capacity)
 {
     const OutputTestLine lines[3] = {
@@ -1055,7 +1114,7 @@ static void output_test_complete(OutputTestResults *results, const char *set)
     free(displayed);
     free(expected);
 
-    // no nodes and no submission named: the set is checked and counted, and nothing is written
+    // no nodes and no submission named: the code checks and counts the set, and writes nothing
     OutputTestFiles quiet;
     const int opened = output_test_open(set, "quiet", &quiet);
     const OutputRequest unnamed = {set, samples, 3u, NULL, NULL, quiet.files[2]};
@@ -1072,8 +1131,8 @@ static void output_test_complete(OutputTestResults *results, const char *set)
     free(text);
 }
 
-// .divide files of no divisions beside the chain, empty and second: each head as the .points' and the CRC-64 of its
-// .links, and a count of 0 for each frame pair
+// .divide files of no divisions beside the chain, empty and second. Each head is that of the .points with the CRC-64 of
+// its .links, and a count of 0 for each frame pair
 static int output_test_undivided(const char *set)
 {
     const unsigned int chain[4] = {4u, 4u, 5u, 6u};
@@ -1087,7 +1146,7 @@ static int output_test_undivided(const char *set)
 
 // S7's divisions: the set with chain's .divide and second's, every row and count checked against the hand's. Then each
 // of the three with a .divide of no divisions, whose nodes and submission are the undivided set's byte for byte. The
-// .divide files are taken away after
+// test takes the .divide files away after
 static void output_test_divided(OutputTestResults *results, const char *set)
 {
     char *const samples[3] = {(char *)"chain", (char *)"empty", (char *)"second"};
@@ -1129,9 +1188,9 @@ static void output_test_divided(OutputTestResults *results, const char *set)
 }
 
 // S9's faces: the set with a .faces beside each sample, every row and count checked against the hand's. Its submission
-// is the undivided set's byte for byte, since the state is the nodes' alone. Then with chain's .divide and second's
-// beside them too, every row and count checked against the hand's again. The .faces and .divide files are taken away
-// after
+// is the undivided set's byte for byte, because the state is the nodes' alone. Then with chain's .divide and second's
+// beside them too, every row and count checked against the hand's again. The test takes the .faces and .divide files
+// away after
 static void output_test_faced(OutputTestResults *results, const char *set)
 {
     char *const samples[3] = {(char *)"chain", (char *)"empty", (char *)"second"};
@@ -1234,9 +1293,9 @@ static void output_test_errors(OutputTestResults *results, const char *set)
     output_test_check(results, output_graph_set(&unreported) == OUTPUT_ERROR, "no report errors");
 }
 
-// the good chain and then a copy of second with its .divide as worked, which writes; then with each broken .divide in
-// its place, and fork's for a division taking from a point that divides: the set errors and writes nothing past the
-// headers
+// the good chain, and then a copy of second with its .divide as worked, which writes. Then each broken .divide goes in
+// its place, with fork's for a division that takes from a point that divides. The set errors and writes nothing past
+// the headers
 static void output_test_divide_errors(OutputTestResults *results, const char *set)
 {
     char *error[2] = {(char *)"chain", NULL};
@@ -1268,12 +1327,23 @@ static void output_test_divide_errors(OutputTestResults *results, const char *se
     }
 }
 
-// the good chain and then a copy of it with its .faces as worked, which writes; then with each broken .faces in its
-// place: a head cut short, frames or a view not the .points', a CRC-64 not its .links', a frame's count not its
-// points', a flag no .faces sets, back-prediction faces not its place's, prediction faces on a point the .links does
-// not flag outside, a first-frame flag off frame 0, no last-frame flag on the last, a carried flag on a point with no
-// link out, a start carried back across a face not entering, an end predicted across one not leaving, a point cut
-// short, and a word past the last frame. The set errors and writes nothing past the headers
+// the good chain, and then a copy of it with its .faces as worked, which writes. Then each broken .faces goes in its
+// place:
+//   - a head cut short.
+//   - frames or a view not those of the .points.
+//   - a CRC-64 not that of its .links.
+//   - a count of a frame not that of its points.
+//   - a flag that no .faces sets.
+//   - back-prediction faces not those of its place.
+//   - prediction faces on a point that the .links does not flag as outside.
+//   - a first-frame flag off frame 0.
+//   - no last-frame flag on the last.
+//   - a carried flag on a point with no link out.
+//   - a start carried back across a face that does not enter, or an end predicted across one that does not leave.
+//   - a point cut short.
+//   - a word past the last frame.
+//
+// The set errors and writes nothing past the headers
 static void output_test_faces_errors(OutputTestResults *results, const char *set)
 {
     char *error[2] = {(char *)"chain", NULL};
@@ -1317,8 +1387,8 @@ static int output_test_before(char *out, size_t capacity, const char *text, cons
     return 1;
 }
 
-// H4 fed one end too many on each frame pair, through the seam, on the set as worked or with chain's .divide and
-// second's: the set errors and writes nothing past the headers
+// H4 gets one end too many on each frame pair, through the seam, on the set as worked or with chain's .divide and
+// second's. The set errors and writes nothing past the headers
 static void output_test_skewed(OutputTestResults *results, const char *set, int divided, const char *what)
 {
     char *const samples[3] = {(char *)"chain", (char *)"empty", (char *)"second"};
@@ -1339,7 +1409,7 @@ static void output_test_skewed(OutputTestResults *results, const char *set, int 
     output_test_undivide(set, "second");
 }
 
-// the form "second" is rewritten to between the two passes, and whether the rewrite was written
+// the form that the test rewrites "second" to between the two passes, and whether that rewrite happened
 static OutputSecond output_test_rewrite = OUTPUT_SECOND_WORKED;
 static int output_test_rewritten = 0;
 
@@ -1348,7 +1418,7 @@ static void output_test_rewrite_second(const OutputRequest *request)
     output_test_rewritten = output_test_second(request->set, output_test_rewrite);
 }
 
-// "second" rewritten to `form` between the two passes, through the seam: the set errors at it, with chain's rows
+// "second" rewritten to `form` between the two passes, through the seam. The set errors at it, with chain's rows
 // written, and empty's, which are none, and nothing of second's
 static void output_test_changed(OutputTestResults *results, const char *set, OutputSecond form, const char *what)
 {
@@ -1387,7 +1457,7 @@ static void output_test_redivide_second(const OutputRequest *request)
 }
 
 // chain's .divide beside it, and second's .divide taken away between the two passes, or put beside it there, through
-// the seam: the set errors at second, with chain's rows written, divided, and empty's, and nothing of second's
+// the seam. The set errors at second, with chain's rows written, divided, and empty's, and nothing of second's
 static void output_test_divide_changed(OutputTestResults *results, const char *set, int dividing, const char *what)
 {
     char *const samples[3] = {(char *)"chain", (char *)"empty", (char *)"second"};
@@ -1427,8 +1497,8 @@ static void output_test_reface_second(const OutputRequest *request)
             : (engine_sample_path(path, sizeof(path), request->set, "second", ".faces") && (remove(path) == 0));
 }
 
-// second's .faces as worked, then rewritten between the two passes with R carried back past a face, which moves no
-// count, or taken away there, through the seam: the set errors at second, with chain's rows written, and empty's,
+// second's .faces as worked, then, through the seam, rewritten between the two passes or taken away there. The rewrite
+// carries R back past a face, which moves no count. The set errors at second, with chain's rows written, and empty's,
 // and nothing of second's
 static void output_test_faces_changed(OutputTestResults *results, const char *set, int refacing, const char *what)
 {
@@ -1452,8 +1522,8 @@ static void output_test_faces_changed(OutputTestResults *results, const char *se
     output_test_unface(set, "second");
 }
 
-// "second" crossed reads every count the first pass reads as worked: the counts of the set with it, nothing named, are
-// the hand's for the worked set. Only its links distinguish it
+// "second" crossed reads every count that the first pass reads as worked. The counts of the set with it, nothing named,
+// are the hand's for the worked set. Only its links tell it apart
 static void output_test_crossed_counts(OutputTestResults *results, const char *set)
 {
     char *const samples[3] = {(char *)"chain", (char *)"empty", (char *)"second"};
@@ -1480,9 +1550,9 @@ static void output_test_crossed_counts(OutputTestResults *results, const char *s
     free(counts);
 }
 
-// a file opened for reading, which no row can be written to. First what the C library returns on one written to, as
-// output_flushed and then output_close meet it; then the set with its nodes such a file, and then its submission: each
-// errors, output_close fails on that file and succeeds on the other, which is written whole
+// a file opened for reading, which accepts no row. First, what the C library returns on one written to, as
+// output_flushed and then output_close meet it. Then the set with its nodes such a file, and then its submission. Each
+// errors, and output_close fails on that file and succeeds on the other, which it writes whole
 static void output_test_unwritable(OutputTestResults *results, const char *set)
 {
     char path[ENGINE_PATH_CAPACITY];
@@ -1509,7 +1579,7 @@ static void output_test_unwritable(OutputTestResults *results, const char *set)
         const unsigned int other = 1u - which;
         OutputTestFiles files;
         int written = output_test_second(set, OUTPUT_SECOND_WORKED) && output_test_open(set, "unwritable", &files);
-        // the file in `which`'s place, its header written, is closed and opened again for reading
+        // the test closes the file in the place of `which`, with its header written, and opens it again for reading
         char *const paths[2] = {files.nodes, files.submission};
         written = written && (fclose(files.files[which]) == 0);
         files.files[which] = written ? fopen(paths[which], "rb") : NULL;
@@ -1571,8 +1641,8 @@ static void output_test_faults(OutputTestResults *results, const char *set)
     output_test_check(results, output_test_second(set, OUTPUT_SECOND_WORKED), "\"second\" is written back as worked");
 }
 
-// every file the test wrote, the whole, the quiet, the divided, the faced, the faced and divided and the last errored,
-// read as bytes: a carriage return in any of them is a line not ended in LF alone
+// every file that the test wrote: the whole, the quiet, the divided, the faced, the faced and divided, and the last
+// errored. The test reads each as bytes. A carriage return in any of them is a line not ended in LF alone
 static void output_test_line_ends(OutputTestResults *results, const char *set)
 {
     const char *const stems[6] = {"whole", "quiet", "divided", "faced", "faced_divided", "errored"};
