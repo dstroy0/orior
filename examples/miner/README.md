@@ -13,6 +13,7 @@
 | `host/btc_miner.cpp`          | the stratum client, v1                                                      |
 | `host/v2/btc_miner.cpp`       | the stratum client, v2, with `version-rolling` (BIP310, BIP320)             |
 | `test/kat_validation.cpp`     | known-answer tests against the NIST digests and two real blocks             |
+| `test/anchor_sift_check.c`    | agreement of the three anchor sift arms, and the rule of the dispatcher     |
 | `build_miner.ps1`             | builds a client into `build/miner`                                          |
 | `run_miner.ps1`               | starts the client, detached, with the settings in `miner.json`              |
 | `relaunch_miner.ps1`          | stops the client and starts it again                                        |
@@ -50,3 +51,11 @@ build/miner/kat_validation.exe
 ```
 
 `utils/maint/audit/audit_compiler.ps1` builds the same test three ways and requires the three outputs to agree.
+
+```
+gcc -O3 -march=native -std=c11 -I examples/miner/core examples/miner/test/anchor_sift_check.c examples/miner/core/anchor_sift.c -lm -o build/miner/anchor_sift_check.exe
+build/miner/anchor_sift_check.exe
+```
+
+The anchor sift check requires the three arms to agree on every needle, and the dispatcher to follow its rule.
+It also prints the measured ratio of the free arm to the in order arm on a uniform and a skewed corpus.

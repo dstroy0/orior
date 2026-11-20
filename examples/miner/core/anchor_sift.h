@@ -96,7 +96,7 @@ extern "C"
      * @brief Names the arm the dispatcher would choose, for a driver that wants to print it.
      *
      * @param[in] arm Arm returned by anchor_sift_choose [BORROWS].
-     * @return        A static name, or "unknown" where the pointer is not one of the four.
+     * @return        A static name, or "unknown" where the pointer is not one of the three.
      */
     const char *anchor_sift_arm_name(AnchorSiftArm arm);
 
