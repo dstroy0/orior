@@ -1405,9 +1405,10 @@ static unsigned int scaled_equal(ScaledProgram *program, unsigned int left, unsi
 
 static unsigned int scaled_bits_of(unsigned long long value);
 
-// floor(x^(1/2)) for 2^least <= x < 2^bits, by Newton's rule from 2^ceil(bits / 2), above the root by at max
-// 2^((bits - least + 1) / 2) times: each step takes the lesser of r and (r + x / r) / 2, which about halves r while it
-// is twice the root or more, then doubles the bits it carries, then falls to the root and stays there
+// `floor(x^(1/2))` for `2^least <= x < 2^bits`, by the rule of Newton from 2^ceil(bits / 2). That start is above the
+// root by at max `2^((bits - least + 1) / 2)` times.
+// Each step takes the lesser of r and `(r + x / r) / 2`. That about halves r while it is twice the root or more. Then
+// it doubles the bits that it carries, then falls to the root and stays there
 static unsigned int scaled_root_from(ScaledProgram *program, unsigned int x, unsigned int bits, unsigned int least)
 {
     const unsigned int top = (bits + 1u) / 2u + 1u;
@@ -1447,8 +1448,8 @@ static unsigned int scaled_root_valid(ScaledProgram *program, unsigned int x, un
                        scaled_above(program, scaled_step(program, ENGINE_RECORD_PRODUCT, next, next, 0u), x), 0u);
 }
 
-// base^e for 0 <= e < 2^bits by squaring, e a register and base a register: the product over e's bits of 1, or of
-// base^(2^i) where the bit is set
+// base^e for `0 <= e < 2^bits` by repeated squares, with e a register and base a register. It is the product over the
+// bits of e of 1, or of base^(2^i) where the bit is 1
 static unsigned int scaled_raise(ScaledProgram *program, unsigned int base, unsigned int e, unsigned int bits)
 {
     unsigned int out = scaled_constant(program, 1ull);
@@ -1484,10 +1485,11 @@ static unsigned int scaled_bits_of(unsigned long long value)
     return bits;
 }
 
-// arctan(1 / k) at 2^-P, one lane a term j to `count`, count even: term_j = 1 / ((2j + 1) k^(2j + 1)), read below
-// and above at 2^-P. The partial sums alternate about arctan, and the one ending at the odd term count - 1 lies below
-// it, the one ending at term count above: each lane gives its term to the lower end where j < count, with the reads
-// outward, and to the upper end
+// arctan(1 / k) at 2^-P, one lane a term j to `count`, with count even. `term_j = 1 / ((2j + 1) k^(2j + 1))`, read
+// below and above at 2^-P.
+// The partial sums alternate about arctan. The one that ends at the odd term count - 1 lies below it, and the one that
+// ends at term count lies above.
+// Each lane gives its term to the lower end where j < count, with the reads outward, and to the upper end
 static void scaled_machin_build(ScaledStage *stage, unsigned long long k, unsigned int precision, unsigned int count)
 {
     ScaledProgram *const program = &stage->program;
@@ -1579,10 +1581,15 @@ static void scaled_lambda_build(ScaledStage *stage, unsigned int terms)
     }
 }
 
-// ln(p / q) below and above at 2^-P, one lane a value, member 0's record a, c, m with p / (q 2^m) = (c + a) / (c - a):
-// 2 artanh(a / c) by its first L terms, 2 a S / (Lambda c^(2L - 1)), S = sum over k < L of c_k a^(2k) c^(2(L - 1 - k))
-// by Horner's rule, and its rest, positive and below 2 a^(2L + 1) / ((2L + 1) c^(2L - 1) (c^2 - a^2)); then m ln 2.
-// Member 1's one record contains Lambda, the c_k and ln 2 below and above. Each end is read again at 2^-`read`, outward
+// ln(p / q) below and above at 2^-P, one lane a value. The record of member 0 is a, c, m, with
+// `p / (q 2^m) = (c + a) / (c - a)`.
+//   - `2 artanh(a / c)` by its first L terms, `2 a S / (Lambda c^(2L - 1))`.
+//   - `S = sum over k < L of c_k a^(2k) c^(2(L - 1 - k))`, by the rule of Horner.
+//   - its rest, positive and below `2 a^(2L + 1) / ((2L + 1) c^(2L - 1) (c^2 - a^2))`.
+//   - then m ln 2.
+//
+// The one record of member 1 holds Lambda, the c_k, and ln 2 below and above. The code reads each end again at
+// 2^-`read`, outward
 static void scaled_ln_build(ScaledStage *stage, unsigned int precision, const ScaledTable &values,
                             const ScaledTable &constants, unsigned int terms, unsigned int read)
 {
@@ -1655,8 +1662,8 @@ static void scaled_ln_build(ScaledStage *stage, unsigned int precision, const Sc
     scaled_output(stage, "read_high", scaled_up(program, above, coarse), -(long long)read);
 }
 
-// half the sum of two values below and above at 2^-P, member 0's one record x below and above and y below and above,
-// read at 2^-W outward
+// half the sum of two values below and above at 2^-P, read at 2^-W outward. The one record of member 0 holds x below
+// and above, and y below and above
 static void scaled_half_build(ScaledStage *stage, const ScaledTable &record, unsigned int precision, unsigned int w)
 {
     ScaledProgram *const program = &stage->program;
@@ -1681,10 +1688,10 @@ static void scaled_half_build(ScaledStage *stage, const ScaledTable &record, uns
                   -(long long)w);
 }
 
-// cos's coefficients k_j = pi^(2j) / (2j)! below and above at 2^-W, each from the one before by pi^2 / ((2j - 1) 2j)
-// with pi below and above at 2^-P, member 0's one record, the reads outward; and for each J, B_J = the rest past J
-// terms, below k_J 4^-J, and every read k_j - K_j 2^-W to J, above at 2^-W, with [k_J 2^W < 4^J], where the rest
-// falls below 2^-W
+// the coefficients of cos, `k_j = pi^(2j) / (2j)!`, below and above at 2^-W. Each comes from the one before by
+// `pi^2 / ((2j - 1) 2j)`, with pi below and above at 2^-P, the one record of member 0, and the reads outward.
+// For each J, it also gives B_J, above at 2^-W, with [k_J 2^W < 4^J], where the rest falls below 2^-W. B_J bounds the
+// rest past J terms, below `k_J 4^-J`, and each read `k_j - K_j 2^-W` to J
 static void scaled_cosine_build(ScaledStage *stage, const ScaledTable &pi, unsigned int w, unsigned int precision,
                                 unsigned int top)
 {
@@ -1763,10 +1770,12 @@ static void scaled_theta_constants_build(ScaledStage *stage, const ScaledTable &
         low_power = scaled_step(program, ENGINE_RECORD_PRODUCT, low_power, low_square, 0u);
         high_power = scaled_step(program, ENGINE_RECORD_PRODUCT, high_power, high_square, 0u);
     }
-    // from t = 2 pi: below t = 10, |R_theta| is at max Brent's bound past 1 / (48 t), (7/5760 + pi/960) t^-3 +
-    // exp(-pi t) / 2 (On asymptotic approximations to the log-Gamma and Riemann-Siegel theta functions, Theorems 5 and
-    // 6), with 7 / (5760 t^3) + 31 / (80640 t^5) added, and t^7 times that is below 58 on [2 pi, 10]; with u^28 =
-    // (t / 2 pi)^7, |R_theta| / pi times u^28 is below 1 / (2 pi^8), and past t = 10 Gabcke's bound is below it
+    // from `t = 2 pi`. Below t = 10, |R_theta| is at max the bound of Brent past `1 / (48 t)`:
+    // `(7/5760 + pi/960) t^-3 + exp(-pi t) / 2` (On asymptotic approximations to the log-Gamma and Riemann-Siegel theta
+    // functions, Theorems 5 and 6).
+    // With `7 / (5760 t^3) + 31 / (80640 t^5)` added, t^7 times that is below 58 on [2 pi, 10]. With
+    // `u^28 = (t / 2 pi)^7`, |R_theta| / pi times u^28 is below 1 / (2 pi^8). Past t = 10, the bound of Gabcke is below
+    // it
     const unsigned int fourth = scaled_step(program, ENGINE_RECORD_PRODUCT, low_square, low_square, 0u);
     scaled_output(stage, "brent",
                   scaled_up(program, scaled_power(program, w + 8u * precision),
@@ -1779,9 +1788,9 @@ static void scaled_theta_constants_build(ScaledStage *stage, const ScaledTable &
 // every cell
 static const unsigned int SCALED_NU_BITS = 24u;
 
-// the cell at 2^-b: U_0 = floor((nu 4^b - 1)^(1/2)) + 1, the least U with U^2 >= nu 4^b, the lanes to the least U with
-// U^2 >= (nu + 1) 4^b, U_0^2 - nu 4^b and U_0^2 + nu 4^b, and floor(nu^(1/2)), each root verified against its
-// definition. Member 0's one record: nu
+// the cell at 2^-b: `U_0 = floor((nu 4^b - 1)^(1/2)) + 1`, the least U with `U^2 >= nu 4^b`. Then the lanes to the
+// least U with `U^2 >= (nu + 1) 4^b`, `U_0^2 - nu 4^b` and `U_0^2 + nu 4^b`, and floor(nu^(1/2)).
+// The code verifies each root against its definition. The one record of member 0: nu
 static void scaled_setup_build(ScaledStage *stage, const ScaledTable &record, unsigned int b)
 {
     ScaledProgram *const program = &stage->program;
@@ -1814,8 +1823,9 @@ static void scaled_setup_build(ScaledStage *stage, const ScaledTable &record, un
                   0);
 }
 
-// each pole n from 1 to `count`, one lane: a = n - 2^m, c = n + 2^m, m, with 2^m <= n < 2^(m + 1), for ln n; and
-// n^(-1/2) below and above at 2^-W, floor((4^W / n)^(1/2)) and one more, the root verified against its definition
+// each pole n from 1 to `count`, one lane. For ln n: `a = n - 2^m`, `c = n + 2^m`, and m, with `2^m <= n < 2^(m + 1)`.
+// Also n^(-1/2) below and above at 2^-W: `floor((4^W / n)^(1/2))` and one more, with the root verified against its
+// definition
 static void scaled_poles_build(ScaledStage *stage, unsigned int w, unsigned long long count)
 {
     ScaledProgram *const program = &stage->program;
@@ -1842,10 +1852,11 @@ static void scaled_poles_build(ScaledStage *stage, unsigned int w, unsigned long
     scaled_output(stage, "valid", scaled_root_valid(program, x, root), 0);
 }
 
-// the lattice for cell nu at `rate` points for each unit theta / pi rises across it, theta / pi read as
-// x^2 (ln x^2 - 1) at x^2 = u^4 from ln nu below and ln(nu + 1) above at 2^-P, member 0's one record: b = the bits of
-// rate rise 2 (floor((nu + 1)^(1/2)) + 1), whose cell contains as many lanes; a choice of lattice, for which the count
-// is valid whatever it is. Member 0's one record: ln nu below, ln(nu + 1) above, nu and the rate
+// the lattice for cell nu at `rate` points for each unit that theta / pi rises across it. The value theta / pi
+// reads as `x^2 (ln x^2 - 1)` at `x^2 = u^4`, from ln nu below and ln(nu + 1) above at 2^-P.
+// The exponent b is the bits of the rate rise `2 (floor((nu + 1)^(1/2)) + 1)`, whose cell holds as many lanes. It is
+// a choice of lattice, and the count is valid whatever it is.
+// The one record of member 0: ln nu below, ln(nu + 1) above, nu and the rate
 static void scaled_rate_build(ScaledStage *stage, const ScaledTable &logs, unsigned int precision)
 {
     ScaledProgram *const program = &stage->program;
@@ -1893,14 +1904,20 @@ static void scaled_rate_build(ScaledStage *stage, const ScaledTable &logs, unsig
 
 // GABCKE'S CURVES
 //
-// C_n(z)'s coefficient of z^i is gamma_(n,i) = 2^(-2n) sum over k <= 3n/4 of d_k^(n) C(i + m, m) pi^(2k - 2n)
-// phi_((i + m) / 2), m = 3n - 4k, zero where i + m is odd, and phi_j, F(z) = cos(pi z^2 / 2 + 3 pi / 8) / cos(pi z)'s
-// coefficient of z^(2j), is the sum over m' <= j of s_m' |E_(2(j - m'))| / (2^m' m'! (2(j - m'))!) pi^(2j - m')
-// times sin(pi / 8) where m' is even and cos(pi / 8) where it is odd, s running +, -, -, + in m' mod 4. The Euler
-// numbers by sum over j <= n of C(2n, 2j) E_2j = 0; lambda by (l + 1) lambda_(l + 1) = sum over k <= l of
-// 2^(4k + 1) |E_(2k + 2)| lambda_(l - k), lambda_0 = 1; d^(n + 1)_k = (3n + 1 - 4k)(3n + 2 - 4k) d^(n)_k + d^(n)_(k -
-// 1), d^(0) = (1), and lambda_((n + 1) / 4) where 3(n + 1) = 4k (Gabcke's thesis, section 2). Each gamma is bounded
-// below and above at 2^-E.
+// The coefficient of z^i in C_n(z) is `gamma_(n,i) = 2^(-2n) sum over k <= 3n/4 of d_k^(n) C(i + m, m) pi^(2k - 2n)`
+// `phi_((i + m) / 2)`, with `m = 3n - 4k`. It is zero where i + m is odd.
+// phi_j is the coefficient of z^(2j) in `F(z) = cos(pi z^2 / 2 + 3 pi / 8) / cos(pi z)`. It is the sum over m' <= j of
+// `s_m' |E_(2(j - m'))| / (2^m' m'! (2(j - m'))!) pi^(2j - m')`.
+// That is times sin(pi / 8) where m' is even, and cos(pi / 8) where it is odd, with s running +, -, -, + in m' mod 4.
+//
+// The recurrences (Gabcke's thesis, section 2):
+//   - the Euler numbers, by `sum over j <= n of C(2n, 2j) E_2j = 0`.
+//   - lambda, by `(l + 1) lambda_(l + 1) = sum over k <= l of 2^(4k + 1) |E_(2k + 2)| lambda_(l - k)`, with
+//     `lambda_0 = 1`.
+//   - `d^(n + 1)_k = (3n + 1 - 4k)(3n + 2 - 4k) d^(n)_k + d^(n)_(k - 1)`, with `d^(0) = (1)`, and
+//     `lambda_((n + 1) / 4)` where `3(n + 1) = 4k`.
+//
+// Each gamma has a bound below and above at 2^-E.
 
 // x! for each lane x to `top`
 static void scaled_factorial_build(ScaledStage *stage, unsigned int top)
@@ -1937,8 +1954,8 @@ static void scaled_binomial_build(ScaledStage *stage, const ScaledStage *factori
                   0);
 }
 
-// one term of the Euler numbers' recurrence: -C(2n, 2j) E_2j, the binomial's record as member 0 and the table of E as
-// member 1; summed over j < n, E_2n
+// one term of the recurrence of the Euler numbers: `-C(2n, 2j) E_2j`. Member 0 is the record of the binomial, and
+// member 1 the table of E. Summed over j < n, it is E_2n
 static void scaled_euler_build(ScaledStage *stage, const ScaledStage *binomials, unsigned int value_bits)
 {
     ScaledProgram *const program = &stage->program;
@@ -1990,8 +2007,8 @@ static void scaled_divide_build(ScaledStage *stage, const ScaledTable &pair)
         0);
 }
 
-// row n + 1 of d, lane k: member 0's one record lambda_((n + 1) / 4), 3n + 1, 3n + 2, 3(n + 1) and row n's length;
-// row n's table as members 1 and 2, read at k and k - 1, each 0 past the row's ends
+// row n + 1 of d, lane k. The one record of member 0 holds lambda_((n + 1) / 4), 3n + 1, 3n + 2, 3(n + 1), and the
+// length of row n. Members 1 and 2 are the table of row n, read at k and k - 1, each 0 past the ends of the row
 static void scaled_d_build(ScaledStage *stage, const ScaledTable &row_constants, unsigned int value_bits,
                            unsigned int top)
 {
@@ -2031,8 +2048,8 @@ static void scaled_d_build(ScaledStage *stage, const ScaledTable &row_constants,
         0);
 }
 
-// pi^e below and above at 2^-P, lane l for e = l - `least`, by squaring with each product read outward at 2^-P, and
-// for e < 0 the reciprocal of pi^|e| outward; member 0's one record pi below and above
+// pi^e below and above at 2^-P, lane l for e = l - `least`, by repeated squares with each product read outward at
+// 2^-P. For e < 0, it is the reciprocal of pi^|e|, outward. The one record of member 0: pi below and above
 static void scaled_pi_power_build(ScaledStage *stage, const ScaledTable &pi, unsigned int precision, unsigned int least,
                                   unsigned int max)
 {
@@ -2101,9 +2118,9 @@ static void scaled_pi_power_build(ScaledStage *stage, const ScaledTable &pi, uns
                   -(long long)precision);
 }
 
-// sin(pi / 8) and cos(pi / 8) below and above at 2^-P: (2 -+ 2^(1/2))^(1/2) / 2, 2^(1/2) 2^P between s and s + 1,
-// s = floor((2 4^P)^(1/2)), each root verified against its definition; every radicand is 4^P / 2 or more. Lane 0 gives
-// sin below, lane 1 sin above, lane 2 cos below and lane 3 cos above
+// sin(pi / 8) and cos(pi / 8) below and above at 2^-P: `(2 -+ 2^(1/2))^(1/2) / 2`. `2^(1/2) 2^P` lies between s and
+// s + 1, with `s = floor((2 4^P)^(1/2))`. The code verifies each root against its definition, and each radicand is
+// 4^P / 2 or more. Lane 0 gives sin below, lane 1 sin above, lane 2 cos below and lane 3 cos above
 static void scaled_eighth_build(ScaledStage *stage, unsigned int precision)
 {
     ScaledProgram *const program = &stage->program;
@@ -2140,9 +2157,9 @@ static void scaled_eighth_build(ScaledStage *stage, unsigned int precision)
                   scaled_step(program, ENGINE_RECORD_PRODUCT, s_valid, scaled_root_valid(program, x, r), 0u), 0);
 }
 
-// pi^e sin(pi / 8) and pi^e cos(pi / 8) below and above at 2^-P, lane 2e + w, w = 0 for sin and 1 for cos: the power's
-// record as member 0 through the index, and member 1's one record sin below and above and cos below and above; e at
-// max `span`, and each below 2^(P + 2 span)
+// pi^e sin(pi / 8) and pi^e cos(pi / 8) below and above at 2^-P, lane 2e + w, with w = 0 for sin and 1 for cos.
+// Member 0 is the record of the power, through the index. The one record of member 1 holds sin below and above, and
+// cos below and above. e is at max `span`, and each is below 2^(P + 2 span)
 static void scaled_pi_eighth_build(ScaledStage *stage, const ScaledStage *powers, const ScaledTable &eighth,
                                    unsigned int precision, unsigned int lane_bits, unsigned int span)
 {
@@ -2191,9 +2208,9 @@ static void scaled_pi_eighth_build(ScaledStage *stage, const ScaledStage *powers
         -(long long)precision);
 }
 
-// phi_j below and above at 2^-P, lane j (top + 1) + m': member 0 the table of |E_2x| and (2x)! at x = j - m', member 1
-// the factorials' records at m', member 2 pi^(2j - m') times the eighth of w = m' mod 2; each term read outward and 0
-// where m' > j, summed over m'
+// phi_j below and above at 2^-P, lane `j (top + 1) + m'`. Member 0 is the table of |E_2x| and (2x)! at x = j - m'.
+// Member 1 is the records of the factorials at m'. Member 2 is pi^(2j - m') times the eighth of w = m' mod 2.
+// Each term reads outward, and is 0 where m' > j. The sum is over m'
 static void scaled_phi_build(ScaledStage *stage, const ScaledTable &euler, const ScaledStage *factorials,
                              const ScaledStage *pi_eighths, unsigned int top, unsigned int precision)
 {
@@ -2244,9 +2261,12 @@ static void scaled_phi_build(ScaledStage *stage, const ScaledTable &euler, const
     stage->summed = {0u, 1u};
 }
 
-// gamma_(n,i) below and above at 2^-E, lane (n count + i) 8 + k: member 0 the table of d_k^(n), pi^(2k - 2n) below and
-// above at (n, k), member 1 the binomials' records at (i + m, m), member 2 the table of phi below and above at
-// (i + m) / 2; each term read outward and 0 where 4k > 3n or i + n is odd, summed over k
+// gamma_(n,i) below and above at 2^-E, lane `(n count + i) 8 + k`:
+//   - member 0, the table of d_k^(n), and pi^(2k - 2n) below and above at (n, k).
+//   - member 1, the records of the binomials at (i + m, m).
+//   - member 2, the table of phi below and above at (i + m) / 2.
+//
+// Each term reads outward, and is 0 where 4k > 3n or i + n is odd. The sum is over k
 static void scaled_gamma_build(ScaledStage *stage, const ScaledTable &d, const ScaledStage *binomials,
                                const ScaledTable &phi, unsigned int top, unsigned int count, unsigned int precision,
                                unsigned int big_e)
@@ -2326,11 +2346,15 @@ static void scaled_spread_build(ScaledStage *stage, const ScaledTable &gammas, u
     stage->summed = {0u};
 }
 
-// the verdict's bound B at 2^-W for cell nu: Gabcke's G = d_K t^(-(2K + 3) / 4) at max d_K (2 pi nu^2)^(-(2K + 3) /
-// 4), its 2^W times above as the ceiling of the fourth root of the ceiling of d_K^4 2^(4W) / (2 pi nu^2)^(2K + 3), pi
-// below read at 2^-40; and E_r, the coefficients' spreads s_n, each gamma within its spread of the one stored, |z| <= 1
-// and x^(-n - 1/2) <= nu^-n / floor(nu^(1/2)): the ceiling of sum over n of s_n nu^(K - n) 2^W / (nu^K floor(nu^(1/2))
-// 2^E). Member 0's one record: pi below, then s_0 to s_K, then nu
+// the bound B of the verdict at 2^-W for cell nu:
+//   - the G of Gabcke, `G = d_K t^(-(2K + 3) / 4)`, at max `d_K (2 pi nu^2)^(-(2K + 3) / 4)`. Its 2^W times, above, is
+//     the ceiling of the fourth root of the ceiling of `d_K^4 2^(4W) / (2 pi nu^2)^(2K + 3)`, with pi below read at
+//     2^-40.
+//   - E_r, from the spreads s_n of the coefficients. Each gamma is within its spread of the stored one, `|z| <= 1`, and
+//     `x^(-n - 1/2) <= nu^-n / floor(nu^(1/2))`. It is the ceiling of
+//     `sum over n of s_n nu^(K - n) 2^W / (nu^K floor(nu^(1/2)) 2^E)`.
+//
+// The one record of member 0: pi below, then s_0 to s_K, then nu
 static void scaled_bound_build(ScaledStage *stage, const ScaledTable &record, unsigned int top, unsigned int w,
                                unsigned int precision, unsigned int big_e, unsigned long long gabcke_thousandths)
 {
@@ -2404,13 +2428,18 @@ static void scaled_bound_build(ScaledStage *stage, const ScaledTable &record, un
                   0);
 }
 
-// N at points a and e by Turing's method, member 0's one record: the Turing stage's sums below_theta, below_zeros,
-// below_count, past_theta, past_zeros, past_count, U^4 at points 0, a, e and the last, pi below and above at 2^-P and
-// ln 2 above at 2^-P. With D = U_a^4 - U_0^4 and t at max 2 pi U^4 / 16^b, B = 2.067 + 0.059 ln t_2 (Trudgian,
-// Improvements to Turing's method, Theorem 2.2), ln t_2 at max the bits of the ceiling of t_2's bound times ln 2:
-// N(T_a) D 2^W >= D 2^W + below_theta + (below_zeros - U_0^4 below_count) 2^W - B 16^b 2^W / (2 pi), and
-// N(T_e) D' 2^W <= D' 2^W + B' 16^b 2^W / (2 pi) + past_theta - (U_l^4 past_count - past_zeros) 2^W, D' = U_l^4 -
-// U_e^4. N is whole: the least whole number at or above the first, and the greatest at or below the second
+// N at points a and e by the method of Turing. The one record of member 0 holds these:
+//   - the sums of the Turing stage: below_theta, below_zeros, below_count, past_theta, past_zeros and past_count.
+//   - U^4 at points 0, a, e and the last.
+//   - pi below and above at 2^-P, and ln 2 above at 2^-P.
+//
+// Let `D = U_a^4 - U_0^4`, with t at max `2 pi U^4 / 16^b`. Then `B = 2.067 + 0.059 ln t_2` (Trudgian, Improvements
+// to Turing's method, Theorem 2.2). ln t_2 is at max the bits of the ceiling of the bound of t_2, times ln 2.
+//   - `N(T_a) D 2^W >= D 2^W + below_theta + (below_zeros - U_0^4 below_count) 2^W - B 16^b 2^W / (2 pi)`.
+//   - `N(T_e) D' 2^W <= D' 2^W + B' 16^b 2^W / (2 pi) + past_theta - (U_l^4 past_count - past_zeros) 2^W`, with
+//     `D' = U_l^4 - U_e^4`.
+//
+// N is whole: the least whole number at or above the first, and the greatest at or below the second
 static void scaled_count_build(ScaledStage *stage, const ScaledTable &record, unsigned int b, unsigned int w,
                                unsigned int precision)
 {
@@ -2487,25 +2516,35 @@ static void scaled_count_build(ScaledStage *stage, const ScaledTable &record, un
 
 // EULER-MACLAURIN
 //
-// Below cell 10 neither Gabcke's bound nor Trudgian's is valid, and zeta is taken by Euler-Maclaurin to M terms:
-// zeta(s) = sum over n < N of n^(-s) + N^(-s) C + R, C = N / (s - 1) + 1/2 + sum over k <= M of tau_k,
-// tau_k = (B_2k / (2k)!) (s)_(2k - 1) N^(1 - 2k), and |R| <= 4 |(s)_2M| / ((2 pi)^2M (2M - 1/2) N^(2M - 1/2))
-// (Johansson, arXiv:1309.2877, Theorem 1, at a = 1). theta~, theta / pi's lower end times pi, is a value represented
-// exactly, and X = Re(exp(i theta~) zeta(1/2 + i t)) is Z cos(theta~ - theta): where theta's bracket is narrower than
-// pi / 2, X has Z's sign. X is the head, the sum over
-// n < N of n^(-1/2) cos(pi phi_n), phi_n = theta~ / pi - 2 u^4 ln n, by the phase, cos and term stages, and
-// T = Re(exp(i theta~) N^(-s) C), and Re(exp(i theta~) R), at max |R|. The head is not doubled, and theta's error
-// enters only through its bracket's width.
+// Below cell 10, neither the bound of Gabcke nor that of Trudgian is valid. The code takes zeta by Euler-Maclaurin
+// to M terms (Johansson, arXiv:1309.2877, Theorem 1, at a = 1):
+//   - `zeta(s) = sum over n < N of n^(-s) + N^(-s) C + R`.
+//   - `C = N / (s - 1) + 1/2 + sum over k <= M of tau_k`.
+//   - `tau_k = (B_2k / (2k)!) (s)_(2k - 1) N^(1 - 2k)`.
+//   - `|R| <= 4 |(s)_2M| / ((2 pi)^2M (2M - 1/2) N^(2M - 1/2))`.
 //
-// The Bernoulli numbers are whole times D = (2M + 1)!: B_m's denominator is the product of the primes p with p - 1
-// dividing m (von Staudt and Clausen), each at max m + 1. With I_m = D B_m, I_0 = D and the sum over j <= m of
-// C(m + 1, j) B_j = 0 gives I_m = -(sum over j < m of C(m + 1, j) I_j) / (m + 1), an exact quotient.
+// theta~, the lower end of theta / pi times pi, is an exact value. `X = Re(exp(i theta~) zeta(1/2 + i t))` is
+// `Z cos(theta~ - theta)`. Where the bracket of theta is narrower than pi / 2, X has the sign of Z.
+// X is the head, plus T, plus `Re(exp(i theta~) R)`, at max |R|:
+//   - the head is `sum over n < N of n^(-1/2) cos(pi phi_n)`, with `phi_n = theta~ / pi - 2 u^4 ln n`, by the
+//     phase, cos and term stages.
+//   - `T = Re(exp(i theta~) N^(-s) C)`.
+//
+// The head does not double, and the error of theta enters only through the width of its bracket.
+//
+// The Bernoulli numbers are whole times `D = (2M + 1)!`. The denominator of B_m is the product of the primes p for
+// which p - 1 divides m (von Staudt and Clausen), each at max m + 1.
+// With `I_m = D B_m`, `I_0 = D`, and `sum over j <= m of C(m + 1, j) B_j = 0`, it follows that
+// `I_m = -(sum over j < m of C(m + 1, j) I_j) / (m + 1)`, an exact quotient.
 
-// the cell's N for Euler-Maclaurin to M terms, the least N with pi^2 N^2 >= (2M - 1/2)^2 + t^2 at the cell's top,
-// t = 2 pi (nu + 1)^2, so that |s + j| <= pi N for every j < 2M across it: N = floor(X^(1/2)) + 1, X above
-// ((4M - 1)^2 4^P + 16 Pi_hi^2 (nu + 1)^4) / (4 Pi_lo^2), pi below and above at 2^-P. Johansson's bound is then at max
-// 8 N^(1/2) / (4^M (4M - 1)), above at 2^-W as the quotient of 8 (floor(N^(1/2)) + 1) 2^W by 4^M (4M - 1) and one
-// more. Member 0's one record: pi below and above at 2^-P, and nu
+// the N of the cell for Euler-Maclaurin to M terms. It is the least N with `pi^2 N^2 >= (2M - 1/2)^2 + t^2` at the top
+// of the cell, `t = 2 pi (nu + 1)^2`. Then `|s + j| <= pi N` for each j < 2M across it.
+// `N = floor(X^(1/2)) + 1`, with X above `((4M - 1)^2 4^P + 16 Pi_hi^2 (nu + 1)^4) / (4 Pi_lo^2)`, and pi below and
+// above at 2^-P.
+//
+// The bound of Johansson is then at max `8 N^(1/2) / (4^M (4M - 1))`. Above at 2^-W, it is the quotient of
+// `8 (floor(N^(1/2)) + 1) 2^W` by `4^M (4M - 1)`, and one more.
+// The one record of member 0: pi below and above at 2^-P, and nu
 static void scaled_em_n_build(ScaledStage *stage, const ScaledTable &record, unsigned int precision, unsigned int w,
                               unsigned int m)
 {
@@ -2552,14 +2591,22 @@ static void scaled_em_n_build(ScaledStage *stage, const ScaledTable &record, uns
                   0);
 }
 
-// C at the point, s = 1/2 + i t, t = 2 pi U^4 / 16^b, its real and imaginary parts below and above at 2^-X, each
-// value represented as a bracket [lo, hi] at 2^-X. t's ends are 2 pi U^4 / 16^b read outward with pi below and above.
-// With t >= 2 pi, past 1/2, N / (s - 1) = -2N / (1 + 4t^2) - i 4N t / (1 + 4t^2) has both parts rising in t: each end
-// is read at t's same end, outward. P_k = (s)_(2k - 1) / N^(2k - 1): P_1 = s / N, P_(k + 1) = P_k (s + 2k - 1) (s + 2k)
-// / N^2, each factor (a + i t) / N, a = j + 1/2: the real part Re a - Im t and the imaginary part Re t + Im a, the
-// products with t at their least and greatest over the two brackets, t positive, each quotient by N 2^X read outward.
-// |s + j| <= pi N, and |P_k| <= pi^(2k - 1) < 2^65 at k <= 20. tau_k = I_2k P_k / (D (2k)!), the product with I_2k
-// taken by its sign. Member 0's one record: U_0, pi below and above at 2^-P, N, D, then I_2k and (2k)! for k to M
+// C at the point, with `s = 1/2 + i t` and `t = 2 pi U^4 / 16^b`. Its real and imaginary parts are below and above
+// at 2^-X, each value a bracket [lo, hi] at 2^-X. The ends of t are `2 pi U^4 / 16^b`, read outward with pi below
+// and above.
+// With t >= 2 pi, past 1/2, both parts of `N / (s - 1) = -2N / (1 + 4t^2) - i 4N t / (1 + 4t^2)` rise in t. Each end
+// reads at the same end of t, outward.
+//
+// `P_k = (s)_(2k - 1) / N^(2k - 1)`, with `P_1 = s / N` and `P_(k + 1) = P_k (s + 2k - 1) (s + 2k) / N^2`.
+// Each factor is `(a + i t) / N`, with `a = j + 1/2`. The real part is `Re a - Im t`, and the imaginary part
+// `Re t + Im a`.
+// The products with t are at their least and greatest over the two brackets, with t positive. Each quotient by
+// `N 2^X` reads outward.
+//
+// `|s + j| <= pi N`, and `|P_k| <= pi^(2k - 1) < 2^65` at k <= 20. `tau_k = I_2k P_k / (D (2k)!)`, with the product
+// with I_2k taken by its sign.
+//
+// The one record of member 0: U_0, pi below and above at 2^-P, N, D, then I_2k and (2k)! for k to M
 static void scaled_em_c_build(ScaledStage *stage, unsigned int b, unsigned int x, unsigned int precision,
                               unsigned int first_bits, const std::vector<unsigned int> &widths)
 {
@@ -2707,13 +2754,18 @@ static void scaled_em_c_build(ScaledStage *stage, unsigned int b, unsigned int x
     scaled_output(stage, "im_high", c_im_high, -(long long)x);
 }
 
-// T = Re(exp(i theta~) N^(-s) C) = N^(-1/2) (cos(pi Q) Re C - sin(pi Q) Im C), Q = theta~ / pi - 2 u^4 ln N, below and
-// above at 2^-X, from C's records as member 1 and theta's as member 2. Q 2^W lies in [a, c] as the phase stage reads
-// it; cos(pi Q) is bounded as the cos and term stages bound cos(pi phi), within (B + 4 (c - a)) 2^-W of s v, and
-// sin(pi Q) = cos(pi (Q - 1/2)) the same from a - 2^(W - 1). Each product of two brackets takes the least and greatest
-// of its four corners, and N^(-1/2)'s bracket is positive. The outputs: T below, the denominator 1, [theta's bracket
-// is narrower than 1/2 at 2^-Y], and T above. Member 0's one record: U_0, ln N below and above and N^(-1/2) below and
-// above at 2^-W, B, and the k_j's magnitudes
+// `T = Re(exp(i theta~) N^(-s) C) = N^(-1/2) (cos(pi Q) Re C - sin(pi Q) Im C)`, with
+// `Q = theta~ / pi - 2 u^4 ln N`, below and above at 2^-X. It reads the records of C as member 1, and those of theta
+// as member 2.
+// `Q 2^W` lies in [a, c], as the phase stage reads it. The cos and term stages bound cos(pi Q) as they bound
+// cos(pi phi), within `(B + 4 (c - a)) 2^-W` of s v.
+// `sin(pi Q) = cos(pi (Q - 1/2))`, the same from `a - 2^(W - 1)`.
+// Each product of two brackets takes the least and greatest of its four corners, and the bracket of N^(-1/2) is
+// positive.
+//
+// The outputs: T below, the denominator 1, [the bracket of theta is narrower than 1/2 at 2^-Y], and T above.
+// The one record of member 0: U_0, ln N below and above and N^(-1/2) below and above at 2^-W, B, and the magnitudes
+// of the k_j
 static void scaled_em_tail_build(ScaledStage *stage, unsigned int b, unsigned int w,
                                  const std::vector<unsigned int> &widths, const std::vector<unsigned int> &k_bits,
                                  const ScaledStage *c_stage, const ScaledStage *theta)
@@ -2787,8 +2839,8 @@ static void scaled_em_tail_build(ScaledStage *stage, unsigned int b, unsigned in
         scaled_step(program, ENGINE_RECORD_SUM, scaled_read(program, field[5]),
                     scaled_step(program, ENGINE_RECORD_PRODUCT, scaled_constant(program, 4ull), bounded, 0u), 0u),
         lift, 0u);
-    // cos(pi q 2^-W) for q in [p, p + c - a], below and above at 2^-(W + 16), as the phase, cos and term stages bound
-    // it; p's remainder by 2^(W + 1) lies within W + 2 bits
+    // `cos(pi q 2^-W)` for q in [p, p + c - a], below and above at 2^-(W + 16), as the phase, cos and term stages bound
+    // it. The remainder of p by 2^(W + 1) lies within W + 2 bits
     auto cosine = [&](unsigned int p, unsigned int *low_out, unsigned int *high_out) {
         const unsigned int m = scaled_step(
             program, ENGINE_RECORD_ABSOLUTE,
@@ -2904,7 +2956,7 @@ static void scaled_em_tail_build(ScaledStage *stage, unsigned int b, unsigned in
                     scaled_step(program, ENGINE_RECORD_PRODUCT, scaled_above(program, zero, v_high),
                                 scaled_step(program, ENGINE_RECORD_PRODUCT, v_high, span, 0u), 0u),
                     0u);
-    // read at 2^-X outward; |T| is at max |C|, within the bits C's parts are stored in
+    // read at 2^-X outward. |T| is at max |C|, within the bits that store the parts of C
     const unsigned int coarse = scaled_power(program, cos_x + w);
     const unsigned int t_bits = x + SCALED_NU_BITS + 10u;
     scaled_output(stage, "low", scaled_wrap(program, scaled_down(program, low, coarse), t_bits), -(long long)x);
@@ -2931,8 +2983,8 @@ static const unsigned long long SCALED_RUN_PAIRS = 1ull << 21u;
 // the last round a cell runs at, its rate four times the round's before
 static const unsigned int SCALED_ROUNDS = 3u;
 
-// Gabcke's curves to C_10, and d_10 in thousandths: of his bounds d_K t^(-(2K + 3) / 4) at t = 200 (Satz 3.2.2, by (a)
-// for K = 10), K = 10's is least, and it is least at every t past 200
+// the curves of Gabcke to C_10, and d_10 in thousandths. Of his bounds `d_K t^(-(2K + 3) / 4)` at t = 200 (Satz 3.2.2,
+// by (a) for K = 10), that of K = 10 is least. It is least at each t past 200
 static const unsigned int SCALED_TOP = 10u;
 static const unsigned long long SCALED_GABCKE_D = 25966000ull;
 
@@ -2940,10 +2992,12 @@ static const unsigned long long SCALED_GABCKE_D = 25966000ull;
 static const unsigned long long SCALED_EM_BELOW = 10ull;
 static const unsigned int SCALED_EM_TERMS = 20u;
 
-// one cell's inputs, each a value the constants' programs gave: the lattice, Gabcke's coefficients, the log series'
-// c_k, theta's eleven constants, cos's bound and coefficients, each pole's ln n and n^(-1/2) below and above, the
-// verdict's bound, and pi below and above and ln 2 above at 2^-P for Turing's count. By Euler-Maclaurin, the head's
-// N - 1 poles, N, ln N and N^(-1/2) below and above, and D, the I_2k and (2k)!
+// the inputs of one cell, each a value that the programs of the constants gave:
+//   - the lattice, the coefficients of Gabcke, the c_k of the log series, and the eleven constants of theta.
+//   - the bound and coefficients of cos, and the ln n and n^(-1/2) of each pole, below and above.
+//   - the bound of the verdict, and pi below and above and ln 2 above at 2^-P, for the count of Turing.
+//   - by Euler-Maclaurin, the N - 1 poles of the head, N, ln N and N^(-1/2) below and above, and D, the I_2k and
+//     (2k)!.
 typedef struct
 {
     unsigned long long nu;
@@ -2970,8 +3024,9 @@ typedef struct
     const ScaledWide *two_high;
 } ScaledCell;
 
-// what a cell gives the range: its checks, the signs at its ends, N computed at points a and e, and the sign changes
-// before a, past e and between them; by Euler-Maclaurin, every sign certified and the changes over the cell
+// what a cell gives the range: its checks, the signs at its ends, and N computed at points a and e. It also gives the
+// sign changes before a, past e and between them. By Euler-Maclaurin, it gives each certified sign and the changes
+// over the cell
 typedef struct
 {
     int em;
@@ -2987,9 +3042,12 @@ typedef struct
     long long between;
 } ScaledCount;
 
-// the constants every cell reads: pi below and above and ln 2 above at 2^-P, Lambda, the c_k and ln 2 below and above
-// for each logarithm, theta's seven and its bound from t = 2 pi, cos's bound and coefficients, Gabcke's coefficients
-// and each curve's spread, and where cells below 10 run, D and the I_2k and (2k)! of Euler-Maclaurin
+// the constants that each cell reads:
+//   - pi below and above, and ln 2 above, at 2^-P.
+//   - Lambda, the c_k, and ln 2 below and above, for each logarithm.
+//   - the seven constants of theta, and its bound from `t = 2 pi`.
+//   - the bound and coefficients of cos, the coefficients of Gabcke, and the spread of each curve.
+//   - where cells below 10 run, D and the I_2k and (2k)! of Euler-Maclaurin.
 typedef struct
 {
     unsigned int precision;
@@ -3068,7 +3126,8 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
     const unsigned int verdict_bits = scaled_wide_width(cell.verdict);
 
     const std::vector<unsigned int> one_limb(1u, 1u);
-    // the remainder: Gabcke's curves, or by Euler-Maclaurin C at every point, its tail positioned once theta is computed
+    // the remainder: the curves of Gabcke, or by Euler-Maclaurin C at each point. Its tail goes in after the code
+    // computes theta
     ScaledStage curve_stage;
     ScaledStage em_c_stage;
     ScaledStage tail_stage;
@@ -3177,8 +3236,8 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
         tail_stage.summed = {2u};
     }
 
-    // the pairs, a run of points at a time: lane point heads + n - 1 over the run's points and every n to heads, each
-    // pole's record a body, U_0 in it moved to the run's first point
+    // the pairs, a run of points at a time: lane `point heads + n - 1`, over the points of the run and each n to heads.
+    // The record of each pole is a body, with U_0 in it moved to the first point of the run
     const unsigned long long run_points = (SCALED_RUN_PAIRS / heads > 0ull) ? SCALED_RUN_PAIRS / heads : 1ull;
     const unsigned long long run_pairs = run_points * heads;
     const unsigned int lane_bits = scaled_bits_of(run_pairs) + 1u;
@@ -3240,8 +3299,8 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
         const unsigned int bits = term_stages[side].layout.step_table[term_stages[side].outputs[0]].out_bits + nu_bits;
         sum_bits = (bits > sum_bits) ? bits : sum_bits;
     }
-    // e the least of the sums' exponent, one more where they are doubled, the remainder's and -W; c the lesser of the
-    // remainder's and the bound's shifts to e
+    // the value e is the least of three: the exponent of the sums (one more where they double), that of the remainder,
+    // and -W. The value c is the lesser of the shifts of the remainder and of the bound to e
     const long long sum_exponent = ok ? term_stages[0].exponents[0] + (em ? 0 : 1) : 0;
     const long long least_exponent = ok ? remainder->exponents[0] : 0;
     long long lowest = (least_exponent < sum_exponent) ? least_exponent : sum_exponent;
@@ -3286,7 +3345,7 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
         ok = scaled_position(job, stage, error);
     }
     ScaledStage &verdict_stage = verdict_stages[1];
-    // the sign changes between neighboring points, counted by one sum over the cell
+    // the sign changes between points next to each other, counted by one sum over the cell
     ScaledStage change_stage;
     scaled_open_stage(&change_stage, "change");
     const unsigned long long steps_between = lanes - 1ull;
@@ -3525,8 +3584,8 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
     return ok;
 }
 
-// pi below and above at 2^-P by Machin's formula, each arctangent's terms one lane a term, and the 64 bits after the
-// point at either end checked against pi's
+// pi below and above at 2^-P by the formula of Machin, with the terms of each arctangent one lane a term. The code
+// checks the 64 bits after the point at either end against those of pi
 static int scaled_pi(SimResults *job, unsigned int precision, ScaledWide *low, ScaledWide *high, EngineError *error)
 {
     const unsigned long long ks[2] = {5ull, 239ull};
@@ -3591,7 +3650,7 @@ static unsigned int scaled_triangle(unsigned int a, unsigned int b)
     return a * (a + 1u) / 2u + b;
 }
 
-// a table whose columns the program that reads it was arranged for
+// a table whose columns match the layout of the program that reads it
 static int scaled_fixed(SimResults *job, const ScaledTable &table, const std::vector<unsigned int> &bits,
                         const char *what)
 {
@@ -3600,9 +3659,9 @@ static int scaled_fixed(SimResults *job, const ScaledTable &table, const std::ve
     return fits;
 }
 
-// D = (2M + 1)!, then I_2k = D B_2k and (2k)! for k from 1 to M, by the recurrence for the I_m on the device: each
-// I_m's sum one sweep of the Euler numbers' term program over j < m, and its quotient by m + 1 exact. |B_m| <= m!, and
-// every I_m is below D^2 in size
+// `D = (2M + 1)!`, then `I_2k = D B_2k` and (2k)! for k from 1 to M, by the recurrence for the I_m on the device. For
+// each I_m, the sum is one sweep of the Euler term program over j < m, and the quotient by m + 1 is exact.
+// `|B_m| <= m!`, and each I_m is below D^2 in size
 static int scaled_bernoulli(SimResults *job, unsigned int terms, std::vector<ScaledWide> *out, EngineError *error)
 {
     const unsigned int top = 2u * terms + 1u;
@@ -3690,10 +3749,14 @@ static int scaled_bernoulli(SimResults *job, unsigned int terms, std::vector<Sca
     return ok;
 }
 
-// Gabcke's coefficients of C_0 to C_K at 2^-E, `count` a curve, count doubled until the last eight of every curve
-// contain 0 between their ends: each coefficient stored as its lower end, its spread above it, and the ones past the
-// curve's last that does not contain 0 dropped, each within its spread of 0; and s_n, the sum of curve n's spreads. The
-// work is at 2^-P_g, P_g = E + 4 (count + 3K) + 64, wide enough for d_k C(i + m, m) pi^(2k - 2n) phi_j's reads
+// the coefficients of Gabcke of C_0 to C_K at 2^-E, `count` a curve. The count doubles until the last eight of each
+// curve hold 0 between their ends.
+//   - the code stores each coefficient as its lower end, with its spread above it.
+//   - the ones past the last of the curve that does not hold 0 drop, each within its spread of 0.
+//   - s_n is the sum of the spreads of curve n.
+//
+// The work is at 2^-P_g, with `P_g = E + 4 (count + 3K) + 64`, wide enough for the reads of
+// `d_k C(i + m, m) pi^(2k - 2n) phi_j`
 static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, ScaledConstants *out,
                          EngineError *error)
 {
@@ -4126,8 +4189,8 @@ static int scaled_constants(SimResults *job, ScaledConstants *k, EngineError *er
     return ok && scaled_curves(job, SCALED_TOP, k->big_e, k, error);
 }
 
-// a cell's inputs: each pole's ln n and n^(-1/2), the lattice its rate requires, U_0, ln(U_0 / 2^b), the log series'
-// constants, and the verdict's bound
+// the inputs of a cell: the ln n and n^(-1/2) of each pole, and the lattice that its rate needs. Then U_0,
+// ln(U_0 / 2^b), the constants of the log series, and the bound of the verdict
 static int scaled_inputs(SimResults *job, const ScaledConstants &k, unsigned long long nu, unsigned long long rate,
                          ScaledCell *cell, EngineError *error)
 {
@@ -4244,8 +4307,8 @@ static int scaled_inputs(SimResults *job, const ScaledConstants &k, unsigned lon
     cell->lanes = ok ? (unsigned long long)scaled_wide_word(scaled_wide_out(&setup, 0ull, 1u)) : 0ull;
     cell->first = ok ? scaled_wide_out(&setup, 0ull, 0u) : scaled_wide_small(0);
     const unsigned long long first = (unsigned long long)scaled_wide_word(cell->first);
-    // A's series takes L terms, its rest below 2^-(W + 4) at the last lane: l / D below 2^-g, g the bits of
-    // D = 2 U_0 + l less one less those of l, and the rest below 2^(-g (2L + 1))
+    // the series of A takes L terms, with its rest below 2^-(W + 4) at the last lane. The value l / D is below 2^-g,
+    // with g the bits of `D = 2 U_0 + l` less one, less those of l. The rest is below 2^(-g (2L + 1))
     const unsigned int d_bits = ok ? scaled_bits_of(2ull * first + cell->lanes - 1ull) : 0u;
     const unsigned int l_bits = ok ? scaled_bits_of(cell->lanes - 1ull) : 0u;
     sim_check(job, !ok || ((cell->lanes > 8ull) && (d_bits > l_bits + 1u)), "the cell's lanes are fewer than U_0");
@@ -4339,8 +4402,8 @@ int main(int count, char **arguments)
         given[at] = strtoull(arguments[1 + at], &end, 10);
         read = read && (end != arguments[1 + at]) && (*end == '\0');
     }
-    // Trudgian's bound is valid past t = 168 pi, from cell 10; below it the cells run by Euler-Maclaurin from cell 1,
-    // and cell 10's N closes their count; E and W are widths the record uses
+    // the bound of Trudgian is valid past `t = 168 pi`, from cell 10. Below it, the cells run by Euler-Maclaurin from
+    // cell 1, and the N of cell 10 closes their count. E and W are widths that the record uses
     const int from_one = (given[0] == 1ull) && (given[1] >= SCALED_EM_BELOW);
     read = read && (from_one || (given[0] >= SCALED_EM_BELOW)) && (given[1] >= given[0]) &&
            (given[1] < (1ull << 16u)) && (given[2] >= 16ull) && (given[2] <= 1024ull) && (given[3] >= 16ull) &&
@@ -4414,8 +4477,8 @@ int main(int count, char **arguments)
         }
         return got.em ? (before + across_of(at) == ahead.low) : (across_of(at) == ahead.low - got.high);
     };
-    // a seam whose changes fall short contains a close pair past one cell's point e or before the next's point a: both
-    // cells run again a round finer, to round 3 at max
+    // a seam whose changes fall short holds a close pair past the point e of one cell, or before the point a of the
+    // next. Both cells run again a round finer, to round 3 at max
     for (unsigned int pass = 0u; ok && (pass < SCALED_ROUNDS); pass += 1u)
     {
         std::vector<size_t> short_seams;
@@ -4446,10 +4509,10 @@ int main(int count, char **arguments)
             break;
         }
     }
-    // each seam: N at cell nu's point e and cell nu + 1's point a against the changes after e, across the seam where
-    // the last sign and the next cell's first differ, and before a. From cell 1 the count starts at t = 2 pi with no
-    // N computed, and every change to cell 10's point a must number N there: then no zero lies below 2 pi, and every
-    // one to point a is on the line and simple
+    // each seam: N at the point e of cell nu and the point a of cell nu + 1, against the changes. These are the changes
+    // after e, across the seam where the last sign and the first of the next cell differ, and before a.
+    // From cell 1, the count starts at `t = 2 pi` with no N computed. Each change to the point a of cell 10 must number
+    // N there. Then no zero lies below 2 pi, and each one to point a is on the line and simple
     int closed = ok;
     long long total = 0;
     for (size_t at = 0u; ok && (at < cells.size()); at += 1u)
