@@ -1,45 +1,46 @@
-"""The constants the reading engine is built from, computed to any length, and checked.
+"""The constants that the reading engine comes from, computed to any length, and checked.
 
+docs-check: quoting
     python examples/proofing/natural_constants.py
     python examples/proofing/natural_constants.py --digits 1000
     python examples/proofing/natural_constants.py --check
+docs-check: end quoting
 
 WHY LENGTH MATTERS HERE
 
-The boundary reading is about to be evaluated per pixel instead of per vertex, and the claim being
-made for that is not that it is faster: it is that it is exact where the vertex grid is an
-approximation. A claim of exactness needs something more accurate than the thing being graded, or
-it is only two implementations agreeing with each other.
+The claim for a boundary reading per pixel, over one per vertex, is not about speed. It is that the reading is exact,
+where the vertex grid is an approximation. A claim of exactness needs something more accurate than the thing under test.
+Without that, it is only two implementations that agree with each other.
 
-Every constant the reading uses is a computed number and none of them is a measured one. Pi, the
-square root of two, the square root of five, the golden angle and the harmonic normalizations are
-all decidable to as many digits as anyone asks for. So the accuracy floor of the whole engine is a
-choice about how many digits to carry and never a limit of what is known.
+Every constant that the reading uses is a computed number, and none of them is a measured one. Pi, the square root of
+two, the square root of five, the golden angle and the harmonic normalizations are all decidable. Each comes to as many
+digits as anyone asks for. The accuracy floor of the whole engine is therefore a choice about how many digits to carry.
+It is never a limit of knowledge.
 
-That is worth stating next to the other type of constant. The 2022 CODATA listing carries a value
-and an uncertainty for each of its entries, and about half of them read "(exact)" because the 2019
-redefinition of the SI fixed the speed of light, the Planck constant, the elementary charge, the
-Boltzmann constant and the Avogadro constant by definition. The rest -- the fine structure
-constant, the gravitational constant, every particle mass -- carry an uncertainty that no amount of
-computing will shrink. Nothing in this repository's reading path uses one of those. Confirmed by
-search across every source file: no physical constant appears anywhere in the engine.
+That is worth a statement next to the other type of constant. The 2022 CODATA listing carries a value and an uncertainty
+for each of its entries. About half of them read "(exact)". The 2019 redefinition of the SI fixes the speed of light,
+the Planck constant, the elementary charge, the Boltzmann constant and the Avogadro constant. Those entries, and the
+ones derived from them, are exact by definition.
+
+The rest -- the fine structure constant, the gravitational constant, every particle mass -- carry an uncertainty that no
+amount of computation will shrink. Nothing in the reading path of this repository uses one of those. A search across
+every source file confirms it: no physical constant appears anywhere in the engine.
 
 WHAT PROVES THIS
 
-The strongest check available needs no trusted digit string at all, and it is already published.
-SHA-256's sixty-four round constants are defined as the first thirty-two bits of the fractional
-parts of the cube roots of the first sixty-four primes, and its eight starting words as the same
-thing for the square roots of the first eight primes. So recomputing them from the primes and
-comparing against the tables in this tree is a check on two thousand and forty-eight independently
-published bits, and arbitrary-precision root code that gets every one of them right is not code
-whose roots are slightly wrong.
+The strongest check available needs no trusted digit string at all, and it is already published. SHA-256 takes its
+sixty-four round constants from the cube roots of the first sixty-four primes. Each is the first thirty-two bits of the
+fractional part of one root. The eight words of its initial hash value are the same thing for the square roots of the
+first eight primes. A recomputation of them from the primes, against the tables in this tree, therefore checks two
+thousand and forty-eight independently published bits. Root code of arbitrary precision that gets every one of them
+right is not code whose roots are slightly wrong.
 
-Pi is checked twice more: against a fifty-digit prefix, and by computing it a second time from a
-different formula and requiring the two to agree. Machin's and Euler's arctangent identities share
-no term. Agreement between them is not two copies of one mistake.
+Pi gets two more checks: against a fifty-digit prefix, and against a second computation from a different formula, where
+the two must agree. Machin's and Euler's arctangent identities share no term. Agreement between them is not two copies
+of one mistake.
 
-Integer arithmetic throughout. A root taken as the integer part of a root of a scaled integer is
-exact by construction, with no rounding to reason about at any step.
+Integer arithmetic throughout. A root taken as the integer part of a root of a scaled integer is exact by construction.
+No step has a rounding to reason about.
 """
 
 import argparse
@@ -50,18 +51,17 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 
-# Digits carried past the requested length and then discarded. Each term of an arctangent series is
-# truncated by at max one unit in the last place, and the series runs to a few thousand terms. A
-# margin of a dozen digits covers the accumulation with room to spare.
+# Digits carried past the requested length, and then discarded. Truncation costs each term of an arctangent series at
+# max one unit in the last place. The series runs to a few thousand terms. A margin of a dozen digits covers the
+# accumulation with room to spare.
 GUARD = 16
 
-# A fifty-digit prefix of pi. Independent of everything computed below, and the single site in this
-# file where a number is taken on authority.
+# A fifty-digit prefix of pi. It is independent of everything computed below, and the single site in this file that
+# takes a number on authority.
 PI_PREFIX = "3.14159265358979323846264338327950288419716939937510"
 
-# The first thirty-two bits of the fractional parts of the cube roots of the first sixty-four
-# primes, as published in FIPS 180-4. Not used to compute anything; the recomputation below is
-# checked against them.
+# The first thirty-two bits of the fractional parts of the cube roots of the first sixty-four primes, as FIPS 180-4
+# publishes them. Nothing computes with them. The check below compares the recomputation against them.
 FIPS_ROUND = (
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
     0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
@@ -117,10 +117,10 @@ def integer_root(value, power):
 
 
 def scaled_root(number, power, digits):
-    """The `power`-th root of `number`, as an integer holding `digits` decimal places.
+    """The `power`-th root of `number`, as an integer with `digits` decimal places.
 
-    Scaling the argument by ten to the power times the digit count moves the decimal point without
-    ever leaving the integers: the root of the scaled value is the scaled value of the root.
+    A scale of the argument by ten to the power times the digit count moves the decimal point, and never leaves the
+    integers. The root of the scaled value is the scaled value of the root.
     """
     return integer_root(number * 10 ** (power * digits), power)
 
@@ -128,19 +128,19 @@ def scaled_root(number, power, digits):
 def fraction_bits(number, power, bits):
     """The first `bits` bits of the fractional part of the `power`-th root of `number`.
 
-    The definition SHA-256's constant tables are built from. Scaling by two to the power times the
-    bit count and taking the remainder against two to the bit count drops the whole part and retains
-    exactly the leading fractional bits, with no floating point anywhere near it.
+    This is the definition behind the constant tables of SHA-256. The function scales by two to the power times the bit
+    count, and takes the remainder against two to the bit count. That drops the whole part and keeps exactly the leading
+    fractional bits, with no floating point anywhere near it.
     """
     return integer_root(number << (power * bits), power) % (1 << bits)
 
 
 def arctangent(over, scale):
-    """The arctangent of one over `over`, as an integer holding `scale` as its unit.
+    """The arctangent of one over `over`, as an integer with `scale` as its unit.
 
-    The Gregory series. Each term is its predecessor divided by the square of `over`. The term
-    count falls as the reciprocal grows and a large `over` converges quickly. Truncating integer
-    division loses at max one unit per term, and the guard digits cover that.
+    The Gregory series. Each term is its predecessor divided by the square of `over`. The term count falls as the
+    reciprocal grows, and a large `over` converges quickly. Truncated integer division loses at max one unit per term,
+    and the guard digits cover that.
     """
     total = 0
     term = scale // over
@@ -174,7 +174,7 @@ def pi_euler(digits):
 
 
 def displayed(value, digits, whole=1):
-    """An integer holding `digits` decimal places, written out with its point in place."""
+    """An integer with `digits` decimal places, written out with its point in place."""
     text = str(value).rjust(digits + whole, "0")
     return text[:-digits] + "." + text[-digits:]
 
@@ -182,9 +182,9 @@ def displayed(value, digits, whole=1):
 def golden_angle(digits):
     """Pi times three less the square root of five, the placement angle, to `digits` places.
 
-    The angle one step of the index turns in the golden placement. Stored as one number here because
-    the placement's screw property depends on the step being the same move at every index, and a
-    step assembled from two separately rounded constants is not exactly one move.
+    The angle that one step of the index turns in the golden placement. This stores it as one number, because the screw
+    property of the placement needs the same move at every step. A step assembled from two separately rounded constants
+    is not exactly one move.
     """
     work = digits + GUARD
     root_five = scaled_root(5, 2, work)
@@ -195,9 +195,9 @@ def golden_angle(digits):
 def harmonic_unit(digits):
     """One over twice the square root of pi, to `digits` places.
 
-    The degree zero harmonic, and the scale every other one is built on. Computed as the integer
-    root of ten to twice the digit count, over four pi. The reciprocal and the root happen in one
-    step and no intermediate is rounded.
+    The degree zero harmonic, and the scale under every other one. The function computes it as the integer root of ten
+    to twice the digit count, over four pi. The reciprocal and the root happen in one step, and no intermediate gets a
+    rounding.
     """
     work = digits + GUARD
     four_pi = 4 * pi_machin(work)                 # four pi, holding `work` places
@@ -211,16 +211,16 @@ def round_constants():
 
 
 def starting_words():
-    """SHA-256's eight starting words, recomputed from the square roots of the first primes."""
+    """The eight words of SHA-256's initial hash value, recomputed from the square roots of the first primes."""
     return tuple(fraction_bits(prime, 2, 32) for prime in primes(8))
 
 
 def tree_tables():
-    """Every copy of the round constant table in the tree, by the file holding it.
+    """Every copy of the round constant table in the tree, by the file that holds it.
 
-    Four builders and the engine each carry their own copy, and a constant table copied five times
-    is four chances to differ from the standard with nothing to say so. Recomputing from the primes
-    grades all five against the definition instead of against each other.
+    Four builders and the engine each carry their own copy. A constant table copied five times is four chances to differ
+    from the standard, with nothing to say so. A recomputation from the primes grades all five against the definition,
+    and not against each other.
     """
     import re
     out = {}
@@ -240,9 +240,9 @@ def tree_tables():
             found = pattern.search(text)
             if not found:
                 continue
-            # Anchored at the table's first word and read forward from there. Taking the first 64
-            # hex words in the file instead reads whatever literals happen to sit above the table,
-            # and reports a file that is perfectly correct as differing from the standard.
+            # Anchored at the table's first word, and read forward from there. A read of the first 64 hex words in the
+            # file would take whatever literals sit above the table. It would then report a correct file as different
+            # from the standard.
             words = re.findall(r"0x([0-9a-fA-F]{8})u?", text[found.start():])
             if len(words) >= 64:
                 out[os.path.relpath(path, ROOT)] = tuple(int(one, 16) for one in words[:64])
@@ -305,8 +305,8 @@ def _check():
         lines.append("    want %s" % want)
         failed += 1
 
-    # Two arctangent identities sharing no term. Agreement between them is not two copies of one
-    # mistake, and this is the check that carries past the fifty digits above.
+    # Two arctangent identities that share no term. Agreement between them is not two copies of one mistake, and this
+    # check carries past the fifty digits above.
     machin = pi_machin(digits)
     euler = pi_euler(digits)
     lines.append("  Machin against Euler at %d places: %s"
@@ -318,8 +318,8 @@ def _check():
     root = scaled_root(2, 2, digits)
     square = root * root
     target = 2 * 10 ** (2 * digits)
-    # Stated as a share of the widest gap a floor is allowed, because the gap itself is a 121 digit
-    # number and printing it says nothing a reader can use.
+    # A share of the widest gap that a floor may have, because the gap itself is a 121 digit number. A print of it says
+    # nothing that a reader can use.
     room = 2 * root + 1
     lines.append("  the root of two is the exact floor: gap is %.3f of the largest a floor allows"
                  % ((target - square) / room))
@@ -335,8 +335,8 @@ def _check():
     if not cube ** 3 <= 7 * 10 ** (3 * digits) < (cube + 1) ** 3:
         failed += 1
 
-    # The published check, and the strongest one here. Sixty-four constants and eight starting
-    # words, from the primes, against FIPS 180-4.
+    # The published check, and the strongest one here. Sixty-four constants and the eight words of the initial hash
+    # value, from the primes, against FIPS 180-4.
     mine = round_constants()
     wrong = [at for at in range(64) if mine[at] != FIPS_ROUND[at]]
     lines.append("  64 round constants from the cube roots of the primes: %d wrong" % len(wrong))
@@ -351,8 +351,7 @@ def _check():
     if bad:
         failed += 1
 
-    # Every copy in the tree against the definition. This is the part that can fail later without
-    # anyone touching this file.
+    # Every copy in the tree against the definition. This part can fail later, with no edit to this file.
     tables = tree_tables()
     lines.append("  copies of the table in the tree: %d found" % len(tables))
     if not tables:
@@ -381,8 +380,8 @@ def _check():
     if gap > 1e-15:
         failed += 1
 
-    # Nothing measured in the reading path. A grep, asserted. Adding a physical constant to the
-    # engine has to argue with a failing check instead of passing quietly.
+    # Nothing measured in the reading path. A grep, asserted. A physical constant added to the engine must argue with a
+    # check that fails, and cannot pass quietly.
     lines.append("  no measured constant in the reading path: asserted by search, see the report")
 
     lines.append("")
