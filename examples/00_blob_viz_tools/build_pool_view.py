@@ -1,4 +1,4 @@
-"""Builds a page for watching the worker pool: what it hit, and how hard it is cooking.
+"""Builds a page that shows the worker pool: what it hit, and how hard the card works.
 
     python examples/00_blob_viz_tools/build_pool_view.py
     python examples/00_blob_viz_tools/build_pool_view.py --out pool.html
@@ -6,31 +6,28 @@
 
 WHAT THIS IS FOR AND WHAT IT DELIBERATELY LEAVES ALONE
 
-Braiins' own dashboard already reports the pool side: accepted work, payouts, worker status. This
-page does not duplicate any of that. What it has and the pool does not is the LOCAL side and the
-CHAIN side together: device telemetry from this machine, the client's own accumulated counters, the
-measured scaling that decides the pool size, and the real difficulty read out of a verified block
-corpus and not quoted.
+Braiins' own dashboard already reports the pool side: accepted work, payouts, worker status. This page does not
+duplicate any of that. It shows the LOCAL side and the CHAIN side together, which the pool does not. That is device
+telemetry from this machine, the client's own accumulated counters, and the measured scaling that decides the pool size.
+It also shows the real difficulty, read out of a verified block corpus and not quoted.
 
-EVERY NUMBER ON THE PAGE IS MEASURED OR IT IS LABELED
+EVERY NUMBER ON THE PAGE IS A MEASUREMENT OR CARRIES A LABEL
 
-The page is built from four sources, all local and all real:
+The page comes from four sources, all local and all real:
+  - `nvidia-smi`: temperature, power, `utilization.gpu`, clocks, fan.
+  - `miner_totals.txt`: the client's own hashes, shares, rejects, seconds, runs.
+  - `miner.log`: the samples of the running hash rate, for the trace.
+  - `blocks_deep.json`: 6980 real blocks, for the target and the difficulty.
 
-    nvidia-smi              temperature, power, `utilization.gpu`, clocks, fan
-    miner_totals.txt        the client's own hashes, shares, rejects, seconds, runs
-    miner.log               the running hash rate samples, for the trace
-    blocks_deep.json        6980 real blocks, for the target and the difficulty
-
-Anything that could not be read is displayed as absent and not filled with a plausible number, and
-anything assumed carries the word. A dashboard that invents a figure is worse than one with a gap,
-because a gap is visible and an invention is not.
+The page shows anything that it could not read as absent, and does not fill it with a plausible number. Anything assumed
+carries the word. A dashboard that invents a figure is worse than one with a gap, because a gap is visible and an
+invention is not.
 
 SELF CONTAINED
 
-One file, no network, no CDN, no interpreter. That is the tree's convention for these pages and it
-is the property that makes a page worth retention. It opens in five years on a machine with none of
-this installed. The output location is resolved through `out_path` so the tool never writes beside
-itself.
+One file, no network, no CDN, no interpreter. That is the tree's convention for these pages, and it is the property that
+makes a page durable. It opens in five years on a machine with none of this installed. `out_path` resolves the output
+location, so that the tool never writes beside itself.
 """
 
 import argparse
@@ -110,7 +107,7 @@ def read_rates():
 
 
 def _escape(text):
-    """The miner's own last line goes on the page. It is escaped and not trusted."""
+    """The miner's own last line goes on the page. The function escapes it, and does not trust it."""
     return (str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
 
 
@@ -127,19 +124,17 @@ def _define_age(seconds):
 def read_liveness():
     """How old the log is, and therefore whether any figure on this page is current.
 
-    THE GAP THIS CLOSES. When the pool closes the connection and the miner exits, the --watch loop
-    retains rewriting this page every thirty seconds, and without this the page retains showing its
-    mean rate and total hashed with NOTHING anywhere on it saying the miner is gone. Every number
-    is still true as a historical total and the page reads as live.
+    THE GAP THIS CLOSES. When the pool closes the connection and the miner exits, the --watch loop still writes this
+    page every thirty seconds. Without this, the page still shows its mean rate and total hashed, with NOTHING on it to
+    say that the miner stopped. Every number is still true as a historical total, and the page reads as live.
 
-    That is the same defect this tree guards against in its own instruments: a reading that cannot
-    report its own blindness. The totals are not wrong, they are STALE, and the difference has to
-    be on the page and not in the reader's head.
+    That is the same defect that this tree guards against in its own instruments: a reading that cannot report its own
+    blindness. The totals are not wrong, they are STALE. The difference must be on the page, and not in the reader's
+    head.
 
-    The threshold is derived and not picked. The miner writes a tick roughly every two seconds,
-    a log older than a few ticks means it has stopped writing. `STALE_TICKS` sets how many
-    missed ticks count as gone, and the age is always displayed a reader never has to trust the
-    verdict alone.
+    The threshold comes from the tick, and nobody picks it. The miner writes a tick roughly every two seconds, and a log
+    older than a few ticks means that it stopped. `stale_ticks` sets how many missed ticks count as gone. The page
+    always shows the age, so that a reader never has to trust the verdict alone.
     """
     tick_seconds = 2.0
     stale_ticks = 15
@@ -152,8 +147,8 @@ def read_liveness():
 
     why = None
     if not live:
-        # The miner says why it left on its way out, and that line is worth surfacing and not
-        # making somebody open the log to find it.
+        # The miner says why it left on its way out. That line goes on the page, so that nobody must open the log to
+        # find it.
         with io.open(LOG, encoding="utf-8", errors="replace") as handle:
             handle.seek(max(0, os.path.getsize(LOG) - 4096))
             tail = handle.read().strip().splitlines()
@@ -169,13 +164,13 @@ def read_liveness():
 def read_pool():
     """What the pool itself states, read out of the client's log and not inferred.
 
-    THE REASON THIS EXISTS. A share difficulty derived from the miner's own share spacing is a
-    measurement of the past. The pool states the current one on every connect, and the two can
-    disagree by a factor of eleven when the historical shares were won under an easier target. A
-    page that shows only the inferred figure quietly reports a share rate that is no longer current.
+    THE REASON THIS EXISTS. A share difficulty inferred from the miner's own share spacing is a measurement of the past.
+    The pool states the current one on every connect. The two can disagree by a factor of eleven when the miner won the
+    historical shares under an easier target. A page that shows only the inferred figure quietly reports a share rate
+    that is no longer current.
 
-    Both are retained. The stated one is the target mined against now. The inferred one is what was
-    actually achieved, and their disagreement is the finding and not an error to hide.
+    The page keeps both. The stated one is the target that the miner works against now. The inferred one is what the
+    miner actually achieved, and their disagreement is the finding, and not an error to hide.
     """
     out = {"difficulty": None, "workers": None, "worker": None}
     for path in (LOG, BASELINE):
@@ -209,10 +204,10 @@ def read_chain():
     exponent = value >> 24
     mantissa = value & 0x007FFFFF
     target = (mantissa << (8 * (exponent - 3))) if exponent > 3 else (mantissa >> (8 * (3 - exponent)))
-    # THE NETWORK HASH RATE IS DERIVED AND NOT ASSUMED, and the win rate below is a measurement
-    # because of it. Difficulty is defined so that the network finds a block every
-    # BLOCK_SECONDS on average. Rate = difficulty * 2^32 / BLOCK_SECONDS falls straight out of a
-    # number the chain itself publishes. No external quote is needed and none is used.
+    # THE CODE DERIVES THE NETWORK HASH RATE, AND ASSUMES NOTHING, and the win rate below is a measurement because of
+    # it. The definition of difficulty makes the network find a block every BLOCK_SECONDS on average. Rate = difficulty
+    # * 2^32 / BLOCK_SECONDS falls straight out of a number that the chain itself publishes. The page needs no external
+    # quote, and uses none.
     network = newest["difficulty"] * (2.0 ** 32) / BLOCK_SECONDS
     return {
         "height": newest["height"], "count": len(blocks), "difficulty": newest["difficulty"],
@@ -223,7 +218,7 @@ def read_chain():
 
 
 def sparkline(values, width=110, height=28):
-    """An SVG polyline of the rate samples. Drawn and not charted. Nothing is loaded."""
+    """An SVG polyline of the rate samples. Drawn and not charted. The page loads nothing."""
     if not values:
         return "", 0.0, 0.0
     top = max(values)
@@ -244,9 +239,8 @@ def render(telemetry, totals, rates, chain, pool=None, liveness=None):
     mean_rate = (totals["hashes"] / totals["seconds"]) if totals and totals["seconds"] else 0.0
     points, low, top = sparkline(rates)
 
-    # THE BANNER GOES FIRST, ABOVE EVERY FIGURE, because its whole job is to say whether the
-    # figures below it mean anything right now. Putting it at the bottom would be putting the
-    # caveat after the reader has already believed the number.
+    # THE BANNER GOES FIRST, ABOVE EVERY FIGURE, because its whole job is to say whether the figures below it mean
+    # anything right now. A banner at the bottom would put the caveat after the reader already believes the number.
     banner = ""
     if liveness is not None:
         age = liveness.get("age")
@@ -270,7 +264,7 @@ def render(telemetry, totals, rates, chain, pool=None, liveness=None):
         return ('<div class="cell gone"><div class="label">%s</div>'
                 '<div class="value">absent</div><div class="note">%s</div></div>' % (label, why))
 
-    # --- device, the cooking half -----------------------------------------------------------
+    # --- device, the `Cooking` half ---------------------------------------------------------
     if telemetry:
         util = telemetry["utilization.gpu"]
         cooking = []
@@ -294,7 +288,7 @@ def render(telemetry, totals, rates, chain, pool=None, liveness=None):
         device_name = "device unknown"
         idle_note = ""
 
-    # --- shares, the hitting half -----------------------------------------------------------
+    # --- shares, the `Hitting` half ---------------------------------------------------------
     if totals:
         acceptance = (100.0 * totals["accepted"] / totals["submitted"]) if totals["submitted"] else 0.0
         per_share = (totals["hashes"] / totals["accepted"]) if totals["accepted"] else 0.0
@@ -329,15 +323,15 @@ def render(telemetry, totals, rates, chain, pool=None, liveness=None):
             cell("leading zero bits", "%d" % chain["zeros"], "required by the target"),
             cell("nonces per block", "%.3e" % chain["expected"]),
         ]
-        # The wait for a block belongs in the Win rate section below and is not repeated here. The
-        # bits route to it is checked against the difficulty route in --check.
+        # The wait for a block belongs in the Win rate section below, and this section does not repeat it. The --check
+        # run tests the bits route to it against the difficulty route.
     else:
         chain_cells = [absent("chain context", "the block corpus was not found")]
 
     # --- win rate ----------------------------------------------------------------------------
-    # TWO SCALES, RETAINED APART ON THE PAGE. A share and a block are both wins and they are eleven
-    # orders of magnitude apart. They get separate groups and not one interleaved grid. Then
-    # the reader never has to check a label to know which world a figure lives in.
+    # TWO SCALES, KEPT APART ON THE PAGE. A share and a block are both wins, and they are eleven orders of magnitude
+    # apart. They get separate groups, and not one interleaved grid. The reader then never has to check a label to know
+    # which world a figure lives in.
     share_win = []
     block_win = []
     if totals and totals["accepted"] and totals["seconds"]:
@@ -353,9 +347,9 @@ def render(telemetry, totals, rates, chain, pool=None, liveness=None):
     else:
         share_win.append(absent("share win rate", "no accepted shares recorded"))
 
-    # WHAT THE POOL SAYS OUTRANKS WHAT IS INFERRED. The stated difficulty is the target mined
-    # against right now; the spacing above is what was achieved under whatever target was set at
-    # the time. When they disagree the stated one is current and the page says so.
+    # WHAT THE POOL SAYS OUTRANKS WHAT THE MINER INFERS. The stated difficulty is the target that the miner works
+    # against right now. The spacing above is what the miner achieved under whatever target the pool set at the time.
+    # When they disagree, the stated one is current, and the page says so.
     if pool["difficulty"]:
         stated_hashes = pool["difficulty"] * (2.0 ** 32)
         share_win.append(cell("pool share difficulty", "%.0f" % pool["difficulty"],
@@ -383,16 +377,15 @@ def render(telemetry, totals, rates, chain, pool=None, liveness=None):
                               ("%d threads" % pool["workers"]) if pool["workers"] else ""))
 
     if chain and mean_rate > 0:
-        # THE FIRST TRY RATE LEADS THE GROUP, because it is the only figure here with no telemetry
-        # and no rate in it: the probability that one nonce, the first one or the 10^23rd, is the
-        # answer. It falls straight out of the target. It is exact and not measured.
+        # THE FIRST TRY RATE LEADS THE GROUP. It is the only figure here with no telemetry and no rate in it. It is the
+        # probability that one nonce, the first one or the 10^23rd, is the answer. It falls straight out of the target.
+        # It is exact, and not measured.
         #
-        # WHY FIRST IS THE SAME AS ANY. A nonce is a trial of a function with no order to exploit:
-        # SHA-256d gives no reason for nonce 0 to be luckier than nonce 2^31. The first try
-        # carries exactly the per-nonce probability and nothing about being first improves it. The
-        # whole value of a better machine is in running MORE trials, never in choosing a better
-        # first one. That is also what the period probe in examples/00_blob_viz_tools/nonce_period.py went looking
-        # for and did not find: no structure across nonces, down to a limit of 1.83e-02.
+        # WHY FIRST IS THE SAME AS ANY. A nonce is a trial of a function with no order to exploit. SHA-256d gives no
+        # reason for nonce 0 to be luckier than nonce 2^31. The first try carries exactly the probability per nonce, and
+        # nothing about its place improves it. The whole value of a better machine is in MORE trials, and never in a
+        # better choice of the first one. The period probe in examples/00_blob_viz_tools/nonce_period.py looks for
+        # structure across nonces, and finds none, down to a limit of 1.83e-02.
         per_nonce = float(chain["target"] + 1) / float(1 << 256)
         block_win.append(cell("first try rate", "1 in %.3e" % (1.0 / per_nonce),
                               "p = %.3e, exact from the target" % per_nonce))
@@ -401,10 +394,9 @@ def render(telemetry, totals, rates, chain, pool=None, liveness=None):
         block_win.append(cell("median nonces to a block", "%.3e" % (math.log(2.0) / per_nonce),
                               "half the time it lands sooner than this"))
 
-        # The win rate per block IS this miner's share of the network rate: one hash is one
-        # independent trial. The fraction of the trials run here is the probability the winning
-        # one is this miner's.
-        # It is one number and it gets one cell.
+        # The win rate per block IS this miner's share of the network rate: one hash is one independent trial. The
+        # fraction of the trials that run here is the probability that the block goes to this miner. It is one number,
+        # and it gets one cell.
         share_of_network = mean_rate / chain["network"]
         per_block = share_of_network * BLOCK_REWARD
         blocks_to_win = 1.0 / share_of_network
@@ -419,8 +411,8 @@ def render(telemetry, totals, rates, chain, pool=None, liveness=None):
         block_win.append(cell("one block, expected wait", "%.2e years" % years_to_win,
                               "%.3e blocks, and the bits route agrees" % blocks_to_win))
 
-        # THE GAP BETWEEN THE TWO WINS, COMPUTED AND NOT CLAIMED. The sentence reads the number it
-        # is describing: the ratio of the two difficulties.
+        # THE GAP BETWEEN THE TWO WINS, COMPUTED AND NOT CLAIMED. The sentence reads the number that it describes: the
+        # ratio of the two difficulties.
         gap_text = ""
         if totals and totals["accepted"]:
             share_difficulty = (totals["hashes"] / float(totals["accepted"])) / (2.0 ** 32)
@@ -477,6 +469,7 @@ def render(telemetry, totals, rates, chain, pool=None, liveness=None):
     }
 
 
+# docs-check: quoting
 TEMPLATE = """<title>Worker Pool</title>
 <style>
   :root {
@@ -579,6 +572,7 @@ TEMPLATE = """<title>Worker Pool</title>
   It is a snapshot by design.</footer>
 </div>
 """
+# docs-check: end quoting
 
 
 def _check():
@@ -625,9 +619,9 @@ def _check():
             lines.append("    FAIL bits and difficulty disagree, so one of them is misread")
             failed += 1
 
-        # THE FIRST TRY RATE IS THE RECIPROCAL OF THE NONCE COUNT, and if it is not then one of the
-        # two is wrong. p is computed from the target in floating point and the count in exact
-        # integers. Their product is 1 to within the float conversion or not at all.
+        # THE FIRST TRY RATE IS THE RECIPROCAL OF THE NONCE COUNT. If it is not, one of the two is wrong. The code
+        # computes p from the target in floating point, and the count in exact integers. Their product is 1 to within
+        # the float conversion, or not at all.
         per_nonce = float(chain["target"] + 1) / float(1 << 256)
         product = per_nonce * float(chain["expected"])
         lines.append("    first try p = %.6e, times %.6e nonces = %.9f"
@@ -669,9 +663,9 @@ def _check():
     lines.append("  the page sets its own title and background: %s"
                  % ("<title>" in page and "background: var(--face)" in page))
 
-    # THE LIVENESS BANNER, BOTH BRANCHES. A stale page retains showing its mean rate with nothing
-    # saying the miner is gone, every figure true as a historical total and the page reading as
-    # live, and an untested banner does not prevent that.
+    # THE LIVENESS BANNER, BOTH BRANCHES. Without the banner, a stale page still shows its mean rate with nothing to say
+    # that the miner stopped. Every figure is true as a historical total, and the page reads as live. An untested banner
+    # does not prevent that.
     stale = render(device_telemetry(), read_totals(), read_rates(), read_chain(), read_pool(),
                    {"age": 21734.0, "live": False, "why": "pool closed the connection",
                     "limit": 30.0})
@@ -696,8 +690,8 @@ def _check():
         lines.append("         pointing the other way")
         failed += 1
 
-    # AND THE BANNER MUST NOT BE INVENTED WHEN NOTHING IS KNOWN. A page built without a liveness
-    # reading must stay silent and not claim either state.
+    # AND THE BANNER MUST NOT INVENT A STATE WHEN THE PAGE KNOWS NOTHING. A page built without a liveness reading must
+    # stay silent, and claim neither state.
     quiet = render(device_telemetry(), read_totals(), read_rates(), read_chain(), read_pool())
     lines.append("  with no liveness reading the page claims neither state: %s"
                  % ("MINING" not in quiet))
@@ -705,8 +699,8 @@ def _check():
         lines.append("    FAIL the page asserted a liveness it was never given")
         failed += 1
 
-    # THE NEGATIVE CONTROL. With every source missing the page must render ABSENT cells and not
-    # numbers, because a dashboard that invents a figure is worse than one with a visible gap.
+    # THE NEGATIVE CONTROL. With every source absent, the page must render ABSENT cells and not numbers. A dashboard
+    # that invents a figure is worse than one with a visible gap.
     blank = render(None, None, [], None, None)
     absences = blank.count("absent")
     lines.append("  with no sources at all the page shows %d absent cells and no invented numbers"
@@ -752,14 +746,13 @@ def main():
     if args.check:
         return 1 if _check() else 0
 
-    # WATCH MODE EXISTS BECAUSE THE PAGE IS A SNAPSHOT BY DESIGN. It carries no script and makes no
-    # request, the property that makes it worth retention, and the cost of that is that it
-    # cannot refresh itself. Rebuilding on a timer retains the figures live without giving the page a
-    # network dependency it would then have forever.
+    # WATCH MODE EXISTS BECAUSE THE PAGE IS A SNAPSHOT BY DESIGN. It carries no script and makes no request, the
+    # property that makes it durable. The cost of that is that it cannot refresh itself. A rebuild on a timer keeps the
+    # figures live, and gives the page no network dependency that it would then have forever.
     #
-    # The write is the whole file every time and the browser reload is the user's. Nothing here
-    # needs to coordinate with a reader. A rebuild is a few milliseconds against a miner running at
-    # 2.35 GH/s. This is free in the sense that matters: it does not compete for the card.
+    # The write is the whole file every time, and the browser reload is the user's. Nothing here needs to coordinate
+    # with a reader. A rebuild is a few milliseconds against a miner that runs at 2.35 GH/s. This is free in the sense
+    # that matters: it does not compete for the card.
     if args.watch > 0:
         sys.stdout.write("  rebuilding every %d seconds, ctrl-c to stop\n" % args.watch)
         while True:
