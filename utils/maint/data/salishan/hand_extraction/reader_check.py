@@ -2,22 +2,21 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
-# Grade a reader against the hand extraction it is supposed to reproduce.
+# Grade a reader against the hand extraction that it must reproduce.
 #
 #   Usage:  python maint/data/salishan/hand_extraction/reader_check.py
 #
-# coverage_check.py asks whether every token of the language got out of the paper. That is the
-# easier question and a reader can answer it perfectly while being wrong about everything that
-# matters: it can file a rejected tableau candidate as a word, put a Squamish cognate in a
-# Lushootseed corpus, or read Table 8's two columns as one dialect. Every token would still be
-# accounted for.
+# The file coverage_check.py asks whether every token of the language got out of the paper. That is the easier question.
+# A reader can answer it perfectly, and still be wrong about everything that matters. It can file a rejected tableau
+# candidate as a word, or put a Squamish cognate in a Lushootseed corpus. It can read the two columns of Table 8 as one
+# dialect. Every token would still have its place in the count.
 #
-# This asks the harder question. The hand extraction says what each form is. The reader is graded
-# against it form by form, on three things: whether it found the form at all, whether it says the
-# same type, and whether it says the same dialect.
+# This asks the harder question. The hand extraction says what each form is. The check grades the reader against it form
+# by form, on three things. They are whether it found the form at all, whether it says the same type, and whether it
+# says the same dialect.
 #
-# The one it must not fail is type, because type decides the pure corpus. A candidate filed as a
-# citation puts a form the paper rejects into the corpus, and nothing downstream ever asks again.
+# The one that it must not fail is type, because type decides the pure corpus. A candidate filed as a citation puts a
+# form that the paper rejects into the corpus, and nothing downstream ever asks again.
 
 import io
 import os
@@ -30,15 +29,14 @@ import unicodedata
 def _repository_root():
     """This repository, asked of git and not inferred from a marker directory.
 
-    A marker the repository produces, such as build/, is absent from a linked worktree and a
-    never-built clone, and a climb to it can pass this root and land in another checkout whose paths
-    look valid. A marker infers the root. Git answers it. The climb below serves only an exported tree
-    with no git directory. It looks for archive/src/python, which the repository tracks and every checkout
-    of it holds.
+    A marker that the repository produces, such as build/, is absent from a linked worktree and from a clone with no
+    build. A climb to it can pass this root and land in another checkout whose paths look valid. A marker infers the
+    root. Git answers it. The climb below serves only an exported tree with no git directory. It looks for
+    archive/src/python, which the repository tracks and every checkout of it holds.
 
-    Git's own variables are cleared first. Inside a hook GIT_DIR is exported, and a rev-parse that
-    inherits it answers about that repository and not about the directory it was asked from,
-    returning the current directory instead of the root.
+    The function clears the variables of git first. Inside a hook, git exports GIT_DIR. A rev-parse that inherits it
+    answers about that repository, and not about the directory that the caller asks from. It then returns the current
+    directory instead of the root.
     """
     start = os.path.dirname(os.path.abspath(__file__))
     environment = dict(os.environ)
@@ -85,10 +83,9 @@ sys.path.insert(0, HERE)
 
 from papers import EVERY  # noqa: E402
 
-# What the hand extraction records but a reader is not asked to reproduce. A segment cited on its
-# own, a constraint name, a template and a bibliography entry are all things a person names while
-# reading a paper so that nothing is left unaccounted for. None of them is a form to extract, and
-# the record holds their lines as prose.
+# What the hand extraction records, but a reader need not reproduce. A person names a segment cited on its own, a
+# constraint name, a template and a bibliography entry in a read of a paper. The record then misses nothing. None of
+# them is a form to extract, and the record holds their lines as prose.
 NOT_ASKED = (
     "segment",
     "notation",
@@ -96,9 +93,9 @@ NOT_ASKED = (
     "reference",
     "damage",
     "cluster",
-    # An English word a paper's damaged mark set reads as a form, and a line of the next
-    # paper bound into the same PDF. Both are written down so the count of what a paper
-    # holds is honest, and neither is something to extract.
+    # An English word that a paper's damaged mark set reads as a form, and a line of the next paper bound into the same
+    # PDF. The record writes both down, so that the count of what a paper holds is honest. Neither is something to
+    # extract.
     "english",
     "foreign",
 )
@@ -106,9 +103,9 @@ NOT_ASKED = (
 SOUTHERN = "southern"
 NORTHERN = "northern"
 
-# Types that make the same claim about a form under two names. A paper printing its story as
-# unnumbered prose gets running speech and one printing it as numbered lines gets transcription.
-# Both say the speaker said this in the target language, and the pure stream takes both.
+# Types that make the same claim about a form under two names. A paper that prints its story as unnumbered prose gets
+# running speech. A paper that prints it as numbered lines gets transcription. Both say that the speaker said this in
+# the target language, and the pure stream takes both.
 SAME = {"running speech": "transcription", "transcription": "transcription"}
 
 
@@ -129,14 +126,13 @@ def oracle_rows(path):
     return held
 
 
-# One span of a record's content column, written by salish_marking as language.layer.type:{text}.
-# A line the speaker mixed carries several of these, joined with a comma. A row is read as spans and
-# not as one string.
+# One span of a record's content column, written by salish_marking as language.layer.type:{text}. A line that the
+# speaker mixed carries several of these, joined with a comma. The check reads a row as spans, and not as one string.
 #
-# The type may hold a space, and nine of the eleven readers write one that does: symbol note,
-# running speech, stage direction, word gloss, free translation, cited example, morpheme entry,
-# speaker comment, orthography chart. Excluding whitespace here made every one of those spans
-# invisible to this check, which then reported the forms in them as forms the reader never wrote.
+# The type may hold a space, and nine of the eleven readers write one that does. Those types are symbol note, running
+# speech, stage direction, word gloss, free translation, cited example, morpheme entry, speaker comment and orthography
+# chart. A pattern that excludes whitespace would hide every one of those spans from this check. The check would then
+# report the forms in them as forms that the reader never wrote.
 SPAN = re.compile(r"([TN])((?:\.[^:{}]*)*):\{")
 
 
@@ -160,14 +156,14 @@ def spans_of(content):
 
 
 def record_rows(path):
-    """Every item a reader wrote, as where, who, type, form.
+    """Every item that a reader wrote, as where, who, type, form.
 
-    The type comes out of the span marker. The eleven records do not share a column layout: three of
-    them have no type column at all and the rest disagree on where it sits. Every one of them writes
-    the marker, because salish_marking writes it.
+    The type comes out of the span marker. The eleven records do not share a column layout. Three of them have no type
+    column at all, and the rest disagree on where it sits. Every one of them writes the marker, because salish_marking
+    writes it.
 
-    The speaker or dialect is read from a column when the record has one under that name. Several
-    records do not have one, and their papers never established who was speaking.
+    The function reads the speaker or dialect from a column, where the record has one under that name. Several records
+    do not have one, and their papers never establish who speaks.
     """
     held = []
     columns = []
@@ -196,9 +192,9 @@ def main():
     )
     failed = 0
     waiting = []
-    # A paper with a hand extraction and no reader yet. It is not graded either, and counting it as
-    # graded is how this file reported 12 of 12 on the day the twelfth paper had a table and no
-    # reader. The two lists are retained apart because the thing to do about them is different.
+    # A paper with a hand extraction and no reader yet. The check does not grade it either. A count of it as graded
+    # would report every paper as graded while one has a table and no reader. The two lists stay apart, because the
+    # action for each is different.
     unwritten = []
     for name, stem, record, repair, marks, _line_joins in EVERY:
         table = os.path.join(ORACLES, name)
@@ -216,9 +212,8 @@ def main():
         wanted = [one for one in every if one[2] not in NOT_ASKED]
         got, names_who = record_rows(written)
 
-        # What the paper holds at all, taken from every row of the hand extraction. A segment or a
-        # constraint name is not a form the reader is asked to find, and finding one is not the
-        # reader inventing something either.
+        # What the paper holds at all, from every row of the hand extraction. A segment or a constraint name is not a
+        # form for the reader to find. A reader that finds one does not invent something either.
         asked = {one[3] for one in every}
         dialects = {}
         for where, dialect, type, form in every:
@@ -234,9 +229,9 @@ def main():
         for where, dialect, type, form in got:
             by_form.setdefault(form, []).append((where, dialect, type))
 
-        # What the reader said it could not sort. A form it flagged is a different thing from a form
-        # it got wrong without noticing: the first is the reader doing its job, and the second is
-        # the defect this check exists to find.
+        # What the reader said that it could not sort. A form that it flagged is a different thing from a form that it
+        # got wrong and did not notice. The first is the reader at its job, and the second is the defect that this check
+        # exists to find.
         flagged = set()
         stuck = written[:-4] + ".unclassifiable.tsv"
         if os.path.isfile(stuck):
@@ -247,9 +242,8 @@ def main():
                     if not columns:
                         columns = fields
                         continue
-                    # Read by column name. Taking it by position broke the moment a paper column
-                    # was added to the front of the flag file, and every flagged form was then
-                    # counted as one the reader had silently missed.
+                    # Read by column name. A read by position would break as soon as a paper column appears at the front
+                    # of the flag file. Every flagged form would then count as one that the reader silently missed.
                     if ("where" in columns) and (columns.index("where") < len(fields)):
                         flagged.add(fields[columns.index("where")])
 
@@ -272,15 +266,14 @@ def main():
             said = sorted(
                 {one[1] for one in found if SAME.get(one[2], one[2]) == wanted_type}
             )
-            # A record with no speaker or dialect column was never asked who was talking, and
-            # grading it on an answer its paper's reader does not give asks a question of the
-            # wrong file. The hand extraction still records it.
+            # Nobody asked a record with no speaker or dialect column who spoke. A grade on an answer that its paper's
+            # reader does not give asks a question of the wrong file. The hand extraction still records it.
             if not names_who:
                 continue
             if dialect in ("", "unstated", "none"):
                 continue
-            # čalaš ‘hand’ is printed as Twana and as Squamish in one sentence. Either answer is
-            # the paper's answer and asking for one of them would be asking for a coin toss.
+            # The paper prints `čalaš ‘hand’` as Twana and as Squamish in one sentence. Either answer is the paper's
+            # answer, and a demand for one of them would be a demand for a coin toss.
             if dialects.get((type, form), set()) & set(said):
                 continue
             if dialect in said:
@@ -289,16 +282,15 @@ def main():
             # right under neither. Table 1 and Table 6 both print ɬúkʷaɬ, and §4.1 says so.
             if (dialect == "both") and (said and set(said) <= {SOUTHERN, NORTHERN, ""}):
                 continue
-            # Claiming nothing is not the same as claiming the wrong thing. The reader declines a
-            # dialect wherever the passage names both of them. That is counted here and is not
-            # graded as an error.
+            # A claim of nothing is not the same as a claim of the wrong thing. The reader declines a dialect wherever
+            # the passage names both of them. The check counts that, and does not grade it as an error.
             if said == [""]:
                 undecided.append((where, type, form, dialect))
                 continue
             wrong_dialect.append((where, type, form, dialect, said))
 
-        # Prose the reader retained whole is not a form it claims to have extracted, and neither is a
-        # line of somebody else's paper bound into the same PDF.
+        # Prose that the reader kept whole is not a form that it claims to extract. Neither is a line of somebody else's
+        # paper bound into the same PDF.
         ignored = NOT_ASKED + (
             "essay",
             "gloss",
@@ -306,9 +298,9 @@ def main():
             "commentary",
             "free translation",
         )
-        # A reader item that opens with a wanted form and runs past it is that form, taken too far.
-        # It is reported once, where it was flagged or missed, and counting it again here as
-        # something the reader made up would turn one defect into two.
+        # A reader item that opens with a wanted form and runs past it is that form, taken too far. The check reports it
+        # once, where the reader flagged or missed it. A second count here, as something that the reader made up, would
+        # turn one defect into two.
         overrun = sorted(asked, key=len, reverse=True)
         extra = sorted(
             {
