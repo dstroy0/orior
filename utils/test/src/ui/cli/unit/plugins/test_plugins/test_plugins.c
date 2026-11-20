@@ -487,7 +487,7 @@ void test_a_plugin_created_has_its_manifest(void)
 
 void test_a_plugin_created_has_a_sample_in_its_language(void)
 {
-    // sized for the sample a plugin of one language is written with, a few hundred bytes, and its 0
+    // the buffer for the sample file of a plugin with one language: a few hundred bytes and the null terminator
     static char s_sample[1u << 16u];
     char path[CLI_PATH_MAX_LEN];
     toy_created();
@@ -513,7 +513,7 @@ void test_a_plugin_is_not_overwritten_unless_requested_and_stays_one_plugin(void
 
 void test_a_plugin_starts_from_another_larger_than_the_answers_own_tree(void)
 {
-    // answers read into a tree of their own size, starting from a plugin many times the capacity they use
+    // the answers parse into a JSON tree sized to fit them. The base plugin in `from` needs many times that capacity
     static const char s_from[] = "{\"name\": \"Snake\", \"extensions\": [\"snk\"], \"from\": \"python\"}";
     CliJson tight = {0};
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};

@@ -167,8 +167,8 @@ static void fresh(const char *text)
     fresh_named(text, "check/view.c");
 }
 
-// a view opened anew on `text`, colored by the C plugin's grammar as the branch of a file is, its regions making it
-// folds, sized `rows` rows
+// a new view on `text`, `rows` rows high. The C plugin's grammar colors it as it colors the branch of a file, and its
+// regions become folding ranges
 static void colored_view(const char *text, unsigned int rows)
 {
     char id[CLI_NAME_MAX_LEN];
@@ -268,8 +268,8 @@ void test_the_view_displayed_and_the_one_displayed_before_it_are_known_by_their_
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key2);
 }
 
-// a file of three hundred numbered lines written once for the process, opened in the pages with a branch over it,
-// indexed, and viewed sized ten rows
+// the test fixture: a file of 300 numbered lines, written once per process. The pages open it with a branch over it,
+// index it, and show it in a view ten rows high
 static void paged_view(void)
 {
     const CliViewInput size = view_size(10u);
@@ -1225,8 +1225,8 @@ void test_the_frame_carries_the_head_lines_of_the_regions_the_top_line_is_in_as_
     TEST_ASSERT_NOT_NULL(at_top);
     TEST_ASSERT_EQUAL_UINT(0u, at_top->stickies);
     cli_view_frame_release(&(CliViewAtCfg){.frame = at_top});
-    // the view scrolled to `return 0;`, inside the region the brace line opens: the brace line's head, `int main`, is
-    // the sticky row, after the rows displayed, with its text and runs
+    // scroll the view to `return 0;`, inside the folding range that the brace line opens. The head of that range,
+    // `int main`, becomes the sticky line. It comes after the displayed rows, with its text and runs
     CliViewInput scroll = view_key("");
     scroll.type = CLI_VIEW_SCROLL;
     scroll.top = 2ull;

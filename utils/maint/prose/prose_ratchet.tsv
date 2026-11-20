@@ -1547,8 +1547,6 @@ utils/test/src/ui/cli/unit/page/test_page/test_page.c	2
 utils/test/src/ui/cli/unit/pages/test_pages/test_pages.c	1
 utils/test/src/ui/cli/unit/patterns/test_patterns/test_patterns.c	5
 utils/test/src/ui/cli/unit/pg/test_pg/test_pg.c	2
-utils/test/src/ui/cli/unit/plugins/test_plugins/test_plugins.c	2
-utils/test/src/ui/cli/unit/pool/test_pool/test_pool.c	1
 utils/test/src/ui/cli/unit/preview/test_preview/test_preview.c	5
 utils/test/src/ui/cli/unit/problems/test_problems/test_problems.c	4
 utils/test/src/ui/cli/unit/prompt/test_prompt/test_prompt.c	1
@@ -1585,8 +1583,7 @@ utils/test/src/ui/cli/unit/text_walks/test_text_walks/test_text_walks.c	4
 utils/test/src/ui/cli/unit/toolchains/test_toolchains/test_toolchains.c	3
 utils/test/src/ui/cli/unit/transfer/test_transfer/test_transfer.c	5
 utils/test/src/ui/cli/unit/trust/test_trust/test_trust.c	1
-utils/test/src/ui/cli/unit/view/test_view/test_view.c	3
-utils/test/src/ui/cli/unit/watch/test_watch/test_watch.c	4
+utils/test/src/ui/cli/unit/watch/test_watch/test_watch.c	1
 utils/test/src/ui/cli/unit/xterm/test_xterm/test_xterm.c	1
 utils/test/src/ui/gui/base_test.c	4
 utils/test/src/ui/gui/bead_test.c	3

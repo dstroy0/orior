@@ -415,7 +415,7 @@ void test_a_movable_cell_moves_at_a_quiet_time_with_its_bytes(void)
     TEST_ASSERT_EQUAL_MEMORY(s_written, s_read, CELL_BYTES);
     TEST_ASSERT_TRUE(g_cli_guard->movable_buf_release(cell, g_checks_owner));
     TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_checks_owner));
-    // the pool made anew ends the mover first and starts it again: a movable cell is taken after as before
+    // a pool reset stops the mover first and then restarts it: a movable allocation succeeds after the reset as before
     TEST_ASSERT_TRUE_MESSAGE(cli_pool_made(CLI_POOL_BYTES), "the pool made anew with the mover running");
     const CarcerMovableEntry *const again = g_cli_guard->movable_buf_alloc(CELL_BYTES, g_checks_owner);
     TEST_ASSERT_NOT_NULL_MESSAGE(again, "a movable cell taken from the pool made anew");
