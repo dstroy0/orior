@@ -125,8 +125,6 @@ examples/0_experimental/exact_zeta_scaled.sh	1
 examples/0_experimental/exact_zeta_spherical.cu	6
 examples/0_experimental/exact_zeta_spherical.py	5
 examples/0_experimental/exact_zeta_spherical.sh	1
-examples/0_experimental/exact_zeta_tail.cu	7
-examples/0_experimental/exact_zeta_tail.sh	1
 examples/0_experimental/exact_zeta_tension.py	10
 examples/0_experimental/exact_zeta_turing.sh	1
 examples/0_experimental/exact_zeta_values.py	5

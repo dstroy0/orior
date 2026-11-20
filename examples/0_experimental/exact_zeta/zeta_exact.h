@@ -555,4 +555,35 @@ double rational_to_double(const ZetaRational *value);
  */
 void rational_text(const ZetaRational *value, char *text, size_t capacity);
 
+/**
+ * @brief n^-s = exp(-sigma ln n) (cos(t ln n) - i sin(t ln n)) at the places.
+ *
+ * @note The values include the derivative of n^-s in s, -ln n n^-s.
+ *
+ * @param[in]  n      The base.
+ * @param[in]  point  The point s [BORROWS].
+ * @param[in]  digits The places.
+ * @param[out] out    Re, Im, Re', Im' [BORROWS].
+ */
+void zeta_power_minus_s(int64_t n, const ZetaPoint *point, int32_t digits, OriorExactInteger out[4]);
+
+/**
+ * @brief The floor sum of (n/d)^(2k+1) / (2k+1) at the scale, for 0 <= n/d < 1.
+ *
+ * @param[in]  numerator   The numerator n [BORROWS].
+ * @param[in]  denominator The denominator d [BORROWS].
+ * @param[in]  scale       The scale [BORROWS].
+ * @param[out] result      The value [BORROWS].
+ */
+void zeta_artanh(const OriorExactInteger *numerator, const OriorExactInteger *denominator,
+                 const OriorExactInteger *scale, OriorExactInteger *result);
+
+/**
+ * @brief ln 2 = 2 artanh(1/3) = 2 sum over k of 1 / ((2k + 1) 3^(2k + 1)), times the scale.
+ *
+ * @param[in]  scale  The scale [BORROWS].
+ * @param[out] result The value [BORROWS].
+ */
+void zeta_ln_two_artanh(const OriorExactInteger *scale, OriorExactInteger *result);
+
 #endif

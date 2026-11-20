@@ -2,26 +2,30 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // Catalog: EXP-x-023
 //
-// Euler-Maclaurin's tail coefficient C at every point of a pass, one lane a point, swept on the device as a
-// program of the record machine, one job on the device's tessera daemon.
+// The tail coefficient C of Euler-Maclaurin at every point of a pass, on the device. Each point is a lane. The
+// program runs on the record machine, as one job on the tessera daemon of the device.
 //
 //   Usage:  exact_zeta_tail <input> <output>
 //
 // C = N / (s - 1) + 1/2 + sum over k from 1 to N of B_2k / (2k)! s (s + 1) ... (s + 2k - 2) N^(1 - 2k), with
-// s = 1/2 + it, at the fixed scale S the input names. The sum is carried as tau_1 = s / 12N and
+// s = 1/2 + it, at the fixed scale S that the input names. The program carries the sum as tau_1 = s / 12N and
 // tau_k = tau_(k-1) (s + 2k - 3)(s + 2k - 2) rho_k, rho_k = B_2k (2k - 2)! / (B_(2k-2) (2k)! N^2). Every term
-// sits near the scale: B_2k / (2k)! alone falls under it and the rising product alone outgrows it. Each tau is
-// wrapped to W bits after its quotient, W from a bound on every tau the input's writer derives, and a quotient
-// rounds toward zero.
+// sits near the scale. B_2k / (2k)! alone falls under it, and the product that rises with k alone outgrows it.
 //
-// The input, written by exact_zeta_riemann_siegel.py: the line "N W", the line "fields F", F lines of a field's
-// bits and offset, the line "in_limbs L0 L1", the line "points P", P lines of L0 hex limbs each, a point's record
-// (field 0, t S, signed), and one line of L1 hex limbs, the shared record (field 1, S; field 2, S / 2; fields 3 on,
-// rho_k S for k from 2 to N, signed). Limbs are least significant first.
+// After its quotient, each tau wraps to W bits. The writer of the input derives W from a bound on every tau. A
+// quotient rounds toward zero.
 //
-// The output: the line "out_limbs L", the line "outputs re_offset re_bits im_offset im_bits", P lines of L hex limbs,
-// the device's records, and the line "host 1" where the same program on the host, from the exact integer library,
-// gives the device's records word for word, else "host 0".
+// The input comes from exact_zeta/exact_zeta_riemann_siegel.c. It starts with the line "N W" and the line
+// "fields F". F lines follow, each the bits and the offset of a field. Then come the line "in_limbs L0 L1" and the
+// line "points P".
+//
+// P lines of L0 hex limbs follow, each the record of a point: field 0, t S, signed. One line of L1 hex limbs ends
+// the input, the shared record. Its field 1 is S, field 2 is S / 2, and fields 3 on are rho_k S for k from 2 to N,
+// signed. Limbs come least significant first.
+//
+// The output starts with the line "out_limbs L" and the line "outputs re_offset re_bits im_offset im_bits". P lines
+// of L hex limbs follow, the records of the device. The last line is "host 1" where the same program on the host
+// gives the records of the device word for word, else "host 0". The host runs it on the exact integer library.
 
 #include "../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../includes/exact_types/integers/exact_integer.h"

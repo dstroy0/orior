@@ -41,6 +41,7 @@
  *       of Gram's law at n = 126, as the same article reports it. The null: the Bernoulli terms left out of both
  *       routes of theta. Then the routes do not meet at the doublings shown, and the search decides no Gram index.
  */
+#include "zeta_gram_walk.h"
 #include "zeta_search.h"
 #include "zeta_theta.h"
 #include "zeta_shuffle.h"
@@ -52,15 +53,6 @@
 #include <fcntl.h>
 #include <io.h>
 #endif
-
-/** @brief The table of the smallest Gram points, g_0 to g_15, from the article on the theta function. */
-static const char *const PUBLISHED[16] = {"17.8455995405", "23.1702827012", "27.6701822178", "31.7179799547",
-                                          "35.4671842971", "38.9992099640", "42.3635503920", "45.5930289815",
-                                          "48.7107766217", "51.7338428133", "54.6752374468", "57.5451651795",
-                                          "60.3518119691", "63.1018679824", "65.8008876380", "68.4535449175"};
-
-/** @brief The same article: Gram's law first fails at index 126. */
-#define FIRST_FAILURE 126
 
 /** @brief The seed of the drawn orders, as the shuffles of the tree name it. */
 #define SHUFFLE_SEED 0x51F7u
@@ -92,332 +84,6 @@ static void *gram_memory(void *block)
         zeta_stop("out of memory");
     }
     return block;
-}
-
-/**
- * @brief The hash of a text, by FNV-1a.
- *
- * @param[in] text The text [BORROWS].
- * @return         The hash.
- */
-static uint64_t text_hash(const char *text)
-{
-    uint64_t hash = 1469598103934665603u;
-    for (const char *at = text; *at != '\0'; at += 1)
-    {
-        hash = (hash ^ (uint64_t)(unsigned char)*at) * 1099511628211u;
-    }
-    return hash;
-}
-
-/* ---------------------------------------------------------------- the search of the Gram index */
-
-/** @brief What the search knows of one point t. */
-typedef struct
-{
-    DecimalPair t; /**< The point. */
-    char *key;     /**< Its canonical text [OWNS]. */
-    int has_index; /**< Nonzero where the point has its Gram index. */
-    int64_t index; /**< The Gram index. */
-} GramPoint;
-
-/** @brief The Gram index decided at each point, and the cost of each decision. */
-typedef struct
-{
-    GramPoint *points;   /**< The points [OWNS]. */
-    size_t count;        /**< How many. */
-    size_t capacity;     /**< How many the array holds. */
-    size_t *buckets;     /**< The hash table, each an index + 1, or 0 for an empty bucket [OWNS]. */
-    size_t bucket_count; /**< How many buckets, a power of two. */
-    uint64_t asked;      /**< How many theta values the search asked for. */
-    int32_t deepest;     /**< The most places at a decided point. */
-    int64_t widest;      /**< The largest cut N at a decided point. */
-} GramSearch;
-
-/**
- * @brief The index of a point in the search, with a new record where the point is new.
- *
- * @param[in,out] search The search [BORROWS].
- * @param[in]     t      The point [BORROWS].
- * @return               The index.
- */
-static size_t gram_intern(GramSearch *search, const DecimalPair *t)
-{
-    if ((search->count * 2u) >= search->bucket_count)
-    {
-        const size_t grown = (search->bucket_count == 0u) ? 1024u : (search->bucket_count * 2u);
-        size_t *const buckets = (size_t *)gram_memory(calloc(grown, sizeof(size_t)));
-        for (size_t at = 0u; at < search->count; at += 1u)
-        {
-            size_t place = (size_t)(text_hash(search->points[at].key) & (grown - 1u));
-            while (buckets[place] != 0u)
-            {
-                place = (place + 1u) & (grown - 1u);
-            }
-            buckets[place] = at + 1u;
-        }
-        free(search->buckets);
-        search->buckets = buckets;
-        search->bucket_count = grown;
-    }
-    static char digits[8192];
-    z_text(&t->numerator, digits, sizeof(digits));
-    char key[8256];
-    snprintf(key, sizeof(key), "%s/%d", digits, (int)t->places);
-    size_t place = (size_t)(text_hash(key) & (search->bucket_count - 1u));
-    while (search->buckets[place] != 0u)
-    {
-        const size_t index = search->buckets[place] - 1u;
-        if (strcmp(search->points[index].key, key) == 0)
-        {
-            return index;
-        }
-        place = (place + 1u) & (search->bucket_count - 1u);
-    }
-    if (search->count >= search->capacity)
-    {
-        search->capacity = (search->capacity == 0u) ? 256u : (search->capacity * 2u);
-        search->points = (GramPoint *)gram_memory(realloc(search->points, search->capacity * sizeof(GramPoint)));
-    }
-    GramPoint *const point = &search->points[search->count];
-    memset(point, 0, sizeof(*point));
-    point->t = *t;
-    point->key = (char *)gram_memory(malloc(strlen(key) + 1u));
-    memcpy(point->key, key, strlen(key) + 1u);
-    search->buckets[place] = search->count + 1u;
-    search->count += 1u;
-    return search->count - 1u;
-}
-
-/** @brief A point still open in a sweep. */
-typedef struct
-{
-    size_t index;   /**< The point. */
-    int32_t places; /**< The places to ask at. */
-    int64_t n_sum;  /**< The cut N to ask at. */
-} GramOpen;
-
-/**
- * @brief Decides the Gram index of each point, pass by pass, each pass reading the verdicts of the last.
- *
- * @param[in,out] search The search [BORROWS].
- * @param[in]     points The points, as indices, repeats allowed [BORROWS].
- * @param[in]     count  How many.
- */
-static void gram_sweep(GramSearch *search, const size_t *points, size_t count)
-{
-    unsigned char *const seen = (unsigned char *)gram_memory(calloc(search->count + 1u, 1u));
-    GramOpen *const open = (GramOpen *)gram_memory(malloc((count + 1u) * sizeof(GramOpen)));
-    size_t open_count = 0u;
-    for (size_t at = 0u; at < count; at += 1u)
-    {
-        if (seen[points[at]])
-        {
-            continue;
-        }
-        seen[points[at]] = 1u;
-        if (!search->points[points[at]].has_index)
-        {
-            open[open_count].index = points[at];
-            open[open_count].places = 1;
-            open[open_count].n_sum = 1;
-            open_count += 1u;
-        }
-    }
-    free(seen);
-    while (open_count > 0u)
-    {
-        size_t next_count = 0u;
-        for (size_t at = 0u; at < open_count; at += 1u)
-        {
-            const GramOpen asked = open[at];
-            search->asked += 1u;
-            OriorExactInteger one;
-            OriorExactInteger two;
-            theta_routes(&search->points[asked.index].t, asked.places, asked.n_sum, 1, &one, &two);
-            const int64_t agree = orior_exact_equal(&one, &two);
-            OriorExactInteger big_pi;
-            zeta_pi(asked.places + ZETA_GUARD, &big_pi);
-            OriorExactInteger scaled = one;
-            zeta_require(orior_exact_scale_by_ten(&scaled, ZETA_GUARD), "scale");
-            OriorExactInteger ratio;
-            z_floor_div(&scaled, &big_pi, &ratio);
-            const int64_t i = z_small(&ratio);
-            OriorExactInteger bound;
-            theta_pi_times(i, &big_pi, &bound);
-            const int64_t low = z_cmp(&one, &bound);
-            theta_pi_times(i + 1, &big_pi, &bound);
-            const int64_t high = z_cmp(&bound, &one);
-            const int64_t decided = agree * ((1 + low) / 2) * ((1 + high) / 2);
-            if (decided)
-            {
-                GramPoint *const point = &search->points[asked.index];
-                point->has_index = 1;
-                point->index = i;
-                search->deepest = (asked.places > search->deepest) ? asked.places : search->deepest;
-                search->widest = (asked.n_sum > search->widest) ? asked.n_sum : search->widest;
-                continue;
-            }
-            open[next_count].index = asked.index;
-            open[next_count].places = asked.places * (int32_t)(1 + agree);
-            open[next_count].n_sum = asked.n_sum * (2 - agree);
-            next_count += 1u;
-        }
-        open_count = next_count;
-    }
-    free(open);
-}
-
-/** @brief A bracket of one Gram point: [low, high] and the index n. */
-typedef struct
-{
-    DecimalPair low;  /**< The lower end. */
-    DecimalPair high; /**< The upper end. */
-    int64_t index;    /**< The index n. */
-} GramBracket;
-
-/**
- * @brief Up from t = 10. Each pass reads the indices at the ends of the open cells, and gates the next cells.
- *
- * @param[in,out] search The search [BORROWS].
- * @param[in]     height The height [BORROWS].
- * @param[out]    found  The brackets, in ascending order of index [BORROWS]. Allocated.
- * @return               How many brackets.
- */
-static size_t gram_walk(GramSearch *search, const DecimalPair *height, GramBracket **found)
-{
-    size_t found_count = 0u;
-    size_t found_capacity = 16u;
-    *found = (GramBracket *)gram_memory(malloc(found_capacity * sizeof(GramBracket)));
-    DecimalPair *cells = NULL;
-    size_t cell_count = 0u;
-    DecimalPair low;
-    DecimalPair step;
-    pair_small(10, 0, &low);
-    pair_small(1, 0, &step);
-    while (pair_below(&low, height) || (cell_count > 0u))
-    {
-        const int top = pair_below(&low, height);
-        DecimalPair reach;
-        pair_plus(&low, &step, &reach);
-        const DecimalPair high = pair_below(&reach, height) ? reach : *height;
-        const size_t asked_count = cell_count + (top ? 1u : 0u);
-        DecimalPair *const asked = (DecimalPair *)gram_memory(malloc((2u * asked_count + 2u) * sizeof(DecimalPair)));
-        memcpy(asked, cells, 2u * cell_count * sizeof(DecimalPair));
-        if (top)
-        {
-            asked[2u * cell_count] = low;
-            asked[(2u * cell_count) + 1u] = high;
-        }
-        free(cells);
-        cells = NULL;
-        size_t *const indices = (size_t *)gram_memory(malloc((2u * asked_count + 1u) * sizeof(size_t)));
-        for (size_t at = 0u; at < (2u * asked_count); at += 1u)
-        {
-            indices[at] = gram_intern(search, &asked[at]);
-        }
-        gram_sweep(search, indices, 2u * asked_count);
-        size_t next_cells = 0u;
-        cells = (DecimalPair *)gram_memory(malloc((4u * asked_count + 2u) * sizeof(DecimalPair)));
-        int64_t last = 0;
-        for (size_t cell = 0u; cell < asked_count; cell += 1u)
-        {
-            const int64_t start = search->points[indices[2u * cell]].index;
-            const int64_t end = search->points[indices[(2u * cell) + 1u]].index;
-            const int64_t points_inside = end - start;
-            last = points_inside;
-            if (points_inside == 1)
-            {
-                if (found_count >= found_capacity)
-                {
-                    found_capacity *= 2u;
-                    *found = (GramBracket *)gram_memory(realloc(*found, found_capacity * sizeof(GramBracket)));
-                }
-                (*found)[found_count].low = asked[2u * cell];
-                (*found)[found_count].high = asked[(2u * cell) + 1u];
-                (*found)[found_count].index = end;
-                found_count += 1u;
-            }
-            else if (points_inside > 1)
-            {
-                DecimalPair centre;
-                pair_middle(&asked[2u * cell], &asked[(2u * cell) + 1u], &centre);
-                cells[4u * next_cells / 2u] = asked[2u * cell];
-                cells[(4u * next_cells / 2u) + 1u] = centre;
-                cells[(4u * next_cells / 2u) + 2u] = centre;
-                cells[(4u * next_cells / 2u) + 3u] = asked[(2u * cell) + 1u];
-                next_cells += 2u;
-            }
-        }
-        cell_count = next_cells;
-        free(indices);
-        free(asked);
-        last *= top;
-        DecimalPair next_step;
-        if (last == 0)
-        {
-            pair_twice(&step, &next_step);
-        }
-        else if (last > 1)
-        {
-            pair_half(&step, &next_step);
-        }
-        else
-        {
-            next_step = step;
-        }
-        step = next_step;
-        if (top)
-        {
-            low = high;
-        }
-    }
-    free(cells);
-    // A stable sort by index.
-    for (size_t at = 1u; at < found_count; at += 1u)
-    {
-        const GramBracket moving = (*found)[at];
-        size_t place = at;
-        while ((place > 0u) && (moving.index < (*found)[place - 1u].index))
-        {
-            (*found)[place] = (*found)[place - 1u];
-            place -= 1u;
-        }
-        (*found)[place] = moving;
-    }
-    return found_count;
-}
-
-/**
- * @brief Cuts each bracket in half by the Gram index at its midpoint.
- *
- * @param[in,out] search   The search [BORROWS].
- * @param[in,out] brackets The brackets [BORROWS].
- * @param[in]     count    How many.
- */
-static void gram_cut(GramSearch *search, GramBracket *brackets, size_t count)
-{
-    size_t *const mids = (size_t *)gram_memory(calloc(count + 1u, sizeof(size_t)));
-    for (size_t at = 0u; at < count; at += 1u)
-    {
-        DecimalPair centre;
-        pair_middle(&brackets[at].low, &brackets[at].high, &centre);
-        mids[at] = gram_intern(search, &centre);
-    }
-    gram_sweep(search, mids, count);
-    for (size_t at = 0u; at < count; at += 1u)
-    {
-        const GramPoint *const middle = &search->points[mids[at]];
-        if (middle->index >= brackets[at].index)
-        {
-            brackets[at].high = middle->t;
-        }
-        else
-        {
-            brackets[at].low = middle->t;
-        }
-    }
-    free(mids);
 }
 
 /**
@@ -489,6 +155,21 @@ static size_t gram_settle(GramSearch *search, const GramBracket *brackets, size_
 }
 
 /**
+ * @brief The two routes of theta at t, with the Bernoulli terms, as the walk reads them.
+ *
+ * @param[in]  t      The point [BORROWS].
+ * @param[in]  places The places.
+ * @param[in]  n_sum  The cut N.
+ * @param[out] one    The first route [BORROWS].
+ * @param[out] two    The second route [BORROWS].
+ */
+static void theta_phase(const DecimalPair *t, int32_t places, int64_t n_sum, OriorExactInteger *one,
+                        OriorExactInteger *two)
+{
+    theta_routes(t, places, n_sum, 1, one, two);
+}
+
+/**
  * @brief The gap of the two routes of theta at a cut.
  *
  * @param[in]  t         The point [BORROWS].
@@ -545,6 +226,9 @@ int main(int argument_count, char **arguments)
 
     GramSearch search;
     memset(&search, 0, sizeof(search));
+    search.phase = theta_phase;
+    pair_small(10, 0, &search.start);
+    pair_small(1, 0, &search.step);
     GramBracket *found = NULL;
     const size_t found_count = gram_walk(&search, &height, &found);
     if (found_count == 0u)
@@ -570,13 +254,13 @@ int main(int argument_count, char **arguments)
     int64_t every = 1;
     for (size_t at = 0u; (at < found_count) && (at < 16u); at += 1u)
     {
-        const int held = pair_holds(&placed[at].low, &placed[at].high, PUBLISHED[at]);
+        const int held = pair_holds(&placed[at].low, &placed[at].high, ZETA_GRAM_PUBLISHED[at]);
         every *= held;
         fprintf(out, "  %-5lld [", (long long)placed[at].index);
         pair_print(&placed[at].low, 10, out);
         fputs(", ", out);
         pair_print(&placed[at].high, 10, out);
-        fprintf(out, "]  %-15s %s\n", PUBLISHED[at], truth(held));
+        fprintf(out, "]  %-15s %s\n", ZETA_GRAM_PUBLISHED[at], truth(held));
     }
     fprintf(out, "  %llu theta values asked, the deepest at %d places, the widest at N = %lld\n\n",
             (unsigned long long)search.asked, (int)search.deepest, (long long)search.widest);
@@ -630,9 +314,9 @@ int main(int argument_count, char **arguments)
     }
     fprintf(out, "  %llu zeta values asked, %llu further cuts, the deepest at %d places, the widest at N = %lld\n",
             (unsigned long long)zeta.asked, (unsigned long long)cuts, (int)zeta.deepest, (long long)zeta.widest);
-    const int64_t reached = last_index >= FIRST_FAILURE;
-    const int64_t first = (reached * (first_bad == FIRST_FAILURE)) + ((1 - reached) * (bad_count == 0u));
-    fprintf(out, "  the first failure against the reported index %d: %s\n\n", FIRST_FAILURE, truth(first));
+    const int64_t reached = last_index >= ZETA_GRAM_FIRST_FAILURE;
+    const int64_t first = (reached * (first_bad == ZETA_GRAM_FIRST_FAILURE)) + ((1 - reached) * (bad_count == 0u));
+    fprintf(out, "  the first failure against the reported index %d: %s\n\n", ZETA_GRAM_FIRST_FAILURE, truth(first));
     fflush(out);
 
     unsigned char *const seats = (unsigned char *)gram_memory(malloc(found_count + 1u));

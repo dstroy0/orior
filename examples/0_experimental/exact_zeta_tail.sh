@@ -2,8 +2,8 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
-# Builds exact_zeta_tail, the tail coefficient's record program, with the record compiler and the tessera client
-# beside it, and prints the binary's path on its last line.
+# Builds exact_zeta_tail, the record program of the tail coefficient. The record compiler and the tessera client
+# build beside it. The script prints the path of the binary on its last line.
 #
 #   Usage:  bash examples/0_experimental/exact_zeta_tail.sh [sm_NN ...]
 set -u

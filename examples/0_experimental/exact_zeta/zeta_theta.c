@@ -337,13 +337,7 @@ static void arctan_agreed(const OriorExactInteger *x, const OriorExactInteger *y
 
 /* ---------------------------------------------------------------- theta */
 
-/**
- * @brief ln pi at the places, from the floor of pi at those places: ln floor(pi 10^d) - d ln 10.
- *
- * @param[in]  digits The places.
- * @param[out] result The value [BORROWS].
- */
-static void ln_pi(int32_t digits, OriorExactInteger *result)
+void theta_ln_pi(int32_t digits, OriorExactInteger *result)
 {
     OriorExactInteger pi_value;
     zeta_pi(digits, &pi_value);
@@ -355,18 +349,7 @@ static void ln_pi(int32_t digits, OriorExactInteger *result)
     z_sub(&log, &ten, result);
 }
 
-/**
- * @brief theta(t) at the places by the series of Stirling at w = 1/4 + it/2 + shift, with a count of Bernoulli terms.
- *
- * @param[in]  t      The point [BORROWS].
- * @param[in]  digits The places.
- * @param[in]  shift  The shift M.
- * @param[in]  terms  The count K of Bernoulli terms.
- * @param[out] result The value [BORROWS].
- * @note w = (a + ib) / d, with a = (1 + 4 shift) 10^q, b = 2T, d = 4 10^q, for t = T / 10^q. The imaginary part of
- *       w^(1-2j) is Im (a - ib)^(2j-1) d^(2j-1) / (a^2 + b^2)^(2j-1). Each factor is an integer.
- */
-static void theta_route(const DecimalPair *t, int32_t digits, int64_t shift, int64_t terms, OriorExactInteger *result)
+void theta_route(const DecimalPair *t, int32_t digits, int64_t shift, int64_t terms, OriorExactInteger *result)
 {
     OriorExactInteger scale;
     z_ten_to(digits, &scale);
@@ -470,7 +453,7 @@ static void theta_route(const DecimalPair *t, int32_t digits, int64_t shift, int
     }
 
     OriorExactInteger pi_log;
-    ln_pi(digits, &pi_log);
+    theta_ln_pi(digits, &pi_log);
     z_mul(big_t, &pi_log, &pi_log);
     z_mul_small(&unit, 2, &under);
     z_floor_div(&pi_log, &under, &pi_log);

@@ -38,4 +38,25 @@ void theta_routes(const DecimalPair *t, int32_t places, int64_t n_sum, int berno
  */
 void theta_pi_times(int64_t i, const OriorExactInteger *big_pi, OriorExactInteger *result);
 
+/**
+ * @brief theta(t) at the places by the series of Stirling at w = 1/4 + it/2 + shift, with a count of Bernoulli terms.
+ *
+ * @param[in]  t      The point [BORROWS].
+ * @param[in]  digits The places.
+ * @param[in]  shift  The shift M.
+ * @param[in]  terms  The count K of Bernoulli terms.
+ * @param[out] result The value [BORROWS].
+ * @note w = (a + ib) / d, with a = (1 + 4 shift) 10^q, b = 2T, d = 4 10^q, for t = T / 10^q. The imaginary part of
+ *       w^(1-2j) is Im (a - ib)^(2j-1) d^(2j-1) / (a^2 + b^2)^(2j-1). Each factor is an integer.
+ */
+void theta_route(const DecimalPair *t, int32_t digits, int64_t shift, int64_t terms, OriorExactInteger *result);
+
+/**
+ * @brief ln pi at the places, from the floor of pi at those places: ln floor(pi 10^d) - d ln 10.
+ *
+ * @param[in]  digits The places.
+ * @param[out] result The value [BORROWS].
+ */
+void theta_ln_pi(int32_t digits, OriorExactInteger *result);
+
 #endif

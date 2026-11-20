@@ -74,7 +74,7 @@ EXP-x-019	live	examples/0_experimental/exact_descent_rank.py
 EXP-x-020	live	examples/0_experimental/magnitude_vector_transfer.py
 EXP-x-021	live	examples/0_experimental/exact_zeta/exact_zeta_zeros.c
 EXP-x-022	live	examples/0_experimental/exact_zeta/exact_zeta_gram.c
-EXP-x-023	live	examples/0_experimental/exact_zeta_riemann_siegel.py
+EXP-x-023	live	examples/0_experimental/exact_zeta/exact_zeta_riemann_siegel.c
 EXP-x-024	live	examples/0_experimental/exact_zeta/exact_zeta_arrival.c
 EXP-x-025	live	examples/0_experimental/exact_zeta/zeta_zero_certificate.c
 EXP-x-026	live	examples/0_experimental/exact_zeta/exact_zeta_phase.c

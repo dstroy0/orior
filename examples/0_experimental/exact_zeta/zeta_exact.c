@@ -562,13 +562,7 @@ void zeta_pi_euler(const OriorExactInteger *scale, OriorExactInteger *result)
     z_mul_small(&half, 4, result);
 }
 
-/**
- * @brief ln 2 = 2 artanh(1/3) = 2 sum over k of 1 / ((2k + 1) 3^(2k + 1)), times the scale.
- *
- * @param[in]  scale  The scale [BORROWS].
- * @param[out] result The value [BORROWS].
- */
-static void ln_two_artanh(const OriorExactInteger *scale, OriorExactInteger *result)
+void zeta_ln_two_artanh(const OriorExactInteger *scale, OriorExactInteger *result)
 {
     OriorExactInteger total;
     orior_exact_zero(&total);
@@ -590,16 +584,8 @@ static void ln_two_artanh(const OriorExactInteger *scale, OriorExactInteger *res
     z_mul_small(&total, 2, result);
 }
 
-/**
- * @brief The floor sum of (n/d)^(2k+1) / (2k+1) at the scale, for 0 <= n/d < 1.
- *
- * @param[in]  numerator   The numerator n [BORROWS].
- * @param[in]  denominator The denominator d [BORROWS].
- * @param[in]  scale       The scale [BORROWS].
- * @param[out] result      The value [BORROWS].
- */
-static void artanh_ratio(const OriorExactInteger *numerator, const OriorExactInteger *denominator,
-                         const OriorExactInteger *scale, OriorExactInteger *result)
+void zeta_artanh(const OriorExactInteger *numerator, const OriorExactInteger *denominator,
+                 const OriorExactInteger *scale, OriorExactInteger *result)
 {
     orior_exact_zero(result);
     OriorExactInteger power;
@@ -705,14 +691,14 @@ static void ln_by_two(const OriorExactInteger *argument, const OriorExactInteger
     OriorExactInteger power;
     z_two_to(k, &power);
     OriorExactInteger two;
-    ln_two_artanh(scale, &two);
+    zeta_ln_two_artanh(scale, &two);
     z_mul_small(&two, k, &two);
     OriorExactInteger below;
     OriorExactInteger above;
     z_sub(argument, &power, &below);
     z_add(argument, &power, &above);
     OriorExactInteger rest;
-    artanh_ratio(&below, &above, scale, &rest);
+    zeta_artanh(&below, &above, scale, &rest);
     z_mul_small(&rest, 2, &rest);
     z_add(&two, &rest, result);
 }
@@ -745,14 +731,14 @@ static void ln_by_three(const OriorExactInteger *argument, const OriorExactInteg
     z_set(&one, 1);
     z_set(&two, 2);
     OriorExactInteger three;
-    artanh_ratio(&one, &two, scale, &three);
+    zeta_artanh(&one, &two, scale, &three);
     z_mul_small(&three, 2 * j, &three);
     OriorExactInteger below;
     OriorExactInteger above;
     z_sub(argument, &power, &below);
     z_add(argument, &power, &above);
     OriorExactInteger rest;
-    artanh_ratio(&below, &above, scale, &rest);
+    zeta_artanh(&below, &above, scale, &rest);
     z_mul_small(&rest, 2, &rest);
     z_add(&three, &rest, result);
 }
@@ -1011,17 +997,7 @@ void zeta_cos_sin(const OriorExactInteger *y, int32_t digits, OriorExactInteger 
     }
 }
 
-/**
- * @brief n^-s = exp(-sigma ln n) (cos(t ln n) - i sin(t ln n)) at the places.
- *
- * @note The values include the derivative of n^-s in s, -ln n n^-s.
- *
- * @param[in]  n      The base.
- * @param[in]  point  The point s [BORROWS].
- * @param[in]  digits The places.
- * @param[out] out    Re, Im, Re', Im' [BORROWS].
- */
-static void power_minus_s(int64_t n, const ZetaPoint *point, int32_t digits, OriorExactInteger out[4])
+void zeta_power_minus_s(int64_t n, const ZetaPoint *point, int32_t digits, OriorExactInteger out[4])
 {
     OriorExactInteger scale;
     z_ten_to(digits, &scale);
@@ -1362,7 +1338,7 @@ void zeta_routes(const ZetaPoint *point, int32_t places, int64_t n_sum, int inte
         (OriorExactInteger(*)[4])zeta_memory(malloc(count * sizeof(OriorExactInteger[4])));
     for (int64_t n = 1; n <= (2 * n_sum); n += 1)
     {
-        power_minus_s(n, point, digits, powers[n - 1]);
+        zeta_power_minus_s(n, point, digits, powers[n - 1]);
     }
     zeta_at(point, n_sum, integral, (const OriorExactInteger(*)[4])powers, &values[0]);
     zeta_at(point, 2 * n_sum, integral, (const OriorExactInteger(*)[4])powers, &values[4]);
