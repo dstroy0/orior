@@ -34,8 +34,8 @@ typedef struct GuiCompositorGlyphRangeCfg GuiCompositorGlyphRangeCfg;
 typedef struct GuiCompositorGlyphBakeCfg GuiCompositorGlyphBakeCfg;
 typedef struct GuiCompositorGlyphFindCfg GuiCompositorGlyphFindCfg;
 
-// The layers of a surface, bottom to top: the backdrop, the glass over it, the content, the glyphs, the effects and
-// overlays, and the cursor with what is drawn at the pointer's rate
+// The layers of a surface, bottom to top: the backdrop, the glass over it, the content, the glyphs, and the effects and
+// overlays. The top layer is the cursor, with the drawings at the rate of the pointer
 #define GUI_COMPOSITOR_BACKDROP 0u
 #define GUI_COMPOSITOR_GLASS 1u
 #define GUI_COMPOSITOR_CONTENT 2u
@@ -56,26 +56,28 @@ typedef struct GuiCompositorGlyphFindCfg GuiCompositorGlyphFindCfg;
 #define GUI_COMPOSITOR_NONE 0xffffu
 _Static_assert((1u << GUI_COMPOSITOR_TILE_SHIFT) == GUI_COMPOSITOR_TILE, "the tile shift divides by the tile's side");
 
-// What a command draws: a rectangle filled in a color, its edges covered by the share of each edge pixel the
-// rectangle covers; and an image put with its top left at the command's place
+// What a command draws. A fill is a rectangle in a color, with each edge pixel covered by the share that the
+// rectangle covers. An image goes with its top left at the place of the command
 #define GUI_COMPOSITOR_FILL 1u
 #define GUI_COMPOSITOR_IMAGE 2u
 #define GUI_COMPOSITOR_GLYPH_RUN 3u
 
-// The places a glyph is baked at across a pixel, a quarter of a pixel apart: the place is (x >> 14) & 3 of its 16.16 x.
-// The contrast bands a run's text is lifted through. The glyph ranges a compositor reserves at most. And the entry
-// that is no glyph
+// The places across a pixel where the atlas holds a glyph, a quarter of a pixel apart. The place is (x >> 14) & 3 of
+// its 16.16 x. Then come the contrast bands that lift the text of a run. Then come the most glyph ranges that a
+// compositor reserves, and the entry that is no glyph
 #define GUI_COMPOSITOR_PHASES 4u
 #define GUI_COMPOSITOR_PHASE(fixed_) ((embed_u32)((fixed_) >> 14) & 3u)
 #define GUI_COMPOSITOR_BANDS 4u
 #define GUI_COMPOSITOR_RANGES 8u
 #define GUI_COMPOSITOR_NO_GLYPH 0xffffffffu
 
-// A command as a layer records it. Every field has a fixed width, and none is a pointer: a list of commands is plain
-// data a caller can write out and record again. The kind; the color, BGRA multiplied by its alpha; the place and the
-// size in 16.16, a run's the box its glyphs cover; the image's handle for an image, the first of a run's glyphs in
-// the layer's list for a run; how many glyphs a run has; the digest of a run's glyphs: a run with other glyphs
-// differs; and the first and last tile it covers across and down
+// A command as a layer records it. Each field has a fixed width, and no field is a pointer. A list of commands is plain
+// data that a caller can write out and record again.
+//
+// It holds the kind, and the color, BGRA multiplied by its alpha. It holds the place and the size in 16.16, for a run
+// the box that its glyphs cover. For an image it holds the handle of the image. For a run it holds the first of
+// its glyphs in the list of the layer, and how many glyphs it has. It holds the digest of the glyphs of a run, which
+// differs for a run with other glyphs. Last it holds the first and last tile that it covers across and down
 typedef struct
 {
     embed_u32 kind;
@@ -103,8 +105,9 @@ typedef struct
 } GuiCompositorGlyph;
 _Static_assert(sizeof(GuiCompositorGlyph) == 12u, "a run's glyph is 12 bytes on every target");
 
-// A glyph baked in the atlas: its key, the face, size, place and glyph packed; its page and its box on the page. Where
-// its box's top left is from the pen, left of it and above the baseline; its advance in 16.16; and whether it is baked
+// A glyph in the atlas. It holds its key, the face, size, place and glyph packed, and its page and its box on the page.
+// It holds the top left of its box from the pen, left of it and above the baseline. It holds its advance in 16.16, and
+// whether the atlas holds it yet
 typedef struct
 {
     embed_u64 key;
@@ -119,8 +122,8 @@ typedef struct
     embed_u32 baked;
 } GuiCompositorGlyphEntry;
 
-// A range of glyphs reserved at init: its face and size, its first glyph and how many, and the first of its entries,
-// four a glyph, one for each place across a pixel
+// A range of glyphs that the compositor reserves at init. It holds its face and size, its first glyph and how many.
+// It holds the first of its entries, four a glyph, one for each place across a pixel
 typedef struct
 {
     embed_u32 face;
@@ -130,8 +133,8 @@ typedef struct
     embed_u32 base;
 } GuiCompositorGlyphRange;
 
-// An atlas page: how many segments its skyline has, and the skyline's segments, each a left, a height and a width;
-// when a run last drew from it; and whether a reserved range keeps it from being let go
+// An atlas page. It holds how many segments its skyline has, and the segments, each a left, a height and a width. It
+// holds when a run last drew from it. It holds whether a reserved range keeps the compositor from a release of it
 typedef struct
 {
     embed_u32 segments;
@@ -151,10 +154,10 @@ typedef struct
     embed_i32 height;
 } GuiCompositorRect;
 
-// The sizes a compositor is placed for: a surface's widest and tallest; the commands a layer records at most; the
-// rectangles a surface's clip ring holds before it folds; the retained tiles of all the surfaces together; the side
-// of an atlas page in pixels, a power of 2 no more than 4096, and how many pages; the glyphs the atlas holds; and the
-// glyphs a layer's runs hold together
+// The sizes of a compositor. They are the widest and tallest surface, and the most commands that a layer records. Then
+// come the rectangles that the clip ring of a surface holds before it folds. Then come the retained tiles of all the surfaces
+// together. Then come the side of an atlas page in pixels, a power of 2 no more than 4096, and how many pages. Last
+// come the glyphs that the atlas holds, and the glyphs that the runs of a layer hold together
 struct GuiCompositorLimitsCfg
 {
     embed_u32 width_max;
@@ -168,9 +171,11 @@ struct GuiCompositorLimitsCfg
     embed_u32 items_max;
 };
 
-// A layer of a surface: the commands it recorded last, the ones it records now, and how many of each; whether it
-// records now; its pool indices, each cell's retained tile in the pool, GUI_COMPOSITOR_NONE for none; and its own dirty
-// tiles, a bit for each, which a retained layer draws again; and the glyphs of its runs, shown and recorded
+// A layer of a surface. It holds the commands that it recorded last and the commands that it records now, with how many
+// of each. It holds whether it records now.
+//
+// It holds its pool indices: the retained tile of each cell in the pool, GUI_COMPOSITOR_NONE for none. It holds its
+// dirty tiles, a bit for each, which a retained layer draws again. It holds the glyphs of its runs, shown and recorded
 typedef struct
 {
     GuiCompositorCommand *shown;
@@ -186,9 +191,9 @@ typedef struct
     embed_u32 glyphs_recorded_count;
 } GuiCompositorLayer;
 
-// A surface: whether it is open; its size in pixels and in tiles; the color under the backdrop; which layers keep their
-// pixels, a bit for each; the tiles its clip ring marked, a bit for each; its clip ring and how many rectangles it
-// holds; the words of a set of tile bits; and its layers
+// A surface. It holds whether it is open, its size in pixels and in tiles, and the color under the backdrop. It holds
+// which layers keep their pixels, a bit for each, and the tiles that its clip ring marked, a bit for each. It holds its
+// clip ring and how many rectangles that holds, the words of a set of tile bits, and its layers
 typedef struct
 {
     int open;
@@ -213,10 +218,12 @@ typedef struct
     embed_u32 height;
 } GuiCompositorImage;
 
-// A compositor: the limits it was placed for; the pool of retained tiles and its stack of free tiles; its surfaces;
-// its images; and its atlas: the pages' coverage bytes and the pages, the glyph entries, the hash of the entries past
-// the ranges and its mask, the ranges and how many, the contrast tables a run is lifted through, a byte of coverage to a
-// byte for each band, and the stamp each compose moves on
+// A compositor. It holds its limits, the pool of retained tiles and its stack of free tiles, its surfaces and its
+// images.
+//
+// It holds its atlas. That is the coverage bytes of the pages, the pages, and the glyph entries. It is the hash of the
+// entries past the ranges, with its mask. It is also the ranges and how many. It is the contrast tables that lift a
+// run, a byte of coverage to a byte for each band. Last is the stamp that each compose moves on
 typedef struct
 {
     GuiCompositorLimitsCfg limits;
@@ -243,45 +250,46 @@ embed_u64 gui_compositor_bytes(const GuiCompositorLimitsCfg *args);
 int gui_compositor_init(const GuiCompositorInitCfg *args);
 // the image `image` named for the pixels given, or forgotten where they are NULL: 1, or 0 for a handle past the table
 int gui_compositor_image(const GuiCompositorImageCfg *args);
-// the surface `surface` opened `width` by `height` over `clear`, the layers in `retained` keeping their pixels, every
-// tile dirty: 1, or 0 where the size passes the limits or the retained tiles are short. Shut, its tiles go back to
-// the pool
+// the surface `surface` opened `width` by `height` over `clear`. The layers in `retained` keep their pixels, and each
+// tile is dirty. The result is 1, or 0 where the size passes the limits or the retained tiles are too few. When the
+// surface shuts, its tiles go back to the pool
 int gui_compositor_surface_open(const GuiCompositorSurfaceCfg *args);
 void gui_compositor_surface_shut(const GuiCompositorSurfaceCfg *args);
-// the layer `layer` of `surface` begins to record, its list empty; and ends: the recorded list is compared with the
-// one it records over, command by command, and each command that differs marks the tiles of both as dirty. The
-// result is how many tiles it marked
+// the layer `layer` of `surface` starts to record, with an empty list. The second call ends the record. It compares
+// the recorded list with the list that it records over, command by command. Each command that differs marks the
+// tiles of both as dirty. The result is how many tiles it marked
 void gui_compositor_record_begin(const GuiCompositorLayerCfg *args);
 embed_u32 gui_compositor_record_end(const GuiCompositorLayerCfg *args);
 // a rectangle `width` by `height` at x, y, all in 16.16, recorded filled in `color`: 1, or 0 where the layer does not
 // record or its list is full. An empty rectangle records nothing and is 1
 int gui_compositor_fill(const GuiCompositorFillCfg *args);
-// the image `image` recorded with its top left at x, y in 16.16, its fraction dropped: 1, or 0 as for a fill or where
-// the handle names no image
+// the image `image` recorded with its top left at x, y in 16.16, without its fraction. The result is 1, or 0 as for a
+// fill, or where the handle names no image
 int gui_compositor_put(const GuiCompositorPutCfg *args);
-// a run of `count` glyphs recorded in `color`, its glyphs' pens and entries copied into the layer's list: 1, or 0
-// where the layer does not record, its lists are full or an entry is no baked glyph
+// a run of `count` glyphs recorded in `color`, with the pens and entries of its glyphs copied into the list of the
+// layer. The result is 1, or 0 where the layer does not record, its lists are full, or an entry is not in the atlas
 int gui_compositor_glyphs(const GuiCompositorGlyphsCfg *args);
-// `count` commands recorded as they are given, a list another layer recorded, with the `glyph_count` glyphs its runs
-// draw: 1, or 0 where they do not fit. Each command's tiles are worked out again for this surface
+// `count` commands recorded as the caller gives them, a list that another layer recorded, with the `glyph_count`
+// glyphs that its runs draw. The result is 1, or 0 where they do not fit. The call finds the tiles of each command
+// again for this surface
 int gui_compositor_replay(const GuiCompositorReplayCfg *args);
-// The glyphs `first` on, `count` of them, of `face` at `size`, reserved in the table: a glyph of the range is found by
-// its place in it, with no hash. 1, or 0 where the ranges or the entries are full. The pages its glyphs are baked on
-// are never let go
+// The glyphs `first` on, `count` of them, of `face` at `size`, reserved in the table. The table finds a glyph of the
+// range by its place in it, with no hash. The result is 1, or 0 where the ranges or the entries are full. The
+// compositor never lets go of the pages that hold its glyphs
 int gui_compositor_glyph_range(const GuiCompositorGlyphRangeCfg *args);
-// The glyph baked into the atlas from `coverage`, `width` by `height` bytes row after row, at the place `phase` across
-// a pixel: its entry, or GUI_COMPOSITOR_NO_GLYPH where no page has room once the page used least long ago is let go.
-// A glyph found again is baked over
+// The glyph put into the atlas from `coverage`, `width` by `height` bytes row after row, at the place `phase` across a
+// pixel. The result is its entry. It is GUI_COMPOSITOR_NO_GLYPH where no page has room after the release of the page
+// with the oldest use. The call writes over a glyph that it finds again
 embed_u32 gui_compositor_glyph_bake(const GuiCompositorGlyphBakeCfg *args);
 // the entry of a glyph baked at the place `phase`, GUI_COMPOSITOR_NO_GLYPH where it is not
 embed_u32 gui_compositor_glyph_find(const GuiCompositorGlyphFindCfg *args);
 // the rectangle `rect` pushed on the surface's clip ring: its tiles are dirty at the next compose
 void gui_compositor_damage(const GuiCompositorDamageCfg *args);
-// the dirty tiles of `surface` made into `raster` of the surface's size: how many tiles were made, every tile
-// clean after
+// the dirty tiles of `surface` made into `raster`, of the size of the surface. The result is how many tiles the call
+// made. Each tile is clean after
 embed_u32 gui_compositor_compose(const GuiCompositorComposeCfg *args);
-// `count` pixels of `source` put over `target`, both multiplied by their alpha: four at a time in a vector where the
-// target has one, and one at a time in the scalar form, which gives the same pixels
+// `count` pixels of `source` put over `target`, both multiplied by their alpha. The call does four at a time in a
+// vector where the target has one. The scalar form does one at a time and gives the same pixels
 void gui_compositor_over(const GuiCompositorOverCfg *args);
 void gui_compositor_over_scalar(const GuiCompositorOverCfg *args);
 
