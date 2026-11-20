@@ -5,9 +5,10 @@
 // thumb's length is the share of the whole in view and its place the share before the view. A part whose whole is in
 // view has no scrollbar, and the scrollbar draws nothing and answers no press there.
 //
-// A scrollbar is arranged once for its place, its direction and its scale. The layout makes its two arrows and the
-// thumb's two round ends as masks of coverage, as a glyph is made once. A frame positions the masks and fills the thumb's
-// straight middle between its ends; the thumb's place is all a frame works out (scrollbar.c)
+// The code arranges a scrollbar once for its place, its direction and its scale. The layout makes its two arrows and
+// the two round ends of the thumb as masks of coverage, as the code makes a glyph once.
+// A frame positions the masks and fills the straight middle of the thumb between its ends. The place of the thumb is
+// all that a frame works out (scrollbar.c)
 #ifndef GUI_WINDOW_SCROLLBAR_H
 #define GUI_WINDOW_SCROLLBAR_H
 #include "palette.h"
@@ -33,10 +34,12 @@ typedef struct GuiScrollbarCfg GuiScrollbarCfg;
 #define GUI_SCROLLBAR_ABOVE 4u
 #define GUI_SCROLLBAR_BELOW 5u
 
-// A scrollbar arranged: whether it runs across, under what scrolls sideways, rather than down beside it; the scale it
-// was positioned at; where it is; its track between the arrows; the thumb's thickness, its inset from the scrollbar's
-// sides and its least length; the arrows before and after and the thumb's ends before and after as masks; and the
-// cells the masks' coverage lies in
+// A scrollbar arranged:
+//   - whether it runs across, under what scrolls sideways, and not down beside it.
+//   - the scale of its layout, where it is, and its track between the arrows.
+//   - the thickness of the thumb, its inset from the sides of the scrollbar, and its least length.
+//   - the arrows before and after, and the ends of the thumb before and after, as masks.
+//   - the cells that the coverage of the masks lies in.
 typedef struct
 {
     int across;
@@ -54,9 +57,10 @@ typedef struct
     unsigned char end_cover[2][GUI_SCROLLBAR_SIDE_MAX * GUI_SCROLLBAR_SIDE_MAX];
 } GuiScrollbar;
 
-// A scrollbar, arranged at `rect`, running `across` or down, at `scale`, a percent; the whole's lines `total`, the
-// lines in view `displayed` and the first line in view `first`; whether the pointer is on the thumb; a press at x, y;
-// and where the first line a dragged thumb puts in view goes
+// A scrollbar, arranged at `rect`, that runs `across` or down, at `scale`, a percent. Then the lines of the whole
+// `total`, the lines in view `displayed`, and the first line in view `first`.
+// Then whether the pointer is on the thumb, and a press at x, y. Last, where the first line that a dragged thumb puts in
+// view goes
 struct GuiScrollbarCfg
 {
     GuiScrollbar *bar;
