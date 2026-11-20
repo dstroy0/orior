@@ -14,9 +14,13 @@ extern "C"
 {
 #endif
 
-    // A file being written: its handle and its seal's, -1 where it is not sealed; the seal being made; the file's
-    // place, the place it is written at, its seal's place and the place that is written at; whether every write went;
-    // and the root once the seal is made
+    // A file in its write:
+    //   - its handle and the handle of its seal, -1 where it has no seal.
+    //   - the seal in its make.
+    //   - the place of the file and the place of its write. Then the place of its seal, and the place of the write of
+    //     the seal.
+    //   - whether each write went.
+    //   - the root, once the seal is whole.
     typedef struct
     {
         long long file;
@@ -30,14 +34,14 @@ extern "C"
         unsigned char root[KSG_SIGNUM_BYTES];
     } KsgWriting;
 
-    // the file `path` begun, written at its path with `beside` after it, and its seal begun the same way where the
-    // file is of a type ksg seals: 1, or 0 where one could not be made
+    // the file `path` begun, with its write at its path with `beside` after it. Where the file is of a type that ksg
+    // seals, its seal begins the same way. The result is 1, or 0 where a make failed
     int ksg_writing_begun(KsgWriting *writing, const char *path, const char *beside);
     // `size` bytes written after those before, and sealed where the file is, the shape of a line's flush: 1, or 0
     // where they did not go
     int ksg_writing_put(void *context, const char *bytes, unsigned long long size);
-    // the file and its seal made durable and put in their places where `whole` is 1 and every write went, or taken
-    // away: 1 where they were put in their places, else 0
+    // the file and its seal made durable and put in their places, where `whole` is 1 and each write went. Else the call
+    // takes them away. The result is 1 where they went into their places, else 0
     int ksg_writing_ended(KsgWriting *writing, int whole);
 
 #ifdef __cplusplus
