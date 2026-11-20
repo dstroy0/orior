@@ -2205,8 +2205,8 @@ class StickKernel
         return chosen;
     }
 
-    // `reading` as the word it is as where the system folds the register put for its form's to and `in_place`
-    // lets it are: unchanged otherwise
+    // `reading` as the word that it is, where the system folds the register put for the to of its form and `in_place`
+    // allows it. It stays the same else
     void fold(StickReading *reading, int in_place) const
     {
         if ((in_place == 0) || ((reading->leaf != STICK_FORM) && (reading->leaf != STICK_PARAMETER)) ||
@@ -2222,14 +2222,15 @@ class StickKernel
         }
     }
 
-    // the reading of `bare` of the fewest forms, a number or a folded word in place only where `in_place` allows it;
-    // 0 where there is none
-    // `bare` read as read_untraced() reads it, the reading and what it gives written to the trace
+    // the reading of `bare` of the fewest forms, with a number or a folded word in place only where `in_place` allows
+    // it. 0 where there is none
+    // `bare` read as read_untraced() reads it. The code writes the reading and what it gives to the trace
     int read(const std::string &bare, int in_place, StickReading *best)
     {
         static const char *const s_leaves[] = {"form", "stored", "number in place", "number set", "parameter"};
         stick_trace("read %s%s", bare.c_str(), (in_place != 0) ? " in place" : "");
-        // a reading made while a join of flags is read exchanged is not retained: the join is refused its second order
+        // the code does not keep a reading made during the read of a join of flags with its order exchanged. The join
+        // gets no second order
         const std::string key = std::string((in_place != 0) ? "1" : "0") + bare;
         const auto before = exchanging.empty() ? readings.find(key) : readings.end();
         int read_given = 0;
@@ -2289,8 +2290,9 @@ class StickKernel
             fold(best, in_place);
             return 1;
         }
-        // a word of a value stored in a pair is the pair's low word, the even register, and is read as that register; a
-        // wide value stored as its low word alone is read as that word
+        // a word of a value stored in a pair is the low word of the pair, the even register, and reads as that
+        // register.
+        // A wide value stored as its low word alone reads as that word
         static const char *const s_words[] = {"(unsignedint)", "(int)"};
         for (unsigned int word = 0u; word < 2u; word += 1u)
         {
@@ -2334,9 +2336,9 @@ class StickKernel
                 {
                     ordered[pattern.order[placeholder]] = spans[placeholder];
                 }
-                // A select over a test is the select over the test's complement with its arms exchanged. Of
-                // readings of as many forms the first taken is retained, and the complement's goes first where the
-                // system tests the complement
+                // A select over a test is the select over the complement of the test, with its arms exchanged. Of
+                // readings of as many forms, the code keeps the first. The reading of the complement goes first
+                // where the system tests the complement
                 std::vector<std::string> complement;
                 if (pattern.select != 0)
                 {
@@ -2388,8 +2390,9 @@ class StickKernel
                 }
             }
         }
-        // Two flags joined by && or || are valid in either order, nothing the reader reads writing anything, and a form
-        // that glues a test to another flag reads the test first. The exchanged text is read once: it exchanges back
+        // Two flags joined by && or || are valid in either order, because nothing that the reader reads writes
+        // anything. A form that glues a test to another flag reads the test first. The code reads the exchanged text
+        // once, because it exchanges back
         const std::string exchanged = stick_flags_exchanged(bare);
         if ((best->cost == 0xFFFFFFFFu) && !exchanged.empty() && (exchanging.count(bare) == 0u))
         {
@@ -2411,8 +2414,8 @@ class StickKernel
         return 1;
     }
 
-    // `reading` written in sass.krs, its parameters first, into a register of its own, stored for its text: a folded
-    // reading writes nothing and is the word it is as
+    // `reading`, written in sass.krs, its parameters first, into a register of its own, and stored for its text. A
+    // folded reading writes nothing, and is the word that it is
     StickValue written(const StickReading &reading)
     {
         if (!reading.place.empty())
@@ -2453,8 +2456,8 @@ class StickKernel
         {
             listing_query.moved.push_back(std::make_pair(reading.form, word));
         }
-        // A wide made of a word whose move the system folds is the pair the word begins; a word moved into another is
-        // stored for assign() to read how often the moved word is used (assign())
+        // A wide made of a word whose move the system folds is the pair that the word begins. The code stores a word
+        // moved into another, for assign() to read how often the code uses the moved word (assign())
         const int copies =
             (operands.size() == 1u) && (copied(reading.form) != 0) && (operands[0].compare(0u, 2u, "%r") == 0);
         if ((copies != 0) && (reading.bits == 64u))
@@ -2480,7 +2483,7 @@ class StickKernel
         return value;
     }
 
-    // `child` written as its parent's operand: its value, or the complement of its flag where it is read as one
+    // `child`, written as the operand of its parent: its value, or the complement of its flag where it reads as one
     std::string operand(const StickReading &child)
     {
         return std::string((child.negated != 0) ? "!" : "") + written(child).name;
@@ -2579,8 +2582,8 @@ static std::vector<std::string> stick_operands(const std::string &instruction)
     return operands;
 }
 
-// 1 where an instruction of `listing` whose operation is `operation`, or any but a move where it is empty, has an
-// operand `operand` or, where `within` is set, one containing `operand`
+// 1 where an instruction of `listing` has an operand `operand`, or one that holds `operand` where `within` is not 0.
+// The instruction has the operation `operation`, or any but a move where that is empty
 static int stick_listing_contains(const std::vector<std::string> &listing, const std::string &operation,
                                   const std::string &operand, int within)
 {
@@ -2601,8 +2604,8 @@ static int stick_listing_contains(const std::vector<std::string> &listing, const
     return 0;
 }
 
-// 1 where `name` is read in a statement of `statements` from `from` on, and every read of it is converted to a type
-// of one register's width
+// 1 where a statement of `statements` from `from` on reads `name`, and each read of it converts to a type of the
+// width of one register
 static int stick_narrowed(const std::vector<std::string> &statements, size_t from, const std::string &name)
 {
     const std::regex read("(^|[^A-Za-z_0-9])" + name + "(?![A-Za-z_0-9])");
@@ -2671,7 +2674,7 @@ static std::string stick_kernel(const StickSource &source, StickKernel *kernel)
     const std::regex stored("^out\\[(.+)\\] = \\(unsigned long long\\)([A-Za-z_][A-Za-z_0-9]*);$");
     const int element = stick_type("unsigned long long");
     const int word = stick_type("unsigned int");
-    // the type each name was declared with, which an assignment to the name converts its value to
+    // the type of the declaration of each name, which an assignment to the name converts its value to
     std::map<std::string, int> declared_types;
     // `name` given `expression` converted to `type`: 1, or 0 where the kernel's question states why not
     const auto given = [&](const std::string &name, int type, const std::string &expression) -> int {
@@ -2704,10 +2707,10 @@ static std::string stick_kernel(const StickSource &source, StickKernel *kernel)
                 return "a value of type " + std::string(found[1]);
             }
             declared_types[found[2]] = type;
-            // The element in[i] is an unsigned long long at its address. A value no wider than a register is
-            // converted from the element's low word, the word at the element's address; a wider value, and
-            // a bool, which tests the whole element, read the pair. A wider value every later statement converts
-            // to a word before it reads it is read as its low word alone
+            // The element in[i] is an unsigned long long at its address. A value no wider than a register converts
+            // from the low word of the element, the word at the address of the element.
+            // A wider value, and a bool, which tests the whole element, read the pair. A wider value that each later
+            // statement converts to a word before its read reads as its low word alone
             const int narrowed = stick_narrowed(source.statements, statement_at + 1u, found[2]);
             const int whole =
                 ((s_types[type].bits > STICK_REGISTER_BITS) && (narrowed == 0)) ||
@@ -2751,12 +2754,13 @@ static std::string stick_kernel(const StickSource &source, StickKernel *kernel)
                 kernel->bind(name, loaded, type);
                 continue;
             }
-            // A byte or a halfword is the narrowing of the word loaded, written where it is read. A bool is no
-            // narrowing: it is the whole value loaded tested against 0, and is read below as a flag of that value
+            // A byte or a halfword is the narrowing of the loaded word, written where its read is. A bool is no
+            // narrowing. It is the whole loaded value, tested against 0, and the code below reads it as a flag of that
+            // value
             if ((s_types[type].bits < STICK_REGISTER_BITS) && (s_types[type].bits != STICK_PREDICATE_BITS))
             {
                 const std::string loaded_word = name + "@word";
-                // the word is the low word of what was loaded, the even register where a pair was loaded
+                // the word is the low word of the load, the even register where the load took a pair
                 StickValue low = loaded;
                 low.bits = STICK_REGISTER_BITS;
                 kernel->bind(loaded_word, low, word);
@@ -2844,17 +2848,17 @@ static std::string stick_kernel(const StickSource &source, StickKernel *kernel)
         return kernel->question.empty() ? ("a statement nothing here reads: " + statement) : kernel->question;
     }
     kernel->write("kernel_close", {});
-    // a load folded into its extension writes the extension's register lines sooner, and registers are given over
-    // the lines the folded text contains
+    // a load folded into its extension writes the register lines of the extension sooner. The registers go over the
+    // lines that the folded text holds
     kernel->fold_loads();
     kernel->assign();
     kernel->balance();
     return kernel->question;
 }
 
-// One round of the stick, folding by what sass.ksc contains where `folding` is set: each kernel read and checked
-// against nvcc's listing of it, each question it requires added to `openings` and each fold nvcc's listing shows to
-// `found`
+// One round of the stick, with folds by what sass.ksc holds where `folding` is not 0. The code reads each kernel and
+// checks it against the listing of nvcc for it. Each question that it needs goes to `openings`. Each fold that the
+// listing of nvcc shows goes to `found`
 static void stick_round(const std::vector<StickSource> &sources,
                         const std::map<std::string, std::vector<std::string>> &listing, const Ruleset *cu,
                         const Ruleset *sass, const SassMachine *machine, const std::vector<StickPattern> &patterns,
@@ -2886,8 +2890,8 @@ static void stick_round(const std::vector<StickSource> &sources,
                 found->insert(stick_fold_line(sass, form, "pow2", multiply.first.second, 0));
             }
         }
-        // The system folds a word's move into a wide, and the move of a word used once, where its listing of the
-        // kernel moves no register into another
+        // The system folds the move of a word into a wide, and the move of a word used once. It does so where its
+        // listing of the kernel moves no register into another
         int moves = 0;
         for (const std::string &instruction : nvcc->second)
         {
@@ -2958,15 +2962,16 @@ static void stick_folds_write(const Ruleset *sass, const std::set<std::string> &
     sass_class_write(rulesets.c_str(), stem.c_str());
 }
 
-// The lane the system moves each operation it writes on either pipe in, read off nvcc's listing and stored in the
-// part's .kdm: of every least count of the integer pipe and every count over the FMA pipe, the pair under which the
-// the majority of the listing's writings of the operation are on the pipe the listing wrote them on, the smaller pair where two
-// tie as many
+// The lane that the system moves each operation in, for each operation that it writes on either pipe. The code reads
+// it off the listing of nvcc, and stores it in the .kdm of the part.
+// It takes each least count of the integer pipe and each count over the FMA pipe. Of those, it takes the pair under
+// which most writes of the operation in the listing are on their own pipe in the listing. Where two pairs
+// tie, it takes the smaller pair
 static void stick_pipes_write(const std::map<std::string, std::vector<std::string>> &listing)
 {
     std::map<std::string, std::vector<std::pair<int, std::pair<unsigned int, unsigned int>>>> seen;
     std::map<std::string, std::string> written_on;
-    // a bound worth trying is a count some lane has, and one past it
+    // a bound worth a try is a count that a lane has, and one past it
     std::set<unsigned int> leasts = {0u};
     std::set<unsigned int> overs = {0u};
     for (const auto &kernel : listing)
@@ -3023,7 +3028,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "measuring_stick_engine <stick .cu> <nvcc listing> <out directory>\n");
         return 2;
     }
-    // the run every file the engine leaves is passed to, and each kernel's trace
+    // the run that gets each file that the engine leaves, and the trace of each kernel
     const int tracing = 1;
     QryShared *const run = qry_member_run();
     if (run == NULL)
@@ -3072,8 +3077,8 @@ int main(int argc, char **argv)
     }
     stick_pipes_write(listing);
     const std::string out = argv[3];
-    // engine.tsv, each kernel's line, and each kernel's <number>.sass, .bin and .registers, every one passed to the
-    // run's writer as a file it writes as the run ends (qry_member_filed)
+    // engine.tsv, the line of each kernel, and the <number>.sass, .bin and .registers of each kernel. Each goes to the
+    // writer of the run, as a file that it writes as the run ends (qry_member_filed)
     static char s_table_bytes[QRY_WRITER_RING_BYTES / 2ULL];
     VerbaLinea table = {s_table_bytes, sizeof(s_table_bytes), 0ULL};
     mmgr_line_put(&table, "number\tanswer\tforms\tinstructions\tnote\n");
@@ -3082,7 +3087,7 @@ int main(int argc, char **argv)
     for (const StickSource &source : sources)
     {
         StickKernel kernel(cu, sass, &machine, &patterns, 1);
-        // the run passed <number>.trace once the kernel is read
+        // the run gets <number>.trace once the read of the kernel ends
         s_tracing = (traced != NULL);
         s_trace.clear();
         const std::string question = stick_kernel(source, &kernel);
