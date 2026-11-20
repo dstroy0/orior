@@ -21,24 +21,27 @@
     --hot: #cf5418;
   }
   /* Tracking, as three values.
-   Uppercase needs opening out, because capitals were drawn to sit apart and setting them at the
-   spacing of lowercase jams them together. Small uppercase needs more of it again, since the same
-   optical gap is a larger fraction of a smaller character. Everything else takes the tracking the face
-   was drawn with, and adding any is a decoration that costs legibility at these sizes. */
+   Uppercase needs more space, because its designer drew capitals to sit apart. At the spacing of
+   lowercase they jam together. Small uppercase needs more again, because the same optical gap is a
+   larger fraction of a smaller character. All else takes the own tracking of the face. More tracking
+   there is a decoration that costs legibility at these sizes. */
   :root {
     --track-caps: 0.09em; /* uppercase eyebrows and tags */
     --track-small: 0.06em; /* uppercase below 10px */
     --track-text: 0; /* sentence case, any size */
   }
   /* The control row, as a contract, and the panel width derived from it.
-   A row is a label, a slider and a value, a panel narrower than those three plus the gaps
-   between them and the padding around them cannot hold one. Written as a literal that is invisible:
-   nothing warns, the row just shrinks.
-   Derived here instead, a label that grows widens the panel instead of crushing the slider. */
+   A row is a label, a slider and a value. A panel narrower than those three, plus the gaps
+   between them and the padding round them, cannot hold one. A literal width hides that: nothing
+   warns, and the row shrinks.
+   With the width derived here, a label that grows widens the panel, and the slider keeps its size. */
   :root {
-    --label-w: 78px; /* the widest label, "shell shape", with room */
-    --slider-w: 84px; /* the shortest travel a slider is still readable at */
-    --value-w: 60px; /* the widest value, "-88 deg", right aligned */
+    /* The widest label, "shell shape", with room. */
+    --label-w: 78px;
+    /* The shortest travel at which a slider still reads. */
+    --slider-w: 84px;
+    /* The widest value, "-88 deg", right aligned. */
+    --value-w: 60px;
     --row-gap: 7px;
     --box-pad: 11px;
     --box-edge: 1px;
@@ -130,10 +133,10 @@
     font-size: 11px;
     cursor: pointer;
   }
-  /* Fixed columns. Left to itself the table gives the widest cell what it asks for. One long
-   value such as "operation 301 of 512" takes the width and the labels beside it break mid-phrase,
-   with "stopping the" on one line and "beam" alone on the next while its number stays up on the
-   first. Naming the split holds every label and every value in one column apiece. */
+  /* Fixed columns. With no rule, the table gives the widest cell what it asks for. One long value,
+   such as "operation 301 of 512", takes the width. The labels beside it then break mid-phrase:
+   `stopping the` on one line and `beam` alone on the next, with its number on the first. A named
+   split keeps each label and each value in one column. */
   table {
     border-collapse: collapse;
     font-variant-numeric: tabular-nums;
@@ -263,8 +266,8 @@
     border-color: var(--edge);
     color: var(--dim);
   }
-  /* The ramp the boundary is painted with, displayed as the strip it is and not described in words.
-   The gradient is written from the same two colors paintSurface interpolates between. */
+  /* The ramp of the paint of the boundary, shown as the strip that it is, and not in words.
+   The gradient uses the same two colors that paintSurface interpolates between. */
   .ramp-strip {
     height: 10px;
     border-radius: 999px;
@@ -280,10 +283,10 @@
     text-transform: uppercase;
     color: var(--faint);
   }
-  /* Two lines by choice. Left as one string it broke inside AGPL-3.0-or-later, which reads as a
-   defect wherever it lands, and the panel cannot widen enough to hold the whole line.
-   Centered across the panel, because a footer under a two-column table of controls belongs to the
-   whole panel and not to either column, and left aligned it read as a third row of the table. */
+  /* Two lines by choice. As one string, it breaks inside AGPL-3.0-or-later, which reads as a defect
+   wherever it lands. The panel cannot widen enough to hold the whole line.
+   It sits at the center of the panel. A footer under a two-column table of controls belongs to the
+   whole panel, and not to one column. Left aligned, it reads as a third row of the table. */
   #rights {
     margin-top: 10px;
     padding-top: 8px;
@@ -401,8 +404,8 @@
     background: var(--hot);
   }
 
-  /* The config popup. Centered and above everything, because it is modal in intent even though it does
-   not block the page: a reader opens it, changes the whole state at once, and closes it. */
+  /* The config popup. It sits at the center, above all else, because it is modal in intent. It does not
+   block the page: a reader opens it, changes the whole state at once, and closes it. */
   #configBox {
     position: fixed;
     left: 50%;
@@ -604,9 +607,9 @@
     letter-spacing: var(--track-text);
     box-shadow: 0 2px 20px rgba(0, 0, 0, 0.6);
   }
-  /* The label rides its target. Pinned to a screen corner it says the right words about the wrong
-   place the moment the view turns, and the leader that has to reach it rakes across the object the
-   reader is trying to look at. Placed near the thing instead, the leader is short and local. */
+  /* The label rides its target. Pinned to a screen corner, it says the right words about the wrong
+   place as soon as the view turns. Its leader then rakes across the object that the reader looks
+   at. Near the thing, the leader is short and local. */
   .tag {
     position: fixed;
     pointer-events: none;
@@ -1040,8 +1043,8 @@
   var scene = new THREE.Scene();
   // THE NEAR PLANE IS 0.5. AT 0.02 THE ROOM CLIPS AT DISTANCE.
   //
-  // The symptom is straight edges cutting the room's sphere once the observer moves well outside it.
-  // The cause is depth precision, and the arithmetic names the distance the symptom starts at.
+  // The symptom is straight edges that cut the sphere of the room once the observer moves well
+  // outside it. The cause is depth precision, and the arithmetic names the distance where it starts.
   //
   // A perspective depth buffer resolves, at distance z,
   //
@@ -1056,18 +1059,19 @@
   //     z = 312   dz = 0.290   2.54 of the facet
   //     z = 432   dz = 0.556   4.87 of the facet
   //
-  // Once dz passes the facet, neighboring facets quantize to one depth value and the tessellation's
-  // own triangle edges surface as z-fighting seams. The wall is DoubleSide. Both faces of the
-  // sphere compete for those values. Straight edges, cutting a curved surface, at a distance.
+  // Once dz passes the facet, adjacent facets quantize to one depth value. The own triangle edges of
+  // the tessellation then surface as z-fighting seams. The wall is DoubleSide. Both faces of the
+  // sphere compete for those values. The result is straight edges that cut a curved surface, at a
+  // distance.
   //
   // And z = 192 is FURTHEST - ROOM, the near wall with the observer at the end of the travel. It
-  // reads as a threshold instead of a gradual softening.
+  // reads as a threshold, and not as a gradual change.
   //
   // At 0.5 the same distance resolves to 0.0222, a fifth of the facet, with 25 times the margin. The
-  // cost is that nothing within half a unit of the eye draws, and nothing legitimately is: the
-  // observer stops at NEAREST = 7.13 from the center, the lamp is 1.78 across and a mote is 1.68.
-  // If a future case needs to get closer than this, the other repair is
-  // `logarithmicDepthBuffer: true` on the renderer, which handles any ratio and costs some speed.
+  // cost is that nothing within half a unit of the eye draws, and nothing correct sits there.
+  // The observer stops at NEAREST = 7.13 from the center, the lamp is 1.78 across, and a mote is
+  // 1.68. A case that must get closer has one other repair: `logarithmicDepthBuffer: true` on the
+  // renderer, which handles any ratio and costs some speed.
   var camera = new THREE.PerspectiveCamera(58, 1, 0.5, 1200);
   var renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -1084,22 +1088,22 @@
   // ---------------------------------------------------------------------------------------------
   // One scale, and everything else read off it.
   //
-  // Deriving every size below from the scale means moving the wall moves all of them together, and
-  // a proportion set once here
-  // cannot drift the next time the room changes.
+  // Each size below derives from the scale. A move of the wall then moves all of them together, and
+  // a proportion set once here cannot drift the next time the room changes.
   // ---------------------------------------------------------------------------------------------
 
-  var ROOM = 120; // the wall you are inside
-  var BANDS = 3; // nested boundaries within it, innermost first
-  var SHELL = ROOM * 0.27; // the outermost of those, and the reach of the cloud
-  var LIGHT_HALO = 3.4; // a halo, as a multiple of the body that casts it
-  var DUST_SIZE = ROOM * 0.014; // a mote, against the room it fills
-  var LAMP_SIZE = SHELL * 0.055; // a source, against the shells it lights
-  var SMEAR_OUT = 1.012; // the trace sits outside the surface it landed on
+  var ROOM = 120; // The wall that you are inside.
+  var BANDS = 3; // Nested boundaries within it, innermost first.
+  var SHELL = ROOM * 0.27; // The outermost of those, and the reach of the cloud.
 
-  // The observer's travel. Stored as a ratio between the nearest and furthest located points so the
-  // slider is geometric and not linear: at even spacing the interior is a sliver of the travel
-  // and the empty room beyond the wall takes half of it.
+  var LIGHT_HALO = 3.4; // A halo, as a multiple of the body that casts it.
+  var DUST_SIZE = ROOM * 0.014; // A mote, against the room that it fills.
+  var LAMP_SIZE = SHELL * 0.055; // A source, against the shells that it lights.
+  var SMEAR_OUT = 1.012; // The trace sits outside the surface that it landed on.
+
+  // The travel of the observer, kept as a ratio between the nearest and furthest points. The slider
+  // is then geometric and not linear. At even spacing, the interior is a sliver of the travel, and
+  // the empty room past the wall takes half of it.
   var NEAREST = SHELL * 0.22;
   var FURTHEST = ROOM * 2.6;
   var OPENING = SHELL * 2.5; // frames the outer shell, with the room legible around it
@@ -1116,7 +1120,7 @@
 
   // ---------------------------------------------------------------------------------------------
   // The room. The same object seen from inside: a closed surface with the reader within it. Back
-  // faces, because the outside of this is somebody else's inside and is not what is being looked at.
+  // faces, because the outside of this is the inside of another, and the reader does not look at it.
   // It is dark, and it receives shadows, and those two together are the whole apparatus.
   // ---------------------------------------------------------------------------------------------
 
@@ -1158,23 +1162,25 @@
   // ---------------------------------------------------------------------------------------------
   // The nested boundaries.
   //
-  // There is not one shell but several, one inside the next, and each of them is a closed surface
-  // that can be was inside of and read from outside. That is the claim the page exists to make. A
-  // single shell can always be explained away as the special case. The outside of one boundary is the inside of the next, and the reader
-  // walking out through all of them and finding the same arrangement each time is the argument.
+  // There is not one shell but several, one inside the next. Each is a closed surface that a reader
+  // can stand inside and read from outside. That is the claim of the page. A single shell can always
+  // seem a special case.
+  // The outside of one boundary is the inside of the next. The argument is that the reader walks out
+  // through all of them, and finds the same arrangement each time.
   //
   // The confinement takes a shape and a pair of half-extents. Several boundaries need no new
-  // physics. Each body belongs to one band and is bounded by the surface at the top of it, and by the
-  // one below it where there is one: a body in the second band cannot fall into the first and cannot
-  // leave through the second.
+  // physics. Each body belongs to one band. The surface at the top of the band bounds it, and the
+  // one below it bounds it where there is one. A body in the second band cannot fall into the first,
+  // and cannot leave through the second.
   // ---------------------------------------------------------------------------------------------
 
-  // The boundaries cascade: each one is the same factor larger than the one inside it, and the
-  // outermost lands on the shell. Spaced evenly instead, at a third, two thirds and the whole, the
-  // innermost surface comes out large enough to swallow the majority of the interior and the gaps between the
-  // three read as one thickness repeated. A constant ratio makes the nesting a growth: the size a
-  // boundary starts at is the size of the one within it times a fixed number, the shape of
-  // anything that contains what contains something else.
+  // The boundaries cascade. Each is the same factor larger than the one inside it, and the outermost
+  // lands on the shell.
+  //
+  // At even spacing, at a third, two thirds and the whole, the innermost surface is large enough to
+  // swallow most of the interior. The gaps between the three then read as one thickness repeated.
+  // A constant ratio makes the nest a growth. The start size of a boundary is the size of the one
+  // within it times a fixed number. It has the shape of a thing that holds what holds another thing.
   var CASCADE = 1.7;
 
   function bandOuter(index) {
@@ -1186,41 +1192,42 @@
   // ---------------------------------------------------------------------------------------------
   //
   // The alphabet this work reads a boundary with has eight characters, one per sign octant of space.
-  // Every octant is an infinite cone with a trilateral right-angle corner; all eight corners meet at
-  // the single point at the center; and on the boundary the same split cuts eight congruent spherical
-  // triangles of three right angles each, area pi/2 by Girard, eight of them coming to 4pi exactly.
+  // Each octant is an infinite cone with a trilateral right-angle corner. All eight corners meet at
+  // the single point at the center.
+  // On the boundary, the same split cuts eight congruent spherical triangles of three right angles
+  // each. Each has area pi/2 by Girard, and the eight come to 4pi exactly.
   //
-  // Drawn a reader can see which character a part of the surface belongs to instead of taking the
-  // share table on trust. Each octant's three edges are one color, and they grow from the center
-  // outward.
+  // In the drawing, a reader can see which character a part of the surface belongs to, and does not
+  // take the share table on trust. The three edges of each octant are one color, and they grow from
+  // the center outward.
   //
-  // The corners are pushed out along their own diagonals, and that offset is doing real work. The
-  // eight trilaterals share their edges: the +x edge belongs to four octants at once. Drawn with
-  // every corner at the origin the eight frames collapse into three lines and the picture says there
-  // are three arms. Slid along its own diagonal each corner separates, and the eight read as eight.
+  // The corners move out along their own diagonals, and that offset does real work. The eight
+  // trilaterals share their edges: the +x edge belongs to four octants at once.
+  // With each corner at the origin, the eight frames collapse into three lines, and the picture says
+  // there are three arms. Slid along its own diagonal, each corner separates, and the eight read as
+  // eight.
   //
-  // The arms are fixed. The observers are the things that move, and there can be as many of them
-  // anywhere as the reader wants.
+  // The arms do not move. The observers move, and there can be as many of them anywhere as the reader
+  // wants.
   //
   // AN ARM IS A DIRECTION, AND EIGHT IS A CHOICE.
   //
   // The eight sign octants are exactly the Voronoi cells of the eight cube diagonals. A point on the
-  // sphere is nearest the diagonal (sx, sy, sz) when it maximizes
+  // sphere is nearest the diagonal (sx, sy, sz) when it maximizes this sum:
   //
-  //     x sx + y sy + z sz  =  |x| + |y| + |z|
+  //     x sx + y sy + z sz  =  |x| + |y| + |z|.
   //
-  // and that sum is maximal precisely when every sign matches. "The octant whose signs these are"
-  // and "the nearest cube diagonal" name the same region by two routes. Nothing about the alphabet
-  // needs the coordinate planes; it needs eight directions, and the diagonals are a convenient
-  // eight.
+  // That sum is maximal exactly when each sign matches. The two names "the octant whose signs these
+  // are" and "the nearest cube diagonal" give the same region by two routes. The alphabet does not need the
+  // coordinate planes. It needs eight directions, and the diagonals are a convenient eight.
   //
-  // So the arm set is a list of directions and the regions are their Voronoi cells, which tile for any
-  // count and any placement. Eight cube diagonals reproduce the octants exactly. Any other count is
-  // placed on the golden spiral, which spreads directions evenly with no seam and no pole pile.
+  // The arm set is thus a list of directions, and the regions are their Voronoi cells. These tile for
+  // any count and any placement. Eight cube diagonals give the octants exactly. Any other count goes
+  // on the golden spiral, which spreads directions evenly with no seam and no pile at a pole.
   //
-  // `docs/arm-records.md` is the record this follows and `docs/reading-transforms.md` T12 is the
-  // algebra: the arm set is a matrix W, one row per arm, and the reading is W s. The rank of W is the
-  // ceiling on what the set can carry, and so the count is worth being able to change.
+  // This follows the record `docs/arm-records.md`, and `docs/reading-transforms.md` T12 is the
+  // algebra. The arm set is a matrix W, one row per arm, and the reading is W s.
+  // The rank of W is the ceiling on what the set can carry. A count that can change thus has value.
   var ARM_COUNT = 8;
   var armDirs = []; // unit directions, one per arm, in build order
   var armSigns = []; // the sign triple when a direction is a cube diagonal, else null
