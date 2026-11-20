@@ -1,30 +1,29 @@
-"""Where a generated page goes, resolved to retain a tool from writing beside itself.
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+# SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+"""Where a generated page goes. The answer never puts a page beside the tool that wrote it.
 
-    python examples/00_blob_viz_tools/out_path.py --check
+Run python examples/00_blob_viz_tools/out_path.py --check to test it. It is a library, and not a tool.
 
-A library and not a tool.
+WHY A PAGE NEVER GOES BESIDE ITS BUILDER
 
-THE DEFECT THIS EXISTS FOR
-
-Every builder here defaulted its output to the directory holding the builder. That is harmless in
-the tree the tool was written in and wrong everywhere else: fetched into another repository, the
-tool writes a generated page into files that repository locked, inside a directory it told
-its formatters to leave alone, and the next fetch either overwrites the page or errors because the
-tree is dirty. A generated file belongs where generated files go, and the tool's own directory is
-never that place.
+A builder that writes its output into its own directory is harmless in the tree that holds it, and
+wrong everywhere else. In another repository that fetched it, the page lands among files that the
+repository locks. That directory is one that its formatters leave alone. The next fetch then
+overwrites the page, or stops because the tree is dirty. A generated file belongs where generated
+files go, and the directory of the tool is never that place.
 
 THE ORDER
 
-    1  what the caller asked for, used exactly as given
-    2  the VIEW_OUT directory, for a caller who wants one place for everything
-    3  the host toolkit's scratch root, when a tool has been fetched into one
-    4  a build directory at the top of the tree the tool sits in
-    5  the temporary directory the machine offers
+    1  What the caller asked for, used exactly as given.
+    2  The VIEW_OUT directory, for a caller who wants one place for everything.
+    3  The scratch root of the host toolkit, when a toolkit holds the tool.
+    4  A build directory at the top of the tree that holds the tool.
+    5  The temporary directory of the machine.
 
-Four finds the top of the tree by walking up for a marker instead of counting directories, since a
-fetched tool sits at whatever depth the host chose. Five is the last resort and it is still correct:
-somewhere disposable beats somewhere locked. No step resolves to the directory holding the caller,
-and the check below holds that.
+Step 4 finds the top of the tree by a walk up to a marker, and does not count directories. A fetched
+tool sits at whatever depth the host chose. Step 5 is the last resort, and it is still correct: a
+disposable place is better than a locked one. No step resolves to the directory of the caller, and
+the check below holds that.
 """
 
 import os
@@ -34,13 +33,13 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 # What marks the top of a tree. A version control directory names it in a checkout. The toolkit
-# settings name it in a repository that joined one; a build directory names it where a tree has
-# been unpacked without either.
+# settings name it in a repository that joined one. A build directory names it in an unpacked tree
+# with neither.
 MARKERS = (".git", "repotools.toml", "build")
 
 
 def tree_top(start):
-    """The top of the tree holding this path, or None where no marker is found on the way up."""
+    """The top of the tree that holds this path, or None where the walk up meets no marker."""
     here = os.path.abspath(start)
     while True:
         for mark in MARKERS:
@@ -53,11 +52,11 @@ def tree_top(start):
 
 
 def host_scratch():
-    """The scratch root of a toolkit this tool has been fetched into, when there is one.
+    """The scratch root of a toolkit that holds this tool, where there is one.
 
-    Wrapped in a try, because the toolkit is absent in the tree these tools are written in and a
-    missing host is the normal case and never an error. A host that offers a root and then raises
-    is treated the same as no host at all.
+    The call sits in a try. In the tree that holds the source of these tools, no toolkit is present.
+    Thus an absent host is the normal case, and never an error. A host that offers a root and then
+    raises counts as no host at all.
     """
     try:
         import config
@@ -71,7 +70,7 @@ def host_scratch():
 
 
 def out_root():
-    """The directory generated pages go in, made if it is absent."""
+    """The directory for generated pages. This makes it where it is absent."""
     named = os.environ.get("VIEW_OUT")
     if named:
         root = os.path.abspath(named)
@@ -87,11 +86,11 @@ def out_root():
 
 
 def resolve(name, explicit=None):
-    """Where to write a page called `name`, honoring an explicit choice above everything else.
+    """Where to write a page called `name`. An explicit choice comes above everything else.
 
-    An explicit path is used as given and never rehomed, because a caller naming a file has already
-    decided. Its parent is made when it is absent, and a caller is not asked to create a directory
-    before it can be written into.
+    This uses an explicit path as given, and never moves it. A caller that names a file has already
+    decided. This makes the parent where it is absent. Thus a caller need not make a directory
+    before a write into it.
     """
     if explicit:
         out = os.path.abspath(explicit)
@@ -121,7 +120,7 @@ def _check():
             say("  FAIL the directory it named was not made")
             failed += 1
 
-        # An explicit choice is obeyed exactly.
+        # The resolver obeys an explicit choice exactly.
         want = os.path.join(tempfile.gettempdir(), "out_path_check", "named.html")
         got = resolve("ignored.html", want)
         if got != os.path.abspath(want):
@@ -132,7 +131,7 @@ def _check():
             failed += 1
         say("  an explicit path is obeyed and its parent made")
 
-        # The environment wins over the tree, letting a caller put every page in one place.
+        # The environment wins over the tree. Thus a caller can put every page in one place.
         os.environ["VIEW_OUT"] = os.path.join(tempfile.gettempdir(), "out_path_env")
         got = resolve("page.html")
         if os.path.dirname(got) != os.path.abspath(os.environ["VIEW_OUT"]):
@@ -141,7 +140,7 @@ def _check():
         say("  the environment wins over the tree")
         del os.environ["VIEW_OUT"]
 
-        # Walking up finds a top from inside a tree, and gives nothing where there is no marker.
+        # A walk up finds a top from inside a tree, and gives nothing where there is no marker.
         if tree_top(HERE) is None:
             say("  FAIL no tree top was found from a directory inside a checkout")
             failed += 1

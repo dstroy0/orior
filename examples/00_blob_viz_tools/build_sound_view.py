@@ -11,26 +11,29 @@
 
   --fft N      samples per frame. Default 1024.
   --pad K      zero-pad factor. The transform is fft times this. Default 4.
+
   --hop H      samples between frames. Default fft/4, which is 75 percent overlap.
   --window W   rect, hann, hamming, blackman or flattop. Default hann.
   --frames M   max frames to retain. Default 256.
+
   --top HZ     highest frequency drawn. Default 8000.
   --seconds S  max seconds of audio to read. Default 20.
-  --synth      use a generated signal instead of a file: two tones beating at 3 Hz, a sweep from
-               1 kHz to 3 kHz, a quiet 7 kHz tone and white noise under all of it.
+
+  --synth      use a generated signal in place of a file. It has two tones that beat at 3 Hz,
+               and a sweep from 1 kHz to 3 kHz. A quiet 7 kHz tone and white noise lie under it.
   --out FILE   where to write.
 
 Four readings of the same frames:
 
-  level      magnitude in dB, floored 90 dB under the loudest cell
-  linear     magnitude as it is, which buries everything quiet and is the honest default
-  flux       how much each bin changed since the frame before, which is where onsets live
-  slope      difference between neighboring bins, which sharpens a peak and kills a plateau
+  level      Magnitude in dB, with a floor 90 dB under the loudest cell.
+  linear     Magnitude as it is. It buries everything quiet, and is the honest default.
+  flux       How much each bin changed since the frame before. Onsets show here.
+  slope      Difference between adjacent bins. It sharpens a peak and kills a plateau.
 
 Zero-padding is the oversampling. It adds no resolution: two tones closer together than the frame
 can separate stay unseparated however large the pad. It interpolates the spectrum onto
-a finer grid. A peak sitting between two bins is then drawn at its real height and position
-and not smeared across the two. Raise --fft to separate tones, raise --pad to place them.
+a finer grid. A peak between two bins then shows at its real height and position, and does
+not smear across the two. Raise --fft to separate tones, raise --pad to place them.
 """
 
 import io
@@ -101,13 +104,13 @@ def main():
 
     starts = list(range(0, len(values) - fft_size + 1, hop))
     if len(starts) > frames_max:
-        # Spread the retained frames across the whole signal and never take the first of them.
-        # The picture is of the recording and not of its opening second.
+        # Spread the kept frames across the whole signal, and never take only the first ones.
+        # The picture shows the whole take, and not its opening second.
         step = len(starts) / float(frames_max)
         starts = [starts[int(i * step)] for i in range(frames_max)]
 
-    # Only the bins under --top are retained. The rest is transform we paid for and do not draw, which
-    # is unavoidable: the fast transform has no way to compute part of a spectrum.
+    # This keeps only the bins under --top. The rest is transform that we paid for and do not draw.
+    # That cost is unavoidable, because the fast transform cannot compute part of a spectrum.
     bins_all = pad_to // 2
     hz_per_bin = rate / float(pad_to)
     bins = min(bins_all, int(top_hz / hz_per_bin) + 1)

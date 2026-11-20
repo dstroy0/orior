@@ -25,8 +25,8 @@ def next_power(n):
 def fft(values):
     """Iterative radix-2 Cooley-Tukey, in place, on a list of complex.
 
-    Length must be a power of two. Twiddles are built once per stage and not per butterfly:
-    calling exp inside the inner loop costs more than the transform itself in pure Python.
+    Length must be a power of two. This builds the twiddles once per stage, and not per butterfly.
+    A call to exp inside the inner loop costs more than the transform itself in pure Python.
     """
     n = len(values)
     if n & (n - 1):
@@ -75,8 +75,8 @@ def window(type, n):
         return [0.42 - (0.5 * math.cos(TAU * i / last))
                 + (0.08 * math.cos(2 * TAU * i / last)) for i in range(n)]
     if type == "flattop":
-        # Poor resolution, excellent amplitude accuracy. The one to reach for when the height of a
-        # peak matters more than telling two peaks apart.
+        # Poor resolution, excellent amplitude accuracy. The one to use when the height of a peak
+        # matters more than the separation of two peaks.
         a = (0.21557895, 0.41663158, 0.277263158, 0.083578947, 0.006947368)
         out = []
         for i in range(n):
@@ -91,7 +91,7 @@ WINDOWS = ("rect", "hann", "hamming", "blackman", "flattop")
 
 
 def read_wave(path, limit):
-    """Mono samples in [-1, 1] and the sample rate. Channels are averaged."""
+    """Mono samples in [-1, 1] and the sample rate. This averages the channels."""
     with wave.open(path, "rb") as handle:
         channels = handle.getnchannels()
         width = handle.getsampwidth()
@@ -102,7 +102,7 @@ def read_wave(path, limit):
         raw = handle.readframes(count)
 
     if width == 1:
-        # 8-bit wav is unsigned.
+        # 8-bit wav holds unsigned values.
         values = [(one - 128) / 128.0 for one in raw]
     elif width == 2:
         values = [one / 32768.0 for one in struct.unpack("<%dh" % (len(raw) // 2), raw)]
@@ -128,10 +128,10 @@ def read_wave(path, limit):
 
 
 def synth(count, rate, seed=7):
-    """Two tones close enough to beat, a drifting third, and noise under all of it.
+    """Two tones close enough to beat, a third that drifts, and noise under all of it.
 
-    A made signal whose contents are known is the only way to tell an artifact of the analysis from
-    something that was there: every feature here can be named in advance.
+    Only a made signal with known contents can tell an artifact of the analysis from a real
+    feature. Every feature here has a name in advance.
     """
     state = seed
     out = []
@@ -140,7 +140,7 @@ def synth(count, rate, seed=7):
         # 440 and 443 beat at 3 Hz.
         value = 0.42 * math.sin(TAU * 440.0 * t)
         value += 0.34 * math.sin(TAU * 443.0 * t)
-        # A tone sliding from 1 kHz to 3 kHz, the thing a sweep is meant to follow.
+        # A tone that slides from 1 kHz to 3 kHz, the thing for a sweep to follow.
         value += 0.22 * math.sin(TAU * (1000.0 + (2000.0 * t / max(1e-9, count / float(rate)))) * t)
         # A quiet high tone, near the level where windowing decides whether it is visible.
         value += 0.02 * math.sin(TAU * 7000.0 * t)
@@ -155,9 +155,8 @@ def synth(count, rate, seed=7):
 def spectrum(chunk, win, pad_to):
     """One magnitude spectrum: window, zero-pad, transform, retain the real half.
 
-    Zero-padding does not add resolution. It interpolates the spectrum onto a finer grid, and that
-    interpolation stops a peak falling between two bins from being reported at the wrong height and
-    the wrong place. That is the oversampling: the transform is longer than the data it holds.
+    Zero-padding does not add resolution. It interpolates the spectrum onto a finer grid. Thus a
+    peak between two bins shows at its right height and its right place. That is the oversampling: the transform is longer than the data it holds.
     """
     n = len(chunk)
     data = [complex(chunk[i] * win[i], 0.0) for i in range(n)]

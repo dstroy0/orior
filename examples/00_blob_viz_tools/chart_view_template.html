@@ -380,8 +380,8 @@
       return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
     }
 
-    // Series colors are spread around the hue circle and not taken from a fixed list. Any
-    // number of series stays distinguishable instead of repeating after the list runs out.
+    // Series colors spread around the hue circle, and do not come from a fixed list. Thus any
+    // number of series stays distinguishable, and no color repeats when a list runs out.
     var series = DATA.series.map(function (one, at) {
       return {
         name: one.name,
@@ -445,7 +445,7 @@
       if (yHigh === yLow) {
         yHigh = yLow + 1;
       }
-      // A little air above and below so the extremes are not drawn on the frame itself.
+      // A little air above and below. Thus the extremes do not touch the frame itself.
       var pad = (yHigh - yLow) * 0.06;
       return { xLow: xLow, xHigh: xHigh, yLow: yLow - pad, yHigh: yHigh + pad };
     }
@@ -462,8 +462,8 @@
       return pad.top + ((high - here) / (high - low)) * at;
     }
 
-    /** Ticks on round numbers and not on the data's own extremes, and that makes a chart
-      readable at a glance instead of needing its labels parsed. */
+    /** Ticks on round numbers, and not on the extremes of the data. Thus a reader can read a chart
+      at a glance, with no need to parse its labels. */
     function ticks(low, high, want) {
       var raw = (high - low) / want;
       var mag = Math.pow(10, Math.floor(Math.log10(raw)));
@@ -686,7 +686,7 @@
     });
     canvas.addEventListener("mouseleave", sayNothing);
 
-    // -- zooming to a range of x ---------------------------------------------------------------
+    // -- zoom to a range of x ------------------------------------------------------------------
 
     var dragging = false;
     var fromX = 0;

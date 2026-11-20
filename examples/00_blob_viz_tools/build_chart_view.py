@@ -5,24 +5,31 @@
 #
 """Turns a table into a flat chart: lines, time series, scatter, steps or bars.
 
-The other viewers here build a solid you turn. This one is the ordinary two-axis chart, and it is
-here for the readings that are honestly one dimensional: a quantity against time, one column against
-another, a run of measurements you want to look along and not into.
+The other viewers here build a solid that you turn. This one is the ordinary two-axis chart. It is
+for the readings that are honestly one dimensional. Examples are a quantity against time, one
+column against another, and a run of measurements to look along and not into.
 
-matplotlib draws these too, and draws them well. What it does not do is hand you one file that opens
-anywhere with no interpreter and no install, and stays interactive once it is open: hover to read a
-point, drag across to zoom, toggle a series, switch the y axis to log. This therefore exists
-beside it and not in place of it.
+matplotlib draws these too, and draws them well. But it does not give one file that opens anywhere
+with no interpreter and no install, and stays interactive once it is open. In this page, hover to
+read a point, drag across to zoom, toggle a series, and switch the y axis to log. Thus this exists
+beside matplotlib, and not in place of it.
 
+Examples:
+
+docs-check: quoting
     python examples/00_blob_viz_tools/build_chart_view.py readings.csv
     python examples/00_blob_viz_tools/build_chart_view.py readings.csv --x time --y temperature pressure
     python examples/00_blob_viz_tools/build_chart_view.py points.csv --type scatter
+docs-check: end quoting
 
-  --x NAME       the column along the bottom. Default: the first column named one of time, t, x,
-                 date, step, round, index, or failing that the first column that parses as numbers.
+Options:
+
+  --x NAME       the column along the bottom. The default is the first column named one of time,
+                 t, x, date, step, round, index. Else it is the first column that parses as numbers.
   --y NAME...    the columns to draw. Default: every other numeric column.
-  --split NAME   a column whose distinct values split the rows into separate series, and is the
-                 shape long-format data usually arrives in.
+
+  --split NAME   a column whose distinct values split the rows into separate series. Long-format
+                 data usually arrives in that shape.
   --type KIND    line, scatter, step, bar or area. Default line.
   --title TEXT   heading for the page. Default: the file's name.
   --out FILE     where to write. Default: <name>_chart.html beside the table.
@@ -111,8 +118,8 @@ def main():
         sys.stderr.write("nothing numeric to draw. Name columns with --y\n")
         return 1
 
-    # Rows whose x does not parse are dropped and never drawn at zero: an unparsed label on the
-    # bottom axis would put a point somewhere it does not belong, which is worse than leaving it out.
+    # This drops a row whose x does not parse, and never draws it at zero. An unparsed label on the
+    # bottom axis would put a point where it does not belong. That is worse than its omission.
     dropped = 0
     series = []
     if split_at:
@@ -151,9 +158,9 @@ def main():
 
     series = [each for each in series if each["xs"]]
 
-    # Points are put in order of x. A line drawn in file order sweeps back across the chart wherever
-    # the rows are not already sorted, which reads as a diagonal through the data that is not in the
-    # data. Scatter would not care, but the same series is drawn both ways from one file.
+    # This puts the points in order of x. A line in file order sweeps back across the chart wherever
+    # the rows are not already sorted. That reads as a diagonal through the data, which the data does
+    # not hold. Scatter would not care, but one file draws the same series both ways.
     for each in series:
         together = sorted(zip(each["xs"], each["ys"]))
         each["xs"] = [pair[0] for pair in together]

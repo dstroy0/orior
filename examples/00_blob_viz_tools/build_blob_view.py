@@ -5,11 +5,12 @@
 #
 """Turns a raw binary file into the shape viewer, with no idea what the file is.
 
-A blob has no columns and no header. Only one structure is available, the one every binary
-has:
-it is a sequence of bytes, and any sequence can be folded into a grid by choosing a width. Choose
-the right width and repeating structure lines up into columns you can see; choose the wrong one and
-it shears. That shearing is itself the reading, and width is therefore the first thing this exposes.
+A blob has no columns and no header. It has only the one structure that every binary has: it is a
+sequence of bytes. A choice of width folds any sequence into a grid. At the right width, a structure
+that repeats lines up into visible columns. At the wrong width, it shears. That shear is itself the
+reading.
+
+Thus width is the first thing that this exposes.
 
     python examples/00_blob_viz_tools/build_blob_view.py firmware.bin
     python examples/00_blob_viz_tools/build_blob_view.py firmware.bin --width 16 --offset 4096 --rows 4096
@@ -17,22 +18,25 @@ it shears. That shearing is itself the reading, and width is therefore the first
   --width     bytes per row, taken as the depth axis. Default 64.
   --offset    first byte to read. Default 0.
   --rows      how many rows to retain. Default 1024. Use 0 for the whole file.
+
   --window    span of the entropy and repeat windows, in bytes. Default 32.
   --title     heading for the page. Default: the file's name.
   --out       where to write. Default: <name>_view.html beside the blob.
 
-Eight readings are built from the same bytes, because a blob rarely says anything under one of them:
+The script builds eight readings from the same bytes, because a blob rarely says much under one:
 
-  byte      the value itself, 0 to 255. Text, code, tables and padding each look distinct.
-  ones      how many bits are set, 0 to 8. Discards value and leaves density.
-  delta     each byte minus the one before. Zero is a run; a repeating delta is a fixed stride.
-  entropy   Shannon entropy of the window around each position, in bits, 0 to 8. Flat and high is
-            compressed or encrypted; low is structure.
-  distinct  how many different byte values the window holds. Agrees with entropy on random data
-            and disagrees on skewed data, which is where the interesting cases live.
-  run       length of the run of identical bytes this position sits in. Padding and alignment.
-  high      the top nibble alone, which is where ASCII ranges and opcode classes separate.
-  low       the bottom nibble alone, which is where alignment and table strides show.
+  byte      The value itself, 0 to 255. Text, code, tables and padding each look distinct.
+  ones      The count of set bits, 0 to 8. Discards value and leaves density.
+  delta     Each byte minus the one before. Zero is a run; a delta that repeats is a fixed stride.
+
+  entropy   Shannon entropy of the window around each position, in bits, 0 to 8. Flat and high
+            means compressed or encrypted; low is structure.
+  distinct  How many different byte values the window holds. It agrees with entropy on random
+            data. It disagrees on skewed data, where the cases of most value live.
+
+  run       Length of the run of identical bytes at this position. Padding and alignment.
+  high      The top nibble alone. ASCII ranges and opcode classes separate there.
+  low       The bottom nibble alone. Alignment and table strides show there.
 
 Writes a self-contained page: no server, no fetch at run time, nothing to install.
 """
@@ -52,10 +56,10 @@ TEMPLATE = os.path.join(HERE, "voxel_view_template.html")
 def window_readings(data, window):
     """Entropy in bits and distinct-value count, for the window ending at each position.
 
-    Counts are carried from step to step and never recounted, and the number of live values is
-    tracked as counts cross zero. Both readings cost a constant amount per byte plus one pass
-    over the values actually present. Recounting the window at every position instead would make a
-    few megabytes take minutes for no better answer.
+    The counts carry from step to step, and this never counts them again. The number of live values
+    changes as counts cross zero. Both readings cost a constant amount per byte, plus one pass over
+    the values actually present. A fresh count of the window at every position would make a few
+    megabytes take minutes, for no better answer.
     """
     span = len(data)
     bits = [0.0] * span
@@ -93,7 +97,7 @@ def window_readings(data, window):
 
 
 def run_lengths(data):
-    """For each position, the length of the run of identical bytes containing it."""
+    """For each position, the length of the run of identical bytes that contains it."""
     span = len(data)
     out = [1.0] * span
     at = 0
@@ -144,8 +148,8 @@ def main():
         sys.stderr.write("nothing to read at offset %d of a %d byte file\n" % (offset, size))
         return 1
 
-    # A trailing partial row is padded and never dropped. The last bytes of a file stay
-    # visible. The padding is zero, which reads as a run and is not mistaken for data.
+    # This pads a partial last row, and never drops it. The last bytes of a file stay
+    # visible. The padding is zero, which reads as a run, and nobody mistakes it for data.
     rows = (len(data) + width - 1) // width
     padded = data + b"\x00" * (rows * width - len(data))
 
@@ -219,8 +223,8 @@ def main():
     print("  %d rows of %d, %d cells in each of 8 fields" % (rows, width, rows * width))
 
     # The page draws one box per cell above the floor. The cell count decides whether it
-    # opens or hangs. Said as a warning and not a limit: a large blob is a legitimate thing to
-    # look at, and the floor slider is there to make one tractable once it is loaded.
+    # opens or hangs. The script warns here, and sets no limit. A large blob is a legitimate thing
+    # to look at, and the floor slider makes one tractable once it loads.
     if rows * width > 200000:
         print("  note: %d cells per field is a heavy page. Raise the Floor slider once it opens,"
               % (rows * width))

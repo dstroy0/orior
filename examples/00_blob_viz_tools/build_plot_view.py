@@ -5,28 +5,36 @@
 #
 """Plots one or more expressions over a grid and passes them to the shape viewer.
 
-The other generators read something that was measured. This one evaluates something that was
-written down. That leaves the same instrument useful for a surface you already understand: a
-function whose shape is known is the way to find out what an embedding does to a shape, and a
-function nobody has drawn on a torus before is worth a look on its own.
+The other generators read a measurement. This one evaluates a written expression. Thus the same
+instrument also serves for a surface that you already understand. A function of known shape shows
+what an embedding does to a shape. A function that nobody drew on a torus before is worth a look
+on its own.
 
+docs-check: quoting
     python examples/00_blob_viz_tools/build_plot_view.py "sin(x)*cos(y)"
     python examples/00_blob_viz_tools/build_plot_view.py "sin(x)*cos(y)" "sin(2*x)*cos(2*y)" --n 128
     python examples/00_blob_viz_tools/build_plot_view.py "exp(-(x**2+y**2))" --x -2 2 --y -2 2 --title Gaussian
+docs-check: end quoting
 
-Each expression becomes one step. A sequence of them can therefore be stepped through in the
-page: a function and its derivative, or the same function at rising frequency.
+Each expression becomes one step. Thus the page can step through a sequence of them: a function
+and its derivative, or the same function at a higher frequency each step.
 
   --x LOW HIGH   range of x, taken as the depth axis. Default -pi to pi.
   --y LOW HIGH   range of y, taken as the series axis. Default -pi to pi.
+
   --n COUNT      samples on each axis. Default 96. 9216 cells per expression.
   --title TEXT   heading for the page. Default: the first expression.
   --out FILE     where to write. Default: plot_view.html in build/view, through out_path.
 
-What may appear in an expression: x, y, pi, e, tau, and the functions sin cos tan asin acos atan
-atan2 sinh cosh tanh exp log log2 log10 sqrt abs floor ceil hypot copysign fmod pow degrees radians
-erf gamma, plus min and max. Nothing else is in scope, and nothing in the expression can reach the
-interpreter: it is compiled with no builtins and evaluated against that table alone.
+An expression may hold x, y, pi, e and tau, and min and max. It may also hold these functions:
+
+docs-check: quoting
+    sin cos tan asin acos atan atan2 sinh cosh tanh exp log log2 log10 sqrt abs floor ceil hypot
+    copysign fmod pow degrees radians erf gamma
+docs-check: end quoting
+
+Nothing else is in scope, and nothing in the expression can reach the interpreter. The script
+compiles it with no builtins, and evaluates it against that table alone.
 
 Writes a self-contained page: no server, no fetch at run time, nothing to install.
 """
@@ -82,9 +90,9 @@ ALLOWED = {
 def sample(source, xs, ys):
     """Evaluates one expression over the grid, one row per y.
 
-    A point that cannot be evaluated becomes zero and does not stop the run: tan has poles and
-    log has a domain, and a plot that errors instead of drawing at all because of one column is less useful
-    than one that draws the rest. The count of such points is returned so it can be reported.
+    A point that fails to evaluate becomes zero, and does not stop the run. Tan has poles and log
+    has a domain. A plot that draws nothing because of one bad column is less useful than one that
+    draws the rest. The function returns the count of such points, for the report.
     """
     code = compile(source, "<expression>", "eval")
     rows = []

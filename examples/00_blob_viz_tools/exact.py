@@ -2,19 +2,21 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Catalog: VIZ-x-018
 #
-"""Arbitrary-precision transform, for when float64 is the thing being measured.
+"""Arbitrary-precision transform, for when float64 itself is under measurement.
 
-A double carries 53 bits of mantissa. That puts the arithmetic's own noise floor around 300 dB
-down, which is far below anything in a recording and far above nothing. When the question is what
-the analysis invents and not what the signal contains, the transform has to be quieter than the
-effect being looked for, and that means leaving hardware floating point behind.
+A double carries 53 bits of mantissa. That puts the noise floor of the arithmetic around 300 dB
+down, far below anything in a take and far above nothing. Sometimes the question is what the
+analysis invents, and not what the signal contains. Then the transform must be quieter than the
+effect under study, and hardware floating point cannot serve.
 
-Everything here is decimal.Decimal at a precision you choose. Nothing is imported that is not in
-the standard library. Pi, sine and cosine are computed here and never looked up: the module
+Everything here is decimal.Decimal at a precision you choose. This imports nothing outside the
+standard library. It computes pi, sine and cosine here, and never looks them up. The module
 math has no more precision to give than the double it returns.
 
+docs-check: quoting
     prec = digits_for(1024)          # bits to decimal digits, with guard digits
     re, im = transform(samples, prec)
+docs-check: end quoting
 
 Cost grows steeply. A 256-point transform at 1024 bits is seconds; a 4096-point transform at the
 same precision is minutes. That is the price of the floor, and it is why the fast path in dsp.py
@@ -26,8 +28,8 @@ import math
 
 from decimal import Decimal
 
-# Guard digits absorb the rounding of the last few operations so the answer is correct to the
-# precision asked for and not to that precision minus whatever the algorithm loses.
+# Guard digits absorb the rounding of the last few operations. Thus the answer is correct to the
+# precision asked for, and not to that precision minus the loss of the algorithm.
 GUARD = 16
 
 
@@ -65,8 +67,8 @@ def pi_at(prec):
             return total
 
         value = (16 * arctan_inv(5)) - (4 * arctan_inv(239))
-        # Rounded here, inside the context. A unary plus after the with block has exited rounds to
-        # whatever the default context is, which is 28 digits, and silently throws the rest away.
+        # Round here, inside the context. A unary plus after the end of the with block rounds to
+        # the default context, which is 28 digits, and silently throws the rest away.
         ctx.prec = prec
         value = +value
     return value
@@ -118,9 +120,9 @@ def _sin_small(x, prec):
 def cos_sin(angle, prec, pi):
     """Cosine and sine of an angle, reduced into the octant where the series behaves.
 
-    Reduction is done in the same precision as the answer. Reducing a large angle in double and
-    then evaluating in Decimal would put a double's error into the argument and there is no way to
-    get it back out. That is the usual way an extended-precision transform quietly turns back into
+    The reduction uses the same precision as the answer. A large angle reduced in double, and then
+    evaluated in Decimal, would carry the error of a double in its argument. Nothing can get it
+    back out. That is the usual way an extended-precision transform quietly turns back into
     a double one.
     """
     with decimal.localcontext() as ctx:
@@ -157,11 +159,11 @@ def cos_sin(angle, prec, pi):
 def turn(numerator, denominator, prec, pi):
     """Cosine and sine of 2*pi*numerator/denominator, with the angle formed at full precision.
 
-    This exists because forming the angle is the easiest place to lose everything. Writing
-    2 * pi * k / n at the call site evaluates in whatever context happens to be current, which is 28
-    digits unless the caller thought about it, and no amount of precision inside the sine can
-    recover an argument that arrived already rounded. Passing the fraction instead of the angle
-    means the caller cannot make that mistake.
+    This exists because the angle is the easiest place to lose everything. The expression
+    2 * pi * k / n at the call site evaluates in the current context. That is 28 digits unless the
+    caller set it. No amount of precision inside the sine can recover an argument that arrived
+    already rounded. The caller passes the fraction and not the angle, and so cannot make that
+    mistake.
     """
     with decimal.localcontext() as ctx:
         ctx.prec = prec + 10
@@ -170,11 +172,11 @@ def turn(numerator, denominator, prec, pi):
 
 
 def transform(values, prec):
-    """Radix-2 Cooley-Tukey over Decimal, returning parallel real and imaginary lists.
+    """Radix-2 Cooley-Tukey over Decimal. Returns parallel real and imaginary lists.
 
-    The twiddles for a stage are built by repeated multiplication from one root, exactly as the
-    float version does, but at this precision that accumulates error over a long stage. Each root
-    is therefore computed from its own angle instead. It costs more sines and buys the floor the
+    The float version builds the twiddles for a stage by repeated multiplication from one root. At
+    this precision, that accumulates error over a long stage. Thus this computes each root from its
+    own angle. It costs more sines and buys the floor the
     whole module exists for.
     """
     n = len(values)

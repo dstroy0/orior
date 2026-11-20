@@ -5,9 +5,9 @@
 """Opening state for a viewer page, as parameters instead of edits to a template.
 
 Every generator here takes --set key=value, repeatable, and passes the result through to the page.
-It decides what the viewer looks like when it opens: which representation, where the observer is,
-whether it turns on its own, what is already selected. A caller that wants a particular view asks
-for it instead of publishing a page and telling the reader which controls to move.
+It decides how the viewer looks when it opens. That covers the representation, the place of the
+observer, whether it turns on its own, and what is already selected. A caller that wants a particular view
+asks for it. The caller does not publish a page and then tell the reader which controls to move.
 
     python examples/00_blob_viz_tools/build_blob_view.py file.bin --set shape=hilbert --set spin=0.3
     python examples/00_blob_viz_tools/build_field_view.py data.csv --set theme=light --set floor=20
@@ -20,20 +20,21 @@ the settings its bar carries and passes `schema` the names. The bar draws a cont
 the type, the range and the fallback stored here. The command and the bar read one source, and a
 setting cannot mean one thing on the command line and another in the bar.
 
-A unit whose control covers less than a setting's full range narrows it to a sub-range here, never
-wider, and the bar it injects carries that sub-range. A camera distance means a different span in a
-scene built around a fixed ball than in one without, and one global range cannot carry both.
+A unit whose control covers less than the full range of a setting narrows it to a sub-range here,
+never wider. The bar that the unit injects carries that sub-range. A camera distance means one span
+in a scene around a fixed ball, and another span in a scene without one. One global range cannot
+carry both.
 """
 
 import sys
 
-# One entry per setting: its type, the value it opens at when nothing sets it, a human line, and the
-# range the bar bounds a control to. The bar type and the command type are the same word. int and
+# One entry per setting. Each holds its type, its value when nothing sets it, a human line, and the
+# range of the control in the bar. The bar type and the command type are the same word. int and
 # float cast on the command line. Color, word and text are strings there and draw their own control
 # in the bar. A bounded number carries low and high; a word carries its words. The page applies
 # these; nothing here draws anything.
 KNOWN = {
-    # what is displayed
+    # what the page shows
     "step": {"type": "int", "low": 0, "fallback": 0, "what": "which step is selected, counting from zero"},
     "shape": {"type": "str", "fallback": "", "what": "representation key, such as plane, sphere, hilbert, torus"},
     "transform": {"type": "str", "fallback": "", "what": "transform key, such as none, invert, shadow, wall"},
@@ -41,7 +42,7 @@ KNOWN = {
     "order": {"type": "int", "low": 3, "high": 4096, "fallback": 6, "what": "sides, petals or winding"},
     "wrap": {"type": "int", "low": 1, "high": 32, "fallback": 1, "what": "how many times the data is positioned around the shape"},
 
-    # how it is drawn
+    # how the page draws it
     "height": {"type": "int", "low": 1, "high": 60, "fallback": 22, "what": "relief"},
     "floor": {"type": "int", "low": 0, "high": 90, "fallback": 0, "what": "hides cells quieter than this"},
     "contrast": {"type": "float", "low": 0.1, "high": 2.0, "fallback": 0.6,
@@ -69,11 +70,12 @@ KNOWN = {
 }
 
 
-# A unit may narrow a bounded setting to a sub-range of KNOWN. schema() reads the narrowing for a
-# named unit, and the bar it injects bounds that control to the sub-range. The control then
-# represents the range the command enforces, and no value valid on one is refused by the other. A
-# narrowing only tightens: the containment below stops a widening, a control admitting a value the
-# command refuses.
+# A unit may narrow a bounded setting to a sub-range of KNOWN. The function schema() reads the
+# narrowing for a named unit. The bar that it injects bounds that control to the sub-range.
+#
+# The control then shows the range that the command enforces. Neither of the two refuses a value
+# that the other accepts. A narrowing only tightens. The containment below stops a widening, which would let a
+# control accept a value that the command refuses.
 #
 # A narrowing also names the unit's own fallback where its control opens at a value other than
 # KNOWN's. The schema then states the default the control rests at, not a shared one it never uses.
@@ -151,8 +153,8 @@ def schema(names, narrow=None):
     the bar reads are one and the same. An unknown name exits before the page ships a bar with a
     control the command cannot set.
 
-    A unit whose control is narrower than a setting's full range names its narrowing, and the entry
-    carries the sub-range NARROW holds for it instead of the KNOWN range.
+    A unit whose control is narrower than the full range of a setting names its narrowing. The
+    entry then carries the sub-range that NARROW holds for it, in place of the KNOWN range.
     """
     bounds = {}
     if narrow is not None:
@@ -181,10 +183,10 @@ def schema(names, narrow=None):
 def collect(argv):
     """Reads every --set from a command line and returns them as a dict the page understands.
 
-    Values are converted to the type the page expects. The page never has to guess whether "3" is
-    a number or a word. A key that is not known, or a value that is not the right type, exits with
-    a message: a setting that does not apply is worse than one that was never given, because the
-    page opens looking wrong and the fault is invisible.
+    This converts each value to the type that the page expects. The page never has to guess
+    whether "3" is a number or a word. An unknown key, or a value of the wrong type, exits with a
+    message. A setting that does not apply is worse than one that nobody gave. The page then opens
+    in the wrong state, and the fault is invisible.
     """
     out = {}
     at = 0

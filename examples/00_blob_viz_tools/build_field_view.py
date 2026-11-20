@@ -3,11 +3,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Catalog: VIZ-x-004
 #
-"""Turns any parametric table into the shape viewer, without knowing what the table is about.
+"""Turns any parametric table into the shape viewer. It needs no knowledge of what the table is about.
 
 The other generators here each read one measurement this repository produces. This one reads a CSV
-and works out its own axes. The same seven embeddings - plane, tube, toroid, sphere, cone, helix,
-balloon - can be pointed at anything with the shape
+and works out its own axes. The same seven embeddings (plane, tube, toroid, sphere, cone, helix,
+balloon) apply to anything with this shape:
 
     one value, measured over one depth axis, for each of many series
 
@@ -25,7 +25,7 @@ and in the general case, naming the columns yourself:
 
     python examples/00_blob_viz_tools/build_field_view.py data.csv --value amplitude --depth time --field sensor
 
-  --value   the column holding the number to draw. Default: "value", else the last numeric column.
+  --value   the column with the number to draw. Default: "value", else the last numeric column.
   --depth   the column that runs left to right. Default: the first of round, step, t, time, frame,
             depth, index that is present.
   --field   a column whose distinct values become the selectable fields. Default: "type" if there
@@ -34,8 +34,8 @@ and in the general case, naming the columns yourself:
   --out     where to write. Default: <csv name>_view.html beside the CSV.
 
 Every column that is none of those becomes part of the series key. A table indexed by two
-parameters therefore draws one series per pair, and sorting the series by that key puts them
-in a stable order along the cut.
+parameters therefore draws one series per pair. A sort of the series by that key puts them in a
+stable order along the cut.
 
 Writes a self-contained page: no server, no fetch at run time, nothing to install.
 """
@@ -117,7 +117,7 @@ def main():
 
     keys = [name for name in header if name not in (value_at, depth_at, field_at)]
 
-    # Depth values are collected as they are and then sorted numerically where they all parse.
+    # This collects the depth values as they are, then sorts them as numbers where they all parse.
     # A column of 1..64 therefore does not come back as 1, 10, 11.
     seen_depth = sorted({row[depth_at] for row in rows},
                         key=lambda one: (numeric(one) is None, numeric(one), one))

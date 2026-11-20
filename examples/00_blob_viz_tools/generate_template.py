@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-"""Builds a foo_view.html from foo_view_template.html, taking every shared tool from one toolbox.
+"""Builds a foo_view.html from foo_view_template.html. It takes every shared tool from one toolbox.
 
+docs-check: quoting
     python examples/00_blob_viz_tools/generate_template.py foo_view_template.html
     python examples/00_blob_viz_tools/generate_template.py foo_view_template.html --data foo.json --out foo.html
     python examples/00_blob_viz_tools/generate_template.py --verify build/view/foo_view.html
     python examples/00_blob_viz_tools/generate_template.py --check
+docs-check: end quoting
 
 ONE GENERATOR, ONE TOOLBOX
 
-A page is a template plus the tools it names. The tools live in toolbox/, listed in
-toolbox/manifest.tsv with the tools each one requires, and every page takes its copy of a tool from
-there. A builder computes its data and calls `render`; it never pastes code into a page itself. The
+A page is a template plus the tools it names. The tools live in toolbox/. The file
+toolbox/manifest.tsv lists them, with the tools that each one requires. Every page takes its copy
+of a tool from there. A builder computes its data and calls `render`; it never pastes code into a page itself. The
 page that comes out is one self-contained file: no server, no fetch at run time, openable from disk.
 
 THE TEMPLATE
@@ -26,31 +28,33 @@ Directives are HTML comments, each alone on its line, and the generator removes 
 Pieces go into the script in the order their directives appear. A tool another tool requires goes
 in once, ahead of its first use. Three placeholders receive the result:
 
+docs-check: quoting
     /*SCRIPT*/               the namespace line and every JS piece, each under `// ---- label ----`,
                              closed by `// ---- end ----`
     /*STYLE*/                every CSS tool, each under `/* ---- label ---- */`, closed by
                              `/* ---- end ---- */`
     /*DATA*/ null            the builder's data as JSON; the null retains an unbuilt template parsing
+docs-check: end quoting
 
 The closing label ends the last piece. A template's own code after a placeholder is never read as part of
 a tool.
 
 A data placeholder may hold any whitespace between the marker and its null. A template carries at max one
-data placeholder, and data passed to a template with none is refused instead of dropped. A template that
-leaves a script element open is refused: published, the closing tags after it land inside the script
-as a syntax error and the whole page is dead, while the file opened on its own still runs.
+data placeholder. The generator refuses data for a template with none, and does not drop it. It also
+refuses a template that leaves a script element open. Once published, the closing tags after it land
+inside the script as a syntax error, and the whole page is dead. The file opened on its own still runs.
 
 THE COPYRIGHT LINE
 
-Every page carries toolbox/copyright.html once, at the end of its body: a small gray line fixed at
-the top, under the page's control bar where it has one. `assemble` stamps it, and a builder that
+Every page carries toolbox/copyright.html once, at the end of its body. It is a small gray line,
+fixed at the top, under the control bar of the page where it has one. `assemble` stamps it, and a builder that
 writes its own page passes the page through `stamp` before writing.
 
 THE CHECK ON A BUILT PAGE
 
 A tool's label is its toolbox path, `toolbox/core/gpu.js`. `--verify` finds every such label in a
-page and holds the text under it to the toolbox file byte for byte. A page built against an edited
-copy, or edited after it was built, fails and names the tool.
+page and holds the text under it to the toolbox file byte for byte. A page that used an edited
+copy, or that someone edited after the build, fails and names the tool.
 """
 
 import io
@@ -135,7 +139,7 @@ def expand(name, tools, order, seen, path=()):
 
 
 def pieces_of(template_text, parts_dir, tools, toolbox=TOOLBOX):
-    """The namespace, and every piece in order as (label, type, text). Refuses a missing piece."""
+    """The namespace, and every piece in order as (label, type, text). Refuses a piece that is absent."""
     namespace = None
     pieces = []
     seen = set()
@@ -204,7 +208,7 @@ def assemble(template, data=None, parts_dir=None, toolbox=TOOLBOX):
 
 def stamp(page, toolbox=TOOLBOX):
     """The page with the copyright line at the end of its body: before </body>, or at the end of a page
-    whose body is implied. A page already carrying it is returned as it is."""
+    with no body tag. A page that already carries it comes back as it is."""
     if 'id="copyright"' in page:
         return page
     line = read(os.path.join(toolbox, COPYRIGHT))
@@ -217,7 +221,7 @@ def stamp(page, toolbox=TOOLBOX):
 def render(template, data=None, out=None, name=None, parts_dir=None):
     """Builds the template and writes the page. Returns the path written.
 
-    `out` is used as given. Without it the page goes where out_path sends generated pages, under
+    This writes to `out` as given. Without it the page goes where out_path sends generated pages, under
     `name`, which defaults to the template's file name less `_template`.
     """
     page = assemble(template, data, parts_dir)
@@ -269,8 +273,8 @@ def verify(path):
     return failed
 
 
-# A toolbox and templates written into a scratch directory, each case built to pass or to be refused.
-# Every refusal below is a case the generator must be able to reach, and each is displayed reached.
+# A toolbox and templates in a scratch directory. Each case must pass, or the generator must refuse it.
+# The generator must reach every refusal below, and the check shows that it reaches each one.
 def _scratch(files):
     root = tempfile.mkdtemp(prefix="generate_template_")
     for name, text in files.items():

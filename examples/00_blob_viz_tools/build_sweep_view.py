@@ -5,33 +5,37 @@
 #
 """Sweeps the analysis and draws every setting at once. An artifact of the analysis is visible.
 
-A spectrogram is a picture of a signal and a picture of the window that made it, and nothing in the
-picture says which is which. This runs the same signal through a whole range of settings, puts each
-setting on its own row of one solid, and adds a field that is each setting minus the consensus of
-all of them. A feature that is in the same place at every setting is in the signal. A feature
-that moves, or appears at one setting and not the next, is the analysis talking about itself.
+A spectrogram is a picture of a signal, and also a picture of the window that made it. Nothing in
+the picture says which is which. This runs the same signal through a whole range of settings, and
+puts each setting on its own row of one solid. It adds a field that is each setting minus the
+consensus of all of them. A feature in the same place at every setting is in the signal. A feature
+that moves, or appears at one setting and not the next, comes from the analysis itself.
 
+docs-check: quoting
     python examples/00_blob_viz_tools/build_sweep_view.py take.wav
     python examples/00_blob_viz_tools/build_sweep_view.py --synth --sweep pad
     python examples/00_blob_viz_tools/build_sweep_view.py --synth --sweep window --top 4000
     python examples/00_blob_viz_tools/build_sweep_view.py --synth --sweep fft --exact 256
+docs-check: end quoting
 
   --sweep WHAT   fft, pad or window. Default fft.
   --fft N        frame size when it is not the swept axis. Default 1024.
   --pad K        zero-pad factor when it is not the swept axis. Default 4.
   --window W     window when it is not the swept axis. Default hann.
+
   --grid N       points on the common frequency axis. Default 512.
   --top HZ       highest frequency drawn. Default 8000.
   --average M    frames averaged per setting. Default 16, which steadies the noise floor.
   --exact BITS   run the sweep in extended precision as well, at frame sizes small enough to
-                 afford it. The arithmetic's own floor is below anything being looked for.
-  --synth        use a generated signal: two tones beating at 3 Hz, a sweep from 1 kHz to 3 kHz, a
-                 quiet 7 kHz tone and white noise.
+                 afford it. The floor of the arithmetic is below anything under study.
+
+  --synth        use a generated signal: two tones that beat at 3 Hz, and a sweep from 1 kHz to
+                 3 kHz. A quiet 7 kHz tone and white noise lie under it.
   --out FILE     where to write.
 
-Every setting is resampled onto one frequency axis in Hz, because settings do not share a bin
-spacing and comparing bin 40 of one against bin 40 of another compares two different frequencies.
-The axis is Hz for all of them, since Hz is what they share.
+This resamples every setting onto one frequency axis in Hz. The settings do not share a bin
+spacing. A comparison of bin 40 of one against bin 40 of another compares two different
+frequencies. The axis is Hz for all of them, because they share Hz.
 """
 
 import io
@@ -53,7 +57,7 @@ PAD_FACTORS = (1, 2, 4, 8, 16, 32, 64)
 
 
 def sample_grid(mags, hz_per_bin, grid_hz):
-    """Puts one spectrum onto the shared frequency axis, linearly between neighboring bins."""
+    """Puts one spectrum onto the shared frequency axis, linearly between adjacent bins."""
     out = []
     top_bin = len(mags) - 1
     for hz in grid_hz:
@@ -181,7 +185,7 @@ def main():
         linear.append([round(one / loudest, 6) for one in row])
 
     # The consensus at each frequency, and how far each setting departs from it. This is the field
-    # the tool exists for: it is zero where the settings agree, and everything that is left is the
+    # the tool exists for: it is zero where the settings agree, and all that remains is the
     # analysis.
     consensus = []
     for at in range(grid_n):
@@ -209,8 +213,8 @@ def main():
 
     exact_note = ""
     if exact_bits:
-        # Extended precision on the smallest setting only. The point is not to sweep at this cost
-        # but to establish that the floor being looked at is the signal's and not the arithmetic's.
+        # Extended precision on the smallest setting only. The aim is not a sweep at this cost. The
+        # aim is to show that the floor under study belongs to the signal, and not to the arithmetic.
         import exact as extended
 
         prec = extended.digits_for(exact_bits)
@@ -218,11 +222,11 @@ def main():
         size = dsp.next_power(size)
         pi = extended.pi_at(prec)
 
-        # The floor has to be measured on a signal whose exact spectrum is known in advance, which
-        # is a tone sitting on a bin: one non-zero magnitude and the rest zero. Everything the
-        # transform reports in the other bins is the arithmetic's own noise, alone.
+        # The measurement of the floor needs a signal with an exact spectrum known in advance. That
+        # is a tone on a bin: one non-zero magnitude and the rest zero. Everything the transform
+        # reports in the other bins is the noise of the arithmetic, alone.
         #
-        # Measuring it on the recording instead gives the smallest bin the recording happens to
+        # A measurement on the take gives only the smallest bin that the take happens to
         # contain. That is the signal's dynamic range and is thousands of dB louder. The number
         # looks like an answer and is not one.
         at_bin = max(1, size // 8)
