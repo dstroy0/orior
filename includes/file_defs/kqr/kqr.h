@@ -1,22 +1,33 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// kqr.h: a member's query record, its .kqr (kqr.oracle.tsv), a k-file of records (krep_records.h): every query put to
-// the member and what came back, every timed query a sample of its own, the cycles, seeds and rounds that put them, and
-// then the paths read off those queries, each a record of numbers. It is R, the record (Q9, Q10, P13), and every
-// program that queries the member stores one record of it through this: a query R stores is not put again.
+// kqr.h: the query record of a member, its .kqr (kqr.oracle.tsv), a k-file of records (krep_records.h). It holds:
+//   - each query put to the member, and what came back.
+//   - each timed query, as a sample of its own.
+//   - the cycles, seeds and rounds that put them.
+//   - then the paths read off those queries, each a record of numbers.
 //
-// A query is stored by its identity, seven numbers: the hash of its code, the registers, threads, blocks and launches
-// it is put with, its count of cases and the hash of its cases. What came back is one of five codes, KQR_ANSWERS with
-// the word of every case, and the others with the refusal, the one text a query retains. A query that timed out is
-// queried again until an answer resolves it, and the answer takes its place. So does a query the gate censored, where
-// the gate admits it later, since the part never saw it. A timed query is put every time and stored as a sample of its
-// own.
+// It is R, the record (Q9, Q10, P13). Each program that queries the member stores one record of it through this. No
+// program puts again a query that R stores.
 //
-// Every record the file contained is as it contained it, a pair after every other record. What a run adds comes
-// after the records it contained and before the pairs, each run of them after a who record, the who of the code that
-// put them (Who); and a cycle, a seed and a round are each written before the first new query or sample that follows
-// them and nowhere where none follows, so that a cycle the record answers whole adds no record to it. A record of the
-// .kqr's text form, read where a file contains it, is written back as records, its lines in their order.
+// The record stores a query by its identity, seven numbers. That is the hash of its code, and the registers, threads,
+// blocks and launches that it goes with. Then its count of cases and the hash of its cases.
+//
+// What came back is one of five codes. KQR_ANSWERS comes with the word of each case. The others come with the refusal,
+// the one text that a query keeps.
+//
+// The program queries again a query that timed out, until an answer resolves it, and the answer takes its place. The
+// same holds for a query that the gate censored, where the gate admits it later, because the part never saw it. The
+// program puts a timed query each time, and stores it as a sample of its own.
+//
+// Each record of the file stays as it was in the file, with a pair after each other record. What a run adds comes after
+// the old records and before the pairs. Each run of them comes after a who record, the who of the code that put them
+// (Who).
+//
+// The writer writes a cycle, a seed and a round before the first new query or sample that follows them. Where none
+// follows, it writes them nowhere. A cycle that the record answers whole then adds no record to it.
+//
+// Where a file holds a record of the text form of the .kqr, the read finds it. The writer writes it back as records,
+// its lines in their order.
 #ifndef KQR_H
 #define KQR_H
 
@@ -45,8 +56,8 @@
 #define KQR_CENSORED 4u
 #define KQR_ANSWER_COUNT 5u
 
-// the max characters of a refusal, of a member's name, of a mode, of a pair's form and of its verdict, and the max
-// words of an answer
+// the most characters of a refusal, of the name of a member, of a mode, of the form of a pair and of its verdict. Then
+// the most words of an answer
 #define KQR_REFUSAL 128u
 #define KQR_MEMBER 64u
 #define KQR_MODE 64u
@@ -57,8 +68,8 @@
 // the max marks a cycle retains pending before its first new query or sample
 #define KQR_PENDING 8u
 
-// a query's identity: the hash of its code, the registers, threads, blocks and launches it is put with, its count of
-// cases and the hash of its cases
+// the identity of a query: the hash of its code, and the registers, threads, blocks and launches that it goes with.
+// Then its count of cases and the hash of its cases
 typedef struct
 {
     unsigned long long code;
@@ -81,9 +92,10 @@ typedef struct
     char refusal[KQR_REFUSAL];
 } KqrQuery;
 
-// one timed query, a sample of its own: its identity as a query's, what came back, and the nanoseconds its launches
-// took together where it answered, or the refusal where it did not; and where the sample gives them, the least and
-// the max one launch took, its block latency (P6), `launched` 1
+// one timed query, a sample of its own. It holds its identity, as a query holds it, and what came back. Then the
+// nanoseconds that its launches took together where it answered, or the refusal where it did not.
+// Where the sample gives them, it holds the least and the max time of one launch, and its block latency (P6), with
+// `launched` 1
 typedef struct
 {
     KqrIdentity identity;
@@ -95,8 +107,8 @@ typedef struct
     char refusal[KQR_REFUSAL];
 } KqrSample;
 
-// a path read off the queries: a pair of the bridge, the hash of what its put reads where `read` is 1, and its
-// verdict as the bridge writes it beneath the pair
+// a path read off the queries. It holds a pair of the bridge, and the hash of what its put reads where `read` is 1.
+// Then its verdict as the bridge writes it beneath the pair
 typedef struct
 {
     char first[KQR_FORM];
