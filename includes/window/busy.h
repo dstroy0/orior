@@ -18,9 +18,10 @@ typedef struct GuiBusyCfg GuiBusyCfg;
 typedef struct GuiBusyStillCfg GuiBusyStillCfg;
 typedef struct GuiBusySinceCfg GuiBusySinceCfg;
 
-// the milliseconds an ask is before the circle comes, and the least the circle is once it has come; a swirl's
-// stages, a power of two, and the shift from milliseconds to a stage; and the sizes in the page's pixels: the circle's
-// side, how far the ring's middle reaches from its center, and how far the circle saves from the editor's corner
+// the milliseconds of a request before the circle comes, and the least time of the circle once it comes. Then the
+// stages of a swirl, a power of two, and the shift from milliseconds to a stage.
+// Then the sizes in the pixels of the page. The first is the side of the circle. The second is how far the middle of
+// the ring reaches from its center. Last, how far the circle keeps from the corner of the editor
 #define GUI_BUSY_SHOW_DELAY_MS 200ULL
 #define GUI_BUSY_MIN_VISIBLE_MS 256ULL
 #define GUI_BUSY_STAGES 64u
@@ -30,10 +31,12 @@ typedef struct GuiBusySinceCfg GuiBusySinceCfg;
 #define GUI_BUSY_REACH 7
 #define GUI_BUSY_EDGE 8
 
-// The circle: when the window last found an ask located, one past the millisecond and 0 where none does; whether the
-// circle is displayed, since when, and whether it is stationary at one stage for less motion; the one cell its pictures lie
-// in, their side and stages, each stage's three lanes of a blit side by side pixels; the pixels saved from under it,
-// the rectangle they came from, and whether any are saved
+// The circle:
+//   - when the window last found a request in place, one past the millisecond, and 0 where none is.
+//   - whether the circle shows, since when, and whether it stays at one stage for less motion.
+//   - the one cell of its pictures, their side and stages, and the three lanes of a blit of each stage, side by side
+//     pixels.
+//   - the pixels kept from under it, the rectangle that they came from, and whether the code kept any.
 typedef struct
 {
     unsigned long long work_start_ms;
@@ -59,8 +62,8 @@ void gui_busy_init(const GuiBusyStillCfg *args);
 // whether an ask is; and when it began to, in `*since`: 1, or 0 where none is
 void gui_busy_work(const GuiBusyRunningCfg *args);
 int gui_busy_waiting(const GuiBusySinceCfg *args);
-// the tick come: the circle come where an ask has was past the wait, gone where none has and it has was
-// its least: 1 where it came or went; and the milliseconds from `now` until a tick is wanted, 0 where none is
+// a tick. The circle comes where a request is past the wait. It goes where none is and its least time is past. The
+// result is 1 where it came or went. Then the milliseconds from `now` until the next tick, 0 where none is due
 int gui_busy_tick(const GuiBusyRunningCfg *args);
 unsigned long long gui_busy_next_deadline_ms(const GuiBusyCfg *args);
 // the stage located, the first while it is stationary; and whether it is stationary, its pictures made again
@@ -69,9 +72,9 @@ unsigned int gui_busy_stage_at(const GuiBusyCfg *args);
 void gui_busy_still(const GuiBusyStillCfg *args);
 // the circle's rectangle in `frame`, at the editor's foot on its right
 GuiRect gui_busy_rect(const GuiBusyFrameCfg *args);
-// the circle positioned at the end of a whole frame, its pictures made where they are wanted, the pixels under it saved
-// first; and a step of its stage alone: the pixels saved restored and the stage blitted over them: the
-// rectangle to show again, empty where none is saved
+// the circle positioned at the end of a whole frame, with its pictures made where the frame needs them. The code first
+// keeps the pixels under it. Then a step of its stage alone: the kept pixels go back and the stage blits over them.
+// The result is the rectangle to show again, empty where the code kept none
 void gui_busy_draw(const GuiBusyFrameCfg *args);
 GuiRect gui_busy_redrawn(const GuiBusyFrameCfg *args);
 struct GuiBusyFrameCfg
