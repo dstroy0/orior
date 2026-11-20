@@ -17,7 +17,6 @@ examples/00_blob_viz_tools/block_view_template.html	1
 examples/00_blob_viz_tools/boundary_count.py	65
 examples/00_blob_viz_tools/boundary_read.py	31
 examples/00_blob_viz_tools/build_beam_view.py	21
-examples/00_blob_viz_tools/build_bend_view.py	126
 examples/00_blob_viz_tools/build_blind_view.py	24
 examples/00_blob_viz_tools/build_blob_view.py	22
 examples/00_blob_viz_tools/build_block_view.py	10
@@ -126,7 +125,6 @@ examples/00_blob_viz_tools/view/shapes_view.html	24
 examples/00_blob_viz_tools/view/spiral_view.html	1
 examples/00_blob_viz_tools/view/survey_view.html	2
 examples/00_blob_viz_tools/view/track_room.html	14
-examples/00_blob_viz_tools/voxel_view_template.html	135
 examples/00_blob_viz_tools/wire_compute.py	46
 examples/0_experimental/bloom_is_the_sift_theorem.py	8
 examples/0_experimental/collaborative_filter.py	13
@@ -149,7 +147,6 @@ examples/0_experimental/exact_zeta_lobes.cu	17
 examples/0_experimental/exact_zeta_lobes.py	9
 examples/0_experimental/exact_zeta_miss_map.py	88
 examples/0_experimental/exact_zeta_phase.py	15
-examples/0_experimental/exact_zeta_scaled.cu	120
 examples/0_experimental/exact_zeta_scaled.sh	1
 examples/0_experimental/exact_zeta_spherical.cu	6
 examples/0_experimental/exact_zeta_spherical.py	5
@@ -594,7 +591,6 @@ src/cu/engine/nbody/max_tree/max_tree_nodes.c	2
 src/cu/engine/nbody/orior/orior.h	4
 src/cu/engine/nbody/orior/orior_core.c	28
 src/cu/engine/nbody/orior/orior_core.h	64
-src/cu/engine/nbody/orior/orior_descent.h	115
 src/cu/engine/nbody/orior/orior_engines.h	25
 src/cu/engine/nbody/orior/orior_field.c	27
 src/cu/engine/nbody/orior/orior_field.h	72
@@ -1165,7 +1161,6 @@ utils/maint/data/salishan/extract/tier_check.py	13
 utils/maint/data/salishan/extract/tier_script.py	1
 utils/maint/data/salishan/extract/workdir.py	7
 utils/maint/data/salishan/get_papers.py	38
-utils/maint/data/salishan/hand_extraction/oracle_check.py	116
 utils/maint/data/salishan/hand_extraction/papers.py	23
 utils/maint/data/salishan/hand_extraction/pure_corpus_index.py	16
 utils/maint/data/salishan/hand_extraction/reader_check.py	56
