@@ -254,7 +254,7 @@ def gap_filling(already, count, pool=8):
         taken[at] = True
         chosen = candidates[at]
         picked.append(tuple(chosen))
-        nearest = numpy.max(nearest, candidates.dot(chosen))
+        nearest = numpy.maximum(nearest, candidates.dot(chosen))
     return picked
 
 
