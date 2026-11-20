@@ -39,7 +39,6 @@ import re
 import subprocess
 import sys
 import time
-import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
