@@ -3,113 +3,139 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Catalog: EXP-x-023
 #
-# Z(t) by the Riemann-Siegel formula, with time represented as a real and the delta between 0 and 1 left
-# free, by truthy and falsy verdicts on exact integers.
+# Z(t) by the Riemann-Siegel formula, by truthy and falsy verdicts on exact integers. Time is a real, and the delta
+# between 0 and 1 stays free.
 #
 #   Usage:  python examples/0_experimental/exact_zeta_riemann_siegel.py [height] [bits]
 #           python examples/0_experimental/exact_zeta_riemann_siegel.py triangle first last [cut ...]
 #
-# This reads no corpus. It sits in 0_experimental and is an entry in the analytic number theory
-# workbook, on its rail: it claims nothing about the Riemann hypothesis.
+# This reads no corpus. It sits in 0_experimental, and is an entry in the analytic number theory workbook, on its rail.
+# It claims nothing about the Riemann hypothesis.
 #
 # THE FORMULA, AS MATHWORLD PRINTS IT
 #
-# Z(t) = 2 sum over n <= N of n^(-1/2) cos(theta(t) - t ln n) + R(t), with N the floor of
-# sqrt(t / 2pi), p = sqrt(t / 2pi) - N, and R(t) = (-1)^(N-1) (t / 2pi)^(-1/4) times the sum of
-# c_k(p) (t / 2pi)^(-k/2). Each c_k is a sum of derivatives of
-# Psi(p) = cos 2pi(p^2 - p - 1/16) / cos 2pi p over powers of pi, and c_0 to c_5 are printed.
+# `Z(t) = 2 sum over n <= N of n^(-1/2) cos(theta(t) - t ln n) + R(t)`. N is the floor of `sqrt(t / 2pi)`, and
+# `p = sqrt(t / 2pi) - N`. `R(t) = (-1)^(N-1) (t / 2pi)^(-1/4)` times the sum of `c_k(p) (t / 2pi)^(-k/2)`.
+# Each c_k is a sum of derivatives of `Psi(p) = cos 2pi(p^2 - p - 1/16) / cos 2pi p` over powers of pi. MathWorld
+# prints c_0 to c_5.
 #
 # TIME AS A REAL
 #
-# The steer is u, and t = 2pi u^4. No square root is taken and nothing is divided by 2pi: N is the
-# floor of u^2, p = u^2 - N exactly, and (t / 2pi)^(-1/4 - k/2) = u^-(2k+1), an exact rational. t is
-# represented as its real and its operator, pi's floor at the places asked and naturals.pi asked again for
-# more. The delta p is between 0 and 1 and is never fixed; a deeper reading asks it for more places.
+# The steer is u, and `t = 2pi u^4`. The code takes no square root, and divides nothing by 2pi. N is the floor of u^2,
+# and `p = u^2 - N` exactly. `(t / 2pi)^(-1/4 - k/2) = u^-(2k+1)`, an exact rational.
+#
+# The code holds t as its real and its operator: the floor of pi at the places asked, and naturals.pi asked again for
+# more. The delta p is between 0 and 1, and is never fixed. A deeper reading asks it for more places.
 #
 # TWO MAGNITUDES FOR ONE PHASE
 #
-# Each term of the sum is the pair n^(-1/2) e^(-it ln n), from exact_zeta_zeros.py, and theta turns
-# the summed pair by e^(i theta). Psi is represented as the pair of its numerator and its denominator, each a
-# power series about p, and never divided: with d the denominator's first coefficient,
-# Psi^(j)(p) / j! = r_j / d^(j+1), and r_j comes from the two series by products alone. Every c_k is
-# carried times d^16 pi^10, a multiplier that is never negative, and Z with it: the sign of Z is
-# the sign of the carried product. Where d reads zero at the working places, both series lose their
-# first coefficient and the next one is in: the numerator vanishes where the denominator does,
-# at p = 1/4 and p = 3/4.
+# Each term of the sum is the pair `n^(-1/2) e^(-it ln n)`, from exact_zeta_zeros.py. theta turns the summed pair by
+# `e^(i theta)`.
+# The code holds Psi as the pair of its numerator and its denominator, each a power series about p, and never divides
+# them. With d the first coefficient of the denominator, `Psi^(j)(p) / j! = r_j / d^(j+1)`. r_j comes from the two
+# series by products alone.
+#
+# The code carries each c_k times `d^16 pi^10`, a multiplier that is never negative, and Z with it. The sign of Z is
+# the sign of the carried product.
+# Where d reads zero at the work places, both series lose their first coefficient, and the next one comes in. The
+# numerator vanishes where the denominator does, at p = 1/4 and p = 3/4.
 #
 # THE VERDICTS AT A POINT
 #
-# theta by exact_zeta_gram.py's two routes, N doubling where they disagree. The carried Z read
-# toward zero at the places asked, a reading of zero doubling the places. The last printed term,
-# c_5 u^-11, read against Z at the same places: whether Z reads past the series' own last term
-# there. That is a reading, recorded per point, and the series sets its own reach at that t.
+# theta by the two routes of exact_zeta_gram.py, with N doubled where they disagree. The carried Z reads toward zero
+# at the places asked, and a reading of zero doubles the places.
+# The last printed term, `c_5 u^-11`, reads against Z at the same places: whether Z reads past the own last term of
+# the series there. That is a reading, recorded per point, and the series sets its own reach at that t.
 #
 # THE WALK
 #
-# exact_zeta_gram.py's walk and placing, stepping in u with theta read at t = 2pi u^4. A bracket is
-# settled where Z has one nonzero sign at both ends; otherwise it is cut by the Gram index at its
-# midpoint.
+# The walk and placement of exact_zeta_gram.py, with steps in u and theta read at `t = 2pi u^4`. A bracket settles
+# where Z has one nonzero sign at both ends. Else the Gram index at its midpoint cuts it.
 #
 # THE BOUNDARY BETWEEN THE TWO PAIRS
 #
-# Two pairs follow two curves each. Riemann-Siegel and Euler-Maclaurin both give Z: Euler-Maclaurin
-# over the whole strip, its two routes meeting as N doubles, and Riemann-Siegel on the line, a series in
-# u that stops at c_5. Inside Riemann-Siegel, the main sum S and the remainder R split Z between them
-# at nu = floor(x), x = u^2 = sqrt(t / 2pi), t = 2pi x^2.
+# Two pairs follow two curves each. Riemann-Siegel and Euler-Maclaurin both give Z.
+#   - Euler-Maclaurin works over the whole strip, and its two routes meet as N doubles.
+#   - Riemann-Siegel works on the line, as a series in u that stops at c_5.
 #
-# The domain is x, cut into cells [nu, nu + 1], and on each cell p = x - nu runs over [0, 1]. Psi is
-# symmetric, Psi(1 - p) = Psi(p), and c_k(1) = (-1)^k c_k(0). Where x crosses nu + 1, S gains the term
-# 2 (nu + 1)^(-1/2) cos(theta - t ln(nu + 1)), which is 2 (-1)^(nu+1) cos(pi/8) / u to its first order,
-# and R turns from (-1)^(nu-1) sum c_k(1) u^-(2k+1) to (-1)^nu sum c_k(0) u^-(2k+1), a jump of
-# 2 (-1)^nu sum over even k of c_k(0) u^-(2k+1). The two jumps meet and Z is continuous. What is left of
-# them is the jump of the terms R leaves out, the seam read by `seam`.
+# Inside Riemann-Siegel, the main sum S and the remainder R split Z between them at `nu = floor(x)`, with
+# `x = u^2 = sqrt(t / 2pi)` and `t = 2pi x^2`.
 #
-# Over each cell, with D = Z_RS - Z_EM and E = S - R, three sides: a = int |D| dp, b = int |E| dp, and
-# c = int |(D, E)| dp, the magnitude of the two taken as one vector. c <= a + b and c >= b: the three
-# close a triangle. c is read as b + delta, delta = int D^2 / (|(D, E)| + |E|) dp. c - b never
-# cancels, and the angle opposite c is cos gamma = (a^2 - 2b delta - delta^2) / 2ab. Where |D| follows
-# |E| across the cell the angle is right, and it is never less: the size of the integral of (|D|, |E|)
-# is at max the integral of its size, which is c. a is small against b and the triangle is a needle,
-# and a needle is still a triangle: its angle past right is nonzero, and two sides apart by any
-# nonzero angle part without bound. The shape is the excess kappa = (c^2 - a^2 - b^2) / a^2, and the
-# angle is cos gamma = -kappa a / 2b, each read at the places where it shows. Each integral is the
-# trapezoid on 2^m and 2^(m+1) equal parts of p, two routes that must agree.
+# The domain is x, cut into cells [nu, nu + 1]. On each cell, `p = x - nu` runs over [0, 1]. Psi is symmetric,
+# `Psi(1 - p) = Psi(p)`, and `c_k(1) = (-1)^k c_k(0)`.
+# Where x crosses nu + 1, S gains the term `2 (nu + 1)^(-1/2) cos(theta - t ln(nu + 1))`. To its first order, that
+# is `2 (-1)^(nu+1) cos(pi/8) / u`.
 #
-# Where S and R cross, E is zero and delta's integrand is a spike of height |D| and width |D / E'|,
-# about 10^-12 of p: no grid reaches it, and the trapezoid on it grows as ln(1 / h) with every
-# doubling. What grows is represented by its relation. With D0 = D(p0) and k = |E'(p0)| at each crossing,
-# the spike is g(u) = D0^2 / (sqrt(D0^2 + k^2 u^2) + k |u|), u = p - p0, and its integral from 0 to L is
-# (L D0^2 / (sqrt(D0^2 + k^2 L^2) + kL) + (D0^2 / k) asinh(kL / |D0|)) / 2, exact. delta is the sum of
-# those and the trapezoid of what is left, which no longer grows. The crossings are E's sign changes,
-# read from Riemann-Siegel alone and each halved to 2^-64.
+# R turns from `(-1)^(nu-1) sum c_k(1) u^-(2k+1)` to `(-1)^nu sum c_k(0) u^-(2k+1)`. That is a jump of
+# `2 (-1)^nu sum over even k of c_k(0) u^-(2k+1)`.
+# The two jumps meet, and Z is continuous. The rest of them is the jump of the terms that R leaves out, the seam that
+# `seam` reads.
 #
-# EVERY C_n, REPRESENTED AS ITS REAL AND ITS OPERATOR
+# Over each cell, with `D = Z_RS - Z_EM` and `E = S - R`, there are three sides:
+#   - `a = int |D| dp`.
+#   - `b = int |E| dp`.
+#   - `c = int |(D, E)| dp`, the magnitude of the two taken as one vector.
 #
-# With z = 1 - 2p and F(z) = Psi(p), Gabcke's generator (Table III and Satz 2.1.4 of his thesis) gives
-# every coefficient: C_n(z) = 2^(-2n) times the sum over k of d_k^(n) F^(3n-4k)(z) / ((3n - 4k)! pi^(2n-2k)),
-# with d_k^(n+1) = (3n + 1 - 4k)(3n + 2 - 4k) d_k^(n) + d_(k-1)^(n), except d_3l^(4l) = lambda_l, where
-# (l + 1) lambda_(l+1) = sum over k of 2^(4k+1) |E_(2k+2)| lambda_(l-k) on the Euler numbers. Every d is an
-# integer. F is entire and even, F(z) = sum phi_j z^(2j), and phi_j is the product of the series of
-# cos(pi z^2 / 2 + 3pi/8) and of sec(pi z): rationals times pi^(2j - m) times sin(pi/8) or cos(pi/8), the
-# two being sqrt(2 -+ sqrt 2) / 2. So each C_n is computed exactly, every Taylor coefficient a sum of rationals
-# times powers of pi and one of two square roots, and only reading it at a point asks for digits.
+# `c <= a + b` and `c >= b`, and the three close a triangle. The code reads c as `b + delta`, with
+# `delta = int D^2 / (|(D, E)| + |E|) dp`. `c - b` never cancels.
+# The angle opposite c is `cos gamma = (a^2 - 2b delta - delta^2) / 2ab`. Where |D| follows |E| across the cell,
+# the angle is right, and it is never less. The size of the integral of (|D|, |E|) is at max the integral of its
+# size, which is c.
 #
-# A reading of C_n at a dyadic z sums its Taylor series on count and 2 count terms, the second at twice
-# the extra digits, and the two must agree at the places asked; disagreement doubles count and a reading
-# of zero doubles the places. The terms of the sec series grow as 4^j and cancel to F's: the extra
-# digits grow with count. The zeros of C_n on [0, 1] are the sign changes read on 2^m and 2^(m+1) parts,
-# m growing until the two counts agree, each then halved to the bits asked. An odd C_n is zero at 0 by
-# parity, and its sign just past 0 is the sign of its z coefficient. Each zero z gives p = (1 - z) / 2 and
-# (1 + z) / 2, and the term C_n u^-(2n+1) vanishes at t = 2pi (N + p)^2 in every cell N.
+# The side a is small against b, and the triangle is a needle. A needle is still a triangle. Its angle past right is
+# nonzero, and two sides apart by any nonzero angle part without bound.
+# The shape is the excess `kappa = (c^2 - a^2 - b^2) / a^2`, and the angle is `cos gamma = -kappa a / 2b`. Each
+# reads at the places where it shows. Each integral is the trapezoid on 2^m and 2^(m+1) equal parts of p, two routes
+# that must agree.
 #
-# Positive control: the Gram points g_0 to g_15 against the Riemann-Siegel theta article on
-# Wikipedia, each compared with 2pi u^4 by multiplication; the first failure of Gram's law at
-# n = 126, as that article reports it; and Z against Euler-Maclaurin's Re e^(i theta) zeta at the same
-# real t, the gap in units of the last place. For every C_n: C_0 to C_5 against MathWorld's c_0 to c_5,
-# rational for rational; d_k^(8) against Gabcke's Table II; C_0(1) to C_10(1) against the sum row of his
-# Table IV at 50 places, within the spread between his Table IV and Table V; and one simple zero each in
-# C_4, C_8 and C_10 on 0 < z < 1, as he reports on p. 59. Drawn null: R left out, the Gram signs and the
-# gap read again.
+# Where S and R cross, E is zero. The integrand of delta is then a spike of height |D| and width |D / E'|, about
+# 10^-12 of p. No grid reaches it, and the trapezoid on it grows as `ln(1 / h)` with each double.
+#
+# The code holds what grows by its relation. With `D0 = D(p0)` and `k = |E'(p0)|` at each crossing, the spike is
+# `g(u) = D0^2 / (sqrt(D0^2 + k^2 u^2) + k |u|)`, with `u = p - p0`. Its integral from 0 to L is exact:
+# `(L D0^2 / (sqrt(D0^2 + k^2 L^2) + kL) + (D0^2 / k) asinh(kL / |D0|)) / 2`.
+# delta is the sum of those and the trapezoid of the rest, which no longer grows. The crossings are the sign changes
+# of E, read from Riemann-Siegel alone, and each halved to 2^-64.
+#
+# EACH C_n, KEPT AS ITS REAL AND ITS OPERATOR
+#
+# With `z = 1 - 2p` and `F(z) = Psi(p)`, the generator of Gabcke gives each coefficient (Table III and Satz 2.1.4 of
+# his thesis):
+#   - `C_n(z) = 2^(-2n)` times the sum over k of `d_k^(n) F^(3n-4k)(z) / ((3n - 4k)! pi^(2n-2k))`.
+#   - `d_k^(n+1) = (3n + 1 - 4k)(3n + 2 - 4k) d_k^(n) + d_(k-1)^(n)`, except `d_3l^(4l) = lambda_l`.
+#   - `(l + 1) lambda_(l+1) = sum over k of 2^(4k+1) |E_(2k+2)| lambda_(l-k)`, on the Euler numbers.
+#
+# Each d is an integer. F is entire and even, `F(z) = sum phi_j z^(2j)`. phi_j is the product of the series of
+# `cos(pi z^2 / 2 + 3pi/8)` and of `sec(pi z)`.
+#
+# Those are rationals times `pi^(2j - m)` times `sin(pi/8)` or `cos(pi/8)`. The two are `sqrt(2 -+ sqrt 2) / 2`.
+# The code thus computes each C_n exactly. Each Taylor coefficient is a sum of rationals times powers of pi and one of
+# two square roots. Only a reading at a point asks for digits.
+#
+# A reading of C_n at a dyadic z sums its Taylor series on count and 2 count terms, the second at twice the extra
+# digits. The two must agree at the places asked. Disagreement doubles count, and a reading of zero doubles the
+# places.
+# The terms of the sec series grow as 4^j, and cancel to those of F. The extra digits grow with count.
+#
+# The zeros of C_n on [0, 1] are the sign changes read on 2^m and 2^(m+1) parts. The count m grows until the two counts
+# agree, and the code then halves each zero to the bits asked.
+# An odd C_n is zero at 0 by parity, and its sign just past 0 is the sign of its z coefficient. Each zero z gives
+# `p = (1 - z) / 2` and `(1 + z) / 2`. The term `C_n u^-(2n+1)` vanishes at `t = 2pi (N + p)^2` in each cell N.
+#
+# Positive control:
+#   - the Gram points g_0 to g_15 against the Riemann-Siegel theta article on Wikipedia, each compared with 2pi u^4
+#     by multiplication.
+#   - the first failure of the law of Gram at n = 126, as that article reports it.
+#   - Z against the `Re e^(i theta) zeta` of Euler-Maclaurin at the same real t, the gap in units of the last place.
+#
+# For each C_n:
+#   - C_0 to C_5 against the c_0 to c_5 of MathWorld, rational for rational.
+#   - d_k^(8) against Table II of Gabcke.
+#   - C_0(1) to C_10(1) against the sum row of his Table IV at 50 places, within the spread between his Table IV and
+#     Table V.
+#   - one simple zero each in C_4, C_8 and C_10 on 0 < z < 1, as he reports on p. 59.
+#
+# Drawn null: R left out, and the Gram signs and the gap read again.
 
 import glob
 import math
