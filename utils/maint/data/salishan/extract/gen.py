@@ -541,15 +541,16 @@ class Paper(object):
                 # in Webb, 44 ¬ in Lyon and Czaykowska-Higgins.
                 if not opens and number == opener:
                     mark, opens = re.match(r"^(%d)" % expect, self.text(number)), True
-                # A mark the glyph rows set on a line of its own over its note, 1 over Many thanks on
-                # page 1 of Urbanczyk's word-based morphology, reads as a page number; the note opens
-                # on the line under it, the first small line of the page's foot, opening on a capital.
+                # The glyph rows can set a mark on a line of its own over its note. An example is `1` over `Many
+                # thanks` on page 1 of the word-based morphology of Urbanczyk. It reads as a page number.
+                # The note opens on the line under it, the first small line of the foot of the page, which opens on
+                # a capital.
                 if not opens and number == next((one for one in tail if one in small), None) and \
                         number - 1 in running and self.text(number - 1) == str(expect) and \
                         re.match(r"^[A-Z]", self.text(number)):
                     mark, opens = re.match(r"^(%d)$" % expect, self.text(number - 1)), True
-                # A note that opens on a lowercase form, 17 g̱a̱l- in Sardinha's first paper, opens on
-                # the next number when the note over it ended its sentence.
+                # A note that opens on a lowercase form opens on the next number when the note over it ended its
+                # sentence. An example is `17 g̱a̱l-` in the first paper of Sardinha.
                 if not opens and current in found and re.match(r"^%d\s+[^\s\d]" % expect, self.text(number)) \
                         and re.search(r"[.!?)’”]$", self.text(found[current][0][-1]).rstrip()):
                     mark = re.match(r"^(%d)" % expect, self.text(number))
@@ -566,11 +567,11 @@ class Paper(object):
                 elif page in symbols_on and not SUB.match(self.text(number)) and any(
                         MARK.match(self.text(one)) and MARK.match(self.text(one)).group(1) in (str(expect), *TITLE_MARKS)
                         for one in tail):
-                    # Small lines over the first note of the title's page with no mark of their
-                    # own, the author's thanks and e-mail: a note on the paper as a whole. The note
-                    # under them opens on the next number or a symbol; a section set small at the
-                    # page's foot, 3 ʔayʔaǰuθəm Text, is no note, and neither is an example's
-                    # lettered line set small, (1) a. ɬíc̓ət on page 1 of Mellesmoen and Urbanczyk.
+                    # Some small lines over the first note of the page of the title have no mark of their own.
+                    # They are the thanks and e-mail of the author: a note on the paper as a whole.
+                    # The note under them opens on the next number or a symbol. A section set small at the foot
+                    # of the page, `3 ʔayʔaǰuθəm Text`, is no note. The small lettered line of an example is not
+                    # either, as `(1) a. ɬíc̓ət` on page 1 of Mellesmoen and Urbanczyk.
                     found.setdefault(UNMARKED, ([], page))[0].append(number)
         return found
 
@@ -585,12 +586,13 @@ class Paper(object):
                    opens=r"^[A-Z][\w’'\-]+(?:,| &| and)|^[A-Z][\w’'\-]+(?: [A-Z][\w’'\-]+)*\. \d{4}\."
                          r"|^[A-Z][\w’'\-]+ \(\d{4}\)\.",
                    skip=()):
-        """The entries of a reference list from line first to last, each (text, page): an entry
-        opens on a line matching opens after a line that ends one (a stop, a URL's slash, a closing
-        parenthesis or bracket, a digit, a web address). The lines in skip, a footnote at the foot
-        of a page of references, are no entry's. A paper's reference_lines_run_on, where it names
-        them, continue the entry above though they open like one: Black's Washington, Government
-        Printing Office, the place of Boas 1911."""
+        """The entries of a reference list from line first to last, each (text, page).
+
+        An entry opens on a line that matches opens, after a line that ends one. A line ends one with a stop, the
+        slash of a URL, a closing parenthesis or bracket, a digit, or a web address.
+        The lines in skip, a footnote at the foot of a page of references, belong to no entry.
+        The reference_lines_run_on of a paper, where it names them, continue the entry above, though they open like
+        one. An example is `Washington, Government Printing Office` of Black, the place of Boas 1911."""
         entries, previous = [], "."
         run_on = set(getattr(self, "reference_lines_run_on", ()))
         for number in range(first, last + 1):
@@ -633,17 +635,16 @@ class Paper(object):
     # Headings, cited forms and names.
 
     def headings(self, first, last, skip=()):
-        """{line: label} for the numbered section headings from line first to last: a line that
-        opens on a section number and a title with no closing stop, taken only where its number
-        follows the heading before it (2 after 1.3, 2.1 after 2), which retains out numbered footnotes
-        and table rows."""
+        """{line: label} for the numbered section headings from line first to last. Such a line opens on a section
+        number and a title with no closing stop. It counts only where its number follows the heading before it, as 2
+        after 1.3 and 2.1 after 2. That keeps out numbered footnotes and table rows."""
         found, previous = {}, None
         for number in range(first, last + 1):
             if number in skip or self.lines[number][2]:
                 continue
             matched = HEADING.match(self.text(number))
-            # A table row that opens on a numeral, 4   PS *mus   86% in Denzer-King's (2), sets a
-            # column gap after its first cell as well; a heading sets one after its number alone.
+            # A table row that opens on a numeral also sets a column gap after its first cell, as 4   PS *mus   86% in
+            # (2) of Denzer-King. A heading sets one after its number alone.
             if matched and re.search(r"\S\s{3,}\S.*\S\s{3,}\S", self.spaced[number]):
                 continue
             if matched and successor(matched.group(1), previous):
@@ -656,12 +657,14 @@ class Paper(object):
         if self._italics is None:
             import italic_runs
             self._italics = {}
-            # The runs come off the glyphs decomposed, n(i)snáq with its acute apart, and the page
-            # text is composed; a run is matched in the text as the text defines it. A run that sets
-            # forms side by side is each of them: an alternation, c̓uwá ~ suwá, the languages of a
-            # table's row, naʔ / cəná ~ səná, and the stages of a change, *kúkum > *kúkʷum. A glyph
-            # the paper's font retains in the private use area reads as the page text reads it, the
-            # k̓ of k̓ʷək̓ʷʔitas in Mellesmoen and Huijsmans's footnote 24.
+            # The runs come off the glyphs decomposed, as `n(i)snáq` with its acute apart. The page text has its
+            # characters composed. The code matches a run in the text as the text defines it.
+            #
+            # A run that sets forms side by side is each of them. An example is an alternation, `c̓uwá ~ suwá`.
+            # Another is the languages of the row of a table, `naʔ / cəná ~ səná`. Another is the stages of a
+            # change, `*kúkum > *kúkʷum`.
+            # A glyph that the font of the paper keeps in the private use area reads as the page text reads it. An
+            # example is the k̓ of `k̓ʷək̓ʷʔitas` in footnote 24 of Mellesmoen and Huijsmans.
             private = page_text.PRIVATE_USE.get(self.stem, {})
             # A paper whose font declares its characters at codes of its own names them in
             # italic_characters, the GenSal ¯ of Thompson and Sloat's q̇ʷélo.
@@ -682,17 +685,19 @@ class Paper(object):
         return self._footnote_marks
 
     def cited(self, where, body, pages, skip=()):
-        """A cited form row for each italic run of pages that body holds as a word and that is a
-        form of the language (orthographic), once in the paper; its gloss is the quoted gloss the
-        text gives right after it, where it gives one."""
+        """A cited form row for each italic run of pages that body holds as a word, and that is a form of the
+        language (orthographic). The row comes once in the paper. Its gloss is the quoted gloss that the text gives
+        right after it, where it gives one."""
         marks = r"[̀-ͯʰ-˿ᴬ-ᶿ]"
         for number in pages:
-            # The italic reader retains the spaces the layer sets at a combining mark, sč ̓an̓us and
-            # x̩ aƛ ̓ in Griffin's 2019 appendix and *t ̓sa̱x'id in Sardinha's first paper, where the
-            # page text closes the word from the glyph positions; each run is defined as the body
-            # defines it, without the dash of a phrase set after it, U+2014 kn̓ čk̓ʕam̓ in Johnson's thanks.
-            # A raised character the reader takes for a plain one located apart, ɫp̓úlex w tn for
-            # ɫp̓úlexʷtn in McKay's footnote 8, is looked for as either.
+            # The italic reader keeps the spaces that the layer sets at a mark that combines. Examples are `sč ̓an̓us`
+            # and `x̩ aƛ ̓` in the 2019 appendix of Griffin, and `*t ̓sa̱x'id` in the first paper of Sardinha. There the
+            # page text closes the word from the glyph positions.
+            #
+            # The code defines each run as the body defines it, without the dash of a phrase set after it. An
+            # example is `U+2014 kn̓ čk̓ʕam̓` in the thanks of Johnson.
+            # The code looks for a raised character that the reader takes for a plain one apart as either. An example
+            # is `ɫp̓úlex w tn` for `ɫp̓úlexʷtn` in footnote 8 of McKay.
             spelled = {}
             for run in self.italics().get(number, ()):
                 if re.search(r"%s\s|\s%s|\S\s[%s](?:\s|$)" % (marks, marks, "".join(RAISED)), run):
@@ -706,10 +711,10 @@ class Paper(object):
                             if one.group(1) in self.footnote_marks()), None)
                     if match:
                         spelled[run] = match.group(0)
-                # The italic reader holds no underline, which page_text sets on a paper's characters
-                # as the macron below: gat for g̱at in Matthewson's Gitksan modals. In a paper that
-                # sets italics_underlined, the run is the word the body writes with it, where the
-                # body writes one so and not as read.
+                # The italic reader holds no underline. The reader page_text sets that on the characters of a paper
+                # as the macron below, as `gat` for `g̱at` in the Gitksan modals of Matthewson.
+                # In a paper that sets italics_underlined, the run is the word that the body writes with it. That
+                # holds where the body writes one so, and not as read.
                 elif getattr(self, "italics_underlined", False) and \
                         not re.search(r"(?<![\w’])%s(?![\w’]|%s)" % (re.escape(run), marks), body):
                     # A character can take the mark composed, ḵ, or after it, g̱.
@@ -721,9 +726,9 @@ class Paper(object):
                     if match:
                         spelled[run] = match.group(0)
             italics = [spelled.get(run, run) for run in self.italics().get(number, ())]
-            # Two runs the text sets as one word across an upright tilde are one form, nuχʷ~nχʷ and
-            # *spəl~eləm in Nater's old records, or the tilde operator, siwilaayin∼siwilaak'in in
-            # Forbes's transitivity, and so are two across an upright hyphen, si-wok̲ there.
+            # Two runs that the text sets as one word across an upright tilde are one form. Examples are
+            # `nuχʷ~nχʷ` and `*spəl~eləm` in the old records of Nater. So is the tilde operator, `siwilaayin∼siwilaak'in`
+            # in the transitivity paper of Forbes. So are two runs across an upright hyphen, `si-wok̲` there.
             runs = []
             for run in italics:
                 joined = runs and next((sign for sign in "~∼-" if re.search(
@@ -733,16 +738,15 @@ class Paper(object):
                 else:
                     runs.append(run)
             for run in runs:
-                # A paper can name the language of its italic runs, where its forms are defined in
-                # plain characters, Arapaho's To'uu3eebexookee, or its English examples are cited too.
+                # A paper can name the language of its italic runs, where its forms use plain characters, as
+                # To'uu3eebexookee of Arapaho. A paper can also cite its English examples.
                 language = self.form_language(run) if getattr(self, "form_language", None) else \
                     L if orthographic(run) else None
                 if run in self.cited_done or run in skip or not language or \
                         run in getattr(self, "language_names", ()):
                     continue
-                # A run that stops before a combining mark is the front of a longer character, the
-                # t'əx of *t'əx̌ on Denzer-King's page 7, whose caron the stream carries at the line's
-                # end.
+                # A run that stops before a mark that combines is the front of a longer character. An example is the
+                # `t'əx` of `*t'əx̌` on page 7 of Denzer-King, whose caron the stream carries at the end of the line.
                 matches = list(re.finditer(r"(?<![\w’])%s(?![\w’]|%s)" % (re.escape(run), marks), body))
                 # A glottal apostrophe set upright after the italic characters ends the run short,
                 # -ɢəm’ and łic’ in Nater's Bella Coola. The form in the text takes it.
@@ -753,8 +757,8 @@ class Paper(object):
                         run += "’"
                         if run in self.cited_done:
                             continue
-                # A footnote's mark the text sets on the form, č̓an̓o2 on Mellesmoen's page 2, ends it
-                # there; a mark is a number the paper's footnotes carry, before a space or a stop.
+                # The mark of a footnote that the text sets on the form ends it there, as č̓an̓o2 on page 2 of
+                # Mellesmoen. A mark is a number that the footnotes of the paper carry, before a space or a stop.
                 if not matches and not re.search(r"\d", run):
                     matches = [one for one in re.finditer(r"(?<![\w’])%s(?=(\d{1,2})(?:[\s,.;:)]|$))"
                                                           % re.escape(run), body)
@@ -769,9 +773,9 @@ class Paper(object):
                             continue
                 if not matches:
                     continue
-                # A form that is inside a longer run of the page is that run's, k̓ʷzús-əm in
-                # s.k̓ʷzús-əm ‘job’ and -us in n-..-us ‘-fold’ in van Eijk; the form's own place is
-                # outside it, where there is one.
+                # A form inside a longer run of the page belongs to that run. Examples are `k̓ʷzús-əm` in
+                # `s.k̓ʷzús-əm ‘job’`, and `-us` in `n-..-us ‘-fold’` in van Eijk. The own place of the form is outside
+                # it, where there is one.
                 covered = [(one.start(), one.end()) for longer in italics
                            if run in longer and longer != run
                            for one in re.finditer(re.escape(longer), body)]
@@ -804,13 +808,15 @@ class Paper(object):
                 if run.count(")") > run.count("(") and body[start - 1:start] == "(":
                     run = "(" + run
                     start -= 1
-                # An affix's hyphen the italics leave upright, -ət with ət in italics, and an en dash
-                # the italic reader loses, –ayqʷp in Pincott, with a mutation mark after it, -°x̱tłe
-                # in Sardinha's first paper. A dash after a character or a digit is a range or a
-                # compound, 1993–x. A dash after a sign set in parentheses is a polarity sign, the
-                # (?)-čát-t̓iqi-m̓ɬ ‘policeman’ of Robertson's puns, and no hyphen.
-                # The non-breaking hyphen of Sardinha's ‑°tłe’ is a hyphen too, and a clitic's sign
-                # set upright is taken the same way, the =ńd.s and =nis/=ńis of Sardinha's 2011 page 14.
+                # The hyphen of an affix that the italics leave upright, as `-ət` with `ət` in italics. An en dash that
+                # the italic reader loses, as `–ayqʷp` in Pincott. That holds with a mutation mark after it, as
+                # `-°x̱tłe` in the first paper of Sardinha.
+                #
+                # A dash after a character or a digit is a range or a compound, `1993–x`. A dash after a sign set in
+                # parentheses is a polarity sign, and no hyphen. An example is `(?)-čát-t̓iqi-m̓ɬ ‘policeman’` in the
+                # puns of Robertson.
+                # The non-breaking hyphen of `‑°tłe’` of Sardinha is a hyphen too. The code takes the upright sign of
+                # a clitic the same way, as the `=ńd.s` and `=nis/=ńis` of page 14 of Sardinha 2011.
                 lead = re.search(r"[-–‑=][°!]?$", body[max(0, start - 2):start])
                 if lead and not run.startswith(("-", "–", "‑", "=")) and \
                         not body[start - len(lead.group(0)) - 1:start - len(lead.group(0))].isalnum() and \
@@ -823,11 +829,11 @@ class Paper(object):
                 if body[start - 1:start] == "√" and not run.startswith("√"):
                     run = "√" + run
                     start -= 1
-                # And the star of an unattested form, set upright against it, *s.qáy:qəyxʷ in van Eijk,
-                # both of the salmon paper's **ŋ, and the raised character that can are before the star,
-                # ᵖ*kʷ naʔ nhampátkʷ in Lyon and Czaykowska-Higgins' footnote 43.
-                # An ellipsis between the star and the form is for the part left out, *…k̭ən in
-                # Nater's old records.
+                # And the star of an unattested form, set upright against it, as `*s.qáy:qəyxʷ` in van Eijk. Both
+                # `**ŋ` of the salmon paper count too. Then the raised character that can sit before the star, as
+                # `ᵖ*kʷ naʔ nhampátkʷ` in footnote 43 of Lyon and Czaykowska-Higgins.
+                # An ellipsis between the star and the form is for the part left out, as `*…k̭ən` in the old records
+                # of Nater.
                 if body[start - 2:start] == "*…" and not run.startswith("…"):
                     run = "…" + run
                     start -= 1
@@ -843,7 +849,7 @@ class Paper(object):
                 # of each form, Kwakwala √ʔwm in Nater's Tsimshianic vestiges.
                 if getattr(self, "language_before", None):
                     language = self.language_before(body[:start]) or language
-                # The Symbol font's empty set after an affix's dash, -∅, is set upright.
+                # The empty set of the Symbol font after the dash of an affix, `-∅`, is upright.
                 if body[end:end + 1] == "∅":
                     run += "∅"
                     end += 1
@@ -853,11 +859,11 @@ class Paper(object):
                 # A parenthesis the italics open and the upright type closes, scəlacəɬdat(il).
                 if run.count("(") > run.count(")") and body[found.end():found.end() + 1] == ")":
                     run += ")"
-                # A run that the star or a dash above made into a form already cited at the same
-                # place, the bare tqačiʔ of *tqačiʔ on Denzer-King's page 6, is that form. The same
-                # form cited again elsewhere stays, Nater's -nix in Figure 1 and in §1.
-                # A paper that sets its forms upright in a face of their own names it in form_set,
-                # in Lucida Sans Unicode for Mattina's 2008 forms.
+                # A run that the star or a dash above made into a form already cited at the same place is that form.
+                # An example is the bare `tqačiʔ` of `*tqačiʔ` on page 6 of Denzer-King. The same form cited again
+                # elsewhere stays, as `-nix` of Nater in Figure 1 and in §1.
+                # A paper that sets its forms upright in a face of their own names it in form_set. An example is
+                # Lucida Sans Unicode for the 2008 forms of Mattina.
                 why = "page %d, %s%s" % (number, getattr(self, "form_set", "in italics"),
                                          ", " + gloss.group(1) if gloss else "")
                 if run != bare and [where, language, "cited form", run, why] in self.rows:
@@ -874,17 +880,20 @@ class Paper(object):
     # Examples.
 
     def example(self, start, last=None, skip=(), resume=None, prefix=""):
-        """Read the numbered interlinear example opening on line start and return the line after
-        it. An example is one sentence or lettered sub-examples, a. b. c., each arranged the same:
-        its first line the transcription, the lines under it a segmentation and its gloss in turn
-        until a translation in single quotes, which may run over two lines. What is right of
-        the translation, or on the line under it, is a citation where it names a source (a
-        language tag, a year, a page, a speaker's initials) and a note where it does not
-        ((Independent), (Lit: ...)). A line over the sub-examples that closes on a colon, and a
-        Context: line, are notes. A starred form given with its source and no tiers is a
-        transcription and its citation. Page breaks, page numbers and the lines of skip are passed
-        over. With resume, an example number, line start is a lettered part of that example the
-        page sets after a table or figure that broke into it."""
+        """Read the numbered interlinear example that opens on line start, and return the line after it.
+
+        An example is one sentence, or lettered sub-examples, a. b. c., each arranged the same. Its first line is the
+        transcription. The lines under it are a segmentation and its gloss in turn, until a translation in single
+        quotes, which can run over two lines.
+
+        What is right of the translation, or on the line under it, is a citation where it names a source. A source is
+        a language tag, a year, a page, or the initials of a speaker. Else it is a note, as (Independent) and (Lit:
+        ...).
+        A line over the sub-examples that closes on a colon, and a Context: line, are notes. A starred form given with
+        its source and no tiers is a transcription and its citation.
+
+        The code skips page breaks, page numbers and the lines of skip. With resume, an example number, line start is
+        a lettered part of that example. The page sets it after a table or figure that broke into it."""
         last = last or self.last
         number_label = resume or EXAMPLE.match(self.text(start)).group(1)
         running = self.running_numbers_set()
@@ -903,9 +912,9 @@ class Paper(object):
             return number
 
         def done(number):
-            # A translation the reader opened and never closed, one whose line ends on a label
-            # split_translation does not know, is dropped with no row. Say so, and the generator
-            # can read the example in a block of its own.
+            # The code drops with no row a translation that the reader opened and never closed. Such a line ends on a
+            # label that split_translation does not know. Say so, and the generator can read the example in a block
+            # of its own.
             if state["mode"] == "open":
                 said, at = state["open"]
                 print("gen: %s(%s) leaves its translation open at line %d, %s" % (prefix, state["label"], at, said[:70]),
@@ -931,8 +940,8 @@ class Paper(object):
             return True
 
         def close_paren(text, number):
-            """Run the open note on with text to its closing parenthesis and the mark after it,
-            Spintlum')12, and write what is after as its citations or notes."""
+            """Run the open note on with text to its closing parenthesis and the mark after it, as Spintlum')12. Then
+            write what is after as its citations or notes."""
             index = state.pop("paren")
             depth = self.rows[index][3].count("(") - self.rows[index][3].count(")")
             for at, symbol in enumerate(text):
@@ -951,9 +960,9 @@ class Paper(object):
                 extend(index, rest)
 
         def continues_context(number):
-            """Whether line number runs on the context over it: more lines are between it and
-            the gloss than the tiers over a gloss, a transcription and a segmentation (one, a
-            segmentation, where the paper opens on it)."""
+            """Whether line number runs on the context over it. That holds where more lines are between it and the gloss
+            than the tiers over a gloss: a transcription and a segmentation. Where the paper opens on a segmentation,
+            that is one."""
             over = 1 if self.opening == "segmentation" else 2
             seen = 0
             while number <= last:
@@ -1048,8 +1057,8 @@ class Paper(object):
                         # line under it is the gloss, and on a transcription where it is not.
                         opening = self.opening
                         if opening == "auto":
-                            # A form with only its gloss between it and the translation, however
-                            # the gloss is set (he.gets.up secondary), is the segmented tier.
+                            # A form with only its gloss between it and the translation, however the paper sets
+                            # the gloss (he.gets.up secondary), is the segmented tier.
                             below = next_line(next_line(number))
                             under = self.text(below) if below <= last else ""
                             opening = "segmentation" if is_gloss(following) or \
@@ -1059,8 +1068,8 @@ class Paper(object):
                         state["tiers"] = 1 if opening == "segmentation" else 0
                         state["words"] = len(text.split())
                         state["type"] = state["opened"] = opening
-                        # A paper that sets its glosses in capitals, DET=dog, lets each tier's type
-                        # be read off the gloss under it.
+                        # In a paper that sets its glosses in capitals, DET=dog, the code reads the type of each tier
+                        # off the gloss under it.
                         after = next_line(next_line(number))
                         state["caps"] = is_gloss(following) or after <= last and is_gloss(self.text(after))
             elif state["mode"] == "open":
@@ -1106,10 +1115,10 @@ class Paper(object):
             else:
                 type = "segmentation" if state["tiers"] % 2 == 0 else "gloss"
                 if state.get("caps"):
-                    # The gloss holds capitals. The line over a gloss is its segmentation, and the
-                    # line over that the transcription where the example wraps all three tiers.
-                    # Otherwise a tier is the type the one before it is not: a gloss the page sets
-                    # over its own segmentation, (51c) in H. Davis's infinitives, is read as printed.
+                    # The gloss holds capitals. The line over a gloss is its segmentation. The line over that is the
+                    # transcription, where the example wraps all three tiers.
+                    # Else a tier is the type that the one before it is not. The code reads a gloss that the page
+                    # sets over its own segmentation as printed, as (51c) in the infinitives of H. Davis.
                     one = next_line(number)
                     two = next_line(one)
 
@@ -1127,8 +1136,8 @@ class Paper(object):
                         type = "transcription"
                     elif state["type"] == "gloss" and state.get("opened") == "transcription" and \
                             lines_to_translation(number) == 3:
-                        # The last wrap of the three tiers, skʷiǰoɬ. / skʷiǰuɬ / morning in (6),
-                        # whose gloss holds no capitals: three lines over the translation.
+                        # The last wrap of the three tiers, as `skʷiǰoɬ. / skʷiǰuɬ / morning` in (6), whose gloss
+                        # holds no capitals: three lines over the translation.
                         type = "transcription"
                     elif state["type"] == "transcription":
                         type = "segmentation"
@@ -1150,32 +1159,36 @@ class Paper(object):
                                                  or LABELED_QUOTE.match(text) or open_comment() is not None
                                                  or state.get("paren") is not None):
                 return number
-            # A tier has about as many words as the sentence over it; a line of prose after a
-            # starred form given no tiers, * Hlimooyidiithl us., has many more. A tier's count takes
-            # the words that open on neither = nor -, three in l(a̱) ='m =ux̱ Shelly =(a̱)x̱ ḵ̕ux̱ -t̕sa̱w
-            # -(x)'id -a under la̱'mux̱ Shelliya̱x̱ ḵ̕ux̱t̕sox'ida in Sardinha's second paper.
+            # A tier has about as many words as the sentence over it. A line of prose after a starred form given no
+            # tiers has many more, as `* Hlimooyidiithl us.`.
+            # The count of a tier takes the words that open on neither = nor -. An example has three: the tier
+            # `l(a̱) ='m =ux̱ Shelly =(a̱)x̱ ḵ̕ux̱ -t̕sa̱w -(x)'id -a` under `la̱'mux̱ Shelliya̱x̱ ḵ̕ux̱t̕sox'ida` in the second
+            # paper of Sardinha.
             if state["mode"] == "tiers" and not SUB.match(text) and not text.startswith("‘") and \
                     not COMMENT.match(text) and len([one for one in text.split() if one[0] not in "=-"]) > 2 * state.get("words", 0) + 2:
                 return number
 
     def place_footnotes(self, marks, write, placed=(), spaced=None, glued=None, types=(), only=None):
-        """Put each footnote's rows after the first note, heading, translation or citation that
-        carries its mark, the marks taken in order and each looked for only after the one before
-        it: a mark is on the end of a word or a stop, orders.2 There, and not after a space, a
-        digit or a parenthesis. Two marks set together, permitted.8,9, are on the same row, the
-        second after the first and a comma. spaced maps a mark the page sets a space after its
-        word to the text before that space, and glued a mark set on a form whose orthography holds
-        digits of its own, lhel=ki=qú7=a5 in Davis's count-mass paper, to that form. write(mark)
-        adds the footnote's rows. types names row types that can carry a mark besides these, a
-        reference, and only, where given, the types alone that are looked in. Returns the marks no
-        row carries."""
+        """Put the rows of each footnote after the first note, heading, translation or citation that carries its mark.
+        The code takes the marks in order, and looks for each only after the one before it.
+
+        A mark is on the end of a word or a stop, as orders.2 There, and not after a space, a digit or a parenthesis.
+        Two marks set together, as permitted.8,9, are on the same row, the second after the first and a comma.
+
+        The argument spaced maps a mark that the page sets a space after its word to the text before that space.
+        The argument glued maps a mark set on a form whose orthography holds digits of its own to that form. An
+        example is `lhel=ki=qú7=a5` in the count-mass paper of Davis.
+
+        The call write(mark) adds the rows of the footnote. The argument types names row types that can carry a mark
+        besides these, such as a reference. The argument only, where given, names the only types to look in. Returns
+        the marks that no row carries."""
         spaced = spaced or {}
         glued = glued or {}
         out, done = [], set(placed)
         waiting = [one for one in marks if one not in done]
         previous = None
-        # An orthography with no digit among its characters, no sk7am or 7a, holds none after a word
-        # either, and a mark glued to a form there is a mark: snatolh6, {hiL-a7 səm.
+        # An orthography with no digit among its characters, no sk7am or 7a, holds none after a word either. A mark
+        # glued to a form there is a mark, as snatolh6 and {hiL-a7 səm.
         lettered = not any(re.search(r"[^\W\d_]\d[^\W\d_]|(?:^|\s)\d[^\W\d_]", row[3]) for row in self.rows
                            if row[2] == "transcription")
         for row in self.rows:
@@ -1188,11 +1201,13 @@ class Paper(object):
                 if row[2] == "cited form":
                     alone = None
                 elif row[2] in FORM_KINDS + ("segmentation",):
-                    # A language row holds digits of its own, wa7 with 7 the glottal stop; a mark
-                    # there ends the row after a stop, a comma or a closing bracket, tə ʔatnopɛl.12,
-                    # xigap,8 in Davis's future certainty, [šyεʔtams]8, or is apart after the form, tlemlhayem 1. A segmentation is
-                    # read the same way, -wa̱ł/-uł2 in Table 1 of Sardinha's second paper. Where no
-                    # character is a digit the mark can follow a character or its mark below, Shelliya̱x̱9.
+                    # A language row holds digits of its own, as wa7 with 7 the glottal stop.
+                    # A mark there ends the row after a stop, a comma or a closing bracket. Examples are tə ʔatnopɛl.12
+                    # and xigap,8 in the future certainty of Davis, and [šyεʔtams]8. A mark can also stand apart after
+                    # the form, as tlemlhayem 1.
+                    # The code reads a segmentation the same way, as -wa̱ł/-uł2 in Table 1 of the second paper of
+                    # Sardinha. Where no character is a digit, the mark can follow a character or its mark below, as
+                    # Shelliya̱x̱9.
                     alone = re.search(r"(?:(?<=[.!?,\]}/])|(?<=\s))%s$" % mark, row[3]) or \
                         (lettered and re.search(r"(?<=[^\W\d_]|[̀-ͯ])%s(?=\s|$)" % mark, row[3]))
                 else:
@@ -1210,10 +1225,10 @@ class Paper(object):
                     # certainty.
                     if row[2] == "gloss" and not alone:
                         alone = re.search(r"(?<=[A-Z])%s(?=-)" % mark, row[3])
-                    # A note can set the mark a space after its sentence's stop, of its existence. 13
-                    # The differences. The stop can close a quote or a bracket, symbolized by ‘⊕’. 41
-                    # The difference, and (58a). 43 But in Lyon and Czaykowska-Higgins. The mark can
-                    # end the row, the accusative case. 3 in Sardinha's second paper.
+                    # A note can set the mark a space after the stop of its sentence, as `of its existence. 13 The
+                    # differences.` The stop can close a quote or a bracket, as `symbolized by ‘⊕’. 41 The difference`
+                    # and `(58a). 43 But` in Lyon and Czaykowska-Higgins. The mark can end the row, as `the accusative
+                    # case. 3` in the second paper of Sardinha.
                     if row[2] == "note" and not alone:
                         alone = re.search(r"(?<=[a-z’)\]][.!?]\s)%s(?=\s+[A-Z]|$)" % mark, row[3])
                     # And a translation a space after its closing quote, (one on the boat).' 12.
@@ -1223,15 +1238,15 @@ class Paper(object):
                     # its digits and no mark inside them.
                     if row[2] == "citation" and re.fullmatch(r"\(\S+\)", row[3]):
                         alone = None
-                # The second form, a mark on a number that closes a sentence, displayed in Figure 8.6 As
-                # with, or on a year, published in 1917.1 The last in Bischoff et al.; a section
-                # number opens its heading's row and is never read so. The second of
-                # two marks can are a space after the comma, position.10, 11.
+                # The second form is a mark on a number that closes a sentence, as `displayed in Figure 8.6 As with`. It
+                # can also be a mark on a year, as `published in 1917.1 The last` in Bischoff et al. A section number
+                # opens the row of its heading, and the code never reads it so. The second of two marks can sit a space
+                # after the comma, as `position.10, 11`.
                 paired = previous and row[2] not in FORM_KINDS and \
                     re.search(r"(?:(?<=\D%s,)|(?<=\D%s, ))%s(?:\s|$|[,.;:)])" %
                               (re.escape(previous), re.escape(previous), mark), row[3])
-                # A mark the page sets a space after its word, typed form, 5 and in Bischoff et al.,
-                # is found where the generator names the text before it.
+                # The code finds a mark that the page sets a space after its word, where the generator names the text
+                # before it. An example is `typed form, 5 and` in Bischoff et al.
                 if not (alone or paired) and waiting[0] in spaced:
                     alone = spaced[waiting[0]] + " " + waiting[0] in row[3]
                 if not (alone or paired) and waiting[0] in glued:
