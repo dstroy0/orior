@@ -67,8 +67,8 @@ EXP-x-012	live	examples/0_experimental/pi_has_no_last_digit.py
 EXP-x-013	live	examples/0_experimental/ntt_double_transform_inverts.py
 EXP-x-014	live	examples/0_experimental/exact_zeta_values.py
 EXP-x-015	live	examples/0_experimental/zeta_zero_symmetry.py
-EXP-x-016	live	examples/0_experimental/exact_navier_stokes_on_torus.py
-EXP-x-017	live	examples/0_experimental/exact_navier_stokes_cascade.py
+EXP-x-016	live	examples/0_experimental/exact_navier_stokes/exact_navier_stokes_on_torus.c
+EXP-x-017	live	examples/0_experimental/exact_navier_stokes/exact_navier_stokes_cascade.c
 EXP-x-018	live	examples/0_experimental/exact_congruent_number.py
 EXP-x-019	live	examples/0_experimental/exact_descent_rank.py
 EXP-x-020	live	examples/0_experimental/magnitude_vector_transfer.py

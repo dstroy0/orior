@@ -2,13 +2,13 @@
 
 **Purpose:** Record what the engine's exact arithmetic shows when it is pointed at the sets Fefferman's
 Navier-Stokes statement names, one poke at a time, claiming nothing. **Scope:**
-`examples/0_experimental/exact_navier_stokes_on_torus.py`,
+`examples/0_experimental/exact_navier_stokes/exact_navier_stokes_on_torus.c`,
 `evidence/proofs/posits/proof_boundary_inheritance.py`, and this file.
 
-**Note.** All three examples this workbook runs
-(`exact_navier_stokes_on_torus.py`, `exact_navier_stokes_cascade.py`,
-`proof_boundary_inheritance.py`) import `from representation import exact`. `representation/exact.py` is byte-identical to the file
-every run recorded below was made against, and nothing here is rerun against it.
+**Note.** `exact_navier_stokes_on_torus.c` and `exact_navier_stokes_cascade.c` are C programs on the exact
+integers of `includes/exact_types`. Their reports match, byte for byte, the reports of the Python form that
+the entries below record. `proof_boundary_inheritance.py` imports `from representation import exact`, a
+module that this tree does not hold, and it does not run.
 
 This is a workbook, and it claims no result. It follows the rail the
 millennium research paper set down (`theory/theory/millennium/chapters/chapter_what_this_is.tex`) and the analytic

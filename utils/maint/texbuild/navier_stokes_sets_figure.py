@@ -42,20 +42,20 @@
 
 import io
 import os
+import re
+import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-# Walks up to the repository instead of counting directories to it. Counting is what broke
-# every path in this tree the last time anything moved.
+# Walks up to the repository, and does not count directories to it. A count breaks when a file moves.
 while not os.path.isdir(os.path.join(ROOT, "src", "cu", "engine")):
     ROOT = os.path.dirname(ROOT)
-sys.path.insert(0, os.path.join(ROOT, "examples", "0_experimental"))
-
-import exact_navier_stokes_on_torus as torus  # noqa: E402
 
 DEFAULT_OUT = os.path.join(ROOT, "build", "theory", "figures", "navier_stokes_sets.pdf")
 GENERATOR = "utils/maint/texbuild/navier_stokes_sets_figure.py"
-SOURCE = "examples/0_experimental/exact_navier_stokes_on_torus.py"
+SOURCE = "examples/0_experimental/exact_navier_stokes/exact_navier_stokes_on_torus.c"
+# A path from ROOT, with forward slashes. The figure runs it from ROOT, and bash reads it as written.
+BUILD = "examples/0_experimental/exact_navier_stokes/build_exact_navier_stokes.sh"
 
 PAGE_WIDTH = 430
 PAGE_HEIGHT = 250
@@ -238,19 +238,36 @@ def build_pdf(canvas, title, producer):
     return out.getvalue()
 
 
+def report_row(report, label):
+    """The integers of the report line that starts with the label."""
+    for line in report.split("\n"):
+        if line.strip().startswith(label):
+            return [int(piece) for piece in line.split(":", 1)[1].split()]
+    raise SystemExit("navier_stokes_sets_figure: the torus report has no row %r" % label)
+
+
 def measure_horizon(order):
-    """The horizon numbers from the example itself: modes retained, outside two boxes, and the reach."""
-    datum = torus.generic_field()
-    velocities, _ = torus.taylor_velocity(datum, torus.VISCOSITY, order)
-    return [
-        (
-            len(torus.modes_of(velocities[step])),
-            torus.modes_outside(velocities[step], 1),
-            torus.modes_outside(velocities[step], 2),
-            torus.mode_reach(velocities[step]),
-        )
-        for step in range(order + 1)
-    ]
+    """The horizon numbers from the example itself: modes retained, outside two boxes, and the reach.
+
+    This builds and runs the torus example through its own build script, and reads its report. A
+    report that fails, or that holds a different count of orders, stops the figure.
+    """
+    done = subprocess.run(["bash", BUILD, "torus"], cwd=ROOT, capture_output=True, text=True, encoding="utf-8")
+    if done.returncode != 0:
+        raise SystemExit("navier_stokes_sets_figure: the torus example failed:\n%s%s" % (done.stdout, done.stderr))
+    report = done.stdout
+    counts = report_row(report, "modes retained:")
+    outside_one = report_row(report, "outside |k|_inf <= 1:")
+    outside_two = report_row(report, "outside |k|_inf <= 2:")
+    reaches = report_row(report, "largest |k|_1:")
+    if not all(len(row) == order + 1 for row in (counts, outside_one, outside_two, reaches)):
+        raise SystemExit("navier_stokes_sets_figure: the torus report does not hold orders 0..%d" % order)
+    found = re.search(r"nu = (\d+) at (\d+) place\(s\)", report)
+    if found is None:
+        raise SystemExit("navier_stokes_sets_figure: the torus report names no viscosity")
+    viscosity = (int(found.group(1)), int(found.group(2)))
+    rows = [(counts[step], outside_one[step], outside_two[step], reaches[step]) for step in range(order + 1)]
+    return rows, viscosity
 
 
 def draw_sets(canvas):
@@ -345,7 +362,7 @@ def draw_sets(canvas):
     canvas.line(right + 8, 12, right + 8, PAGE_HEIGHT - 10)
 
 
-def draw_horizon(canvas, rows):
+def draw_horizon(canvas, rows, viscosity):
     """The right panel: the mode count per Taylor order, from the run, with the two boxes inside it."""
     left = 228
     canvas.text(
@@ -394,7 +411,7 @@ def draw_horizon(canvas, rows):
         left,
         14,
         "not bounded. Coefficients exact, orders 0..%d, viscosity %s at %d place(s)."
-        % (len(rows) - 1, torus.VISCOSITY[0], torus.VISCOSITY[1]),
+        % (len(rows) - 1, viscosity[0], viscosity[1]),
         5.5,
     )
 
@@ -414,11 +431,11 @@ def main():
     )
     target = flag(sys.argv[1:], "--out", DEFAULT_OUT)
     order = 4
-    rows = measure_horizon(order)
+    rows, viscosity = measure_horizon(order)
 
     canvas = Canvas()
     draw_sets(canvas)
-    draw_horizon(canvas, rows)
+    draw_horizon(canvas, rows, viscosity)
     canvas.text(
         12,
         4,
