@@ -4,16 +4,21 @@
 #include "../../src/cu/engine/rmc/target_internal.h"
 #include "tree_folder.h"
 
-// The rulesets a lane is written in, one a language, each read once a process from its .krs file in
-// src/cu/transpiler/lstar/protocol/table, or in the folder $CYCLE_RULESETS names. The format is the comment the
-// rulesets' files open with. Each language's code generator names every bank of registers it takes from, every register
-// it passes to a form by name, and every form it writes with the parameters each takes, in the schema its class gives
-// the base; a ruleset that lacks one of them, contains one they do not name, or gives a form other parameters errors on
-// whole, and the record machine sends its programs on to another language or the interpreter. A form is stored cut at
-// its parameters: writing one appends its pieces with each argument between them
+// The rulesets of the lanes, one a language. A process reads each once from its .krs file in
+// src/cu/transpiler/lstar/protocol/table, or in the folder that $CYCLE_RULESETS names. The format is the comment that
+// the files of the rulesets open with.
+//
+// The code generator of each language names each bank of registers that it takes from. It names each register that it
+// passes to a form by name, and each form that it writes, with the parameters of each. This is in the schema that its
+// class gives the base.
+//
+// A ruleset that lacks one of them, holds one that they do not name, or gives a form other parameters fails whole. The
+// record machine then sends its programs on to another language or the interpreter.
+//
+// The code stores a form cut at its parameters. A write of one appends its pieces with each argument between them
 
-// the folder rulesets are read from: $CYCLE_RULESETS, else transpiler/lstar/protocol/table two folders above this
-// file's in the tree it was built from
+// the folder of the rulesets: $CYCLE_RULESETS, else transpiler/lstar/protocol/table two folders above the folder of
+// this file in the tree of its build
 std::string ruleset_folder(void)
 {
     const char *const named = getenv("CYCLE_RULESETS");
