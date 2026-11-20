@@ -172,7 +172,7 @@ this work does not touch, and `Sha` sits behind a finiteness that is itself open
 ## Their sets against the boundary function
 
 The boundary function of the precision document (`proof_domain_boundaries.py`, and the self-defining
-probe form in `proof_boundary_inheritance.py`) names each set's boundary type.
+probe form in `proof_boundary_inheritance/proof_boundary_inheritance.c`) names each set's boundary type.
 
 | Fefferman's, here Wiles's, set | what the ring does with it | type |
 |---|---|---|

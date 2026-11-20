@@ -1988,36 +1988,48 @@ void cosine(unsigned axis, int64_t numerator, int64_t denominator, TorusScalar *
 /**
  * @brief The sum of a sine and a cosine, into one component.
  *
- * @param[in]  sine_axis         The axis of the sine.
- * @param[in]  sine_amplitude    The amplitude of the sine.
- * @param[in]  cosine_axis       The axis of the cosine.
- * @param[in]  cosine_amplitude  The amplitude of the cosine.
- * @param[out] scalar            The sum [BORROWS].
+ * @param[in]  sine_axis   The axis of the sine.
+ * @param[in]  sine_top    The numerator of the amplitude of the sine.
+ * @param[in]  sine_under  The denominator of the amplitude of the sine.
+ * @param[in]  cosine_axis The axis of the cosine.
+ * @param[in]  cosine_top  The numerator of the amplitude of the cosine.
+ * @param[in]  cosine_under The denominator of the amplitude of the cosine.
+ * @param[out] scalar      The sum [BORROWS].
  */
-static void sine_plus_cosine(unsigned sine_axis, int64_t sine_amplitude, unsigned cosine_axis, int64_t cosine_amplitude,
-                             TorusScalar *scalar)
+static void sine_plus_cosine(unsigned sine_axis, int64_t sine_top, int64_t sine_under, unsigned cosine_axis,
+                             int64_t cosine_top, int64_t cosine_under, TorusScalar *scalar)
 {
     TorusScalar first;
     TorusScalar second;
-    sine(sine_axis, sine_amplitude, 1, &first);
-    cosine(cosine_axis, cosine_amplitude, 1, &second);
+    sine(sine_axis, sine_top, sine_under, &first);
+    cosine(cosine_axis, cosine_top, cosine_under, &second);
     scalar_add(&first, &second, scalar);
     scalar_free(&first);
     scalar_free(&second);
 }
 
+void abc_field_fraction(int64_t top_a, int64_t under_a, int64_t amplitude_b, int64_t amplitude_c, TorusVector *vector)
+{
+    sine_plus_cosine(2u, top_a, under_a, 1u, amplitude_c, 1, &vector->axis[0]);
+    sine_plus_cosine(0u, amplitude_b, 1, 2u, top_a, under_a, &vector->axis[1]);
+    sine_plus_cosine(1u, amplitude_c, 1, 0u, amplitude_b, 1, &vector->axis[2]);
+}
+
 void abc_field(int64_t amplitude_a, int64_t amplitude_b, int64_t amplitude_c, TorusVector *vector)
 {
-    sine_plus_cosine(2u, amplitude_a, 1u, amplitude_c, &vector->axis[0]);
-    sine_plus_cosine(0u, amplitude_b, 2u, amplitude_a, &vector->axis[1]);
-    sine_plus_cosine(1u, amplitude_c, 0u, amplitude_b, &vector->axis[2]);
+    abc_field_fraction(amplitude_a, 1, amplitude_b, amplitude_c, vector);
 }
 
 void generic_field(TorusVector *vector)
 {
+    generic_field_fraction(1, 1, vector);
+}
+
+void generic_field_fraction(int64_t top, int64_t under, TorusVector *vector)
+{
     TorusScalar first;
     TorusScalar second;
-    sine(1u, 1, 1, &first);
+    sine(1u, top, under, &first);
     sine(2u, 1, 1, &second);
     scalar_add(&first, &second, &vector->axis[0]);
     scalar_free(&first);
@@ -2046,4 +2058,69 @@ void vec_stretched(const TorusVector *vector, int32_t factor, TorusVector *resul
         }
         scalar_finish(&result->axis[axis], &scalar->denominator);
     }
+}
+
+/* ---------------------------------------------------------------- the box horizon */
+
+/**
+ * @brief The largest |k_axis| of a mode, its |k|_inf.
+ *
+ * @param[in] mode The mode [BORROWS].
+ * @return         The value.
+ */
+static int64_t box_size(const int32_t mode[TORUS_AXES])
+{
+    int64_t largest = 0;
+    for (unsigned axis = 0u; axis < TORUS_AXES; axis += 1u)
+    {
+        const int64_t size = (mode[axis] < 0) ? -(int64_t)mode[axis] : (int64_t)mode[axis];
+        largest = (size > largest) ? size : largest;
+    }
+    return largest;
+}
+
+/**
+ * @brief Keeps the modes with |k|_inf at most the radius.
+ *
+ * @param[in] mode   The mode [BORROWS].
+ * @param[in] radius The radius.
+ * @param[in] other  Unused [BORROWS].
+ * @return           1 where the mode lies in the box.
+ */
+static int keep_box(const int32_t mode[TORUS_AXES], int64_t radius, const int32_t *other)
+{
+    (void)other;
+    return box_size(mode) <= radius;
+}
+
+void scalar_within_box(const TorusScalar *scalar, int64_t radius, TorusScalar *result)
+{
+    scalar_filter(scalar, keep_box, radius, NULL, result);
+}
+
+int64_t vec_mode_radius(const TorusVector *vector)
+{
+    ModeList list;
+    modes_of(vector, &list);
+    int64_t largest = 0;
+    for (size_t at = 0u; at < list.count; at += 1u)
+    {
+        const int64_t size = box_size(list.modes[at]);
+        largest = (size > largest) ? size : largest;
+    }
+    free(list.modes);
+    return largest;
+}
+
+size_t vec_modes_outside(const TorusVector *vector, int64_t radius)
+{
+    ModeList list;
+    modes_of(vector, &list);
+    size_t count = 0u;
+    for (size_t at = 0u; at < list.count; at += 1u)
+    {
+        count += (box_size(list.modes[at]) > radius) ? 1u : 0u;
+    }
+    free(list.modes);
+    return count;
 }

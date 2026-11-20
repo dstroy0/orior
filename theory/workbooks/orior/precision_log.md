@@ -261,8 +261,7 @@ Sound, exact, unconditional; claims only the rank upper bound and the exhibited 
   (`workbooks/engine/build_plan.md`). `ORIOR_EXACT_LIMBS` is 128 by default, and the
   multiply is long multiplication, then Karatsuba from 32 limbs, then the Schönhage-Strassen
   transform from 8,192 limbs. Entry one's figures (108 limbs, schoolbook) are a different header from
-  this one. Two of the three examples above are
-  C programs on `includes/exact_types`, `exact_navier_stokes/exact_navier_stokes_on_torus.c` and
-  `exact_navier_stokes/exact_navier_stokes_cascade.c`, and their reports match the Python form byte for byte.
-  `proof_boundary_inheritance.py` imports `from representation import exact`, which this tree does not
-  hold.
+  this one. The three examples above are C
+  programs on `includes/exact_types`: `exact_navier_stokes/exact_navier_stokes_on_torus.c`,
+  `exact_navier_stokes/exact_navier_stokes_cascade.c` and
+  `proof_boundary_inheritance/proof_boundary_inheritance.c`. Their reports match the Python form byte for byte.

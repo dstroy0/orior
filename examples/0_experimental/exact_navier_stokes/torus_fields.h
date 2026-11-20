@@ -649,11 +649,57 @@ void cosine(unsigned axis, int64_t numerator, int64_t denominator, TorusScalar *
 void abc_field(int64_t amplitude_a, int64_t amplitude_b, int64_t amplitude_c, TorusVector *vector);
 
 /**
+ * @brief The ABC field with the amplitude A a fraction, and B and C whole numbers.
+ *
+ * @param[in]  top_a       The numerator of A.
+ * @param[in]  under_a     The denominator of A.
+ * @param[in]  amplitude_b The amplitude B.
+ * @param[in]  amplitude_c The amplitude C.
+ * @param[out] vector      The field [BORROWS].
+ */
+void abc_field_fraction(int64_t top_a, int64_t under_a, int64_t amplitude_b, int64_t amplitude_c, TorusVector *vector);
+
+/**
  * @brief A divergence-free field that is not Beltrami, and whose nonlinear term is not a gradient.
  *
  * @param[out] vector The field [BORROWS].
  */
 void generic_field(TorusVector *vector);
+
+/**
+ * @brief The generic field, with the amplitude of its first sine a fraction.
+ *
+ * @param[in]  top    The numerator of the amplitude.
+ * @param[in]  under  The denominator of the amplitude.
+ * @param[out] vector The field [BORROWS].
+ */
+void generic_field_fraction(int64_t top, int64_t under, TorusVector *vector);
+
+/**
+ * @brief The scalar field that keeps only the modes with |k|_inf at most a radius.
+ *
+ * @param[in]  scalar The field [BORROWS].
+ * @param[in]  radius The radius.
+ * @param[out] result The field in the box [BORROWS].
+ */
+void scalar_within_box(const TorusScalar *scalar, int64_t radius, TorusScalar *result);
+
+/**
+ * @brief The largest |k|_inf over the modes of a field: the box horizon that the field needs.
+ *
+ * @param[in] vector The field [BORROWS].
+ * @return           The radius.
+ */
+int64_t vec_mode_radius(const TorusVector *vector);
+
+/**
+ * @brief How many modes of a field lie outside |k|_inf <= radius.
+ *
+ * @param[in] vector The field [BORROWS].
+ * @param[in] radius The radius.
+ * @return           The count.
+ */
+size_t vec_modes_outside(const TorusVector *vector, int64_t radius);
 
 /**
  * @brief The field v(factor x) times factor: every mode index times the factor, and the amplitude too.

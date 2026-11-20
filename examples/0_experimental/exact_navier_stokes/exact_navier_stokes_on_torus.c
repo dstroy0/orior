@@ -368,29 +368,6 @@ static int report_exact_solution(FILE *out)
 }
 
 /**
- * @brief The largest |k|_inf over the modes of a field: the box horizon that the field needs.
- *
- * @param[in] vector The field [BORROWS].
- * @return           The radius.
- */
-static int64_t mode_radius(const TorusVector *vector)
-{
-    ModeList list;
-    modes_of(vector, &list);
-    int64_t largest = 0;
-    for (size_t at = 0u; at < list.count; at += 1u)
-    {
-        for (unsigned axis = 0u; axis < TORUS_AXES; axis += 1u)
-        {
-            const int64_t size = llabs((long long)list.modes[at][axis]);
-            largest = (size > largest) ? size : largest;
-        }
-    }
-    free(list.modes);
-    return largest;
-}
-
-/**
  * @brief The largest |k|_1 over the modes of a field. A product of modes adds their vectors.
  *
  * @param[in] vector The field [BORROWS].
@@ -409,32 +386,6 @@ static int64_t mode_reach(const TorusVector *vector)
     }
     free(list.modes);
     return largest;
-}
-
-/**
- * @brief How many modes of a field lie outside |k|_inf <= radius.
- *
- * @param[in] vector The field [BORROWS].
- * @param[in] radius The radius.
- * @return           The count.
- */
-static size_t modes_outside(const TorusVector *vector, int64_t radius)
-{
-    ModeList list;
-    modes_of(vector, &list);
-    size_t count = 0u;
-    for (size_t at = 0u; at < list.count; at += 1u)
-    {
-        int64_t largest = 0;
-        for (unsigned axis = 0u; axis < TORUS_AXES; axis += 1u)
-        {
-            const int64_t size = llabs((long long)list.modes[at][axis]);
-            largest = (size > largest) ? size : largest;
-        }
-        count += (largest > radius) ? 1u : 0u;
-    }
-    free(list.modes);
-    return count;
 }
 
 /**
@@ -554,7 +505,7 @@ static int report_horizon(FILE *out)
     size_t counts[ORDER + 1u];
     for (unsigned step = 0u; step <= ORDER; step += 1u)
     {
-        radii[step] = mode_radius(&velocities[step]);
+        radii[step] = vec_mode_radius(&velocities[step]);
         reaches[step] = mode_reach(&velocities[step]);
         counts[step] = mode_count(&velocities[step]);
     }
@@ -609,7 +560,7 @@ static int report_horizon(FILE *out)
         for (unsigned step = 0u; step <= ORDER; step += 1u)
         {
             fprintf(out, "%s%4llu", (step > 0u) ? "  " : "",
-                    (unsigned long long)modes_outside(&velocities[step], radius));
+                    (unsigned long long)vec_modes_outside(&velocities[step], radius));
         }
         fputs("\n", out);
     }
