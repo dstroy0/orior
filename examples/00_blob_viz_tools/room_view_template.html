@@ -2904,17 +2904,17 @@
     return made;
   }
 
-  // How many sources the room carries, and the reader's to choose. One cannot give depth: a single
-  // shadow says a body is somewhere along a line and it takes a second one to say where on that line.
-  // Past two, each source is another parallax on the same bodies, and since they share one light
-  // budget the cost of asking for more is visible in the picture and not hidden from it.
+  // How many sources the room carries, as the reader chooses. One cannot give depth. A single shadow
+  // says that a body is somewhere along a line, and a second one tells where on that line.
+  // Past two, each source is another parallax on the same bodies. They share one light budget, and
+  // the cost of more shows in the picture.
   var SOURCES = Math.max(1, Math.min(12, DATA.sources || 2));
 
   for (var q = 0; q < SOURCES; q++) {
-    // Spread and not placed by hand, asking for one more moves them all apart instead of
-    // dropping a new one onto an old one. The altitude steps by the golden angle because an even
-    // division of the circle would otherwise put every source on the same latitude, where they give
-    // parallax in one direction and none at all in the other.
+    // Spread, and not placed by hand. A request for one more moves them all apart, and does not drop
+    // a new one onto an old one. The altitude steps by the golden angle. An even division of the
+    // circle puts each source on the same latitude. There they give parallax in one direction, and
+    // none at all in the other.
     var around = Math.round((360 * q) / SOURCES + 40) % 360;
     var above = Math.round(34 * Math.sin(q * 2.399963 + 0.6));
     var tone = new THREE.Color().setHSL(
@@ -2931,15 +2931,15 @@
     );
   }
 
-  // Barely any fill. A room with ambient light in it has no shadows worth the name, and the whole
-  // reading here is what fails to arrive somewhere.
+  // Almost no fill. A room with ambient light in it has no shadows worth the name. The whole reading
+  // here is what does not arrive somewhere.
   var ambient = new THREE.AmbientLight(0x04050a, 1.0);
   scene.add(ambient);
 
-  // The dwell split, applied to every source from the one budget. Early light still knows what it
-  // passed and prints an edge; late light arrives from everywhere and fills the shadow instead.
-  // Letting both rise together, or letting each source start a budget of its own, would be inventing
-  // photons that were never emitted.
+  // The dwell split, applied to each source from the one budget. Early light still knows what it
+  // passed, and prints an edge. Late light arrives from everywhere, and fills the shadow. If both
+  // rise together, or each source starts a budget of its own, the page invents photons that no
+  // source emitted.
   function shareTheBeam() {
     var each = BEAM_BUDGET / Math.max(1, sources.length);
     for (var s = 0; s < sources.length; s++) {
@@ -2951,9 +2951,9 @@
   }
 
   // ---------------------------------------------------------------------------------------------
-  // Located somewhere. The reader is always inside something: the distance runs from within the
-  // innermost boundary out to well past the wall, and crossing a shell is a thing that happens on the
-  // way and not a mode that gets switched.
+  // At a place. The reader is always inside something. The distance runs from within the innermost
+  // boundary out to well past the wall. A crossing of a shell occurs on the way, and is not a mode to
+  // switch.
   // ---------------------------------------------------------------------------------------------
 
   var target = new THREE.Vector3(0, 0, 0);
@@ -2969,9 +2969,9 @@
     return side.normalize();
   }
 
-  // The drift rate is zeroed the moment the payload carries a trace. A bit goes where the operation
-  // puts it and nowhere on its own, a population drift here would be the page inventing motion the
-  // computation did not perform, and the ring would smear away over the first few seconds.
+  // The drift rate goes to zero as soon as the payload carries a trace. A bit goes where the
+  // operation puts it, and nowhere on its own. A population drift here invents motion that the
+  // computation did not do, and the ring smears away over the first few seconds.
   var state = {
     energy: 0.34,
     rate: DATA.clock ? 0.0 : 0.4,
@@ -2985,24 +2985,23 @@
     tickRate: 0,
     degrees: 0,
     hold: DATA.clock ? DATA.clock.hold : 0.62,
-    // The second dwell axis: how long the boundary retains what it recorded, the surface's own
-    // time and not the particle's.
+    // The second dwell axis: how long the boundary keeps what it recorded. That is the own time of the
+    // surface, and not that of the particle.
     linger: 0.0,
     // The conduction time.
     tau: DATA.clock ? DATA.clock.tau : 0.0,
   };
 
-  // The conduction slider's range, cubed so the low end has the resolution.
+  // The range of the conduction slider, cubed, and the low end gets the resolution.
   //
-  // Conduction is a low-pass at degree about 1/sqrt(tau). The interesting travel is all in the
-  // first slice of any linear range: at 8e-4 the cut sits near degree 35 and at 0.05 it is near
-  // degree 4.5. A cube leaves a quarter of the travel below the build's own value, where a reader
-  // wants the resolution, and three quarters above it.
+  // Conduction is a low-pass at degree about 1/sqrt(tau). The useful travel is all in the first slice
+  // of a linear range. At 8e-4 the cut sits near degree 35, and at 0.05 it is near degree 4.5.
+  // A cube leaves a quarter of the travel below the own value of the build, and three quarters above
+  // it. The reader wants the resolution in that low quarter.
   //
-  // The top of the range is derived from the build value instead of written down. Slider position
-  // 25 lands on exactly the tau the page was built with. Picked as a round number it would land near
-  // it, and the page would open a couple of percent away from the reading it was generated from with
-  // nothing saying so.
+  // The top of the range derives from the build value, and no literal sets it. Slider position 25
+  // lands on exactly the tau of the build. A round number lands near it, and the page then opens a
+  // few percent away from its source reading, with nothing to say so.
   var TAU_HOME = 0.25;
   var TAU_MAX =
     (DATA.clock && DATA.clock.tau ? DATA.clock.tau : 8.0e-4) /
@@ -3012,9 +3011,9 @@
     return TAU_MAX * t * t * t;
   }
 
-  // Raised whenever the picture the shadow map holds has gone stale, and lowered once it has been
-  // redrawn. Movement of the bodies, movement of a source and a change of which bodies cast at all
-  // are the three things that make it stale. Nothing else does.
+  // Raised whenever the picture in the shadow map is stale, and lowered after its redraw. Three things
+  // make it stale: a move of the bodies, a move of a source, and a change of which bodies cast at
+  // all. Nothing else does.
   var shadowStale = true;
 
   function placeSource(one) {
@@ -3030,9 +3029,9 @@
     one.lamp.position.copy(one.at);
     one.fill.position.copy(one.at);
 
-    // Aim the spray cone from the point in toward the object. Its apex sits on the source and it opens
-    // along the line to the middle, reaching the majority of the way there. The unit cone is scaled to that
-    // length. Its base radius retains the same spray angle whatever the source distance.
+    // Aim the spray cone from the point in toward the object. Its apex sits on the source, and it opens
+    // along the line to the middle, and reaches most of the way there. The unit cone scales to that
+    // length. Its base radius keeps the same spray angle, whatever the source distance.
     if (one.cone) {
       var h = one.at.length() * 0.9 || 1;
       coneAxis.copy(one.at).normalize();
@@ -3042,7 +3041,7 @@
     }
     shadowStale = true;
     // A source that moved changes where its beam deposits, and the deposits are part of the boundary
-    // field. The stored reading is no longer the answer.
+    // field. The stored reading is then no longer the answer.
     sourceGen++;
   }
 
@@ -3053,8 +3052,8 @@
     lightTheDusk();
   }
 
-  // Which mesh a light belongs to, decided once per change of energy instead of once per frame. The
-  // lists hold indices, a light moving between them costs nothing but a place in an array.
+  // Which mesh a light belongs to, decided once per change of energy, and not once per frame. The
+  // lists hold indices. A move of a light between them costs only a place in an array.
   var stopList = new Int32Array(COUNT);
   var passList = new Int32Array(COUNT);
   var stopCount = 0,
@@ -3074,11 +3073,11 @@
     stoppers.count = stopCount;
     passers.count = passCount;
 
-    // A light the beam goes through is still there and still lit. Dimming it says which ones the beam
-    // is stopped by; hiding it would say the beam decides what exists.
+    // A light that the beam goes through is still there, and still lit. A dim light says which lights
+    // stop the beam. A hidden light says that the beam decides what exists.
     //
-    // The color is one object allocated outside instead of one per call. Every three.js color, vector and
-    // matrix on a repeating path in this file is allocated that way.
+    // The color is one object allocated outside, and not one per call. Each three.js color, vector and
+    // matrix on a repeated path in this file has that allocation.
     var shade = energyShade;
     var k2;
     for (k2 = 0; k2 < stopCount; k2++) {
@@ -3105,9 +3104,9 @@
     return stopCount;
   }
 
-  // The magnification a source is working at: the distance it throws onto the wall over the distance
-  // to what it is throwing. Reported and not asserted, because it is the number that decides
-  // whether a shadow is a reading or a smudge.
+  // The magnification of a source: the distance that it throws onto the wall, over the distance to what
+  // it throws. The view reports it, and does not assert it. It is the number that decides whether a
+  // shadow is a reading or a smudge.
   function magnification(one) {
     var out = one.at.length();
     var toBody = Math.max(0.5, SHELL - out);
@@ -3117,8 +3116,8 @@
     return (ROOM + out) / toBody;
   }
 
-  // Every source's magnification and not the first two, because the count is the reader's to set and
-  // a row that names two of nine is a row that stops being true the moment they ask for more.
+  // The magnification of each source, and not the first two. The reader sets the count. A row that
+  // names two of nine is false as soon as the reader asks for more.
   var magEach = [];
   function magnified() {
     magEach.length = 0;
@@ -3128,12 +3127,13 @@
     return magEach.join(", ") + "x";
   }
 
-  // How many bits are set at this operation. Counted off the trace and not off the stopping
-  // powers. The row goes on saying what the state is even when the beam energy has been raised
-  // past the point where a set bit still casts anything.
-  // The state at an operation. Stored as the states the run passes through plus a tick to state map,
-  // because six operations in every eight leave the eight words alone and shipping the repeats would
-  // be shipping the same string four times over.
+  // How many bits are 1 at this operation. The count comes off the trace, and not off the stop powers.
+  // The row still says what the state is, even when the beam energy is past the point where a bit at 1
+  // casts anything.
+  //
+  // The state at an operation. The page keeps the states of the run plus a map from tick to state. Six
+  // operations in each eight leave the eight words alone. A copy of each repeat ships the same string
+  // four times over.
   function frameAt(whole) {
     return CLOCK.states[CLOCK.index[whole]];
   }
@@ -3225,25 +3225,25 @@
   // ---------------------------------------------------------------------------------------------
   // The operation clock.
   //
-  // Present only when the payload carries a trace, as a page built from a running
-  // computation ships and a page built from a draw does not. Everything below is inert without one.
-  // The drawn room is unchanged by its existence.
+  // Present only when the payload carries a trace. A page built from a computation in progress ships
+  // one, and a page built from a draw does not. All below is inert without one. The drawn room stays
+  // the same with it.
   //
-  // The room's other pages hold a population that moves on its own and is read while it moves. A
-  // computation does not move on its own. It advances because an operation was performed, and the
-  // honest clock for it is the operation count and not the wall clock. So the reader gets the
-  // operation index directly, to drag or to let run at a rate they choose, and nothing here advances
-  // unless one of those two says it does.
+  // The other pages of the room hold a population that moves on its own, and the reader reads it
+  // while it moves. A computation does not move on its own. It advances because of an operation.
+  // The honest clock for it is the operation count, and not the wall clock.
+  // The reader thus gets the operation index directly, to drag, or to let run at a rate of their
+  // choice. Nothing here advances unless one of those two says so.
   //
-  // Time is the radius. The state sits small near the middle at the first operation and reaches the
-  // shell at the last one traced. The run is arranged along the one axis the reader can walk. A
-  // reader stationary has the computation arrive at them and pass, and where they are decides
-  // which part of the run they are inside of.
+  // Time is the radius. The state sits small near the middle at the first operation, and reaches the
+  // shell at the last traced one. The run lies along the one axis that the reader can walk.
+  // A reader at rest sees the computation arrive and pass. Where they are decides which part of the
+  // run they are inside.
   //
-  // The band follows the radius instead of being fixed when the page opens. The state deposits on
-  // whichever boundary it is inside of at the time. The record on the surfaces climbs from the
-  // inner shell to the outer one as the computation runs, and each surface ends up holding the part
-  // of the run that happened while the state was within it.
+  // The band follows the radius, and does not stay fixed from the open of the page. The state
+  // deposits on the boundary that it is inside at the time.
+  // The record on the surfaces climbs from the inner shell to the outer one as the computation runs.
+  // Each surface then holds the part of the run that occurred while the state was within it.
   // ---------------------------------------------------------------------------------------------
 
   var CLOCK = DATA.clock || null;
@@ -3254,15 +3254,17 @@
 
   // One helix and not eight rings.
   //
-  // Giving each word its own latitude puts all thirty-two of its bits at one height. The state comes
-  // out as eight flat discs stacked up the axis. Horizontal slices are an artifact of that placement:
-  // the eight words are not eight planes, they are eight turns of one register, and drawing them as
-  // separated sheets invents a structure the state does not have.
+  // A latitude of its own for each word puts all thirty-two of its bits at one height. The state then
+  // comes out as eight flat discs stacked up the axis.
+  // Horizontal slices are an artifact of that placement. The eight words are not eight planes. They
+  // are eight turns of one register. A drawing of them as separate sheets invents a structure that
+  // the state does not have.
   //
-  // So colatitude advances across the whole index while longitude wraps every thirty-two, which winds
-  // a single continuous curve eight times around the sphere. Each word is still one turn of it, a
-  // rotation still spins its own bits and nothing about the spin changes. The acos spaces the turns
-  // by equal area, which retains the winding even instead of crowding the poles.
+  // The colatitude thus advances across the whole index, while the longitude wraps each thirty-two.
+  // That winds a single continuous curve eight times round the sphere. Each word is still one turn of
+  // it. A rotation still spins its own bits, and the spin does not change.
+  // The acos spaces the turns by equal area. That keeps the winding even, and the turns do not crowd
+  // the poles.
   if (CLOCK) {
     for (var c0 = 0; c0 < COUNT; c0++) {
       wordOf[c0] = Math.floor(c0 / CLOCK.width);
@@ -3278,16 +3280,19 @@
     return Math.floor(tick / CLOCK.ops) + 1;
   }
 
-  // The ring turn during a rotating operation. Sigma1 reads e as rotations by 6, 11 and 25 and
-  // exclusive-ors them. The ring turns through each amount in order and then comes home: the
-  // exclusive-or of three rotations is not itself a rotation and there is no offset for the ring to
-  // stay at. What the operation actually leaves behind is a change of value, and that arrives at the
-  // write operations further down the round, where the bits change and not move.
-  // Nothing in the object moves instantly. Information takes time to cross it, a bit leaves its
-  // old place at rest, gathers speed, and arrives at rest, the way anything else carrying momentum
-  // does. Retained linear, the motion starts and stops on a corner, which reads as a jump with a slide in
-  // the middle; eased, it reads as a thing being carried. A smoothstep has zero slope at both ends.
-  // The acceleration and the deceleration are both in it and neither has to be written twice.
+  // The ring turn during an operation that rotates. Sigma1 reads e as rotations by 6, 11 and 25, and
+  // exclusive-ors them. The ring turns through each amount in order, and then comes home.
+  // The exclusive-or of three rotations is not itself a rotation, and there is no offset for the ring
+  // to stay at. The operation actually leaves a change of value. That arrives at the write operations
+  // further down the round, where the bits change and do not move.
+  //
+  // Nothing in the object moves instantly.
+  //
+  // Information takes time to cross it. A bit leaves its old
+  // place at rest, gathers speed, and arrives at rest, as each other thing with momentum does.
+  // Linear, the motion starts and stops on a corner, which reads as a jump with a slide in the middle.
+  // Eased, it reads as a thing that something carries. A smoothstep has zero slope at both ends. The
+  // acceleration and the deceleration are both in it, and neither needs a second copy.
   function ease(t) {
     if (t <= 0) {
       return 0;
@@ -3311,13 +3316,14 @@
     return ((from + (to - from) * into) * 2 * Math.PI) / CLOCK.width;
   }
 
-  // The register shift, drawn as the six carried words traveling to their next ring.
+  // The register shift, drawn as the six carried words that travel to their next ring.
   //
-  // At the last operation of a round b takes a, c takes b, d takes c, f takes e, g takes f and h
-  // takes g, a bit in one of those words is on its way to the ring below. Drawn at the moment of
-  // the write it is a teleport and says the move cost nothing; eased across the operation it is the
-  // eight rings turning through each other, once a round, sixty-four times, as the shift
-  // actually is. The two words that are freshly computed have no origin to travel from and stay put.
+  // At the last operation of a round, b takes a, c takes b, d takes c and f takes e. Then g takes f
+  // and h takes g. A bit in one of those words is on its way to the ring below.
+  // Drawn at the moment of the write, it is a teleport, and says that the move cost nothing. Eased
+  // across the operation, it is the eight rings that turn through each other, once a round,
+  // sixty-four times, as the shift actually is. The two freshly computed words have no origin to
+  // travel from, and stay put.
   var CARRIES = { 0: 1, 1: 2, 2: 3, 4: 5, 5: 6, 6: 7 };
 
   function shiftDown(k, whole, phase) {
@@ -3336,31 +3342,29 @@
   // ---------------------------------------------------------------------------------------------
   // The boundary reconstruction.
   //
-  // What an observer outside the shell has is not the bits. It is a field on a closed surface, and
-  // the honest way to hold that field is the basis the surface actually has: the real spherical
-  // harmonics. So the state is expanded on the sphere, carried outward through the kernel, and
-  // evaluated again on a grid to recover a radius for every direction. The result is a closed genus
-  // zero surface, the same type of object the state was, arrived at without ever having
-  // seen it.
+  // An observer outside the shell does not have the bits. They have a field on a closed surface. The
+  // honest way to hold that field is the basis that the surface actually has: the real spherical
+  // harmonics.
+  // The code thus expands the state on the sphere, and carries it outward through the kernel. It
+  // then evaluates it again on a grid, for a radius in each direction. The result is a closed genus zero
+  // surface, the same type of object as the state, found without a view of it.
   //
-  // The kernel makes this a reading. Depth enters as (r/R)^l and
-  // conduction as exp(-l(l+1)tau), both diagonal in degree. Everything between a source and the
-  // boundary is one number per degree. A high degree is fine structure, and (r/R)^l takes it away
-  // fastest: the deeper the state sits, the fewer degrees survive the trip out. Here it is a thing the
-  // reader can move.
+  // The kernel makes this a reading. Depth enters as (r/R)^l, and conduction as exp(-l(l+1)tau), both
+  // diagonal in degree. All between a source and the boundary is one number per degree.
+  // A high degree is fine structure, and (r/R)^l takes it away fastest. The deeper the state sits, the
+  // fewer degrees survive the trip out. Here the reader can move it.
   //
-  // The coefficients arrive depth-free because every bit sits at the same radius at a given
-  // operation. The page multiplies in the kernel at
-  // whatever radius the clock reached. Moving the clock or the degree ceiling re-reads the
-  // same expansion instead of needing a new one.
+  // The coefficients arrive free of depth, because each bit sits at the same radius at a given
+  // operation. The page multiplies in the kernel at the radius that the clock reached. A move of the
+  // clock or the degree ceiling reads the same expansion again, and needs no new one.
   //
-  // Degree is a ceiling. Cutting it does not smooth the surface after the fact, it
-  // declines to sum the terms above it, as a boundary that cannot hold them actually does.
+  // Degree is a ceiling. A cut of it does not smooth the surface after the fact. It does not sum the
+  // terms above it, as a boundary that cannot hold them actually does.
   // ---------------------------------------------------------------------------------------------
 
-  var SURFACE_LAT = 36; // rings of the reconstruction grid, pole to pole
-  var SURFACE_LON = 72; // samples around each of them
-  var SURFACE_SWING = 0.16; // how far the field is allowed to move the surface, as a fraction
+  var SURFACE_LAT = 36; // The rings of the reconstruction grid, pole to pole.
+  var SURFACE_LON = 72; // The samples round each of them.
+  var SURFACE_SWING = 0.16; // How far the field can move the surface, as a fraction.
 
   var surface = null;
   var graticule = null;
@@ -3368,37 +3372,38 @@
   var surfaceAt = null;
   var surfaceUnit = null;
 
-  // A lit surface per boundary. Sensitivity is the conduction time the surface is left to smooth for,
-  // and it rises outward: a boundary further from what it is reading has had the light spread over
-  // more of it by the time it lands. The inner surface prints spots and the outer one a nebula.
+  // A lit surface per boundary. Sensitivity is the conduction time that the surface smooths for, and
+  // it rises outward. On a boundary further from what it reads, the light spreads over more of it by
+  // the time it lands. The inner surface prints spots, and the outer one a nebula.
   var litOf = [];
   var litGain = 1.0;
   var SENS_START = [0.0006, 0.003, 0.009];
 
   // The three stops of a diverging map: cold below the mean, hot above it, and a near-black at the
-  // mean an unremarkable patch of surface stays dark and the spots are what is lit.
+  // mean. An ordinary patch of surface stays dark, and the spots are what is lit.
   var COLD_SPOT = new THREE.Color().setHSL(0.57, 0.85, 0.46);
   var MID_SPOT = new THREE.Color().setHSL(0.6, 0.3, 0.04);
   var HOT_SPOT = new THREE.Color().setHSL(0.045, 0.92, 0.55);
 
   // The display transfer, and the reason it is a separate number from the reading.
   //
-  // The bands on a lit boundary are the reading: thirty-six rings of a grid, each holding what
-  // arrived at that latitude. They stay bands deliberately, because a banded quantity is what a curve
-  // gets derived from, and smoothing them for the sake of the picture would throw that away.
+  // The bands on a lit boundary are the reading: thirty-six rings of a grid. Each holds what arrived at
+  // that latitude. They stay bands by design. A curve derives from a banded quantity, and a smooth
+  // for the picture throws that away.
   //
-  // The picture needs something different. A real scarcity gradient puts the majority of its range near zero
-  // and a long faint tail above it, a linear map to color spends the whole visible range on the
-  // peak and draws the tail as nothing. A saturating transfer lifts the faint end and lets the bright
+  // The picture needs something different. A real scarcity gradient puts most of its range near zero,
+  // with a long faint tail above it. A linear map to color spends the whole visible range on the peak,
+  // and draws the tail as nothing. A transfer that saturates lifts the faint end, and lets the bright
   // end clip, as a physical detector does.
   //
-  // So there are two quantities and they are retained apart in the code and not merely used differently:
-  // one.averaged is linear and is the measurement, and this runs on the way to the color buffer and
-  // nowhere else. Anything deriving a curve must read one.averaged. Nothing should ever derive one from a
-  // value that has been through here.
+  // There are thus two quantities. The code keeps them apart, and does not only use them
+  // differently. one.averaged is linear, and it is the measurement. This runs on the way to the color
+  // buffer, and nowhere else.
+  // Each derivation of a curve must read one.averaged. No derivation must ever start from a value that
+  // went through here.
   //
-  // 1 - e^-kx over 1 - e^-k. The range still lands exactly on nought and one, and k at zero
-  // degrades to the identity and not to a special case.
+  // 1 - e^-kx over 1 - e^-k. The range still lands exactly on nought and one, and k at zero becomes
+  // the identity, and not a special case.
   var SATURATE_MAX = 8.0;
   var saturateK = 0.0;
 
@@ -3409,18 +3414,19 @@
     return (1 - Math.exp(-saturateK * value)) / (1 - Math.exp(-saturateK));
   }
 
-  // The normalized associated Legendre values for one order, every degree up to the ceiling. Climbs
-  // the diagonal and then recurs in degree, which holds every intermediate at unit scale. Built from
-  // factorials instead, this overflows above degree 150 and loses digits long before that, and the
-  // failure is quiet: the low degrees stay right and only the fine structure goes wrong.
-  // Written into a buffer the caller owns, because this is the innermost thing on the whole reading.
+  // The normalized associated Legendre values for one order, each degree up to the ceiling. It climbs
+  // the diagonal, and then recurs in degree, which holds each intermediate at unit scale.
+  // Built from factorials, this overflows above degree 150, and loses digits long before that. The
+  // failure is quiet: the low degrees stay right, and only the fine structure goes wrong.
+  // The code writes into a buffer that the caller owns, because this is the innermost thing of the
+  // whole reading.
   //
-  // A fresh array per call, one call per order per direction, means a reading to degree ten
-  // allocates eleven arrays for every direction it evaluates, and the beam field evaluates one per
-  // deposit on every retrace: sixty-three deposits at ten retraces a second is close to seven
-  // thousand short-lived arrays a second, for a total of eleven doubles each. Nothing fails and no
-  // frame drops, until a collection lands in the middle of one and the picture stutters for reasons
-  // that are nowhere near where the stutter is.
+  // Take a fresh array per call, one call per order per direction. A reading to degree ten then
+  // allocates eleven arrays for each direction that it evaluates. The beam field evaluates one per deposit on
+  // each retrace.
+  // Sixty-three deposits at ten retraces a second is close to seven thousand short-lived arrays a
+  // second, of eleven doubles each. Nothing fails and no frame drops, until a collection lands in the
+  // middle of one. The picture then stutters, for reasons far from where the stutter is.
   var legScratch = null;
 
   function legendreColumn(top, order, x) {
@@ -3428,8 +3434,9 @@
       legScratch = new Float64Array(top + 1);
     }
     var out = legScratch;
-    // Cleared to the used length only. The buffer is reused across orders and a stale value left in
-    // an element the recursion does not reach this time is a wrong harmonic and not an obvious one.
+    // Cleared to the used length only. The code uses the buffer again across orders. A stale value in
+    // an element that the recursion does not reach this time is a wrong harmonic, and not an obvious
+    // one.
     for (var z = 0; z <= top; z++) {
       out[z] = 0;
     }

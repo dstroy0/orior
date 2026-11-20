@@ -16,7 +16,6 @@ breaking
 caching
 casting
 chaining
-letter-spacing
 checking
 circuiting
 closing
@@ -35,6 +34,7 @@ damping
 debugging
 decoding
 descending
+diverging
 docstring
 doping
 downsampling
@@ -67,6 +67,7 @@ labeling
 leading
 learning
 lensing
+letter-spacing
 licensing
 lifting
 lighting
