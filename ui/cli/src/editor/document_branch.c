@@ -136,9 +136,6 @@ typedef struct
 // their names
 #define CLI_DOC_RECORD_HEAD 2u
 
-// the depths of pairs a name each, a deeper pair taking the name of its depth less as many
-#define CLI_DOC_DEPTHS 16u
-
 // the max walkers; where the colors go, whether walkers walk them out, and how many may walk at once, the machine's
 // processors but one, one at the fewest; the walkers, and past them the walk a caller takes on its own thread; and the
 // lock the colors are passed on under, taken before the texts' lock is given back, and they go in the order they were
@@ -148,8 +145,6 @@ static CliDocColored s_colored;
 static int s_threaded;
 static unsigned int s_walkers_max;
 static CliBranchWalker s_walkers[CLI_DOC_WALKERS + 1u];
-
-typedef struct CliBranchNamesLaid CliBranchNamesLaid;
 
 typedef struct
 {
@@ -246,9 +241,9 @@ typedef struct
     unsigned long long *length_out;
     const CarcerMovableEntry *entry;
     unsigned long long at_u64;
-    CliBranchNamesLaid *positioned;
     int deep;
     const char *grammar;
+    const char *key;
 } DocumentBranchCtx;
 
 // the cell of the state at the place `at` among the text's states, NULL past them
@@ -765,9 +760,6 @@ EMBED_INLINE int branch_runs_existing(const DocumentBranchCtx *args)
            ((above == CLI_DOC_UNCOLORED) ? (begun == CLI_DOC_ROOT) : (begun == above));
 }
 
-// the roles that count the depth of a pair
-#define CLI_DOC_PAIR_ROLES (CLI_ROLE_DEPTH_OPENS | CLI_ROLE_DEPTH_CLOSES)
-
 // one name of the grammar of the text at `context` its roles read and saved among the text's roles at its place
 static void branch_role_read(const CliNameEachCfg *args)
 {
@@ -830,7 +822,7 @@ EMBED_INLINE void branch_roles_read(const DocumentBranchCtx *args)
                                                                  .offset = (unsigned long long)place * sizeof(roles),
                                                                  .src = &roles,
                                                                  .bytes = sizeof(roles)});
-        rank += ((roles & CLI_DOC_PAIR_ROLES) != 0u) ? 1u : 0u;
+        rank += ((roles & CLI_ROLE_PAIR) != 0u) ? 1u : 0u;
     }
     args->one->roles_complete = 1;
 }
@@ -861,7 +853,7 @@ EMBED_INLINE unsigned int branch_depth_rank(const DocumentBranchCtx *args)
     {
         rank += ((EMBED_CALL(branch_roles, DocumentBranchCtx, .finding = args->finding, .leaves = args->leaves,
                              .name = before) &
-                  CLI_DOC_PAIR_ROLES) != 0u)
+                  CLI_ROLE_PAIR) != 0u)
                     ? 1u
                     : 0u;
     }
@@ -935,120 +927,45 @@ static void branch_name_pass(const CliNameEachCfg *args)
     (void)args;
 }
 
-// The names of a text's tokens as they are counted and positioned: whether the depths' names come now, how many and
-// their bytes so far. The movable cell they are positioned in is NULL while they are counted, and `text_at` is the
-// offset in it where the names' bytes start
-struct CliBranchNamesLaid
-{
-    int depths;
-    unsigned int count;
-    unsigned long long bytes;
-    const CarcerMovableEntry *cell;
-    unsigned long long text_at;
-};
-
-// one name counted or positioned, `depth` after it where it is a depth's
-static void branch_name_position(const DocumentBranchCtx *args)
-{
-    char suffix[16];
-    VerbaLinea line = {suffix, sizeof(suffix), 0ULL};
-    if (args->deep)
-    {
-        mmgr_line_ch(&line, '.');
-        mmgr_line_decimal(&line, args->depth, 1u);
-    }
-    const unsigned long long suffix_size = mmgr_line_finish(&line);
-    if (args->positioned->cell != NULL)
-    {
-        const CarcerMovableEntry *const cell = args->positioned->cell;
-        const unsigned long long place = args->positioned->text_at + args->positioned->bytes;
-        const char end = '\0';
-        (void)g_cli_guard->movable_buf_write(
-            &(CarcerMovableCfg){.cell = cell, .offset = place, .src = args->text, .bytes = args->size_u64});
-        (void)g_cli_guard->movable_buf_write(
-            &(CarcerMovableCfg){.cell = cell, .offset = place + args->size_u64, .src = suffix, .bytes = suffix_size});
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
-            .cell = cell, .offset = place + args->size_u64 + suffix_size, .src = &end, .bytes = sizeof(end)});
-        // the names' bytes are inside the cell, whose size an unsigned int counts
-        const unsigned int offset = (unsigned int)place;
-        (void)g_cli_guard->movable_buf_write(
-            &(CarcerMovableCfg){.cell = cell,
-                                .offset = CLI_DOCUMENT_NAME_AT(args->positioned->count),
-                                .src = &offset,
-                                .bytes = sizeof(offset)});
-    }
-    args->positioned->bytes += args->size_u64 + suffix_size + 1ULL;
-    args->positioned->count += 1u;
-}
-
-// one name of a text's grammar counted or positioned; in the second pass one for each depth of a name that counts a
-// pair's
-static void branch_name_positioned(const CliNameEachCfg *args)
-{
-    const char *name = args->name;
-    CliBranchNamesLaid *const positioned = (CliBranchNamesLaid *)args->context;
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES});
-    if (!positioned->depths)
-    {
-        EMBED_CALL(branch_name_position, DocumentBranchCtx, .positioned = positioned, .text = name, .size_u64 = size,
-                   .deep = 0, .depth = 0u);
-        return;
-    }
-    if ((EMBED_CALL(cli_symbols_query.name_roles, CliSymbolsQueryCfg, .name = name) & CLI_DOC_PAIR_ROLES) != 0u)
-    {
-        for (unsigned int depth = 0u; depth < CLI_DOC_DEPTHS; depth += 1u)
-        {
-            EMBED_CALL(branch_name_position, DocumentBranchCtx, .positioned = positioned, .text = name,
-                       .size_u64 = size, .deep = 1, .depth = depth);
-        }
-    }
-}
-
-// both passes over the grammar's names, the empty name alone where it gives none
-static void branch_names_position(const DocumentBranchCtx *args)
-{
-    args->positioned->depths = 0;
-    if ((args->grammar[0] == '\0') ||
-        (EMBED_CALL(cli_highlight_key_context.names_each, CliHighlightKeyContextCfg, .key = args->grammar,
-                    .each_name_each = branch_name_positioned, .context = args->positioned) == 0u))
-    {
-        EMBED_CALL(branch_name_position, DocumentBranchCtx, .positioned = args->positioned, .text = "",
-                   .size_u64 = 0ULL, .deep = 0, .depth = 0u);
-        return;
-    }
-    args->positioned->depths = 1;
-    (void)EMBED_CALL(cli_highlight_key_context.names_each, CliHighlightKeyContextCfg, .key = args->grammar,
-                     .each_name_each = branch_name_positioned, .context = args->positioned);
-}
-
-static const CarcerMovableEntry *names_alloc_locked(const CliDocumentNamesCfg *args)
+// the grammar of the text under `key` copied into `text_out`: 1, or 0 where no text is stored there
+EMBED_INLINE int names_grammar_read(const DocumentBranchCtx *args)
 {
     const CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
-    if (one == NULL)
+    if (one != NULL)
     {
-        return NULL;
+        memor.cpy(&(MemoriaCfg){.dst = args->text_out, .src = one->grammar, .bytes = sizeof(one->grammar)});
     }
-    CliBranchNamesLaid counted = {0, 0u, 0ULL, NULL, 0ULL};
-    EMBED_CALL(branch_names_position, DocumentBranchCtx, .positioned = &counted, .grammar = one->grammar);
-    // the table in a movable cell sized to the names: the head, the places, then the names
-    const unsigned long long text_at = CLI_DOCUMENT_NAME_AT(counted.count);
-    const CarcerMovableEntry *const cell = g_cli_guard->movable_buf_alloc(text_at + counted.bytes, args->owner);
-    if (cell != NULL)
-    {
-        CliBranchNamesLaid positioned = {0, 0u, 0ULL, cell, text_at};
-        EMBED_CALL(branch_names_position, DocumentBranchCtx, .positioned = &positioned, .grammar = one->grammar);
-        const CliDocumentNames head = {positioned.count, 0u};
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = cell, .src = &head, .bytes = sizeof(head)});
-    }
-    return cell;
+    return one != NULL;
 }
 
-const CarcerMovableEntry *cli_document_names_alloc(const CliDocumentNamesCfg *args)
+unsigned int cli_document_names_count(const CliDocumentNamesCfg *args)
 {
-    cli_document_lock_take();
-    const CarcerMovableEntry *const answer = names_alloc_locked(args);
-    cli_document_lock_give();
-    return answer;
+    char grammar[CLI_NAME_MAX_LEN];
+    if (!EMBED_CALL(names_grammar_read, DocumentBranchCtx, .key = args->key, .text_out = grammar))
+    {
+        if (args->serial != NULL)
+        {
+            *args->serial = 0u;
+        }
+        return 0u;
+    }
+    return EMBED_CALL(cli_highlight_names.count, CliHighlightNamesCfg, .key = grammar, .serial = args->serial);
+}
+
+int cli_document_name_read(const CliDocumentNamesCfg *args)
+{
+    char grammar[CLI_NAME_MAX_LEN];
+    return EMBED_CALL(names_grammar_read, DocumentBranchCtx, .key = args->key, .text_out = grammar) &&
+           EMBED_CALL(cli_highlight_names.read, CliHighlightNamesCfg, .key = grammar, .name = args->name,
+                      .out = args->out);
+}
+
+unsigned int cli_document_name_place(const CliDocumentNamesCfg *args)
+{
+    char grammar[CLI_NAME_MAX_LEN];
+    return EMBED_CALL(names_grammar_read, DocumentBranchCtx, .key = args->key, .text_out = grammar)
+               ? EMBED_CALL(cli_highlight_names.place, CliHighlightNamesCfg, .key = grammar, .text = args->text)
+               : 0u;
 }
 
 // the names of `scope` saved only where the region each belongs to is at max `depth` deep and, where `waiting` is 1,
@@ -1288,7 +1205,8 @@ EMBED_INLINE unsigned int branch_pair_named(const DocumentBranchCtx *args)
                                                .leaves = args->leaves, .name = args->name)
                                   : CLI_DOC_NONE;
     const unsigned int paired =
-        (rank != CLI_DOC_NONE) ? args->names + (rank * CLI_DOC_DEPTHS) + (scope->pairs % CLI_DOC_DEPTHS) : CLI_DOC_NONE;
+        (rank != CLI_DOC_NONE) ? args->names + (rank * CLI_HIGHLIGHT_DEPTHS) + (scope->pairs % CLI_HIGHLIGHT_DEPTHS)
+                               : CLI_DOC_NONE;
     scope->pairs += opens ? 1u : 0u;
     scope->moved = scope->moved || closes || opens;
     return paired;
@@ -3082,10 +3000,8 @@ static CliDocumentWords *words_alloc_locked(const CliDocumentWordsCfg *args)
 
 void cli_document_words_each(const CliDocumentWordsCfg *args)
 {
-    cli_document_lock_take();
     CliDocumentWords *const words = words_alloc_locked(args);
-    cli_document_lock_give();
-    // the words go to the caller with the lock given back: the list is this call's own
+    // the words go to the caller: the list is this call's own
     for (unsigned int at = 0u; (words != NULL) && (at < words->count); at += 1u)
     {
         EMBED_CALL(args->each, CliEachTextLengthCfg, .context = args->context, .text = words->text + words->at[at],
@@ -3164,11 +3080,9 @@ char *cli_document_text_alloc(const CliDocumentKeyCfg *args)
 int cli_document_text_each(const CliDocumentKeyCfg *args)
 {
     unsigned long long size = 0ULL;
-    cli_document_lock_take();
     char *const text = EMBED_CALL(text_alloc_locked, CliDocumentKeyCfg, .key = args->key, .size_pointer = &size,
                                   .owner = g_cli_editor_owner);
-    cli_document_lock_give();
-    // the text goes to the caller with the lock given back: the cell is this call's own
+    // the text goes to the caller: the cell is this call's own
     if (text != NULL)
     {
         EMBED_CALL(args->each, CliEachTextLengthCfg, .context = args->context, .text = text, .length = size);
@@ -3298,9 +3212,7 @@ static int lines_put_locked(const CliDocumentKeyCfg *args, VerbaLinea *text)
 
 int cli_document_lines_read(const CliDocumentKeyCfg *args)
 {
-    cli_document_lock_take();
     const int found = lines_put_locked(args, args->out);
-    cli_document_lock_give();
     return found && mmgr_line_ok(args->out);
 }
 
@@ -3333,12 +3245,10 @@ char *cli_document_lines_alloc(const CliDocumentKeyCfg *args)
 int cli_document_lines_each(const CliDocumentKeyCfg *args)
 {
     unsigned long long size = 0ULL;
-    cli_document_lock_take();
     char *const text = EMBED_CALL(lines_alloc_locked, CliDocumentKeyCfg, .key = args->key, .first = args->first,
                                   .last = args->last, .size_pointer = &size, .state = args->state,
                                   .capacity = args->capacity, .owner = g_cli_editor_owner);
-    cli_document_lock_give();
-    // the lines go to the caller with the lock given back: the cell is this call's own
+    // the lines go to the caller: the cell is this call's own
     if (text != NULL)
     {
         EMBED_CALL(args->each, CliEachTextLengthCfg, .context = args->context, .text = text, .length = size);

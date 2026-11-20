@@ -661,13 +661,6 @@ EMBED_INLINE void terminal_view_draw(const TerminalCtx *args)
     const CliPosition from = (frame == NULL) ? (CliPosition){0ULL, 0ULL} : (anchored ? frame->anchor : frame->cursor);
     const CliPosition to = (frame == NULL) ? (CliPosition){0ULL, 0ULL} : (anchored ? frame->cursor : frame->anchor);
     const int selected = (from.line != to.line) || (from.col != to.col);
-    const CarcerMovableEntry *const names = args->terminal_read->names[args->view];
-    CliDocumentNames names_head = {0u, 0u};
-    if (names != NULL)
-    {
-        (void)g_cli_guard->movable_buf_read(
-            &(CarcerMovableCfg){.cell = names, .dst = &names_head, .bytes = sizeof(names_head)});
-    }
     const unsigned int count = (frame != NULL) ? frame->count : 0u;
     for (unsigned int y = 0u; (y < count) && (y < displayed->rows); y += 1u)
     {
@@ -725,20 +718,13 @@ EMBED_INLINE void terminal_view_draw(const TerminalCtx *args)
                         .dst = &following,
                         .bytes = sizeof(following)});
                 }
-                // the run's token name read out of the names' cell, cut to the 64 bytes its reading looks at
-                char token[64];
-                unsigned long long token_length = 0ULL;
-                if ((names != NULL) && (name < names_head.count))
-                {
-                    unsigned int place = 0u;
-                    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-                        .cell = names, .offset = CLI_DOCUMENT_NAME_AT(name), .dst = &place, .bytes = sizeof(place)});
-                    const unsigned long long measured =
-                        g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = names, .offset = place});
-                    token_length = (measured < (sizeof(token) - 1ULL)) ? measured : (sizeof(token) - 1ULL);
-                    (void)g_cli_guard->movable_buf_read(
-                        &(CarcerMovableCfg){.cell = names, .offset = place, .dst = token, .bytes = token_length});
-                }
+                // the run's token name read from the grammar store, cut to the 63 bytes its reading looks at
+                char token[CLI_NAME_MAX_LEN];
+                VerbaLinea token_line = {token, sizeof(token), 0ULL};
+                (void)EMBED_CALL(cli_document_names.read, CliDocumentNamesCfg, .key = displayed->key, .name = name,
+                                 .out = &token_line);
+                const unsigned long long measured = mmgr_line_finish(&token_line);
+                const unsigned long long token_length = (measured < 63ULL) ? measured : 63ULL;
                 token[token_length] = '\0';
                 const unsigned long long run_end = ((next + 1u) < runs.runs) ? following : (units + (length - at));
                 const unsigned long long run_size = (run_end > units) ? (run_end - units) : 0ULL;

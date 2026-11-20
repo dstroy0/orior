@@ -593,8 +593,6 @@ int cli_notebook_model_frame_alloc(const CliNotebookCellsFrameCfg *args)
                                                              .key = key, .number = number, .count = lines,
                                                              .mirrored = 0, .owner = g_cli_notebook_open_owner)
                                                 : NULL;
-        frame->part[at].labels = EMBED_CALL(cli_document_names.names_alloc, CliDocumentNamesCfg, .key = key,
-                                            .owner = g_cli_notebook_open_owner);
         g_cli_guard->persistent_buf_release(number, g_cli_notebook_open_owner);
     }
     // each row's text, the next line of its part's lines, or its part's lines whole, and its sentence
@@ -656,7 +654,6 @@ void cli_notebook_model_frame_release(const CliNotebookCellsFrameCfg *args)
     for (unsigned int at = 0u; at < frame->parts; at += 1u)
     {
         (void)g_cli_guard->movable_buf_release(frame->part[at].runs, g_cli_notebook_open_owner);
-        (void)g_cli_guard->movable_buf_release(frame->part[at].labels, g_cli_notebook_open_owner);
     }
     if (frame->view != NULL)
     {

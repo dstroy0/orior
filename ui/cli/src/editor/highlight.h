@@ -16,15 +16,15 @@
 // returns to root. A grammar whose `perLine` is set starts every line in root; any other carries its states from the
 // end of one line to the start of the next, written as their names joined by `/`.
 //
-// A rule that matches nothing at a line's end and names a token puts a mark there, a token of no characters. A grammar's
-// `indent`, `{ states: { <state>: <token>, ... }, tab, skip, begins: [<state>, ...] }`, runs the states it names by
-// indent, each line's indent its spaces and tabs before its first other character, a tab to the next multiple of `tab`,
-// one column where it gives none. A line `skip` matches is passed over. Any other line begun with a state of `begins`
-// on top makes its indent the statement's, and a rule entering a state of `states` saves the statement's indent with
-// it; the line, on such a state on top of the stack whose indent is as deep as its own or deeper, leaves it, a mark of
-// the state's token put at the line's start for each left. The text's end is a line of no indent, a mark put at the
-// end of its last line for each state it leaves. A grammar with an `indent` writes the states each line ends in after
-// the statement's indent and `|`, each state of `states` followed by `:` and its indent
+// A rule that matches nothing at a line's end and names a token puts a mark there, a token of no characters. A
+// grammar's `indent`, `{ states: { <state>: <token>, ... }, tab, skip, begins: [<state>, ...] }`, runs the states it
+// names by indent, each line's indent its spaces and tabs before its first other character, a tab to the next multiple
+// of `tab`, one column where it gives none. A line `skip` matches is passed over. Any other line begun with a state of
+// `begins` on top makes its indent the statement's, and a rule entering a state of `states` saves the statement's
+// indent with it; the line, on such a state on top of the stack whose indent is as deep as its own or deeper, leaves
+// it, a mark of the state's token put at the line's start for each left. The text's end is a line of no indent, a mark
+// put at the end of its last line for each state it leaves. A grammar with an `indent` writes the states each line ends
+// in after the statement's indent and `|`, each state of `states` followed by `:` and its indent
 #ifndef HIGHLIGHT_H
 #define HIGHLIGHT_H
 #include "../command_line/callback_cfg.h"
@@ -84,6 +84,28 @@ void cli_highlight_runs_write(const CliHighlightCfg *args);
 // the grammars' own report, `<pool's bytes> <their mark> 0`, the max the grammars and their capacities occupied of the
 // cellblock at once, written into `out` (highlight_store.c)
 void cli_highlight_cells_usage_write(const CliHighlightCfg *args);
+
+// the depths of pairs a name each, a deeper pair taking the name of its depth less as many
+#define CLI_HIGHLIGHT_DEPTHS 16u
+// A read of the names table of the grammar stored under `key`. The store builds the table as it stores the grammar
+// and owns it until the grammar goes: the grammar's names in order, then for each name that counts a pair's depth one
+// name for each of CLI_HIGHLIGHT_DEPTHS, the depth after a '.'. A key with no grammar stored has the empty name alone.
+// `name` is a place in the table, `text` a name looked up, `out` the line a name is put after, and `serial` the
+// serial the table was built at, 0 for the empty name alone
+typedef struct
+{
+    const char *key;
+    unsigned int name;
+    const char *text;
+    VerbaLinea *out;
+    unsigned int *serial;
+} CliHighlightNamesCfg;
+// how many names the table holds, its serial written into `serial` where that is not NULL (highlight_store.c)
+unsigned int cli_highlight_names_count(const CliHighlightNamesCfg *args);
+// the name at `name` put after `out`: 1, or 0 where the table holds no name at `name` (highlight_store.c)
+int cli_highlight_name_read(const CliHighlightNamesCfg *args);
+// the place of the name `text`, the table's count where it holds no such name (highlight_store.c)
+unsigned int cli_highlight_name_place(const CliHighlightNamesCfg *args);
 
 struct CliHighlightKeyCfg
 {
@@ -163,6 +185,19 @@ typedef struct
 EMBED_TABLE_LAYOUT(CliHighlightKeyContextNs, names_each);
 EMBED_TABLE_STORAGE CliHighlightKeyContextNs cli_highlight_key_context EMBED_UNUSED = {
     .names_each = cli_highlight_names_each,
+};
+
+typedef struct
+{
+    unsigned int (*count)(const CliHighlightNamesCfg *args);
+    int (*read)(const CliHighlightNamesCfg *args);
+    unsigned int (*place)(const CliHighlightNamesCfg *args);
+} CliHighlightNamesNs;
+EMBED_TABLE_LAYOUT(CliHighlightNamesNs, count, read, place);
+EMBED_TABLE_STORAGE CliHighlightNamesNs cli_highlight_names EMBED_UNUSED = {
+    .count = cli_highlight_names_count,
+    .read = cli_highlight_name_read,
+    .place = cli_highlight_name_place,
 };
 
 typedef struct

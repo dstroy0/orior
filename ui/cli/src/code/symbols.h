@@ -238,6 +238,8 @@ int cli_symbols_pair(const CliSymbolsPathTextSizeStateCfg *args);
 #define CLI_ROLE_DEPTH_CLOSES 0x200u
 #define CLI_ROLE_WORD 0x400u
 #define CLI_ROLE_QUOTED 0x800u
+// the roles that count the depth of a pair
+#define CLI_ROLE_PAIR (CLI_ROLE_DEPTH_OPENS | CLI_ROLE_DEPTH_CLOSES)
 unsigned int cli_symbols_name_roles(const CliSymbolsQueryCfg *args);
 
 struct CliSymbolsPathCfg

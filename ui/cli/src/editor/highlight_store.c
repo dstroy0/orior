@@ -5,6 +5,7 @@
 // grammar and to store one, never as lines are colored: a coloring copies the grammar it reads into a temporary cell
 // of its own and works in a work state it claims by a mark, so as many colorings run at once as threads ask for them.
 // The cells are the one cellblock's, counted to the grammars' own mark, which their report gives
+#include "../code/symbols.h"
 #include "../command_line/callback_cfg.h"
 #include "highlight_internal.h"
 
@@ -25,8 +26,9 @@ typedef struct
 // the grammars stored at max, the list's one cell taken at that
 #define CLI_GRAMMARS_MAX 1024u
 
-// A grammar stored: its key, its movable cell and the cell's bytes, and its parts' counts. A coloring copies the cell
-// into a temporary cell of its own and positions the parts out over the copy, so the cell is read through no pointer
+// A grammar stored: its key, its movable cell and the cell's bytes, its parts' counts, and its names table, how many
+// names it holds and the serial it was built at. A coloring copies the cell into a temporary cell of its own and
+// positions the parts out over the copy, so the cell is read through no pointer
 typedef struct
 {
     char key[CLI_NAME_MAX_LEN];
@@ -34,6 +36,9 @@ typedef struct
     const CarcerMovableEntry *region;
     unsigned long long size;
     CliGrammar grammar;
+    const CarcerMovableEntry *name_table;
+    unsigned int name_count;
+    unsigned int name_serial;
 } CliGrammarEntry;
 
 // the grammars stored, in a movable cell of the entries it fits, and how many it fits; the grammar read, the lock the
@@ -41,6 +46,18 @@ typedef struct
 static const CarcerMovableEntry *s_grammars;
 static unsigned int s_grammar_capacity;
 static CliGrammar s_read;
+// the serial the last names table was built at, 0 before the first
+static unsigned int s_name_serial;
+
+// The names a grammar's tokens take as they are counted and laid out: how many and their bytes so far, the table they
+// are laid out in, NULL while they are counted, and the offset in it where the names' bytes start
+typedef struct
+{
+    unsigned int count;
+    unsigned long long bytes;
+    unsigned char *table;
+    unsigned long long text_at;
+} CliGrammarNamesLaid;
 
 void cli_highlight_cells_usage_write(const CliHighlightCfg *args)
 {
@@ -70,6 +87,12 @@ typedef struct
     unsigned int count;
     const CliColored *colored;
     const CliGrammarEntry *listed;
+    CliGrammarEntry *entry_out;
+    CliGrammarNamesLaid *laid;
+    const char *text;
+    unsigned long long size;
+    int deep;
+    unsigned int depth;
 } HighlightStoreCtx;
 // a stored grammar's cell copied into a temporary cell and its parts arranged over the copy into `grammar`: the copy,
 // for the caller to give back, or NULL where it could not be taken or the cell could not be read
@@ -189,6 +212,92 @@ static int cli_grammars_taken(void)
     return 1;
 }
 
+// one name counted or laid out, a '.' and `depth` after it where it is a depth's
+EMBED_INLINE void cli_grammar_name_lay(const HighlightStoreCtx *args)
+{
+    char suffix[16];
+    VerbaLinea line = {suffix, sizeof(suffix), 0ULL};
+    if (args->deep)
+    {
+        mmgr_line_ch(&line, '.');
+        mmgr_line_decimal(&line, args->depth, 1u);
+    }
+    const unsigned long long suffix_size = mmgr_line_finish(&line);
+    CliGrammarNamesLaid *const laid = args->laid;
+    if (laid->table != NULL)
+    {
+        const unsigned long long place = laid->text_at + laid->bytes;
+        memor.cpy(&(MemoriaCfg){.dst = laid->table + place, .src = args->text, .bytes = args->size});
+        memor.cpy(&(MemoriaCfg){.dst = laid->table + place + args->size, .src = suffix, .bytes = suffix_size});
+        laid->table[place + args->size + suffix_size] = 0u;
+        // the names' bytes are inside the table, whose size an unsigned int counts
+        const unsigned int offset = (unsigned int)place;
+        memor.cpy(&(MemoriaCfg){.dst = laid->table + ((unsigned long long)laid->count * sizeof(offset)),
+                                .src = &offset,
+                                .bytes = sizeof(offset)});
+    }
+    laid->bytes += args->size + suffix_size + 1ULL;
+    laid->count += 1u;
+}
+
+// every name of the grammar `read` counted or laid out: each name in order, then a name for each depth of each name
+// that counts a pair's depth. The empty name stands alone where the grammar gives no name
+EMBED_INLINE void cli_grammar_names_lay(const HighlightStoreCtx *args)
+{
+    const CliGrammar *const read = args->read;
+    if (read->names == 0u)
+    {
+        EMBED_CALL(cli_grammar_name_lay, HighlightStoreCtx, .laid = args->laid, .text = "", .size = 0ULL);
+        return;
+    }
+    for (unsigned int at = 0u; at < read->names; at += 1u)
+    {
+        const char *const name = read->text + read->name[at];
+        EMBED_CALL(cli_grammar_name_lay, HighlightStoreCtx, .laid = args->laid, .text = name,
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}));
+    }
+    for (unsigned int at = 0u; at < read->names; at += 1u)
+    {
+        const char *const name = read->text + read->name[at];
+        if ((EMBED_CALL(cli_symbols_query.name_roles, CliSymbolsQueryCfg, .name = name) & CLI_ROLE_PAIR) == 0u)
+        {
+            continue;
+        }
+        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES});
+        for (unsigned int depth = 0u; depth < CLI_HIGHLIGHT_DEPTHS; depth += 1u)
+        {
+            EMBED_CALL(cli_grammar_name_lay, HighlightStoreCtx, .laid = args->laid, .text = name, .size = size,
+                       .deep = 1, .depth = depth);
+        }
+    }
+}
+
+// the names table of the grammar `read` laid out in a movable cell sized to it: the place of each name, then the names,
+// each ended by a 0. The entry `entry_out` takes the table, its count and a new serial: 1, or 0 where the cellblock
+// cannot meet it
+EMBED_INLINE int cli_grammar_names_build(const HighlightStoreCtx *args)
+{
+    CliGrammarNamesLaid counted = {0u, 0ULL, NULL, 0ULL};
+    EMBED_CALL(cli_grammar_names_lay, HighlightStoreCtx, .read = args->read, .laid = &counted);
+    const unsigned long long text_at = (unsigned long long)counted.count * sizeof(unsigned int);
+    const unsigned long long bytes = text_at + counted.bytes;
+    unsigned char *const table = g_cli_guard->temporary_buf_alloc(bytes, g_cli_grammars_owner);
+    const CarcerMovableEntry *const cell =
+        (table != NULL) ? g_cli_guard->movable_buf_alloc(bytes, g_cli_grammars_owner) : NULL;
+    if (cell != NULL)
+    {
+        CliGrammarNamesLaid laid = {0u, 0ULL, table, text_at};
+        EMBED_CALL(cli_grammar_names_lay, HighlightStoreCtx, .read = args->read, .laid = &laid);
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = cell, .src = table, .bytes = bytes});
+        s_name_serial += 1u;
+        args->entry_out->name_table = cell;
+        args->entry_out->name_count = laid.count;
+        args->entry_out->name_serial = s_name_serial;
+    }
+    g_cli_guard->persistent_buf_release(table, g_cli_grammars_owner);
+    return cell != NULL;
+}
+
 // the grammar at `def` read into `capacity` and stored under `key` in a cell of its own, one stored there before put
 // out of its place first: 1, or 0 with why given
 EMBED_INLINE int cli_grammar_store(const HighlightStoreCtx *args)
@@ -230,6 +339,8 @@ EMBED_INLINE int cli_grammar_store(const HighlightStoreCtx *args)
                                                                 .dst = &listed,
                                                                 .bytes = sizeof(listed)});
         (void)g_cli_guard->movable_buf_release(listed.region, g_cli_grammars_owner);
+        (void)g_cli_guard->movable_buf_release(listed.name_table, g_cli_grammars_owner);
+        listed.name_table = NULL;
         listed.used = 0;
         listed.region = NULL;
         (void)g_cli_guard->movable_buf_write(
@@ -266,6 +377,13 @@ EMBED_INLINE int cli_grammar_store(const HighlightStoreCtx *args)
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_POOL_BYTES}) + 1u});
     grammar.region = region;
     grammar.size = size;
+    if (!EMBED_CALL(cli_grammar_names_build, HighlightStoreCtx, .read = &s_read, .entry_out = &grammar))
+    {
+        (void)g_cli_guard->movable_buf_release(region, g_cli_grammars_owner);
+        g_cli_guard->persistent_buf_release(arranged, g_cli_grammars_owner);
+        mmgr_line_put(err_msg, "the grammars stored take more than impero supports");
+        return 0;
+    }
     EMBED_CALL(cli_copy, HighlightStoreCtx, .read = &s_read, .region = arranged, .copy = &grammar.grammar);
     (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = region, .src = arranged, .bytes = size});
     g_cli_guard->persistent_buf_release(arranged, g_cli_grammars_owner);
@@ -594,6 +712,89 @@ unsigned int cli_highlight_names_each(const CliHighlightKeyContextCfg *args)
     }
     g_cli_guard->persistent_buf_release(region, g_cli_grammars_owner);
     return grammar.names;
+}
+
+// the entry of the grammar stored under `key` read into `entry_out`: 1, or 0 where no grammar with a names table is
+// stored there
+EMBED_INLINE int cli_grammar_listed(const HighlightStoreCtx *args)
+{
+    const unsigned int entry_at = EMBED_CALL(cli_grammar_entry_get, HighlightStoreCtx, .key = args->key);
+    if (entry_at == s_grammar_capacity)
+    {
+        return 0;
+    }
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_grammars,
+                                                            .offset = (embed_word)entry_at * sizeof(CliGrammarEntry),
+                                                            .dst = args->entry_out,
+                                                            .bytes = sizeof(CliGrammarEntry)});
+    return args->entry_out->name_table != NULL;
+}
+
+unsigned int cli_highlight_names_count(const CliHighlightNamesCfg *args)
+{
+    CliGrammarEntry listed = {0};
+    const int stored = EMBED_CALL(cli_grammar_listed, HighlightStoreCtx, .key = args->key, .entry_out = &listed);
+    if (args->serial != NULL)
+    {
+        *args->serial = stored ? listed.name_serial : 0u;
+    }
+    return stored ? listed.name_count : 1u;
+}
+
+int cli_highlight_name_read(const CliHighlightNamesCfg *args)
+{
+    CliGrammarEntry listed = {0};
+    if (!EMBED_CALL(cli_grammar_listed, HighlightStoreCtx, .key = args->key, .entry_out = &listed))
+    {
+        return args->name == 0u;
+    }
+    if (args->name >= listed.name_count)
+    {
+        return 0;
+    }
+    unsigned int place = 0u;
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = listed.name_table,
+                                                            .offset = (unsigned long long)args->name * sizeof(place),
+                                                            .dst = &place,
+                                                            .bytes = sizeof(place)});
+    const unsigned long long length =
+        g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = listed.name_table, .offset = place});
+    // the name put after `out` a part at a time through this call's own bytes
+    char part[64];
+    unsigned long long done = 0ULL;
+    while (done < length)
+    {
+        const unsigned long long taken = ((length - done) < sizeof(part)) ? (length - done) : sizeof(part);
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = listed.name_table, .offset = place + done, .dst = part, .bytes = taken});
+        mmgr_line_put_n(args->out, part, taken);
+        done += taken;
+    }
+    return 1;
+}
+
+unsigned int cli_highlight_name_place(const CliHighlightNamesCfg *args)
+{
+    CliGrammarEntry listed = {0};
+    if (!EMBED_CALL(cli_grammar_listed, HighlightStoreCtx, .key = args->key, .entry_out = &listed))
+    {
+        return (args->text[0] == '\0') ? 0u : 1u;
+    }
+    const unsigned long long bytes = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES}) + 1ULL;
+    for (unsigned int at = 0u; at < listed.name_count; at += 1u)
+    {
+        unsigned int place = 0u;
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = listed.name_table,
+                                                                .offset = (unsigned long long)at * sizeof(place),
+                                                                .dst = &place,
+                                                                .bytes = sizeof(place)});
+        if (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){
+                .cell = listed.name_table, .offset = place, .src = args->text, .bytes = bytes}) == 0)
+        {
+            return at;
+        }
+    }
+    return listed.name_count;
 }
 
 void cli_highlight_runs_write(const CliHighlightCfg *args)

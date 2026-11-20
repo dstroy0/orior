@@ -72,9 +72,9 @@ int main(void)
     terminal.panel = (CliTerminalPanel){1, 0, 240u, 1u, 0, -1, 1u};
     terminal.view[0] = (CliTerminalView){s_key, 0ull, 40u, 3u, 0u, 0u, 0, 0};
     terminal.frame[0] = cli_view_frame_alloc(&(CliViewAtCfg){.key = s_key});
-    terminal.names[0] =
-        EMBED_CALL(cli_document_names.names_alloc, CliDocumentNamesCfg, .key = s_key, .owner = g_checks_owner);
-    cli_check((terminal.frame[0] != NULL) && (terminal.names[0] != NULL), "the pane's frame and names are taken");
+    cli_check((terminal.frame[0] != NULL) &&
+                  (EMBED_CALL(cli_document_names.count, CliDocumentNamesCfg, .key = s_key) != 0u),
+              "the pane's frame is taken and its names are read");
 
     GuiRaster raster;
     cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 1440u, .height = 920u),
@@ -116,7 +116,6 @@ int main(void)
                   (row == 0ull) && (column == 0ull),
               "a pixel outside the pane takes its nearest cell");
     cli_view_frame_release(&(CliViewAtCfg){.frame = (CliViewFrame *)terminal.frame[0]});
-    (void)g_cli_guard->movable_buf_release(terminal.names[0], g_checks_owner);
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;

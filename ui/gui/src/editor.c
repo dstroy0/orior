@@ -464,34 +464,23 @@ EMBED_INLINE float editor_folded_draw(const EditorCtx *args)
 GuiColor gui_editor_color(const GuiEditorPaletteCfg *args)
 {
     const GuiPalette *palette = args->palette;
-    const CarcerMovableEntry *const names = args->editor_read->names;
-    CliDocumentNames head = {0u, 0u};
-    if (names != NULL)
-    {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = names, .dst = &head, .bytes = sizeof(head)});
-    }
-    if ((names == NULL) || (args->name >= head.count))
+    const GuiEditor *const editor = args->editor_read;
+    if (args->name >= editor->names_count)
     {
         return palette->editor_text;
     }
-    const GuiEditor *const editor = args->editor_read;
-    // a retained color is only for the names table, its count and the palette it came from
-    if ((editor->colored_names == names) && (editor->name_colors == head.count) &&
+    // a retained color is only for the names table's serial, its count and the palette it came from
+    if ((editor->colored_serial == editor->names_serial) && (editor->name_colors == editor->names_count) &&
         (editor->colored_palette == palette) && (args->name < GUI_EDITOR_NAME_COLORS))
     {
         return editor->name_color[args->name];
     }
-    // the name read out of its cell at its place, cut to a name's max
-    unsigned int place = 0u;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-        .cell = names, .offset = CLI_DOCUMENT_NAME_AT(args->name), .dst = &place, .bytes = sizeof(place)});
-    const unsigned long long measured =
-        g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = names, .offset = place});
-    const unsigned long long length = (measured < (CLI_NAME_MAX_LEN - 1ULL)) ? measured : (CLI_NAME_MAX_LEN - 1ULL);
+    // the name read from the grammar store into this call's own bytes
     char text[CLI_NAME_MAX_LEN];
-    (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = names, .offset = place, .dst = text, .bytes = length});
-    text[length] = '\0';
+    VerbaLinea line = {text, sizeof(text), 0ULL};
+    (void)EMBED_CALL(cli_document_names.read, CliDocumentNamesCfg, .key = editor->names_key, .name = args->name,
+                     .out = &line);
+    const unsigned long long length = mmgr_line_finish(&line);
     return EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = palette, .name_read = text,
                       .length = length);
 }
@@ -499,28 +488,24 @@ GuiColor gui_editor_color(const GuiEditorPaletteCfg *args)
 void gui_editor_colors_retain(const GuiEditorPaletteCfg *args)
 {
     GuiEditor *const editor = args->editor;
-    const CarcerMovableEntry *const names = editor->names;
-    CliDocumentNames head = {0u, 0u};
-    if (names != NULL)
-    {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = names, .dst = &head, .bytes = sizeof(head)});
-    }
-    if ((names == NULL) || ((editor->colored_names == names) && (editor->name_colors == head.count) &&
-                            (editor->colored_palette == args->palette)))
+    if ((editor->names_count == 0u) ||
+        ((editor->colored_serial == editor->names_serial) && (editor->name_colors == editor->names_count) &&
+         (editor->colored_palette == args->palette)))
     {
         return;
     }
     // the cache stays invalid while the colors change, so a read in that time goes to the palette
-    editor->colored_names = NULL;
-    const unsigned int retained = (head.count < GUI_EDITOR_NAME_COLORS) ? head.count : GUI_EDITOR_NAME_COLORS;
+    editor->colored_palette = NULL;
+    const unsigned int retained =
+        (editor->names_count < GUI_EDITOR_NAME_COLORS) ? editor->names_count : GUI_EDITOR_NAME_COLORS;
     for (unsigned int name = 0u; name < retained; name++)
     {
         editor->name_color[name] = EMBED_CALL(gui_editor_palette.color, GuiEditorPaletteCfg, .editor_read = editor,
                                               .palette = args->palette, .name = name);
     }
-    editor->name_colors = head.count;
+    editor->name_colors = editor->names_count;
+    editor->colored_serial = editor->names_serial;
     editor->colored_palette = args->palette;
-    editor->colored_names = names;
 }
 
 // one line's text drawn from `x` on the baseline `y`, each character in its run's color, a tab arranged to its stop

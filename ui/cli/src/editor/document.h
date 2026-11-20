@@ -170,25 +170,26 @@ int cli_document_find(const CliDocumentOutNeedleCfg *args);
 // what is called, on the walk's thread, as a branch's colors or folds are worked out: nothing is passed over, the
 // lines' runs are in the branch for whoever reads them
 typedef void (*CliDocColored)(void);
-// The head of the names a text's tokens take, at the start of their movable cell. After it come `count` places, each
-// an unsigned int that is the offset in the cell of a name's first byte. The names come after the places, each ended
-// by a zero. The empty name is first, and a run's name is a place among them
-typedef struct
-{
-    unsigned int count;
-    unsigned int reserved;
-} CliDocumentNames;
-// the offset in the names' cell of the place of the name `at`
-#define CLI_DOCUMENT_NAME_AT(at) (sizeof(CliDocumentNames) + ((unsigned long long)(at) * sizeof(unsigned int)))
-// the names the tokens of the text under `key` take, those of its grammar and after them a name for each depth of each
-// that counts a pair's, in a movable cell of `owner`, given back with movable_buf_release: the cell, or NULL where no
-// text is stored under the key or the cells cannot meet it
+// A read of the names the tokens of the text under `key` take: the names table of its grammar, which the grammar
+// store owns (highlight.h). The empty name is first, and a run's name is a place among them. `name` is a place,
+// `text` a name looked up, `out` the line a name is put after, and `serial` the serial the table was built at
 typedef struct
 {
     const char *key;
-    const CellOwner *owner;
+    unsigned int name;
+    const char *text;
+    VerbaLinea *out;
+    unsigned int *serial;
 } CliDocumentNamesCfg;
-const CarcerMovableEntry *cli_document_names_alloc(const CliDocumentNamesCfg *args);
+// how many names the text's tokens take, the table's serial written into `serial` where that is not NULL: 0 where no
+// text is stored under `key` (document_branch.c)
+unsigned int cli_document_names_count(const CliDocumentNamesCfg *args);
+// the name at `name` put after `out`: 1, or 0 where no text is stored under `key` or no name is at `name`
+// (document_branch.c)
+int cli_document_name_read(const CliDocumentNamesCfg *args);
+// the place of the name `text`: the count of names where none is, and 0 where no text is stored under `key`
+// (document_branch.c)
+unsigned int cli_document_name_place(const CliDocumentNamesCfg *args);
 // the colors worked out from here on passed to `colored`, NULL for nowhere, and walked out by a thread of their own
 // where `threaded` is 1; the text stored under `key` colored by the grammar stored under `grammar`, empty for none,
 // every line of it not colored yet and the walk woken, the names its grammar's tokens take passed on by the caller
@@ -211,9 +212,9 @@ char *cli_document_lines_alloc(const CliDocumentKeyCfg *args);
 // the same lines put after `out`, the caller's line, and the state written as above: 1, or 0 where no text is stored
 // under `key` or `out` cannot hold the lines (document_branch.c)
 int cli_document_lines_read(const CliDocumentKeyCfg *args);
-// the same lines read into a cell of the document module for this call alone, given to `each` with `context` with the
-// lock given back, and the state written as above. The cell goes back before the call returns: 1, or 0 where no text
-// is stored under `key` or the cells cannot meet the lines (document_branch.c)
+// the same lines read into a cell of the document module for this call alone and given to `each` with `context`, and
+// the state written as above. The cell goes back before the call returns: 1, or 0 where no text is stored under `key`
+// or the cells cannot meet the lines (document_branch.c)
 int cli_document_lines_each(const CliDocumentKeyCfg *args);
 // the lines of the text under `key` read for it, from `*low` to before `*high`: a paged text's those the page holds,
 // and every line of any other: 1, or 0 where no text is stored under `key` (document_branch.c)
@@ -222,9 +223,9 @@ int cli_document_bounds(const CliDocumentKeyLowCfg *args);
 // for `owner`, given back with persistent_buf_release, its bytes into `size`: NULL where no text read whole is stored
 // under `key` or the cells cannot meet it (document_branch.c)
 char *cli_document_text_alloc(const CliDocumentKeyCfg *args);
-// the same text read into a cell of the document module for this call alone and given to `each` with `context` with
-// the lock given back. The cell goes back before the call returns: 1, or 0 where no text read whole is stored under
-// `key` or the cells cannot meet it (document_branch.c)
+// the same text read into a cell of the document module for this call alone and given to `each` with `context`. The
+// cell goes back before the call returns: 1, or 0 where no text read whole is stored under `key` or the cells cannot
+// meet it (document_branch.c)
 int cli_document_text_each(const CliDocumentKeyCfg *args);
 // the text read whole stored under `key` put into `out` as its file had it, a line at a time, its characters as the
 // file was read and each line but the last ended as the text's lines were read, by a newline or a carriage return and a
@@ -720,11 +721,15 @@ EMBED_TABLE_STORAGE CliDocumentOutNs cli_document_out EMBED_UNUSED = {
 
 typedef struct
 {
-    const CarcerMovableEntry *(*names_alloc)(const CliDocumentNamesCfg *args);
+    unsigned int (*count)(const CliDocumentNamesCfg *args);
+    int (*read)(const CliDocumentNamesCfg *args);
+    unsigned int (*place)(const CliDocumentNamesCfg *args);
 } CliDocumentNamesNs;
-EMBED_TABLE_LAYOUT(CliDocumentNamesNs, names_alloc);
+EMBED_TABLE_LAYOUT(CliDocumentNamesNs, count, read, place);
 EMBED_TABLE_STORAGE CliDocumentNamesNs cli_document_names EMBED_UNUSED = {
-    .names_alloc = cli_document_names_alloc,
+    .count = cli_document_names_count,
+    .read = cli_document_name_read,
+    .place = cli_document_name_place,
 };
 
 typedef struct
