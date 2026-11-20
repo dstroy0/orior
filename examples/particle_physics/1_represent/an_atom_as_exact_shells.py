@@ -43,7 +43,7 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 while ROOT != os.path.dirname(ROOT) and not os.path.isdir(os.path.join(ROOT, "src", "cu", "engine")):
     ROOT = os.path.dirname(ROOT)
 if not os.path.isdir(os.path.join(ROOT, "src", "cu", "engine")):
-    raise SystemExit("could not find archive/src/python above %s" % os.path.abspath(__file__))
+    raise SystemExit("could not find src/cu/engine above %s" % os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(ROOT, "src", "python"))
 import manifest  # noqa: E402,F401
 

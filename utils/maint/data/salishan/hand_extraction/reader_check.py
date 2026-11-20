@@ -32,7 +32,7 @@ def _repository_root():
     A marker that the repository produces, such as build/, is absent from a linked worktree and from a clone with no
     build. A climb to it can pass this root and land in another checkout whose paths look valid. A marker infers the
     root. Git answers it. The climb below serves only an exported tree with no git directory. It looks for
-    archive/src/python, which the repository tracks and every checkout of it holds.
+    src/cu/engine, which the repository tracks and every checkout of it holds.
 
     The function clears the variables of git first. Inside a hook, git exports GIT_DIR. A rev-parse that inherits it
     answers about that repository, and not about the directory that the caller asks from. It then returns the current
