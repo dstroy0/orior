@@ -564,7 +564,6 @@ includes/window/block.h	8
 includes/window/busy.h	12
 includes/window/button.c	6
 includes/window/button.h	7
-includes/window/claim.c	18
 includes/window/controls.c	3
 includes/window/controls.h	2
 includes/window/dialog.c	3
