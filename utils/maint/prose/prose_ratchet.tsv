@@ -591,7 +591,6 @@ includes/window/tip.c	8
 includes/window/tip.h	6
 includes/window/top_menu.c	5
 includes/window/top_menu.h	4
-includes/window/wordmark.h	19
 includes/window/work.h	4
 src/build_engine.sh	9
 src/cu/CMakeLists.txt	8
