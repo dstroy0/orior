@@ -565,7 +565,6 @@ includes/window/lights.h	3
 includes/window/palette.h	12
 includes/window/panel.c	5
 includes/window/panel.h	5
-includes/window/pointer.c	14
 includes/window/pointer.h	10
 includes/window/scrollbar.c	4
 includes/window/scrollbar.h	6

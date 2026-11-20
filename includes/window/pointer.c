@@ -35,8 +35,8 @@
 #define POINTER_COMPASS(lit_)                                                                                          \
     {24.0, 24.0, 12.0, 12.0, 0u, 12.0, 12.0, 9u, POINTER_COMPASS_FIGURES, (lit_), 0x1feu & ~(1u << (lit_))}
 
-// each shape's sprite, in the order of the shapes' numbers: its size and hot point, the eighths of a turn its figures
-// are turned by, the place in the figures that its center shows, and its figures
+// the sprite of each shape, in the order of the numbers of the shapes. It holds its size and hot point, and the eighths
+// of a turn that its figures turn by. It holds the place in the figures that its center shows, and its figures
 static const GuiPointerSprite s_sprites[GUI_POINTER_SHAPES] = {
     {20.0, 22.0, 1.5, 1.5, 0u, 10.0, 11.0, 1u, {POINTER_ARROW_FIGURE}},
     {9.0,
@@ -216,8 +216,8 @@ EMBED_INLINE GuiRect pointer_on_raster(const PointerCtx *args)
 #define POINTER_SHARE(value_, share_) ((((value_) * (share_)) + 127u) / 255u)
 
 // The distance in design units from x, y to the edge of `figure`, its corners rounded: below 0 inside the figure.
-// For a disc it is the distance to its center less its radius. Else the distance to the nearest side is found first,
-// and a ray to the right that crosses the sides an odd number of times puts the place inside
+// For a disc it is the distance to its center less its radius. Else the code first finds the distance to the nearest
+// side. A ray to the right that crosses the sides an odd number of times puts the place inside
 EMBED_INLINE double pointer_figure_distance(const PointerCtx *args)
 {
     const GuiPointerFigure *const figure = args->figure;
@@ -255,9 +255,9 @@ EMBED_INLINE double pointer_figure_distance(const PointerCtx *args)
     return (inside ? -distance : distance) - figure->corner;
 }
 
-// The distance in design units from x, y of the sprite to the edge of its figures: the least of the figures'
-// distances, the figure it is the distance to into `nearest` where one is given. The place is turned back by the
-// sprite's turn round its center into the figures' units first
+// The distance in design units from x, y of the sprite to the edge of its figures: the least of the distances of the
+// figures. The figure of that distance goes into `nearest` where the caller gives it. The code first turns the place
+// back by the turn of the sprite round its center, into the units of the figures
 EMBED_INLINE double pointer_sprite_distance(const PointerCtx *args)
 {
     const GuiPointerSprite *const sprite = args->sprite;
@@ -303,8 +303,8 @@ static PointerShares pointer_shares(GuiColor color)
                            (double)POINTER_BYTE(color, 0u) / 255.0, (double)POINTER_BYTE(color, 24u) / 255.0};
 }
 
-// `layer` put over `under`, both multiplied by their alphas, `layer` at `alpha`: what is under keeps the share the
-// alpha leaves, and the layer's color times the alpha is added
+// `layer` put over `under`, both multiplied by their alphas, `layer` at `alpha`. What is under keeps the share that the
+// alpha leaves, and the code adds the color of the layer times the alpha
 static PointerShares pointer_over(PointerShares under, PointerShares layer, double alpha)
 {
     const double keep = 1.0 - alpha;
@@ -320,7 +320,7 @@ static GuiColor pointer_byte(double share)
     return (GuiColor)((clamped * 255.0) + 0.5);
 }
 
-// The sprite baked into `picture` at `scale` in the palette's pointer colors. Each pixel is sampled at its center. Its
+// The sprite baked into `picture` at `scale` in the palette's pointer colors. The code samples each pixel at its center. Its
 // distance to the figures' edge gives how much of it the glass covers, the rim, the glint and the shadow. The rim's
 // color goes from the border's to the border's end across the sprite from its top left to its bottom right. The
 // glint lies on the edges that face the top left. A lit figure's body is the rim's color whole, and the glint washes
@@ -398,8 +398,8 @@ EMBED_INLINE void pointer_sprite_bake(const PointerCtx *args)
     }
 }
 
-// The sheet baked at `scale` in the palette's pointer colors: every shape's picture made again where the scale or a
-// color is not the sheet's, else nothing done
+// The sheet, baked at `scale` in the pointer colors of the palette. The code makes the picture of each shape again
+// where the scale or a color is not that of the sheet. Else it does nothing
 EMBED_INLINE void pointer_sheet_bake(const PointerCtx *args)
 {
     GuiPointerSheet *const sheet = &args->pointer->sheet;
@@ -426,8 +426,8 @@ EMBED_INLINE void pointer_sheet_bake(const PointerCtx *args)
 }
 
 // The shape's baked picture put over the raster at `rect`, the sprite's whole rectangle, cut to the raster and to its
-// clip where it has one. A pixel the picture covers whole is copied, and one it does not cover is left as it is.
-// Any other pixel keeps the share of the ground the picture leaves, and the picture's color is added to it
+// clip where it has one. The code copies a pixel that the picture covers whole. A pixel that it does not cover
+// stays as it is. Any other pixel keeps the share of the ground that the picture leaves, plus the color of the picture
 EMBED_INLINE void pointer_sheet_blit(const PointerCtx *args)
 {
     GuiRaster *const raster = args->raster;
