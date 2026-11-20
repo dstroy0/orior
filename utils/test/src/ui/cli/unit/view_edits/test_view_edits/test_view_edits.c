@@ -6,10 +6,10 @@
 // after the last line as one step, and leaves a text with nothing to change as it is; a replace writes another text
 // over the lines that differ alone, to the text's end where the last lines differ, and nothing where the texts read
 // the same
-#include "ui/cli/src/editor/view_edits.h"
-#include "ui/cli/src/text/edits.h"
-#include "ui/cli/src/editor/view_tidy.h"
 #include "ui/cli/src/command_line/pool.h"
+#include "ui/cli/src/editor/view_edits.h"
+#include "ui/cli/src/editor/view_tidy.h"
+#include "ui/cli/src/text/edits.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
 static const char s_key[] = "view_edits_check";
@@ -31,15 +31,17 @@ void tearDown(void)
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key);
 }
 
+// the text the document gives asserted to read as the text the context holds
+static void text_matches(const CliEachTextLengthCfg *args)
+{
+    CLI_TEST_ASSERT_TEXT((const char *)args->context, args->text, args->length);
+}
+
 // the whole text asserted to read as `required`
 static void text_is(const char *required)
 {
-    unsigned long long size = 0ULL;
-    char *const text = EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = s_key,
-                                  .owner = g_checks_owner, .size_pointer = &size);
-    TEST_ASSERT_NOT_NULL(text);
-    CLI_TEST_ASSERT_TEXT(required, text, size);
-    g_cli_guard->persistent_buf_release(text, g_checks_owner);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key.text_each, CliDocumentKeyCfg, .key = s_key, .each = text_matches,
+                                .context = (void *)required));
 }
 
 // the key `name` sent to the view
@@ -193,18 +195,23 @@ void test_a_place_and_an_edit_are_written_as_json_and_a_column_finds_its_byte(vo
 {
     char buffer[96];
     VerbaLinea out = mmgr_line_over(buffer, sizeof(buffer));
-    EMBED_CALL(cli_edits_position.text_position_write, CliEditsPositionCfg, .place = (CliTextPosition){3u, 7u}, .out = &out);
+    EMBED_CALL(cli_edits_position.text_position_write, CliEditsPositionCfg, .place = (CliTextPosition){3u, 7u},
+               .out = &out);
     CLI_TEST_ASSERT_TEXT("{\"line\":3,\"col\":7}", buffer, out.at);
     out = mmgr_line_over(buffer, sizeof(buffer));
     const CliTextEdit edit = {{1u, 2u}, {1u, 4u}, "a\"b", 3ULL};
     EMBED_CALL(cli_edits.text_edit_write, CliEditsCfg, .edit = &edit, .out = &out);
-    CLI_TEST_ASSERT_TEXT("{\"from\":{\"line\":1,\"col\":2},\"to\":{\"line\":1,\"col\":4},\"text\":\"a\\\"b\"}", buffer, out.at);
+    CLI_TEST_ASSERT_TEXT("{\"from\":{\"line\":1,\"col\":2},\"to\":{\"line\":1,\"col\":4},\"text\":\"a\\\"b\"}", buffer,
+                         out.at);
     // "a", a two byte character, a four byte character of two units, "b": column 2 is byte 3, column 4 is byte 7
     const char line[] = "a\xc3\xa9\xf0\x9f\x98\x80"
                         "b";
-    TEST_ASSERT_EQUAL_UINT64(3ULL, EMBED_CALL(cli_edits_line.text_byte_get, CliEditsLineCfg, .line = line, .size = sizeof(line) - 1u, .col = 2u));
-    TEST_ASSERT_EQUAL_UINT64(7ULL, EMBED_CALL(cli_edits_line.text_byte_get, CliEditsLineCfg, .line = line, .size = sizeof(line) - 1u, .col = 4u));
-    TEST_ASSERT_EQUAL_UINT64(8ULL, EMBED_CALL(cli_edits_line.text_byte_get, CliEditsLineCfg, .line = line, .size = sizeof(line) - 1u, .col = 40u));
+    TEST_ASSERT_EQUAL_UINT64(3ULL, EMBED_CALL(cli_edits_line.text_byte_get, CliEditsLineCfg, .line = line,
+                                              .size = sizeof(line) - 1u, .col = 2u));
+    TEST_ASSERT_EQUAL_UINT64(7ULL, EMBED_CALL(cli_edits_line.text_byte_get, CliEditsLineCfg, .line = line,
+                                              .size = sizeof(line) - 1u, .col = 4u));
+    TEST_ASSERT_EQUAL_UINT64(8ULL, EMBED_CALL(cli_edits_line.text_byte_get, CliEditsLineCfg, .line = line,
+                                              .size = sizeof(line) - 1u, .col = 40u));
 }
 
 static CliCompletions s_items;
@@ -212,9 +219,15 @@ static CliCompletions s_items;
 void test_completion_items_are_put_after_each_other_and_made_unique_by_what_they_show(void)
 {
     EMBED_CALL(cli_edits_items.completions_begin, CliEditsItemsCfg, .items = &s_items);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_edits_items.completion_append, CliEditsItemsCfg, .items = &s_items, .label = "get", .label_size = 3ull, .type = "function", .detail = "int get()", .detail_size = 9ull, .insert = "get()", .insert_size = 5ull, .snippet = 0));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_edits_items.completion_append, CliEditsItemsCfg, .items = &s_items, .label = "set", .label_size = 3ull, .type = "function", .detail = "", .detail_size = 0ull, .insert = "set($1)", .insert_size = 7ull, .snippet = 1));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_edits_items.completion_append, CliEditsItemsCfg, .items = &s_items, .label = "get", .label_size = 3ull, .type = "field", .detail = "", .detail_size = 0ull, .insert = "get", .insert_size = 3ull, .snippet = 0));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_edits_items.completion_append, CliEditsItemsCfg, .items = &s_items, .label = "get",
+                                .label_size = 3ull, .type = "function", .detail = "int get()", .detail_size = 9ull,
+                                .insert = "get()", .insert_size = 5ull, .snippet = 0));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_edits_items.completion_append, CliEditsItemsCfg, .items = &s_items, .label = "set",
+                                .label_size = 3ull, .type = "function", .detail = "", .detail_size = 0ull,
+                                .insert = "set($1)", .insert_size = 7ull, .snippet = 1));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_edits_items.completion_append, CliEditsItemsCfg, .items = &s_items, .label = "get",
+                                .label_size = 3ull, .type = "field", .detail = "", .detail_size = 0ull, .insert = "get",
+                                .insert_size = 3ull, .snippet = 0));
     TEST_ASSERT_EQUAL_UINT(3u, s_items.count);
     EMBED_CALL(cli_edits_items.completions_unique, CliEditsItemsCfg, .items = &s_items);
     TEST_ASSERT_EQUAL_UINT(2u, s_items.count);

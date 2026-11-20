@@ -3078,14 +3078,6 @@ static char *text_alloc_locked(const CliDocumentKeyCfg *args)
     return reserved;
 }
 
-char *cli_document_text_alloc(const CliDocumentKeyCfg *args)
-{
-    cli_document_lock_take();
-    char *const answer = text_alloc_locked(args);
-    cli_document_lock_give();
-    return answer;
-}
-
 int cli_document_text_each(const CliDocumentKeyCfg *args)
 {
     unsigned long long size = 0ULL;

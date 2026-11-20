@@ -216,13 +216,9 @@ int cli_document_lines_each(const CliDocumentKeyCfg *args);
 // the lines of the text under `key` read for it, from `*low` to before `*high`: a paged text's those the page holds,
 // and every line of any other: 1, or 0 where no text is stored under `key` (document_branch.c)
 int cli_document_bounds(const CliDocumentKeyLowCfg *args);
-// the text read whole stored under `key` as UTF-8, its lines joined by "\n" and a NUL after the last, in a cell taken
-// for `owner`, given back with persistent_buf_release, its bytes into `size`: NULL where no text read whole is stored
-// under `key` or the cells cannot meet it (document_branch.c)
-char *cli_document_text_alloc(const CliDocumentKeyCfg *args);
-// the same text read into a cell of the document module for this call alone and given to `each` with `context`. The
-// cell goes back before the call returns: 1, or 0 where no text read whole is stored under `key` or the cells cannot
-// meet it (document_branch.c)
+// The text read whole under `key` goes to `each` with `context` as UTF-8, its lines joined by "\n" and a NUL after the
+// last. The text sits in a cell of the document module for this call alone, and the cell goes back before the call
+// returns. Returns 1, or 0 where `key` holds no text read whole or the cells cannot meet it (document_branch.c)
 int cli_document_text_each(const CliDocumentKeyCfg *args);
 // the text read whole stored under `key` put into `out` as its file had it, a line at a time, its characters as the
 // file was read and each line but the last ended as the text's lines were read, by a newline or a carriage return and a
@@ -650,14 +646,12 @@ typedef struct
 {
     int (*lines_read)(const CliDocumentKeyCfg *args);
     int (*lines_each)(const CliDocumentKeyCfg *args);
-    char *(*text_alloc)(const CliDocumentKeyCfg *args);
     int (*text_each)(const CliDocumentKeyCfg *args);
 } CliDocumentKeyNs;
-EMBED_TABLE_LAYOUT(CliDocumentKeyNs, lines_read, lines_each, text_alloc, text_each);
+EMBED_TABLE_LAYOUT(CliDocumentKeyNs, lines_read, lines_each, text_each);
 EMBED_TABLE_STORAGE CliDocumentKeyNs cli_document_key EMBED_UNUSED = {
     .lines_read = cli_document_lines_read,
     .lines_each = cli_document_lines_each,
-    .text_alloc = cli_document_text_alloc,
     .text_each = cli_document_text_each,
 };
 

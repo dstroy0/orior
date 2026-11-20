@@ -27,6 +27,22 @@ static void cursor_put(const char *key, unsigned long long line, unsigned long l
     (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = key, .input = &put, .err_msg = &err_msg);
 }
 
+// The text an accepted row leaves: the bytes it takes, and whether the accepted word ends it
+typedef struct
+{
+    unsigned long long size;
+    int accepted;
+} TextAccepted;
+
+// the text the document gives compared with the bytes it takes and the accepted word at its end
+static void text_accepted(const CliEachTextLengthCfg *args)
+{
+    TextAccepted *const accepted = (TextAccepted *)args->context;
+    accepted->accepted =
+        (args->length == accepted->size) &&
+        (memor.cmp(&(MemoriaCfg){.src = args->text + args->length - 8ULL, .other = "alphabet", .bytes = 8ULL}) == 0);
+}
+
 int main(void)
 {
     (void)cli_pool_made(CLI_POOL_BYTES);
@@ -87,13 +103,10 @@ int main(void)
     cli_check(cli_servers_panels_key(&(CliServersPanelsCfg){.name = "Enter"}), "Enter accepts the row chosen");
     cli_check(!cli_servers_panels_completion(&(CliServersPanelsCfg){.panel = &panel}),
               "the list closes as a row is accepted");
-    unsigned long long size = 0ULL;
-    char *const text = EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = s_key, .size_pointer = &size,
-                                  .owner = g_cli_servers_owner);
-    cli_check((text != NULL) && (size == sizeof(s_text) - 1ULL + 5ULL) &&
-                  (memor.cmp(&(MemoriaCfg){.src = text + size - 8ULL, .other = "alphabet", .bytes = 8ULL}) == 0),
-              "the accepted word is over the prefix in the text");
-    g_cli_guard->persistent_buf_release(text, g_cli_servers_owner);
+    TextAccepted accepted = {sizeof(s_text) - 1ULL + 5ULL, 0};
+    (void)EMBED_CALL(cli_document_key.text_each, CliDocumentKeyCfg, .key = s_key, .each = text_accepted,
+                     .context = &accepted);
+    cli_check(accepted.accepted, "the accepted word is over the prefix in the text");
     // the list opened at a word's end lists the longer words that start with it, and Escape closes it
     cursor_put(s_key, 0ULL, 9ULL);
     cli_check(cli_servers_panels_key(&(CliServersPanelsCfg){.name = "Mod+Space"}) &&

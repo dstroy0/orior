@@ -232,6 +232,33 @@ int cli_notebook_cell_add(const CliNotebookEditCellCfg *args)
                       .line = 0ULL, .column = 0ULL, .err_msg = &err_msg);
 }
 
+// The cell a retype turns: the model and the cell's number
+typedef struct
+{
+    CliNotebookModel *model;
+    unsigned int cell;
+} EditRetyped;
+
+// the cell turned from code to markdown or back, its outputs let go, and its source stored again from the text the
+// document gives
+static void edit_retyped(const CliEachTextLengthCfg *args)
+{
+    const EditRetyped *const retyped = (const EditRetyped *)args->context;
+    CliNotebookModel *const model = retyped->model;
+    CliNotebookCell cell = {0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = model->cells_cell, .offset = CLI_NOTEBOOK_CELL_AT(retyped->cell), .dst = &cell, .bytes = sizeof(cell)});
+    cell.type = (cell.type == CLI_NOTEBOOK_CODE) ? CLI_NOTEBOOK_MARKDOWN : CLI_NOTEBOOK_CODE;
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = model->cells_cell,
+                                                             .offset = CLI_NOTEBOOK_CELL_AT(retyped->cell),
+                                                             .src = &cell,
+                                                             .bytes = sizeof(CliNotebookCell)});
+    EMBED_CALL(cli_notebook_model_internal.outputs_released, CliNotebookModelCtx, .model = model,
+               .cell = retyped->cell);
+    (void)EMBED_CALL(cli_notebook_model_internal.source_stored, CliNotebookModelCtx, .model = model,
+                     .cell = retyped->cell, .text = args->text, .size = args->length);
+}
+
 int cli_notebook_cell_retype(const CliNotebookEditCellCfg *args)
 {
     CliNotebookModel *const model = EMBED_CALL(cli_notebook_model_internal.of, CliNotebookModelCtx, .key = args->key);
@@ -246,25 +273,12 @@ int cli_notebook_cell_retype(const CliNotebookEditCellCfg *args)
     char key[CLI_PATH_MAX_LEN + CLI_NOTEBOOK_KEY_MORE];
     EMBED_CALL(cli_notebook_model_internal.key, CliNotebookModelCtx, .model = model, .cell = args->cell,
                .output = CLI_NOTEBOOK_NONE, .out = key);
-    unsigned long long size = 0ULL;
-    char *const text = EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = key, .size_pointer = &size,
-                                  .owner = g_cli_notebook_open_owner);
-    if (text == NULL)
+    EditRetyped retyped = {model, args->cell};
+    if (!EMBED_CALL(cli_document_key.text_each, CliDocumentKeyCfg, .key = key, .each = edit_retyped,
+                    .context = &retyped))
     {
         return 0;
     }
-    CliNotebookCell cell = {0};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-        .cell = model->cells_cell, .offset = CLI_NOTEBOOK_CELL_AT(args->cell), .dst = &cell, .bytes = sizeof(cell)});
-    cell.type = (cell.type == CLI_NOTEBOOK_CODE) ? CLI_NOTEBOOK_MARKDOWN : CLI_NOTEBOOK_CODE;
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = model->cells_cell,
-                                                             .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
-                                                             .src = &cell,
-                                                             .bytes = sizeof(CliNotebookCell)});
-    EMBED_CALL(cli_notebook_model_internal.outputs_released, CliNotebookModelCtx, .model = model, .cell = args->cell);
-    (void)EMBED_CALL(cli_notebook_model_internal.source_stored, CliNotebookModelCtx, .model = model, .cell = args->cell,
-                     .text = text, .size = size);
-    g_cli_guard->persistent_buf_release(text, g_cli_notebook_open_owner);
     EMBED_CALL(cli_notebook_model_internal.rows_settled, CliNotebookModelCtx, .model = model, .cell = args->cell);
     EMBED_CALL(edited, NotebookEditCtx, .model = model, .cell = args->cell);
     if (focused)

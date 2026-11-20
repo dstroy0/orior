@@ -128,29 +128,46 @@ static void hints_span_write(const CliSpannedCfg *args)
     spanned->written = 1;
 }
 
+// The spans a selection ask reads: the ask, the spans written, and whether the read worked
+typedef struct
+{
+    const CliServersPathErrMsgOutCtx *ask;
+    CliServersSpanned spanned;
+    int done;
+} HintsSelection;
+
+// the spans that hold the ask's selection read off a text and written
+static void hints_selection_spans(const CliEachTextLengthCfg *args)
+{
+    HintsSelection *const selection = (HintsSelection *)args->context;
+    const CliServersPathErrMsgOutCtx *const ask = selection->ask;
+    selection->done =
+        EMBED_CALL(cli_symbols_path_text_size_context_err_msg_from_symbol_position.spans,
+                   CliSymbolsPathTextSizeContextErrMsgFromSymbolPositionCfg, .path = ask->path, .text = args->text,
+                   .size = args->length, .from_symbol_position = (CliSymbolPosition){ask->from.line, ask->from.col},
+                   .to_symbol_position = (CliSymbolPosition){ask->to.line, ask->to.col},
+                   .each_spanned = hints_span_write, .context = &selection->spanned, .err_msg = ask->err_msg);
+}
+
 int cli_servers_selection(const CliServersPathErrMsgOutCtx *args)
 {
-    const char *path = args->path;
-    unsigned long long size = 0ULL;
-    char *const branch = (args->key != NULL)
-                             ? EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = args->key,
-                                          .size_pointer = &size, .owner = g_cli_servers_owner)
-                             : NULL;
-    char *const text = (branch != NULL) ? branch
-                                        : EMBED_CALL(cli_servers_path_size_type.text_alloc, CliServersPathSizeTypeCfg,
-                                                     .path = path, .size_pointer = &size);
-    CliServersSpanned spanned = {args->out, 0};
+    HintsSelection selection = {args, {args->out, 0}, 1};
     mmgr_line_ch(args->out, '[');
-    const int done =
-        (text == NULL) ||
-        EMBED_CALL(cli_symbols_path_text_size_context_err_msg_from_symbol_position.spans,
-                   CliSymbolsPathTextSizeContextErrMsgFromSymbolPositionCfg, .path = path, .text = text, .size = size,
-                   .from_symbol_position = (CliSymbolPosition){args->from.line, args->from.col},
-                   .to_symbol_position = (CliSymbolPosition){args->to.line, args->to.col},
-                   .each_spanned = hints_span_write, .context = &spanned, .err_msg = args->err_msg);
+    if ((args->key == NULL) || !EMBED_CALL(cli_document_key.text_each, CliDocumentKeyCfg, .key = args->key,
+                                           .each = hints_selection_spans, .context = &selection))
+    {
+        unsigned long long size = 0ULL;
+        char *const text = EMBED_CALL(cli_servers_path_size_type.text_alloc, CliServersPathSizeTypeCfg,
+                                      .path = args->path, .size_pointer = &size);
+        if (text != NULL)
+        {
+            EMBED_CALL(hints_selection_spans, CliEachTextLengthCfg, .context = &selection, .text = text,
+                       .length = size);
+        }
+        g_cli_guard->persistent_buf_release(text, g_cli_servers_owner);
+    }
     mmgr_line_ch(args->out, ']');
-    g_cli_guard->persistent_buf_release(text, g_cli_servers_owner);
-    return done;
+    return selection.done;
 }
 
 // The tree's hints being written: where, and whether one was

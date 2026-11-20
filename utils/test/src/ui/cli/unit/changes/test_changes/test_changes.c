@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// test_changes.c: the changes of a text against its last commit's file, answered off the store's diff and saved until the text moves: a line put in,
-// one taken out and one changed are each one change with its mark; the change a line is in is found, and for lines
-// taken out the line above them; the marks of a run of lines; stepping from a line and from a change wraps both ways;
-// and the revert of each type leaves the text the last commit's
-#include "ui/cli/src/editor/document_changes.h"
+// test_changes.c: the changes of a text against its last commit's file, answered off the store's diff and saved until
+// the text moves: a line put in, one taken out and one changed are each one change with its mark; the change a line is
+// in is found, and for lines taken out the line above them; the marks of a run of lines; stepping from a line and from
+// a change wraps both ways; and the revert of each type leaves the text the last commit's
 #include "ui/cli/src/command_line/pool.h"
+#include "ui/cli/src/editor/document_changes.h"
 #include "ui/cli/src/editor/view_edits.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
@@ -69,15 +69,17 @@ static unsigned int count_is(void)
     return count;
 }
 
+// the text the document gives asserted to read as the text the context holds
+static void text_matches(const CliEachTextLengthCfg *args)
+{
+    CLI_TEST_ASSERT_TEXT((const char *)args->context, args->text, args->length);
+}
+
 // the whole text asserted to read as `required`
 static void text_is(const char *required)
 {
-    unsigned long long size = 0ULL;
-    char *const text = EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = s_key,
-                                  .owner = g_checks_owner, .size_pointer = &size);
-    TEST_ASSERT_NOT_NULL(text);
-    CLI_TEST_ASSERT_TEXT(required, text, size);
-    g_cli_guard->persistent_buf_release(text, g_checks_owner);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key.text_each, CliDocumentKeyCfg, .key = s_key, .each = text_matches,
+                                .context = (void *)required));
 }
 
 // the change at `line` reverted through the view as one step
@@ -120,7 +122,8 @@ void test_a_line_changed_is_one_change_marked_changed_with_its_two_lines(void)
     CliChange change;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_document_change.find, CliChangeCfg, .key = s_key, .at = CLI_CHANGE_NONE,
                                 .line = 1ULL, .change_out = &change));
-    TEST_ASSERT_EQUAL_UINT(CLI_CHANGE_MARK_CHANGED, EMBED_CALL(cli_document_change.mark, CliChangeCfg, .change = &change));
+    TEST_ASSERT_EQUAL_UINT(CLI_CHANGE_MARK_CHANGED,
+                           EMBED_CALL(cli_document_change.mark, CliChangeCfg, .change = &change));
     TEST_ASSERT_EQUAL_UINT(1u, change.now_from);
     TEST_ASSERT_EQUAL_UINT(2u, change.now_to);
     TEST_ASSERT_EQUAL_UINT(1u, change.then_from);
@@ -217,8 +220,8 @@ void test_the_changes_read_again_are_until_the_text_moves(void)
 void test_no_head_reads_no_change(void)
 {
     CliShape shape;
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = s_key, .text = "one\n", .size = 4ULL,
-                                .shape = &shape));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = s_key, .text = "one\n",
+                                .size = 4ULL, .shape = &shape));
     TEST_ASSERT_EQUAL_UINT(0u, count_is());
     mark_is(0ULL, CLI_CHANGE_NONE, CLI_CHANGE_MARK_NONE);
 }

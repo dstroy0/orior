@@ -1010,16 +1010,38 @@ static void requests_send_run(void *context)
     }
 }
 
-// the text stored under `key` read whole, its bytes into `out`'s place: the cell, NULL where none is stored
+// The copy the pane takes of a text: its cell and its bytes
+typedef struct
+{
+    char *text;
+    unsigned long long length;
+} RequestsTextCopied;
+
+// the text the document gives copied into a temporary cell of the pane's own, a NUL after it
+static void requests_text_copied(const CliEachTextLengthCfg *args)
+{
+    RequestsTextCopied *const copied = (RequestsTextCopied *)args->context;
+    copied->text = g_cli_guard->temporary_buf_alloc(args->length + 1ULL, g_cli_requests_owner);
+    if (copied->text != NULL)
+    {
+        memor.cpy(&(MemoriaCfg){.dst = copied->text, .src = args->text, .bytes = args->length});
+        copied->text[args->length] = '\0';
+        copied->length = args->length;
+    }
+}
+
+// The text under `key` goes whole into a cell of the pane's own, and its byte count into `out`'s place. Returns the
+// cell, or NULL where `key` holds no text or the cells cannot meet it
 EMBED_INLINE char *requests_text_alloc(const RequestsPaneCtx *args)
 {
-    unsigned long long size = 0ULL;
-    char *const text = (args->key != NULL)
-                           ? EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = args->key,
-                                        .size_pointer = &size, .owner = g_cli_requests_owner)
-                           : NULL;
-    *args->length_out = size;
-    return text;
+    RequestsTextCopied copied = {NULL, 0ULL};
+    if (args->key != NULL)
+    {
+        (void)EMBED_CALL(cli_document_key.text_each, CliDocumentKeyCfg, .key = args->key, .each = requests_text_copied,
+                         .context = &copied);
+    }
+    *args->length_out = copied.length;
+    return copied.text;
 }
 
 // where `asked` names no view, the displayed view's key, its path and its cursor's line put in it, and the tree's root
