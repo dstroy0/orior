@@ -89,7 +89,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\symbols\\test_symbols\\test_symbols.c");
+  UnityBegin("utils/test/src/ui/cli/unit/symbols/test_symbols/test_symbols.c");
   run_test(test_pythons_declarations_are_read, "test_pythons_declarations_are_read", 143);
   run_test(test_rusts_declarations_are_read, "test_rusts_declarations_are_read", 151);
   run_test(test_a_scripts_declarations_are_read, "test_a_scripts_declarations_are_read", 160);

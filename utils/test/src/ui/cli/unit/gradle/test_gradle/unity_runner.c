@@ -87,7 +87,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\gradle\\test_gradle\\test_gradle.c");
+  UnityBegin("utils/test/src/ui/cli/unit/gradle/test_gradle/test_gradle.c");
   run_test(test_an_alias_the_catalog_does_not_define_is_found, "test_an_alias_the_catalog_does_not_define_is_found", 66);
   run_test(test_a_configuration_gradle_removed_is_found, "test_a_configuration_gradle_removed_is_found", 71);
   run_test(test_a_configuration_no_plugin_makes_is_found, "test_a_configuration_no_plugin_makes_is_found", 76);

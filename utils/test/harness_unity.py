@@ -68,9 +68,12 @@ def generate_runner(root, suite_dir, unity, extension=".c"):
     ruby = shutil.which("ruby")
     if ruby is None:
         raise SystemExit("unit: ruby is not on PATH, and Unity's generator needs it")
-    source = os.path.join(suite_dir, holding[0])
+    # The generator writes the source's path into the runner as it gets it. The path from the top of the tree with forward
+    # slashes, read from the top of the tree, is the same on every machine.
+    source = os.path.relpath(os.path.join(suite_dir, holding[0]), root).replace("\\", "/")
     out = os.path.join(suite_dir, runner)
-    subprocess.run([ruby, os.path.join(unity, "auto", "generate_test_runner.rb"), os.path.join(root, RUNNER_OPTIONS), source, out], check=True)
+    subprocess.run([ruby, os.path.join(unity, "auto", "generate_test_runner.rb"), os.path.join(root, RUNNER_OPTIONS), source, out],
+                   check=True, cwd=root)
     with open(out, "rb") as written:
         text = written.read()
     fixed = text.replace(b"\r\n", b"\n")
@@ -78,7 +81,7 @@ def generate_runner(root, suite_dir, unity, extension=".c"):
     if fixed != text:
         with open(out, "wb") as rewritten:
             rewritten.write(fixed)
-    return source
+    return os.path.join(root, source)
 
 
 def host_target():

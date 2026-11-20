@@ -89,7 +89,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\test_runs\\test_test_runs\\test_test_runs.c");
+  UnityBegin("utils/test/src/ui/cli/unit/test_runs/test_test_runs/test_test_runs.c");
   run_test(test_a_run_is_spread_by_complete_files_the_largest_first, "test_a_run_is_spread_by_complete_files_the_largest_first", 195);
   run_test(test_a_run_has_no_more_shares_than_files, "test_a_run_has_no_more_shares_than_files", 215);
   run_test(test_a_run_has_one_share_where_one_is_requested, "test_a_run_has_one_share_where_one_is_requested", 226);

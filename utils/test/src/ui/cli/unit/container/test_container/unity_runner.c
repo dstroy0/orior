@@ -89,7 +89,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\container\\test_container\\test_container.c");
+  UnityBegin("utils/test/src/ui/cli/unit/container/test_container/test_container.c");
   run_test(test_windows_a_process_started_in_a_group_has_its_own_job_and_runs, "test_windows_a_process_started_in_a_group_has_its_own_job_and_runs", 228);
   run_test(test_windows_a_groups_end_ends_every_process_and_their_output, "test_windows_a_groups_end_ends_every_process_and_their_output", 246);
   run_test(test_windows_a_group_released_as_orior_ends_ends_every_process_in_it, "test_windows_a_group_released_as_orior_ends_ends_every_process_in_it", 267);

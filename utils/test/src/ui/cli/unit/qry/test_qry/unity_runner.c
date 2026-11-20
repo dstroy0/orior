@@ -73,7 +73,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\qry\\test_qry\\test_qry.c");
+  UnityBegin("utils/test/src/ui/cli/unit/qry/test_qry/test_qry.c");
   run_test(test_a_runs_names_come_in_the_order_of_their_first_records, "test_a_runs_names_come_in_the_order_of_their_first_records", 69);
   run_test(test_a_names_records_are_joined, "test_a_names_records_are_joined", 78);
   run_test(test_another_names_records_are_joined, "test_another_names_records_are_joined", 86);

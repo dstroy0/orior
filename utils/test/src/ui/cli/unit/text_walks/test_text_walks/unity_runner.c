@@ -96,7 +96,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\text_walks\\test_text_walks\\test_text_walks.c");
+  UnityBegin("utils/test/src/ui/cli/unit/text_walks/test_text_walks/test_text_walks.c");
   run_test(test_a_byte_the_text_does_not_contain_scans_to_each_end, "test_a_byte_the_text_does_not_contain_scans_to_each_end", 81);
   run_test(test_one_byte_is_found_at_its_first_and_last_position, "test_one_byte_is_found_at_its_first_and_last_position", 86);
   run_test(test_one_byte_is_found_end_a_lanes_width, "test_one_byte_is_found_end_a_lanes_width", 91);

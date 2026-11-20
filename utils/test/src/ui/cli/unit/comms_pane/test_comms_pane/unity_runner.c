@@ -77,7 +77,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\comms_pane\\test_comms_pane\\test_comms_pane.c");
+  UnityBegin("utils/test/src/ui/cli/unit/comms_pane/test_comms_pane/test_comms_pane.c");
   run_test(test_no_parts_and_no_channels_list_two_empty_groups, "test_no_parts_and_no_channels_list_two_empty_groups", 67);
   run_test(test_two_parts_and_a_channel_list_by_name_with_their_counts, "test_two_parts_and_a_channel_list_by_name_with_their_counts", 87);
   run_test(test_a_part_refused_is_marked_and_one_with_none_is_not, "test_a_part_refused_is_marked_and_one_with_none_is_not", 126);

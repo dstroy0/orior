@@ -97,7 +97,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\mysql\\test_mysql\\test_mysql.c");
+  UnityBegin("utils/test/src/ui/cli/unit/mysql/test_mysql/test_mysql.c");
   run_test(test_a_power_is_computed_by_its_modulus, "test_a_power_is_computed_by_its_modulus", 369);
   run_test(test_a_products_remainder_is_the_remainders_products, "test_a_products_remainder_is_the_remainders_products", 383);
   run_test(test_a_number_writes_back_padded_to_its_length, "test_a_number_writes_back_padded_to_its_length", 399);

@@ -80,7 +80,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\json_tree\\test_json_tree\\test_json_tree.c");
+  UnityBegin("utils/test/src/ui/cli/unit/json_tree/test_json_tree/test_json_tree.c");
   run_test(test_empty_object, "test_empty_object", 56);
   run_test(test_empty_array, "test_empty_array", 61);
   run_test(test_literals_which_have_no_text, "test_literals_which_have_no_text", 66);

@@ -76,7 +76,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\transfer\\test_transfer\\test_transfer.c");
+  UnityBegin("utils/test/src/ui/cli/unit/transfer/test_transfer/test_transfer.c");
   run_test(test_a_region_contains_what_was_written, "test_a_region_contains_what_was_written", 62);
   run_test(test_a_region_opens_as_another_process_opens_it, "test_a_region_opens_as_another_process_opens_it", 68);
   run_test(test_a_region_outlives_the_handle_it_was_created_by, "test_a_region_outlives_the_handle_it_was_created_by", 74);

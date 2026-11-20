@@ -81,7 +81,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\changes\\test_changes\\test_changes.c");
+  UnityBegin("utils/test/src/ui/cli/unit/changes/test_changes/test_changes.c");
   run_test(test_a_line_put_in_is_one_change_marked_added, "test_a_line_put_in_is_one_change_marked_added", 99);
   run_test(test_a_line_taken_out_marks_the_line_above_it, "test_a_line_taken_out_marks_the_line_above_it", 108);
   run_test(test_a_line_changed_is_one_change_marked_changed_with_its_two_lines, "test_a_line_changed_is_one_change_marked_changed_with_its_two_lines", 116);

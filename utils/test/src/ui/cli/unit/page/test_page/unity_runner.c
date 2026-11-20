@@ -79,7 +79,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\page\\test_page\\test_page.c");
+  UnityBegin("utils/test/src/ui/cli/unit/page/test_page/test_page.c");
   run_test(test_a_long_lines_second_row_has_no_number, "test_a_long_lines_second_row_has_no_number", 82);
   run_test(test_a_long_lines_first_row_is_cut_to_the_page, "test_a_long_lines_first_row_is_cut_to_the_page", 94);
   run_test(test_a_tab_is_four_spaces_wide, "test_a_tab_is_four_spaces_wide", 107);

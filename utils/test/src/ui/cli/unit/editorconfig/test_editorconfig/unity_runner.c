@@ -75,7 +75,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\editorconfig\\test_editorconfig\\test_editorconfig.c");
+  UnityBegin("utils/test/src/ui/cli/unit/editorconfig/test_editorconfig/test_editorconfig.c");
   run_test(test_the_star_section_applies, "test_the_star_section_applies", 49);
   run_test(test_a_brace_list_matches_each_extension, "test_a_brace_list_matches_each_extension", 54);
   run_test(test_a_nearer_file_overrides_its_parent, "test_a_nearer_file_overrides_its_parent", 60);

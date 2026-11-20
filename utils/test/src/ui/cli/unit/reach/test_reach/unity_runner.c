@@ -78,7 +78,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\reach\\test_reach\\test_reach.c");
+  UnityBegin("utils/test/src/ui/cli/unit/reach/test_reach/test_reach.c");
   run_test(test_a_window_on_the_tree_answers, "test_a_window_on_the_tree_answers", 127);
   run_test(test_no_window_answers_on_another_tree, "test_no_window_answers_on_another_tree", 135);
   run_test(test_the_only_window_answers_with_no_tree_named, "test_the_only_window_answers_with_no_tree_named", 143);

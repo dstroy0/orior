@@ -101,7 +101,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\pool\\test_pool\\test_pool.c");
+  UnityBegin("utils/test/src/ui/cli/unit/pool/test_pool/test_pool.c");
   run_test(test_a_pool_emptied_for_a_request_is_idle_with_no_cell_allocated, "test_a_pool_emptied_for_a_request_is_idle_with_no_cell_allocated", 76);
   run_test(test_a_request_past_the_pool_declared_is_refused, "test_a_request_past_the_pool_declared_is_refused", 82);
   run_test(test_a_cell_is_allocated_from_a_pool_emptied_for_a_request, "test_a_cell_is_allocated_from_a_pool_emptied_for_a_request", 87);

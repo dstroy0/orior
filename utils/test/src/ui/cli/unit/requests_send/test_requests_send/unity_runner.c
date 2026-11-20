@@ -73,7 +73,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\requests_send\\test_requests_send\\test_requests_send.c");
+  UnityBegin("utils/test/src/ui/cli/unit/requests_send/test_requests_send/test_requests_send.c");
   run_test(test_a_location_is_read_from_where_it_was_sent, "test_a_location_is_read_from_where_it_was_sent", 60);
   run_test(test_a_location_with_its_own_host_is_read_as_it_exists, "test_a_location_with_its_own_host_is_read_as_it_exists", 68);
 

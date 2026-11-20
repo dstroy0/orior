@@ -71,7 +71,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\cores\\test_cores\\test_cores.c");
+  UnityBegin("utils/test/src/ui/cli/unit/cores/test_cores/test_cores.c");
   run_test(test_reserving_zero_reserves_one, "test_reserving_zero_reserves_one", 23);
   run_test(test_reserving_one_leaves_the_remainder_for_work, "test_reserving_one_leaves_the_remainder_for_work", 29);
   run_test(test_reserving_more_than_the_machine_has_leaves_one_for_work, "test_reserving_more_than_the_machine_has_leaves_one_for_work", 35);

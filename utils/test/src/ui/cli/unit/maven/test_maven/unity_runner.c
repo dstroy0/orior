@@ -82,7 +82,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\maven\\test_maven\\test_maven.c");
+  UnityBegin("utils/test/src/ui/cli/unit/maven/test_maven/test_maven.c");
   run_test(test_each_fault_of_the_pom_is_found, "test_each_fault_of_the_pom_is_found", 84);
   run_test(test_a_dependency_listed_again_past_the_cells_first_size_is_found, "test_a_dependency_listed_again_past_the_cells_first_size_is_found", 94);
   run_test(test_nothing_else_is_found, "test_nothing_else_is_found", 113);

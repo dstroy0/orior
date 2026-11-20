@@ -108,7 +108,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\git\\test_git\\test_git.c");
+  UnityBegin("utils/test/src/ui/cli/unit/git/test_git/test_git.c");
   run_test(test_a_clone_of_an_https_url_ending_in_git, "test_a_clone_of_an_https_url_ending_in_git", 180);
   run_test(test_a_clone_of_an_https_url_ending_in_a_slash, "test_a_clone_of_an_https_url_ending_in_a_slash", 185);
   run_test(test_a_clone_of_an_ssh_address, "test_a_clone_of_an_ssh_address", 190);

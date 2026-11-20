@@ -92,7 +92,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\query_pairs\\test_query_pairs\\test_query_pairs.c");
+  UnityBegin("utils/test/src/ui/cli/unit/query_pairs/test_query_pairs/test_query_pairs.c");
   run_test(test_a_parts_name_for_the_vendors_reader, "test_a_parts_name_for_the_vendors_reader", 70);
   run_test(test_a_parts_name_with_a_character_after_it, "test_a_parts_name_with_a_character_after_it", 77);
   run_test(test_the_queues_target_is_the_stick, "test_the_queues_target_is_the_stick", 84);

@@ -81,7 +81,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\db_servers\\test_db_servers\\test_db_servers.c");
+  UnityBegin("utils/test/src/ui/cli/unit/db_servers/test_db_servers/test_db_servers.c");
   run_test(test_postgres_reads_the_sessions_zone, "test_postgres_reads_the_sessions_zone", 140);
   run_test(test_postgres_reads_the_schemas, "test_postgres_reads_the_schemas", 148);
   run_test(test_postgres_reads_a_schemas_tables, "test_postgres_reads_a_schemas_tables", 154);

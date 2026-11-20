@@ -88,7 +88,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\format\\test_format\\test_format.c");
+  UnityBegin("utils/test/src/ui/cli/unit/format/test_format/test_format.c");
   run_test(test_each_formatter_names_a_language, "test_each_formatter_names_a_language", 50);
   run_test(test_python_is_formatted_by_black, "test_python_is_formatted_by_black", 67);
   run_test(test_c_is_formatted_by_clang_format, "test_c_is_formatted_by_clang_format", 74);

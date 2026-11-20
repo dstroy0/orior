@@ -99,7 +99,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\executables\\test_executables\\test_executables.c");
+  UnityBegin("utils/test/src/ui/cli/unit/executables/test_executables/test_executables.c");
   run_test(test_cargo_lists_its_named_and_found_binaries, "test_cargo_lists_its_named_and_found_binaries", 185);
   run_test(test_cargo_lists_no_binaries_where_autobins_is_off, "test_cargo_lists_no_binaries_where_autobins_is_off", 193);
   run_test(test_cargo_lists_no_binaries_of_a_workspace, "test_cargo_lists_no_binaries_of_a_workspace", 201);

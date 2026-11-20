@@ -71,7 +71,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\typed\\test_typed\\test_typed.c");
+  UnityBegin("utils/test/src/ui/cli/unit/typed/test_typed/test_typed.c");
   run_test(test_the_bytes_put_stop_at_a_control_past_a_words_width, "test_the_bytes_put_stop_at_a_control_past_a_words_width", 16);
   run_test(test_a_control_first_puts_nothing, "test_a_control_first_puts_nothing", 28);
   run_test(test_a_byte_past_ascii_is_put_whole, "test_a_byte_past_ascii_is_put_whole", 37);

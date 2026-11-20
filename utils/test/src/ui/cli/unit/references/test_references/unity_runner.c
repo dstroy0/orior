@@ -77,7 +77,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\references\\test_references\\test_references.c");
+  UnityBegin("utils/test/src/ui/cli/unit/references/test_references/test_references.c");
   run_test(test_the_references_of_a_name_are_listed_by_file, "test_the_references_of_a_name_are_listed_by_file", 82);
   run_test(test_a_reference_row_names_its_place_and_marks_the_name, "test_a_reference_row_names_its_place_and_marks_the_name", 100);
   run_test(test_a_file_row_pressed_closes_and_opens_its_references, "test_a_file_row_pressed_closes_and_opens_its_references", 115);

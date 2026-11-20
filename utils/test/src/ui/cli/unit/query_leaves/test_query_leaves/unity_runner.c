@@ -80,7 +80,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\query_leaves\\test_query_leaves\\test_query_leaves.c");
+  UnityBegin("utils/test/src/ui/cli/unit/query_leaves/test_query_leaves/test_query_leaves.c");
   run_test(test_a_diff_names_one_removed_and_one_added_line, "test_a_diff_names_one_removed_and_one_added_line", 156);
   run_test(test_a_diff_shows_the_removed_and_added_text, "test_a_diff_shows_the_removed_and_added_text", 164);
   run_test(test_an_unchanged_run_folds_to_three_lines_a_count_and_three_lines, "test_an_unchanged_run_folds_to_three_lines_a_count_and_three_lines", 171);

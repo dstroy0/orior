@@ -74,7 +74,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\diff\\test_diff\\test_diff.c");
+  UnityBegin("utils/test/src/ui/cli/unit/diff/test_diff/test_diff.c");
   run_test(test_the_same_text_has_no_change, "test_the_same_text_has_no_change", 100);
   run_test(test_a_line_changed_is_one_change_of_one_line_for_one, "test_a_line_changed_is_one_change_of_one_line_for_one", 107);
   run_test(test_a_line_put_in_and_one_taken_out_are_two_changes, "test_a_line_put_in_and_one_taken_out_are_two_changes", 116);

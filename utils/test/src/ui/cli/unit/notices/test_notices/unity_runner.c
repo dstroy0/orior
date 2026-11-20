@@ -77,7 +77,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\notices\\test_notices\\test_notices.c");
+  UnityBegin("utils/test/src/ui/cli/unit/notices/test_notices/test_notices.c");
   run_test(test_a_notice_answering_a_command_shows_at_once_and_is_five_seconds, "test_a_notice_answering_a_command_shows_at_once_and_is_five_seconds", 53);
   run_test(test_a_failure_is_fifteen_seconds_and_shows_its_first_line, "test_a_failure_is_fifteen_seconds_and_shows_its_first_line", 69);
   run_test(test_a_notice_answering_nothing_waits_for_the_keys_to_rest, "test_a_notice_answering_nothing_waits_for_the_keys_to_rest", 80);

@@ -75,7 +75,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\recent\\test_recent\\test_recent.c");
+  UnityBegin("utils/test/src/ui/cli/unit/recent/test_recent/test_recent.c");
   run_test(test_a_push_puts_the_newest_first, "test_a_push_puts_the_newest_first", 39);
   run_test(test_a_repeat_moves_to_the_front_and_is_once, "test_a_repeat_moves_to_the_front_and_is_once", 50);
   run_test(test_the_list_stops_at_its_max, "test_the_list_stops_at_its_max", 68);

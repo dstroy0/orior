@@ -79,7 +79,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\requests_pane\\test_requests_pane\\test_requests_pane.c");
+  UnityBegin("utils/test/src/ui/cli/unit/requests_pane/test_requests_pane/test_requests_pane.c");
   run_test(test_a_request_with_no_answer_positions_the_row_that_reads_so, "test_a_request_with_no_answer_positions_the_row_that_reads_so", 120);
   run_test(test_the_line_reads_its_requests_answers_the_last_first, "test_the_line_reads_its_requests_answers_the_last_first", 132);
   run_test(test_the_same_request_is_not_read_again_unless_forced, "test_the_same_request_is_not_read_again_unless_forced", 166);

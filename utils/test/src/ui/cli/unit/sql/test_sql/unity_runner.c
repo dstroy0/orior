@@ -104,7 +104,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\sql\\test_sql\\test_sql.c");
+  UnityBegin("utils/test/src/ui/cli/unit/sql/test_sql/test_sql.c");
   run_test(test_a_semicolon_in_a_string_a_comment_or_a_dollar_quote_ends_no_statement, "test_a_semicolon_in_a_string_a_comment_or_a_dollar_quote_ends_no_statement", 98);
   run_test(test_a_semicolon_in_mysqls_quotes_and_comments_ends_no_statement, "test_a_semicolon_in_mysqls_quotes_and_comments_ends_no_statement", 103);
   run_test(test_a_semicolon_in_sqlites_quotes_ends_no_statement, "test_a_semicolon_in_sqlites_quotes_ends_no_statement", 108);

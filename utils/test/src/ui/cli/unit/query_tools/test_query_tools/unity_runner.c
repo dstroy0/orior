@@ -85,7 +85,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\query_tools\\test_query_tools\\test_query_tools.c");
+  UnityBegin("utils/test/src/ui/cli/unit/query_tools/test_query_tools/test_query_tools.c");
   run_test(test_the_compiles_run_as_many_at_once_as_the_interfaces_queue, "test_the_compiles_run_as_many_at_once_as_the_interfaces_queue", 128);
   run_test(test_the_compiles_run_as_far_apart_as_the_interfaces_queue, "test_the_compiles_run_as_far_apart_as_the_interfaces_queue", 133);
   run_test(test_every_pattern_of_every_tool_reaches_a_file_of_the_tree, "test_every_pattern_of_every_tool_reaches_a_file_of_the_tree", 138);

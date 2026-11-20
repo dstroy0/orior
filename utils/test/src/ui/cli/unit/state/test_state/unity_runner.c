@@ -79,7 +79,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\state\\test_state\\test_state.c");
+  UnityBegin("utils/test/src/ui/cli/unit/state/test_state/test_state.c");
   run_test(test_nothing_reads_before_anything_is_saved, "test_nothing_reads_before_anything_is_saved", 84);
   run_test(test_every_entry_reads_back_as_saved, "test_every_entry_reads_back_as_saved", 91);
   run_test(test_a_setting_in_settings_json_reads_too, "test_a_setting_in_settings_json_reads_too", 101);

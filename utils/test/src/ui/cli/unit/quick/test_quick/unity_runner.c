@@ -85,7 +85,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\quick\\test_quick\\test_quick.c");
+  UnityBegin("utils/test/src/ui/cli/unit/quick/test_quick/test_quick.c");
   run_test(test_a_command_none_of_the_quick_opens_nothing, "test_a_command_none_of_the_quick_opens_nothing", 117);
   run_test(test_a_leading_greater_lists_the_commands_the_ones_run_last_first, "test_a_leading_greater_lists_the_commands_the_ones_run_last_first", 123);
   run_test(test_a_query_after_the_greater_marks_the_characters_it_matched, "test_a_query_after_the_greater_marks_the_characters_it_matched", 143);

@@ -79,7 +79,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\bridge\\test_bridge\\test_bridge.c");
+  UnityBegin("utils/test/src/ui/cli/unit/bridge/test_bridge/test_bridge.c");
   run_test(test_a_pair_reads_its_two_names, "test_a_pair_reads_its_two_names", 77);
   run_test(test_a_pair_reads_its_verdict, "test_a_pair_reads_its_verdict", 84);
   run_test(test_every_other_line_under_a_pair_is_a_note, "test_every_other_line_under_a_pair_is_a_note", 91);

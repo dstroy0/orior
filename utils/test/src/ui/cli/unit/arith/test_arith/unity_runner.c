@@ -75,7 +75,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\arith\\test_arith\\test_arith.c");
+  UnityBegin("utils/test/src/ui/cli/unit/arith/test_arith/test_arith.c");
   run_test(test_floor_and_ceiling_cut_at_whole_values, "test_floor_and_ceiling_cut_at_whole_values", 18);
   run_test(test_round_takes_a_half_away_from_zero, "test_round_takes_a_half_away_from_zero", 36);
   run_test(test_absolute_value_least_max_and_remainder, "test_absolute_value_least_max_and_remainder", 49);

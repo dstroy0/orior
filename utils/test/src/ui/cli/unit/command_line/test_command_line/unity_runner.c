@@ -93,7 +93,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\command_line\\test_command_line\\test_command_line.c");
+  UnityBegin("utils/test/src/ui/cli/unit/command_line/test_command_line/test_command_line.c");
   run_test(test_a_long_usage_wraps_onto_more_than_one_line, "test_a_long_usage_wraps_onto_more_than_one_line", 156);
   run_test(test_every_wrapped_line_is_40_characters_at_max, "test_every_wrapped_line_is_40_characters_at_max", 162);
   run_test(test_every_line_after_the_first_is_indented_two_spaces, "test_every_line_after_the_first_is_indented_two_spaces", 171);

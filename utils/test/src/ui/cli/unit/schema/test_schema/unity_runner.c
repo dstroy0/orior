@@ -91,7 +91,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\schema\\test_schema\\test_schema.c");
+  UnityBegin("utils/test/src/ui/cli/unit/schema/test_schema/test_schema.c");
   run_test(test_json_reads_with_its_faults, "test_json_reads_with_its_faults", 129);
   run_test(test_json_reads_with_its_positions, "test_json_reads_with_its_positions", 145);
   run_test(test_a_file_of_many_values_reads_complete_with_its_lists_in_one_cell, "test_a_file_of_many_values_reads_complete_with_its_lists_in_one_cell", 162);

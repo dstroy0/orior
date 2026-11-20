@@ -104,7 +104,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\terminal\\test_terminal\\test_terminal.c");
+  UnityBegin("utils/test/src/ui/cli/unit/terminal/test_terminal/test_terminal.c");
   run_test(test_the_cursor_keys_send_plain_application_and_modified_sequences, "test_the_cursor_keys_send_plain_application_and_modified_sequences", 224);
   run_test(test_the_keys_with_sequences_of_their_own_send_them_alt_putting_an_escape_first, "test_the_keys_with_sequences_of_their_own_send_them_alt_putting_an_escape_first", 236);
   run_test(test_control_sends_control_characters_and_alt_an_escape_and_the_character, "test_control_sends_control_characters_and_alt_an_escape_and_the_character", 248);

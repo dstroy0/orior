@@ -74,7 +74,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\install\\test_install\\test_install.c");
+  UnityBegin("utils/test/src/ui/cli/unit/install/test_install/test_install.c");
   run_test(test_the_words_fill_the_options, "test_the_words_fill_the_options", 22);
   run_test(test_the_checks_host_without_a_host_is_refused, "test_the_checks_host_without_a_host_is_refused", 38);
   run_test(test_a_word_not_taken_is_refused, "test_a_word_not_taken_is_refused", 47);

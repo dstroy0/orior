@@ -81,7 +81,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\scons\\test_scons\\test_scons.c");
+  UnityBegin("utils/test/src/ui/cli/unit/scons/test_scons/test_scons.c");
   run_test(test_each_named_script_that_is_missing_is_a_finding, "test_each_named_script_that_is_missing_is_a_finding", 84);
   run_test(test_an_imported_name_nothing_exports_is_a_finding, "test_an_imported_name_nothing_exports_is_a_finding", 92);
   run_test(test_the_finding_is_positioned_on_the_name, "test_the_finding_is_positioned_on_the_name", 99);

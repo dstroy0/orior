@@ -126,7 +126,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\regexp\\test_regexp\\test_regexp.c");
+  UnityBegin("utils/test/src/ui/cli/unit/regexp/test_regexp/test_regexp.c");
   run_test(test_a_digit_class_repeats, "test_a_digit_class_repeats", 119);
   run_test(test_a_set_of_ranges_and_a_word_class, "test_a_set_of_ranges_and_a_word_class", 124);
   run_test(test_a_negated_set_with_escapes, "test_a_negated_set_with_escapes", 129);

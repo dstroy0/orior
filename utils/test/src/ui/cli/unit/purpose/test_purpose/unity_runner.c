@@ -86,7 +86,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\purpose\\test_purpose\\test_purpose.c");
+  UnityBegin("utils/test/src/ui/cli/unit/purpose/test_purpose/test_purpose.c");
   run_test(test_a_scripts_comment_end_its_license, "test_a_scripts_comment_end_its_license", 34);
   run_test(test_a_rust_files_comment, "test_a_rust_files_comment", 41);
   run_test(test_a_python_modules_docstring, "test_a_python_modules_docstring", 46);

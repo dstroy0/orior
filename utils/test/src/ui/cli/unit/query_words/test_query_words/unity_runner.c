@@ -104,7 +104,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\query_words\\test_query_words\\test_query_words.c");
+  UnityBegin("utils/test/src/ui/cli/unit/query_words/test_query_words/test_query_words.c");
   run_test(test_the_list_names_every_loop_once, "test_the_list_names_every_loop_once", 165);
   run_test(test_leave_is_read_off_the_words, "test_leave_is_read_off_the_words", 179);
   run_test(test_an_unknown_leave_is_refused, "test_an_unknown_leave_is_refused", 195);

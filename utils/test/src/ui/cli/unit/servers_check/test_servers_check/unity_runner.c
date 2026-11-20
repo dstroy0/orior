@@ -72,7 +72,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\servers_check\\test_servers_check\\test_servers_check.c");
+  UnityBegin("utils/test/src/ui/cli/unit/servers_check/test_servers_check/test_servers_check.c");
   run_test(test_every_file_is_listing_in_order, "test_every_file_is_listing_in_order", 79);
   run_test(test_another_tree_lists_no_files, "test_another_tree_lists_no_files", 96);
   run_test(test_the_checks_memory_is_sized_to_its_files, "test_the_checks_memory_is_sized_to_its_files", 103);

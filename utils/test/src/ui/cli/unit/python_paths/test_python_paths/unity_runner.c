@@ -77,7 +77,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\python_paths\\test_python_paths\\test_python_paths.c");
+  UnityBegin("utils/test/src/ui/cli/unit/python_paths/test_python_paths/test_python_paths.c");
   run_test(test_a_folder_found_by_walking_up_is_read, "test_a_folder_found_by_walking_up_is_read", 63);
   run_test(test_the_folders_of_a_loop_over_named_folders_are_read, "test_the_folders_of_a_loop_over_named_folders_are_read", 73);
   run_test(test_pathlib_parents_and_a_split_path_are_read, "test_pathlib_parents_and_a_split_path_are_read", 83);

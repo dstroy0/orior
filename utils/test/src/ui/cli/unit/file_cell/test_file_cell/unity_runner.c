@@ -83,7 +83,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\file_cell\\test_file_cell\\test_file_cell.c");
+  UnityBegin("utils/test/src/ui/cli/unit/file_cell/test_file_cell/test_file_cell.c");
   run_test(test_a_files_size_is_answered, "test_a_files_size_is_answered", 42);
   run_test(test_a_file_reads_complete_into_a_cell_that_held_other_bytes, "test_a_file_reads_complete_into_a_cell_that_held_other_bytes", 48);
   run_test(test_a_released_cell_comes_off_the_callers_owner, "test_a_released_cell_comes_off_the_callers_owner", 64);

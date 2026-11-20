@@ -71,7 +71,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\servers_plugins\\test_servers_plugins\\test_servers_plugins.c");
+  UnityBegin("utils/test/src/ui/cli/unit/servers_plugins/test_servers_plugins/test_servers_plugins.c");
   run_test(test_the_folder_mark_in_options_is_the_folder_escaped_for_json, "test_the_folder_mark_in_options_is_the_folder_escaped_for_json", 94);
   run_test(test_the_folder_mark_in_an_argument_is_the_folder_unchanged, "test_the_folder_mark_in_an_argument_is_the_folder_unchanged", 104);
 

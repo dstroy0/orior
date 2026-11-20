@@ -80,7 +80,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\runner\\test_runner\\test_runner.c");
+  UnityBegin("utils/test/src/ui/cli/unit/runner/test_runner/test_runner.c");
   run_test(test_stop_ends_a_build_at_once, "test_stop_ends_a_build_at_once", 111);
   run_test(test_a_setting_is_set_in_the_steps_environment, "test_a_setting_is_set_in_the_steps_environment", 139);
   run_test(test_a_setting_leads_the_steps_line, "test_a_setting_leads_the_steps_line", 149);

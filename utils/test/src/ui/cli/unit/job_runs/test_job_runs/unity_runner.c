@@ -79,7 +79,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\job_runs\\test_job_runs\\test_job_runs.c");
+  UnityBegin("utils/test/src/ui/cli/unit/job_runs/test_job_runs/test_job_runs.c");
   run_test(test_read_lists_the_groups_in_the_catalogs_order_each_opened_and_closed, "test_read_lists_the_groups_in_the_catalogs_order_each_opened_and_closed", 129);
   run_test(test_the_filter_lets_are_the_jobs_that_contain_it_and_the_counts_follow, "test_the_filter_lets_are_the_jobs_that_contain_it_and_the_counts_follow", 151);
   run_test(test_a_job_chosen_lists_its_file_and_params_and_the_choices_of_the_param_focused, "test_a_job_chosen_lists_its_file_and_params_and_the_choices_of_the_param_focused", 173);

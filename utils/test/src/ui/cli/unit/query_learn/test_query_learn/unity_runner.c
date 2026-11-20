@@ -99,7 +99,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\query_learn\\test_query_learn\\test_query_learn.c");
+  UnityBegin("utils/test/src/ui/cli/unit/query_learn/test_query_learn/test_query_learn.c");
   run_test(test_the_files_are_transferred_with_forward_slashes, "test_the_files_are_transferred_with_forward_slashes", 104);
   run_test(test_the_parts_files_are_adjacent_the_bridge, "test_the_parts_files_are_adjacent_the_bridge", 114);
   run_test(test_the_transports_words_with_the_lessons, "test_the_transports_words_with_the_lessons", 122);

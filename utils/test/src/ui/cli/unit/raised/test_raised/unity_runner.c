@@ -73,7 +73,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\raised\\test_raised\\test_raised.c");
+  UnityBegin("utils/test/src/ui/cli/unit/raised/test_raised/test_raised.c");
   run_test(test_windows_access_denied_is_a_refusal, "test_windows_access_denied_is_a_refusal", 17);
   run_test(test_permission_denied_is_a_refusal, "test_permission_denied_is_a_refusal", 22);
   run_test(test_read_only_file_system_is_a_refusal, "test_read_only_file_system_is_a_refusal", 27);

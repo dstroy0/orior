@@ -100,7 +100,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\archive\\test_archive\\test_archive.c");
+  UnityBegin("utils/test/src/ui/cli/unit/archive/test_archive/test_archive.c");
   run_test(test_deflate_and_inflate_restore_every_byte, "test_deflate_and_inflate_restore_every_byte", 370);
   run_test(test_deflate_compresses_runs_to_lengths_and_distances, "test_deflate_compresses_runs_to_lengths_and_distances", 380);
   run_test(test_gzip_and_gunzip_restore_every_byte, "test_gzip_and_gunzip_restore_every_byte", 386);

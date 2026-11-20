@@ -84,7 +84,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\compile_db\\test_compile_db\\test_compile_db.c");
+  UnityBegin("utils/test/src/ui/cli/unit/compile_db/test_compile_db/test_compile_db.c");
   run_test(test_a_look_stores_only_the_files_it_read_and_a_second_look_stores_no_more, "test_a_look_stores_only_the_files_it_read_and_a_second_look_stores_no_more", 225);
   run_test(test_a_cmake_reply_releases_each_source_the_debug_configurations_command, "test_a_cmake_reply_releases_each_source_the_debug_configurations_command", 233);
   run_test(test_clangd_is_input_the_written_folder, "test_clangd_is_input_the_written_folder", 258);

@@ -86,7 +86,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\patterns\\test_patterns\\test_patterns.c");
+  UnityBegin("utils/test/src/ui/cli/unit/patterns/test_patterns/test_patterns.c");
   run_test(test_a_name_hides_itself_and_what_is_in_it_at_any_depth, "test_a_name_hides_itself_and_what_is_in_it_at_any_depth", 38);
   run_test(test_a_glob_hides_the_names_it_matches, "test_a_glob_hides_the_names_it_matches", 45);
   run_test(test_a_folders_path_hides_that_folder_only, "test_a_folders_path_hides_that_folder_only", 53);

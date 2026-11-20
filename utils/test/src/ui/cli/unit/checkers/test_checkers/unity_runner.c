@@ -75,7 +75,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\checkers\\test_checkers\\test_checkers.c");
+  UnityBegin("utils/test/src/ui/cli/unit/checkers/test_checkers/test_checkers.c");
   run_test(test_findings_written_a_line_each_are_read, "test_findings_written_a_line_each_are_read", 67);
   run_test(test_ruffs_findings_are_read, "test_ruffs_findings_are_read", 76);
   run_test(test_ruffs_fix_title_is_read, "test_ruffs_fix_title_is_read", 81);

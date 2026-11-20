@@ -73,7 +73,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\problems\\test_problems\\test_problems.c");
+  UnityBegin("utils/test/src/ui/cli/unit/problems/test_problems/test_problems.c");
   run_test(test_a_report_shows_at_the_next_step_worst_first_with_each_message_cut_to_its_first_line, "test_a_report_shows_at_the_next_step_worst_first_with_each_message_cut_to_its_first_line", 82);
   run_test(test_a_files_next_report_replaces_it_at_the_end_and_one_with_none_takes_it_out, "test_a_files_next_report_replaces_it_at_the_end_and_one_with_none_takes_it_out", 109);
   run_test(test_a_press_on_a_files_row_closes_its_rows_and_one_on_a_diagnostic_names_its_place, "test_a_press_on_a_files_row_closes_its_rows_and_one_on_a_diagnostic_names_its_place", 136);

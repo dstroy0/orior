@@ -77,7 +77,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\prompt\\test_prompt\\test_prompt.c");
+  UnityBegin("utils/test/src/ui/cli/unit/prompt/test_prompt/test_prompt.c");
   run_test(test_a_confirm_has_the_sentence_the_statement_and_the_buttons_in_order, "test_a_confirm_has_the_sentence_the_statement_and_the_buttons_in_order", 80);
   run_test(test_an_ask_for_a_line_has_the_sentence_the_field_and_the_buttons, "test_an_ask_for_a_line_has_the_sentence_the_field_and_the_buttons", 98);
   run_test(test_text_typed_goes_at_the_fields_end_and_backspace_takes_one_character, "test_text_typed_goes_at_the_fields_end_and_backspace_takes_one_character", 110);

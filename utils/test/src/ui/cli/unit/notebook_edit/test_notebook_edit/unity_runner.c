@@ -74,7 +74,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\notebook_edit\\test_notebook_edit\\test_notebook_edit.c");
+  UnityBegin("utils/test/src/ui/cli/unit/notebook_edit/test_notebook_edit/test_notebook_edit.c");
   run_test(test_one_cell_at_a_time_has_a_view, "test_one_cell_at_a_time_has_a_view", 74);
   run_test(test_a_line_put_in_grows_the_cells_rows_and_a_character_typed_does_not, "test_a_line_put_in_grows_the_cells_rows_and_a_character_typed_does_not", 90);
   run_test(test_the_notebooks_keys_are_taken_and_others_are_not, "test_the_notebooks_keys_are_taken_and_others_are_not", 108);

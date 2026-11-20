@@ -70,7 +70,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\base64\\test_base64\\test_base64.c");
+  UnityBegin("utils/test/src/ui/cli/unit/base64/test_base64/test_base64.c");
   run_test(test_bytes_are_written_with_the_pad_each_remainder_takes, "test_bytes_are_written_with_the_pad_each_remainder_takes", 27);
   run_test(test_base64_is_read_back_with_whitespace_passed_over, "test_base64_is_read_back_with_whitespace_passed_over", 36);
   run_test(test_a_text_that_is_not_base64_or_does_not_fit_is_refused, "test_a_text_that_is_not_base64_or_does_not_fit_is_refused", 48);

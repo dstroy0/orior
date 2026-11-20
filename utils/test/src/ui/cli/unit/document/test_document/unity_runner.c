@@ -105,7 +105,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\document\\test_document\\test_document.c");
+  UnityBegin("utils/test/src/ui/cli/unit/document/test_document/test_document.c");
   run_test(test_a_text_is_split_as_the_page_splits_a_file_a_char_end_the_basic_plane_two_units, "test_a_text_is_split_as_the_page_splits_a_file_a_char_end_the_basic_plane_two_units", 198);
   run_test(test_a_large_text_accepts_characters_one_edit_at_a_time_each_where_its_edit_writes_it, "test_a_large_text_accepts_characters_one_edit_at_a_time_each_where_its_edit_writes_it", 207);
   run_test(test_edits_are_written_from_the_last_to_the_first_with_the_texts_shape_after_them, "test_edits_are_written_from_the_last_to_the_first_with_the_texts_shape_after_them", 245);

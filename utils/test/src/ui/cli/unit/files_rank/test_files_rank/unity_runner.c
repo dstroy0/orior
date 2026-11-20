@@ -79,7 +79,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\files_rank\\test_files_rank\\test_files_rank.c");
+  UnityBegin("utils/test/src/ui/cli/unit/files_rank/test_files_rank/test_files_rank.c");
   run_test(test_a_typed_name_matches_its_characters_in_the_name, "test_a_typed_name_matches_its_characters_in_the_name", 63);
   run_test(test_a_name_without_the_characters_does_not_match, "test_a_name_without_the_characters_does_not_match", 68);
   run_test(test_an_empty_query_matches_with_no_hits, "test_an_empty_query_matches_with_no_hits", 73);

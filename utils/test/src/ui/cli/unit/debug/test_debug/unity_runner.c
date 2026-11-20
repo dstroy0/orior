@@ -92,7 +92,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\debug\\test_debug\\test_debug.c");
+  UnityBegin("utils/test/src/ui/cli/unit/debug/test_debug/test_debug.c");
   run_test(test_a_functions_bytecode_is_read_with_its_name_and_lines, "test_a_functions_bytecode_is_read_with_its_name_and_lines", 228);
   run_test(test_the_machines_processes_are_listing_with_the_lines_they_started_with, "test_the_machines_processes_are_listing_with_the_lines_they_started_with", 282);
   run_test(test_this_process_is_not_listing, "test_this_process_is_not_listing", 290);

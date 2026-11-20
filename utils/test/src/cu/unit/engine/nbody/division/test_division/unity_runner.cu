@@ -74,7 +74,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\cu\\unit\\engine\\nbody\\division\\test_division\\test_division.cu");
+  UnityBegin("utils/test/src/cu/unit/engine/nbody/division/test_division/test_division.cu");
   run_test(test_a_step_is_written_at_the_next_place_and_its_place_returned, "test_a_step_is_written_at_the_next_place_and_its_place_returned", 41);
   run_test(test_a_step_past_the_program_is_counted_and_not_written, "test_a_step_past_the_program_is_counted_and_not_written", 52);
   run_test(test_a_constant_is_written_as_its_low_and_high_words, "test_a_constant_is_written_as_its_low_and_high_words", 62);

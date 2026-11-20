@@ -81,7 +81,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 /*=======MAIN=====*/
 int main(void)
 {
-  UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\query_writer\\test_query_writer\\test_query_writer.c");
+  UnityBegin("utils/test/src/ui/cli/unit/query_writer/test_query_writer/test_query_writer.c");
   run_test(test_every_role_has_a_readable_name, "test_every_role_has_a_readable_name", 155);
   run_test(test_the_c_compiler_is_found_on_the_path_or_reported, "test_the_c_compiler_is_found_on_the_path_or_reported", 167);
   run_test(test_a_program_adjacent_nvcc_is_looked_for_adjacent_it, "test_a_program_adjacent_nvcc_is_looked_for_adjacent_it", 183);
