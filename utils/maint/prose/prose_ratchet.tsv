@@ -450,7 +450,6 @@ examples/source/1_represent/bracket_pairs.py	4
 examples/source/4_measure/asm_idiom.py	4
 examples/source/4_measure/formal_layer.py	5
 examples/source/4_measure/layout_grid.py	3
-includes/arith/arith.c	10
 includes/arith/arith.h	2
 includes/codecs/deflate/deflate_blocks.c	1
 includes/codecs/ed25519/ed25519.c	1

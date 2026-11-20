@@ -124,7 +124,7 @@ double arith_root(double value)
     return root;
 }
 
-// pi over two in two parts, so the reduction loses little, and two over pi
+// pi over two in two parts, and two over pi. The two parts let the reduction lose little
 #define ARITH_HALF_PI_HIGH 1.5707963267948966
 #define ARITH_HALF_PI_LOW 6.123233995736766e-17
 #define ARITH_TWO_OVER_PI 0.6366197723675814
@@ -158,14 +158,14 @@ EMBED_INLINE double arith_cos_small(double small)
     return 1.0 + (square * sum);
 }
 
-// The angle reduced to a quadrant and what is left within an eighth of a turn of its axis
+// The angle reduced to a quadrant, and the rest within an eighth of a turn of its axis
 typedef struct
 {
     double left;
     unsigned int quadrant;
 } CliArithQuadrant;
 
-// `angle` as its quadrant count and what is left
+// `angle` as its quadrant count and the rest
 EMBED_INLINE CliArithQuadrant arith_quadrant(double angle)
 {
     const double quarters = arith_round(angle * ARITH_TWO_OVER_PI);
@@ -218,8 +218,8 @@ EMBED_INLINE double arith_two_to(long long power)
     return arith_value((embed_u64)(power + ARITH_BIAS) << ARITH_MANTISSA_BITS);
 }
 
-// the power split into a whole count of ln 2 and what is left, e to what is left by its polynomial, the count added to
-// the exponent field
+// the power split into a whole count of ln 2 and the rest. Then e to the rest by its polynomial, with the count added
+// to the exponent field
 double arith_exp(double power)
 {
     if (power > ARITH_EXP_MAX)
@@ -247,16 +247,16 @@ double arith_exp(double power)
     sum = (sum * left) + 1.0;
     // Explicit cast reads the count, whole and between -1075 and 1023 here, as the integer power of two
     const long long whole = (long long)count;
-    // a count below the exponent field's reach is applied in two halves, each within it
+    // the code applies a count below the reach of the exponent field in two halves, each within it
     const long long first = whole / 2LL;
     return (sum * arith_two_to(first)) * arith_two_to(whole - first);
 }
 
-// the square root of two, the bound the mantissa is folded about so its logarithm's series stays short
+// the square root of two, the bound that the mantissa folds about. The series of its logarithm then stays short
 #define ARITH_ROOT_TWO 1.4142135623730951
 
-// the exponent times ln 2 and the logarithm of the mantissa, folded into the range from the root of a half to the
-// root of two, by the series in (m - 1) / (m + 1)
+// the exponent times ln 2, plus the logarithm of the mantissa by the series in (m - 1) / (m + 1). The mantissa folds
+// into the range from the root of a half to the root of two
 double arith_log(double value)
 {
     if (value <= 0.0)
@@ -301,7 +301,7 @@ double arith_hypot(double across, double down)
     return arith_root((across * across) + (down * down));
 }
 
-// the tangent of an eighth of a turn, the bound the arc tangent's argument is folded about
+// the tangent of an eighth of a turn, the bound that the argument of the arc tangent folds about
 #define ARITH_TAN_EIGHTH 0.41421356237309503
 
 // the arc tangent of `ratio`, between 0 and 1: folded about an eighth of a turn, then its odd series
