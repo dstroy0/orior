@@ -2,35 +2,33 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
-# One entry per paper: who spoke it, what it is written with, and which grains its extraction has.
+# One entry per paper: who spoke it, what its orthography is, and which grains its extraction has.
 #
 #   Usage:  from paper_config import PAPERS, marks_for, repair_for, speakers_for
 #
-# The alphabets and the speakers are written here and nowhere else. A second copy drifts: a paper
-# added to one copy and not the other is a paper the coverage check reads with the wrong alphabet
-# and reports as fully covered.
+# This file alone holds the alphabets and the speakers. A second copy drifts. A paper in one copy and not the other is a
+# paper that the coverage check reads with the wrong alphabet. The check then reports it as fully covered.
 #
 # WHO SPOKE IT COMES FIRST
 #
-# These languages belong to the people who speak them and none of this exists without them. The
-# speakers are named here because naming them is a fact about the paper that a person establishes by
-# reading it, the same way the alphabet is, and because a name is not something to derive from a
-# column with a heuristic. Where a paper cites a published dictionary and never says who spoke, the
-# entry is empty and the index says so. That is the honest answer, and the linguist does not go in
-# the field.
+# These languages belong to the people who speak them, and none of this exists without them. This file names the
+# speakers, because their names are a fact about the paper, as the alphabet is. A person finds them by a read of it. A
+# name is also not something to derive from a column with a heuristic. Where a paper cites a published dictionary and
+# never says who spoke, the entry is empty and the index says so. That is the honest answer, and the linguist does not
+# go in the field.
 #
 # WHAT AN ALPHABET IS FOR
 #
-# A token holding one of these characters is the language. The majority of these papers share ʔ, ə and ɬ, and
-# each entry is the shared space plus what that paper adds. A per-paper set is written as SHARED plus
-# its additions and never as its own alphabet, because a checker that knows one paper's characters reads
-# every other paper as empty and then reports nothing missing from it.
+# A token that holds one of these characters is the language. Most of these papers share ʔ, ə and ɬ, and each entry adds
+# what that paper has to SHARED. A set for one paper takes SHARED and adds to it, and never stands as its own alphabet.
+# A checker that knows the characters of one paper reads every other paper as empty, and then reports that nothing is
+# absent from it.
 #
 # WHAT A GRAIN IS
 #
-# A named type of damage the extraction did, out of the five refs.md measures. A paper declares the
-# ones it has and no others. The evidence for each declaration is the comment above it, because
-# the count behind a decision is a fact about that paper.
+# A named type of damage that the extraction did, out of the five that refs.md measures. A paper declares the ones it
+# has, and no others. The evidence for each declaration is the comment above it, because the count behind a decision is
+# a fact about that paper.
 
 from glyph_names import decoded as glyph_names_decoded
 from mary_george_repair import repaired as mary_george_repaired
@@ -38,21 +36,20 @@ from repairs import composed, corrected, one_mark, sequence
 from salish_marking import TEXT_SPACE
 from whitespace import any_of, closed_after_bracket, closed_after_marks, stacked_but_not
 
-# The space every paper here is represented in. salish_marking holds the one definition.
+# The space that every paper here uses. salish_marking holds the one definition.
 SHARED = TEXT_SPACE
 
-# The stress accents, which the general space rule leaves alone. A word can end in a stressed vowel,
-# and closing the space after one welds it to the word after it: LaFontaine and Janzen has
-# ntes neʔé e sqyéytn, and closing there gives neʔée, which the language does not have.
+# The stress accents, which the general space rule leaves alone. A word can end in a stressed vowel, and a close of the
+# space after one welds it to the word after it. LaFontaine and Janzen has `ntes neʔé e sqyéytn`, and a close there
+# gives `neʔée`, which the language does not have.
 STRESS = "́̀"
 
-# The stacked marks plus the accents, for a paper whose own layout makes closing after an accent
-# safe. Both papers that take this print two spaces at a real boundary, which leaves a lone space
-# after an acute as the inserted one every time.
+# The stacked marks plus the accents, for a paper whose own layout makes a close after an accent safe. Both papers that
+# take this print two spaces at a real boundary. A lone space after an acute is then the inserted one every time.
 STACKED_AND_STRESS = "̓̌́̀̕"
 
-# The two ways a paper can write the ejective. Where one character is written both ways in one paper,
-# the two are one mark and normalizing is arithmetic.
+# The two ways a paper can write the ejective. Where one paper writes one character both ways, the two are one mark, and
+# the normal form is arithmetic.
 COMMA_ABOVE = "̓"
 COMMA_ABOVE_RIGHT = "̕"
 
@@ -65,12 +62,12 @@ INSERTED_SPACE_AT_ACCENTS = closed_after_marks(any_of(STACKED_AND_STRESS))
 
 
 class Paper(object):
-    """One paper: who spoke it, what it is written with, and what its extraction did to it.
+    """One paper: who spoke it, what its orthography is, and what its extraction did to it.
 
-    coverage is the repair the coverage check applies, named where it differs from the one the
-    oracle check applies. Two papers differ today and neither difference was deliberate: they are
-    what two hand-retained lists drifting apart looks like. Reconciling them changes what the coverage
-    check reports. It is a measurement to run and not an edit to make quietly.
+    coverage is the repair that the coverage check applies, named where it differs from the one that the oracle check
+    applies. Two papers differ today, and neither difference was deliberate: they show two hand-kept lists that drift
+    apart. A reconciliation of them changes what the coverage check reports. It is a measurement to run, and not an edit
+    to make quietly.
     """
 
     def __init__(
@@ -98,8 +95,8 @@ class Paper(object):
         self.cite = cite
 
 
-# Two speakers of two Lushootseed dialects, the only external dialect label in the archive
-# and the one the border test is scored against.
+# Two speakers of two Lushootseed dialects, the only external dialect label in the archive, and the one that the border
+# test scores against.
 LUSHOOTSEED_STRESS = SHARED + "ǰᶻθáíúàìù" + "̌́̀"
 
 # The 1983 typescript's damaged orthography. Nothing in the shared set appears in it: the glottal
@@ -113,32 +110,32 @@ OKANAGAN = SHARED + "̌·"
 # The 1975 typescript, whose glottal stop is ? and which retains the rest of the orthography.
 HILBERT_HESS = "?ə" + "čšɬƛᶻʷ" + "̌̓"
 
-# Robertson writes his Thompson and Shuswap in Americanist symbols and says so on page 30.
+# Robertson writes the Thompson and Shuswap forms in Americanist symbols, and says so on page 30.
 ROBERTSON = SHARED + "̣čš"
 
-# Wolfe's forms are affixes instead of words. The set has to reach a suffix written in plain characters
-# with one accent on it. The accents are given composed and combining both: NFC makes á one
-# character while ə́ has no composed form and retains its acute located alone.
+# Wolfe's forms are affixes instead of words. The set must reach a suffix in plain characters with one accent on it. The
+# set gives the accents both composed and as separate marks. NFC makes á one character, while ə́ has no composed form
+# and keeps its acute as a separate mark.
 WOLFE = SHARED + "ʸːɛεέŋᶿθǰčšĺ" + "áéíóú" + "̌́"
 
-# Nater's voiceless words. The apostrophe is deliberately absent. It is his ejective mark and also
-# the closing quote of every gloss, and carrying it makes every English gloss a word of the language.
+# Nater's voiceless words. The apostrophe is deliberately absent. It is the ejective mark of the paper, and also the
+# closing quote of every gloss. With it in, every English gloss would be a word of the language.
 NATER_VOICELESS = SHARED + "̩̌"
 
-# Lyon's inchoatives, where the root sign is the only thing making half the roots visible at all.
+# Lyon's inchoatives, where the root sign alone makes half the roots visible at all.
 LYON_INCH = SHARED + "̌́" + "áíúé" + "ɣš√"
 
 # Kim writes the lateral fricative ɫ, a third character for it, and marks a rule-derived glottal
 # stop ˀ against phonemic ʔ.
 KIM = SHARED + "ɫˀščóéɔ" + "̦́ʹ"
 
-# Footnote 9 cites four Moses-Columbian forms and the extraction damages each of them twice: it
-# inserts a space inside the onset and it repeats the combining mark. x̦̦ carries two commas below
-# where the page prints one, and ƛ̓̓ two commas above.
+# Footnote 9 cites four Moses-Columbian forms, and the extraction damages each of them twice. It inserts a space inside
+# the onset, and it repeats the diacritic. `x̦̦` carries two commas below where the page prints one, and `ƛ̓̓` two
+# commas above.
 #
-# That doubling is its own type and Robertson has it too, where page 1's epigraph prints one ɬ and
-# one ʔ and the text holds four of each. It is not decidable from the text, because a language may
-# genuinely stack two marks. These four were read off the page and are listed one at a time.
+# That double mark is its own type, and Robertson has it too. Page 1's epigraph prints one ɬ and one ʔ, and the text
+# holds four of each. The text cannot decide it, because a language may genuinely stack two marks. A person read these
+# four off the page, and the list gives them one at a time.
 KIM_DOUBLED = (
     ("[p ʰtíx̦̦ʷ]", "[pʰtíx̦ʷ]"),
     ("[p ətíx̦̦ʷ]", "[pətíx̦ʷ]"),
@@ -150,28 +147,27 @@ KIM_DOUBLED = (
 # times and ə U+0259 52 times.
 NATER_ETYM = SHARED + "ǝ√" + "áíúà" + "ᴗɢʁʒščɣλˑ"
 
-# Hall and colleagues on the control directive. The dot below is its rounded uvular; ǰ and θ are
-# here to make the Comox forms visible so the who column can retain them out of the target stream.
+# Hall and colleagues on the control directive. The dot below is its rounded uvular. The characters ǰ and θ are here to
+# make the Comox forms visible, so that the who column can keep them out of the target stream.
 HALL_CTR = SHARED + "̣" + "áéíóúè" + "́" + "ǰθ"
 
-# Davis and Mellesmoen on St'át'imcets reduplication. The caron is its x̌, the dot below its
-# retracted vowels, and √ opens 27 root citations carrying nothing else a check could see.
+# Davis and Mellesmoen on St'át'imcets reduplication. The caron is its x̌, and the dot below its retracted vowels. The
+# sign √ opens 27 root citations that carry nothing else that a check could see.
 DAVIS_MELLESMOEN = SHARED + "̣̌́̀" + "áíú" + "ɣ√ǰθ"
 
-# The marks this paper's extraction dropped outright, put back. Every one of these is a word whose
-# combining mark is gone from the text while the space the typesetter made room for stays, and no
-# rule reaches them: this paper writes l followed by a space for both l̓ and a plain l at a real
-# boundary, and l=ta=q̓íl q-s=a is the second of those.
+# The marks that the extraction of this paper dropped outright, put back. Each of these is a word whose diacritic the
+# text lost, while the space that the typesetter made room for stays. No rule reaches them. This paper writes l followed
+# by a space for both l̓ and a plain l at a real boundary, and `l=ta=q̓íl q-s=a` is the second of those.
 #
-# Provenance is one of two things and there is no third. Four pairs were read by symbol_sift.py,
-# which finds a restoration the paper itself writes elsewhere and reports the rate a random mark
-# reaches it: xʷəlp, qʷal út twice, and Secwep emctsín, at scores of 160.9 and 75.9 against a chance
-# rate of 0.136. The rest were read off rendered pages, and the page is named on each line.
+# Provenance is one of two things, and there is no third. symbol_sift.py read four pairs. It finds a restoration that
+# the paper itself writes elsewhere, and reports the rate at which a random mark reaches it. Those are `xʷəlp`,
+# `qʷal út` twice, and `Secwep emctsín`, at scores of 160.9 and 75.9 against a chance rate of 0.136. A person read the
+# rest off rendered pages, and each line names its page.
 #
-# Order matters. The longer contexts come first, because qʷəl -qʷal út has to be taken before
-# qʷal út or the second fires inside the first and leaves it half repaired.
+# Order matters. The longer contexts come first, because `qʷəl -qʷal út` must go before `qʷal út`. Otherwise the second
+# fires inside the first, and leaves it half repaired.
 DAVIS_MELLESMOEN_DROPPED = (
-    # Read by symbol_sift from the paper's own second printing of the word.
+    # Read by symbol_sift from the paper's own second print of the word.
     ("xʷəlp-í<p>l əx", "xʷəlp-í<p>l̓əx"),
     ("qʷə-qʷəl -qʷal út", "qʷə-qʷəl̓-qʷal̓út"),
     ("qʷəl -qʷə-qʷal út", "qʷəl̓-qʷə-qʷal̓út"),
@@ -205,7 +201,7 @@ DAVIS_MELLESMOEN_DROPPED = (
     ("q̓ʷə<q̓ʷ>l -ən-ás", "q̓ʷə<q̓ʷ>l̓-ən-ás"),
     ("kʷu=ḷə ̣́́<ḷ>ạy̓s", "kʷu=ḷə́<ḷ>ạy̓s"),
     ("n-ká<k>əl -xal", "n-ká<k>əl̓-xal"),
-    # Page 20. mil carries its following quote so the pair cannot fire inside another word.
+    # Page 20. mil carries the quote after it, so that the pair cannot fire inside another word.
     ("q̓í<q̓>ɬil", "q̓í<q̓>ɬil̓"),
     ("ʕí<ʕ >ƛ̓-əm", "ʕí<ʕ̓>ƛ̓-əm"),
     ("ƛ̓a ̣́́<ƛ̓>l  -ən", "ƛ̓á<ƛ̓>ḷ-ən"),
@@ -232,76 +228,74 @@ DAVIS_MELLESMOEN_DROPPED = (
     ("l=ta=q̓íl q-s=a", "l=ta=q̓ílq-s=a"),
 )
 
-# Hess's Snohomish, read off the pages of the 1967 typescript. The glottal stop is ?, the uvular is
-# x under a dot, and ŋ is there once, in the Straits cognate of the suffix the paper is about. Every
-# character in this set was counted in the hand extraction before it was written here.
+# Hess's Snohomish, read off the pages of the 1967 typescript. The glottal stop is ?, and the uvular is x under a dot.
+# The ŋ is there once, in the Straits cognate of the suffix that the paper is about. The hand extraction counted every
+# character in this set before this file wrote it here.
 HESS_SNOHOMISH = "?ə" + "čšɬƛŋ" + "ʷ" + "áéíúàìù" + "̣̓́̀"
 
-# Elmendorf's comparative vocabularies, thirteen languages in one paper. The uvular is again x under
-# a dot, and this one adds the Americanist small capitals ɪ and ᴀ for lax vowels, θ, a raised y, and
-# a raised dot for length. The apostrophe is in the set because Boas and Haeberlin's forms carry one
-# inside the word, as in sča'u, and dropping it would split those forms in two.
+# Elmendorf's comparative vocabularies, thirteen languages in one paper. The uvular is again x under a dot. This one
+# adds the Americanist small capitals ɪ and ᴀ for lax vowels, θ, a raised y, and a raised dot for length. The apostrophe
+# is in the set because Boas and Haeberlin's forms carry one inside the word, as in `sča'u`. A drop of it would split
+# those forms in two.
 ELMENDORF_COMPARATIVE = "?ə" + "čšɬƛθɪᴀ" + "ʷʸ" + "áäéíóú" + "̣̓́" + "·'"
 
-# Hamp on Tillamook. This paper cites no words: what it sets out is four consonant inventories and
-# two feature matrices. Its language content is segments and not forms.
+# Hamp on Tillamook. This paper cites no words: what it sets out is four consonant inventories and two feature matrices.
+# Its language content is segments, and not forms.
 #
-# Reichard's chart alone of the four carries the plain lateral affricate as well as the
-# glottalized, the other three carrying the glottalized alone. That is a fact about the charts and
-# not about this set, because SHARED already holds ƛ; naming it here as an addition would be a
-# character that changes nothing and a comment that reads as though it does.
+# Reichard's chart alone of the four carries the plain lateral affricate as well as the glottalized one. The other three
+# carry the glottalized one alone. That is a fact about the charts, and not about this set, because SHARED already holds
+# ƛ. A name for it here as an addition would be a character that changes nothing, and a comment that reads as though it
+# does.
 #
-# ɔ and ɨ are the two vowel colorings TT give for q and k. The ɨ is a reading taken from its
-# pairing with ɔ and not from the glyph, which is a typed i carrying a raised mark, and the table shows it
-# on a row of its own and does not promote it here.
+# ɔ and ɨ are the two vowel colors that TT give for q and k. The ɨ is a reading from its pair with ɔ, and not from the
+# glyph, which is a typed i with a raised mark. The table shows it on a row of its own, and does not promote it here.
 HAMP_TILLAMOOK = SHARED + "?" + "̣" + "ɔɨæʌɪ"
 
-# Kinkade on Columbian deictics, with Kalispel, Coeur d'Alene and three Colville forms beside it.
-# Read off the oracle's own form column and not composed by hand: acute, grave, caron, dot below, æ
-# and small capital ɪ are what those rows hold past SHARED.
+# Kinkade on Columbian deictics, with Kalispel, Coeur d'Alene and three Colville forms beside it. The set comes from the
+# oracle's own form column, and not from a hand composition. Past SHARED, those rows hold acute, grave, caron, dot
+# below, æ and small capital ɪ.
 #
-# The grave is a live contrast in this paper and not decoration. Three -ákst pairs print an acute in
-# the base and a grave on that same vowel in the derived form, scxaʔánəm against scxaʔànəmákst being
-# the clearest. A set without U+0300 reads half of that alternation as unmarked.
+# The grave is a live contrast in this paper, and not decoration. Three -ákst pairs print an acute in the base and a
+# grave on that same vowel in the derived form. `scxaʔánəm` against `scxaʔànəmákst` is the clearest. A set without
+# U+0300 reads half of that alternation as unmarked.
 #
-# æ and ɪ belong to the two authors quoted instead of to Kinkade: æ is Reichard's throughout her Coeur
-# d'Alene forms, and ɪ is the reduplicant vowel of cɪciʔ and cɪciy̓æ, which the table records as an
-# assigned reading of a short curled stroke and not as a glyph anyone identified.
+# æ and ɪ belong to the two authors quoted, and not to Kinkade. The letter æ is Reichard's throughout the Coeur d'Alene
+# forms of that source. The vowel ɪ is the reduplicant vowel of `cɪciʔ` and `cɪciy̓æ`. The table records it as an
+# assigned reading of a short curled stroke, and not as a glyph that anyone identified.
 KINKADE_COLUMBIAN = SHARED + "̣" + "́̀̌" + "æɪ"
 
-# Givens and Hall on Bev Phillips's telling of The Moon and the Birchbark Canoe. Read off the
-# oracle's own form column: past SHARED these rows hold the acute and the dot below.
-# No grave and no caron anywhere in the paper.
+# Givens and Hall on Bev Phillips's story of The Moon and the Birchbark Canoe. The set comes from the oracle's own form
+# column: past SHARED, these rows hold the acute and the dot below. There is no grave and no caron anywhere in the
+# paper.
 #
-# Its lateral is U+026C. The file encodes that, and so does every other Nɬeʔkepmxcín row in the
-# corpus. The embedded font draws that character with a bar through the stem. A reader working
-# from page renders sees U+0142 and writes it. The table's symbol note records the trap.
+# Its lateral is U+026C. The file encodes that, and so does every other Nɬeʔkepmxcín row in the corpus. The embedded
+# font draws that character with a bar through the stem. A reader who works from page renders sees U+0142, and writes
+# it. The symbol note of the table records the trap.
 #
-# The paper's own footnote 1 names the orthography: a form of the North American Phonetic Alphabet
-# employed by Thompson and Thompson 1992 and 1996. That is a paper stating what its characters are,
-# the strongest provenance available for a marks set here.
+# The paper's own footnote 1 names the orthography: a form of the North American Phonetic Alphabet, as Thompson and
+# Thompson 1992 and 1996 use it. That is a paper that states what its characters are, the strongest provenance available
+# for a marks set here.
 GIVENS_HALL_NLEKEPMXCIN = SHARED + "́" + "̣"
 
-# This paper's extraction flattens its own labialization in 24 places and gets it right in 94. The
-# raised w is U+02B7 ninety four times and a plain full size w twenty four, for the same segment, in
-# words the text layer also writes correctly elsewhere. The page is consistent and the extraction is
-# not. The hand extraction differing from it is the extraction's defect and not the reading's.
+# The extraction of this paper flattens its own labialization in 24 places, and gets it right in 94. The raised w is
+# U+02B7 ninety four times, and a plain full size w twenty four times, for the same segment. Those are words that the
+# text layer also writes correctly elsewhere. The page is consistent and the extraction is not. Where the hand
+# extraction differs from it, the defect is the extraction's, and not the reading's.
 #
-# Every site was enumerated and every one read off a page render before it was entered here.
-# corrected() asks that of a pair. Seven patterns cover all twenty four:
+# A person counted every site, and read each one off a page render before it went in here. corrected() asks that of a
+# pair. Seven patterns cover all twenty four:
+#   - `xwúy̓`: `xʷúy̓ceʔs` on page 2 lines 2, 6 and 14, and in the segmentation of examples 4, 11, 20 and 24.
+#   - `xwʔít`: `xʷʔít` on page 2 lines 3 and 5, and in examples 5, 9 and 18.
+#   - `cúkw`: `cúkʷsc` on page 2 line 1, and `cúkʷ-s-c` in example 2.
+#   - `tox̣w`: `tox̣ʷtés` on page 2 line 1, read again at 34x in example 3, where the dot below is visible.
+#   - `zxwé`: `szxʷépmx` on page 2 line 4, and `s-zxʷép-mx` in example 7.
+#   - `tmixw`: `tmixʷíyxs` on page 2 line 4, and `e=tmixʷ-íyxs` in example 7.
+#   - `pkw`: `npkʷə́ps` on page 2 line 7, and `s=n-pkʷ-ə́p=s` in example 13.
 #
-#   xwúy̓   xʷúy̓ceʔs on page 2 lines 2, 6 and 14 and in the segmentation of examples 4, 11, 20, 24
-#   xwʔít  xʷʔít on page 2 lines 3 and 5, example 5, example 9, example 18
-#   cúkw   cúkʷsc on page 2 line 1 and cúkʷ-s-c in example 2
-#   tox̣w   tox̣ʷtés on page 2 line 1, read again at 34x in example 3 where the dot below is visible
-#   zxwé   szxʷépmx on page 2 line 4 and s-zxʷép-mx in example 7
-#   tmixw  tmixʷíyxs on page 2 line 4 and e=tmixʷ-íyxs in example 7
-#   pkw    npkʷə́ps on page 2 line 7 and s=n-pkʷ-ə́p=s in example 13
-#
-# Written as seven patterns and not as a rule mapping every Cw to Cʷ. The rule is the guess
-# draft_page_text.py already makes and papers.py already warns about, that page kʷ and page wist both
-# arrive as w and a draft labializes whichever consonant takes it. Here the sites are counted. Each
-# pattern is evidence about one word. None of them is a rule about a character.
+# The file writes seven patterns, and not a rule that maps every Cw to Cʷ. That rule is the guess that
+# draft_page_text.py already makes, and that papers.py already warns about. Page kʷ and page wist both arrive as w, and
+# a draft labializes whichever consonant takes it. Here a person counted the sites. Each pattern is evidence about one
+# word, and none of them is a rule about a character.
 GIVENS_HALL_FLATTENED = (
     ("xwúy̓", "xʷúy̓"),
     ("xwʔít", "xʷʔít"),
@@ -314,9 +308,9 @@ GIVENS_HALL_FLATTENED = (
 
 # Every paper, and whose language is in it.
 #
-# The speakers are named from the papers themselves. Where a paper cites a published dictionary and
-# never says who spoke, the list is empty and the index prints that. A linguist's name never goes in
-# the field: they wrote the paper down, and the language is not theirs.
+# The speakers come from the papers themselves. Where a paper cites a published dictionary and never says who spoke, the
+# list is empty, and the index prints that. A linguist's name never goes in the field: they wrote the paper down, and
+# the language is not theirs.
 PAPERS = (
     Paper(
         "Mellesmoen_Kye_ICSNL61",
@@ -568,8 +562,8 @@ PAPERS = (
         "unstated_HowSalishIsBellaCoola_Nater" "_Salish_nuxalk_2013_mixed.txt",
         "Nuxalk",
         marks=NATER_ETYM,
-        # The extraction writes the paper's ’ as ‟ and its ‘ as „, and writes ’ plainly 51 times:
-        # one mark set two ways, put back to the way the page prints it.
+        # The extraction writes the paper's ’ as ‟ and its ‘ as „, and writes ’ plainly 51 times. That is one mark set
+        # two ways, put back to the way the page prints it.
         repair=sequence(INSERTED_SPACE, one_mark("‟", "’"), one_mark("„", "‘")),
         coverage=("inserted spaces",),
         note="1407 numbered entries out of Nater's own 1990 dictionary. No speaker is named.",
@@ -600,9 +594,9 @@ PAPERS = (
         "St'át'imcets",
         speakers=("Qwa7yán'ak (Carl Alexander), Nxwísten",),
         marks=DAVIS_MELLESMOEN,
-        # The dropped marks go back last, after the other grains and after composition. Each pair
-        # was read off a line that had already been through them. A pair matches the repaired
-        # text and not the raw text: running it first matched nothing at all.
+        # The dropped marks go back last, after the other grains and after composition. A person read each pair off a
+        # line after those steps. A pair matches the repaired text and not the raw text, and a first place in the order
+        # matches nothing at all.
         repair=sequence(
             INSERTED_SPACE_AT_ACCENTS,
             closed_after_bracket(),
@@ -644,8 +638,8 @@ PAPERS = (
         "nɬeʔkepmxcín",
         speakers=("Bev Phillips, Lytton (ƛ̓q̓əmcín) dialect",),
         marks=GIVENS_HALL_NLEKEPMXCIN,
-        # Composition before the corrections, for the reason it runs first everywhere: corrected()
-        # composes its own patterns, and a pattern meeting decomposed text matches nothing.
+        # Composition comes before the corrections, as it does everywhere. The function corrected() composes its own
+        # patterns, and a pattern that meets decomposed text matches nothing.
         repair=sequence(INSERTED_SPACE, composed(), corrected(GIVENS_HALL_FLATTENED)),
         coverage=("inserted spaces", "flattened labialization"),
         note="Katherine Givens and Brent Hall, The Moon and the Birchbark Canoe (ɬ máʕxetn pe ɬ "
