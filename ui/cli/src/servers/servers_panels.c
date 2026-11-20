@@ -550,6 +550,54 @@ EMBED_INLINE int panels_hover_local_run(const PanelsCtx *args)
     return 1;
 }
 
+// A hover's read of the tree's declarations: the ask, the hovered file's language and whether it is known, the line the
+// Markdown goes after, and how many parts it wrote
+typedef struct
+{
+    PanelsHoverAsk *ask;
+    char wanted[CLI_NAME_MAX_LEN];
+    int known;
+    VerbaLinea *out;
+    unsigned int parts;
+} PanelsHoverFound;
+
+// one declaration the tree finds: where its name is the word and its file opens in the hovered file's language, its
+// line kept as the definition and written into the asker's line as Markdown
+static void panels_hover_found(const CliEachFoundCfg *args)
+{
+    PanelsHoverFound *const found = (PanelsHoverFound *)args->context;
+    PanelsHoverAsk *const ask = found->ask;
+    if (found->parts >= CLI_PANELS_HOVER_DECLARATIONS)
+    {
+        return;
+    }
+    char id[CLI_NAME_MAX_LEN];
+    const int same =
+        !found->known || (EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
+                                     .path = args->path, .id_out = id) &&
+                          cellul.eq(&(CatenaFinitaCfg){.src = id, .other = found->wanted, .cap = sizeof(id)}));
+    if (!same || (args->name_length >= CLI_PANELS_WORD) ||
+        !cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = ask->word_text, .cap = CLI_PANELS_WORD}))
+    {
+        return;
+    }
+    // the declaration's own line cut to the hover's max
+    char text[CLI_PANELS_LINE_MAX];
+    const unsigned long long text_length =
+        (args->text_length < (sizeof(text) - 1ULL)) ? args->text_length : (sizeof(text) - 1ULL);
+    memor.cpy(&(MemoriaCfg){.dst = text, .src = args->text, .bytes = text_length});
+    text[text_length] = '\0';
+    EMBED_CALL(panels_defined, PanelsCtx, .hover_ask = ask, .path = args->path, .line = args->line, .text = text,
+               .size = text_length);
+    if (found->out != NULL)
+    {
+        mmgr_line_put(found->out, (found->parts > 0u) ? CLI_PANELS_HOVER_BETWEEN : "");
+        EMBED_CALL(panels_declaration_write, PanelsCtx, .text = text, .type = args->type, .path = args->path,
+                   .line = args->line, .out = found->out);
+    }
+    found->parts += 1u;
+}
+
 // the tree's declarations of the word positioned as Markdown in a cell sized to them, those of files that open in the
 // hovered file's language plugin alone
 static void panels_hover_tree_run(void *context)
@@ -560,81 +608,16 @@ static void panels_hover_tree_run(void *context)
         return;
     }
     EMBED_CALL(cli_symbols_root.tree_walk, CliSymbolsRootCfg, .root = ask->root);
-    const CarcerMovableEntry *const found =
-        EMBED_CALL(cli_symbols_query_max.tree_declarations_alloc, CliSymbolsQueryMaxCfg, .query = ask->word_text,
-                   .max = CLI_PANELS_DECLARATIONS, .owner = g_cli_servers_owner);
-    if (found == NULL)
-    {
-        return;
-    }
-    CliFoundDeclarations head = {0u, 0};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = found, .dst = &head, .bytes = sizeof(head)});
-    char wanted[CLI_NAME_MAX_LEN];
-    const int known = EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg, .path = ask->path,
-                                 .id_out = wanted);
+    PanelsHoverFound found = {ask, {0}, 0, ask->out, 0u};
+    found.known = EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg, .path = ask->path,
+                             .id_out = found.wanted);
     // the Markdown written into the asker's line, where it gives one
     VerbaLinea *const out = ask->out;
     const size_t begun = (out != NULL) ? out->at : 0u;
-    unsigned int parts = 0u;
-    for (unsigned int at = 0u; (at < head.count) && (parts < CLI_PANELS_HOVER_DECLARATIONS); at += 1u)
-    {
-        CliFoundDeclaration one;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = found, .offset = CLI_FOUND_DECLARATION_AT(at), .dst = &one, .bytes = sizeof(one)});
-        // the declaration's name and path read out of the list's cell, cut to their arrays
-        char name[CLI_PANELS_WORD];
-        char path[CLI_PATH_MAX_LEN];
-        const unsigned long long name_measured =
-            g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = found, .offset = one.name});
-        const unsigned long long name_length =
-            (name_measured < (sizeof(name) - 1ULL)) ? name_measured : (sizeof(name) - 1ULL);
-        (void)g_cli_guard->movable_buf_read(
-            &(CarcerMovableCfg){.cell = found, .offset = one.name, .dst = name, .bytes = name_length});
-        name[name_length] = '\0';
-        const unsigned long long path_measured =
-            g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = found, .offset = one.path});
-        const unsigned long long path_length =
-            (path_measured < (sizeof(path) - 1ULL)) ? path_measured : (sizeof(path) - 1ULL);
-        (void)g_cli_guard->movable_buf_read(
-            &(CarcerMovableCfg){.cell = found, .offset = one.path, .dst = path, .bytes = path_length});
-        path[path_length] = '\0';
-        char id[CLI_NAME_MAX_LEN];
-        const int same = !known || (EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
-                                               .path = path, .id_out = id) &&
-                                    cellul.eq(&(CatenaFinitaCfg){.src = id, .other = wanted, .cap = sizeof(id)}));
-        if (same && (name_measured == name_length) &&
-            cellul.eq(&(CatenaFinitaCfg){.src = name, .other = ask->word_text, .cap = CLI_PANELS_WORD}))
-        {
-            // the declaration's type and its own line read out of the list's cell
-            char type[CLI_NAME_MAX_LEN];
-            char text[CLI_PANELS_LINE_MAX];
-            const unsigned long long type_measured =
-                g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = found, .offset = one.type});
-            const unsigned long long type_length =
-                (type_measured < (sizeof(type) - 1ULL)) ? type_measured : (sizeof(type) - 1ULL);
-            (void)g_cli_guard->movable_buf_read(
-                &(CarcerMovableCfg){.cell = found, .offset = one.type, .dst = type, .bytes = type_length});
-            type[type_length] = '\0';
-            const unsigned long long text_measured =
-                g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = found, .offset = one.text});
-            const unsigned long long text_length =
-                (text_measured < (sizeof(text) - 1ULL)) ? text_measured : (sizeof(text) - 1ULL);
-            (void)g_cli_guard->movable_buf_read(
-                &(CarcerMovableCfg){.cell = found, .offset = one.text, .dst = text, .bytes = text_length});
-            text[text_length] = '\0';
-            EMBED_CALL(panels_defined, PanelsCtx, .hover_ask = ask, .path = path, .line = one.line, .text = text,
-                       .size = text_length);
-            if (out != NULL)
-            {
-                mmgr_line_put(out, (parts > 0u) ? CLI_PANELS_HOVER_BETWEEN : "");
-                EMBED_CALL(panels_declaration_write, PanelsCtx, .text = text, .type = type, .path = path,
-                           .line = one.line, .out = out);
-            }
-            parts += 1u;
-        }
-    }
-    ask->reading = head.reading;
-    (void)g_cli_guard->movable_buf_release(found, g_cli_servers_owner);
+    ask->reading =
+        EMBED_CALL(cli_symbols_query_max.tree_declarations_each, CliSymbolsQueryMaxCfg, .query = ask->word_text,
+                   .max = CLI_PANELS_DECLARATIONS, .each = panels_hover_found, .context = &found);
+    const unsigned int parts = found.parts;
     if (out == NULL)
     {
         return;
@@ -1890,7 +1873,7 @@ static void panels_sync_post(const PanelsCtx *args)
     {
         return;
     }
-    if (!EMBED_CALL(cli_view_table.changed_alloc, CliViewCfg, .key = key))
+    if (!EMBED_CALL(cli_view_table.changed_clear, CliViewCfg, .key = key))
     {
         return;
     }

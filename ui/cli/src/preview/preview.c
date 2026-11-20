@@ -486,8 +486,8 @@ void cli_preview_mode_set(const CliPreviewCfg *args)
     unsigned int mode = (s_preview.mode == args->mode) ? CLI_PREVIEW_OFF : args->mode;
     for (unsigned int each = 0u; (args->mode_word != NULL) && (each < 3u); each += 1u)
     {
-        mode =
-            cellul.eq(&(CatenaFinitaCfg){.src = args->mode_word, .other = s_mode_words[each], .cap = 16ULL}) ? each : mode;
+        mode = cellul.eq(&(CatenaFinitaCfg){.src = args->mode_word, .other = s_mode_words[each], .cap = 16ULL}) ? each
+                                                                                                                : mode;
     }
     s_preview.mode = (mode < 3u) ? mode : CLI_PREVIEW_OFF;
     // the folder it is saved in and the error line, for the save alone
@@ -546,6 +546,50 @@ int cli_preview_show(const CliPreviewCfg *args)
     return 1;
 }
 
+// A look at the previewed text: the width the items take, and whether the look laid them out again
+typedef struct
+{
+    int width;
+    int redrawn;
+} PreviewLooked;
+
+// the text the document gives compared with the text the preview laid out last, and laid out again where it changed
+static void preview_text_looked(const CliEachTextLengthCfg *args)
+{
+    PreviewLooked *const looked = (PreviewLooked *)args->context;
+    const char *const text = args->text;
+    const unsigned long long size = args->length;
+    const int same = s_preview.positioned && (size == s_preview.source_length) &&
+                     ((size == 0ULL) || (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){
+                                             .cell = s_preview.source_cell, .src = text, .bytes = size}) == 0));
+    // the text retained in a movable cell of its own for the next look's compare, the positioned items in theirs
+    const CarcerMovableEntry *const source =
+        (!same && (size != 0ULL)) ? g_cli_guard->movable_buf_alloc(size, g_cli_preview_owner) : NULL;
+    CliPreviewItems fresh = {0};
+    if (!same && ((size == 0ULL) || (source != NULL)) &&
+        EMBED_CALL(cli_preview_markdown.layout, CliPreviewMarkdownCfg, .text = text, .length = size, .first_line = 0u,
+                   .width_px = looked->width, .items = &fresh))
+    {
+        EMBED_CALL(items_released, PreviewCtx, .key = NULL);
+        if (source != NULL)
+        {
+            (void)g_cli_guard->movable_buf_write(
+                &(CarcerMovableCfg){.cell = source, .offset = 0u, .src = text, .bytes = size});
+        }
+        s_preview.items = fresh;
+        s_preview.source_cell = source;
+        s_preview.source_length = size;
+        s_preview.positioned = 1;
+        s_preview.cursor_seen = 0;
+        s_preview.top_px = EMBED_CALL(top_clamped, PreviewCtx, .top_px = s_preview.top_px);
+        looked->redrawn = 1;
+    }
+    else
+    {
+        EMBED_CALL(cell_released, PreviewCtx, .cell = source);
+    }
+}
+
 int cli_preview_step(const CliPreviewCfg *args)
 {
     int redrawn = EMBED_CALL(cli_preview.show, CliPreviewCfg, .key = args->key);
@@ -570,40 +614,10 @@ int cli_preview_step(const CliPreviewCfg *args)
     if (!s_preview.positioned || (args->now_ms >= s_preview.looked_ms + CLI_PREVIEW_LOOK_MS))
     {
         s_preview.looked_ms = args->now_ms;
-        unsigned long long size = 0ULL;
-        char *const text = EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = s_preview.key,
-                                      .size_pointer = &size, .owner = g_cli_preview_owner);
-        const int same = (text != NULL) && s_preview.positioned && (size == s_preview.source_length) &&
-                         ((size == 0ULL) || (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){
-                                                 .cell = s_preview.source_cell, .src = text, .bytes = size}) == 0));
-        // the text retained in a movable cell of its own for the next look's compare, the positioned items in theirs
-        const CarcerMovableEntry *const source = ((text != NULL) && !same && (size != 0ULL))
-                                                     ? g_cli_guard->movable_buf_alloc(size, g_cli_preview_owner)
-                                                     : NULL;
-        CliPreviewItems fresh = {0};
-        if ((text != NULL) && !same && ((size == 0ULL) || (source != NULL)) &&
-            EMBED_CALL(cli_preview_markdown.layout, CliPreviewMarkdownCfg, .text = text, .length = size,
-                       .first_line = 0u, .width_px = width, .items = &fresh))
-        {
-            EMBED_CALL(items_released, PreviewCtx, .key = NULL);
-            if (source != NULL)
-            {
-                (void)g_cli_guard->movable_buf_write(
-                    &(CarcerMovableCfg){.cell = source, .offset = 0u, .src = text, .bytes = size});
-            }
-            s_preview.items = fresh;
-            s_preview.source_cell = source;
-            s_preview.source_length = size;
-            s_preview.positioned = 1;
-            s_preview.cursor_seen = 0;
-            s_preview.top_px = EMBED_CALL(top_clamped, PreviewCtx, .top_px = s_preview.top_px);
-            redrawn = 1;
-        }
-        else
-        {
-            EMBED_CALL(cell_released, PreviewCtx, .cell = source);
-        }
-        g_cli_guard->persistent_buf_release(text, g_cli_preview_owner);
+        PreviewLooked looked = {width, 0};
+        (void)EMBED_CALL(cli_document_key.text_each, CliDocumentKeyCfg, .key = s_preview.key,
+                         .each = preview_text_looked, .context = &looked);
+        redrawn = looked.redrawn || redrawn;
     }
     // the editor's top moved by the editor: the preview follows it to the same place between two blocks
     const unsigned long long editor_top = cli_view_top(&(CliViewAtCfg){.key = s_preview.key});

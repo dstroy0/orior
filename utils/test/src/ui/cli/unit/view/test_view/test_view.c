@@ -123,16 +123,17 @@ static void assert_at(unsigned long long line, unsigned long long col, unsigned 
     TEST_ASSERT_EQUAL_UINT64(anchor_col, anchor.col);
 }
 
+// the lines the document gives asserted to read as the text the context holds
+static void lines_match(const CliEachTextLengthCfg *args)
+{
+    CLI_TEST_ASSERT_TEXT((const char *)args->context, args->text, args->length);
+}
+
 // the text's lines from `first` to before `last` asserted to read as `required`, joined by "\n"
 static void assert_reads(unsigned long long first, unsigned long long last, const char *required)
 {
-    unsigned long long size = 0ull;
-    char *const lines =
-        EMBED_CALL(cli_document_key.lines_alloc, CliDocumentKeyCfg, .key = s_key, .first = first, .last = last - 1ull,
-                   .size_pointer = &size, .state = NULL, .capacity = 0ull, .owner = g_checks_owner);
-    TEST_ASSERT_NOT_NULL(lines);
-    CLI_TEST_ASSERT_TEXT(required, lines, size);
-    g_cli_guard->persistent_buf_release(lines, g_checks_owner);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key.lines_each, CliDocumentKeyCfg, .key = s_key, .first = first,
+                                .last = last - 1ull, .each = lines_match, .context = (void *)required));
 }
 
 // how many lines the text has
@@ -1937,10 +1938,10 @@ void test_a_views_change_is_reported_once_and_its_words_and_map_come_off_the_wal
     (void)mmgr_line_finish(&s_view_words_line);
     TEST_ASSERT_GREATER_OR_EQUAL_UINT(1u, s_view_words_count);
     CLI_TEST_ASSERT_CONTAINS("main", s_view_words);
-    (void)EMBED_CALL(cli_view_table.changed_alloc, CliViewCfg, .key = s_key);
+    (void)EMBED_CALL(cli_view_table.changed_clear, CliViewCfg, .key = s_key);
     typed("x");
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_view_table.changed_alloc, CliViewCfg, .key = s_key));
-    TEST_ASSERT_FALSE(EMBED_CALL(cli_view_table.changed_alloc, CliViewCfg, .key = s_key));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_view_table.changed_clear, CliViewCfg, .key = s_key));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_view_table.changed_clear, CliViewCfg, .key = s_key));
     CliDocumentMap *const map = EMBED_CALL(cli_document_map.map_alloc, CliDocumentMapCfg, .key = s_key, .first = 0ull,
                                            .last = 4ull, .tab = 4u, .owner = g_cli_text_owner);
     TEST_ASSERT_NOT_NULL(map);

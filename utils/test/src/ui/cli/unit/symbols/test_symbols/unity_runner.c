@@ -2,9 +2,9 @@
 
 /*=======Automagically Detected Files To Include=====*/
 #include "unity.h"
+#include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "ui/cli/src/code/symbols.h"
 #include "ui/cli/src/code/symbols_tree.h"
-#include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
@@ -90,26 +90,26 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("utils/test/src/ui/cli/unit/symbols/test_symbols/test_symbols.c");
-  run_test(test_pythons_declarations_are_read, "test_pythons_declarations_are_read", 143);
-  run_test(test_rusts_declarations_are_read, "test_rusts_declarations_are_read", 151);
-  run_test(test_a_scripts_declarations_are_read, "test_a_scripts_declarations_are_read", 160);
-  run_test(test_cs_declarations_are_read, "test_cs_declarations_are_read", 168);
-  run_test(test_a_shells_declarations_are_read, "test_a_shells_declarations_are_read", 178);
-  run_test(test_powershells_declarations_are_read, "test_powershells_declarations_are_read", 183);
-  run_test(test_tomls_tables_are_read, "test_tomls_tables_are_read", 188);
-  run_test(test_markdowns_headings_are_read_none_in_code, "test_markdowns_headings_are_read_none_in_code", 193);
-  run_test(test_texs_sections_are_read, "test_texs_sections_are_read", 198);
-  run_test(test_scores_rank_the_name_itself_first, "test_scores_rank_the_name_itself_first", 203);
-  run_test(test_a_words_start_ranks_over_characters, "test_a_words_start_ranks_over_characters", 216);
-  run_test(test_a_query_that_names_none_does_not_answer, "test_a_query_that_names_none_does_not_answer", 221);
-  run_test(test_the_tree_is_listed_and_its_first_reading_has_ended_with_every_file_done, "test_the_tree_is_listed_and_its_first_reading_has_ended_with_every_file_done", 226);
-  run_test(test_the_call_hierarchy_names_the_function_at_a_line_its_callers_and_its_callees, "test_the_call_hierarchy_names_the_function_at_a_line_its_callers_and_its_callees", 237);
-  run_test(test_a_slice_for_a_view_carries_its_openers_and_the_lines_in_view, "test_a_slice_for_a_view_carries_its_openers_and_the_lines_in_view", 248);
-  run_test(test_a_file_is_cut_into_the_slices_of_its_windows_in_one_walk, "test_a_file_is_cut_into_the_slices_of_its_windows_in_one_walk", 262);
-  run_test(test_a_token_names_roles_come_off_its_segments, "test_a_token_names_roles_come_off_its_segments", 276);
-  run_test(test_the_declarations_a_query_names_are_ranked_and_a_calls_signature_read, "test_the_declarations_a_query_names_are_ranked_and_a_calls_signature_read", 284);
-  run_test(test_a_branchs_copy_gives_its_path_and_declarations_and_a_moved_stamp_is_reported, "test_a_branchs_copy_gives_its_path_and_declarations_and_a_moved_stamp_is_reported", 316);
-  run_test(test_a_branch_is_joined_read_counted_and_let_go_and_the_tree_cleared_last, "test_a_branch_is_joined_read_counted_and_let_go_and_the_tree_cleared_last", 348);
+  run_test(test_pythons_declarations_are_read, "test_pythons_declarations_are_read", 152);
+  run_test(test_rusts_declarations_are_read, "test_rusts_declarations_are_read", 161);
+  run_test(test_a_scripts_declarations_are_read, "test_a_scripts_declarations_are_read", 171);
+  run_test(test_cs_declarations_are_read, "test_cs_declarations_are_read", 180);
+  run_test(test_a_shells_declarations_are_read, "test_a_shells_declarations_are_read", 191);
+  run_test(test_powershells_declarations_are_read, "test_powershells_declarations_are_read", 196);
+  run_test(test_tomls_tables_are_read, "test_tomls_tables_are_read", 201);
+  run_test(test_markdowns_headings_are_read_none_in_code, "test_markdowns_headings_are_read_none_in_code", 206);
+  run_test(test_texs_sections_are_read, "test_texs_sections_are_read", 212);
+  run_test(test_scores_rank_the_name_itself_first, "test_scores_rank_the_name_itself_first", 217);
+  run_test(test_a_words_start_ranks_over_characters, "test_a_words_start_ranks_over_characters", 230);
+  run_test(test_a_query_that_names_none_does_not_answer, "test_a_query_that_names_none_does_not_answer", 235);
+  run_test(test_the_tree_is_listed_and_its_first_reading_has_ended_with_every_file_done, "test_the_tree_is_listed_and_its_first_reading_has_ended_with_every_file_done", 240);
+  run_test(test_the_call_hierarchy_names_the_function_at_a_line_its_callers_and_its_callees, "test_the_call_hierarchy_names_the_function_at_a_line_its_callers_and_its_callees", 253);
+  run_test(test_a_slice_for_a_view_carries_its_openers_and_the_lines_in_view, "test_a_slice_for_a_view_carries_its_openers_and_the_lines_in_view", 266);
+  run_test(test_a_file_is_cut_into_the_slices_of_its_windows_in_one_walk, "test_a_file_is_cut_into_the_slices_of_its_windows_in_one_walk", 282);
+  run_test(test_a_token_names_roles_come_off_its_segments, "test_a_token_names_roles_come_off_its_segments", 299);
+  run_test(test_the_declarations_a_query_names_are_ranked_and_a_calls_signature_read, "test_the_declarations_a_query_names_are_ranked_and_a_calls_signature_read", 330);
+  run_test(test_a_branchs_copy_gives_its_path_and_declarations_and_a_moved_stamp_is_reported, "test_a_branchs_copy_gives_its_path_and_declarations_and_a_moved_stamp_is_reported", 359);
+  run_test(test_a_branch_is_joined_read_counted_and_let_go_and_the_tree_cleared_last, "test_a_branch_is_joined_read_counted_and_let_go_and_the_tree_cleared_last", 399);
 
   return UNITY_END();
 }

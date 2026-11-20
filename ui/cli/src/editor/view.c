@@ -4722,6 +4722,32 @@ static void view_span_save(const CliSpannedCfg *args)
     }
 }
 
+// The read of the spans for Expand Selection. It holds the view, the two ends of the selection and the span it saves.
+// It also holds the line for an error and whether the read worked
+typedef struct
+{
+    const CliView *view;
+    CliPosition from;
+    CliPosition to;
+    CliViewSpan span;
+    VerbaLinea *err_msg;
+    int read;
+} ViewGrowRead;
+
+// the spans that hold the selection read off the text the document gives
+static void view_grow_spans(const CliEachTextLengthCfg *args)
+{
+    ViewGrowRead *const grow = (ViewGrowRead *)args->context;
+    // a place in a text a view shows is below 2^32 lines and columns
+    grow->read = EMBED_CALL(
+        cli_symbols_path_text_size_context_err_msg_from_symbol_position.spans,
+        CliSymbolsPathTextSizeContextErrMsgFromSymbolPositionCfg, .path = grow->view->path, .text = args->text,
+        .size = args->length,
+        .from_symbol_position = (CliSymbolPosition){(unsigned int)grow->from.line, (unsigned int)grow->from.col},
+        .to_symbol_position = (CliSymbolPosition){(unsigned int)grow->to.line, (unsigned int)grow->to.col},
+        .each_spanned = view_span_save, .context = &grow->span, .err_msg = grow->err_msg);
+}
+
 // whether the selection is the one Expand Selection last made, with a step to take back
 EMBED_INLINE int view_still_grow(const ViewCtx *args)
 {
@@ -4736,33 +4762,19 @@ EMBED_INLINE int view_still_grow(const ViewCtx *args)
 // grew from saved for Shrink Selection; a paged text is not in memory whole and has no spans to grow through
 static int view_selection_grow(const ViewCtx *args)
 {
-    VerbaLinea *err_msg = args->err_msg;
-    unsigned long long size = 0ULL;
-    char *const text = args->view->paged
-                           ? NULL
-                           : EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = args->view->key,
-                                        .size_pointer = &size, .owner = g_cli_views_owner);
-    if (text == NULL)
+    ViewGrowRead grow = {args->view, {0ULL, 0ULL}, {0ULL, 0ULL}, {0}, args->err_msg, 1};
+    grow.span.found = 0;
+    EMBED_CALL(view_selection, ViewCtx, .view_read = args->view, .from_pointer = &grow.from, .to_pointer = &grow.to);
+    if (args->view->paged || !EMBED_CALL(cli_document_key.text_each, CliDocumentKeyCfg, .key = args->view->key,
+                                         .each = view_grow_spans, .context = &grow))
     {
         return 1;
     }
-    CliPosition from;
-    CliPosition to;
-    EMBED_CALL(view_selection, ViewCtx, .view_read = args->view, .from_pointer = &from, .to_pointer = &to);
-    CliViewSpan span;
-    span.found = 0;
-    // a place in a text a view shows is below 2^32 lines and columns
-    const int read = EMBED_CALL(
-        cli_symbols_path_text_size_context_err_msg_from_symbol_position.spans,
-        CliSymbolsPathTextSizeContextErrMsgFromSymbolPositionCfg, .path = args->view->path, .text = text, .size = size,
-        .from_symbol_position = (CliSymbolPosition){(unsigned int)from.line, (unsigned int)from.col},
-        .to_symbol_position = (CliSymbolPosition){(unsigned int)to.line, (unsigned int)to.col},
-        .each_spanned = view_span_save, .context = &span, .err_msg = err_msg);
-    g_cli_guard->persistent_buf_release(text, g_cli_views_owner);
-    if (!read)
+    if (!grow.read)
     {
         return 0;
     }
+    const CliViewSpan span = grow.span;
     if (span.found)
     {
         args->view->grown_count =
@@ -5657,6 +5669,31 @@ static int s_pair_ring_positioned;
 static ViewPairRead s_pair_answer;
 static ViewPairRead s_pair_request;
 
+// The pair read over the lines about a cursor: the request, the state of the first line, the first line and the
+// cursor's line, and the pair and bracket the read finds
+typedef struct
+{
+    ViewPairRead *read;
+    const char *state;
+    unsigned long long first;
+    unsigned long long line;
+    CliSymbolPosition found[2];
+    int bracket;
+} ViewPairLines;
+
+// the bracket pair at the cursor read off the lines the document gives
+static void view_pair_lines(const CliEachTextLengthCfg *args)
+{
+    ViewPairLines *const lines = (ViewPairLines *)args->context;
+    // a place in a text a view shows is below 2^32 lines and columns
+    lines->read->found =
+        EMBED_CALL(cli_symbols_path_text_size_state.pair, CliSymbolsPathTextSizeStateCfg, .path = lines->read->path,
+                   .state = (lines->state[0] != '\0') ? lines->state : "root", .text = args->text, .size = args->length,
+                   .at_symbol_position = (CliSymbolPosition){(unsigned int)(lines->line - lines->first),
+                                                             (unsigned int)lines->read->cursor.col},
+                   .pair = lines->found, .bracket_pointer = &lines->bracket);
+}
+
 // The bracket pair at the cursor of `read` within `reach` lines of it, into its `pair` and `found`: the bracket that
 // ends at the cursor, else the one that starts at it, first and the one it pairs with second. The lines read start
 // from the state the tree keeps for the first of them. Returns whether a bracket of a pair stands at the cursor at
@@ -5676,29 +5713,20 @@ static int view_pair_within(const ViewCtx *args)
     const unsigned long long first = (start < line) ? start : line;
     const unsigned long long last = (end > line) ? end : line;
     char state[CLI_VIEW_STATE];
-    unsigned long long size = 0ULL;
-    char *const text = EMBED_CALL(cli_document_key.lines_alloc, CliDocumentKeyCfg, .key = args->read->key,
-                                  .first = first, .last = last, .size_pointer = &size, .state = state,
-                                  .capacity = sizeof(state), .owner = g_cli_views_owner);
-    if (text == NULL)
+    state[0] = '\0';
+    ViewPairLines lines = {args->read, state, first, line, {{0u, 0u}, {0u, 0u}}, 0};
+    if (!EMBED_CALL(cli_document_key.lines_each, CliDocumentKeyCfg, .key = args->read->key, .first = first,
+                    .last = last, .state = state, .capacity = sizeof(state), .each = view_pair_lines,
+                    .context = &lines))
     {
         return 0;
     }
-    CliSymbolPosition found[2] = {{0u, 0u}, {0u, 0u}};
-    int bracket = 0;
-    // a place in a text a view shows is below 2^32 lines and columns
-    args->read->found = EMBED_CALL(
-        cli_symbols_path_text_size_state.pair, CliSymbolsPathTextSizeStateCfg, .path = args->read->path,
-        .state = (state[0] != '\0') ? state : "root", .text = text, .size = size,
-        .at_symbol_position = (CliSymbolPosition){(unsigned int)(line - first), (unsigned int)args->read->cursor.col},
-        .pair = found, .bracket_pointer = &bracket);
-    g_cli_guard->persistent_buf_release(text, g_cli_views_owner);
     for (unsigned int at = 0u; args->read->found && (at < 2u); at += 1u)
     {
-        args->read->pair[at].line = first + found[at].line;
-        args->read->pair[at].col = found[at].col;
+        args->read->pair[at].line = first + lines.found[at].line;
+        args->read->pair[at].col = lines.found[at].col;
     }
-    return bracket;
+    return lines.bracket;
 }
 
 // The bracket pair at the cursor of `read`, into its `pair` and `found`. The cursor's line alone is read first, and a
@@ -6614,7 +6642,7 @@ int cli_view_save(const CliViewSaveCfg *args)
     return written;
 }
 
-int cli_view_changed_alloc(const CliViewCfg *args)
+int cli_view_changed_clear(const CliViewCfg *args)
 {
     CliView copy;
     CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key, .copy = &copy);

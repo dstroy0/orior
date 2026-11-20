@@ -414,6 +414,43 @@ int cli_notebook_kernel_choose(const CliNotebookKernelPickCfg *args)
     return 1;
 }
 
+// A cell's run: the ask, the model, the cell's record, the request's id, and whether the kernel took the code
+typedef struct
+{
+    const CliNotebookKernelRunCfg *ask;
+    CliNotebookModel *model;
+    CliNotebookCell *cell;
+    char *id;
+    int sent;
+} KernelCodeSent;
+
+// the cell's outputs let go, the cell written with its run, and the code the document gives sent to the kernel
+static void kernel_code_sent(const CliEachTextLengthCfg *args)
+{
+    KernelCodeSent *const send = (KernelCodeSent *)args->context;
+    CliNotebookModel *const model = send->model;
+    CliNotebookCell *const cell = send->cell;
+    EMBED_CALL(cli_notebook_model_internal.outputs_released, CliNotebookModelCtx, .model = model,
+               .cell = send->ask->cell);
+    // the cell read again, because the release of the outputs writes it, and then written with its run
+    *cell = (CliNotebookCell){0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = model->cells_cell,
+                                                            .offset = CLI_NOTEBOOK_CELL_AT(send->ask->cell),
+                                                            .dst = cell,
+                                                            .bytes = sizeof(CliNotebookCell)});
+    model->clock += 1u;
+    cell->first_run = (cell->first_run != 0u) ? cell->first_run : model->clock;
+    cell->last_run = model->clock;
+    cell->running = 1;
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = model->cells_cell,
+                                                             .offset = CLI_NOTEBOOK_CELL_AT(send->ask->cell),
+                                                             .src = cell,
+                                                             .bytes = sizeof(CliNotebookCell)});
+    send->sent =
+        EMBED_CALL(cli_jupyter_err_msg_kernel_length.execute, CliJupyterErrMsgKernelLengthCfg, .kernel = model->kernel,
+                   .code = args->text, .length = args->length, .id = send->id, .err_msg = send->ask->err_msg);
+}
+
 int cli_notebook_kernel_execute(const CliNotebookKernelRunCfg *args)
 {
     CliNotebookModel *const model = EMBED_CALL(cli_notebook_model_internal.of, CliNotebookModelCtx, .key = args->key);
@@ -445,36 +482,17 @@ int cli_notebook_kernel_execute(const CliNotebookKernelRunCfg *args)
     char key[CLI_PATH_MAX_LEN + CLI_NOTEBOOK_KEY_MORE];
     EMBED_CALL(cli_notebook_model_internal.key, CliNotebookModelCtx, .model = model, .cell = args->cell,
                .output = CLI_NOTEBOOK_NONE, .out = key);
-    unsigned long long size = 0ULL;
-    char *const code = EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = key, .size_pointer = &size,
-                                  .owner = g_cli_notebook_open_owner);
-    if (code == NULL)
+    char id[CLI_KERNEL_ID];
+    id[0] = '\0';
+    const unsigned long long said = args->err_msg->at;
+    KernelCodeSent send = {args, model, cell, id, 0};
+    if (!EMBED_CALL(cli_document_key.text_each, CliDocumentKeyCfg, .key = key, .each = kernel_code_sent,
+                    .context = &send))
     {
         mmgr_line_put(args->err_msg, "the cell's text cannot be read");
         return 0;
     }
-    EMBED_CALL(cli_notebook_model_internal.outputs_released, CliNotebookModelCtx, .model = model, .cell = args->cell);
-    // the cell read again, the outputs' release having written it, and written with its run
-    cell_read = (CliNotebookCell){0};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = model->cells_cell,
-                                                            .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
-                                                            .dst = &cell_read,
-                                                            .bytes = sizeof(cell_read)});
-    model->clock += 1u;
-    cell->first_run = (cell->first_run != 0u) ? cell->first_run : model->clock;
-    cell->last_run = model->clock;
-    cell->running = 1;
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = model->cells_cell,
-                                                             .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
-                                                             .src = cell,
-                                                             .bytes = sizeof(CliNotebookCell)});
-    char id[CLI_KERNEL_ID];
-    id[0] = '\0';
-    const unsigned long long said = args->err_msg->at;
-    const int sent =
-        EMBED_CALL(cli_jupyter_err_msg_kernel_length.execute, CliJupyterErrMsgKernelLengthCfg, .kernel = model->kernel,
-                   .code = code, .length = size, .id = id, .err_msg = args->err_msg);
-    g_cli_guard->persistent_buf_release(code, g_cli_notebook_open_owner);
+    const int sent = send.sent;
     if (sent)
     {
         EMBED_CALL(cli_notebook_model_internal.bound, CliNotebookModelCtx, .model = model, .cell = args->cell,

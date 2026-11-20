@@ -165,6 +165,14 @@ EMBED_INLINE void outline_depths_read(const OutlineCtx *args)
     }
 }
 
+// the declarations and their depths read off the text the document gives, of the path the context holds
+static void outline_text_read(const CliEachTextLengthCfg *args)
+{
+    EMBED_CALL(cli_symbols_path_text_size.declare, CliSymbolsPathTextSizeCfg, .path = (const char *)args->context,
+               .text = args->text, .size = args->length, .each_declared = outline_declared);
+    EMBED_CALL(outline_depths_read, OutlineCtx, .text = args->text, .length = args->length);
+}
+
 int cli_outline_read(const CliOutlineCfg *args)
 {
     const CliStoredText *const stored =
@@ -195,15 +203,9 @@ int cli_outline_read(const CliOutlineCfg *args)
     }
     s_outline->count = 0u;
     s_outline->used = 0u;
-    unsigned long long size = 0ULL;
-    char *const text = EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = args->key,
-                                  .owner = g_cli_code_owner, .size_pointer = &size);
-    if (text != NULL)
+    if (EMBED_CALL(cli_document_key.text_each, CliDocumentKeyCfg, .key = args->key, .each = outline_text_read,
+                   .context = (void *)args->path))
     {
-        EMBED_CALL(cli_symbols_path_text_size.declare, CliSymbolsPathTextSizeCfg, .path = args->path, .text = text,
-                   .size = size, .each_declared = outline_declared);
-        EMBED_CALL(outline_depths_read, OutlineCtx, .text = text, .length = size);
-        g_cli_guard->persistent_buf_release(text, g_cli_code_owner);
         outline_published();
         VerbaLinea key = {s_outline_key, sizeof(s_outline_key), 0ULL};
         mmgr_line_put(&key, args->key);

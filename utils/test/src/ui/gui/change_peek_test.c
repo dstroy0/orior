@@ -41,7 +41,7 @@ static int colored(const GuiRaster *raster, GuiRect rect, GuiColor color, GuiCol
     return 0;
 }
 
-// the store told nothing of a change: the head alone is stored by the call
+// the store told nothing of a change: the call stores the head alone
 static void head_stored_each(const CliEachHunkCfg *args)
 {
     (void)args;
@@ -69,17 +69,27 @@ static void opened(const char *now, GuiEditor *editor)
     editor->frame = cli_view_frame_alloc(&(CliViewAtCfg){.key = s_key});
 }
 
+// The text a check holds the document's text to: the text required and whether the two are the same
+typedef struct
+{
+    const char *required;
+    int same;
+} TextRequired;
+
+// the text the document gives compared with the text required
+static void text_held(const CliEachTextLengthCfg *args)
+{
+    TextRequired *const held = (TextRequired *)args->context;
+    held->same = (args->length == cellul.len(&(CatenaFinitaCfg){.src = held->required, .cap = CLI_POOL_BYTES})) &&
+                 (memor.cmp(&(MemoriaCfg){.src = args->text, .other = held->required, .bytes = args->length}) == 0);
+}
+
 // the whole text read as `required`
 static int text_is(const char *required)
 {
-    unsigned long long size = 0ULL;
-    char *const text = EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = s_key, .owner = g_checks_owner,
-                                  .size_pointer = &size);
-    const int same = (text != NULL) &&
-                     (size == cellul.len(&(CatenaFinitaCfg){.src = required, .cap = CLI_POOL_BYTES})) &&
-                     (memor.cmp(&(MemoriaCfg){.src = text, .other = required, .bytes = size}) == 0);
-    g_cli_guard->persistent_buf_release(text, g_checks_owner);
-    return same;
+    TextRequired held = {required, 0};
+    (void)EMBED_CALL(cli_document_key.text_each, CliDocumentKeyCfg, .key = s_key, .each = text_held, .context = &held);
+    return held.same;
 }
 
 // how many changes the text stored under the key has against its last commit's file

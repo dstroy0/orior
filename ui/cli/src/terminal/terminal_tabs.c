@@ -450,6 +450,61 @@ EMBED_INLINE void terminal_unstore(const TerminalCtx *args)
     }
 }
 
+// The span of a selection: its first place and the place after its end
+typedef struct
+{
+    CliPosition from;
+    CliPosition to;
+} TerminalCopied;
+
+// the selection's span of the lines the document gives written to the clipboard
+static void terminal_copied(const CliEachTextLengthCfg *args)
+{
+    const TerminalCopied *const span = (const TerminalCopied *)args->context;
+    const char *const text = args->text;
+    const unsigned long long size = args->length;
+    // the bytes from `from`'s unit on its line up to `to`'s on its own, each line's units counted from its start and
+    // a character past the basic plane counting two
+    unsigned long long start = size;
+    unsigned long long end = size;
+    unsigned long long line = span->from.line;
+    unsigned long long units = 0ULL;
+    unsigned long long at = 0ULL;
+    while (end == size)
+    {
+        start = ((start == size) && (line == span->from.line) && (units == span->from.col)) ? at : start;
+        if (((line == span->to.line) && (units >= span->to.col)) || (at >= size))
+        {
+            end = at;
+            break;
+        }
+        unsigned long long consumed = 0ULL;
+        const unsigned int character = (text[at] == '\n')
+                                           ? (unsigned int)'\n'
+                                           : EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = text, .size = size,
+                                                        .at = at, .length = &consumed);
+        units = (character == (unsigned int)'\n') ? 0ULL : (units + ((character >= 0x10000u) ? 2ULL : 1ULL));
+        line += (character == (unsigned int)'\n') ? 1ULL : 0ULL;
+        at += (consumed != 0ULL) ? consumed : 1ULL;
+    }
+    // the SGR sequences the text carries for its colors are no characters of the copy. The filter takes them out in
+    // place. It works on a copy of the span that this call owns
+    const unsigned long long length = (end > start) ? (end - start) : 0ULL;
+    unsigned char *const span_copy = g_cli_guard->temporary_buf_alloc(length + 1ULL, g_cli_terminal_owner);
+    if (span_copy == NULL)
+    {
+        return;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = span_copy, .src = text + start, .bytes = length});
+    const unsigned long long copied = (length != 0ULL) ? EMBED_CALL(cli_terminal_xterm_plain, CliTerminalXtermPlainCfg,
+                                                                    .bytes = span_copy, .size = length)
+                                                       : 0ULL;
+    // the bytes the filter left read as text are the same bytes
+    (void)EMBED_CALL(cli_size_text_internal.clipboard_text_write, CliSizeTextCtx, .size = copied,
+                     .text = (const char *)span_copy);
+    g_cli_guard->persistent_buf_release(span_copy, g_cli_terminal_owner);
+}
+
 // the selection of the tab's view written to the clipboard, the selection let go: 1, or 0 where nothing is chosen
 EMBED_INLINE int terminal_copy(const TerminalCtx *args)
 {
@@ -466,48 +521,14 @@ EMBED_INLINE int terminal_copy(const TerminalCtx *args)
     const int forward = (anchor.line < cursor.line) || ((anchor.line == cursor.line) && (anchor.col < cursor.col));
     const CliPosition from = forward ? anchor : cursor;
     const CliPosition to = forward ? cursor : anchor;
+    const TerminalCopied span = {from, to};
     char state[8];
-    unsigned long long size = 0ULL;
-    char *const text = EMBED_CALL(cli_document_key.lines_alloc, CliDocumentKeyCfg, .key = tab->key, .first = from.line,
-                                  .last = to.line, .size_pointer = &size, .state = state, .capacity = sizeof(state),
-                                  .owner = g_cli_terminal_owner);
-    if (text == NULL)
+    if (!EMBED_CALL(cli_document_key.lines_each, CliDocumentKeyCfg, .key = tab->key, .first = from.line,
+                    .last = to.line, .state = state, .capacity = sizeof(state), .each = terminal_copied,
+                    .context = (void *)&span))
     {
         return 0;
     }
-    // the bytes from `from`'s unit on its line up to `to`'s on its own, each line's units counted from its start and
-    // a character past the basic plane counting two
-    unsigned long long start = size;
-    unsigned long long end = size;
-    unsigned long long line = from.line;
-    unsigned long long units = 0ULL;
-    unsigned long long at = 0ULL;
-    while (end == size)
-    {
-        start = ((start == size) && (line == from.line) && (units == from.col)) ? at : start;
-        if (((line == to.line) && (units >= to.col)) || (at >= size))
-        {
-            end = at;
-            break;
-        }
-        unsigned long long consumed = 0ULL;
-        const unsigned int character = (text[at] == '\n')
-                                           ? (unsigned int)'\n'
-                                           : EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = text, .size = size,
-                                                        .at = at, .length = &consumed);
-        units = (character == (unsigned int)'\n') ? 0ULL : (units + ((character >= 0x10000u) ? 2ULL : 1ULL));
-        line += (character == (unsigned int)'\n') ? 1ULL : 0ULL;
-        at += (consumed != 0ULL) ? consumed : 1ULL;
-    }
-    // the SGR sequences the text carries for its colors are no characters of the copy; the bytes read as unsigned are
-    // the same bytes
-    const unsigned long long copied = (end > start)
-                                          ? EMBED_CALL(cli_terminal_xterm_plain, CliTerminalXtermPlainCfg,
-                                                       .bytes = (unsigned char *)(text + start), .size = end - start)
-                                          : 0ULL;
-    (void)EMBED_CALL(cli_size_text_internal.clipboard_text_write, CliSizeTextCtx, .size = copied,
-                     .text = text + ((start < size) ? start : size));
-    g_cli_guard->persistent_buf_release(text, g_cli_terminal_owner);
     const CliViewInput placed = {.type = CLI_VIEW_POSITION, .row = cursor.line, .column = cursor.col};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};

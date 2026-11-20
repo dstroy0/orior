@@ -82,32 +82,23 @@ int cli_tree_walk_progress(const CliSymbolsDoneCfg *args);
 void cli_tree_walk_stop(void);
 // whether the tree's files are being read for the first time
 int cli_tree_unwalked(void);
-// the declarations whose names answer `query`, at max `max` of them, the best first, written as `{"symbols":
-// [{"name", "type", "path", "line", "text"}...], "reading"}`, `text` the declaration's own line trimmed, read from
-// its file as the answer is written
-// One declaration a query finds, in the found list's movable cell: the offsets in the cell of its name, what it is,
-// its file's tree path and its own line of text, each ended by a zero, and its line counted from 0
+// One declaration a query finds, passed to a caller with its `context`: its name, `name_length` bytes, what it is, its
+// file's tree path and its own line of text, `text_length` bytes, each ended by a zero, and its line counted from 0.
+// The texts are the search's own for the one call
 typedef struct
 {
-    unsigned int name;
-    unsigned int type;
-    unsigned int path;
-    unsigned int text;
+    void *context;
+    const char *name;
+    unsigned long long name_length;
+    const char *type;
+    const char *path;
+    const char *text;
+    unsigned long long text_length;
     unsigned int line;
-} CliFoundDeclaration;
-// The head of the declarations a query finds, at the start of their movable cell: how many, the best first, and
-// whether the tree is still being read. A CliFoundDeclaration for each comes after the head, then their texts
-typedef struct
-{
-    unsigned int count;
-    int reading;
-} CliFoundDeclarations;
-// the offset in the found list's cell of the declaration `at`
-#define CLI_FOUND_DECLARATION_AT(at)                                                                                   \
-    (sizeof(CliFoundDeclarations) + ((unsigned long long)(at) * sizeof(CliFoundDeclaration)))
-// the found list in a movable cell of `owner`, given back with movable_buf_release: the cell, or NULL where the cells
-// cannot meet it
-const CarcerMovableEntry *cli_tree_declarations_alloc(const CliSymbolsQueryMaxCfg *args);
+} CliEachFoundCfg;
+// the declarations whose names answer `query`, at max `max` of them, each passed to `each` with `context`, the best
+// first: 1 where the tree is still being read, else 0 (symbols_find.c)
+int cli_tree_declarations_each(const CliSymbolsQueryMaxCfg *args);
 // the signature of the call the cursor is in at `line`, `col` in UTF-16 units of `size` bytes of `text`, the lines
 // the page passes from the file at `path`, the first starting in its grammar's `state`: written as `{"name", "active",
 // "arguments": [{"text", "type"}], "declarations": [{"path", "line", "label", "params": [[from, to]], "types",
@@ -393,7 +384,8 @@ struct CliSymbolsQueryMaxCfg
 {
     const char *query;
     unsigned int max;
-    const CellOwner *owner;
+    void (*each)(const CliEachFoundCfg *args);
+    void *context;
 };
 
 struct CliSymbolsContextCfg
@@ -513,11 +505,11 @@ EMBED_TABLE_STORAGE CliSymbolsDoneNs cli_symbols_done EMBED_UNUSED = {
 
 typedef struct
 {
-    const CarcerMovableEntry *(*tree_declarations_alloc)(const CliSymbolsQueryMaxCfg *args);
+    int (*tree_declarations_each)(const CliSymbolsQueryMaxCfg *args);
 } CliSymbolsQueryMaxNs;
-EMBED_TABLE_LAYOUT(CliSymbolsQueryMaxNs, tree_declarations_alloc);
+EMBED_TABLE_LAYOUT(CliSymbolsQueryMaxNs, tree_declarations_each);
 EMBED_TABLE_STORAGE CliSymbolsQueryMaxNs cli_symbols_query_max EMBED_UNUSED = {
-    .tree_declarations_alloc = cli_tree_declarations_alloc,
+    .tree_declarations_each = cli_tree_declarations_each,
 };
 
 typedef struct

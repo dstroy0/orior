@@ -696,6 +696,55 @@ EMBED_INLINE void stream_json_written(const NotebookCellsCtx *args)
     mmgr_line_ch(args->out, '}');
 }
 
+// The stream that goes into a cell's output. It holds the new text and its bytes. It holds whether the store left
+// the last line end off the stream it joins, and whether the text of that stream came. It also holds the scratch
+// cell, the bytes of the joined text in it, and the room after them for the JSON
+typedef struct
+{
+    const char *text;
+    unsigned long long size;
+    int line_ended;
+    int located;
+    char *scratch;
+    unsigned long long bytes;
+    unsigned long long json_capacity;
+} CellsStreamJoined;
+
+// The scratch cell of `stream` with the stream's text in it. The `before` bytes of `located` go first where a stream
+// comes before. Its last line end goes back where the store left it off. The new text goes last
+static void cells_stream_scratch(CellsStreamJoined *stream, const char *located, unsigned long long before)
+{
+    const int line_ended = (located != NULL) && stream->line_ended;
+    const unsigned long long ended = (located != NULL) ? (before + (line_ended ? 1ULL : 0ULL)) : 0ULL;
+    const unsigned long long bytes = ended + stream->size;
+    const unsigned long long json_capacity = (6ULL * bytes) + CELLS_MESSAGE_TEXT;
+    char *const scratch = g_cli_guard->temporary_buf_alloc(bytes + json_capacity + 1ULL, g_cli_notebook_open_owner);
+    if (scratch == NULL)
+    {
+        return;
+    }
+    if (located != NULL)
+    {
+        memor.cpy(&(MemoriaCfg){.dst = scratch, .src = located, .bytes = before});
+    }
+    if (line_ended)
+    {
+        scratch[before] = '\n';
+    }
+    memor.cpy(&(MemoriaCfg){.dst = scratch + ended, .src = stream->text, .bytes = stream->size});
+    stream->scratch = scratch;
+    stream->bytes = bytes;
+    stream->json_capacity = json_capacity;
+}
+
+// the text of the stream that comes before, as the document gives it, joined into the scratch cell
+static void cells_stream_located(const CliEachTextLengthCfg *args)
+{
+    CellsStreamJoined *const stream = (CellsStreamJoined *)args->context;
+    stream->located = 1;
+    cells_stream_scratch(stream, args->text, args->length);
+}
+
 // the stream `name` of `size` bytes of `text` put after the outputs of the cell `cell`, joined to its last output
 // where that is a stream of the same name: 1, or 0 where the cells cannot meet it
 EMBED_INLINE int stream_put(const NotebookCellsCtx *args)
@@ -718,37 +767,26 @@ EMBED_INLINE int stream_put(const NotebookCellsCtx *args)
     }
     const int joined = (last != CLI_NOTEBOOK_NONE) && (last_output.type == CLI_NOTEBOOK_STREAM) &&
                        (last_output.stderr_stream == stderr_stream);
-    char key[CLI_PATH_MAX_LEN + CLI_NOTEBOOK_KEY_MORE];
-    unsigned long long before = 0ULL;
-    char *located = NULL;
+    CellsStreamJoined stream = {args->text, args->size, last_output.line_ended, 0, NULL, 0ULL, 0ULL};
     if (joined)
     {
+        char key[CLI_PATH_MAX_LEN + CLI_NOTEBOOK_KEY_MORE];
         EMBED_CALL(cli_notebook_model_internal.key, CliNotebookModelCtx, .model = model, .cell = args->cell,
                    .output = last, .out = key);
-        located = EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = key, .size_pointer = &before,
-                             .owner = g_cli_notebook_open_owner);
+        (void)EMBED_CALL(cli_document_key.text_each, CliDocumentKeyCfg, .key = key, .each = cells_stream_located,
+                         .context = &stream);
     }
-    // the stream's text: its last line end, where the store left one off, put back before the text joined to it
-    const int line_ended = (located != NULL) && last_output.line_ended;
-    const unsigned long long ended = (located != NULL) ? (before + (line_ended ? 1ULL : 0ULL)) : 0ULL;
-    const unsigned long long bytes = ended + args->size;
-    const unsigned long long json_capacity = (6ULL * bytes) + CELLS_MESSAGE_TEXT;
-    char *const scratch = g_cli_guard->temporary_buf_alloc(bytes + json_capacity + 1ULL, g_cli_notebook_open_owner);
+    if (!stream.located)
+    {
+        cells_stream_scratch(&stream, NULL, 0ULL);
+    }
+    char *const scratch = stream.scratch;
     if (scratch == NULL)
     {
-        g_cli_guard->persistent_buf_release(located, g_cli_notebook_open_owner);
         return 0;
     }
-    if (located != NULL)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = scratch, .src = located, .bytes = before});
-    }
-    if (line_ended)
-    {
-        scratch[before] = '\n';
-    }
-    memor.cpy(&(MemoriaCfg){.dst = scratch + ended, .src = args->text, .bytes = args->size});
-    g_cli_guard->persistent_buf_release(located, g_cli_notebook_open_owner);
+    const unsigned long long bytes = stream.bytes;
+    const unsigned long long json_capacity = stream.json_capacity;
     VerbaLinea json = {scratch + bytes, json_capacity, 0ULL};
     EMBED_CALL(stream_json_written, NotebookCellsCtx, .out = &json, .name = args->name, .text = scratch, .size = bytes);
     int put = 0;
@@ -1177,6 +1215,23 @@ void cli_notebook_model_close(const CliNotebookCellsOpenCfg *args)
     EMBED_CALL(model_released, NotebookCellsCtx, .model = model);
 }
 
+// The place a cell's source goes in the save's tree: the tree and the cell's node
+typedef struct
+{
+    CliJson *json;
+    unsigned int node;
+} CellsSourceWritten;
+
+// the text the document gives set as the source of the cell's node
+static void cells_source_written(const CliEachTextLengthCfg *args)
+{
+    const CellsSourceWritten *const source = (const CellsSourceWritten *)args->context;
+    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = source->json,
+               .object = source->node, .name = "source",
+               .value = EMBED_CALL(cli_json_tree_text_length_type.json_string_init, CliJsonTreeTextLengthTypeCfg,
+                                   .json = source->json, .text = args->text, .length = args->length));
+}
+
 // the cell `cell` of the model written into the save's tree `json` as a notebook stores it: its node, CLI_JSON_NONE
 // where the tree or the cells cannot meet it
 EMBED_INLINE unsigned int cell_written(const NotebookCellsCtx *args)
@@ -1212,14 +1267,12 @@ EMBED_INLINE unsigned int cell_written(const NotebookCellsCtx *args)
     char key[CLI_PATH_MAX_LEN + CLI_NOTEBOOK_KEY_MORE];
     EMBED_CALL(cli_notebook_model_internal.key, CliNotebookModelCtx, .model = model, .cell = args->cell,
                .output = CLI_NOTEBOOK_NONE, .out = key);
-    unsigned long long size = 0ULL;
-    char *const source = EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = key, .size_pointer = &size,
-                                    .owner = g_cli_notebook_open_owner);
-    EMBED_CALL(
-        cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = node, .name = "source",
-        .value = EMBED_CALL(cli_json_tree_text_length_type.json_string_init, CliJsonTreeTextLengthTypeCfg, .json = json,
-                            .text = (source != NULL) ? source : "", .length = (source != NULL) ? size : 0ULL));
-    g_cli_guard->persistent_buf_release(source, g_cli_notebook_open_owner);
+    CellsSourceWritten source = {json, node};
+    if (!EMBED_CALL(cli_document_key.text_each, CliDocumentKeyCfg, .key = key, .each = cells_source_written,
+                    .context = &source))
+    {
+        EMBED_CALL(cells_source_written, CliEachTextLengthCfg, .context = &source, .text = "", .length = 0ULL);
+    }
     if (cell->type != CLI_NOTEBOOK_CODE)
     {
         EMBED_CALL(cli_json_tree_object_name.json_remove, CliJsonTreeObjectNameCfg, .json = json, .object = node,
