@@ -164,8 +164,8 @@ from reference.shuffles import SEED, permuted  # noqa: E402
 GUARD = naturals.GUARD
 LINE = (5, 1)
 
-# MathWorld, Riemann-Siegel Formula, equations (8) to (13): each c_k as its terms
-# (signed numerator, denominator, j, m), a term being numerator / denominator Psi^(j)(p) / pi^(2m).
+# MathWorld, Riemann-Siegel Formula, equations (8) to (13): each c_k as its terms, (signed numerator, denominator, j,
+# m). A term is `numerator / denominator Psi^(j)(p) / pi^(2m)`.
 COEFFICIENTS = (
     ((1, 1, 0, 0),),
     ((-1, 96, 3, 1),),
@@ -257,7 +257,7 @@ def psi_carried(p, digits):
 # ---- Z at a point ----
 
 def theta_at(t, digits):
-    """theta at `digits` by exact_zeta_gram.py's two routes, N doubling until they agree with the guard dropped."""
+    """theta at `digits` by the two routes of exact_zeta_gram.py. N doubles until they agree with the guard dropped."""
     n_sum = 1
     one, two = (gram.theta_route(t, digits, n, n) for n in (1, 2))
     while toward_zero(one) - toward_zero(two):
@@ -267,10 +267,10 @@ def theta_at(t, digits):
 
 
 def rs_parts(nu, p, inv_root, digits):
-    """The main sum S, the terms of R each times d^16 pi^10, that multiplier, and theta's N, at x = nu + p.
+    """The main sum S, the terms of R each times `d^16 pi^10`, that multiplier, and the N of theta, at x = nu + p.
 
-    t = 2pi x^2, the main sum runs to n = nu, and u^-(2k+1) = inv_root x^-k, inv_root being x^(-1/2) at
-    `digits`. At p = 1 the cell's own nu holds, the limit from inside it."""
+    `t = 2pi x^2`, and the main sum runs to n = nu. `u^-(2k+1) = inv_root x^-k`, with inv_root as `x^(-1/2)` at
+    `digits`. At p = 1 the own nu of the cell holds, the limit from inside it."""
     scale = 10 ** digits
     big_p, q = p
     unit = 10 ** q
@@ -296,9 +296,9 @@ def rs_parts(nu, p, inv_root, digits):
 
 
 def z_carried(u, places, remainder=1):
-    """Z d^16 pi^10, the last term c_5 u^-11 times the same, and that multiplier, at places + GUARD.
+    """`Z d^16 pi^10`, the last term `c_5 u^-11` times the same, and that multiplier, at places + GUARD.
 
-    The work runs at places + 2 GUARD and one guard is dropped toward zero."""
+    The work runs at places + 2 GUARD, and the code drops one guard toward zero."""
     digits = places + 2 * GUARD
     scale = 10 ** digits
     big_u, q = u
@@ -311,7 +311,7 @@ def z_carried(u, places, remainder=1):
 
 
 class Riemann:
-    """The sign of Z decided at each point u, the reach of its last term there, and what deciding them cost."""
+    """The sign of Z at each point u, the reach of its last term there, and the cost of those verdicts."""
 
     def __init__(self, remainder=1):
         self.remainder = remainder
@@ -418,12 +418,12 @@ def _two(value, bits):
 
 
 class DeviceTail:
-    """Euler-Maclaurin's C at many points at once, one lane a point, swept on the device by exact_zeta_tail.cu.
+    """The C of Euler-Maclaurin at many points at once, one lane a point, swept on the device by exact_zeta_tail.cu.
 
-    The records are arranged here and the program is built there from N and the wrap width W. W is the bits of a
-    bound on every tau and on the two turns between them, at the scale S:
-    |tau_k| <= |B_2k / (2k)!| (|t| + 1)(|t| + 2) ... (|t| + 2k - 1) / N^(2k - 1), with |t| taken up to the power of
-    two above it. The widths then hold across passes, and a program, compiled once, is read from the cache after."""
+    The code arranges the records here, and builds the program there from N and the wrap width W. W is the bits of a
+    bound on each tau and on the two turns between them. The bound is at the scale S:
+    `|tau_k| <= |B_2k / (2k)!| (|t| + 1)(|t| + 2) ... (|t| + 2k - 1) / N^(2k - 1)`, with |t| taken up to the power of
+    two above it. The widths then hold across passes. A program, compiled once, comes from the cache after."""
 
     def __init__(self, work):
         self.work = work
@@ -432,8 +432,8 @@ class DeviceTail:
         self.swept = 0
 
     def build(self):
-        """The binary's path, built by exact_zeta_tail.sh under the bash the path names first. On Windows a bare
-        "bash" given to a process is found in System32 before the path, and that one is another system's."""
+        """The path of the binary that exact_zeta_tail.sh builds, under the bash that the path names first. On Windows,
+        a process finds a bare "bash" in System32 before the path, and that one belongs to another system."""
         sources = (TAIL_BUILD, os.path.join(os.path.dirname(TAIL_BUILD), "exact_zeta_tail.cu"))
         built = sorted(glob.glob(os.path.join(ROOT, "build", "*_exact_zeta_tail", "exact_zeta_tail*")),
                        key=os.path.getmtime)
@@ -533,11 +533,12 @@ def em_at(key):
 
 
 def rs_at(key):
-    """S and R at x = nu + p, each at `digits`, the work one guard deeper.
+    """S and R at x = nu + p, each at `digits`, with the work one guard deeper.
 
-    R is the carried tail over d^16 pi^10, and near p = 1/4 and 3/4 d is small and that multiplier
-    carries fewer digits than the work. How many it lost is a property of p and not of the work:
-    the work is set once to digits + GUARD + lost, and asked again while it is short of that."""
+    R is the carried tail over `d^16 pi^10`. Near p = 1/4 and 3/4, d is small, and that multiplier carries fewer
+    digits than the work.
+    How many it lost is a property of p, and not of the work. The code sets the work once to digits + GUARD + lost,
+    and asks again while it is short of that."""
     nu, p, digits = key
     big_p, q = p
     unit = 10 ** q
@@ -557,20 +558,21 @@ def rs_at(key):
 def seam(nu, digits):
     """The jumps of S, of R and of Z_RS where x crosses nu + 1, each at `digits`.
 
-    From inside the cell S runs to nu with p = 1, and from the next it runs to nu + 1 with p = 0. Z is
-    continuous there: the jump of Z_RS is the jump of the terms R leaves out, carried with the sign
-    and the size of their first."""
+    From inside the cell, S runs to nu with p = 1. From the next cell, it runs to nu + 1 with p = 0. Z is continuous
+    there. The jump of Z_RS is the jump of the terms that R leaves out, carried with the sign and the size of their
+    first."""
     s_in, r_in = rs_at((nu, (1, 0), digits))
     s_out, r_out = rs_at((nu + 1, (0, 0), digits))
     return s_out - s_in, r_out - r_in, s_out - s_in + r_out - r_in
 
 
 def em_on_device(tail, keys):
-    """Re e^(i theta) zeta(1/2 + it) at every key of one pass, each at its `digits`, with C from the device.
+    """`Re e^(i theta) zeta(1/2 + it)` at each key of one pass, each at its `digits`, with C from the device.
 
-    The routes at N and 2N are entry 4's, each a head of powers on the host and C N^-s, C swept on the device for every
-    open point at once. A point whose two routes read alike with the guard dropped is done; the rest double N. Returns
-    the values and whether every sweep's device records equaled the host's."""
+    The routes at N and 2N are those of entry 4. Each is a head of powers on the host and `C N^-s`. The device sweeps
+    C for each open point at once.
+    A point whose two routes read alike with the guard dropped ends its work, and the rest double N. Returns the values,
+    and whether the device records of each sweep equaled those of the host."""
     digits = keys[0][2]
     work = digits + GUARD
     scale = 10 ** work
@@ -644,8 +646,8 @@ def spike_integral(d0, k, ell, scale):
 
 
 def corner(x, y):
-    """What the trapezoid over-counts of |f| on one part where f goes from x to y with the sign changing,
-    twice over, as the sides accumulate: 2 |x y| / (|x| + |y|). Zero where the sign holds."""
+    """What the trapezoid counts too much of |f| on one part where f goes from x to y and the sign changes. It counts
+    twice over as the sides grow: `2 |x y| / (|x| + |y|)`. Zero where the sign holds."""
     total = abs(x) + abs(y)
     return int((x > 0) != (y > 0)) * 2 * abs(x * y) // (total + NOT(total))
 
@@ -654,8 +656,8 @@ class Triangle:
     """The three sides over a cell, from values each asked once, the Euler-Maclaurin ones with C from the device."""
 
     def __init__(self, tail, cut=None, em=None):
-        """R through MathWorld's c_5 where `cut` is None, and through C_cut from the exact curves
-        otherwise. `em` may be shared between triangles: Euler-Maclaurin does not depend on the cut."""
+        """R through the c_5 of MathWorld where `cut` is None, and else through C_cut from the exact curves.
+        Triangles can share `em`, because Euler-Maclaurin does not depend on the cut."""
         self.tail = tail
         self.at = [lambda key: rs_cut_at(key, cut), rs_at][int(cut is None)]
         self.em = em if em is not None else {}
@@ -682,8 +684,8 @@ class Triangle:
     def crossings(self, nu, digits, start=8, bits=SPIKE_BITS):
         """Where S and R cross in the cell, each as (p0 over 2^bits, D there, |E'| there), at `digits`.
 
-        E's sign changes are read on 2^m and 2^(m+1) parts, m growing until the two counts agree, and
-        each is halved to 2^-bits. |E'| is read from the last bracket and D at p0 from both pairs."""
+        The code reads the sign changes of E on 2^m and 2^(m+1) parts. The count m grows until the two counts agree,
+        and the code halves each to 2^-bits. It reads |E'| from the last bracket, and D at p0 from both pairs."""
         if (nu, digits) in self.crossed:
             return self.crossed[(nu, digits)]
         m = start
@@ -706,18 +708,18 @@ class Triangle:
     def sides(self, nu, digits, m):
         """a, b and delta over p in [0, 1], by the trapezoid on 2^m equal parts, at `digits`.
 
-        D = Z_RS - Z_EM and E = S - R at each point. a = int |D|, b = int |E|, and the third side
-        c = int |(D, E)| = b + delta, delta = int D^2 / (|(D, E)| + |E|). c - b never cancels.
+        `D = Z_RS - Z_EM` and `E = S - R` at each point. `a = int |D|` and `b = int |E|`. The third side is
+        `c = int |(D, E)| = b + delta`, with `delta = int D^2 / (|(D, E)| + |E|)`. `c - b` never cancels.
 
-        Where S and R cross, E is zero and delta's integrand is a spike of height |D| and width |D / E'|,
-        far below any grid: the trapezoid on it grows as ln(1 / h) and stops only where h reaches that
-        width. Each spike is represented by its relation instead, g(p) = D0^2 / (sqrt(D0^2 + k^2 u^2) + k |u|) with
-        u = p - p0, D0 = D(p0) and k = |E'(p0)|, whose integral over the cell is exact (`spike_integral`).
-        delta is the sum of those integrals and the trapezoid of what is left, f minus every g.
+        Where S and R cross, E is zero. The integrand of delta is then a spike of height |D| and width |D / E'|, far
+        below any grid. The trapezoid on it grows as `ln(1 / h)`, and stops only where h reaches that width.
+        The code holds each spike by its relation: `g(p) = D0^2 / (sqrt(D0^2 + k^2 u^2) + k |u|)`. Here `u = p - p0`,
+        `D0 = D(p0)` and `k = |E'(p0)|`. Its integral over the cell is exact (`spike_integral`).
+        delta is the sum of those integrals and the trapezoid of the rest, f minus each g.
 
-        Where D or E changes sign between two points x and y, |D| or |E| has a corner the trapezoid cuts:
-        it takes (|x| + |y|) / 2 a part where the line through them gives (x^2 + y^2) / (2 (|x| + |y|)).
-        Each such part gives back the difference, |x y| / (|x| + |y|), and a and b settle as the grid halves."""
+        Where D or E changes sign between two points x and y, |D| or |E| has a corner that the trapezoid cuts. It
+        takes `(|x| + |y|) / 2` a part, where the line through them gives `(x^2 + y^2) / (2 (|x| + |y|))`.
+        Each such part gives back the difference, `|x y| / (|x| + |y|)`. a and b settle as the grid halves."""
         scale = 10 ** digits
         spikes = self.crossings(nu, digits)
         steps = 1 << m
@@ -763,9 +765,9 @@ class Triangle:
         return read, places
 
     def cell(self, nu):
-        """The triangle over [nu, nu + 1], decided where a and delta each carry places + GUARD digits, kappa
-        reads nonzero at `places`, and the routes at 2^m and 2^(m+1) parts agree on it. Each verdict that
-        fails doubles its own count: the depth, the places, or the parts."""
+        """The triangle over [nu, nu + 1]. The verdict holds where a and delta each carry places + GUARD digits, and
+        kappa reads nonzero at `places`. The routes at 2^m and 2^(m+1) parts must also agree on it. Each verdict
+        that fails doubles its own count: the depth, the places, or the parts."""
         places, depth, m = 1, GUARD, 1
         decided = 0
         while NOT(decided):
