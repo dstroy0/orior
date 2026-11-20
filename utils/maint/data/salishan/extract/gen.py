@@ -1790,6 +1790,7 @@ class Paper(object):
 
         The argument glued passes to place_footnotes(). The argument displays maps an example number to its printed
         line count. The argument restarts passes to flow(), and spaced to place_footnotes().
+
         With appendix, a pattern, the references end at the first line after them that it matches. The generator then
         writes what follows. Returns the found footnotes."""
         # The name of a language that the paper sets in italics is a language row, and no cited form. An example is
