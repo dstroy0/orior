@@ -22,6 +22,10 @@
 #define CLI_PANELS_HOVER_LINGER_MS 300ULL
 #define CLI_PANELS_SIGNATURE_WAIT_MS 120ULL
 #define CLI_PANELS_VIEW_REST_MS 250ULL
+// While a worker reads the hover asked for, the view thread comes back each CLI_PANELS_HOVER_TAKE_MS to take the
+// answer. It stops when the answer is taken, or CLI_PANELS_HOVER_ANSWER_MS after the ask
+#define CLI_PANELS_HOVER_TAKE_MS 8ULL
+#define CLI_PANELS_HOVER_ANSWER_MS 1000ULL
 // how long Go to Definition waits on the tree's first reading before it answers that it knows no declaration
 #define CLI_PANELS_DEFINITION_WAIT_MS 10000ULL
 // the max declarations the tree is asked for and the max of them a hover shows; the bytes a word takes; the lines
@@ -104,6 +108,9 @@ typedef struct
     unsigned long long pointer_column;
     unsigned long long hover_due_ms;
     unsigned long long hover_hide_ms;
+    // when the view thread next takes the hover's answer, 0 where no answer is to come, and when the hover was asked
+    unsigned long long hover_take_ms;
+    unsigned long long hover_asked_ms;
     unsigned long long hover_ask;
     char hover_text[CLI_PANELS_HOVER_MAX];
     int hover_displayed;
@@ -319,6 +326,7 @@ EMBED_INLINE void panels_hover_hide(const PanelsCtx *args)
     s_panels.hover_displayed = 0;
     s_panels.hover_length = 0ULL;
     s_panels.hover_hide_ms = 0ULL;
+    s_panels.hover_take_ms = 0ULL;
 }
 
 // the list closed, and nothing forced open; its cell is for the next
@@ -723,6 +731,7 @@ EMBED_INLINE void panels_hover_answers_taken(const PanelsCtx *args)
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = landed, .dst = &head, .bytes = sizeof(head)});
         if (head.ask == s_panels.hover_ask)
         {
+            // the hide also stops the takes: the answer asked for is here
             EMBED_CALL(panels_hover_hide, PanelsCtx, .at = 0u);
             const unsigned long long retained =
                 (head.length < CLI_PANELS_HOVER_MAX) ? head.length : CLI_PANELS_HOVER_MAX - 1ULL;
@@ -824,8 +833,14 @@ EMBED_INLINE void panels_hover_ask(const PanelsCtx *args)
     {
         job.path[0] = '\0';
     }
-    (void)EMBED_CALL(cli_servers_run_internal.later, CliServersRunCtx, .run = panels_hover_job, .job = &job,
-                     .size = sizeof(job));
+    // The view thread comes back on its own deadline to take the answer. The worker pushes it on the ring and wakes
+    // nothing
+    if (EMBED_CALL(cli_servers_run_internal.later, CliServersRunCtx, .run = panels_hover_job, .job = &job,
+                   .size = sizeof(job)))
+    {
+        s_panels.hover_asked_ms = cli_clock_milliseconds();
+        s_panels.hover_take_ms = s_panels.hover_asked_ms + CLI_PANELS_HOVER_TAKE_MS;
+    }
 }
 
 // how the item scores against the prefix: 5 its label starts with it, 4 starts with it case aside, 3 holds it case
@@ -1869,8 +1884,8 @@ static void panels_drawn(const CliViewDrawn *args)
 
 unsigned long long cli_servers_panels_due_ms(void)
 {
-    const unsigned long long dues[] = {s_panels.hover_due_ms, s_panels.hover_hide_ms, s_panels.signature_due_ms,
-                                       s_panels.view_due_ms};
+    const unsigned long long dues[] = {s_panels.hover_due_ms, s_panels.hover_take_ms, s_panels.hover_hide_ms,
+                                       s_panels.signature_due_ms, s_panels.view_due_ms};
     unsigned long long earliest = 0ULL;
     for (unsigned int at = 0u; at < (sizeof(dues) / sizeof(dues[0])); at += 1u)
     {
@@ -1907,6 +1922,13 @@ int cli_servers_panels_step(void)
     const PanelsShown before = EMBED_CALL(panels_shown, PanelsCtx, .at = 0u);
     int asked = 0;
     EMBED_CALL(panels_hover_answers_taken, PanelsCtx, .at = 0u);
+    // An answer still to come is taken at the next deadline, until CLI_PANELS_HOVER_ANSWER_MS after the ask
+    if ((s_panels.hover_take_ms != 0ULL) && (now_ms >= s_panels.hover_take_ms))
+    {
+        s_panels.hover_take_ms = ((now_ms - s_panels.hover_asked_ms) < CLI_PANELS_HOVER_ANSWER_MS)
+                                     ? now_ms + CLI_PANELS_HOVER_TAKE_MS
+                                     : 0ULL;
+    }
     if ((s_panels.hover_hide_ms != 0ULL) && (now_ms >= s_panels.hover_hide_ms))
     {
         EMBED_CALL(panels_hover_hide, PanelsCtx, .at = 0u);
