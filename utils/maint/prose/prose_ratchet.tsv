@@ -24,7 +24,6 @@ examples/00_blob_viz_tools/build_chart_view.py	12
 examples/00_blob_viz_tools/build_earth_view.py	14
 examples/00_blob_viz_tools/build_field_view.py	5
 examples/00_blob_viz_tools/build_illuminate_view.py	9
-examples/00_blob_viz_tools/build_orrery_view.py	75
 examples/00_blob_viz_tools/build_pack.ps1	7
 examples/00_blob_viz_tools/build_plot_view.py	16
 examples/00_blob_viz_tools/build_pool_view.py	63
@@ -93,7 +92,6 @@ examples/00_blob_viz_tools/parity_check.py	16
 examples/00_blob_viz_tools/perturb_inertia.py	16
 examples/00_blob_viz_tools/product_machine.py	15
 examples/00_blob_viz_tools/quantum_recursion.py	19
-examples/00_blob_viz_tools/qubit_trace.py	71
 examples/00_blob_viz_tools/quotient_coherence.py	25
 examples/00_blob_viz_tools/reading_rank.py	24
 examples/00_blob_viz_tools/ring_quadrant.py	25
@@ -385,7 +383,6 @@ examples/proofing/precision_floor.py	36
 examples/proofing/precision_plot.py	25
 examples/proofing/proth_reach.py	12
 examples/proofing/relation_search.py	31
-examples/proofing/series.py	71
 examples/proofing/state_deflection.py	31
 examples/proofing/twiddle_placement.py	37
 examples/proofing/twiddle_proof.py	62
@@ -588,7 +585,6 @@ src/cu/engine/nbody/orior/orior_core.c	28
 src/cu/engine/nbody/orior/orior_core.h	64
 src/cu/engine/nbody/orior/orior_engines.h	25
 src/cu/engine/nbody/orior/orior_field.c	27
-src/cu/engine/nbody/orior/orior_field.h	72
 src/cu/engine/nbody/orior/orior_internal.h	3
 src/cu/engine/nbody/orior/orior_steer.c	29
 src/cu/engine/nbody/orior/orior_steer_count.c	21
@@ -780,7 +776,6 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_run/driver.c	19
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_run/input.c	11
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_run/launch.c	27
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_run/question.c	29
-src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe.h	75
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/class.c	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/constant.c	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/cubin_safe_internal.h	8
