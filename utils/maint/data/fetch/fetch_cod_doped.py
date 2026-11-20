@@ -67,10 +67,21 @@ while not os.path.isdir(os.path.join(ROOT, "src", "cu", "engine")):
 CACHE = os.path.join(ROOT, "build", "cod")
 FAMILIES_FILE = os.path.join(CACHE, "families.tsv")
 
-AGENT = {
-    "User-Agent": "orior-research/1.0 "
-    "(https://github.com/dstroy0/orior; dquigg123@gmail.com)"
-}
+CONTACT = "ORIOR_CONTACT"
+
+
+def agent():
+    """The User-Agent header, with the contact address from the environment variable ORIOR_CONTACT.
+
+    The server asks for a contact in the User-Agent, and this tree holds none. The request stops
+    with a message where ORIOR_CONTACT holds no address.
+    """
+    contact = os.environ.get(CONTACT, "").strip()
+    if "@" not in contact:
+        raise SystemExit("set %s to your contact email address. The server asks for one in the "
+                         "User-Agent, and this tree holds none." % CONTACT)
+    return {"User-Agent": "orior-research/1.0 (https://github.com/dstroy0/orior; %s)" % contact}
+
 SEARCH = "https://www.crystallography.net/cod/result?format=json&text=%s&count=%d"
 CIF = "https://www.crystallography.net/cod/%s.cif"
 
@@ -386,7 +397,7 @@ def fetched(url, out):
     """One request that reaches the archive, with retries. Returns text, or None where errored."""
     for attempt in range(TRIES):
         try:
-            request = urllib.request.Request(url, headers=AGENT)
+            request = urllib.request.Request(url, headers=agent())
             with urllib.request.urlopen(request, timeout=180) as response:
                 return response.read().decode("utf-8", errors="replace")
         except (

@@ -49,10 +49,21 @@ while (ROOT != os.path.dirname(ROOT)) and not os.path.isdir(
 INTO = os.path.join(ROOT, "build", "prior_art")
 
 # Named, with a contact address. An archive operator can see who is asking and reach a person.
-AGENT = {
-    "User-Agent": "orior-research/1.0 "
-    "(https://github.com/dstroy0/orior; dquigg123@gmail.com)"
-}
+CONTACT = "ORIOR_CONTACT"
+
+
+def agent():
+    """The User-Agent header, with the contact address from the environment variable ORIOR_CONTACT.
+
+    The server asks for a contact in the User-Agent, and this tree holds none. The request stops
+    with a message where ORIOR_CONTACT holds no address.
+    """
+    contact = os.environ.get(CONTACT, "").strip()
+    if "@" not in contact:
+        raise SystemExit("set %s to your contact email address. The server asks for one in the "
+                         "User-Agent, and this tree holds none." % CONTACT)
+    return {"User-Agent": "orior-research/1.0 (https://github.com/dstroy0/orior; %s)" % contact}
+
 
 # Seconds between requests that reach a host. Longer than any limit these archives publish.
 PAUSE = 3.0
@@ -151,7 +162,7 @@ def fetch(url, out):
     """One URL, or None with the reason printed. Never retries an error."""
     for attempt in range(TRIES):
         try:
-            request = urllib.request.Request(url, headers=AGENT)
+            request = urllib.request.Request(url, headers=agent())
             with urllib.request.urlopen(request, timeout=120) as answer:
                 held = answer.read()
             if held[:4] != b"%PDF":

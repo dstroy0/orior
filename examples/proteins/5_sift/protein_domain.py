@@ -35,7 +35,21 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 while not os.path.isdir(os.path.join(ROOT, "src", "cu", "engine")):
     ROOT = os.path.dirname(ROOT)
 BASE = "https://files.rcsb.org/download/%s.pdb"
-AGENT = {"User-Agent": "orior-research/1.0 (https://github.com/dstroy0/orior; dquigg123@gmail.com)"}
+CONTACT = "ORIOR_CONTACT"
+
+
+def agent():
+    """The User-Agent header, with the contact address from the environment variable ORIOR_CONTACT.
+
+    The server asks for a contact in the User-Agent, and this tree holds none. The request stops
+    with a message where ORIOR_CONTACT holds no address.
+    """
+    contact = os.environ.get(CONTACT, "").strip()
+    if "@" not in contact:
+        raise SystemExit("set %s to your contact email address. The server asks for one in the "
+                         "User-Agent, and this tree holds none." % CONTACT)
+    return {"User-Agent": "orior-research/1.0 (https://github.com/dstroy0/orior; %s)" % contact}
+
 
 WANTED = ("1AON",)
 
@@ -153,7 +167,7 @@ def main():
         if index:
             time.sleep(1.5)
         try:
-            request = urllib.request.Request(BASE % entry, headers=AGENT)
+            request = urllib.request.Request(BASE % entry, headers=agent())
             with urllib.request.urlopen(request, timeout=240) as response:
                 text = response.read().decode("utf-8", "replace")
         except Exception as trouble:

@@ -35,9 +35,21 @@ while (ROOT != os.path.dirname(ROOT)) and not os.path.isdir(
 ):
     ROOT = os.path.dirname(ROOT)
 OUT = os.path.join(ROOT, "build", "corpora")
-AGENT = {
-    "User-Agent": "orior-research/1.0 (https://github.com/dstroy0/orior; dquigg123@gmail.com)"
-}
+CONTACT = "ORIOR_CONTACT"
+
+
+def agent():
+    """The User-Agent header, with the contact address from the environment variable ORIOR_CONTACT.
+
+    The server asks for a contact in the User-Agent, and this tree holds none. The request stops
+    with a message where ORIOR_CONTACT holds no address.
+    """
+    contact = os.environ.get(CONTACT, "").strip()
+    if "@" not in contact:
+        raise SystemExit("set %s to your contact email address. The server asks for one in the "
+                         "User-Agent, and this tree holds none." % CONTACT)
+    return {"User-Agent": "orior-research/1.0 (https://github.com/dstroy0/orior; %s)" % contact}
+
 
 WANTED = (
     ("voc_bird_sparrow", "Arremon abeillei - Black-capped Sparrow XC250490.mp3"),
@@ -66,7 +78,7 @@ def fetch(title):
     url = "https://commons.wikimedia.org/wiki/Special:FilePath/" + urllib.parse.quote(
         title
     )
-    request = urllib.request.Request(url, headers=AGENT)
+    request = urllib.request.Request(url, headers=agent())
     with urllib.request.urlopen(request, timeout=240) as response:
         return response.read()
 

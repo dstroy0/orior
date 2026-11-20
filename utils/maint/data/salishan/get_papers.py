@@ -112,10 +112,22 @@ INDEX = "https://lingpapers.sites.olt.ubc.ca/icsnl-volumes/"
 # So this string is correct and worth sending, and it gets past nothing. A check meant to be passed
 # by a person is that person's to pass. The way to fetch in bulk from here
 # is to ask the archive, at the address above, and the address is in this string for that reason.
-AGENT = (
-    "Salishan-corpus-tools/1.0 (+https://github.com/dstroy0/orior; "
-    "academic corpus extraction; dquigg123@gmail.com)"
-)
+CONTACT = "ORIOR_CONTACT"
+
+
+def agent():
+    """The User-Agent header, with the contact address from the environment variable ORIOR_CONTACT.
+
+    The server asks for a contact in the User-Agent, and this tree holds none. The request stops
+    with a message where ORIOR_CONTACT holds no address.
+    """
+    contact = os.environ.get(CONTACT, "").strip()
+    if "@" not in contact:
+        raise SystemExit("set %s to your contact email address. The server asks for one in the "
+                         "User-Agent, and this tree holds none." % CONTACT)
+    return ("Salishan-corpus-tools/1.0 (+https://github.com/dstroy0/orior; "
+            "academic corpus extraction; %s)" % contact)
+
 
 # Seconds between requests. 993 files is a lot to ask of a university web server at once.
 PAUSE = 1.0
@@ -337,7 +349,7 @@ def main():
         return 1
 
     session = requests.Session()
-    session.headers["User-Agent"] = AGENT
+    session.headers["User-Agent"] = agent()
 
     out.write("  reading the archive index\n")
     every = index_of(session)

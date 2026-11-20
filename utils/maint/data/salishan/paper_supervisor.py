@@ -268,10 +268,10 @@ def run_fetch(out, rows, pause):
     except ImportError:
         out.write("  requests is not installed:  python -m pip install requests\n")
         return 1
-    from get_papers import AGENT
+    from get_papers import agent
 
     session = requests.Session()
-    session.headers["User-Agent"] = AGENT
+    session.headers["User-Agent"] = agent()
     os.makedirs(PAPERS, exist_ok=True)
 
     wanted = [stem for stem in sorted(rows) if rows[stem]["state"] == "missing"]

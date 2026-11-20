@@ -45,8 +45,21 @@ from decimal import Decimal, getcontext
 # it changes no classification; this is headroom instead of a knob.
 getcontext().prec = 40
 
-AGENT = {"User-Agent": "orior-research/1.0 "
-                       "(https://github.com/dstroy0/orior; dquigg123@gmail.com)"}
+CONTACT = "ORIOR_CONTACT"
+
+
+def agent():
+    """The User-Agent header, with the contact address from the environment variable ORIOR_CONTACT.
+
+    The server asks for a contact in the User-Agent, and this tree holds none. The request stops
+    with a message where ORIOR_CONTACT holds no address.
+    """
+    contact = os.environ.get(CONTACT, "").strip()
+    if "@" not in contact:
+        raise SystemExit("set %s to your contact email address. The server asks for one in the "
+                         "User-Agent, and this tree holds none." % CONTACT)
+    return {"User-Agent": "orior-research/1.0 (https://github.com/dstroy0/orior; %s)" % contact}
+
 
 GRID_BASE = ("https://raw.githubusercontent.com/rlabduke/reference_data/master/"
              "Top8000/Top8000_ramachandran_pct_contour_grids/")
@@ -124,7 +137,7 @@ def load_contours(cache):
     for name, (filename, favored, allowed) in CONTOURS.items():
         path = os.path.join(cache, filename)
         if not os.path.isfile(path):
-            with urllib.request.urlopen(urllib.request.Request(GRID_BASE + filename, headers=AGENT),
+            with urllib.request.urlopen(urllib.request.Request(GRID_BASE + filename, headers=agent()),
                                         timeout=180) as response:
                 body = response.read().decode("utf-8", "replace")
             with open(path, "w", encoding="utf-8", newline="") as handle:

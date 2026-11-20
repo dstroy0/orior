@@ -31,7 +31,21 @@ while (ROOT != os.path.dirname(ROOT)) and not os.path.isdir(os.path.join(ROOT, "
     ROOT = os.path.dirname(ROOT)
 OUT = os.path.join(ROOT, "build", "corpora")
 INDEX = "https://www.gutenberg.org/browse/languages/%s"
-AGENT = {"User-Agent": "orior-research/1.0 (https://github.com/dstroy0/orior; dquigg123@gmail.com)"}
+CONTACT = "ORIOR_CONTACT"
+
+
+def agent():
+    """The User-Agent header, with the contact address from the environment variable ORIOR_CONTACT.
+
+    The server asks for a contact in the User-Agent, and this tree holds none. The request stops
+    with a message where ORIOR_CONTACT holds no address.
+    """
+    contact = os.environ.get(CONTACT, "").strip()
+    if "@" not in contact:
+        raise SystemExit("set %s to your contact email address. The server asks for one in the "
+                         "User-Agent, and this tree holds none." % CONTACT)
+    return {"User-Agent": "orior-research/1.0 (https://github.com/dstroy0/orior; %s)" % contact}
+
 
 # Code, name, and the script family, which puts a logographic case beside the alphabetic ones
 LANGUAGES = (
@@ -64,7 +78,7 @@ def strip(text):
 
 
 def get(url, timeout=120):
-    request = urllib.request.Request(url, headers=AGENT)
+    request = urllib.request.Request(url, headers=agent())
     with urllib.request.urlopen(request, timeout=timeout) as response:
         return response.read().decode("utf-8", "replace")
 

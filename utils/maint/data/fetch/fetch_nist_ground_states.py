@@ -61,10 +61,26 @@ QUERY = (
 LEAST_BYTES = 100000
 
 
+CONTACT = "ORIOR_CONTACT"
+
+
+def agent():
+    """The User-Agent header, with the contact address from the environment variable ORIOR_CONTACT.
+
+    The server asks for a contact in the User-Agent, and this tree holds none. The request stops
+    with a message where ORIOR_CONTACT holds no address.
+    """
+    contact = os.environ.get(CONTACT, "").strip()
+    if "@" not in contact:
+        raise SystemExit("set %s to your contact email address. The server asks for one in the "
+                         "User-Agent, and this tree holds none." % CONTACT)
+    return {"User-Agent": "orior/particle_physics (https://github.com/dstroy0/orior; %s)" % contact}
+
+
 def fetch(out):
     """Retrieve the ground-state table and cache it, or raise on a short or empty response."""
     address = ENDPOINT + "?" + urllib.parse.urlencode(QUERY)
-    request = urllib.request.Request(address, headers={"User-Agent": "orior/particle_physics"})
+    request = urllib.request.Request(address, headers=agent())
     with urllib.request.urlopen(request, timeout=60) as response:
         body = response.read()
     if len(body) < LEAST_BYTES:

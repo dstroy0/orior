@@ -74,8 +74,21 @@ import ramachandran_rules as rules  # noqa: E402
 CORPORA = os.path.join(ROOT, "build", "corpora")
 CACHE = os.path.join(ROOT, "build", "rama")
 
-AGENT = {"User-Agent": "orior-research/1.0 "
-                       "(https://github.com/dstroy0/orior; dquigg123@gmail.com)"}
+CONTACT = "ORIOR_CONTACT"
+
+
+def agent():
+    """The User-Agent header, with the contact address from the environment variable ORIOR_CONTACT.
+
+    The server asks for a contact in the User-Agent, and this tree holds none. The request stops
+    with a message where ORIOR_CONTACT holds no address.
+    """
+    contact = os.environ.get(CONTACT, "").strip()
+    if "@" not in contact:
+        raise SystemExit("set %s to your contact email address. The server asks for one in the "
+                         "User-Agent, and this tree holds none." % CONTACT)
+    return {"User-Agent": "orior-research/1.0 (https://github.com/dstroy0/orior; %s)" % contact}
+
 SEARCH = "https://search.rcsb.org/rcsbsearch/v2/query?json=%s"
 ENTRY = "https://data.rcsb.org/rest/v1/core/entry/%s"
 
@@ -125,7 +138,7 @@ def cached_json(name, url, out, timeout=180):
     body = None
     for attempt in range(TRIES):
         try:
-            with urllib.request.urlopen(urllib.request.Request(url, headers=AGENT),
+            with urllib.request.urlopen(urllib.request.Request(url, headers=agent()),
                                         timeout=timeout) as response:
                 body = response.read().decode("utf-8", "replace")
             break
