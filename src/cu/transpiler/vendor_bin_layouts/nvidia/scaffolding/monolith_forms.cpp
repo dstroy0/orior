@@ -1252,7 +1252,7 @@ struct RegisterContent
 struct Role
 {
     std::string name;
-    std::string type;
+    std::string place;
     unsigned int word;
     std::string type;
     std::string number;
@@ -1302,10 +1302,10 @@ static std::vector<Question> questions_read(const char *path)
             role.fixed = (parts[at][0] == '!');
             role.name = parts[at].substr(role.fixed ? 1u : 0u, equals - (role.fixed ? 1u : 0u));
             const std::vector<std::string> fields = line_split(parts[at].substr(equals + 1u), ':');
-            role.type = fields[0];
+            role.place = fields[0];
             role.word = (fields.size() > 1u) ? (unsigned int)strtoul(fields[1].c_str(), NULL, 10) : 0u;
             role.type = (fields.size() > 2u) ? fields[2] : std::string();
-            role.number = (role.type == "number") ? fields[1] : std::string();
+            role.number = (role.place == "number") ? fields[1] : std::string();
             role.opaque = (fields.size() > 4u) && (fields[3] == "number");
             role.number = role.opaque ? fields[4] : role.number;
             question.roles.push_back(role);
@@ -1529,7 +1529,7 @@ static std::string numbers_named(const std::string &text, const Question &questi
     std::string named = text;
     for (const Role &role : question.roles)
     {
-        if (role.type != "number")
+        if (role.place != "number")
         {
             continue;
         }
@@ -1661,10 +1661,10 @@ static Read sass_read(const Question &question, const std::vector<std::string> &
     };
     std::vector<Retained> retained;
     unsigned int loads = 0u;
-    auto role_at = [&](const std::string &type, unsigned int word, unsigned int *half) -> const Role * {
+    auto role_at = [&](const std::string &place, unsigned int word, unsigned int *half) -> const Role * {
         for (const Role &role : question.roles)
         {
-            if ((role.type == type) && ((role.word == word) || ((role.type == "u64") && ((role.word + 1u) == word))))
+            if ((role.place == place) && ((role.word == word) || ((role.type == "u64") && ((role.word + 1u) == word))))
             {
                 *half = word - role.word;
                 return &role;
@@ -2093,7 +2093,7 @@ static Read ptx_read(const Question &question, const std::vector<std::string> &l
             const Role *role = NULL;
             for (const Role &one : question.roles)
             {
-                role = ((base == bases->in) && (one.type == "in") && (one.word * 4u == offset)) ? &one : role;
+                role = ((base == bases->in) && (one.place == "in") && (one.word * 4u == offset)) ? &one : role;
             }
             if (role != NULL)
             {
@@ -2108,7 +2108,7 @@ static Read ptx_read(const Question &question, const std::vector<std::string> &l
             const Role *role = NULL;
             for (const Role &one : question.roles)
             {
-                role = ((base == bases->out) && (one.type == "out") && (one.word * 4u == offset)) ? &one : role;
+                role = ((base == bases->out) && (one.place == "out") && (one.word * 4u == offset)) ? &one : role;
             }
             if (role != NULL)
             {
@@ -2314,7 +2314,7 @@ static int sass_assembles(const std::string &text, const Question &question)
         }
         // a number's .hi is its high word and the number itself its low word, each the hexadecimal immediate the
         // assembler reads: a bare decimal it would take for a register number, which tests the wrong operand type
-        if ((role.type == "number") || role.opaque)
+        if ((role.place == "number") || role.opaque)
         {
             const unsigned long long word = (role.number[0] == '-') ? 0ULL : strtoull(role.number.c_str(), NULL, 10);
             const std::string high = "{" + role.name + "}.hi";
@@ -2639,15 +2639,15 @@ static int forms_read(const char *questions_path, const char *listing, const cha
         for (const Role &role : question.roles)
         {
             loaded = loaded || role.opaque;
-            numbered = numbered || (role.type == "number");
-            if ((role.type == "number") && !number_carried(read.text, role))
+            numbered = numbered || (role.place == "number");
+            if ((role.place == "number") && !number_carried(read.text, role))
             {
                 folded = "the system folds the number put for " + role.name;
             }
         }
         for (const Role &role : question.roles)
         {
-            const int put = !role.fixed && ((role.type == "in") || (role.type == "out"));
+            const int put = !role.fixed && ((role.place == "in") || (role.place == "out"));
             if (folded.empty() && put && (read.text.find("{" + role.name + "}") == std::string::npos))
             {
                 folded = "the system folds the register put for " + role.name;
@@ -2863,8 +2863,8 @@ static int forms_read(const char *questions_path, const char *listing, const cha
     {
         for (const Role &role : question.roles)
         {
-            const int put = !role.fixed && ((role.type == "in") || (role.type == "out"));
-            if (role.type == "number")
+            const int put = !role.fixed && ((role.place == "in") || (role.place == "out"));
+            if (role.place == "number")
             {
                 sass_class_drop(SASS_CHANNEL_COMPILE, SASS_CLASS_FOLDS,
                                 (question.form + ": the system folds the number put for " + role.name).c_str());
