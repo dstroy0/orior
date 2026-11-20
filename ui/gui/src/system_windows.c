@@ -116,6 +116,8 @@ typedef struct
     HDC context;
     unsigned int from;
     unsigned int rows;
+    unsigned int left;
+    unsigned int columns;
     DWORD flags;
     unsigned int hit;
     int active;
@@ -625,15 +627,19 @@ EMBED_INLINE int system_frame_get(const SystemWindowsCtx *args)
     return GetSystemMetricsForDpi(SM_CXFRAME, dots) + GetSystemMetricsForDpi(SM_CXPADDEDBORDER, dots);
 }
 
-// the raster displayed blitted into `context`, its `rows` rows from the row `from`, as a bitmap of those rows alone
+// The raster displayed blitted into `context`: its `rows` rows from the row `from`, and in them its `columns` columns
+// from the column `left`. The bitmap holds those rows alone. A `columns` of 0 blits the whole width
 EMBED_INLINE void system_blit(const SystemWindowsCtx *args)
 {
     const GuiRaster *const raster = &args->system->displayed;
-    if ((raster->pixels == NULL) || (args->from >= raster->height) || (args->rows == 0u))
+    if ((raster->pixels == NULL) || (args->from >= raster->height) || (args->rows == 0u) ||
+        (args->left >= raster->width))
     {
         return;
     }
     const unsigned int count = (args->rows < raster->height - args->from) ? args->rows : raster->height - args->from;
+    const unsigned int room = raster->width - args->left;
+    const unsigned int across = ((args->columns != 0u) && (args->columns < room)) ? args->columns : room;
     BITMAPINFO info;
     memor.set(&(MemoriaCfg){.dst = &info, .val = 0, .bytes = sizeof(info)});
     info.bmiHeader.biSize = sizeof(info.bmiHeader);
@@ -643,8 +649,8 @@ EMBED_INLINE void system_blit(const SystemWindowsCtx *args)
     info.bmiHeader.biPlanes = 1;
     info.bmiHeader.biBitCount = 32;
     info.bmiHeader.biCompression = BI_RGB;
-    // the row's place is far inside what an int represents
-    SetDIBitsToDevice(args->context, 0, (int)args->from, raster->width, count, 0, 0, 0u, count,
+    // the row's and the column's places are far inside what an int represents
+    SetDIBitsToDevice(args->context, (int)args->left, (int)args->from, across, count, (int)args->left, 0, 0u, count,
                       &raster->pixels[args->from * raster->width], &info, DIB_RGB_COLORS);
 }
 
@@ -1299,10 +1305,14 @@ void gui_system_present_part(const GuiSystemRasterCfg *args)
     }
     if (!EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = args->part) && (args->part.y >= 0))
     {
-        // the part's rows are not negative where it is not empty
+        // The damage blits alone: its rows, and in them its columns. Its rows are not negative where it is not empty.
+        // A damage that starts left of the raster blits its rows whole
+        const int inside = args->part.x >= 0;
         HDC context = GetDC(args->system->window);
         EMBED_CALL(system_blit, SystemWindowsCtx, .system = args->system, .context = context,
-                   .from = (unsigned int)args->part.y, .rows = (unsigned int)args->part.height);
+                   .from = (unsigned int)args->part.y, .rows = (unsigned int)args->part.height,
+                   .left = inside ? (unsigned int)args->part.x : 0u,
+                   .columns = inside ? (unsigned int)args->part.width : 0u);
         ReleaseDC(args->system->window, context);
     }
 }

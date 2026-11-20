@@ -80,6 +80,8 @@ typedef struct
     GuiSystem *system;
     unsigned int from;
     unsigned int rows;
+    unsigned int left;
+    unsigned int columns;
     int root_x;
     int root_y;
     long direction;
@@ -122,14 +124,17 @@ EMBED_INLINE int system_scale_get(const SystemX11Ctx *args)
     return ((scale > 90) && (scale < 110)) ? 100 : scale;
 }
 
-// the raster displayed put into the window, its `rows` rows from the row `from`
+// The raster displayed put into the window: its `rows` rows from the row `from`, and in them its `columns` columns
+// from the column `left`. A `columns` of 0 puts the whole width
 EMBED_INLINE void system_append(const SystemX11Ctx *args)
 {
     const GuiRaster *const raster = &args->system->displayed;
-    if (raster->pixels == NULL)
+    if ((raster->pixels == NULL) || (args->left >= raster->width))
     {
         return;
     }
+    const unsigned int room = raster->width - args->left;
+    const unsigned int across = ((args->columns != 0u) && (args->columns < room)) ? args->columns : room;
     XImage image;
     memor.set(&(MemoriaCfg){.dst = &image, .val = 0, .bytes = sizeof(image)});
     // a raster's sides are far inside what an int represents
@@ -149,9 +154,9 @@ EMBED_INLINE void system_append(const SystemX11Ctx *args)
     image.blue_mask = 0x0000ffUL;
     XInitImage(&image);
     GC context = XCreateGC(args->system->display, args->system->window, 0UL, NULL);
-    // the rows are inside the raster, whose sides are far inside what an int represents
-    XPutImage(args->system->display, args->system->window, context, &image, 0, (int)args->from, 0, (int)args->from,
-              raster->width, args->rows);
+    // the rows and the columns are inside the raster, whose sides are far inside what an int represents
+    XPutImage(args->system->display, args->system->window, context, &image, (int)args->left, (int)args->from,
+              (int)args->left, (int)args->from, across, args->rows);
     XFreeGC(args->system->display, context);
     XFlush(args->system->display);
 }
@@ -812,12 +817,16 @@ void gui_system_present_part(const GuiSystemRasterCfg *args)
     if (!EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = args->part) && (args->part.y >= 0) &&
         (args->part.y < (int)args->raster->height))
     {
-        // the part's rows are inside the raster, and far inside what an unsigned int counts
+        // The damage puts alone: its rows, and in them its columns. Its rows are inside the raster, and far inside what
+        // an unsigned int counts. A damage that starts left of the raster puts its rows whole
         const unsigned int from = (unsigned int)args->part.y;
         const unsigned int rows = ((unsigned int)args->part.height < args->raster->height - from)
                                       ? (unsigned int)args->part.height
                                       : args->raster->height - from;
-        EMBED_CALL(system_append, SystemX11Ctx, .system = args->system, .from = from, .rows = rows);
+        const int inside = args->part.x >= 0;
+        EMBED_CALL(system_append, SystemX11Ctx, .system = args->system, .from = from, .rows = rows,
+                   .left = inside ? (unsigned int)args->part.x : 0u,
+                   .columns = inside ? (unsigned int)args->part.width : 0u);
     }
 }
 
@@ -902,7 +911,8 @@ void gui_system_act(const GuiSystemCfg *args)
         XIEventMask event_mask = {XIAllMasterDevices, (int)sizeof(bits), bits};
         if (ready)
         {
-            XISelectEvents(args->system->display, RootWindow(args->system->display, args->system->screen), &event_mask, 1);
+            XISelectEvents(args->system->display, RootWindow(args->system->display, args->system->screen), &event_mask,
+                           1);
         }
         args->system->raw = on && ready;
     }
@@ -1122,8 +1132,7 @@ void gui_system_pointer_put(const GuiSystemPointerCfg *args)
         image.green_mask = 0x0000ff00UL;
         image.blue_mask = 0x000000ffUL;
         (void)XInitImage(&image);
-        XPutImage(s_pointer_display, pointer->picture, pointer->context, &image, 0, 0, 0, 0, args->width,
-                  args->height);
+        XPutImage(s_pointer_display, pointer->picture, pointer->context, &image, 0, 0, 0, 0, args->width, args->height);
         XSetWindowBackgroundPixmap(s_pointer_display, pointer->window, pointer->picture);
         pointer->width = args->width;
         pointer->height = args->height;
