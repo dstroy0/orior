@@ -54,7 +54,6 @@ examples/00_blob_viz_tools/dsp.py	15
 examples/00_blob_viz_tools/earth_view_template.html	2
 examples/00_blob_viz_tools/exact.py	21
 examples/00_blob_viz_tools/exact_qubits.py	34
-examples/00_blob_viz_tools/fractal_spike.py	79
 examples/00_blob_viz_tools/frame_audit.py	27
 examples/00_blob_viz_tools/funnel_coherence.py	10
 examples/00_blob_viz_tools/generate_template.py	16
@@ -601,7 +600,6 @@ src/cu/engine/nbody/orior/scan_avx512.c	14
 src/cu/engine/nbody/orior/scan_neon.c	15
 src/cu/engine/nbody/orior/scan_sve.c	13
 src/cu/engine/render/orior_raster.c	13
-src/cu/engine/render/orior_raster.h	79
 src/cu/engine/render/orior_raster_internal.h	4
 src/cu/engine/render/orior_raster_output.c	19
 src/cu/engine/render/raster.cu	2
@@ -1208,7 +1206,6 @@ utils/maint/prose/prose_era.py	19
 utils/maint/prose/session_prose.py	11
 utils/maint/prose/show_findings.py	9
 utils/maint/prose/ste_check.py	9
-utils/maint/prose/submission_check.py	78
 utils/maint/prose/voice_count.py	10
 utils/maint/prose/voice_pdftotext.sh	10
 utils/maint/prose/voice_web.py	6
@@ -1234,7 +1231,6 @@ utils/maint/texbuild/ledger_toc.py	4
 utils/maint/texbuild/markdown_to_latex.py	10
 utils/maint/texbuild/math_hazards.py	17
 utils/maint/texbuild/navier_stokes_sets_figure.py	12
-utils/maint/texbuild/submission_package.py	80
 utils/maint/texbuild/theory_tex.py	15
 utils/maint/tree/reorganize_src.ps1	2
 utils/maint/tree/reorganize_tools.ps1	7
