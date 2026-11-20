@@ -30,9 +30,10 @@ typedef struct
     GuiColor color;
     float *advance;
 } GlyphsCtx;
-// the face `face` read from the file the caller's system holds for it, the character map's ranges read through the
-// glyphs' work part and then saved after the file in the face's segment of the block: 1, or 0 where the system has no
-// such face, the file passes the segment or no font is in it
+// the face `face`, read from the file that the system of the caller holds for it. The call reads the ranges of the
+// character map through the work part of the glyphs. It then keeps them after the file, in the segment of the face in
+// the block. The result is 1, or 0 where the system has no such face. It is also 0 where the file passes the segment,
+// or where it holds no font
 EMBED_INLINE int glyphs_face_read(const GlyphsCtx *args)
 {
     unsigned long long size = 0ULL;
@@ -40,8 +41,8 @@ EMBED_INLINE int glyphs_face_read(const GlyphsCtx *args)
     {
         return 0;
     }
-    // the face's file saved as long as its font is drawn from, in the face's segment of the block with its slack and
-    // its ranges after it; a file past the segment is let go unread
+    // the file of the face, kept while the code draws from its font, in the segment of the face in the block. Its slack
+    // and its ranges come after it. The call lets go of a file past the segment, and does not read it
     const unsigned long long ranges_bytes = (unsigned long long)FONT_RANGES * sizeof(unsigned int[3]);
     const unsigned long long data_bytes = (size + GLYPHS_FILE_SLACK + 7ULL) & ~7ULL;
     unsigned char *const data = EMBED_CALL(gui_block_part.span, GuiBlockPartCfg, .part = GUI_BLOCK_FACES,
@@ -178,14 +179,16 @@ int gui_glyphs_head_bold_read(const GuiGlyphsCfg *args)
 
 void gui_glyphs_head_bold_free(const GuiGlyphsCfg *args)
 {
-    // its characters' masks go with it: every mask let go, the others drawn again as they are asked for
+    // the masks of its characters go with it. The call lets go of each mask, and the code draws the others again when a
+    // caller asks for them
     EMBED_CALL(glyphs_clear, GlyphsCtx, .glyphs = args->glyphs);
-    // its file and ranges lie in the face's segment of the block, taken again as the face is read again
+    // its file and ranges lie in the segment of the face in the block. The next read of the face takes them again
     args->glyphs->has[GUI_FACE_HEAD_BOLD] = 0;
     args->glyphs->data[GUI_FACE_HEAD_BOLD] = NULL;
 }
 
-// the symbol face read from the file the caller's system holds for it, looked for once: 1 where it is read
+// the symbol face, read from the file that the system of the caller holds for it. The call looks for it once. The
+// result is 1 where the read succeeds
 EMBED_INLINE int glyphs_symbol_read(const GlyphsCtx *args)
 {
     GuiGlyphs *const glyphs = args->glyphs;
@@ -208,8 +211,8 @@ unsigned int gui_face_had(const GuiGlyphsFaceCfg *args)
     return ((args->face < GUI_FACES) && args->glyphs_read->has[args->face]) ? args->face : GUI_FACE_CODE;
 }
 
-// the cache entry keyed by `face`, `glyph` and `size`, or an unused entry for it. The cache is emptied first when
-// three quarters of its entries are in use
+// the cache entry keyed by `face`, `glyph` and `size`, or an unused entry for it. When three quarters of its entries
+// are in use, the call first empties the cache
 EMBED_INLINE GuiCachedGlyph *glyphs_entry(const GlyphsCtx *args)
 {
     const unsigned int start =
@@ -236,9 +239,9 @@ EMBED_INLINE GuiCachedGlyph *glyphs_entry(const GlyphsCtx *args)
     return &args->glyphs->entry[at];
 }
 
-// the stem darkening at `size` pixels an em: how far each side of a stroke is pushed out, in pixels, GUI_DARKEN_MAX
-// at GUI_DARKEN_SMALL pixels and below, falling straight to GUI_DARKEN_MIN at GUI_DARKEN_LARGE and above, as a
-// small glyph's thin stems need the max to read at full weight
+// the stem dark at `size` pixels an em: how far the code pushes out each side of a stroke, in pixels. It is
+// GUI_DARKEN_MAX at GUI_DARKEN_SMALL pixels and below. It falls in a straight line to GUI_DARKEN_MIN at
+// GUI_DARKEN_LARGE and above. The thin stems of a small glyph need the max to read at full weight
 EMBED_INLINE float glyphs_darkening(const GlyphsCtx *args)
 {
     if (args->size <= GUI_DARKEN_SMALL)
@@ -253,10 +256,12 @@ EMBED_INLINE float glyphs_darkening(const GlyphsCtx *args)
     return GUI_DARKEN_MAX + ((GUI_DARKEN_MIN - GUI_DARKEN_MAX) * along);
 }
 
-// the contours' strokes expanded by `reach` pixels a side: each point moved along the miter of its two edges' normals
-// to the side away from the ink, the ink lying to the right of a contour's travel as TrueType winds it with y up: an
-// outer contour grows and a counter shrinks, both widening the stroke; the miter saved to twice the reach at a sharp
-// turn
+// the strokes of the contours, expanded by `reach` pixels a side. Each point moves along the miter of the normals of
+// its two edges, to the side away from the ink. The ink lies to the right of the travel of a contour, as TrueType
+// winds it with y up.
+//
+// An outer contour grows and a counter shrinks, and both make the stroke wider. At a sharp turn, the miter stops at
+// twice the reach
 EMBED_INLINE void glyphs_darken(const GlyphsCtx *args)
 {
     unsigned int first = 0u;
@@ -303,8 +308,9 @@ EMBED_INLINE void glyphs_darken(const GlyphsCtx *args)
     }
 }
 
-// the coverage lifted through the blend's gamma: each share of 255 raised to one over GUI_TEXT_GAMMA, made once,
-// which brings a stroke's partly covered edge pixels up toward its whole ones and reads crisper and bolder
+// the coverage, lifted through the gamma of the blend. The code raises each share of 255 to one over GUI_TEXT_GAMMA,
+// in a table made once. That brings the partly covered edge pixels of a stroke up toward its whole pixels. The text
+// then reads crisper and bolder
 static unsigned char s_lifted[256];
 static int s_lifted_created;
 
@@ -323,8 +329,8 @@ EMBED_INLINE unsigned int glyphs_lift(const GlyphsCtx *args)
     return s_lifted[args->cover & 0xffu];
 }
 
-// the outline in the glyphs' contours drawn as coverage bytes into `mask`, its cover a cell of its own: 1, or 0 where
-// a cell could not be taken; a glyph of no pixels is a mask of none
+// the outline in the contours of the glyphs, drawn as coverage bytes into `mask`, with its cover in a cell of its own.
+// The result is 1, or 0 where the call cannot take a cell. A glyph of no pixels is a mask of none
 EMBED_INLINE int glyphs_rasterize(const GlyphsCtx *args)
 {
     GuiMask *mask_bits = args->mask_bits;
@@ -346,7 +352,8 @@ EMBED_INLINE int glyphs_rasterize(const GlyphsCtx *args)
         EMBED_CALL(font_contours.bytes, FontContoursCfg, .contours = args->glyphs_read->contours);
     float *const floats = (float *)(void *)EMBED_CALL(gui_block_part.span, GuiBlockPartCfg, .part = GUI_BLOCK_GLYPH_WORK,
                                                      .bytes = (capacity * sizeof(*floats)) + scratch_bytes);
-    // the cover is taken from the masks ring; a ring with no room for it is emptied first, as the cache is of its entries
+    // the cover comes from the masks ring. Where the ring has no room for it, the call first empties the ring, as it
+    // empties the cache of its entries
     unsigned char *cover = EMBED_CALL(gui_block_part.take, GuiBlockPartCfg, .part = GUI_BLOCK_GLYPH_MASKS,
                                       .cursor = &args->glyphs->masks_used, .bytes = measured.width * measured.height);
     if (cover == NULL)
@@ -377,8 +384,9 @@ EMBED_INLINE int glyphs_rasterize(const GlyphsCtx *args)
     return 1;
 }
 
-// The glyph of `character` in the face `face` is drawn with, into `glyph_out`, and that face into `face_out`. A
-// character its face has none of is drawn from the symbol face where that face has it, as the system's text does
+// The glyph of `character` in the face that draws `face`, into `glyph_out`, and that face into `face_out`. Where its
+// face does not hold the character and the symbol face does, the symbol face draws it. The text of the system does
+// the same
 static void glyphs_found(GuiGlyphs *glyphs, unsigned int face, unsigned int character, unsigned int *face_out,
                          unsigned int *glyph_out)
 {
@@ -527,8 +535,8 @@ float gui_glyphs_cell(const GuiGlyphsFaceLetterCfg *args)
     return advance;
 }
 
-// the cell keyed by `face`, `character`, `size` and `color`, or an unused cell for it; the cells are emptied first when
-// three quarters of them are in use
+// the cell keyed by `face`, `character`, `size` and `color`, or an unused cell for it. When three quarters of the
+// cells are in use, the call first empties them
 EMBED_INLINE GuiGlyphCell *glyphs_cell_entry(const GlyphsCtx *args)
 {
     const unsigned int start =
@@ -595,8 +603,8 @@ static const GuiGlyphCell *glyphs_cell_init(const GlyphsCtx *args)
     const unsigned long long pixels = (unsigned long long)mask_bits->width * mask_bits->height;
     if (pixels != 0ULL)
     {
-        // the lanes are taken from the cells ring; a ring with no room for them is emptied first, as the cache is of
-        // its cells, this one not among them yet
+        // the lanes come from the cells ring. Where the ring has no room for them, the call first empties the ring, as it
+        // empties the cache of its cells. This cell is not among them yet
         cell->red_blue = (unsigned int *)(void *)EMBED_CALL(gui_block_part.take, GuiBlockPartCfg,
                                                             .part = GUI_BLOCK_GLYPH_CELLS, .cursor = &glyphs->cells_used,
                                                             .bytes = 3ULL * pixels * sizeof(unsigned int));
@@ -613,8 +621,8 @@ static const GuiGlyphCell *glyphs_cell_init(const GlyphsCtx *args)
         }
         cell->green = cell->red_blue + pixels;
         cell->rest = cell->green + pixels;
-        // each pixel's share of the color is its cover by the color's alpha, two shares of 255 multiplied being a share
-        // of 255 once divided by 255. The lanes are the color's channels by the share with half of 255 in, as the
+        // the share of the color of each pixel is its cover by the alpha of the color. Two shares of 255 multiplied and
+        // divided by 255 give a share of 255. The lanes are the color's channels by the share with half of 255 in, as the
         // raster's blend positions them
         const unsigned int alpha = GUI_ALPHA_OF(color);
         for (unsigned long long at = 0ULL; at < pixels; at += 1ULL)
@@ -631,8 +639,8 @@ static const GuiGlyphCell *glyphs_cell_init(const GlyphsCtx *args)
     return cell;
 }
 
-// the ASCII table keyed by `face`, `size` and `color`: the one last found where it is the key's, else found among the
-// tables, else the next taken in turn and cleared for the key
+// the ASCII table keyed by `face`, `size` and `color`. It is the last table found, where that table has the key. Else
+// the call finds it among the tables. Else it takes the next table in turn and clears it for the key
 EMBED_INLINE GuiAsciiTable *glyphs_ascii_table(const GlyphsCtx *args)
 {
     unsigned int face = args->face;
@@ -686,7 +694,7 @@ const GuiGlyphCell *gui_glyph_cell(const GuiGlyphsFaceLetterCfg *args)
     const GuiGlyphCell *const cell =
         EMBED_CALL(glyphs_cell_init, GlyphsCtx, .glyphs = args->glyphs, .face = had, .character = args->character,
                    .size = args->size, .color = args->color, .advance = advance);
-    // a cell made may have emptied every cell and every table with them: the table is found again before it is filled
+    // a new cell can empty each cell, and each table with them. The call finds the table again before it fills it
     GuiAsciiTable *const saved = (args->glyphs->celled < cells_before)
                                      ? EMBED_CALL(glyphs_ascii_table, GlyphsCtx, .glyphs = args->glyphs, .face = had,
                                                   .size = args->size, .color = args->color)
