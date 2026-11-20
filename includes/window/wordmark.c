@@ -36,16 +36,18 @@
 #define WORDMARK_EYE_LINE 2.2f
 #define WORDMARK_BAR_EYE_LINE 6.75f
 
-// the eye's square in the bar in the page's pixels: its side, thirty-two of the bar's forty-two, fitted to its box and
-// scaled to the bar's height, and where it is unclaimed: the bar's padding less the rule's width across, and half
-// of what the eye leaves of the bar's inside down, less the fit's share at its top, scaled the same
+// the square of the eye in the bar, in the pixels of the page. Its side is thirty-two of the forty-two of the bar,
+// fitted to its box and scaled to the height of the bar.
+//
+// Its place, where the claim does not move it: across, the padding of the bar less the width of the rule. Down, half
+// of what the eye leaves of the inside of the bar, less the share of the fit at its top, scaled the same
 #define WORDMARK_BAR_EYE_SIDE 32.0f
 #define WORDMARK_BAR_EYE_SIDE_WORDS 2097152LL
 #define WORDMARK_BAR_EYE_LEFT_WORDS 489104LL
 #define WORDMARK_BAR_EYE_TOP_WORDS 609485LL
 
-// incised.js on a cap height of 10: a cut's half width where the stylus goes in and at its tail; the box round the word
-// and how far it is out from the capitals; and the max steps a cut is positioned in, and points a stroke passes
+// incised.js on a cap height of 10. The half width of a cut where the stylus goes in and at its tail. The box round the
+// word, and how far it is out from the capitals. The most steps of a cut, and the points that a stroke passes
 #define WORDMARK_CUT_HEAD 1.0f
 #define WORDMARK_CUT_TAIL 0.36f
 #define WORDMARK_BOX_WIDE 64.2f
@@ -54,8 +56,8 @@
 #define WORDMARK_CUT_STEPS 40u
 #define WORDMARK_CUT_POINTS 15u
 #define WORDMARK_ARC_POINTS 13u
-// the pixels a cut reaches past TABVLA's box, in the page's pixels: the shade's offset and three of its blur's widths;
-// and the lip's alpha, --open-fg at 36%
+// the pixels that a cut reaches past the box of TABVLA, in the pixels of the page. That is the offset of the shade and
+// three widths of its blur. Then the alpha of the lip, --open-fg at 36%
 #define WORDMARK_REACH 4
 #define WORDMARK_LIP_ALPHA 0x5cu
 
@@ -66,8 +68,8 @@
 #define WORDMARK_FORMS 22938
 #define WORDMARK_STARTS 18350
 
-// the word and its characters, and TABVLA's straight cuts as incised.js positions them, each from where the stylus goes in to
-// where it lifts, on the word's own units: T, A, B's stem, V, L and A
+// the word and its characters, and the straight cuts of TABVLA as incised.js positions them. Each runs from where the
+// stylus goes in to where it lifts, on the own units of the word. The cuts are T, A, the stem of B, V, L and A
 static const char s_word[] = "orior";
 #define WORDMARK_CHARACTERS 5u
 static const float s_cuts[][4] = {
@@ -82,9 +84,9 @@ static const float s_bowls[][6] = {
     {22.2f, 4.8f, 26.7f, 7.4f, 2.6f, 10.0f},
 };
 
-// the stages of the flight and of TABVLA's fade in, slide and fade out, one a frame's time, and TABVLA's opacity at
-// each and its share of the way up: its curves read once into tables made once, ease-in-out as it fades in, ease-out as
-// it slides, ease-in as it fades out
+// the stages of the flight, and of the fade in, slide and fade out of TABVLA, one for the time of a frame. Then the
+// opacity of TABVLA at each, and its share of the way up. Tables made once hold its curves: ease-in-out as it fades in,
+// ease-out as it slides, and ease-in as it fades out
 #define WORDMARK_FLIGHT_STAGES ((unsigned int)(GUI_WORDMARK_FLIGHT_MS / GUI_WORDMARK_FRAME_MS) + 1u)
 #define WORDMARK_SHOW_STAGES ((unsigned int)(GUI_WORDMARK_FADE_IN_MS / GUI_WORDMARK_FRAME_MS) + 1u)
 #define WORDMARK_SLIDE_STAGES ((unsigned int)(GUI_WORDMARK_SLIDE_MS / GUI_WORDMARK_FRAME_MS) + 1u)
@@ -326,7 +328,8 @@ void gui_wordmark_position(const GuiWordmarkGlyphsCfg *args)
     }
 }
 
-// `from` positioned into the name's mask with its top left at x, y, each pixel the more of what it has and what is positioned
+// `from` positioned into the mask of the name with its top left at x, y. Each pixel takes the larger of its own value
+// and the value of `from`
 EMBED_INLINE void wordmark_layout_in(const WordmarkCtx *args)
 {
     // the masks' sides are far inside what an int represents
@@ -348,9 +351,9 @@ EMBED_INLINE void wordmark_layout_in(const WordmarkCtx *args)
     }
 }
 
-// orior and the eye made one mask at the place's em, the mask a little past the box where the word's last character is
-// past its character spacing, with the funnel's row, its sums and each row's ink in its one cell: 1, or 0 where the cell
-// could not be taken
+// orior and the eye made into one mask at the em of the place. The mask is a little past the box where the last
+// character of the word is past its character spacing. The row of the funnel, its sums and the ink of each row share
+// its one cell. The result is 1, or 0 where the call cannot take the cell
 EMBED_INLINE int wordmark_name_init(const WordmarkCtx *args)
 {
     GuiGlyphs *glyphs = args->glyphs;
@@ -440,9 +443,9 @@ EMBED_INLINE int wordmark_name_init(const WordmarkCtx *args)
     return 1;
 }
 
-// the cut along `count` of `point`, x and y on the word's units, filled on `cover`: one side from head to tail and the
-// other back, its half width falling from the head's to the tail's as the stylus lifts; `unit` the pixels of a unit
-// and `pad` the pixels the word's box is in from the cover's corner
+// the cut along `count` of `point`, x and y on the units of the word, filled on `cover`. One side runs from head to
+// tail, and the other runs back. Its half width falls from the width of the head to that of the tail as the stylus
+// lifts. `unit` is the pixels of a unit, and `pad` is how far in the box of the word is from the corner of the cover
 static void wordmark_cut_fill(const WordmarkCtx *args)
 {
     if (args->count < 2u)
@@ -525,8 +528,8 @@ EMBED_INLINE void wordmark_word_cut(const WordmarkCtx *args)
     }
 }
 
-// `cover` blurred by `passes` of a one, two, one kernel across and down, `other` a cover of the same size to work in:
-// each pass adds half a pixel's square to the blur's variance
+// `cover` blurred by `passes` of a one, two, one kernel across and down. `other` is a cover of the same size to work
+// in. Each pass adds half the square of a pixel to the variance of the blur
 EMBED_INLINE void wordmark_blur(const WordmarkCtx *args)
 {
     for (unsigned int pass = 0u; pass < args->passes; pass += 1u)
@@ -556,9 +559,10 @@ EMBED_INLINE void wordmark_blur(const WordmarkCtx *args)
     }
 }
 
-// TABVLA's picture made at the place's em: under all the shade, --lifted, of the cuts and their lip together, blurred a
-// page's pixel and a page's pixel up; over it the lip, --open-fg at 36%, a page's pixel down; and the cuts over both:
-// 1, or 0 where a cell could not be taken
+// the picture of TABVLA, made at the em of the place. At the bottom is the shade, --lifted, of the cuts and their lip
+// together. The shade has a blur of one pixel of the page, and sits one pixel of the page up.
+// Over it is the lip, --open-fg at 36%, one pixel of the page down. The cuts go over both. The result is 1, or 0 where
+// the call cannot take a cell
 EMBED_INLINE int wordmark_under_init(const WordmarkCtx *args)
 {
     // the lip's drop, a page's pixel at the scale, at least one
@@ -619,9 +623,9 @@ EMBED_INLINE int wordmark_under_init(const WordmarkCtx *args)
     return 1;
 }
 
-// the name's and TABVLA's pictures made where the frame wants another em, the bold face read for that alone, and their
-// places taken where the frame moved: nothing is done for a frame like the last: 1, or 0 where they could not be
-// made
+// the pictures of the name and of TABVLA, made where the frame wants another em. The call reads the bold face for that alone.
+// Where the frame moved, the call takes their places again. For a frame like the last, the call does nothing. The
+// result is 1, or 0 where the call cannot make them
 static int wordmark_pictures_init(const WordmarkCtx *args)
 {
     GuiGlyphs *glyphs = args->glyphs;
@@ -711,8 +715,8 @@ EMBED_INLINE int wordmark_smooth(const WordmarkCtx *args)
     return (int)((((part * part) >> 16) * ((3LL * GUI_FIXED_ONE) - (2LL * part))) >> 16);
 }
 
-// the funnel's tables for a name located at `wordmark`'s place: where each row of the window reads the name and how
-// far it bends, into `read_at` and `side_share`, each sized for the foot and two
+// the tables of the funnel for a name at the place of `wordmark`. They give where each row of the window reads the
+// name, and how far it bends, into `read_at` and `side_share`. Each has room for the foot and two
 EMBED_INLINE void wordmark_funnel_layout(const WordmarkCtx *args)
 {
     const float high = (float)args->wordmark_read->from.height;
@@ -792,7 +796,8 @@ EMBED_INLINE int wordmark_bar_logo_side(const WordmarkCtx *args)
                       .pixels = (WORDMARK_BAR_EYE_SIDE * (float)args->frame->scale) / (float)GUI_SCALE_ONE);
 }
 
-// every stage of the flight made once: 1, or 0 where a cell could not be taken or the funnel has no length
+// each stage of the flight, made once. The result is 1, or 0 where the call cannot take a cell or the funnel has no
+// length
 EMBED_INLINE int wordmark_flight_init(const WordmarkCtx *args);
 
 int gui_wordmark_tick(const GuiWordmarkFrameCfg *args)
@@ -803,8 +808,8 @@ int gui_wordmark_tick(const GuiWordmarkFrameCfg *args)
         const unsigned long long through = now_ms - args->wordmark->visible_start_ms;
         if (args->wordmark->tree_read && (through >= GUI_WORDMARK_MIN_VISIBLE_MS))
         {
-            // the pane leaves: the view comes back under the name, and the name goes to the bar's foot under the eye;
-            // with less motion asked for it is home at once
+            // the pane leaves. The view comes back under the name, and the name goes to the foot of the bar under the
+            // eye. With less motion on, it is home at once
             args->wordmark->exists = 0;
             if (args->wordmark->still ||
                 !EMBED_CALL(wordmark_pictures_init, WordmarkCtx, .wordmark = args->wordmark, .glyphs = args->glyphs,
@@ -835,7 +840,7 @@ int gui_wordmark_tick(const GuiWordmarkFrameCfg *args)
                 args->wordmark->under_down[stage] =
                     (short)((way + ((way < 0LL) ? -(GUI_FIXED_ONE / 2) : (GUI_FIXED_ONE / 2))) / GUI_FIXED_ONE);
             }
-            // the window's width is the frame's, the pixels the flight is cut to
+            // the width of the window is the width of the frame, which the flight cuts to
             args->wordmark->pours = EMBED_CALL(wordmark_flight_init, WordmarkCtx, .wordmark = args->wordmark,
                                                .raster_width = args->frame->width);
             args->wordmark->home = !args->wordmark->pours;
@@ -914,9 +919,11 @@ EMBED_INLINE void wordmark_rows_ink(const WordmarkCtx *args)
     }
 }
 
-// the name's rows from `from_row` to before `to_row`, which land on one row of the window that runs from `first_fixed`
-// to `last_fixed` in rows with sixteen bits of fraction, blended into the wordmark's row each by its share, their sums
-// cleared across their ink alone, from `from_x` to before `end_x`: the row's coverage from `from_x`
+// the rows of the name from `from_row` to before `to_row`. They land on one row of the window that runs from
+// `first_fixed` to `last_fixed`, in rows with sixteen bits of fraction.
+//
+// Each blends into the row of the wordmark by its share. The call clears their sums across their ink alone, from
+// `from_x` to before `end_x`. The result is the coverage of the row from `from_x`
 EMBED_INLINE const unsigned char *wordmark_rows_blend(const WordmarkCtx *args)
 {
     GuiWordmark *const wordmark = args->wordmark;
@@ -951,11 +958,14 @@ EMBED_INLINE const unsigned char *wordmark_rows_blend(const WordmarkCtx *args)
     return wordmark->row + args->from_x;
 }
 
-// a stage of the flight at `part`, a share of it in the frame's words, walked: each row of the window from the tip down
-// takes what the tables say of the name, one row of it where a row of the window is a row of the name, the rows that
-// land on it by their shares where rows shorten, and only what has ink, stretched between the funnel's sides. With
-// `span` NULL the spans and the coverage are counted alone; else each is written at `span` and `cover`. The spans and
-// the bytes come back through `spans` and `covers`, added to what they hold
+// a walk of a stage of the flight at `part`, a share of it in the words of the frame. Each row of the window from the
+// tip down takes what the tables say of the name.
+//
+// Where a row of the window is a row of the name, it takes one row of the name. Where rows get shorter, it takes the
+// rows that land on it by their shares. It takes only the parts with ink, stretched between the sides of the funnel.
+//
+// With `span` NULL, the call only counts the spans and the coverage. Else it writes each at `span` and `cover`. The
+// spans and the bytes come back through `spans` and `covers`, added to what they hold
 static void wordmark_stage_walk(const WordmarkCtx *args)
 {
     unsigned int raster_width = args->raster_width;
@@ -1064,9 +1074,9 @@ EMBED_INLINE int wordmark_stage_part(const WordmarkCtx *args)
                                                : (int)((through * GUI_FIXED_ONE) / GUI_WORDMARK_FLIGHT_MS);
 }
 
-// every stage of the flight made once, sized in one walk and written in a second into one cell, from the funnel's
-// tables, which last this call; the name's mask given back after them: 1, or 0 where a cell could not be taken or the
-// funnel has no length
+// each stage of the flight, made once from the tables of the funnel, which last for this call. One walk sizes the
+// stages, and a second walk writes them into one cell. The mask of the name goes back after them. The result is 1, or
+// 0 where the call cannot take a cell or the funnel has no length
 EMBED_INLINE int wordmark_flight_init(const WordmarkCtx *args)
 {
     const int footer = args->wordmark->from.y + args->wordmark->from.height - args->wordmark->tip_y;
@@ -1076,7 +1086,8 @@ EMBED_INLINE int wordmark_flight_init(const WordmarkCtx *args)
     }
     // the foot is positive
     const unsigned int entries = (unsigned int)footer + 2u;
-    // the funnel's two tables lie in the wordmark's work part of the block while the flight is positioned
+    // the two tables of the funnel lie in the work part of the wordmark in the block while the call positions the
+    // flight
     int *const tables = (int *)(void *)EMBED_CALL(gui_block_part.span, GuiBlockPartCfg, .part = GUI_BLOCK_WORDMARK_WORK,
                                                 .bytes = (unsigned long long)entries * 2ULL * sizeof(*tables));
     if (tables == NULL)
