@@ -99,11 +99,9 @@ examples/00_blob_viz_tools/qubit_trace.py	71
 examples/00_blob_viz_tools/quotient_coherence.py	25
 examples/00_blob_viz_tools/reading_rank.py	24
 examples/00_blob_viz_tools/ring_quadrant.py	25
-examples/00_blob_viz_tools/room_view_template.html	749
 examples/00_blob_viz_tools/scope_view_template.html	6
 examples/00_blob_viz_tools/script_check.py	44
 examples/00_blob_viz_tools/settings.py	16
-examples/00_blob_viz_tools/shadow_view_template.html	1
 examples/00_blob_viz_tools/shapes_view_template.html	2
 examples/00_blob_viz_tools/shor_trace.py	22
 examples/00_blob_viz_tools/snap_release.py	96
