@@ -4,63 +4,77 @@
 # Catalog: EXP-x-030
 #
 # Where Turing's machine misses a zero, seen from the sampler. Each cell runs twice on the device, on a coarse lattice
-# and on a fine one, by the multiple evaluation, every point listed: its sign, S, Z and w = exp(i theta) F, F the main
-# sum. A coarse step that holds more of the fine run's zeros than the coarse signs show hides a pair, and each such
-# pair is a miss.
+# and on a fine one, by the multiple evaluation. The run lists every point: its sign, S, Z and `w = exp(i theta) F`,
+# with F the main sum. A coarse step hides a pair where it holds more of the zeros of the fine run than the coarse signs
+# show. Each such pair is a miss.
 #
-#   Usage:  python examples/0_experimental/exact_zeta_miss_map.py <binary> [first] [last] [coarse] [fine] [folder]
-#           python examples/0_experimental/exact_zeta_miss_map.py <binary> e <base> <cells> <heights> <rate> [folder]
-#           python examples/0_experimental/exact_zeta_miss_map.py <binary> carrier <base> <cells> <rate> [folder]
-#           python examples/0_experimental/exact_zeta_miss_map.py <binary> ripple <base> <cells> <rate>
-#           python examples/0_experimental/exact_zeta_miss_map.py <binary> pulse <base> <cells> <rate>
-#           python examples/0_experimental/exact_zeta_miss_map.py <binary> source <base> <cells> <rate>
-#           python examples/0_experimental/exact_zeta_miss_map.py <binary> primes <base> <cells> <rate>
-#           python examples/0_experimental/exact_zeta_miss_map.py <binary> twist <base> <cells> <rate>
+#   Usage:  `python examples/0_experimental/exact_zeta_miss_map.py <binary> [first] [last] [coarse] [fine] [folder]`
+#           `python examples/0_experimental/exact_zeta_miss_map.py <binary> e <base> <cells> <heights> <rate> [folder]`
+#           `python examples/0_experimental/exact_zeta_miss_map.py <binary> carrier <base> <cells> <rate> [folder]`
+#           `python examples/0_experimental/exact_zeta_miss_map.py <binary> ripple <base> <cells> <rate>`
+#           `python examples/0_experimental/exact_zeta_miss_map.py <binary> pulse <base> <cells> <rate>`
+#           `python examples/0_experimental/exact_zeta_miss_map.py <binary> source <base> <cells> <rate>`
+#           `python examples/0_experimental/exact_zeta_miss_map.py <binary> primes <base> <cells> <rate>`
+#           `python examples/0_experimental/exact_zeta_miss_map.py <binary> twist <base> <cells> <rate>`
 #
-# With twist, each cell is listed with the device's F'/F: checked against the fine lattice's own differences of w, and
-# each step of the uniform coarse lattice flagged where Newton's step from either end places a source whose pulse
-# passes the clock inside it, the flagged steps' share and the misses they hold read.
+# With twist, the run lists each cell with the F'/F of the device. It checks that against the own differences of w on
+# the fine lattice. It flags each step of the uniform coarse lattice where Newton's step from either end places a source
+# whose pulse passes the clock inside it. It reads the share of the flagged steps, and the misses that they hold.
 #
-# With ripple, the misses of the uniform lattice at the rate are locked against the beats ln(n / m) of |F|^2, and F's
-# drag and swell at their dips read against every point's. With pulse, each place F passes near a zero of its own is
-# read against the single pole, its twist a Lorentzian and (swell, twist) a circle, and the misses inside one counted.
-# With source, each pulse's source, the zero of F it passes, is placed, locked against the beats, and the misses and
-# sources set against the density F'/F's prime lines place. With primes, the sources are locked on ln n for every n to
-# N, and the certified zeros of the window read Lambda(x) at every integer past N by Landau, the calls graded by a
-# sieve and proved by Proth's witness where his theorem reaches, and psi(x) summed from them.
+# With ripple, the run locks the misses of the uniform lattice at the rate against the beats `ln(n / m)` of `|F|^2`. It
+# reads the drag and swell of F at their dips against those of every point.
 #
-# With carrier, each cell runs once on its fine lattice, and the coarse lattice is placed several ways: the uniform
-# baseline at the rate, the lattice even in theta / pi at the rate, each point the first fine one whose theta / pi
-# less its bound reaches its mark, from the listing word 3, the antinode trap where Im(w) crosses zero, the turning
-# points of Z where Z' = 0, a uniform
-# lattice of each trap's own point count, and the {1,1,2} and golden combs at the rate. Each lattice's points a zero,
-# misses a thousand zeros against the pigeonhole floor, pickle width and share under us are read, with the turning
-# points on the wrong side of zero. The coarse lattice chooses which certified points to compare; it is not part of
-# the proof.
+# With pulse, the run reads each place where F passes near a zero of its own against the single pole. Its twist is a
+# Lorentzian, and (swell, twist) is a circle. The run counts the misses inside each one.
 #
-# With e, the same fields at heights an e-fold apart in t: cells from `base`, √e times it, e times it and on, each
-# height's coarse lattice every k-th point of its fine one, k chosen to hold `rate` points a zero at every height, and
-# each field read in its height's own units, the radius over its median and the turn over its median turn a step.
-# Where the fields at every height fall on one another, the shift of a height by e carries them unchanged.
+# With source, the run places the source of each pulse, the zero of F that it passes, and locks it against the beats. It
+# sets the misses and sources against the density that the prime lines of F'/F place.
 #
-# It sits in 0_experimental and is an entry in the analytic number theory workbook, on its rail. It proves nothing;
-# it reads where the misses fall.
+# With primes, the run locks the sources on ln n for every n to N. The certified zeros of the window read `Lambda(x)` at
+# every integer past N by Landau. A sieve grades the calls, the witness of Proth proves them where the theorem of Proth
+# reaches, and the run sums `psi(x)` from them.
+#
+# With carrier, each cell runs once on its fine lattice, and the run places the coarse lattice several ways:
+#   - the uniform baseline at the rate.
+#   - the lattice even in `theta / pi` at the rate. Each point is the first fine one whose `theta / pi` less its bound
+#     reaches its mark, from the listing word 3.
+#   - the antinode trap where Im(w) crosses zero.
+#   - the extrema of Z, where `Z' = 0`.
+#   - a uniform lattice of the own point count of each trap.
+#   - the {1,1,2} and golden combs at the rate.
+#
+# For each lattice, the run reads its points a zero, and its misses a thousand zeros against the pigeonhole floor. It
+# also reads the pickle width, the share under us, and the extrema on the wrong side of zero. The coarse lattice chooses
+# which certified points to compare, and it is not part of the proof.
+#
+# With e, the run reads the same fields at heights an e-fold apart in t: cells from `base`, √e times it, e times it and
+# on. The coarse lattice of each height is every k-th point of its fine one, with k chosen to hold `rate` points a zero
+# at every height. The run reads each field in the units of its height. These are the radius over its median, and the
+# turn over its median turn a step. Where the fields at every height fall on one another, the shift of a height by e
+# carries them unchanged.
+#
+# It sits in 0_experimental and is an entry in the analytic number theory workbook, on its rail. It proves nothing. It
+# reads where the misses fall.
 #
 # THE BALL
 #
-# Z = 2 Re w + R. w turns with theta, and its size |w| = |F| does not depend on theta at all:
-# |F|^2 = sum over m, n of (m n)^(-1/2) cos(t ln(m / n)), the beats of the rotations n^(-it). The sampler is at its
-# last certified coarse point before the miss, the center of a ball of radius |w| there, heading along w's step from
-# the point before. A miss is the fine point between its two zeros where |Z| is largest, the bottom of the dip, placed
-# relative to the center: its direction from the heading, 0 to 360 degrees, and its distance in radii of the ball and
-# in plain units. The ball spins, and a straight heading falls off its curve to one side: dead reckoning runs a
-# steady arc through the last two coarse points, turning at the rate the heading turned over the last step, and the
-# miss is placed again from that track, the spin taken out.
-# The curve of the fine points through each miss is drawn over and under the plane through the center, its height
-# the change in Z from the center's, in radii, up away from zero. The misses and the radii go to tab-separated files
-# beside the map.
+# `Z = 2 Re w + R`. w turns with theta, and its size `|w| = |F|` does not depend on theta at all:
+# `|F|^2 = sum over m, n of (m n)^(-1/2) cos(t ln(m / n))`, the beats of the rotations `n^(-it)`.
 #
-# The radius and the turn over a step at every coarse point are the baselines the misses' are read against.
+# The sampler is at its last certified coarse point before the miss, the center of a ball of radius |w| there. It heads
+# along the step of w from the point before. A miss is the fine point between its two zeros where |Z| is largest, the
+# bottom of the dip. The run places it relative to the center, by its direction from the heading, 0 to 360 degrees. It
+# also gives its distance in radii of the ball and in plain units.
+#
+# The ball spins, and a straight heading falls off its curve to one side. Dead reckoning runs a steady arc through the
+# last two coarse points, and turns at the rate that the heading turned over the last step. The run places the miss
+# again from that track, with the spin taken out.
+#
+# The run draws the curve of the fine points through each miss over and under the plane through the center. Its height
+# is the change in Z from that of the center, in radii, up away from zero. The misses and the radii go to tab-separated
+# files beside the map.
+#
+# The radius and the turn over a step at every coarse point are the baselines that the run reads the misses against.
 
 import math
 import os
@@ -129,10 +143,12 @@ def bearing(z):
 
 
 def place(nu, coarse, fine, a, b, first, second, lift):
-    """A miss seen from the center at coarse point a: the dip's direction from the heading and its distance in radii
-    and in units; the same from the steady arc dead reckoning predicts, which takes out the curve of the ball's spin;
-    the radius, the spin, the speed, and the curve of fine points from a to b in the center's frame, its height the
-    change in Z toward zero."""
+    """A miss seen from the center at coarse point a.
+
+    It gives the direction of the dip from the heading, and its distance in radii and in units. It gives the same from
+    the steady arc that dead reckoning predicts, which takes out the curve of the spin of the ball. It also gives the
+    radius, the spin and the speed. Last, it gives the curve of fine points from a to b in the frame of the center. The
+    height of that curve is the change in Z toward zero."""
     center = coarse[a][3]
     behind = coarse[a - 1][3] if a > 0 else center
     before = coarse[a - 2][3] if a > 1 else behind
@@ -145,8 +161,8 @@ def place(nu, coarse, fine, a, b, first, second, lift):
     between = range(first[1], second[0] + 1)
     dip = max(between, key=lambda j: abs(fine[j][2]))
     u = (dip - a * lift) / lift
-    # a steady arc through the last two fixes: the heading is the chord a - 1 to a, the tangent at a is turned half
-    # the rate past it, and the arc runs at the chord's length times (rate / 2) / sin(rate / 2) a step
+    # a steady arc through the last two fixes. The heading is the chord a - 1 to a, and the tangent at a turns half the
+    # rate past it. The arc runs at the length of the chord times `(rate / 2) / sin(rate / 2)` a step
     if abs(rate) > 1e-12:
         arc = (rate / 2) / math.sin(rate / 2)
         track = (heading * complex(math.cos(rate / 2), math.sin(rate / 2)) * arc *
@@ -390,8 +406,10 @@ def median(values):
 
 
 def fold_cells(binary, constants, nu, count, rate):
-    """Cells nu to nu + count - 1, each on a fine lattice, its coarse lattice every k-th fine point with k chosen for
-    `rate` points a zero: the misses, every coarse point's radius and turn, the rate retained, and the zeros."""
+    """Cells nu to `nu + count - 1`, each on a fine lattice, its coarse lattice every k-th fine point.
+
+    The code chooses k for `rate` points a zero. Returns the misses, the radius and turn of every coarse point, the rate
+    kept, and the zeros."""
     misses, radii, turns, rates, zeros, failed = [], [], [], [], 0, 0
     for at in range(nu, nu + count):
         z = tm.rises(at)
@@ -410,8 +428,8 @@ def fold_cells(binary, constants, nu, count, rate):
             if abs(heading) > 0 and abs(last) > 0:
                 turns.append(abs(math.atan2((heading / last).imag, (heading / last).real)))
         misses.extend(place(at, coarse, fine, a, b, x, y, k) for a, b, x, y in misses_of(coarse, fine, k))
-    # the inertia the carrier frame predicts, the mean over t of |F|^2 with its cross terms gone: the sum of 1/n over
-    # n <= nu, averaged over the cells
+    # the inertia that the carrier frame predicts: the mean over t of `|F|^2` with its cross terms gone. That is the sum
+    # of 1/n over `n <= nu`, averaged over the cells
     harmonic = sum(sum(1.0 / n for n in range(1, at + 1)) for at in range(nu, nu + count)) / count
     return {"misses": misses, "radii": radii, "turns": turns, "rate": sum(rates) / len(rates), "zeros": zeros,
             "failed": failed, "nu": nu, "t": 2 * math.pi * nu * nu, "harmonic": harmonic}
@@ -425,13 +443,13 @@ def fold_row(fold):
     t_tenth = sorted(turns)[(9 * len(turns)) // 10]
     pull = sum(complex(math.cos(math.radians(m["residual_angle"])), math.sin(math.radians(m["residual_angle"])))
                for m in misses) / max(1, len(misses))
-    # the scatter about the steady arc, in the walker's own frame: it holds its shape from height to height while the
-    # walk reads the field, whatever the heading does
+    # the scatter about the steady arc, in the own frame of the walker. It holds its shape from height to height while
+    # the walk reads the field, whatever the heading does
     scatter = sorted(m["residual_steps"] for m in misses)
-    # under us: within one step of the arc. A miss past it is read as a curl of the field at a scale the walk has not
-    # reached, and its own radius and turn say where it is. The far misses' distance over the core's ninetieth
-    # percentile is the separation. It rises as the core tightens under the walk and the far misses are apart as
-    # single dots
+    # under us: within one step of the arc. The run reads a miss past it as a curl of the field at a scale beyond the
+    # reach of the walk. Its own radius and turn say where it is. The distance of the far misses over the ninetieth
+    # percentile of the core is the separation. It rises as the core tightens under the walk, and the far misses are
+    # apart as single dots
     near = [m for m in misses if m["residual_steps"] <= 1.0]
     far = [m for m in misses if m["residual_steps"] > 1.0]
     # the pickle: each miss's distance from the arc split into along-track, parallel to the heading and behind when
@@ -477,7 +495,9 @@ def fold_row(fold):
 
 def draw_folds(folds, folder):
     """The heights side by side: the pull from the arc in steps, the radius over its median, and the turn over its
-    median, every point dashed and the misses solid, one color a height."""
+    median.
+
+    Every point has a dashed line, the misses a solid one, and each height one color."""
     colors = ("#4a7fb5", "#e08a2c", "#3a9a3a", "#a03ab0", "#b03a3a")
     width, height = 3 * PANEL, PANEL
     out = ['<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" font-family="sans-serif">' % (width, height),
@@ -529,8 +549,9 @@ def draw_folds(folds, folder):
 
 
 def main_folds(binary, base, count, folds, rate, folder):
-    """Cells from `base`, then √e times it, e times it and on, `folds` heights an e-fold apart in t, `count` cells
-    each, every height's coarse lattice at `rate` points a zero."""
+    """Cells from `base`, then √e times it, e times it and on: `folds` heights an e-fold apart in t.
+
+    Each height has `count` cells, and the coarse lattice of every height is at `rate` points a zero."""
     constants = tm.Constants()
     found = []
     for j in range(folds):
@@ -550,10 +571,12 @@ def main_folds(binary, base, count, folds, rate, folder):
 
 
 def comb_indices(count_fine, step, pattern, shuffle=False, rng=None):
-    """Coarse fine-indices whose gaps cycle through `pattern`, the carrier's partial quotients, scaled to mean `step`.
-    A uniform lattice is the pattern (1,); {1,1,2} is a period-3 kick. With shuffle the gaps are permuted, the
-    carrier's multiset with its order gone, the drawn null. Placement is not part of the proof: every fine point is
-    certified whichever points the coarse lattice retains."""
+    """Coarse fine-indices whose gaps cycle through `pattern`, the partial quotients of the carrier, scaled to mean
+    `step`.
+
+    A uniform lattice is the pattern (1,), and {1,1,2} is a period-3 kick. With shuffle, the code permutes the gaps: the
+    multiset of the carrier with its order gone, the drawn null. Placement is not part of the proof. Every fine point
+    has a certificate, whichever points the coarse lattice keeps."""
     scale = step * len(pattern) / sum(pattern)
     characters = [pattern[i % len(pattern)] for i in range((count_fine // max(1, step) + len(pattern)) * 2 + 8)]
     if shuffle and rng is not None:
@@ -570,9 +593,10 @@ def comb_indices(count_fine, step, pattern, shuffle=False, rng=None):
 
 
 def metallic_indices(count_fine, step, n, shuffle=False, rng=None):
-    """Coarse fine-indices of the metallic quasicrystal {n,n,n,...}: the Sturmian word of slope 1 / beta, beta the
-    metallic mean (n + sqrt(n^2 + 4)) / 2, two gaps in ratio beta scaled to mean `step`. n = 1 is golden, n = 2 is
-    silver. With shuffle the word is permuted, the null."""
+    """Coarse fine-indices of the metallic quasicrystal {n,n,n,...}: the Sturmian word of slope `1 / beta`.
+
+    Here beta is the metallic mean `(n + sqrt(n^2 + 4)) / 2`, and the word has two gaps in ratio beta, scaled to mean
+    `step`. The case n = 1 is golden, and n = 2 is silver. With shuffle, the code permutes the word, the null."""
     beta = (n + math.sqrt(n * n + 4)) / 2
     omega = 1.0 / beta
     short = step / ((1.0 - omega) + beta * omega)
@@ -594,9 +618,11 @@ def metallic_indices(count_fine, step, n, shuffle=False, rng=None):
 
 def antinode_indices(fine):
     """Coarse fine-indices at the antinodes of Z, where Im(w) changes sign: w crosses the real axis and |Z| sits near a
-    lobe peak. A zero is where Re(w) crosses zero, on the imaginary axis, and the two axes alternate as w winds: each
-    zero is trapped between two antinodes. A pair hides only where w wiggles, crossing the imaginary axis twice with no
-    real-axis crossing between. This is the filter built to trap instead of to space."""
+    lobe peak.
+
+    A zero is where Re(w) crosses zero, on the imaginary axis. The two axes alternate as w winds, and two antinodes trap
+    each zero. A pair hides only where w wiggles, and crosses the imaginary axis twice with no real-axis crossing
+    between. This filter exists to trap, and not to space."""
     idx = [0]
     for j in range(1, len(fine)):
         if (fine[j - 1][3].imag <= 0.0) != (fine[j][3].imag <= 0.0):
@@ -609,10 +635,12 @@ def antinode_indices(fine):
 
 
 def extremum_indices(fine):
-    """Coarse fine-indices at the turning points of Z, where its step changes sign: the zeros of Z' as the fine lattice
-    sees them. Z = 2 |F| cos(phi) with phi = theta + arg F, and Z' = 2 |F| ((ln |F|)' cos(phi) - phi' sin(phi)): the
-    antinode moves off Im(w) = 0 by F's own turning, phi' against theta', and by the swell of its size, (ln |F|)'. By
-    Rolle, Z is monotone between consecutive turning points and holds at max one zero there."""
+    """Coarse fine-indices at the extrema of Z, where its step changes sign: the zeros of Z' as the fine lattice sees
+    them.
+
+    `Z = 2 |F| cos(phi)` with `phi = theta + arg F`, and `Z' = 2 |F| ((ln |F|)' cos(phi) - phi' sin(phi))`. The antinode
+    moves off `Im(w) = 0` by the own turn of F, phi' against theta', and by the swell of its size, `(ln |F|)'`. By
+    Rolle, Z is monotone between consecutive extrema, and holds at max one zero there."""
     idx = [0]
     for j in range(1, len(fine) - 1):
         if (fine[j][2] - fine[j - 1][2] > 0.0) != (fine[j + 1][2] - fine[j][2] > 0.0):
@@ -622,8 +650,10 @@ def extremum_indices(fine):
 
 
 def wiggles_of(idx, fine):
-    """Turning points on the wrong side of zero: a positive minimum or a negative max of Z. Each is a turn with no
-    zero across it, a pair of critical points past the one each gap between zeros must hold."""
+    """Extrema on the wrong side of zero: a positive minimum or a negative max of Z.
+
+    Each is a turn with no zero across it, a pair of critical points past the one that each gap between zeros must
+    hold."""
     count = 0
     for j in idx[1:-1]:
         low = fine[j][2] < fine[j - 1][2]
@@ -669,8 +699,10 @@ def misses_on(idx, fine):
 
 
 def place_on(nu, idx, fine, a, b, first, second):
-    """A miss placed from the center at coarse point a, the carrier-stepped form of place: the dip from the steady arc
-    the last two coarse points turn along, split into along-track and cross-track, in steps of the last coarse chord."""
+    """A miss placed from the center at coarse point a, the carrier-stepped form of place.
+
+    It gives the dip from the steady arc that the last two coarse points turn along. The dip splits into along-track and
+    cross-track, in steps of the last coarse chord."""
     coarse = [fine[i] for i in idx]
     center = coarse[a][3]
     behind = coarse[a - 1][3] if a > 0 else center
@@ -722,9 +754,10 @@ def lows_of(cell):
 
 
 def theta_indices(lows, rate):
-    """The lattice even in theta / pi at `rate` points a unit: the first fine point whose theta / pi less its bound
-    reaches the cell's first point's plus k / rate, for each k in turn, by integer comparison alone; `rate` read as
-    the exact decimal it is written as."""
+    """The lattice even in `theta / pi` at `rate` points a unit, by integer comparison alone.
+
+    For each k in turn, it takes the first fine point whose `theta / pi` less its bound reaches that of the first point
+    of the cell plus `k / rate`. The code reads `rate` as the exact decimal that its text gives."""
     exact = Fraction(str(rate))
     num, den = exact.numerator, exact.denominator
     unit, origin, out, k = 1 << tm.SCALE_BITS, lows[0], [], 0
@@ -736,9 +769,11 @@ def theta_indices(lows, rate):
 
 
 def carrier_lattices(fine, step, lows, rate):
-    """The coarse lattices to score, by name: the uniform baseline at the rate, the antinode trap where Im(w) crosses
-    zero, the turning points of Z, each with a uniform lattice of its own point count for a density-matched
-    comparison, and the {1,1,2} and golden combs at the rate for reference."""
+    """The coarse lattices to score, by name.
+
+    They are the uniform baseline at the rate, the antinode trap where Im(w) crosses zero, and the extrema of Z. Each
+    comes with a uniform lattice of its own point count, for a comparison at matched density. The {1,1,2} and golden
+    combs at the rate come for reference."""
     anti = antinode_indices(fine)
     turn = extremum_indices(fine)
     return {
@@ -797,8 +832,10 @@ RIPPLE_NULLS = [0.5, 0.9, 1.3, 1.9, 2.3]
 
 
 def ripple_at(fine, x2, j):
-    """F's drag and swell at fine point j, each over theta' = ln x: phi' / theta', 1 where F does not turn and below 0
-    where the clock runs back, and (ln |F|)' / theta', the plane lifting. phi is arg w, read across j - 1 to j + 1."""
+    """F's drag and swell at fine point j, each over `theta' = ln x`.
+
+    The drag is `phi' / theta'`: 1 where F does not turn, and below 0 where the clock runs back. The swell is
+    `(ln |F|)' / theta'`, the plane on the rise. The code reads phi, the arg of w, across j - 1 to j + 1."""
     low, high = max(0, j - 1), min(len(fine) - 1, j + 1)
     w0, w1 = fine[low][3], fine[high][3]
     dt = 2 * math.pi * (x2[high] - x2[low])
@@ -811,8 +848,10 @@ def ripple_at(fine, x2, j):
 
 
 def rayleigh(times, omega):
-    """The mean resultant length of the phases omega t over `times`, its direction in degrees, and Rayleigh's z = n R^2,
-    the chance of so tight a lock among uniform phases near exp(-z)."""
+    """The mean resultant length of the phases `omega t` over `times`, its direction in degrees, and Rayleigh's
+    `z = n R^2`.
+
+    Among uniform phases, the chance of so tight a lock is near `exp(-z)`."""
     if not times:
         return 0.0, 0.0, 0.0
     c = sum(math.cos(omega * t) for t in times) / len(times)
@@ -822,10 +861,12 @@ def rayleigh(times, omega):
 
 
 def main_ripple(binary, base, count, rate):
-    """Cells `base` to base + count - 1 on one fine lattice each, the uniform coarse lattice at the rate. The misses'
-    times are locked against the beats of |F|^2 = sum over m, n of (m n)^(-1/2) cos(t ln(m / n)), at the frequencies
-    ln(n / m) and at null frequencies between them; F's drag and swell at the misses' dips are read against every fine
-    point's."""
+    """Cells `base` to `base + count - 1` on one fine lattice each, with the uniform coarse lattice at the rate.
+
+    The code locks the times of the misses against the beats of
+    `|F|^2 = sum over m, n of (m n)^(-1/2) cos(t ln(m / n))`. It does so at the frequencies `ln(n / m)`, and at null
+    frequencies between them. It reads the drag and swell of F at the dips of the misses against those of every fine
+    point."""
     constants = tm.Constants()
     dips, every, failed = [], [], 0
     for at in range(base, base + count):
@@ -873,14 +914,21 @@ def main_ripple(binary, base, count, rate):
 
 
 def pulses_of(fine, x2, reach=4.0, least=4):
-    """The twist pulses F casts off where it passes near a zero of its own, t* = gamma + i delta off the real t axis.
-    There d/dt ln F = 1 / (t - t*): the swell (ln |F|)' = u / (u^2 + delta^2) and the twist (arg F)' = delta /
-    (u^2 + delta^2), u = t - gamma, one pole. The twist is a Lorentzian of height 1 / delta and turn pi, a parabola at
-    its top, and (swell, twist) runs a circle of diameter 1 / delta through the origin; the neighbors and F's curve
-    make it an egg. At each local minimum of |F| with delta = |F| / |F'| at least `least` fine steps and under the
-    clock's own 1 / theta', the pulses past the clock, back or forward, read over `reach` deltas each side: the peak twist
-    times delta, the loop's diameter (x^2 + y^2) / y over 1 / delta at its 10th and 90th percentiles, the swell's lead
-    against its trail, the turn over the window against 2 atan(reach), and the window's fine indices."""
+    """The twist pulses that F casts off where it passes near a zero of its own, `t* = gamma + i delta` off the real t
+    axis.
+
+    There `d/dt ln F = 1 / (t - t*)`, one pole, with `u = t - gamma`. The swell is `(ln |F|)' = u / (u^2 + delta^2)`,
+    and the twist is `(arg F)' = delta / (u^2 + delta^2)`. The twist is a Lorentzian of height `1 / delta` and turn pi,
+    a parabola at its top. (swell, twist) runs a circle of diameter `1 / delta` through the origin, and the neighbors
+    and the curve of F make it an egg.
+
+    The code takes each local minimum of |F| where `delta = |F| / |F'|` is at least `least` fine steps, and under the
+    own `1 / theta'` of the clock. For the pulses past the clock, back or forward, it reads `reach` deltas each side:
+      - the peak twist times delta.
+      - the diameter of the loop, `(x^2 + y^2) / y` over `1 / delta`, at its 10th and 90th percentiles.
+      - the lead of the swell against its trail.
+      - the turn over the window against `2 atan(reach)`.
+      - the fine indices of the window."""
     out = []
     dt = 2 * math.pi * (x2[1] - x2[0])
     for j in range(2, len(fine) - 2):
@@ -916,11 +964,12 @@ def pulses_of(fine, x2, reach=4.0, least=4):
 
 
 def main_pulse(binary, base, count, rate):
-    """Cells `base` to base + count - 1 on one fine lattice each: every twist pulse past the clock, read against the
-    single pole, and the misses of the uniform coarse lattice at the rate, each counted inside a pulse or not and read
-    across its two zeros. theta is monotone, and two zeros inside one coarse step want phi = theta + arg F to run back
-    across a level, phi' < 0, or to sweep pi inside the step, phi' at least the rate times theta'; R moves the level
-    by R / (2 |F|), the way left."""
+    """Cells `base` to `base + count - 1` on one fine lattice each.
+
+    The code reads every twist pulse past the clock against the single pole. It counts each miss of the uniform coarse
+    lattice at the rate as inside a pulse or not, and reads it across its two zeros. Theta is monotone. Two zeros inside
+    one coarse step want `phi = theta + arg F` to run back across a level, with `phi' < 0`. Else they want it to sweep
+    pi inside the step, with phi' at least the rate times theta'. R moves the level by `R / (2 |F|)`, the way left."""
     constants = tm.Constants()
     pulses, misses, inside, covered, total, failed = [], 0, 0, 0, 0, 0
     ways = {"back": 0, "spin": 0, "neither": 0, "neither_max": 0.0}
@@ -998,17 +1047,21 @@ def mangoldt(n):
 
 
 def source_density(t, k):
-    """The sources' density read from F'/F cut at k: -(sum over n up to k of Lambda(n) n^(-1/2) cos(t ln n)), the
-    lines log F shares with log zeta for every n up to N."""
+    """The density of the sources, read from F'/F cut at k: `-(sum over n up to k of Lambda(n) n^(-1/2) cos(t ln n))`.
+
+    These are the lines that log F shares with log zeta for every n up to N."""
     return -sum(mangoldt(n) * math.cos(t * math.log(n)) / math.sqrt(n) for n in range(2, k + 1))
 
 
 def main_source(binary, base, count, rate):
-    """Cells `base` to base + count - 1 on one fine lattice each. Each local minimum of |F| is a source, a zero of F at
-    t* = gamma + i delta: gamma where |F| is least, |delta| = |F| / |F'|, its side the sign of the twist there. The
-    sources a zero of Z, by delta theta'; their gammas locked on the beats ln(n / m); and F cut to its first k
-    harmonics, its dents read against the misses' dips and the sources past the clock: the share of each in the
-    lowest fifth of |F_k|, a fifth where the harmonics place nothing."""
+    """Cells `base` to `base + count - 1` on one fine lattice each.
+
+    Each local minimum of |F| is a source, a zero of F at `t* = gamma + i delta`. Gamma is where |F| is least, and
+    `|delta| = |F| / |F'|`, with its side the sign of the twist there. The code reads:
+      - the sources a zero of Z, by `delta theta'`.
+      - their gammas, locked on the beats `ln(n / m)`.
+      - F cut to its first k harmonics, with its dents read against the dips of the misses and the sources past the
+        clock. That is the share of each in the lowest fifth of `|F_k|`, a fifth where the harmonics place nothing."""
     constants = tm.Constants()
     sources, dips, sample, zeros_total, failed = [], [], [], 0, 0
     for at in range(base, base + count):
@@ -1107,17 +1160,19 @@ def zeros_located(fine, x2):
 
 
 def main_primes(binary, base, count, rate):
-    """Cells `base` to base + count - 1 on one fine lattice each.
+    """Cells `base` to `base + count - 1` on one fine lattice each.
 
-    The wave origins: the sources of F, the zeros of the main sum F off the line, locked on ln n for every n to N.
-    log F has zeta's Dirichlet coefficients to N, and the lock is Lambda(n) n^(-1/2), zero at every n not a prime
-    power. This reads back what F was built from, and checks the sources are placed right.
+    The wave origins are the sources of F, the zeros of the main sum F off the line. The code locks them on ln n for
+    every n to N. The function log F has the Dirichlet coefficients of zeta to N. The lock is `Lambda(n) n^(-1/2)`, zero
+    at every n that is not a prime power. This reads back what F comes from, and checks that the code places the sources
+    right.
 
-    The primes past N: the zeros of Z in the window [T1, T2], by Landau, sum to -((T2 - T1) / 2 pi) Lambda(x) / sqrt(x)
-    for every x > 1. With a Hann taper w over the window, D(x) = -(4 pi / (T2 - T1)) sqrt(x) sum of w cos(gamma ln x)
-    reads Lambda(x), each integer apart while x is under (T2 - T1) / 4 pi. Each x read past ln 2 / 2 is called a
-    prime power; the calls are graded by the sieve, every one Proth's theorem reaches is proved by its witness, and
-    the sum of D to x is read against psi(x)."""
+    The primes past N: by Landau, the zeros of Z in the window [T1, T2] sum to `-((T2 - T1) / 2 pi) Lambda(x) / sqrt(x)`
+    for every `x > 1`. With a Hann taper w over the window,
+    `D(x) = -(4 pi / (T2 - T1)) sqrt(x) sum of w cos(gamma ln x)` reads `Lambda(x)`. Each integer stands apart while x
+    is under `(T2 - T1) / 4 pi`. The code calls each x that reads past `ln 2 / 2` a prime power. The sieve grades the
+    calls, and the witness of Proth proves every one that the theorem of Proth reaches. The code reads the sum of D to x
+    against `psi(x)`."""
     constants = tm.Constants()
     sources, gammas, failed, top_n = [], [], 0, 0
     for at in range(base, base + count):
@@ -1241,10 +1296,11 @@ TWIST_RULES = ["reach 0.5", "reach 1", "reach 2", "Hermite", "the pole's model",
 
 
 def model_turns(w, ratio, z, clock, t_end, t_a, t_b, samples=32):
-    """Whether the relational model from one end crosses zero inside the step while the ends agree in sign: F linear
-    through its source, F(t) = F_e (1 + (F'/F)_e (t - t_e)), the carrier turning at theta', and R fixed, giving
-    Z(t) =2 Re(w_e (1 + (F'/F)_e (t - t_e)) exp(i theta' (t - t_e))) + R_e. Spin, twist, swell and the level R / (2 |F|)
-    each enter against the others; nothing is a threshold."""
+    """Whether the relational model from one end crosses zero inside the step while the ends agree in sign.
+
+    The model takes F linear through its source, `F(t) = F_e (1 + (F'/F)_e (t - t_e))`, with the carrier that turns at
+    theta' and R fixed. That gives `Z(t) =2 Re(w_e (1 + (F'/F)_e (t - t_e)) exp(i theta' (t - t_e))) + R_e`. Spin,
+    twist, swell and the level `R / (2 |F|)` each enter against the others, and nothing is a threshold."""
     rest = z - 2 * w.real
     sign = z > 0.0
     for k in range(1, samples):
@@ -1256,8 +1312,9 @@ def model_turns(w, ratio, z, clock, t_end, t_a, t_b, samples=32):
 
 
 def hermite_turns(z0, z1, d0, d1, h, samples=32):
-    """Whether the cubic through Z and Z' at a step's two ends, h apart, changes sign inside it while its ends hold
-    one sign: a pair the step can hide, by the spin or by the slide alike."""
+    """Whether the cubic through Z and Z' at the two ends of a step, h apart, changes sign inside it.
+
+    That holds while its ends hold one sign: a pair that the step can hide, by the spin or by the slide alike."""
     if (z0 > 0.0) != (z1 > 0.0):
         return False
     m0, m1 = d0 * h, d1 * h
@@ -1302,15 +1359,19 @@ def crossings_of(path):
 
 
 def theta_at(t):
-    """theta(t) = (t / 2) ln(t / 2 pi) - t / 2 - pi / 8 + 1 / (48 t), in floating point, for the co-rotating frame."""
+    """theta(t) = (t / 2) ln(t / 2 pi) - t / 2 - pi / 8 + 1 / (48 t), in floating point, for the frame that rotates with
+    the carrier."""
     return 0.5 * t * math.log(t / (2 * math.pi)) - 0.5 * t - math.pi / 8 + 1.0 / (48 * t)
 
 
 def figure_of(fine, x2, low, high, listed=None):
-    """Over fine points low to high: the self-crossings of w's track, the walker's plane, and of F's, the frame that
-    turns with the carrier; the signs the angular momentum L = Im(conj(w) w') = |F|^2 phi' runs through, each run of
-    one sign counted once; and with the device's F'/F, the self-crossings of the phase portrait (Z, Z' / theta'),
-    Z' = 2 Re(w (i theta' + F'/F))."""
+    """Over fine points low to high:
+      - the self-crossings of the track of w, the plane of the walker, and of that of F, the frame that turns with the
+        carrier.
+      - the signs that the angular momentum `L = Im(conj(w) w') = |F|^2 phi'` runs through, each run of one sign counted
+        once.
+      - with the F'/F of the device, the self-crossings of the phase portrait `(Z, Z' / theta')`, with
+        `Z' = 2 Re(w (i theta' + F'/F))`."""
     portrait = []
     if listed is not None:
         for j in range(low, high + 1):
@@ -1330,15 +1391,17 @@ def figure_of(fine, x2, low, high, listed=None):
 
 
 def main_twist(binary, base, count, rate):
-    """Cells `base` to base + count - 1 on one fine lattice each, listed with the device's F'.
+    """Cells `base` to `base + count - 1` on one fine lattice each, listed with the F' of the device.
 
-    The check: the device's twist and swell, F'/F at each point, against the fine lattice's own differences of w.
+    The check: the twist and swell of the device, F'/F at each point, against the own differences of w on the fine
+    lattice.
 
-    The flag: at each point of the uniform coarse lattice at the rate, Newton's step t* = t - F/F' places the nearest
-    source, exact for a single pole, from that point alone. A coarse step is flagged where a source placed from either
-    end falls inside it with |Im t*| under `reach` / theta', a pulse that can pass the clock. Read: the misses in
-    flagged steps, the share of steps flagged, and the misses a uniform lattice that refines the same share by lot
-    would catch."""
+    The flag: at each point of the uniform coarse lattice at the rate, Newton's step `t* = t - F/F'` places the nearest
+    source from that point alone. It is exact for a single pole. The code flags a coarse step where a source placed from
+    either end falls inside it, with `|Im t*|` under `reach / theta'`. That is a pulse that can pass the clock.
+
+    Read: the misses in flagged steps, and the share of steps flagged. Also the misses that a uniform lattice would
+    catch if it refined the same share by lot."""
     constants = tm.Constants()
     diffs, misses, caught, flagged, steps, failed = [], 0, [0] * len(TWIST_RULES), [0] * len(TWIST_RULES), 0, 0
     courses, miss_courses, coupling, miss_coupling = [], [], [], []
@@ -1366,8 +1429,8 @@ def main_twist(binary, base, count, rate):
             clock = 0.5 * math.log(x2[j])
             seen = complex(math.log(abs(w1) / abs(w0)), math.atan2(ratio.imag, ratio.real)) / (2 * dt) - complex(0, clock)
             diffs.append(abs(listed[j][3] - seen) / clock)
-        # the half twist: at each minimum of |F|, Newton's step places the source, and the device's twist summed over
-        # u in [-3 |delta|, 3 |delta|] is read against the single pass's 2 atan(3) sign(delta)
+        # the half twist: at each minimum of |F|, Newton's step places the source. The code reads the twist of the
+        # device, summed over u in `[-3 |delta|, 3 |delta|]`, against the `2 atan(3) sign(delta)` of the single pass
         for j in range(1, len(fine) - 1):
             if not (abs(fine[j][3]) < abs(fine[j - 1][3]) and abs(fine[j][3]) <= abs(fine[j + 1][3])):
                 continue
@@ -1439,8 +1502,9 @@ def main_twist(binary, base, count, rate):
                     marked[r].add(a)
         for r in range(len(TWIST_RULES)):
             caught[r] += sum(1 for a, b in spans if any(k in marked[r] for k in range(a, b)))
-        # each miss the Hermite flag leaves, read across its two zeros: R = Z - 2 Re w, the level R / (2 |F|) the
-        # phase's cosine must reach, the drag and the swell over theta', the step's length in zeros, and the coupling
+        # each miss that the Hermite flag leaves, read across its two zeros. It gives `R = Z - 2 Re w`, and the level
+        # `R / (2 |F|)` that the cosine of the phase must reach. It also gives the drag and the swell over theta', the
+        # length of the step in zeros, and the coupling
         hermite_at = TWIST_RULES.index("Hermite")
         for a, b, first, second in found:
             if any(k in marked[hermite_at] for k in range(a, b)):
