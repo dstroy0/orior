@@ -28,9 +28,9 @@ typedef struct FontAtCfg FontAtCfg;
 
 #define FONT_OUTLINE_CONTOURS (1u << 11u)
 
-// A font's tables, as read: its bytes, each table's tag and place, its units, ascent and descent, the form of its
-// loca, its count of glyphs and of metrics, and its character map as ranges, each its first and last character and the
-// glyph the first is drawn by
+// The tables of a font, as read: its bytes, the tag and place of each table, and its units, ascent and descent. Then
+// the form of its loca, and its count of glyphs and of metrics.
+// Then its character map as ranges. Each range holds its first and last character, and the glyph that draws the first
 typedef struct
 {
     const unsigned char *data;
@@ -58,8 +58,8 @@ typedef struct
     unsigned int contours;
 } FontContours;
 
-// A glyph drawn as coverage: its width and height in pixels, where its top left is from the pen on the baseline,
-// and each pixel's share of it, from 0 to 1
+// A glyph drawn as coverage: its width and height in pixels, and where its top left is from the pen on the baseline.
+// Then the share of it in each pixel, from 0 to 1
 typedef struct
 {
     unsigned long long width;
@@ -69,8 +69,8 @@ typedef struct
     float *cover;
 } FontMask;
 
-// the font in `size` bytes of `data`, a TrueType font or the first of a collection, its ranges stored in `ranges`,
-// which sized for FONT_RANGES: 1, or 0 where it reads as none
+// the font in `size` bytes of `data`, a TrueType font or the first of a collection. Its ranges go in `ranges`, sized
+// for FONT_RANGES. The result is 1, or 0 where it reads as none
 int font_read(const FontDataCfg *args);
 // the glyph that draws `character`, 0 where the font has none; how far a glyph moves the pen, in font units
 unsigned int font_glyph(const FontCfg *args);
@@ -79,13 +79,15 @@ float font_advance(const FontGlyphCfg *args);
 int font_glyph_range(const FontGlyphCfg *args);
 unsigned int font_u16(const FontAtCfg *args);
 int font_i16(const FontAtCfg *args);
-// the outline of a glyph put after `out`'s contours, moved by `matrix`: [a, b, c, d, e, f] for x' = a x + c y + e,
-// y' = b x + d y + f (font_outline.c)
+// the outline of a glyph, put after the contours of `out`, and moved by `matrix`. The matrix is [a, b, c, d, e, f],
+// for x' = a x + c y + e, y' = b x + d y + f (font_outline.c)
 void font_outline(const FontGlyphMatrixCfg *args);
-// `contours`, in pixels with y going up from the baseline, drawn as coverage into `mask`, its cover in `cover`, which
-// sized for `capacity`, its edges positioned in `scratch` of `scratch_bytes`, as `font_rasterize_bytes` counts them for the
-// contours; a mask too large for the capacity drawn as none; and with `cover` NULL the mask measured alone, its size
-// and place set and nothing drawn, so a cover of `width` by `height` and four more can be taken for it
+// `contours`, in pixels with y up from the baseline, drawn as coverage into `mask`. Its cover goes in `cover`, sized
+// for `capacity`. Its edges go in `scratch` of `scratch_bytes`, as `font_rasterize_bytes` counts them for the contours.
+// A mask too large for the capacity draws as none.
+//
+// With `cover` NULL, the call only measures the mask. It sets its size and place, and draws nothing. The caller can
+// then take a cover of `width` by `height` and four more for it
 void font_rasterize(const FontContoursCfg *args);
 unsigned long long font_rasterize_bytes(const FontContoursCfg *args);
 
