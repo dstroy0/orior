@@ -15,7 +15,7 @@
 # separates it from Spanish.
 #
 # If the reading rests on that, then word length alone should do what the reading does, and the
-# four thousand numbers of a character square are carrying a signal that two numbers hold. Worth knowing
+# four thousand numbers of a character square carry a signal that two numbers hold. Worth knowing
 # either way: if the square wins, it holds something the lengths do not, and if it does not, the majority of the
 # machinery in this section was unnecessary.
 #

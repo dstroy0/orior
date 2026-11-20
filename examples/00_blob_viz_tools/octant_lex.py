@@ -61,7 +61,7 @@ def rounds_of(message, read="state"):
     The digest reading adds the initial values back into every word before handing the frame over.
     That feed-forward is a mixing step applied after the round finished, and it is applied to
     every frame. It hides the structure the round itself put there. Measuring the digest sequence
-    and reporting it as a property of the round is measuring the wrong object.
+    and reporting it as a property of the round measures the wrong object.
 
     The working state is the eight words as the round leaves them, with nothing added back, and the
     register shift is visible only in that. Every earlier reading here used the digest. The

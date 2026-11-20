@@ -139,7 +139,7 @@ def relabeled_within_octants(points, live):
 def moved_across_octants(points, live, how_many):
     """A move that is NOT a null: lit points sent to unlit points in a different octant.
 
-    Retained here deliberately. It is the known positive the harness is tested against, and it has to be
+    Retained here deliberately. It is the known positive the harness is tested against. It has to be
     a move of the same shape as the real null so that catching it means something.
     """
     def octant_of(at):

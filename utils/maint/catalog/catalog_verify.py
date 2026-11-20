@@ -31,7 +31,7 @@
 #
 # A header that promises less than the code does is the more dangerous half and the easier one to
 # miss. A script described as reading a corpus that also writes one has an effect nobody reviewing
-# the description would expect, and it will be run by somebody who read only the description.
+# the description would expect. It will be run by somebody who read only the description.
 
 import io
 import itertools
@@ -49,7 +49,7 @@ def _repository_root():
     A marker the repository produces, such as build/, is absent from a linked worktree and a
     never-built clone, and a climb to it can pass this root and land in another checkout whose paths
     look valid. A marker infers the root. Git answers it. The climb below serves only an exported tree
-    with no git directory, and it looks for archive/src/python, which the repository tracks and every checkout
+    with no git directory. It looks for archive/src/python, which the repository tracks and every checkout
     of it holds.
 
     Git's own variables are cleared first. Inside a hook GIT_DIR is exported, and a rev-parse that

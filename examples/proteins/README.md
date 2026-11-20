@@ -51,7 +51,7 @@ of as a formula. So there is a quantum here, and the discipline is to take it fr
 instead of picking one.
 
 `representation.structure.protein.phi_psi` computes each torsion as exact integer terms: all
-of it is cross and dot products of integer coordinates, and it passes back the two integers whose
+of it is cross and dot products of integer coordinates. It passes back the two integers whose
 ratio the angle is, without ever taking the `atan2`. The single irrational step is taken once, in
 `ramachandran_rules.angle`, in decimal and to forty digits, which is forty orders of magnitude
 under the two-degree grid the answer is read against. The precision decides nothing. The grid is

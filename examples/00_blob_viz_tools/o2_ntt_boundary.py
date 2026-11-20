@@ -249,7 +249,7 @@ def _check():
         lines.append(text)
 
     # THE EXACT TRANSFORM IS THE EXACT CONVOLUTION. The NTT correlation must equal the direct one to
-    # the integer, or the steering is reading a different map than it thinks.
+    # the integer, or the steering reads a different map than it thinks.
     generator = 1234567
     field = [(generator * (n + 1)) % 2 for n in range(WIDTH)]
     pattern = target_bits(72)

@@ -24,7 +24,7 @@
 #   phrase   a number beside a word of four or more characters
 #
 # A block of the theory that holds the key, where it and the statement share three or more words, is
-# on the same subject, and it weighs as many as the words the two share. A block that is not marked
+# on the same subject. It weighs as many as the words the two share. A block that is not marked
 # counts as marked where a marked block further down the same file holds the same key and the two
 # share three words. Each key on a surface gets one answer from the theory:
 #
@@ -34,7 +34,7 @@
 #                is too loose to be for a claim
 #   supported    anything else; displayed with --all
 #
-# A surface block that is itself marked, or that says a claim was killed, is telling the reader
+# A surface block that is itself marked, or that says a claim was killed, tells the reader
 # about the take back, and its keys are never answered taken back or both.
 #
 # taken back and both end the run with 1, and with --strict so does nowhere. A finding a person has
@@ -57,7 +57,7 @@ READ = os.path.join(os.path.dirname(os.path.abspath(__file__)), "claims_read.tsv
 # Of that word only the form ending in ed is read. The theory uses its other forms for a probe that
 # rules out an alignment far more than for a result it took back.
 MARK = re.compile(r"\b(refuted|withdrawn|withdrew|retracted|retracts|superseded|falsified|not so)\b", re.IGNORECASE)
-# A surface block that says something was killed or taken back is telling the reader about the
+# A surface block that says something was killed or taken back tells the reader about the
 # take back, not repeating the claim, and is never answered taken back.
 KILLED = re.compile(r"\bkill(ed|s)?\b", re.IGNORECASE)
 TEX_HEADING = re.compile(r"\\(part|chapter|section|subsection|subsubsection|paragraph)\*?\{")
@@ -264,7 +264,7 @@ def answer(type, places, about):
     """The answer for one key, and the theory places that decided it.
 
     Every block of the theory that holds the key, where it and the statement share NEAREST words, is
-    on the same subject, and it weighs as many as the words the two share. Where the marked blocks
+    on the same subject. It weighs as many as the words the two share. Where the marked blocks
     weigh as much as the rest, the statement repeats what the theory took back. Where they weigh a
     third of the whole or more, the answer is both, and a person reads the places displayed.
     """

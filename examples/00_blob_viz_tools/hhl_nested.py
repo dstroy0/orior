@@ -44,7 +44,7 @@ in O(sqrt(kappa)) iterations at O(N s) each. The honest classical cost is
     HHL          O(log(N) * s^2 * kappa^2 / epsilon)
 
 Both degrade with dimension. The difference that survives nesting is the N term: linear against
-logarithmic. "The algebraic expression pays" means that here, and it is the only asymptotic
+logarithmic. "The algebraic expression pays" means that here. It is the only asymptotic
 quantum win anywhere in this tree.
 
 WHAT THIS DOES NOT CLAIM

@@ -4,7 +4,7 @@
 """Every quotation in src/, checked against the RFC text it says it came from.
 
 docs/learn/RFC/README.md states the rule this enforces: "Read the section, do not recall it." A
-comment that puts an RFC sentence in quotation marks is making a claim that can be settled, because
+comment that puts an RFC sentence in quotation marks makes a claim that can be settled, because
 the sentence is sitting in docs/learn/RFC. Nothing else in the tree settles it - a quotation drifts
 by a word and neither compiler, test nor reviewer reading the comment against the code will see it,
 because the comment still says something true about the code. What it stops being true about is the

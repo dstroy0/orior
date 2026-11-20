@@ -189,7 +189,7 @@ __global__ void clear_of_placed(const float *placed, int placed_count, const flo
  * summed in single precision carry about a part in ten million of error, and the decision being
  * made is whether that total sits under a threshold. A candidate landing within that of the
  * threshold could be decided either way. Whether any candidate ever does is a question about this
- * arrangement and not about floating point in general, and it is cheaper to answer than to argue:
+ * arrangement and not about floating point in general. It is cheaper to answer than to argue:
  * run both and see whether the count moves.
  */
 __global__ void clear_of_placed_wide(const float *placed, int placed_count, const float *batch, int batch_count,

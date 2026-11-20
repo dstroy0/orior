@@ -395,7 +395,7 @@ extern "C"
      * @return           1 on success, 0 where the file could not be written.
      *
      * @note P5 because the format is a short text header and then the bytes. Nothing is encoded. A
-     *       reader comparing two rasters is comparing the same bytes the rasterizer produced.
+     *       reader comparing two rasters compares the same bytes the rasterizer produced.
      */
     int orior_raster_write_pgm(const char *path, const uint8_t *pixels, size_t width, size_t height);
 

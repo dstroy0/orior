@@ -56,7 +56,7 @@ def outermost_valence(atomic_number):
     """The electrons in the atom's outermost shell, and that shell's closure, from the ledger.
 
     The outermost shell is the highest principal number the atom fills. Its valence electrons are the
-    ones there in the s and p subshells, and it closes at two for the first shell and eight beyond it.
+    ones there in the s and p subshells. It closes at two for the first shell and eight beyond it.
     Returns (valence, closure).
     """
     electrons = element.electrons(atomic_number)

@@ -170,7 +170,7 @@ extern "C"
      * THIS DESCENT IS GREEDY COVERAGE MAXIMIZATION AND CARRIES ITS GUARANTEE. Each probe rejects a
      * definite set of alignments, and the alignments a probe SET rejects is the union of those sets.
      * A union of sets is monotone and submodular, because an alignment already rejected contributes
-     * nothing when rejected again. Choosing the candidate that leaves fewest survivors is choosing the
+     * nothing when rejected again. Choosing the candidate that leaves fewest survivors chooses the
      * largest marginal gain on that union. By Nemhauser, Wolsey and Fisher 1978, greedy maximization of
      * a monotone submodular function under a cardinality constraint reaches at least 1 - 1/e of the best
      * set of the same size. The probes placed here reject at least about 63 percent of what the

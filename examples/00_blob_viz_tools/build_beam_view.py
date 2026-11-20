@@ -307,7 +307,7 @@ TEMPLATE = """<title>Eyes on the State</title>
   across the sweep. Those zeros are construction, not evidence, and they are a control: variance
   there would be a wiring bug.</p>
   <p>Round 64 is the positive control and it fires. The target is the leading zero count of state
-  64. Reading state 64 is reading the answer. A null there would have meant the instrument was
+  64. Reading state 64 reads the answer. A null there would have meant the instrument was
   blind, alone on this page could be trusted.</p>
   </div>
 
@@ -315,7 +315,7 @@ TEMPLATE = """<title>Eyes on the State</title>
   <p>On the one round that carries a signal, the two instruments do not read the same amount of it:
   the beam reaches <strong>%(beam_64).4f</strong> and the harmonic <strong>%(harmonic_64).4f</strong>,
   a factor of <strong>%(ratio).2f</strong> on the same state, the same target and the same null.
-  That is the directional information a power share averages away, and it is a real property of the
+  That is the directional information a power share averages away. It is a real property of the
   row type and not a claim about it.</p>
   <p>It does not help a miner. The early rounds have nothing for either instrument to find, and a
   better instrument pointed at an empty room still reads empty.</p>

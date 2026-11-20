@@ -33,7 +33,7 @@
 # Rates are per hundred thousand words, because the majority of these phrases are rare enough that per
 # thousand rounds everything to zero. A pattern that fires in the papers is a pattern describing
 # ordinary technical English, and banning it costs a writer a phrase they are entitled to. A pattern
-# that never fires in 154 papers and fires in the machine arm is doing the job the list claims.
+# that never fires in 154 papers and fires in the machine arm does the job the list claims.
 #
 # This does not decide anything on its own. A pattern can be absent from the papers because the
 # papers are linguistics and the phrase belongs to systems programming. The output is evidence for

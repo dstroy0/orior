@@ -23,7 +23,7 @@
 # difference between them is ala difference of subject. It is reported and marked, and nothing leans on it.
 #
 # What the script pair alone can settle: if one language in two character sets reads as far apart as two
-# unrelated languages do, the reading is following the writing.
+# unrelated languages do, the reading follows the writing.
 
 import io
 import os

@@ -42,7 +42,7 @@ MARKED = "ʔʕɬłƛəχ"
 # own paper's marks: applying this test corpus wide would strike 311 distinct tokens the hand
 # extractions hold, 151 of them in 2013_Nater and 152 in 22-Nater-Bella-Coola-tale-10, the majority
 # of what those two papers carry. It would do it silently. The four readers that use it today
-# each apply it inside one paper they were written for, and it is safe where it is for that.
+# each apply it inside one paper they were written for. It is safe where it is for that.
 CAPS_RUN = re.compile(r"[A-Z]{2,}")
 
 PUNCTUATION = ".,!?;:“”‘’\"'()[]…"

@@ -2975,7 +2975,7 @@
         // Read offsetHeight here. clientHeight leaves out the stage's 1px borders, and with
         // box-sizing: border-box writing it back as the height makes the box two pixels shorter,
         // which fires this observer again, which takes off another two. The stage walks down to its
-        // minimum on its own while nobody is touching it. offsetHeight is the same number the height
+        // minimum on its own while nobody touches it. offsetHeight is the same number the height
         // property means. Writing it back changes nothing and the loop has no step.
         var high = stage.offsetHeight;
         if (Math.abs(high - wasHigh) < 1) {

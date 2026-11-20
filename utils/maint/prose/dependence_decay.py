@@ -28,7 +28,7 @@ hits the floor. A power law is straight on log-log; an exponential is straight o
 drops off a cliff. That is a shape a curve can show and a single number cannot.
 
 This is the same instrument as `bench_walk`'s autocorrelation sweep over lags 1 to 1024, pointed at
-text instead of nonces, and it answers the same question: does this thing carry anything across a
+text instead of nonces. It answers the same question: does this thing carry anything across a
 gap, or does it forget.
 
 THE NULL IS FREE AND IT IS DRAWN, NOT DERIVED
@@ -595,7 +595,7 @@ def main():
         # Two corpora whose commonest words carry different mass produce different bias at identical
         # token counts. Comparing an excess-over-floor across mismatched floors compares two
         # different estimators and reports the difference between THEM.
-        # THE SHAPE IS COMPARABLE EVEN WHERE THE LEVEL IS NOT, and it is computed either way and it
+        # THE SHAPE IS COMPARABLE EVEN WHERE THE LEVEL IS NOT. It is computed either way and it
         # is what the verdict rests on when the floors do not match.
         human_slope, human_points = decay_shape(matched_rows)
         session_slope, session_points = decay_shape(session_rows)

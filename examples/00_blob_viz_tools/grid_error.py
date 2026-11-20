@@ -424,7 +424,7 @@ def _check():
         failed += 1
 
     # The interpolant must be continuous across the diagonal where the two triangles meet, or the
-    # gradient measure is reading a seam this tool invented.
+    # gradient measure reads a seam this tool invented.
     middle = (float(triangle_value(corners, 0.5, 0.5)[0][0]),
               float(triangle_value(corners, 0.5 + 1e-9, 0.5)[0][0]))
     lines.append("  across the diagonal: %.6f and %.6f" % middle)

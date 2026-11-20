@@ -7,7 +7,7 @@
 #   Usage:  from papers import EVERY
 #
 # One table, read by both checks. Two copies of it drift, and then the check that grades a reader
-# against a hand extraction is grading it against a different paper than the check that grades the
+# against a hand extraction grades it against a different paper than the check that grades the
 # hand extraction against its source.
 #
 # Both checks read corpus_script_extraction/paper_config.py, the only file where a paper is

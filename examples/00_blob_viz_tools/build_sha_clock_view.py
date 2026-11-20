@@ -340,7 +340,7 @@ def main():
         return 2
     # The rings are eight latitudes of thirty-two. Degree 16 is the finest structure the
     # placement can carry in longitude and degree 8 the finest in latitude. Past that the expansion
-    # is fitting the layout and not the state, and the page would show detail nothing put there.
+    # fits the layout and not the state, and the page would show detail nothing put there.
     if top < 1 or top > 16:
         sys.stderr.write("--degrees sits between 1 and 16 for this layout\n")
         return 2

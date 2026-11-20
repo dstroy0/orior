@@ -16,7 +16,7 @@
 # Dravidian but split earlier; Telugu furthest of the four, being South Central and older still. Three
 # distances in a required order instead of a grouping. Beside them sit three Indo-Aryan languages of the same
 # subcontinent, written in related scripts, which must all fall outside the Dravidian set: if they do not,
-# the reading is following the writing systems of a region and not its languages.
+# the reading follows the writing systems of a region and not its languages.
 #
 # Every text is cut to one length. Tamil arrives with nearly seven times the characters of Malayalam, and
 # a reading that moves with the amount of text would put those two at opposite ends for a reason that has

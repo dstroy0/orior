@@ -22,7 +22,7 @@
 # symbol when they are the same consonant and different symbols when they are not.
 #
 # These mappings are mine. They follow the standard descriptions of each orthography, they are applied
-# longest definition first so digraphs are read before their characters, and they ignore length, stress and the
+# longest definition first so digraphs are read before their characters. They ignore length, stress and the
 # assimilations that happen across word boundaries. Any error in them is an error in the result, the
 # price of not asking a service twelve hundred times.
 

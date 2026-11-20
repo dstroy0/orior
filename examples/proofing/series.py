@@ -136,7 +136,7 @@ def inverse_root(product, value, bits):
     """floor(2^bits / sqrt(value)), by Newton, with no division and no square root under it.
 
     The step is y' = y * (3 * 2^(2b) - value * y^2) / 2^(2b+1), where the halving is a shift. This
-    is the iteration that converges to one over the root, and it is used instead of the iteration
+    is the iteration that converges to one over the root. It is used instead of the iteration
     for the root itself because that one contains a division and this one does not.
     """
     if value <= 0:

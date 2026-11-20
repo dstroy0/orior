@@ -25,7 +25,7 @@
 # And cold is the wrong measure of hard. The largest concentration of grammatical evidentiality on earth
 # is Amazonia, which is equatorial, and lethal by disease, by what lives there and by having no sightlines.
 # A test on distance from the equator would score the strongest case for this claim as the mildest place
-# in the sample. So latitude is reported because it is what the data holds, and it is reported as a weak
+# in the sample. So latitude is reported because it is what the data holds. It is reported as a weak
 # proxy that is expected to fail, and never as the test.
 #
 # What this cannot see: WALS records what a feature is. It does not record why. A correlation here would be consistent

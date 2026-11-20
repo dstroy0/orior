@@ -9,15 +9,22 @@
 
 With no path, the tool reads each file of the prose ratchet and each technical document of the ste ratchet.
 
-The tool makes two changes, and each change only moves or removes a word that the sentence holds:
+The tool makes four changes, and each change only moves, removes or inflects a word that the sentence holds:
 
   tense      "has", "have" or "had" before a past participle goes out, and the simple past stays. The participle
              is a regular -ed form or an irregular form that is the same as its past. A modal or "to" before
              the auxiliary stops the change, because the sense of the sentence then changes.
 
+  tense      "is" or "are" before an -ing form with an object after it goes out. The simple present of the same
+             verb takes the place of the -ing form. The present form must be a word of the voice table.
+
   sentence   a semicolon between two clauses of a long sentence becomes a full stop, and the next word gets a capital
              letter. The next word must be an English word of the voice table. A semicolon in code, in a quotation
              or in brackets stays.
+
+  sentence   ", and" or ", so" before a clause with its own subject becomes a full stop. The tool removes "and". It
+             keeps "so" with a capital letter, and the next word gets a capital letter. A comma before them on the same line can
+             mark a list, and the line then stays.
 
 The checker counts the findings of the file before and after each change. A change stays only where the count of
 the file falls and no rule of the file gets more findings. The docs check then holds each file to its ratchet at
@@ -59,6 +66,16 @@ AFTER_VERB = {"a", "an", "the", "this", "that", "these", "those", "it", "its", "
               "out", "up", "down", "off", "over", "back", "before", "after", "since", "once", "and", "or", "but",
               "as", "with", "for", "of", "here", "there", "so", "than", "when", "where", "while", "if"}
 SEMICOLON = re.compile(r"(?<=[A-Za-z0-9)\]\"']); +([a-z][a-z]+)\b(?![\w(_.\[:/-])")
+PROGRESSIVE = re.compile(r"(?<![\w'-])(is|are) ([a-z]+ing)\b")
+# The words that open a direct object. A progressive verb with an object after it is a verb, and the simple present
+# takes its place. Without an object the -ing word can be an adjective, and it stays.
+OBJECT_OPENERS = {"a", "an", "the", "this", "that", "these", "those", "it", "its", "them", "their", "each", "every",
+                  "all", "any", "no", "one", "his", "her"}
+JOINED = re.compile(r"(?<=[A-Za-z0-9)\]\"']), (and|so) ([a-z][a-z]+)\b")
+# The pronouns that open a clause with its own subject. A conjunction before one of them joins two clauses, and a full
+# stop can take the place of the comma and the conjunction. A determiner such as "the" can open the next item of a
+# list as well as a clause, and it is not one of them.
+SUBJECT_OPENERS = {"it", "they", "we", "there"}
 # A comment region that holds one of these is code or a formula, and the tool does not split it
 CODE_SIGNS = ("{", "}", " = ", "==", "->", "::", "for (", "while (", "&&", "||", "+=", "++")
 # The two docstring marks, made from one quote each, so that the docs check does not read a mark in this code
@@ -152,9 +169,56 @@ def outside_code(part, at):
         and (before.count("[") <= before.count("]"))
 
 
+def third_person(base):
+    """The form of a verb for one subject in the simple present: the base with -s, -es or -ies."""
+    if base.endswith(("s", "sh", "ch", "x", "z", "o")):
+        return base + "es"
+    if base.endswith("y") and len(base) > 1 and base[-2] not in "aeiou":
+        return base[:-1] + "ies"
+    return base + "s"
+
+
+def present_form(ing, plural):
+    """The simple present of the -ing form, for many subjects where `plural`, else for one. The form must be a word of
+    the voice table, else the answer is None."""
+    stem = ing[:-3]
+    bases = [stem, stem + "e"]
+    if len(stem) > 2 and stem[-1] == stem[-2]:
+        bases.append(stem[:-1])
+    for base in bases:
+        if base in ENGLISH:
+            form = base if plural else third_person(base)
+            if form in ENGLISH:
+                return form
+    return None
+
+
 def candidates(part):
     """(start, end, replacement) of each change in the prose of one line, from its end to its start."""
     found = []
+    for hit in PROGRESSIVE.finditer(part):
+        following = re.match(r"\s*([A-Za-z]+)", part[hit.end():])
+        if not following or following.group(1).lower() not in OBJECT_OPENERS:
+            continue
+        if hit.group(2) in TECHNICAL or not outside_code(part, hit.start()):
+            continue
+        form = present_form(hit.group(2), hit.group(1) == "are")
+        if form is not None:
+            found.append((hit.start(), hit.end(), form))
+    # a comma before the joined clause on the same line can mark a list, and the tool does not split the line there
+    for hit in JOINED.finditer(part):
+        word = hit.group(2)
+        before = part[:hit.start()]
+        if (word not in SUBJECT_OPENERS) or ("," in before) or (":" in before) or not outside_code(part, hit.start()):
+            continue
+        if (hit.group(1) == "so") and (word in ("a", "an")):
+            continue
+        if len(re.findall(r"[A-Za-z]+", part[:hit.start()])) < 4 or len(re.findall(r"[A-Za-z]+", part[hit.end():])) < 3:
+            continue
+        if hit.group(1) == "and":
+            found.append((hit.start(), hit.start(2) + 1, ". " + word[0].upper()))
+        else:
+            found.append((hit.start(), hit.start(1) + 1, ". S"))
     for hit in HAVE.finditer(part):
         participle = hit.group(2)
         regular = participle.endswith("ed") and len(participle) > 4 and participle not in NOT_PARTICIPLE

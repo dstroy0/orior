@@ -915,7 +915,7 @@ def _residue(samples, top, draws, word=None, chain=None):
 
     THE CLAIM UNDER TEST. Past the break the flip rate of every output bit should sit at one half.
     The two independent sets, even and odd heights, should share nothing but chance. A residue
-    the break fails to clear would be a departure pattern both sets carry, and it would show as a
+    the break fails to clear would be a departure pattern both sets carry. It would show as a
     positive correlation between their 256 raw departures at rounds where the shape has gone.
 
     WHY RAW BITS AND NOT THE SPHERE. The field retains degrees 1 to 12, 168 numbers from 256, and
@@ -1025,7 +1025,7 @@ def _residue(samples, top, draws, word=None, chain=None):
         if 2 * lifted >= draws:
             floor = planted
         # Stopped where the planted residue lifts no more draws than the band lets through by
-        # chance, the point past which the ladder is measuring the band and not the plant.
+        # chance, the point past which the ladder measures the band and not the plant.
         if lifted <= 0.025 * draws:
             break
         step += 1

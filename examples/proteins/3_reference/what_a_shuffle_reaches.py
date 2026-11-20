@@ -22,7 +22,7 @@
 # is the secondary structure, and this deletion shows it.
 #
 # Drawing angles uniformly retains nothing. It is the flat background, the fraction of the whole plane
-# the favored regions cover, and it says how much a reading would get from a structure that had no
+# the favored regions cover. It says how much a reading would get from a structure that had no
 # preference at all. The favored regions are a small part of the plane. This floor is low.
 #
 # Predicted before measuring: the live favored fraction is near total, the paired-shuffle fraction

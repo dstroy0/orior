@@ -30,7 +30,7 @@
 # way. Stating a falsifier without stating how to tell it from the alternative leaves a test that
 # looks decisive and is not.
 #
-# The repair is to say what distinguishes them, which is reading the deposit. COD 1011256, from
+# The repair is to say what distinguishes them, which reads the deposit. COD 1011256, from
 # 1933, writes `Si1 Si4+ 8 d 0.25 0.25 0.875 1.` and `Al1 Al3+ 8 d 0.25 0.25 0.875 1.`: identical
 # coordinates, identical Wyckoff character, both at full occupancy, sixteen atoms on eight places. The
 # coordinates being character for character the same is what rules out the reading and leaves the

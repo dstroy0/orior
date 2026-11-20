@@ -16,7 +16,7 @@ PER HASH
 
 A block is the expected outcome of difficulty times 2^32 hashes. The leak per block divided by
 that is the leak per hash. It is a very small number and it is the honest intensive quantity: the
-network pays this much collision entropy for every hash it computes, and it is paid whether
+network pays this much collision entropy for every hash it computes. It is paid whether
 anybody is reading.
 """
 

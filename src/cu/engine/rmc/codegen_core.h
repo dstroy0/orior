@@ -5,7 +5,7 @@
 
 // The register lane's decisions, as one source the host and the device both compile (engine_table.md item 11(a),
 // the code generator on the device). For each step it decides which forms of the language's ruleset the step is written
-// in and with which arguments, and it decides the lane's declarations, opening, close and resident, and the schedule of
+// in and with which arguments. It decides the lane's declarations, opening, close and resident, and the schedule of
 // its body into states; it writes nothing. An argument is a register of a bank by its number, a register the lane uses
 // throughout, or a number. The forms it decides are the same on any language, and the ruleset writes them
 // (code_generator.cu on the host, the assembly printer on the device, asm_printer.h). What a step decides from outside

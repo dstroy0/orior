@@ -10,7 +10,7 @@ WHY THE PAIR AND NOT EITHER ALONE
 
 The nonce alone and the hash alone both read flat. The pair is not the same object: the hash is a
 deterministic function of the nonce and the header, a nonce and its own hash carry a link that a
-nonce and a stranger's hash do not. Reading the two as one unit is reading that link. The measure is
+nonce and a stranger's hash do not. Reading the two as one unit reads that link. The measure is
 local, because a link that is real locally can cancel over the whole unit exactly as it did for the
 nonce alone.
 

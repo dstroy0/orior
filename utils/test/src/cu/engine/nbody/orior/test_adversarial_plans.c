@@ -178,7 +178,7 @@ int adversarial_case_permutation_null(void)
  *       verifier is wrong and every other count in the tree rests on nothing, because every probe
  *       set relies on that same compare to remove its false survivors.
  * @note The read count is graded at zero as a premise check. Probes reading bytes where no probe
- *       was supplied would mean the entry is choosing its own, and the case would be measuring
+ *       was supplied would mean the entry chooses its own, and the case would be measuring
  *       something other than the identity.
  */
 int adversarial_case_empty_plan(void)

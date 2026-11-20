@@ -20,7 +20,7 @@
 # combining mark is closed, and two papers had a font that wrote plain characters in place of the
 # orthography. Comparing a repaired extraction against an unrepaired source reports every correctly
 # repaired word as missing, and that produced 173 false holes in one paper. So the repairs are
-# applied to the source lines here before either side is tokenized, and it does not matter that a repair
+# applied to the source lines here before either side is tokenized. It does not matter that a repair
 # is lossy as long as both sides receive it.
 #
 # What this reports that is not an error: a token is counted as covered if it appears anywhere in the
@@ -55,7 +55,7 @@ def _repository_root():
     A marker the repository produces, such as build/, is absent from a linked worktree and a
     never-built clone, and a climb to it can pass this root and land in another checkout whose paths
     look valid. A marker infers the root. Git answers it. The climb below serves only an exported tree
-    with no git directory, and it looks for archive/src/python, which the repository tracks and every checkout
+    with no git directory. It looks for archive/src/python, which the repository tracks and every checkout
     of it holds.
 
     Git's own variables are cleared first. Inside a hook GIT_DIR is exported, and a rev-parse that

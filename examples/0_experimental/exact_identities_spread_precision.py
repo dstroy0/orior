@@ -278,7 +278,7 @@ def report_multiplier(out):
                   % (seed_count, 12, generated, generated / seed_count, marker))
 
     # The two-seed case pushed until the per-seed count passes one million. sqrt(2) and sqrt(3) alone
-    # generate the square root of every 3-smooth integer, and there are more of those than any bound.
+    # generate the square root of every 3-smooth integer. There are more of those than any bound.
     primes = [2, 3]
     bound = 10 ** 800
     generated, capped = count_smooth(primes, bound, budget)

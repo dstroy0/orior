@@ -75,7 +75,7 @@ invariant under permutation of its operands. ∎
 
 *Obligation on the implementation.* The step from "the conjunction is invariant" to "the program is
 invariant" requires that evaluating `P_p` have no side effect that a later probe reads. That is a
-property of the code and not of the mathematics, and it is the reason to test order as a permutation
+property of the code and not of the mathematics. It is the reason to test order as a permutation
 null instead of assuming it.
 
 ## Theorem 3, the loop invariant is the postcondition
@@ -245,7 +245,7 @@ polynomial-time planner improves it for coverage functions unless P equals NP.
 
 So the two statements sit together. **Correctness does not depend on the planner at all, and the
 planner still lands within a constant factor of optimal, with that constant at the limit for
-polynomial time.** The first is Theorem 1 and the second is this one, and they are about different
+polynomial time.** The first is Theorem 1 and the second is this one. They are about different
 things: one about the answer, one about the cost of getting it.
 
 **The honest gap.** `f` counts refutations and the engine's cost is reads. Under short circuiting a

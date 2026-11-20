@@ -23,7 +23,7 @@
 # survives losing them.
 #
 # If it survives, the pairing was about the languages and the earlier claim is. If it does not, the
-# closest pair measured in this work is two definition systems agreeing, and there was never a test here
+# closest pair measured in this work is two definition systems agreeing. There was never a test here
 # without a confound in it.
 
 import io

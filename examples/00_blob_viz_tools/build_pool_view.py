@@ -654,7 +654,7 @@ def _check():
         failed += 1
 
     # NO FIAT ANYWHERE. A BTC amount is a measurement; a dollar amount is a price quote off a
-    # market this tree does not read, and it would be the one invented number on the page.
+    # market this tree does not read. It would be the one invented number on the page.
     fiat = [one for one in ("$", "USD", "usd", "dollar") if one in page]
     lines.append("  the page quotes no currency price: %s" % (not fiat))
     if fiat:

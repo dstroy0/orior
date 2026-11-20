@@ -106,7 +106,7 @@ def draw_null(first, second, trials, rng):
 
     The counts are redrawn multinomially at each half's own total over uniform hours, the
     same null the amplitude was tested against. What comes back is the distribution of the
-    trough-to-trough distance under no common cycle, and it is emphatically NOT uniform on 0..12 -
+    trough-to-trough distance under no common cycle. It is emphatically NOT uniform on 0..12 -
     the smoothing correlates neighboring bins - so it has to be drawn instead of reasoned about.
     """
     totals = (sum(first), sum(second))

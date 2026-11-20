@@ -172,7 +172,7 @@ def typical(maker, seed, pairs=900):
     """The middle distance between two points drawn on this surface.
 
     This decides whether a packing count means anything. A gap far below it is picking points
-    out of a crowd, which is packing. A gap approaching it is picking the few pairs that happen to
+    out of a crowd, which is packing. A gap approaching it picks the few pairs that happen to
     be unusually far apart, which is a fact about the sample and not about the surface.
 
     In high dimensions every pair of points on a sphere sits at very nearly the same distance from

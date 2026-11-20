@@ -17,7 +17,7 @@
 # at all. These seven writers share an alphabet entirely. That reading has nothing to work with and
 # should come out near chance.
 #
-# Word choice is the other unit, and it is where authorship has been found since the disputed Federalist
+# Word choice is the other unit. It is where authorship has been found since the disputed Federalist
 # papers were settled on function word frequencies alone. It is also the unit where composition drifts
 # within a text, which was raised earlier as a fault in the whole approach and displayed to be negligible at
 # character level. At word level it is not negligible. The same drift that could not touch the

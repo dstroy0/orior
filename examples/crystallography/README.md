@@ -308,7 +308,7 @@ exact reading, and the run reports 3639, because a structure from which no needl
 are not failures of the cascade and they are not successes either. They are entries it never asked a
 question of.
 
-The median did not drift. It is reporting a mixture of two populations that fail the product rule in
+The median did not drift. It reports a mixture of two populations that fail the product rule in
 opposite directions, and `utils/maint/analysis/survey/sift_ratio_by_elements.py` separates them:
 
 | population            | structures | median of per-structure medians | share above 1 |

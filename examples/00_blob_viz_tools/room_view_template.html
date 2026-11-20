@@ -1301,7 +1301,7 @@
   //
   // A sign octant's cone has three real edges and they are the coordinate axes. A Voronoi cell of a
   // golden direction has no such tidy corner: its
-  // edges lie wherever the neighboring cells meet, and there are as many of them as it has
+  // edges lie wherever the neighboring cells meet. There are as many of them as it has
   // neighbors.
   //
   // a general arm is drawn as a corner and not as its cell. Three rays leave the corner at the
@@ -1453,7 +1453,7 @@
   // (x sx + y sy + z sz)/sqrt(3), maximal precisely when every sign matches, which is |x|+|y|+|z|.
   // So the general rule and the old `((x >= 0) ? 4 : 0) + ...` name the same region and the same
   // index. The sign form is retained as the fast path because it is a handful of comparisons against a
-  // loop over every arm, and it runs per placement point on every repaint.
+  // loop over every arm. It runs per placement point on every repaint.
   function armOf(x, y, z) {
     if (armSigns.length === 8 && armSigns[0]) {
       return (x >= 0 ? 4 : 0) + (y >= 0 ? 2 : 0) + (z >= 0 ? 1 : 0);
@@ -1494,7 +1494,7 @@
   // WHY THE ROW IS PADDED TO A POWER OF TWO. The row start is then a shift instead of a multiply.
   // An index is `(arm << armShift) + point` and the inner loop of the reading carries no integer
   // multiply at all. It also puts every row on an aligned boundary, as a device buffer and
-  // a cache line both want, and it is the layout a texture upload can take without a repack.
+  // a cache line both want. It is the layout a texture upload can take without a repack.
   //
   // WHAT IT COSTS, AT FOUR BYTES A WEIGHT:
   //

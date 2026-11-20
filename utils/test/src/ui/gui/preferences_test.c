@@ -239,7 +239,7 @@ int main(void)
     cli_check(EMBED_CALL(gui_preferences_palette_change.press, GuiPreferencesPaletteChangeCfg, .preferences = &preferences, .palette = palette, .x = close_mark.x + 4, .y = close_mark.y + 4, .change = &change) && (change.type == GUI_PREFERENCE_CLOSED) && !preferences.displayed, "a press on the close mark closes it");
     preferences.displayed = 1;
 
-    // one section drawn at a time, how bright each thing is telling them apart
+    // one section drawn at a time, how bright each thing tells them apart
     GuiRaster raster;
     cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 1200u, .height = 800u), "a raster to draw on");
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){0, 0, 1200, 800}, .color = palette->background_fill);

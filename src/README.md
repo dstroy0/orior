@@ -509,7 +509,7 @@ The measure asks the set for membership: is there a point exactly one lag away c
 
 With every arm on the hash, AVX2 reads **1.19x** over portable, the only figure where the sole difference is the instruction.
 
-A vector arm timed against a reference doing work the problem never asked for is measuring its own speedup at a benchmark.
+A vector arm timed against a reference doing work the problem never asked for measures its own speedup at a benchmark.
 
 ### What was measured
 

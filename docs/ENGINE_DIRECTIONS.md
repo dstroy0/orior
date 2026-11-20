@@ -145,7 +145,7 @@ Under the Gram matrix above, `det(M_S)` is the squared volume spanned by the pro
 embeddings. It is zero when they are linearly dependent, the fully redundant case, and
 largest when they are as independent as the field allows. So:
 
-**Choosing the probe set that maximizes `det(C_S)` is choosing the least redundant set, and it is the
+**Choosing the probe set that maximizes `det(C_S)` chooses the least redundant set, and it is the
 mode of a determinantal point process whose kernel the census already contains.**
 
 Two classical facts make this more than an analogy. The marginal gain from adding a probe `p` to a
@@ -153,7 +153,7 @@ set `S` is `det(C_{S+p}) / det(C_S)`, the Schur complement of `p` against `S`, k
 the *leverage score* and in the graph Laplacian setting as the effective resistance. Sampling by effective
 resistance is exactly how spectral sparsification builds a small subgraph preserving every cut of the
 original within a factor, and every undirected graph admits such a sparsifier with a near-linear
-number of edges. A greedy descent that scores candidates by determinant is running the sparsification
+number of edges. A greedy descent that scores candidates by determinant runs the sparsification
 rule, and the approximation guarantees of that literature attach to it.
 
 **And the arithmetic is integer.** `C` is a matrix of counts. Its determinant is an integer, computed

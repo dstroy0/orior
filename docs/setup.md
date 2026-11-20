@@ -21,7 +21,7 @@ That is all you need for the measure, the reference, and every example that read
 | `soundfile`  | the sound representation, which reads recordings                  |
 | `Pillow`     | reading an image as a byte sequence                               |
 
-Install a package when a tool asks for it. A tool that is missing a package names the package and gives you the install line, and the rest of the tree retains working.
+Install a package when a tool asks for it. A tool that misses a package names the package and gives you the install line, and the rest of the tree retains working.
 
 ## The C engine
 
@@ -75,7 +75,7 @@ The PDFs go to `build/theory/<research_paper>/main.pdf`. To build just one:
 sh utils/maint/texbuild/build_theory.sh workbook
 ```
 
-The build fails if a research paper is missing a character. These papers print Salishan orthography, and a missing character would leave a page wrong without any warning.
+The build fails if a research paper misses a character. These papers print Salishan orthography, and a missing character would leave a page wrong without any warning.
 
 To package a research paper for arXiv:
 

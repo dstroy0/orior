@@ -44,7 +44,7 @@ deposits nothing.
 WHAT IS MEASURED AND WHAT IS CHOSEN
 
 Nothing here picks a direction for a source. A source whose direction is averaged away contributes
-to degree zero alone, and a boundary carrying power above degree zero is reporting that a direction
+to degree zero alone, and a boundary carrying power above degree zero reports that a direction
 was picked somewhere. `spread` does that averaging, and comparing a run against it separates the
 structure in the data from the structure in the map that placed it.
 
@@ -409,7 +409,7 @@ def distinguishable(radii):
 
     The surface is continuous and two circle centers can be any distance apart. The sphere
     discriminates without limit until the circles are asked to be told apart. Once they are, the
-    count is the sphere's area over one circle's area, and it is finite the moment the circles have
+    count is the sphere's area over one circle's area. It is finite the moment the circles have
     any size at all. This is the same area law the mode count reports, arrived at by measuring the
     spots instead of counting the harmonics, and the two agreeing is worth more than either alone.
     """

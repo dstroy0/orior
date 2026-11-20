@@ -305,7 +305,7 @@ int adversarial_case_absent_symbol(void)
  * @brief Case 5. Every survivor false. The count cannot be read off the survivor set.
  *
  * @return 0 where the count is zero AND every alignment survived every probe, 1 otherwise.
- * @note THIS CASE CHECKS ITS OWN PREMISE, and it does so because an earlier version did not and
+ * @note THIS CASE CHECKS ITS OWN PREMISE. It does so because an earlier version did not and
  *       silently stopped testing anything. A field of one repeated symbol and a needle carrying one
  *       different byte only reaches the full compare while no probe reads that byte. The STEERED
  *       arm defeats the construction by design: the odd byte is the rarest symbol the needle

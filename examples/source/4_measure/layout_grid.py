@@ -12,7 +12,7 @@
 # A board layout removes the argument differently from assembly. A coordinate in one can hold any
 # value the format's precision allows, and the fabricator accepts it: physics does not prefer 12.7000 to
 # 12.7031, and no rule of the format forbids either. Designers place on a grid anyway, because a person
-# is moving the parts.
+# moves the parts.
 #
 # So the share of coordinates landing on a round fraction measures a convention with no physical content
 # and no format content. A machine generated layout, from an autorouter or a script, need not show it.

@@ -5,7 +5,7 @@
 
 WHY THIS IS THE QUESTION AND NOT A DIFFERENT ONE
 
-Reading the FINAL state is reading the digest, because the digest is the feed-forward of all sixty
+Reading the FINAL state reads the digest, because the digest is the feed-forward of all sixty
 four rounds. That is trivially informative and completely useless: to have the final state you have
 already done the work. Nothing is saved.
 

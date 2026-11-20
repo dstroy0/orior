@@ -376,7 +376,7 @@ space is spent. Verified over 20,000 draws: `0.03132` unconstrained against a pr
 ### arm_draw.py -- does a reading depend on how the arm was drawn
 
 One arm drawn several ways, read against the same lit set. A reading that changes when only the
-drawing changes is reporting the drawing.
+drawing changes reports the drawing.
 
 **Compared at three levels, and the aggregate alone is one level too few.** A character is a sum, and a
 sum hides a pair of moves that cancel inside it: two points swapping arms leaves both characters exactly
@@ -450,7 +450,7 @@ triangle. The normal is the column that shows. Halving the step divides the erro
 a predicted 4.
 
 **`null_harness.py` and what its floors are.** The power-under-rotation floor reads `4.005e-16`.
-That is the correct threshold to hand a caller running in float64, and it is not a property of the
+That is the correct threshold to hand a caller running in float64. It is not a property of the
 boundary: the law puts that residual at exactly zero. See `precision_floor.py`.
 
 **`inert_report.py` prints a receipt, and it fails nothing. That distinction is the design.** A room
