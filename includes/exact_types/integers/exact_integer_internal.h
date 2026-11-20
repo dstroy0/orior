@@ -11,7 +11,7 @@
  */
 /**
  * @file exact_integer_internal.h
- * @brief The portable C11 reference for the limb transform, which every other arm is checked on.
+ * @brief The portable C11 reference for the limb transform, the check for each other arm.
  * @author dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
  *
  * @note Nothing here uses an intrinsic, a compiler extension or a 128 bit type. A target with a
@@ -29,7 +29,7 @@
 /** @brief The base a limb counts in, stored as 64 bit, wide enough that two limbs multiply cleanly. */
 #define LIMB_BASE ((uint64_t)1u << LIMB_BITS)
 
-/** @brief Everything below the limb boundary, for taking the low half of a 64 bit accumulator. */
+/** @brief All below the limb boundary, to take the low half of a 64 bit accumulator. */
 #define LIMB_MASK ((uint64_t)0xFFFFFFFFu)
 
 /** @brief Max decimal digits one limb takes in a single multiply, since 10^9 is below 2^32. */
@@ -37,9 +37,9 @@
 
 #define EXACT_LIMBS ((size_t)ORIOR_EXACT_LIMBS)
 
-// A call's width-sized working copies are one block, placed at compile time: on the stack while the width is at max
-// ORIOR_EXACT_STACK_LIMBS, from the heap beyond it. No width is bounded by a stack. A block from the heap that
-// cannot be allocated errors as ORIOR_EXACT_WILL_NOT_FIT.
+// The width-sized work copies of a call are one block, placed at compile time. It is on the stack while the width is
+// at max ORIOR_EXACT_STACK_LIMBS, and from the heap past it. No stack bounds a width. Where the allocation of a block
+// from the heap fails, the call gives ORIOR_EXACT_WILL_NOT_FIT.
 #if (ORIOR_EXACT_LIMBS) <= (ORIOR_EXACT_STACK_LIMBS)
 #define EXACT_SCRATCH(name_, count_)                                                                                   \
     uint32_t name_##_on_stack[count_];                                                                                 \
@@ -86,8 +86,8 @@ void limbs_long_product(uint32_t *result, const uint32_t *left, size_t left_coun
 
 int limbs_product(uint32_t *result, const uint32_t *left, size_t left_count, const uint32_t *right, size_t right_count);
 
-// A ring element modulo 2^n + 1, n = 32 limbs, is limbs + 1 words containing a value from 0 to 2^n. In this ring 2 is a
-// root of unity (2^(2n) = 1). Every twiddle of the transform is a shift, and nothing is rounded.
+// A ring element modulo 2^n + 1, n = 32 limbs, is limbs + 1 words that hold a value from 0 to 2^n. In this ring 2 is a
+// root of unity (2^(2n) = 1). Each twiddle of the transform is a shift, and the code rounds nothing.
 #define TRANSFORM_BASE_LIMBS 64u
 
 unsigned int bits_ceiling_log(size_t value);
@@ -112,7 +112,7 @@ void limbs_ladder_product(uint32_t *result, const uint32_t *left, size_t left_co
                           size_t right_count);
 
 /**
- * @brief Where each part of a decimal text sits, found before any arithmetic is done.
+ * @brief Where each part of a decimal text sits, found before the arithmetic starts.
  *
  * @note Every range is a pair of byte offsets into the text, the second one past the last byte. An
  *       empty range has both offsets equal.
