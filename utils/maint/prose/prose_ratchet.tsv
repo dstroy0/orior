@@ -474,7 +474,6 @@ includes/exact_types/integers/exact_integer_gcd.c	5
 includes/exact_types/integers/exact_integer_hash.c	12
 includes/exact_types/integers/exact_integer_internal.h	8
 includes/exact_types/integers/exact_integer_limbs.c	8
-includes/exact_types/integers/exact_integer_multiply.c	18
 includes/exact_types/integers/exact_record/exact_record.c	5
 includes/exact_types/integers/exact_record/exact_record.h	12
 includes/file_defs/file_defs.sh	11
