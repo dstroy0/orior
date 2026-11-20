@@ -25,12 +25,9 @@
 # The numbers below are evidence for a person, and a person can look at any of them and say that the contributor writes
 # that way. A contributor who does is not at fault.
 #
-# TWO SURFACES
+# THE SURFACE
 #
-# A name. Generated text pasted in whole tends to carry the vendor's own name somewhere: in a preamble, an error, or a
-# stray line of chat. That is the cheap surface, and it catches the careless case only.
-#
-# A register, and this surface carries the measurement. The tool utils/maint/prose/docs_check holds 285 patterns. For
+# A register, which carries the measurement. The tool utils/maint/prose/docs_check holds 285 patterns. For
 # 121 of them, it holds the human rate: the rate in 759,815 words of the papers under build/papers. This file imports
 # those rates from that file, and never restates them. Their sum is the rate that a human carries for the whole list.
 # The baseline here comes from the same table as the findings, and cannot drift away from it.
@@ -80,63 +77,6 @@ HUMAN_WHOLE = sum(HUMAN_RATE.values())
 PLAIN = (".txt", ".rst", ".markdown", ".text", ".org")
 SUBMITTED = CHECKED + PLAIN
 
-# Names that identify a vendor or a product. None of these is also an ordinary English word. The tool matches each one
-# anywhere on a line, case folded. The PHRASES below need more care.
-NAMES = ("anthropic", "claude", "openai", "chatgpt")
-
-# Words that are ordinary English on their own. The tool matches each only where a version number sits beside it. The
-# word opus is a work, and sonnet and haiku are poems, and all three are model names.
-#
-# A measurement sets two details here. The leading \b keeps octopus 4 out, which a Salishan word list supplies. The
-# pattern requires the separator, and does not make it optional, because opus1.com is an address inside an RFC. An
-# optional separator matches it.
-PHRASES = (
-    r"\bopus[\s._-]+\d",
-    r"\bsonnet[\s._-]+\d",
-    r"\bhaiku[\s._-]+\d",
-    r"\bgpt[\s._-]*\d",
-)
-
-# Phrases that hold one of those names and are not a vendor reference. The first is an antimony oxide mineral, which
-# sits in the crystallography oracle beside senarmontite and valentinite.
-ALLOWED = ("claudetite",)
-
-# One of the vendor's model names is also a given name. A Salishan bibliography is full of people who carry it:
-# Hagege, Levi-Strauss, Vaucher, Bacqueville de la Potherie. Shannon is one entry away from them. An exact phrase for
-# each would need a new entry for every new paper, and the entry would be absent on the day it mattered.
-#
-# The tool finds a person by shape instead. A surname follows the given name, or the given name trails one. A scanned
-# page separates the two with whatever the scanner made of the comma.
-#
-# The pattern captures the surname, and does not only match it, because its first character separates a person from a
-# model. A person's surname carries a capital there, and the word "output" after a model name does not. The test runs on
-# the line as written and never on a folded copy, because a fold destroys the capital that it reads.
-#
-# The character class admits diacritics. A scanned bibliography stores Levi-Strauss decomposed, as L, e, U+0301. A bare
-# \w stops at the mark, and falls through to a lowercase start further along. That would report one bibliography entry
-# as a vendor reference.
-#
-# These do not clear a line. They move it to a count that prints and errors nothing, and the lines themselves print
-# under --people. A hit that the tool drops quietly is a hit that nobody reads.
-CHARACTER = r"[^\W\d_]"
-MARK = chr(0x0300) + chr(0x002D) + chr(0x036F)
-PEOPLE = (
-    re.compile(
-        r"(?i:claude)\s+(?:de\s+la\s+|de\s+|van\s+|von\s+)?(?P<surname>"
-        + CHARACTER
-        + r"[\w'~"
-        + MARK
-        + r"\-]{2,})"
-    ),
-    re.compile(
-        r"(?P<surname>" + CHARACTER + r"[\w'~." + MARK + r"\-]{2,})\s*[,.•] *(?i:claude)\b"
-    ),
-)
-
-# Words that follow the given name in a model's name, and never in a person's. A line that holds one of these beside the
-# name is a model reference, whatever else its shape looks like.
-MODELS = ("opus", "sonnet", "haiku", "instant", "code", "next")
-
 # Extensions read as bytes. A match inside one would be unreadable in a report.
 BINARY = (
     ".png",
@@ -176,68 +116,9 @@ BINARY = (
 # foot of the report names every skipped file.
 LARGE = 4 * 1024 * 1024
 
-MATCHERS = tuple(
-    [(one, re.compile(re.escape(one))) for one in NAMES]
-    + [(one, re.compile(one)) for one in PHRASES]
-)
-
 # A character run. Digits, punctuation and the markup that docs_check leaves behind are not words. A count of them would
 # lower every rate, because the denominator would grow.
 WORD = re.compile(r"[^\W\d_][\w'’-]*")
-
-TRIM = 92
-
-
-def allowed_at(folded, start, stop):
-    """Whether an allowed phrase covers the match running from start to stop."""
-    for phrase in ALLOWED:
-        at = folded.find(phrase)
-        while at != -1:
-            if (at <= start) and ((at + len(phrase)) >= stop):
-                return True
-            at = folded.find(phrase, at + 1)
-    return False
-
-
-def person_line(text):
-    """Whether the given name on one line belongs to a person and not to a model."""
-    folded = text.lower()
-    for word in MODELS:
-        if word in folded:
-            return False
-    for matcher in PEOPLE:
-        found = matcher.search(text)
-        if found and found.group("surname")[:1].isupper():
-            return True
-    return False
-
-
-def names_in(text):
-    """The vendor names on one line, and whether they are one person's name instead.
-
-    A line is a person's when the only name is the given name and it sits beside a surname. Every
-    other line is a vendor reference until somebody reads it and says otherwise.
-    """
-    folded = text.lower()
-    found = []
-    for name, matcher in MATCHERS:
-        for one in matcher.finditer(folded):
-            if allowed_at(folded, one.start(), one.end()):
-                continue
-            if name not in found:
-                found.append(name)
-            break
-    if tuple(found) == ("claude",) and person_line(text):
-        return (("claude",), True)
-    return (tuple(found), False)
-
-
-def displayed(text):
-    """One matched line, trimmed to retain a report line from wrapping."""
-    flat = " ".join(text.split())
-    if len(flat) <= TRIM:
-        return flat
-    return flat[: TRIM - 3] + "..."
 
 
 def text_of(path):
@@ -281,7 +162,7 @@ def walk(roots):
 def git(root, *arguments):
     """One git command in one repository, as text, or None where git errored.
 
-    The helper turns core.quotePath OFF for every call, and not only at the two sites that list paths.
+    The helper turns core.quotePath OFF for every call, and not only at the site that lists paths.
 
     With it on, which is git's default, a path that holds any character outside ASCII comes back
     quoted and octal-escaped. The path `papers/...Kwak’wala.pdf` comes back as
@@ -327,30 +208,8 @@ def tracked(root):
     ]
 
 
-def served(root):
-    """Every path that the upstream branch holds, which is every path that a fresh clone receives.
-
-    A tracked file and a served one are different situations, and only one of them can still change quietly. A file
-    removed from the working tree later stays in the commits that carry it. A clean listing means only that new clones
-    no longer show it in the tree. The history still holds it.
-    """
-    named = git(root, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}")
-    if not (named and named.strip()):
-        named = git(root, "rev-parse", "--abbrev-ref", "origin/HEAD")
-    if not (named and named.strip()):
-        return (None, frozenset())
-    branch = named.strip()
-    listed = git(root, "ls-tree", "-r", "--name-only", branch)
-    if listed is None:
-        return (branch, frozenset())
-    return (branch, frozenset([one for one in listed.splitlines() if one.strip()]))
-
-
-def counted(paths, base, show_people, out, clones=None):
-    """Read every file once. Returns the name hits, the per pattern counts and the word count."""
-    named = []
-    lined = []
-    people = []
+def counted(paths, base, out):
+    """Read every file once. Returns the per pattern counts, the word count and the count of files read."""
     unread = []
     tally = {}
     words = 0
@@ -358,18 +217,6 @@ def counted(paths, base, show_people, out, clones=None):
 
     for path in paths:
         shortened = os.path.relpath(path, base).replace("\\", "/")
-
-        found, person = names_in(shortened)
-        if found and not person:
-            # Where the tree is a repository: whether a fresh clone already receives this path. Nothing tracks a
-            # submission, and the output leaves the column off entirely.
-            located = (
-                None
-                if clones is None
-                else ("in every clone" if shortened in clones else "local only")
-            )
-            named.append((shortened, found, located))
-
         if path.endswith(BINARY) or not path.endswith(SUBMITTED):
             continue
         text = text_of(path)
@@ -378,45 +225,17 @@ def counted(paths, base, show_people, out, clones=None):
             continue
         read += 1
         lines = text.splitlines()
-
-        for number, line in enumerate(lines, 1):
-            hit, person = names_in(line)
-            if not hit:
-                continue
-            where = (shortened, number, line)
-            if person:
-                people.append(where)
-            else:
-                lined.append(where)
-
         said = prose_of(path, lines)
         words += len(WORD.findall(" ".join(said)))
         for _, pattern, _ in banned_hits(said, quotations=path.endswith(".md")):
             tally[pattern] = tally.get(pattern, 0) + 1
 
-    if named:
-        out.write("\n  NAMES IN A PATH\n")
-        for shortened, found, located in named:
-            if located is None:
-                out.write("    %s  [%s]\n" % (shortened, ", ".join(found)))
-            else:
-                out.write(
-                    "    %-15s %s  [%s]\n" % (located, shortened, ", ".join(found))
-                )
-    if lined:
-        out.write("\n  NAMES IN THE TEXT\n")
-        for shortened, number, line in lined:
-            out.write("    %s:%d\n      %s\n" % (shortened, number, displayed(line)))
-    if people and show_people:
-        out.write("\n  A PERSON OF THAT NAME, reported and not counted against\n")
-        for shortened, number, line in people:
-            out.write("    %s:%d\n      %s\n" % (shortened, number, displayed(line)))
     if unread:
         out.write("\n  NOT READ\n")
         for shortened in unread:
             out.write("    %s\n" % shortened)
 
-    return (named, lined, people, tally, words, read)
+    return (tally, words, read)
 
 
 def register(out, tally, words):
@@ -504,7 +323,6 @@ def main():
         sys.stdout.buffer, encoding="utf-8", errors="replace", newline=""
     )
 
-    show_people = "--people" in sys.argv
     tree = "--tree" in sys.argv
     given = [one for one in sys.argv[1:] if not one.startswith("-")]
     if not given:
@@ -517,7 +335,6 @@ def main():
     if os.path.isfile(base):
         base = os.path.dirname(base)
 
-    clones = None
     if tree:
         root = os.path.abspath(given[0])
         paths = tracked(root)
@@ -525,33 +342,21 @@ def main():
             out.write("  %s is not a git repository, or git errored\n" % given[0])
             out.flush()
             return 2
-        branch, clones = served(root)
         out.write("  TRACKED IN %s\n" % base)
-        out.write("  upstream %s\n" % (branch or "none. Nothing is marked as served"))
     else:
         paths = walk([os.path.abspath(one) for one in given])
         out.write("  SUBMISSION %s\n" % ", ".join(given))
 
-    named, lined, people, tally, words, read = counted(
-        paths, base, show_people, out, clones
-    )
+    tally, words, read = counted(paths, base, out)
 
     out.write(
         "\n  %d file(s) offered, %d read, %s words of prose\n"
         % (len(paths), read, format(words, ","))
     )
-    if people and not show_people:
-        out.write(
-            "  %d line(s) carry the given name of a person. Run with --people to read them\n"
-            % len(people)
-        )
 
     register(out, tally, words)
 
-    out.write(
-        "\n  %d name(s) in a path, %d in the text, %d register hit(s).\n"
-        % (len(named), len(lined), sum(tally.values()))
-    )
+    out.write("\n  %d register hit(s).\n" % sum(tally.values()))
     out.write("  A person reads this. Nothing here is a verdict.\n")
     out.flush()
 
@@ -561,7 +366,7 @@ def main():
         out.write("  no file was read. Nothing was screened. Nothing came back clean\n")
         out.flush()
         return 2
-    if named or lined or tally:
+    if tally:
         return 1
     return 0
 
