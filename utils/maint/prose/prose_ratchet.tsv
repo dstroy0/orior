@@ -510,7 +510,6 @@ includes/file_defs/kqr/kqr_record/kqr_internal.h	1
 includes/file_defs/kqr/kqr_record/queries.c	7
 includes/file_defs/kqr/kqr_record/read.c	3
 includes/file_defs/kqr/kqr_record/store.c	1
-includes/file_defs/krep/krep_records.h	27
 includes/file_defs/krep/krep_records/file.c	4
 includes/file_defs/krep/krep_records/rows.c	6
 includes/file_defs/krep/krep_records/viewed.c	2
