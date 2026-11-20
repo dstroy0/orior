@@ -31,8 +31,8 @@ static const char s_grammar[] =
 // a grammar that names every word `word`
 static const char s_words[] = "{\"tokenizer\": {\"root\": [[\"[a-z]+\", \"word\"], [\"\\\\s+\", \"\"]]}}";
 
-// a grammar whose `indent` runs a block by indent, a tab to the next fourth column, lines of blanks or a `;` note alone
-// skipped, and statements written in root and in a block
+// a grammar whose `indent` state reads a block by its indent, a tab to the next fourth column. It skips a line of
+// blanks or of a `;` note alone, and it has statements in root and in a block
 static const char s_indented[] =
     "{\"indent\": {\"states\": {\"block\": \"close\"}, \"tab\": 4, \"skip\": \"^\\\\s*(?:;.*)?$\", "
     "\"begins\": [\"root\", \"block\"]}, \"tokenizer\": {"
@@ -48,16 +48,17 @@ static char s_plugin[1u << 18u];
 static char s_state[256];
 static char s_runs[1u << 16u];
 
-// Work done beside a coloring under way, on a thread of its own: what it does, the lock and wake its end is reported
-// under, 1 where it ended and did its work, -1 where it ended and did not, 0 before it ends, and the leaves it colored
+// Work beside a coloring that runs, on a thread of its own: what it does, and the wake that tells its end. The end is
+// 1 where the work ended and did its work, -1 where it ended and did not, and 0 before it ends. Last come the leaves
+// it colored
 static int (*s_aside_work)(void);
 static CliWake s_aside_wake = CLI_WAKE_INIT;
 static int s_aside_ended;
 static char s_aside_leaves[256];
 static int s_test_grammar_stored;
 
-// the grammar of `size` bytes of JSON, its `member` where it is not NULL, stored under `key`: 1, or 0 where it is
-// refused
+// the grammar of `size` bytes of JSON, its `member` where it is not NULL, stored under `key`: 1, or 0 where the
+// store refuses it
 static int grammar_stored(const char *key, const char *text, unsigned long long size, const char *member)
 {
     unsigned int root = CLI_JSON_NONE;
@@ -163,7 +164,7 @@ static int aside_colored(void)
     return colored;
 }
 
-// the grammar `swapped` stored again beside a coloring that reads it, another in its place: 1 where it was stored
+// the grammar `swapped` stored again beside a coloring that reads it, another in its place: 1 where the store took it
 static int aside_stored(void)
 {
     return grammar_stored("swapped", s_words, sizeof(s_words) - 1u, NULL);
@@ -178,8 +179,8 @@ static void aside_run(void *context)
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_aside_wake);
 }
 
-// the first line of a coloring recorded, and the aside's work started on a thread of its own and waited for, five
-// seconds at max, before the coloring goes on; each line after recorded alone
+// the first line of a coloring recorded, then the aside's work started on a thread of its own. The coloring waits for
+// that work, five seconds at max, before it goes on. It records each line after that alone
 static void leaves_waiting(const CliLeavesEachCfg *args)
 {
     static CliThread s_thread = {aside_run, NULL, CLI_PRIORITY_WORK};
@@ -198,8 +199,8 @@ static void leaves_waiting(const CliLeavesEachCfg *args)
     s_aside_ended = (first && (s_aside_ended == 0)) ? -2 : s_aside_ended;
 }
 
-// two lines of the grammar under `key` colored, the aside's work `work` done beside the first, their leaves into
-// `leaves`, `capacity` bytes: 1 where they colored and the aside ended while the first waited and did its work
+// two lines of the grammar under `key` colored, with the aside's work `work` beside the first. Their leaves go into
+// `leaves`, `capacity` bytes: 1 where they colored, and the aside ended while the first waited and did its work
 static int colored_adjacent(const char *key, int (*work)(void), char *leaves, unsigned long long capacity)
 {
     static const char *const s_lines[2] = {"if (x)", "if (x)"};
@@ -217,8 +218,8 @@ static int colored_adjacent(const char *key, int (*work)(void), char *leaves, un
     return returned && (s_aside_ended == 1);
 }
 
-// a line colored and leaves recorded on the same thread as a coloring under way returns them, the one under way going
-// on in its own capacity
+// a line colored and its leaves recorded on the thread of a coloring that runs: the call returns them. The coloring
+// that runs then goes on in its own capacity
 static void leaves_nested(const CliLeavesEachCfg *args)
 {
     leaves_recorded(args);

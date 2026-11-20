@@ -96,8 +96,8 @@ int main(void)
     cli_check(raster.pixels[((unsigned int)third.y * raster.width) + (unsigned int)third.x] == palette->text,
               "the character after inverse is on the text's color as its ground");
 
-    // the cell a pixel is nearest: the pane's first cell at its top left, a cell further in by its row and column, and
-    // a pixel outside the pane takes its nearest cell
+    // the cell nearest a pixel: the pane's first cell at its top left, and a cell further in by its row and column. A
+    // pixel outside the pane takes its nearest cell
     unsigned long long row = 0ull;
     unsigned long long column = 0ull;
     cli_check(EMBED_CALL(gui_terminal.cell_at, GuiTerminalCfg, .terminal_read = &terminal, .frame = &frame,
