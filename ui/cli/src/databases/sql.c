@@ -86,15 +86,10 @@ int cli_sql_tokens(const CliSqlTextLengthDialectCfg *args)
 {
     CliSqlTokens *const tokens = args->tokens;
     *tokens = (CliSqlTokens){NULL, 0u};
-    CliSymbolsLanguages *const languages = cli_symbols_languages_read();
-    if (languages == NULL)
-    {
-        return 0;
-    }
     CliLeafRead read;
-    const int leaved = EMBED_CALL(cli_symbols_text_internal.language_leaves_save, CliSymbolsTextCtx,
-                                  .languages = languages, .id = "sql", .state = s_states[args->dialect],
-                                  .text = args->text, .size = args->length, .read = &read);
+    const int leaved =
+        EMBED_CALL(cli_symbols_text_internal.language_leaves_save, CliSymbolsTextCtx, .id = "sql",
+                   .state = s_states[args->dialect], .text = args->text, .size = args->length, .read = &read);
     int taken = leaved;
     if (leaved && (read.count != 0u))
     {
@@ -113,7 +108,6 @@ int cli_sql_tokens(const CliSqlTextLengthDialectCfg *args)
         }
     }
     g_cli_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
-    g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
     return taken;
 }
 

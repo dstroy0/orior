@@ -52,6 +52,7 @@ typedef struct CliPluginsJsonCfg CliPluginsJsonCfg;
 typedef struct CliPluginsErrMsgJsonSpecTypeCfg CliPluginsErrMsgJsonSpecTypeCfg;
 typedef struct CliPluginsIdKeyCfg CliPluginsIdKeyCfg;
 typedef struct CliPluginsLanguagesPathCfg CliPluginsLanguagesPathCfg;
+typedef struct CliPluginsGrammarOfCfg CliPluginsGrammarOfCfg;
 typedef struct CliPluginsJsonOutCfg CliPluginsJsonOutCfg;
 typedef struct CliPluginsEachCfg CliPluginsEachCfg;
 typedef struct CliPluginsIdEachCfg CliPluginsIdEachCfg;
@@ -66,6 +67,20 @@ typedef struct CliPluginsTreeCfg CliPluginsTreeCfg;
 // the max keys of extensions, names and paths the languages contain, and the max plugins the reader installs
 #define CLI_LANGUAGE_PAIRS 4096u
 #define CLI_USER_PLUGINS 1024u
+// the max languages with a grammar, and the max bytes of a directive's mark
+#define CLI_LANGUAGE_GRAMMARS 1024u
+#define CLI_LANGUAGE_MARK_MAX 16u
+
+// The grammar of one language as the caller reads it: the language's id, the key the colorer stores the grammar under,
+// whether its tokens name a declaration, and the marks a directive's line and its carrying on start by, empty for none
+typedef struct
+{
+    char id[CLI_NAME_MAX_LEN];
+    char key[CLI_NAME_MAX_LEN];
+    int declares;
+    char directive_mark[CLI_LANGUAGE_MARK_MAX];
+    char directive_continued[CLI_LANGUAGE_MARK_MAX];
+} CliLanguageGrammar;
 
 // the bytes a plugin's text and its sample are written in, as a plugin is written
 #define CLI_PLUGIN_TEXT_CAPACITY (1ULL << 20u)
@@ -146,6 +161,11 @@ int cli_plugins_palette_set(const CliPluginsIdNameValueCfg *args);
 // CLI_NAME_MAX_LEN: by its whole name where a plugin names it, by a plugin's pattern of paths where one takes it, and
 // by its extension where neither does. 1, or 0 where none does. The table is read from the plugins at the first call
 int cli_plugins_language_for(const CliPluginsLanguagesPathCfg *args);
+// the grammar of the language the file at `path` opens as, or of the language `id`, into the caller's record
+// `grammar_out`: its id, the key the colorer stores it under, whether its tokens name a declaration, and the marks a
+// directive's line and its carrying on start by. Where `store` is 1, the grammar goes to the colorer at the first ask,
+// and the plugins module keeps that it went. 1, or 0 where the language has no grammar or its grammar refuses to store
+int cli_plugins_grammar_of(const CliPluginsGrammarOfCfg *args);
 // the tree a plugin's tables are read from, as the window opens it; and that tree into `tree`, sized for
 // CLI_PATH_MAX_LEN: 1, or 0 where none is open (plugins_tables.c)
 void cli_plugins_set_tree(const CliPluginsRootCfg *args);
@@ -248,6 +268,14 @@ struct CliPluginsIdKeyCfg
     const char *id;
     char *key;
     VerbaLinea *err_msg;
+};
+
+struct CliPluginsGrammarOfCfg
+{
+    const char *path;
+    const char *id;
+    int store;
+    CliLanguageGrammar *grammar_out;
 };
 
 struct CliPluginsLanguagesPathCfg
@@ -353,10 +381,12 @@ EMBED_TABLE_STORAGE CliPluginsIdKeyNs cli_plugins_id_key EMBED_UNUSED = {
 typedef struct
 {
     int (*language_for)(const CliPluginsLanguagesPathCfg *args);
+    int (*grammar_of)(const CliPluginsGrammarOfCfg *args);
 } CliPluginsLanguagesPathNs;
-EMBED_TABLE_LAYOUT(CliPluginsLanguagesPathNs, language_for);
+EMBED_TABLE_LAYOUT(CliPluginsLanguagesPathNs, language_for, grammar_of);
 EMBED_TABLE_STORAGE CliPluginsLanguagesPathNs cli_plugins_languages_path EMBED_UNUSED = {
     .language_for = cli_plugins_language_for,
+    .grammar_of = cli_plugins_grammar_of,
 };
 
 typedef struct

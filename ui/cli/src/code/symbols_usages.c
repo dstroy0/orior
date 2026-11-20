@@ -385,11 +385,9 @@ EMBED_INLINE unsigned long long usages_name_at(const SymbolsUsagesCtx *args)
     unsigned long long size = args->size;
     unsigned int line = args->line;
     unsigned int col = args->col;
-    CliSymbolsLanguages *const languages = cli_symbols_languages_for_call();
     CliLeafRead read;
-    const int leaved = (languages != NULL) &&
-                       EMBED_CALL(cli_symbols_path_internal.leaves_save, CliSymbolsPathCtx, .languages = languages,
-                                  .path = path, .state = "root", .text = text, .size = size, .read = &read);
+    const int leaved = EMBED_CALL(cli_symbols_path_internal.leaves_save, CliSymbolsPathCtx, .path = path,
+                                  .state = "root", .text = text, .size = size, .read = &read);
     unsigned long long length = 0ULL;
     unsigned int leaf = 0u;
     while (leaved && (leaf < read.count) && (read.leaf[leaf].line < line))
@@ -437,7 +435,6 @@ EMBED_INLINE unsigned long long usages_name_at(const SymbolsUsagesCtx *args)
         read.count = 0u;
         read.capacity = 0u;
     }
-    g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
     return length;
 }
 

@@ -52,7 +52,6 @@ void cli_shape_search(const CliShapeLanguagesCfg *args);
 
 struct CliShapeLanguagesCfg
 {
-    CliSymbolsLanguages *languages;
     const char *language;
     const char *src;
     unsigned long long size;

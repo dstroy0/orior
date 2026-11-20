@@ -88,8 +88,8 @@ EMBED_INLINE int shape_hole_at(const ShapeCtx *args)
     for (unsigned long long walk = 0ULL; walk < name_size;)
     {
         unsigned long long length = 0ULL;
-        const unsigned int character = EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = inside, .size = name_size,
-                                               .at = walk, .length = &length);
+        const unsigned int character = EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = inside,
+                                                  .size = name_size, .at = walk, .length = &length);
         if (!EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .character = character) && (character != '_'))
         {
             return 0;
@@ -270,8 +270,8 @@ int cli_shape_tokens(const CliShapeLanguagesCtx *args)
     }
     CliLeafRead read;
     const int leaved =
-        EMBED_CALL(cli_symbols_text_internal.language_leaves_save, CliSymbolsTextCtx, .languages = args->languages,
-                   .id = args->language, .text = (blank != NULL) ? blank : src, .size = args->size, .read = &read);
+        EMBED_CALL(cli_symbols_text_internal.language_leaves_save, CliSymbolsTextCtx, .id = args->language,
+                   .text = (blank != NULL) ? blank : src, .size = args->size, .read = &read);
     if (leaved)
     {
         EMBED_CALL(shape_leaves_append, ShapeCtx, .tokens = args->tokens, .src = src, .size = args->size, .read = &read,

@@ -23,27 +23,45 @@ typedef struct
     char key[CLI_NAME_MAX_LEN];
     char id[CLI_NAME_MAX_LEN];
 } CliLanguagePair;
-// The head of the languages' cell: the count of pairs after it
+// One language with a grammar as the languages' cell keeps it: its id, the marks of a directive's line and of its
+// carrying on, whether its tokens name a declaration, and whether its grammar went to the colorer: 1, refused, -1, or
+// not yet asked, 0
+typedef struct
+{
+    char id[CLI_NAME_MAX_LEN];
+    char directive_mark[CLI_LANGUAGE_MARK_MAX];
+    char directive_continued[CLI_LANGUAGE_MARK_MAX];
+    int declares;
+    int stored;
+} CliLanguageGrammarEntry;
+// The head of the languages' cell: the count of pairs after it, and the count of grammars after the pairs
 typedef struct
 {
     unsigned int count;
+    unsigned int grammars;
 } CliLanguagesHead;
-// the offsets in a languages' cell of the pair `at`'s key and of its id
+// the offsets in a languages' cell of the pair `at`'s key and of its id; and of the grammar `at` after `count` pairs
 #define CLI_LANGUAGE_KEY_AT(at) (sizeof(CliLanguagesHead) + ((unsigned long long)(at) * sizeof(CliLanguagePair)))
 #define CLI_LANGUAGE_ID_AT(at) (CLI_LANGUAGE_KEY_AT(at) + offsetof(CliLanguagePair, id))
+#define CLI_LANGUAGE_GRAMMAR_AT(count, at)                                                                             \
+    (CLI_LANGUAGE_KEY_AT(count) + ((unsigned long long)(at) * sizeof(CliLanguageGrammarEntry)))
 
 // The language each extension, whole name and pattern of paths opens as, as the walk over the plugins reads it: a
-// cell of the temporary tier of `capacity` pairs, `count` of them read. The build takes it and gives it back
+// cell of the temporary tier of `capacity` pairs, `count` of them read, and after them CLI_LANGUAGE_GRAMMARS grammars,
+// `grammars` of them read. The build takes it and gives it back
 typedef struct
 {
     CliLanguagePair *pair;
     unsigned int count;
     unsigned int capacity;
+    CliLanguageGrammarEntry *grammar;
+    unsigned int grammars;
 } CliLanguagesBuilt;
 
 // The token of the languages' cell every thread reads, its head and then its pairs, sized to them. The plugins module
 // owns it, and a write of a plugin puts a new cell in its place
 static embed_atomic_word s_languages;
+static const CarcerMovableEntry *cli_languages_token(void);
 
 typedef struct
 {
@@ -65,6 +83,10 @@ typedef struct
     unsigned int at;
     char *id_out;
     const char *path;
+    const CliJson *json;
+    unsigned int root;
+    int language;
+    const CliPlugin *plugin;
 } PluginsCtx;
 // whether a folder's entry is a plugin's folder the reader's list includes
 EMBED_INLINE int cli_user_include(const PluginsCtx *args)
@@ -278,6 +300,64 @@ static void cli_folder_map(const CliEachNameIsFolderCfg *args)
     }
 }
 
+// A language plugin's grammar noted where it has one, in the place of one of its id noted before: whether its tokens
+// name a declaration, and the marks of a directive's line and its carrying on. A later plugin of the id without a
+// grammar takes the one noted out. The plugin read last for each id is the one noted
+EMBED_INLINE void cli_language_grammar_note(const PluginsCtx *args)
+{
+    CliLanguagesBuilt *const languages = args->languages;
+    const CliPlugin *const plugin = args->plugin;
+    const int grammared =
+        args->language &&
+        EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
+                                      .object = args->root, .name = "grammar"),
+                   .type = CFG_JSON_OBJECT);
+    unsigned int at = 0u;
+    while (
+        (at < languages->grammars) &&
+        !cellul.eq(&(CatenaFinitaCfg){.src = languages->grammar[at].id, .other = plugin->id, .cap = CLI_NAME_MAX_LEN}))
+    {
+        at += 1u;
+    }
+    if (!grammared && (at < languages->grammars))
+    {
+        languages->grammar[at] = languages->grammar[languages->grammars - 1u];
+        languages->grammars -= 1u;
+        return;
+    }
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = plugin->id, .cap = CLI_NAME_MAX_LEN});
+    if (!grammared || (at == CLI_LANGUAGE_GRAMMARS) || (length == CLI_NAME_MAX_LEN))
+    {
+        return;
+    }
+    CliLanguageGrammarEntry *const entry = &languages->grammar[at];
+    memor.set(&(MemoriaCfg){.dst = entry, .val = 0, .bytes = sizeof(*entry)});
+    memor.cpy(&(MemoriaCfg){.dst = entry->id, .src = plugin->id, .bytes = length + 1ULL});
+    static const char *const s_mark_names[2] = {"directive_mark", "directive_continued"};
+    char *const marks[2] = {entry->directive_mark, entry->directive_continued};
+    for (unsigned int mark = 0u; mark < 2u; mark += 1u)
+    {
+        const char *const named =
+            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->json,
+                       .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                          .json_read = args->json, .object = args->root, .name = s_mark_names[mark]),
+                       .length_pointer = NULL);
+        if (named != NULL)
+        {
+            memor.cpy(&(MemoriaCfg){
+                .dst = marks[mark],
+                .src = named,
+                .bytes = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_LANGUAGE_MARK_MAX - 1u})});
+        }
+    }
+    unsigned long long found = 0ULL;
+    entry->declares =
+        EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = plugin->text, .length_value = plugin->size,
+                   .required = "declaration.", .size = 12u, .at_pointer = &found);
+    languages->grammars += (at == languages->grammars) ? 1u : 0u;
+}
+
 // A language plugin's keys mapped to its id
 static void cli_language_each(const CliEachPluginCfg *args)
 {
@@ -302,6 +382,8 @@ static void cli_language_each(const CliEachPluginCfg *args)
     if ((root == CLI_JSON_NONE) ||
         ((type != NULL) && (!cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "language", .cap = CLI_POOL_BYTES}))))
     {
+        EMBED_CALL(cli_language_grammar_note, PluginsCtx, .languages = languages, .json = &json, .root = root,
+                   .language = 0, .plugin = args->plugin);
         g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
@@ -380,6 +462,8 @@ static void cli_language_each(const CliEachPluginCfg *args)
                              .each = cli_folder_map, .context_bytess = &mapped);
         }
     }
+    EMBED_CALL(cli_language_grammar_note, PluginsCtx, .languages = languages, .json = &json, .root = root,
+               .language = 1, .plugin = args->plugin);
     g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
@@ -394,22 +478,25 @@ EMBED_INLINE void cli_languages_placed(const PluginsCtx *args)
     (void)g_cli_guard->movable_buf_release(before, g_cli_plugins_owner);
 }
 
-// The pairs read by the walk over the plugins into a cell of the temporary tier at their max, then written into a
-// movable cell sized to them. That cell goes in place of the one before it
+// The pairs and the grammars read by the walk over the plugins into one cell of the temporary tier at their max, then
+// written into a movable cell sized to them. That cell goes in place of the one before it
 void cli_plugins_languages_changed(void)
 {
-    CliLanguagesBuilt built = {
-        g_cli_guard->temporary_buf_alloc((unsigned long long)CLI_LANGUAGE_PAIRS * sizeof(CliLanguagePair),
-                                         g_cli_plugins_owner),
-        0u, CLI_LANGUAGE_PAIRS};
-    if (built.pair == NULL)
+    CliLanguagePair *const pair = g_cli_guard->temporary_buf_alloc(
+        ((unsigned long long)CLI_LANGUAGE_PAIRS * sizeof(CliLanguagePair)) +
+            ((unsigned long long)CLI_LANGUAGE_GRAMMARS * sizeof(CliLanguageGrammarEntry)),
+        g_cli_plugins_owner);
+    if (pair == NULL)
     {
         return;
     }
+    // the grammars follow the pairs' max in the one cell
+    CliLanguagesBuilt built = {pair, 0u, CLI_LANGUAGE_PAIRS,
+                               (CliLanguageGrammarEntry *)(void *)(pair + CLI_LANGUAGE_PAIRS), 0u};
     EMBED_CALL(cli_plugins_each_table.each, CliPluginsEachCfg, .each = cli_language_each, .context = &built);
     const CarcerMovableEntry *const pairs =
-        g_cli_guard->movable_buf_alloc(CLI_LANGUAGE_KEY_AT(built.count), g_cli_plugins_owner);
-    const CliLanguagesHead head = {built.count};
+        g_cli_guard->movable_buf_alloc(CLI_LANGUAGE_GRAMMAR_AT(built.count, built.grammars), g_cli_plugins_owner);
+    const CliLanguagesHead head = {built.count, built.grammars};
     (void)g_cli_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = pairs, .offset = 0ULL, .src = &head, .bytes = sizeof(head)});
     (void)g_cli_guard->movable_buf_write(
@@ -417,8 +504,77 @@ void cli_plugins_languages_changed(void)
                             .offset = CLI_LANGUAGE_KEY_AT(0u),
                             .src = built.pair,
                             .bytes = (unsigned long long)built.count * sizeof(CliLanguagePair)});
-    g_cli_guard->persistent_buf_release(built.pair, g_cli_plugins_owner);
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = pairs,
+                            .offset = CLI_LANGUAGE_GRAMMAR_AT(built.count, 0u),
+                            .src = built.grammar,
+                            .bytes = (unsigned long long)built.grammars * sizeof(CliLanguageGrammarEntry)});
+    g_cli_guard->persistent_buf_release(pair, g_cli_plugins_owner);
     EMBED_CALL(cli_languages_placed, PluginsCtx, .pairs = pairs);
+}
+
+int cli_plugins_grammar_of(const CliPluginsGrammarOfCfg *args)
+{
+    char id[CLI_NAME_MAX_LEN];
+    const char *const wanted = (args->id != NULL)
+                                   ? args->id
+                                   : (EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
+                                                 .path = args->path, .id_out = id)
+                                          ? id
+                                          : NULL);
+    if (wanted == NULL)
+    {
+        return 0;
+    }
+    const CarcerMovableEntry *const pairs = cli_languages_token();
+    CliLanguagesHead head = {0u, 0u};
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = pairs, .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
+    const unsigned long long wanted_bytes =
+        cellul.len(&(CatenaFinitaCfg){.src = wanted, .cap = CLI_NAME_MAX_LEN}) + 1ULL;
+    unsigned int at = 0u;
+    while (
+        (at < head.grammars) &&
+        (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){
+             .cell = pairs, .offset = CLI_LANGUAGE_GRAMMAR_AT(head.count, at), .src = wanted, .bytes = wanted_bytes}) !=
+         0))
+    {
+        at += 1u;
+    }
+    CliLanguageGrammarEntry entry;
+    if ((at == head.grammars) ||
+        !g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = pairs, .offset = CLI_LANGUAGE_GRAMMAR_AT(head.count, at), .dst = &entry, .bytes = sizeof(entry)}))
+    {
+        return 0;
+    }
+    CliLanguageGrammar *const out = args->grammar_out;
+    memor.cpy(&(MemoriaCfg){.dst = out->id, .src = entry.id, .bytes = sizeof(out->id)});
+    memor.cpy(
+        &(MemoriaCfg){.dst = out->directive_mark, .src = entry.directive_mark, .bytes = sizeof(entry.directive_mark)});
+    memor.cpy(&(MemoriaCfg){
+        .dst = out->directive_continued, .src = entry.directive_continued, .bytes = sizeof(entry.directive_continued)});
+    out->declares = entry.declares;
+    // the grammar goes to the colorer at the first ask that stores it, and the cell keeps whether it went
+    if (args->store && (entry.stored == 0))
+    {
+        char why[CLI_PATH_MAX_LEN];
+        VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+        entry.stored = EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = entry.id, .key = out->key,
+                                  .err_msg = &err_msg)
+                           ? 1
+                           : -1;
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = pairs,
+                                                                 .offset = CLI_LANGUAGE_GRAMMAR_AT(head.count, at) +
+                                                                           offsetof(CliLanguageGrammarEntry, stored),
+                                                                 .src = &entry.stored,
+                                                                 .bytes = sizeof(entry.stored)});
+    }
+    VerbaLinea key = {out->key, sizeof(out->key), 0ULL};
+    mmgr_line_put(&key, "plugin:");
+    mmgr_line_put(&key, entry.id);
+    (void)mmgr_line_finish(&key);
+    return (entry.stored >= 0) && (!args->store || (entry.stored == 1));
 }
 
 void cli_plugins_watch_start(void)

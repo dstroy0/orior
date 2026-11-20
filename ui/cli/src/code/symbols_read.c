@@ -131,205 +131,52 @@ static void cli_symbols_line(const CliLeavesEachCfg *args)
     read_state->line += 1u;
 }
 
-// a language plugin's grammar noted where it has one, and whether it names a declaration, in the place of one of its id
-// noted before, and one of its id that has none taken out: the plugin read for each id that exists is the last noted
-static void cli_symbols_grammar_note(const CliEachPluginCfg *args)
-{
-    CliSymbolsLanguages *const read = (CliSymbolsLanguages *)args->context;
-    CliJson json;
-    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    char why[CLI_PATH_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-    const unsigned int root =
-        EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
-                   .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ULL,
-                   .err_msg = &err_msg, .owner = g_cli_code_owner);
-    const char *const type =
-        (root != CLI_JSON_NONE)
-            ? EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
-                         .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
-                                            .object = root, .name = "type"),
-                         .length_pointer = NULL)
-            : NULL;
-    const int language =
-        (root != CLI_JSON_NONE) &&
-        ((type == NULL) || cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "language", .cap = CLI_POOL_BYTES}));
-    const int grammared =
-        language && EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json,
-                               .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                                  .json_read = &json, .object = root, .name = "grammar"),
-                               .type = CFG_JSON_OBJECT);
-    // the marks the plugin names a directive's line and its carrying on by, copied before the plugin's tree is given
-    // back
-    char mark[CLI_SYMBOLS_MARK_MAX] = "";
-    char continued[CLI_SYMBOLS_MARK_MAX] = "";
-    static const char *const s_mark_names[] = {"directive_mark", "directive_continued"};
-    char *const marks[] = {mark, continued};
-    for (unsigned int at = 0u; grammared && (at < (sizeof(s_mark_names) / sizeof(s_mark_names[0]))); at += 1u)
-    {
-        const char *const named =
-            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
-                       .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
-                                          .object = root, .name = s_mark_names[at]),
-                       .length_pointer = NULL);
-        if (named != NULL)
-        {
-            memor.cpy(&(MemoriaCfg){
-                .dst = marks[at],
-                .src = named,
-                .bytes = (embed_word)cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_SYMBOLS_MARK_MAX - 1u})});
-        }
-    }
-    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
-    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    unsigned long long found = 0ULL;
-    const int declares = grammared && EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = args->plugin->text,
-                                                 .length_value = args->plugin->size, .required = "declaration.",
-                                                 .size = 12u, .at_pointer = &found);
-    unsigned int at = 0u;
-    while ((at < read->grammars) && !cellul.eq(&(CatenaFinitaCfg){
-                                        .src = read->grammar[at].id, .other = args->plugin->id, .cap = CLI_POOL_BYTES}))
-    {
-        at += 1u;
-    }
-    if (!grammared && (at < read->grammars))
-    {
-        read->grammar[at] = read->grammar[read->grammars - 1u];
-        read->grammars -= 1u;
-        return;
-    }
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->plugin->id, .cap = CLI_POOL_BYTES});
-    if (!grammared || (at == CLI_SYMBOLS_GRAMMARS) || (length >= CLI_NAME_MAX_LEN))
-    {
-        return;
-    }
-    memor.cpy(&(MemoriaCfg){.dst = read->grammar[at].id, .src = args->plugin->id, .bytes = (embed_word)length + 1u});
-    read->grammar[at].key[0] = '\0';
-    read->grammar[at].stored = 0;
-    read->grammar[at].declares = declares;
-    memor.cpy(&(MemoriaCfg){.dst = read->grammar[at].directive_mark, .src = mark, .bytes = sizeof(mark)});
-    memor.cpy(
-        &(MemoriaCfg){.dst = read->grammar[at].directive_continued, .src = continued, .bytes = sizeof(continued)});
-    read->grammars += (at == read->grammars) ? 1u : 0u;
-}
-
-CliSymbolsLanguages *cli_symbols_languages_read(void)
-{
-    // the languages live for the walk or the effect that reads them: a cell of the temporary tier
-    CliSymbolsLanguages *const read = g_cli_guard->temporary_buf_alloc(sizeof(CliSymbolsLanguages), g_cli_code_owner);
-    if (read != NULL)
-    {
-        read->grammars = 0u;
-        EMBED_CALL(cli_plugins_each_table.each, CliPluginsEachCfg, .each = cli_symbols_grammar_note, .context = read);
-    }
-    return read;
-}
-
-CliSymbolsLanguages *cli_symbols_languages_for_call(void)
-{
-    CliSymbolsLanguages *const read = g_cli_guard->temporary_buf_alloc(sizeof(CliSymbolsLanguages), g_cli_code_owner);
-    if (read != NULL)
-    {
-        read->grammars = 0u;
-        EMBED_CALL(cli_plugins_each_table.each, CliPluginsEachCfg, .each = cli_symbols_grammar_note, .context = read);
-    }
-    return read;
-}
-
-typedef struct
-{
-    const CliSymbolsLanguages *read;
-    const char *id;
-    const char *path;
-    CliSymbolsLanguages *read_out;
-    unsigned int place;
-    const char *state;
-    const char *text;
-    unsigned long long size;
-    CliLeavesEach each;
-    void *context;
-} SymbolsReadCtx;
-// the place among `read`'s grammars of the language `id`, CLI_SYMBOLS_GRAMMARS where it is none whose grammar is read
-EMBED_INLINE unsigned int cli_symbols_grammar_by_name(const SymbolsReadCtx *args)
-{
-    for (unsigned int at = 0u; at < args->read->grammars; at += 1u)
-    {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = args->read->grammar[at].id, .other = args->id, .cap = CLI_POOL_BYTES}))
-        {
-            return (args->read->grammar[at].stored >= 0) ? at : CLI_SYMBOLS_GRAMMARS;
-        }
-    }
-    return CLI_SYMBOLS_GRAMMARS;
-}
-
-// the place among `read`'s grammars of the language the file at `path` opens as, CLI_SYMBOLS_GRAMMARS where it opens
-// as none whose grammar is read
-EMBED_INLINE unsigned int cli_symbols_grammar_get(const SymbolsReadCtx *args)
-{
-    const char *path = args->path;
-    char id[CLI_NAME_MAX_LEN];
-    return EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg, .path = path, .id_out = id)
-               ? EMBED_CALL(cli_symbols_grammar_by_name, SymbolsReadCtx, .read = args->read, .id = id)
-               : CLI_SYMBOLS_GRAMMARS;
-}
-
 int cli_symbols_reads_in(const CliSymbolsReadLanguagesCtx *args)
 {
-    const unsigned int place = EMBED_CALL(cli_symbols_grammar_get, SymbolsReadCtx,
-                                          .read = args->read_symbols_languages_pointer, .path = args->path);
-    return (place != CLI_SYMBOLS_GRAMMARS) && args->read_symbols_languages_pointer->grammar[place].declares;
+    CliLanguageGrammar grammar;
+    return EMBED_CALL(cli_plugins_languages_path.grammar_of, CliPluginsGrammarOfCfg, .path = args->path, .id = NULL,
+                      .store = 0, .grammar_out = &grammar) &&
+           grammar.declares;
 }
 
-const char *cli_symbols_directive_mark(const CliSymbolsReadLanguagesCtx *args)
+int cli_symbols_grammar_read(const CliSymbolsGrammarReadCtx *args)
 {
-    const unsigned int place = EMBED_CALL(cli_symbols_grammar_get, SymbolsReadCtx,
-                                          .read = args->read_symbols_languages_pointer, .path = args->path);
-    return (place != CLI_SYMBOLS_GRAMMARS) ? args->read_symbols_languages_pointer->grammar[place].directive_mark : "";
-}
-
-const char *cli_symbols_directive_continued(const CliSymbolsReadLanguagesCtx *args)
-{
-    const unsigned int place = EMBED_CALL(cli_symbols_grammar_get, SymbolsReadCtx,
-                                          .read = args->read_symbols_languages_pointer, .path = args->path);
-    return (place != CLI_SYMBOLS_GRAMMARS) ? args->read_symbols_languages_pointer->grammar[place].directive_continued
-                                           : "";
+    return EMBED_CALL(cli_plugins_languages_path.grammar_of, CliPluginsGrammarOfCfg, .path = args->path, .id = NULL,
+                      .store = 0, .grammar_out = args->grammar_out);
 }
 
 int cli_symbols_reads(const CliSymbolsPathNameCfg *args)
 {
-    CliSymbolsLanguages *const read = cli_symbols_languages_for_call();
-    const int reads =
-        (read != NULL) && EMBED_CALL(cli_symbols_read_languages_internal.reads_in, CliSymbolsReadLanguagesCtx,
-                                     .read_symbols_languages_pointer = read, .path = args->path);
-    g_cli_guard->persistent_buf_release(read, g_cli_code_owner);
-    return reads;
+    return EMBED_CALL(cli_symbols_read_languages_internal.reads_in, CliSymbolsReadLanguagesCtx, .path = args->path);
 }
 
 void cli_symbols_declare(const CliSymbolsPathTextSizeCfg *args)
 {
-    CliSymbolsLanguages *const read = cli_symbols_languages_for_call();
-    if (read != NULL)
-    {
-        EMBED_CALL(cli_symbols_path_read_languages_internal.declared_in, CliSymbolsPathReadLanguagesCtx,
-                   .read_symbols_languages_pointer_other = read, .path = args->path, .text = args->text,
-                   .size = args->size, .each = args->each_declared, .context = args->context);
-    }
-    g_cli_guard->persistent_buf_release(read, g_cli_code_owner);
+    EMBED_CALL(cli_symbols_path_read_languages_internal.declared_in, CliSymbolsPathReadLanguagesCtx, .path = args->path,
+               .text = args->text, .size = args->size, .each = args->each_declared, .context = args->context);
 }
 
 void cli_symbols_declared_in(const CliSymbolsPathReadLanguagesCtx *args)
 {
     CliSymbolsLine read_state = {args->each, args->context, 0u};
     (void)EMBED_CALL(cli_symbols_path_read_languages_text_internal.leaves_in, CliSymbolsPathReadLanguagesTextCtx,
-                     .read_symbols_languages_pointer_other = args->read_symbols_languages_pointer_other,
                      .path = args->path, .state = "root", .text = args->text, .size = args->size,
                      .each_leaves_each = cli_symbols_line, .context = &read_state);
 }
 
-// the leaves of `size` bytes of `text` read by the grammar at `place` among `read`'s, the first line starting in
-// `state`, each line's passed to `each`: 1, or 0 where the place is none or the cells cannot meet the text's copy
+typedef struct
+{
+    const char *path;
+    const char *id;
+    const char *state;
+    const char *text;
+    unsigned long long size;
+    CliLeavesEach each;
+    void *context;
+} SymbolsReadCtx;
+// the leaves of `size` bytes of `text` read by the grammar of the file at `path`, or of the language `id`, the first
+// line starting in `state`, each line's passed to `each`: 1, or 0 where the language has no grammar that stores or the
+// cells cannot meet the text's copy
 static int cli_symbols_leaves_at(const SymbolsReadCtx *args)
 {
     const char *state = args->state;
@@ -337,23 +184,16 @@ static int cli_symbols_leaves_at(const SymbolsReadCtx *args)
     unsigned long long size = args->size;
     CliLeavesEach each = args->each;
     void *context = args->context;
-    if (args->place == CLI_SYMBOLS_GRAMMARS)
+    CliLanguageGrammar read;
+    CliLanguageGrammar *const grammar = &read;
+    if (!EMBED_CALL(cli_plugins_languages_path.grammar_of, CliPluginsGrammarOfCfg, .path = args->path, .id = args->id,
+                    .store = 1, .grammar_out = grammar))
     {
         return 0;
     }
-    CliSymbolsGrammar *const grammar = &args->read_out->grammar[args->place];
-    if (grammar->stored == 0)
-    {
-        char why[CLI_PATH_MAX_LEN];
-        VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-        grammar->stored = EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = grammar->id,
-                                     .key = grammar->key, .err_msg = &err_msg)
-                              ? 1
-                              : -1;
-    }
     // the text's lines in a cell of their own, each ended by a NUL in place of its line's end, its carriage return
     // before it dropped
-    char *const lines = (grammar->stored == 1) ? g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_code_owner) : NULL;
+    char *const lines = g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_code_owner);
     if (lines == NULL)
     {
         return 0;
@@ -411,18 +251,12 @@ static int cli_symbols_leaves_at(const SymbolsReadCtx *args)
 
 int cli_symbols_leaves_in(const CliSymbolsPathReadLanguagesTextCtx *args)
 {
-    return EMBED_CALL(cli_symbols_leaves_at, SymbolsReadCtx, .read_out = args->read_symbols_languages_pointer_other,
-                      .place = EMBED_CALL(cli_symbols_grammar_get, SymbolsReadCtx,
-                                          .read = args->read_symbols_languages_pointer_other, .path = args->path),
-                      .state = args->state, .text = args->text, .size = args->size, .each = args->each_leaves_each,
-                      .context = args->context);
+    return EMBED_CALL(cli_symbols_leaves_at, SymbolsReadCtx, .path = args->path, .id = NULL, .state = args->state,
+                      .text = args->text, .size = args->size, .each = args->each_leaves_each, .context = args->context);
 }
 
 int cli_symbols_language_leaves_in(const CliSymbolsReadLanguagesTextCtx *args)
 {
-    return EMBED_CALL(cli_symbols_leaves_at, SymbolsReadCtx, .read_out = args->read_symbols_languages_pointer_other,
-                      .place = EMBED_CALL(cli_symbols_grammar_by_name, SymbolsReadCtx,
-                                          .read = args->read_symbols_languages_pointer_other, .id = args->id),
-                      .state = args->state, .text = args->text, .size = args->size, .each = args->each_leaves_each,
-                      .context = args->context);
+    return EMBED_CALL(cli_symbols_leaves_at, SymbolsReadCtx, .path = NULL, .id = args->id, .state = args->state,
+                      .text = args->text, .size = args->size, .each = args->each_leaves_each, .context = args->context);
 }

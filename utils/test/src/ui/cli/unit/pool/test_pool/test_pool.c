@@ -188,14 +188,22 @@ void test_the_languages_are_read_in_the_temporary_tier_and_kept_in_one_cell_size
     TEST_ASSERT_LESS_THAN_UINT64((unsigned long long)CLI_LANGUAGE_PAIRS * 2ull * CLI_NAME_MAX_LEN, s_persistent);
 }
 
-void test_the_languages_a_call_reads_stay_out_of_the_persistent_tier(void)
+void test_a_grammar_a_call_reads_takes_no_persistent_cell(void)
 {
     pool_created_anew();
-    CliSymbolsLanguages *const read = cli_symbols_languages_for_call();
+    char id[CLI_NAME_MAX_LEN];
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
+                                .path = "build.zig", .id_out = id));
     peaks_read();
-    TEST_ASSERT_NOT_NULL(read);
-    g_cli_guard->persistent_buf_release(read, g_cli_code_owner);
-    TEST_ASSERT_EQUAL_UINT64(0ull, s_persistent);
+    const unsigned long long built = s_persistent;
+    CliLanguageGrammar grammar = {0};
+    const int read = EMBED_CALL(cli_plugins_languages_path.grammar_of, CliPluginsGrammarOfCfg, .path = "build.zig",
+                                .id = NULL, .store = 0, .grammar_out = &grammar);
+    peaks_read();
+    cli_plugins_languages_end();
+    TEST_ASSERT_TRUE(read);
+    // the languages' cell stays in the pool through the read: a persistent take of the read raises the peak past it
+    TEST_ASSERT_EQUAL_UINT64(built, s_persistent);
 }
 
 void test_the_walks_and_the_lists_cells_are_released(void)

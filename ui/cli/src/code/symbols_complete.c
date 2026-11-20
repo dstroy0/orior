@@ -205,11 +205,9 @@ EMBED_INLINE void complete_locals(const SymbolsCompleteCtx *args)
 
 int cli_symbols_complete(const CliSymbolsPathTextSizeCfg *args)
 {
-    CliSymbolsLanguages *const languages = cli_symbols_languages_for_call();
     CliLeafRead read;
-    const int leaved = (languages != NULL) && EMBED_CALL(cli_symbols_path_internal.leaves_save, CliSymbolsPathCtx,
-                                                         .languages = languages, .path = args->path, .state = "root",
-                                                         .text = args->text, .size = args->size, .read = &read);
+    const int leaved = EMBED_CALL(cli_symbols_path_internal.leaves_save, CliSymbolsPathCtx, .path = args->path,
+                                  .state = "root", .text = args->text, .size = args->size, .read = &read);
     // the byte the place is at: its line's first, then its column's
     unsigned long long start = 0ULL;
     for (unsigned int lines = 0u; (lines < args->line) && (start < args->size); start += 1ULL)
@@ -272,7 +270,6 @@ int cli_symbols_complete(const CliSymbolsPathTextSizeCfg *args)
         read.count = 0u;
         read.capacity = 0u;
     }
-    g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
     cli_grown_end(&complete.transferred);
     return done;
 }

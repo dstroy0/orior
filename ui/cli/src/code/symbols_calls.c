@@ -27,7 +27,6 @@ typedef struct
     char *text;
     unsigned long long size;
     int mapped;
-    CliSymbolsLanguages *languages;
     CliLeafRead read;
     int leaved;
     CliGrownLine functions;
@@ -174,8 +173,7 @@ static int calls_file_read(const SymbolsCallsCtx *args)
     CliCallsFile *file = args->file_out;
     const char *path = args->path;
     *file = (CliCallsFile){
-        NULL, 0ULL, 0, NULL, {NULL, NULL, 0u, 0u, 0u, NULL, 0, NULL, NULL}, 0, {NULL, 0ULL, 0ULL, NULL, NULL, 0ULL},
-        0u};
+        NULL, 0ULL, 0, {NULL, NULL, 0u, 0u, 0u, NULL, 0, NULL, NULL}, 0, {NULL, 0ULL, 0ULL, NULL, NULL, 0ULL}, 0u};
     char *const supplied = (args->open_text != NULL)
                                ? EMBED_CALL(args->open_text, CliOpenTextCfg, .context = args->open_text_context,
                                             .path = path, .size = &file->size)
@@ -194,10 +192,8 @@ static int calls_file_read(const SymbolsCallsCtx *args)
     {
         return 0;
     }
-    file->languages = cli_symbols_languages_read();
-    file->leaved = (file->languages != NULL) && EMBED_CALL(cli_symbols_path_internal.leaves_save, CliSymbolsPathCtx,
-                                                           .languages = file->languages, .path = path, .state = "root",
-                                                           .text = file->text, .size = file->size, .read = &file->read);
+    file->leaved = EMBED_CALL(cli_symbols_path_internal.leaves_save, CliSymbolsPathCtx, .path = path, .state = "root",
+                              .text = file->text, .size = file->size, .read = &file->read);
     if (!file->leaved)
     {
         return 0;
@@ -250,7 +246,7 @@ EMBED_INLINE void calls_dispatch(const SymbolsCallsCtx *args)
                .length = length, .sites = args->sites, .count = args->count);
 }
 
-// the file's cells given back: its functions, its leaves where it read them, its languages and its text, mapped or
+// the file's cells given back: its functions, its leaves where it read them and its text, mapped or
 // read
 EMBED_INLINE void calls_file_released(const SymbolsCallsCtx *args)
 {
@@ -262,7 +258,6 @@ EMBED_INLINE void calls_file_released(const SymbolsCallsCtx *args)
         args->file_out->read.count = 0u;
         args->file_out->read.capacity = 0u;
     }
-    g_cli_guard->persistent_buf_release(args->file_out->languages, g_cli_code_owner);
     if (args->file_out->mapped && (args->file_out->text != NULL))
     {
         g_cli_guard->persistent_buf_release((void *)(embed_word)((const unsigned char *)args->file_out->text),

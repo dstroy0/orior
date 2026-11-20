@@ -27,33 +27,8 @@ typedef struct CliSymbolsReadLeafCtx CliSymbolsReadLeafCtx;
 typedef struct CliSymbolsReadLeafTypeCtx CliSymbolsReadLeafTypeCtx;
 typedef struct CliSymbolsCtx CliSymbolsCtx;
 typedef struct CliSymbolsReadLanguagesCtx CliSymbolsReadLanguagesCtx;
+typedef struct CliSymbolsGrammarReadCtx CliSymbolsGrammarReadCtx;
 typedef struct CliSymbolsArgumentCtx CliSymbolsArgumentCtx;
-
-// the max languages a reading holds whose plugins have a grammar
-#define CLI_SYMBOLS_GRAMMARS 64u
-
-// the max bytes of a language's directive mark
-#define CLI_SYMBOLS_MARK_MAX 16u
-
-// One language whose plugin has a grammar: its id, the key its grammar is stored under, whether it is stored, 1,
-// refused, -1, or not yet sought, 0, whether its grammar names a declaration, the mark its plugin names a directive's
-// line by, and the mark that ends a directive's line it carries on past, each empty for none
-typedef struct
-{
-    char id[CLI_NAME_MAX_LEN];
-    char key[CLI_NAME_MAX_LEN];
-    int stored;
-    int declares;
-    char directive_mark[CLI_SYMBOLS_MARK_MAX];
-    char directive_continued[CLI_SYMBOLS_MARK_MAX];
-} CliSymbolsGrammar;
-
-// The languages a reading reads its files in: those whose plugins have a grammar
-struct CliSymbolsLanguages
-{
-    CliSymbolsGrammar grammar[CLI_SYMBOLS_GRAMMARS];
-    unsigned int grammars;
-};
 
 // whether the file at `path` is read by the languages for its declarations, its grammar naming one; its declarations
 // read by them, each passed to `each` with its type, a text that is while `each` runs; the leaves of `size` bytes
@@ -63,10 +38,9 @@ struct CliSymbolsLanguages
 // byte of `line`, `size` bytes, the column `col` is at in UTF-16 units, walked on from `*byte` at column `*at`
 // (symbols_read.c)
 int cli_symbols_reads_in(const CliSymbolsReadLanguagesCtx *args);
-// the grammar of the file at `path`: the mark its plugin names a directive's line by, and the mark that ends a
-// directive's line it carries on past, each empty where it names none (symbols_read.c)
-const char *cli_symbols_directive_mark(const CliSymbolsReadLanguagesCtx *args);
-const char *cli_symbols_directive_continued(const CliSymbolsReadLanguagesCtx *args);
+// the grammar of the file at `path` read into the caller's record `grammar_out`, as cli_plugins_grammar_of reads it:
+// 1, or 0 where the file opens as no language with a grammar (symbols_read.c)
+int cli_symbols_grammar_read(const CliSymbolsGrammarReadCtx *args);
 void cli_symbols_declared_in(const CliSymbolsPathReadLanguagesCtx *args);
 int cli_symbols_leaves_in(const CliSymbolsPathReadLanguagesTextCtx *args);
 int cli_symbols_language_leaves_in(const CliSymbolsReadLanguagesTextCtx *args);
@@ -387,7 +361,6 @@ typedef int (*CliEffectReached)(const CliEffectReachedCfg *args);
 // reaches it, NULL for nowhere; and whether the cells refused it
 typedef struct
 {
-    CliSymbolsLanguages *languages;
     char root[CLI_PATH_MAX_LEN];
     const char *start;
     const char *start_text;
@@ -467,13 +440,11 @@ struct CliSymbolsPathCtx
     CliDeclared each;
     void *context;
     const char *state;
-    CliSymbolsLanguages *languages;
     CliLeafRead *read;
 };
 
 struct CliSymbolsReadLanguagesTextCtx
 {
-    CliSymbolsLanguages *read_symbols_languages_pointer_other;
     const char *text;
     unsigned long long size;
     void *context;
@@ -485,7 +456,6 @@ struct CliSymbolsReadLanguagesTextCtx
 struct CliSymbolsPathReadLanguagesTextCtx
 {
     const char *path;
-    CliSymbolsLanguages *read_symbols_languages_pointer_other;
     const char *text;
     unsigned long long size;
     void *context;
@@ -496,7 +466,6 @@ struct CliSymbolsPathReadLanguagesTextCtx
 struct CliSymbolsPathReadLanguagesCtx
 {
     const char *path;
-    CliSymbolsLanguages *read_symbols_languages_pointer_other;
     const char *text;
     unsigned long long size;
     CliDeclared each;
@@ -514,7 +483,6 @@ struct CliSymbolsSizeCtx
 
 struct CliSymbolsLanguagesCtx
 {
-    CliSymbolsLanguages *languages;
     const char *name;
     const char *root;
     unsigned long long length;
@@ -527,7 +495,6 @@ struct CliSymbolsTextCtx
     unsigned long long size;
     const char *id;
     const char *state;
-    CliSymbolsLanguages *languages;
     CliLeafRead *read;
 };
 
@@ -595,9 +562,14 @@ struct CliSymbolsCtx
     unsigned int at_value;
 };
 
+struct CliSymbolsGrammarReadCtx
+{
+    const char *path;
+    CliLanguageGrammar *grammar_out;
+};
+
 struct CliSymbolsReadLanguagesCtx
 {
-    const CliSymbolsLanguages *read_symbols_languages_pointer;
     const char *path;
 };
 

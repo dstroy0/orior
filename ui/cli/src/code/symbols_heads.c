@@ -511,10 +511,9 @@ int cli_symbols_head_read(const CliSymbolsLanguagesCtx *args)
         lines += 1u;
     }
     CliLeafRead read;
-    const int saved =
-        (counted == args->head->line) &&
-        EMBED_CALL(cli_symbols_path_internal.leaves_save, CliSymbolsPathCtx, .languages = args->languages,
-                   .path = args->head->path, .state = "root", .text = text + start, .size = end - start, .read = &read);
+    const int saved = (counted == args->head->line) &&
+                      EMBED_CALL(cli_symbols_path_internal.leaves_save, CliSymbolsPathCtx, .path = args->head->path,
+                                 .state = "root", .text = text + start, .size = end - start, .read = &read);
     const int found = saved && EMBED_CALL(cli_head_params, SymbolsHeadsCtx, .read = &read, .name_text = args->name,
                                           .length = args->length, .head = args->head);
     if (counted == args->head->line)

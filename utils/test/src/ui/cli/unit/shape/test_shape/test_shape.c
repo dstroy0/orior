@@ -13,7 +13,6 @@ static const char s_names[] = "a = a + 1\nb = c + 1\nd.e = d.e + 1\n";
 static const char s_script[] = "if (ready) {\n  start(); // go\n  log(\"started\");\n}\nif(done){finish();}\n";
 static const char s_total[] = "total = a + b * c\nname = \"a + b\"\n";
 
-static CliSymbolsLanguages *s_languages;
 static CliTextEdit s_edits[64];
 static char s_with[1u << 14u];
 static unsigned int s_count;
@@ -42,8 +41,8 @@ static unsigned int matches_of(const char *language, const char *src, const char
 {
     s_count = 0u;
     s_used = 0u;
-    EMBED_CALL(cli_shape_languages.search, CliShapeLanguagesCfg, .languages = s_languages, .language = language,
-               .src = src, .size = CLI_UNITY_LENGTH(src), .pattern = pattern, .template_text = template_text,
+    EMBED_CALL(cli_shape_languages.search, CliShapeLanguagesCfg, .language = language, .src = src,
+               .size = CLI_UNITY_LENGTH(src), .pattern = pattern, .template_text = template_text,
                .each = match_recorded, .context = NULL);
     return s_count;
 }
@@ -62,12 +61,10 @@ static void assert_replaced(const char *required, const char *language, const ch
 void setUp(void)
 {
     cli_unity_begun();
-    s_languages = cli_symbols_languages_read();
 }
 
 void tearDown(void)
 {
-    g_cli_guard->persistent_buf_release(s_languages, g_cli_code_owner);
 }
 
 void test_an_expression_placeholder_matches_each_complete_call(void)

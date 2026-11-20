@@ -347,12 +347,9 @@ EMBED_INLINE int found_read(const TestingFoundCtx *args)
     work->capacity = 0u;
     work->refused = 0;
     work->line_start = NULL;
-    CliSymbolsLanguages *const languages = cli_symbols_languages_read();
-    const int leaved = (languages != NULL) &&
-                       EMBED_CALL(cli_symbols_path_internal.leaves_declare, CliSymbolsPathCtx, .languages = languages,
-                                  .path = args->file, .state = "root", .text = args->text, .size = args->size,
-                                  .read = &work->read, .each = found_declared, .context = work);
-    g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
+    const int leaved = EMBED_CALL(cli_symbols_path_internal.leaves_declare, CliSymbolsPathCtx, .path = args->file,
+                                  .state = "root", .text = args->text, .size = args->size, .read = &work->read,
+                                  .each = found_declared, .context = work);
     if (!leaved || work->refused)
     {
         return 0;

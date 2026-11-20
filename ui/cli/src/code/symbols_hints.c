@@ -148,11 +148,9 @@ EMBED_INLINE void hints_arguments(const SymbolsHintsCtx *args)
 
 int cli_symbols_hints(const CliSymbolsPathTextSizeContextCfg *args)
 {
-    CliSymbolsLanguages *const languages = cli_symbols_languages_for_call();
     CliLeafRead read;
-    const int leaved = (languages != NULL) && EMBED_CALL(cli_symbols_path_internal.leaves_save, CliSymbolsPathCtx,
-                                                         .languages = languages, .path = args->path, .state = "root",
-                                                         .text = args->text, .size = args->size, .read = &read);
+    const int leaved = EMBED_CALL(cli_symbols_path_internal.leaves_save, CliSymbolsPathCtx, .path = args->path,
+                                  .state = "root", .text = args->text, .size = args->size, .read = &read);
     char root[CLI_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){.dst = root, .src = g_cli_tree_root, .bytes = sizeof(root)});
     CliHints hints = {args->path, args->text, args->size, "", 0u, 0};
@@ -184,8 +182,8 @@ int cli_symbols_hints(const CliSymbolsPathTextSizeContextCfg *args)
         mmgr_line_put(&head_path, hints.defined);
         head.line = hints.line;
         if (done && hints.found && (mmgr_line_finish(&head_path) != 0ULL) &&
-            EMBED_CALL(cli_symbols_languages_internal.head_read, CliSymbolsLanguagesCtx, .languages = languages,
-                       .root = root, .name = name, .length = length, .head = &head))
+            EMBED_CALL(cli_symbols_languages_internal.head_read, CliSymbolsLanguagesCtx, .root = root, .name = name,
+                       .length = length, .head = &head))
         {
             EMBED_CALL(hints_arguments, SymbolsHintsCtx, .read = &read, .open = open, .head = &head,
                        .each = args->each_hinted, .context = args->context);
@@ -198,6 +196,5 @@ int cli_symbols_hints(const CliSymbolsPathTextSizeContextCfg *args)
         read.count = 0u;
         read.capacity = 0u;
     }
-    g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
     return done;
 }

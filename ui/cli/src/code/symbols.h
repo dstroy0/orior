@@ -31,17 +31,9 @@ typedef struct CliSymbolsContextCfg CliSymbolsContextCfg;
 typedef struct CliSymbolsCountCfg CliSymbolsCountCfg;
 typedef struct CliSymbolsAtCfg CliSymbolsAtCfg;
 typedef struct CliSymbolsDoneCfg CliSymbolsDoneCfg;
-typedef struct CliSymbolsCfg CliSymbolsCfg;
 
 // one declaration found: its name, `length` bytes, what it is, and its line counted from 0
 typedef void (*CliDeclared)(const CliDeclaredCfg *args);
-
-// The languages texts are read in, the language each file opens as and each language's grammar, read once for the
-// texts of a request (symbols_read.c)
-typedef struct CliSymbolsLanguages CliSymbolsLanguages;
-// the languages read in a cell taken from the cells, NULL where it is refused, and given back with the cell
-CliSymbolsLanguages *cli_symbols_languages_read(void);
-CliSymbolsLanguages *cli_symbols_languages_for_call(void);
 
 // whether the declarations of the file at `path` are read: whether its language is one read here
 int cli_symbols_reads(const CliSymbolsPathNameCfg *args);
@@ -425,11 +417,6 @@ struct CliSymbolsDoneCfg
 {
     unsigned long long *done;
     unsigned long long *total;
-};
-
-struct CliSymbolsCfg
-{
-    CliSymbolsLanguages *read;
 };
 
 typedef struct
