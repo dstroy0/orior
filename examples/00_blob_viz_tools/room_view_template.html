@@ -1282,36 +1282,38 @@
 
   // Each octant carries two transforms worth naming, and they are different types of thing.
   //
-  //   spatial       the reflection diag(sx, sy, sz), the map that carries the first octant onto this
-  //                 one. Three signs, and it is where the arm points.
-  //   dimensional   its determinant, the product sx*sy*sz. Four octants come out +1 and four come out
-  //                 -1. The eight split evenly between frames that are a rotation of the first and
-  //                 frames that are a rotation composed with a mirror. A right-passed reading and a
-  //                 left-passed one are not interchangeable, and this sign is where that is recorded.
-  //                 It is also the sign torsion reports. The two agree by construction.
+  //   - spatial: the reflection diag(sx, sy, sz), the map that carries the first octant onto this one.
+  //     Three signs, and it is where the arm points.
+  //   - dimensional: its determinant, the product sx*sy*sz. Four octants come out +1 and four come out
+  //     -1. The eight split evenly between frames that are a rotation of the first, and frames that are
+  //     a rotation composed with a mirror.
+  //
+  // A right-passed read and a left-passed read are not interchangeable, and this sign records that. It
+  // is also the sign that torsion reports. The two agree by construction.
+  //
   // How far out a corner sits, against how long its edges are, both as fractions of the shell radius.
   //
-  // The ratio between them decides whether the picture says eight or says three. At a small
-  // offset and long edges the eight corners sit near the origin with their arms running the majority of the
-  // way across the shell, and since four octants share each axis direction the edges lie along one
-  // another: the result is an axis-aligned cage, which is a true drawing of three axes and a false
-  // drawing of eight frames. Pushing the corner out past the object and shortening the edges to about
-  // half the offset separates them, and each octant reads as its own right-angle corner located off
-  // in its own eighth of space.
-  var ARM_OFF = 0.62; // corner distance from the center, along its own diagonal
-  var ARM_LEN = 0.34; // edge length, about half the offset. No two arms overlap
+  // The ratio between them decides whether the picture says eight or three. At a small offset and long
+  // edges, the eight corners sit near the origin, and their arms run most of the way across the shell.
+  // Four octants share each axis direction, and the edges then lie along one another.
+  //
+  // The result is an axis-aligned cage: a true drawing of three axes, and a false drawing of eight
+  // frames. A push of the corner out past the object, with edges cut to about half the offset,
+  // separates them. Each octant then reads as its own right-angle corner, off in its own eighth of
+  // space.
+  var ARM_OFF = 0.62; // The corner distance from the center, along its own diagonal.
+  var ARM_LEN = 0.34; // The edge length, about half the offset. No two arms overlap.
   var armGeo = null;
   var armLine = null;
   var armTone = [];
 
   // THE THREE EDGES OF AN ARM, FOR AN ARM THAT IS ANY DIRECTION.
   //
-  // A sign octant's cone has three real edges and they are the coordinate axes. A Voronoi cell of a
-  // golden direction has no such tidy corner: its
-  // edges lie wherever the neighboring cells meet. There are as many of them as it has
-  // neighbors.
+  // The cone of a sign octant has three real edges, and they are the coordinate axes. A Voronoi cell
+  // of a golden direction has no such tidy corner. Its edges lie wherever the adjacent cells meet.
+  // There are as many of them as it has neighbors.
   //
-  // a general arm is drawn as a corner and not as its cell. Three rays leave the corner at the
+  // The drawing shows a general arm as a corner, and not as its cell. Three rays leave the corner at the
   // angle the coordinate axes make with a cube diagonal,
   //
   //     theta = arccos(1 / sqrt 3) = 54.7356 degrees
@@ -1321,15 +1323,18 @@
   // THAT CONSTRUCTION IS A ROTATED COORDINATE FRAME, EXACTLY, AND NOT AN IMITATION OF ONE. Three unit
   // vectors mutually at right angles have a diagonal of length sqrt(3). Each makes arccos(1/sqrt 3)
   // with it and their projections sit 120 degrees apart. The converse is the construction above.
-  // The three rays come out mutually perpendicular whatever direction they are built around.
+  // The three rays come out mutually perpendicular, whatever direction they go round.
   //
-  // Measured over the eight cube diagonals and a golden placement: edge length off unit by at max
-  // 2.2e-16, every edge 54.7356 degrees from its direction, and every pair of edges 90.000 degrees
-  // apart. a general arm is a true right-angle trilateral corner and the octant is the case where
-  // that frame happens to be the coordinate axes.
+  // A measure over the eight cube diagonals and a golden placement gives these values:
+  //   - the edge length is off unit by at max 2.2e-16.
+  //   - each edge is 54.7356 degrees from its direction.
+  //   - each pair of edges is 90.000 degrees apart.
   //
-  // The sign path is retained anyway, because for the octants those axes are the cell's own edges, and
-  // drawing the true thing where it is available is worth one branch.
+  // A general arm is thus a true right-angle trilateral corner. The octant is the case where that
+  // frame is the coordinate axes.
+  //
+  // The code keeps the sign path all the same. For the octants, those axes are the own edges of the
+  // cell. A drawing of the true thing where it exists is worth one branch.
   function armEdges(index, out) {
     var dir = armDirs[index];
     var sign = armSigns[index];
@@ -1340,9 +1345,8 @@
       return out;
     }
 
-    // A frame perpendicular to the direction. Seeded from whichever axis the direction leans on least,
-    // since seeding from a nearly parallel axis gives a cross product of no length and a frame of
-    // noise.
+    // A frame perpendicular to the direction. Its seed is the axis that the direction leans on least.
+    // A seed from a nearly parallel axis gives a cross product of no length, and a frame of noise.
     var ax = Math.abs(dir.x),
       ay = Math.abs(dir.y),
       az = Math.abs(dir.z);
@@ -1359,8 +1363,8 @@
     var vy = dir.z * ux - dir.x * uz;
     var vz = dir.x * uy - dir.y * ux;
 
-    var lean = 1 / Math.sqrt(3); // cos theta
-    var wide = Math.sqrt(1 - lean * lean); // sin theta
+    var lean = 1 / Math.sqrt(3); // cos theta.
+    var wide = Math.sqrt(1 - lean * lean); // sin theta.
     for (var j = 0; j < 3; j++) {
       var turn = (2 * Math.PI * j) / 3;
       var cs = Math.cos(turn),
@@ -1386,9 +1390,9 @@
 
     for (var o = 0; o < count; o++) {
       var dir = armDirs[o];
-      // One hue per arm, spaced around the wheel so no two adjacent characters read as one color.
-      // Saturated and light, because these are read against a pale shell interior and a mid-tone
-      // line on a mid-tone ground is a line nobody can follow to its corner.
+      // One hue per arm, spaced round the wheel, and no two adjacent characters read as one color.
+      // Saturated and light, because the reader sees these against a pale shell interior. A mid-tone
+      // line on a mid-tone ground is a line that nobody can follow to its corner.
       tone.setHSL(o / count, 0.78, 0.66);
       armTone[o] = tone.getStyle();
 
@@ -1410,8 +1414,8 @@
         pos[at + 3] = cx + edge[0] * reach;
         pos[at + 4] = cy + edge[1] * reach;
         pos[at + 5] = cz + edge[2] * reach;
-        // The corner end is brighter than the far end. Each edge reads as growing outward from the
-        // center and the eye finds the shared corner without a marker on it.
+        // The corner end is brighter than the far end. Each edge reads as a growth outward from the
+        // center, and the eye finds the shared corner without a marker on it.
         lit[at] = tone.r;
         lit[at + 1] = tone.g;
         lit[at + 2] = tone.b;
@@ -1427,14 +1431,13 @@
     armGeo.setAttribute("color", new THREE.BufferAttribute(lit, 3));
     // Normal blending and no depth test, both deliberate.
     //
-    // Additive blending makes the arms invisible. They sit inside the shells, the shell interiors are
-    // pale, and adding a mid-tone color to a pale background changes almost nothing. Normal blending
-    // puts the color on the screen instead of adding it to what is already there.
+    // Additive blending makes the arms invisible. They sit inside the shells, and the shell interiors
+    // are pale. A mid-tone color added to a pale background changes almost nothing. Normal blending
+    // puts the color on the screen, and does not add it to what is already there.
     //
-    // The depth test is off because these are a frame. An arm is the corner of an
-    // octant, which is a statement about which part of space a reading belongs to, and it has to stay
-    // legible through the object it is measuring. Occluded by the boundary it reads as an object
-    // behind another object.
+    // The depth test is off because these are a frame. An arm is the corner of an octant. That says
+    // which part of space a reading belongs to, and it must stay legible through the object that it
+    // measures. Where the boundary hides it, it reads as an object behind another object.
     armLine = new THREE.LineSegments(
       armGeo,
       new THREE.LineBasicMaterial({
@@ -1453,14 +1456,14 @@
 
   buildArms();
 
-  // Which arm a point belongs to: the nearest direction, by the largest dot product. The same order
-  // the arms were built in, an index here is the index of an arm and of a character.
+  // Which arm a point belongs to: the nearest direction, by the largest dot product. The order is the
+  // build order of the arms, and an index here is the index of an arm and of a character.
   //
   // AT EIGHT CUBE DIAGONALS THIS IS THE SIGN TEST, EXACTLY. The dot with (sx, sy, sz)/sqrt(3) is
-  // (x sx + y sy + z sz)/sqrt(3), maximal precisely when every sign matches, which is |x|+|y|+|z|.
-  // So the general rule and the old `((x >= 0) ? 4 : 0) + ...` name the same region and the same
-  // index. The sign form is retained as the fast path because it is a handful of comparisons against a
-  // loop over every arm. It runs per placement point on every repaint.
+  // (x sx + y sy + z sz)/sqrt(3). It is maximal exactly when each sign matches, which is |x|+|y|+|z|.
+  // The general rule and the sign form `((x >= 0) ? 4 : 0) + ...` thus name the same region and the
+  // same index. The code keeps the sign form as the fast path. It is a few comparisons, against a loop
+  // over each arm, and it runs per placement point on each repaint.
   function armOf(x, y, z) {
     if (armSigns.length === 8 && armSigns[0]) {
       return (x >= 0 ? 4 : 0) + (y >= 0 ? 2 : 0) + (z >= 0 ? 1 : 0);
@@ -1490,34 +1493,33 @@
   // region or it is not. `docs/arm-records.md` asks for three types and the other two do not fit
   // through an index at all.
   //
-  //   indicator   0 or 1        a sign octant
-  //   signed      -1, 0 or 1    the difference of two overlapping arms
-  //   graded      any real      an arm matched to a harmonic
+  //   - indicator, 0 or 1: a sign octant.
+  //   - signed, -1, 0 or 1: the difference of two arms that overlap.
+  //   - graded, any real: an arm matched to a harmonic.
   //
-  // A table of weights holds all three the same way, and the reading is then the matrix product the
-  // record already defines: the character of arm a is the sum of W[a][k] over the lit points k. Nothing
-  // downstream has to know which type it was passed.
+  // A table of weights holds all three the same way. The reading is then the matrix product that the
+  // record already defines. The character of arm a is the sum of W[a][k] over the lit points k. Nothing
+  // downstream needs to know which type it got.
   //
-  // WHY THE ROW IS PADDED TO A POWER OF TWO. The row start is then a shift instead of a multiply.
-  // An index is `(arm << armShift) + point` and the inner loop of the reading carries no integer
-  // multiply at all. It also puts every row on an aligned boundary, as a device buffer and
-  // a cache line both want. It is the layout a texture upload can take without a repack.
+  // WHY THE ROW HAS A PAD TO A POWER OF TWO. The row start is then a shift, and not a multiply.
+  // An index is `(arm << armShift) + point`, and the inner loop of the reading carries no integer
+  // multiply at all. It also puts each row on an aligned boundary, as a device buffer and a cache
+  // line both want. It is the layout that a texture upload can take without a repack.
   //
   // WHAT IT COSTS, AT FOUR BYTES A WEIGHT:
   //
-  //     arms   points    padded   table
-  //       8       256       256   8 KB
-  //      64       256       256   65 KB
-  //      64      2701      4096   1.0 MB     one weight per surface vertex
-  //      64    262144    262144   67 MB      a 512 by 512 sampling of each arm
-  //     256   1048576   1048576   1.0 GB     the ceiling, and past the budget
+  //   - 8 arms, 256 points, 256 padded: a table of 8 KB.
+  //   - 64 arms, 256 points, 256 padded: 65 KB.
+  //   - 64 arms, 2701 points, 4096 padded: 1.0 MB, one weight per surface vertex.
+  //   - 64 arms, 262144 points, 262144 padded: 67 MB, a 512 by 512 sample of each arm.
+  //   - 256 arms, 1048576 points, 1048576 padded: 1.0 GB, the ceiling, and past the budget.
   //
-  // Padding never costs more than a factor of two and usually far less: 2701 to 4096 wastes 34%,
-  // the worst case in the table above and is one third of a megabyte. The alignment is worth
-  // more than the third of a megabyte.
-  var armStride = 0; // the padded row length, a power of two
-  var armShift = 0; // its log, a row start is a shift
-  var armWeight = null; // the table itself, arms by armStride
+  // The pad never costs more than a factor of two, and usually far less. 2701 to 4096 wastes 34%, the
+  // worst case in the table above, and one third of a megabyte. The alignment is worth more than that.
+
+  var armStride = 0; // The padded row length, a power of two.
+  var armShift = 0; // Its log. A row start is a shift.
+  var armWeight = null; // The table itself, arms by armStride.
 
   function nextPowerOfTwo(want) {
     var size = 1,
@@ -1529,22 +1531,22 @@
     return [size, shift];
   }
 
-  // The table for the current arm set and the current placement. Rebuilt when either moves, since a
-  // weight is a statement about a named point and neither the arms nor the points are frozen.
+  // The table for the current arm set and the current placement. The code builds it again when either
+  // moves. A weight is a statement about a named point, and neither the arms nor the points stay put.
   function buildArmWeights() {
     var pair = nextPowerOfTwo(COUNT);
     armStride = pair[0];
     armShift = pair[1];
     var want = armDirs.length * armStride;
-    // Reallocated only when the shape changes, for the same reason the surface scratch is: a fresh
-    // buffer per rebuild is a few megabytes of garbage on a control a reader holds down.
+    // The code allocates it again only when the shape changes, for the same reason as the surface
+    // scratch. A fresh buffer per build is a few megabytes of garbage on a control that a reader holds
+    // down.
     if (!armWeight || armWeight.length !== want) {
       armWeight = new Float32Array(want);
     }
     armWeight.fill(0);
     for (var k = 0; k < COUNT; k++) {
-      // The indicator case, as a Voronoi cell of a direction is. A graded set writes a
-      // real here instead.
+      // The indicator case, as a Voronoi cell of a direction is. A graded set writes a real here.
       armWeight[(armOf(atX[k], atY[k], atZ[k]) << armShift) + k] = 1;
     }
   }
@@ -1553,10 +1555,10 @@
     return armWeight ? armWeight.length * 4 : 0;
   }
 
-  // Translucent and opaque are two materials and not one material at two opacities. Additive
-  // blending can only ever brighten. It cannot occlude however far its opacity is driven, and an
-  // unlit surface at full opacity is a flat silhouette with no topology to read. So the faint case
-  // retains the additive window and the solid case takes a lit material that writes depth.
+  // Translucent and opaque are two materials, and not one material at two opacities. Additive
+  // blending can only ever brighten. It cannot occlude, however high its opacity goes. An unlit
+  // surface at full opacity is a flat silhouette with no topology to read. The faint case thus keeps
+  // the additive window, and the solid case takes a lit material that writes depth.
   function glassMaterial() {
     return new THREE.MeshBasicMaterial({
       color: 0x5f86b0,
@@ -1604,8 +1606,8 @@
       glass,
     );
 
-    // A boundary neither casts nor blocks the beam. It stops matter and passes light, the
-    // one asymmetry the room is built to show. Giving it a shadow would contradict the picture.
+    // A boundary neither casts nor blocks the beam. It stops matter and passes light, the one
+    // asymmetry that the room shows. A shadow on it contradicts the picture.
     skin.castShadow = false;
     skin.receiveShadow = false;
     scene.add(skin);
@@ -1627,14 +1629,14 @@
   }
 
   // ---------------------------------------------------------------------------------------------
-  // The lights inside. Small, many, and going wherever they were going until a boundary turns them
-  // around. Each one has a stopping power, and whether it casts a shadow is a question about that
-  // number against the beam's energy and never about how bright it looks.
+  // The lights inside. Small and many, they go on their way until a boundary turns them round. Each
+  // has a stop power. Whether it casts a shadow is a question about that number against the energy of
+  // the beam, and never about how bright it looks.
   // ---------------------------------------------------------------------------------------------
 
-  // A soft round fall-off, drawn once and shared. Every light gets one of these over it, because a
-  // small shaded ball at this size reads as a dull speck and a light does not: what says light is the
-  // halo around it, and the halo costs one texture for the whole cloud.
+  // A soft round fall-off, drawn once and shared. Each light gets one of these over it. A small shaded
+  // ball at this size reads as a dull speck, and a light does not. The halo round it says light, and
+  // the halo costs one texture for the whole cloud.
   function haloTexture() {
     var pad = document.createElement("canvas");
     pad.width = 64;
@@ -1650,9 +1652,9 @@
   }
   var HALO = haloTexture();
 
-  // The cloud is stored in plain arrays and drawn in a few calls. One mesh per light with one sprite
-  // over it is 320 objects, and a point light casts its shadow by rendering the scene six times.
-  // Every frame walks nineteen hundred draws before anything moves.
+  // The cloud lives in plain arrays, and a few calls draw it. One mesh per light with one sprite over
+  // it is 320 objects, and a point light casts its shadow with six renders of the scene. Each frame
+  // then walks nineteen hundred draws before anything moves.
   var things = DATA.things;
   var COUNT = things.length;
 
@@ -1672,8 +1674,8 @@
     var thing = things[i];
 
     // The draw puts a body at a depth between 0.12 and 0.82 of the unit ball. That depth chooses its
-    // band, and the remainder places it within the band. The population divides among the shells
-    // in the proportion it was drawn in and not by a rule imposed here.
+    // band, and the rest places it within the band. The population divides among the shells in the
+    // proportion of the draw, and not by a rule from here.
     var deep = Math.sqrt(
       thing.at[0] * thing.at[0] +
         thing.at[1] * thing.at[1] +
@@ -1686,10 +1688,10 @@
     band[i] = which;
     rad[i] = thing.size * SHELL;
 
-    // Named ceiling and base, and not top and bottom. A `var top` at the outermost scope of a script
-    // is an assignment to `window.top`, which is read-only: the write is dropped without an error,
-    // the name goes on referring to the window, and the arithmetic below turns every position into a
-    // NaN that paints nothing and reports nothing.
+    // The names are ceiling and base, and not top and bottom. A `var top` at the outermost scope of a
+    // script is an assignment to `window.top`, which is read-only. The browser drops the write with no
+    // error, and the name still refers to the window. The arithmetic below then turns each position
+    // into a NaN that paints nothing and reports nothing.
     var ceiling = bandOuter(which) - rad[i] * 1.6;
     var base = which === 0 ? rad[i] * 1.6 : bandOuter(which - 1) + rad[i] * 1.6;
     if (ceiling < base) {
@@ -1716,9 +1718,9 @@
     tint[i * 3 + 2] = warmth.b;
   }
 
-  // Two instanced meshes and never one. Casting a shadow is a property of a whole mesh. The lights
-  // that stop the beam and the lights that pass it have to be different objects. The alternative is a
-  // mesh per light.
+  // Two instanced meshes, and never one. A shadow is a property of a whole mesh. The lights that stop
+  // the beam and the lights that pass it must be different objects. The alternative is a mesh per
+  // light.
   var ballGeometry = new THREE.SphereGeometry(1, 8, 6);
   var ballStuff = new THREE.MeshBasicMaterial({ vertexColors: false });
 
@@ -1733,11 +1735,13 @@
   scene.add(passers);
 
   // Sticks through each antipodal pair of bits, drawn only for the clock, where the 256 bits sit on
-  // eight rings of thirty-two. In that layout bit (word w, bit b) faces (word 7-w, bit b+16). The
-  // two are at opposite directions and the stick joining them runs through the center. There are 128
-  // such pairs and no bit is its own partner. One instanced cylinder carries all of them, oriented and
-  // colored per pair each tick: both bits set is a hot stick, both clear a dim one, and a mixed pair
-  // runs a color that flips with which end is set, the same reading the pairs page draws.
+  // eight rings of thirty-two. In that layout bit (word w, bit b) faces (word 7-w, bit b+16).
+  // The two are at opposite directions, and the stick that joins them runs through the center. There
+  // are 128 such pairs, and no bit is its own partner.
+  //
+  // One instanced cylinder carries all of them, oriented and colored per pair each tick. Both bits at
+  // 1 give a hot stick, and both at 0 a dim one. A mixed pair runs a color that flips with which end
+  // is 1, the same reading that the pairs page draws.
   var stickA = [];
   var stickB = [];
   var sticks = null;
@@ -1765,7 +1769,7 @@
     scene.add(sticks);
   }
 
-  // Reused so the per-tick stick update allocates nothing.
+  // The code uses this again, and the per-tick stick update allocates nothing.
   var stickAxis = new THREE.Vector3();
   var stickMid = new THREE.Vector3();
   var stickUp = new THREE.Vector3(0, 1, 0);
@@ -1859,14 +1863,15 @@
   scene.add(halos);
 
   // ---------------------------------------------------------------------------------------------
-  // The trace left behind. Heat put into a wire does not arrive everywhere at once: it stays where it
-  // was put and leaks away from there. What a moving source leaves is a tail that fades, and the
-  // length of that tail is the dwell time and not a decoration on it.
+  // The trace left behind. Heat put into a wire does not arrive everywhere at once. It stays where it
+  // went in, and leaks away from there. A source that moves leaves a tail that fades. The length of
+  // that tail is the dwell time, and not a decoration on it.
   //
-  // Each light retains its last few places in a ring, oldest overwritten. Brightness falls off with how
-  // long ago a place was visited, at no dwell only the head is lit and the cloud reads as points,
-  // and at full dwell each light drags a lit wire behind it. Nothing here is a blur applied to the
-  // picture afterwards. It is the same light, still being counted from where it used to be.
+  // Each light keeps its last few places in a ring, and the newest replaces the oldest. Brightness
+  // falls off with the age of a visit to a place. At no dwell, only the head is lit, and the cloud
+  // reads as points.
+  // At full dwell, each light drags a lit wire behind it. Nothing here is a blur on the picture after
+  // the draw. It is the same light, still counted from where it was.
   // ---------------------------------------------------------------------------------------------
 
   var TRAIL = 18;
@@ -1887,20 +1892,23 @@
   // ---------------------------------------------------------------------------------------------
   // The same trace as it reaches the boundary.
   //
-  // From inside, dwell is a tail behind a moving light. From outside there is no tail to see, because
-  // the inside is not what an outside observer has: what they have is the surface, and the tail
-  // arrives there as a smear. So the history is carried twice, once where it happened and once
-  // projected onto the shell, and the second one is what the boundary actually holds.
+  // From inside, dwell is a tail behind a light that moves. From outside there is no tail to see. An
+  // outside observer does not have the inside. They have the surface, and the tail arrives there as
+  // a smear.
+  // The trace thus goes twice: once where it occurred, and once projected onto the shell. The second
+  // is what the boundary actually holds.
   //
-  // The smear is worth more than the spot. A spot says where something is; a smear says where it was
-  // going and how long it took. Its length is the dwell and its direction is the direction of
-  // travel. Both come off a surface that never moved.
+  // The smear is worth more than the spot. A spot says where a thing is. A smear says where it went,
+  // and how long it took. Its length is the dwell, and its direction is the direction of travel.
+  // Both come off a surface that never moved.
   //
-  // This is also what makes an opaque boundary honest. Close the surface and the interior is hidden,
-  // but nothing about the interior stopped. It is still moving, still confined, still depositing, and
-  // what it deposits is on the outside of the surface being read. The smears sit clear of the skin so
-  // that a solid boundary occludes the far side of the cloud and never the near side of its own
-  // record, the difference between hiding a thing and reading it.
+  // This also makes an opaque boundary honest. With the surface shut, the interior is out of view,
+  // but the interior did not stop. It still moves, stays confined and leaves deposits. Its deposits
+  // are on the outside of the surface that the reader reads.
+  //
+  // The smears sit clear of the skin. A solid boundary then occludes the far side of the cloud, and
+  // never the near side of its own record. This marks the difference between a hidden thing and a
+  // read.
   // ---------------------------------------------------------------------------------------------
 
   var smearAt = new Float32Array(COUNT * TRAIL * 3);
@@ -1920,9 +1928,9 @@
   var toward = new THREE.Vector3();
 
   function ontoSurface(x, y, z, a, b, out) {
-    // Pushed straight out until the shape's own measure reads one. Two passes, because the measure
-    // scales with position for the sphere, the cube and the octahedron and lands exactly on the
-    // first, while the cone's does not and needs the second.
+    // The code pushes it straight out until the own measure of the shape reads one. There are two
+    // passes. The measure scales with position for the sphere, the cube and the octahedron, and lands
+    // exactly on the first. The measure of the cone does not, and needs the second.
     out.set(x, y, z);
     for (var pass = 0; pass < 2; pass++) {
       var q = measure(state.core, out.x, out.y, out.z, a, b, toward);
@@ -1952,7 +1960,7 @@
     }
     trailHead = (trailHead + 1) % TRAIL;
 
-    // Age is counted back from the newest entry. The brightest end is always where the light is now.
+    // The age counts back from the newest entry. The brightest end is always where the light is now.
     var life = state.dwell * TRAIL;
     for (var k2 = 0; k2 < COUNT; k2++) {
       for (var j = 0; j < TRAIL; j++) {
@@ -1964,9 +1972,8 @@
         trailTint[to + 2] = tint[k2 * 3 + 2] * lit * 0.7;
         trailSize[k2 * TRAIL + j] = spread[k2] * (0.35 + 0.4 * lit);
 
-        // What lands on the shell is brighter and broader than what made it, since the boundary is
-        // being read and not the thing itself, and a smear is what a spot becomes once it has had
-        // time to move.
+        // What lands on the shell is brighter and broader than what made it. The reader reads the
+        // boundary, and not the thing itself. A smear is what a spot becomes once it has time to move.
         smearTint[to] = tint[k2 * 3] * lit * 0.95;
         smearTint[to + 1] = tint[k2 * 3 + 1] * lit * 0.95;
         smearTint[to + 2] = tint[k2 * 3 + 2] * lit * 0.95;
@@ -1982,10 +1989,10 @@
   }
 
   // ---------------------------------------------------------------------------------------------
-  // The medium. There is matter between the lights, and matter in the way is the reason a beam is
-  // visible along its length instead of only where it lands. Each mote is lit by how close it sits to
-  // the nearest source. Moving a source lights a different part of the room and the scattering is
-  // drawn from the same places the shadows are.
+  // The medium. There is matter between the lights. Matter in the way is the reason why a beam shows
+  // along its length, and not only where it lands. The light of each mote comes from how close it
+  // sits to the nearest source. A move of a source lights a different part of the room. The scatter
+  // comes from the same places as the shadows.
   // ---------------------------------------------------------------------------------------------
 
   var MOTES = 2200;
