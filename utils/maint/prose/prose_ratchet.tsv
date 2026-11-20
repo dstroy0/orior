@@ -1574,7 +1574,6 @@ utils/test/src/ui/cli/unit/sift/test_sift/test_sift.c	3
 utils/test/src/ui/cli/unit/sort/test_sort/test_sort.c	1
 utils/test/src/ui/cli/unit/support/cli_unity.c	1
 utils/test/src/ui/cli/unit/support/cli_unity.h	5
-utils/test/src/ui/cli/unit/symbols/test_symbols/test_symbols.c	2
 utils/test/src/ui/cli/unit/terminal/test_terminal/test_terminal.c	15
 utils/test/src/ui/cli/unit/test_runs/test_test_runs/test_test_runs.c	2
 utils/test/src/ui/cli/unit/text_walks/test_text_walks/test_text_walks.c	4

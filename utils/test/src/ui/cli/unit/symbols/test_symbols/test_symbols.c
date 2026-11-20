@@ -415,7 +415,7 @@ void test_a_branch_is_joined_read_counted_and_let_go_and_the_tree_cleared_last(v
     EMBED_CALL(cli_symbols_tree_branch_path.branch_path_read, CliSymbolsTreeBranchPathCfg, .branch = &branch,
                .path_out = path);
     TEST_ASSERT_EQUAL_STRING("src/new.c", path);
-    // a branch written at its place is read back as it was written
+    // a branch written at its place reads back the same
     branch.written = 12345ULL;
     EMBED_CALL(cli_symbols_tree_at.branch_write, CliSymbolsTreeAtCfg, .file = file, .branch = &branch);
     CliTreeBranch written;
