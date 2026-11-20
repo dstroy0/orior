@@ -1,14 +1,17 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// kdm.h: a part's .kdm (kdm.oracle.tsv), a k-file people read and write (kfile_lines.h): its first line `kdm <part>`,
-// then its own section, the comments, the head of its rows and the rows, every arrangement of primitives that produces
-// an operator and what it costs the part, a row each, its fields apart by tabs; and after its last row, its tail: the
-// part's registers, widths, loads and stores in a block of the ruleset's language, `__krs__(` to `)__krs__` (klang.h),
-// which the ruleset reader reads, its pipes, and their comments.
+// kdm.h: the .kdm of a part (kdm.oracle.tsv), a k-file that people read and write (kfile_lines.h):
+//   - its first line, `kdm <part>`.
+//   - its own section: the comments, the head of its rows, and the rows. Each row is an arrangement of primitives that
+//     produces an operator, and what it costs the part. Its fields are apart by tabs.
+//   - after its last row, its tail. That is the registers, widths, loads and stores of the part in a block of the
+//     language of the ruleset, `__krs__(` to `)__krs__` (klang.h). The ruleset reader reads it. Then its pipes, and
+//     their comments.
 //
-// A program that writes the rows writes the whole section, after a who line of its own. The tail is as the file
-// stored it, the who that was in force over it written again before it. A program that writes the pipes writes them at
-// the end of the tail, after a who line of its own, and the pipes before them are let go.
+// A program that writes the rows writes the whole section, after a who line of its own. The tail stays as the file
+// stored it, and the code writes again before it the who that was in force over it.
+// A program that writes the pipes writes them at the end of the tail, after a who line of its own. The pipes before
+// them go.
 #ifndef KDM_H
 #define KDM_H
 
@@ -33,8 +36,8 @@ extern "C"
     // A .kdm's lines (kfile_lines.h). A file starts as zeros
     typedef KfileLines KdmFile;
 
-    // one row: the operator, the count of nodes, the chain, its cost as the row writes it, the runs it was timed over,
-    // and where a descent wrote a sixth field, its verdict, 1 located and 0 out; -1 where the row has no sixth
+    // one row: the operator, the count of nodes, the chain, its cost as the row writes it, and the runs that its time comes from.
+    // Where a descent wrote a sixth field, its verdict, 1 in place and 0 out. -1 where the row has no sixth
     typedef struct
     {
         char operation[KDM_OPERATOR];
@@ -45,12 +48,12 @@ extern "C"
         int verdict;
     } KdmRow;
 
-    // the .kdm at `path` read into `file` as the run stores it (kfile_lines_read): 1, and none of its lines where there
-    // is no such file; 0 where there was no memory for a line
+    // the .kdm at `path`, read into `file` as the run stores it (kfile_lines_read). The result is 1, with no lines where
+    // there is no such file. It is 0 where there was no memory for a line
     int kdm_read(KdmFile *file, const char *path);
 
-    // `file` passed to the run's writer as the file at `path`, written by `who` (kfile_lines_write_by): 1, or 0 where it
-    // could not be written
+    // `file` passed to the run's writer as the file at `path`, written by `who` (kfile_lines_write_by). The result is 1,
+    // or 0 where the write failed
     int kdm_write_by(const KdmFile *file, const char *path, Who who);
 
     // every line `file` contains let go, and the file zeros again
@@ -60,8 +63,8 @@ extern "C"
     // comment; 0 otherwise
     int kdm_row_read(const char *line, KdmRow *row);
 
-    // the line the file's tail starts at, the one after its last row, or after the head of its rows where it has
-    // none, or its count of lines where it has no head
+    // the line where the tail of the file starts: the line after its last row. Where it has no rows, it is the line
+    // after the head of its rows. Where it has no head, it is its count of lines
     unsigned int kdm_tail_at(const KdmFile *file);
 
     // The file's section, every line from its second to its tail, replaced by `lines`, `count` of them, written by
@@ -70,9 +73,9 @@ extern "C"
     // them, the file as it was
     int kdm_section_written_by(KdmFile *file, const char *part, const char *const *lines, unsigned int count, Who who);
 
-    // Every line of the tail that is `pipe ...` or one of `comment`, `comments` of them, let go, the blank lines then
-    // ending the tail taken down to none, and `pipes`, `count` of them, put by `who` at the end after a blank line and
-    // the comment, where there are any. 1, or 0 where there was no memory for them, the file as it was
+    // Each line of the tail that is `pipe ...` or one of `comment`, `comments` of them, let go. The blank lines at the
+    // end of the tail then go. Where there are `pipes`, `count` of them, `who` puts them at the end after a blank line
+    // and the comment. The result is 1, or 0 where there was no memory for them, and the file stays as it was
     int kdm_pipes_replaced_by(KdmFile *file, const char *const *comment, unsigned int comments,
                               const char *const *pipes, unsigned int count, Who who);
 
