@@ -2220,6 +2220,7 @@ static unsigned int *turing_upload(std::vector<unsigned int *> *owned, const std
 
 // the check of the host of lanes [from, from + tried) of the run of a stage, beside the next runs of the device. Of
 // each member, it copies back alone the records that those lanes read. It takes the index to their places in the copy.
+//
 // A record that a lane names past the end of its member stays past the end of the copy. The lane is zero on both.
 // With no index, a lane reads its own record, and the checked lanes start at 0. The result is 1 where the copies match
 static int turing_check_range(const TuringStage *stage, unsigned int *const members[3], const unsigned long long bodies[3],
