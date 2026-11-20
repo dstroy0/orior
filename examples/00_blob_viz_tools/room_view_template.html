@@ -2033,9 +2033,9 @@
   );
   scene.add(dusk);
 
-  // Scaled to the room, and to how close a source is carried. A source brought in among the bodies
-  // sits where the medium is densest. The softening, the room's area, retains the near field finite
-  // when the source is inside the cloud.
+  // Scaled to the room, and to how close the reader carries a source. A source brought in among the
+  // bodies sits where the medium is densest. The softener, the area of the room, keeps the near field
+  // finite when the source is inside the cloud.
   var DUST_GAIN = ROOM * ROOM * 0.006;
   var DUST_SOFT = ROOM * ROOM * 0.05;
   var DUST_MAX = 0.14;
@@ -2065,97 +2065,96 @@
   }
 
   // ---------------------------------------------------------------------------------------------
-  // The sources. Carried, not fixed, and the only things in here that make a shadow.
+  // The sources. The reader carries them, and they are the only things in here that make a shadow.
   //
-  // More than one, because one source cannot give depth. A single shadow says a body is somewhere
-  // along a line. Two sources apart from each other throw two shadows of the same body, and how far
-  // those two separate on the wall is the body's distance from the wall: that is a measurement, and
-  // it is the reason the second source is worth what it costs.
+  // More than one, because one source cannot give depth. A single shadow says that a body is
+  // somewhere along a line. Two sources apart throw two shadows of the same body.
+  // How far those two separate on the wall is the distance of the body from the wall. That is a
+  // measurement, and it is the reason why the second source is worth its cost.
   //
   // Its cost is the whole performance question. A cube shadow map is six scene renders for one
-  // source. The map is small and the redraw is deferred until something moves, and between those two the
-  // second source is affordable.
+  // source. The map is small, and the redraw waits until something moves. With those two, the second
+  // source is affordable.
   // ---------------------------------------------------------------------------------------------
 
   // One emission, however many sources carry it. The dwell gate already holds the early and late
-  // halves to a single total so that opening it late cannot invent photons; a second source is the
-  // same question asked the other way, and handing each new source a full budget of its own would
-  // invent them just as surely. So the budget is shared, and adding a source divides the light
-  // instead of adding light.
+  // halves to a single total, and a late open of it cannot invent photons. A second source is the same
+  // question asked the other way. A full budget for each new source invents them just as surely.
+  // The budget is thus shared, and a new source divides the light and does not add light.
   var BEAM_BUDGET = 3.6;
 
-  // How far a source throws. The falloff here is the renderer's non-physical one, which is close to
-  // linear in the distance and still strong at the far end of it, a reach set to the whole room
-  // lit the wall almost evenly and lifted the room off black. Two sources doing that at once is what
-  // turned the picture into a flat wash. Set to the region a source is meant to light, the near field
-  // retains the strength the magnified shadows need and the wall goes back to being dark.
+  // How far a source throws. The falloff here is the non-physical falloff of the renderer. It is close
+  // to linear in the distance, and still strong at its far end.
+  // A reach set to the whole room lights the wall almost evenly and lifts the room off black. Two
+  // sources that do that at once turn the picture into a flat wash.
+  // Set to the region that a source lights, the near field keeps the strength that the magnified
+  // shadows need, and the wall stays dark.
   var BEAM_REACH = ROOM * 1.6;
 
   // THE STAIRCASE ACROSS THE SHADOW LOBES IS THIS NUMBER, AND THE PARABOLAS ARE THE REAL EDGE.
   //
-  // Long conic curves sweep the wall, cut by hard axis-aligned steps. Turning `internals cast shadows`
-  // off removes the steps AND the curves together. They are one object. The curves are the shadow
-  // boundary, a cone
-  // from a point source meeting a sphere, a conic section. The steps are that boundary quantized
-  // by the shadow map's texels.
+  // Long conic curves sweep the wall, cut by hard axis-aligned steps. With `internals cast shadows`
+  // off, the steps AND the curves go together. They are one object.
+  // The curves are the shadow boundary, where a cone from a point source meets a sphere, a conic
+  // section. The steps are that boundary quantized by the texels of the shadow map.
   //
-  // A point light shadows through a cube map, six faces each spanning ninety degrees, a texel
+  // A point light shadows through a cube map, six faces that each span ninety degrees. A texel
   // covers
   //
   //     texel(d) = 2 d tan(45 deg) / N = 2 d / N
   //
-  // world units at distance d, whatever the far plane is. The wall is 240 across and lands on roughly
-  // 1400 pixels, near 5.8 pixels per unit, and a source sits inside the shells so d to the far wall
-  // runs about 150 and at worst 240:
+  // world units at distance d, whatever the far plane is. The wall is 240 across and lands on about
+  // 1400 pixels, near 5.8 pixels per unit. A source sits inside the shells, and d to the far wall is
+  // about 150, and at worst 240:
+  //   - N = 512: texel 0.586 at d=150, 3.4 screen pixels, the staircase.
+  //   - N = 1024: texel 0.293, 1.7 pixels, halved and still visible.
+  //   - N = 2048: texel 0.146, 0.85 pixels, under one pixel. The curve is a curve.
   //
-  //     N =  512   texel 0.586 at d=150   3.4 screen pixels   the reported staircase
-  //     N = 1024   texel 0.293            1.7 pixels          halved and still visible
-  //     N = 2048   texel 0.146            0.85 pixels         under one pixel. The curve is a curve
-  //
-  // The cost is memory and not frame time: shadowMap.autoUpdate is false. The six faces are
-  // re-rendered when something asks and never per frame. Each source holds 6 * N^2 * 4 bytes, which is
-  // 6.3 MB at 512 and 101 MB at 2048, and the source count is a control that reaches twelve. Twelve at
-  // 2048 would be 1.2 GB of depth texture for a picture. The size steps down with the count instead
-  // of being one constant that is either coarse or extravagant.
+  // The cost is memory and not frame time: shadowMap.autoUpdate is false. The six faces render again
+  // when something asks, and never per frame.
+  // Each source holds 6 * N^2 * 4 bytes, which is 6.3 MB at 512 and 101 MB at 2048. The source count is
+  // a control that reaches twelve, and twelve at 2048 is 1.2 GB of depth texture for a picture. The
+  // size thus steps down with the count. One constant is either coarse or extravagant.
   function shadowSizeFor(count) {
     if (count <= 2) {
       return 2048;
-    } // 201 MB, the working configuration
+    } // 201 MB, the configuration in use.
     if (count <= 4) {
       return 1024;
-    } // 101 MB
-    return 512; // 76 MB at twelve, and the steps come back
+    } // 101 MB.
+    return 512; // 76 MB at twelve, and the steps come back.
   }
 
   var SHADOW_MAP = shadowSizeFor(1);
 
-  // How close a source may be carried. A point source magnifies a body onto the wall by the distance
-  // to the wall over the distance to the body, a source outside everything it lights magnifies by
-  // about one and the shadows come out life-size and read as smudges. Brought inside the shells the
-  // ratio climbs and the shadow sweeps hugely for a small movement, and that leaves depth from
-  // parallax legible in the first place.
+  // How close the reader can carry a source. A point source magnifies a body onto the wall by the
+  // distance to the wall over the distance to the body.
+  // A source outside all that it lights magnifies by about one. The shadows then come out life-size,
+  // and read as smudges. Inside the shells, the ratio climbs, and the shadow sweeps far for a small
+  // move. That makes depth from parallax legible.
   //
-  // The floor is set by the shadow camera's near plane and not by taste. A body nearer to the source
-  // than that plane is clipped out of the map and stops casting at all. The slider stops where
-  // every body is still in front of it with room to spare, instead of running on to a setting where
-  // shadows drop out one at a time and the picture looks broken.
+  // The near plane of the shadow camera sets the floor, and taste does not. The map clips a body that
+  // is nearer to the source than that plane, and the body casts nothing.
+  // The slider stops where each body is still in front of it, with room to spare. It does not go on to
+  // a setting where shadows drop out one at a time and the picture looks broken.
   var SHADOW_NEAR = 0.35;
 
   var sources = [];
   var coneAxis = new THREE.Vector3();
   var CONE_UP = new THREE.Vector3(0, 1, 0);
 
-  // The spray, as tiny neon streaks flowing from the source outward. Each particle is a short segment
-  // along the cone axis instead of a dot. It reads as something in motion and not a speck. And the
-  // whole field flows from the apex toward the mouth, the neutrinos coming through the point
-  // and out. One shared geometry serves every source, aimed per source; a particle is fixed by its
-  // angle and its radial fraction and carried by a phase that all sources share, animating it is
-  // rewriting one small buffer a frame and not one per cone.
+  // The spray, as tiny neon streaks that flow from the source outward. Each particle is a short
+  // segment along the cone axis, and not a dot. It reads as a thing in motion, and not a speck.
+  // The whole field flows from the apex toward the mouth, as the neutrinos come through the point and
+  // out. One shared geometry serves each source, aimed per source.
+  //
+  // The angle and radial fraction of a particle fix it, and a phase that all sources share carries
+  // it. Its animation is a write of one small buffer a frame, and not one per cone.
   var SPRAY_N = 1100;
-  var SPRAY_TRACE = 0.07; // length of a streak, as a fraction of the axis
-  var SPRAY_FLOW = 0.5; // axis fractions traveled per second
-  var SPRAY_WIDE = 0.46; // half angle of the widest sideband, in axis fractions
-  var SPRAY_CURL = 0.42; // radians a fully scattered streak drifted by the mouth
+  var SPRAY_TRACE = 0.07; // The length of a streak, as a fraction of the axis.
+  var SPRAY_FLOW = 0.5; // The axis fractions traveled per second.
+  var SPRAY_WIDE = 0.46; // The half angle of the widest sideband, in axis fractions.
+  var SPRAY_CURL = 0.42; // The radians of drift of a fully scattered streak by the mouth.
   var LOG_FOUR = Math.log(4);
   var sprayAng = new Float32Array(SPRAY_N);
   var sprayRad = new Float32Array(SPRAY_N);
@@ -2165,29 +2164,29 @@
   var sprayB = new Float32Array(SPRAY_N);
 
   // A real directional source is not a cone of even brightness. A bounded aperture gives a pole along
-  // the axis and a set of sidebands around it: rings of falling brightness at rising angle, with true
-  // nulls between them where the emission goes to nothing.
+  // the axis and a set of sidebands round it. The sidebands are rings whose brightness falls as the
+  // angle grows. True nulls lie between them, where the emission goes to nothing.
   //
-  // The pattern is taken from the aperture instead of chosen. Intensity across the beam is the squared
-  // sinc. The nulls land where that function crosses zero and the widths and heights of the lobes
-  // follow from it. Hand-picked lobe weights came out far too flat: the first sideband of the real
-  // pattern carries a few percent of the pole, and the next a fraction of that, where the earlier
-  // numbers gave it a third.
+  // The pattern comes from the aperture, and no choice sets it. The intensity across the beam is the
+  // squared sinc. The nulls land where that function crosses zero, and the widths and heights of the
+  // lobes follow from it.
+  // Hand-picked lobe weights come out far too flat. The first sideband of the real pattern carries a
+  // few percent of the pole, and the next a fraction of that.
   //
   // TWO GRADIENTS AND NOT ONE
   //
-  // Scarcity and magnitude are separate and both are drawn from the same function. How many particles
-  // land in a ring goes as the radius times the intensity, because a ring further out is longer and a
-  // ring at the axis has no length at all, and that product is what a particle's radius is sampled
-  // from. How bright each one is goes as the intensity alone. The result is a dense bright pole, a
-  // thinning of both count and brightness outward, and rings that are sparse as well as dim.
+  // Scarcity and magnitude are separate, and both come from the same function. How many particles land
+  // in a ring goes as the radius times the intensity. A ring further out is longer, and a ring at the
+  // axis has no length at all.
+  // The radius of a particle is a sample from that product. How bright each one is goes as the
+  // intensity alone. The result is a dense bright pole, less count and brightness outward, and rings
+  // that are sparse as well as dim.
   //
   // COLOR CARRIES THE INTENSITY
   //
-  // Saturation falls as intensity rises. The pole reads close to white and the wings retain the blue.
-  // That is how a real emitter renders: the hottest part of it is the least colored part. The
-  // lightness is retained nearly flat across the range. Taking the color out of the middle does not
-  // also brighten it.
+  // Saturation falls as intensity rises. The pole reads close to white, and the wings keep the blue. A
+  // real emitter renders so: its hottest part is its least colored part. The lightness stays nearly
+  // flat across the range. The removal of the color from the middle does not also brighten it.
   (function () {
     var seed = 20260101;
     function rnd() {
@@ -2195,7 +2194,7 @@
       return seed / 2147483648;
     }
 
-    var UMAX = 4 * Math.PI; // the main lobe and three sidebands
+    var UMAX = 4 * Math.PI; // The main lobe and three sidebands.
     function sinc2(u) {
       if (u < 1e-9) {
         return 1;
@@ -2204,14 +2203,15 @@
       return s * s;
     }
 
-    // The intensity across the beam. One great beam on the axis, and an even number of sidebands
-    // around it, a cut through the middle always crosses an odd count: a ring, the center, the
-    // same ring again. UMAX of four pi puts three rings around the pole, so that cut shows seven
-    // lobes, and any UMAX of two pi or more retains the count odd and at least three.
+    // The intensity across the beam: one great beam on the axis, and an even number of sidebands round
+    // it. A cut through the middle always crosses an odd count: a ring, the center, the same ring
+    // again.
+    // UMAX of four pi puts three rings round the pole, and that cut shows seven lobes. Any UMAX of two
+    // pi or more keeps the count odd and at least three.
     //
-    // The pole carries the magnitude. In the squared sinc the first sideband is a few percent of the
-    // center and each one after that a fraction of the last, and holding that ratio makes the pattern
-    // read as one beam with structure around it.
+    // The pole carries the magnitude. In the squared sinc, the first sideband is a few percent of the
+    // center, and each one after that is a fraction of the last. With that ratio, the pattern reads as
+    // one beam with structure round it.
     function lobe(x) {
       return sinc2(x * UMAX);
     }
@@ -2225,8 +2225,8 @@
     }
 
     // The radial density, radius times intensity, and its peak, which rejection sampling needs. The
-    // extra radius is the ring: a ring further out is longer and holds more of what is emitted, and a
-    // ring at the axis has no length at all.
+    // extra radius is the ring. A ring further out is longer and holds more of the emission. A ring at
+    // the axis has no length at all.
     function density(x) {
       return x * lobe(x);
     }
@@ -2240,8 +2240,8 @@
 
     var tint = new THREE.Color();
     for (var i = 0; i < SPRAY_N; i++) {
-      // Rejection sampling against the density, which puts the right number of particles in every
-      // ring including almost none in the nulls.
+      // Rejection sampling against the density. It puts the right number of particles in each ring,
+      // with almost none in the nulls.
       var x = 0;
       for (var guard = 0; guard < 200; guard++) {
         x = rnd();
@@ -2255,10 +2255,10 @@
       sprayRad[i] = x;
       sprayPhase[i] = rnd();
 
-      // A floor under the brightness, since a sideband at a hundredth of the pole would not be drawn
-      // at all and the structure worth showing is where those rings are. The floor is low and the
-      // curve gentle. The pole stays about three times the first ring and reads as the one great
-      // beam it is. Lifted higher, every ring came out near enough the center to compete with it.
+      // A floor under the brightness. A sideband at a hundredth of the pole does not show at all, and
+      // the structure worth a view is where those rings are. The floor is low and the curve gentle.
+      // The pole stays about three times the first ring, and reads as the one great beam that it is. A
+      // higher floor brings each ring near enough to the center to compete with it.
       var displayed = 0.18 + 0.82 * Math.pow(lit, 0.5);
       tint.setHSL(0.542, 0.44 - 0.3 * displayed, 0.62 + 0.16 * displayed);
       sprayR[i] = tint.r * displayed;
@@ -2275,10 +2275,10 @@
   );
   CONE_SPRAY_GEO.setAttribute("color", new THREE.BufferAttribute(CONE_LIT, 3));
 
-  // Desaturated and low in opacity. At full saturation the spray read as a solid painted wedge and
-  // buried the object behind it; a pale wash carries the direction and the lobe structure while the
-  // thing being looked at stays the brightest object in the room. Vertex colored, because the whole
-  // point of the lobes is that they differ in brightness.
+  // Desaturated and low in opacity. At full saturation, the spray reads as a solid painted wedge, and
+  // buries the object behind it. A pale wash carries the direction and the lobe structure, while the
+  // thing in view stays the brightest object in the room. Vertex colored, because the purpose of the
+  // lobes is that they differ in brightness.
   var CONE_MAT = new THREE.LineBasicMaterial({
     vertexColors: true,
     transparent: true,
@@ -2292,41 +2292,41 @@
   // ---------------------------------------------------------------------------------------------
   // The beam through the boundaries, and what it scatters from.
   //
-  // Three things happen to a beam on the way in. It PIERCES each shell at a point that can be solved
-  // for, it is WARPED there because a boundary is a lens,
-  // and it SCATTERS off the interior object it is dimensionally aligned with.
+  // Three things happen to a beam on the way in. It PIERCES each shell at a point that the code can
+  // solve for. A boundary is a lens, and it WARPS the beam there. It SCATTERS off the interior object
+  // that it aligns with in dimension.
   //
-  // The pierce is a ray against a sphere and there is nothing approximate about it. The beam is aimed
-  // at the middle. With the direction taken as the inward unit vector the quadratic collapses and
-  // the crossing sits at a distance of the source's own radius less the shell's. Every shell the beam
-  // passes gets its own crossing.
+  // The pierce is a ray against a sphere, and nothing about it is approximate. The beam aims at the
+  // middle. With the direction as the inward unit vector, the quadratic collapses.
+  // The crossing then sits at a distance of the own radius of the source less that of the shell. Each
+  // shell that the beam passes gets its own crossing.
   //
-  // The warp is refraction, one boundary at a time, with the index of each taken from the sensitivity
-  // the reader set on it. A boundary that has been asked to read fine structure is a denser medium and
-  // bends the beam further. Turning that slider moves the path and the reader can see the boundary
-  // acting as a lens instead of being told that it does.
+  // The warp is refraction, one boundary at a time. The index of each comes from the sensitivity that
+  // the reader set on it. A boundary set to read fine structure is a denser medium, and bends the beam
+  // further. A move of that slider moves the path. The reader can then see the boundary act as a lens.
   //
-  // What it scatters from is the part worth stating carefully. The interior is not a bag of separate
-  // bits: a bit and its antipode are one object joined by a diameter, and that pair is what a beam can
-  // interact with coherently. So the scatterer is the pair whose diameter runs max nearly along the
-  // warped beam, the dimensionally coherent opposite of the direction the beam arrived from. It is
-  // found by taking the largest absolute dot product of the beam against the 128 pair axes, and the
-  // pair it lands on changes as the beam is steered, as the state turns, and as the warp moves it.
+  // What it scatters from is the part that needs care. The interior is not a bag of separate bits. A
+  // bit and its antipode are one object, joined by a diameter, and a beam can interact with that pair
+  // coherently.
+  //
+  // The scatterer is thus the pair whose diameter runs most nearly along the warped beam. That is the
+  // dimensionally coherent opposite of the direction that the beam came from.
+  // The largest absolute dot product of the beam against the 128 pair axes finds it. The pair that it
+  // lands on changes as the reader steers the beam, as the state turns, and as the warp moves it.
   // ---------------------------------------------------------------------------------------------
 
-  // A beam is a population. The trace casts a bundle from each source and gives
-  // every member of it a fate. The budget below is the reading: the majority of what goes in never comes out.
+  // A beam is a population. The trace casts a bundle from each source, and gives each member of it a
+  // fate. The budget below is the reading: most of what goes in never comes out.
+  //   - absorbed: stopped at the surface that it met. This is the common outcome.
+  //   - surface scatter: turned hard at the boundary, and lost soon after.
+  //   - lensed: bent by the constituents on the way through, with no collision.
+  //   - off direction: scattered, survived, and arrives pointed somewhere else.
+  //   - ballistic: untouched, straight across to the coherent opposite. This is the rarest of them.
   //
-  //   absorbed         stopped at the surface it met, and this is the common outcome
-  //   surface scatter  turned hard at the boundary and lost soon after
-  //   lensed           bent by the constituents on the way through without ever colliding
-  //   off direction    scattered, survived, and arrives pointing somewhere else
-  //   ballistic        untouched, straight across to the coherent opposite, and the rarest of them
-  //
-  // The shares are stated once, in order, and each fate is drawn differently so the population can be
-  // read off the picture instead of taken from a caption. Rolled from a hash of the source and the ray
-  // index and not a live generator, a ray retains its fate from frame to frame and the picture
-  // holds still while the reader looks at it.
+  // The shares come once, in order, and each fate draws differently. The reader can then read the
+  // population off the picture, and does not need a caption.
+  // A hash of the source and the ray index rolls each fate, and not a live generator. A ray then keeps
+  // its fate from frame to frame, and the picture holds still while the reader looks at it.
   var RAYS_PER = 34;
   var FATE_ABSORBED = 0.6;
   var FATE_SURFACE = 0.78;
@@ -2334,8 +2334,8 @@
   var FATE_OFF = 0.97;
   var CURVE_STEPS = 5;
 
-  var PIERCE_MAX = 12 * RAYS_PER * (CURVE_STEPS + 4); // sources times rays times path pieces
-  var piercePos = new Float32Array(PIERCE_MAX * 2 * 3); // arranged as segments
+  var PIERCE_MAX = 12 * RAYS_PER * (CURVE_STEPS + 4); // Sources times rays times path pieces.
+  var piercePos = new Float32Array(PIERCE_MAX * 2 * 3); // Arranged as segments.
   var pierceLit = new Float32Array(PIERCE_MAX * 2 * 3);
   var pierceGeo = new THREE.BufferGeometry();
   pierceGeo.setAttribute("position", new THREE.BufferAttribute(piercePos, 3));
@@ -2354,11 +2354,11 @@
   pierceLine.visible = false;
   scene.add(pierceLine);
 
-  // A mark at every crossing, a brighter one where the scattering happens, and the particles a
-  // survivor is drawn as. Sized for the whole bundle: every ray can leave a mark at its crossing and
-  // a survivor positions a short track of them. The ceiling is the ray count times the track length.
+  // A mark at each crossing, a brighter one where the scatter happens, and the particles of a survivor.
+  // The size is for the whole bundle. Each ray can leave a mark at its crossing, and a survivor
+  // positions a short track of them. The ceiling is the ray count times the track length.
   //
-  // Writing past the end of an instanced buffer is dropped without complaint.
+  // The browser drops a write past the end of an instanced buffer, with no complaint.
   var MARK_MAX = 12 * RAYS_PER * 4;
   var markGeo = new THREE.SphereGeometry(1, 8, 6);
   var markMesh = new THREE.InstancedMesh(
@@ -2377,22 +2377,22 @@
   // ---------------------------------------------------------------------------------------------
   // The beam's own contribution to the boundary field.
   //
-  // An instrument has the beam in the same field as the constituents, because a boundary does not know
-  // which of the two put the energy there: what arrives at a surface is one field, and separating the
-  // beam from the object it is measuring cannot be done from outside.
+  // An instrument has the beam in the same field as the constituents. A boundary does not know which
+  // of the two put the energy there. What arrives at a surface is one field, and no outside step can
+  // separate the beam from the object that it measures.
   //
-  // So every event the transport resolves deposits at the place it happened, and the deposit is
-  // carried out to the boundary through the same depth kernel the constituents use. One kernel, one
-  // sum, one field. A deposit deep inside arrives wide and faint for the same reason a deep
-  // constituent does, and the reader can turn the beam's share to nothing and watch the field fall
-  // back to the object alone, the control that makes the rest of it a measurement.
+  // Each event that the transport resolves thus deposits at its place. The same depth kernel that the
+  // constituents use carries the deposit out to the boundary. One kernel, one sum, one field.
+  // A deposit deep inside arrives wide and faint, for the same reason as a deep constituent. The
+  // reader can turn the share of the beam to nothing, and see the field fall back to the object alone.
+  // That control makes the rest of it a measurement.
   // ---------------------------------------------------------------------------------------------
 
   var DEPOSIT_MAX = 12 * RAYS_PER * 3;
-  var depDown = new Float64Array(DEPOSIT_MAX); // colatitude of the event
-  var depAround = new Float64Array(DEPOSIT_MAX); // longitude of it
-  var depRadius = new Float64Array(DEPOSIT_MAX); // how deep it happened
-  var depWeight = new Float64Array(DEPOSIT_MAX); // how much it put there
+  var depDown = new Float64Array(DEPOSIT_MAX); // The colatitude of the event.
+  var depAround = new Float64Array(DEPOSIT_MAX); // Its longitude.
+  var depRadius = new Float64Array(DEPOSIT_MAX); // How deep it occurred.
+  var depWeight = new Float64Array(DEPOSIT_MAX); // How much it put there.
   var depCount = 0;
   var beamCoef = null;
   var beamOne = null;
@@ -2416,8 +2416,8 @@
   //
   // The addition theorem makes this cheap: a point source at one direction contributes its
   // own harmonics scaled by one depth factor per degree. The whole field is a sum over deposits and
-  // never a solve. The factor is the same (r/R) to the power of the degree the constituents get, taken
-  // against each deposit's own radius, because a deposit is at whatever depth the event happened.
+  // never a solve. The factor is the same (r/R) to the power of the degree that the constituents get.
+  // It goes against the own radius of each deposit, because a deposit is at the depth of its event.
   function buildBeamField(top, reach) {
     var width = (top + 1) * (top + 1);
     if (!beamCoef || beamCoef.length !== width) {
