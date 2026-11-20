@@ -20,11 +20,12 @@ evidence/sims/matlab/sim_cluster_rapid_deploy/README.md	3
 evidence/sims/r/README.md	10
 examples/00_blob_viz_tools/README.md	84
 examples/0_experimental/README.md	16
-examples/README.md	5
+examples/README.md	0
 examples/art/README.md	57
 examples/chemistry/README.md	52
 examples/crystallography/README.md	129
 examples/game_theory/README.md	65
+examples/miner/README.md	0
 examples/molecules/README.md	35
 examples/particle_physics/README.md	65
 examples/proteins/README.md	62
