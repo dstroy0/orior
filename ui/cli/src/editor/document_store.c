@@ -1002,7 +1002,8 @@ static void hunk_positioned(const CliEachHunkCfg *args)
         &(CliEachHunkCfg){positioning->context, args->now_from, args->now_to, args->then_from, args->then_to});
     if (positioning->count < positioning->max)
     {
-        unsigned int *const hunk = positioning->hunk_words + ((unsigned long long)positioning->count * CLI_DOC_HUNK_WORDS);
+        unsigned int *const hunk =
+            positioning->hunk_words + ((unsigned long long)positioning->count * CLI_DOC_HUNK_WORDS);
         hunk[0] = args->now_from;
         hunk[1] = args->now_to;
         hunk[2] = args->then_from;
@@ -1100,6 +1101,7 @@ static int changes_locked(const CliDocumentOutKeyHeadInputCfg *args)
         // the file before let go
         one->head_known = 1;
         one->head_has = args->head != NULL;
+        (void)EMBED_ATOMIC_ADD_32(&one->colors_serial, 1u);
         EMBED_CALL(stored_cells_release, DocumentStoreCtx, .stored = &one->head);
         EMBED_CALL(hunks_forgotten, DocumentStoreCtx, .one = one);
         if ((args->head != NULL) && !EMBED_CALL(stored_text_take, DocumentStoreCtx, .stored = &one->head,

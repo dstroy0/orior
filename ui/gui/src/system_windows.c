@@ -26,7 +26,10 @@
 // The graphics device the frames are flipped through: whether it is ready; the device, its queue, the allocator
 // and list a copy is recorded in, the fence a copy is waited on through and its event and last value; the swapchain,
 // its two buffers and their size; and the heap opened over the framebuffers' pages, those pages, and a buffer placed
-// over each framebuffer with where in the pages it lies
+// over each framebuffer with where in the pages it lies.
+//
+// The swapchain keeps each buffer's pixels between presents. `stale` holds, for each buffer, the rectangle where its
+// pixels differ from the raster. A flip copies that rectangle alone.
 typedef struct
 {
     int ready;
@@ -39,6 +42,7 @@ typedef struct
     unsigned long long fence_value;
     IDXGISwapChain3 *chain;
     ID3D12Resource *back[2];
+    GuiRect stale[2];
     unsigned int back_width;
     unsigned int back_height;
     ID3D12Heap *heap;
@@ -124,6 +128,8 @@ typedef struct
     VerbaLinea *err_msg;
     MSG *message;
     HRAWINPUT raw;
+    GuiRect part;
+    GuiRect other;
 } SystemWindowsCtx;
 // the device's buffers and the swapchain's let go, the heap with them, after the queue has done every copy
 EMBED_INLINE void system_surfaces_release(const SystemWindowsCtx *args)
@@ -208,7 +214,7 @@ EMBED_INLINE int system_device_init(const SystemWindowsCtx *args)
     chain_desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     chain_desc.BufferCount = 2u;
     chain_desc.Scaling = DXGI_SCALING_NONE;
-    chain_desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    chain_desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
     chain_desc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
     args->device->fence_event = CreateEventW(NULL, FALSE, FALSE, NULL);
     const int created_all =
@@ -276,6 +282,9 @@ EMBED_INLINE int system_back_resize(const SystemWindowsCtx *args)
     }
     args->device->back_width = width;
     args->device->back_height = height;
+    // new buffers hold no pixels of the raster: each flip into one of them copies the whole buffer first
+    args->device->stale[0] = (GuiRect){0, 0, (int)width, (int)height};
+    args->device->stale[1] = args->device->stale[0];
     return 1;
 }
 
@@ -324,10 +333,33 @@ EMBED_INLINE ID3D12Resource *system_position(const SystemWindowsCtx *args)
     return args->device->positioned[entry];
 }
 
+// The least rectangle that holds `part` and `other`. Where one of them is empty, it is the other.
+EMBED_INLINE GuiRect system_rect_join(const SystemWindowsCtx *args)
+{
+    if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = args->part))
+    {
+        return args->other;
+    }
+    if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = args->other))
+    {
+        return args->part;
+    }
+    const int left = (args->part.x < args->other.x) ? args->part.x : args->other.x;
+    const int top = (args->part.y < args->other.y) ? args->part.y : args->other.y;
+    const int part_right = args->part.x + args->part.width;
+    const int other_right = args->other.x + args->other.width;
+    const int part_bottom = args->part.y + args->part.height;
+    const int other_bottom = args->other.y + args->other.height;
+    const int right = (part_right > other_right) ? part_right : other_right;
+    const int bottom = (part_bottom > other_bottom) ? part_bottom : other_bottom;
+    return (GuiRect){left, top, right - left, bottom - top};
+}
+
 // `raster` copied by the device from where it lies into the swapchain's buffer and flipped onto the screen, the copy
 // done before this returns, the raster free to be drawn into again: 1, or 0 where the device cannot, which leaves the
 // raster to the system's drawing calls. The device is made as the first raster with pages comes, on the main window
-// alone
+// alone. `part` is the rectangle of the raster that changed after the last flip. It is the whole raster where all of it
+// changed
 static int system_flip(const SystemWindowsCtx *args)
 {
     SystemDevice *const device = &args->system->device;
@@ -351,6 +383,20 @@ static int system_flip(const SystemWindowsCtx *args)
     }
     const UINT index = IDXGISwapChain3_GetCurrentBackBufferIndex(device->chain);
     ID3D12Resource *const target = device->back[index];
+    // The raster and the buffers are far inside what an int holds. The part changed in each buffer, so each buffer
+    // takes it into its stale rectangle. The target buffer then takes its whole stale rectangle from the raster.
+    const GuiRect shown = {
+        0, 0, (int)((args->raster->width < device->back_width) ? args->raster->width : device->back_width),
+        (int)((args->raster->height < device->back_height) ? args->raster->height : device->back_height)};
+    const GuiRect part = gui_rect_intersect(&(GuiRasterOneCfg){.one = args->part, .other = shown});
+    for (unsigned int at = 0u; at < 2u; at += 1u)
+    {
+        device->stale[at] = gui_rect_intersect(&(GuiRasterOneCfg){
+            .one = EMBED_CALL(system_rect_join, SystemWindowsCtx, .part = part, .other = device->stale[at]),
+            .other = shown});
+    }
+    const GuiRect copied = device->stale[index];
+    device->stale[index] = (GuiRect){0, 0, 0, 0};
     ID3D12CommandAllocator_Reset(device->allocator);
     ID3D12GraphicsCommandList_Reset(device->list, device->allocator, NULL);
     D3D12_RESOURCE_BARRIER barrier;
@@ -376,13 +422,13 @@ static int system_flip(const SystemWindowsCtx *args)
     from.PlacedFootprint.Footprint.Height = args->raster->height;
     from.PlacedFootprint.Footprint.Depth = 1u;
     from.PlacedFootprint.Footprint.RowPitch = args->raster->width * (UINT)sizeof(GuiColor);
-    const D3D12_BOX box = {0u,
-                           0u,
-                           0u,
-                           (args->raster->width < device->back_width) ? args->raster->width : device->back_width,
-                           (args->raster->height < device->back_height) ? args->raster->height : device->back_height,
-                           1u};
-    ID3D12GraphicsCommandList_CopyTextureRegion(device->list, &to, 0u, 0u, 0u, &from, &box);
+    // the stale rectangle lies inside the shown one, so its sides are not negative
+    const D3D12_BOX box = {
+        (UINT)copied.x, (UINT)copied.y, 0u, (UINT)(copied.x + copied.width), (UINT)(copied.y + copied.height), 1u};
+    if (!EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = copied))
+    {
+        ID3D12GraphicsCommandList_CopyTextureRegion(device->list, &to, (UINT)copied.x, (UINT)copied.y, 0u, &from, &box);
+    }
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
     barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
     ID3D12GraphicsCommandList_ResourceBarrier(device->list, 1u, &barrier);
@@ -394,7 +440,13 @@ static int system_flip(const SystemWindowsCtx *args)
     ID3D12CommandQueue_ExecuteCommandLists(device->queue, 1u, lists);
     device->fence_value += 1ULL;
     ID3D12CommandQueue_Signal(device->queue, device->fence, device->fence_value);
-    const HRESULT displayed = IDXGISwapChain3_Present(device->chain, 1u, 0u);
+    // The compositor takes the part alone as changed. A part that covers the shown rectangle presents whole.
+    RECT dirty = {part.x, part.y, part.x + part.width, part.y + part.height};
+    const int partial = ((part.width != shown.width) || (part.height != shown.height)) &&
+                        !EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = part);
+    const DXGI_PRESENT_PARAMETERS parameters = {.DirtyRectsCount = partial ? 1u : 0u,
+                                                .pDirtyRects = partial ? &dirty : NULL};
+    const HRESULT displayed = IDXGISwapChain3_Present1(device->chain, 1u, 0u, &parameters);
     if (ID3D12Fence_GetCompletedValue(device->fence) < device->fence_value)
     {
         ID3D12Fence_SetEventOnCompletion(device->fence, device->fence_value, device->fence_event);
@@ -547,7 +599,7 @@ EMBED_INLINE void system_char_type(const SystemWindowsCtx *args)
             return;
         }
         character = 0x10000u + (((unsigned int)args->system->high_surrogate - 0xd800u) << 10u) +
-                 ((unsigned int)args->unit - 0xdc00u);
+                    ((unsigned int)args->unit - 0xdc00u);
         args->system->high_surrogate = 0u;
     }
     char text[8];
@@ -680,9 +732,8 @@ EMBED_INLINE void system_raw_read(const SystemWindowsCtx *args)
     }
     // a report's counts are a few hundred at most, far inside an int
     EMBED_CALL(args->system_read->events->input, GuiEachInputCfg, .context = args->system_read->context,
-               .input = &(GuiInput){.type = GUI_INPUT_RELATIVE,
-                                    .x = (int)input.data.mouse.lLastX,
-                                    .y = (int)input.data.mouse.lLastY});
+               .input = &(GuiInput){
+                   .type = GUI_INPUT_RELATIVE, .x = (int)input.data.mouse.lLastX, .y = (int)input.data.mouse.lLastY});
 }
 
 static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_width, LPARAM low)
@@ -800,7 +851,8 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
         PAINTSTRUCT paint;
         HDC context = BeginPaint(window, &paint);
         if ((system->displayed.pixels != NULL) &&
-            !EMBED_CALL(system_flip, SystemWindowsCtx, .system = system, .raster = &system->displayed))
+            !EMBED_CALL(system_flip, SystemWindowsCtx, .system = system, .raster = &system->displayed,
+                        .part = (GuiRect){0, 0, (int)system->displayed.width, (int)system->displayed.height}))
         {
             EMBED_CALL(system_blit, SystemWindowsCtx, .system = system, .context = context, .from = 0u,
                        .rows = system->displayed.height);
@@ -1227,7 +1279,8 @@ void gui_system_free(const GuiSystemCfg *args)
 void gui_system_present(const GuiSystemRasterCfg *args)
 {
     args->system->displayed = *args->raster;
-    if (!EMBED_CALL(system_flip, SystemWindowsCtx, .system = args->system, .raster = args->raster))
+    if (!EMBED_CALL(system_flip, SystemWindowsCtx, .system = args->system, .raster = args->raster,
+                    .part = (GuiRect){0, 0, (int)args->raster->width, (int)args->raster->height}))
     {
         HDC context = GetDC(args->system->window);
         EMBED_CALL(system_blit, SystemWindowsCtx, .system = args->system, .context = context, .from = 0u,
@@ -1239,8 +1292,8 @@ void gui_system_present(const GuiSystemRasterCfg *args)
 void gui_system_present_part(const GuiSystemRasterCfg *args)
 {
     args->system->displayed = *args->raster;
-    // a flip shows a whole buffer: the device flips the raster whole, and the system's drawing calls write the part
-    if (EMBED_CALL(system_flip, SystemWindowsCtx, .system = args->system, .raster = args->raster))
+    // the device copies and presents the part alone, and the system's drawing calls write the part where it cannot
+    if (EMBED_CALL(system_flip, SystemWindowsCtx, .system = args->system, .raster = args->raster, .part = args->part))
     {
         return;
     }
@@ -1447,9 +1500,9 @@ static void system_pointer_open(SystemPointer *pointer)
         pointer->refused = 1;
         return;
     }
-    pointer->window = CreateWindowExW(WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_NOACTIVATE |
-                                          WS_EX_TOOLWINDOW,
-                                      s_pointer_class, L"", WS_POPUP, 0, 0, 1, 1, NULL, NULL, class_of.hInstance, NULL);
+    pointer->window =
+        CreateWindowExW(WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW,
+                        s_pointer_class, L"", WS_POPUP, 0, 0, 1, 1, NULL, NULL, class_of.hInstance, NULL);
     BITMAPINFO header;
     memor.set(&(MemoriaCfg){.dst = &header, .val = 0, .bytes = sizeof(header)});
     header.bmiHeader.biSize = sizeof(header.bmiHeader);
@@ -1495,15 +1548,16 @@ void gui_system_pointer_put(const GuiSystemPointerCfg *args)
         }
         return;
     }
-    const int pictured = (args->picture != NULL) && (args->width <= GUI_POINTER_PIXELS_MAX) &&
-                         (args->height <= GUI_POINTER_PIXELS_MAX);
+    const int pictured =
+        (args->picture != NULL) && (args->width <= GUI_POINTER_PIXELS_MAX) && (args->height <= GUI_POINTER_PIXELS_MAX);
     if (pictured)
     {
         for (unsigned int row = 0u; row < args->height; row += 1u)
         {
-            memor.cpy(&(MemoriaCfg){.dst = (GuiColor *)pointer->bits + ((unsigned long long)row * GUI_POINTER_PIXELS_MAX),
-                                    .src = args->picture + ((unsigned long long)row * args->width),
-                                    .bytes = (unsigned long long)args->width * sizeof(GuiColor)});
+            memor.cpy(
+                &(MemoriaCfg){.dst = (GuiColor *)pointer->bits + ((unsigned long long)row * GUI_POINTER_PIXELS_MAX),
+                              .src = args->picture + ((unsigned long long)row * args->width),
+                              .bytes = (unsigned long long)args->width * sizeof(GuiColor)});
         }
         // a picture's sides are a few dozen pixels, far inside a LONG
         pointer->size = (SIZE){(LONG)args->width, (LONG)args->height};

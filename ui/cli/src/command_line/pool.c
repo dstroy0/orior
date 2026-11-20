@@ -420,24 +420,62 @@ void cli_grown_end(CliGrownLine *grown)
 #define POOL_PAGE_BYTES 4096ULL
 #define POOL_IDLE_RELEASED (64ULL << 10u)
 
-// one idle span of the cellblock cut to the whole pages inside it, those given back where they hold
-// POOL_IDLE_RELEASED bytes or more
-static void pool_idle_each(void *context, void *at, size_t bytes)
+// The idle walk's record: whether the walk passed the gap between the tiers yet. The gap comes first
+typedef struct
 {
-    (void)context;
-    // Explicit casts read the span's bounds as integers for the page arithmetic, and the first page back as its address
-    const unsigned long long first =
-        ((unsigned long long)(uintptr_t)at + POOL_PAGE_BYTES - 1ULL) & ~(POOL_PAGE_BYTES - 1ULL);
-    const unsigned long long end = ((unsigned long long)(uintptr_t)at + bytes) & ~(POOL_PAGE_BYTES - 1ULL);
+    int gap_passed;
+} PoolIdle;
+
+// The span from `from` to `to` cut to the whole pages inside it. Those pages go back where they hold
+// POOL_IDLE_RELEASED bytes or more
+static void pool_idle_pages_released(unsigned long long from, unsigned long long to)
+{
+    const unsigned long long first = (from + POOL_PAGE_BYTES - 1ULL) & ~(POOL_PAGE_BYTES - 1ULL);
+    const unsigned long long end = to & ~(POOL_PAGE_BYTES - 1ULL);
     if ((end > first) && ((end - first) >= POOL_IDLE_RELEASED))
     {
+        // Explicit cast takes the first page back as its address
         cli_pages_released((void *)(uintptr_t)first, end - first);
     }
 }
 
+// One idle span of the cellblock, its touched pages given back. A take touches the gap between the tiers only up to
+// the furthest persistent end and down to the furthest temporary top. The rest of the gap holds pages that no take
+// touched, which no working set holds, so the walk gives the gap's two touched ends back alone. Each span after the
+// gap goes back whole
+static void pool_idle_each(void *context, void *at, size_t bytes)
+{
+    PoolIdle *const idle = (PoolIdle *)context;
+    const SeriesCellularum *const record = &cli_pool_site_cli_pool_ctx;
+    // Explicit casts read the span's bounds and the cellblock's start as integers for the page arithmetic
+    const unsigned long long from = (unsigned long long)(uintptr_t)at;
+    const unsigned long long to = from + (unsigned long long)bytes;
+    if (idle->gap_passed)
+    {
+        pool_idle_pages_released(from, to);
+        return;
+    }
+    idle->gap_passed = 1;
+    const unsigned long long base = (unsigned long long)(uintptr_t)record->base;
+    const unsigned long long persistent_reach = base + (unsigned long long)mmgr_series_cellularum_persistent_hw(record);
+    const unsigned long long temporary_reach =
+        base + pool_bytes() - (unsigned long long)mmgr_series_cellularum_temporary_hw(record);
+    const unsigned long long low_end = (persistent_reach < to) ? persistent_reach : to;
+    const unsigned long long high_from = (temporary_reach > from) ? temporary_reach : from;
+    // a build that tracks no marks reads them as 0, and its gap goes back whole
+    if (!MMGR_ENABLE_HW_MEM_CAPACITY_CB || (high_from <= low_end))
+    {
+        pool_idle_pages_released(from, to);
+        return;
+    }
+    pool_idle_pages_released(from, low_end);
+    pool_idle_pages_released(high_from, to);
+}
+
 void cli_pool_idle_released(void)
 {
-    mmgr_series_cellularum_idle_each(&cli_pool_site_cli_pool_ctx, pool_idle_each, NULL);
+    PoolIdle idle = {0};
+    mmgr_series_cellularum_idle_each(&cli_pool_site_cli_pool_ctx, pool_idle_each, &idle);
 }
 
 void cli_pool_report(unsigned long long *pool, unsigned long long *persistent, unsigned long long *temporary)

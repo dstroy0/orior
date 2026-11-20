@@ -62,6 +62,8 @@ typedef struct GuiWindowDisplayedCfg GuiWindowDisplayedCfg;
 // other reasons, and the bytes of the RAM readout's last digit, a tenth of a megabyte
 #define GUI_MEMORY_MS 2000ULL
 #define GUI_MEMORY_TENTH (1024ULL * 1024ULL / 10ULL)
+// the growth of the working set after the last release that starts the next release: the pool's least released span
+#define GUI_MEMORY_GROWN (64ULL << 10u)
 // the inputs the window's own pointer drives that wait for the view's thread at once: a drag's press, its places and
 // its release
 #define GUI_WINDOW_DRIVEN 64u
@@ -314,6 +316,9 @@ typedef struct GuiWindow
     int closing;
     unsigned long long memory_bytes;
     unsigned long long memory_due_ms;
+    // the least working set after the last release of the cellblock's free pages, and when the last input came
+    unsigned long long memory_released_bytes;
+    unsigned long long input_ms;
     int view_displayed;
     unsigned int rows;
     unsigned int columns;
@@ -322,6 +327,11 @@ typedef struct GuiWindow
     int map_known;
     unsigned long long map_first;
     unsigned long long map_last;
+    // The text and the colors serial the names and the map were last read at, and whether the last view take read them
+    // again
+    char colors_key[CLI_NAME_MAX_LEN];
+    unsigned int colors_serial;
+    int recolored;
     // the key of the view whose language's palette is as the window's tokens, empty for none
     char tokens_key[CLI_PATH_MAX_LEN];
     unsigned int terminal_columns[2];

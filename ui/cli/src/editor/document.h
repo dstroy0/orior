@@ -210,8 +210,8 @@ int cli_document_bounds(const CliDocumentKeyLowCfg *args);
 // for `owner`, given back with persistent_buf_release, its bytes into `size`: NULL where no text read whole is stored
 // under `key` or the cells cannot meet it (document_branch.c)
 char *cli_document_text_alloc(const CliDocumentKeyCfg *args);
-// the text read whole stored under `key` put into `out` as its file had it, a line at a time, its characters as the file
-// was read and each line but the last ended as the text's lines were read, by a newline or a carriage return and a
+// the text read whole stored under `key` put into `out` as its file had it, a line at a time, its characters as the
+// file was read and each line but the last ended as the text's lines were read, by a newline or a carriage return and a
 // newline; `out` passes its bytes on as it fills, as the file writer's line does: 1, or 0 with the reason written where
 // no text read whole is stored under `key` or `out` refused its bytes (document_branch.c)
 int cli_document_file_put(const CliDocumentOutCfg *args);
@@ -260,10 +260,11 @@ typedef struct
     unsigned int *line_at;
     CliDocumentMapBar *bar;
 } CliDocumentMap;
-// the lines from `first` to `last` of the text under `key` walked where they save no runs that are and positioned in a cell
-// of `owner`, sized to them: each run with a name a bar, the empty name a gap, and a gap that opens a line `tab` cells
-// a unit, every other run one cell a unit. A line with no runs is positioned as one bar of the empty name, its units wide,
-// where the text holds its units: the cell, or NULL where no text is stored under the key or the cells cannot meet it
+// the lines from `first` to `last` of the text under `key` walked where they save no runs that are and positioned in a
+// cell of `owner`, sized to them: each run with a name a bar, the empty name a gap, and a gap that opens a line `tab`
+// cells a unit, every other run one cell a unit. A line with no runs is positioned as one bar of the empty name, its
+// units wide, where the text holds its units: the cell, or NULL where no text is stored under the key or the cells
+// cannot meet it
 typedef struct
 {
     const char *key;

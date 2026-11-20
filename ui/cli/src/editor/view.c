@@ -2512,10 +2512,8 @@ EMBED_INLINE unsigned long long view_span_bytes(const ViewCtx *args)
             unsigned short unit = 0u;
             if (at < args->view->line_length)
             {
-                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->view->line_units,
-                                                                        .offset = at * sizeof(unit),
-                                                                        .dst = &unit,
-                                                                        .bytes = sizeof(unit)});
+                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                    .cell = args->view->line_units, .offset = at * sizeof(unit), .dst = &unit, .bytes = sizeof(unit)});
             }
             if (unit < 0x80u)
             {
@@ -6255,6 +6253,10 @@ EMBED_INLINE CliViewFrame *view_frame_made(const ViewCtx *args)
     unsigned long long sticky[CLI_VIEW_STICKY_MAX];
     const unsigned int stickies =
         EMBED_CALL(view_stickies, ViewCtx, .view = view, .displayed = &displayed, .sticky = sticky);
+    // the text's colors serial, read before the rows' runs are, as the pair reads the text's serial
+    const CliStoredText *const colored =
+        EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = view->key);
+    const unsigned int colors_serial = (colored != NULL) ? EMBED_ATOMIC_LOAD(&colored->colors_serial) : 0u;
     // the folds that open on the rows
     CliViewFoldsSeen folds = {&displayed, seen, 0ULL};
     (void)EMBED_CALL(cli_document_context.folds_each, CliDocumentContextCfg, .key = view->key,
@@ -6303,6 +6305,7 @@ EMBED_INLINE CliViewFrame *view_frame_made(const ViewCtx *args)
                        : frame->column_offset[at - 1u] + 1ULL +
                              EMBED_CALL(view_column_width, ViewCtx, .view_read = view, .count_u32 = at - 1u);
     }
+    frame->colors_serial = colors_serial;
     frame->seq = view->seq;
     frame->top = view->top;
     frame->lines = lines;

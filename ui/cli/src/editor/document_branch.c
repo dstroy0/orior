@@ -376,8 +376,10 @@ EMBED_INLINE void branch_index_append(const DocumentBranchCtx *args)
     }
     {
         const unsigned int stored_value = args->at + 1u;
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
-            .cell = args->one->state_index, .offset = entry * sizeof(stored_value), .src = &stored_value, .bytes = sizeof(stored_value)});
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->one->state_index,
+                                                                 .offset = entry * sizeof(stored_value),
+                                                                 .src = &stored_value,
+                                                                 .bytes = sizeof(stored_value)});
     }
 }
 
@@ -2332,6 +2334,7 @@ static void branch_walk(const DocumentBranchCtx *args)
         }
         one->resting = !stepped;
         one->walked = 0;
+        (void)EMBED_ATOMIC_ADD_32(&one->colors_serial, transferred ? 1u : 0u);
         EMBED_CALL(cli_document_internal.holder_end, CliDocumentCtx, .one = one);
         const CliDocColored colored = s_colored;
         cli_document_lock_give();
@@ -2431,6 +2434,7 @@ int cli_document_colored_by(const CliDocumentKeyGrammarCfg *args)
         memor.cpy(&(MemoriaCfg){.dst = one->grammar, .src = args->grammar, .bytes = length + 1ULL});
         EMBED_CALL(cli_document_internal.serial_move, CliDocumentCtx, .one = one);
         one->names = names;
+        (void)EMBED_ATOMIC_ADD_32(&one->colors_serial, 1u);
         // the states' cells go back, their identities' cell staying for the states to come, and the index's entries
         // are cleared
         EMBED_CALL(cli_document_internal.states_released, CliDocumentCtx, .one = one);
@@ -2454,12 +2458,11 @@ int cli_document_colored_by(const CliDocumentKeyGrammarCfg *args)
                 .offset = (((unsigned long long)(CLI_DOC_WORD_ENDED)*one->lines.lines) + line) * sizeof(unsigned int),
                 .src = &(unsigned int){CLI_DOC_UNCOLORED},
                 .bytes = sizeof(unsigned int)});
-            (void)g_cli_guard->movable_buf_write(
-                &(CarcerMovableCfg){.cell = one->lines.words,
-                                    .offset = (((unsigned long long)(CLI_DOC_WORD_REGIONS)*one->lines.lines) + line) *
-                                              sizeof(unsigned int),
-                                    .src = &(unsigned int){0u},
-                                    .bytes = sizeof(unsigned int)});
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                .cell = one->lines.words,
+                .offset = (((unsigned long long)(CLI_DOC_WORD_REGIONS)*one->lines.lines) + line) * sizeof(unsigned int),
+                .src = &(unsigned int){0u},
+                .bytes = sizeof(unsigned int)});
             (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = one->lines.words,
                 .offset = (((unsigned long long)(CLI_DOC_WORD_RUNS)*one->lines.lines) + line) * sizeof(unsigned int),

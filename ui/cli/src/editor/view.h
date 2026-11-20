@@ -149,9 +149,12 @@ typedef struct
 // `column_count` column offsets and one past them: the field at column index `k` begins at the cell offset
 // `column_offset[k]`, the sum of the previous offset, the previous column's width and one cell for the delimiter, and
 // `column_offset[column_count]` is the cell after the last column; a column's width is the max width of its fields,
-// or the width a CLI_VIEW_COLUMN input set; a file that is not a table has `table` 0 and a column count of 0
+// or the width a CLI_VIEW_COLUMN input set; a file that is not a table has `table` 0 and a column count of 0.
+// `colors_serial` is the text's colors serial, read before the rows' runs. A frame with the same serial as an earlier
+// one has the same colors
 typedef struct
 {
+    unsigned int colors_serial;
     unsigned long long seq;
     unsigned long long top;
     unsigned long long left;
