@@ -100,32 +100,32 @@ int cli_install_options(const CliInstallCfg *args)
     memor.set(&(MemoriaCfg){.dst = options, .val = 0, .bytes = sizeof(*options)});
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        const char *const word = args->words[at];
-        if (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "--accept", .cap = CLI_POOL_BYTES}))
+        const char *const given = args->words[at];
+        if (cellul.eq(&(CatenaFinitaCfg){.src = given, .other = "--accept", .cap = CLI_POOL_BYTES}))
         {
             options->accepted = 1;
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "--yes", .cap = CLI_POOL_BYTES}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = given, .other = "--yes", .cap = CLI_POOL_BYTES}))
         {
             options->yes = 1;
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "--aliases", .cap = CLI_POOL_BYTES}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = given, .other = "--aliases", .cap = CLI_POOL_BYTES}))
         {
             options->aliases = 1;
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "--no-imp", .cap = CLI_POOL_BYTES}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = given, .other = "--no-imp", .cap = CLI_POOL_BYTES}))
         {
             options->skipped[0] = 1;
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "--no-tab", .cap = CLI_POOL_BYTES}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = given, .other = "--no-tab", .cap = CLI_POOL_BYTES}))
         {
             options->skipped[1] = 1;
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "--files", .cap = CLI_POOL_BYTES}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = given, .other = "--files", .cap = CLI_POOL_BYTES}))
         {
             options->files = 1;
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "--checks-host", .cap = CLI_POOL_BYTES}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = given, .other = "--checks-host", .cap = CLI_POOL_BYTES}))
         {
             // the Linux host the window's checks run on takes the next word, as user@host
             VerbaLinea host = {options->checks_host, sizeof(options->checks_host), 0ULL};
@@ -140,9 +140,9 @@ int cli_install_options(const CliInstallCfg *args)
                 return 0;
             }
         }
-        else if ((word[0] == '-') || (options->folder[0] != '\0'))
+        else if ((given[0] == '-') || (options->folder[0] != '\0'))
         {
-            mmgr_line_put(args->err_msg, word);
+            mmgr_line_put(args->err_msg, given);
             mmgr_line_put(args->err_msg, " is not a word install takes: [folder] [--accept] [--yes] [--no-imp] "
                                          "[--no-tab] [--aliases] [--checks-host user@host] [--files]");
             return 0;
@@ -150,7 +150,7 @@ int cli_install_options(const CliInstallCfg *args)
         else
         {
             VerbaLinea folder = {options->folder, sizeof(options->folder), 0ULL};
-            mmgr_line_put(&folder, word);
+            mmgr_line_put(&folder, given);
             if (mmgr_line_finish(&folder) == 0ULL)
             {
                 mmgr_line_put(args->err_msg, "the folder's path is too long");
@@ -312,8 +312,8 @@ EMBED_INLINE int install_copied(InstallCtx *args)
             return 0;
         }
 #if !defined(_WIN32)
-        // the copy carries the bytes alone: the program's mode set so that it runs for the reader and reads for all
-        if (!same && (chmod(to, 0755) != 0))
+        // the copy carries the bytes alone: the program's mode set so that its owner alone reads, writes and runs it
+        if (!same && (chmod(to, 0700) != 0))
         {
             mmgr_line_put(args->cfg->err_msg, to);
             mmgr_line_put(args->cfg->err_msg, " could not be made to run");
