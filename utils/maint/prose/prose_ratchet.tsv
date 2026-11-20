@@ -550,7 +550,6 @@ includes/file_defs/qry/qry_writer.c	21
 includes/file_defs/qry/writer/platform/posix.c	9
 includes/file_defs/qry/writer/platform/windows.c	8
 includes/file_defs/qry/writer/qry_member.c	8
-includes/file_defs/qry/writer/qry_member.h	31
 includes/file_defs/qry/writer/qry_writer_internal.h	17
 includes/file_defs/vendor_writer_run.h	4
 includes/font/font.c	1
