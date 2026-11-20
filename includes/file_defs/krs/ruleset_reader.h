@@ -3,9 +3,9 @@
 #ifndef RULESET_READER_H
 #define RULESET_READER_H
 
-// What the code generator's base (target_*.cu) and the code generator of each ruleset (code_generator.cu) share,
-// and no caller outside the code generator reads: a ruleset as read, the schema a language reads it against, and the
-// writer a language writes its forms with
+// What the base of the code generator (target_*.cu) and the code generator of each ruleset (code_generator.cu) share.
+// No caller outside the code generator reads it. It holds a ruleset as read, the schema that a language reads it
+// against, and the writer that a language writes its forms with
 
 #include "../../../src/cu/engine/rmc/target.h"
 
@@ -25,8 +25,9 @@ struct RulesetName
 #define REGCLASS_WRITTEN(name_, text_) {text_, 1u},
 #define PHYSREG_WRITTEN(name_, text_) {text_, 0u},
 
-// what a code generator requires of its ruleset: the file it is read from, the toolchain and the header its path builds
-// with, NULL where it takes those the file names, and the forms, banks and fixed registers the code generator names
+// what a code generator needs from its ruleset. That is the file of the read, and the toolchain and header of its path.
+// Each is NULL where it takes the one that the file names. It is also the forms, banks and fixed registers
+// that the code generator names
 struct RulesetSchema
 {
     const char *file;
@@ -40,16 +41,16 @@ struct RulesetSchema
     unsigned int fixed_count;
 };
 
-// a text cut at its parameters: pieces[k] comes before the argument of parameter placeholders[k], and the last piece
-// after the last argument, one piece more than placeholders
+// a text cut at its parameters. Each pieces[k] comes before the argument of parameter placeholders[k]. The last piece
+// comes after the last argument, which gives one piece more than placeholders
 struct InstrTemplate
 {
     std::vector<std::string> pieces;
     std::vector<unsigned int> placeholders;
 };
 
-// what one argument of a construct's line is: text written as it is, the construct's own parameter at a
-// placeholder, or a scratch register of a bank, `number` naming it within one writing of the construct
+// what one argument of the line of a construct is. It is text written as it is, or the own parameter of the construct
+// at a placeholder. Else it is a scratch register of a bank, which `number` names within one write of the construct
 enum PseudoOperandKind
 {
     PSEUDO_TEXT = 0,
@@ -72,20 +73,21 @@ struct PseudoLine
     std::vector<PseudoOperand> arguments;
 };
 
-// a form built from more basic ones (engine_table.md item 11(f) 5): where the target's own instruction for a form
-// leaves its rules, the ruleset gives the form as a construct of the same name and parameters, and each writing of
-// the form writes the construct's lines. No lines is the form as its text gives it
+// a form built from more basic forms (engine_table.md item 11(f) 5). Where the own instruction of the target for a form
+// leaves its rules, the ruleset gives the form as a construct. The construct has the same name and parameters. Each
+// write of the form writes the lines of the construct. No lines is the form as its text gives it
 struct Pseudo
 {
     std::vector<PseudoLine> lines;
 };
 
-// a scratch register a construct takes: a fresh register of the bank at that place in the schema, or empty where the
-// writer has none of that bank to give
+// a scratch register that a construct takes. It is a fresh register of the bank at that place in the schema. It is
+// empty where the writer has none of that bank to give
 typedef std::function<std::string(unsigned int bank)> ScratchRegisters;
 
-// a fold the system does of a form, as the classification beside the ruleset gives it on the compile channel: the form
-// by its place in the schema, what was put for the parameter ("number" or "register"), and the parameter by its place
+// a fold that the system does of a form, as the classification beside the ruleset gives it on the compile channel. It
+// holds the form by its place in the schema, and what the caller put for the parameter ("number" or "register"). It
+// also holds the parameter by its place
 struct RulesetFold
 {
     unsigned int form;
@@ -93,11 +95,13 @@ struct RulesetFold
     unsigned int parameter;
 };
 
-// a ruleset read from its file against its code generator's schema: where it was read, and why it errored where it
-// was; its own name, the toolchain that builds its text and where its header comes from, and the shared, write_ports
-// and part lines it gives, each empty where it gives none; each bank's written form of a
-// register, each fixed register's written form, and each form, by their places in the schema; and which of them the
-// file gave, to find one given twice or left out
+// a ruleset read from its file against the schema of its code generator:
+//   - the path of the read, and the reason for an error where there was one.
+//   - its own name, the toolchain that builds its text, and where its header comes from.
+//   - the shared, write_ports and part lines that it gives, each empty where it gives none.
+//   - the written form of a register of each bank, the written form of each fixed register, and each form, by their
+//     places in the schema.
+//   - which of them the file gave, to find one given twice or left out.
 struct Ruleset
 {
     const RulesetSchema *schema;
@@ -120,22 +124,25 @@ struct Ruleset
     std::vector<unsigned char> form_given;
     // the folds of the .ksc of the ruleset's name beside it, none where there is no such file
     std::vector<RulesetFold> folds;
-    // the construct being read, its place among the forms (the form count where none is), and its parameters' names
+    // the construct in the read, its place among the forms (the form count where there is none), and the names of its
+    // parameters
     unsigned int building;
     std::vector<std::string> building_parameters;
 };
 
-// the folds of the .ksc of `rules`' name beside its file read into rules->folds in place of those it contained: each
-// line `compile folds <word> <form>: the system folds the <type> put for <parameter>`, the parameter found by its name
-// in the ruleset's own line for the form. A line naming a form or parameter the ruleset does not give is passed over
+// the folds of the .ksc of the name of `rules` beside its file, read into rules->folds in place of its old contents.
+// Each line is `compile folds <word> <form>: the system folds the <type> put for <parameter>`. The code finds the
+// parameter by its name in the own line of the ruleset for the form. The code skips a line that names a form or
+// parameter that the ruleset does not give
 void ruleset_folds_read(Ruleset *rules);
 
 // the names of form `form`'s parameters in the order the ruleset's own line for it gives them. None where it gives no
 // line for the form
 std::vector<std::string> ruleset_parameters(const Ruleset *rules, const std::string &form);
 
-// form `name` of `rules` appended to `text`, its arguments in the order of its parameters, a construct's scratch
-// taken of `scratch`; `broken` set, and nothing written, where they are not as many as the form takes
+// form `name` of `rules` appended to `text`, its arguments in the order of its parameters. The scratch of a construct
+// comes from `scratch`. Where the arguments are not as many as the form takes, the call sets `broken` and writes
+// nothing
 void ruleset_write_taking(const Ruleset *rules, std::string &text, unsigned int name,
                           std::initializer_list<std::string> arguments, const ScratchRegisters &scratch, int *broken);
 
@@ -147,10 +154,11 @@ void ruleset_write(const Ruleset *rules, std::string &text, unsigned int name,
 void ruleset_write_list(const Ruleset *rules, std::string &text, unsigned int name,
                         const std::vector<std::string> &arguments, const ScratchRegisters &scratch, int *broken);
 
-// the scratch each form of `rules` takes in one writing, four words a form by its place in the schema: the registers it
-// takes of the banks at places banks[0], banks[1] and banks[2], and 1 where it takes one of any other bank. A form the
-// ruleset gives as its text takes none; a construct takes each scratch register it names once, and what each form it
-// writes takes
+// the scratch that each form of `rules` takes in one write, four words a form, by its place in the schema. The words
+// are the registers that it takes of the banks at places banks[0], banks[1] and banks[2]. The fourth is 1 where it
+// takes one of any other bank.
+// A form that the ruleset gives as its text takes none. A construct takes each scratch register that it names once,
+// and what each form that it writes takes
 void ruleset_scratch(const Ruleset *rules, const unsigned int *banks, std::vector<unsigned int> *scratch);
 
 #endif

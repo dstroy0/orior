@@ -518,7 +518,6 @@ includes/file_defs/krs/ruleset_core_words.h	18
 includes/file_defs/krs/ruleset_flat.h	13
 includes/file_defs/krs/ruleset_flat/files.cu	8
 includes/file_defs/krs/ruleset_flat/flat.cu	4
-includes/file_defs/krs/ruleset_reader.h	18
 includes/file_defs/ksc/ksc.c	3
 includes/file_defs/ksc/ksc.h	7
 includes/file_defs/ksg/ksa.c	1
