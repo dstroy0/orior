@@ -1477,11 +1477,11 @@ def state_at(nu, p, cut, digits):
 
 
 def ball_at(nu, p, cut, digits):
-    """The ball at x = nu + p, at `digits` + GUARD: |z|^2, the shadows D, E and Z, and the angular
-    momentum L = sum (theta' - ln n) / n and energy sum (theta' - ln n)^2 / 2n of its waves.
+    """The ball at x = nu + p, at `digits` + GUARD. It holds |z|^2, and the shadows D, E and Z. It holds the angular
+    momentum `L = sum (theta' - ln n) / n` and the energy `sum (theta' - ln n)^2 / 2n` of its waves.
 
-    D is the curves R through C_cut leaves out, C_k(1 - 2p) x^(-k - 1/2) for k to cut + 3, with the
-    sign D = S + R - Z takes; E = S - R and Z = S + R from Riemann-Siegel."""
+    D is the curves that R through C_cut leaves out, `C_k(1 - 2p) x^(-k - 1/2)` for k to cut + 3, with the sign that
+    `D = S + R - Z` takes. `E = S - R` and `Z = S + R` come from Riemann-Siegel."""
     work = digits + GUARD
     scale = 10 ** work
     big_p, q = p
@@ -1542,11 +1542,13 @@ def sphere_main(first, last, cut=10, m=8, digits=24):
 
 # ---- the ball's motion against its own permutations ----
 #
-# The identity is the ball as it is: wave n carries e^(-it ln n), and n's direction is its primes'
-# directions added, at every t. Two nulls retain every mass 1/n, every spin theta' - ln n, the sphere
-# H_nu, the frame theta and R, and differ only in the directions the waves start the cell at. The
-# locked null permutes the primes' directions among the primes and carries them to every n by its
-# factors. The unlocked null permutes the directions of 2 to nu among themselves, factors ignored.
+# The identity is the ball as it is. Wave n carries `e^(-it ln n)`, and the direction of n is the sum of the
+# directions of its primes, at each t.
+# Two nulls keep each mass 1/n, each spin `theta' - ln n`, the sphere H_nu, the frame theta and R. They differ only
+# in the directions where the waves start the cell.
+#
+# The locked null permutes the directions of the primes among the primes, and carries them to each n by its factors.
+# The unlocked null permutes the directions of 2 to nu among themselves, with no regard to factors.
 # Each draw is reference.shuffles.permuted at its own seed.
 
 
@@ -1589,11 +1591,11 @@ def theta_x(nu, j, depth, work):
 
 
 def null_turns(heads, locked, seed, scale):
-    """Each wave's constant turn under one null, as unit pairs at `scale`, wave 1 unturned.
+    """The constant turn of each wave under one null, as unit pairs at `scale`, with wave 1 unturned.
 
-    heads[n - 1] is wave n's direction at the cell's start. A wave sent to another's direction turns
-    by that direction times the conjugate of its own. A draw that moves no seat is the identity and
-    is drawn again at the next seed."""
+    heads[n - 1] is the direction of wave n at the start of the cell. A wave sent to the direction of another turns
+    by that direction times the conjugate of its own. A draw that moves no seat is the identity, and the code draws
+    again at the next seed."""
     nu = len(heads)
 
     def onto(n, m):
@@ -1616,8 +1618,9 @@ def null_turns(heads, locked, seed, scale):
 
 
 def magnitudes(k, work, count=96):
-    """Upper bounds on |C_k|, |C_k'| and |C_k''| over -1 <= z <= 1, as Fractions: the sum of the Taylor
-    coefficients' sizes times 1, i and i (i - 1), each read at `work`, raised by the terms' count in units."""
+    """Upper bounds on |C_k|, |C_k'| and |C_k''| over -1 <= z <= 1, as Fractions. Each is the sum of the sizes of the
+    Taylor coefficients times 1, i and i (i - 1), each read at `work`. The code raises it by the count of the terms in
+    units."""
     scale = 10 ** work
     g = CURVES.setdefault(work, Curve(work)).gamma(k, count)
     return [Fraction(sum(abs(v) * comb(i, m) * factorial(m) for i, v in enumerate(g)) + count + 1, scale)
@@ -1630,14 +1633,17 @@ def ceiling(value, scale):
 
 
 def budgets(nu, work):
-    """The cell's bounds, whole units at `work`, shared by every ball: B1 on |M'| and B2 on |M''| over the
-    cell, R1 on the derivative of R's two terms, and rho, Gabcke's bound on what R through C_1 leaves out,
-    |R| <= 0.053 t^(-5/4) for t >= 200 (Gabcke; Hiary, (1.4)), at the cell's least t.
+    """The bounds of the cell, whole units at `work`, shared by each ball:
+      - B1 on |M'| and B2 on |M''| over the cell.
+      - R1 on the derivative of the two terms of R.
+      - rho, the bound of Gabcke on what R through C_1 leaves out, `|R| <= 0.053 t^(-5/4)` for t >= 200 (Gabcke;
+        Hiary, (1.4)), at the least t of the cell.
 
-    M = 2 Re sum z_n + R, R = (-1)^(nu-1) sum over k <= 1 of C_k(z) x^(-k-1/2), z = 1 - 2(x - nu) and
-    x = sqrt(t / 2pi). Each wave is a vector of length n^(-1/2) turning at theta' - ln n, at max
-    ln((nu + 1) / n) + 1 / t^2 in size over the cell, and theta'' is at max 1 / t. |dx/dt| = 1 / (4pi x)
-    and |d^2x/dt^2| = 1 / (16pi^2 x^3). Each bound is a sum of magnitudes, every factor raised where read."""
+    `M = 2 Re sum z_n + R`, and `R = (-1)^(nu-1) sum over k <= 1 of C_k(z) x^(-k-1/2)`, with `z = 1 - 2(x - nu)` and
+    `x = sqrt(t / 2pi)`.
+    Each wave is a vector of length n^(-1/2) that turns at `theta' - ln n`. It is at max `ln((nu + 1) / n) + 1 / t^2`
+    in size over the cell, and theta'' is at max 1 / t. `|dx/dt| = 1 / (4pi x)` and
+    `|d^2x/dt^2| = 1 / (16pi^2 x^3)`. Each bound is a sum of magnitudes, with each factor raised where read."""
     scale = 10 ** work
     pi_low = Fraction(314159, 100000)
     t_low = 2 * pi_low * nu * nu
@@ -1662,9 +1668,10 @@ def budgets(nu, work):
 
 
 def theta_floor(t, n_sum, work):
-    """What theta's second route leaves out, whole units at `work`: Stirling's series at w = 1/4 + it/2 + 2N
-    with 2N terms stops short by at max |B_(2K+2)| / ((2K+2)(2K+1) |w|^(2K+1)) sec^(2K+2)(arg w / 2), K = 2N,
-    and arg w < pi/2 makes the secant's power at max 2^(K+1); |w| >= t / 2. Its roundings add 20K + 100."""
+    """What the second route of theta leaves out, whole units at `work`. The series of Stirling at
+    `w = 1/4 + it/2 + 2N` with 2N terms stops short. With K = 2N, the shortfall is at max
+    `|B_(2K+2)| / ((2K+2)(2K+1) |w|^(2K+1)) sec^(2K+2)(arg w / 2)`.
+    `arg w < pi/2` makes the power of the secant at max 2^(K+1), and |w| >= t / 2. Its roundings add 20K + 100."""
     big_t, q = t
     k = 2 * n_sum
     num, den = zz.bernoulli_over_factorial(k + 1)
@@ -1674,12 +1681,15 @@ def theta_floor(t, n_sum, work):
 
 
 def point(nu, j, depth, digits, balls, logs):
-    """Every ball at x = nu + j / 2^depth, at digits + GUARD: t, theta, M = 2 Re W + R through C_1 and the
-    waves' part of M', -2 Im sum (theta' - ln n) z_n, with the point's budgets E on M and E' on M'.
+    """Each ball at x = nu + j / 2^depth, at digits + GUARD. It holds t, theta, and `M = 2 Re W + R` through C_1. It
+    holds the part of M' of the waves, `-2 Im sum (theta' - ln n) z_n`, with the budgets of the point: E on M and E'
+    on M'.
 
-    E sums magnitudes: each wave's floors over its logarithm, power, cosine and sine and the turn, at max
-    20 t + 1000 units a wave, twice over for 2 Re; the frame's rotation, at max theta's floor times |W| <= nu,
-    twice; and R's two terms read at digits, 4 10^GUARD units."""
+    E sums magnitudes:
+      - the floors of each wave over its logarithm, power, cosine and sine, and the turn. That is at max 20 t + 1000
+        units a wave, twice over for 2 Re.
+      - the rotation of the frame, at max the floor of theta times |W| <= nu, twice.
+      - the two terms of R read at digits, 4 10^GUARD units."""
     work = digits + GUARD
     scale = 10 ** work
     p = zz.pair(j * 5 ** depth, depth)
@@ -1724,12 +1734,16 @@ def settle(left, right, k, bounds, scale, rho=0):
 
 
 def certified_cell(nu, bits, digits, draws, deepest=12):
-    """The cell [nu, nu + 1] on 2^bits parts, every interval settled by its budgets or halved until it is,
-    for the identity and `draws` nulls of each type.
+    """The cell [nu, nu + 1] on 2^bits parts, with each interval settled by its budgets, or halved until it is. This
+    runs for the identity, and for `draws` nulls of each type.
 
-    Returns the frame's flips; for each ball its zeros of M and the intervals left unsettled; for the
-    identity the intervals where Z itself has at least one zero and those Gabcke's rho leaves open; the
-    sign of M at each Gram point where it clears its budget; Rice's count; and the points evaluated."""
+    Returns:
+      - the flips of the frame.
+      - for each ball, its zeros of M and the intervals left unsettled.
+      - for the identity, the intervals where Z itself has at least one zero, and those that the rho of Gabcke
+        leaves open.
+      - the sign of M at each Gram point where it clears its budget.
+      - the count of Rice, and the evaluated points."""
     work = digits + GUARD
     scale = 10 ** work
     big_pi = zz.pi(work)
@@ -1796,14 +1810,19 @@ def middle(values):
 
 
 def motion_main(first, last, bits=9, draws=16, digits=20):
-    """The ball's motion over cells first to last against its locked and unlocked permutations, every count
+    """The motion of the ball over cells first to last, against its locked and unlocked permutations, with each count
     certified.
 
-    Per cell: the frame's flips; the identity's zeros of M and their excess over the flips, and the
-    zeros of Z itself the budgets certify with Gabcke's rho; the nulls' excess, median and largest; the
-    intervals left unsettled. At the end: the excess summed over the cells, and the share of Gram points
-    where M's certified sign agrees with the sign two Gram points on (exact_agreement at lag 2), Gram's
-    law. Cells start at 6, where t >= 200 and Gabcke's bound holds."""
+    Per cell:
+      - the flips of the frame.
+      - the zeros of M of the identity, and their excess over the flips.
+      - the zeros of Z itself that the budgets certify with the rho of Gabcke.
+      - the excess of the nulls, its median and its largest.
+      - the intervals left unsettled.
+
+    At the end: the excess summed over the cells. Then the share of Gram points where the certified sign of M agrees
+    with the sign two Gram points on (exact_agreement at lag 2). That is the law of Gram. Cells start at 6, where t >= 200
+    and the bound of Gabcke holds."""
     out = sys.stdout
     work = digits + GUARD
     totals = None
@@ -1841,22 +1860,25 @@ def motion_main(first, last, bits=9, draws=16, digits=20):
 
 # ---- the curve as a set, C_all, and what remains after its relations cancel ----
 #
-# At x = nu + p, z = 1 - 2p, Z is the sum over C_all = {w_1, ..., w_nu, c_0, ..., c_K, r_K}: the waves
-# w_n = 2 n^(-1/2) cos(theta - t ln n), the correction curves c_k = (-1)^(nu-1) C_k(z) x^(-k-1/2), and the
-# rest r_K, what the cut leaves out. Each member is represented as its real and its operator: its floor at the
-# places asked with the budget the floor carries, and the routine asked again for more. The rest has no
-# operator here and is represented by Gabcke's bound, |r_1| <= 0.053 t^(-5/4) for t >= 200.
+# At x = nu + p, z = 1 - 2p, Z is the sum over `C_all = {w_1, ..., w_nu, c_0, ..., c_K, r_K}`:
+#   - the waves `w_n = 2 n^(-1/2) cos(theta - t ln n)`.
+#   - the correction curves `c_k = (-1)^(nu-1) C_k(z) x^(-k-1/2)`.
+#   - the rest r_K, what the cut leaves out.
 #
-# Two relations cancel members. Wave n's phase is theta - sum a_p t ln p over n = prod p^a_p. Each
-# composite wave is then the product of prime waves and only theta and the primes' phases remain. Every
-# c_k is Gabcke's generator over the one curve F(z) = Psi(p), each correction curve a weighting by the d
-# rows of F's Taylor coefficients. What remains is the functional
-# Z = Phi(theta, {t ln p : p <= nu}, z, x), read from those generators alone.
+# The code holds each member as its real and its operator. That is its floor at the places asked, with the budget
+# that the floor carries. It is also the routine, asked again for more.
+# The rest has no operator here. The bound of Gabcke holds it, `|r_1| <= 0.053 t^(-5/4)` for t >= 200.
+#
+# Two relations cancel members. The phase of wave n is `theta - sum a_p t ln p` over `n = prod p^a_p`. Each composite
+# wave is then the product of prime waves, and only theta and the phases of the primes remain.
+# Each c_k is the generator of Gabcke over the one curve `F(z) = Psi(p)`. Each correction curve is a weighting by
+# the d rows of the Taylor coefficients of F.
+# What remains is the functional `Z = Phi(theta, {t ln p : p <= nu}, z, x)`, read from those generators alone.
 
 
 class ComputableReal:
-    """A member represented as its real and its operator. operator(places) returns the floor at 10^-places and the
-    budget it carries in units of 10^-places; real(places) asks once and retains the reading."""
+    """A member kept as its real and its operator. The call operator(places) returns the floor at 10^-places, and the
+    budget that it carries in units of 10^-places. The call real(places) asks once, and keeps the reading."""
 
     def __init__(self, name, operator):
         self.name, self.operator, self.readings = name, operator, {}
@@ -1910,9 +1932,9 @@ def curve_set(nu, p, cut):
 
 
 def generators(nu, p, cut, places):
-    """What remains of C_all once its relations cancel, at `places` + GUARD: theta, each prime's unit wave
-    e^(-i t ln p) and the budget it carries, and F's Taylor coefficients through what C_cut asks, with z
-    and x^(-1/2)."""
+    """What remains of C_all once its relations cancel, at `places` + GUARD. That is theta, and the unit wave
+    `e^(-i t ln p)` of each prime with the budget that it carries. It is also the Taylor coefficients of F through
+    what C_cut asks, with z and x^(-1/2)."""
     work = places + GUARD
     scale = 10 ** work
     big_p, q = p
@@ -1932,13 +1954,15 @@ def generators(nu, p, cut, places):
 
 
 def functional(nu, cut, members, places):
-    """Z = Phi(theta, {t ln p}, z, x) from the generators alone, at `places`, and its budget: every wave the
-    product of its primes' unit waves times n^(-1/2), turned by theta and doubled for 2 Re; every c_k from
-    F's Taylor coefficients through Gabcke's d rows (Curve.gamma); Gabcke's bound on the rest at cut 1.
+    """`Z = Phi(theta, {t ln p}, z, x)` from the generators alone, at `places`, and its budget:
+      - each wave is the product of the unit waves of its primes times n^(-1/2), turned by theta and doubled for
+        2 Re.
+      - each c_k comes from the Taylor coefficients of F through the d rows of Gabcke (Curve.gamma).
+      - the bound of Gabcke covers the rest at cut 1.
 
-    The budget sums magnitudes: each prime wave's floors, once for each prime factor counted with its
-    power, and 2 units for each product, times n^(-1/2) <= 1; the frame's rotation; F's series read at
-    count and 2 count terms (c_at's verdict)."""
+    The budget sums magnitudes: the floors of each prime wave, once for each prime factor counted with its power.
+    Then 2 units for each product, times n^(-1/2) <= 1. It adds the rotation of the frame, and the series of F read at
+    count and 2 count terms (the verdict of c_at)."""
     work = places + GUARD
     scale = 10 ** work
     cos_theta, sin_theta = zz.cos_sin(members["theta"], work)
@@ -1963,10 +1987,12 @@ def functional(nu, cut, members, places):
 
 
 def set_main(first, last, cut=1, places=24, points=4):
-    """C_all over cells first to last at `points` points in each cell, p = (2j + 1) / 2^d with 2^d at least
-    twice `points`: its members, the rest that holds every member not yet defined, what remains after
-    the relations cancel, and three routes to Z that must meet within their budgets: the members summed,
-    the functional from the generators, and rs_cut_at."""
+    """C_all over cells first to last, at `points` points in each cell, `p = (2j + 1) / 2^d` with 2^d at least twice
+    `points`. It holds:
+      - its members, and the rest that holds each member not yet defined.
+      - what remains after the relations cancel.
+      - three routes to Z that must meet within their budgets: the members summed, the functional from the
+        generators, and rs_cut_at."""
     out = sys.stdout
     every = 1
     for nu in range(first, last + 1):
@@ -2000,9 +2026,9 @@ def set_main(first, last, cut=1, places=24, points=4):
 
 
 def triangle_main(first, last, cuts):
-    """The triangle over cells first to last, with C from the device, one line a cell for each cut.
-    A cut of -1 is MathWorld's c_0 to c_5; any other is R through C_cut from the exact curves.
-    Euler-Maclaurin is shared between the cuts."""
+    """The triangle over cells first to last, with C from the device, one line a cell for each cut. A cut of -1 is the
+    c_0 to c_5 of MathWorld. Any other cut is R through C_cut from the exact curves. The cuts share
+    Euler-Maclaurin."""
     out = sys.stdout
     tail = DeviceTail(os.path.join(ROOT, "build"))
     out.write("  the triangle between the two pairs, C on the device from %s\n" % tail.build())
