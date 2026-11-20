@@ -5748,21 +5748,23 @@
   var callouts = [];
   var labelsRide = false;
 
-  // The rail along the top, arranged once per render pass, left to right in the order the targets
-  // are across the window.
+  // The rail along the top, arranged once per render pass, left to right in the order of the targets
+  // across the window.
   //
-  // Ordering by the target and not by creation retains the leaders from crossing. Two leaders
-  // cross exactly when one label sits left of another while its target sits right of the other's.
-  // Laying the labels out in the same left-to-right order as the things they point at makes a crossing
-  // impossible. The cost is that the order can change as the view turns. Holding the creation order
-  // pays for that in crossed leaders instead. Names are short and
-  // a leader is unambiguous. The crossing is the worse of the two.
+  // An order by the target, and not by creation, keeps the leaders from a cross. Two leaders cross
+  // exactly when one label sits left of another while its target sits right of the other target.
+  // The labels in the same left-to-right order as the things that they point at make a cross
+  // impossible. The cost is that the order can change as the view turns.
   //
-  // A label the reader has dragged is pinned and is skipped here. The layout never walks over a
-  // position someone chose. Wrapped to a second row when the width runs out, clear of the left panel.
+  // The creation order pays for that in crossed leaders. Names are short, and a leader is clear. The
+  // cross is the worse of the two.
+  //
+  // A label that the reader dragged has a pin, and the code skips it here. The layout never walks
+  // over a position that someone chose. It wraps to a second row when the width runs out, clear of
+  // the left panel.
   var RAIL_TOP = 12;
   var RAIL_GAP = 7;
-  // Reused across frames by the rail and by the untangle pass, one each, with named comparators.
+  // The rail and the untangle pass use these again across frames, one each, with named comparators.
   var railOrder = [];
   var untangleLive = [];
   function byScreenX(a, b) {
@@ -5780,10 +5782,10 @@
     var tall = 0;
     var edge = window.innerWidth - 260;
 
-    // Sorted on a copy, because the callouts array is the identity of each label everywhere else and
-    // reordering it would reorder the drop-down and the source it belongs to with it. The copy is
-    // reused and its comparator is named, since this runs on every frame and both a fresh array and
-    // a fresh closure per frame are avoidable.
+    // Sorted on a copy, because the callouts array is the identity of each label everywhere else. A new
+    // order of it puts the drop-down and its source in a new order too.
+    // The code uses the copy again, and its comparator has a name. This runs on each frame, and both a
+    // fresh array and a fresh closure per frame are avoidable.
     railOrder.length = 0;
     for (var q = 0; q < callouts.length; q++) {
       if (!callouts[q].pinned) {
@@ -5819,15 +5821,15 @@
     if (runX === 0 && runY === 0) {
       return [midX, midY];
     }
-    // How far along the segment the box wall sits, taken as the smaller of the two axis crossings.
+    // How far along the segment the box wall sits: the smaller of the two axis crossings.
     var stepX = runX === 0 ? Infinity : rect.width / 2 / Math.abs(runX);
     var stepY = runY === 0 ? Infinity : rect.height / 2 / Math.abs(runY);
     var reach = Math.min(stepX, stepY, 1);
     return [midX + runX * reach, midY + runY * reach];
   }
 
-  // How large the arrangement is on screen right now, against how large it is at the opening
-  // distance. One number. Every label closes in together and the group retains its shape.
+  // How large the arrangement is on screen now, against how large it is at the open distance. One
+  // number. Each label closes in together, and the group keeps its shape.
   function apparentPull() {
     var here = Math.max(NEAREST * 0.5, lookFrom.length());
     return Math.max(0.2, Math.min(1.75, OPENING / here));
@@ -5864,8 +5866,8 @@
       owner: "",
       railX: 0,
       railY: RAIL_TOP,
-      // Where the reader put it, and where its target was last seen across the window. The
-      // first survives a drag; the second orders the rail so the leaders do not cross.
+      // Where the reader put it, and where its target last was across the window. The first survives a
+      // drag. The second orders the rail, and the leaders do not cross.
       pinned: false,
       pinX: 0,
       pinY: 0,
@@ -5876,9 +5878,9 @@
     return made;
   }
 
-  // A callout owns three nodes across two parents. Dropping one means taking all three out. Left
-  // behind, the tag retains its last position and the leader goes on pointing into empty space at a
-  // source that is no longer in the room.
+  // A callout owns three nodes across two parents. A drop of one takes all three out. Left behind, the
+  // tag keeps its last position. The leader then still points into empty space, at a source that is
+  // no longer in the room.
   function dropCallouts(owner) {
     for (var c4 = callouts.length - 1; c4 >= 0; c4--) {
       if (callouts[c4].owner !== owner) {
@@ -5898,8 +5900,8 @@
     }
   }
 
-  // Retained off the two panels. A label that lands under one is unreadable and a leader that runs
-  // beneath one points at nothing. The label is pushed to whichever side has room for it.
+  // Kept off the two panels. A label that lands under one is unreadable, and a leader that runs beneath
+  // one points at nothing. The code pushes the label to the side that has room for it.
   var retainOff = [];
 
   function clearOfPanels(left, top, wide, high) {
@@ -5926,13 +5928,13 @@
     return left;
   }
 
-  // Where the target is on screen, for every label, before any of them is placed.
+  // Where the target is on screen, for each label, before the code places any of them.
   //
-  // Separated out because the rail sorts on this, and placement runs after the sort. One frame of lag
-  // sounds harmless and is not. The rail's whole claim to being crossing-free is that it positions labels
-  // out in the same order as their targets, and a stale order is a different order. On a turning view
-  // it produces exactly the crossings the rail exists to prevent. Projecting first makes the sort
-  // current.
+  // Apart, because the rail sorts on this, and the placement runs after the sort. One frame of lag
+  // sounds harmless, and is not.
+  // The rail has no cross because it puts the labels in the same order as their targets. A stale
+  // order is a different order. On a view that turns, it gives exactly the crosses that the rail
+  // prevents. The projection first makes the sort current.
   function project(one) {
     one.aim(one.at);
     flatPoint.copy(one.at).project(camera);
@@ -5966,14 +5968,15 @@
 
     // Two ways to place a label, and the page opens in the readable one.
     //
-    // Riding its target, a label goes where the object went. That is right for reading one thing and
-    // wrong for reading a page: on a fresh render the labels land wherever the objects happen to be,
-    // in whatever order the projection puts them, overlapping each other and the panels, and the
-    // reader has to hunt for the name of the thing they are looking at. Arranged in a row along the
-    // top they are in the order they were made, always in the same place, and the leaders do the work
-    // of saying which is which.
+    // On its target, a label goes where the object went. That is right for a read of one thing, and
+    // wrong for a read of a page.
+    // On a fresh render, the labels land wherever the objects are, in the order that the projection
+    // gives. They overlap each other and the panels, and the reader must hunt for the name of the
+    // thing in view.
+    // In a row along the top, they are in the order of their creation, always in the same place. The
+    // leaders then say which is which.
     //
-    // The checkbox passes the labels back to their objects for anyone who wants them there.
+    // The checkbox passes the labels back to their objects, for a reader who wants them there.
     if (labelsRide) {
       left = toX + one.offX * pull - wide / 2;
       top = toY + one.offY * pull - high / 2;
@@ -5990,9 +5993,9 @@
     left = clearOfPanels(left, top, wide, high);
     left = Math.max(4, Math.min(window.innerWidth - wide - 4, left));
 
-    // Placement is decided here and drawn in drawCallout, with the untangle pass between the two.
-    // Written straight to the DOM instead, a label would have to be moved a second time to undo a
-    // crossing, and the frame would show it in both places on the way.
+    // The code decides the placement here and draws it in drawCallout, with the untangle pass between
+    // the two. Written straight to the DOM, a label needs a second move to undo a cross. The frame then
+    // shows it in both places on the way.
     one.left = left;
     one.top = top;
     one.wide = wide;
@@ -6012,11 +6015,11 @@
 
     one.tag.style.transform = "translate(" + left + "px," + top + "px)";
 
-    // The leader leaves the bottom of the label whenever the target is below it, which on the top rail
-    // is every label. Every line starts by going down and the reader follows it one way. Taken from
-    // the nearest wall instead, a leader leaves sideways and reads as pointing at its neighbor. The
-    // exit slides along the bottom edge toward the target and stops short of the corners. The line
-    // leans the right way without appearing to hang off the box.
+    // The leader leaves the bottom of the label whenever the target is below it. On the top rail, that
+    // is each label. Each line starts down, and the reader follows it one way.
+    // From the nearest wall, a leader leaves sideways, and seems to point at its neighbor. The exit
+    // slides along the bottom edge toward the target, and stops short of the corners. The line leans
+    // the right way, and does not seem to hang off the box.
     var hook;
     if (toY > top + high) {
       hook = [Math.max(left + 8, Math.min(left + wide - 8, toX)), top + high];
@@ -6035,30 +6038,32 @@
     one.dot.setAttribute("cy", toY);
   }
 
-  // Undoing a crossing by moving a label sideways, without moving it up or down.
+  // The undo of a cross by a move of a label sideways, with no move up or down.
   //
-  // The rail already makes crossings impossible among the labels it arranges, by sorting them into the
-  // same left-to-right order as their targets. Three things get past that: a label the reader has
-  // dragged, which the rail is not allowed to touch; a label pushed sideways to clear a panel; and
-  // ride mode, where every label goes where its object went and the rail does not run at all.
+  // The rail already makes crosses impossible among the labels that it arranges. It sorts them into
+  // the same left-to-right order as their targets. Three things get past that:
+  //   - a label that the reader dragged, which the rail must not touch.
+  //   - a label pushed sideways to clear a panel.
+  //   - ride mode, where each label goes where its object went, and the rail does not run at all.
   //
   // Two leaders cross when the labels are in one horizontal order and their targets are in the other.
-  // Exchanging the two labels' horizontal positions therefore removes that crossing exactly, and
-  // because only the horizontal moves, each label retains the row it was on and the reader's own
-  // vertical choice survives. Where the exchange would put a label off screen or into a panel it is
-  // declined and the crossing stays, the honest outcome: there is no lateral position that
-  // undoes it.
+  // An exchange of the horizontal positions of the two labels thus removes that cross exactly.
+  // Only the horizontal moves, and each label keeps its row. The own vertical choice of the reader
+  // survives.
+  // Where the exchange puts a label off screen or into a panel, the code refuses it, and the cross
+  // stays. That is the honest outcome: no lateral position undoes it.
   //
-  // Repeated until nothing crosses or the pass budget runs out. It is a bubble sort on the horizontal
-  // order and it terminates for the same reason one does -- every accepted exchange removes at least
-  // one inversion -- but the budget is here a configuration that cannot settle costs a bounded
-  // amount per frame and not spinning.
+  // The pass repeats until nothing crosses or the pass budget runs out. It is a bubble sort on the
+  // horizontal order, and it ends for the same reason as one. Each accepted exchange removes at least
+  // one inversion.
+  // The budget is here because a configuration that cannot settle then costs a bounded amount per
+  // frame, and does not spin.
   var UNTANGLE_PASSES = 4;
 
   function crosses(a, b) {
-    // The two leaders, taken from the middle of the bottom edge of each label, which is where they
-    // leave for every target below. Compared as segments by the orientation test, a shared
-    // endpoint or a touching pair does not read as a crossing.
+    // The two leaders, taken from the middle of the bottom edge of each label, where they leave for
+    // each target below. The orientation test compares them as segments. A shared endpoint or a pair
+    // that touches then does not read as a cross.
     return segmentsCross(
       a.left + a.wide / 2,
       a.top + a.high,
@@ -6073,10 +6078,10 @@
 
   // Which side of the line through a and b the point c falls on: +1, -1, or 0 for on it.
   //
-  // Named orientOf and not side. There is a
-  // `var side = new THREE.Vector3()` a couple of thousand lines above this, and both declarations
-  // live in the same script scope. Both names hoist, then the assignment runs at load and leaves a
-  // Vector3 sitting where the function was. The first call throws and takes the frame loop with it.
+  // The name is orientOf, and not side. There is a `var side = new THREE.Vector3()` a few thousand
+  // lines above this, and both declarations live in the same script scope. Both names hoist. The
+  // assignment then runs at load, and leaves a Vector3 where the function was. The first call throws,
+  // and takes the frame loop with it.
   function orientOf(ax, ay, bx, by, cx, cy) {
     var swing = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
     return swing > 1e-9 ? 1 : swing < -1e-9 ? -1 : 0;
@@ -6118,15 +6123,16 @@
             continue;
           }
 
-          // The exchange retains the pair inside the span it already occupies. No third label has to
-          // move to make room and no label leaves the row it is on.
+          // The exchange keeps the pair inside the span that it already holds. No third label needs to
+          // move to make room, and no label leaves its row.
           //
-          // Swapping the two x values outright is wrong whenever the labels are different widths and
-          // share a row: "neutrino source" is 117px and "boundary 1" is 85px. Handing each the
-          // other's left edge slides the wide one 32px into its neighbor. Anchoring to the span's
-          // two ends instead -- the formerly right label to the left end, the formerly left label
-          // flush against the right end -- exchanges them without overlap, because a span that contained
-          // both with a gap between them still holds both when they change places.
+          // A plain swap of the two x values is wrong where two labels of different widths share a
+          // row. The label "neutrino source" is 117px, and "boundary 1" is 85px. With the left edge of the
+          // other, the wide one slides 32px into its neighbor.
+          //
+          // An anchor to the two ends of the span exchanges them with no overlap. The label on the
+          // right goes to the left end. The label on the left goes flush against the right end. A span
+          // with room for both and a gap still has room for both when they change places.
           var wasOne = one.left,
             wasTwo = two.left;
           var sameRow = Math.abs(one.top - two.top) < 4;
@@ -6149,15 +6155,15 @@
           one.left = toOne;
           two.left = toTwo;
           if (crosses(one, two)) {
-            // The swap did not help. It is undone and not left as a change that bought
-            // nothing. This happens where the crossing comes from the vertical order instead.
+            // The swap did not help. The code undoes it, and does not keep a change that gave nothing.
+            // This occurs where the cross comes from the vertical order.
             one.left = wasOne;
             two.left = wasTwo;
             continue;
           }
-          // A pinned label that was moved to untangle is no longer where the reader put it. The
-          // pin follows the label. Left behind, the pin would drag it back on the next frame and the
-          // pair would flicker between the two arrangements.
+          // A pinned label that the untangle moved is no longer where the reader put it. The pin
+          // follows the label. Left behind, the pin drags it back on the next frame, and the pair
+          // flickers between the two arrangements.
           if (one.pinned) {
             one.pinX = one.left;
           }
@@ -6173,9 +6179,9 @@
     }
   }
 
-  // A drag sets the offset the label retains from its target, in the same apparent scale the offset is
-  // read back in, a label the reader put somewhere stays there relative to the thing and not
-  // relative to the window.
+  // A drag sets the offset that the label keeps from its target, in the same apparent scale as the
+  // read of the offset. A label that the reader put somewhere stays there, relative to the thing and
+  // not to the window.
   function draggableTag(one) {
     var tag = one.tag;
     tag.style.pointerEvents = "auto";
@@ -6193,10 +6199,11 @@
         wasX = one.offX;
         wasY = one.offY;
       } else {
-        // Riding, a drag sets the offset the label retains from its target. On the rail there is no
-        // offset to set: the layout owns the position and rewrites it every pass, a drag there has
-        // no effect at all. Pinning is what a drag means on the rail, and the grab starts from
-        // wherever the layout last put it. The label does not jump on the first pixel of movement.
+        // In ride mode, a drag sets the offset that the label keeps from its target. On the rail there
+        // is no offset to set. The layout owns the position and writes it again each pass, and a drag
+        // there has no effect at all.
+        // On the rail a drag sets a pin, and the grab starts from where the layout last put it. The
+        // label does not jump on the first pixel of movement.
         one.pinned = true;
         wasX = one.pinX = one.railX;
         wasY = one.pinY = one.railY;
@@ -6220,7 +6227,7 @@
     window.addEventListener("mouseup", function () {
       holding = false;
     });
-    // A double click passes the label back to the rail, since a pin with no way out is a position the
+    // A double click passes the label back to the rail. A pin with no way out is a position that the
     // reader can set once and never undo.
     tag.addEventListener("dblclick", function (event) {
       one.pinned = false;
@@ -6231,8 +6238,8 @@
 
   var hueOf = ["#ffcf95", "#9fd4ff"];
 
-  // Rebuilt whenever the count changes, a source that arrives gets a label and one that leaves
-  // takes its label with it.
+  // Built again whenever the count changes. A source that arrives gets a label, and a source that
+  // leaves takes its label with it.
   function labelSources() {
     dropCallouts("source");
     for (var c = 0; c < sources.length; c++) {
@@ -6273,15 +6280,15 @@
   document.getElementById("fewer").disabled = sources.length <= 1;
   document.getElementById("more").disabled = sources.length >= 12;
 
-  // After the counts table has been filled, because the key box is placed under it and an empty
-  // table measures as a heading with nothing below.
+  // After the fill of the counts table, because the key box goes under it. An empty table measures as
+  // a heading with nothing below.
   paintKeys();
 
   var clock = new THREE.Clock();
   var sinceTrail = 0;
 
-  // The frame time, measured and not asserted. A mean over the last sixty frames, because a
-  // single frame says more about what the operating system was doing than about the scene.
+  // The frame time, measured and not asserted. A mean over the last sixty frames, because a single
+  // frame says more about what the operating system did than about the scene.
   var spans = new Float32Array(60);
   var spanAt = 0;
   var spanFull = false;
@@ -6292,10 +6299,10 @@
     var began = performance.now();
     var gap = Math.min(0.05, clock.getDelta());
 
-    // The operation clock advances before anything is placed, a frame draws the state as of the
-    // operation the clock is on and never the one before it. It runs on the measured frame time and
-    // not on frames, or the computation would go faster on a faster machine and the rate the reader
-    // set would be a property of their hardware.
+    // The operation clock advances before the code places anything. A frame then draws the state as
+    // of the operation that the clock is on, and never the one before it.
+    // It runs on the measured frame time, and not on frames. Else the computation goes faster on a
+    // faster machine, and the rate that the reader set is a property of their hardware.
     if (CLOCK && state.tickRate > 0.005) {
       state.tick += gap * state.tickRate;
       if (state.tick > CLOCK.ticks - 1) {
@@ -6306,43 +6313,43 @@
       showClock();
       tickWanted = false;
     } else if (tickWanted) {
-      // One redraw for however many events asked for it since the last frame.
+      // One redraw for all the events that asked for it since the last frame.
       tickWanted = false;
       applyTick();
     }
 
     step(gap);
 
-    // The trace is positioned on its own clock and not once a frame. Tied to the frame rate the tail gets
-    // shorter on a fast machine and longer on a slow one, and the dwell time becomes a property of
-    // the hardware and not of the medium.
+    // The trace moves on its own clock, and not once a frame. Tied to the frame rate, the tail gets
+    // shorter on a fast machine and longer on a slow one. The dwell time then becomes a property of
+    // the hardware, and not of the medium.
     sinceTrail += gap;
     if (sinceTrail > 0.045) {
       sinceTrail = 0;
       positionTrail();
     }
 
-    // The spray runs on the frame clock. A streak carries a direction only while it is moving.
+    // The spray runs on the frame clock. A streak carries a direction only while it moves.
     flowSpray(gap);
 
-    // The transport is retraced on its own clock. Every fate depends on where the sources are and
-    // where the state moved to. It has to be redone as those change, and a bundle of this size
-    // is too much arithmetic to repeat sixty times a second when nothing moved that far.
+    // The retrace of the transport runs on its own clock. Each fate depends on where the sources are,
+    // and where the state moved to. It must run again as those change. A bundle of this size is too
+    // much arithmetic to repeat sixty times a second when nothing moved that far.
     sincePierce += gap;
     if (sincePierce > 0.1) {
       sincePierce = 0;
       tracePierce();
-      // Once the beam is in the field, a retrace changed the field. The surface has to be
-      // painted again. Skipped when the beam's share is nothing, since then the deposits change
-      // nothing that is being drawn.
+      // Once the beam is in the field, a retrace changed the field. The surface needs a new paint.
+      // The code skips it when the share of the beam is nothing, because the deposits then change
+      // nothing in the draw.
       if (CLOCK && state.beamField > 0) {
         applyTick();
       }
     }
 
-    // Project, arrange, place, untangle, draw. Five passes and not one, and each split earned its
-    // own: the rail cannot sort on an order it has not measured yet, and a crossing is a property of
-    // a pair that cannot be seen while the first of the pair is still being positioned.
+    // Project, arrange, place, untangle, draw. Five passes and not one, and each split has a reason.
+    // The rail cannot sort on an order that it did not measure yet. A cross is a property of a pair, and
+    // nobody can see it while the first of the pair is still in motion.
     for (var c2 = 0; c2 < callouts.length; c2++) {
       project(callouts[c2]);
     }
@@ -6355,10 +6362,10 @@
       drawCallout(callouts[c5]);
     }
 
-    // Step outside the room and the room's own wall becomes the thing being read. It goes part way to
-    // transparent so what is inside registers on it, the same reading one shell out: the
-    // surface of a thing is where what is inside it is legible from. Located outside is not a
-    // different type of looking, it is the same looking against a bigger boundary.
+    // Step outside the room, and the own wall of the room becomes the thing that the reader reads. It
+    // goes part way to transparent, and what is inside shows on it, the same reading one shell out.
+    // The surface of a thing is where what is inside it is legible from. Outside is not a different
+    // type of look. It is the same look against a bigger boundary.
     var here = lookFrom.length();
     var beyond = Math.max(0, Math.min(1, (here - ROOM) / (ROOM * 0.5)));
     wallStuff.opacity = 1 - 0.72 * beyond;
@@ -6368,8 +6375,8 @@
     camera.up.copy(upVec);
     camera.lookAt(target);
 
-    // The single place the shadow is paid for. Retained down while nothing moves, the difference
-    // between twelve scene renders every frame and twelve when the reader does something.
+    // The single place that pays for the shadow. It stays down while nothing moves. This marks
+    // the difference between twelve scene renders each frame and twelve when the reader does something.
     if (shadowStale) {
       renderer.shadowMap.needsUpdate = true;
       shadowStale = false;
@@ -6406,12 +6413,12 @@
   EV.watchLoop("room view", turn).wake();
 
   // ---------------------------------------------------------------------------------------------
-  // The menu, the transport, and tucking the controls away.
+  // The menu, the transport, and the tuck of the controls.
   // ---------------------------------------------------------------------------------------------
 
-  // Which panels belong to which menu entry. Grouped by what a reader is asking, and not by which
-  // box happens to hold it: the harmonic sum and the power bars answer one question between them.
-  // They arrive and leave together.
+  // Which panels belong to which menu entry. The groups follow what a reader asks, and not which box
+  // holds it. The harmonic sum and the power bars answer one question between them. They arrive and
+  // leave together.
   var PANEL_GROUPS = {
     counts: ["counts"],
     dims: ["sums", "bars"],
@@ -6420,8 +6427,8 @@
     all: ["counts", "sums", "bars", "armBox", "keys"],
   };
 
-  // A panel is only displayed if the thing it reports on exists. The bars and the sum need the harmonic
-  // reading, and the arms need to be drawn. The menu cannot conjure a panel of empty rows.
+  // A panel shows only if the thing that it reports on exists. The bars and the sum need the harmonic
+  // reading, and the arms need their draw. The menu cannot conjure a panel of empty rows.
   function panelReady(id) {
     if (id === "sums" || id === "bars") {
       return !!(CLOCK && CLOCK.harmonics && surface);
@@ -6451,9 +6458,9 @@
         box.style.display = on ? "" : "none";
       }
     }
-    // The arms are the anchors panel's subject. Choosing it draws them and choosing away from it
-    // leaves them alone. Turning the drawing off with the panel would make the menu a second control
-    // for something that already has one.
+    // The arms are the subject of the anchors panel. A choice of it draws them, and a choice away from
+    // it leaves them alone. A drawing off with the panel makes the menu a second control for a thing
+    // that already has one.
     if (which === "anchors" || which === "all") {
       var armToggle = document.getElementById("arms");
       if (armToggle && !armToggle.checked) {
@@ -6472,8 +6479,8 @@
     }
   }
 
-  // The right column, stacked from the top in the order the menu lists them, a panel appearing
-  // does not land on top of one already there.
+  // The right column, stacked from the top in the order of the menu. A new panel then does not land on
+  // top of one already there.
   function layoutPanels() {
     var top = 44;
     var order = ["counts", "sums", "bars", "armBox", "keys"];
@@ -6497,7 +6504,7 @@
     }
   });
 
-  // Tucked by default, because the reader's first act is to look and not to adjust.
+  // Tucked by default, because the first act of the reader is to look, and not to adjust.
   var panelBox = document.getElementById("panel");
   var panelPinned = false;
   panelBox.classList.add("tucked");
@@ -6518,8 +6525,8 @@
     }
   });
 
-  // The transport. The sliders each box shadows are retained in step so the two never disagree about what
-  // the clock is doing.
+  // The transport. The code keeps in step the sliders that each box shadows, and the two never
+  // disagree about what the clock does.
   var runStop = document.getElementById("runStop");
   var opBox = document.getElementById("opBox");
   var stepBox = document.getElementById("stepBox");
@@ -6528,15 +6535,16 @@
   var lastSpeed = 6;
 
   function speedSlider(ops) {
-    // The box is the authority and the slider follows it.
+    // The box is the authority, and the slider follows it.
     //
-    // Routing the typed value through the slider is wrong by 0.8%: the slider has a hundred stops
-    // over twenty-four operations a second. Typing 7.5 sets the clock to 7.44 while the box goes on
-    // reading 7.5. A control that displays one number and applies
-    // another is worse than a coarse control, because nothing on screen says which one is in force.
+    // A route of the typed value through the slider is wrong by 0.8%. The slider has a hundred stops
+    // over twenty-four operations a second. A typed 7.5 sets the clock to 7.44, while the box still
+    // reads 7.5.
+    // A control that shows one number and applies another is worse than a coarse control, because
+    // nothing on screen says which one is in force.
     //
-    // So the rate is set directly and the slider is moved to the nearest stop for appearance, with
-    // its own readout written from the exact value and not from its position.
+    // The code thus sets the rate directly, and moves the slider to the nearest stop for show. Its own
+    // readout comes from the exact value, and not from its position.
     var slider = document.getElementById("tickRate");
     slider.value = String(
       Math.max(0, Math.min(100, Math.round((ops * 100) / CLOCK_TOP))),
@@ -6619,10 +6627,11 @@
   // ---------------------------------------------------------------------------------------------
   // The trace, recomputed in the page.
   //
-  // The message, the rounds and the seed are the builder's own options, and the functions below are
-  // the builder's own, carried over one for one: the padding, the schedule, the serialized round,
-  // the distinct states and the harmonic expansion. A change to any of the three runs them once and
-  // replaces what the clock holds. The frame loop reads the stored states and never runs any of this.
+  // The message, the rounds and the seed are the own options of the builder. The functions below are
+  // the own functions of the builder, carried over one for one.
+  // They are the padding, the schedule, the serialized round, the distinct states and the harmonic
+  // expansion. A change to any of the three runs them once, and replaces what the clock holds. The
+  // frame loop reads the stored states, and never runs any of this.
   // ---------------------------------------------------------------------------------------------
 
   var SHA_K = [
@@ -6644,7 +6653,7 @@
     return ((value >>> by) | (value << (32 - by))) >>> 0;
   }
 
-  // The one-block padding. Null when the message does not fit, and never truncated.
+  // The one-block padding. Null when the message does not fit. The code never truncates it.
   function shaPadded(bytes) {
     if (bytes.length > SHA_MAX) {
       return null;
@@ -6686,7 +6695,7 @@
     return out;
   }
 
-  // The state after every operation, serialized as STEPS in the builder positions the round out.
+  // The state after each operation, serialized as STEPS, as the builder lays out the round.
   function shaRun(block, rounds) {
     var words = shaSchedule(block);
     var held = SHA_H0.slice();
@@ -6732,8 +6741,8 @@
     return { order: order, index: index };
   }
 
-  // sphere_field.legendre_column and harmonics_at, flattened degree by degree with the orders of a
-  // degree running from -l to +l, the layout the builder ships.
+  // sphere_field.legendre_column and harmonics_at, flattened degree by degree. The orders of a degree
+  // run from -l to +l, the layout that the builder ships.
   function shaLegendre(top, order, x) {
     var out = new Float64Array(top + 1);
     var sine = Math.sqrt(Math.max(0.0, 1.0 - x * x));
@@ -6779,7 +6788,7 @@
     return row;
   }
 
-  // A direction belongs to a bit and never to a state. The basis is evaluated once per page.
+  // A direction belongs to a bit, and never to a state. The code evaluates the basis once per page.
   var shaBasisRows = null;
   function shaBasis(top) {
     if (!shaBasisRows) {
@@ -6816,7 +6825,8 @@
     return out;
   }
 
-  // The builder's draw, in 64 bits. A Number holds 53, and the generator's state needs all 64.
+  // The draw of the builder, in 64 bits. A Number holds 53, and the state of the generator needs all
+  // 64.
   function shaDraw(seed) {
     var held = BigInt.asUintN(64, BigInt(seed) ^ 0x9e3779b97f4a7c15n);
     return function () {
@@ -6888,8 +6898,8 @@
       rounds +
       " rounds";
 
-    // The same index can name a different state after a recompute. The cached paint key is cleared
-    // and the next paint compares against nothing.
+    // The same index can name a different state after a new computation. The code clears the paint key
+    // in the cache, and the next paint compares against nothing.
     if (paintKeyWas) {
       paintKeyWas.fill(Number.NaN);
     }
