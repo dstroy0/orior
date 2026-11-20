@@ -144,7 +144,6 @@ examples/0_experimental/exact_zeta_form_factor.py	7
 examples/0_experimental/exact_zeta_gram.py	20
 examples/0_experimental/exact_zeta_lobes.cu	17
 examples/0_experimental/exact_zeta_lobes.py	9
-examples/0_experimental/exact_zeta_miss_map.py	88
 examples/0_experimental/exact_zeta_phase.py	15
 examples/0_experimental/exact_zeta_scaled.sh	1
 examples/0_experimental/exact_zeta_spherical.cu	6
@@ -1156,7 +1155,6 @@ utils/maint/data/salishan/hand_extraction/pure_corpus_index.py	16
 utils/maint/data/salishan/hand_extraction/reader_check.py	56
 utils/maint/data/salishan/hand_extraction/tsv_tidy.py	12
 utils/maint/data/salishan/instrument_figures.py	22
-utils/maint/data/salishan/lyon_encoding.py	82
 utils/maint/data/salishan/orior_algorithmic_extraction/boundary_check.py	50
 utils/maint/data/salishan/orior_algorithmic_extraction/corpus_admit.py	18
 utils/maint/data/salishan/orior_algorithmic_extraction/corpus_growth.py	16
@@ -1203,7 +1201,6 @@ utils/maint/prose/fix_prose.py	18
 utils/maint/prose/grade_tex.py	31
 utils/maint/prose/grade_unread.py	12
 utils/maint/prose/grammar_evidence.py	4
-utils/maint/prose/machine_distance.py	82
 utils/maint/prose/oracle_agreement.py	17
 utils/maint/prose/plan_fixes.py	13
 utils/maint/prose/prose_distance.py	23
@@ -1248,7 +1245,6 @@ utils/test/examples/c/cell_tracking/check_test.sh	1
 utils/test/examples/cu/cell_tracking/faces_test.cu	25
 utils/test/examples/cu/cell_tracking/faces_test.sh	1
 utils/test/examples/cu/cell_tracking/hessian_test.cu	9
-utils/test/examples/cu/cell_tracking/output_test.cu	81
 utils/test/examples/cu/cell_tracking/output_test.sh	1
 utils/test/examples/cu/cell_tracking/peaks_test.cu	7
 utils/test/examples/cu/cell_tracking/sort_test.cu	42
