@@ -1,63 +1,63 @@
 """Does a BEAM reading of an early compression state predict the final digest?
 
-    python examples/00_blob_viz_tools/beam_read.py --check
-    python examples/00_blob_viz_tools/beam_read.py                  the sweep, both instruments, matched null
+    `python examples/00_blob_viz_tools/beam_read.py --check`
+    `python examples/00_blob_viz_tools/beam_read.py`                  the sweep, both instruments, matched null
 
 WHY THIS RUNS BESIDE THE NULL IN nonce_read.py
 
-nonce_read.py asks this exact question and reads null, and that null is real. But it is
-measured with SIX SCALARS: weight, monopole share, dipole share, quadrupole share, fine-structure
-share, and the zonal dipole. Five of those are POWER SHARES, and a power share is invariant under
-rotation by construction. An instrument built out of rotation invariants cannot see orientation at
-all, no matter how much orientation there is to see.
+nonce_read.py asks this exact question and reads null, and that null is real. But its instrument is SIX SCALARS:
+weight, monopole share, dipole share, quadrupole share, fine-structure share, and the zonal dipole. Five of those are
+POWER SHARES, and a power share is invariant under rotation by construction. An instrument built out of rotation
+invariants cannot see orientation at all, no matter how much orientation there is to see.
 
-The state carries 256 numbers, one per bit. That is the rank bound this tree measures four
-separate ways, among them beam_rows.py, where 256 line integrals take the stacked reading to rank
-256 exactly. So the null in nonce_read.py covers a six-dimensional rotation-averaged summary of a
-256-dimensional object. A region integral averages over a patch, and a line integral does not.
+The state carries 256 numbers, one per bit. That is the rank bound that this tree measures four separate ways. One
+is beam_rows.py, where 256 line integrals take the stacked reading to rank 256 exactly. The null in nonce_read.py
+therefore covers a six-dimensional rotation-averaged summary of a 256-dimensional object. A region integral averages
+over a patch, and a line integral does not.
 
 WHAT A BEAM IS AND WHY IT IS A DIFFERENT ROW TYPE
 
-A harmonic row is a whole-sphere integral. An arm is a region integral. A BEAM is a LINE integral:
-occlusion along a ray, weighted by perpendicular distance to it. beam_rows.py settled that a beam
-is not in the span of the region rows, by closing the harmonic reading's entire 175-dimensional
-kernel at degree 8 and taking the rank to the source count.
+A harmonic row is a whole-sphere integral. An arm is a region integral. A BEAM is a LINE integral: occlusion along a
+ray, weighted by perpendicular distance to it. The script beam_rows.py settled that a beam is not in the span of
+the region rows. It closed the entire 175-dimensional kernel of the harmonic reading at degree 8, and took the rank
+to the source count.
 
-A beam also reads without perturbing: it is a passive occlusion measurement, the sense in
-which it observes from outside without disturbing what it observes.
+A beam also reads with no disturbance. It is a passive occlusion measurement: it observes from outside, and does
+not change what it observes.
 
 THE HONEST PRIOR, STATED BEFORE THE RUN
 
-Null. The located constraint in PARTITION.tsv is that no projection over the digest reduces the
-number of evaluations, the transform workbook graded twenty hypotheses to null, and nonce_period.py
-found no period across 75 tests. Nothing here contradicts that and this tool is not expected to.
+Null. The located constraint in PARTITION.tsv is that no projection over the digest reduces the number of
+evaluations. The transform workbook graded twenty hypotheses to null, and nonce_period.py found no period across 75
+tests. Nothing here contradicts that, and this tool does not expect to.
 
-What this tool adds is a null measured with a directional instrument and a stated detection limit,
-and not a null inherited from an instrument that was blind to direction. A null with a limit is
-a result. A null asserted from a prior is not.
+What this tool adds is a null from a directional instrument with a stated detection limit. It is not a null
+inherited from an instrument that was blind to direction. A null with a limit is a result. A null asserted from a
+prior is not.
 
 THE THREE CONTROLS, ALL OF WHICH MUST PASS FOR A NULL HERE TO MEAN ANYTHING
 
     1. THE BUILT-IN POSITIVE CONTROL IS FREE. The target is the leading zero count of state 64.
-       Reading state 64 reads the answer. That row MUST fire. If the loudest correlation at
-       round 64 does not clear the null bar, the instrument is broken and every other row on the
-       page is meaningless. This costs nothing and it is not optional.
+       A read of state 64 reads the answer. That row MUST fire. The loudest correlation at round 64
+       must clear the null bar. If it does not, the instrument is broken, and every other row on the
+       page means nothing. This costs nothing, and it is not optional.
 
-    2. THE NULL IS DRAWN INSTEAD OF DERIVED. The bar is the 95th percentile of the LARGEST absolute
-       correlation a shuffled pairing produces over the SAME number of features. Shuffling destroys
-       any real relation while preserving every marginal. Taking the max in the null too
-       makes 256 features and 81 features comparable: reporting the loudest of many against a
-       single-feature threshold manufactures findings.
+    2. THE RUN DRAWS THE NULL, AND DOES NOT DERIVE IT. The bar is the 95th percentile of the LARGEST
+       absolute correlation under a shuffle. The shuffle uses the SAME number of features. A shuffle
+       destroys any real relation, and keeps every marginal. The max in the null as well makes 256
+       features and 81 features comparable. The loudest of many against a single-feature threshold
+       manufactures findings.
 
-    3. THE LIMIT IS MEASURED BY INJECTION FADE. A correlation is blended into the target at a known
-       strength and faded until it stops clearing the bar. The smallest strength still detected is
-       what this sample could have seen. It is the number that gives the null its meaning.
+    3. THE LIMIT COMES FROM AN INJECTION FADE. The test blends a correlation into the target at a
+       known strength. It then fades it until it no longer clears the bar. The smallest strength
+       still detected is what this sample could see. It is the number that makes the null
+       mean something.
 
 WHAT THIS TOOL DOES NOT CLAIM
 
-It says nothing about qubits. The quantum representation question is a different one, answered in
-exact_qubits.py and graph_machine.py, and bolting a qubit onto this measurement would be decoration
-and not apparatus. The eye is a classical line integral.
+It says nothing about qubits. The quantum representation question is a different one, and exact_qubits.py and
+graph_machine.py answer it. A qubit bolted onto this measurement would be decoration, and not apparatus. The eye is a
+classical line integral.
 """
 
 import argparse
@@ -81,14 +81,14 @@ COUNT = beam_rows.COUNT          # 256 sources, one per state bit
 DEGREE = beam_rows.DEGREE        # 8, so the harmonic arm carries 81 coefficients
 NONCES = 2048                    # more than nonce_read's 512: the limit scales as 1/sqrt(n)
 
-# WHERE THE NONCE ENTERS, WHICH THE ROUND LIST IS BUILT AROUND. header_words puts the nonce in
-# schedule word 15, and SHA-256 round r consumes schedule word r. So rounds 0 through 14 consume
-# words 0 through 14, every one of which is identical across the sweep, and states[0] through
-# states[15] are BIT-IDENTICAL for every nonce. states[16] is the first state the nonce reached.
+# WHERE THE NONCE ENTERS, THE POINT THAT THE ROUND LIST CENTERS ON. The function header_words puts the nonce in schedule
+# word 15, and SHA-256 round r consumes schedule word r. Rounds 0 through 14 therefore consume words 0 through 14, and
+# each of those is identical across the sweep. The states[0] through states[15] are BIT-IDENTICAL for every nonce, and
+# states[16] is the first state that the nonce reached.
 #
-# Rounds 8 and 15 are therefore an EXACT NULL BY CONSTRUCTION and are in this list for that reason:
-# they cost nothing, they must read exactly 0.0000, and any variance there is a wiring bug and
-# not a discovery. This is the same free control tail_bit.py documents for word 13.
+# Rounds 8 and 15 are therefore an EXACT NULL BY CONSTRUCTION, and this list holds them for that reason. They cost
+# nothing, and they must read exactly 0.0000. Any variance there is a bug in the sweep code, and not a discovery. This
+# is the same free control that tail_bit.py documents for word 13.
 NONCE_WORD = 15
 FIRST_LIVE_ROUND = NONCE_WORD + 1
 READ_AT = (8, 15, 16, 17, 20, 24, 32, 48, 64)
@@ -97,11 +97,11 @@ CONFIDENCE = 95.0                # percentile of the shuffled max
 
 
 def occupancy(state):
-    """The 256 long indicator of which state bits are set, as a row of sources.
+    """The 256 long indicator of which state bits are on, as a row of sources.
 
-    This is the object the readings are taken OF. lit_of gives the set bits as indices and every
-    index is in range 0..255 because the state is eight 32 bit words. The vector is the
-    source count and the rank bound applies to it directly.
+    This is the object that the readings come OF. The function lit_of gives the set bits as indices, and every index is
+    in range 0..255, because the state is eight 32 bit words. The vector is the source count, and the rank bound applies
+    to it directly.
     """
     row = numpy.zeros(COUNT)
     for index in state_deflection.lit_of(state):
@@ -112,30 +112,31 @@ def occupancy(state):
 def loudest(features, target):
     """The largest absolute Pearson correlation between any feature column and the target.
 
-    Returns (value, column). Vectorized over columns deliberately: the null below needs this 200
-    times per instrument per round, and a Python loop over 256 columns would make the drawn null
-    expensive enough to tempt fewer shuffles, the wrong economy.
+    Returns (value, column). The code vectorizes over columns deliberately. The null below needs this 200 times per
+    instrument per round. A Python loop over 256 columns would make the drawn null expensive enough to tempt fewer
+    shuffles, the wrong economy.
 
-    A constant column correlates with nothing and is excluded instead of producing a divide by
-    zero that numpy would report as nan and argmax would then happily select.
+    A constant column correlates with nothing, and the code excludes it. Otherwise it would produce a divide by zero
+    that numpy reports as nan, and that argmax then happily selects.
 
-    CONSTANCY IS TESTED EXACTLY AND NOT AGAINST A TOLERANCE. A guard of `spread > 1e-12` is an
-    ABSOLUTE threshold on a quantity whose scale depends on how many sources are lit and how the
-    rows are normalized. It produces a false positive with a very specific signature:
+    THE TEST OF CONSTANCY IS EXACT, AND HAS NO TOLERANCE. A guard of `spread > 1e-12` is an ABSOLUTE threshold. The
+    scale of that quantity depends on how many sources are lit, and on the normal form of the rows. It produces a false
+    positive with a very specific signature:
 
-        at 2048 nonces, round 15 reads exactly 0.0000
-        at  192 nonces, round 15 reads        0.0237
+            at 2048 nonces, round 15 reads exactly 0.0000
+            at  192 nonces, round 15 reads        0.0237
 
-    Round 15 is before the nonce enters the state. Its columns are bit-identical and the answer
-    has to be zero at every sample count. The difference is the sample count's factorization. 2048
-    is a power of two. Summing identical doubles pairwise is exact, the mean comes back exact,
-    centering gives exactly zero and the column is excluded. 192 is not. The mean lands a few ulp
-    off, the residual noise on features of magnitude around 100 reaches about 1e-12, and it clears
-    the threshold and gets correlated against the target like real data.
+    Round 15 is before the nonce enters the state. Its columns are bit-identical, and the answer must be zero at every
+    sample count. The difference is the factorization of the sample count. 2048 is a power of two. A pairwise sum of
+    identical doubles is exact, the mean comes back exact, the centered column is exactly zero, and it drops out. 192 is
+    not a power of two.
 
-    A tolerance chosen by judgment makes that possible. `max != min` needs no tolerance: it
-    compares stored values, and rows computed from bit-identical inputs by identical arithmetic are
-    bit-identical, a genuinely constant column is caught exactly at any sample count.
+    At 192 the mean lands a few ulp off. The residual noise on features of magnitude around 100 reaches about 1e-12. It
+    clears the threshold, and the code correlates it against the target like real data.
+
+    A tolerance chosen by judgment makes that possible. `max != min` needs no tolerance, because it compares stored
+    values. Rows computed from bit-identical inputs by identical arithmetic are bit-identical, and the test catches a
+    genuinely constant column exactly at any sample count.
     """
     centered = features - features.mean(axis=0)
     spread = numpy.sqrt((centered * centered).sum(axis=0))
@@ -153,12 +154,11 @@ def loudest(features, target):
 
 
 def null_bar(features, target, shuffles=SHUFFLES, seed=0):
-    """The bar: the CONFIDENCE percentile of the loudest correlation under a shuffled pairing.
+    """The bar: the CONFIDENCE percentile of the loudest correlation under a shuffled pair order.
 
-    The shuffle permutes the target and leaves the features untouched, which breaks the pairing
-    while preserving both marginal distributions exactly. Drawing the bar this way and not
-    computing it from a t distribution is the rule in this tree: an analytic floor comes out too
-    low.
+    The shuffle permutes the target and leaves the features untouched. That breaks the pairs, and keeps both marginal
+    distributions exactly. This tree draws the bar this way, and does not compute it from a t distribution: an analytic
+    floor comes out too low.
     """
     generator = numpy.random.default_rng(seed)
     drawn = numpy.empty(shuffles)
@@ -186,20 +186,18 @@ def sweep(nonces=NONCES):
         for round_at in READ_AT:
             filled[round_at][at] = occupancy(states[round_at])
 
-    # THE MULTIPLY IS DONE OVER DISTINCT OCCUPANCY PATTERNS AND THEN MAPPED BACK, and that is a
-    # correctness requirement and not an optimization.
+    # THE MULTIPLY RUNS OVER DISTINCT OCCUPANCY PATTERNS AND THEN MAPS BACK, and that is a correctness requirement, and
+    # not an optimization.
     #
-    # A plain `filled.dot(beams.T)` is a matrix-matrix product, and BLAS tiles those. Rows in
-    # different tiles are summed in different orders. Two BIT-IDENTICAL input rows can come out
-    # differing in the last ulp. At rounds before the nonce enters, every occupancy row is identical
-    # and the readings should be too, but the tiling made them differ by rounding noise, `max !=
-    # min` correctly reported that the column varied, and correlating that noise against the target
-    # produced 0.207 at 192 nonces and 0.031 at 500 while 256 gave exactly 0.
+    # A plain `filled.dot(beams.T)` is a matrix-matrix product, and BLAS tiles those. It sums rows in different tiles in
+    # different orders. Two BIT-IDENTICAL input rows can then differ in the last ulp. At rounds before the nonce enters,
+    # every occupancy row is identical, and the readings should be too. The tiling would make them differ by rounding
+    # noise, and `max != min` would correctly report that the column varies. The correlation of that noise against the
+    # target gives 0.207 at 192 nonces and 0.031 at 500, while 256 gives exactly 0.
     #
-    # A tolerance would have papered over it at some sample counts and not others. Computing each
-    # distinct pattern once makes identical states give identical readings by construction. The
-    # exact constancy test in loudest() is then reliable at every sample count. It is also never
-    # slower: when every row is distinct this is the same work.
+    # A tolerance would hide it at some sample counts and not others. One computation of each distinct pattern makes
+    # identical states give identical readings by construction. The exact constancy test in loudest() is then reliable
+    # at every sample count. It is also never slower: when every row is distinct, this is the same work.
     readings = {}
     for round_at in READ_AT:
         block = filled[round_at]
@@ -212,20 +210,20 @@ def sweep(nonces=NONCES):
 
 
 def detection_limit(features, target, bar, seed=0):
-    """The smallest injected correlation this sample still sees, found by fading it out.
+    """The smallest injected correlation that this sample still sees, found by a fade.
 
-    A null means nothing without this. The injection blends one real feature column into the target
-    at strength `alpha` against independent noise. The induced correlation is about alpha by
-    construction, and the fade walks alpha down until the loudest reading stops clearing the bar.
+    A null means nothing without this. The injection blends one real feature column into the target at strength `alpha`
+    against independent noise. The induced correlation is about alpha by construction. The fade walks alpha down until
+    the loudest reading no longer clears the bar.
 
-    The blended column is a real reading column and not synthetic noise. The injected signal has
-    the same distributional shape as anything the instrument could genuinely find.
+    The blended column is a real reading column, and not synthetic noise. The injected signal has the same
+    distributional shape as anything that the instrument could genuinely find.
     """
     generator = numpy.random.default_rng(seed + 7717)
     centered = features - features.mean(axis=0)
     spread = numpy.sqrt((centered * centered).sum(axis=0))
-    # Exact constancy test, for the same reason as in loudest(): a tolerance here would pick a
-    # numerically dead column as the carrier and then the fade would measure nothing.
+    # Exact constancy test, for the same reason as in loudest(). A tolerance here would pick a numerically dead column
+    # as the carrier, and the fade would then measure nothing.
     live = numpy.flatnonzero((features.max(axis=0) != features.min(axis=0)) & (spread > 0.0))
     if live.size == 0:
         return None
@@ -264,9 +262,8 @@ def _report(nonces=NONCES):
             verdict = "FIRES" if value > bar else "null"
             limit = detection_limit(features, target, bar, seed=round_at)
             fired[(round_at, name)] = (value, bar, verdict)
-            # A round before the nonce enters is labeled as construction instead of evidence. An
-            # unlabeled 0.0000 in a results table reads as the strongest possible measurement when
-            # it is in fact no measurement at all.
+            # The table labels a round before the nonce enters as construction, and not as evidence. An unlabeled 0.0000
+            # in a results table reads as the strongest possible measurement, when it is in fact no measurement at all.
             note = "by construction" if round_at < FIRST_LIVE_ROUND else ""
             print("  %6d %11s %9.4f %9.4f %9s %9s   %s"
                   % (round_at, name, value, bar, verdict,
@@ -285,10 +282,10 @@ def _report(nonces=NONCES):
         print("  passed directly is not evidence of absence. Fix this before reading anything else.")
         return 1
 
-    # THE FREE EXACT NULL, CHECKED AND NOT ASSUMED. Every round before the nonce enters must read
-    # exactly zero. If one of them does not, the sweep reads a state the nonce never touched as
-    # though it varied, which would mean the occupancy or the state indexing is wrong, and every
-    # null below would be an artifact of that bug and not a property of SHA-256.
+    # THE FREE EXACT NULL, CHECKED AND NOT ASSUMED. Every round before the nonce enters must read exactly zero. If one
+    # of them does not, the sweep reads a state that the nonce never touched as though it varied. That would mean that
+    # the occupancy or the state index is wrong. Every null below would then be an artifact of that bug, and not a
+    # property of SHA-256.
     for (round_at, name), (value, _, _) in sorted(fired.items()):
         if round_at < FIRST_LIVE_ROUND and value != 0.0:
             print("  THE FREE NULL BROKE. Round %d is before the nonce reaches the state. The" % round_at)
@@ -311,10 +308,10 @@ def _report(nonces=NONCES):
         print("  The limit column is what the null is worth: a correlation below it would not have")
         print("  been seen by this sample.")
 
-    # THE ONE POSITIVE RESULT, AND IT IS NOT ABOUT MINING. At round 64 there IS information, and the
-    # two instruments do not read the same amount of it. The ratio is the measurement that supports
-    # the claim the beams were built on: a line integral retains directional information that a region
-    # integral averages away. It says nothing about early rounds, where there is nothing to retain.
+    # THE ONE POSITIVE RESULT, AND IT IS NOT ABOUT MINING. At round 64 there IS information, and the two instruments do
+    # not read the same amount of it. The ratio is the measurement behind the claim that the beams rest on. A line
+    # integral keeps directional information that a region integral averages away. It says nothing about early rounds,
+    # where there is nothing to keep.
     beam_at_64 = fired.get((64, "beam"), (0.0, 0.0, ""))[0]
     harmonic_at_64 = fired.get((64, "harmonic"), (0.0, 0.0, ""))[0]
     if harmonic_at_64 > 0.0:
@@ -333,9 +330,9 @@ def _check():
     failed = 0
     print("")
 
-    # THE ROW TYPES MUST ACTUALLY DIFFER, or this whole tool is nonce_read with more columns. The
-    # claim inherited from beam_rows.py is that a beam is not in the span of the region rows, and it
-    # is cheap to confirm here instead of trusting across files.
+    # THE ROW TYPES MUST ACTUALLY DIFFER, or this whole tool is nonce_read with more columns. The claim from
+    # beam_rows.py is that a beam is not in the span of the region rows. A check here is cheap, and better than trust
+    # across files.
     points = beam_rows.source_points(COUNT)
     beams = beam_rows.beam_set(COUNT, points)
     harmonics = numpy.asarray(beam_rows.harmonic_rows(DEGREE, COUNT), dtype=float)
@@ -363,8 +360,8 @@ def _check():
         print("    FAIL the occupancy vector is not an indicator")
         failed += 1
 
-    # THE NULL MUST BE A REAL NULL. Correlating a reading against pure noise has to come back under
-    # the bar; if it does not, the bar is wrong and every verdict above it is wrong with it.
+    # THE NULL MUST BE A REAL NULL. A reading correlated against pure noise must come back under the bar. If it does
+    # not, the bar is wrong, and every verdict above it is wrong with it.
     generator = numpy.random.default_rng(11)
     small, _, _, _ = sweep(192)
     features = small[16]["beam"]
@@ -376,9 +373,8 @@ def _check():
         print("    FAIL noise cleared the null bar. The bar does not hold")
         failed += 1
 
-    # AND THE INSTRUMENT MUST FIRE ON A SIGNAL IT IS HANDED. The negative control above only proves
-    # it is not credulous; this proves it is not blind, the failure that produces a
-    # confident and worthless null.
+    # AND THE INSTRUMENT MUST FIRE ON A SIGNAL THAT IT GETS DIRECTLY. The negative control above only proves that it is
+    # not credulous. This proves that it is not blind, the failure that produces a confident and worthless null.
     carrier = features[:, 0].copy()
     value, _ = loudest(features, carrier)
     bar = null_bar(features, carrier, shuffles=60, seed=5)
@@ -387,10 +383,9 @@ def _check():
         print("    FAIL the instrument cannot see a signal passed to it directly")
         failed += 1
 
-    # THE SAMPLE COUNT MUST NOT CHANGE THE ANSWER FOR A CONSTANT COLUMN, and the cases here
-    # deliberately straddle the property that caused the bug: 256 is a power of two and 192 and 500
-    # are not. The absolute-tolerance version of loudest() passed the power of two and failed both
-    # others, a single sample count would have hidden it either way.
+    # THE SAMPLE COUNT MUST NOT CHANGE THE ANSWER FOR A CONSTANT COLUMN. The cases here deliberately straddle the
+    # property behind that failure: 256 is a power of two, and 192 and 500 are not. An absolute tolerance in loudest()
+    # passes the power of two and fails both others, and a single sample count would hide it either way.
     for count in (192, 256, 500):
         readings, target, _, _ = sweep(count)
         worst = 0.0
