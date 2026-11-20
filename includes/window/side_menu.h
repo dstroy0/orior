@@ -19,13 +19,13 @@ typedef struct GuiSideMenuFrameXCfg GuiSideMenuFrameXCfg;
 typedef struct GuiSideMenuCfg GuiSideMenuCfg;
 typedef struct GuiSideMenuInitCfg GuiSideMenuInitCfg;
 
-// no tool; and the sizes in the page's pixels: the side_menu's padding at its head and foot,
-// a button's side, the gap between buttons, a button's corner radius, its icon's side, and the icon's line width in
-// the icon's units
+// no tool. Then the sizes in the pixels of the page: the padding of the side_menu at its head and foot, and the side
+// of a button. Then the gap between buttons, the corner radius of a button, and the side of its icon. Last, the line
+// width of the icon in the units of the icon
 #define GUI_SIDE_MENU_NONE (-1)
 #define GUI_SIDE_MENU_PAD 6
 #define GUI_SIDE_MENU_BUTTON 31
-// the max tools the side menu holds, which the side retains a pane state for each of
+// the most tools that the side menu holds. The side keeps a pane state for each of them
 #define GUI_SIDE_MENU_TOOLS_MAX 24u
 #define GUI_SIDE_MENU_BUTTON_GAP 4
 #define GUI_SIDE_MENU_BUTTON_RADIUS 6
@@ -40,8 +40,9 @@ typedef struct GuiSideMenuInitCfg GuiSideMenuInitCfg;
 #define GUI_TOOL_TOP 0u
 #define GUI_TOOL_FOOTER 1u
 
-// A tool of the side_menu: its name, its icon's name, its label, its keys, empty where it has none, its group, whether it
-// opens a menu in place of a window of its own, and whether its window is the side pane beside the editor
+// A tool of the side_menu: its name, the name of its icon, its label, and its keys, empty where it has none. Then its
+// group, and whether it opens a menu in place of a window of its own. Last, whether its window is the side pane beside
+// the editor
 typedef struct
 {
     const char *name;
@@ -57,12 +58,15 @@ typedef struct
 extern const GuiTool g_gui_tools[];
 extern const unsigned int g_gui_tools_count;
 
-// The side_menu: the tool the pointer is on, the tool whose side window shows and the footer tool whose pane is in
-// the panel at the work's foot, each GUI_SIDE_MENU_NONE for none; whether the side tool's pane collapsed, its width
-// back to the editor, the tool unlit while it is so; whether the Problems tool is marked, as it is while errors
-// are; how many query runs are live and how many of those panicked, which mark the Runs tool; and whether the
-// terminal's panel is open, which shows the Terminal tool, at `terminal_at` among the tools, as the tool whose window
-// shows is; and the tools' beads
+// The side_menu:
+//   - the tool that the pointer is on, and the tool whose side window shows. Then the footer tool whose pane is in
+//     the panel at the foot of the work. Each is GUI_SIDE_MENU_NONE for none.
+//   - whether the pane of the side tool collapsed, its width back to the editor. The tool is unlit while it is so.
+//   - whether the Problems tool has its mark, as it does while errors exist.
+//   - how many query runs are live, and how many of those panicked. These mark the Runs tool.
+//   - whether the panel of the terminal is open. That shows the Terminal tool, at `terminal_at` among the tools, as
+//     the tool whose window shows.
+//   - the beads of the tools.
 typedef struct
 {
     int pointed;
@@ -77,7 +81,7 @@ typedef struct
     GuiButtons buttons;
 } GuiSideMenu;
 
-// a side_menu pointing at and showing no tool, its beads at rest
+// a side_menu that points at no tool and shows no tool, its beads at rest
 void gui_side_menu_init(const GuiSideMenuInitCfg *args);
 // the rectangle of the tool `at`'s button in the frame's side_menu
 GuiRect gui_side_menu_button(const GuiSideMenuCfg *args);
@@ -90,9 +94,12 @@ void gui_side_menu_leave(const GuiSideMenuFrameXCfg *args);
 // a press on the tool `at` at `time_ms` flattens its bead; the press let go at `time_ms` springs it back
 void gui_side_menu_press(const GuiSideMenuFrameXCfg *args);
 void gui_side_menu_release(const GuiSideMenuFrameXCfg *args);
-// the side_menu drawn at `time_ms`: each tool's icon, in signal where its window shows and bright under the pointer, the
-// Problems tool's mark in the error's color while it is marked, the Runs tool's in signal while a run is live and in
-// the error's color while a live run panicked, and each tool's bead over its icon as its press is
+// the side_menu drawn at `time_ms`:
+//   - the icon of each tool, in signal where its window shows, and bright under the pointer.
+//   - the mark of the Problems tool, in the color of the error while it has its mark.
+//   - the mark of the Runs tool, in signal while a run is live, and in the color of the error while a live run
+//     panicked.
+//   - the bead of each tool over its icon, as its press is.
 void gui_side_menu_draw(const GuiSideMenuFrameRasterCfg *args);
 struct GuiSideMenuFrameRasterCfg
 {
