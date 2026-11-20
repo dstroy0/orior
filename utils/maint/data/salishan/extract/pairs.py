@@ -1,21 +1,19 @@
-"""Examples the page sets a word over its gloss, one to a line, read off the page again.
+"""Examples that the page sets a word over its gloss, one to a line, read off the page again.
 
-A paper that stacks each word of an example on its gloss, tsut over tsut and re=núxwenxw over
-DET=woman, reaches the text layer as one line a word and one a gloss. The engine retains some of
-those examples and runs others into the prose after them, in Oliver the words of (2) and its
-translation in the note that opens the next paragraph. The pairs op names the examples to read
-again, and each is rebuilt from the page:
+A paper can stack each word of an example on its gloss: `tsut` over `tsut`, and `re=núxwenxw` over `DET=woman`. Such an
+example reaches the text layer as one line a word and one a gloss. The engine keeps some of those examples, and runs
+others into the prose after them. In Oliver, the words of (2) and its translation go into the note that opens the next
+paragraph. The pairs op names the examples to read again, and the function rebuilds each from the page:
+  - `(N) HEAD` or `(N) Context: ...`: the sentence, or a context note and the sentence after it.
+  - `WORD / GLOSS`: a segmentation row and a gloss row for each pair of lines.
+  - `‘TRANSLATION’ SOURCE`: the translation, and the source at its right, a citation row.
+  - `Consultant’s comment: “...”`: a speaker comment.
+  - `(sf | RI | 11.21.2023)`: the tag on a line of its own, a citation row.
+  - `b. ...`: the next sub-example, (Nb).
 
-  (N) HEAD or (N) Context: ...     the sentence, or a context note and the sentence after it
-  WORD / GLOSS                     a segmentation row and a gloss row for each pair of lines
-  ‘TRANSLATION’ SOURCE             the translation, the source at its right a citation row
-  Consultant’s comment: “...”      a speaker comment
-  (sf | RI | 11.21.2023)           the tag on a line of its own, a citation row
-  b. ...                           the next sub-example, (Nb)
-
-The engine's rows for the example go, and so does the example text it left in a note: the note
-retains only the prose after the translation, and the cited forms the engine took from the leaked
-words between the example and that note go with it.
+The engine's rows for the example go, and so does the example text that it left in a note. The note keeps only the prose
+after the translation. The cited forms that the engine took from the leaked words between the example and that note go
+with it.
 """
 import os
 import re
@@ -26,16 +24,16 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 from workdir import PRIVATE  # noqa: E402
 HEAD = re.compile(r"^\((\d{1,3})\)\s+(\S.*)$")
 CHARACTER = re.compile(r"^([a-h])\.\s+(\S.*)$")
-# A translation can carry a judgment before its quote, # ‘I got stolen.’, or name the reading it
-# is, Target: ‘Meat is cooked in this pot.’
+# A translation can carry a judgment before its quote, `# ‘I got stolen.’`, or name the reading that it is,
+# `Target: ‘Meat is cooked in this pot.’`.
 TRANSLATION = re.compile(r"^(?:(?:Intended|Target|Actual):\s*)?(?:[*#?]{1,2}\s*)?[‘“]")
 # A published source at the right of a translation, Kuipers (1974:117), or a bracketed tag or
 # source, (sf, vt | RI | 11.21.2023) and (Kuipers 1974:86).
 PUBLISHED = (r"[A-Z][A-Za-z’'-]+(?: (?:and|&) [A-Z][A-Za-z’'-]+)?(?: et al\.)?"
              r" \((?:\d{4}[a-z]?(?::[\d–-]+)?|unpublished|in prep\.)\)")
-# A category in brackets and a cross-reference can are before the tag, [noun] (sf | EP.2023/02/11)
-# and (cf. (14)) (sf | EP.2022/10/29), and go with it. A category alone, [verb], is a tag too; a
-# remark in brackets, [indicating their instruments], stays in the translation.
+# A category in brackets and a cross-reference can come before the tag, `[noun] (sf | EP.2023/02/11)` and
+# `(cf. (14)) (sf | EP.2022/10/29)`, and go with it. A category alone, `[verb]`, is a tag too. A remark in brackets,
+# `[indicating their instruments]`, stays in the translation.
 SOURCE = re.compile(r"^(.*?[’”.?!])\s*(%s|(?:(?:\[[^\[\]]*\]|\((?:[^()]|\([^()]*\))*\))\s*)*"
                     r"(?:\([^()]*\)|\[[^\[\]\s]*\]))\s*$" % PUBLISHED)
 # What is after a translation on lines of its own: a comment, a bracketed tag or remark, or a
@@ -69,8 +67,8 @@ def page_lines(stem):
 
 
 def source_who(source):
-    """A published source written as a who, Kuipers (1974:117) as Kuipers 1974:117; a tag gives none."""
-    # A category or cross-reference before it, [adjective] (Watanabe 2003:66–68), is passed over.
+    """A published source written as a who, `Kuipers (1974:117)` as `Kuipers 1974:117`. A tag gives none."""
+    # The loop passes over a category or a cross-reference before it, `[adjective] (Watanabe 2003:66–68)`.
     while True:
         tagged = re.match(r"^(?:\[[^\[\]]*\]|\((?:[^()]|\([^()]*\))*\))\s+(?=\S)", source)
         if not tagged:
@@ -82,9 +80,9 @@ def source_who(source):
 
 
 def head_at(lines, number):
-    """The page line opening example number, passing over prose that opens on a reference to it,
-    (2) to (6), which differ minimally, or (17) refers to a Co-initiator."""
-    # A picture's number can are alone on its line, (20).
+    """The page line that opens example number. It passes over prose that opens on a reference to it,
+    `(2) to (6), which differ minimally`, or `(17) refers to a Co-initiator`."""
+    # A picture's number can stand alone on its line, `(20)`.
     return next((at for at, (page, text) in enumerate(lines)
                  if (HEAD.match(text) and HEAD.match(text).group(1) == str(number)
                      and not re.match(r"^(?:to|and|or|through|refers|shows|illustrates|is|are)\b",
@@ -94,10 +92,11 @@ def head_at(lines, number):
 def blocks(lines, number, start=None, stacked=False, tiers=False):
     """The sub-examples of example number: label, page and its lines, in order.
 
-    start is the page line of the head where the paper printed the number twice. A stacked example
-    sets each word over its phonemic form and gloss, a line each, and no line of it runs on. In a
-    paper whose examples are two tiers, tiers, the words over their gloss, the line after the words
-    is their gloss and never the rest of a sentence."""
+    The argument start is the page line of the head, where the paper printed the number twice. A stacked example sets
+    each word over its phonemic form and gloss, a line each, and no line of it runs on. Some papers set their examples
+    in two tiers, `tiers`, the words over their gloss. There, the line after the words is their gloss, and never the
+    rest of a sentence.
+    """
     start = head_at(lines, number) if start is None else start
     if start is None:
         raise SystemExit("pairs: no page line opens (%s)" % number)
@@ -112,8 +111,8 @@ def blocks(lines, number, start=None, stacked=False, tiers=False):
     footnote_page = None
 
     def goes_on(at):
-        # The first line of the next page is the next sub-example: the lines between, a footnote
-        # run on from the page before, (29) e. and f. of Lyon, are passed over.
+        # The first line of the next page is the next sub-example. The loop passes over the lines between, a footnote
+        # run on from the page before, `(29) e.` and `f.` of Lyon.
         for later_page, later_text in lines[at + 1:]:
             if later_page == lines[at][0] or not later_text or later_text.isdigit():
                 continue
@@ -126,9 +125,9 @@ def blocks(lines, number, start=None, stacked=False, tiers=False):
             continue
         if HEAD.match(text):
             break
-        # A footnote at the foot of the page is passed over to the next page, where a stacked
-        # example can go on, b. under (4) past footnote 3. Elsewhere the footnote ends it: the b.
-        # after Sardinha's (7) is a display of forms and meanings.
+        # The loop passes over a footnote at the foot of the page to the next page. There, a stacked example can go on:
+        # `b.` under (4), past footnote 3. Elsewhere the footnote ends it: the `b.` after Sardinha's (7) is a display of
+        # forms and meanings.
         closed = (stacked or tiers) and stage in ("translation", "after") and re.search(r"[’”)\]]\d?$", current[2][-1])
         if closed and (re.match(r"^\d{1,2} \S" if tiers else r"^\d{1,2} [-A-Z]", text) or
                        (tiers and not CHARACTER.match(text) and not AFTER.match(text) and goes_on(at))):
@@ -146,8 +145,8 @@ def blocks(lines, number, start=None, stacked=False, tiers=False):
             current = ["(%s%s)" % (number, lettered.group(1)), page, [lettered.group(2)], {}]
             stage = "head"
             continue
-        # A second speaker's turn after the first one's translation, F: t̓anɛ́t after Me: tam č̓ɛ,
-        # is its own sub-example, (62F), as the paper cites it.
+        # A second speaker's turn after the translation of the first one, `F: t̓anɛ́t` after `Me: tam č̓ɛ`, is its own
+        # sub-example, (62F), as the paper cites it.
         speaker = re.match(r"^([A-Z][a-z]?):\s+\S", text)
         if speaker and stage in ("translation", "after") and \
                 any(re.match(r"^[A-Z][a-z]?:\s", one) for one in current[2][:2]):
@@ -176,8 +175,8 @@ def blocks(lines, number, start=None, stacked=False, tiers=False):
         if TRANSLATION.match(text) and stage != "head":
             stage = "translation"
         elif stage == "translation" and not re.search(r"[’”)]\d?$", current[2][-1]):
-            # A word the line end broke, com- ing, is one word again.
-            # The engine's note retains the break, and the text as set is retained to find it by.
+            # A word that the line end broke, `com- ing`, is one word again. The engine's note keeps the break, and the
+            # code keeps the text as set, to find the note by.
             current[3][len(current[2]) - 1] = current[3].get(len(current[2]) - 1, current[2][-1]) + " " + text
             if re.search(r"[a-z]-$", current[2][-1]) and text[:1].islower():
                 current[2][-1] = current[2][-1][:-1] + text
@@ -193,16 +192,16 @@ def blocks(lines, number, start=None, stacked=False, tiers=False):
         elif stage == "head":
             stage = "pairs"
             if current[2][0].startswith("Context:"):
-                # A context runs on to the line that closes it, and a colon closes one that sets up
-                # the sentence under it, I tell him: in Huijsmans. A bare Context: heads its lines.
+                # A context runs on to the line that closes it. A colon closes one that sets up the sentence under it,
+                # `I tell him:` in Huijsmans. A bare `Context:` heads its lines.
                 if not re.search(r"[.?!)]$", current[2][0]) and \
                         not (current[2][0].endswith(":") and current[2][0] != "Context:"):
                     current[2][0] += " " + text
                     stage = "head"
                     continue
-                # A context of two sentences, the second setting up the one under it, ... at the
-                # store. / I decide I want one of the big blue ones and tell the lady: in (15) of
-                # Huijsmans, runs on to that second sentence.
+                # A context of two sentences, where the second sets up the one under it, runs on to that second
+                # sentence: `... at the store. / I decide I want one of the big blue ones and tell the lady:` in (15) of
+                # Huijsmans.
                 if text.endswith(":") and len(re.findall(r"\b(?:I|you|he|she|we|they|the|a|and|to|of|it)\b",
                                                          text)) >= 3:
                     current[2][0] += " " + text
@@ -220,8 +219,8 @@ def blocks(lines, number, start=None, stacked=False, tiers=False):
                 current[2].append(text)
                 stage = "sentence"
                 continue
-            # A sentence the line end broke goes on, in a line with spaces or one that closes it.
-            # A turn of a conversation is set a tier a line and never breaks.
+            # A sentence that the line end broke goes on, in a line with spaces or one that closes it. A turn of a
+            # conversation sits a tier a line, and never breaks.
             if not stacked and not tiers and not TURN.match(current[2][0]) and \
                     not re.search(r"[.?!”’\"…:]$", current[2][0]) and \
                     (" " in text or re.search(r"[.?!”’\"…]$", text)):
@@ -259,8 +258,8 @@ def rows_of(label, page, lines, context, stacked=False):
     pairs = []
     while rest and not TRANSLATION.match(rest[0]):
         pairs.append(rest.pop(0))
-    # An example set in two tiers, the words over their gloss, has no sentence above them: the
-    # first line is the words, and a long one wraps, words and gloss again under the first two.
+    # An example set in two tiers, the words over their gloss, has no sentence above them. The first line is the words.
+    # A long one wraps, and sets words and gloss again under the first two.
     if sentence and len(pairs) % 2 == 1 and getattr(context, "TIERS", False) and not stacked:
         pairs.insert(0, sentence)
         while pairs:
@@ -269,10 +268,9 @@ def rows_of(label, page, lines, context, stacked=False):
             row(language, "gloss", pairs.pop(0))
     elif sentence:
         row(language, "transcription", sentence)
-    # A long turn wraps, its sentence, segmentation and gloss set again under the first three, and a
-    # stacked example sets every word so. The stop that ends the sentence can are on a line of its
-    # own under the last word's gloss, ʔət χaƛ̓ / ʔətᶿ=x̌aƛ̓ / 1sg.poss=desire / . in (37) of
-    # Huijsmans: it closes that word.
+    # A long turn wraps, and sets its sentence, segmentation and gloss again under the first three. A stacked example
+    # sets every word that way. The stop that ends the sentence can stand on a line of its own, under the gloss of the
+    # last word: `ʔət χaƛ̓ / ʔətᶿ=x̌aƛ̓ / 1sg.poss=desire / .` in (37) of Huijsmans. It closes that word.
     if stacked and len(pairs) % 3 == 0 and len(pairs) > 3 and pairs[-1] in (".", "?", "!"):
         stop = pairs.pop()
         pairs[-3] += stop
@@ -321,11 +319,11 @@ def rows_of(label, page, lines, context, stacked=False):
 
 
 def apply(out, context, example_of):
-    """Rebuild in out, in place, each example the pairs op or the lines op names.
+    """Rebuild in out, in place, each example that the pairs op or the lines op names.
 
-    The lines op names examples set one tier a line, the sentence, its segmentation and its gloss,
-    read the same way: the segmentation line and the gloss line under it are one pair, and the
-    guard against a pair line holding a sentence is off.
+    The lines op names examples set one tier a line: the sentence, its segmentation and its gloss. The function reads
+    them the same way. The segmentation line and the gloss line under it are one pair. The guard against a pair line
+    with a sentence in it is off.
     """
     named = [(spec, True, False) for spec in getattr(context, "PAIRS", ())] + \
         [(spec, False, False) for spec in getattr(context, "LINES", ())] + \
@@ -338,8 +336,8 @@ def apply(out, context, example_of):
         # N:K is the Kth (N) where the paper printed the number twice.
         number, start, retained_pages = nth_head(lines, spec)
         found = blocks(lines, number, start, stacked, getattr(context, "TIERS", False))
-        # An example set some other way, a formula over the prose after it, is left as the engine
-        # read it: a pair line holding a sentence, or a word with no gloss under it.
+        # An example set some other way, a formula over the prose after it, stays as the engine read it. That is a pair
+        # line with a sentence in it, or a word with no gloss under it.
         pair_lines = []
         for label, page, text, raw in found:
             body = text[2:] if text[0].startswith("Context:") else text[1:]
@@ -353,9 +351,9 @@ def apply(out, context, example_of):
             built += rows
             words |= set(used) | {word for one in raw.values() for word in one.split()} | {label[-2] + "."}
             ends.append((text[-1], raw.get(len(text) - 1, text[-1])))
-        # The engine can give the number to prose that cites it pages away, (119), k̓ʷmi ‘small’ (160);
-        # only its rows on the example's pages, and the page after where it runs on, give way, short
-        # of the page the number is printed again on.
+        # The engine can give the number to prose that cites it pages away, `(119), k̓ʷmi ‘small’ (160)`. Only its rows
+        # on the pages of the example give way, and those on the page after, where it runs on. That stops short of the
+        # page where the number appears again.
         pages = (min(one[1] for one in found), max(one[1] for one in found) + 1)
         if retained_pages:
             pages = (pages[0], min(pages[1], retained_pages[1]))
@@ -363,10 +361,10 @@ def apply(out, context, example_of):
 
 
 def english(out, context, example_of):
-    """Rebuild in out, in place, each English example the english op names, one row a sentence.
+    """Rebuild in out, in place, each English example that the english op names, one row a sentence.
 
-    (4) a. Hazel likes a boy. b. Hazel likes snow. is an English (4a) and (4b), a label at the right,
-    [MASS], retained in the gloss, and a caption before the first character, (1) Count nouns:, a note.
+    `(4) a. Hazel likes a boy. b. Hazel likes snow.` is an English (4a) and (4b). A label at the right, `[MASS]`, stays
+    in the gloss, and a caption before the first character, `(1) Count nouns:`, is a note.
     """
     numbers = getattr(context, "ENGLISH", ())
     if not numbers:
@@ -382,7 +380,7 @@ def english(out, context, example_of):
         for other, text in lines[start + 1:]:
             if not text or text.isdigit() or other == footnote_page:
                 continue
-            # The footnotes at the foot of the page are passed over, (6) e. goes on on the next.
+            # The loop passes over the footnotes at the foot of the page: `(6) e.` goes on on the next.
             if len(taken) > 1 and re.match(r"^\d{1,2} \S", text):
                 footnote_page = other
                 continue
@@ -418,14 +416,14 @@ def english(out, context, example_of):
 
 
 def columns(out, context, example_of):
-    """Rebuild in out, in place, each example the columns op names, its sub-examples side by side.
+    """Rebuild in out, in place, each example that the columns op names, its sub-examples side by side.
 
-    (1) a. SȻOTI  b. TI,TOS  c. SḴÁLEX sets the characters across one line and each tier under them in
-    the same columns, skʷá.ti  tiʔ.tás  sqé.ləx̌ and then ‘crazy, insane’  ‘bucking tide’. A tier
-    parts at its runs of two spaces or more, or at each space where that gives a cell a character, and
-    a translation tier at each opening quote. The op names the types of the tiers above the
-    translation, in order, and a source on a line of its own after the last group, (Montler 2018),
-    is whose each translation is. A group with an empty cell is a picture and stops the example.
+    `(1) a. SȻOTI  b. TI,TOS  c. SḴÁLEX` sets the characters across one line, and each tier under them in the same
+    columns: `skʷá.ti  tiʔ.tás  sqé.ləx̌`, and then `‘crazy, insane’  ‘bucking tide’`. A tier parts at its runs of two
+    spaces or more, or at each space where that gives a cell a character. A translation tier parts at each opening
+    quote. The op names the types of the tiers above the translation, in order. A source on a line of its own after the
+    last group, `(Montler 2018)`, says whose each translation is. A group with an empty cell is a picture, and stops the
+    example.
     """
     named = getattr(context, "COLUMNS", ())
     if not named:
@@ -450,8 +448,8 @@ def columns(out, context, example_of):
             texts = texts[1:]
         footnote_page = None
         for page_of, text, spaced in texts:
-            # A footnote at the page foot, (60) broken over the page by footnote 13, is passed over
-            # to the next page.
+            # The loop passes over a footnote at the page foot to the next page: (60), broken over the page by footnote
+            # 13.
             if page_of == footnote_page:
                 continue
             if (group or groups) and re.match(r"^\d{1,2} [A-Z]", text) and not TRANSLATION.match(text):
@@ -469,8 +467,7 @@ def columns(out, context, example_of):
                     groups.append(group)
                 parts = characters.split(text)
                 labels, cells = parts[1::2], [one.strip() for one in parts[2::2]]
-                # A row of a set whose columns are numbered, (8) a. i. SḴÁLEX ii. SPÁ,W̱EṈ, is (8a.i)
-                # and (8a.ii).
+                # A row of a set with numbered columns, `(8) a. i. SḴÁLEX ii. SPÁ,W̱EṈ`, is (8a.i) and (8a.ii).
                 if len(labels) == 1 and re.match(r"^[ivx]+\.\s", cells[0]):
                     romans = re.split(r"(?:^|\s)([ivx]+)\.\s+", cells[0])
                     labels = ["%s.%s" % (labels[0], one) for one in romans[1::2]]
@@ -536,9 +533,11 @@ def columns(out, context, example_of):
 
 
 def nth_head(lines, spec):
-    """The number, the page line opening it and the pages it may are on, for a spec of N or N:K,
-    the Kth example the page numbers (N) where the paper printed a number twice. A spec of N:K
-    retains the rebuild to the pages from that head up to the page before the next (N)."""
+    """The number, the page line that opens it, and the pages that it may be on, for a spec of N or N:K.
+
+    For N:K, the number is the Kth example that the page numbers (N), where the paper printed a number twice. A spec of
+    N:K keeps the rebuild to the pages from that head up to the page before the next (N).
+    """
     number, _, nth = spec.partition(":")
     start = head_at(lines, number)
     if start is None:
@@ -555,15 +554,15 @@ def nth_head(lines, spec):
 
 
 def display(out, context, example_of):
-    """Rebuild in out, in place, each example the display op names, a line or two set apart.
+    """Rebuild in out, in place, each example that the display op names, a line or two set apart.
 
-    An OT ranking, (11) WSP >> TROCHEE, a constraint defined, (9) WEIGHT-TO-STRESS (WSP): Assign
-    one violation ..., or a picture with no text layer and at max a caption, (17) HDA foot
-    structures in SENĆOŦEN. The engine reads the prose after one of these as the example's
-    lines. That prose goes back to the paragraph it opens: into the note after the example where
-    that note goes on in lower case, or a note of its own in the section before. A spec of N+K
-    takes the K printed lines after the head whole, a row each, the diagram of (31) in Schneider
-    and Gerdts, yə= V1 (yə=) V2 | a rule of U+2014 | over what it means.
+    Three kinds count: an order of OT constraints, `(11) WSP >> TROCHEE`; a constraint defined,
+    `(9) WEIGHT-TO-STRESS (WSP): Assign one violation ...`; or a picture with no text layer and at max a caption,
+    `(17) HDA foot structures in SENĆOŦEN`. The engine reads the prose after one of these as the example's lines. That
+    prose goes back to the paragraph that it opens, into the note after the example where that note goes on in lower
+    case. Otherwise it goes into a note of its own in the section before. A spec of N+K takes the K printed lines after
+    the head whole, a row each. An example is the diagram of (31) in Schneider and Gerdts,
+    `yə= V1 (yə=) V2 | a rule of U+2014 | over what it means`.
     """
     named = getattr(context, "DISPLAY", ())
     if not named:
@@ -582,7 +581,8 @@ def display(out, context, example_of):
                 continue
             if taken or not text or text.isdigit() or HEAD.match(text):
                 break
-            # A lettered line, or a ranking under a ranking, (65) one language's ranking a line.
+            # A lettered line, or one order of constraints under another: `(65)`, with the order of one language on each
+            # line.
             if CHARACTER.match(text) or (type != "picture" and ">>" in parts[-1] and ">>" in text):
                 parts.append(text)
             elif type != "picture" and ":" in parts[-1] and not parts[-1].endswith("."):
@@ -607,8 +607,8 @@ def display(out, context, example_of):
         own = [at for at, one in enumerate(out) if re.match(r"^\(%s[a-z]?\)$" % number, example_of(one[0]))
                and in_pages(one, pages)]
         if not own:
-            # The engine ran the display into a note, (10) TROCHEE: ... inside the prose after (9):
-            # the note retains what is before it, and what is after it is a note of its own.
+            # The engine ran the display into a note, `(10) TROCHEE: ...` inside the prose after (9). The note keeps
+            # what is before it, and what is after it is a note of its own.
             opening = "(%s) %s" % (number, displayed[0]) if displayed[0] else "(%s)" % number
             held = next((at for at, one in enumerate(out) if one[2] == "note" and not example_of(one[0])
                          and opening in " ".join(one[3].split()) and in_pages(one, pages)), None)
@@ -645,9 +645,11 @@ def display(out, context, example_of):
 
 
 def give_back(out, own, prose, built, page, context, example_of):
-    """The prose the engine read as an example's lines, prose, given back to its paragraph: joined to
-    the note after the example where that note goes on in lower case, past the cited forms the engine
-    took from it, or else a note of its own in the section before, added to built."""
+    """The prose that the engine read as an example's lines, given back to its paragraph.
+
+    It joins the note after the example, where that note goes on in lower case, past the cited forms that the engine
+    took from it. Otherwise it becomes a note of its own in the section before, added to built.
+    """
     if not prose:
         return
     said = " ".join(one[3] for one in prose)
@@ -666,13 +668,13 @@ def give_back(out, own, prose, built, page, context, example_of):
 
 
 def table(out, context, example_of):
-    """Rebuild in out, in place, each example the table op names, a caption, a header and a row a line.
+    """Rebuild in out, in place, each example that the table op names, a caption, a header and a row a line.
 
-    (2) Secondary labialization: over Boas APA pentl’ach gloss and koā'san → qʷasəm qwasem ‘flower’
-    [YP]: each form cell a row of the type the op names for its column, KIND@WHO where the column is
-    someone's own, the gloss a translation and the source tag a citation. A type of rule takes the
-    whole line as one rule row, y/ī → y. The cells of a line share its where, (2) line 3, as the
-    engine sets a table row. The rows run while a line holds an arrow or a quoted gloss.
+    An example is `(2) Secondary labialization:` over `Boas APA pentl’ach gloss` and
+    `koā'san → qʷasəm qwasem ‘flower’ [YP]`. Each form cell is a row of the type that the op names for its column,
+    KIND@WHO where the column is someone's own. The gloss is a translation, and the source tag a citation. A type of
+    rule takes the whole line as one rule row, `y/ī → y`. The cells of a line share its where, (2) line 3, as the engine
+    sets a table row. The rows run while a line has an arrow or a quoted gloss.
     """
     named = getattr(context, "TABLE", ())
     if not named:
@@ -721,7 +723,7 @@ def table(out, context, example_of):
             if tag:
                 built.append([where, context.AUTHORS, "citation", "[%s]" % tag.group(1),
                               tags.get(tag.group(1), "the source of the row")])
-        # Engine rows holding none of the table's lines are the prose after it.
+        # Engine rows with none of the table's lines are the prose after it.
         own = [at for at, one in enumerate(out) if re.match(r"^\(%s[a-z]?\)$" % number, example_of(one[0]))
                and in_pages(one, pages)]
         flat = " ".join(" ".join(taken).split())
@@ -732,12 +734,12 @@ def table(out, context, example_of):
 
 
 def tableau(out, context, example_of):
-    """Rebuild in out, in place, each example the tableau op names, each printed line a note.
+    """Rebuild in out, in place, each example that the tableau op names, each printed line a note.
 
-    (8) saˀsqʷ ‘fly just a little bit’ over the input µ + saˀ0.5 qʷ, the constraints a line each,
-    *FLOAT or INTEGRITY, the weights w=7 w=7 w=3 and the candidates a. ☞ saˀsqʷ −0.5 −1 −1 −4.5:
-    a constraint is no tier and the last digit of a score no footnote's mark. The lines run from the
-    head to the blank line after the last candidate.
+    An example is `(8) saˀsqʷ ‘fly just a little bit’` over the input `µ + saˀ0.5 qʷ`. The constraints follow a line
+    each, `*FLOAT` or `INTEGRITY`, then the weights `w=7 w=7 w=3`, and the candidates, `a. ☞ saˀsqʷ −0.5 −1 −1 −4.5`. A
+    constraint is no tier, and the last digit of a score is no footnote's mark. The lines run from the head to the blank
+    line after the last candidate.
     """
     named = getattr(context, "TABLEAU", ())
     if not named:
@@ -770,13 +772,13 @@ def tableau(out, context, example_of):
 
 
 def roots(out, context, example_of):
-    """Rebuild in out, in place, each example the roots op names, a list of roots and their glosses.
+    """Rebuild in out, in place, each example that the roots op names, a list of roots and their glosses.
 
-    An item is a root or its variants and a gloss, a. √pəq, paq ‘white’, perhaps with a word built on
-    it, (as in ƛ̓ál-ləx ‘stop (oneself)’), or roots set against each other, a. √səq vs. √səq̓, with their
-    glosses on the line below in the same order, ‘split’ ‘crack’. Each root is a root row and each
-    gloss a translation. The word it is found in is the item's second line, a segmentation and its
-    translation. Roots set against each other take a line each.
+    An item is a root or its variants and a gloss, `a. √pəq, paq ‘white’`. It can carry a word built on it,
+    `(as in ƛ̓ál-ləx ‘stop (oneself)’)`. It can also set roots against each other, `a. √səq vs. √səq̓`, with their
+    glosses on the line below in the same order, `‘split’ ‘crack’`. Each root is a root row, and each gloss a
+    translation. The word that holds the root is the item's second line, a segmentation and its translation. Roots set
+    against each other take a line each.
     """
     named = getattr(context, "ROOTS", ())
     if not named:
@@ -845,19 +847,20 @@ def roots(out, context, example_of):
         replace(out, number, built, words, [(taken[-1], taken[-1])], example_of, opens="(%s)" % number, pages=pages)
 
 
-# A word of a list, a. dénxisa ‘drag net along shore’, its other definition in brackets before the
-# gloss, n. ciá (ceyá) ‘draw water’. Two forms can are side by side, ’iála ’eyála.
+# A word of a list, `a. dénxisa ‘drag net along shore’`, with its other form in brackets before the gloss,
+# `n. ciá (ceyá) ‘draw water’`. Two forms can stand side by side, `’iála ’eyála`.
 WORD_ITEM = re.compile(r"^(\*?[a-z])\.\s+(\S.*?)(?:\s+\(([^()‘’]+)\))?\s+(‘.*’)$")
 
 
 def words(out, context, example_of):
-    """Rebuild in out, in place, each example the words op names, a list of words, a. FORM ‘GLOSS’ a
-    line, with a blank line or none between pairs.
+    """Rebuild in out, in place, each example that the words op names: a list of words, `a. FORM ‘GLOSS’` a line.
 
-    The head can name what the list shows, (12) -(l)ás ‘place’, an affix and its gloss, or a
-    caption. The engine can read the list as other types and the paragraph after it as the last
-    word's lines, (12h) In each of the example pairs above ...; that prose goes back to its
-    paragraph, as the display op gives it back.
+    A blank line or none sits between pairs.
+
+    The head can name what the list shows, `(12) -(l)ás ‘place’`, an affix and its gloss, or a caption. The engine can
+    read the list as other types, and the paragraph after it as the last word's lines,
+    `(12h) In each of the example pairs above ...`. That prose goes back to its paragraph, as the display op gives it
+    back.
     """
     named = getattr(context, "WORDS", ())
     if not named:
@@ -921,13 +924,13 @@ def words(out, context, example_of):
 
 
 def wordlist(out, context, example_of):
-    """Rebuild in out, in place, each table the wordlist op names by its caption, Table A1, a word
-    and its gloss a line, under a header of column names the table prints again on each page.
+    """Rebuild in out, in place, each table that the wordlist op names by its caption, `Table A1`. Each line is a word
+    and its gloss, under a header of column names that the table prints again on each page.
 
-    A gloss the cell wraps goes on over the lines after it, ‘dregs at the / bottom’, and a phrase can
-    take two lines before its gloss, ʔe skə̣l̓na píx̣mek ʔa / ze / ‘buckskin was hung ...’. The engine
-    reads the table as one note and each word as a candidate. Both give way to a row a word, Table
-    A1 line N, the word a transcription and its gloss a translation.
+    A gloss that the cell wraps goes on over the lines after it, `‘dregs at the / bottom’`. A phrase can take two lines
+    before its gloss, `ʔe skə̣l̓na píx̣mek ʔa / ze / ‘buckskin was hung ...’`. The engine reads the table as one note,
+    and each word as a candidate. Both give way to a row a word, `Table A1 line N`, the word a transcription and its
+    gloss a translation.
     """
     named = getattr(context, "WORDLIST", ())
     if not named:
@@ -977,15 +980,15 @@ def wordlist(out, context, example_of):
                  for word in one.split()}
         held = next((at for at, one in enumerate(out) if one[2] == "note" and not example_of(one[0])
                      and " ".join(one[3].split()).startswith(lines[start][1])), None)
-        # The engine can have read the table as rows of its own, Table 2 line 3.
+        # The engine can read the table as rows of its own, `Table 2 line 3`.
         own = [at for at, one in enumerate(out) if one[0].startswith(caption + " line ")]
         if held is None and own:
             held = own[0]
         if held is None:
             raise SystemExit("wordlist: %s is in no note" % caption)
         where = out[held][0]
-        # The candidates the engine took from the table's words go with it, and in a plain table
-        # those of its page wherever the engine put them.
+        # The candidates that the engine took from the words of the table go with it. In a plain table, those of its
+        # page go with it too, wherever the engine put them.
         words = taken | {part for word in taken for part in word.split()}
         gone = {held} | set(own) | {at for at, one in enumerate(out) if one[2] in CANDIDATES and one[3] in words
                                     and (one[0] == where or (plain and "page %d" % page in one[4]))}
@@ -1008,7 +1011,7 @@ def strip_displayed(text, displayed):
 
 
 def in_pages(row, pages):
-    """Whether a row is on the pages a spec of N:K retains to, or any page for a spec of N."""
+    """Whether a row is on the pages that a spec of N:K keeps to, or on any page for a spec of N."""
     if pages is None:
         return True
     page = re.search(r"page (\d+)", row[4])
@@ -1016,11 +1019,11 @@ def in_pages(row, pages):
 
 
 def replace(out, number, built, words, ends, example_of, opens=None, pages=None):
-    """The engine's rows for example number and the example text it left in notes give way to built.
+    """The engine's rows for example number, and the example text that it left in notes, give way to built.
 
-    The notes are sought from the example's rows, or the note opening on the example's number where
-    the engine gave it none, up to the next example or heading. A note of the example's words alone
-    goes; a note holding the end of a sub-example's last line retains the prose after it.
+    The search for the notes starts from the example's rows. Where the engine gave it none, it starts from the note that
+    opens on the example's number. It runs up to the next example or heading. A note of the example's words alone goes.
+    A note with the end of a sub-example's last line in it keeps the prose after it.
     """
     own = [at for at, one in enumerate(out)
            if re.match(r"^\(%s[a-z]?\)$" % number, example_of(one[0])) and in_pages(one, pages)]
@@ -1072,8 +1075,8 @@ def replace(out, number, built, words, ends, example_of, opens=None, pages=None)
     if first is None:
         raise SystemExit("pairs: (%s) has no rows and no note to be at" % number)
     gone = set(own) | {at for at in leaked if not out[at][3]}
-    # The cited forms the engine took from the example's words, up to the last note it ran into,
-    # or in the run of cited forms straight after its rows.
+    # The cited forms that the engine took from the example's words. They run up to the last note that it ran into, or
+    # sit in the run of cited forms straight after its rows.
     until = max(leaked, default=own[-1] if own else first)
     while until + 1 < len(out) and out[until + 1][2] in CANDIDATES:
         until += 1
