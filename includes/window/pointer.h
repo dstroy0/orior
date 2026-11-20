@@ -21,10 +21,14 @@ typedef struct GuiPointerRasterCfg GuiPointerRasterCfg;
 typedef struct GuiPointerShapeCfg GuiPointerShapeCfg;
 typedef struct GuiPointerHandCfg GuiPointerHandCfg;
 
-// The shapes: the arrow; the text beam; the hand on a part a press acts on; the four resize arrows, up and down, left
-// and right, and the two diagonals; the compass of the glide at rest; and the arrow with an hourglass while the window
-// works. Then the compass with one of its eight arrows lit, the way the glide goes: north, north east, east, south
-// east, south, south west, west and north west
+// The shapes:
+//   - the arrow, and the text beam.
+//   - the hand on a part that a press acts on.
+//   - the four resize arrows: up and down, left and right, and the two diagonals.
+//   - the compass of the glide at rest.
+//   - the arrow with an hourglass while the window works.
+//   - the compass with one of its eight arrows lit, the way that the glide goes. That is north, north east, east,
+//     south east, south, south west, west or north west.
 #define GUI_POINTER_ARROW 0u
 #define GUI_POINTER_TEXT 1u
 #define GUI_POINTER_HAND 2u
@@ -44,7 +48,7 @@ typedef struct GuiPointerHandCfg GuiPointerHandCfg;
 #define GUI_POINTER_GLIDE_NW 16u
 #define GUI_POINTER_SHAPES 17u
 
-// A sprite's largest side in design units. The least and the most scale a sprite is baked at, in the window's percent.
+// A sprite's largest side in design units. The least and the most scale of the bake of a sprite, in the percent of the window.
 // The pixels of margin round a sprite for its smoothed edge and its shadow. The largest side of a baked sprite in
 // pixels, and the pixels of its picture at most. The points a figure has at most and the figures a shape has at most
 #define GUI_POINTER_SIDE_MAX 24u
@@ -58,8 +62,8 @@ typedef struct GuiPointerHandCfg GuiPointerHandCfg;
 _Static_assert((GUI_POINTER_SCALE_MOST / GUI_SCALE_ONE) == 3,
                "GUI_POINTER_PIXELS_MAX holds a sprite at the most scale");
 
-// A figure of a sprite: its points in design units, in order round its edge, and the radius in design units its
-// corners are rounded by. The rounding grows the figure by the radius. A figure of one point is a disc of that radius
+// A figure of a sprite: its points in design units, in order round its edge. Then the radius in design units that
+// rounds its corners. The rounding grows the figure by the radius. A figure of one point is a disc of that radius
 typedef struct
 {
     unsigned int points;
@@ -67,9 +71,13 @@ typedef struct
     double point[GUI_POINTER_POINTS][2];
 } GuiPointerFigure;
 
-// A sprite: its size in design units and its hot point in them; the eighths of a turn its figures are turned by, round
-// the center of the sprite; the place in the figures' units that the center of the sprite shows; its figures; and the
-// figure that is lit, its body the rim's color, 0 for none; and the figures not drawn, a bit for each
+// A sprite:
+//   - its size in design units, and its hot point in them.
+//   - the eighths of a turn that its figures turn by, round the center of the sprite.
+//   - the place in the units of the figures that the center of the sprite shows.
+//   - its figures.
+//   - the lit figure, its body the color of the rim, 0 for none.
+//   - the figures that the draw skips, a bit for each.
 typedef struct
 {
     double width;
@@ -119,14 +127,14 @@ void gui_pointer_init(const GuiPointerCfg *args);
 int gui_pointer_place(const GuiPointerPlaceCfg *args);
 // the sprite of `shape`, the arrow's for a shape not known
 const GuiPointerSprite *gui_pointer_sprite(const GuiPointerShapeCfg *args);
-// the scale a sprite is baked at for `scale`, the window's percent: the scale clamped to GUI_POINTER_SCALE_LEAST to
-// GUI_POINTER_SCALE_MOST
+// the scale of the bake of a sprite for `scale`, the percent of the window. It is the scale clamped to
+// GUI_POINTER_SCALE_LEAST to GUI_POINTER_SCALE_MOST
 int gui_pointer_scale(const GuiPointerReadCfg *args);
 // the rectangle the sprite covers at its place at `scale`, its shadow with it: empty where the pointer is off the
 // window
 GuiRect gui_pointer_rect(const GuiPointerReadCfg *args);
-// The picture of the pointer's shape at `scale` in the palette's pointer colors, the sheet baked first where its scale
-// or a color is not the palette's. The picture is row after row of the width of gui_pointer_rect's rectangle at the
+// The picture of the shape of the pointer at `scale` in the pointer colors of the palette. Where the scale or a color of
+// the sheet is not that of the palette, the code first bakes the sheet. The picture is row after row of the width of gui_pointer_rect's rectangle at the
 // same scale
 const GuiColor *gui_pointer_picture(const GuiPointerRasterCfg *args);
 // The sprite drawn over `raster` at its place: the rectangle drawn on the raster. A pointer off the window draws
@@ -166,9 +174,10 @@ struct GuiPointerShapeCfg
     unsigned int shape;
 };
 
-// A hand's sprite, a pointer beside the window's own: the sprite of `shape` baked at `scale`, the window's percent, in
-// the palette's pointer colors but for the fill, which is `fill`, the hand's mark, into `picture`, which holds
-// GUI_POINTER_PICTURE_MAX colors; and the rectangle the sprite of `shape` covers with its hot point at x, y at `scale`
+// The sprite of a hand, a pointer beside the own pointer of the window. It is the sprite of `shape`, baked at `scale`,
+// the percent of the window, into `picture`, which holds GUI_POINTER_PICTURE_MAX colors.
+// It takes the pointer colors of the palette, but for the fill, which is `fill`, the mark of the hand. Then the
+// rectangle that the sprite of `shape` covers with its hot point at x, y at `scale`
 void gui_pointer_hand_bake(const GuiPointerHandCfg *args);
 GuiRect gui_pointer_hand_rect(const GuiPointerHandCfg *args);
 struct GuiPointerHandCfg
