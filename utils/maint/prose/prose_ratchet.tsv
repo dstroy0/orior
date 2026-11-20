@@ -148,9 +148,8 @@ examples/0_experimental/exact_zeta_form_factor.py	7
 examples/0_experimental/exact_zeta_gram.py	20
 examples/0_experimental/exact_zeta_lobes.cu	17
 examples/0_experimental/exact_zeta_lobes.py	9
-examples/0_experimental/exact_zeta_miss_map.py	90
+examples/0_experimental/exact_zeta_miss_map.py	88
 examples/0_experimental/exact_zeta_phase.py	15
-examples/0_experimental/exact_zeta_riemann_siegel.py	144
 examples/0_experimental/exact_zeta_scaled.cu	120
 examples/0_experimental/exact_zeta_scaled.sh	1
 examples/0_experimental/exact_zeta_spherical.cu	6
@@ -160,7 +159,7 @@ examples/0_experimental/exact_zeta_tail.cu	7
 examples/0_experimental/exact_zeta_tail.sh	1
 examples/0_experimental/exact_zeta_tension.py	10
 examples/0_experimental/exact_zeta_turing.cu	140
-examples/0_experimental/exact_zeta_turing.py	101
+examples/0_experimental/exact_zeta_turing.py	100
 examples/0_experimental/exact_zeta_turing.sh	1
 examples/0_experimental/exact_zeta_values.py	5
 examples/0_experimental/exact_zeta_zeros.py	30
@@ -803,7 +802,6 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/verdicts.c	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.h	24
 src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick.py	16
-src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_engine.cpp	183
 src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_query.c	53
 src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_query/accumulated.c	5
 src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_query/frames.c	13
@@ -1153,7 +1151,6 @@ utils/maint/data/salishan/extract/marks.py	1
 utils/maint/data/salishan/extract/ops.py	9
 utils/maint/data/salishan/extract/oracle.py	4
 utils/maint/data/salishan/extract/outline_match.py	8
-utils/maint/data/salishan/extract/page_text.py	274
 utils/maint/data/salishan/extract/pairs.py	60
 utils/maint/data/salishan/extract/paper_sift.py	95
 utils/maint/data/salishan/extract/pua_crops.py	3
@@ -1322,9 +1319,9 @@ utils/test/src/cu/engine/analysis/cycle/record_boundary_test_main.cu	2
 utils/test/src/cu/engine/analysis/cycle/record_boundary_test_run.cu	1
 utils/test/src/cu/engine/analysis/cycle/record_boundary_test_transform.cu	4
 utils/test/src/cu/engine/analysis/cycle/record_c_test.cpp	9
-utils/test/src/cu/engine/analysis/cycle/record_coherence_test_internal.h	7
-utils/test/src/cu/engine/analysis/cycle/record_coherence_test_inverse.cu	4
-utils/test/src/cu/engine/analysis/cycle/record_coherence_test_programs.cu	3
+utils/test/src/cu/engine/analysis/cycle/record_coherence_test_internal.h	6
+utils/test/src/cu/engine/analysis/cycle/record_coherence_test_inverse.cu	3
+utils/test/src/cu/engine/analysis/cycle/record_coherence_test_programs.cu	2
 utils/test/src/cu/engine/analysis/cycle/record_coherence_test_residue.cu	3
 utils/test/src/cu/engine/analysis/cycle/record_divide_test_internal.h	6
 utils/test/src/cu/engine/analysis/cycle/record_divide_test_run.cu	2
