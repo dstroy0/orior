@@ -12,6 +12,7 @@
 | `device/v2/cuda_miner.cu`     | the device arm, v2, with a choice of scan arm                               |
 | `host/btc_miner.cpp`          | the stratum client, v1                                                      |
 | `host/v2/btc_miner.cpp`       | the stratum client, v2, with `version-rolling` (BIP310, BIP320)             |
+| `host/harness.cpp`            | a multi-core CPU harness that mines a real header with no pool              |
 | `test/kat_validation.cpp`     | known-answer tests against the NIST digests and two real blocks             |
 | `test/anchor_sift_check.c`    | agreement of the three anchor sift arms, and the rule of the dispatcher     |
 | `build_miner.ps1`             | builds a client into `build/miner`                                          |
@@ -41,6 +42,20 @@
 
 Set `dry_run` to `true` to subscribe and parse a live job with no authorize, mine or submit. The v2 client
 also runs its `version-rolling` checks offline with `build/miner/btc_miner2.exe --check`.
+
+## The CPU harness
+
+The harness mines the genesis header, or block 125552 with `--header 1`, from its real midstate. Every core
+takes one slice of a range around the recorded nonce. The harness passes only where the lowest winner is the
+recorded nonce. A pool, a device and a configuration file are all unnecessary.
+
+```
+gcc -O2 -mavx2 -std=c11 -c examples/miner/core/sha256_core.c -o build/miner/sha256_core.o
+g++ -O2 -mavx2 -std=c++17 -I examples/miner/core examples/miner/host/harness.cpp build/miner/sha256_core.o -o build/miner/harness.exe
+build/miner/harness.exe --threads 4 --span 0x4000000
+```
+
+On AArch64, such as a Raspberry Pi 5, drop both `-mavx2` flags. The harness then runs the scalar anchor arm.
 
 ## The known-answer tests
 
