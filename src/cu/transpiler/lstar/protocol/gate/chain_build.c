@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // chain_build.c: every arrangement of primitives that produces a relation
 #include "chain_build.h"
+#include "memoria_operor/memoria_linea.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
 #include <string.h>
@@ -143,7 +144,7 @@ static int chain_swept(const ChainWork *work)
     for (unsigned int at = 0u; at < CHAIN_SWEEP; at += 1u)
     {
         PreceptCase given;
-        memset(&given, 0, sizeof(given));
+        mmgr_bytes_set(&given, 0, sizeof(given));
         given.operands = 2u;
         given.operand[0] = ladder_swept(&state);
         given.operand[1] = ladder_swept(&state);
@@ -239,7 +240,7 @@ unsigned int chain_build(ChainSet *set, const LadderQuestion *cases, unsigned in
 
 unsigned int chain_build_cases(ChainSet *set, const LadderQuestion *cases, unsigned int count, int swept)
 {
-    memset(set, 0, sizeof(*set));
+    mmgr_bytes_set(set, 0, sizeof(*set));
     if ((count == 0u) || (count > LADDER_CASE_COUNT))
     {
         return 0u;
@@ -251,7 +252,7 @@ unsigned int chain_build_cases(ChainSet *set, const LadderQuestion *cases, unsig
         return 0u;
     }
     static ChainWork work;
-    memset(&work, 0, sizeof(work));
+    mmgr_bytes_set(&work, 0, sizeof(work));
     work.set = set;
     work.cases = cases;
     work.count = count;

@@ -1,7 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// tokens.c: the tokens of an instruction's text: spaces, a token taken, digits, the high half, an operand's type and the operand taken, an instruction read, and two forms the same
+// tokens.c: the tokens of an instruction's text: spaces, a token taken, digits, the high half, an operand's type and
+// the operand taken, an instruction read, and two forms the same
 #include "sass_machine_internal.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 static int sass_is_space(char character)
 {
@@ -22,7 +26,7 @@ static void sass_token_take(char *token, const char *text, size_t length)
         length -= 1u;
     }
     const size_t copied = (length < (SASS_MACHINE_TOKEN - 1u)) ? length : (SASS_MACHINE_TOKEN - 1u);
-    memcpy(token, text, copied);
+    mmgr_bytes_copy(token, text, copied);
     token[copied] = '\0';
 }
 
@@ -41,14 +45,14 @@ static int sass_all_digits(const char *text, size_t at)
 // register by its number alone, and the pair beginning at R14 has no other way to name R15 (sass.krs)
 int sass_high_half(const char *text)
 {
-    const size_t length = strlen(text);
-    return (length > 3u) && (strcmp(text + length - 3u, ".hi") == 0);
+    const size_t length = mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR);
+    return (length > 3u) && (mmgr_text_equal(text + length - 3u, ".hi", PLATFORM_TEXT_TO_TERMINATOR));
 }
 
 // what type of thing `text` is, with any mark already cut off it
 static unsigned int sass_operand_type(const char *text)
 {
-    if (strchr(text, ' ') != NULL)
+    if (mmgr_text_char(text, ' ', PLATFORM_TEXT_TO_TERMINATOR) != NULL)
     {
         return SASS_OPERAND_UNKNOWN;
     }
@@ -56,26 +60,27 @@ static unsigned int sass_operand_type(const char *text)
     if (sass_high_half(text))
     {
         char stem[SASS_MACHINE_TOKEN];
-        const size_t length = strlen(text) - 3u;
+        const size_t length = mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR) - 3u;
         const size_t copied = (length < (SASS_MACHINE_TOKEN - 1u)) ? length : (SASS_MACHINE_TOKEN - 1u);
-        memcpy(stem, text, copied);
+        mmgr_bytes_copy(stem, text, copied);
         stem[copied] = '\0';
         return sass_operand_type(stem);
     }
-    if ((text[0] == 'R') && ((strcmp(text, "RZ") == 0) || sass_all_digits(text, 1u)))
+    if ((text[0] == 'R') && ((mmgr_text_equal(text, "RZ", PLATFORM_TEXT_TO_TERMINATOR)) || sass_all_digits(text, 1u)))
     {
         return SASS_OPERAND_REGISTER;
     }
-    if ((text[0] == 'P') && ((strcmp(text, "PT") == 0) || sass_all_digits(text, 1u)))
+    if ((text[0] == 'P') && ((mmgr_text_equal(text, "PT", PLATFORM_TEXT_TO_TERMINATOR)) || sass_all_digits(text, 1u)))
     {
         return SASS_OPERAND_PREDICATE;
     }
     // URZ is to the uniform registers what RZ is to the numbered ones, and reads the same way
-    if ((text[0] == 'U') && (text[1] == 'R') && ((strcmp(text, "URZ") == 0) || sass_all_digits(text, 2u)))
+    if ((text[0] == 'U') && (text[1] == 'R') &&
+        ((mmgr_text_equal(text, "URZ", PLATFORM_TEXT_TO_TERMINATOR)) || sass_all_digits(text, 2u)))
     {
         return SASS_OPERAND_UNIFORM;
     }
-    if (strncmp(text, "SR_", 3u) == 0)
+    if (mmgr_text_starts(text, "SR_", PLATFORM_TEXT_TO_TERMINATOR))
     {
         return SASS_OPERAND_SYSTEM;
     }
@@ -86,7 +91,8 @@ static unsigned int sass_operand_type(const char *text)
     // an address, and an address that names the uniform register its memory descriptor is read from: desc[URn]
     // where the instruction's bit 101 is set, as the disassembler prints it, and term[URn] where it is clear and the
     // field still contains the register
-    if ((text[0] == '[') || (strncmp(text, "desc[", 5u) == 0) || (strncmp(text, "term[", 5u) == 0))
+    if ((text[0] == '[') || (mmgr_text_starts(text, "desc[", PLATFORM_TEXT_TO_TERMINATOR)) ||
+        (mmgr_text_starts(text, "term[", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         return SASS_OPERAND_ADDRESS;
     }
@@ -115,8 +121,8 @@ static void sass_operand_take(SassInstructionParts *parts, unsigned int place, c
 {
     char token[SASS_MACHINE_TOKEN];
     sass_token_take(token, text, length);
-    const size_t token_length = strlen(token);
-    if ((token_length > 6u) && (strcmp(token + token_length - 6u, ".reuse") == 0))
+    const size_t token_length = mmgr_text_length(token, PLATFORM_TEXT_TO_TERMINATOR);
+    if ((token_length > 6u) && (mmgr_text_equal(token + token_length - 6u, ".reuse", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         token[token_length - 6u] = '\0';
     }
@@ -129,13 +135,13 @@ static void sass_operand_take(SassInstructionParts *parts, unsigned int place, c
     mark = ((mark == SASS_MARK_NEGATE) && (marked == SASS_OPERAND_IMMEDIATE)) ? SASS_MARK_NONE : mark;
     parts->mark[place] = mark;
     parts->type[place] = (mark == SASS_MARK_NONE) ? sass_operand_type(token) : marked;
-    memcpy(parts->operand[place], token + ((mark == SASS_MARK_NONE) ? 0u : 1u),
-           strlen(token + ((mark == SASS_MARK_NONE) ? 0u : 1u)) + 1u);
+    mmgr_bytes_copy(parts->operand[place], token + ((mark == SASS_MARK_NONE) ? 0u : 1u),
+                    mmgr_text_length(token + ((mark == SASS_MARK_NONE) ? 0u : 1u), PLATFORM_TEXT_TO_TERMINATOR) + 1u);
 }
 
 void sass_instruction_read(const char *text, SassInstructionParts *parts)
 {
-    memset(parts, 0, sizeof(*parts));
+    mmgr_bytes_set(parts, 0, sizeof(*parts));
     while (sass_is_space(*text))
     {
         text += 1;
@@ -183,13 +189,13 @@ void sass_instruction_read(const char *text, SassInstructionParts *parts)
 // name different ones are two forms, each with the encoding it was seen with
 int sass_form_same(const SassForm *form, const SassInstructionParts *parts)
 {
-    int same = (strcmp(form->operation, parts->operation) == 0) && (form->operands == parts->operands);
+    int same = (mmgr_text_equal(form->operation, parts->operation, PLATFORM_TEXT_TO_TERMINATOR)) &&
+               (form->operands == parts->operands);
     int by_text = 0;
     for (unsigned int place = 0u; same && (place < form->operands); place += 1u)
     {
         same = (form->type[place] == parts->type[place]) && (form->mark[place] == parts->mark[place]);
-        by_text = by_text || (form->type[place] == SASS_OPERAND_SYSTEM) ||
-                  (form->type[place] == SASS_OPERAND_UNKNOWN);
+        by_text = by_text || (form->type[place] == SASS_OPERAND_SYSTEM) || (form->type[place] == SASS_OPERAND_UNKNOWN);
     }
     if (same && by_text)
     {
@@ -198,7 +204,7 @@ int sass_form_same(const SassForm *form, const SassInstructionParts *parts)
         for (unsigned int place = 0u; same && (place < form->operands); place += 1u)
         {
             same = ((form->type[place] != SASS_OPERAND_SYSTEM) && (form->type[place] != SASS_OPERAND_UNKNOWN)) ||
-                   (strcmp(seen.operand[place], parts->operand[place]) == 0);
+                   (mmgr_text_equal(seen.operand[place], parts->operand[place], PLATFORM_TEXT_TO_TERMINATOR));
         }
     }
     return same;

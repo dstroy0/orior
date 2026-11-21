@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // parquet_thrift.c: the Thrift compact protocol the footer and every page header are written in, and growing bytes
 #include "parquet_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 // the longest a varint may run: ten groups of seven bits cover sixty-four, and the last group's bits that land
 // inside sixty-four, 64 - 7 x 9 = 1
@@ -64,8 +65,8 @@ unsigned long long parquet_varint_read(ParquetCursor *cursor)
             cursor->broken = 1u;
             return 0ULL;
         }
-        // widened to 64 bits before the shift, which reaches 63. The code above limited the last group to the bits below
-        // 64
+        // widened to 64 bits before the shift, which reaches 63. The code above limited the last group to the bits
+        // below 64
         value |= (unsigned long long)group_bits << (7u * group);
         if ((byte & 0x80u) == 0u)
         {
@@ -277,7 +278,7 @@ int parquet_bytes_append(ParquetBytes *bytes, const unsigned char *from, unsigne
     }
     if (count != 0ULL)
     {
-        memcpy(bytes->bytes + bytes->count, from, (size_t)count);
+        mmgr_bytes_copy(bytes->bytes + bytes->count, from, (size_t)count);
     }
     bytes->count += count;
     return 1;

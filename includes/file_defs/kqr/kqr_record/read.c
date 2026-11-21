@@ -3,12 +3,15 @@
 // read.c: the record read: each line's type, a line read as a query, the text form read whole, the queries read once
 // each, the record read from its file, and the record viewed at a run's queries table
 #include "../../../parsers/line_read.h"
+#include "../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "kqr_internal.h"
 
 // 1 where `line` is of the type `type`: its first word, and a space or its end after it
 static int kqr_line_type(const char *line, const char *type)
 {
-    const size_t length = strlen(type);
+    const size_t length = mmgr_text_length(type, PLATFORM_TEXT_TO_TERMINATOR);
     return (strncmp(line, type, length) == 0) && ((line[length] == ' ') || (line[length] == '\0'));
 }
 
@@ -33,7 +36,7 @@ static size_t kqr_error_put(char *error, size_t room, size_t at, const char *tex
 // 1, or 0 where it has no identity or no answer the oracle gives
 static int kqr_line_identity(const char *line, KqrIdentity *identity, unsigned int *answer, const char **rest)
 {
-    const char *at = strchr(line, ' ');
+    const char *at = mmgr_text_char(line, ' ', PLATFORM_TEXT_TO_TERMINATOR);
     if (at == NULL)
     {
         return 0;
@@ -42,7 +45,7 @@ static int kqr_line_identity(const char *line, KqrIdentity *identity, unsigned i
     const char *end = at;
     for (unsigned int word = 0u; (word < 7u) && (end != NULL); word += 1u)
     {
-        end = strchr(end, ' ');
+        end = mmgr_text_char(end, ' ', PLATFORM_TEXT_TO_TERMINATOR);
         end += ((end != NULL) && (word < 6u)) ? 1 : 0;
     }
     char text[256];
@@ -63,7 +66,7 @@ static int kqr_line_identity(const char *line, KqrIdentity *identity, unsigned i
     {
         return 0;
     }
-    memcpy(name, name_start, length);
+    mmgr_bytes_copy(name, name_start, length);
     name[length] = '\0';
     *answer = kqr_answer_of(name);
     *rest = name_start + length + ((name_start[length] == ' ') ? 1u : 0u);
@@ -117,7 +120,9 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
         {
             const int seed = kqr_line_type(s_line, "seed");
             const char *const after = s_line + (seed ? 5 : 6);
-            stopped = kqr_number_read(after, strlen(after), 10, &words[0]) ? NULL : "a seed or a round of no number";
+            stopped = kqr_number_read(after, mmgr_text_length(after, PLATFORM_TEXT_TO_TERMINATOR), 10, &words[0])
+                          ? NULL
+                          : "a seed or a round of no number";
             krep_record_add(&record->file, seed ? KQR_SEED_RECORD : KQR_ROUND_RECORD, words, 1u);
         }
         else if (kqr_line_type(s_line, "pair"))
@@ -144,7 +149,7 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
         }
         else if (kqr_line_type(s_line, "sample"))
         {
-            memset(&s_sample, 0, sizeof(s_sample));
+            mmgr_bytes_set(&s_sample, 0, sizeof(s_sample));
             stopped = kqr_line_identity(s_line, &s_sample.identity, &s_sample.answer, &rest)
                           ? NULL
                           : "a sample with no identity or no answer";
@@ -162,7 +167,8 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
             }
             else if (stopped == NULL)
             {
-                kqr_text_cut(s_sample.refusal, sizeof(s_sample.refusal), rest, strlen(rest));
+                kqr_text_cut(s_sample.refusal, sizeof(s_sample.refusal), rest,
+                             mmgr_text_length(rest, PLATFORM_TEXT_TO_TERMINATOR));
             }
             if (stopped == NULL)
             {
@@ -193,7 +199,8 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
             }
             else if (stopped == NULL)
             {
-                kqr_text_cut(s_query.refusal, sizeof(s_query.refusal), rest, strlen(rest));
+                kqr_text_cut(s_query.refusal, sizeof(s_query.refusal), rest,
+                             mmgr_text_length(rest, PLATFORM_TEXT_TO_TERMINATOR));
             }
             if (stopped == NULL)
             {
@@ -215,16 +222,17 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
         char digits[24];
         const size_t digits_at =
             verba_numerus.u64(&(VerbaNumerusCfg){.out = digits, .cap = sizeof(digits), .at = 0u, .val = number});
-        size_t error_at = kqr_error_put(error, room, 0u, path, strlen(path));
+        size_t error_at = kqr_error_put(error, room, 0u, path, mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR));
         error_at = kqr_error_put(error, room, error_at, ":", 1u);
         error_at = kqr_error_put(error, room, error_at, digits, digits_at);
         error_at = kqr_error_put(error, room, error_at, ": ", 2u);
-        if (strcmp(stopped, "is no line of a query record") == 0)
+        if (mmgr_text_equal(stopped, "is no line of a query record", PLATFORM_TEXT_TO_TERMINATOR))
         {
             error_at = kqr_error_put(error, room, error_at, s_line, strcspn(s_line, " "));
             error_at = kqr_error_put(error, room, error_at, " ", 1u);
         }
-        error_at = kqr_error_put(error, room, error_at, stopped, strlen(stopped));
+        error_at =
+            kqr_error_put(error, room, error_at, stopped, mmgr_text_length(stopped, PLATFORM_TEXT_TO_TERMINATOR));
         verba_finis.finish(&(VerbaFinisCfg){.out = error, .cap = room, .at = error_at});
         return 0;
     }
@@ -238,7 +246,7 @@ static void kqr_queries_once(KqrRecord *record)
     static KqrQuery s_query;
     static KqrQuery s_before;
     static unsigned long long s_words[KQR_QUERY_WORDS + KQR_WORDS + 1u];
-    memset(record->slot, 0, KQR_SLOTS * sizeof(unsigned int));
+    mmgr_bytes_set(record->slot, 0, KQR_SLOTS * sizeof(unsigned int));
     unsigned int at = 0u;
     while (at < record->file.records)
     {
@@ -269,7 +277,8 @@ int kqr_read(KqrRecord *record, const char *path, const char *member, char *erro
     if (!kqr_opened(record, member))
     {
         static const char s_no_room[] = ": no room for the table of queries";
-        const size_t error_at = kqr_error_put(error, room, 0u, path, strlen(path));
+        const size_t error_at =
+            kqr_error_put(error, room, 0u, path, mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR));
         verba_finis.finish(&(VerbaFinisCfg){
             .out = error, .cap = room, .at = kqr_error_put(error, room, error_at, s_no_room, sizeof(s_no_room) - 1u)});
         return 0;
@@ -282,7 +291,8 @@ int kqr_read(KqrRecord *record, const char *path, const char *member, char *erro
         const unsigned char *bytes = NULL;
         unsigned long long size = 0ULL;
         krep_open(&record->file, KQR_KIND);
-        const unsigned long long named = krep_text_number(&record->file, member, strlen(member));
+        const unsigned long long named =
+            krep_text_number(&record->file, member, mmgr_text_length(member, PLATFORM_TEXT_TO_TERMINATOR));
         krep_record_add(&record->file, KQR_MEMBER_RECORD, &named, 1u);
         ok = qry_member_file_blob(path, &bytes, &size) && kqr_text_read(record, bytes, size, path, error, room);
         if (ok)
@@ -292,7 +302,8 @@ int kqr_read(KqrRecord *record, const char *path, const char *member, char *erro
     }
     else if (ok && ((record->file.records == 0u) || (record->file.record[0].code != KQR_MEMBER_RECORD)))
     {
-        const unsigned long long named = krep_text_number(&record->file, member, strlen(member));
+        const unsigned long long named =
+            krep_text_number(&record->file, member, mmgr_text_length(member, PLATFORM_TEXT_TO_TERMINATOR));
         ok = krep_record_put(&record->file, 0u, KQR_MEMBER_RECORD, &named, 1u);
     }
     if (!ok)
@@ -309,23 +320,26 @@ int kqr_viewed_at(KqrRecord *record, const char *path, const char *name, const c
     if (!kqr_opened(record, member))
     {
         static const char s_no_room[] = ": no room for the table of queries";
-        const size_t error_at = kqr_error_put(error, room, 0u, path, strlen(path));
+        const size_t error_at =
+            kqr_error_put(error, room, 0u, path, mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR));
         verba_finis.finish(&(VerbaFinisCfg){
             .out = error, .cap = room, .at = kqr_error_put(error, room, error_at, s_no_room, sizeof(s_no_room) - 1u)});
         return 0;
     }
     int ok = krep_viewed_at(path, KQR_TABLE, name, &record->file, error, room);
-    if (ok && (memcmp(record->file.type, KQR_KIND, 4u) != 0))
+    if (ok && (mmgr_bytes_compare(record->file.type, KQR_KIND, 4u) != 0))
     {
         static const char s_no_kqr[] = ": the record in " KQR_TABLE " is no .kqr";
-        const size_t error_at = kqr_error_put(error, room, 0u, path, strlen(path));
+        const size_t error_at =
+            kqr_error_put(error, room, 0u, path, mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR));
         verba_finis.finish(&(VerbaFinisCfg){
             .out = error, .cap = room, .at = kqr_error_put(error, room, error_at, s_no_kqr, sizeof(s_no_kqr) - 1u)});
         ok = 0;
     }
     if (ok && ((record->file.records == 0u) || (record->file.record[0].code != KQR_MEMBER_RECORD)))
     {
-        const unsigned long long named = krep_text_number(&record->file, member, strlen(member));
+        const unsigned long long named =
+            krep_text_number(&record->file, member, mmgr_text_length(member, PLATFORM_TEXT_TO_TERMINATOR));
         ok = krep_record_put(&record->file, 0u, KQR_MEMBER_RECORD, &named, 1u);
     }
     if (!ok)

@@ -3,6 +3,7 @@
 // interface.c: a probe run through the interface: its output stored, ended and read back, the host's clock, and the
 // probe run to its end on whichever platform runs it (platform/windows.c, platform/posix.c)
 #include "platform/interface_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 // `read` bytes of the probe's output at `piece` stored in the answer, as many as its capacity contains past the
 // `*total` before them, and counted whole
@@ -15,7 +16,7 @@ void interface_output_appended(InterfaceAnswer *answer, unsigned long long *tota
     if ((answer->output != NULL) && (copied != 0ULL))
     {
         // a copy is at max one piece, which a size_t represents
-        memcpy(answer->output + *total, piece, (size_t)copied);
+        mmgr_bytes_copy(answer->output + *total, piece, (size_t)copied);
     }
     *total += read;
 }
@@ -52,7 +53,6 @@ unsigned long long interface_now(void)
     return ((unsigned long long)now.tv_sec * INTERFACE_MILLION) + ((unsigned long long)now.tv_nsec / 1000ULL);
 #endif
 }
-
 
 long interface_probe_run(const InterfaceProbe *probe, InterfaceAnswer *answer, EngineError *error)
 {

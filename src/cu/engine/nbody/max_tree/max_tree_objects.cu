@@ -235,7 +235,7 @@ void max_tree_release_resident(MaxTreeResident *resident)
     }
     cudaFree(resident->roots);
     cudaFree(resident->at_chunk);
-    platform_cell_released(resident->host_chunks, (unsigned int)platform_place_g_engine_owner);
+    free(resident->host_chunks);
     cudaFree(resident->packed);
     cudaFree(resident->bodies);
     for (unsigned int body_at = 0u; body_at < 2u; body_at += 1u)
@@ -315,8 +315,7 @@ int max_tree_reserve(size_t voxels, EngineError *error)
                                &resident->at_chunk, error) &&
          MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->packed, words * sizeof(unsigned long long)),
                                &resident->packed, error);
-    resident->host_chunks = (unsigned int *)platform_cell_taken((unsigned long long)(chunks * sizeof(unsigned int)),
-                                                                (unsigned int)platform_place_g_engine_owner, 0);
+    resident->host_chunks = (unsigned int *)malloc(chunks * sizeof(unsigned int));
     ok = ok && MAX_TREE_CHECK(resident->host_chunks != NULL, &resident->host_chunks, error, ENGINE_ERROR_RESOURCE);
     for (unsigned int body_at = 0u; (resident->retaining_frames != 0) && (body_at < 2u); body_at += 1u)
     {

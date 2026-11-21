@@ -150,16 +150,11 @@ static long matching_component(const HeaviestMatchingRequest *args, const unsign
     const int edge_capacity = 2 * (befores + afters + (int)member_count);
 
     MatchingGraph graph;
-    graph.head = (int *)platform_cell_taken((unsigned long long)((size_t)nodes * sizeof(int)),
-                                            (unsigned int)platform_place_g_engine_owner, 0);
-    graph.next = (int *)platform_cell_taken((unsigned long long)((size_t)edge_capacity * sizeof(int)),
-                                            (unsigned int)platform_place_g_engine_owner, 0);
-    graph.target = (int *)platform_cell_taken((unsigned long long)((size_t)edge_capacity * sizeof(int)),
-                                              (unsigned int)platform_place_g_engine_owner, 0);
-    graph.capacity = (int *)platform_cell_taken((unsigned long long)((size_t)edge_capacity * sizeof(int)),
-                                                (unsigned int)platform_place_g_engine_owner, 0);
-    graph.cost = (long long *)platform_cell_taken((unsigned long long)((size_t)edge_capacity * sizeof(long long)),
-                                                  (unsigned int)platform_place_g_engine_owner, 0);
+    graph.head = (int *)malloc((size_t)nodes * sizeof(int));
+    graph.next = (int *)malloc((size_t)edge_capacity * sizeof(int));
+    graph.target = (int *)malloc((size_t)edge_capacity * sizeof(int));
+    graph.capacity = (int *)malloc((size_t)edge_capacity * sizeof(int));
+    graph.cost = (long long *)malloc((size_t)edge_capacity * sizeof(long long));
     graph.edges = 0;
     long long *const potential = (long long *)platform_cell_taken(
         (unsigned long long)((size_t)nodes * sizeof(long long)), (unsigned int)platform_place_g_engine_owner, 0);
@@ -171,10 +166,8 @@ static long matching_component(const HeaviestMatchingRequest *args, const unsign
                                                                         (unsigned int)platform_place_g_engine_owner, 0);
     MatchingHeap heap;
     heap.distance =
-        (long long *)platform_cell_taken((unsigned long long)(((size_t)edge_capacity + 1u) * sizeof(long long)),
-                                         (unsigned int)platform_place_g_engine_owner, 0);
-    heap.node = (int *)platform_cell_taken((unsigned long long)(((size_t)edge_capacity + 1u) * sizeof(int)),
-                                           (unsigned int)platform_place_g_engine_owner, 0);
+        (long long *)malloc(((size_t)edge_capacity + 1u) * sizeof(long long));
+    heap.node = (int *)malloc(((size_t)edge_capacity + 1u) * sizeof(int));
     heap.size = 0;
 
     long answer = -1;
@@ -285,17 +278,17 @@ static long matching_component(const HeaviestMatchingRequest *args, const unsign
         local[args->before[pair]] = -1;
         local[args->before_count + args->after[pair]] = -1;
     }
-    platform_cell_released(graph.head, (unsigned int)platform_place_g_engine_owner);
-    platform_cell_released(graph.next, (unsigned int)platform_place_g_engine_owner);
-    platform_cell_released(graph.target, (unsigned int)platform_place_g_engine_owner);
-    platform_cell_released(graph.capacity, (unsigned int)platform_place_g_engine_owner);
-    platform_cell_released(graph.cost, (unsigned int)platform_place_g_engine_owner);
+    free(graph.head);
+    free(graph.next);
+    free(graph.target);
+    free(graph.capacity);
+    free(graph.cost);
     platform_cell_released(potential, (unsigned int)platform_place_g_engine_owner);
     platform_cell_released(distance, (unsigned int)platform_place_g_engine_owner);
     platform_cell_released(arrived, (unsigned int)platform_place_g_engine_owner);
     platform_cell_released(settled, (unsigned int)platform_place_g_engine_owner);
-    platform_cell_released(heap.distance, (unsigned int)platform_place_g_engine_owner);
-    platform_cell_released(heap.node, (unsigned int)platform_place_g_engine_owner);
+    free(heap.distance);
+    free(heap.node);
     return answer;
 }
 

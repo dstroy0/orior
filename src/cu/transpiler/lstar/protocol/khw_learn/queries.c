@@ -3,6 +3,7 @@
 // queries.c: the queries: a question's words and runs read and written, the kernel and the code put, a question queried
 // and pooled, the round carried, the anchor cases and a candidate's answer
 #include "khw_learn_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 // how many registers a thread of the kernel uses, read with the kernel
 unsigned int s_registers;
@@ -110,7 +111,7 @@ int khw_store_is_guarded(void)
 // instruction wait on all six barriers before the part sees it; nothing of the scheduler's own word is set here (P9)
 void khw_kernel_put(unsigned char *code)
 {
-    memcpy(code, s_kernel_text, (size_t)s_kernel_places * KHW_INSTRUCTION);
+    mmgr_bytes_copy(code, s_kernel_text, (size_t)s_kernel_places * KHW_INSTRUCTION);
     static unsigned int s_guard_first;
     static unsigned int s_guard_bits;
     static int s_guard_read;
@@ -154,7 +155,7 @@ void khw_code_put(unsigned char *code, unsigned int place, unsigned long long lo
 int khw_question_put(const unsigned int word[][2], unsigned int count, unsigned int kernel_place,
                      unsigned long long *answered)
 {
-    memset(&s_question, 0, sizeof(s_question));
+    mmgr_bytes_set(&s_question, 0, sizeof(s_question));
     s_question.code = s_code;
     s_question.code_size = (unsigned long long)s_kernel_places * KHW_INSTRUCTION;
     s_question.registers = s_registers;
@@ -202,7 +203,7 @@ unsigned int khw_pooled(unsigned int place, unsigned long long low, unsigned lon
         khw_kernel_put(s_pool_code[at]);
     }
     RunQuestion *const question = &s_pool[at];
-    memset(question, 0, sizeof(*question));
+    mmgr_bytes_set(question, 0, sizeof(*question));
     question->code = s_pool_code[at];
     question->code_size = (unsigned long long)s_kernel_places * KHW_INSTRUCTION;
     question->registers = s_registers;

@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cut.c: a cubin's listing cut into each kernel's, every label a kernel's lines name put as the offset it is at
 #include "../cubin_listing.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -56,7 +59,7 @@ static int cubin_text_added(CubinListingCut *cut, const char *bytes, size_t size
         cut->text = larger;
         cut->text_room = grown;
     }
-    memcpy(cut->text + cut->text_size, bytes, size);
+    mmgr_bytes_copy(cut->text + cut->text_size, bytes, size);
     cut->text_size += size;
     return 1;
 }
@@ -135,7 +138,8 @@ static int cubin_code_section(const char *listing, size_t begin, size_t end, siz
         at += 1u;
     }
     // `.section` and a space: `.sectioninfo` and `.sectionflags` open no section
-    if (((end - at) <= (sizeof(s_section) - 1u)) || (memcmp(listing + at, s_section, sizeof(s_section) - 1u) != 0) ||
+    if (((end - at) <= (sizeof(s_section) - 1u)) ||
+        (mmgr_bytes_compare(listing + at, s_section, sizeof(s_section) - 1u) != 0) ||
         !cubin_blank(listing[at + (sizeof(s_section) - 1u)]))
     {
         return 0;
@@ -145,7 +149,7 @@ static int cubin_code_section(const char *listing, size_t begin, size_t end, siz
     {
         at += 1u;
     }
-    if (((end - at) < (sizeof(s_code) - 1u)) || (memcmp(listing + at, s_code, sizeof(s_code) - 1u) != 0))
+    if (((end - at) < (sizeof(s_code) - 1u)) || (mmgr_bytes_compare(listing + at, s_code, sizeof(s_code) - 1u) != 0))
     {
         *length = 0u;
         return 1;
@@ -176,8 +180,7 @@ static const char *cubin_note_end(const char *listing, size_t from, size_t end)
 
 // the section's retained lines written into the cut as kernel `kernel`'s listing, each label they name put as its
 // offset
-static int cubin_section_written(const char *listing, CubinSection *section, unsigned int kernel,
-                                 CubinListingCut *cut)
+static int cubin_section_written(const char *listing, CubinSection *section, unsigned int kernel, CubinListingCut *cut)
 {
     // a label after the last instruction is at the end of the code
     const unsigned long long end_offset =
@@ -202,8 +205,7 @@ static int cubin_section_written(const char *listing, CubinSection *section, uns
             // are put as that space
             const char *const note = (const char *)memchr(listing + at, '(', mark - at);
             const int noted = (note != NULL) && (((size_t)(note - listing) + 1u) < end) && (note[1] == '*');
-            const char *const note_end =
-                noted ? cubin_note_end(listing, (size_t)(note - listing) + 2u, end) : NULL;
+            const char *const note_end = noted ? cubin_note_end(listing, (size_t)(note - listing) + 2u, end) : NULL;
             if (note_end != NULL)
             {
                 size_t prefix_length = (size_t)(note - listing);
@@ -231,7 +233,7 @@ static int cubin_section_written(const char *listing, CubinSection *section, uns
             for (size_t label = 0u; (close != NULL) && (label < section->label_count); label += 1u)
             {
                 if ((section->labels[label].length == length) &&
-                    (memcmp(listing + section->labels[label].begin, listing + name, length) == 0))
+                    (mmgr_bytes_compare(listing + section->labels[label].begin, listing + name, length) == 0))
                 {
                     found = label;
                 }
@@ -275,7 +277,7 @@ static int cubin_room(void **items, size_t *room, size_t count, size_t size)
 int cubin_listing_cut(const char *listing, size_t length, const char *const *names, unsigned int count,
                       CubinListingCut *cut)
 {
-    memset(cut, 0, sizeof(*cut));
+    mmgr_bytes_set(cut, 0, sizeof(*cut));
     cut->start = (size_t *)calloc((size_t)count + 1u, sizeof(size_t));
     cut->size = (size_t *)calloc((size_t)count + 1u, sizeof(size_t));
     cut->found = (int *)calloc((size_t)count + 1u, sizeof(int));
@@ -284,7 +286,7 @@ int cubin_listing_cut(const char *listing, size_t length, const char *const *nam
         return 0;
     }
     CubinSection section;
-    memset(&section, 0, sizeof(section));
+    mmgr_bytes_set(&section, 0, sizeof(section));
     unsigned int kernel = count;
     int written_ok = 1;
     size_t at = 0u;
@@ -309,8 +311,8 @@ int cubin_listing_cut(const char *listing, size_t length, const char *const *nam
             kernel = count;
             for (unsigned int one = 0u; (name_length != 0u) && (one < count); one += 1u)
             {
-                if ((strlen(names[one]) == name_length) && (memcmp(names[one], listing + name, name_length) == 0) &&
-                    !cut->found[one])
+                if ((mmgr_text_length(names[one], PLATFORM_TEXT_TO_TERMINATOR) == name_length) &&
+                    (mmgr_bytes_compare(names[one], listing + name, name_length) == 0) && !cut->found[one])
                 {
                     kernel = one;
                 }
@@ -362,5 +364,5 @@ void cubin_listing_cut_freed(CubinListingCut *cut)
     free(cut->start);
     free(cut->size);
     free(cut->found);
-    memset(cut, 0, sizeof(*cut));
+    mmgr_bytes_set(cut, 0, sizeof(*cut));
 }

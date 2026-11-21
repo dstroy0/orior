@@ -3,6 +3,7 @@
 // airlock.c: the airlock: the cross run over the list and passed or gated, the questions named and relisted, the check
 // traced, and a register refusal put again with the count raised
 #include "run_channel_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 // The words `command`, ended by NULL, run as a process given `limit_microseconds`, what it printed passed as the blob
 // returned: the code it exited with, or -1 where it was not started or did not exit of its own
@@ -62,17 +63,18 @@ static int run_channel_airlock_passed(unsigned int questions)
         {
             spaces += (line[fourth] == ' ') ? 1u : 0u;
         }
-        memcpy(renamed + length, line, fourth);
+        mmgr_bytes_copy(renamed + length, line, fourth);
         length += fourth;
-        memcpy(renamed + length, RUN_AIRLOCK_ANSWERS, sizeof(RUN_AIRLOCK_ANSWERS) - 1u);
+        mmgr_bytes_copy(renamed + length, RUN_AIRLOCK_ANSWERS, sizeof(RUN_AIRLOCK_ANSWERS) - 1u);
         length += sizeof(RUN_AIRLOCK_ANSWERS) - 1u;
-        memcpy(renamed + length, line + fourth, line_length - fourth);
+        mmgr_bytes_copy(renamed + length, line + fourth, line_length - fourth);
         length += line_length - fourth;
         renamed[length] = '\n';
         length += 1u;
     }
     const unsigned long long passed = qry_member_append(RUN_AIRLOCK_LIST, renamed, length, QRY_ORDINARY);
-    // the list's sequence, once it is moved into the run: the gated list and the refusals the cross passes come after it
+    // the list's sequence, once it is moved into the run: the gated list and the refusals the cross passes come after
+    // it
     const unsigned long long began = (passed != 0ULL) ? qry_member_settled() : 0ULL;
     s_channel.airlock_began = began;
     if (began == 0ULL)
@@ -147,7 +149,7 @@ int run_channel_airlocked(unsigned int questions, char *refused, size_t room)
     }
     VerbaLinea refusal_line = {refused, room, 0ULL};
     mmgr_line_put(&refusal_line,
-                   "the airlock: the channel has none, its carrier no gated list, and nothing goes to the part");
+                  "the airlock: the channel has none, its carrier no gated list, and nothing goes to the part");
     mmgr_line_finish(&refusal_line);
     return 0;
 }
@@ -274,7 +276,8 @@ unsigned int run_channel_raised(RunQuestion *const *questions, unsigned int firs
             const char *const end = (const char *)memchr(line, '\n', (size_t)(size - walk));
             const size_t length = (end != NULL) ? (size_t)(end - line) : (size_t)(size - walk);
             walk += (unsigned long long)length + 1ULL;
-            if ((length <= stem_length) || (memcmp(line, stem, stem_length) != 0) || (line[stem_length] != ' '))
+            if ((length <= stem_length) || (mmgr_bytes_compare(line, stem, stem_length) != 0) ||
+                (line[stem_length] != ' '))
             {
                 continue;
             }

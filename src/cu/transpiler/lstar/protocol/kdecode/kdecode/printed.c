@@ -3,6 +3,9 @@
 // printed.c: what is written into the text passed to the run: a row's word, a key named, a text, a who and a column,
 // the columns of a table, the format oracle, a change, and the table
 #include "../../../../../../../includes/parsers/who.h"
+#include "../../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../../table_text.h"
 #include "kdecode_internal.h"
 
@@ -10,7 +13,7 @@
 static unsigned long long kdecode_row_word(const KdecodeRow *row, size_t place)
 {
     unsigned long long word = 0ULL;
-    memcpy(&word, row->words_at + (place * 8u), 8u);
+    mmgr_bytes_copy(&word, row->words_at + (place * 8u), 8u);
     return word;
 }
 
@@ -117,17 +120,18 @@ static void kdecode_column_printed(const KdecodeRun *run, const KdecodeOracle *o
                                    unsigned long long value)
 {
     const char *const form = column->form;
-    const char *const either = strchr(form, '|');
+    const char *const either = mmgr_text_char(form, '|', PLATFORM_TEXT_TO_TERMINATOR);
     char family[KDECODE_WORD] = "";
-    if ((form[0] == '<') && (strchr(form, '>') != NULL))
+    if ((form[0] == '<') && (mmgr_text_char(form, '>', PLATFORM_TEXT_TO_TERMINATOR) != NULL))
     {
         // the family is the form's word, between its brackets
         VerbaLinea word = {family, sizeof(family), 0ULL};
-        mmgr_line_put_max(&word, form + 1, (unsigned long long)(strchr(form, '>') - form - 1));
+        mmgr_line_put_max(&word, form + 1,
+                          (unsigned long long)(mmgr_text_char(form, '>', PLATFORM_TEXT_TO_TERMINATOR) - form - 1));
         mmgr_line_finish(&word);
     }
     const char *const named = kdecode_code_named(oracle, family, value);
-    if (strcmp(family, "key") == 0)
+    if (mmgr_text_equal(family, "key", PLATFORM_TEXT_TO_TERMINATOR))
     {
         const KdecodeBlob *const blob = kdecode_key_named(run, value);
         kdecode_decimal_displayed(value);
@@ -137,7 +141,7 @@ static void kdecode_column_printed(const KdecodeRun *run, const KdecodeOracle *o
             mmgr_line_put_n(&s_displayed, blob->name, blob->name_length);
         }
     }
-    else if (strcmp(family, "text") == 0)
+    else if (mmgr_text_equal(family, "text", PLATFORM_TEXT_TO_TERMINATOR))
     {
         kdecode_text_printed(run, 0ULL, value);
     }
@@ -159,7 +163,8 @@ static void kdecode_column_printed(const KdecodeRun *run, const KdecodeOracle *o
         mmgr_line_ch(&s_displayed, ' ');
         mmgr_line_put(&s_displayed, named);
     }
-    else if (kdecode_family_given(oracle, family) || (strcmp(family, "hash") == 0) || (either != NULL))
+    else if (kdecode_family_given(oracle, family) || (mmgr_text_equal(family, "hash", PLATFORM_TEXT_TO_TERMINATOR)) ||
+             (either != NULL))
     {
         kdecode_hex_displayed(value);
     }
@@ -347,7 +352,7 @@ int kdecode_table(const char *path, const char *table, int raw, unsigned long lo
     {
         kdecode_displayed_passed(1);
         mmgr_line_put(&s_displayed, run.failed ? "orior_kdecode: the run contains more than a walk retains\n"
-                                           : "orior_kdecode: the run could not be read whole\n");
+                                               : "orior_kdecode: the run could not be read whole\n");
         kdecode_failure_passed();
     }
     static KdecodeOracle s_oracle;
@@ -362,7 +367,7 @@ int kdecode_table(const char *path, const char *table, int raw, unsigned long lo
     mmgr_line_put(&oracle_line, table);
     mmgr_line_put(&oracle_line, ".oracle.tsv");
     mmgr_line_finish(&oracle_line);
-    const int texts = (strcmp(table, TABLE_TEXTS) == 0);
+    const int texts = (mmgr_text_equal(table, TABLE_TEXTS, PLATFORM_TEXT_TO_TERMINATOR));
     const int columned =
         !raw && !texts && kdecode_oracle_read(&run, oracle_path, &s_oracle, 0) && (s_oracle.columns != 0u);
     for (unsigned int at = 0u; columned && (at < s_oracle.columns); at += 1u)

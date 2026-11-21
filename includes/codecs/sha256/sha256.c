@@ -3,6 +3,7 @@
 // sha256.c: SHA-256 as FIPS 180-4 states it. The constants are section 4.2.2's and 5.3.3's, the functions section
 // 4.1.2's, the padding section 5.1.1's and the compression section 6.2.2's
 #include "sha256.h"
+#include "memoria_operor/memoria_linea.h"
 
 #include <limits.h>
 #include <string.h>
@@ -63,7 +64,7 @@ static void sha256_compress(unsigned int state[SHA256_STATE_WORDS], const unsign
     }
     // the working variables a to h of section 6.2.2 step 2, in that order
     unsigned int working[SHA256_STATE_WORDS];
-    memcpy(working, state, sizeof(working));
+    mmgr_bytes_copy(working, state, sizeof(working));
     for (unsigned int round = 0u; round < SHA256_SCHEDULE_WORDS; round += 1u)
     {
         const unsigned int big_sigma1 =
@@ -94,8 +95,9 @@ void sha256_bits(const void *data, unsigned long long bits, unsigned char digest
 {
     const unsigned char *const message = (const unsigned char *)data;
     unsigned int state[SHA256_STATE_WORDS];
-    memcpy(state, s_initial_state, sizeof(state));
-    // every whole block of the message, then the bytes past the last one, the padding positioned after them (section 5.1.1)
+    mmgr_bytes_copy(state, s_initial_state, sizeof(state));
+    // every whole block of the message, then the bytes past the last one, the padding positioned after them
+    // (section 5.1.1)
     const unsigned long long whole_bytes = bits / 8ULL;
     const unsigned int spare_bits = (unsigned int)(bits % 8ULL);
     const unsigned long long blocks = whole_bytes / SHA256_BLOCK_BYTES;
@@ -104,9 +106,9 @@ void sha256_bits(const void *data, unsigned long long bits, unsigned char digest
         sha256_compress(state, &message[block * SHA256_BLOCK_BYTES]);
     }
     unsigned char tail[2u * SHA256_BLOCK_BYTES];
-    memset(tail, 0, sizeof(tail));
+    mmgr_bytes_set(tail, 0, sizeof(tail));
     const size_t left = (size_t)(whole_bytes - (blocks * SHA256_BLOCK_BYTES));
-    memcpy(tail, &message[blocks * SHA256_BLOCK_BYTES], left);
+    mmgr_bytes_copy(tail, &message[blocks * SHA256_BLOCK_BYTES], left);
     // the bits of a byte the message ends partway through are its most significant, and the 1 the padding begins
     // with is the next bit down
     const unsigned int last_bits =

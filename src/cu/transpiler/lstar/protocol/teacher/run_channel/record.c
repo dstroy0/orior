@@ -3,6 +3,9 @@
 // record.c: the record: a question's identity, the record's answer to it, a question stored in the record, the
 // registers past, the record written, a line of the list, and the round passed
 #include "run_channel_internal.h"
+#include "../../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 // a question's identity as R stores it: the hash of its code, its registers, its shape and launches, its count of
 // cases and the hash of its cases, into `identity`
@@ -88,7 +91,8 @@ void run_channel_stored(const RunQuestion *question)
         answer = KQR_CENSORED;
         break;
     case RUN_NOTHING:
-        answer = (strstr(question->refused, interface_ending_name(INTERFACE_ENDING_OUT_OF_TIME)) != NULL)
+        answer = (mmgr_text_find(question->refused, interface_ending_name(INTERFACE_ENDING_OUT_OF_TIME),
+                                 PLATFORM_TEXT_TO_TERMINATOR) != NULL)
                      ? KQR_TIMED_OUT
                      : KQR_NOTHING;
         break;
@@ -103,7 +107,7 @@ void run_channel_stored(const RunQuestion *question)
     run_channel_identity(question, &identity);
     if (question->launches != 0u)
     {
-        memset(&s_sample, 0, sizeof(s_sample));
+        mmgr_bytes_set(&s_sample, 0, sizeof(s_sample));
         s_sample.identity = identity;
         s_sample.answer = answer;
         s_sample.nanoseconds = question->nanoseconds;
@@ -116,7 +120,7 @@ void run_channel_stored(const RunQuestion *question)
         kqr_sample(&s_record, &s_sample);
         return;
     }
-    memset(&s_stored, 0, sizeof(s_stored));
+    mmgr_bytes_set(&s_stored, 0, sizeof(s_stored));
     s_stored.identity = identity;
     s_stored.answer = answer;
     VerbaLinea refusal = {s_stored.refusal, sizeof(s_stored.refusal), 0ULL};
@@ -139,8 +143,9 @@ int run_channel_registers_past(const char *ksc)
     ksc_read(&s_file, ksc);
     for (unsigned int line = 0u; line < s_file.lines; line += 1u)
     {
-        if (ksc_row_read(s_file.line[line], "run", &s_row) && (strcmp(s_row.answer, "answers") == 0) &&
-            (strncmp(s_row.question, "register past", 13u) == 0) && (s_row.value != 0ULL) &&
+        if (ksc_row_read(s_file.line[line], "run", &s_row) &&
+            (mmgr_text_equal(s_row.answer, "answers", PLATFORM_TEXT_TO_TERMINATOR)) &&
+            (mmgr_text_starts(s_row.question, "register past", PLATFORM_TEXT_TO_TERMINATOR)) && (s_row.value != 0ULL) &&
             (s_row.value < RUN_REGISTERS_UNANSWERED))
         {
             // a count below the mark of no answer is one an unsigned int represents
@@ -193,7 +198,7 @@ void run_channel_list_line(unsigned int place, char *line)
     length = (length < (RUN_LINE_MAX_LEN - 1u)) ? length : (RUN_LINE_MAX_LEN - 1u);
     if (length != 0u)
     {
-        memcpy(line, s_channel_list + at, length);
+        mmgr_bytes_copy(line, s_channel_list + at, length);
     }
     line[length] = '\0';
 }
@@ -204,9 +209,8 @@ void run_channel_list_line(unsigned int place, char *line)
 // on disk, and then the round is not carried
 unsigned long long run_channel_round_passed(void)
 {
-    return qry_member_append("questions.txt", s_channel_list, s_channel.list_size, QRY_CRITICAL)
-               ? qry_member_settled()
-               : 0ULL;
+    return qry_member_append("questions.txt", s_channel_list, s_channel.list_size, QRY_CRITICAL) ? qry_member_settled()
+                                                                                                 : 0ULL;
 }
 
 char s_airlock_output[RUN_CARRIER_OUTPUT];

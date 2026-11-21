@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // zip_archive.c: opening an archive and walking its entries
 #include "zip_internal.h"
+#include "memoria_operor/memoria_linea.h"
 #include "zip_crc_tables.h"
 
 static const unsigned char zip_central[4u] = {'P', 'K', 0x01u, 0x02u};
@@ -50,9 +51,9 @@ unsigned long long zip_crc32(const unsigned char *bytes, unsigned long long leng
     for (; (length - at) >= 8ULL; at += 8ULL)
     {
         // the eight bytes as two little-endian words, assembled byte by byte so no alignment is required of `bytes`
-        const unsigned int low = crc ^ ((unsigned int)bytes[at] | ((unsigned int)bytes[at + 1ULL] << 8u) |
-                                        ((unsigned int)bytes[at + 2ULL] << 16u) |
-                                        ((unsigned int)bytes[at + 3ULL] << 24u));
+        const unsigned int low =
+            crc ^ ((unsigned int)bytes[at] | ((unsigned int)bytes[at + 1ULL] << 8u) |
+                   ((unsigned int)bytes[at + 2ULL] << 16u) | ((unsigned int)bytes[at + 3ULL] << 24u));
         const unsigned int high = (unsigned int)bytes[at + 4ULL] | ((unsigned int)bytes[at + 5ULL] << 8u) |
                                   ((unsigned int)bytes[at + 6ULL] << 16u) | ((unsigned int)bytes[at + 7ULL] << 24u);
         crc = zip_crc_slices[7][low & 0xFFu] ^ zip_crc_slices[6][(low >> 8u) & 0xFFu] ^
@@ -79,7 +80,7 @@ int zip_archive_open(const EngineIngestTools *tools, const char *path, ZipArchiv
     {
         return 0;
     }
-    memset(archive, 0, sizeof(*archive));
+    mmgr_bytes_set(archive, 0, sizeof(*archive));
     const long long size = tools->size(path);
     if (!ZIP_IO(size >= 0LL, path, error) || !ZIP_CHECK(size >= 22LL, path, error, ENGINE_ERROR_REQUEST))
     {
@@ -103,7 +104,7 @@ int zip_archive_open(const EngineIngestTools *tools, const char *path, ZipArchiv
     for (unsigned long long at = tail_bytes - 21ULL; (record == tail_bytes) && (at > 0ULL); at -= 1ULL)
     {
         const unsigned char *const candidate = tail + at - 1ULL;
-        const int signed_here = (memcmp(candidate, zip_end, sizeof zip_end) == 0);
+        const int signed_here = (mmgr_bytes_compare(candidate, zip_end, sizeof zip_end) == 0);
         record =
             (signed_here && ((at - 1ULL + 22ULL + zip_load(candidate + 20u, 2u)) == tail_bytes)) ? (at - 1ULL) : record;
     }
@@ -123,7 +124,7 @@ int zip_archive_open(const EngineIngestTools *tools, const char *path, ZipArchiv
     free(tail);
     unsigned char locator[20u];
     const int located = (end_offset >= 20ULL) && zip_fetch(tools, path, end_offset - 20ULL, 20ULL, locator) &&
-                        (memcmp(locator, zip_wide_locator, sizeof zip_wide_locator) == 0);
+                        (mmgr_bytes_compare(locator, zip_wide_locator, sizeof zip_wide_locator) == 0);
     if (located)
     {
         const unsigned long long record_offset = zip_load(locator + 8u, 8u);
@@ -132,7 +133,8 @@ int zip_archive_open(const EngineIngestTools *tools, const char *path, ZipArchiv
                            (record_offset <= end_offset) && ((end_offset - record_offset) >= 56ULL),
                        locator, error, ENGINE_ERROR_REQUEST) ||
             !ZIP_IO(zip_fetch(tools, path, record_offset, 56ULL, wide), wide, error) ||
-            !ZIP_CHECK(memcmp(wide, zip_wide_end, sizeof zip_wide_end) == 0, wide, error, ENGINE_ERROR_REQUEST))
+            !ZIP_CHECK(mmgr_bytes_compare(wide, zip_wide_end, sizeof zip_wide_end) == 0, wide, error,
+                       ENGINE_ERROR_REQUEST))
         {
             return 0;
         }
@@ -177,7 +179,7 @@ void zip_archive_release(ZipArchive *archive)
 {
     free(archive->directory);
     free(archive->entry_at);
-    memset(archive, 0, sizeof(*archive));
+    mmgr_bytes_set(archive, 0, sizeof(*archive));
 }
 
 int zip_entry_next(const ZipArchive *archive, unsigned long long *at, ZipEntry *entry, EngineError *error)
@@ -189,7 +191,7 @@ int zip_entry_next(const ZipArchive *archive, unsigned long long *at, ZipEntry *
         return 0;
     }
     const unsigned char *const fixed = archive->directory + start;
-    if (!ZIP_CHECK(memcmp(fixed, zip_central, sizeof zip_central) == 0, fixed, error, ENGINE_ERROR_REQUEST))
+    if (!ZIP_CHECK(mmgr_bytes_compare(fixed, zip_central, sizeof zip_central) == 0, fixed, error, ENGINE_ERROR_REQUEST))
     {
         return 0;
     }

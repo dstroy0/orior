@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // dicom_parse.c: the parse of a file and the gathering of a series
 #include "dicom_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 static const char dicom_explicit_little[] = "1.2.840.10008.1.2.1";
 
@@ -28,12 +29,12 @@ static int dicom_transfer_syntax(const unsigned char *value, unsigned long long 
     }
     const unsigned long long explicit_length = sizeof(dicom_explicit_little) - 1u;
     const unsigned long long implicit_length = sizeof(dicom_implicit_little) - 1u;
-    if ((end == explicit_length) && (memcmp(value, dicom_explicit_little, (size_t)explicit_length) == 0))
+    if ((end == explicit_length) && (mmgr_bytes_compare(value, dicom_explicit_little, (size_t)explicit_length) == 0))
     {
         *explicit_vr = 1;
         return 1;
     }
-    if ((end == implicit_length) && (memcmp(value, dicom_implicit_little, (size_t)implicit_length) == 0))
+    if ((end == implicit_length) && (mmgr_bytes_compare(value, dicom_implicit_little, (size_t)implicit_length) == 0))
     {
         *explicit_vr = 0;
         return 1;
@@ -45,7 +46,8 @@ static int dicom_transfer_syntax(const unsigned char *value, unsigned long long 
 static int dicom_meta(DicomWalk *walk, int *explicit_vr, EngineError *error)
 {
     const unsigned char *const bytes = walk->bytes;
-    if (!DICOM_CHECK((walk->length >= (DICOM_PREAMBLE + 4ULL)) && (memcmp(bytes + DICOM_PREAMBLE, "DICM", 4u) == 0),
+    if (!DICOM_CHECK((walk->length >= (DICOM_PREAMBLE + 4ULL)) &&
+                         (mmgr_bytes_compare(bytes + DICOM_PREAMBLE, "DICM", 4u) == 0),
                      bytes, error, ENGINE_ERROR_REQUEST))
     {
         return 0;
@@ -70,12 +72,11 @@ static int dicom_meta(DicomWalk *walk, int *explicit_vr, EngineError *error)
     return DICOM_CHECK(*explicit_vr >= 0, bytes, error, ENGINE_ERROR_REQUEST);
 }
 
-int dicom_side_decimal_list(const EngineSideBytes *side, unsigned long long leaf, unsigned int group,
-                            unsigned int tag, unsigned int want, DicomDecimal *out, unsigned int *found,
-                            EngineError *error)
+int dicom_side_decimal_list(const EngineSideBytes *side, unsigned long long leaf, unsigned int group, unsigned int tag,
+                            unsigned int want, DicomDecimal *out, unsigned int *found, EngineError *error)
 {
-    if (!DICOM_CHECK((side != NULL) && (out != NULL) && (found != NULL) && (leaf < side->leaves) && (want != 0u),
-                     side, error, ENGINE_ERROR_REQUEST))
+    if (!DICOM_CHECK((side != NULL) && (out != NULL) && (found != NULL) && (leaf < side->leaves) && (want != 0u), side,
+                     error, ENGINE_ERROR_REQUEST))
     {
         return 0;
     }
@@ -267,7 +268,7 @@ void dicom_resident_release(void)
     free(resident->order);
     free(resident->path);
     free(resident->member);
-    memset(resident, 0, sizeof(*resident));
+    mmgr_bytes_set(resident, 0, sizeof(*resident));
 }
 
 static int dicom_prefix_length(const unsigned char *name, unsigned long long length, unsigned long long *prefix)
@@ -296,8 +297,8 @@ static int dicom_gather_slice(void *context, unsigned long long item)
     const DicomGatherWork *const work = (const DicomGatherWork *)context;
     DicomSlice *const slice = &work->slices[item];
     EngineError *const error = &work->errors[item];
-    return (zip_span_member(work->tools, work->span, &work->entries[item], slice->member, slice->member_bytes,
-                            error) != ZIP_ERROR) &&
+    return (zip_span_member(work->tools, work->span, &work->entries[item], slice->member, slice->member_bytes, error) !=
+            ZIP_ERROR) &&
            dicom_parse(slice, error);
 }
 
@@ -337,7 +338,8 @@ int dicom_gather(const EngineIngestTools *tools, const char *path, const ZipArch
             series = entry.name;
             series_length = prefix;
         }
-        ok = DICOM_CHECK(named && (prefix == series_length) && (memcmp(entry.name, series, (size_t)prefix) == 0),
+        ok = DICOM_CHECK(named && (prefix == series_length) &&
+                             (mmgr_bytes_compare(entry.name, series, (size_t)prefix) == 0),
                          entry.name, error, ENGINE_ERROR_REQUEST);
         DicomSlice *const slice = ok ? &resident->slices[resident->count] : NULL;
         if (!ok)
@@ -353,7 +355,7 @@ int dicom_gather(const EngineIngestTools *tools, const char *path, const ZipArch
         {
             continue;
         }
-        memcpy(slice->name, entry.name, (size_t)entry.name_length);
+        mmgr_bytes_copy(slice->name, entry.name, (size_t)entry.name_length);
         slice->name[entry.name_length] = '\0';
         slice->name_length = entry.name_length;
         slice->member_crc = entry.crc;
@@ -361,7 +363,7 @@ int dicom_gather(const EngineIngestTools *tools, const char *path, const ZipArch
     }
     ok = ok && DICOM_CHECK(resident->count != 0ULL, archive, error, ENGINE_ERROR_REQUEST);
     ZipSpan span;
-    memset(&span, 0, sizeof(span));
+    mmgr_bytes_set(&span, 0, sizeof(span));
     ok = ok && zip_span_read(tools, path, archive, entries, resident->count, &span, error);
     const DicomGatherWork work = {tools, &span, entries, resident->slices, errors};
     if (ok && (tools->each != NULL))

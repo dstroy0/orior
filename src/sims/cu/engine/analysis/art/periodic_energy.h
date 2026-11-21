@@ -4,6 +4,7 @@
 #define PERIODIC_ENERGY_H
 
 #include "sim.h"
+#include "memoria_operor/memoria_linea.h"
 
 #define ENERGY_THREADS 128ULL
 
@@ -87,8 +88,7 @@ static inline unsigned long long energy_members(unsigned long long length, unsig
 }
 
 static inline int energy_ratio(const long long *values, unsigned long long length, const long long *sums,
-                               unsigned long long period, OriorExactInteger *numerator,
-                               OriorExactInteger *denominator)
+                               unsigned long long period, OriorExactInteger *numerator, OriorExactInteger *denominator)
 {
     if ((period < 2ULL) || (period >= length))
     {
@@ -197,7 +197,7 @@ static inline int energy_recover(SimResults *results, const long long *values, u
 static inline void energy_shuffle(const long long *values, long long *shuffled, unsigned long long length,
                                   unsigned long long key)
 {
-    memcpy(shuffled, values, (size_t)length * sizeof(long long));
+    mmgr_bytes_copy(shuffled, values, (size_t)length * sizeof(long long));
     // fewer than two values shuffle to themselves, and length - 1 would wrap at 0
     if (length < 2ULL)
     {
@@ -350,8 +350,8 @@ static inline int energy_welford(SimResults *results, const long long *values, u
 }
 
 static inline int energy_reduction(const long long *noisy, const long long *target, unsigned long long length,
-                                   unsigned long long period, const long long *phase_sums,
-                                   OriorExactInteger *numerator, OriorExactInteger *denominator)
+                                   unsigned long long period, const long long *phase_sums, OriorExactInteger *numerator,
+                                   OriorExactInteger *denominator)
 {
     const unsigned long long fewer = length / period;
     const unsigned long long more = fewer + 1ULL;

@@ -7,6 +7,9 @@
 #define _POSIX_C_SOURCE 200809L
 #endif
 #include "../qry_writer_internal.h"
+#include "../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #if !defined(_WIN32)
 #include <errno.h>
@@ -30,7 +33,7 @@ static void qry_shared_named(const char *path, char *name)
     {
         hash = (hash ^ (unsigned char)*at) * 0x100000001b3ULL;
     }
-    memcpy(name, s_prefix, sizeof(s_prefix) - 1u);
+    mmgr_bytes_copy(name, s_prefix, sizeof(s_prefix) - 1u);
     for (unsigned int digit = 0u; digit < 16u; digit += 1u)
     {
         name[sizeof(s_prefix) - 1u + digit] = s_digits[(hash >> (60u - (4u * digit))) & 0xfULL];
@@ -104,7 +107,7 @@ int qry_writer_file_closed(long long file)
 static void qry_writer_folder_synced(const char *path)
 {
     char folder[QRY_WRITER_TOP_MAX_LEN + QRY_NAME_MAX_LEN + 2u];
-    const size_t length = strlen(path);
+    const size_t length = mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR);
     const char *const cut = strrchr(path, '/');
     if ((cut == NULL) || (length >= sizeof(folder)))
     {
@@ -112,7 +115,7 @@ static void qry_writer_folder_synced(const char *path)
     }
     // the cut is inside the path; its place is therefore not negative and below its length
     const size_t folder_len = (cut == path) ? 1u : (size_t)(cut - path);
-    memcpy(folder, path, folder_len);
+    mmgr_bytes_copy(folder, path, folder_len);
     folder[folder_len] = '\0';
     const int opened = open(folder, O_RDONLY | O_CLOEXEC);
     if (opened >= 0)
@@ -312,8 +315,8 @@ void qry_member_file_unmapped(const unsigned char *bytes, unsigned long long siz
 {
     if ((bytes != NULL) && (size != 0ULL))
     {
-        // the map took the bytes whole, and a size_t counts their size. The call munmap writes nothing through the address
-        // that it takes, which passes through an integer to reach its parameter
+        // the map took the bytes whole, and a size_t counts their size. The call munmap writes nothing through the
+        // address that it takes, which passes through an integer to reach its parameter
         munmap((void *)(uintptr_t)bytes, (size_t)size);
     }
 }
@@ -327,12 +330,12 @@ int qry_member_named(char *path, size_t room)
         const size_t named = sizeof(QRY_ENVIRONMENT) - 1u;
         if ((strncmp(*each, QRY_ENVIRONMENT, named) == 0) && ((*each)[named] == '='))
         {
-            const size_t length = strlen(*each + named + 1u);
+            const size_t length = mmgr_text_length(*each + named + 1u, PLATFORM_TEXT_TO_TERMINATOR);
             if ((length == 0u) || (length >= room))
             {
                 return 0;
             }
-            memcpy(path, *each + named + 1u, length + 1u);
+            mmgr_bytes_copy(path, *each + named + 1u, length + 1u);
             return 1;
         }
     }

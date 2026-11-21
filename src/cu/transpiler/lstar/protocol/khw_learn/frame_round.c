@@ -3,6 +3,7 @@
 // frame_round.c: the frame round: each place of the kernel put at the probe place in its variants over cases that reach
 // a second block, and the places that answered retained as forms
 #include "khw_learn_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 // one variant of a place: the encoding and the place it came from
 typedef struct
@@ -86,8 +87,8 @@ static void khw_place_varied(const KhwAnswered *probed_form, const KhwFrameField
     const unsigned int immediate_last = fields->immediate_first + fields->immediate_bits - 1u;
     for (unsigned int at = first; (opening != 0) && fields->immediate && (at < last); at += 1u)
     {
-        const unsigned long long is = khw_run_read(variants[at].low, variants[at].high, fields->immediate_first,
-                                                       immediate_last);
+        const unsigned long long is =
+            khw_run_read(variants[at].low, variants[at].high, fields->immediate_first, immediate_last);
         // 0 first, then each immediate a retained place contains; a variant that contains one already is that variant
         for (unsigned int each = 0u; (is != 0ULL) && (each <= fields->known_immediates); each += 1u)
         {
@@ -170,7 +171,7 @@ unsigned int khw_frame_round(const KhwAnswered *probed_form, int discover)
     static unsigned int s_pooled_at[2u * KHW_PLACES * KHW_VARIANTS_A_PLACE];
     unsigned int variants = 0u;
     KhwFrameFields fields;
-    memset(&fields, 0, sizeof(fields));
+    mmgr_bytes_set(&fields, 0, sizeof(fields));
     fields.guarded = khw_field_read("guard", &fields.guard_first, &fields.guard_bits);
     fields.every_predicate = fields.guarded ? ((1ULL << fields.guard_bits) - 1ULL) : 0ULL;
     fields.immediate = khw_field_read("immediate", &fields.immediate_first, &fields.immediate_bits);
@@ -221,7 +222,7 @@ unsigned int khw_frame_round(const KhwAnswered *probed_form, int discover)
             continue;
         }
         KhwAnswered form;
-        memset(&form, 0, sizeof(form));
+        mmgr_bytes_set(&form, 0, sizeof(form));
         form.low = s_variants[at].low;
         form.high = s_variants[at].high;
         // a variant the set's form answers for already, a turn of it, is that form, and enters nowhere

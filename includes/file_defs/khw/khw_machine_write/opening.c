@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // opening.c: the place the least opening begins at and the probe place, each read from the part's .ksc
 #include "opening.h"
+#include "../../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include "../../ksc/ksc.h"
 
@@ -18,8 +20,9 @@ static unsigned int opening_row_read(const char *ksc_path, const char *question,
     ksc_read(&s_file, ksc_path);
     for (unsigned int at = 0u; at < s_file.lines; at += 1u)
     {
-        if (ksc_row_read(s_file.line[at], "run", &s_row) && (strcmp(s_row.answer, "answers") == 0) &&
-            (strncmp(s_row.question, question, strlen(question)) == 0))
+        if (ksc_row_read(s_file.line[at], "run", &s_row) &&
+            (mmgr_text_equal(s_row.answer, "answers", PLATFORM_TEXT_TO_TERMINATOR)) &&
+            (strncmp(s_row.question, question, mmgr_text_length(question, PLATFORM_TEXT_TO_TERMINATOR)) == 0))
         {
             word = (unsigned int)s_row.value;
         }
@@ -48,7 +51,8 @@ int khw_guard_field_read(const char *ksc_path, unsigned int *first, unsigned int
         char name[64];
         unsigned int from = 0u;
         unsigned int width = 0u;
-        if (ksc_field_read(s_file.line[at], name, sizeof(name), &from, &width) && (strcmp(name, "guard") == 0))
+        if (ksc_field_read(s_file.line[at], name, sizeof(name), &from, &width) &&
+            (mmgr_text_equal(name, "guard", PLATFORM_TEXT_TO_TERMINATOR)))
         {
             *first = from;
             *bits = width;

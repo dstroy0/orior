@@ -3,6 +3,8 @@
 // class.c: an instruction's class read off the vendor's instruction set for rules 2 and 3: whether the operation the
 // class is named for transfers control or waits, whatever name the machine file's form gives the encoding
 #include "cubin_safe_internal.h"
+#include "../../../../../platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include "../tables/read.h"
 
@@ -27,7 +29,7 @@ int cubin_class_control_or_wait(const struct TablesSetTag *tables, unsigned long
     }
     operation[length] = '\0';
     // an EXIT is the walk's own to read: the one with no guard ends the code, and the others fall through
-    if (strcmp(operation, "EXIT") == 0)
+    if (mmgr_text_equal(operation, "EXIT", PLATFORM_TEXT_TO_TERMINATOR))
     {
         return 0;
     }

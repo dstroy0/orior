@@ -3,6 +3,9 @@
 // ruling.c: the ruling: a lesson stored, what the overseer stated, the conference convened and ruled, the admission of
 // a blocked encoding, what the lessons admit and block, and the lessons read, passed and cleared
 #include "overseer_internal.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "verba_scribo/verba_scribo.h"
 #include "../table_text.h"
 #include "../../../../../../includes/parsers/who.h"
@@ -13,7 +16,8 @@ static int overseer_lesson_stored(unsigned int cause, const char *carrier, const
 {
     for (unsigned int at = 0u; at < s_lesson_count; at += 1u)
     {
-        if ((strcmp(s_lessons[at].located, located) == 0) && (strcmp(s_lessons[at].carrier, carrier) == 0))
+        if ((mmgr_text_equal(s_lessons[at].located, located, PLATFORM_TEXT_TO_TERMINATOR)) &&
+            (mmgr_text_equal(s_lessons[at].carrier, carrier, PLATFORM_TEXT_TO_TERMINATOR)))
         {
             return 0;
         }
@@ -23,8 +27,16 @@ static int overseer_lesson_stored(unsigned int cause, const char *carrier, const
         return 0;
     }
     s_lessons[s_lesson_count].cause = cause;
-    (void)verba_finis.finish(&(VerbaFinisCfg){.out = s_lessons[s_lesson_count].carrier, .cap = OVERSEER_CARRIER_MAX_LEN, .at = verba_textus.put_clip(&(VerbaTextusCfg){.out = s_lessons[s_lesson_count].carrier, .cap = OVERSEER_CARRIER_MAX_LEN, .at = 0u, .text = carrier})});
-    (void)verba_finis.finish(&(VerbaFinisCfg){.out = s_lessons[s_lesson_count].located, .cap = OVERSEER_STANDING_MAX_LEN, .at = verba_textus.put_clip(&(VerbaTextusCfg){.out = s_lessons[s_lesson_count].located, .cap = OVERSEER_STANDING_MAX_LEN, .at = 0u, .text = located})});
+    (void)verba_finis.finish(&(VerbaFinisCfg){
+        .out = s_lessons[s_lesson_count].carrier,
+        .cap = OVERSEER_CARRIER_MAX_LEN,
+        .at = verba_textus.put_clip(&(VerbaTextusCfg){
+            .out = s_lessons[s_lesson_count].carrier, .cap = OVERSEER_CARRIER_MAX_LEN, .at = 0u, .text = carrier})});
+    (void)verba_finis.finish(&(VerbaFinisCfg){
+        .out = s_lessons[s_lesson_count].located,
+        .cap = OVERSEER_STANDING_MAX_LEN,
+        .at = verba_textus.put_clip(&(VerbaTextusCfg){
+            .out = s_lessons[s_lesson_count].located, .cap = OVERSEER_STANDING_MAX_LEN, .at = 0u, .text = located})});
     s_lesson_count += 1u;
     return 1;
 }
@@ -32,8 +44,12 @@ static int overseer_lesson_stored(unsigned int cause, const char *carrier, const
 // `text` added to the end of the ruling's words, cut at their room
 static void overseer_text_added(OverseerRuling *ruling, const char *text)
 {
-    const size_t length = strlen(ruling->text);
-    (void)verba_finis.finish(&(VerbaFinisCfg){.out = ruling->text + length, .cap = sizeof(ruling->text) - length, .at = verba_textus.put_clip(&(VerbaTextusCfg){.out = ruling->text + length, .cap = sizeof(ruling->text) - length, .at = 0u, .text = text})});
+    const size_t length = mmgr_text_length(ruling->text, PLATFORM_TEXT_TO_TERMINATOR);
+    (void)verba_finis.finish(&(VerbaFinisCfg){
+        .out = ruling->text + length,
+        .cap = sizeof(ruling->text) - length,
+        .at = verba_textus.put_clip(&(VerbaTextusCfg){
+            .out = ruling->text + length, .cap = sizeof(ruling->text) - length, .at = 0u, .text = text})});
 }
 
 // the conference and the panic call, each every record of its name the run contains, gathered
@@ -42,8 +58,8 @@ static unsigned char s_call[QRY_WRITER_RING_BYTES / 2ULL];
 
 int overseer_convened(QryShared *run, const char *identity, int other_way_put, OverseerRuling *ruling)
 {
-    memset(ruling, 0, sizeof(*ruling));
-    memset(&s_conference_tally, 0, sizeof(s_conference_tally));
+    mmgr_bytes_set(ruling, 0, sizeof(*ruling));
+    mmgr_bytes_set(&s_conference_tally, 0, sizeof(s_conference_tally));
     OverseerTally *const tally = &s_conference_tally;
     char name[OVERSEER_NAME_MAX_LEN];
     overseer_conference_named(identity, name);
@@ -56,7 +72,7 @@ int overseer_convened(QryShared *run, const char *identity, int other_way_put, O
         return 0;
     }
     // the conference named in each row of it by the number of the question's identity
-    const unsigned long long question = table_text(identity, strlen(identity));
+    const unsigned long long question = table_text(identity, mmgr_text_length(identity, PLATFORM_TEXT_TO_TERMINATOR));
     overseer_accounts_read(tally, conference, conference_size, NULL, 0ULL, run, question);
     // a panic on the line: every party's account of it received too, those the conference already contains received
     // once
@@ -145,12 +161,12 @@ int overseer_convened(QryShared *run, const char *identity, int other_way_put, O
     const int stated = (tally->located[0] != '\0') && (tally->carrier[0] != '\0');
     const unsigned int cause = ruling->cause;
     const int are_in = (cause == OVERSEER_CAUSE_INSTRUCTION) ||
-                         ((cause == OVERSEER_CAUSE_REGISTER) && tally->scratch) ||
-                         ((cause == OVERSEER_CAUSE_ADDRESS) && tally->addresses) ||
-                         ((cause == OVERSEER_CAUSE_TIME) && tally->controls) ||
-                         ((cause == OVERSEER_CAUSE_EXCEPTION) && (tally->addresses || tally->controls));
+                       ((cause == OVERSEER_CAUSE_REGISTER) && tally->scratch) ||
+                       ((cause == OVERSEER_CAUSE_ADDRESS) && tally->addresses) ||
+                       ((cause == OVERSEER_CAUSE_TIME) && tally->controls) ||
+                       ((cause == OVERSEER_CAUSE_EXCEPTION) && (tally->addresses || tally->controls));
     ruling->side = (!agreed || !stated) ? (unsigned int)OVERSEER_SIDE_UNKNOWN
-                   : are_in           ? (unsigned int)OVERSEER_SIDE_STAND_IN
+                   : are_in             ? (unsigned int)OVERSEER_SIDE_STAND_IN
                                         : (unsigned int)OVERSEER_SIDE_CONTEXT;
     if (ruling->side == OVERSEER_SIDE_STAND_IN)
     {
@@ -187,12 +203,13 @@ int overseer_convened(QryShared *run, const char *identity, int other_way_put, O
         {
             // the lesson a row of the run's table of lessons: its conference, its cause, its carrier, `*` at every
             // carrier, and the stand-in as written
-            unsigned long long lesson[2u + 4] = {0ULL,
-                                                 0ULL,
-                                                 question,
-                                                 cause,
-                                                 table_text(carrier, strlen(carrier)),
-                                                 table_text(tally->located, strlen(tally->located))};
+            unsigned long long lesson[2u + 4] = {
+                0ULL,
+                0ULL,
+                question,
+                cause,
+                table_text(carrier, mmgr_text_length(carrier, PLATFORM_TEXT_TO_TERMINATOR)),
+                table_text(tally->located, mmgr_text_length(tally->located, PLATFORM_TEXT_TO_TERMINATOR))};
             who_words(WHO_HERE, lesson);
             qry_member_append(OVERSEER_LESSONS_TABLE, lesson, sizeof(lesson), QRY_ORDINARY);
         }
@@ -213,16 +230,17 @@ int overseer_convened(QryShared *run, const char *identity, int other_way_put, O
     overseer_account(run, identity, "overseer", ruling->text);
     // the conference a row of the run's table of conferences: the ruling, its accounts received, the lesson where one
     // was taught, and its words
-    unsigned long long ruled[2u + 8] = {0ULL,
-                                        0ULL,
-                                        question,
-                                        ruling->agreed ? 1ULL : 0ULL,
-                                        ruling->cause,
-                                        ruling->side,
-                                        ruling->guidance,
-                                        ruling->accounts,
-                                        ruling->taught ? 1ULL : 0ULL,
-                                        table_text(ruling->text, strlen(ruling->text))};
+    unsigned long long ruled[2u + 8] = {
+        0ULL,
+        0ULL,
+        question,
+        ruling->agreed ? 1ULL : 0ULL,
+        ruling->cause,
+        ruling->side,
+        ruling->guidance,
+        ruling->accounts,
+        ruling->taught ? 1ULL : 0ULL,
+        table_text(ruling->text, mmgr_text_length(ruling->text, PLATFORM_TEXT_TO_TERMINATOR))};
     who_words(WHO_HERE, ruled);
     qry_member_append(OVERSEER_CONFERENCES_TABLE, ruled, sizeof(ruled), QRY_ORDINARY);
     return 1;
@@ -230,8 +248,8 @@ int overseer_convened(QryShared *run, const char *identity, int other_way_put, O
 
 int overseer_admission(QryShared *run, const char *identity, const char *encoding, OverseerRuling *ruling)
 {
-    memset(ruling, 0, sizeof(*ruling));
-    memset(&s_conference_tally, 0, sizeof(s_conference_tally));
+    mmgr_bytes_set(ruling, 0, sizeof(*ruling));
+    mmgr_bytes_set(&s_conference_tally, 0, sizeof(s_conference_tally));
     OverseerTally *const tally = &s_conference_tally;
     char name[OVERSEER_NAME_MAX_LEN];
     overseer_conference_named(identity, name);
@@ -242,7 +260,7 @@ int overseer_admission(QryShared *run, const char *identity, const char *encodin
     {
         return 0;
     }
-    const unsigned long long question = table_text(identity, strlen(identity));
+    const unsigned long long question = table_text(identity, mmgr_text_length(identity, PLATFORM_TEXT_TO_TERMINATOR));
     overseer_accounts_read(tally, conference, conference_size, NULL, 0ULL, run, question);
     ruling->accounts = tally->accounts;
     if (tally->accounts == 0u)
@@ -276,9 +294,13 @@ int overseer_admission(QryShared *run, const char *identity, const char *encodin
         ruling->taught = overseer_lesson_stored((unsigned int)OVERSEER_CAUSE_ADMITTED, "*", encoding);
         if (ruling->taught)
         {
-            unsigned long long lesson[2u + 4] = {0ULL, 0ULL, question, (unsigned int)OVERSEER_CAUSE_ADMITTED,
-                                                  table_text("*", 1u),
-                                                  table_text(encoding, strlen(encoding))};
+            unsigned long long lesson[2u + 4] = {
+                0ULL,
+                0ULL,
+                question,
+                (unsigned int)OVERSEER_CAUSE_ADMITTED,
+                table_text("*", 1u),
+                table_text(encoding, mmgr_text_length(encoding, PLATFORM_TEXT_TO_TERMINATOR))};
             who_words(WHO_HERE, lesson);
             qry_member_append(OVERSEER_LESSONS_TABLE, lesson, sizeof(lesson), QRY_ORDINARY);
             overseer_lessons_passed(run);
@@ -293,16 +315,17 @@ int overseer_admission(QryShared *run, const char *identity, const char *encodin
                                                           : "; passes off: a party blocks it");
     }
     overseer_account(run, identity, "overseer", ruling->text);
-    unsigned long long ruled[2u + 8] = {0ULL,
-                                        0ULL,
-                                        question,
-                                        ruling->agreed ? 1ULL : 0ULL,
-                                        ruling->cause,
-                                        ruling->side,
-                                        ruling->guidance,
-                                        ruling->accounts,
-                                        ruling->taught ? 1ULL : 0ULL,
-                                        table_text(ruling->text, strlen(ruling->text))};
+    unsigned long long ruled[2u + 8] = {
+        0ULL,
+        0ULL,
+        question,
+        ruling->agreed ? 1ULL : 0ULL,
+        ruling->cause,
+        ruling->side,
+        ruling->guidance,
+        ruling->accounts,
+        ruling->taught ? 1ULL : 0ULL,
+        table_text(ruling->text, mmgr_text_length(ruling->text, PLATFORM_TEXT_TO_TERMINATOR))};
     who_words(WHO_HERE, ruled);
     qry_member_append(OVERSEER_CONFERENCES_TABLE, ruled, sizeof(ruled), QRY_ORDINARY);
     return admitted;
@@ -319,7 +342,7 @@ int overseer_admits(unsigned long long low, unsigned long long high)
     for (unsigned int at = 0u; at < s_lesson_count; at += 1u)
     {
         if ((s_lessons[at].cause == (unsigned int)OVERSEER_CAUSE_ADMITTED) &&
-            (strcmp(s_lessons[at].located, encoding) == 0))
+            (mmgr_text_equal(s_lessons[at].located, encoding, PLATFORM_TEXT_TO_TERMINATOR)))
         {
             return 1;
         }
@@ -338,8 +361,9 @@ int overseer_blocks(const char *located, const char *carrier, char *why, size_t 
         {
             continue;
         }
-        if ((strcmp(lesson->located, joined) == 0) &&
-            ((strcmp(lesson->carrier, "*") == 0) || (strcmp(lesson->carrier, carrier) == 0)))
+        if ((mmgr_text_equal(lesson->located, joined, PLATFORM_TEXT_TO_TERMINATOR)) &&
+            ((mmgr_text_equal(lesson->carrier, "*", PLATFORM_TEXT_TO_TERMINATOR)) ||
+             (mmgr_text_equal(lesson->carrier, carrier, PLATFORM_TEXT_TO_TERMINATOR))))
         {
             VerbaLinea why_line = {why, room, 0ULL};
             mmgr_line_put(&why_line, "overseen: the conference blocked it, its cause ");

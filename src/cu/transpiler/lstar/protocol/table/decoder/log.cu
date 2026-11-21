@@ -3,6 +3,7 @@
 // log.cu: the log read off the run into the puts, case sets, metas, categories and choices, and each pair's set,
 // product and identity decoded off its puts
 #include "decoder_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 #include "../../../../../../../includes/file_defs/qry/qry_read.h"
 
@@ -12,7 +13,7 @@ static unsigned char s_log[QRY_WRITER_RING_BYTES / 2ULL];
 // `record` joined to the log where it is a record of the log and fits: 1, or 0 where it does not fit
 static int log_record_joined(const QryRecord *record, unsigned long long *size)
 {
-    if ((record->name_length != 3u) || (memcmp(QRY_RECORD_NAME(record), "log", 3u) != 0))
+    if ((record->name_length != 3u) || (mmgr_bytes_compare(QRY_RECORD_NAME(record), "log", 3u) != 0))
     {
         return 1;
     }
@@ -21,7 +22,7 @@ static int log_record_joined(const QryRecord *record, unsigned long long *size)
         return 0;
     }
     // a record fits half a ring, whose bytes a size_t counts
-    memcpy(s_log + *size, QRY_RECORD_BLOB(record), (size_t)record->blob_length);
+    mmgr_bytes_copy(s_log + *size, QRY_RECORD_BLOB(record), (size_t)record->blob_length);
     *size += record->blob_length;
     return 1;
 }
@@ -140,8 +141,18 @@ int Decoding::log_read(const char *qry)
         }
         else if (std::regex_match(line, found, s_put))
         {
-            puts.push_back(LoggedPut{found[2].str(), found[1].str(), found[3].str(), std::string(), std::string(), {},
-                                     came_back, case_sets.empty() ? 0u : case_sets.size() - 1u, {}, {}, {}, {}});
+            puts.push_back(LoggedPut{found[2].str(),
+                                     found[1].str(),
+                                     found[3].str(),
+                                     std::string(),
+                                     std::string(),
+                                     {},
+                                     came_back,
+                                     case_sets.empty() ? 0u : case_sets.size() - 1u,
+                                     {},
+                                     {},
+                                     {},
+                                     {}});
             came_back.clear();
             block_answered = 0;
         }
@@ -181,7 +192,8 @@ int Decoding::log_read(const char *qry)
             std::string side;
             std::string value;
             words >> side;
-            std::vector<unsigned long long> &values = (side == "from") ? puts.back().writes_from : puts.back().writes_to;
+            std::vector<unsigned long long> &values =
+                (side == "from") ? puts.back().writes_from : puts.back().writes_to;
             while ((words >> value) && (value != "refused"))
             {
                 values.push_back(std::stoull(value, nullptr, 16));
@@ -232,8 +244,7 @@ void Decoding::products_decoded(const char *engine)
         const std::string key = pair_key(put.from, put.to);
         // a put past the pair's first case apart requires nothing of its verdict, and records its product alone
         concept_product_made(put.reads, put.writes_from, put.writes_to, pair_cased[key], &products[key]);
-        if ((put.came_back == "recorded") || (put.came_back == "refused") || put.came_back.empty() ||
-            case_sets.empty())
+        if ((put.came_back == "recorded") || (put.came_back == "refused") || put.came_back.empty() || case_sets.empty())
         {
             continue;
         }

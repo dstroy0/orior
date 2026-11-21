@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // knf_identity_sections.cu: entangling, draws, sections and motions
 #include "knf_identity_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 static const unsigned int s_knf_axis_order[6][SIM_AXES] = {{0u, 1u, 2u}, {0u, 2u, 1u}, {1u, 0u, 2u},
                                                            {1u, 2u, 0u}, {2u, 0u, 1u}, {2u, 1u, 0u}};
@@ -11,7 +12,7 @@ static const unsigned int s_knf_axis_order[6][SIM_AXES] = {{0u, 1u, 2u}, {0u, 2u
 void knf_entangle(const KnfRecord *record, const unsigned int *map, unsigned long long tile,
                   const unsigned short *boxes, KnfEntangled *result)
 {
-    memset(result, 0, sizeof(*result));
+    mmgr_bytes_set(result, 0, sizeof(*result));
     const unsigned long long side = record->side;
     for (unsigned long long depth = 0ULL; depth < side; depth += 1ULL)
     {
@@ -312,8 +313,8 @@ void knf_motions(SimResults *results, const unsigned short *lanes, unsigned shor
         KnfEntangled turned;
         knf_entangle(moved_record, NULL, side, NULL, &turned);
         retained += knf_wide_equal(&turned.inside, &whole.inside) ? 1ULL : 0ULL;
-        cloud_count += (memcmp(moved_record->cloud, record->cloud,
-                               (size_t)(KNF_WINDOWS * KNF_WINDOWS) * sizeof(unsigned long long)) == 0)
+        cloud_count += (mmgr_bytes_compare(moved_record->cloud, record->cloud,
+                                           (size_t)(KNF_WINDOWS * KNF_WINDOWS) * sizeof(unsigned long long)) == 0)
                            ? 1ULL
                            : 0ULL;
     }

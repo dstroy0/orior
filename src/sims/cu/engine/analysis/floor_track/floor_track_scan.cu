@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // floor_track_scan.cu: range, query, bodies, the scan and gating
 #include "floor_track_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 // the positions of one plane word whose value lies in [low, high], from the top bit down by ands and ors alone: a
 // value stays equal to a bound while its bits agree, and leaves above the low bound or below the high one at the
@@ -142,7 +143,7 @@ void track_control_bodies(SimBody *body, unsigned long long frames)
 void track_scan(const TrackQuery *query, const unsigned short *floor_values, unsigned int *expected)
 {
     const long long side = (long long)TRACK_FLOOR_SIDE;
-    memset(expected, 0, (size_t)TRACK_WORDS * sizeof(unsigned int));
+    mmgr_bytes_set(expected, 0, (size_t)TRACK_WORDS * sizeof(unsigned int));
     for (long long position = 0LL; position < (long long)TRACK_FLOOR_VALUES; position += 1LL)
     {
         int ok = 1;

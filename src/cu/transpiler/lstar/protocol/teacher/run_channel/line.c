@@ -3,6 +3,8 @@
 // line.c: the line: a gate block on an unknown operation key read, the conference a fault or refusal calls, the line a
 // panic opens ruled on and closed, the halt, and what the teacher reported
 #include "run_channel_internal.h"
+#include "../../../../../../platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 int run_channel_key_gated(const char *refused)
 {
@@ -25,7 +27,7 @@ char s_cases_text[RUN_CASES_TEXT];
 // `message` passed to the run's trace: where there is no run, it is reported to none
 void run_channel_trace_line(const char *message)
 {
-    qry_member_append("trace", message, strlen(message), QRY_ORDINARY);
+    qry_member_append("trace", message, mmgr_text_length(message, PLATFORM_TEXT_TO_TERMINATOR), QRY_ORDINARY);
 }
 
 // `message` written as the refusal of `question`, cut at the room the refusal has
@@ -93,7 +95,8 @@ void run_channel_conference_called(const RunQuestion *question, const char *how,
     mmgr_line_put(&name_line, identity);
     mmgr_line_finish(&name_line);
     // a blob's name takes no space: each space of the identity an underscore
-    for (char *space = strchr(name, ' '); space != NULL; space = strchr(space, ' '))
+    for (char *space = mmgr_text_char(name, ' ', PLATFORM_TEXT_TO_TERMINATOR); space != NULL;
+         space = mmgr_text_char(space, ' ', PLATFORM_TEXT_TO_TERMINATOR))
     {
         *space = '_';
     }
@@ -237,7 +240,7 @@ void run_channel_panic_written(unsigned int questions, unsigned long long round,
     mmgr_line_decimal(&line, answered, 0u);
     mmgr_line_put(&line, " answered before it ended; the question it was carrying: ");
     mmgr_line_put_max(&line, carrying, RUN_LINE_MAX_LEN);
-    if ((carrying[0] == '\0') || (carrying[strlen(carrying) - 1u] != '\n'))
+    if ((carrying[0] == '\0') || (carrying[mmgr_text_length(carrying, PLATFORM_TEXT_TO_TERMINATOR) - 1u] != '\n'))
     {
         mmgr_line_ch(&line, '\n');
     }

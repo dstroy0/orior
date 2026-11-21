@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // zarr_chunks.c: checksums, keys, codecs and placing a chunk
 #include "zarr_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 static unsigned int zarr_crc32c_step(unsigned int crc, unsigned int byte)
 {
@@ -137,7 +138,7 @@ long long zarr_unchain(const ZarrWalk *walk, const ZarrChain *chain, unsigned ch
         {
             return ZARR_ERROR;
         }
-        memcpy(out, raw, (size_t)expected);
+        mmgr_bytes_copy(out, raw, (size_t)expected);
         return (long long)expected;
     }
     if (chain->count != 1u)
@@ -189,7 +190,7 @@ void zarr_place(const ZarrWalk *walk, const unsigned long long *position, const 
         identity &= (unsigned int)(layout->order[axis] == axis);
     }
     unsigned long long counter[ENGINE_ARRAY_RANK];
-    memset(counter, 0, sizeof(counter));
+    mmgr_bytes_set(counter, 0, sizeof(counter));
     unsigned long long source = 0ULL;
     const unsigned long long last = (rank != 0u) ? stored[rank - 1u] : 1ULL;
     const unsigned long long step = (identity != 0u) ? last : 1ULL;
@@ -221,8 +222,8 @@ void zarr_place(const ZarrWalk *walk, const unsigned long long *position, const 
                     layout->extent.sizes[rank - 1u] - (origin[rank - 1u] + counter[rank - 1u]);
                 run = (run < remaining) ? run : remaining;
             }
-            memcpy(&request->out[target * element_bytes], &walk->chunk[source * element_bytes],
-                   (size_t)(run * element_bytes));
+            mmgr_bytes_copy(&request->out[target * element_bytes], &walk->chunk[source * element_bytes],
+                            (size_t)(run * element_bytes));
         }
         source += step;
         for (unsigned int axis = rank; axis > 0u; axis -= 1u)

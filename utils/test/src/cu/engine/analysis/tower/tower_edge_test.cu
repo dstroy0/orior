@@ -5,6 +5,7 @@
 // exactly, the edges actually change the crystal, and a table that is not a permutation errors.
 
 #include "../../../../../../../src/cu/engine/analysis/tower/tower.h"
+#include "../../../../../../../src/platform/platform.h"
 
 #include <cuda_runtime.h>
 
@@ -170,8 +171,10 @@ static long tower_test_trip(const TowerRig *rig, const TowerEdge *edges, unsigne
     return 0L;
 }
 
-int main(void)
+int program_main(int count, char **arguments)
 {
+    (void)count;
+    (void)arguments;
     TowerRig rig;
     memset(&rig, 0, sizeof(rig));
     rig.extent[0] = 1ull;

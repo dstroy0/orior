@@ -3,6 +3,7 @@
 // sha512.c: SHA-512 as FIPS 180-4 states it. The constants are section 4.2.3's and 5.3.5's, the functions section
 // 4.1.3's, the padding section 5.1.2's and the compression section 6.4.2's
 #include "sha512.h"
+#include "memoria_operor/memoria_linea.h"
 
 #include <limits.h>
 #include <string.h>
@@ -75,7 +76,7 @@ static void sha512_compress(unsigned long long state[SHA512_STATE_WORDS], const 
         schedule[round] = small_sigma1 + schedule[round - 7u] + small_sigma0 + schedule[round - 16u];
     }
     unsigned long long work[SHA512_STATE_WORDS];
-    memcpy(work, state, sizeof(work));
+    mmgr_bytes_copy(work, state, sizeof(work));
     for (unsigned int round = 0u; round < SHA512_SCHEDULE_WORDS; round += 1u)
     {
         const unsigned long long big_sigma1 =
@@ -103,7 +104,7 @@ static void sha512_compress(unsigned long long state[SHA512_STATE_WORDS], const 
 
 void sha512_begun(Sha512 *sha)
 {
-    memcpy(sha->state, s_initial_state, sizeof(sha->state));
+    mmgr_bytes_copy(sha->state, s_initial_state, sizeof(sha->state));
     sha->buffered = 0u;
     sha->taken = 0ULL;
 }
@@ -117,7 +118,7 @@ void sha512_taken(Sha512 *sha, const void *data, size_t bytes)
     {
         const size_t room = SHA512_BLOCK_BYTES - sha->buffered;
         const size_t piece = (left < room) ? left : room;
-        memcpy(sha->block + sha->buffered, at, piece);
+        mmgr_bytes_copy(sha->block + sha->buffered, at, piece);
         // a piece is at max the block's 128 bytes, which an unsigned int represents
         sha->buffered += (unsigned int)piece;
         at += piece;
@@ -139,11 +140,11 @@ void sha512_ended(Sha512 *sha, unsigned char digest[SHA512_BYTES])
     sha->buffered += 1u;
     if (sha->buffered > (SHA512_BLOCK_BYTES - SHA512_LENGTH_BYTES))
     {
-        memset(sha->block + sha->buffered, 0, SHA512_BLOCK_BYTES - sha->buffered);
+        mmgr_bytes_set(sha->block + sha->buffered, 0, SHA512_BLOCK_BYTES - sha->buffered);
         sha512_compress(sha->state, sha->block);
         sha->buffered = 0u;
     }
-    memset(sha->block + sha->buffered, 0, SHA512_BLOCK_BYTES - sha->buffered);
+    mmgr_bytes_set(sha->block + sha->buffered, 0, SHA512_BLOCK_BYTES - sha->buffered);
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
         // each byte of the length shifted down to its own retains only that byte

@@ -13,6 +13,8 @@
 //
 // Exit 0 with the seeds on the standard output; 1 where the listing did not read; 2 where the words are not these
 #include <stdio.h>
+#include "../../../../platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -79,7 +81,7 @@ static int seed_accepted(unsigned long long low, unsigned long long high, int mo
 
 int main(int count, char **word)
 {
-    const int modifiers = (count == 3) && (strcmp(word[2], "--modifiers") == 0);
+    const int modifiers = (count == 3) && (mmgr_text_equal(word[2], "--modifiers", PLATFORM_TEXT_TO_TERMINATOR));
     if ((count < 2) || (count > 3) || ((count == 3) && !modifiers))
     {
         printf("orior_sass_listing_seeds <listing.sass> [--modifiers]\n");
@@ -98,11 +100,13 @@ int main(int count, char **word)
     int accepted = 1;
     while (accepted && (fgets(line, sizeof(line), listing) != NULL))
     {
-        for (const char *at = strstr(line, "/* 0x"); at != NULL; at = strstr(at + 5, "/* 0x"))
+        for (const char *at = mmgr_text_find(line, "/* 0x", PLATFORM_TEXT_TO_TERMINATOR); at != NULL;
+             at = mmgr_text_find(at + 5, "/* 0x", PLATFORM_TEXT_TO_TERMINATOR))
         {
             char *end = NULL;
             const unsigned long long value = strtoull(at + 5, &end, 16);
-            if ((end == NULL) || ((end - (at + 5)) != 16) || (strncmp(end, " */", 3u) != 0))
+            if ((end == NULL) || ((end - (at + 5)) != 16) ||
+                (!mmgr_text_starts(end, " */", PLATFORM_TEXT_TO_TERMINATOR)))
             {
                 continue;
             }

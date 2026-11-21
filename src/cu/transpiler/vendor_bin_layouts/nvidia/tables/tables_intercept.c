@@ -13,6 +13,7 @@
 // own, never freed.
 #define _GNU_SOURCE
 #include <dlfcn.h>
+#include "memoria_operor/memoria_linea.h"
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
@@ -89,7 +90,7 @@ static void tables_record(const void *at, const void *from, size_t size)
     s_recording = 0;
 }
 
-void *memcpy(void *restrict dest, const void *restrict src, size_t num)
+void *mmgr_bytes_copy(void *restrict dest, const void *restrict src, size_t num)
 {
     tables_found();
     if (s_memcpy == NULL)
@@ -182,7 +183,7 @@ void *calloc(size_t count, size_t size)
         void *const at = tables_arena(count * size);
         if (at != NULL)
         {
-            memset(at, 0, count * size);
+            mmgr_bytes_set(at, 0, count * size);
         }
         return at;
     }
@@ -201,7 +202,7 @@ void *realloc(void *at, size_t size)
         void *const moved = malloc(size);
         if (moved != NULL)
         {
-            memcpy(moved, at, (size < left) ? size : left);
+            mmgr_bytes_copy(moved, at, (size < left) ? size : left);
         }
         return moved;
     }

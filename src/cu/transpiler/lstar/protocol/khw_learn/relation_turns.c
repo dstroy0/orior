@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // relation_turns.c: the relation: the turning case, and the turns queried
 #include "khw_learn_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 // The turning case of `form` into `stage`: for a ladder form, the first case of its relation whose readings in the
 // register pass are apart (khw_turning_words), in the order the form reads its words, so that a changed answer is a
@@ -87,7 +88,7 @@ static void khw_turns_read(KhwAnswered *form, unsigned int at, unsigned long lon
                            unsigned int turning)
 {
     int turned[KHW_TURN_LAST + 1u];
-    memset(turned, 0, sizeof(turned));
+    mmgr_bytes_set(turned, 0, sizeof(turned));
     for (unsigned int run = 0u; (turning != 0u) && (form->phase == KHW_PHASE_TURNED) && (run < form->runs); run += 1u)
     {
         for (unsigned int bit = form->first[run]; (bit <= form->last[run]) && (bit <= KHW_TURN_LAST); bit += 1u)
@@ -112,7 +113,7 @@ static void khw_turns_read(KhwAnswered *form, unsigned int at, unsigned long lon
 void khw_turns_queried(KhwAnswered *form, const unsigned int word[1][2])
 {
     KhwStaged stage;
-    memset(&stage, 0, sizeof(stage));
+    mmgr_bytes_set(&stage, 0, sizeof(stage));
     if (!khw_turning_case(form, &stage))
     {
         stage.word[0][0] = word[0][0];
@@ -224,7 +225,7 @@ unsigned int khw_fields_turns(KhwAnswered *const *forms, unsigned int count)
         for (unsigned int turning = 0u; staged < KHW_FORMS; turning += 1u)
         {
             KhwStaged stage;
-            memset(&stage, 0, sizeof(stage));
+            mmgr_bytes_set(&stage, 0, sizeof(stage));
             stage.turning = turning;
             if (((turning != 0u) && !predicate) || !khw_turning_case(forms[at], &stage))
             {

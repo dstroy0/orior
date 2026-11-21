@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // omega_computer_terms.cu: terms: counting, unranking, parsing, reduction
 #include "omega_computer_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 // the closed-under-k count of n-bit codes; k past n - 1 counts as n - 1
 unsigned long long omega_computer_count(const OmegaComputerCounts *counts, unsigned int length, unsigned int depth)
@@ -16,7 +17,7 @@ unsigned long long omega_computer_count(const OmegaComputerCounts *counts, unsig
 
 void omega_computer_count_all(OmegaComputerCounts *counts, unsigned int max)
 {
-    memset(counts->count, 0, sizeof(counts->count));
+    mmgr_bytes_set(counts->count, 0, sizeof(counts->count));
     for (unsigned int length = 2u; length <= max; length += 1u)
     {
         for (unsigned int depth = 0u; depth < length; depth += 1u)
@@ -270,7 +271,7 @@ int omega_computer_grows_forever(const std::vector<int> &stored, const std::vect
         const size_t size = stored_ends[from] - from;
         for (unsigned int to = from + 1u; to <= range; to += 1u)
         {
-            if (((ends[to] - to) == size) && (memcmp(&stored[from], &term[to], size * sizeof(int)) == 0))
+            if (((ends[to] - to) == size) && (mmgr_bytes_compare(&stored[from], &term[to], size * sizeof(int)) == 0))
             {
                 return 1;
             }

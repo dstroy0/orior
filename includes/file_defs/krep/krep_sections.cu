@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // krep_sections.cu: the crystal, side, history, bodies and forms
 #include "krep_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 extern "C" int krep_crystal_head(const char *path, EngineStream *stream, EngineSignum *root, EngineError *error)
 {
@@ -13,7 +14,7 @@ extern "C" int krep_crystal_head(const char *path, EngineStream *stream, EngineS
     {
         return 0;
     }
-    memset(stream, 0, sizeof(*stream));
+    mmgr_bytes_set(stream, 0, sizeof(*stream));
     unsigned long long head[KREP_CRYSTAL_HEAD_WORDS];
     FILE *const crystal = fopen(path, "rb");
     int ok = krep_crystal_head_from(path, crystal, stream, head, error);
@@ -42,12 +43,12 @@ extern "C" int krep_crystal_read(const KrepCrystalRequest *request)
     }
     EngineStream *const stream = request->stream;
     EngineSeal *const seal = request->seal;
-    memset(stream, 0, sizeof(*stream));
-    memset(seal, 0, sizeof(*seal));
+    mmgr_bytes_set(stream, 0, sizeof(*stream));
+    mmgr_bytes_set(seal, 0, sizeof(*seal));
     unsigned long long head[KREP_CRYSTAL_HEAD_WORDS];
     EngineSideSection discarded;
     EngineSideSection *const side_section = (request->section != NULL) ? request->section : &discarded;
-    memset(side_section, 0, sizeof(*side_section));
+    mmgr_bytes_set(side_section, 0, sizeof(*side_section));
     FILE *const crystal = fopen(request->path, "rb");
     int ok = krep_crystal_head_from(request->path, crystal, stream, head, error) &&
              krep_seal_read(crystal, head, seal, error);
@@ -83,7 +84,7 @@ extern "C" void krep_seal_release(EngineSeal *seal)
 {
     free(seal->lane_nodes);
     free(seal->chunk_leaves);
-    memset(seal, 0, sizeof(*seal));
+    mmgr_bytes_set(seal, 0, sizeof(*seal));
 }
 
 extern "C" void krep_side_release(EngineSideSection *section)
@@ -98,7 +99,7 @@ extern "C" void krep_side_release(EngineSideSection *section)
     free(side->member_crc);
     free(side->member_bytes);
     free(section->packed);
-    memset(section, 0, sizeof(*section));
+    mmgr_bytes_set(section, 0, sizeof(*section));
 }
 
 extern "C" void krep_crystal_release(EngineStream *stream)
@@ -152,7 +153,7 @@ extern "C" int krep_history_read(const char *path, EngineHistory *history, unsig
     {
         return 0;
     }
-    memset(history, 0, sizeof(*history));
+    mmgr_bytes_set(history, 0, sizeof(*history));
     FILE *const back = fopen(path, "rb");
     unsigned long long head[4] = {0ULL, 0ULL, 0ULL, 0ULL};
     int ok = KREP_IO(back != NULL, path, error) &&
@@ -240,7 +241,7 @@ extern "C" int krep_bodies_read(const char *path, EngineBodyTable *table, Engine
     {
         return 0;
     }
-    memset(table, 0, sizeof(*table));
+    mmgr_bytes_set(table, 0, sizeof(*table));
     FILE *const back = fopen(path, "rb");
     unsigned long long counts[3] = {0ULL, 0ULL, 0ULL};
     int ok = KREP_IO(back != NULL, path, error) && KREP_IO(krep_head_read(back, KREP_KIND_BODIES) != 0, back, error) &&
@@ -321,7 +322,7 @@ extern "C" int krep_forms_read(const char *path, KrepFormTable *table, EngineErr
     {
         return 0;
     }
-    memset(table, 0, sizeof(*table));
+    mmgr_bytes_set(table, 0, sizeof(*table));
     FILE *const back = fopen(path, "rb");
     unsigned long long counts[3] = {0ULL, 0ULL, 0ULL};
     int ok =

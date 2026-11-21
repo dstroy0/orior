@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // hdf5_object.c: layout, pipeline, links and symbol tables
 #include "hdf5_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 static Hdf5Walk hdf5_object_layout(Hdf5File *file, Hdf5Object *object, Hdf5Cursor *cursor)
 {
@@ -35,7 +36,7 @@ static Hdf5Walk hdf5_object_layout(Hdf5File *file, Hdf5Object *object, Hdf5Curso
         }
         if (size > 0ULL)
         {
-            memcpy(object->compact, data, (size_t)size);
+            mmgr_bytes_copy(object->compact, data, (size_t)size);
         }
         return HDF5_WALK_ON;
     }
@@ -153,7 +154,7 @@ void hdf5_object_close(Hdf5Object *object)
 
 int hdf5_object_open(Hdf5File *file, unsigned long long address, Hdf5Object *object)
 {
-    memset(object, 0, sizeof(*object));
+    mmgr_bytes_set(object, 0, sizeof(*object));
     object->compact = NULL;
     if (hdf5_header_walk(file, address, hdf5_object_message, object) == HDF5_WALK_FAILED)
     {
@@ -219,7 +220,7 @@ Hdf5Walk hdf5_group_message(Hdf5File *file, void *state, unsigned int type, unsi
 static int hdf5_name_after(const unsigned char *name, size_t length, const unsigned char *last, size_t last_length)
 {
     const size_t shared = (length < last_length) ? length : last_length;
-    const int order = memcmp(name, last, shared);
+    const int order = mmgr_bytes_compare(name, last, shared);
     return (order > 0) || ((order == 0) && (length > last_length));
 }
 
@@ -231,7 +232,7 @@ static Hdf5Walk hdf5_table_symbols(Hdf5File *file, Hdf5GroupWalk *walk, const un
     {
         return HDF5_WALK_FAILED;
     }
-    if ((memcmp(head, "SNOD", 4u) != 0) || (head[4u] != 1u))
+    if ((mmgr_bytes_compare(head, "SNOD", 4u) != 0) || (head[4u] != 1u))
     {
         return hdf5_walk_error(file, "a symbol table node whose signature does not match");
     }
@@ -285,7 +286,7 @@ static Hdf5Walk hdf5_table_node(Hdf5File *file, Hdf5GroupWalk *walk, const unsig
     }
     const unsigned int node_level = prefix[5u];
     const size_t entries = (size_t)hdf5_little(&prefix[6u], 2u);
-    if ((memcmp(prefix, "TREE", 4u) != 0) || (prefix[4u] != 0u) || (!root && (node_level != level)))
+    if ((mmgr_bytes_compare(prefix, "TREE", 4u) != 0) || (prefix[4u] != 0u) || (!root && (node_level != level)))
     {
         return hdf5_walk_error(file, "a group B-tree node whose signature, type or level is wrong");
     }
@@ -334,7 +335,7 @@ Hdf5Walk hdf5_table_links(Hdf5File *file, Hdf5GroupWalk *walk)
     {
         return HDF5_WALK_FAILED;
     }
-    if ((memcmp(prefix, "HEAP", 4u) != 0) || (prefix[4u] != 0u))
+    if ((mmgr_bytes_compare(prefix, "HEAP", 4u) != 0) || (prefix[4u] != 0u))
     {
         return hdf5_walk_error(file, "a local heap whose signature does not match");
     }

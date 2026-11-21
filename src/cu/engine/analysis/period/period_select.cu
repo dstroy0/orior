@@ -393,8 +393,7 @@ extern "C" int period_print(const PeriodMeasurement *measurement, FILE *file)
     }
     VerbaLinea line;
     line.capacity = PERIOD_ROW_TEXT * ((unsigned long long)measurement->rank + 1ULL);
-    line.out = (char *)platform_cell_taken((unsigned long long)((size_t)line.capacity),
-                                           (unsigned int)platform_place_g_engine_owner, 0);
+    line.out = (char *)malloc((size_t)line.capacity);
     line.at = 0ULL;
     if (line.out == NULL)
     {
@@ -445,6 +444,6 @@ extern "C" int period_print(const PeriodMeasurement *measurement, FILE *file)
         mmgr_line_put(&line, ")\n");
     }
     const int written = (mmgr_line_ok(&line) && (fwrite(line.out, 1u, mmgr_line_finish(&line), file) == line.at));
-    platform_cell_released(line.out, (unsigned int)platform_place_g_engine_owner);
+    free(line.out);
     return written;
 }

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // zstd_literals.c: Huffman streams, literals, tables and copies
 #include "zstd_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 static const ZstdTableKind zstd_weight_type = {NULL, 0u, 0u, ZSTD_WEIGHT_SYMBOLS, ZSTD_WEIGHT_ACCURACY_MAXIMUM};
 
@@ -165,7 +166,7 @@ int zstd_literals(ZstdDecoder *decoder, ZstdSpan *input)
         }
         else
         {
-            memset(decoder->literal_buffer, input->bytes[0u], (size_t)regenerated);
+            mmgr_bytes_set(decoder->literal_buffer, input->bytes[0u], (size_t)regenerated);
             decoder->literals = decoder->literal_buffer;
         }
         decoder->literal_count = regenerated;
@@ -271,8 +272,7 @@ int zstd_table_prepare(ZstdSpan *input, unsigned int mode, const ZstdTableKind *
 int zstd_output_fits(const ZstdDecoder *decoder, unsigned long long length)
 {
     const unsigned long long block_written = decoder->written - decoder->block_start;
-    return (length <= (decoder->out_capacity - decoder->written)) &&
-           (length <= (decoder->block_max - block_written));
+    return (length <= (decoder->out_capacity - decoder->written)) && (length <= (decoder->block_max - block_written));
 }
 
 int zstd_literal_copy(ZstdDecoder *decoder, unsigned long long length)
@@ -281,7 +281,7 @@ int zstd_literal_copy(ZstdDecoder *decoder, unsigned long long length)
     {
         return 0;
     }
-    memmove(&decoder->out[decoder->written], &decoder->literals[decoder->literals_used], (size_t)length);
+    mmgr_bytes_move(&decoder->out[decoder->written], &decoder->literals[decoder->literals_used], (size_t)length);
     decoder->literals_used += length;
     decoder->written += length;
     return 1;
@@ -298,7 +298,7 @@ int zstd_match_copy(ZstdDecoder *decoder, unsigned long long offset, unsigned lo
     const unsigned char *const source = target - offset;
     if (offset >= length)
     {
-        memcpy(target, source, (size_t)length);
+        mmgr_bytes_copy(target, source, (size_t)length);
     }
     else
     {

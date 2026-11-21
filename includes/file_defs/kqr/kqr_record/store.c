@@ -3,6 +3,9 @@
 // store.c: the record stored: tabled and written by a who, freed, a query found and stored, a sample stored, a mark
 // made, an query, a sample and a path read, the paths cleared and added, and the text form rendered and sliced
 #include "../../../parsers/who.h"
+#include "../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "kqr_internal.h"
 
 int kqr_tabled_by(KqrRecord *record, QryShared *buffer, const char *path, Who who)
@@ -20,7 +23,7 @@ void kqr_free(KqrRecord *record)
     krep_free(&record->file);
     free(record->slot);
     free(record->sample);
-    memset(record, 0, sizeof(*record));
+    mmgr_bytes_set(record, 0, sizeof(*record));
 }
 
 int kqr_find(const KqrRecord *record, const KqrIdentity *identity, KqrQuery *out)
@@ -108,7 +111,7 @@ void kqr_mark(KqrRecord *record, unsigned int code, const char *value)
     {
         word = kqr_text_number(record, value);
     }
-    else if (!kqr_number_read(value, strlen(value), 10, &word))
+    else if (!kqr_number_read(value, mmgr_text_length(value, PLATFORM_TEXT_TO_TERMINATOR), 10, &word))
     {
         return;
     }
@@ -164,7 +167,7 @@ int kqr_path_read(const KqrRecord *record, unsigned int at, KqrPath *out)
         }
         if (seen == at)
         {
-            memset(out, 0, sizeof(*out));
+            mmgr_bytes_set(out, 0, sizeof(*out));
             kqr_text_copied(record, pair->word[0], out->first, sizeof(out->first));
             kqr_text_copied(record, pair->word[1], out->second, sizeof(out->second));
             out->read = (pair->word[2] != 0ULL);
@@ -345,7 +348,7 @@ size_t kqr_text_sliced(const KqrRecord *record, char *out, size_t cap, size_t at
             text_character('\n');
             break;
         case KQR_PAIR_RECORD:
-            memset(&s_path, 0, sizeof(s_path));
+            mmgr_bytes_set(&s_path, 0, sizeof(s_path));
             kqr_text_copied(record, entry->word[0], s_path.first, sizeof(s_path.first));
             kqr_text_copied(record, entry->word[1], s_path.second, sizeof(s_path.second));
             kqr_text_copied(record, entry->word[4], s_path.verdict, sizeof(s_path.verdict));

@@ -34,10 +34,13 @@ case "$(uname -s)" in
         ;;
 esac
 
-INCLUDES=(-I "$TOP/src/cu/engine" -I "$INTERFACE")
+# the interface compares and copies through MMgr, whose sources the test compiles beside it
+source "$TOP/includes/file_defs/file_defs.sh"
+INCLUDES=(-I "$TOP/src/cu/engine" -I "$INTERFACE" "${FILE_DEFS_MMGR_FLAGS[@]}")
 rm -f "$BINARY" "$PROBE"
 OBJECTS=()
-for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" "$TEST/interface_test.c"; do
+for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" "$TEST/interface_test.c" \
+    "${FILE_DEFS_LINEA[@]}"; do
     object="$OUT/$(basename "$source" .c).$EXTENSION"
     rm -f "$object"
     case "$(uname -s)" in

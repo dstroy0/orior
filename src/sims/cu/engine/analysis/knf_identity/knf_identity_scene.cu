@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // knf_identity_scene.cu: wide arithmetic, the scene, the camera and the pairs
 #include "knf_identity_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 void knf_wide_add(KnfWide *sum, long long term)
 {
@@ -41,8 +42,7 @@ void knf_exact_total(const KnfEntangled *entangled, OriorExactInteger *total)
     sim_exact_sum(&inside, &seam, total);
 }
 
-void knf_departure_of(const OriorExactInteger *truth, const OriorExactInteger *drawn_sum,
-                      OriorExactInteger *departure)
+void knf_departure_of(const OriorExactInteger *truth, const OriorExactInteger *drawn_sum, OriorExactInteger *departure)
 {
     OriorExactInteger scaled;
     sim_exact_scaled(truth, KNF_DRAWS, &scaled);
@@ -51,7 +51,7 @@ void knf_departure_of(const OriorExactInteger *truth, const OriorExactInteger *d
 
 void knf_scene(SimScene *scene, SimBody *body, int with_bodies)
 {
-    memset(scene, 0, sizeof(*scene));
+    mmgr_bytes_set(scene, 0, sizeof(*scene));
     scene->frames = KNF_FRAMES;
     for (unsigned int axis = 0u; axis < SIM_AXES; axis += 1u)
     {
@@ -95,7 +95,7 @@ void knf_scene(SimScene *scene, SimBody *body, int with_bodies)
 
 void knf_camera(SimCamera *camera, unsigned long long key, unsigned long long pattern_range)
 {
-    memset(camera, 0, sizeof(*camera));
+    mmgr_bytes_set(camera, 0, sizeof(*camera));
     camera->key = key;
     camera->offset = 100ULL;
     camera->gain = 1ULL;
@@ -107,7 +107,7 @@ void knf_camera(SimCamera *camera, unsigned long long key, unsigned long long pa
 void knf_boxes(const SimScene *scene, KnfBox *box, unsigned short *boxes)
 {
     const unsigned long long side = scene->extent[0];
-    memset(boxes, 0, (size_t)(side * side * side) * sizeof(unsigned short));
+    mmgr_bytes_set(boxes, 0, (size_t)(side * side * side) * sizeof(unsigned short));
     for (unsigned int index = 0u; index < scene->bodies; index += 1u)
     {
         const SimBody *const body = &scene->body[index];
@@ -191,13 +191,13 @@ static void knf_center(KnfRecord *record)
 int knf_project(SimResults *results, const unsigned short *lanes, KnfRecord *record)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     EngineHistory history;
-    memset(&history, 0, sizeof(history));
+    mmgr_bytes_set(&history, 0, sizeof(history));
     history.history = record->history;
     history.cloud = record->cloud;
     EntropyHistoryProjectRequest request;
-    memset(&request, 0, sizeof(request));
+    mmgr_bytes_set(&request, 0, sizeof(request));
     request.volume = lanes;
     request.extent[0] = KNF_FRAMES;
     for (unsigned int axis = 0u; axis < SIM_AXES; axis += 1u)

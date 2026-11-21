@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // parquet_column.c: one column chunk's pages, decoded to its values' bytes and its levels
 #include "parquet_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 // page types
 #define PARQUET_DATA_PAGE 0u
@@ -176,7 +177,7 @@ static int parquet_hybrid_decode(const ParquetHybridRead *read)
 static int parquet_page_header_read(ParquetCursor *cursor, ParquetPageHeader *header)
 {
     long long field_id = 0LL;
-    memset(header, 0, sizeof(*header));
+    mmgr_bytes_set(header, 0, sizeof(*header));
     header->values_compressed = 1u;
     for (unsigned int type = parquet_field_read(cursor, &field_id); type != PARQUET_THRIFT_STOP;
          type = parquet_field_read(cursor, &field_id))
@@ -344,15 +345,15 @@ static int parquet_dictionary_page_decode(ParquetColumnWalk *walk, const Parquet
     return 1;
 }
 
-// the levels of one page, decoded into the scratch and stored in `levels` at levels_done, each a byte. The call does not
-// store a level whose ceiling is zero, and that level decodes to zeros. The call refuses a level past its ceiling
+// the levels of one page, decoded into the scratch and stored in `levels` at levels_done, each a byte. The call does
+// not store a level whose ceiling is zero, and that level decodes to zeros. The call refuses a level past its ceiling
 static int parquet_levels_store(ParquetColumnWalk *walk, const ParquetHybridRead *read, unsigned int max,
                                 unsigned char *levels)
 {
     unsigned char *const into = levels + walk->levels_done;
     if (max == 0u)
     {
-        memset(into, 0, (size_t)read->value_count);
+        mmgr_bytes_set(into, 0, (size_t)read->value_count);
         return 1;
     }
     if (!parquet_hybrid_decode(read))
@@ -616,13 +617,13 @@ void parquet_column_release(ParquetColumn *column)
     free(column->lengths.bytes);
     free(column->definition);
     free(column->repetition);
-    memset(column, 0, sizeof(*column));
+    mmgr_bytes_set(column, 0, sizeof(*column));
 }
 
 int parquet_column_read(const EngineIngestTools *tools, const char *path, const ParquetFooter *footer,
                         unsigned int row_group, unsigned int leaf, ParquetColumn *column, EngineError *error)
 {
-    memset(column, 0, sizeof(*column));
+    mmgr_bytes_set(column, 0, sizeof(*column));
     if (!PARQUET_CHECK((row_group < footer->row_group_count) && (leaf < footer->leaf_count), footer, error,
                        ENGINE_ERROR_REQUEST))
     {
@@ -631,7 +632,7 @@ int parquet_column_read(const EngineIngestTools *tools, const char *path, const 
     const ParquetLeaf *const schema_leaf = &footer->leaf[leaf];
     const ParquetChunk *const chunk = &footer->row_group[row_group].chunk[leaf];
     ParquetColumnWalk walk;
-    memset(&walk, 0, sizeof(walk));
+    mmgr_bytes_set(&walk, 0, sizeof(walk));
     walk.tools = tools;
     walk.leaf = schema_leaf;
     walk.chunk = chunk;

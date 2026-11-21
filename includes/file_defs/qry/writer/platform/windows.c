@@ -3,6 +3,9 @@
 // windows.c: the run on Windows: the shared memory a named section reserved whole and given memory as it is used, the
 // .qry a file handle, the one clock the performance counter, and the pause a sleep
 #include "../qry_writer_internal.h"
+#include "../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #if defined(_WIN32)
 #define NOMINMAX
@@ -37,7 +40,7 @@ static void qry_shared_named(const char *path, char *name)
                                                                       : (unsigned char)*at;
         hash = (hash ^ folded) * 0x100000001b3ULL;
     }
-    memcpy(name, s_prefix, sizeof(s_prefix) - 1u);
+    mmgr_bytes_copy(name, s_prefix, sizeof(s_prefix) - 1u);
     for (unsigned int digit = 0u; digit < 16u; digit += 1u)
     {
         name[sizeof(s_prefix) - 1u + digit] = s_digits[(hash >> (60u - (4u * digit))) & 0xfULL];
@@ -111,8 +114,8 @@ int qry_writer_file_removed(const char *path)
 }
 
 // A replace fails with `ERROR_SHARING_VIOLATION` while another process holds the file in its place open without
-// `FILE_SHARE_DELETE`. Such a hold is short: a reader opens the file, reads it and closes it. The replace tries again every
-// QRY_PLACED_PAUSE_MS for QRY_PLACED_TRIES tries at max, and fails after them
+// `FILE_SHARE_DELETE`. Such a hold is short: a reader opens the file, reads it and closes it. The replace tries again
+// every QRY_PLACED_PAUSE_MS for QRY_PLACED_TRIES tries at max, and fails after them
 #define QRY_PLACED_TRIES 50u
 #define QRY_PLACED_PAUSE_MS 10u
 
@@ -145,14 +148,14 @@ int qry_writer_stream_put(const char *qry, const char *name, unsigned int name_l
                           unsigned long long size)
 {
     char path[QRY_WRITER_TOP_MAX_LEN + QRY_NAME_MAX_LEN + 2u];
-    const size_t length = strlen(qry);
+    const size_t length = mmgr_text_length(qry, PLATFORM_TEXT_TO_TERMINATOR);
     if ((length >= QRY_WRITER_TOP_MAX_LEN) || (name_length > QRY_NAME_MAX_LEN))
     {
         return 0;
     }
-    memcpy(path, qry, length);
+    mmgr_bytes_copy(path, qry, length);
     path[length] = ':';
-    memcpy(path + length + 1u, name, name_length);
+    mmgr_bytes_copy(path + length + 1u, name, name_length);
     path[length + 1u + name_length] = '\0';
     wchar_t wide[QRY_WIDE_MAX_LEN];
     const HANDLE file = qry_wide(path, wide)

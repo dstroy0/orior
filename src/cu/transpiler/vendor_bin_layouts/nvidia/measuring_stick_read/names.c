@@ -3,6 +3,9 @@
 // names.c: the names: a name stored, copied and numbered, a kernel named, a line read and spaced, a guard and a form's
 // guard, and the operation of a line
 #include "stick_internal.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 // the table of names: each operation's name at its number, and a hash of the names to their numbers
 char **s_name;
@@ -31,7 +34,7 @@ void *stick_allocated(void *pointer)
 char *stick_copy(const char *text, size_t length)
 {
     char *const copy = (char *)stick_allocated(malloc(length + 1u));
-    memcpy(copy, text, length);
+    mmgr_bytes_copy(copy, text, length);
     copy[length] = '\0';
     return copy;
 }
@@ -148,13 +151,13 @@ size_t stick_form_guard(const char *text)
 int stick_operation_of(const char *line, unsigned int *operation)
 {
     const char *at = stick_spaced(line);
-    if (strncmp(at, "/*", 2u) != 0)
+    if (!mmgr_text_starts(at, "/*", PLATFORM_TEXT_TO_TERMINATOR))
     {
         return 0;
     }
     at += 2;
     const size_t digits = strspn(at, "0123456789abcdef");
-    if ((digits < 4u) || (strncmp(&at[digits], "*/", 2u) != 0))
+    if ((digits < 4u) || (!mmgr_text_starts(&at[digits], "*/", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         return 0;
     }
@@ -165,14 +168,14 @@ int stick_operation_of(const char *line, unsigned int *operation)
         return 0;
     }
     at += space;
-    const char *const end = strchr(at, ';');
+    const char *const end = mmgr_text_char(at, ';', PLATFORM_TEXT_TO_TERMINATOR);
     if (end == NULL)
     {
         return 0;
     }
     // the instruction, the space before its `;` cut
     size_t length = (size_t)(end - at);
-    while ((length != 0u) && (strchr(s_space, at[length - 1u]) != NULL))
+    while ((length != 0u) && (mmgr_text_char(s_space, at[length - 1u], PLATFORM_TEXT_TO_TERMINATOR) != NULL))
     {
         length -= 1u;
     }

@@ -1,21 +1,26 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// carrier.c: the carrier: the channel opened with the carrier's words, a line added to the list, the list written, an answer read back, and a dry run's answer written
+// carrier.c: the carrier: the channel opened with the carrier's words, a line added to the list, the list written, an
+// answer read back, and a dry run's answer written
 #include "run_channel_internal.h"
+#include "../../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../../../../includes/parsers/line_read.h"
 
 int run_channel_open(const char *const *carrier, unsigned long long limit_microseconds)
 {
-    memset(&s_channel, 0, sizeof(s_channel));
+    mmgr_bytes_set(&s_channel, 0, sizeof(s_channel));
     // the carrier's words, then the pop's after `--pop` and the cross's after `--cross`, each from 1 to
     // RUN_CARRIER_WORDS
     char (*part)[RUN_PATH_MAX_LEN] = s_channel.word;
     unsigned int *count = &s_channel.words;
     for (unsigned int at = 0u; carrier[at] != NULL; at += 1u)
     {
-        if ((strcmp(carrier[at], "--pop") == 0) || (strcmp(carrier[at], "--cross") == 0))
+        if ((mmgr_text_equal(carrier[at], "--pop", PLATFORM_TEXT_TO_TERMINATOR)) ||
+            (mmgr_text_equal(carrier[at], "--cross", PLATFORM_TEXT_TO_TERMINATOR)))
         {
-            const int pop = (strcmp(carrier[at], "--pop") == 0);
+            const int pop = (mmgr_text_equal(carrier[at], "--pop", PLATFORM_TEXT_TO_TERMINATOR));
             part = pop ? s_channel.pop : s_channel.cross;
             count = pop ? &s_channel.pop_words : &s_channel.cross_words;
             continue;
@@ -51,7 +56,7 @@ int run_channel_open(const char *const *carrier, unsigned long long limit_micros
     // the gated list the carrier reads, named after its `--gated`
     for (unsigned int at = 0u; (at + 1u) < words; at += 1u)
     {
-        if (strcmp(s_channel.word[at], "--gated") == 0)
+        if (mmgr_text_equal(s_channel.word[at], "--gated", PLATFORM_TEXT_TO_TERMINATOR))
         {
             VerbaLinea gated_line = {s_channel.gated_list, sizeof(s_channel.gated_list), 0ULL};
             mmgr_line_put_max(&gated_line, s_channel.word[at + 1u], sizeof(s_channel.gated_list) - 1u);
@@ -72,11 +77,12 @@ int run_channel_open(const char *const *carrier, unsigned long long limit_micros
     }
     s_channel.words = words;
     s_channel.limit_microseconds = limit_microseconds;
-    s_channel.dry = (words >= 1u) && (strcmp(s_channel.word[0], "dry") == 0);
+    s_channel.dry = (words >= 1u) && (mmgr_text_equal(s_channel.word[0], "dry", PLATFORM_TEXT_TO_TERMINATOR));
     s_channel.stopped = 0;
     for (unsigned int at = 1u; at < words; at += 1u)
     {
-        s_channel.stopped = s_channel.stopped || (strcmp(s_channel.word[at], "--dry") == 0);
+        s_channel.stopped =
+            s_channel.stopped || (mmgr_text_equal(s_channel.word[at], "--dry", PLATFORM_TEXT_TO_TERMINATOR));
     }
     s_channel.open = 1;
     return 1;
@@ -89,7 +95,7 @@ int run_channel_listed(const char *line, size_t length)
     {
         return 0;
     }
-    memcpy(s_channel_list + s_channel.list_size, line, length);
+    mmgr_bytes_copy(s_channel_list + s_channel.list_size, line, length);
     s_channel.list_size += length;
     return 1;
 }
@@ -148,7 +154,7 @@ void run_channel_read(RunQuestion *question, const char *answers_name, unsigned 
     const unsigned char *const first_end = (const unsigned char *)memchr(bytes, '\n', (size_t)size);
     const size_t first_length = (first_end != NULL) ? (size_t)(first_end - bytes) : (size_t)size;
     const size_t copied = (first_length < (sizeof(s_answer_line) - 1u)) ? first_length : (sizeof(s_answer_line) - 1u);
-    memcpy(s_answer_line, bytes, copied);
+    mmgr_bytes_copy(s_answer_line, bytes, copied);
     s_answer_line[copied] = '\0';
     char timed_line[128] = "";
     unsigned long long line_at = (first_end != NULL) ? (unsigned long long)(first_end - bytes) + 1ULL : size;
@@ -159,13 +165,13 @@ void run_channel_read(RunQuestion *question, const char *answers_name, unsigned 
         {
             break;
         }
-        if (strncmp(line, "timed ", 6u) == 0)
+        if (mmgr_text_starts(line, "timed ", PLATFORM_TEXT_TO_TERMINATOR))
         {
             VerbaLinea timed_text = {timed_line, sizeof(timed_line), 0ULL};
             mmgr_line_put_max(&timed_text, line, sizeof(timed_line) - 1u);
             mmgr_line_finish(&timed_text);
         }
-        if (strncmp(line, "clock address ", 14u) == 0)
+        if (mmgr_text_starts(line, "clock address ", PLATFORM_TEXT_TO_TERMINATOR))
         {
             // the timer register's address, in hex as the carrier writes it
             question->clock_address = (unsigned int)strtoul(line + 14, NULL, 16);
@@ -182,10 +188,11 @@ void run_channel_read(RunQuestion *question, const char *answers_name, unsigned 
     }
     timed = timed && (launches == question->launches);
     s_answer_line[strcspn(s_answer_line, "\r\n")] = '\0';
-    if (strncmp(s_answer_line, "answered", 8u) != 0)
+    if (!mmgr_text_starts(s_answer_line, "answered", PLATFORM_TEXT_TO_TERMINATOR))
     {
-        question->outcome =
-            (strncmp(s_answer_line, "skipped", 7u) == 0) ? (unsigned int)RUN_GATED : (unsigned int)RUN_ILLEGAL;
+        question->outcome = (mmgr_text_starts(s_answer_line, "skipped", PLATFORM_TEXT_TO_TERMINATOR))
+                                ? (unsigned int)RUN_GATED
+                                : (unsigned int)RUN_ILLEGAL;
         VerbaLinea refused = {question->refused, sizeof(question->refused), 0ULL};
         mmgr_line_put_max(&refused, s_answer_line, 120ULL);
         mmgr_line_finish(&refused);
@@ -275,7 +282,7 @@ void run_channel_close(void)
     }
     kqr_free(&s_record);
     s_record_path[0] = '\0';
-    memset(&s_channel, 0, sizeof(s_channel));
+    mmgr_bytes_set(&s_channel, 0, sizeof(s_channel));
 }
 
 const char *run_channel_carrier(void)

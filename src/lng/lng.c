@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // lng.c: the three language tables read, and each checked against the tree and against the others (lng.h)
 #include "lng.h"
+#include "../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include "../../includes/file_defs/klang/klang.h"
 #include "../../includes/parsers/who.h"
@@ -94,7 +97,7 @@ static void *lng_allocated(void *pointer)
 static char *lng_copy(const char *text, size_t length)
 {
     char *const copy = (char *)lng_allocated(malloc(length + 1u));
-    memcpy(copy, text, length);
+    mmgr_bytes_copy(copy, text, length);
     copy[length] = '\0';
     return copy;
 }
@@ -115,14 +118,14 @@ static void lng_list_room(LngList *list)
 static void lng_list_insert(LngList *list, unsigned int at, const char *text, size_t length)
 {
     lng_list_room(list);
-    memmove(&list->text[at + 1u], &list->text[at], (size_t)(list->count - at) * sizeof(char *));
+    mmgr_bytes_move(&list->text[at + 1u], &list->text[at], (size_t)(list->count - at) * sizeof(char *));
     list->text[at] = lng_copy(text, length);
     list->count += 1u;
 }
 
 void lng_list_add(LngList *list, const char *text)
 {
-    lng_list_insert(list, list->count, text, strlen(text));
+    lng_list_insert(list, list->count, text, mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR));
 }
 
 void lng_list_printed(LngList *list, const char *format, ...)
@@ -173,7 +176,7 @@ void lng_set_add(LngList *set, const char *text)
     unsigned int at = 0u;
     if (!lng_set_find(set, text, &at))
     {
-        lng_list_insert(set, at, text, strlen(text));
+        lng_list_insert(set, at, text, mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR));
     }
 }
 
@@ -189,7 +192,7 @@ int lng_list_same(const LngList *left, const LngList *right)
     int same = (left->count == right->count);
     for (unsigned int at = 0u; same && (at < left->count); at += 1u)
     {
-        same = (strcmp(left->text[at], right->text[at]) == 0);
+        same = (mmgr_text_equal(left->text[at], right->text[at], PLATFORM_TEXT_TO_TERMINATOR));
     }
     return same;
 }
@@ -211,11 +214,11 @@ static int lng_list_order(const LngList *left, const LngList *right)
 
 char *lng_list_joined(const LngList *list, const char *between)
 {
-    const size_t gap = strlen(between);
+    const size_t gap = mmgr_text_length(between, PLATFORM_TEXT_TO_TERMINATOR);
     size_t length = 0u;
     for (unsigned int at = 0u; at < list->count; at += 1u)
     {
-        length += strlen(list->text[at]) + ((at == 0u) ? 0u : gap);
+        length += mmgr_text_length(list->text[at], PLATFORM_TEXT_TO_TERMINATOR) + ((at == 0u) ? 0u : gap);
     }
     char *const joined = (char *)lng_allocated(malloc(length + 1u));
     size_t written = 0u;
@@ -223,11 +226,11 @@ char *lng_list_joined(const LngList *list, const char *between)
     {
         if (at != 0u)
         {
-            memcpy(&joined[written], between, gap);
+            mmgr_bytes_copy(&joined[written], between, gap);
             written += gap;
         }
-        const size_t size = strlen(list->text[at]);
-        memcpy(&joined[written], list->text[at], size);
+        const size_t size = mmgr_text_length(list->text[at], PLATFORM_TEXT_TO_TERMINATOR);
+        mmgr_bytes_copy(&joined[written], list->text[at], size);
         written += size;
     }
     joined[written] = '\0';
@@ -253,8 +256,8 @@ int lng_map_put(LngMap *map, const char *key, const char *value)
     {
         return 0;
     }
-    lng_list_insert(&map->key, at, key, strlen(key));
-    lng_list_insert(&map->value, at, value, strlen(value));
+    lng_list_insert(&map->key, at, key, mmgr_text_length(key, PLATFORM_TEXT_TO_TERMINATOR));
+    lng_list_insert(&map->value, at, value, mmgr_text_length(value, PLATFORM_TEXT_TO_TERMINATOR));
     return 1;
 }
 
@@ -283,9 +286,9 @@ static LngList *lng_sets_at(LngSets *sets, const char *key)
         sets->room = (sets->room == 0u) ? 16u : (sets->room * 2u);
         sets->set = (LngList *)lng_allocated(realloc(sets->set, (size_t)sets->room * sizeof(LngList)));
     }
-    memmove(&sets->set[at + 1u], &sets->set[at], (size_t)(sets->key.count - at) * sizeof(LngList));
-    memset(&sets->set[at], 0, sizeof(LngList));
-    lng_list_insert(&sets->key, at, key, strlen(key));
+    mmgr_bytes_move(&sets->set[at + 1u], &sets->set[at], (size_t)(sets->key.count - at) * sizeof(LngList));
+    mmgr_bytes_set(&sets->set[at], 0, sizeof(LngList));
+    lng_list_insert(&sets->key, at, key, mmgr_text_length(key, PLATFORM_TEXT_TO_TERMINATOR));
     return &sets->set[at];
 }
 
@@ -315,7 +318,7 @@ static int lng_one_of(const char *text, const char *const *texts, unsigned int c
     int found = 0;
     for (unsigned int at = 0u; (at < count) && !found; at += 1u)
     {
-        found = (strcmp(text, texts[at]) == 0);
+        found = (mmgr_text_equal(text, texts[at], PLATFORM_TEXT_TO_TERMINATOR));
     }
     return found;
 }
@@ -342,12 +345,13 @@ static void lng_tokens(const char *text, size_t length, LngList *tokens)
     size_t at = 0u;
     while (at < length)
     {
-        while ((at < length) && (strchr(s_space, text[at]) != NULL) && (text[at] != '\0'))
+        while ((at < length) && (mmgr_text_char(s_space, text[at], PLATFORM_TEXT_TO_TERMINATOR) != NULL) &&
+               (text[at] != '\0'))
         {
             at += 1u;
         }
         const size_t start = at;
-        while ((at < length) && (strchr(s_space, text[at]) == NULL))
+        while ((at < length) && (mmgr_text_char(s_space, text[at], PLATFORM_TEXT_TO_TERMINATOR) == NULL))
         {
             at += 1u;
         }
@@ -421,7 +425,7 @@ const char *lng_cell(const LngTable *table, unsigned int row, const char *column
     while (at > 0u)
     {
         at -= 1u;
-        if (strcmp(table->head.text[at], column) == 0)
+        if (mmgr_text_equal(table->head.text[at], column, PLATFORM_TEXT_TO_TERMINATOR))
         {
             return table->row[row][at];
         }
@@ -441,7 +445,7 @@ static unsigned int lng_operators_start(const LngTable *table)
 {
     for (unsigned int at = 0u; at < table->head.count; at += 1u)
     {
-        if (strcmp(table->head.text[at], s_selected_last) == 0)
+        if (mmgr_text_equal(table->head.text[at], s_selected_last, PLATFORM_TEXT_TO_TERMINATOR))
         {
             return at + 1u;
         }
@@ -455,7 +459,7 @@ void lng_operators_of(const LngTable *table, unsigned int row, LngList *operator
     {
         const char *const column = table->head.text[at];
         if (!lng_one_of(column, s_not_operators, LNG_NOT_OPERATORS) &&
-            (strcmp(lng_cell_or_none(table, row, column), "1") == 0))
+            (mmgr_text_equal(lng_cell_or_none(table, row, column), "1", PLATFORM_TEXT_TO_TERMINATOR)))
         {
             lng_set_add(operators, column);
         }
@@ -505,7 +509,7 @@ void lng_table_check(const LngTable *table, const char *const *types, unsigned i
             const char *const column = table->head.text[at];
             const char *const cell = lng_cell_or_none(table, row, column);
             if (!lng_one_of(column, s_not_operators, LNG_NOT_OPERATORS) && (cell[0] != '\0') &&
-                (strcmp(cell, "1") != 0))
+                (!mmgr_text_equal(cell, "1", PLATFORM_TEXT_TO_TERMINATOR)))
             {
                 lng_list_printed(defects, "%s has %s under %s, where an operator cell has 1 or nothing", word, cell,
                                  column);
@@ -525,7 +529,7 @@ void lng_table_check(const LngTable *table, const char *const *types, unsigned i
         }
         const char *const word = lng_cell_or_none(table, row, "word");
         unsigned int at = 0u;
-        while ((at < order.count) && (strcmp(order.text[at], word) != 0))
+        while ((at < order.count) && (!mmgr_text_equal(order.text[at], word, PLATFORM_TEXT_TO_TERMINATOR)))
         {
             at += 1u;
         }
@@ -540,11 +544,12 @@ void lng_table_check(const LngTable *table, const char *const *types, unsigned i
         const char *const word = order.text[at];
         const char *const complement = lng_cell_or_none(table, last[at], "complement");
         unsigned int other = 0u;
-        while ((other < order.count) && (strcmp(order.text[other], complement) != 0))
+        while ((other < order.count) && (!mmgr_text_equal(order.text[other], complement, PLATFORM_TEXT_TO_TERMINATOR)))
         {
             other += 1u;
         }
-        if ((other == order.count) || (strcmp(lng_cell_or_none(table, last[other], "complement"), word) != 0))
+        if ((other == order.count) ||
+            (!mmgr_text_equal(lng_cell_or_none(table, last[other], "complement"), word, PLATFORM_TEXT_TO_TERMINATOR)))
         {
             lng_list_printed(defects, "%s complements %s, which does not complement it back", word, complement);
             continue;
@@ -559,7 +564,8 @@ void lng_table_check(const LngTable *table, const char *const *types, unsigned i
         for (unsigned int one = 0u; one < mine.count; one += 1u)
         {
             unsigned int pair = 0u;
-            while ((pair < LNG_COMPLEMENTS) && (strcmp(s_complement[pair][0], mine.text[one]) != 0))
+            while ((pair < LNG_COMPLEMENTS) &&
+                   (!mmgr_text_equal(s_complement[pair][0], mine.text[one], PLATFORM_TEXT_TO_TERMINATOR)))
             {
                 pair += 1u;
             }
@@ -615,13 +621,13 @@ void lng_table_findings(const LngTable *table, LngList *findings)
                          lng_cell_or_none(table, row, "c_type"));
         free(marked);
         unsigned int at = 0u;
-        while ((at < groups) && (strcmp(group[at].key, key.text[0]) != 0))
+        while ((at < groups) && (!mmgr_text_equal(group[at].key, key.text[0], PLATFORM_TEXT_TO_TERMINATOR)))
         {
             at += 1u;
         }
         if (at == groups)
         {
-            group[at].key = lng_copy(key.text[0], strlen(key.text[0]));
+            group[at].key = lng_copy(key.text[0], mmgr_text_length(key.text[0], PLATFORM_TEXT_TO_TERMINATOR));
             group[at].type = lng_cell_or_none(table, row, "type");
             group[at].operators = operators;
             groups += 1u;
@@ -671,7 +677,7 @@ void lng_table_findings(const LngTable *table, LngList *findings)
         LngList meanings = {NULL, 0u, 0u};
         for (unsigned int row = 0u; row < table->rows; row += 1u)
         {
-            if (strcmp(lng_cell_or_none(table, row, "word"), words.text[at]) != 0)
+            if (!mmgr_text_equal(lng_cell_or_none(table, row, "word"), words.text[at], PLATFORM_TEXT_TO_TERMINATOR))
             {
                 continue;
             }
@@ -697,7 +703,7 @@ void lng_table_findings(const LngTable *table, LngList *findings)
 void lng_schema_forms(const char *text, LngList *names)
 {
     static const char s_form[] = "form_(";
-    const char *at = strstr(text, s_form);
+    const char *at = mmgr_text_find(text, s_form, PLATFORM_TEXT_TO_TERMINATOR);
     while (at != NULL)
     {
         const char *const upper = at + (sizeof(s_form) - 1u);
@@ -713,7 +719,7 @@ void lng_schema_forms(const char *text, LngList *names)
                 next = &name[length + 1u];
             }
         }
-        at = strstr(next, s_form);
+        at = mmgr_text_find(next, s_form, PLATFORM_TEXT_TO_TERMINATOR);
     }
 }
 
@@ -750,7 +756,7 @@ static int lng_braced_at(const char *text, size_t at, size_t *name, size_t *leng
 // braces in it
 static void lng_braced_names(const char *token, LngList *names)
 {
-    const size_t whole = strlen(token);
+    const size_t whole = mmgr_text_length(token, PLATFORM_TEXT_TO_TERMINATOR);
     if ((whole != 0u) && (strspn(token, s_lower) == whole))
     {
         lng_list_add(names, token);
@@ -797,7 +803,7 @@ void lng_ruleset_words(const char *path, const char *const *line, unsigned int l
             continue;
         }
         LngList tokens = {NULL, 0u, 0u};
-        lng_tokens(text, strlen(text), &tokens);
+        lng_tokens(text, mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR), &tokens);
         if (tokens.count == 0u)
         {
             continue;
@@ -812,7 +818,7 @@ void lng_ruleset_words(const char *path, const char *const *line, unsigned int l
         LngList where = {NULL, 0u, 0u};
         lng_list_printed(&where, "%s:%u", path, number);
         const char *const first = tokens.text[0];
-        if (inside && (strcmp(first, "end") != 0))
+        if (inside && (!mmgr_text_equal(first, "end", PLATFORM_TEXT_TO_TERMINATOR)))
         {
             lng_use(used, first, where.text[0]);
             for (unsigned int at = 1u; at < tokens.count; at += 1u)
@@ -843,7 +849,8 @@ void lng_ruleset_words(const char *path, const char *const *line, unsigned int l
         {
             lng_use(used, tokens.text[1], where.text[0]);
         }
-        inside = (strcmp(first, "construct") == 0) || (inside && (strcmp(first, "end") != 0));
+        inside = (mmgr_text_equal(first, "construct", PLATFORM_TEXT_TO_TERMINATOR)) ||
+                 (inside && (!mmgr_text_equal(first, "end", PLATFORM_TEXT_TO_TERMINATOR)));
         lng_list_free(&where);
         lng_list_free(&tokens);
     }
@@ -884,7 +891,7 @@ static void lng_block_parts(const KfileLines *file, LngList *inside, LngList *ou
     for (unsigned int at = 0u; at < file->lines; at += 1u)
     {
         const size_t start = starts[at];
-        const size_t end = start + strlen(file->line[at]);
+        const size_t end = start + mmgr_text_length(file->line[at], PLATFORM_TEXT_TO_TERMINATOR);
         static char s_in_bytes[QRY_WRITER_RING_BYTES / 2ULL];
         size_t in = 0u;
         static char s_out_bytes[QRY_WRITER_RING_BYTES / 2ULL];
@@ -948,7 +955,7 @@ static void lng_folds(const char *line, LngList *folds, LngList *puts)
 {
     static const char s_folds[] = "folds the ";
     static const char s_put[] = " put for ";
-    const char *at = strstr(line, s_folds);
+    const char *at = mmgr_text_find(line, s_folds, PLATFORM_TEXT_TO_TERMINATOR);
     while (at != NULL)
     {
         const char *const fold = at + (sizeof(s_folds) - 1u);
@@ -965,7 +972,7 @@ static void lng_folds(const char *line, LngList *folds, LngList *puts)
                 next = &put[put_length];
             }
         }
-        at = strstr(next, s_folds);
+        at = mmgr_text_find(next, s_folds, PLATFORM_TEXT_TO_TERMINATOR);
     }
 }
 
@@ -984,7 +991,7 @@ void lng_ksc_words(const char *path, const KfileLines *file, LngMap *used)
             continue;
         }
         LngList tokens = {NULL, 0u, 0u};
-        lng_tokens(line, strlen(line), &tokens);
+        lng_tokens(line, mmgr_text_length(line, PLATFORM_TEXT_TO_TERMINATOR), &tokens);
         if (tokens.count == 0u)
         {
             continue;
@@ -997,17 +1004,17 @@ void lng_ksc_words(const char *path, const KfileLines *file, LngMap *used)
         {
             lng_use(used, tokens.text[1], where.text[0]);
         }
-        if ((strcmp(tokens.text[0], "count") == 0) && (tokens.count > 2u))
+        if ((mmgr_text_equal(tokens.text[0], "count", PLATFORM_TEXT_TO_TERMINATOR)) && (tokens.count > 2u))
         {
             lng_map_put(used, tokens.text[2], where.text[0]);
         }
-        if ((strcmp(tokens.text[0], "compile") == 0) && (tokens.count > 3u))
+        if ((mmgr_text_equal(tokens.text[0], "compile", PLATFORM_TEXT_TO_TERMINATOR)) && (tokens.count > 3u))
         {
             LngList folds = {NULL, 0u, 0u};
             LngList puts = {NULL, 0u, 0u};
             lng_folds(line, &folds, &puts);
             // the fourth word, its colon cut
-            const size_t named = strlen(tokens.text[3]);
+            const size_t named = mmgr_text_length(tokens.text[3], PLATFORM_TEXT_TO_TERMINATOR);
             size_t count = named;
             while ((count != 0u) && (tokens.text[3][count - 1u] == ':'))
             {
@@ -1037,12 +1044,14 @@ static void lng_ticked(const char *text, size_t length, LngList *set)
     while (at < length)
     {
         size_t characters = 0u;
-        while (((at + 1u + characters) < length) && (strchr(s_lower, text[at + 1u + characters]) != NULL) &&
+        while (((at + 1u + characters) < length) &&
+               (mmgr_text_char(s_lower, text[at + 1u + characters], PLATFORM_TEXT_TO_TERMINATOR) != NULL) &&
                (text[at + 1u + characters] != '\0'))
         {
             characters += 1u;
         }
-        if ((text[at] == '`') && (characters != 0u) && ((at + 1u + characters) < length) && (text[at + 1u + characters] == '`'))
+        if ((text[at] == '`') && (characters != 0u) && ((at + 1u + characters) < length) &&
+            (text[at + 1u + characters] == '`'))
         {
             char *const name = lng_copy(&text[at + 1u], characters);
             lng_set_add(set, name);
@@ -1085,9 +1094,9 @@ static int lng_field(const char *text, size_t length, char mark, unsigned int fi
 
 void lng_gnascor_lists(const char *text, LngList *thing, LngList *doing, LngList *gluing)
 {
-    const char *const things = strstr(text, "**Thing words.**");
-    const char *const doings = strstr(text, "**Doing words.**");
-    const char *const gluings = strstr(text, "**Gluing words.**");
+    const char *const things = mmgr_text_find(text, "**Thing words.**", PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const doings = mmgr_text_find(text, "**Doing words.**", PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const gluings = mmgr_text_find(text, "**Gluing words.**", PLATFORM_TEXT_TO_TERMINATOR);
     if ((things == NULL) || (doings == NULL) || (gluings == NULL))
     {
         return;
@@ -1100,8 +1109,10 @@ void lng_gnascor_lists(const char *text, LngList *thing, LngList *doing, LngList
         char *const line_copy = lng_copy(line, length);
         size_t start = 0u;
         size_t size = 0u;
-        if ((strncmp(line_copy, "| ", 2u) == 0) && (strstr(line_copy, "---") == NULL) &&
-            (strstr(line_copy, "| type |") == NULL) && lng_field(line_copy, length, '|', 2u, &start, &size))
+        if ((mmgr_text_starts(line_copy, "| ", PLATFORM_TEXT_TO_TERMINATOR)) &&
+            (mmgr_text_find(line_copy, "---", PLATFORM_TEXT_TO_TERMINATOR) == NULL) &&
+            (mmgr_text_find(line_copy, "| type |", PLATFORM_TEXT_TO_TERMINATOR) == NULL) &&
+            lng_field(line_copy, length, '|', 2u, &start, &size))
         {
             lng_ticked(&line_copy[start], size, thing);
         }
@@ -1125,7 +1136,7 @@ void lng_gnascor_lists(const char *text, LngList *thing, LngList *doing, LngList
 // the operator a punctuator writes: a compound assignment its operator, every other punctuator itself
 static void lng_punctuator_added(const char *punctuator, LngList *found)
 {
-    const size_t length = strlen(punctuator);
+    const size_t length = mmgr_text_length(punctuator, PLATFORM_TEXT_TO_TERMINATOR);
     static const char *const s_compared[4] = {"<=", ">=", "==", "!="};
     if ((length > 1u) && (punctuator[length - 1u] == '=') && !lng_one_of(punctuator, s_compared, 4u))
     {
@@ -1154,7 +1165,7 @@ static size_t lng_literal_at(const char *text)
         return past;
     }
     static const char s_name_start[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_";
-    if ((text[0] != '\0') && (strchr(s_name_start, text[0]) != NULL))
+    if ((text[0] != '\0') && (mmgr_text_char(s_name_start, text[0], PLATFORM_TEXT_TO_TERMINATOR) != NULL))
     {
         return 1u + strspn(&text[1], "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_0123456789");
     }
@@ -1174,7 +1185,7 @@ static size_t lng_literal_at(const char *text)
     static const char *const s_suffix[5] = {"ull", "ul", "u", "ll", "l"};
     for (unsigned int at = 0u; at < 5u; at += 1u)
     {
-        const size_t suffix = strlen(s_suffix[at]);
+        const size_t suffix = mmgr_text_length(s_suffix[at], PLATFORM_TEXT_TO_TERMINATOR);
         if (strncmp(&text[digits], s_suffix[at], suffix) == 0)
         {
             return digits + suffix;
@@ -1185,7 +1196,7 @@ static size_t lng_literal_at(const char *text)
 
 void lng_c_operators(const char *text, LngList *operators)
 {
-    const size_t length = strlen(text);
+    const size_t length = mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR);
     // the text with each written newline a newline, then each note from `//` to the next backslash cut, then each
     // literal and name a space
     char *const unescaped = (char *)lng_allocated(malloc(length + 1u));
@@ -1226,14 +1237,15 @@ void lng_c_operators(const char *text, LngList *operators)
     LngList found = {NULL, 0u, 0u};
     for (size_t at = 0u; at < left;)
     {
-        if (strchr(s_space, stripped[at]) != NULL)
+        if (mmgr_text_char(s_space, stripped[at], PLATFORM_TEXT_TO_TERMINATOR) != NULL)
         {
             at += 1u;
             continue;
         }
         unsigned int which = 0u;
         while ((which < LNG_PUNCTUATORS) &&
-               (strncmp(&stripped[at], s_punctuators[which], strlen(s_punctuators[which])) != 0))
+               (strncmp(&stripped[at], s_punctuators[which],
+                        mmgr_text_length(s_punctuators[which], PLATFORM_TEXT_TO_TERMINATOR)) != 0))
         {
             which += 1u;
         }
@@ -1243,7 +1255,7 @@ void lng_c_operators(const char *text, LngList *operators)
             continue;
         }
         lng_punctuator_added(s_punctuators[which], &found);
-        at += strlen(s_punctuators[which]);
+        at += mmgr_text_length(s_punctuators[which], PLATFORM_TEXT_TO_TERMINATOR);
     }
     for (unsigned int at = 0u; at < found.count; at += 1u)
     {
@@ -1263,7 +1275,7 @@ static const char *lng_family(const char *operator_text)
 {
     for (unsigned int at = 0u; at < LNG_FAMILY; at += 1u)
     {
-        if (strcmp(s_family[at][0], operator_text) == 0)
+        if (mmgr_text_equal(s_family[at][0], operator_text, PLATFORM_TEXT_TO_TERMINATOR))
         {
             return s_family[at][1];
         }
@@ -1287,7 +1299,7 @@ void lng_form_findings(const LngTable *table, const LngList *names, const LngLis
             lng_set_add(claimed, operators.text[at]);
         }
         lng_list_free(&operators);
-        if (strcmp(lng_cell_or_none(table, row, "type"), "doing") == 0)
+        if (mmgr_text_equal(lng_cell_or_none(table, row, "type"), "doing", PLATFORM_TEXT_TO_TERMINATOR))
         {
             lng_set_add(&doing, word);
         }
@@ -1363,8 +1375,8 @@ static unsigned int lng_row_of(const LngTable *table, const char *word, const ch
     unsigned int found = table->rows;
     for (unsigned int row = 0u; row < table->rows; row += 1u)
     {
-        found = ((strcmp(lng_cell_or_none(table, row, "word"), word) == 0) &&
-                 (strcmp(lng_cell_or_none(table, row, "type"), type) == 0))
+        found = ((mmgr_text_equal(lng_cell_or_none(table, row, "word"), word, PLATFORM_TEXT_TO_TERMINATOR)) &&
+                 (mmgr_text_equal(lng_cell_or_none(table, row, "type"), type, PLATFORM_TEXT_TO_TERMINATOR)))
                     ? row
                     : found;
     }
@@ -1378,7 +1390,7 @@ void lng_hol_check(const LngTable *transpiler, const LngTable *hol, LngList *def
     for (unsigned int row = 0u; row < transpiler->rows; row += 1u)
     {
         lng_set_add(&words, lng_cell_or_none(transpiler, row, "word"));
-        if (strcmp(lng_cell_or_none(transpiler, row, "type"), "thing") == 0)
+        if (mmgr_text_equal(lng_cell_or_none(transpiler, row, "type"), "thing", PLATFORM_TEXT_TO_TERMINATOR))
         {
             lng_set_add(&things, lng_cell_or_none(transpiler, row, "word"));
         }
@@ -1398,8 +1410,9 @@ void lng_hol_check(const LngTable *transpiler, const LngTable *hol, LngList *def
         {
             lng_list_printed(defects, "%s crosses to %s, which the transpiler has no word for", word, crossed);
         }
-        else if ((other != transpiler->rows) && ((strcmp(lng_cell_or_none(transpiler, other, "bits"), bits) != 0) ||
-                                                 (strcmp(lng_cell_or_none(transpiler, other, "signed"), sign) != 0)))
+        else if ((other != transpiler->rows) &&
+                 ((!mmgr_text_equal(lng_cell_or_none(transpiler, other, "bits"), bits, PLATFORM_TEXT_TO_TERMINATOR)) ||
+                  (!mmgr_text_equal(lng_cell_or_none(transpiler, other, "signed"), sign, PLATFORM_TEXT_TO_TERMINATOR))))
         {
             lng_list_printed(defects, "%s is %s bits signed %s and crosses to %s, which is %s bits signed %s", word,
                              bits, sign, lng_cell_or_none(transpiler, other, "word"),
@@ -1410,7 +1423,7 @@ void lng_hol_check(const LngTable *transpiler, const LngTable *hol, LngList *def
     LngList found = {NULL, 0u, 0u};
     for (unsigned int row = 0u; row < hol->rows; row += 1u)
     {
-        if (strcmp(lng_cell_or_none(hol, row, "type"), "type") == 0)
+        if (mmgr_text_equal(lng_cell_or_none(hol, row, "type"), "type", PLATFORM_TEXT_TO_TERMINATOR))
         {
             LngList width = {NULL, 0u, 0u};
             lng_list_printed(&width, "%s\x1f%s", lng_cell_or_none(hol, row, "bits"),
@@ -1440,7 +1453,7 @@ void lng_hol_check(const LngTable *transpiler, const LngTable *hol, LngList *def
     {
         LngList operators = {NULL, 0u, 0u};
         lng_operators_of(hol, row, &operators);
-        const int core = (strcmp(lng_cell_or_none(hol, row, "type"), "core op") == 0);
+        const int core = (mmgr_text_equal(lng_cell_or_none(hol, row, "type"), "core op", PLATFORM_TEXT_TO_TERMINATOR));
         for (unsigned int at = 0u; at < operators.count; at += 1u)
         {
             lng_set_add(&hol_means, operators.text[at]);
@@ -1475,7 +1488,7 @@ void lng_hol_check(const LngTable *transpiler, const LngTable *hol, LngList *def
     }
     for (unsigned int row = 0u; row < transpiler->rows; row += 1u)
     {
-        if (strcmp(lng_cell_or_none(transpiler, row, "type"), "doing") != 0)
+        if (!mmgr_text_equal(lng_cell_or_none(transpiler, row, "type"), "doing", PLATFORM_TEXT_TO_TERMINATOR))
         {
             continue;
         }
@@ -1507,15 +1520,17 @@ const char *lng_arrow_of(const LngTable *table, unsigned int row)
 {
     const char *const left = lng_cell_or_none(table, row, "left");
     const char *const right = lng_cell_or_none(table, row, "right");
-    if (strcmp(lng_cell_or_none(table, row, "table"), "the branch pair") == 0)
+    if (mmgr_text_equal(lng_cell_or_none(table, row, "table"), "the branch pair", PLATFORM_TEXT_TO_TERMINATOR))
     {
         return "";
     }
-    if ((strcmp(left, "-") == 0) || (strcmp(right, "-") == 0))
+    if ((mmgr_text_equal(left, "-", PLATFORM_TEXT_TO_TERMINATOR)) ||
+        (mmgr_text_equal(right, "-", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         return "*>";
     }
-    if ((strcmp(left, "=") != 0) && (strcmp(right, "=") != 0))
+    if ((!mmgr_text_equal(left, "=", PLATFORM_TEXT_TO_TERMINATOR)) &&
+        (!mmgr_text_equal(right, "=", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         return "x>";
     }
@@ -1525,7 +1540,9 @@ const char *lng_arrow_of(const LngTable *table, unsigned int row)
 // `side`, lead and rite trading places
 static const char *lng_mirror(const char *side)
 {
-    return (strcmp(side, "lead") == 0) ? "rite" : ((strcmp(side, "rite") == 0) ? "lead" : side);
+    return (mmgr_text_equal(side, "lead", PLATFORM_TEXT_TO_TERMINATOR))
+               ? "rite"
+               : ((mmgr_text_equal(side, "rite", PLATFORM_TEXT_TO_TERMINATOR)) ? "lead" : side);
 }
 
 // the `field`th field of `key`, its fields apart by \x1f, copied into an allocation of the caller's to free
@@ -1533,7 +1550,7 @@ static char *lng_key_field(const char *key, unsigned int field)
 {
     size_t start = 0u;
     size_t size = 0u;
-    if (!lng_field(key, strlen(key), '\x1f', field, &start, &size))
+    if (!lng_field(key, mmgr_text_length(key, PLATFORM_TEXT_TO_TERMINATOR), '\x1f', field, &start, &size))
     {
         return lng_copy("", 0u);
     }
@@ -1547,7 +1564,7 @@ void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings)
         const char *const arrow = lng_arrow_of(table, row);
         const char *const written = lng_cell(table, row, "arrow");
         const char *const given = (written != NULL) ? written : arrow;
-        if (strcmp(given, arrow) != 0)
+        if (!mmgr_text_equal(given, arrow, PLATFORM_TEXT_TO_TERMINATOR))
         {
             lng_list_printed(defects, "%s to %s in %s is written %s and its bits give %s",
                              lng_cell_or_none(table, row, "past"), lng_cell_or_none(table, row, "present"),
@@ -1572,7 +1589,8 @@ void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings)
         LngList transitions = {NULL, 0u, 0u};
         for (unsigned int row = 0u; row < table->rows; row += 1u)
         {
-            if (strcmp(lng_cell_or_none(table, row, "mnemonic"), mnemonics.text[at]) == 0)
+            if (mmgr_text_equal(lng_cell_or_none(table, row, "mnemonic"), mnemonics.text[at],
+                                PLATFORM_TEXT_TO_TERMINATOR))
             {
                 lng_list_printed(&transitions, "%s to %s in %s", lng_cell_or_none(table, row, "past"),
                                  lng_cell_or_none(table, row, "present"), lng_cell_or_none(table, row, "table"));
@@ -1597,7 +1615,8 @@ void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings)
         lng_list_free(&key);
         const char *const left = lng_cell_or_none(table, row, "left");
         const char *const right = lng_cell_or_none(table, row, "right");
-        if ((strcmp(left, "-") != 0) && (strcmp(right, "-") != 0))
+        if ((!mmgr_text_equal(left, "-", PLATFORM_TEXT_TO_TERMINATOR)) &&
+            (!mmgr_text_equal(right, "-", PLATFORM_TEXT_TO_TERMINATOR)))
         {
             LngList pair = {NULL, 0u, 0u};
             lng_list_printed(&pair, "%s\x1f%s", left, right);
@@ -1617,7 +1636,8 @@ void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings)
             lng_list_printed(defects, "%s names %s to %s both %s", table_name, past, present, both);
             free(both);
         }
-        if ((strcmp(table_name, s_matrix) == 0) || (strcmp(table_name, s_high_energy_matrix) == 0))
+        if ((mmgr_text_equal(table_name, s_matrix, PLATFORM_TEXT_TO_TERMINATOR)) ||
+            (mmgr_text_equal(table_name, s_high_energy_matrix, PLATFORM_TEXT_TO_TERMINATOR)))
         {
             LngList key = {NULL, 0u, 0u};
             lng_list_printed(&key, "%s\x1f%s", past, present);
@@ -1691,7 +1711,7 @@ void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings)
         const LngList *const mirror = lng_sets_get(&named, key.text[0]);
         const int order = strcmp(past, mirror_past);
         const int sooner = (order < 0) || ((order == 0) && (strcmp(present, mirror_present) < 0));
-        if ((strcmp(key.text[0], named.key.text[at]) != 0) && (mirror != NULL) &&
+        if ((!mmgr_text_equal(key.text[0], named.key.text[at], PLATFORM_TEXT_TO_TERMINATOR)) && (mirror != NULL) &&
             !lng_list_same(mirror, &named.set[at]) && sooner)
         {
             char *const mine = lng_list_joined(&named.set[at], " ");
@@ -1727,21 +1747,23 @@ typedef struct
 static void lng_files_under(const char *folder, const LngWalk *walk);
 static void lng_entry_taken(const char *folder, const char *name, int folder_exists, const LngWalk *walk)
 {
-    if ((strcmp(name, ".") == 0) || (strcmp(name, "..") == 0))
+    if ((mmgr_text_equal(name, ".", PLATFORM_TEXT_TO_TERMINATOR)) ||
+        (mmgr_text_equal(name, "..", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         return;
     }
     LngList path = {NULL, 0u, 0u};
     lng_list_printed(&path, "%s/%s", folder, name);
-    const size_t length = strlen(name);
+    const size_t length = mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR);
     if (folder_exists)
     {
         lng_files_under(path.text[0], walk);
     }
     for (unsigned int at = 0u; !folder_exists && (at < walk->count); at += 1u)
     {
-        const size_t ending = strlen(walk->suffixes[at]);
-        if ((length >= ending) && (strcmp(&name[length - ending], walk->suffixes[at]) == 0))
+        const size_t ending = mmgr_text_length(walk->suffixes[at], PLATFORM_TEXT_TO_TERMINATOR);
+        if ((length >= ending) &&
+            (mmgr_text_equal(&name[length - ending], walk->suffixes[at], PLATFORM_TEXT_TO_TERMINATOR)))
         {
             lng_set_add(&walk->found[at], path.text[0]);
         }

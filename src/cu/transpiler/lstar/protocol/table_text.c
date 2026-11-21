@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // table_text.c: a text numbered by its hash, its row appended to the table of texts once a process
 #include "table_text.h"
+#include "memoria_operor/memoria_linea.h"
 
 #include "../../../../../includes/file_defs/qry/writer/qry_member.h"
 
@@ -47,7 +48,7 @@ unsigned long long table_text(const void *bytes, unsigned long long length)
         s_table_text_row[3] = length;
         s_table_text_row[words - 1ULL] = 0ULL;
         // the row fits half a ring, whose bytes a size_t counts
-        memcpy(&s_table_text_row[4], text, (size_t)length);
+        mmgr_bytes_copy(&s_table_text_row[4], text, (size_t)length);
         if (qry_member_append(TABLE_TEXTS, s_table_text_row, words * 8ULL, QRY_ORDINARY))
         {
             s_table_text_numbers[slot] = number;

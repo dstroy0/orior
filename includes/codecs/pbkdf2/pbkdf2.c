@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pbkdf2.c: HMAC-SHA-512 as RFC 2104 section 2 states it, and PBKDF2 over it as RFC 8018 section 5.2 states it
 #include "pbkdf2.h"
+#include "memoria_operor/memoria_linea.h"
 
 #include "../sha512/sha512.h"
 
@@ -27,14 +28,14 @@ static void hmac_key_prepare(HmacKey *prepared, const void *key, size_t key_byte
 {
     // step (1): append zeros to the key to make a B byte string
     unsigned char block[HMAC_BLOCK_BYTES];
-    memset(block, 0, sizeof(block));
+    mmgr_bytes_set(block, 0, sizeof(block));
     if (key_bytes > HMAC_BLOCK_BYTES)
     {
         sha512(key, key_bytes, block);
     }
     else if (key_bytes > 0u)
     {
-        memcpy(block, key, key_bytes);
+        mmgr_bytes_copy(block, key, key_bytes);
     }
 
     // steps (2) and (5): the B byte string XOR ipad, and XOR opad, each taken as the first block of its digest
@@ -102,7 +103,7 @@ int pbkdf2_hmac_sha512(const void *password, size_t password_bytes, const void *
         unsigned char chained[HMAC_SHA512_BYTES];
         unsigned char block[HMAC_SHA512_BYTES];
         hmac_tag(&prepared, salt, salt_bytes, counter, sizeof(counter), chained);
-        memcpy(block, chained, sizeof(block));
+        mmgr_bytes_copy(block, chained, sizeof(block));
 
         for (unsigned long round = 1u; round < iterations; round += 1u)
         {
@@ -115,7 +116,7 @@ int pbkdf2_hmac_sha512(const void *password, size_t password_bytes, const void *
 
         const size_t left = derived_bytes - done;
         const size_t taken = (left < HMAC_SHA512_BYTES) ? left : HMAC_SHA512_BYTES;
-        memcpy(derived + done, block, taken);
+        mmgr_bytes_copy(derived + done, block, taken);
         done += taken;
         index += 1u;
     }

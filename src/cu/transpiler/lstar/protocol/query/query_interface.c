@@ -3,6 +3,7 @@
 // query_interface.c: a walk of queries put from inside the interface, every ending recorded as the answer of the
 // address that caused it
 #include "query_interface.h"
+#include "memoria_operor/memoria_linea.h"
 #include "../../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
@@ -39,7 +40,7 @@ static void query_interface_lines_gathered(unsigned long long began)
     while (qry_member_read(&at, &record))
     {
         if ((record->name_length == (sizeof(QUERY_WALK_RECORD) - 1u)) &&
-            (memcmp(QRY_RECORD_NAME(record), QUERY_WALK_RECORD, sizeof(QUERY_WALK_RECORD) - 1u) == 0))
+            (mmgr_bytes_compare(QRY_RECORD_NAME(record), QUERY_WALK_RECORD, sizeof(QUERY_WALK_RECORD) - 1u) == 0))
         {
             mmgr_line_put_n(&lines, (const char *)QRY_RECORD_BLOB(record), record->blob_length);
         }

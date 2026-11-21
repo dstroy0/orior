@@ -42,11 +42,14 @@ for one in $ARCHES; do
     GENCODE+=(-gencode "arch=compute_${one#sm_},code=${one}")
 done
 
-INCLUDES=(-I "$TOP/src/cu/engine" -I "$SHIFT" -I "$SHIFT_CU" -I "$DEVICE_POOL")
+source "$TOP/includes/exact_types/exact_types.sh"
+# the program is a program of the platform, and links what exact_types_platform_link compiles
+exact_types_platform_link shift_agreement_reserve_test || exit 1
+INCLUDES=(-I "$TOP/src/cu/engine" -I "$SHIFT" -I "$SHIFT_CU" -I "$DEVICE_POOL" "${FILE_DEFS_MMGR_FLAGS[@]}")
 rm -f "$BINARY"
 # the test is host arithmetic: it links the module's device code but asks nothing of the device, and is no job
 nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${GENCODE[@]}" "${INCLUDES[@]}" -o "$BINARY" \
-    "$TEST/shift_agreement_reserve_test.cu" "$SHIFT_CU/shift_agreement.cu" "$SHIFT_CU/shift_agreement_run.cu" "$DEVICE_POOL_CU/device_pool.cu"
+    "$TEST/shift_agreement_reserve_test.cu" "$SHIFT_CU/shift_agreement.cu" "$SHIFT_CU/shift_agreement_run.cu" "$DEVICE_POOL_CU/device_pool.cu" "${PLATFORM_LINK[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build the test"; exit 1; }
 if [ "${BUILD_ONLY:-0}" = "1" ]; then
     echo "  built $BINARY"

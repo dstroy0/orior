@@ -3,6 +3,9 @@
 // assembled.c: the texts the protocol passes, each assembled against the machine file with every stall safe, and passed
 // back to the run
 #include "khw_machine_write_internal.h"
+#include "../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include "../../../../src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble.h"
 
@@ -18,12 +21,12 @@ static char s_reason[QRY_NAME_MAX_LEN + 64u];
 // `first` and then `second` appended to the run as KHW_ASSEMBLED_REASON, the reason the texts were not assembled: 0
 static int khw_assembled_reason(const char *first, const char *second)
 {
-    const size_t first_length = strlen(first);
-    const size_t second_length = strlen(second);
+    const size_t first_length = mmgr_text_length(first, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t second_length = mmgr_text_length(second, PLATFORM_TEXT_TO_TERMINATOR);
     if ((first_length + second_length) <= sizeof(s_reason))
     {
-        memcpy(s_reason, first, first_length);
-        memcpy(s_reason + first_length, second, second_length);
+        mmgr_bytes_copy(s_reason, first, first_length);
+        mmgr_bytes_copy(s_reason + first_length, second, second_length);
         qry_member_append(KHW_ASSEMBLED_REASON, s_reason, first_length + second_length, QRY_ORDINARY);
     }
     return 0;
@@ -49,7 +52,7 @@ int khw_texts_assembled(const char *path, const char *answers)
     // the call's number, the digits after `call ` on the first line
     static const char s_call[] = "call ";
     unsigned long long from = sizeof(s_call) - 1u;
-    if ((size < from) || (memcmp(texts, s_call, (size_t)from) != 0))
+    if ((size < from) || (mmgr_bytes_compare(texts, s_call, (size_t)from) != 0))
     {
         return khw_assembled_reason(answers, " names no call");
     }
@@ -75,19 +78,19 @@ int khw_texts_assembled(const char *path, const char *answers)
         {
             return khw_assembled_reason(answers, " contains a text past the room to assemble it");
         }
-        memcpy(s_text, texts + from, length);
+        mmgr_bytes_copy(s_text, texts + from, length);
         s_text[length] = '\0';
         const unsigned int instructions =
             sass_assemble_lines(&s_machine, s_text, SASS_CONTROL_SAFE, s_assembled + written + sizeof(unsigned int),
                                 KHW_INSTRUCTION * KHW_ASSEMBLED_MAX);
-        memcpy(s_assembled + written, &instructions, sizeof(instructions));
+        mmgr_bytes_copy(s_assembled + written, &instructions, sizeof(instructions));
         written += sizeof(instructions) + ((size_t)instructions * KHW_INSTRUCTION);
         taken += 1u;
         // past the form feed and the line's end after it
         from = (unsigned long long)(end - texts) + 2ULL;
     }
-    memcpy(s_assembled, &call, sizeof(call));
-    memcpy(s_assembled + sizeof(call), &taken, sizeof(taken));
+    mmgr_bytes_copy(s_assembled, &call, sizeof(call));
+    mmgr_bytes_copy(s_assembled + sizeof(call), &taken, sizeof(taken));
     if (!qry_member_append(KHW_ASSEMBLED, s_assembled, written, QRY_ORDINARY))
     {
         return khw_assembled_reason(KHW_ASSEMBLED, " could not be appended to the run");

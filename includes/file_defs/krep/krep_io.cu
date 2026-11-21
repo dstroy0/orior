@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // krep_io.cu: words, limbs, the head and the seal
 #include "krep_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 static int krep_host_little(void)
 {
     const unsigned int probe = 1u;
     unsigned char first = 0u;
-    memcpy(&first, &probe, 1u);
+    mmgr_bytes_copy(&first, &probe, 1u);
     return (first == 1u) ? 1 : 0;
 }
 
@@ -109,8 +110,8 @@ extern "C" int krep_head_read(FILE *file, const char *type)
     unsigned char magic[8];
     char named[4];
     unsigned int version = 0u;
-    return (fread(magic, 1u, 8u, file) == 8u) && (memcmp(magic, KREP_MAGIC, 8u) == 0) &&
-           (fread(named, 1u, 4u, file) == 4u) && (memcmp(named, type, 4u) == 0) &&
+    return (fread(magic, 1u, 8u, file) == 8u) && (mmgr_bytes_compare(magic, KREP_MAGIC, 8u) == 0) &&
+           (fread(named, 1u, 4u, file) == 4u) && (mmgr_bytes_compare(named, type, 4u) == 0) &&
            (krep_limbs_read(file, &version, 1u) != 0) && (version == KREP_VERSION);
 }
 
@@ -167,7 +168,7 @@ extern "C" unsigned long long krep_crystal_bytes(const EngineStream *stream, con
 static void krep_crystal_head_words(const EngineStream *stream, const EngineSideSection *section,
                                     const EngineSeal *seal, unsigned long long head[KREP_CRYSTAL_HEAD_WORDS])
 {
-    memcpy(&head[KREP_HEAD_EXTENT], stream->extent, 4u * sizeof(unsigned long long));
+    mmgr_bytes_copy(&head[KREP_HEAD_EXTENT], stream->extent, 4u * sizeof(unsigned long long));
     head[KREP_HEAD_CHUNKS] = stream->chunks;
     head[KREP_HEAD_BITS] = stream->bits;
     head[KREP_HEAD_LANE_OFFSET] = stream->lane_offset;
@@ -265,11 +266,11 @@ extern "C" int krep_crystal_write(const KrepCrystalRequest *request)
 int krep_crystal_head_from(const char *path, FILE *crystal, EngineStream *stream,
                            unsigned long long head[KREP_CRYSTAL_HEAD_WORDS], EngineError *error)
 {
-    memset(head, 0, KREP_CRYSTAL_HEAD_WORDS * sizeof(unsigned long long));
+    mmgr_bytes_set(head, 0, KREP_CRYSTAL_HEAD_WORDS * sizeof(unsigned long long));
     const int ok = KREP_IO(crystal != NULL, path, error) &&
                    KREP_IO(krep_head_read(crystal, KREP_KIND_CRYSTAL) != 0, crystal, error) &&
                    KREP_IO(krep_words_read(crystal, head, KREP_CRYSTAL_HEAD_WORDS) != 0, head, error);
-    memcpy(stream->extent, &head[KREP_HEAD_EXTENT], 4u * sizeof(unsigned long long));
+    mmgr_bytes_copy(stream->extent, &head[KREP_HEAD_EXTENT], 4u * sizeof(unsigned long long));
     stream->chunks = head[KREP_HEAD_CHUNKS];
     stream->bits = head[KREP_HEAD_BITS];
     stream->lane_offset = head[KREP_HEAD_LANE_OFFSET];
@@ -315,7 +316,7 @@ static int krep_members_read(FILE *crystal, const unsigned long long head[KREP_C
 int krep_side_read(FILE *crystal, const unsigned long long head[KREP_CRYSTAL_HEAD_WORDS], EngineSideSection *section,
                    EngineError *error)
 {
-    memset(section, 0, sizeof(*section));
+    mmgr_bytes_set(section, 0, sizeof(*section));
     if (head[KREP_HEAD_LEAVES] == 0ULL)
     {
         return 1;

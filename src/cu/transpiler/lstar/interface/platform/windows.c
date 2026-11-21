@@ -3,6 +3,9 @@
 // windows.c: the probe on Windows: the rule a fault names, the command line, the program found, the pipe drained
 // by a thread, and the probe started in a job of its own and run to its end or its limit
 #include "interface_internal.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #if defined(_WIN32)
 // the rule a Windows fault names: an unhandled exception ends its process with the exception's NTSTATUS as its code
@@ -49,10 +52,10 @@ static InterfaceFault interface_fault_of(unsigned long long code)
 // C runtime splits them back (as tessera_run_windows.c writes a job's): `line`, or NULL where it does not fit
 static char *interface_command_line(const char *program, char *const *words, char *line, size_t room)
 {
-    size_t capacity = 1u + (2u * strlen(program)) + 3u;
+    size_t capacity = 1u + (2u * mmgr_text_length(program, PLATFORM_TEXT_TO_TERMINATOR)) + 3u;
     for (size_t at = 1u; words[at] != NULL; at += 1u)
     {
-        capacity += (2u * strlen(words[at])) + 3u;
+        capacity += (2u * mmgr_text_length(words[at], PLATFORM_TEXT_TO_TERMINATOR)) + 3u;
     }
     if (capacity > room)
     {
@@ -70,8 +73,8 @@ static char *interface_command_line(const char *program, char *const *words, cha
         const int quoted = (word[0] == '\0') || (strpbrk(word, " \t\n\v\"") != NULL);
         if (!quoted)
         {
-            memcpy(line + length, word, strlen(word));
-            length += strlen(word);
+            mmgr_bytes_copy(line + length, word, mmgr_text_length(word, PLATFORM_TEXT_TO_TERMINATOR));
+            length += mmgr_text_length(word, PLATFORM_TEXT_TO_TERMINATOR);
             continue;
         }
         line[length] = '"';
@@ -210,7 +213,7 @@ void interface_launch_given(void)
 long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer, EngineError *error)
 {
     SECURITY_ATTRIBUTES inherited;
-    memset(&inherited, 0, sizeof(inherited));
+    mmgr_bytes_set(&inherited, 0, sizeof(inherited));
     inherited.nLength = sizeof(inherited);
     inherited.bInheritHandle = TRUE;
     HANDLE output = INVALID_HANDLE_VALUE;
@@ -249,19 +252,19 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
                                               probe->command, command_line, sizeof(command_line));
     const HANDLE job = CreateJobObjectA(NULL, NULL);
     JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits;
-    memset(&limits, 0, sizeof(limits));
+    mmgr_bytes_set(&limits, 0, sizeof(limits));
     limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
     const int limited =
         (job != NULL) && SetInformationJobObject(job, JobObjectExtendedLimitInformation, &limits, sizeof(limits));
     STARTUPINFOA startup;
-    memset(&startup, 0, sizeof(startup));
+    mmgr_bytes_set(&startup, 0, sizeof(startup));
     startup.cb = sizeof(startup);
     startup.dwFlags = STARTF_USESTDHANDLES;
     startup.hStdInput = input;
     startup.hStdOutput = output;
     startup.hStdError = output;
     PROCESS_INFORMATION started;
-    memset(&started, 0, sizeof(started));
+    mmgr_bytes_set(&started, 0, sizeof(started));
     // a fault in the probe ends it with no dialog to wait on: the error mode is inherited, and set back once it starts
     const UINT mode = SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
     const unsigned long long began = interface_now();
@@ -352,7 +355,8 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
     }
     const int faulted = (code & 0x80000000u) != 0u;
     answer->code = code;
-    answer->ending = out_of_time ? INTERFACE_ENDING_OUT_OF_TIME : (faulted ? INTERFACE_ENDING_FAULTED : INTERFACE_ENDING_EXITED);
+    answer->ending =
+        out_of_time ? INTERFACE_ENDING_OUT_OF_TIME : (faulted ? INTERFACE_ENDING_FAULTED : INTERFACE_ENDING_EXITED);
     answer->fault = (answer->ending == INTERFACE_ENDING_FAULTED) ? interface_fault_of(code) : INTERFACE_FAULT_NONE;
     return 0L;
 }

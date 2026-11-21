@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // inflate_blocks.c: stored, fixed and dynamic blocks, zlib and gzip
 #include "inflate_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 static const unsigned char inflate_code_length_order[INFLATE_CODE_LENGTH_CODES] = {
     16u, 17u, 18u, 0u, 8u, 7u, 9u, 6u, 10u, 5u, 11u, 4u, 12u, 3u, 13u, 2u, 14u, 1u, 15u};
@@ -58,7 +59,7 @@ static int inflate_stored(InflateStream *stream)
     }
     if (length != 0u)
     {
-        memcpy(stream->out + stream->written, stream->in + stream->at, (size_t)length);
+        mmgr_bytes_copy(stream->out + stream->written, stream->in + stream->at, (size_t)length);
     }
     stream->at += length;
     stream->written += length;
@@ -68,11 +69,11 @@ static int inflate_stored(InflateStream *stream)
 static int inflate_fixed(InflateStream *stream)
 {
     unsigned char lengths[INFLATE_LITERAL_CODES + INFLATE_DISTANCE_CODES];
-    memset(lengths, 8u, 144u);
-    memset(lengths + 144u, 9u, 112u);
-    memset(lengths + 256u, 7u, 24u);
-    memset(lengths + 280u, 8u, 8u);
-    memset(lengths + INFLATE_LITERAL_CODES, 5u, INFLATE_DISTANCE_CODES);
+    mmgr_bytes_set(lengths, 8u, 144u);
+    mmgr_bytes_set(lengths + 144u, 9u, 112u);
+    mmgr_bytes_set(lengths + 256u, 7u, 24u);
+    mmgr_bytes_set(lengths + 280u, 8u, 8u);
+    mmgr_bytes_set(lengths + INFLATE_LITERAL_CODES, 5u, INFLATE_DISTANCE_CODES);
     InflateHuffman literals;
     InflateHuffman distances;
     return inflate_build(&literals, lengths, INFLATE_LITERAL_CODES, 1) &&
@@ -98,7 +99,7 @@ static int inflate_dynamic(InflateStream *stream)
         return 0;
     }
     unsigned char code_lengths[INFLATE_CODE_LENGTH_CODES];
-    memset(code_lengths, 0u, sizeof(code_lengths));
+    mmgr_bytes_set(code_lengths, 0u, sizeof(code_lengths));
     for (unsigned int at = 0u; at < code_length_count; at += 1u)
     {
         unsigned int value = 0u;
@@ -114,7 +115,7 @@ static int inflate_dynamic(InflateStream *stream)
         return 0;
     }
     unsigned char lengths[INFLATE_LITERAL_CODES + INFLATE_DISTANCE_CODES];
-    memset(lengths, 0u, sizeof(lengths));
+    mmgr_bytes_set(lengths, 0u, sizeof(lengths));
     const unsigned int total = literal_count + distance_count;
     unsigned int filled = 0u;
     while (filled < total)
@@ -147,7 +148,7 @@ static int inflate_dynamic(InflateStream *stream)
         {
             return 0;
         }
-        memset(lengths + filled, repeated, repeat);
+        mmgr_bytes_set(lengths + filled, repeated, repeat);
         filled += repeat;
     }
     if (lengths[INFLATE_END_OF_BLOCK] == 0u)
@@ -236,7 +237,7 @@ static long long inflate_error(const EngineBytesRequest *request, unsigned long 
 {
     if (touched != 0ULL)
     {
-        memset(request->out, 0, (size_t)touched);
+        mmgr_bytes_set(request->out, 0, (size_t)touched);
     }
     return ENGINE_BYTES_ERROR;
 }

@@ -1,10 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// identity_internal.h: what the modules of orior_klq_identity share: its includes, every define and struct, the const tables, and the state and functions one module reads from another
+// identity_internal.h: what the modules of orior_klq_identity share: its includes, every define and struct, the const
+// tables, and the state and functions one module reads from another
 #ifndef IDENTITY_INTERNAL_H
 #define IDENTITY_INTERNAL_H
 
 #include "../../../../../../../includes/file_defs/kdm/kdm.h"
+#include "memoria_operor/memoria_linea.h"
 #include "../../../../../../../includes/file_defs/kernel_blob/forms_blob.h"
 #include "../../../../../../../includes/file_defs/kernel_blob/kernel_blob.h"
 #include "../../../../../../../includes/file_defs/kqr/kqr_record.h"
@@ -53,11 +55,24 @@
 #include "identity_settings.h"
 
 // the values each operand is put through: zero, the small numbers, and the edges of every width
-static const unsigned long long s_values[] = {
-    0x0ULL,          0x1ULL,          0x2ULL,          0x3ULL,          0x7fULL,
-    0x80ULL,         0xffULL,         0x100ULL,        0x7fffULL,       0x8000ULL,
-    0xffffULL,       0x7fffffffULL,   0x80000000ULL,   0xffffffffULL,   0x100000000ULL,
-    0x7fffffffffffffffULL, 0x8000000000000000ULL, 0xffffffffffffffffULL};
+static const unsigned long long s_values[] = {0x0ULL,
+                                              0x1ULL,
+                                              0x2ULL,
+                                              0x3ULL,
+                                              0x7fULL,
+                                              0x80ULL,
+                                              0xffULL,
+                                              0x100ULL,
+                                              0x7fffULL,
+                                              0x8000ULL,
+                                              0xffffULL,
+                                              0x7fffffffULL,
+                                              0x80000000ULL,
+                                              0xffffffffULL,
+                                              0x100000000ULL,
+                                              0x7fffffffffffffffULL,
+                                              0x8000000000000000ULL,
+                                              0xffffffffffffffffULL};
 
 #define IDENTITY_VALUES (sizeof(s_values) / sizeof(s_values[0]))
 
@@ -206,8 +221,8 @@ struct QueryLog
     std::string bytes;
 };
 
-// One query a pair's thread passes to the round, 1 where it is dangerous: its stand-in reads or writes memory through an
-// address, or sends control elsewhere, and it is carried in a process of its own
+// One query a pair's thread passes to the round, 1 where it is dangerous: its stand-in reads or writes memory through
+// an address, or sends control elsewhere, and it is carried in a process of its own
 struct CarriedQuery
 {
     RunQuestion *question;
@@ -251,7 +266,7 @@ static inline const Ruleset *identity_ruleset(void)
         return NULL;
     }
     // a path below IDENTITY_PATH_MAX_LEN bytes, which a size_t counts
-    memcpy(s_path, named, (size_t)size);
+    mmgr_bytes_copy(s_path, named, (size_t)size);
     s_path[size] = '\0';
     return code_generator(s_path).ruleset(1);
 }
@@ -264,7 +279,7 @@ static inline unsigned long identity_seed(void)
     unsigned long long seed = 1ULL;
     if (qry_member_blob(IDENTITY_SEED, &seed_bytes, &size, NULL) && (size == sizeof(seed)))
     {
-        memcpy(&seed, seed_bytes, sizeof(seed));
+        mmgr_bytes_copy(&seed, seed_bytes, sizeof(seed));
     }
     // a seed the crate gives fits the generator's word
     return (unsigned long)seed;
@@ -387,17 +402,22 @@ std::vector<unsigned long long> window_identities(const Question &question, size
 std::string address_text(const std::vector<Question> &questions, unsigned int question, unsigned int link);
 std::unordered_map<unsigned long long, Occurrence> windows_counted(const std::vector<Question> &questions);
 int slice_found(const Question &one, const Question &other, const Link **left, const Link **right);
-int identity_slice(const char *listing, const char *manifest, const char *stick_path, const std::string &folder, const std::string &ours);
+int identity_slice(const char *listing, const char *manifest, const char *stick_path, const std::string &folder,
+                   const std::string &ours);
 int forms_read(int count, char **files, std::vector<std::pair<std::string, std::vector<std::regex>>> *forms);
-std::string forms_writing(const std::vector<std::pair<std::string, std::vector<std::regex>>> &forms, const std::string &type);
+std::string forms_writing(const std::vector<std::pair<std::string, std::vector<std::regex>>> &forms,
+                          const std::string &type);
 int identity_read(const std::string &folder, const std::string &klq, int count, char **files);
 std::vector<std::string> candidate_paths(const std::vector<std::string> &given);
 void candidates_read(const std::string &path, std::vector<Question> *candidates);
-int identity_known(const char *listing, const char *manifest, const std::string &folder, const std::vector<std::string> &paths);
+int identity_known(const char *listing, const char *manifest, const std::string &folder,
+                   const std::vector<std::string> &paths);
 int identity_permute(const char *listing, const char *manifest, const std::string &folder);
-int identity_broken(const char *listing, const char *manifest, const std::string &folder, const std::vector<std::string> &ours_paths, int count, char **files);
+int identity_broken(const char *listing, const char *manifest, const std::string &folder,
+                    const std::vector<std::string> &ours_paths, int count, char **files);
 unsigned long long stall_bits(const std::vector<unsigned char> &code, size_t index, const StallField &field);
-void stall_bits_write(std::vector<unsigned char> *code, size_t index, const StallField &field, unsigned long long value);
+void stall_bits_write(std::vector<unsigned char> *code, size_t index, const StallField &field,
+                      unsigned long long value);
 std::string stall_operation(const Link &link, std::vector<std::string> *operands);
 std::set<std::string> stall_written(const Link &link);
 std::set<std::string> stall_read(const Link &link);
@@ -424,34 +444,48 @@ int question_alike(const std::vector<unsigned char> &code, const std::vector<std
 int stall_alike(const std::vector<unsigned char> &code, const std::vector<std::string> &host,
                 const std::vector<unsigned int> &places, RunQuestion *question, unsigned long long *queries);
 std::map<std::string, std::vector<std::string>> host_answers_read(const char *answers);
-int chain_code_read(const char *engine, const std::string &number, std::vector<unsigned char> *code, std::vector<Link> *links);
+int chain_code_read(const char *engine, const std::string &number, std::vector<unsigned char> *code,
+                    std::vector<Link> *links);
 unsigned int chain_registers(const char *engine, const std::string &number);
 int ksc_answers_written(const char *ksc, const std::string &queried, const std::vector<std::string> &rows, Who who);
 void arrangement_probes(const char *engine, const std::map<std::string, std::vector<std::string>> &host,
                         const std::string &kdm, const Ruleset *sass, const char *machine_path, const StallField &stall,
                         unsigned long long longest, const std::set<std::pair<std::string, std::string>> &excluded_pairs,
                         size_t max, std::vector<StallQuery> *queries, std::vector<std::vector<unsigned char>> *codes);
-int identity_stall(const char *engine, const char *answers, const char *ksc, const std::string &folder, const char *machine_path, const char *const *carrier);
+int identity_stall(const char *engine, const char *answers, const char *ksc, const std::string &folder,
+                   const char *machine_path, const char *const *carrier);
 long long walk_step(const std::function<int(long long)> &predicate, long long from, long long step, long long end);
 long long walk_halved(const std::function<int(long long)> &predicate, long long truthy, long long falsy);
-int identity_frame(const char *engine, const char *answers, const char *ksc, const std::string &folder, const char *const *carrier);
+int identity_frame(const char *engine, const char *answers, const char *ksc, const std::string &folder,
+                   const char *const *carrier);
 int frame_kernel_read(const unsigned char **code, unsigned int *places, unsigned int *registers);
 int question_read(const std::vector<unsigned char> &code, RunQuestion *question, unsigned long long *queries);
-int identity_fixed(const char *engine, const char *answers, const char *ksc, const std::string &folder, const char *const *carrier);
-int identity_register(const char *engine, const char *answers, const char *ksc, const std::string &folder, const char *const *carrier);
-int identity_predicate(const char *engine, const char *answers, const char *ksc, const std::string &folder, const char *const *carrier);
-int identity_past(const char *engine, const char *answers, const char *ksc, const std::string &folder, const char *const *carrier);
-int identity_curve(const char *engine, const char *answers, const char *ksc, const std::string &folder, const std::vector<std::string> &tasks, const char *const *carrier);
-int identity_queue(const char *engine, const char *answers, const char *ksc, const std::string &folder, const char *manifest, const char *const *carrier);
+int identity_fixed(const char *engine, const char *answers, const char *ksc, const std::string &folder,
+                   const char *const *carrier);
+int identity_register(const char *engine, const char *answers, const char *ksc, const std::string &folder,
+                      const char *const *carrier);
+int identity_predicate(const char *engine, const char *answers, const char *ksc, const std::string &folder,
+                       const char *const *carrier);
+int identity_past(const char *engine, const char *answers, const char *ksc, const std::string &folder,
+                  const char *const *carrier);
+int identity_curve(const char *engine, const char *answers, const char *ksc, const std::string &folder,
+                   const std::vector<std::string> &tasks, const char *const *carrier);
+int identity_queue(const char *engine, const char *answers, const char *ksc, const std::string &folder,
+                   const char *manifest, const char *const *carrier);
 std::string case_text(unsigned int at);
-int identity_text(const char *engine, const char *answers, const char *ksc, const char *klq, const char *manifest, const char *const *carrier);
+int identity_text(const char *engine, const char *answers, const char *ksc, const char *klq, const char *manifest,
+                  const char *const *carrier);
 int vector_alike(const std::vector<unsigned char> &code, const std::vector<std::string> &host,
                  const std::vector<unsigned int> &places, RunQuestion *question, unsigned long long *queries,
                  unsigned int mark);
-std::string carrier_cut_at_read(const std::vector<CarrierLink> &links, long cases_defined, const std::string &text, long link_at, long form_lines, const std::string &read, const std::string &located = std::string(), int wide = 0);
-std::string read_shape(const std::vector<CarrierLink> &links, const std::vector<std::string> &lines, long cases_defined, const std::string &form_text, long at);
+std::string carrier_cut_at_read(const std::vector<CarrierLink> &links, long cases_defined, const std::string &text,
+                                long link_at, long form_lines, const std::string &read,
+                                const std::string &located = std::string(), int wide = 0);
+std::string read_shape(const std::vector<CarrierLink> &links, const std::vector<std::string> &lines, long cases_defined,
+                       const std::string &form_text, long at);
 std::vector<std::string> form_tokens(const std::string &text);
-int form_unified(const Ruleset *sass, const std::string &to_text, const std::string &from_text, std::map<char, std::string> *bound, std::map<char, std::string> *fixed);
+int form_unified(const Ruleset *sass, const std::string &to_text, const std::string &from_text,
+                 std::map<char, std::string> *bound, std::map<char, std::string> *fixed);
 int form_launched(const std::string &text);
 std::set<std::string> form_conditions(const std::string &text);
 int form_controls(const std::string &text);
@@ -467,19 +501,27 @@ void carriers_read(const char *engine, const std::map<std::string, std::vector<s
 std::function<std::string(const std::string &)> scratch_past(const Ruleset *sass, unsigned int reserved,
                                                              unsigned int *taken);
 std::string marked(const Ruleset *sass, const std::string &form, std::vector<std::string> *names);
-std::vector<FoundLink> links_of(Carriers &carriers, unsigned long seed, const std::string &text, std::map<char, unsigned int> *group, const std::string &drawn_for);
+std::vector<FoundLink> links_of(Carriers &carriers, unsigned long seed, const std::string &text,
+                                std::map<char, unsigned int> *group, const std::string &drawn_for);
 void cuts_queried(const std::vector<std::vector<unsigned char>> &codes, const std::vector<int> &dangerous,
                   const std::vector<unsigned int> &places, const RunQuestion *question, unsigned long long *queries,
                   unsigned int mark, std::vector<RunQuestion> *questions);
 std::string pair_categories(const Ruleset *sass, const std::string &first, const std::string &second);
-std::vector<std::string> pair_beneath(const std::vector<std::string> &bridge, const std::string &first, const std::string &second);
+std::vector<std::string> pair_beneath(const std::vector<std::string> &bridge, const std::string &first,
+                                      const std::string &second);
 std::string pair_verdicts_joined(const std::string &one_way, const std::string &other_way);
-void pair_row_passed(const std::string &first, const std::string &second, int read, unsigned long long reads, const std::string &verdict);
-int identity_pair(const char *engine, const char *answers, const char *ksc, const char *klq, const char *machine_path, const char *const *carrier);
+void pair_row_passed(const std::string &first, const std::string &second, int read, unsigned long long reads,
+                     const std::string &verdict);
+int identity_pair(const char *engine, const char *answers, const char *ksc, const char *klq, const char *machine_path,
+                  const char *const *carrier);
 const Word *word_produced(const std::vector<PreceptNode> &nodes);
-std::string arrangement_written(const Ruleset *sass, const std::vector<PreceptNode> &nodes, const std::vector<std::string> &operands, const std::string &ones, const std::string &to, unsigned int next);
-void kdm_rows_read(const char *kdm, std::vector<std::string> *lines, std::vector<CostRow> *rows, std::map<std::string, std::vector<size_t>> *operators);
-int identity_cost(const char *engine, const char *answers, const char *ksc, const std::string &folder, const char *kdm, const char *machine_path, const char *forms, const char *const *carrier);
+std::string arrangement_written(const Ruleset *sass, const std::vector<PreceptNode> &nodes,
+                                const std::vector<std::string> &operands, const std::string &ones,
+                                const std::string &to, unsigned int next);
+void kdm_rows_read(const char *kdm, std::vector<std::string> *lines, std::vector<CostRow> *rows,
+                   std::map<std::string, std::vector<size_t>> *operators);
+int identity_cost(const char *engine, const char *answers, const char *ksc, const std::string &folder, const char *kdm,
+                  const char *machine_path, const char *forms, const char *const *carrier);
 
 // `texts` put into code by the vendor's writer against the machine file at `machine` (assembled.cu): each text's code,
 // empty where a line of it did not assemble or the writer did not run

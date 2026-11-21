@@ -20,7 +20,7 @@ static char *run_command_line(const char *program, char *const *words, int count
         capacity += (2u * mmgr_text_length(words[at], PLATFORM_TEXT_TO_TERMINATOR)) + 3u;
     }
     char *const line =
-        (char *)platform_cell_taken((unsigned long long)(capacity), (unsigned int)platform_place_g_engine_owner, 0);
+        (char *)malloc(capacity);
     if (line == NULL)
     {
         return NULL;
@@ -194,7 +194,7 @@ int run_start(RunChild *child, char *const *words, int count, unsigned long long
     // below normal is the class every process the command starts inherits
     const int made = CreateProcessA(NULL, line, NULL, NULL, TRUE, CREATE_SUSPENDED | BELOW_NORMAL_PRIORITY_CLASS, NULL,
                                     NULL, &startup, &started);
-    platform_cell_released(line, (unsigned int)platform_place_g_engine_owner);
+    free(line);
     if (!made)
     {
         if (child->job != NULL)

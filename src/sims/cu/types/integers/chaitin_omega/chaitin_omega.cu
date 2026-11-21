@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // chaitin_omega.cu: the kernel, the ledger and the device run
 #include "chaitin_omega_internal.h"
+#include "../../../../../platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 // the bytes of one thread's buffers, each rounded to 16
 static __host__ __device__ size_t omega_buffers_bytes(unsigned int tokens, unsigned int token_capacity)
@@ -146,7 +148,7 @@ static void omega_ledger_read(const char *path, std::vector<OmegaLedgerJob> &job
         unsigned long long fate[6];
         unsigned long long contradictions = 0ULL;
         unsigned long long max[4];
-        const size_t written = strlen(line);
+        const size_t written = mmgr_text_length(line, PLATFORM_TEXT_TO_TERMINATOR);
         if ((written == 0u) || (line[written - 1u] != '\n'))
         {
             continue;
@@ -154,8 +156,7 @@ static void omega_ledger_read(const char *path, std::vector<OmegaLedgerJob> &job
         int read = 0;
         if (sscanf(line, "%u %u %u %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu%n", &job.steps,
                    &job.tokens, &job.length, &job.from, &job.count, &fate[0], &fate[1], &fate[2], &fate[3], &fate[4],
-                   &fate[5], &contradictions, &max[0], &max[1], &max[2], &max[3],
-                   &read) != OMEGA_LEDGER_FIELDS)
+                   &fate[5], &contradictions, &max[0], &max[1], &max[2], &max[3], &read) != OMEGA_LEDGER_FIELDS)
         {
             continue;
         }

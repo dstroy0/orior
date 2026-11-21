@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pi_plane_main.cu: main
 #include "pi_plane_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 static const unsigned int s_plane_fibonacci[PLANE_FIBONACCI] = {
     1u, 2u, 3u, 5u, 8u, 13u, 21u, 34u, 55u, 89u, 144u, 233u, 377u, 610u, 987u, 1597u, 2584u, 4181u, 6765u, 10946u};
@@ -85,7 +86,9 @@ int program_main(int count, char **arguments)
     {
         plane_lag_host(bits.data(), bits_count, host_longest.data());
         longest[0] = 0u;
-        sim_check(&results, memcmp(longest.data(), host_longest.data(), (size_t)bits_count * sizeof(unsigned int)) == 0,
+        sim_check(&results,
+                  mmgr_bytes_compare(longest.data(), host_longest.data(), (size_t)bits_count * sizeof(unsigned int)) ==
+                      0,
                   "the device's longest run at every difference equals the host's, for pi");
     }
 
@@ -255,8 +258,8 @@ int program_main(int count, char **arguments)
             plane_band_print(line, band[extent], found[extent].length);
             sim_flush(&results);
         }
-        mmgr_line_put(
-            line, "  the ones' spread, sum over the classes of (2 ones - size)^2; a residue is one place on every");
+        mmgr_line_put(line,
+                      "  the ones' spread, sum over the classes of (2 ones - size)^2; a residue is one place on every");
         mmgr_line_put(line, " arm of the twindragon, a block one whole sub-dragon\n");
         for (unsigned int type = 0u; type < 2u * PLANE_SCALES; type += 1u)
         {

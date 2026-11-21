@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // chaitin_omega_main.cu: the terms printed and main
 #include "chaitin_omega_internal.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 // a term from its code, for the checks below
 static std::vector<int> omega_term(const char *code)
@@ -84,11 +87,11 @@ int program_main(int argc, char **argv)
     const char *ledger = NULL;
     for (int at = 2; at < argc; at += 1)
     {
-        if (strcmp(argv[at], "cpu") == 0)
+        if (mmgr_text_equal(argv[at], "cpu", PLATFORM_TEXT_TO_TERMINATOR))
         {
             on_device = 0;
         }
-        else if ((strcmp(argv[at], "--ledger") == 0) && ((at + 1) < argc))
+        else if ((mmgr_text_equal(argv[at], "--ledger", PLATFORM_TEXT_TO_TERMINATOR)) && ((at + 1) < argc))
         {
             at += 1;
             ledger = argv[at];
@@ -167,7 +170,7 @@ int program_main(int argc, char **argv)
     unsigned long long jobs_retained = 0ULL;
     const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
     OmegaEngineReport engine_report;
-    memset(&engine_report, 0, sizeof(engine_report));
+    mmgr_bytes_set(&engine_report, 0, sizeof(engine_report));
     std::vector<OmegaSettled> crossed;
     if (on_engine != 0)
     {
@@ -379,8 +382,8 @@ int program_main(int argc, char **argv)
     }
     mmgr_line_decimal(&results.line, (unsigned long long)(seconds * 1000.0), 1u);
     mmgr_line_put(&results.line,
-                   " ms)\n  length    closed      halts  typed halts     loops  grows forever  out of steps"
-                   "  outgrew\n");
+                  " ms)\n  length    closed      halts  typed halts     loops  grows forever  out of steps"
+                  "  outgrew\n");
     for (unsigned int length = 2u; length <= counts.length; length += 1u)
     {
         mmgr_line_decimal_columns(&results.line, length, 8u);
@@ -433,9 +436,9 @@ int program_main(int argc, char **argv)
     // the busy beaver table: a length with an open term reads "at least", since the open one may halt later
     // and larger
     mmgr_line_put(&results.line,
-                   "\n  busy beavers of the halting terms (>= where a term of that length is still open)\n"
-                   "  length  max steps  step champion                             BB lambda  normal form "
-                   "champion\n");
+                  "\n  busy beavers of the halting terms (>= where a term of that length is still open)\n"
+                  "  length  max steps  step champion                             BB lambda  normal form "
+                  "champion\n");
     sim_flush(&results);
     for (unsigned int length = 2u; length <= counts.length; length += 1u)
     {

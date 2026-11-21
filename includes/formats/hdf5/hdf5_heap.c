@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // hdf5_heap.c: the fractal heap, version 2 B-trees and dense links
 #include "hdf5_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 static int hdf5_heap_open(Hdf5File *file, unsigned long long address, Hdf5Heap *heap)
 {
-    memset(heap, 0, sizeof(*heap));
+    mmgr_bytes_set(heap, 0, sizeof(*heap));
     heap->block = NULL;
     const unsigned int offset_bytes = file->offset_bytes;
     const unsigned int length_bytes = file->length_bytes;
@@ -36,7 +37,7 @@ static int hdf5_heap_open(Hdf5File *file, unsigned long long address, Hdf5Heap *
     (void)hdf5_take(&cursor, 2u);
     heap->root = hdf5_take(&cursor, offset_bytes);
     heap->root_rows = (unsigned int)hdf5_take(&cursor, 2u);
-    const int signed_right = (memcmp(header, "FRHP", 4u) == 0) && (version == 0u);
+    const int signed_right = (mmgr_bytes_compare(header, "FRHP", 4u) == 0) && (version == 0u);
     const int sealed = (filter_length == 0u) && hdf5_sealed(header, (size_t)total);
     free(header);
     if (filter_length != 0u)
@@ -114,7 +115,8 @@ static int hdf5_heap_locate(Hdf5File *file, const Hdf5Heap *heap, unsigned long 
         {
             return 0;
         }
-        const int sound = (memcmp(node, "FHIB", 4u) == 0) && (node[4u] == 0u) && hdf5_sealed(node, (size_t)bytes) &&
+        const int sound = (mmgr_bytes_compare(node, "FHIB", 4u) == 0) && (node[4u] == 0u) &&
+                          hdf5_sealed(node, (size_t)bytes) &&
                           (hdf5_little(&node[5u], file->offset_bytes) == heap->header) &&
                           (hdf5_little(&node[5u + file->offset_bytes], heap->position_bytes) == base_offset);
         const unsigned long long entry = ((unsigned long long)row * heap->width) + column;
@@ -158,13 +160,13 @@ static int hdf5_heap_block(Hdf5File *file, Hdf5Heap *heap, unsigned long long ad
     const size_t head = 5u + (size_t)file->offset_bytes + heap->position_bytes;
     const int summed = (heap->flags & 2u) != 0u;
     const size_t prefix = head + (summed ? HDF5_SEAL_BYTES : 0u);
-    int sound = (bytes > prefix) && (memcmp(block, "FHDB", 4u) == 0) && (block[4u] == 0u) &&
+    int sound = (bytes > prefix) && (mmgr_bytes_compare(block, "FHDB", 4u) == 0) && (block[4u] == 0u) &&
                 (hdf5_little(&block[5u], file->offset_bytes) == heap->header) &&
                 (hdf5_little(&block[5u + file->offset_bytes], heap->position_bytes) == block_offset);
     if (sound && summed)
     {
         const uint32_t stored = (uint32_t)hdf5_little(&block[head], 4u);
-        memset(&block[head], 0, HDF5_SEAL_BYTES);
+        mmgr_bytes_set(&block[head], 0, HDF5_SEAL_BYTES);
         sound = (stored == hdf5_lookup3(block, (size_t)bytes));
     }
     if (!sound)
@@ -247,7 +249,7 @@ static int hdf5_tree2_ordered(Hdf5Tree2 *tree, const unsigned char *record)
     tree->last_hash = hash;
     for (unsigned int place = 0u; place < tree->run_count; place += 1u)
     {
-        if (memcmp(tree->run[place], record, tree->record_bytes) == 0)
+        if (mmgr_bytes_compare(tree->run[place], record, tree->record_bytes) == 0)
         {
             return 0;
         }
@@ -256,7 +258,7 @@ static int hdf5_tree2_ordered(Hdf5Tree2 *tree, const unsigned char *record)
     {
         return 0;
     }
-    memcpy(tree->run[tree->run_count], record, tree->record_bytes);
+    mmgr_bytes_copy(tree->run[tree->run_count], record, tree->record_bytes);
     tree->run_count += 1u;
     return 1;
 }
@@ -285,11 +287,10 @@ static Hdf5Walk hdf5_tree2_node(Hdf5File *file, Hdf5Tree2 *tree, unsigned long l
     {
         return HDF5_WALK_FAILED;
     }
-    const int sound = (memcmp(node, (level == 0u) ? "BTLF" : "BTIN", 4u) == 0) && (node[4u] == 0u) &&
+    const int sound = (mmgr_bytes_compare(node, (level == 0u) ? "BTLF" : "BTIN", 4u) == 0) && (node[4u] == 0u) &&
                       (node[5u] == tree->type) && hdf5_sealed(node, bytes);
-    Hdf5Walk step = sound
-                        ? HDF5_WALK_ON
-                        : hdf5_walk_error(file, "a version 2 B-tree node whose signature or checksum does not match");
+    Hdf5Walk step = sound ? HDF5_WALK_ON
+                          : hdf5_walk_error(file, "a version 2 B-tree node whose signature or checksum does not match");
     for (unsigned long long place = 0ULL; (step == HDF5_WALK_ON) && (place <= records); place += 1ULL)
     {
         const unsigned char *const record = &node[6u + ((size_t)place * tree->record_bytes)];
@@ -325,7 +326,7 @@ static Hdf5Walk hdf5_tree2_walk(Hdf5File *file, unsigned long long address, unsi
         return HDF5_WALK_ON;
     }
     Hdf5Tree2 tree;
-    memset(&tree, 0, sizeof(tree));
+    mmgr_bytes_set(&tree, 0, sizeof(tree));
     tree.type = type;
     tree.visit = visit;
     tree.state = state;
@@ -346,8 +347,8 @@ static Hdf5Walk hdf5_tree2_walk(Hdf5File *file, unsigned long long address, unsi
     (void)hdf5_take(&cursor, 2u);
     const unsigned long long root = hdf5_take(&cursor, file->offset_bytes);
     const unsigned long long root_records = hdf5_take(&cursor, 2u);
-    const int sound = !cursor.broken && (memcmp(header, "BTHD", 4u) == 0) && (version == 0u) && (stated_type == type) &&
-                      hdf5_sealed(header, (size_t)total);
+    const int sound = !cursor.broken && (mmgr_bytes_compare(header, "BTHD", 4u) == 0) && (version == 0u) &&
+                      (stated_type == type) && hdf5_sealed(header, (size_t)total);
     free(header);
     if (!sound)
     {

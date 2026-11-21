@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // zarr_read.c: the shard index, fill and the read
 #include "zarr_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 static int zarr_shard_index(ZarrWalk *walk, const char *path, long long file_bytes)
 {
@@ -88,7 +89,7 @@ static int zarr_leaf(ZarrWalk *walk, const unsigned long long *position)
             {
                 return 0;
             }
-            memcpy(walk->cached_shard, shard, sizeof(shard));
+            mmgr_bytes_copy(walk->cached_shard, shard, sizeof(shard));
             walk->shard_valid = 1u;
         }
         const unsigned long long offset = walk->shard_index[entry * 2ULL];
@@ -176,12 +177,12 @@ static void zarr_fill(const ZarrReadRequest *request, unsigned long long bytes, 
     }
     if (zero != 0u)
     {
-        memset(request->out, 0, (size_t)bytes);
+        mmgr_bytes_set(request->out, 0, (size_t)bytes);
         return;
     }
     for (unsigned long long at = 0ULL; at < bytes; at += element_bytes)
     {
-        memcpy(&request->out[at], request->layout->fill, element_bytes);
+        mmgr_bytes_copy(&request->out[at], request->layout->fill, element_bytes);
     }
 }
 
@@ -202,7 +203,7 @@ long long zarr_read(const ZarrReadRequest *request)
         return ZARR_ERROR;
     }
     ZarrWalk walk;
-    memset(&walk, 0, sizeof(walk));
+    mmgr_bytes_set(&walk, 0, sizeof(walk));
     walk.request = request;
     walk.rank = rank;
     walk.element_bytes = element_bytes;
@@ -210,7 +211,7 @@ long long zarr_read(const ZarrReadRequest *request)
     unsigned long long total = (request->end - request->first) * element_bytes;
     unsigned long long leaf_bytes = element_bytes;
     unsigned int seen[ENGINE_ARRAY_RANK];
-    memset(seen, 0, sizeof(seen));
+    mmgr_bytes_set(seen, 0, sizeof(seen));
     for (unsigned int axis = 0u; axis < rank; axis += 1u)
     {
         const unsigned int placed = layout->order[axis];
@@ -240,7 +241,7 @@ long long zarr_read(const ZarrReadRequest *request)
     const unsigned long long first_chunk = request->first / walk.leaf[0];
     const unsigned long long end_chunk = (request->end + walk.leaf[0] - 1ULL) / walk.leaf[0];
     unsigned long long position[ENGINE_ARRAY_RANK];
-    memset(position, 0, sizeof(position));
+    mmgr_bytes_set(position, 0, sizeof(position));
     position[0] = first_chunk;
     int ok = 1;
     while (ok && (position[0] < end_chunk))

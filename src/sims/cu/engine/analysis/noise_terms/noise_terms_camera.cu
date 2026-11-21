@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_terms_camera.cu: the camera, lines, flicker and neighbors
 #include "noise_terms_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 static void terms_within(SimResults *results, const char *what, long long read, long long expected, long long tolerance)
 {
@@ -21,7 +22,7 @@ static void terms_within(SimResults *results, const char *what, long long read, 
 
 void terms_camera(SimCamera *camera)
 {
-    memset(camera, 0, sizeof(*camera));
+    mmgr_bytes_set(camera, 0, sizeof(*camera));
     camera->key = TERMS_KEY;
     camera->offset = TERMS_OFFSET;
     camera->gain = 1ULL;
@@ -49,7 +50,7 @@ void terms_lines(SimResults *results, const unsigned short *lanes, unsigned long
                  unsigned long long column_square, unsigned long long plane_square)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     long long readings[NOISE_PLANE_READINGS];
     const int ok = noise_lines_volume(lanes, TERMS_EXTENT, readings, &error) == 0L;
     sim_check(results, ok, "the lines read the volume");
@@ -107,7 +108,7 @@ void terms_flicker(SimResults *results, const unsigned short *lanes, unsigned lo
                    unsigned int octaves)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     unsigned long long per_mille[NOISE_FLICKER_LAGS];
     unsigned long long neighbor_per_mille[NOISE_FLICKER_LAGS];
     const int ok = noise_flicker_volume(lanes, TERMS_EXTENT, per_mille, neighbor_per_mille, &error) == 0L;
@@ -146,7 +147,7 @@ void terms_flicker(SimResults *results, const unsigned short *lanes, unsigned lo
 void terms_neighbors(SimResults *results, const unsigned short *lanes, long long expected_z)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     long long per_mille[NOISE_NEIGHBOR_RADII];
     const int ok = noise_neighbors_volume(lanes, TERMS_EXTENT, per_mille, &error) == 0L;
     sim_check(results, ok, "the neighbor pass read the volume");
@@ -173,7 +174,7 @@ void terms_neighbors(SimResults *results, const unsigned short *lanes, long long
 void terms_shot_law(SimResults *results, const unsigned short *lanes, unsigned long long law)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     long long cumulants[NOISE_MOMENT_CUMULANTS];
     const int ok = noise_moments_volume(lanes, TERMS_EXTENT, cumulants, &error) == 0L;
     sim_check(results, ok, "the moment pass read the volume");

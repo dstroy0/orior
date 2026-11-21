@@ -3,6 +3,7 @@
 // assembled.cu: texts of the vendor's language put into code by the vendor's writer, a member of the run started
 // through the interface; the identity contains no machine file and assembles nothing itself
 #include "identity_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 // the blob the texts are passed in and the blob the vendor's writer passes their code back in
 #define ASSEMBLE_TEXTS "assemble.txt"
@@ -20,11 +21,12 @@ std::vector<std::vector<unsigned char>> vendor_assembled(const char *machine, co
     static IdentityWriter s_writer;
     const unsigned char *named = NULL;
     unsigned long long named_size = 0ULL;
-    if (!qry_member_blob(IDENTITY_WRITER, &named, &named_size, NULL) || (named_size != sizeof(s_writer)) || texts.empty())
+    if (!qry_member_blob(IDENTITY_WRITER, &named, &named_size, NULL) || (named_size != sizeof(s_writer)) ||
+        texts.empty())
     {
         return codes;
     }
-    memcpy(&s_writer, named, sizeof(s_writer));
+    mmgr_bytes_copy(&s_writer, named, sizeof(s_writer));
     s_writer.program[sizeof(s_writer.program) - 1u] = '\0';
     s_writer.part[sizeof(s_writer.part) - 1u] = '\0';
     s_writer.layout[sizeof(s_writer.layout) - 1u] = '\0';
@@ -40,9 +42,14 @@ std::vector<std::vector<unsigned char>> vendor_assembled(const char *machine, co
         return codes;
     }
     // the writer's words: its program and part, the machine file, the layout and mnemonics, the blob and the mode
-    char *command[] = {s_writer.program,        s_writer.part,          const_cast<char *>(machine),
-                       s_writer.layout,         s_writer.mnemonics,     const_cast<char *>(ASSEMBLE_TEXTS),
-                       const_cast<char *>("assemble"), NULL};
+    char *command[] = {s_writer.program,
+                       s_writer.part,
+                       const_cast<char *>(machine),
+                       s_writer.layout,
+                       s_writer.mnemonics,
+                       const_cast<char *>(ASSEMBLE_TEXTS),
+                       const_cast<char *>("assemble"),
+                       NULL};
     const InterfaceProbe probe = {command, NULL, 0ULL};
     InterfaceAnswer answer = {};
     answer.output = s_writer_output;
@@ -65,19 +72,19 @@ std::vector<std::vector<unsigned char>> vendor_assembled(const char *machine, co
     {
         return codes;
     }
-    memcpy(&call, bytes, sizeof(call));
-    memcpy(&count, bytes + sizeof(call), sizeof(count));
+    mmgr_bytes_copy(&call, bytes, sizeof(call));
+    mmgr_bytes_copy(&count, bytes + sizeof(call), sizeof(count));
     if ((call != s_call) || (count != texts.size()))
     {
-        printf("orior_klq_identity: the vendor's writer passed call %llu of %u texts for call %llu of %zu\n", call, count,
-               s_call, texts.size());
+        printf("orior_klq_identity: the vendor's writer passed call %llu of %u texts for call %llu of %zu\n", call,
+               count, s_call, texts.size());
         return codes;
     }
     unsigned long long at = sizeof(call) + sizeof(count);
     for (size_t text = 0u; (text < texts.size()) && ((at + sizeof(count)) <= size); text += 1u)
     {
         unsigned int instructions = 0u;
-        memcpy(&instructions, bytes + at, sizeof(instructions));
+        mmgr_bytes_copy(&instructions, bytes + at, sizeof(instructions));
         at += sizeof(instructions);
         const unsigned long long length = 16ULL * instructions;
         if ((at + length) > size)

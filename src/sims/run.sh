@@ -157,13 +157,15 @@ build_object()
 }
 OBJECTS=()
 LINEA_OBJECTS=()
+# the process stage, the pool, the system calls and the carcer of the platform, which the daemon links too
+PLATFORM_OBJECTS=()
 for source in "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" \
               "${HOST_SOURCES[@]}"; do
     object="$OUT/$(basename "$source" .c)_sim.$EXTENSION"
     build_object "$source" "$object"
     OBJECTS+=("$object")
     case "$source" in
-        */mmgr/src/locus_carcerum/*) ;;
+        */mmgr/src/locus_carcerum/*|*/src/platform/*) PLATFORM_OBJECTS+=("$object") ;;
         */mmgr/src/*) LINEA_OBJECTS+=("$object") ;;
     esac
 done
@@ -194,8 +196,8 @@ case "$(uname -s)" in
     *) DAEMON="$OUT/tessera_daemon"; DAEMON_LIBRARIES=(-ldl -lpthread) ;;
 esac
 rm -f "$DAEMON"
-nvcc "${HOST_FLAGS[@]}" "${GENCODE[@]}" "${LONG_PATHS[@]}" -o "$DAEMON" "${DAEMON_OBJECTS[@]}" "${LINEA_OBJECTS[@]}" \
-    "${SEAL_OBJECTS[@]}" "${DAEMON_LIBRARIES[@]}"
+nvcc "${HOST_FLAGS[@]}" "${GENCODE[@]}" "${LONG_PATHS[@]}" -o "$DAEMON" "${DAEMON_OBJECTS[@]}" "${LINEA_OBJECTS[@]}" "${PLATFORM_OBJECTS[@]}" \
+    "${SEAL_OBJECTS[@]}" "${DAEMON_LIBRARIES[@]}" "${EXACT_TYPES_LIBRARIES[@]}"
 [ -f "$DAEMON" ] || { echo "  build failed: the tessera daemon did not link"; exit 1; }
 
 nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${GENCODE[@]}" "${WIDTH[@]}" "${INCLUDES[@]}" "${LONG_PATHS[@]}" -o "$BINARY" \

@@ -4,6 +4,9 @@
 // and stored, the slot of an identity, a query's and a sample's words, a row put with its who, the marks written, the
 // record opened, and the queries indexed
 #include "../../../parsers/who.h"
+#include "../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "kqr_internal.h"
 
 // what came back of a query, each as the text form writes it, by its code
@@ -17,7 +20,7 @@ const char *kqr_answer_name(unsigned int answer)
 unsigned int kqr_answer_of(const char *name)
 {
     unsigned int answer = 0u;
-    while ((answer < KQR_ANSWER_COUNT) && (strcmp(s_answers[answer], name) != 0))
+    while ((answer < KQR_ANSWER_COUNT) && (!mmgr_text_equal(s_answers[answer], name, PLATFORM_TEXT_TO_TERMINATOR)))
     {
         answer += 1u;
     }
@@ -32,7 +35,7 @@ int kqr_number_read(const char *text, size_t length, int base, unsigned long lon
     {
         return 0;
     }
-    memcpy(plain, text, length);
+    mmgr_bytes_copy(plain, text, length);
     plain[length] = '\0';
     char *after = NULL;
     *value = strtoull(plain, &after, base);
@@ -139,7 +142,7 @@ static int kqr_identity_matches(const KrepRecord *entry, const KqrIdentity *iden
     unsigned long long words[KQR_QUERY_WORDS];
     kqr_identity_words(identity, 0u, words);
     return (entry->count >= KQR_QUERY_WORDS) &&
-           (memcmp(entry->word, words, (KQR_QUERY_WORDS - 1u) * sizeof(unsigned long long)) == 0);
+           (mmgr_bytes_compare(entry->word, words, (KQR_QUERY_WORDS - 1u) * sizeof(unsigned long long)) == 0);
 }
 
 // the bucket of `identity`: the one that holds it, or the empty one where it goes
@@ -177,7 +180,9 @@ void kqr_text_copied(const KqrRecord *record, unsigned long long number, char *t
 // the number of `text`, stored once, or 0 where it is empty or there was no memory for it
 unsigned long long kqr_text_number(KqrRecord *record, const char *text)
 {
-    return (text[0] == '\0') ? 0ULL : krep_text_number(&record->file, text, strlen(text));
+    return (text[0] == '\0')
+               ? 0ULL
+               : krep_text_number(&record->file, text, mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR));
 }
 
 // The query record `entry` read into `query`: 1, or 0 where it is not a query's
@@ -234,7 +239,7 @@ int kqr_sample_of(const KqrRecord *record, const KrepRecord *entry, KqrSample *s
     {
         return 0;
     }
-    memset(sample, 0, sizeof(*sample));
+    mmgr_bytes_set(sample, 0, sizeof(*sample));
     sample->answer = kqr_identity_of_words(entry->word, &sample->identity);
     if (sample->answer == KQR_ANSWERS)
     {
@@ -351,7 +356,8 @@ int kqr_opened(KqrRecord *record, const char *member)
     krep_open(&record->file, KQR_KIND);
     record->slot = (unsigned int *)calloc(KQR_SLOTS, sizeof(unsigned int));
     record->open = (record->slot != NULL);
-    const unsigned long long named = krep_text_number(&record->file, member, strlen(member));
+    const unsigned long long named =
+        krep_text_number(&record->file, member, mmgr_text_length(member, PLATFORM_TEXT_TO_TERMINATOR));
     return record->open && krep_record_add(&record->file, KQR_MEMBER_RECORD, &named, 1u);
 }
 
@@ -377,7 +383,7 @@ int kqr_sample_take(KqrRecord *record, unsigned int at)
 // the record's table of queries, its samples, its cycles and where its pairs start read off its records
 void kqr_indexed(KqrRecord *record)
 {
-    memset(record->slot, 0, KQR_SLOTS * sizeof(unsigned int));
+    mmgr_bytes_set(record->slot, 0, KQR_SLOTS * sizeof(unsigned int));
     record->samples = 0u;
     record->query_count = 0u;
     record->cycles = 0u;

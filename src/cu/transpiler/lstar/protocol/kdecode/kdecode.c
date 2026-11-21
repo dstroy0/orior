@@ -11,20 +11,20 @@
 //     orior_kdecode [--latest] --blob <name> <run.qry>...
 //
 // What orior_kdecode writes for a person to read it passes the run it is a member of as the record `orior_kdecode`
-// (KDECODE_DISPLAYED), its failures among it; a member of no run writes it to its standard output, and its failures to its
-// standard error.
+// (KDECODE_DISPLAYED), its failures among it; a member of no run writes it to its standard output, and its failures to
+// its standard error.
 //
 // A blob of the run by its name is printed whole, every blob of that name in sequence or the latest alone with
-// --latest, each after a line of its sequence, its name and its size, a NUL byte displayed as a space: a console's blob,
-// a trace, a kernel listing or a file the run stores, as the run stores it.
+// --latest, each after a line of its sequence, its name and its size, a NUL byte displayed as a space: a console's
+// blob, a trace, a kernel listing or a file the run stores, as the run stores it.
 //
 // A reader that shows a file grows it a slice at a time, from the record it is at, a slice after it or before it
 // as it scrolls and on both sides as it is stationary. Where it moves fast it requests --raw, each record a line of its
-// code and its numbers in hex as the file stores them, a text by its number and a who by its code: the fewest characters
-// to draw, so that the max records fit what it shows. Where it is stationary it requests without, each record decoded.
-// The records are counted from 0, as the file stores them, the texts apart, and a raw line and a decoded line are for
-// the same record. Each file is read as the run stores it where a run's writer runs, and from the disk where none
-// does.
+// code and its numbers in hex as the file stores them, a text by its number and a who by its code: the fewest
+// characters to draw, so that the max records fit what it shows. Where it is stationary it requests without, each
+// record decoded. The records are counted from 0, as the file stores them, the texts apart, and a raw line and a
+// decoded line are for the same record. Each file is read as the run stores it where a run's writer runs, and from the
+// disk where none does.
 //
 // A table's rows are its blobs in the run (qry_member.h), a row's key its blob's sequence. --from and --to give the
 // least key and the max, and --count the max rows, each counted from the first row at or past --from. Raw, each row
@@ -37,6 +37,9 @@
 // code named through its format's oracle and the texts of the file a record names given after it. Exit 0 where every
 // file was read, 1 where one was not
 #include "../../../../../../includes/parsers/who.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "kdecode/kdecode_internal.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
@@ -52,38 +55,39 @@ int main(int count, char **words)
     const char *blob = NULL;
     int latest = 0;
     int given = 1;
-    while ((given < count) && (strncmp(words[given], "--", 2u) == 0))
+    while ((given < count) && (mmgr_text_starts(words[given], "--", PLATFORM_TEXT_TO_TERMINATOR)))
     {
-        if (strcmp(words[given], "--raw") == 0)
+        if (mmgr_text_equal(words[given], "--raw", PLATFORM_TEXT_TO_TERMINATOR))
         {
             raw = 1;
             given += 1;
         }
-        else if ((strcmp(words[given], "--from") == 0) && ((given + 1) < count) &&
+        else if ((mmgr_text_equal(words[given], "--from", PLATFORM_TEXT_TO_TERMINATOR)) && ((given + 1) < count) &&
                  kdecode_number(words[given + 1], &from))
         {
             given += 2;
         }
-        else if ((strcmp(words[given], "--to") == 0) && ((given + 1) < count) && kdecode_number(words[given + 1], &to))
+        else if ((mmgr_text_equal(words[given], "--to", PLATFORM_TEXT_TO_TERMINATOR)) && ((given + 1) < count) &&
+                 kdecode_number(words[given + 1], &to))
         {
             given += 2;
         }
-        else if ((strcmp(words[given], "--count") == 0) && ((given + 1) < count) &&
+        else if ((mmgr_text_equal(words[given], "--count", PLATFORM_TEXT_TO_TERMINATOR)) && ((given + 1) < count) &&
                  kdecode_number(words[given + 1], &slice))
         {
             given += 2;
         }
-        else if ((strcmp(words[given], "--table") == 0) && ((given + 1) < count))
+        else if ((mmgr_text_equal(words[given], "--table", PLATFORM_TEXT_TO_TERMINATOR)) && ((given + 1) < count))
         {
             table = words[given + 1];
             given += 2;
         }
-        else if ((strcmp(words[given], "--blob") == 0) && ((given + 1) < count))
+        else if ((mmgr_text_equal(words[given], "--blob", PLATFORM_TEXT_TO_TERMINATOR)) && ((given + 1) < count))
         {
             blob = words[given + 1];
             given += 2;
         }
-        else if (strcmp(words[given], "--latest") == 0)
+        else if (mmgr_text_equal(words[given], "--latest", PLATFORM_TEXT_TO_TERMINATOR))
         {
             latest = 1;
             given += 1;
@@ -95,10 +99,11 @@ int main(int count, char **words)
     }
     if (given >= count)
     {
-        mmgr_line_put(&s_displayed, "orior_kdecode [--raw] [--from <record>] [--count <records>] <file>...\n"
-                                "orior_kdecode [--raw] [--from <key>] [--to <key>] [--count <rows>] --table <table> "
-                                "<run.qry>...\n"
-                                "orior_kdecode [--latest] --blob <name> <run.qry>...\n");
+        mmgr_line_put(&s_displayed,
+                      "orior_kdecode [--raw] [--from <record>] [--count <records>] <file>...\n"
+                      "orior_kdecode [--raw] [--from <key>] [--to <key>] [--count <rows>] --table <table> "
+                      "<run.qry>...\n"
+                      "orior_kdecode [--latest] --blob <name> <run.qry>...\n");
         kdecode_failure_passed();
         qry_member_settled();
         return 2;
@@ -122,7 +127,7 @@ int main(int count, char **words)
             continue;
         }
         if (!qry_member_file_blob(words[given], &bytes, &size) || (size < KREP_HEAD_BYTES) ||
-            (memcmp(bytes, KREP_MAGIC, 8u) != 0))
+            (mmgr_bytes_compare(bytes, KREP_MAGIC, 8u) != 0))
         {
             const int ran = kdecode_run_whole(bytes, size);
             kdecode_displayed_passed(1);
@@ -134,9 +139,9 @@ int main(int count, char **words)
             continue;
         }
         char type[4];
-        memcpy(type, bytes + 8u, 4u);
+        mmgr_bytes_copy(type, bytes + 8u, 4u);
         char error[1400];
-        if (!raw && (memcmp(type, KQR_KIND, 4u) == 0))
+        if (!raw && (mmgr_bytes_compare(type, KQR_KIND, 4u) == 0))
         {
             if (!kqr_read(&s_record, words[given], "-", error, sizeof(error)))
             {
@@ -150,8 +155,8 @@ int main(int count, char **words)
             }
             // the record's text taken into the text passed whole, the text before it passed first
             kdecode_displayed_passed(1);
-            s_displayed.at =
-                kqr_text_sliced(&s_record, s_displayed.out, s_displayed.capacity, s_displayed.at, 1, record_from, record_slice);
+            s_displayed.at = kqr_text_sliced(&s_record, s_displayed.out, s_displayed.capacity, s_displayed.at, 1,
+                                             record_from, record_slice);
             kdecode_displayed_passed(1);
             kqr_free(&s_record);
             continue;

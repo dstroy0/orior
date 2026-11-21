@@ -1,7 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// fields.c: the fields: bits written, a register's, a constant's, an address's and an operand's value, the fields of a type and the field at a place, the places of an instruction found, the high word written, and the control word made safe
+// fields.c: the fields: bits written, a register's, a constant's, an address's and an operand's value, the fields of a
+// type and the field at a place, the places of an instruction found, the high word written, and the control word made
+// safe
 #include "sass_assemble_internal.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 // the fields a type of operand may sit in, in the order an instruction fills them
 static const SassField s_register_fields[] = {
@@ -30,7 +35,7 @@ static const SassField s_descriptor_fields[] = {{32u, 6u, 1u, 0u}, {64u, 6u, 1u,
 // `bits` of `value` written from bit `first` of the instruction, a bit at a time, since a branch's target begins in
 // the low word and ends in the high one
 void sass_bits_write(unsigned long long *low, unsigned long long *high, unsigned int first, unsigned int bits,
-                            unsigned long long value)
+                     unsigned long long value)
 {
     for (unsigned int bit = 0u; bit < bits; bit += 1u)
     {
@@ -47,11 +52,11 @@ void sass_bits_write(unsigned long long *low, unsigned long long *high, unsigned
 // of a number is its high word, which sass_operand_value takes
 unsigned long long sass_register_value(const char *text)
 {
-    if (strncmp(text, "RZ", 2u) == 0)
+    if (mmgr_text_starts(text, "RZ", PLATFORM_TEXT_TO_TERMINATOR))
     {
         return 255ULL;
     }
-    if (strncmp(text, "PT", 2u) == 0)
+    if (mmgr_text_starts(text, "PT", PLATFORM_TEXT_TO_TERMINATOR))
     {
         return 7ULL;
     }
@@ -63,8 +68,8 @@ unsigned long long sass_register_value(const char *text)
 // a +, as sass.krs writes a kernel's parameter at the target's base and the parameter's own place, c[0x0][0x160+8]
 unsigned long long sass_constant_value(const char *text, unsigned long long *bank)
 {
-    const char *const first = strchr(text, '[');
-    const char *const second = (first != NULL) ? strchr(first + 1, '[') : NULL;
+    const char *const first = mmgr_text_char(text, '[', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const second = (first != NULL) ? mmgr_text_char(first + 1, '[', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
     *bank = (first != NULL) ? strtoull(first + 1, NULL, 0) : 0ULL;
     if (second == NULL)
     {
@@ -83,7 +88,7 @@ unsigned long long sass_constant_value(const char *text, unsigned long long *ban
 static unsigned long long sass_address_value(const char *text, unsigned long long *offset)
 {
     const char *const open = strrchr(text, '[');
-    const char *const plus = (open != NULL) ? strchr(open, '+') : NULL;
+    const char *const plus = (open != NULL) ? mmgr_text_char(open, '+', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
     *offset = (plus != NULL) ? strtoull(plus + 1, NULL, 0) : 0ULL;
     return (open != NULL) ? sass_register_value(open + 1) : 0ULL;
 }
@@ -91,7 +96,7 @@ static unsigned long long sass_address_value(const char *text, unsigned long lon
 // the value the operand at `place` of `parts` carries, and the field it wants to sit in through `wanted`; 0 where the
 // assembler cannot turn it into a number, which leaves it to be matched by its text
 int sass_operand_value(const SassInstructionParts *parts, unsigned int place, unsigned long long address,
-                              unsigned long long target, unsigned long long *value, unsigned long long *offset)
+                       unsigned long long target, unsigned long long *value, unsigned long long *offset)
 {
     const char *const text = parts->operand[place];
     *offset = 0ULL;
@@ -102,14 +107,12 @@ int sass_operand_value(const SassInstructionParts *parts, unsigned int place, un
     case SASS_OPERAND_UNIFORM:
         *value = sass_register_value(text);
         return 1;
-    case SASS_OPERAND_IMMEDIATE:
-    {
+    case SASS_OPERAND_IMMEDIATE: {
         // .hi is the high half of the thing it is written on, whatever that thing is (sass.krs): for a register it
         // is the pair's second register, and for a number it is the number's high word. strtoull stops at the dot:
         // so the stem is read and shifted; a negative number is shifted as the 64-bit word it is written into
-        const unsigned long long whole = (text[0] == '-')
-                                             ? (unsigned long long)(-(long long)strtoull(text + 1, NULL, 0))
-                                             : strtoull(text, NULL, 0);
+        const unsigned long long whole =
+            (text[0] == '-') ? (unsigned long long)(-(long long)strtoull(text + 1, NULL, 0)) : strtoull(text, NULL, 0);
         *value = sass_high_half(text) ? (whole >> 32u) : whole;
         return 1;
     }
@@ -182,11 +185,11 @@ int sass_places_find(const SassForm *form, SassPlace *places, unsigned int *unpl
     sass_instruction_read(form->text, &base);
     for (unsigned int place = 0u; place < form->operands; place += 1u)
     {
-        memset(&places[place], 0, sizeof(places[place]));
+        mmgr_bytes_set(&places[place], 0, sizeof(places[place]));
         const unsigned int type = form->type[place];
         // a label that names a symbol and not a label of the text is a relocation: the field contains nothing and
         // the loader fills it. The instruction is then checked against the one the form was seen with
-        const char *const open = strchr(base.operand[place], '(');
+        const char *const open = mmgr_text_char(base.operand[place], '(', PLATFORM_TEXT_TO_TERMINATOR);
         const int relocated = (type == SASS_OPERAND_LABEL) && ((open == NULL) || (open[1] != '.'));
         if ((type == SASS_OPERAND_UNKNOWN) || (type == SASS_OPERAND_SYSTEM) || relocated)
         {
@@ -202,9 +205,9 @@ int sass_places_find(const SassForm *form, SassPlace *places, unsigned int *unpl
             places[place].value.scale = SASS_BRANCH_STEP;
             continue;
         }
-        // A number in the bits a branch's distance sits in is that distance: the probe found its run beginning there and
-        // reaching into the high word. A run that begins there and ends inside the low word is a field of its own, as
-        // BPT.TRAP's code is, three bits from bit 34
+        // A number in the bits a branch's distance sits in is that distance: the probe found its run beginning there
+        // and reaching into the high word. A run that begins there and ends inside the low word is a field of its own,
+        // as BPT.TRAP's code is, three bits from bit 34
         int distance = 0;
         for (unsigned int number = 0u; (type == SASS_OPERAND_IMMEDIATE) && (number < form->runs); number += 1u)
         {
@@ -248,10 +251,12 @@ int sass_places_find(const SassForm *form, SassPlace *places, unsigned int *unpl
         int displayed = 0;
         for (unsigned int number = 0u; (type == SASS_OPERAND_ADDRESS) && (number < form->runs); number += 1u)
         {
-            displayed = displayed || ((form->run[number].operand == place) && (form->run[number].first == SASS_DESCRIPTOR_DISPLAYED) &&
-                              (form->run[number].last == SASS_DESCRIPTOR_DISPLAYED));
+            displayed = displayed || ((form->run[number].operand == place) &&
+                                      (form->run[number].first == SASS_DESCRIPTOR_DISPLAYED) &&
+                                      (form->run[number].last == SASS_DESCRIPTOR_DISPLAYED));
         }
-        for (unsigned int at = 0u; displayed && (places[place].has_descriptor == 0) && (at < SASS_DESCRIPTOR_FIELDS); at += 1u)
+        for (unsigned int at = 0u; displayed && (places[place].has_descriptor == 0) && (at < SASS_DESCRIPTOR_FIELDS);
+             at += 1u)
         {
             const SassField *const field = &s_descriptor_fields[at];
             int place_found = 0;
@@ -314,10 +319,10 @@ void sass_control_safe(const SassMachine *machine, const SassForm *form, unsigne
     unsigned int soonest = SASS_STALL_MAX_LEN;
     const unsigned int schedule = sass_operation_schedule(machine, form->operation, &soonest);
     const int fixed = (schedule == SASS_SCHEDULE_FIXED) && (soonest != SASS_STALL_MAX_LEN);
-    const int wrote = (schedule == SASS_SCHEDULE_LATE) ||
-                      (!fixed && sass_barrier_set(form->high, SASS_WRITE_BARRIER_FIRST));
-    const int read = (schedule == SASS_SCHEDULE_STORE) ||
-                     (!fixed && sass_barrier_set(form->high, SASS_READ_BARRIER_FIRST));
+    const int wrote =
+        (schedule == SASS_SCHEDULE_LATE) || (!fixed && sass_barrier_set(form->high, SASS_WRITE_BARRIER_FIRST));
+    const int read =
+        (schedule == SASS_SCHEDULE_STORE) || (!fixed && sass_barrier_set(form->high, SASS_READ_BARRIER_FIRST));
     sass_high_write(high, SASS_STALL_FIRST, 4u, soonest);
     sass_high_write(high, SASS_YIELD_FIRST, 1u, 0ULL);
     sass_high_write(high, SASS_WRITE_BARRIER_FIRST, 3u, wrote ? 0ULL : SASS_BARRIER_NONE);

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // dicom_decimal.c: decimal strings and the order of slices
 #include "dicom_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 static int dicom_decimal_parse(const unsigned char *text, unsigned long long length, DicomDecimal *out,
                                EngineError *error)
@@ -132,8 +133,8 @@ static int dicom_decimal_multiply(const DicomDecimal *left, const DicomDecimal *
                                   EngineError *error)
 {
     out->exponent = left->exponent + right->exponent;
-    return DICOM_CHECK(orior_exact_multiply(&left->mantissa, &right->mantissa, &out->mantissa) == ORIOR_EXACT_OK,
-                       left, error, ENGINE_ERROR_REQUEST);
+    return DICOM_CHECK(orior_exact_multiply(&left->mantissa, &right->mantissa, &out->mantissa) == ORIOR_EXACT_OK, left,
+                       error, ENGINE_ERROR_REQUEST);
 }
 
 static int dicom_decimal_combine(const DicomDecimal *left, const DicomDecimal *right, int subtract, DicomDecimal *out,
@@ -148,8 +149,8 @@ static int dicom_decimal_combine(const DicomDecimal *left, const DicomDecimal *r
     }
     out->exponent = exponent;
     const OriorExactStatus status = (subtract != 0)
-                                         ? orior_exact_subtract(&one.mantissa, &other.mantissa, &out->mantissa)
-                                         : orior_exact_add(&one.mantissa, &other.mantissa, &out->mantissa);
+                                        ? orior_exact_subtract(&one.mantissa, &other.mantissa, &out->mantissa)
+                                        : orior_exact_add(&one.mantissa, &other.mantissa, &out->mantissa);
     return DICOM_CHECK(status == ORIOR_EXACT_OK, left, error, ENGINE_ERROR_REQUEST);
 }
 
@@ -223,7 +224,7 @@ static int dicom_uid_compare(const unsigned char *left, unsigned long long left_
         {
             return (one_span < other_span) ? -1 : 1;
         }
-        const int differ = (one_span != 0ULL) ? memcmp(left + one, right + other, (size_t)one_span) : 0;
+        const int differ = (one_span != 0ULL) ? mmgr_bytes_compare(left + one, right + other, (size_t)one_span) : 0;
         if (differ != 0)
         {
             return (differ < 0) ? -1 : 1;
@@ -264,7 +265,7 @@ int dicom_order_slices(const void *left, const void *right)
         return uid;
     }
     const unsigned long long shorter = (one->name_length < other->name_length) ? one->name_length : other->name_length;
-    const int named = memcmp(one->name, other->name, (size_t)shorter);
+    const int named = mmgr_bytes_compare(one->name, other->name, (size_t)shorter);
     if (named != 0)
     {
         return named;

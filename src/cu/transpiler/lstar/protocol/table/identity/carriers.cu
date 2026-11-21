@@ -1,13 +1,16 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// carriers.cu: the carriers of the pairs: their links, scratch and marks, and each pair's categories, lines beneath it and verdict row
+// carriers.cu: the carriers of the pairs: their links, scratch and marks, and each pair's categories, lines beneath it
+// and verdict row
 #include "identity_internal.h"
+#include "../../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../../table_text.h"
 #include "../../../../../../../includes/parsers/who.h"
 
 // the carriers of the chains in `engine` the host computes, by `host`, into `carriers`
-void carriers_read(const char *engine, const std::map<std::string, std::vector<std::string>> &host,
-                          Carriers *carriers)
+void carriers_read(const char *engine, const std::map<std::string, std::vector<std::string>> &host, Carriers *carriers)
 {
     for (const auto &chain_entry : host)
     {
@@ -72,7 +75,7 @@ std::string marked(const Ruleset *sass, const std::string &form, std::vector<std
 // first and those of one vector in an order drawn from `seed` and `drawn_for`, and in `group` each marker's group in
 // the pattern its lines are found by
 std::vector<FoundLink> links_of(Carriers &carriers, unsigned long seed, const std::string &text,
-                                       std::map<char, unsigned int> *group, const std::string &drawn_for)
+                                std::map<char, unsigned int> *group, const std::string &drawn_for)
 {
     // the pattern of the form's lines, each marker an operand, the same marker the same operand
     std::string pattern;
@@ -95,7 +98,8 @@ std::vector<FoundLink> links_of(Carriers &carriers, unsigned long seed, const st
             continue;
         }
         const char character = text[at];
-        const int special = (character != '\0') && (strchr("\\^$.|?*+()[]{}", character) != NULL);
+        const int special =
+            (character != '\0') && (mmgr_text_char("\\^$.|?*+()[]{}", character, PLATFORM_TEXT_TO_TERMINATOR) != NULL);
         pattern += special ? (std::string("\\") + character) : std::string(1u, character);
     }
     const std::regex lines(pattern);
@@ -162,7 +166,7 @@ void cuts_queried(const std::vector<std::vector<unsigned char>> &codes, const st
         cut->registers = ((mark != 0u) && (mark < max)) ? mark : max;
         cut->place = places[at];
         cut->cases = question->cases;
-        memcpy(cut->word, question->word, (size_t)question->cases * sizeof(question->word[0]));
+        mmgr_bytes_copy(cut->word, question->word, (size_t)question->cases * sizeof(question->word[0]));
         carried.push_back(cut);
         carried_dangerous.push_back(dangerous[at]);
     }
@@ -242,7 +246,7 @@ std::string pair_categories(const Ruleset *sass, const std::string &first, const
 // metas and sets orior_klq_decoder read it into, its concept and its intent; none where the bridge contains no such
 // pair
 std::vector<std::string> pair_beneath(const std::vector<std::string> &bridge, const std::string &first,
-                                             const std::string &second)
+                                      const std::string &second)
 {
     std::vector<std::string> beneath;
     const std::string one_way = "pair " + first + " " + second;
@@ -299,20 +303,22 @@ thread_local int t_other_way = 0;
 // its count of cases alike where it is open, the text of the case that closed it where it is closed, the hash of what
 // its put reads where `read` is 1, and its verdict's text
 void pair_row_passed(const std::string &first, const std::string &second, int read, unsigned long long reads,
-                            const std::string &verdict)
+                     const std::string &verdict)
 {
     QryShared *const run = qry_member_run();
     const int closed = (verdict.rfind("closed ", 0u) == 0u);
     const int open = (verdict.rfind("open ", 0u) == 0u);
     const std::string closing = closed ? verdict.substr(7u) : std::string();
-    unsigned long long row[2u + 8] = {0ULL, 0ULL, table_text(first.c_str(), first.size()),
-                                       table_text(second.c_str(), second.size()),
-                                       closed ? 1ULL : 0ULL,
-                                       open ? strtoull(verdict.c_str() + 5, NULL, 10) : 0ULL,
-                                       table_text(closing.c_str(), closing.size()),
-                                       read ? 1ULL : 0ULL,
-                                       read ? reads : 0ULL,
-                                       table_text(verdict.c_str(), verdict.size())};
+    unsigned long long row[2u + 8] = {0ULL,
+                                      0ULL,
+                                      table_text(first.c_str(), first.size()),
+                                      table_text(second.c_str(), second.size()),
+                                      closed ? 1ULL : 0ULL,
+                                      open ? strtoull(verdict.c_str() + 5, NULL, 10) : 0ULL,
+                                      table_text(closing.c_str(), closing.size()),
+                                      read ? 1ULL : 0ULL,
+                                      read ? reads : 0ULL,
+                                      table_text(verdict.c_str(), verdict.size())};
     who_words(WHO_HERE, row);
     qry_member_append("pairs", row, sizeof(row), QRY_ORDINARY);
 }

@@ -1,7 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// accounts.c: the accounts: a conference named, an account written to the run, a located joined, a cause read, text trimmed, an expert named, a clause read, and an account and the accounts read back
+// accounts.c: the accounts: a conference named, an account written to the run, a located joined, a cause read, text
+// trimmed, an expert named, a clause read, and an account and the accounts read back
 #include "overseer_internal.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "verba_scribo/verba_scribo.h"
 #include "../table_text.h"
 #include "../../../../../../includes/parsers/who.h"
@@ -65,7 +69,7 @@ unsigned int overseer_cause_read(const char *word)
 {
     for (unsigned int at = 1u; at < (sizeof(s_cause_words) / sizeof(s_cause_words[0])); at += 1u)
     {
-        if (strcmp(word, s_cause_words[at]) == 0)
+        if (mmgr_text_equal(word, s_cause_words[at], PLATFORM_TEXT_TO_TERMINATOR))
         {
             return at;
         }
@@ -87,7 +91,7 @@ void overseer_trimmed(const char *from, const char *to, char *into, size_t room)
     // the stretch is not negative, and it is cut to the room
     size_t length = (size_t)(to - from);
     length = (length < (room - 1u)) ? length : (room - 1u);
-    memcpy(into, from, length);
+    mmgr_bytes_copy(into, from, length);
     into[length] = '\0';
 }
 
@@ -96,14 +100,20 @@ static void overseer_expert_named(OverseerTally *tally, const char *expert)
 {
     for (unsigned int at = 0u; at < tally->expert_count; at += 1u)
     {
-        if (strcmp(tally->experts[at], expert) == 0)
+        if (mmgr_text_equal(tally->experts[at], expert, PLATFORM_TEXT_TO_TERMINATOR))
         {
             return;
         }
     }
     if (tally->expert_count < OVERSEER_EXPERTS_MAX)
     {
-        (void)verba_finis.finish(&(VerbaFinisCfg){.out = tally->experts[tally->expert_count], .cap = OVERSEER_EXPERT_MAX_LEN, .at = verba_textus.put_clip(&(VerbaTextusCfg){.out = tally->experts[tally->expert_count], .cap = OVERSEER_EXPERT_MAX_LEN, .at = 0u, .text = expert})});
+        (void)verba_finis.finish(
+            &(VerbaFinisCfg){.out = tally->experts[tally->expert_count],
+                             .cap = OVERSEER_EXPERT_MAX_LEN,
+                             .at = verba_textus.put_clip(&(VerbaTextusCfg){.out = tally->experts[tally->expert_count],
+                                                                           .cap = OVERSEER_EXPERT_MAX_LEN,
+                                                                           .at = 0u,
+                                                                           .text = expert})});
         tally->expert_count += 1u;
     }
 }
@@ -111,17 +121,17 @@ static void overseer_expert_named(OverseerTally *tally, const char *expert)
 // one clause `clause` of `expert`'s account read into `received`; a vote of an admission conference is one word
 static void overseer_clause_read(OverseerTally *tally, const char *expert, const char *clause)
 {
-    if (strcmp(clause, "admit") == 0)
+    if (mmgr_text_equal(clause, "admit", PLATFORM_TEXT_TO_TERMINATOR))
     {
         tally->admits += 1u;
         return;
     }
-    if (strcmp(clause, "block") == 0)
+    if (mmgr_text_equal(clause, "block", PLATFORM_TEXT_TO_TERMINATOR))
     {
         tally->blocks += 1u;
         return;
     }
-    const char *const space = strchr(clause, ' ');
+    const char *const space = mmgr_text_char(clause, ' ', PLATFORM_TEXT_TO_TERMINATOR);
     if (space == NULL)
     {
         return;
@@ -129,35 +139,53 @@ static void overseer_clause_read(OverseerTally *tally, const char *expert, const
     char word[32];
     char rest[OVERSEER_CLAUSE_MAX_LEN];
     overseer_trimmed(clause, space, word, sizeof(word));
-    overseer_trimmed(space + 1, clause + strlen(clause), rest, sizeof(rest));
-    if (strcmp(word, "cause") == 0)
+    overseer_trimmed(space + 1, clause + mmgr_text_length(clause, PLATFORM_TEXT_TO_TERMINATOR), rest, sizeof(rest));
+    if (mmgr_text_equal(word, "cause", PLATFORM_TEXT_TO_TERMINATOR))
     {
         const unsigned int cause = overseer_cause_read(rest);
         if ((cause != OVERSEER_CAUSE_NONE) && (tally->vote_count < OVERSEER_VOTES_MAX))
         {
-            (void)verba_finis.finish(&(VerbaFinisCfg){.out = tally->votes[tally->vote_count].expert, .cap = OVERSEER_EXPERT_MAX_LEN, .at = verba_textus.put_clip(&(VerbaTextusCfg){.out = tally->votes[tally->vote_count].expert, .cap = OVERSEER_EXPERT_MAX_LEN, .at = 0u, .text = expert})});
+            (void)verba_finis.finish(&(VerbaFinisCfg){
+                .out = tally->votes[tally->vote_count].expert,
+                .cap = OVERSEER_EXPERT_MAX_LEN,
+                .at = verba_textus.put_clip(&(VerbaTextusCfg){.out = tally->votes[tally->vote_count].expert,
+                                                              .cap = OVERSEER_EXPERT_MAX_LEN,
+                                                              .at = 0u,
+                                                              .text = expert})});
             tally->votes[tally->vote_count].cause = cause;
             tally->vote_count += 1u;
         }
     }
-    else if (strcmp(word, "stand-in") == 0)
+    else if (mmgr_text_equal(word, "stand-in", PLATFORM_TEXT_TO_TERMINATOR))
     {
-        tally->addresses |= (strcmp(rest, "addresses") == 0) ? 1 : 0;
-        tally->controls |= (strcmp(rest, "controls") == 0) ? 1 : 0;
-        tally->scratch |= (strcmp(rest, "scratch") == 0) ? 1 : 0;
+        tally->addresses |= (mmgr_text_equal(rest, "addresses", PLATFORM_TEXT_TO_TERMINATOR)) ? 1 : 0;
+        tally->controls |= (mmgr_text_equal(rest, "controls", PLATFORM_TEXT_TO_TERMINATOR)) ? 1 : 0;
+        tally->scratch |= (mmgr_text_equal(rest, "scratch", PLATFORM_TEXT_TO_TERMINATOR)) ? 1 : 0;
     }
-    else if (strcmp(word, "carrier") == 0)
+    else if (mmgr_text_equal(word, "carrier", PLATFORM_TEXT_TO_TERMINATOR))
     {
         // a carrier's name is its chain's number, far inside the room; a longer one is cut to it
-        (void)verba_finis.finish(&(VerbaFinisCfg){.out = tally->carrier, .cap = sizeof(tally->carrier), .at = verba_textus.put_clip(&(VerbaTextusCfg){.out = tally->carrier, .cap = sizeof(tally->carrier), .at = 0u, .text = rest})});
+        (void)verba_finis.finish(
+            &(VerbaFinisCfg){.out = tally->carrier,
+                             .cap = sizeof(tally->carrier),
+                             .at = verba_textus.put_clip(&(VerbaTextusCfg){
+                                 .out = tally->carrier, .cap = sizeof(tally->carrier), .at = 0u, .text = rest})});
     }
-    else if (strcmp(word, "learning") == 0)
+    else if (mmgr_text_equal(word, "learning", PLATFORM_TEXT_TO_TERMINATOR))
     {
-        (void)verba_finis.finish(&(VerbaFinisCfg){.out = tally->learning, .cap = sizeof(tally->learning), .at = verba_textus.put_clip(&(VerbaTextusCfg){.out = tally->learning, .cap = sizeof(tally->learning), .at = 0u, .text = rest})});
+        (void)verba_finis.finish(
+            &(VerbaFinisCfg){.out = tally->learning,
+                             .cap = sizeof(tally->learning),
+                             .at = verba_textus.put_clip(&(VerbaTextusCfg){
+                                 .out = tally->learning, .cap = sizeof(tally->learning), .at = 0u, .text = rest})});
     }
-    else if (strcmp(word, "counterexample") == 0)
+    else if (mmgr_text_equal(word, "counterexample", PLATFORM_TEXT_TO_TERMINATOR))
     {
-        (void)verba_finis.finish(&(VerbaFinisCfg){.out = tally->counterexample, .cap = sizeof(tally->counterexample), .at = verba_textus.put_clip(&(VerbaTextusCfg){.out = tally->counterexample, .cap = sizeof(tally->counterexample), .at = 0u, .text = rest})});
+        (void)verba_finis.finish(&(VerbaFinisCfg){
+            .out = tally->counterexample,
+            .cap = sizeof(tally->counterexample),
+            .at = verba_textus.put_clip(&(VerbaTextusCfg){
+                .out = tally->counterexample, .cap = sizeof(tally->counterexample), .at = 0u, .text = rest})});
     }
 }
 
@@ -179,23 +207,27 @@ static void overseer_account_read(OverseerTally *tally, const char *line, const 
     tally->accounts += 1u;
     char text[OVERSEER_ACCOUNT_MAX_LEN];
     overseer_trimmed(colon + 1, end, text, sizeof(text));
-    const unsigned long long account[3] = {conference, table_text(expert, strlen(expert)),
-                                           table_text(text, strlen(text))};
+    const unsigned long long account[3] = {conference,
+                                           table_text(expert, mmgr_text_length(expert, PLATFORM_TEXT_TO_TERMINATOR)),
+                                           table_text(text, mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR))};
     const unsigned int votes_before = tally->vote_count;
-    char *const located = strstr(text, "; located ");
+    char *const located = mmgr_text_find(text, "; located ", PLATFORM_TEXT_TO_TERMINATOR);
     if (located != NULL)
     {
         char joined[OVERSEER_STANDING_MAX_LEN];
-        overseer_trimmed(located + strlen("; located "), text + strlen(text), joined, sizeof(joined));
+        overseer_trimmed(located + mmgr_text_length("; located ", PLATFORM_TEXT_TO_TERMINATOR),
+                         text + mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR), joined, sizeof(joined));
         overseer_located_joined(joined, tally->located);
         *located = '\0';
     }
-    char *clause = strchr(text, ';');
+    char *clause = mmgr_text_char(text, ';', PLATFORM_TEXT_TO_TERMINATOR);
     while (clause != NULL)
     {
-        char *const next = strchr(clause + 1, ';');
+        char *const next = mmgr_text_char(clause + 1, ';', PLATFORM_TEXT_TO_TERMINATOR);
         char one[OVERSEER_CLAUSE_MAX_LEN];
-        overseer_trimmed(clause + 1, (next != NULL) ? next : (text + strlen(text)), one, sizeof(one));
+        overseer_trimmed(clause + 1,
+                         (next != NULL) ? next : (text + mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR)), one,
+                         sizeof(one));
         overseer_clause_read(tally, expert, one);
         clause = next;
     }
@@ -233,7 +265,7 @@ void overseer_accounts_read(OverseerTally *tally, const unsigned char *bytes, un
                 (const unsigned char *)memchr(other, '\n', (size_t)(before_size - seen));
             const size_t other_length =
                 (size_t)(((other_found != NULL) ? other_found : (before + before_size)) - other);
-            seen_before = (other_length == length) && (memcmp(other, line, length) == 0);
+            seen_before = (other_length == length) && (mmgr_bytes_compare(other, line, length) == 0);
             seen += (unsigned long long)other_length + 1ULL;
         }
         if (!seen_before && (length != 0u))

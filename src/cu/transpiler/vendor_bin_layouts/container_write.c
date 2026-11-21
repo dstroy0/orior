@@ -3,6 +3,7 @@
 // container_write.c: one container written from another, with new code in it for one part or many, driven by a layout
 // file
 #include "container_write_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 #include <stdlib.h>
 
@@ -42,7 +43,7 @@ static unsigned long long attributes_written(const Places *places, const unsigne
             printf("  container_write: the attributes take %llu bytes where the room is %llu\n", size, room);
             return 0ULL;
         }
-        memcpy(written, bytes, size);
+        mmgr_bytes_copy(written, bytes, size);
         return size;
     }
     const unsigned long long before = (unsigned long long)(found - bytes);
@@ -53,7 +54,7 @@ static unsigned long long attributes_written(const Places *places, const unsigne
         printf("  container_write: the attributes take %llu bytes where the room is %llu\n", whole, room);
         return 0ULL;
     }
-    memcpy(written, bytes, before);
+    mmgr_bytes_copy(written, bytes, before);
     written[before] = (unsigned char)places->attribute_format_value;
     written[before + 1u] = (unsigned char)places->attribute_exits;
     value_put(&written[before + 2u], 2u, 4ULL * exit_count);
@@ -61,7 +62,7 @@ static unsigned long long attributes_written(const Places *places, const unsigne
     {
         value_put(&written[before + places->attribute_header + (4ULL * number)], 4u, exits[number]);
     }
-    memcpy(&written[before + places->attribute_header + (4ULL * exit_count)], &bytes[after], size - after);
+    mmgr_bytes_copy(&written[before + places->attribute_header + (4ULL * exit_count)], &bytes[after], size - after);
     return whole;
 }
 
@@ -202,7 +203,7 @@ int container_parts_write(const ContainerParts *args, unsigned char *written, un
         return 0;
     }
     unsigned char *const all = block;
-    memcpy(all, section_list[all_info].bytes, section_list[all_info].size);
+    mmgr_bytes_copy(all, section_list[all_info].bytes, section_list[all_info].size);
     section_list[all_info].bytes = all;
     unsigned long long used = section_list[all_info].size;
     for (unsigned int part = 0u; found && (part < args->part_count); part += 1u)
@@ -251,17 +252,17 @@ int container_parts_write(const ContainerParts *args, unsigned char *written, un
         free(place);
         return 0;
     }
-    memset(written, 0, whole);
-    memcpy(written, pattern, places.header_bytes);
+    mmgr_bytes_set(written, 0, whole);
+    mmgr_bytes_copy(written, pattern, places.header_bytes);
     value_put(&written[places.section_table], places.section_table_width, new_sections);
     value_put(&written[places.segment_table], places.segment_table_width, new_segments);
     for (unsigned int index = 0u; index < sections; index += 1u)
     {
         unsigned char *const header = &written[new_sections + ((unsigned long long)index * section_entry)];
-        memcpy(header, &pattern[section_list[index].was_at], section_entry);
+        mmgr_bytes_copy(header, &pattern[section_list[index].was_at], section_entry);
         if (index != 0u)
         {
-            memcpy(&written[section_list[index].goes_at], section_list[index].bytes, section_list[index].size);
+            mmgr_bytes_copy(&written[section_list[index].goes_at], section_list[index].bytes, section_list[index].size);
             value_put(&header[places.section_offset], places.section_offset_width, section_list[index].goes_at);
             if (section_list[index].type != places.section_type_nobits)
             {
@@ -288,7 +289,7 @@ int container_parts_write(const ContainerParts *args, unsigned char *written, un
     {
         const unsigned long long was = segment_table + ((unsigned long long)index * segment_entry);
         unsigned char *const header = &written[new_segments + ((unsigned long long)index * segment_entry)];
-        memcpy(header, &pattern[was], segment_entry);
+        mmgr_bytes_copy(header, &pattern[was], segment_entry);
         const unsigned long long was_at =
             container_value_read(&pattern[was + places.segment_offset], places.segment_offset_width);
         const unsigned long long was_size =
@@ -329,8 +330,7 @@ int container_parts_write(const ContainerParts *args, unsigned char *written, un
 int container_write(const ContainerWrite *args, unsigned char *written, unsigned long long room,
                     unsigned long long *size)
 {
-    const ContainerPart one = {args->part,      args->code,  args->code_size,
-                               args->registers, args->exits, args->exit_count};
+    const ContainerPart one = {args->part, args->code, args->code_size, args->registers, args->exits, args->exit_count};
     const ContainerParts parts = {args->layout, args->pattern, args->pattern_size, &one, 1u};
     return container_parts_write(&parts, written, room, size);
 }

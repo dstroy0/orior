@@ -3,6 +3,9 @@
 // container_pattern.c: a pattern's tables, sections and attributes read where the layout specifies, each place checked
 // inside the pattern
 #include "container_write_internal.h"
+#include "../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 unsigned long long container_value_read(const unsigned char *bytes, unsigned int width)
 {
@@ -17,7 +20,7 @@ unsigned long long container_value_read(const unsigned char *bytes, unsigned int
 // every place the emitter uses, taken out of `layout`. 1, or 0 with the missing row named by the layout itself
 int container_places_read(const ContainerLayout *layout, Places *places)
 {
-    memset(places, 0, sizeof(*places));
+    mmgr_bytes_set(places, 0, sizeof(*places));
     const int read_ok =
         layout_field(layout, "header.segment_table", &places->segment_table, &places->segment_table_width) &&
         layout_field(layout, "header.section_table", &places->section_table, &places->section_table_width) &&
@@ -209,7 +212,7 @@ unsigned int container_registers_read(const ContainerLayout *layout, const unsig
         const unsigned long long at = table + ((unsigned long long)index * entry);
         const unsigned long long name =
             strings + container_value_read(&pattern[at + places.section_name], places.section_name_width);
-        if (strcmp((const char *)&pattern[name], named) == 0)
+        if (mmgr_text_equal((const char *)&pattern[name], named, PLATFORM_TEXT_TO_TERMINATOR))
         {
             found =
                 (unsigned int)(container_value_read(&pattern[at + places.section_info], places.section_info_width) >>
@@ -238,7 +241,7 @@ int container_part_code(const ContainerLayout *layout, const unsigned char *patt
         const unsigned long long at = table + ((unsigned long long)index * entry);
         const unsigned long long name =
             strings + container_value_read(&pattern[at + places.section_name], places.section_name_width);
-        if (strcmp((const char *)&pattern[name], named) != 0)
+        if (!mmgr_text_equal((const char *)&pattern[name], named, PLATFORM_TEXT_TO_TERMINATOR))
         {
             continue;
         }
@@ -270,7 +273,7 @@ unsigned int container_exits_read(const ContainerLayout *layout, const unsigned 
         const unsigned long long at = table + ((unsigned long long)index * entry);
         const unsigned long long name =
             strings + container_value_read(&pattern[at + places.section_name], places.section_name_width);
-        if (strcmp((const char *)&pattern[name], named) != 0)
+        if (!mmgr_text_equal((const char *)&pattern[name], named, PLATFORM_TEXT_TO_TERMINATOR))
         {
             continue;
         }
@@ -341,7 +344,7 @@ unsigned int container_named_sections(const ContainerLayout *layout, const unsig
     {
         return 0u;
     }
-    const unsigned long long length = (unsigned long long)strlen(code);
+    const unsigned long long length = (unsigned long long)mmgr_text_length(code, PLATFORM_TEXT_TO_TERMINATOR);
     unsigned int found = 0u;
     for (unsigned long long index = 0ULL; index < count; index += 1ULL)
     {
@@ -349,7 +352,7 @@ unsigned int container_named_sections(const ContainerLayout *layout, const unsig
         const unsigned long long name =
             container_value_read(&container[at + places.section_name], places.section_name_width);
         if ((name >= names_size) || (length > (names_size - name)) ||
-            (memcmp(&container[names_at + name], code, length) != 0))
+            (mmgr_bytes_compare(&container[names_at + name], code, length) != 0))
         {
             continue;
         }
@@ -378,7 +381,7 @@ unsigned int container_section_named(const Places *places, const unsigned char *
         const unsigned long long at =
             strings +
             container_value_read(&pattern[sections[index].was_at + places->section_name], places->section_name_width);
-        found = (strcmp((const char *)&pattern[at], name) == 0) ? index : found;
+        found = (mmgr_text_equal((const char *)&pattern[at], name, PLATFORM_TEXT_TO_TERMINATOR)) ? index : found;
     }
     return found;
 }

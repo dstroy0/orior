@@ -3,6 +3,9 @@
 // admitted.c: the admission: a gated question's conference of cross, gate and record, the round checked, the carrier's
 // output passed, one question traced and queried
 #include "run_channel_internal.h"
+#include "../../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../../../../includes/parsers/line_read.h"
 
 // The conferences the gate calls for the round the airlock last read: each question of `questions` from `first` to
@@ -18,8 +21,7 @@ static unsigned int run_channel_admitted(RunQuestion *const *questions, unsigned
     const unsigned char *read = NULL;
     unsigned long long size = 0ULL;
     unsigned long long sequence = 0ULL;
-    if (!qry_member_blob(RUN_AIRLOCK_READ, &read, &size, &sequence) ||
-        (sequence < s_channel.airlock_began))
+    if (!qry_member_blob(RUN_AIRLOCK_READ, &read, &size, &sequence) || (sequence < s_channel.airlock_began))
     {
         return 0u;
     }
@@ -60,7 +62,7 @@ static unsigned int run_channel_admitted(RunQuestion *const *questions, unsigned
         }
         // the cross's clear readings of the question, the lines of the read list that lead with its stem: its probe
         // place's, or every instruction's of a question read whole, each `<operation> <low> <high>`
-        const size_t stem_length = strlen(stem);
+        const size_t stem_length = mmgr_text_length(stem, PLATFORM_TEXT_TO_TERMINATOR);
         unsigned int clear = 0u;
         for (unsigned long long walk = 0ULL; walk < size;)
         {
@@ -68,7 +70,8 @@ static unsigned int run_channel_admitted(RunQuestion *const *questions, unsigned
             const char *const end = (const char *)memchr(line, '\n', (size_t)(size - walk));
             const size_t length = (end != NULL) ? (size_t)(end - line) : (size_t)(size - walk);
             walk += (unsigned long long)length + 1ULL;
-            clear += ((length > stem_length) && (memcmp(line, stem, stem_length) == 0) && (line[stem_length] == ' '))
+            clear += ((length > stem_length) && (mmgr_bytes_compare(line, stem, stem_length) == 0) &&
+                      (line[stem_length] == ' '))
                          ? 1u
                          : 0u;
         }
@@ -89,7 +92,7 @@ static unsigned int run_channel_admitted(RunQuestion *const *questions, unsigned
         mmgr_line_put(&account_line, "reads ");
         mmgr_line_decimal(&account_line, clear, 0u);
         mmgr_line_put(&account_line, " instruction(s) of it clear, each legal, no control transfer, wait, memory "
-                                      "access or register past the count; admit");
+                                     "access or register past the count; admit");
         mmgr_line_finish(&account_line);
         overseer_account(s_channel.buffer, identity, "cross", account);
         account_line.at = 0ULL;
@@ -107,7 +110,7 @@ static unsigned int run_channel_admitted(RunQuestion *const *questions, unsigned
         else if ((s_recorded.answer == KQR_CENSORED) && run_channel_key_gated(s_recorded.refusal))
         {
             mmgr_line_put(&account_line,
-                           "contains it censored under the gate's key rule, the part never saw it; admit");
+                          "contains it censored under the gate's key rule, the part never saw it; admit");
         }
         else if (s_recorded.answer == KQR_ANSWERS)
         {
@@ -127,14 +130,15 @@ static unsigned int run_channel_admitted(RunQuestion *const *questions, unsigned
         unsigned int taught = 0u;
         unsigned int ruled = 0u;
         OverseerRuling ruling;
-        memset(&ruling, 0, sizeof(ruling));
+        mmgr_bytes_set(&ruling, 0, sizeof(ruling));
         for (unsigned long long walk = 0ULL; walk < size;)
         {
             const char *const line = (const char *)(read + walk);
             const char *const end = (const char *)memchr(line, '\n', (size_t)(size - walk));
             const size_t length = (end != NULL) ? (size_t)(end - line) : (size_t)(size - walk);
             walk += (unsigned long long)length + 1ULL;
-            if ((length <= stem_length) || (memcmp(line, stem, stem_length) != 0) || (line[stem_length] != ' '))
+            if ((length <= stem_length) || (mmgr_bytes_compare(line, stem, stem_length) != 0) ||
+                (line[stem_length] != ' '))
             {
                 continue;
             }
@@ -146,7 +150,8 @@ static unsigned int run_channel_admitted(RunQuestion *const *questions, unsigned
             mmgr_line_put_max(&text_line, line + stem_length + 1u, length - stem_length - 1u);
             mmgr_line_finish(&text_line);
             const char *at = text;
-            if (!line_word(&at, operation, sizeof(operation)) || !line_number(&at, 1, &low) || !line_number(&at, 1, &high))
+            if (!line_word(&at, operation, sizeof(operation)) || !line_number(&at, 1, &low) ||
+                !line_number(&at, 1, &high))
             {
                 continue;
             }
@@ -237,7 +242,7 @@ void run_channel_output_passed(const InterfaceAnswer *answer)
     mmgr_line_ch(&ending_line, '\n');
     // the line fits RUN_CARRIER_ENDING, and the output retained fits the rest
     const unsigned long long line = mmgr_line_finish(&ending_line);
-    memcpy(s_carrier_text + line, s_carrier_output, copied);
+    mmgr_bytes_copy(s_carrier_text + line, s_carrier_output, copied);
     qry_member_append("carrier.txt", s_carrier_text, line + copied, clean ? QRY_ORDINARY : QRY_PANIC);
 }
 

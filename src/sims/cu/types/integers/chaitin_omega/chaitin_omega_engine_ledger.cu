@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // chaitin_omega_engine_ledger.cu: the engine's threads, ledger and buffers
 #include "chaitin_omega_internal.h"
+#include "../../../../../platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 // the engine's ledger: one line a finished job, "engine" first and "end" last. A line cut anywhere is not a job
 void omega_engine_ledger_read(const char *path, std::vector<OmegaEngineJob> &jobs)
@@ -20,7 +22,7 @@ void omega_engine_ledger_read(const char *path, std::vector<OmegaEngineJob> &job
         unsigned long long contradictions = 0ULL;
         unsigned long long max[4];
         int read = 0;
-        const size_t written = strlen(line);
+        const size_t written = mmgr_text_length(line, PLATFORM_TEXT_TO_TERMINATOR);
         if ((written == 0u) || (line[written - 1u] != '\n'))
         {
             continue;

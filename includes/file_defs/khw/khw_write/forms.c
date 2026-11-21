@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // forms.c: the forms: a form of the machine file's text listed, the vendor's run, and the forms read
 #include "khw_write.h"
+#include "../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 // the opening of a form line at `text`, `<operation> <types> 0x<low> 0x<high>`, into its parts, each into its room: 1,
 // or 0 where `text` does not open so
@@ -27,7 +30,7 @@ int khw_form_listed(const unsigned char *bytes, unsigned long long size, unsigne
         char types[256];
         unsigned long long listed_low = 0ULL;
         unsigned long long listed_high = 0ULL;
-        if ((strncmp(line, "form ", 5u) == 0) &&
+        if ((mmgr_text_starts(line, "form ", PLATFORM_TEXT_TO_TERMINATOR)) &&
             khw_form_line_read(line + 5, operation, sizeof(operation), types, sizeof(types), &listed_low,
                                &listed_high) &&
             (listed_low == low) && (listed_high == high))
@@ -73,7 +76,7 @@ unsigned int khw_forms_read(const char *name)
             continue;
         }
         KhwAnswered answered;
-        memset(&answered, 0, sizeof(answered));
+        mmgr_bytes_set(&answered, 0, sizeof(answered));
         char relation[256];
         const char *runs_at = line;
         // a working-set line leads with the phase and the read order. A vendor answers line leads with the relation.
@@ -97,11 +100,11 @@ unsigned int khw_forms_read(const char *name)
         // out. The relation of a frame has its read after a dot
         answered.anchor = (unsigned int)LADDER_ANCHOR_COUNT;
         answered.frame = (unsigned int)FRAME_RELATION_COUNT;
-        const size_t ladder_prefix = strlen(KHW_READS_LADDER);
-        const size_t frame_prefix = strlen(FRAME_READS);
+        const size_t ladder_prefix = mmgr_text_length(KHW_READS_LADDER, PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t frame_prefix = mmgr_text_length(FRAME_READS, PLATFORM_TEXT_TO_TERMINATOR);
         if (strncmp(relation, FRAME_READS, frame_prefix) == 0)
         {
-            char *const dot = strchr(relation + frame_prefix, '.');
+            char *const dot = mmgr_text_char(relation + frame_prefix, '.', PLATFORM_TEXT_TO_TERMINATOR);
             answered.reading = (dot != NULL) ? strtoull(dot + 1, NULL, 16) : 0ULL;
             if (dot != NULL)
             {
@@ -109,7 +112,10 @@ unsigned int khw_forms_read(const char *name)
             }
             for (unsigned int each = 0u; each < (unsigned int)FRAME_RELATION_COUNT; each += 1u)
             {
-                answered.frame = (strcmp(s_frame_text[each], relation + frame_prefix) == 0) ? each : answered.frame;
+                answered.frame =
+                    (mmgr_text_equal(s_frame_text[each], relation + frame_prefix, PLATFORM_TEXT_TO_TERMINATOR))
+                        ? each
+                        : answered.frame;
             }
         }
         else
@@ -118,7 +124,7 @@ unsigned int khw_forms_read(const char *name)
                 (strncmp(relation, KHW_READS_LADDER, ladder_prefix) == 0) ? (relation + ladder_prefix) : relation;
             for (unsigned int anchor = 0u; anchor < (unsigned int)LADDER_ANCHOR_COUNT; anchor += 1u)
             {
-                if (strcmp(s_anchor_text[anchor], name) == 0)
+                if (mmgr_text_equal(s_anchor_text[anchor], name, PLATFORM_TEXT_TO_TERMINATOR))
                 {
                     answered.anchor = anchor;
                     break;

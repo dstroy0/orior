@@ -95,6 +95,8 @@ qasm_build()
     qasm_host_setup || return 1
     OBJECTS=()
     LINEA_OBJECTS=()
+    # the process stage, the pool, the system calls and the carcer of the platform, which the daemon links too
+    PLATFORM_OBJECTS=()
     local source
     local object
     # the formats with the line: the ruleset reader reads a ruleset's .ksc as the run stores it (qry_member.h)
@@ -106,7 +108,7 @@ qasm_build()
         qasm_c_object "$source" "$object" || return 1
         OBJECTS+=("$object")
         case "$source" in
-            */mmgr/src/locus_carcerum/*) ;;
+            */mmgr/src/locus_carcerum/*|*/src/platform/*) PLATFORM_OBJECTS+=("$object") ;;
             */mmgr/src/*) LINEA_OBJECTS+=("$object") ;;
         esac
     done
@@ -143,7 +145,8 @@ qasm_build()
     DAEMON="$OUT/tessera_daemon$EXECUTABLE"
     rm -f "$DAEMON"
     nvcc "${HOST_FLAGS[@]}" "${GENCODE[@]}" "${LONG_PATHS[@]}" -o "$DAEMON" "${DAEMON_OBJECTS[@]}" \
-        "${LINEA_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${DAEMON_LIBRARIES[@]}"
+        "${LINEA_OBJECTS[@]}" "${PLATFORM_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${DAEMON_LIBRARIES[@]}" \
+        "${EXACT_TYPES_LIBRARIES[@]}"
     [ -f "$DAEMON" ] || { echo "  build failed: the tessera daemon did not link"; return 1; }
     return 0
 }

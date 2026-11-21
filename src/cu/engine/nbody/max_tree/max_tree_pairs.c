@@ -44,9 +44,9 @@ void max_tree_pairs_release(MaxTreePairs *pairs)
     {
         return;
     }
-    platform_cell_released(pairs->earlier, (unsigned int)platform_place_g_engine_owner);
-    platform_cell_released(pairs->later, (unsigned int)platform_place_g_engine_owner);
-    platform_cell_released(pairs->voxels, (unsigned int)platform_place_g_engine_owner);
+    free(pairs->earlier);
+    free(pairs->later);
+    free(pairs->voxels);
     mmgr_bytes_set(pairs, 0, sizeof(*pairs));
 }
 
@@ -113,14 +113,10 @@ long max_tree_pairs(const MaxTreePairsRequest *request)
         distinct += ((at == 0u) || (keys[at] != keys[at - 1u])) ? 1u : 0u;
     }
     pairs->earlier =
-        (unsigned int *)platform_cell_taken((unsigned long long)(((size_t)distinct + 1u) * sizeof(unsigned int)),
-                                            (unsigned int)platform_place_g_engine_owner, 0);
+        (unsigned int *)malloc(((size_t)distinct + 1u) * sizeof(unsigned int));
     pairs->later =
-        (unsigned int *)platform_cell_taken((unsigned long long)(((size_t)distinct + 1u) * sizeof(unsigned int)),
-                                            (unsigned int)platform_place_g_engine_owner, 0);
-    pairs->voxels = (unsigned long long *)platform_cell_taken(
-        (unsigned long long)(((size_t)distinct + 1u) * sizeof(unsigned long long)),
-        (unsigned int)platform_place_g_engine_owner, 0);
+        (unsigned int *)malloc(((size_t)distinct + 1u) * sizeof(unsigned int));
+    pairs->voxels = (unsigned long long *)malloc(((size_t)distinct + 1u) * sizeof(unsigned long long));
     if (!MAX_TREE_HOST_CHECK((pairs->earlier != NULL) && (pairs->later != NULL) && (pairs->voxels != NULL), request,
                              error, ENGINE_ERROR_RESOURCE))
     {

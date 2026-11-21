@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // relation_fields.c: the relation: the fields queried
 #include "khw_learn_internal.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 // The runs of a predicate form read off its own encoding, no question queried: a run inside a field the .ksc names
 // for a predicate that contains P0 is the destination, the answer's place, a predicate, and one containing another
@@ -28,12 +31,14 @@ static void khw_predicate_runs_read(KhwAnswered *form)
         int predicate = 0;
         for (unsigned int each = 0u; each < (sizeof(s_predicate_fields) / sizeof(s_predicate_fields[0])); each += 1u)
         {
-            predicate = predicate || (strcmp(field, s_predicate_fields[each]) == 0);
+            predicate = predicate || (mmgr_text_equal(field, s_predicate_fields[each], PLATFORM_TEXT_TO_TERMINATOR));
         }
         if (predicate)
         {
             form->type[run] = KHW_KIND_PREDICATE;
-            form->place[run] = ((value == 0ULL) && (strcmp(field, "guard") != 0)) ? words : KHW_PLACE_NONE;
+            form->place[run] = ((value == 0ULL) && (!mmgr_text_equal(field, "guard", PLATFORM_TEXT_TO_TERMINATOR)))
+                                   ? words
+                                   : KHW_PLACE_NONE;
         }
         else if (value == KHW_FIRST_REGISTER)
         {
@@ -139,7 +144,7 @@ unsigned int khw_fields_registers(KhwAnswered *const *forms, unsigned int count)
         for (unsigned int at = 0u; at < count; at += 1u)
         {
             KhwStaged *const stage = &s_staged[staged];
-            memset(stage, 0, sizeof(*stage));
+            mmgr_bytes_set(stage, 0, sizeof(*stage));
             const unsigned int pooled = khw_stage_pooled(forms[at], stage_number, NULL);
             // a predicate form queries nothing: its runs are read off its own encoding in the first stage
             if ((pooled == 0u) && (stage_number == 0u) && (forms[at]->frame == (unsigned int)FRAME_RELATION_COUNT) &&

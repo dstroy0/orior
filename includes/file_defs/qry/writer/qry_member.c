@@ -3,6 +3,9 @@
 // qry_member.c: a module's run found, its ring taken, a record written once into the ring with its time and CRC, the
 // run's records read where the writer puts them, and the panic line
 #include "qry_writer_internal.h"
+#include "../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include "../qry_read.h"
 
@@ -54,12 +57,12 @@ QryShared *qry_member_joined(const char *path)
 {
     qry_member_parted();
     s_found = 1;
-    const size_t length = (path != NULL) ? strlen(path) : 0u;
+    const size_t length = (path != NULL) ? mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR) : 0u;
     if ((length == 0u) || (length >= sizeof(s_path)))
     {
         return NULL;
     }
-    memcpy(s_path, path, length + 1u);
+    mmgr_bytes_copy(s_path, path, length + 1u);
     s_run = qry_member_shared(s_path);
     s_joins += (s_run != NULL) ? 1ULL : 0ULL;
     return s_run;
@@ -83,13 +86,13 @@ void qry_member_parted(void)
 
 unsigned long long qry_member_gathered(const char *name, unsigned char *gathered, unsigned long long room)
 {
-    const size_t named = strlen(name);
+    const size_t named = mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR);
     unsigned long long at = 0ULL;
     unsigned long long size = 0ULL;
     const QryRecord *record = NULL;
     while (qry_member_read(&at, &record))
     {
-        if ((record->name_length != named) || (memcmp(QRY_RECORD_NAME(record), name, named) != 0))
+        if ((record->name_length != named) || (mmgr_bytes_compare(QRY_RECORD_NAME(record), name, named) != 0))
         {
             continue;
         }
@@ -98,7 +101,7 @@ unsigned long long qry_member_gathered(const char *name, unsigned char *gathered
             return QRY_MEMBER_UNREAD;
         }
         // a record fits half a ring, whose bytes a size_t counts
-        memcpy(gathered + size, QRY_RECORD_BLOB(record), (size_t)record->blob_length);
+        mmgr_bytes_copy(gathered + size, QRY_RECORD_BLOB(record), (size_t)record->blob_length);
         size += record->blob_length;
     }
     return size;
@@ -164,7 +167,7 @@ unsigned long long qry_member_append(const char *name, const void *blob, unsigne
                                      unsigned int priority)
 {
     QryRing *const ring = qry_member_ring();
-    const size_t name_length = strlen(name);
+    const size_t name_length = mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR);
     const unsigned long long bytes = QRY_RECORD_BYTES(name_length, blob_length);
     if ((ring == NULL) || (name_length == 0u) || (name_length > QRY_NAME_MAX_LEN) || (priority > QRY_ORDINARY) ||
         (bytes > (QRY_WRITER_RING_BYTES / 2ULL)))
@@ -181,19 +184,19 @@ unsigned long long qry_member_append(const char *name, const void *blob, unsigne
     if (left != 0ULL)
     {
         const unsigned long long wrap = QRY_WRITER_WRAP;
-        memcpy(ring->bytes + place, &wrap, sizeof(wrap));
+        mmgr_bytes_copy(ring->bytes + place, &wrap, sizeof(wrap));
     }
     unsigned char *const at = ring->bytes + ((tail + left) & (QRY_WRITER_RING_BYTES - 1ULL));
     // a name is at max QRY_NAME_MAX_LEN bytes, which an unsigned int counts
     const QryRecord record = {qry_member_clock(), blob_length, (unsigned int)name_length, priority};
     const unsigned long long filled = sizeof(record) + name_length + blob_length;
-    memcpy(at, &record, sizeof(record));
-    memcpy(at + sizeof(record), name, name_length);
+    mmgr_bytes_copy(at, &record, sizeof(record));
+    mmgr_bytes_copy(at + sizeof(record), name, name_length);
     // a record fits half a ring, whose bytes a size_t counts
-    memcpy(at + sizeof(record) + name_length, blob, (size_t)blob_length);
-    memset(at + filled, 0, (size_t)(bytes - 8ULL - filled));
+    mmgr_bytes_copy(at + sizeof(record) + name_length, blob, (size_t)blob_length);
+    mmgr_bytes_set(at + filled, 0, (size_t)(bytes - 8ULL - filled));
     const unsigned long long crc = qry_record_crc(at, bytes - 8ULL);
-    memcpy(at + bytes - 8ULL, &crc, sizeof(crc));
+    mmgr_bytes_copy(at + bytes - 8ULL, &crc, sizeof(crc));
     atomic_store(&ring->tail, tail + left + bytes);
     if (priority != QRY_ORDINARY)
     {
@@ -287,12 +290,12 @@ int qry_member_latest(const char *name, const QryRecord **record, unsigned long 
     // what this thread passed taken into the run first, so that the latest is what this thread last wrote
     qry_member_settled();
     QryShared *const run = qry_member_run();
-    const size_t length = strlen(name);
+    const size_t length = mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR);
     for (unsigned long long at = qry_member_scheduled(run); at != 0ULL; at -= 1ULL)
     {
         const QryRecord *const latest =
             (const QryRecord *)(qry_shared_records(run) + qry_shared_schedule(run)[at - 1ULL]);
-        if ((latest->name_length == length) && (memcmp(latest + 1, name, length) == 0))
+        if ((latest->name_length == length) && (mmgr_bytes_compare(latest + 1, name, length) == 0))
         {
             *record = latest;
             if (place != NULL)
@@ -371,8 +374,9 @@ int qry_member_blob(const char *name, const unsigned char **blob, unsigned long 
 const char *qry_member_file_name(const char *path)
 {
     const QryShared *const run = qry_member_run();
-    const size_t top = (run != NULL) ? strlen(run->top) : 0u;
-    if ((top == 0u) || (strlen(path) <= (top + 1u)) || (memcmp(path, run->top, top) != 0) || (path[top] != '/'))
+    const size_t top = (run != NULL) ? mmgr_text_length(run->top, PLATFORM_TEXT_TO_TERMINATOR) : 0u;
+    if ((top == 0u) || (mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR) <= (top + 1u)) ||
+        (mmgr_bytes_compare(path, run->top, top) != 0) || (path[top] != '/'))
     {
         return NULL;
     }
@@ -408,18 +412,18 @@ unsigned long long qry_member_streamed(const char *name, const void *bytes, unsi
 {
     char streamed[QRY_NAME_MAX_LEN + 1u];
     const char *const qry = qry_member_path();
-    const size_t length = strlen(name);
-    const size_t qry_length = (qry != NULL) ? strlen(qry) : 0u;
+    const size_t length = mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t qry_length = (qry != NULL) ? mmgr_text_length(qry, PLATFORM_TEXT_TO_TERMINATOR) : 0u;
     if ((qry == NULL) || (length == 0u) || (length >= QRY_NAME_MAX_LEN) || (strpbrk(name, "/\\:") != NULL) ||
         ((qry_length + 1u + length) >= room))
     {
         return 0ULL;
     }
     streamed[0] = ':';
-    memcpy(streamed + 1u, name, length + 1u);
+    mmgr_bytes_copy(streamed + 1u, name, length + 1u);
     const unsigned long long time = qry_member_append(streamed, bytes, size, QRY_CRITICAL);
-    memcpy(path, qry, qry_length);
+    mmgr_bytes_copy(path, qry, qry_length);
     path[qry_length] = ':';
-    memcpy(path + qry_length + 1u, name, length + 1u);
+    mmgr_bytes_copy(path + qry_length + 1u, name, length + 1u);
     return time;
 }

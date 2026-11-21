@@ -3,6 +3,9 @@
 // input.c: the input: a blob or a file read, the query key, the verdict and launch rows put to the run, the input's
 // lines, the cases of a launch, and what the carrier reports of an answer, a dry run or a call
 #include "cubin_run_internal.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../lstar/protocol/table_text.h"
 #include "../../../../../../includes/parsers/who.h"
 #include "../../../../../../includes/parsers/line_read.h"
@@ -32,7 +35,7 @@ unsigned long long cubin_run_input(const char *name, unsigned char *bytes, unsig
         return 0ULL;
     }
     // the blob fits `bytes`, whose count a size_t represents
-    memcpy(bytes, blob, (size_t)size);
+    mmgr_bytes_copy(bytes, blob, (size_t)size);
     return size;
 }
 
@@ -58,7 +61,7 @@ void cubin_run_verdict_row(unsigned long long query_key, unsigned int verdict, u
                                       verdict,
                                       gated ? 1ULL : 0ULL,
                                       gated ? at : 0ULL,
-                                      table_text(reason, strlen(reason)),
+                                      table_text(reason, mmgr_text_length(reason, PLATFORM_TEXT_TO_TERMINATOR)),
                                       dry ? 0ULL : 1ULL};
     who_words(WHO_HERE, row);
     qry_member_append(CUBIN_RUN_VERDICTS, row, sizeof(row), QRY_ORDINARY);
@@ -71,7 +74,9 @@ void cubin_run_launch_row(unsigned long long query_key, unsigned int outcome, un
                           const char *message)
 {
     unsigned long long row[2u + 7] = {
-        0ULL, 0ULL, query_key, outcome, launches, nanoseconds, least, max, table_text(message, strlen(message))};
+        0ULL,    0ULL,     query_key,
+        outcome, launches, nanoseconds,
+        least,   max,      table_text(message, mmgr_text_length(message, PLATFORM_TEXT_TO_TERMINATOR))};
     who_words(WHO_HERE, row);
     qry_member_append(CUBIN_RUN_LAUNCHES, row, sizeof(row), QRY_ORDINARY);
 }
@@ -79,7 +84,7 @@ void cubin_run_launch_row(unsigned long long query_key, unsigned int outcome, un
 // the lines of the input `name` opened: 1, or 0 where it is not there
 int cubin_run_lines_open(CubinRunLines *lines, const char *name)
 {
-    memset(lines, 0, sizeof(*lines));
+    mmgr_bytes_set(lines, 0, sizeof(*lines));
     return qry_member_blob(name, &lines->bytes, &lines->size, NULL);
 }
 
@@ -95,7 +100,7 @@ int cubin_run_line(CubinRunLines *lines, char *line, size_t room)
     const unsigned char *const end = (const unsigned char *)memchr(start, '\n', (size_t)(lines->size - lines->at));
     const size_t length = (end != NULL) ? ((size_t)(end - start) + 1u) : (size_t)(lines->size - lines->at);
     const size_t copied = (length < (room - 1u)) ? length : (room - 1u);
-    memcpy(line, start, copied);
+    mmgr_bytes_copy(line, start, copied);
     line[copied] = '\0';
     lines->at += length;
     return 1;
@@ -103,7 +108,7 @@ int cubin_run_line(CubinRunLines *lines, char *line, size_t room)
 
 void cubin_run_lines_close(CubinRunLines *lines)
 {
-    memset(lines, 0, sizeof(*lines));
+    mmgr_bytes_set(lines, 0, sizeof(*lines));
 }
 
 // the cases input `name` read into s_cases: 1, or 0 where it does not read, contains no case or contains more than a
@@ -137,7 +142,7 @@ int cubin_run_cases(const char *name)
         fits = (count < CUBIN_RUN_THREADS_MAX);
         if (fits)
         {
-            memcpy(s_cases[count], words, sizeof(words));
+            mmgr_bytes_copy(s_cases[count], words, sizeof(words));
             count += 1u;
         }
     }

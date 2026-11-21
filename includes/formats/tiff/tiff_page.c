@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tiff_page.c: a page's extent, its chunks and their decoders
 #include "tiff_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 static const unsigned long long tiff_tag_numbers[TIFF_TAGS] = {256ULL, 257ULL, 258ULL, 259ULL, 266ULL, 270ULL,
                                                                273ULL, 277ULL, 278ULL, 279ULL, 284ULL, 317ULL,
@@ -120,7 +121,7 @@ static int tiff_page_extent(TiffFile *file, TiffPage *page, const TiffEntry *fou
 
 int tiff_page(TiffFile *file, unsigned long long ifd, TiffPage *page)
 {
-    memset(page, 0, sizeof(*page));
+    mmgr_bytes_set(page, 0, sizeof(*page));
     if (file->reason != NULL)
     {
         return file->reason == NULL;
@@ -145,7 +146,7 @@ int tiff_page(TiffFile *file, unsigned long long ifd, TiffPage *page)
         return tiff_fail(file, "out of memory");
     }
     TiffEntry found[TIFF_TAGS];
-    memset(found, 0, sizeof(found));
+    mmgr_bytes_set(found, 0, sizeof(found));
     if (tiff_fetch(file, ifd + count_bytes, table_bytes, table))
     {
         for (unsigned long long entry = 0ULL; entry < entries; entry += 1ULL)
@@ -170,7 +171,7 @@ int tiff_page(TiffFile *file, unsigned long long ifd, TiffPage *page)
                     found[at].present = 1u;
                     found[at].type = type;
                     found[at].count = count;
-                    memcpy(found[at].value, &raw[4u + value_bytes], value_bytes);
+                    mmgr_bytes_copy(found[at].value, &raw[4u + value_bytes], value_bytes);
                 }
             }
         }
@@ -325,7 +326,7 @@ static long long tiff_packbits_decode(const EngineBytesRequest *request)
             {
                 return ENGINE_BYTES_ERROR;
             }
-            memcpy(&request->out[produced], &request->in[at], (size_t)literal);
+            mmgr_bytes_copy(&request->out[produced], &request->in[at], (size_t)literal);
             at += literal;
             produced += literal;
         }
@@ -336,7 +337,7 @@ static long long tiff_packbits_decode(const EngineBytesRequest *request)
             {
                 return ENGINE_BYTES_ERROR;
             }
-            memset(&request->out[produced], request->in[at], (size_t)run);
+            mmgr_bytes_set(&request->out[produced], request->in[at], (size_t)run);
             at += 1ULL;
             produced += run;
         }

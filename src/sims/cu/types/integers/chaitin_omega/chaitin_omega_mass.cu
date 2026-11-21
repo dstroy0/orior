@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // chaitin_omega_mass.cu: mass, simple types and the host's workers
 #include "chaitin_omega_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 // an independent parse of a code of exactly `length` bits: 1 where it is one closed term using every bit
 int omega_parse(unsigned long long code, unsigned int length, unsigned int *at, unsigned int depth)
@@ -290,7 +291,7 @@ static int omega_simply_typed(const std::vector<int> &term)
 
 void omega_results_open(OmegaResults *results)
 {
-    memset(results, 0, sizeof(*results));
+    mmgr_bytes_set(results, 0, sizeof(*results));
     for (unsigned int length = 0u; length <= OMEGA_LENGTH_MAX; length += 1u)
     {
         results->steps_champion[length] = ~0ULL;

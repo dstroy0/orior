@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // chaitin_omega_engine.cu: the engine
 #include "chaitin_omega_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 int omega_engine(SimResults *results, const OmegaCounts *counts, const char *ledger, OmegaEngineReport *report,
                  std::vector<OmegaSettled> *crossed, OmegaResults *fates)
 {
     omega_results_open(fates);
-    memset(report, 0, sizeof(*report));
+    mmgr_bytes_set(report, 0, sizeof(*report));
     std::vector<OmegaEngineJob> retained;
     if (ledger != NULL)
     {
@@ -46,9 +47,9 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
     }
     std::map<unsigned long long, OmegaProgram> programs;
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     OmegaBuffer buffers[OMEGA_BUFFERS];
-    memset(buffers, 0, sizeof(buffers));
+    mmgr_bytes_set(buffers, 0, sizeof(buffers));
     OmegaPoolExtent extent = {0ULL, 0ULL, 0ULL, 0ULL};
     std::vector<OmegaSettled> settled;
     std::vector<unsigned long long> out_sizes;

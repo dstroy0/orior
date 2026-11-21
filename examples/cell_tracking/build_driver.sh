@@ -125,6 +125,8 @@ PORTABLE_SOURCES+=("${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT
 PORTABLE_OBJECTS=()
 # the line's objects, which the daemon links too
 LINEA_OBJECTS=()
+# the process stage, the pool, the system calls and the carcer of the platform, which the daemon links too
+PLATFORM_OBJECTS=()
 for source in "${PORTABLE_SOURCES[@]}"; do
     name="$(basename "$source" .c)"
     case "$(uname -s)" in
@@ -141,7 +143,7 @@ for source in "${PORTABLE_SOURCES[@]}"; do
     [ -f "$OBJECT" ] || { echo "  build failed: $source did not compile"; exit 1; }
     PORTABLE_OBJECTS+=("$OBJECT")
     case "$source" in
-        */mmgr/src/locus_carcerum/*) ;;
+        */mmgr/src/locus_carcerum/*|*/src/platform/*) PLATFORM_OBJECTS+=("$OBJECT") ;;
         */mmgr/src/*) LINEA_OBJECTS+=("$OBJECT") ;;
     esac
 done
@@ -200,7 +202,7 @@ for name in obsignatio_{hash,seal}; do
     SEAL_OBJECTS+=("$SEAL_OBJECT")
 done
 nvcc "${HOST_FLAGS[@]}" "${GENCODE[@]}" "${LINK_FLAGS[@]}" -o "$DAEMON" "${TESSERA_DAEMON_OBJECTS[@]}" \
-    "${LINEA_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${DAEMON_LIBRARIES[@]}"
+    "${LINEA_OBJECTS[@]}" "${PLATFORM_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${DAEMON_LIBRARIES[@]}" "${EXACT_TYPES_LIBRARIES[@]}"
 [ -f "$DAEMON" ] || { echo "  build failed: the tessera daemon did not link"; exit 1; }
 echo "  built $DAEMON"
 

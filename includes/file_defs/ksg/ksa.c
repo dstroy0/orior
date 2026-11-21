@@ -1,8 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// ksa.c: the table of schemes an approval of a seal is made by, and an approval made and verified, as ksa.h positions them
-// out. Each scheme signs KSA_CONTEXT and then the seal's trailer
+// ksa.c: the table of schemes an approval of a seal is made by, and an approval made and verified, as ksa.h positions
+// them out. Each scheme signs KSA_CONTEXT and then the seal's trailer
 #include "ksa.h"
+#include "../../../src/platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include "../../codecs/ed25519/ed25519.h"
 
@@ -49,15 +52,15 @@ static const KsaScheme s_schemes[] = {
 // the message a scheme signs for the seal whose trailer is `trailer`, into `message`
 static void ksa_message(const unsigned char *trailer, unsigned char *message)
 {
-    memcpy(message, KSA_CONTEXT, sizeof(KSA_CONTEXT) - 1u);
-    memcpy(message + (sizeof(KSA_CONTEXT) - 1u), trailer, KSG_TRAILER_BYTES);
+    mmgr_bytes_copy(message, KSA_CONTEXT, sizeof(KSA_CONTEXT) - 1u);
+    mmgr_bytes_copy(message + (sizeof(KSA_CONTEXT) - 1u), trailer, KSG_TRAILER_BYTES);
 }
 
 const KsaScheme *ksa_scheme_named(const char *name)
 {
     for (unsigned int at = 0u; at < KSA_SCHEMES; at += 1u)
     {
-        if (strcmp(s_schemes[at].name, name) == 0)
+        if (mmgr_text_equal(s_schemes[at].name, name, PLATFORM_TEXT_TO_TERMINATOR))
         {
             return &s_schemes[at];
         }
@@ -69,7 +72,7 @@ const KsaScheme *ksa_scheme_tagged(const char *tag)
 {
     for (unsigned int at = 0u; at < KSA_SCHEMES; at += 1u)
     {
-        if (memcmp(s_schemes[at].tag, tag, KSA_TAG_BYTES) == 0)
+        if (mmgr_bytes_compare(s_schemes[at].tag, tag, KSA_TAG_BYTES) == 0)
         {
             return &s_schemes[at];
         }
@@ -83,7 +86,7 @@ const char *ksa_scheme_names(void)
     size_t used = 0u;
     for (unsigned int at = 0u; at < KSA_SCHEMES; at += 1u)
     {
-        const size_t length = strlen(s_schemes[at].name);
+        const size_t length = mmgr_text_length(s_schemes[at].name, PLATFORM_TEXT_TO_TERMINATOR);
         if ((used + length + 2u) > sizeof(s_names))
         {
             break;
@@ -93,7 +96,7 @@ const char *ksa_scheme_names(void)
             s_names[used] = ' ';
             used += 1u;
         }
-        memcpy(s_names + used, s_schemes[at].name, length);
+        mmgr_bytes_copy(s_names + used, s_schemes[at].name, length);
         used += length;
     }
     s_names[used] = '\0';
@@ -104,8 +107,8 @@ void ksa_approved(const KsaScheme *scheme, const unsigned char *secret, const un
                   KsaApproval *approval)
 {
     unsigned char message[KSA_MESSAGE_BYTES];
-    memset(approval, 0, sizeof(*approval));
-    memcpy(approval->tag, scheme->tag, KSA_TAG_BYTES);
+    mmgr_bytes_set(approval, 0, sizeof(*approval));
+    mmgr_bytes_copy(approval->tag, scheme->tag, KSA_TAG_BYTES);
     approval->key_bytes = scheme->key_bytes;
     approval->signature_bytes = scheme->signature_bytes;
     scheme->public_of(secret, approval->key);

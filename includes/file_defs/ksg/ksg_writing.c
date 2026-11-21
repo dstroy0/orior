@@ -3,6 +3,9 @@
 // ksg_writing.c: a file written whole and sealed as it is written, as ksg_writing.h specifies, through the run writer's
 // file calls, which make each file durable and put it in its place
 #include "ksg_writing.h"
+#include "../../../src/platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include "../qry/writer/qry_writer_internal.h"
 
@@ -11,14 +14,14 @@
 // `path` with `suffix` after it into `out`, which has room for KSG_PATH_MAX_LEN: 1, or 0 where it does not fit
 static int ksg_named(const char *path, const char *suffix, char *out)
 {
-    const size_t length = strlen(path);
-    const size_t more = strlen(suffix);
+    const size_t length = mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t more = mmgr_text_length(suffix, PLATFORM_TEXT_TO_TERMINATOR);
     if ((length + more) >= KSG_PATH_MAX_LEN)
     {
         return 0;
     }
-    memcpy(out, path, length);
-    memcpy(out + length, suffix, more + 1u);
+    mmgr_bytes_copy(out, path, length);
+    mmgr_bytes_copy(out + length, suffix, more + 1u);
     return 1;
 }
 

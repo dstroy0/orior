@@ -1,6 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "cfg_json.h"
+#include "../../../src/platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include <string.h>
 
@@ -48,8 +51,9 @@ static unsigned int cfg_json_token(CfgJsonWalk *walk, CfgJsonKind type, size_t s
 
 static int cfg_json_literal(CfgJsonWalk *walk, const char *defined, CfgJsonKind type)
 {
-    const size_t size = strlen(defined);
-    const int matches = ((walk->length - walk->at) >= size) && (memcmp(&walk->text[walk->at], defined, size) == 0);
+    const size_t size = mmgr_text_length(defined, PLATFORM_TEXT_TO_TERMINATOR);
+    const int matches =
+        ((walk->length - walk->at) >= size) && (mmgr_bytes_compare(&walk->text[walk->at], defined, size) == 0);
     walk->reason = matches ? walk->reason : "a value the scheme does not know";
     const unsigned int made = matches ? cfg_json_token(walk, type, walk->at, walk->at + size) : 0u;
     walk->at += matches ? size : 0u;
@@ -334,9 +338,9 @@ int cfg_json_parse_metadata(const char *text, size_t length, CfgJsonToken *token
 
 int cfg_json_names(const char *text, const CfgJsonToken *token, const char *name)
 {
-    const size_t size = strlen(name);
+    const size_t size = mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR);
     return (token->type == CFG_JSON_STRING) && ((token->end - token->start) == size) &&
-           (memcmp(&text[token->start], name, size) == 0);
+           (mmgr_bytes_compare(&text[token->start], name, size) == 0);
 }
 
 int cfg_json_unsigned(const char *text, const CfgJsonToken *token, unsigned long long *value)
@@ -390,8 +394,9 @@ static unsigned int cfg_json_hex4(const char *text, size_t at, size_t end)
     return value;
 }
 
-// the escape at `at`, its backslash first: the character it writes, and its length into `step`; CFG_JSON_NO_CHARACTER where
-// it is not one JSON writes. A high surrogate followed by an escaped low one is the single character the two write
+// the escape at `at`, its backslash first: the character it writes, and its length into `step`; CFG_JSON_NO_CHARACTER
+// where it is not one JSON writes. A high surrogate followed by an escaped low one is the single character the two
+// write
 static unsigned int cfg_json_escape(const char *text, size_t at, size_t end, size_t *step)
 {
     const char next = (at + 1u < end) ? text[at + 1u] : '\0';

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pi_tower_bbp_plan.cu: the BBP program arranged and planned
 #include "pi_tower_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 // the four denominators' offsets, 8 i + j
 static const unsigned int s_pi_tower_bbp_offset[4] = {1u, 4u, 5u, 6u};
@@ -12,7 +13,7 @@ static int pi_tower_program_build(PiTowerProgram *program, const std::vector<Eng
                                   const unsigned int *field_bits, unsigned int members, const unsigned int *in_limbs,
                                   const EngineRecordTable *tables, unsigned int table_count, EngineError *error)
 {
-    memset(program, 0, sizeof(*program));
+    mmgr_bytes_set(program, 0, sizeof(*program));
     // a program's steps are counted in an unsigned int, as keymath counts them
     const unsigned int count = (unsigned int)steps.size();
     const unsigned int output = count - 1u;
@@ -170,7 +171,7 @@ PiWide pi_tower_bbp_error(const PiTowerBbp *bbp)
 // PI_TOWER_BBP_GUARD to spare, and the tail runs until 16^T >= 2^(W + 8)
 int pi_tower_bbp_plan(PiTowerBbp *bbp, const PiWide &position, unsigned long long lanes, EngineError *error)
 {
-    memset(bbp, 0, sizeof(*bbp));
+    mmgr_bytes_set(bbp, 0, sizeof(*bbp));
     bbp->position = position;
     bbp->terms = pi_tower_sum(position, pi_tower_unsigned(1ULL));
     const unsigned int position_bits = pi_tower_bit_length(position);

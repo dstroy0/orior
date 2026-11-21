@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "snappy.h"
+#include "memoria_operor/memoria_linea.h"
 
 #include <string.h>
 
@@ -69,7 +70,7 @@ static int snappy_literal(SnappyWalk *walk, unsigned int tag)
     {
         return 0;
     }
-    memcpy(walk->out + walk->written, walk->in + walk->at, (size_t)length);
+    mmgr_bytes_copy(walk->out + walk->written, walk->in + walk->at, (size_t)length);
     walk->at += length;
     walk->written += length;
     return 1;
@@ -96,7 +97,7 @@ static int snappy_copy(SnappyWalk *walk, unsigned int tag)
     const unsigned char *const source = target - offset;
     if (offset >= length)
     {
-        memcpy(target, source, (size_t)length);
+        mmgr_bytes_copy(target, source, (size_t)length);
     }
     else
     {
@@ -127,7 +128,7 @@ long long snappy_decode(const EngineBytesRequest *request)
     {
         if (walk.written != 0ULL)
         {
-            memset(request->out, 0, (size_t)walk.written);
+            mmgr_bytes_set(request->out, 0, (size_t)walk.written);
         }
         return ENGINE_BYTES_ERROR;
     }

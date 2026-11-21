@@ -3,6 +3,9 @@
 // discover.c: the discover: the kernel read line by line, a form queried, the register bits, the seeds queried their
 // relation, and the working set widened
 #include "khw_learn_internal.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 unsigned int s_kernel_probe_place;
 
@@ -34,16 +37,16 @@ int khw_kernel_read(void)
     {
         return 0;
     }
-    memcpy(&head, kernel, sizeof(head));
+    mmgr_bytes_copy(&head, kernel, sizeof(head));
     if ((head.places == 0u) || (head.places > KHW_PLACES) || (head.registers == 0u) || (head.from >= head.places) ||
         ((kernel_size - sizeof(head)) < ((unsigned long long)head.places * KHW_INSTRUCTION)))
     {
         return 0;
     }
     const unsigned char *const code = kernel + sizeof(head);
-    memcpy(s_opening_text, code, (size_t)head.from * KHW_INSTRUCTION);
-    memcpy(s_kernel_text, code + ((size_t)head.from * KHW_INSTRUCTION),
-           (size_t)(head.places - head.from) * KHW_INSTRUCTION);
+    mmgr_bytes_copy(s_opening_text, code, (size_t)head.from * KHW_INSTRUCTION);
+    mmgr_bytes_copy(s_kernel_text, code + ((size_t)head.from * KHW_INSTRUCTION),
+                    (size_t)(head.places - head.from) * KHW_INSTRUCTION);
     s_registers = head.registers;
     s_kernel_places = head.places - head.from;
     s_opening_places = head.from;
@@ -82,7 +85,7 @@ int khw_form_queried(unsigned long long low, unsigned long long high)
         return 0;
     }
     KhwAnswered form;
-    memset(&form, 0, sizeof(form));
+    mmgr_bytes_set(&form, 0, sizeof(form));
     if (!khw_relation_queried(low, high, &form))
     {
         return 0;
@@ -107,8 +110,9 @@ static unsigned int khw_register_bits(const char *ksc)
     ksc_read(&s_file, ksc);
     for (unsigned int line = 0u; line < s_file.lines; line += 1u)
     {
-        if (ksc_row_read(s_file.line[line], "run", &s_row) && (strcmp(s_row.answer, "answers") == 0) &&
-            (strncmp(s_row.question, "register last", 13u) == 0))
+        if (ksc_row_read(s_file.line[line], "run", &s_row) &&
+            (mmgr_text_equal(s_row.answer, "answers", PLATFORM_TEXT_TO_TERMINATOR)) &&
+            (mmgr_text_starts(s_row.question, "register last", PLATFORM_TEXT_TO_TERMINATOR)))
         {
             for (bits = 0u; (bits < 64u) && ((s_row.value >> bits) != 0ULL); bits += 1u)
             {
@@ -167,7 +171,7 @@ static unsigned int khw_round_related(const unsigned long long *lows, const unsi
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         KhwAnswered form;
-        memset(&form, 0, sizeof(form));
+        mmgr_bytes_set(&form, 0, sizeof(form));
         form.low = lows[at];
         form.high = highs[at];
         const int framed = (frame != NULL) && (frame[at] != 0);
@@ -200,7 +204,7 @@ static unsigned int khw_round_related(const unsigned long long *lows, const unsi
     for (unsigned int at = 0u; at < again; at += 1u)
     {
         KhwAnswered form;
-        memset(&form, 0, sizeof(form));
+        mmgr_bytes_set(&form, 0, sizeof(form));
         form.low = lows[s_again[at]];
         form.high = highs[s_again[at]];
         if (khw_relation_of(&s_pool[at], &form, 1))

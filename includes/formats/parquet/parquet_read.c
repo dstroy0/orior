@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // parquet_read.c: a parquet file's members, the one cached decoded, and its lanes and side
 #include "parquet_internal.h"
+#include "../../../src/platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #define PARQUET_FOOTER_MEMBER "footer"
 
@@ -9,8 +12,7 @@
 // three, and a BYTE_ARRAY leaf all four
 #define PARQUET_SIDE_LEAVES_MAX 4u
 
-static const char *const PARQUET_SIDE_NAMES[PARQUET_SIDE_LEAVES_MAX] = {"bytes", "definition", "repetition",
-                                                                         "lengths"};
+static const char *const PARQUET_SIDE_NAMES[PARQUET_SIDE_LEAVES_MAX] = {"bytes", "definition", "repetition", "lengths"};
 
 // the member, kept decoded, its file and name, and the footer that led to it. A footer member contains the
 // footer's own bytes as its values and no levels
@@ -34,7 +36,7 @@ static void parquet_resident_release(void)
     free(resident->member);
     free(resident->footer);
     parquet_column_release(&resident->column);
-    memset(resident, 0, sizeof(*resident));
+    mmgr_bytes_set(resident, 0, sizeof(*resident));
 }
 
 // the row group and leaf a member names, `<row group>/<leaf path>` with the row group in decimal and no leading zero
@@ -55,7 +57,7 @@ static int parquet_member_find(const ParquetFooter *footer, const char *member, 
     }
     for (unsigned int place = 0u; place < footer->leaf_count; place += 1u)
     {
-        if (strcmp(footer->leaf[place].path, &member[at + 1u]) == 0)
+        if (mmgr_text_equal(footer->leaf[place].path, &member[at + 1u], PLATFORM_TEXT_TO_TERMINATOR))
         {
             *row_group = group;
             *leaf = place;
@@ -67,11 +69,11 @@ static int parquet_member_find(const ParquetFooter *footer, const char *member, 
 
 static char *parquet_copy(const char *text)
 {
-    const size_t size = strlen(text) + 1u;
+    const size_t size = mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR) + 1u;
     char *const copy = (char *)malloc(size);
     if (copy != NULL)
     {
-        memcpy(copy, text, size);
+        mmgr_bytes_copy(copy, text, size);
     }
     return copy;
 }
@@ -83,7 +85,8 @@ static int parquet_open(const EngineIngestTools *tools, const char *path, const 
     {
         return 0;
     }
-    if ((resident->valid != 0) && (strcmp(resident->path, path) == 0) && (strcmp(resident->member, member) == 0))
+    if ((resident->valid != 0) && (mmgr_text_equal(resident->path, path, PLATFORM_TEXT_TO_TERMINATOR)) &&
+        (mmgr_text_equal(resident->member, member, PLATFORM_TEXT_TO_TERMINATOR)))
     {
         return 1;
     }
@@ -99,7 +102,7 @@ static int parquet_open(const EngineIngestTools *tools, const char *path, const 
         return 0;
     }
     int ok = 1;
-    if (strcmp(member, PARQUET_FOOTER_MEMBER) == 0)
+    if (mmgr_text_equal(member, PARQUET_FOOTER_MEMBER, PLATFORM_TEXT_TO_TERMINATOR))
     {
         ParquetBytes *const values = &resident->column.values;
         values->room = resident->footer->footer_bytes + 1ULL;
@@ -143,7 +146,7 @@ static unsigned long long parquet_lanes(void)
 
 static void parquet_extent(EngineArrayExtent *extent)
 {
-    memset(extent, 0, sizeof(*extent));
+    mmgr_bytes_set(extent, 0, sizeof(*extent));
     extent->rank = 1u;
     extent->sizes[0] = parquet_lanes();
     extent->axes[0] = 'x';
@@ -176,7 +179,7 @@ static void parquet_side_release(EngineSideBytes *side)
     free(side->names);
     free(side->member_crc);
     free(side->member_bytes);
-    memset(side, 0, sizeof(*side));
+    mmgr_bytes_set(side, 0, sizeof(*side));
 }
 
 // the side leaves of the kept member: its byte count, eight bytes little-endian, and the levels of a leaf. Then the
@@ -193,9 +196,9 @@ static int parquet_side_fill(EngineSideBytes *side, EngineError *error)
         count[place] = (unsigned char)((column->values.count >> (8u * place)) & 0xFFULL);
     }
     const unsigned char *const parts[PARQUET_SIDE_LEAVES_MAX] = {count, column->definition, column->repetition,
-                                                                  column->lengths.bytes};
+                                                                 column->lengths.bytes};
     const unsigned long long sizes[PARQUET_SIDE_LEAVES_MAX] = {8ULL, column->levels, column->levels,
-                                                                column->lengths.count};
+                                                               column->lengths.count};
     const int byte_array =
         (resident->leafed != 0) && (resident->footer->leaf[resident->leaf].physical == PARQUET_BYTE_ARRAY);
     const unsigned long long leaves = (resident->leafed == 0) ? 1ULL : (byte_array ? 4ULL : 3ULL);
@@ -204,9 +207,9 @@ static int parquet_side_fill(EngineSideBytes *side, EngineError *error)
     for (unsigned long long leaf = 0ULL; leaf < leaves; leaf += 1ULL)
     {
         byte_total += sizes[leaf];
-        named += strlen(PARQUET_SIDE_NAMES[leaf]);
+        named += mmgr_text_length(PARQUET_SIDE_NAMES[leaf], PLATFORM_TEXT_TO_TERMINATOR);
     }
-    memset(side, 0, sizeof(*side));
+    mmgr_bytes_set(side, 0, sizeof(*side));
     side->pixel_at = (unsigned long long *)calloc((size_t)leaves + 1u, sizeof(unsigned long long));
     side->pixel_stored = (unsigned long long *)calloc((size_t)leaves + 1u, sizeof(unsigned long long));
     side->byte_start = (unsigned long long *)calloc((size_t)leaves + 1u, sizeof(unsigned long long));
@@ -227,17 +230,17 @@ static int parquet_side_fill(EngineSideBytes *side, EngineError *error)
     unsigned long long name_at = 0ULL;
     for (unsigned long long leaf = 0ULL; leaf < leaves; leaf += 1ULL)
     {
-        const size_t name_length = strlen(PARQUET_SIDE_NAMES[leaf]);
+        const size_t name_length = mmgr_text_length(PARQUET_SIDE_NAMES[leaf], PLATFORM_TEXT_TO_TERMINATOR);
         side->byte_start[leaf] = byte_at;
         if (sizes[leaf] != 0ULL)
         {
-            memcpy(side->bytes + byte_at, parts[leaf], (size_t)sizes[leaf]);
+            mmgr_bytes_copy(side->bytes + byte_at, parts[leaf], (size_t)sizes[leaf]);
         }
         side->member_crc[leaf] = zip_crc32(side->bytes + byte_at, sizes[leaf]);
         side->member_bytes[leaf] = sizes[leaf];
         byte_at += sizes[leaf];
         side->name_start[leaf] = name_at;
-        memcpy(side->names + name_at, PARQUET_SIDE_NAMES[leaf], name_length);
+        mmgr_bytes_copy(side->names + name_at, PARQUET_SIDE_NAMES[leaf], name_length);
         name_at += name_length;
     }
     side->byte_start[leaves] = byte_at;
@@ -273,9 +276,9 @@ long long parquet_read(const EngineArrayRead *request)
     const ParquetBytes *const values = &s_parquet_resident.column.values;
     if (values->count != 0ULL)
     {
-        memcpy(request->out, values->bytes, (size_t)values->count);
+        mmgr_bytes_copy(request->out, values->bytes, (size_t)values->count);
     }
-    memset(request->out + values->count, 0, (size_t)(total - values->count));
+    mmgr_bytes_set(request->out + values->count, 0, (size_t)(total - values->count));
     const int sided = (request->side == NULL) || parquet_side_fill(request->side, error);
     parquet_resident_release();
     // the total fits the caller's capacity, a size in memory, and so fits a long long
@@ -286,7 +289,7 @@ unsigned int parquet_members(const EngineIngestTools *tools, const char *path, c
 {
     *names = NULL;
     EngineError probe;
-    memset(&probe, 0, sizeof(probe));
+    mmgr_bytes_set(&probe, 0, sizeof(probe));
     ParquetFooter *const footer = (ParquetFooter *)malloc(sizeof(ParquetFooter));
     if ((footer == NULL) || !parquet_footer_read(tools, path, footer, &probe))
     {
@@ -308,7 +311,7 @@ unsigned int parquet_members(const EngineIngestTools *tools, const char *path, c
         for (unsigned int leaf = 0u; ok && (leaf < footer->leaf_count); leaf += 1u)
         {
             // a row group's decimal, a slash, the leaf's path and its terminator
-            const size_t size = 12u + strlen(footer->leaf[leaf].path);
+            const size_t size = 12u + mmgr_text_length(footer->leaf[leaf].path, PLATFORM_TEXT_TO_TERMINATOR);
             listed[at] = (char *)malloc(size);
             ok = (listed[at] != NULL) && (snprintf(listed[at], size, "%u/%s", group, footer->leaf[leaf].path) > 0);
             at += 1u;

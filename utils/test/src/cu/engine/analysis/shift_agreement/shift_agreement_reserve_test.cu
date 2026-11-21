@@ -4,6 +4,7 @@
 // rounded up to the 2 MiB page once, and the negation and root tables rounded up to the page together. The test is
 // host arithmetic and touches no device.
 #include "../../../../../../../src/cu/engine/analysis/shift_agreement/shift_agreement.h"
+#include "../../../../../../../src/platform/platform.h"
 
 #include <stdio.h>
 
@@ -23,8 +24,10 @@ static void agreement_test_check(AgreementTestResults *results, int passed, cons
     }
 }
 
-int main(void)
+int program_main(int count, char **arguments)
 {
+    (void)count;
+    (void)arguments;
     AgreementTestResults results = {0u, 0u};
 
     // padded 128 x 512 x 512, 2^25 elements, 65536 words: the words 524288 bytes each, the volumes 2^27 each, the

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pi_plane_ring_report.cu: rings, paths and printing
 #include "pi_plane_internal.h"
+#include "../../../../../platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 // the rings mod floor(pi 2^k): drawn, and each bit
 // read against the bit at its angle one ring in, against keyed shuffles of the rings' bits
@@ -146,7 +148,7 @@ const char *plane_text(int count, char **arguments, const char *name)
 {
     for (int argument = 1; argument + 1 < count; argument += 1)
     {
-        if (strcmp(arguments[argument], name) == 0)
+        if (mmgr_text_equal(arguments[argument], name, PLATFORM_TEXT_TO_TERMINATOR))
         {
             return arguments[argument + 1];
         }
@@ -158,7 +160,7 @@ std::string plane_directory(int count, char **arguments)
 {
     for (int argument = 1; argument + 1 < count; argument += 1)
     {
-        if (strcmp(arguments[argument], "--out") == 0)
+        if (mmgr_text_equal(arguments[argument], "--out", PLATFORM_TEXT_TO_TERMINATOR))
         {
             return arguments[argument + 1];
         }
@@ -173,7 +175,7 @@ unsigned int plane_number(int count, char **arguments, const char *name, unsigne
 {
     for (int argument = 1; argument + 1 < count; argument += 1)
     {
-        if (strcmp(arguments[argument], name) == 0)
+        if (mmgr_text_equal(arguments[argument], name, PLATFORM_TEXT_TO_TERMINATOR))
         {
             // a request past its max errors in its reader. The conversion's range does not matter here
             return (unsigned int)strtoul(arguments[argument + 1], NULL, 10);

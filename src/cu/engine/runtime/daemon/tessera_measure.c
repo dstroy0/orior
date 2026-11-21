@@ -126,8 +126,7 @@ int tessera_measure_host(const TesseraMeasure *measure)
 TesseraMeasure *tessera_measure_open(const unsigned char device[TESSERA_DEVICE_BYTES], unsigned long long luid)
 {
     TesseraMeasure *const measure =
-        (TesseraMeasure *)platform_cell_cleared((unsigned long long)(1u), (unsigned long long)(sizeof(TesseraMeasure)),
-                                                (unsigned int)platform_place_g_engine_owner, 0);
+        (TesseraMeasure *)calloc(1u, sizeof(TesseraMeasure));
     if (measure == NULL)
     {
         return NULL;
@@ -210,7 +209,7 @@ void tessera_measure_close(TesseraMeasure *measure)
         dlclose(measure->library);
 #endif
     }
-    platform_cell_released(measure, (unsigned int)platform_place_g_engine_owner);
+    free(measure);
 }
 
 int tessera_measure_device(TesseraMeasure *measure, unsigned long long *capacity, unsigned long long *in_use)
@@ -379,8 +378,7 @@ static unsigned long long tessera_started(unsigned long long pid)
 TesseraProcess *tessera_process_open(unsigned long long pid)
 {
     TesseraProcess *const process =
-        (TesseraProcess *)platform_cell_cleared((unsigned long long)(1u), (unsigned long long)(sizeof(TesseraProcess)),
-                                                (unsigned int)platform_place_g_engine_owner, 0);
+        (TesseraProcess *)calloc(1u, sizeof(TesseraProcess));
     if (process == NULL)
     {
         return NULL;
@@ -391,7 +389,7 @@ TesseraProcess *tessera_process_open(unsigned long long pid)
     process->handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | SYNCHRONIZE, FALSE, (DWORD)pid);
     if (process->handle == NULL)
     {
-        platform_cell_released(process, (unsigned int)platform_place_g_engine_owner);
+        free(process);
         return NULL;
     }
 #else
@@ -404,7 +402,7 @@ TesseraProcess *tessera_process_open(unsigned long long pid)
     process->started = tessera_started(pid);
     if ((process->descriptor < 0) && (process->started == 0ULL))
     {
-        platform_cell_released(process, (unsigned int)platform_place_g_engine_owner);
+        free(process);
         return NULL;
     }
 #endif
@@ -442,5 +440,5 @@ void tessera_process_release(TesseraProcess *process)
         close(process->descriptor);
     }
 #endif
-    platform_cell_released(process, (unsigned int)platform_place_g_engine_owner);
+    free(process);
 }

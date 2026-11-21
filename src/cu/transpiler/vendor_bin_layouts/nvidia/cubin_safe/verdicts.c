@@ -3,6 +3,7 @@
 // verdicts.c: the verdicts: the gated encodings cleared, read line by line, added and loaded, whether a verdict is
 // ready and blocks, the admitted encodings cleared, read and stored, and a verdict's name
 #include "cubin_safe_internal.h"
+#include "memoria_operor/memoria_linea.h"
 #include "../../../../../../includes/parsers/line_read.h"
 
 static unsigned long long *s_gated_low = NULL;
@@ -36,7 +37,7 @@ static int cubin_safe_verdict_lines(const char *bytes, unsigned long long size)
         const char *const line_end = (const char *)memchr(bytes + at, '\n', (size_t)(size - at));
         const size_t length = (line_end != NULL) ? (size_t)(line_end - (bytes + at)) : (size_t)(size - at);
         const size_t copied = (length < (sizeof(line) - 1u)) ? length : (sizeof(line) - 1u);
-        memcpy(line, bytes + at, copied);
+        mmgr_bytes_copy(line, bytes + at, copied);
         line[copied] = '\0';
         at += (unsigned long long)length + 1ULL;
         unsigned long long low = 0ULL;
@@ -185,14 +186,14 @@ int cubin_safe_admitted_read(const char *bytes, unsigned long long size)
         const char *const line_end = (const char *)memchr(bytes + at, '\n', (size_t)(size - at));
         const size_t length = (line_end != NULL) ? (size_t)(line_end - (bytes + at)) : (size_t)(size - at);
         const size_t copied = (length < (sizeof(line) - 1u)) ? length : (sizeof(line) - 1u);
-        memcpy(line, bytes + at, copied);
+        mmgr_bytes_copy(line, bytes + at, copied);
         line[copied] = '\0';
         at += (unsigned long long)length + 1ULL;
         unsigned long long low = 0ULL;
         unsigned long long high = 0ULL;
         const char *read = line;
-        if (!line_characters(&read, "lesson ") || !line_characters(&read, "admitted ") || !line_characters(&read, "* ") ||
-            !line_number(&read, 1, &low) || !line_number(&read, 1, &high))
+        if (!line_characters(&read, "lesson ") || !line_characters(&read, "admitted ") ||
+            !line_characters(&read, "* ") || !line_number(&read, 1, &low) || !line_number(&read, 1, &high))
         {
             continue;
         }

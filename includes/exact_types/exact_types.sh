@@ -85,3 +85,16 @@ exact_types_compile()
     done
     return 0
 }
+
+# exact_types_platform_link SUFFIX: what a program of the platform links, compiled into $OUT. PLATFORM_LINK holds the
+# objects of the MMgr sources and of the process stage, the pool and the system calls of the platform. It also holds
+# the carcer of the pool, then the libraries of the system. The caller's EXACT_TYPES_OBJECTS stay as they were. 0, or
+# 1 where a source did not compile
+exact_types_platform_link()
+{
+    local caller=("${EXACT_TYPES_OBJECTS[@]+"${EXACT_TYPES_OBJECTS[@]}"}")
+    exact_types_compile "$1" "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" || return 1
+    PLATFORM_LINK=("${EXACT_TYPES_OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}")
+    EXACT_TYPES_OBJECTS=("${caller[@]+"${caller[@]}"}")
+    return 0
+}

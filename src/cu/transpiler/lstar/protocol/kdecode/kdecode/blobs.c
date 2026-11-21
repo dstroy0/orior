@@ -3,6 +3,9 @@
 // blobs.c: a run's records walked in the order the writer wrote them, the run read whole, and its blobs of a name
 // written whole
 #include "kdecode_internal.h"
+#include "../../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 // a blob written whole: a line of its sequence, its name and its size, then its bytes, a NUL as a space, and a newline
 static void blob_printed(const char *name, unsigned int name_length, unsigned long long sequence,
@@ -73,7 +76,8 @@ static void blobs_each(void *context, const char *name, unsigned int name_length
                        const unsigned char *bytes, unsigned long long size)
 {
     KdecodeBlobs *const walk = (KdecodeBlobs *)context;
-    if ((strlen(walk->name) != name_length) || (memcmp(name, walk->name, name_length) != 0))
+    if ((mmgr_text_length(walk->name, PLATFORM_TEXT_TO_TERMINATOR) != name_length) ||
+        (mmgr_bytes_compare(name, walk->name, name_length) != 0))
     {
         return;
     }
@@ -101,7 +105,8 @@ int kdecode_blobs(const char *path, const char *name, int latest)
     }
     if (read && latest && (walk.bytes != NULL))
     {
-        blob_printed(name, (unsigned int)strlen(name), walk.sequence, walk.bytes, walk.size);
+        blob_printed(name, (unsigned int)mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR), walk.sequence, walk.bytes,
+                     walk.size);
     }
     if (bytes != NULL)
     {

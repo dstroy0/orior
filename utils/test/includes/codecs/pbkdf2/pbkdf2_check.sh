@@ -65,6 +65,8 @@ if [ "${#FILES[@]}" -ne 4 ]; then
     exit 1
 fi
 
-"${CC:-cc}" -std=c11 -O2 -Wall -Wextra -o "$OUT/pbkdf2_check" "$HERE/pbkdf2_check.c" \
-    "$TOP/includes/codecs/pbkdf2/pbkdf2.c" "$TOP/includes/codecs/sha512/sha512.c" || exit 1
+# the codecs copy and fill through MMgr, whose sources the check compiles beside them
+source "$TOP/includes/file_defs/file_defs.sh"
+"${CC:-cc}" -std=c11 -O2 -Wall -Wextra "${FILE_DEFS_MMGR_FLAGS[@]}" -o "$OUT/pbkdf2_check" "$HERE/pbkdf2_check.c" \
+    "$TOP/includes/codecs/pbkdf2/pbkdf2.c" "$TOP/includes/codecs/sha512/sha512.c" "${FILE_DEFS_LINEA[@]}" || exit 1
 "$OUT/pbkdf2_check" "${FILES[@]}"

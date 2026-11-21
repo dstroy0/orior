@@ -3,6 +3,8 @@
 // rules.c: the rules: a register read and blocked out of range, the key's form and the key straight, the exit and where
 // it ends, the code gated safe, the image, the launch, and a fault's status read
 #include "cubin_safe_internal.h"
+#include "../../../../../platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 // the register the operand whose run begins at `run_first` names, its whole fixed eight-bit field read: the number in
 // the field that contains the bit, or RZ where the run lies in none of them, which is then left unbounded
@@ -109,7 +111,7 @@ static int cubin_key_straight(const SassMachine *machine, unsigned long long low
 // 1 where `parts` is an EXIT, its modifiers whatever they are
 static int cubin_exit(const SassInstructionParts *parts)
 {
-    return (strncmp(parts->operation, "EXIT", 4u) == 0) &&
+    return (mmgr_text_starts(parts->operation, "EXIT", PLATFORM_TEXT_TO_TERMINATOR)) &&
            ((parts->operation[4] == '\0') || (parts->operation[4] == '.'));
 }
 
@@ -123,7 +125,8 @@ static int cubin_exit_ends(const SassInstructionParts *parts)
     }
     for (unsigned int operand = 0u; operand < parts->operands; operand += 1u)
     {
-        if ((strcmp(parts->operand[operand], "PT") != 0) || (parts->mark[operand] != SASS_MARK_NONE))
+        if ((!mmgr_text_equal(parts->operand[operand], "PT", PLATFORM_TEXT_TO_TERMINATOR)) ||
+            (parts->mark[operand] != SASS_MARK_NONE))
         {
             return 0;
         }

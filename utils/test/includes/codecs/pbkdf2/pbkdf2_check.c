@@ -642,7 +642,7 @@ int main(int argument_count, char **arguments)
     {
         printf("  FAIL: a source yielded too few cases. RFC 4231 must yield %u.\n", RFC4231_CASES);
     }
-    printf("  %lu run, %lu failed\n", tally.run, tally.failed);
+    printf("  pbkdf2 check: %lu checks, %lu failed\n", tally.run, tally.failed);
 
     for (int which = 0; which < 4; which += 1)
     {

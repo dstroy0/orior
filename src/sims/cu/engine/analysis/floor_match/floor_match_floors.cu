@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // floor_match_floors.cu: floors, the engine and the kernels
 #include "floor_match_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 // the tower's own floor shift, toward minus infinity, as tower_*.cu takes it
 static long long match_floor_shift(long long value, unsigned int shift)
@@ -48,7 +49,7 @@ void match_floor_host(const unsigned short *lanes, long long *work, long long *b
         const unsigned long long active = MATCH_SIDE >> level;
         for (unsigned int axis = 0u; axis < SIM_AXES; axis += 1u)
         {
-            memcpy(before, work, (size_t)MATCH_SAMPLES * sizeof(long long));
+            mmgr_bytes_copy(before, work, (size_t)MATCH_SAMPLES * sizeof(long long));
             for (unsigned long long z = 0ULL; z < active; z += 1ULL)
             {
                 for (unsigned long long y = 0ULL; y < active; y += 1ULL)
@@ -83,12 +84,12 @@ int match_floor_engine(SimResults *results, const unsigned short *device_lanes, 
                        unsigned short *floor_values)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     const int *coefficients = NULL;
     unsigned int *scratch = NULL;
     unsigned int floors = 0u;
     TowerLiftRequest lift;
-    memset(&lift, 0, sizeof(lift));
+    mmgr_bytes_set(&lift, 0, sizeof(lift));
     lift.device_lanes = device_lanes;
     lift.extent[0] = 1ULL;
     lift.extent[1] = MATCH_SIDE;
@@ -125,8 +126,8 @@ int match_floor_engine(SimResults *results, const unsigned short *device_lanes, 
     unsigned long long mismatches = 0ULL;
     const unsigned short *device_rebuilt = NULL;
     TowerLowerRequest lower;
-    memset(&lower, 0, sizeof(lower));
-    memcpy(lower.extent, floor_extent, sizeof(lower.extent));
+    mmgr_bytes_set(&lower, 0, sizeof(lower));
+    mmgr_bytes_copy(lower.extent, floor_extent, sizeof(lower.extent));
     lower.mismatches = &mismatches;
     lower.device_rebuilt = &device_rebuilt;
     lower.rebuilt = floor_values;

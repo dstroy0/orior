@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pi_tower_main.cu: main
 #include "pi_tower_internal.h"
+#include "../../../../../platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 static void pi_tower_fill(SimResults *results, const PiTowerTurn &turn, const std::vector<PiWide> &denominators,
                           const std::vector<PiWide> &floors, unsigned int from_bits, unsigned int to_bits,
@@ -28,11 +30,12 @@ int program_main(int count, char **arguments)
         return sim_close(&results, "pi tower");
     }
     // 15: pi_tower segment d [digits], d whole or base^exponent and 0 allowed, digits 1 to PI_TOWER_SEGMENT_MAX
-    if ((count >= 3) && (count <= 4) && (strcmp(arguments[1], "segment") == 0))
+    if ((count >= 3) && (count <= 4) && (mmgr_text_equal(arguments[1], "segment", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         PiWide position = pi_tower_unsigned(0ULL);
         PiWide digits = pi_tower_unsigned(PI_TOWER_SEGMENT_DIGITS);
-        const int placed = (strcmp(arguments[2], "0") == 0) || (pi_tower_request(arguments[2], &position) != 0);
+        const int placed = (mmgr_text_equal(arguments[2], "0", PLATFORM_TEXT_TO_TERMINATOR)) ||
+                           (pi_tower_request(arguments[2], &position) != 0);
         const int sized = (count == 3) || ((pi_tower_request(arguments[3], &digits) != 0) &&
                                            (pi_tower_compare(digits, pi_tower_unsigned(PI_TOWER_SEGMENT_MAX)) <= 0));
         if ((placed != 0) && (sized != 0))
@@ -45,9 +48,9 @@ int program_main(int count, char **arguments)
     if ((count > 1) && (single == 0) && (ranged == 0))
     {
         mmgr_line_put(&results.line,
-                       "  usage: pi_tower [n] or pi_tower [from] [to], resolutions 2^1 to 2^1048576 cells; pi_tower "
-                       "n\n  past 2^20, n whole or base^exponent, reads the depth-n turn on the engine alone; pi_tower "
-                       "segment d [digits]\n  reads that many hex digits (1 to ");
+                      "  usage: pi_tower [n] or pi_tower [from] [to], resolutions 2^1 to 2^1048576 cells; pi_tower "
+                      "n\n  past 2^20, n whole or base^exponent, reads the depth-n turn on the engine alone; pi_tower "
+                      "segment d [digits]\n  reads that many hex digits (1 to ");
         mmgr_line_decimal(&results.line, PI_TOWER_SEGMENT_MAX, 1u);
         mmgr_line_put(&results.line, ", ");
         mmgr_line_decimal(&results.line, PI_TOWER_SEGMENT_DIGITS, 1u);
@@ -129,7 +132,7 @@ static void pi_tower_fill(SimResults *results, const PiTowerTurn &turn, const st
             ? 0u
             : (((to_bits < PI_TOWER_WALK_MAX) ? to_bits : PI_TOWER_WALK_MAX) - from_bits + 1u);
     mmgr_line_put(&results->line, "  2^k cells: the step that fills the boundary, its ratio to the cells, the last "
-                                   "cell filled as a place on the circle, and the floor it fills on\n");
+                                  "cell filled as a place on the circle, and the floor it fills on\n");
     for (unsigned int bits = from_bits; bits <= to_bits; bits += 1u)
     {
         const PiWide cells = pi_tower_power_two(bits);
@@ -272,7 +275,7 @@ static void pi_tower_fill(SimResults *results, const PiTowerTurn &turn, const st
               "floors name");
     sim_check(results, g_pi_tower_records_short == 0, "every count searched is within the records' range");
     mmgr_line_put(&results->line,
-                   "  the second run, cell 0 to the first run's last cell, has the first run's period at ");
+                  "  the second run, cell 0 to the first run's last cell, has the first run's period at ");
     mmgr_line_decimal(&results->line, same_period, 1u);
     mmgr_line_put(&results->line, " of ");
     mmgr_line_decimal(&results->line, (to_bits - from_bits) + 1u, 1u);

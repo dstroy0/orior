@@ -3,6 +3,7 @@
 // rows.c: the rows: a number's halves, a number read, put and added, the hash, a row passed to the run with its who, a
 // record's row and a text's, the text slots grown, and a text taken
 #include "../../../parsers/who.h"
+#include "memoria_operor/memoria_linea.h"
 #include "krep_records_internal.h"
 
 // the 32-bit word of the four little-endian bytes at `bytes`, the head's version
@@ -159,7 +160,7 @@ unsigned int krep_text_slot(const KrepFile *file, const char *bytes, unsigned lo
     while (file->text_slot[at] != 0u)
     {
         const unsigned int slot = file->text_slot[at] - 1u;
-        if ((file->text_length[slot] == length) && (memcmp(file->text[slot], bytes, (size_t)length) == 0))
+        if ((file->text_length[slot] == length) && (mmgr_bytes_compare(file->text[slot], bytes, (size_t)length) == 0))
         {
             return at;
         }
@@ -227,7 +228,7 @@ unsigned long long krep_text_taken(KrepFile *file, const char *bytes, unsigned l
     {
         return 0ULL;
     }
-    memcpy(copy, bytes, (size_t)length);
+    mmgr_bytes_copy(copy, bytes, (size_t)length);
     copy[length] = '\0';
     const unsigned int slot = krep_text_slot(file, bytes, length);
     file->text[file->texts] = copy;
