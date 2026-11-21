@@ -84,7 +84,7 @@ int main(void)
   run_test(test_the_definition_is_the_declaration_the_hover_shows_first, "test_the_definition_is_the_declaration_the_hover_shows_first", 132);
   run_test(test_a_place_on_no_name_gives_no_references, "test_a_place_on_no_name_gives_no_references", 156);
   run_test(test_a_rename_writes_the_name_in_every_files_view, "test_a_rename_writes_the_name_in_every_files_view", 166);
-  run_test(test_a_rename_to_no_name_is_refused, "test_a_rename_to_no_name_is_refused", 217);
+  run_test(test_a_rename_to_no_name_is_refused, "test_a_rename_to_no_name_is_refused", 216);
 
   return UNITY_END();
 }
