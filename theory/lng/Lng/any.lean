@@ -9,7 +9,13 @@ import Lng.python_lng
 
 A chart is a language of the atlas. It gives each of its symbols an anchor and a semantics on two words of `n`
 places, read signed or unsigned. The chart is sound where the semantics of each symbol is the relation of its
-anchor, inside the domain where the language gives the symbol a value.
+anchor, inside the domain where the language gives the symbol a value. The chart is fail-closed: it gives no value to
+a symbol outside it. Lean accepts no chart without the proof of both laws.
+
+* `halt`: a symbol outside a chart has no value on any pair of words.
+* `no_lift`: a symbol outside a chart lifts to no symbol that has a value.
+* `clean_or_halt`: each symbol of a corpus is a symbol of the chart, or it halts.
+* `typo`: a typo of add halts in .g, in C and in Python.
 
 * `lift`: two symbols of two sound charts with the same anchor agree on each pair of words of both domains. The
   theorem holds at every width and sign, for any two charts, and for two symbols with different bridge words.
@@ -39,6 +45,26 @@ structure Chart (n : Nat) (signed : Bool) where
   domain : String → BitVec n → Prop
   sem : String → BitVec n → BitVec n → Option (BitVec n)
   sound : ∀ σ ∈ symbols, ∀ x y, domain σ y → sem σ x y = meaning signed (anchor σ) x y
+  closed : ∀ σ, σ ∉ symbols → ∀ x y, sem σ x y = none
+
+/-- A symbol outside a chart halts: the chart gives it no value on any pair of words. -/
+theorem halt {n : Nat} {s : Bool} (L : Chart n s) (σ : String) (h : σ ∉ L.symbols) (x y : BitVec n) :
+    L.sem σ x y = none :=
+  L.closed σ h x y
+
+/-- A symbol outside a chart lifts to no symbol that has a value. -/
+theorem no_lift {n : Nat} {s : Bool} (L M : Chart n s) (σ τ : String) (h : σ ∉ L.symbols) (x y v : BitVec n)
+    (hv : M.sem τ x y = some v) : L.sem σ x y ≠ M.sem τ x y := by
+  rw [L.closed σ h x y, hv]
+  simp
+
+/-- Under the clean-source assumption each symbol of `corpus` is a symbol of `L`. Each other symbol halts. -/
+theorem clean_or_halt {n : Nat} {s : Bool} (L : Chart n s) (corpus : List String) (x y : BitVec n) :
+    ∀ σ ∈ corpus, σ ∈ L.symbols ∨ L.sem σ x y = none := by
+  intro σ _
+  by_cases h : σ ∈ L.symbols
+  · exact Or.inl h
+  · exact Or.inr (L.closed σ h x y)
 
 /-- Two symbols of two sound charts with the same anchor agree on each pair of words of both domains. -/
 theorem lift {n : Nat} {s : Bool} (L M : Chart n s) (σ τ : String) (hσ : σ ∈ L.symbols) (hτ : τ ∈ M.symbols)
@@ -67,6 +93,18 @@ def g (n : Nat) (s : Bool) : Chart n s where
   domain := fun _ _ => True
   sem := fun σ x y => Lng.g.compile s σ x y
   sound := fun _ _ _ _ _ => rfl
+  closed := by
+    intro σ hσ x y
+    have hc : Lng.g.coreOp σ = none := by
+      unfold Lng.g.coreOp
+      apply List.find?_eq_none.mpr
+      intro r hr hp
+      apply hσ
+      simp only [Bool.and_eq_true] at hp
+      obtain ⟨h1, h2⟩ := hp
+      simp only [Lng.g.symbols, List.mem_flatMap, List.mem_filter]
+      exact ⟨r, ⟨hr, h1⟩, by simpa using h2⟩
+    simp [Lng.g.compile, Lng.g.anchorOf, hc]
 
 /-- The 30 bridge words that C and Python both chart. -/
 def shared : List String :=
@@ -146,9 +184,10 @@ def c : Chart 32 false where
   symbols := shared
   anchor := anchorOf
   domain := domain
-  sem := cSem
+  sem := fun b x y => if b ∈ shared then cSem b x y else none
   sound := by
     intro b hb x y hd
+    simp only [ite_eq_left hb]
     simp only [shared, List.mem_cons, List.mem_nil_iff, or_false] at hb
     rcases hb with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
       rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
@@ -182,15 +221,17 @@ def c : Chart 32 false where
     · rfl
     · exact congrArg some (Lng.c.shl x y (hd (by decide)))
     · exact congrArg some (Lng.c.shr x y (hd (by decide)))
+  closed := fun _ hb _ _ => ite_eq_right hb
 
 /-- Python is a sound chart on the words of its mask. -/
 def python : Chart 32 false where
   symbols := shared
   anchor := anchorOf
   domain := domain
-  sem := pySem
+  sem := fun b x y => if b ∈ shared then pySem b x y else none
   sound := by
     intro b hb x y hd
+    simp only [ite_eq_left hb]
     simp only [shared, List.mem_cons, List.mem_nil_iff, or_false] at hb
     rcases hb with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
       rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
@@ -224,6 +265,11 @@ def python : Chart 32 false where
     · exact congrArg some (Lng.python.bitxor x y)
     · exact congrArg some (Lng.python.shl x y (hd (by decide)))
     · exact congrArg some (Lng.python.shr x y (hd (by decide)))
+  closed := fun _ hb _ _ => ite_eq_right hb
+
+/-- A typo of add halts in .g, in C and in Python, and so it lifts to no symbol that has a value. -/
+theorem typo (x y : Word) : (g 32 false).sem "ad" x y = none ∧ c.sem "ad" x y = none ∧ python.sem "ad" x y = none :=
+  ⟨halt (g 32 false) "ad" (by decide) x y, halt c "ad" (by decide) x y, halt python "ad" (by decide) x y⟩
 
 /-- The .g operator `+`, the C symbols of add and add_assign, and the Python symbols of both reach one anchor. -/
 theorem many_to_many (x y : Word) :

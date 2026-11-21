@@ -18,10 +18,10 @@ transform in one pass.
 \end{enumerate}
 
 The project uses the core of Lean 4.35 and \texttt{Std.Tactic.BVDecide}, and no other library. At the time of
-writing, the build closes every proof in 17 jobs. The language check reports no defect, 29 operators of
+writing, the build closes every proof in 18 jobs. The language check reports no defect, 29 operators of
 \texttt{.g} with gsm, and 13 mnemonics with a transpiler form. Lean reads 76 rows of two charts. It proves three
-charts sound, \texttt{.g} at every width and sign and C and Python on \texttt{uint32\_t}, and the lift between any
-two sound charts.
+charts sound and fail-closed, \texttt{.g} at every width and sign and C and Python on \texttt{uint32\_t}. It
+proves the lift between any two sound charts, and the soundness and the exact hole report of a defect legend.
 
 \section{Limits}
 

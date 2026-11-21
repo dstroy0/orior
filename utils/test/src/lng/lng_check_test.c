@@ -776,16 +776,20 @@ int program_main(int argc, char **argv)
         expect("a lift of add from c to py", &got, s_lifted, 1u);
         expect("a lift of add from c to py", &refusals, NULL, 0u);
         lng_list_free(&got);
-        static const char *const s_refused[3] = {
+        static const char *const s_refused[4] = {
             "py has no row for sub",
             "mul has no gsm cases, and no lift goes through it",
             "the transpiler has no word div, and no lift goes through it",
+            "the transpiler has no word ad, and no lift goes through it",
         };
         const char *const no_row = lng_lift(&bridge, &c, "c", &py, "py", "sub", &refusals);
         const char *const no_gsm = lng_lift(&bridge, &c, "c", &py, "py", "mul", &refusals);
         const char *const no_word = lng_lift(&bridge, &c, "c", &py, "py", "div", &refusals);
-        expect("each lift that refuses", &refusals, s_refused, 3u);
-        expect_count("each lift that refuses", (no_row == NULL) && (no_gsm == NULL) && (no_word == NULL), 1u);
+        // a typo of add halts the lift, as every word outside the tables does
+        const char *const typo = lng_lift(&bridge, &c, "c", &py, "py", "ad", &refusals);
+        expect("each lift that refuses", &refusals, s_refused, 4u);
+        expect_count("each lift that refuses",
+                     (no_row == NULL) && (no_gsm == NULL) && (no_word == NULL) && (typo == NULL), 1u);
         lng_list_free(&refusals);
 
         language_head(&lines);

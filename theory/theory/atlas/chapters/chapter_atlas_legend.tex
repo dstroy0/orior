@@ -1,0 +1,119 @@
+\chapter{Clean-Source Assumption \& Fail-Closed Halt Semantics}
+\label{ch:legend}
+
+The atlas translates a source whose every symbol it knows. A typo, an idiom and an unknown symbol each lie outside
+the charts. This chapter states the invariant that governs them, and \texttt{Lng/any.lean} and
+\texttt{Lng/legend.lean} prove each part of it.
+
+\section{The invariant}
+
+\begin{definition}
+A chart is fail-closed where it gives no value to a symbol outside it:
+\[
+  \sigma \notin \Sigma \implies \lBrack\sigma\rBrack(x, y) = \bot \quad \text{for all } x, y \in W_n.
+\]
+\end{definition}
+
+The structure \texttt{Chart n s} holds this law as its field \texttt{closed}, beside the field \texttt{sound}. Lean
+accepts no chart without the proof of both. The charts of \texttt{.g}, C and Python each carry it.
+
+\begin{theorem}[\texttt{halt}, \texttt{no\_lift}]
+A symbol outside a chart has no value on any pair of words. It therefore lifts to no symbol that has a value.
+\end{theorem}
+
+\begin{definition}
+A corpus is a finite list of symbols. Under the clean-source assumption each symbol of a corpus is a symbol of the
+chart.
+\end{definition}
+
+\begin{theorem}[\texttt{clean\_or\_halt}]
+Each symbol of a corpus is a symbol of the chart, or the chart halts on it.
+\end{theorem}
+
+The assumption is therefore no hidden premise. Where it fails, the translation stops at the symbol that breaks
+it, and it gives no value there.
+
+\begin{theorem}[\texttt{typo}]
+For all $x, y \in W_{32}$, the typo \texttt{ad} of add halts in \texttt{.g}, in C and in Python.
+\end{theorem}
+
+\section{The canonical chart and the defect legend}
+
+A dirty corpus holds known defects: typos, idioms and specific 1:1 mappings. A defect legend names each of them
+and the symbol of the canonical chart that it stands for.
+
+\begin{definition}
+Let $C$ be a sound, fail-closed chart. A defect legend $L$ over $C$ is a finite list of entries $(d, t)$, with these
+three laws:
+\begin{enumerate}
+  \item Disjointedness: $d \notin \Sigma_C$ for each entry. Thus $C \cap L = \emptyset$.
+  \item Target closure: $t \in \Sigma_C$ for each entry.
+  \item One to one: no defect $d$ has two entries.
+\end{enumerate}
+\end{definition}
+
+The structure \texttt{Legend C} holds the three laws as its fields \texttt{disjoint}, \texttt{target\_closure} and
+\texttt{one\_to\_one}. The chart $C + L$ holds the symbols of $C$ and the defects of $L$. It resolves each defect to
+the symbol that its entry names, and it gives that symbol's value.
+
+\begin{theorem}[\texttt{extend}]
+$C + L$ is a sound, fail-closed chart.
+\end{theorem}
+
+\begin{theorem}[\texttt{conservative}, \texttt{faithful}]
+On each symbol of $C$, the chart $C + L$ gives what $C$ gives. For each entry $(d, t)$, it gives $d$ the value and
+the anchor of $t$.
+\end{theorem}
+
+\begin{theorem}[\texttt{defect\_lifts}]
+Each defect of $L$ lifts to each symbol of any sound chart with the anchor of its target, at every width and sign.
+\end{theorem}
+
+The legend therefore changes nothing on clean source. It adds each known defect with exactly the meaning of the
+symbol that it names, and every lift of that symbol holds for the defect too.
+
+\section{The decomposition of a dirty corpus}
+
+Each symbol $\sigma$ of a dirty corpus falls in one of three parts. It is canonical where $\sigma \in \Sigma_C$.
+It is a defect where $\sigma$ is a defect of $L$. It is unknown where it is neither.
+
+\begin{theorem}[\texttt{decompose}]
+Each symbol is in exactly one of the three parts, and $C + L$ halts on each unknown symbol.
+\end{theorem}
+
+\begin{theorem}[\texttt{count}]
+The three parts of a corpus together hold as many symbols as the corpus.
+\end{theorem}
+
+\begin{definition}
+A hole of a corpus is a pair $(p, \sigma)$, where $\sigma$ is the unknown symbol at the place $p$, counted from 0.
+\end{definition}
+
+\begin{theorem}[\texttt{holes\_exact}]
+$(p, \sigma)$ is a hole that \texttt{holes} reports exactly where the symbol at the place $p$ of the corpus is
+$\sigma$, and $\sigma$ is neither a symbol of $C$ nor a defect of $L$.
+\end{theorem}
+
+\begin{theorem}[\texttt{translate\_ok}, \texttt{complete}]
+\texttt{translate} gives the corpus resolved to symbols of $C$ where the corpus has no hole. Otherwise it gives the
+error that lists each hole. Where a corpus has no hole, each of its symbols gives the relation of its anchor.
+\end{theorem}
+
+The legend is sound by \texttt{extend}, \texttt{conservative} and \texttt{faithful}. It is complete for a corpus
+exactly where \texttt{holes} reports nothing, and \texttt{holes\_exact} makes that test exact in both directions.
+An unknown symbol is never translated. It halts, and the error names each hole with its place, for a human to add
+to the chart or to the legend.
+
+\begin{proposition}[\texttt{dirty\_holes}, \texttt{dirty\_count}, \texttt{dirty\_translate}, \texttt{idiom}]
+Let the legend over C hold the typo \texttt{ad} for add, the idiom \texttt{x = x + y} for add\_assign and
+\texttt{xor} for bitxor. The corpus \texttt{add}, \texttt{ad}, \texttt{x = x + y}, \texttt{shl}, \texttt{xor},
+\texttt{addd} has two canonical symbols, three defects and one hole, \texttt{addd} at the place 5. Its translation
+is the error that names that hole. The idiom gives the value of the Python add\_assign on every pair of words.
+\end{proposition}
+
+\section{The C code}
+
+\texttt{lng\_lift} refuses a word that the tables do not hold. Its refusal names the word and the table that lacks
+it, as \texttt{the transpiler has no word ad}. The test of \texttt{lng\_check} holds that refusal for the typo
+\texttt{ad}. The place of the word in its source is a fact of the caller, and \texttt{lng\_lift} does not report
+it. Lean proves \texttt{translate}, and it does not prove the C code.

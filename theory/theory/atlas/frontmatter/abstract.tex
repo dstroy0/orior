@@ -22,5 +22,7 @@ each symbol. The Lean file proves that the symbol's semantics, by its own standa
 Lean accepts no chart without that proof. A Lean theorem then proves that any two symbols of any two sound charts
 that reach one anchor agree, at every width and sign. The theorem covers the 1:1, 1:many, many:many and n:many
 projections. \texttt{.g} is a sound chart at every width and sign, and C and Python are sound charts on
-\texttt{uint32\_t}. A language check fails where a witnessed symbol lacks its theorem, and a lift refuses every
-symbol that has no proof.
+\texttt{uint32\_t}. Each chart is fail-closed, and a symbol outside it halts. A defect legend adds the known
+typos, idioms and 1:1 mappings of a dirty corpus, disjoint from the chart and closed on its targets. Lean proves
+that the legend keeps every meaning, and that it reports each unknown symbol with its place. A language check
+fails where a witnessed symbol lacks its theorem, and a lift refuses every symbol that has no proof.
