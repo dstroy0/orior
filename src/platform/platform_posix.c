@@ -9,14 +9,26 @@
 #define _DARWIN_C_SOURCE
 #endif
 #include "platform_internal.h"
+#include "cellularum_laboro/cellularum_linea.h"
+#include "memoria_operor/memoria_linea.h"
 
 #if !defined(_WIN32)
+#include <dlfcn.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <pthread.h>
 #include <sched.h>
+#include <spawn.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
+
+// the environment of the process, which posix_spawnp passes to the program that it starts
+extern char **environ;
 #if defined(__linux__)
 #include <linux/futex.h>
 #include <sys/syscall.h>
@@ -177,6 +189,147 @@ void platform_terminal_write(int errors, const char *text, unsigned long long le
         // a write that put bytes answers a positive count
         put += (unsigned long long)wrote;
     }
+}
+
+unsigned long long platform_environment(const char *name, char *out, unsigned long long capacity)
+{
+    const char *const value = getenv(name);
+    if ((value == NULL) || (capacity == 0ULL))
+    {
+        if (capacity != 0ULL)
+        {
+            out[0] = '\0';
+        }
+        return 0ULL;
+    }
+    const unsigned long long length = (unsigned long long)mmgr_text_length(value, (size_t)capacity);
+    if (length >= capacity)
+    {
+        out[0] = '\0';
+        return 0ULL;
+    }
+    mmgr_bytes_copy(out, value, (size_t)length + 1u);
+    return length;
+}
+
+int platform_file_size(const char *path, unsigned long long *bytes)
+{
+    struct stat status;
+    const int read = stat(path, &status) == 0;
+    // a file size is never negative
+    *bytes = read ? (unsigned long long)status.st_size : 0ULL;
+    return read;
+}
+
+int platform_file_read(const char *path, void *out, unsigned long long capacity, unsigned long long *bytes)
+{
+    *bytes = 0ULL;
+    const int file = open(path, O_RDONLY);
+    if (file < 0)
+    {
+        return 0;
+    }
+    struct stat status;
+    // a file size is never negative
+    int ok = (fstat(file, &status) == 0) && ((unsigned long long)status.st_size <= capacity);
+    const unsigned long long whole = ok ? (unsigned long long)status.st_size : 0ULL;
+    // Explicit cast reads the destination as its bytes
+    char *const into = (char *)out;
+    while (ok && (*bytes < whole))
+    {
+        const ssize_t got = read(file, into + *bytes, (size_t)(whole - *bytes));
+        ok = got > 0;
+        // a read that took bytes answers a positive count
+        *bytes += ok ? (unsigned long long)got : 0ULL;
+    }
+    (void)close(file);
+    return ok;
+}
+
+int platform_file_written(const char *path, const void *data, unsigned long long count)
+{
+    const int file = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (file < 0)
+    {
+        return 0;
+    }
+    // Explicit cast reads the source as its bytes
+    const char *const from = (const char *)data;
+    unsigned long long put = 0ULL;
+    int ok = 1;
+    while (ok && (put < count))
+    {
+        const ssize_t wrote = write(file, from + put, (size_t)(count - put));
+        ok = wrote > 0;
+        // a write that put bytes answers a positive count
+        put += ok ? (unsigned long long)wrote : 0ULL;
+    }
+    ok = (close(file) == 0) && ok;
+    return ok;
+}
+
+int platform_file_moved(const char *from, const char *to)
+{
+    return rename(from, to) == 0;
+}
+
+int platform_file_removed(const char *path)
+{
+    return unlink(path) == 0;
+}
+
+int platform_folder_made(const char *path)
+{
+    if (mkdir(path, 0755) == 0)
+    {
+        return 1;
+    }
+    struct stat status;
+    return (stat(path, &status) == 0) && S_ISDIR(status.st_mode);
+}
+
+unsigned long long platform_process_id(void)
+{
+    // a process id is a positive count
+    return (unsigned long long)getpid();
+}
+
+void *platform_library_opened(const char *name)
+{
+    return dlopen(name, RTLD_NOW | RTLD_LOCAL);
+}
+
+void *platform_library_symbol(void *library, const char *name)
+{
+    return dlsym(library, name);
+}
+
+void platform_library_closed(void *library)
+{
+    (void)dlclose(library);
+}
+
+long platform_program_run(const char *const *arguments, const char *log)
+{
+    posix_spawn_file_actions_t actions;
+    (void)posix_spawn_file_actions_init(&actions);
+    (void)posix_spawn_file_actions_addopen(&actions, 1, log, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    (void)posix_spawn_file_actions_adddup2(&actions, 1, 2);
+    pid_t child = 0;
+    // posix_spawnp takes the arguments as plain pointers, and it reads them alone
+    const int started =
+        posix_spawnp(&child, arguments[0], &actions, NULL, (char *const *)(uintptr_t)arguments, environ) == 0;
+    (void)posix_spawn_file_actions_destroy(&actions);
+    if (!started)
+    {
+        return -1L;
+    }
+    int status = 1;
+    if (waitpid(child, &status, 0) != child)
+    {
+        return -1L;
+    }
+    return WIFEXITED(status) ? (long)WEXITSTATUS(status) : -1L;
 }
 
 #endif

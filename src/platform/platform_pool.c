@@ -6,6 +6,8 @@
 // one of its parts. No part of the block comes from the cells, and so no part makes a hole in the persistent tier
 #include "platform_internal.h"
 
+#include "memoria_operor/memoria_operor.h"
+
 // The pool. Its bytes come from the system at the process stage, outside the image of the program, and the record of
 // the cellblock lies over them. Minimum security: a release leaves the bytes of a cell as they are
 ParsMemoriaeHospes(platform_pool);
@@ -195,4 +197,113 @@ void platform_line_flushed(void)
     {
         (void)mmgr_line_flush(&s_line_out);
     }
+}
+
+void *platform_cell_taken(unsigned long long bytes, unsigned int place, int ephemeral)
+{
+    if (place >= (unsigned int)platform_place_count)
+    {
+        return NULL;
+    }
+    const CellOwner *const owner = &mmgr_owner_table[place];
+    return ephemeral ? g_platform_guard->temporary_buf_alloc((size_t)bytes, owner)
+                     : g_platform_guard->persistent_buf_alloc((size_t)bytes, owner);
+}
+
+void platform_cell_released(void *cell, unsigned int place)
+{
+    if ((cell != NULL) && (place < (unsigned int)platform_place_count))
+    {
+        g_platform_guard->persistent_buf_release(cell, &mmgr_owner_table[place]);
+    }
+}
+
+void *platform_cell_grown(void *cell, unsigned long long held, unsigned long long bytes, unsigned int place,
+                          int ephemeral)
+{
+    void *const grown = platform_cell_taken(bytes, place, ephemeral);
+    if (grown == NULL)
+    {
+        return NULL;
+    }
+    if ((cell != NULL) && (held != 0ULL))
+    {
+        memor.cpy(&(MemoriaCfg){.dst = grown, .src = cell, .bytes = (size_t)((held < bytes) ? held : bytes)});
+    }
+    platform_cell_released(cell, place);
+    return grown;
+}
+
+// the bytes that a text begins with. The flush doubles the cell toward its max as the writes come
+#define PLATFORM_TEXT_FIRST (4ULL << 10u)
+
+// The flush of a text as its cell fills. A cell of twice the capacity takes the text so far, and the old cell goes
+// back. The line then goes on past the copied text. 1, or 0 where the pool cannot meet the next cell or the
+// next cell passes the max, which fills the line
+static int platform_text_flushed(void *context, const char *bytes, size_t size)
+{
+    PlatformText *const text = (PlatformText *)context;
+    (void)bytes;
+    const unsigned long long held = (unsigned long long)text->line.flushed + (unsigned long long)size;
+    const unsigned long long doubled = text->capacity * 2ULL;
+    const unsigned long long capacity = (doubled < text->max) ? doubled : text->max;
+    if (capacity <= text->capacity)
+    {
+        return 0;
+    }
+    char *const cell = (char *)platform_cell_grown(text->cell, held, capacity, text->place, text->ephemeral);
+    if (cell == NULL)
+    {
+        return 0;
+    }
+    text->cell = cell;
+    text->capacity = capacity;
+    text->line.out = cell + held;
+    text->line.capacity = (size_t)(capacity - held);
+    return 1;
+}
+
+void platform_text_begun(PlatformText *text, unsigned long long max, unsigned int place, int ephemeral)
+{
+    const unsigned long long first = (max < PLATFORM_TEXT_FIRST) ? max : PLATFORM_TEXT_FIRST;
+    text->place = place;
+    text->ephemeral = ephemeral;
+    text->max = max;
+    text->cell = (char *)platform_cell_taken(first, place, ephemeral);
+    text->capacity = (text->cell != NULL) ? first : 0ULL;
+    text->line = mmgr_line_over(text->cell, (size_t)text->capacity);
+    text->line.flush = platform_text_flushed;
+    text->line.context = text;
+}
+
+unsigned long long platform_text_size(const PlatformText *text)
+{
+    // a full line holds its capacity less its terminator
+    if (text->line.capacity == 0u)
+    {
+        return 0ULL;
+    }
+    const unsigned long long at = (text->line.at < text->line.capacity) ? text->line.at : (text->line.capacity - 1u);
+    return (unsigned long long)text->line.flushed + at;
+}
+
+const char *platform_text_bytes(PlatformText *text)
+{
+    (void)mmgr_line_finish(&text->line);
+    return (text->cell != NULL) ? text->cell : "";
+}
+
+void platform_text_reset(PlatformText *text)
+{
+    text->line = mmgr_line_over(text->cell, (size_t)text->capacity);
+    text->line.flush = platform_text_flushed;
+    text->line.context = text;
+}
+
+void platform_text_ended(PlatformText *text)
+{
+    platform_cell_released(text->cell, text->place);
+    text->cell = NULL;
+    text->capacity = 0ULL;
+    text->line = mmgr_line_over(NULL, 0u);
 }

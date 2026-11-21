@@ -41,12 +41,13 @@ EXACT_TYPES_ARITHMETIC=("${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}
 EXACT_TYPES_FLAGS=("${FILE_DEFS_MMGR_FLAGS[@]}" -I "$EXACT_TYPES_TOP/integers" -I "$EXACT_TYPES_TOP/integers/exact_record"
     -I "$EXACT_TYPES_REPO/src/platform")
 
-# the libraries of the system that the platform calls: the address wait on Windows, and the threads on Linux and macOS.
+# the libraries of the system that the platform calls: the address wait on Windows, and the threads and the loader on
+# Linux and macOS.
 # The object of platform_windows.c names the library of the address wait to MSVC itself. A link that names no libraries still
 # gets it there
 case "$(uname -s)" in
 MINGW* | MSYS* | CYGWIN*) EXACT_TYPES_LIBRARIES=(-lsynchronization) ;;
-*) EXACT_TYPES_LIBRARIES=(-lpthread) ;;
+*) EXACT_TYPES_LIBRARIES=(-lpthread -ldl) ;;
 esac
 
 # exact_types_compile SUFFIX SOURCE...: each source compiled as C11 into $OUT, its object named for the source and
