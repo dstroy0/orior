@@ -30,8 +30,8 @@
 #define CLI_VIEW_COMMENT 16u
 // the steps Shrink Selection can take back; past them the oldest goes
 #define CLI_VIEW_GROWN 32u
-// An edit as it is made, one temporary cell with its texts after it: the span it replaced, where the text it put in
-// ends, that text and the text it took out
+// An edit as the view makes it, one temporary cell with its texts after it. It holds the span it replaced, and where
+// the text it put in ends. Last, that text and the text it took out
 typedef struct
 {
     CliPosition from;
@@ -42,9 +42,9 @@ typedef struct
     char *consumed;
     unsigned long long consumed_length;
 } CliViewEdit;
-// An edit as its step retains it, one movable cell with its texts after it: the span it replaced, where the text it put
-// in ends, the lengths of that text and of the text it took out, and the step's edits before and after it. The text
-// put in follows the record, with its zero, and the text taken out follows that
+// An edit as its step keeps it, one movable cell with its texts after it. It holds the span it replaced, and where the
+// text it put in ends. Then the lengths of that text and of the text it took out, and the step's edits before and
+// after it. The text put in follows the record, with its zero, and the text taken out follows that
 typedef struct
 {
     CliPosition from;
@@ -55,8 +55,8 @@ typedef struct
     const CarcerMovableEntry *before;
     const CarcerMovableEntry *after;
 } CliViewEditKept;
-// A step: its first and last edits, how many, the type of edit it holds and when its last was written, and where the
-// cursor and the anchor was before it and after it
+// A step: its first and last edits, how many, the type of edit it holds and the time of its last write. Last, where
+// the cursor and the anchor were before it and after it
 typedef struct
 {
     const CarcerMovableEntry *first;
@@ -75,28 +75,53 @@ typedef struct
     unsigned long long first;
     unsigned long long last;
 } CliViewFold;
-// A view: the key of its text, the path of its file, which names its language, the whole path its language server
-// was passed, empty where none was, whether the text changed since the server was last told, and whether the text is
-// paged, its lines read through the pages; the language's pairs, each an opener and its closer, its quotes, and its
-// pattern of a line that opens a block and its comment marks, as its plugin names them, in units; its top, its first
-// cell column and the max cells of any line it has displayed, rows and columns; the cursor and the anchor; the column
-// the cursor saves as it moves up and down, in cells; the selections Expand Selection grew from, each its cursor and
-// its anchor, how many, and the selection it last made; the indentation; the frames written; the steps, in a movable
-// cell of their own, how many are stored and how many of them are done, those past the done ones being undone; the
-// folds closed, in a movable cell of their own in the order of their first lines, how many and the work state; find:
-// whether its bar is open and whether the keys are its own, its query in a movable cell of its own, in units, its
-// length, the work state and where its cursor is, whether it seeks a pattern, with case and whole words, whether the
-// matches are to be found anew, the matches, each a line, a from and a to column, in a movable cell sized to them, how
-// many, and the current one, -1 for none; the table's characters where the file is a table, as its plugin defines them
-// for the file extension, the delimiter character that separates a line into fields and the quote character that
-// encloses a field, each 0 for none, the width in cells of each column, an array of max field widths in a movable cell,
-// and the column count; and the line read last, its units in a cell of the view's own, the work state it has, which
-// line it is and whether it is known: a line's units are read once for the moves along it; and whether its close waits
-// on a second press, its text changed. Last, the bracket pair at the cursor as it was last read: whether it is known,
-// whether a pair is there, and the cursor, the text's serial and the count of the text's states it was read at, and the
-// pair. A frame reads the pair again only where one of those three has moved. Then the view's frame, in a pinned cell
-// the view keeps, and the bytes the cell holds. The view builds each frame in place where it fits, and the window
-// reads it there until the view builds the next
+// The places of a frame's lists from the frame's start: the rows, the folds, the matches and the column offsets. Last,
+// find's query, and the bytes of the rows' text and the closers
+typedef struct
+{
+    unsigned long long row;
+    unsigned long long fold;
+    unsigned long long match;
+    unsigned long long column_offset;
+    unsigned long long query;
+    unsigned long long bytes;
+} ViewFrameLayout;
+
+// A view. It holds the key of its text, and the path of its file, which names its language. Then the whole path the
+// view gave its language server, empty for none, and whether the text changed since the server last heard. Then
+// whether the pages hold the text, its lines read through them.
+//
+// Then the language's pairs, each an opener and its closer, and its quotes. Then its pattern of a line that opens a
+// block, and its comment marks, as its plugin names them, in units. Then its top, its first cell column, and the max
+// cells of any line it showed, rows and columns.
+//
+// Then the cursor and the anchor, and the column the cursor keeps as it moves up and down, in cells. Then the
+// selections Expand Selection grew from, each its cursor and its anchor, how many, and the selection it last made.
+// Then the indentation, and the frames written.
+//
+// Then the steps, in a movable cell of their own, with how many the cell keeps and how many of them the view did. The
+// steps past the done ones are the undone steps. Then the folds closed, in a movable cell of their own in the order of
+// their first lines, with how many and the work state.
+//
+// Then find: whether its bar is open, and whether the keys are its own. Its query lies in a movable cell of its own, in
+// units, with its length, the work state and where its cursor is. Then whether it seeks a pattern, with case and whole
+// words, and whether it must find the matches anew. The matches are each a line, a from and a to column, in a movable
+// cell sized to them. Then how many, and the current one, -1 for none.
+//
+// Then the table's characters where the file is a table, as its plugin defines them for the file extension. The
+// delimiter character separates a line into fields, and the quote character encloses a field, each 0 for none. Then
+// the width in cells of each column, a list of max field widths in a movable cell, and the column count.
+//
+// Then the line read last, its units in a cell of the view's own, with its work state and which line it is. Then
+// whether the view knows it. The view reads a line's units once for the moves along it. Then whether its close waits on
+// a second press, and whether its text changed.
+//
+// Then the bracket pair at the cursor as of the last read: whether the view knows it, and whether a pair is there. Then
+// the cursor, the text's serial and the count of the text's states at that read, and the pair. A frame reads the pair
+// again only where one of those three moved.
+//
+// Last, the view's last frame, in a movable cell the view keeps, with its bytes and the cell's capacity. Then the
+// places of its lists in it. A reader reads the frame into a buffer of its own call
 typedef struct
 {
     int used;
@@ -168,8 +193,10 @@ typedef struct
     unsigned long long pair_serial;
     unsigned int pair_states;
     CliPosition pair[2];
-    CliViewFrame *frame;
+    const CarcerMovableEntry *frame;
+    unsigned long long frame_bytes;
     unsigned long long frame_capacity;
+    ViewFrameLayout frame_layout;
     unsigned int place;
 } CliView;
 // The rows a frame shows: their line numbers and, for a paged text's lines read, their texts, in one cell; and how many
@@ -179,29 +206,29 @@ typedef struct
     const char **text;
     unsigned long long count;
 } CliViewRows;
-// A fold of the text that opens on one of a frame's rows: its first line, the last it hides and whether it shows the
-// line it closes on
+// A fold of the text that opens on one of a frame's rows: its first line, and the last it hides. Last, whether it
+// shows the line it closes on
 typedef struct
 {
     unsigned long long first;
     unsigned long long last;
     int displayed;
 } CliViewFoldSeen;
-// The folds among a frame's rows as they are found: the rows, the folds seen, one a row at max, and how many
+// The folds among a frame's rows as the search finds them: the rows, the folds seen, one a row at max, and how many
 typedef struct
 {
     const CliViewRows *displayed;
     CliViewFoldSeen *seen;
     unsigned long long count;
 } CliViewFoldsSeen;
-// the size of the views table, the max edits a step holds before it closes, the types of edit, the lines read
-// about the cursor each way for the bracket pair at it, the work state for the state the first of them is entered in,
+// The size of the views table, the max edits a step holds before it closes, and the types of edit. Then the lines the
+// pair search reads about the cursor each way, and the work state for the state the first of them starts in. Last,
 // the max pairs and quotes a language has, and the work state for its pattern of a line that opens a block
 #define CLI_VIEWS 64u
-// the columns a frame cuts its rows at while nothing has told the view its size
+// the columns a frame cuts its rows at while nothing gave the view its size
 #define CLI_VIEW_UNSIZED_COLUMNS 256ULL
 #define CLI_VIEW_STEP_EDITS 256u
-// the max of each list a view retains; each list's movable cell is taken once at its max, but for the steps' cell,
+// The max of each list a view keeps. The view takes each list's movable cell once at its max, but for the steps' cell,
 // which grows with its steps
 #define CLI_VIEW_FOLDS 65536u
 #define CLI_VIEW_TABLE_COLUMNS 256u
@@ -220,9 +247,10 @@ typedef struct
 #define CLI_VIEW_TYPE_DELETE 3u
 #define CLI_VIEW_TYPE_DELETE_FORWARD 4u
 
-// The views table: CLI_VIEWS records in one movable cell, taken once as the first view opens. A record is read by value
-// into a copy that carries its place, worked on through a pointer, and written back where the work changes it. A copy
-// is written back before a call that reaches the table under the same key, and read again after it
+// The views table: CLI_VIEWS records in one movable cell, taken once as the first view opens. A read copies a record
+// by value into a copy that carries its place. The work goes through a pointer, and a write puts the copy back where
+// the work changes it. A copy goes back before a call that reaches the table under the same key, and reads again
+// after it
 static const CarcerMovableEntry *s_views;
 // the place of the view displayed and of the one displayed before it, each -1 for none
 static int s_displayed = -1;
@@ -232,8 +260,8 @@ static int s_sticky = 1;
 // what watches the views, NULL for none
 static const CliViewWatcher *s_watcher;
 
-// The cell position of a line scanned unit by unit: the cell index of the next unit, the index of the table field
-// that contains it, whether a quote is open, and the cell offset of the current field
+// The cell position of a line scanned unit by unit: the cell index of the next unit, and the index of its table field.
+// Last, whether a quote is open, and the cell offset of the current field
 typedef struct
 {
     unsigned long long cell;
@@ -349,6 +377,7 @@ typedef struct
     unsigned long long at;
     CliViewRows *rows_out;
     CliViewFrame *frame;
+    const CliViewFrame *frame_read;
     int tabs;
     int marked;
     int selected;
@@ -371,9 +400,9 @@ typedef struct
     unsigned long long reach;
 } ViewCtx;
 
-// A view's lists live in movable cells, which the mover sorts down; a record is read by value and written back.
-// `count` records of `size` bytes copied from `cell` into a temporary cell, NULL where there are none or it could not
-// be taken; the caller gives the copy back
+// A view's lists live in movable cells, which the mover sorts down. A read copies a record by value, and a write puts
+// it back. `count` records of `size` bytes copied from `cell` into a temporary cell, NULL where there are none or no
+// cell is there. The caller gives the copy back
 static void *view_cell_copy(const ViewCtx *args)
 {
     if ((args->entry == NULL) || (args->count == 0ULL))
@@ -389,7 +418,7 @@ static void *view_cell_copy(const ViewCtx *args)
     return copy;
 }
 
-// a list's cell taken once at its max, `bytes`, where none is: 1, or 0 where it could not be taken
+// a list's cell taken once at its max, `bytes`, where none is: 1, or 0 where no cell is there to take
 static int view_cell_taken(const CarcerMovableEntry **cell, unsigned long long bytes)
 {
     if (*cell == NULL)
@@ -414,7 +443,7 @@ static int view_record_used(const ViewCtx *args)
     return used;
 }
 
-// how many records hold an open view: the records are used from the first with no gap
+// how many records hold an open view: the view fills the records from the first with no gap
 static unsigned int view_records_count(void)
 {
     unsigned int count = 0u;
@@ -442,7 +471,7 @@ static int view_record_tab(const ViewCtx *args)
     return first != 0;
 }
 
-// the place of the tab at `tab` among the tabs in the order their views were opened, CLI_VIEWS past them
+// the place of the tab at `tab` among the tabs in the order their views opened, CLI_VIEWS past them
 static unsigned int view_tab_place(const ViewCtx *args)
 {
     unsigned int passed = 0u;
@@ -490,8 +519,8 @@ static int view_record_key(const ViewCtx *args)
     return 1;
 }
 
-// a retained edit's text put in, where `put` is 1, else the text it took out, copied with its zero into a temporary
-// cell: the cell, or NULL where it could not be taken; the caller gives it back
+// A kept edit's text put in, where `put` is 1, else the text it took out, copied with its zero into a temporary cell.
+// Returns the cell, or NULL where no cell is there to take. The caller gives it back
 static char *view_edit_text_copy(const ViewCtx *args)
 {
     const unsigned long long length = args->put ? args->retained->append_length : args->retained->consumed_length;
@@ -507,7 +536,7 @@ static char *view_edit_text_copy(const ViewCtx *args)
 }
 
 // the edits of the step at `at` given back, their cells released from the first to the last; a save point among them
-// is lost
+// goes
 static void view_step_edits_released(const ViewCtx *args)
 {
     CliViewStep step = {0};
@@ -536,13 +565,14 @@ static void view_cells_released(const ViewCtx *args)
     (void)g_cli_guard->movable_buf_release(args->view->line_units, g_cli_views_owner);
     (void)g_cli_guard->movable_buf_release(args->view->column_width, g_cli_views_owner);
     (void)g_cli_guard->movable_buf_release(args->view->column_set, g_cli_views_owner);
-    g_cli_guard->persistent_buf_release(args->view->frame, g_cli_views_owner);
+    (void)g_cli_guard->movable_buf_release(args->view->frame, g_cli_views_owner);
     args->view->frame = NULL;
+    args->view->frame_bytes = 0ULL;
     args->view->frame_capacity = 0ULL;
 }
 
-// the units of the line read last copied into a temporary cell with a zero unit after them, NULL where the cell could
-// not be taken; the caller gives the copy back
+// The units of the line read last copied into a temporary cell with a zero unit after them, NULL where no cell is
+// there. The caller gives the copy back
 static unsigned short *view_units_copy(const ViewCtx *args)
 {
     unsigned short *const copy =
@@ -607,7 +637,7 @@ EMBED_INLINE void view_steps_cut(const ViewCtx *args)
     args->view->done = (args->view->done < args->view->steps) ? args->view->done : args->view->steps;
 }
 
-// A language's plugin sought among the plugins: its id, and the view its pairs, quotes and pattern are read into
+// A language's plugin sought among the plugins: its id, and the view that gets its pairs, quotes and pattern
 typedef struct
 {
     const char *id;
@@ -628,8 +658,6 @@ EMBED_INLINE unsigned int view_character_get(const ViewCtx *args)
                                                 : 0u;
 }
 
-// the pairs, quotes and pattern of the plugin whose id is sought read into the view; where the plugin names none,
-// the defaults apply: the brackets, the two quotes and the pattern of an opener at a line's end
 // a comment's mark read off the string at `node` of the plugin's tree into `mark`, sized for `capacity`, empty where
 // none
 EMBED_INLINE void view_comment_read(const ViewCtx *args)
@@ -647,8 +675,8 @@ EMBED_INLINE void view_comment_read(const ViewCtx *args)
     }
 }
 
-// the brackets a language pairs, the array at `node` of the plugin's `json`, each two characters, an opener and its
-// closer, put among the view's; the round, square and curly brackets where the plugin gives none
+// The brackets a language pairs, the array at `node` of the plugin's `json`, each two characters, an opener and its
+// closer. They go among the view's, and the round, square and curly brackets go where the plugin gives none
 EMBED_INLINE void view_pairs_read(const ViewCtx *args)
 {
     CliView *const view = args->view;
@@ -692,9 +720,9 @@ EMBED_INLINE void view_pairs_read(const ViewCtx *args)
     }
 }
 
-// the table's characters read from the plugin's `delimiters`, the object at `node` of its `json`, from the member
-// named by the view's file extension in lower case: the first character separates a line into fields and the second
-// encloses a field; both 0 where the object has no member for the extension
+// The table's characters read from the plugin's `delimiters`, the object at `node` of its `json`. They come from the
+// member the view's file extension names in lower case. The first character separates a line into fields, and the
+// second encloses a field. Both are 0 where the object has no member for the extension
 EMBED_INLINE void view_table_read(const ViewCtx *args)
 {
     CliView *const view = args->view;
@@ -730,6 +758,8 @@ EMBED_INLINE void view_table_read(const ViewCtx *args)
                                                 : 0u;
 }
 
+// The pairs, quotes and pattern of the plugin with the id in the search read into the view. Where the plugin names
+// none, the defaults apply: the brackets, the two quotes, and the pattern of an opener at a line's end
 static void view_plugin_read(const CliEachPluginCfg *args)
 {
     CliViewPluginNeedle *const needle = args->context;
@@ -923,7 +953,7 @@ static void view_pair_answers_taken(void);
 
 void cli_view_close(const CliViewCfg *args)
 {
-    // an answer of a pair ask that landed before the close holds a cell of the views' owner until it is taken; a
+    // An answer of a pair ask that landed before the close holds a cell of the views' owner until a take of it. A
     // closed document leaves none behind
     view_pair_answers_taken();
     CliView copy;
@@ -937,8 +967,8 @@ void cli_view_close(const CliViewCfg *args)
         EMBED_CALL(cli_vim_view.close, CliVimCfg, .key = view->key);
         EMBED_CALL(view_steps_cut, ViewCtx, .view = view, .from_u32 = 0u);
         EMBED_CALL(view_cells_released, ViewCtx, .view = view);
-        // the views after it move up a place, so the table is in the order the views were opened; a view's place
-        // is far inside what an int counts
+        // The views after it move up a place, and the table stays in the order the views opened. A view's place is far
+        // inside what an int counts
         const int closed = (int)view->place;
         const unsigned int count = view_records_count();
         for (unsigned int at = (unsigned int)closed + 1u; at < count; at += 1u)
@@ -1090,7 +1120,7 @@ void cli_view_fill_set(const CliViewAtCfg *args)
     s_fill_columns = args->columns;
 }
 
-// the text's lines: how many, as far as the pages' index has read for a paged text
+// the text's lines: how many, as far as the pages' index read for a paged text
 EMBED_INLINE unsigned long long view_lines(const ViewCtx *args)
 {
     if (args->view_read->paged)
@@ -1107,8 +1137,8 @@ EMBED_INLINE unsigned long long view_lines(const ViewCtx *args)
                : 0ULL;
 }
 
-// the closed fold that hides `line`, its first line above the line and its last at or below it, the outermost where
-// more do, into `hide_timer`: 1, or 0 where none does
+// The closed fold that hides `line`, its first line above the line and its last at or below it, into `hide_timer`.
+// It is the outermost where more do. Returns 1, or 0 where none does
 EMBED_INLINE int view_hide_timer(const ViewCtx *args)
 {
     for (unsigned int at = 0u; at < args->view_read->folds; at += 1u)
@@ -1127,8 +1157,8 @@ EMBED_INLINE int view_hide_timer(const ViewCtx *args)
     return 0;
 }
 
-// `line` where no closed fold hides it, else going up the first line of the fold that hides it, and going down the
-// line after the last it hides, the last line displayed where none follows
+// `line` where no closed fold hides it. Else, up, the first line of the fold that hides it. Down, the line after the
+// last it hides, or the last line on display where none follows
 EMBED_INLINE unsigned long long view_displayed_up(const ViewCtx *args)
 {
     unsigned long long line = args->line;
@@ -1267,8 +1297,8 @@ static void view_fold_refresh(const CliFoldEachCfg *args)
     }
 }
 
-// the closed folds' last lines read again from the text's folds, which its coloring moves; a closed fold the text no
-// longer folds at stays until an edit touches it
+// The closed folds' last lines read again from the text's folds, which its coloring moves. A closed fold the text
+// folds no more at stays until an edit touches it
 EMBED_INLINE void view_folds_refresh(const ViewCtx *args)
 {
     if (args->view->folds != 0u)
@@ -1278,8 +1308,8 @@ EMBED_INLINE void view_folds_refresh(const ViewCtx *args)
     }
 }
 
-// a fold from `first` to `last` put among the closed, in the order of their first lines, the one there given the last
-// where one is: 1, or 0 where the cell could not be taken
+// A fold from `first` to `last` put among the closed, in the order of their first lines. Where one is there, it gets
+// the last. Returns 1, or 0 where no cell is there to take
 EMBED_INLINE int view_fold_append(const ViewCtx *args)
 {
     unsigned long long last = args->last;
@@ -1341,8 +1371,8 @@ EMBED_INLINE int view_fold_append(const ViewCtx *args)
     return 1;
 }
 
-// the closed folds moved with `edit`: those below the lines it writes over moved by the lines it adds less those it
-// takes out; one it touches, its first line with lines added or taken, or the lines it hides, opened
+// The closed folds moved with `edit`. Those below the lines it writes over move by the lines it adds less those it
+// takes out. One it touches opens: its first line with lines added or taken, or the lines it hides
 EMBED_INLINE void view_folds_edit(const ViewCtx *args)
 {
     const unsigned long long added = EMBED_CALL(cli_text_size_byte.count, CliTextSizeByteCfg, .text = args->edit->text,
@@ -1384,8 +1414,8 @@ EMBED_INLINE void view_folds_edit(const ViewCtx *args)
     args->view->folds = saved;
 }
 
-// `size` bytes of UTF-8 as UTF-16 units into `units`, which is sized for `capacity`: their count, a character past the
-// basic plane two units
+// `size` bytes of UTF-8 as UTF-16 units into `units`, `capacity` of them: their count, a character past the basic plane
+// two units
 EMBED_INLINE unsigned long long view_units_get(const ViewCtx *args)
 {
     const char *text = args->text;
@@ -1419,14 +1449,14 @@ EMBED_INLINE unsigned long long view_units_get(const ViewCtx *args)
     return count;
 }
 
-// the view's line cell given work state for `units`: 1, or 0 where it could not be taken
+// the view's line cell given work state for `units`: 1, or 0 where no cell is there to take
 EMBED_INLINE int view_units_capacity(const ViewCtx *args)
 {
     if (args->view->units_capacity >= args->units_u64)
     {
         return 1;
     }
-    // the line's units are read anew into a movable cell of their count
+    // the view reads the line's units anew into a movable cell of their count
     const unsigned long long capacity = (args->units_u64 > CLI_VIEW_UNITS_MIN) ? args->units_u64 : CLI_VIEW_UNITS_MIN;
     (void)g_cli_guard->movable_buf_release(args->view->line_units, g_cli_views_owner);
     args->view->line_units = g_cli_guard->movable_buf_alloc(capacity * sizeof(unsigned short), g_cli_views_owner);
@@ -1445,8 +1475,8 @@ EMBED_INLINE void view_units_store(const ViewCtx *args)
     }
 }
 
-// the units of `line` read into the view's line cell, where they are not the line read last: a stored text's copied
-// under the documents' lock, a paged text's read through the pages and made units, each through a temporary cell
+// The units of `line` read into the view's line cell, where they are not the line read last. A text in the store copies
+// under the documents' lock. A paged text reads through the pages and becomes units. Each goes through a temporary cell
 EMBED_INLINE void view_line_read(const ViewCtx *args)
 {
     unsigned long long line = args->line;
@@ -1537,8 +1567,8 @@ EMBED_INLINE unsigned int view_tab(const ViewCtx *args)
                                                                                    : CLI_VIEW_TAB;
 }
 
-// the measured width in cells of the table column at index `count_u32`, the max width of the fields measured in
-// it; 0 for an index at or past the column count
+// The measured width in cells of the table column at index `count_u32`, the max width of the fields measured in it. It
+// is 0 for an index at or past the column count
 EMBED_INLINE unsigned long long view_column_measured(const ViewCtx *args)
 {
     unsigned long long width = 0ULL;
@@ -1552,8 +1582,8 @@ EMBED_INLINE unsigned long long view_column_measured(const ViewCtx *args)
     return width;
 }
 
-// the width in cells of the table column at index `count_u32`: the width a CLI_VIEW_COLUMN input set for it, or its
-// measured width where none is set
+// The width in cells of the table column at index `count_u32`. It is the width a CLI_VIEW_COLUMN input set for it, or
+// its measured width where none set one
 EMBED_INLINE unsigned long long view_column_width(const ViewCtx *args)
 {
     unsigned long long width = 0ULL;
@@ -1567,11 +1597,11 @@ EMBED_INLINE unsigned long long view_column_width(const ViewCtx *args)
     return (width != 0ULL) ? width : view_column_measured(args);
 }
 
-// `position` incremented past the unit `unit` of a line: a table's quote character toggles the quoted state and
-// occupies one cell; the delimiter character, outside a quoted field, ends the field, and the next field begins at
-// its column offset, the sum of the previous offset, the previous column's width and one cell for the delimiter, or
-// at the next cell where the offset is less than the current cell; a tab character increments to the next multiple
-// of the tab width; any other unit occupies one cell
+// `position` moved past the unit `unit` of a line. A table's quote character toggles the quoted state and takes one
+// cell. The delimiter character, outside a quoted field, ends the field, and the next field begins at its column
+// offset. That offset is the sum of the previous offset, the previous column's width and one cell for the delimiter.
+// Where the offset is less than the current cell, the field begins at the next cell. A tab character moves to the next
+// multiple of the tab width. Any other unit takes one cell
 EMBED_INLINE void view_cell_position_increment(const ViewCtx *args)
 {
     ViewCellPosition *const position = args->position;
@@ -1599,8 +1629,8 @@ EMBED_INLINE void view_cell_position_increment(const ViewCtx *args)
     }
 }
 
-// the cell index of the unit at `col` of `line`, tab characters positioned at tab stops and table fields at their
-// column offsets; and the unit column at the cell index `cell`, the line length where the cell is past the end
+// The cell index of the unit at `col` of `line`, with tab characters at tab stops and table fields at their column
+// offsets. Then the unit column at the cell index `cell`, the line length where the cell is past the end
 EMBED_INLINE unsigned long long view_cell_get(const ViewCtx *args)
 {
     const unsigned int tab = EMBED_CALL(view_tab, ViewCtx, .view_read = args->view);
@@ -1634,8 +1664,8 @@ EMBED_INLINE unsigned long long view_col_at(const ViewCtx *args)
     return length;
 }
 
-// the column widths measured over the line `line`: each column's measured width becomes the max of its value and the
-// width of every field in that column, and the column count the max of its value and the line's field count
+// The column widths measured over the line `line`. Each column's measured width becomes the max of its value and the
+// width of every field in that column. The column count becomes the max of its value and the line's field count
 EMBED_INLINE void view_column_line_measure(const ViewCtx *args)
 {
     CliView *const view = args->view;
@@ -1683,8 +1713,8 @@ EMBED_INLINE void view_column_line_measure(const ViewCtx *args)
     }
 }
 
-// the column widths measured over the lines of `displayed`, so an edit to a line in view widens its columns; the
-// width array is allocated once at its max size on the first measure
+// The column widths measured over the lines of `displayed`, and an edit to a line in view widens its columns. The
+// first measure takes the list of widths once at its max size
 EMBED_INLINE void view_column_width_update(const ViewCtx *args)
 {
     CliView *const view = args->view;
@@ -1700,8 +1730,8 @@ EMBED_INLINE void view_column_width_update(const ViewCtx *args)
     }
 }
 
-// the column widths measured over every line of the text as a table opens, so the columns hold still as the view
-// scrolls; a paged text's lines are measured as they come into view
+// The column widths measured over every line of the text as a table opens, and the columns stay still as the view
+// scrolls. The measure takes a paged text's lines as they come into view
 EMBED_INLINE void view_column_measure_all(const ViewCtx *args)
 {
     CliView *const view = args->view;
@@ -1718,8 +1748,9 @@ EMBED_INLINE void view_column_measure_all(const ViewCtx *args)
     }
 }
 
-// the map of a table's lines from `first` to `last`: each field a bar at its column's offset, as wide as the field
-// measures, named as the editor's text, in a movable cell of the views' owner; NULL where the cells cannot meet it
+// The map of a table's lines from `first` to `last`: each field a bar at its column's offset, as wide as the field
+// measures. Each bar takes the editor text's name. They lie in a movable cell of the views' owner, NULL where the cells
+// cannot meet it
 EMBED_INLINE const CarcerMovableEntry *view_table_map_alloc(const ViewCtx *args)
 {
     CliView *const view = args->view;
@@ -1795,8 +1826,8 @@ EMBED_INLINE int view_blank_unit(const ViewCtx *args)
     return (args->unit == ' ') || (args->unit == '\t');
 }
 
-// the place a character left of `place`, the end of the line displayed before it at a line's start; and a character
-// right, the start of the line displayed after it at a line's end
+// The place a character left of `place`, the end of the line on display before it at a line's start. Then a character
+// right, the start of the line on display after it at a line's end
 EMBED_INLINE CliPosition view_leave(const ViewCtx *args)
 {
     if (args->place.col == 0ULL)
@@ -1828,8 +1859,8 @@ EMBED_INLINE CliPosition view_right(const ViewCtx *args)
     return (CliPosition){args->place.line, args->place.col + (pair ? 2ULL : 1ULL)};
 }
 
-// the place the word left of `place` starts at, and the place past the word right of it: blanks skipped, then a run of
-// a word's characters or of other characters
+// The place the word left of `place` starts at, and the place past the word right of it. The step goes past blanks,
+// then a run of a word's characters or of other characters
 EMBED_INLINE CliPosition view_word_leave(const ViewCtx *args)
 {
     if (args->place.col == 0ULL)
@@ -1927,8 +1958,8 @@ EMBED_INLINE int view_select(const ViewCtx *args)
            (args->view_read->cursor.col != args->view_read->anchor.col);
 }
 
-// The view moved so the cursor is in it: the top among the lines displayed, and the first cell column so the cursor's
-// cell lies between it and the last column the view shows. A view not yet sized retains its column
+// The view moved until the cursor is in it: the top among the lines on display. The first cell column moves until the
+// cursor's cell lies between it and the last column the view shows. A view with no size yet keeps its column
 EMBED_INLINE void view_follow_across(const ViewCtx *args)
 {
     CliView *const view = args->view;
@@ -2003,8 +2034,8 @@ EMBED_INLINE void view_vertical(const ViewCtx *args)
                .extend = args->extend, .saved = 1);
 }
 
-// the query's cell, taken once at CLI_VIEW_FIND_UNITS, given `more` units past its length: 1, or 0 where it could not
-// be taken or they do not fit
+// the query's cell, taken once at CLI_VIEW_FIND_UNITS, given `more` units past its length: 1, or 0 where no cell is
+// there or they do not fit
 EMBED_INLINE int view_query_capacity(const ViewCtx *args)
 {
     if (!view_cell_taken(&args->view->find_query, CLI_VIEW_FIND_UNITS * sizeof(unsigned short)))
@@ -2033,8 +2064,8 @@ EMBED_INLINE void view_query_moved(const ViewCtx *args)
     g_cli_guard->persistent_buf_release(moved, g_cli_views_owner);
 }
 
-// `count` units put into the query at its cursor, which moves past them; and the units from `from` to before `to`
-// taken out of it, the cursor at `from`; each makes the matches stale
+// `count` units put into the query at its cursor, which moves past them. Then the units from `from` to before `to`
+// taken out of it, the cursor at `from`. Each makes the matches stale
 EMBED_INLINE void view_query_append(const ViewCtx *args)
 {
     if ((args->count == 0ULL) || !EMBED_CALL(view_query_capacity, ViewCtx, .view = args->view, .more = args->count))
@@ -2061,24 +2092,24 @@ EMBED_INLINE void view_query_cut(const ViewCtx *args)
     args->view->find_stale = 1;
 }
 
-// the query's units copied into a temporary cell, NULL where it is empty or the cell could not be taken; the caller
-// gives the copy back
+// the query's units copied into a temporary cell, NULL where it is empty or no cell is there; the caller gives the
+// copy back
 EMBED_INLINE unsigned short *view_query_copy(const ViewCtx *args)
 {
     return EMBED_CALL(view_cell_copy, ViewCtx, .entry = args->view_read->find_query,
                       .count = args->view_read->find_length, .size = sizeof(unsigned short));
 }
 
-// the matches copied into a temporary cell, NULL where there are none or the cell could not be taken; the caller gives
-// the copy back
+// the matches copied into a temporary cell, NULL where there are none or no cell is there; the caller gives the copy
+// back
 EMBED_INLINE unsigned long long (*view_matches_copy(const ViewCtx *args))[3]
 {
     return EMBED_CALL(view_cell_copy, ViewCtx, .entry = args->view_read->match, .count = args->view_read->matches,
                       .size = 3ULL * sizeof(unsigned long long));
 }
 
-// The matches as a search finds them, in a temporary cell of the max: each a line, a from and a to column, and how
-// many
+// The matches as a search finds them, in a temporary cell of the max. Each is a line, a from and a to column, and then
+// how many
 typedef struct ViewMatchesFound
 {
     unsigned long long (*match)[3];
@@ -2123,8 +2154,8 @@ EMBED_INLINE void view_matches_read(const ViewCtx *args)
     }
 }
 
-// the current match settled: the first that starts at or after the selection's start, the first of all where none
-// does, none where none was found
+// The current match settled: the first that starts at or after the selection's start, the first of all where none
+// does. It is none where the search found none
 EMBED_INLINE void view_current_settle(const ViewCtx *args)
 {
     CliPosition from;
@@ -6240,9 +6271,40 @@ int cli_view_input(const CliViewInputCfg *args)
     return reserved;
 }
 
-// the frame of the view `view`, a copy of the record, which the caller writes back: the frame, or NULL where a cell
-// could not be taken
-EMBED_INLINE CliViewFrame *view_frame_made(const ViewCtx *args)
+// The frame `frame_read` of `bytes` bytes, built in a cell of this call, kept in the movable cell of the view `view`.
+// The view reuses its cell where the frame fits, and takes one of the frame's size where it does not. The places of
+// the frame's lists go into the view's layout. Returns 1, or 0 where no cell is there to take
+EMBED_INLINE int view_frame_kept(const ViewCtx *args)
+{
+    CliView *const view = args->view;
+    const CliViewFrame *const frame = args->frame_read;
+    if ((view->frame == NULL) || (view->frame_capacity < args->bytes))
+    {
+        (void)g_cli_guard->movable_buf_release(view->frame, g_cli_views_owner);
+        view->frame = g_cli_guard->movable_buf_alloc(args->bytes, g_cli_views_owner);
+        view->frame_capacity = (view->frame != NULL) ? args->bytes : 0ULL;
+    }
+    view->frame_bytes = (view->frame != NULL) ? args->bytes : 0ULL;
+    if (view->frame == NULL)
+    {
+        return 0;
+    }
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = view->frame, .offset = 0ULL, .src = frame, .bytes = args->bytes});
+    const unsigned char *const base = (const unsigned char *)(const void *)frame;
+    view->frame_layout =
+        (ViewFrameLayout){(unsigned long long)((const unsigned char *)(const void *)frame->row - base),
+                          (unsigned long long)((const unsigned char *)(const void *)frame->fold - base),
+                          (unsigned long long)((const unsigned char *)(const void *)frame->match - base),
+                          (unsigned long long)((const unsigned char *)(const void *)frame->column_offset - base),
+                          (unsigned long long)((const unsigned char *)(const void *)frame->find.query - base),
+                          (unsigned long long)((const unsigned char *)(const void *)frame->bytes - base)};
+    return 1;
+}
+
+// The frame of the view `view`, a copy of the record, which the caller writes back. The view builds it in a cell of
+// this call, and keeps it in its movable cell. Returns the frame's bytes, or 0 where no cell is there to take
+EMBED_INLINE unsigned long long view_frame_made(const ViewCtx *args)
 {
     CliView *const view = args->view;
     view->seq += 1ULL;
@@ -6266,7 +6328,7 @@ EMBED_INLINE CliViewFrame *view_frame_made(const ViewCtx *args)
         capacity * (sizeof(unsigned long long) + sizeof(const char *) + sizeof(CliViewFoldSeen)), g_cli_views_owner);
     if (number == NULL)
     {
-        return NULL;
+        return 0ULL;
     }
     const char **const text = (const char **)(void *)(number + capacity);
     CliViewFoldSeen *const seen = (CliViewFoldSeen *)(void *)(text + capacity);
@@ -6297,23 +6359,17 @@ EMBED_INLINE CliViewFrame *view_frame_made(const ViewCtx *args)
     // the column widths updated from the rows before any cell index is computed; one column offset per column
     EMBED_CALL(view_column_width_update, ViewCtx, .view = view, .displayed = &displayed);
     const unsigned long long column_count = (view->table != 0u) ? view->column_count + 1ULL : 0ULL;
-    // The frame is the view's, in a pinned cell it keeps, and the window reads it in place. The view builds the next
-    // frame into the same cell where it fits, and takes a larger cell where it does not
+    // The view builds the frame in a cell of this call, and then keeps it in its movable cell. It reuses that cell
+    // where the frame fits, and takes a larger one where it does not
     const unsigned long long frame_bytes =
         sizeof(CliViewFrame) + ((displayed.count + stickies) * sizeof(CliViewFrameRow)) +
-        (folds.count * sizeof(CliViewFrameFold)) + (matches_max * sizeof(*view->frame->match)) +
-        (column_count * sizeof(*view->frame->column_offset)) + query_bytes + text_bytes;
-    if ((view->frame == NULL) || (view->frame_capacity < frame_bytes))
-    {
-        g_cli_guard->persistent_buf_release(view->frame, g_cli_views_owner);
-        view->frame = g_cli_guard->persistent_buf_alloc(frame_bytes, g_cli_views_owner);
-        view->frame_capacity = (view->frame != NULL) ? frame_bytes : 0ULL;
-    }
-    CliViewFrame *const frame = view->frame;
+        (folds.count * sizeof(CliViewFrameFold)) + (matches_max * 3ULL * sizeof(unsigned long long)) +
+        (column_count * sizeof(unsigned long long)) + query_bytes + text_bytes;
+    CliViewFrame *const frame = g_cli_guard->temporary_buf_alloc(frame_bytes, g_cli_views_owner);
     if (frame == NULL)
     {
         g_cli_guard->persistent_buf_release(number, g_cli_views_owner);
-        return NULL;
+        return 0ULL;
     }
     memor.set(&(MemoriaCfg){.dst = frame, .val = 0, .bytes = sizeof(*frame)});
     frame->row = (CliViewFrameRow *)(void *)(frame + 1);
@@ -6416,32 +6472,65 @@ EMBED_INLINE CliViewFrame *view_frame_made(const ViewCtx *args)
         &(MemoriaCfg){.dst = frame->key,
                       .src = view->key,
                       .bytes = cellul.len(&(CatenaFinitaCfg){.src = view->key, .cap = CLI_NAME_MAX_LEN - 1u}) + 1u});
-    if (!walked)
+    const int kept =
+        walked && EMBED_CALL(view_frame_kept, ViewCtx, .view = view, .frame_read = frame, .bytes = frame_bytes);
+    g_cli_guard->persistent_buf_release(frame, g_cli_views_owner);
+    if (!kept)
     {
-        return NULL;
+        return 0ULL;
     }
     if ((s_watcher != NULL) && (s_watcher->drawn != NULL))
     {
         const CliViewDrawn drawn = {view->key, view->cursor, view->top, lines, view->rows};
         s_watcher->drawn(&drawn);
     }
-    return frame;
+    return frame_bytes;
 }
 
-const CliViewFrame *cli_view_frame_build(const CliViewAtCfg *args)
+unsigned long long cli_view_frame_build(const CliViewAtCfg *args)
 {
     CliView copy;
     CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key, .copy = &copy);
     if (view == NULL)
     {
-        return NULL;
+        return 0ULL;
     }
-    CliViewFrame *const frame = EMBED_CALL(view_frame_made, ViewCtx, .view = view);
+    const unsigned long long bytes = EMBED_CALL(view_frame_made, ViewCtx, .view = view);
     (void)g_cli_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = s_views,
                             .offset = (unsigned long long)view->place * sizeof(CliView),
                             .src = view,
                             .bytes = sizeof(CliView)});
+    return bytes;
+}
+
+unsigned long long cli_view_frame_bytes(const CliViewAtCfg *args)
+{
+    CliView copy;
+    const CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key, .copy = &copy);
+    return ((view != NULL) && (view->frame != NULL)) ? view->frame_bytes : 0ULL;
+}
+
+const CliViewFrame *cli_view_frame_read(const CliViewAtCfg *args)
+{
+    CliView copy;
+    const CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key, .copy = &copy);
+    if ((view == NULL) || (view->frame == NULL) || (args->frame_out == NULL) || (args->capacity < view->frame_bytes))
+    {
+        return NULL;
+    }
+    unsigned char *const base = args->frame_out;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = view->frame, .offset = 0ULL, .dst = base, .bytes = view->frame_bytes});
+    // the frame's lists point into the caller's buffer at the places the view kept
+    CliViewFrame *const frame = (CliViewFrame *)(void *)base;
+    const ViewFrameLayout *const layout = &view->frame_layout;
+    frame->row = (CliViewFrameRow *)(void *)(base + layout->row);
+    frame->fold = (CliViewFrameFold *)(void *)(base + layout->fold);
+    frame->match = (unsigned long long (*)[3])(void *)(base + layout->match);
+    frame->column_offset = (unsigned long long *)(void *)(base + layout->column_offset);
+    frame->find.query = (char *)(base + layout->query);
+    frame->bytes = (char *)(base + layout->bytes);
     return frame;
 }
 

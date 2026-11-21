@@ -143,12 +143,23 @@ static const char *const s_own_commands[] = {"exit",
 // The window, which the menus' answers and the walk's threads reach. Then whether the walk colored a line since the
 // window last took the frame, set on the walk's threads. Last, what wakes the view's thread
 static GuiWindow *s_window;
+
+// The frames the window reads for one call: the editor's, then each terminal pane's, each in a cell of the call or
+// NULL. Then how deep the window's calls run now. The cells go back as the outermost call returns
+typedef struct
+{
+    void *cell[3];
+    unsigned int depth;
+} WindowFrames;
+static WindowFrames s_frames;
+static void window_frames_taken(void);
+static void window_frames_given(void);
 static embed_atomic_u32 s_colored;
 static void (*s_woken)(void);
 // the view located over the editor in its place, none while its table is NULL
 static GuiWork s_work;
 
-int gui_window_begin(const GuiWindowWokenCfg *args)
+static int window_begin_called(const GuiWindowWokenCfg *args)
 {
     VerbaLinea *err_msg = args->err_msg;
     memor.set(&(MemoriaCfg){.dst = args->window, .val = 0, .bytes = sizeof(*args->window)});
@@ -242,6 +253,14 @@ int gui_window_begin(const GuiWindowWokenCfg *args)
     return 1;
 }
 
+int gui_window_begin(const GuiWindowWokenCfg *args)
+{
+    window_frames_taken();
+    const int answer = window_begin_called(args);
+    window_frames_given();
+    return answer;
+}
+
 typedef struct
 {
     GuiWindow *window;
@@ -298,6 +317,7 @@ EMBED_INLINE void window_trust_answered(const GuiWindowCtx *args);
 
 void gui_window_end(const GuiWindowCfg *args)
 {
+    window_frames_given();
     GuiWindow *const window = args->window;
     cli_view_session_save(&(CliViewAtCfg){.root = cli_command_line_root()});
     cli_terminal_tabs_end();
@@ -497,6 +517,81 @@ EMBED_INLINE const char *window_displayed_key(const GuiWindowCtx *args)
                : NULL;
 }
 
+// The frame of the view under `key` read into a cell of this call, the cell into `*cell_out`. Returns the frame, or
+// NULL where the view keeps none or no cell is there to take
+static const CliViewFrame *window_frame_read(const char *key, void **cell_out)
+{
+    *cell_out = NULL;
+    const unsigned long long bytes = cli_view_frame_bytes(&(CliViewAtCfg){.key = key});
+    void *const cell = (bytes != 0ULL) ? g_cli_guard->temporary_buf_alloc(bytes, g_cli_view_owner) : NULL;
+    const CliViewFrame *const frame =
+        (cell != NULL) ? cli_view_frame_read(&(CliViewAtCfg){.key = key, .frame_out = cell, .capacity = bytes}) : NULL;
+    if (frame == NULL)
+    {
+        g_cli_guard->persistent_buf_release(cell, g_cli_view_owner);
+        return NULL;
+    }
+    *cell_out = cell;
+    return frame;
+}
+
+// The editor's frame read anew for the view on display, in place of the one the call read before
+EMBED_INLINE void window_editor_frame_read(const GuiWindowCtx *args)
+{
+    g_cli_guard->persistent_buf_release(s_frames.cell[0], g_cli_view_owner);
+    s_frames.cell[0] = NULL;
+    const char *const key = EMBED_CALL(window_displayed_key, GuiWindowCtx, .at = 0u);
+    args->window->editor.frame = (key != NULL) ? window_frame_read(key, &s_frames.cell[0]) : NULL;
+}
+
+// The frame of the terminal's pane `at` read anew where the pane has one, in place of the one the call read before
+EMBED_INLINE void window_terminal_frame_read(const GuiWindowCtx *args)
+{
+    GuiTerminal *const terminal = &args->window->terminal;
+    g_cli_guard->persistent_buf_release(s_frames.cell[1u + args->at], g_cli_view_owner);
+    s_frames.cell[1u + args->at] = NULL;
+    terminal->frame[args->at] = terminal->framed[args->at]
+                                    ? window_frame_read(terminal->view[args->at].key, &s_frames.cell[1u + args->at])
+                                    : NULL;
+}
+
+// A call of the window begins: the outermost call reads the editor's frame and the terminal panes' frames
+static void window_frames_taken(void)
+{
+    if (s_window == NULL)
+    {
+        return;
+    }
+    s_frames.depth += 1u;
+    if (s_frames.depth == 1u)
+    {
+        EMBED_CALL(window_editor_frame_read, GuiWindowCtx, .window = s_window);
+        EMBED_CALL(window_terminal_frame_read, GuiWindowCtx, .window = s_window, .at = 0u);
+        EMBED_CALL(window_terminal_frame_read, GuiWindowCtx, .window = s_window, .at = 1u);
+    }
+}
+
+// A call of the window ends: as the outermost call ends, every frame it read goes back and no frame stays
+static void window_frames_given(void)
+{
+    s_frames.depth = (s_frames.depth != 0u) ? s_frames.depth - 1u : 0u;
+    if (s_frames.depth != 0u)
+    {
+        return;
+    }
+    for (unsigned int at = 0u; at < 3u; at += 1u)
+    {
+        g_cli_guard->persistent_buf_release(s_frames.cell[at], g_cli_view_owner);
+        s_frames.cell[at] = NULL;
+    }
+    if (s_window != NULL)
+    {
+        s_window->editor.frame = NULL;
+        s_window->terminal.frame[0] = NULL;
+        s_window->terminal.frame[1] = NULL;
+    }
+}
+
 // The terminal read again of its tabs: the panel and its panes. Then each pane's frame of its tab's text and the table
 // of its runs' tokens, taken anew in place of those it gave back
 EMBED_INLINE void window_terminal_take(const GuiWindowCtx *args)
@@ -507,7 +602,8 @@ EMBED_INLINE void window_terminal_take(const GuiWindowCtx *args)
     {
         const int displayed = cli_terminal_tabs_view(&(CliTerminalTabsCfg){.view = view, .out = &terminal->view[view]});
         const char *const key = displayed ? terminal->view[view].key : NULL;
-        terminal->frame[view] = (key != NULL) ? cli_view_frame_build(&(CliViewAtCfg){.key = key}) : NULL;
+        terminal->framed[view] = (key != NULL) && (cli_view_frame_build(&(CliViewAtCfg){.key = key}) != 0ULL);
+        EMBED_CALL(window_terminal_frame_read, GuiWindowCtx, .window = args->window, .at = view);
     }
     args->window->pending = 1;
 }
@@ -718,7 +814,11 @@ EMBED_INLINE void window_view_take(const GuiWindowCtx *args)
                              .err_msg = &err_msg);
         }
     }
-    window->editor.frame = (key != NULL) ? cli_view_frame_build(&(CliViewAtCfg){.key = key}) : NULL;
+    if (key != NULL)
+    {
+        (void)cli_view_frame_build(&(CliViewAtCfg){.key = key});
+    }
+    EMBED_CALL(window_editor_frame_read, GuiWindowCtx, .window = window);
     // The names and the map's colors move only as the text's colors move. The window reads them again where the text
     // or its colors serial moved since the last read. They stay as they are where only the frame moved
     const unsigned int colors = (window->editor.frame != NULL) ? window->editor.frame->colors_serial : 0u;
@@ -1044,7 +1144,7 @@ EMBED_INLINE void window_map_span(const GuiWindowCtx *args)
     window->pending = 1;
 }
 
-void gui_window_autohide_layout(const GuiWindowAutohideCfg *args)
+static void window_autohide_layout_called(const GuiWindowAutohideCfg *args)
 {
     args->window->pending = 1;
     // The claim's slides, the side pane's and the terminal panel's arrival run through the stages. Each stage's frame
@@ -1104,6 +1204,13 @@ void gui_window_autohide_layout(const GuiWindowAutohideCfg *args)
     EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &args->window->frame, .numbers = &numbers);
     EMBED_CALL(gui_menubar_bar.titles_layout, GuiMenubarBarCfg, .menubar = &args->window->menubar,
                .glyphs = &args->window->glyphs, .frame = &args->window->frame);
+}
+
+void gui_window_autohide_layout(const GuiWindowAutohideCfg *args)
+{
+    window_frames_taken();
+    window_autohide_layout_called(args);
+    window_frames_given();
 }
 
 EMBED_INLINE void window_autohide_layout(const GuiWindowCtx *args)
@@ -1269,7 +1376,7 @@ EMBED_INLINE void window_menus_close(const GuiWindowCtx *args)
     }
 }
 
-int gui_window_resize(const GuiWindowWidthCfg *args)
+static int window_resize_called(const GuiWindowWidthCfg *args)
 {
     unsigned int width = args->width;
     unsigned int height = args->height;
@@ -1330,6 +1437,14 @@ int gui_window_resize(const GuiWindowWidthCfg *args)
     return positioned;
 }
 
+int gui_window_resize(const GuiWindowWidthCfg *args)
+{
+    window_frames_taken();
+    const int answer = window_resize_called(args);
+    window_frames_given();
+    return answer;
+}
+
 int gui_window_icon(const GuiWindowIconCfg *args)
 {
     unsigned int size = args->size;
@@ -1378,13 +1493,20 @@ void gui_window_motion_wish(const GuiWindowReducedCfg *args)
     EMBED_CALL(window_motion_layout, GuiWindowCtx, .window = args->window);
 }
 
-void gui_window_show(const GuiWindowDisplayedCfg *args)
+static void window_show_called(const GuiWindowDisplayedCfg *args)
 {
     args->window->off_screen = !args->displayed;
     EMBED_CALL(gui_background.pause, GuiBackgroundCfg, .background_fill = &args->window->background_fill,
                .paused = !args->displayed || args->window->motion_still || args->window->lattice_frozen,
                .now_ms = cli_clock_milliseconds());
     args->window->pending = args->displayed || args->window->pending;
+}
+
+void gui_window_show(const GuiWindowDisplayedCfg *args)
+{
+    window_frames_taken();
+    window_show_called(args);
+    window_frames_given();
 }
 
 // The caret's ink, 0 or 255. The caret hides while the editor does not have the keys. It shows through the input
@@ -1426,7 +1548,7 @@ EMBED_INLINE unsigned long long window_caret_deadline_ms(const GuiWindowCtx *arg
     return now_ms + half_ms - ((now_ms - begun_ms) % half_ms);
 }
 
-void gui_window_tick(const GuiWindowCfg *args)
+static void window_tick_called(const GuiWindowCfg *args)
 {
     // the autoscroll moves the scroll first, then the editor's scroll steps once a frame, whatever turned or dragged it
     // since the last
@@ -1530,6 +1652,13 @@ void gui_window_tick(const GuiWindowCfg *args)
     args->window->pending = args->window->pending || ((caret_changed || busy_stepped) && !alone);
 }
 
+void gui_window_tick(const GuiWindowCfg *args)
+{
+    window_frames_taken();
+    window_tick_called(args);
+    window_frames_given();
+}
+
 // whether a panel or a menu lies over `caret`, which stops the caret from a draw over them
 EMBED_INLINE int window_caret_cover(const GuiWindowCtx *args)
 {
@@ -1567,14 +1696,21 @@ EMBED_INLINE int window_caret_cover(const GuiWindowCtx *args)
     return 0;
 }
 
-void gui_window_flip(const GuiWindowCfg *args)
+static void window_flip_called(const GuiWindowCfg *args)
 {
     args->window->displayed = args->window->raster;
     args->window->raster =
         EMBED_CALL(gui_framebuffer_rings.flip, GuiFramebufferRingsCfg, .framebuffer = &args->window->framebuffer);
 }
 
-GuiRect gui_window_caret_draw(const GuiWindowCfg *args)
+void gui_window_flip(const GuiWindowCfg *args)
+{
+    window_frames_taken();
+    window_flip_called(args);
+    window_frames_given();
+}
+
+static GuiRect window_caret_draw_called(const GuiWindowCfg *args)
 {
     GuiWindow *const window = args->window;
     window->caret_alone = 0;
@@ -1585,13 +1721,29 @@ GuiRect gui_window_caret_draw(const GuiWindowCfg *args)
                       .palette = window->palette);
 }
 
-GuiRect gui_window_busy_draw(const GuiWindowCfg *args)
+GuiRect gui_window_caret_draw(const GuiWindowCfg *args)
+{
+    window_frames_taken();
+    const GuiRect answer = window_caret_draw_called(args);
+    window_frames_given();
+    return answer;
+}
+
+static GuiRect window_busy_draw_called(const GuiWindowCfg *args)
 {
     GuiWindow *const window = args->window;
     window->busy_alone = 0;
     return EMBED_CALL(gui_busy_frame.redrawn, GuiBusyFrameCfg, .now_ms = cli_clock_milliseconds(),
                       .busy = &window->busy,
                       .raster = (window->displayed != NULL) ? window->displayed : window->raster);
+}
+
+GuiRect gui_window_busy_draw(const GuiWindowCfg *args)
+{
+    window_frames_taken();
+    const GuiRect answer = window_busy_draw_called(args);
+    window_frames_given();
+    return answer;
 }
 
 // the deadline that set the last wait, its place among gui_window_timeout_ms's deadlines, GUI_WINDOW_WAKES for none
@@ -1607,7 +1759,7 @@ unsigned int gui_window_timeout_source(void)
     return s_timeout_source;
 }
 
-unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args)
+static unsigned long long window_timeout_ms_called(const GuiWindowInputCfg *args)
 {
     const GuiWindow *const window = args->window_read;
     const unsigned long long now_ms = cli_clock_milliseconds();
@@ -1684,6 +1836,14 @@ unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args)
         return 0ULL;
     }
     return (earliest > now_ms) ? earliest - now_ms : 1ULL;
+}
+
+unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args)
+{
+    window_frames_taken();
+    const unsigned long long answer = window_timeout_ms_called(args);
+    window_frames_given();
+    return answer;
 }
 
 // whether `name` is `key`
@@ -4080,7 +4240,7 @@ EMBED_INLINE void window_settings_read(const GuiWindowCtx *args)
     EMBED_CALL(window_settings_layout, GuiWindowCtx, .window = window, .on = 1);
 }
 
-void gui_window_preferences_resize(const GuiWindowWidthCfg *args)
+static void window_preferences_resize_called(const GuiWindowWidthCfg *args)
 {
     unsigned int width = args->width;
     unsigned int height = args->height;
@@ -4121,6 +4281,13 @@ void gui_window_preferences_resize(const GuiWindowWidthCfg *args)
                      .background_fill = &args->window->preferences_ground,
                      .raster = &args->window->preferences_ground_raster, .width = width, .height = height,
                      .scale = scale, .palette = args->window->palette);
+}
+
+void gui_window_preferences_resize(const GuiWindowWidthCfg *args)
+{
+    window_frames_taken();
+    window_preferences_resize_called(args);
+    window_frames_given();
 }
 
 static void window_preferences_press(const GuiInputHandlerCfg *args)
@@ -4220,7 +4387,7 @@ static void window_preferences_text(const GuiInputHandlerCfg *args)
         args->window->preferences_pending;
 }
 
-void gui_window_preferences_hits(const GuiWindowHitsCfg *args)
+static void window_preferences_hits_called(const GuiWindowHitsCfg *args)
 {
     const GuiPreferences *const preferences = &args->window->preferences;
     CliViewHits *const hits = args->hits;
@@ -4248,7 +4415,14 @@ void gui_window_preferences_hits(const GuiWindowHitsCfg *args)
     hits->caption = (GuiRect){0, 0, (int)preferences->width, tab.y + tab.height};
 }
 
-unsigned int gui_window_preferences_hit(const GuiWindowInputCfg *args)
+void gui_window_preferences_hits(const GuiWindowHitsCfg *args)
+{
+    window_frames_taken();
+    window_preferences_hits_called(args);
+    window_frames_given();
+}
+
+static unsigned int window_preferences_hit_called(const GuiWindowInputCfg *args)
 {
     GuiRect client[GUI_WINDOW_HIT_CLIENTS];
     CliViewHits hits = {.client = client};
@@ -4256,7 +4430,15 @@ unsigned int gui_window_preferences_hit(const GuiWindowInputCfg *args)
     return cli_view_hit_of(&(CliViewThreadCfg){.hits = &hits, .x = args->input->x, .y = args->input->y});
 }
 
-void gui_window_preferences_draw(const GuiWindowCfg *args)
+unsigned int gui_window_preferences_hit(const GuiWindowInputCfg *args)
+{
+    window_frames_taken();
+    const unsigned int answer = window_preferences_hit_called(args);
+    window_frames_given();
+    return answer;
+}
+
+static void window_preferences_draw_called(const GuiWindowCfg *args)
 {
     args->window->preferences_pending = 0;
     if (args->window->preferences_raster.pixels == NULL)
@@ -4278,12 +4460,26 @@ void gui_window_preferences_draw(const GuiWindowCfg *args)
                .buttons = &args->window->preferences.buttons, .time_ms = cli_clock_milliseconds());
 }
 
-void gui_window_preferences_close(const GuiWindowCfg *args)
+void gui_window_preferences_draw(const GuiWindowCfg *args)
+{
+    window_frames_taken();
+    window_preferences_draw_called(args);
+    window_frames_given();
+}
+
+static void window_preferences_close_called(const GuiWindowCfg *args)
 {
     if (args->window->preferences.displayed)
     {
         EMBED_CALL(window_preferences_toggle, GuiWindowCtx, .window = args->window);
     }
+}
+
+void gui_window_preferences_close(const GuiWindowCfg *args)
+{
+    window_frames_taken();
+    window_preferences_close_called(args);
+    window_frames_given();
 }
 
 // The panels read again from the servers' panels: the hover, the completion and the signature. A panel that came or
@@ -6327,7 +6523,7 @@ EMBED_INLINE void window_group_read(const GuiWindowCtx *args)
     EMBED_CALL(window_pane_read_event, GuiWindowCtx, .window = args->window, .event = GUI_PANE_DISPLAYED);
 }
 
-void gui_window_start(const GuiWindowCfg *args)
+static void window_start_called(const GuiWindowCfg *args)
 {
     GuiWindow *const window = args->window;
     s_window = window;
@@ -6394,7 +6590,14 @@ void gui_window_start(const GuiWindowCfg *args)
     window->pending = 1;
 }
 
-void gui_window_step(const GuiWindowCfg *args)
+void gui_window_start(const GuiWindowCfg *args)
+{
+    window_frames_taken();
+    window_start_called(args);
+    window_frames_given();
+}
+
+static void window_step_called(const GuiWindowCfg *args)
 {
     GuiWindow *const window = args->window;
     window->pending = cli_reach_take(&(CliReachCfg){.run = window_command_named}) || window->pending;
@@ -6585,6 +6788,13 @@ void gui_window_step(const GuiWindowCfg *args)
     }
     EMBED_CALL(gui_busy_running.work, GuiBusyRunningCfg, .busy = &window->busy,
                .running = cli_servers_problems_checking(), .now_ms = cli_clock_milliseconds());
+}
+
+void gui_window_step(const GuiWindowCfg *args)
+{
+    window_frames_taken();
+    window_step_called(args);
+    window_frames_given();
 }
 
 // The panels over the editor drawn inside the work's inside. The hover goes under its word, and nothing shows where
@@ -6849,7 +7059,7 @@ EMBED_INLINE void window_base_copy(const GuiWindowCtx *args)
     }
 }
 
-void gui_window_draw(const GuiWindowCfg *args)
+static void window_draw_called(const GuiWindowCfg *args)
 {
     const GuiFrame *const frame = &args->window->frame;
     const GuiPalette *const palette = args->window->palette;
@@ -7052,7 +7262,14 @@ void gui_window_draw(const GuiWindowCfg *args)
     }
 }
 
-GuiRect gui_window_damage_draw(const GuiWindowCfg *args)
+void gui_window_draw(const GuiWindowCfg *args)
+{
+    window_frames_taken();
+    window_draw_called(args);
+    window_frames_given();
+}
+
+static GuiRect window_damage_draw_called(const GuiWindowCfg *args)
 {
     GuiWindow *const window = args->window;
     GuiRaster *const back = window->raster;
@@ -7079,7 +7296,15 @@ GuiRect gui_window_damage_draw(const GuiWindowCfg *args)
     return cut;
 }
 
-void gui_window_hits(const GuiWindowHitsCfg *args)
+GuiRect gui_window_damage_draw(const GuiWindowCfg *args)
+{
+    window_frames_taken();
+    const GuiRect answer = window_damage_draw_called(args);
+    window_frames_given();
+    return answer;
+}
+
+static void window_hits_called(const GuiWindowHitsCfg *args)
 {
     const GuiWindow *const window = args->window;
     const GuiFrame *const frame = &window->frame;
@@ -7119,12 +7344,27 @@ void gui_window_hits(const GuiWindowHitsCfg *args)
     hits->caption = frame->top_menu;
 }
 
-unsigned int gui_window_hit(const GuiWindowInputCfg *args)
+void gui_window_hits(const GuiWindowHitsCfg *args)
+{
+    window_frames_taken();
+    window_hits_called(args);
+    window_frames_given();
+}
+
+static unsigned int window_hit_called(const GuiWindowInputCfg *args)
 {
     GuiRect client[GUI_WINDOW_HIT_CLIENTS];
     CliViewHits hits = {.client = client};
     EMBED_CALL(gui_window_table.hits, GuiWindowHitsCfg, .window = args->window_read, .hits = &hits);
     return cli_view_hit_of(&(CliViewThreadCfg){.hits = &hits, .x = args->input->x, .y = args->input->y});
+}
+
+unsigned int gui_window_hit(const GuiWindowInputCfg *args)
+{
+    window_frames_taken();
+    const unsigned int answer = window_hit_called(args);
+    window_frames_given();
+    return answer;
 }
 
 // What the pixel at x, y is on, written into `hit`: its hit, and its place among the rows. In the editor, it is its row
@@ -7461,7 +7701,7 @@ EMBED_INLINE void window_pointer_track(const GuiWindowCtx *args)
                      .shape = shape, .shown = args->on);
 }
 
-int gui_window_pointer_surface(const GuiWindowPointerCfg *args)
+static int window_pointer_surface_called(const GuiWindowPointerCfg *args)
 {
     GuiPointer *const pointer = args->pointer;
     const GuiInput *const input = args->input;
@@ -7479,6 +7719,14 @@ int gui_window_pointer_surface(const GuiWindowPointerCfg *args)
     const unsigned int border = EMBED_CALL(window_pointer_border_shape, GuiWindowCtx, .at = args->hit);
     return EMBED_CALL(gui_pointer_place_table.place, GuiPointerPlaceCfg, .pointer = pointer, .x = input->x,
                       .y = input->y, .shape = (border != GUI_POINTER_SHAPES) ? border : GUI_POINTER_ARROW, .shown = 1);
+}
+
+int gui_window_pointer_surface(const GuiWindowPointerCfg *args)
+{
+    window_frames_taken();
+    const int answer = window_pointer_surface_called(args);
+    window_frames_given();
+    return answer;
 }
 
 // whether Shift is down on the input
@@ -8969,7 +9217,7 @@ static const GuiInputHandlers s_preferences_handlers = {{[GUI_INPUT_MOVED] = win
                                                          [GUI_INPUT_TEXT] = window_preferences_text,
                                                          [GUI_INPUT_FOCUS] = window_preferences_focus}};
 
-void gui_window_input(const GuiWindowInputTypeCfg *args)
+static void window_input_called(const GuiWindowInputTypeCfg *args)
 {
     GuiWindow *window = args->window;
     const GuiInput *input = args->input;
@@ -8998,7 +9246,14 @@ void gui_window_input(const GuiWindowInputTypeCfg *args)
     }
 }
 
-void gui_window_preferences_input(const GuiWindowInputTypeCfg *args)
+void gui_window_input(const GuiWindowInputTypeCfg *args)
+{
+    window_frames_taken();
+    window_input_called(args);
+    window_frames_given();
+}
+
+static void window_preferences_input_called(const GuiWindowInputTypeCfg *args)
 {
     GuiWindow *window = args->window;
     const GuiInput *input = args->input;
@@ -9008,4 +9263,11 @@ void gui_window_preferences_input(const GuiWindowInputTypeCfg *args)
     (void)EMBED_CALL(
         gui_window_pointer_table.surface, GuiWindowPointerCfg, .pointer = &window->preferences_pointer, .input = input,
         .hit = EMBED_CALL(cli_window_input.preferences_hit, GuiWindowInputCfg, .window_read = window, .input = input));
+}
+
+void gui_window_preferences_input(const GuiWindowInputTypeCfg *args)
+{
+    window_frames_taken();
+    window_preferences_input_called(args);
+    window_frames_given();
 }

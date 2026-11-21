@@ -16,14 +16,16 @@ void cli_check_begun(void)
 // a line written to the output
 static void check_line(const VerbaLinea *line)
 {
-    EMBED_CALL(query_errors_internal.terminal_write, QueryErrorsCtx, .errors = 0, .text = line->out, .length = mmgr_line_ok(line) ? line->at : 0ull);
+    EMBED_CALL(query_errors_internal.terminal_write, QueryErrorsCtx, .errors = 0, .text = line->out,
+               .length = mmgr_line_ok(line) ? line->at : 0ull);
 }
 
 // ORIOR_CELLS_OWNERS set: the pool's report and MMgr's owner table written, each owner's bytes now and its peak
 static void check_owners_reported(void)
 {
     char requested[8];
-    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_CELLS_OWNERS", .value_out = requested, .capacity = sizeof(requested)))
+    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_CELLS_OWNERS",
+                    .value_out = requested, .capacity = sizeof(requested)))
     {
         return;
     }
@@ -32,8 +34,8 @@ static void check_owners_reported(void)
     mmgr_line_put(&owners, "cells pool ");
     cli_pool_usage_write(&owners);
     mmgr_line_ch(&owners, '\n');
-    // where the persistent tier ends and where the temporary tier's top is now: the gap between them is what a take
-    // from either tier can still be given
+    // Where the persistent tier ends and where the temporary tier's top is now. The gap between them is what a take
+    // from either tier can still get
     const SeriesCellularum *const record = cli_pool_series_cellularum();
     mmgr_line_put(&owners, "cells ends ");
     mmgr_line_decimal(&owners, (unsigned long long)mmgr_series_cellularum_persistent_end(record), 1u);
@@ -52,8 +54,8 @@ static unsigned long long s_persistent_hw;
 static unsigned long long s_temporary_hw;
 #define CHECK_RISE_BYTES (4ull * 1024ull * 1024ull)
 
-// the pool's high-water marks written after a check that raised either by CHECK_RISE_BYTES or more, which names the
-// check a run near the pool's ceiling is to look at
+// The pool's high-water marks written after a check that raised either by CHECK_RISE_BYTES or more. It names the
+// check to look at for a run near the pool's ceiling
 static void check_rise_reported(void)
 {
     unsigned long long pool = 0ull;
@@ -83,7 +85,7 @@ void cli_check(int passed, const char *what)
     mmgr_line_ch(&line, '\n');
     check_line(&line);
     check_rise_reported();
-    // the table at the first failure, where a pool that has filled is still as it filled
+    // the table at the first failure, where a pool that filled still is as it filled
     if (!passed && (s_failed == 0ull))
     {
         check_owners_reported();
@@ -112,7 +114,8 @@ void cli_check_text(const char *text, unsigned long long size, const char *requi
 
 void cli_check_folder(const char *name, char *full)
 {
-    if (!EMBED_CALL(query_capacity_path_internal.path_full, QueryCapacityPathCtx, .path = name, .full = full, .capacity = CLI_PATH_MAX_LEN))
+    if (!EMBED_CALL(query_capacity_path_internal.path_full, QueryCapacityPathCtx, .path = name, .full = full,
+                    .capacity = CLI_PATH_MAX_LEN))
     {
         memor.cpy(&(MemoriaCfg){.dst = full,
                                 .src = name,
@@ -122,34 +125,45 @@ void cli_check_folder(const char *name, char *full)
     (void)EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = full);
 }
 
-// The tree a text is parsed into, a cell sized to the text at each parse, the one before given back, and the last
-// given back as the checks end
+// The tree a parse writes a text into, a cell sized to the text at each parse. The one before goes back, and the last
+// goes back as the checks end
 static CliJson s_json;
 
 const CliJson *cli_check_parsed(const char *text, unsigned long long size, unsigned int *root)
 {
-    g_cli_guard->persistent_buf_release(s_json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
+    g_cli_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     char why[512];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    *root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &s_json, .text = text, .size = size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = g_checks_owner);
+    *root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &s_json,
+                       .text = text, .size = size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg,
+                       .owner = g_checks_owner);
     return &s_json;
 }
 
 const char *cli_check_member_text(unsigned int node, const char *name)
 {
-    const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = node, .name = name), .length_pointer = NULL);
+    const char *const text =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json,
+                                      .object = node, .name = name),
+                   .length_pointer = NULL);
     return (text != NULL) ? text : "";
 }
 
 unsigned int cli_check_finding(unsigned int found, const char *code, const char *part)
 {
-    for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = &s_json, .array = found, .index = at) != CLI_JSON_NONE; at += 1u)
+    for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                          .json_read = &s_json, .array = found, .index = at) != CLI_JSON_NONE;
+         at += 1u)
     {
-        const unsigned int one = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = &s_json, .array = found, .index = at);
-        const char *const message = cli_check_member_text(EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = one, .name = "message"), "value");
+        const unsigned int one = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                            .json_read = &s_json, .array = found, .index = at);
+        const char *const message =
+            cli_check_member_text(EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                             .json_read = &s_json, .object = one, .name = "message"),
+                                  "value");
         if (((code == NULL) ||
              (cellul.eq(&(CatenaFinitaCfg){
                  .src = cli_check_member_text(one, "code"), .other = code, .cap = CLI_POOL_BYTES}))) &&
@@ -189,7 +203,9 @@ const CliCompletions *cli_check_build_completed(const char *root, const char *pa
         col = (at[0] == '\n') ? 0u : col + 1u;
     }
     EMBED_CALL(cli_edits_items.completions_begin, CliEditsItemsCfg, .items = &s_items);
-    EMBED_CALL(cli_builds_path.build_complete, CliBuildsPathCfg, .root = root, .path = path, .text = text, .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES}), .line = line, .col = col, .items = &s_items);
+    EMBED_CALL(cli_builds_path.build_complete, CliBuildsPathCfg, .root = root, .path = path, .text = text,
+               .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES}), .line = line, .col = col,
+               .items = &s_items);
     return &s_items;
 }
 
@@ -206,11 +222,14 @@ void cli_check_server(const char *name, unsigned int port, char *host, unsigned 
                             .src = "127.0.0.1",
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = "127.0.0.1", .cap = CLI_POOL_BYTES}) + 1u});
     *at = port;
-    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = variable, .value_out = named, .capacity = sizeof(named)))
+    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = variable, .value_out = named,
+                    .capacity = sizeof(named)))
     {
         return;
     }
-    const char *const colon = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = named, .length_value = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_POOL_BYTES}), .byte = ':');
+    const char *const colon =
+        EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = named,
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_POOL_BYTES}), .byte = ':');
     unsigned long long number = 0ull;
     int digits = (colon != NULL) && (colon[1] != '\0');
     for (const char *character = (colon != NULL) ? colon + 1 : ""; digits && (character[0] != '\0'); character += 1)
@@ -231,8 +250,7 @@ void cli_check_server(const char *name, unsigned int port, char *host, unsigned 
 
 int cli_on_check(void)
 {
-    g_cli_guard->persistent_buf_release(s_json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
+    g_cli_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     char text[128];
@@ -246,4 +264,27 @@ int cli_on_check(void)
     check_line(&line);
     check_owners_reported();
     return (s_failed > 0ull) ? 1 : 0;
+}
+
+// the buffer a check reads a view's frame into, larger than any frame a check builds
+static _Alignas(16) unsigned char s_check_frame[1u << 22u];
+
+const CliViewFrame *cli_check_frame_kept(const char *key)
+{
+    const unsigned long long bytes = cli_view_frame_bytes(&(CliViewAtCfg){.key = key});
+    cli_check(bytes <= sizeof(s_check_frame), "the kept frame fits the checks' buffer");
+    return ((bytes != 0ULL) && (bytes <= sizeof(s_check_frame)))
+               ? cli_view_frame_read(
+                     &(CliViewAtCfg){.key = key, .frame_out = s_check_frame, .capacity = sizeof(s_check_frame)})
+               : NULL;
+}
+
+const CliViewFrame *cli_check_frame(const char *key)
+{
+    const unsigned long long bytes = cli_view_frame_build(&(CliViewAtCfg){.key = key});
+    cli_check(bytes <= sizeof(s_check_frame), "the frame fits the checks' buffer");
+    return ((bytes != 0ULL) && (bytes <= sizeof(s_check_frame)))
+               ? cli_view_frame_read(
+                     &(CliViewAtCfg){.key = key, .frame_out = s_check_frame, .capacity = sizeof(s_check_frame)})
+               : NULL;
 }

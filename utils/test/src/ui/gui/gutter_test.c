@@ -75,7 +75,7 @@ int main(void)
 
     GuiEditor editor;
     EMBED_CALL(gui_editor_table.init, GuiEditorCfg, .editor = &editor);
-    editor.frame = cli_view_frame_build(&(CliViewAtCfg){.key = s_key});
+    editor.frame = cli_check_frame(s_key);
     cli_check(editor.frame != NULL, "the view's frame is taken");
     GuiRaster raster;
     cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 800u, .height = 400u),

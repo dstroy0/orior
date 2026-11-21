@@ -1363,8 +1363,6 @@ utils/test/src/ui/cli/bench/bench.h	3
 utils/test/src/ui/cli/bench/cli_bench.c	3
 utils/test/src/ui/cli/bench/cli_bench_files.c	2
 utils/test/src/ui/cli/bench/cli_bench_rules.c	4
-utils/test/src/ui/cli/cli_check.c	6
-utils/test/src/ui/cli/cli_check.h	6
 utils/test/src/ui/cli/unit/at_terminal/test_at_terminal/test_at_terminal.c	2
 utils/test/src/ui/cli/unit/binary/test_binary/test_binary.c	3
 utils/test/src/ui/cli/unit/bridge/test_bridge/test_bridge.c	1
@@ -1430,8 +1428,6 @@ utils/test/src/ui/cli/unit/sessions/test_sessions/test_sessions.c	4
 utils/test/src/ui/cli/unit/settings_sync/test_settings_sync/test_settings_sync.c	1
 utils/test/src/ui/cli/unit/sift/test_sift/test_sift.c	3
 utils/test/src/ui/cli/unit/sort/test_sort/test_sort.c	1
-utils/test/src/ui/cli/unit/support/cli_unity.c	1
-utils/test/src/ui/cli/unit/support/cli_unity.h	5
 utils/test/src/ui/cli/unit/test_runs/test_test_runs/test_test_runs.c	2
 utils/test/src/ui/cli/unit/text_walks/test_text_walks/test_text_walks.c	4
 utils/test/src/ui/cli/unit/toolchains/test_toolchains/test_toolchains.c	3

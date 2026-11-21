@@ -65,7 +65,7 @@ static void opened(const char *now, GuiEditor *editor)
     (void)EMBED_CALL(cli_document_out_key_head_input.changes, CliDocumentOutKeyHeadInputCfg, .key = s_key,
                      .head_given = 1, .head = s_head, .head_size = sizeof(s_head) - 1u, .each = head_stored_each,
                      .context = NULL);
-    editor->frame = cli_view_frame_build(&(CliViewAtCfg){.key = s_key});
+    editor->frame = cli_check_frame(s_key);
 }
 
 // The text a check holds the document's text to: the text required and whether the two are the same

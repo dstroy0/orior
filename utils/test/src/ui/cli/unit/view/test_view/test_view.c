@@ -413,14 +413,14 @@ void test_the_view_follows_the_cursor_across_and_retains_its_cell_in_the_columns
     wide_view();
     key_times("Down", 1u);
     EMBED_CALL(key, CliNameCfg, .name = "End");
-    const CliViewFrame *const frame = cli_view_frame_build(&(CliViewAtCfg){.key = s_key});
+    const CliViewFrame *const frame = cli_unity_frame(s_key);
     TEST_ASSERT_NOT_NULL(frame);
     TEST_ASSERT_TRUE(frame->left > 0ull);
     TEST_ASSERT_TRUE(frame->left <= 200ull);
     TEST_ASSERT_TRUE(200ull < frame->left + 80ull);
     TEST_ASSERT_EQUAL_UINT64(200ull, frame->widest);
     EMBED_CALL(key, CliNameCfg, .name = "Home");
-    const CliViewFrame *const back = cli_view_frame_build(&(CliViewAtCfg){.key = s_key});
+    const CliViewFrame *const back = cli_unity_frame(s_key);
     TEST_ASSERT_NOT_NULL(back);
     TEST_ASSERT_EQUAL_UINT64(0ull, back->left);
 }
@@ -428,21 +428,21 @@ void test_the_view_follows_the_cursor_across_and_retains_its_cell_in_the_columns
 void test_a_slide_puts_the_first_column_and_stops_at_the_widest_line_less_the_columns(void)
 {
     wide_view();
-    const CliViewFrame *const displayed = cli_view_frame_build(&(CliViewAtCfg){.key = s_key});
+    const CliViewFrame *const displayed = cli_unity_frame(s_key);
     TEST_ASSERT_NOT_NULL(displayed);
     TEST_ASSERT_EQUAL_UINT64(200ull, displayed->widest);
     CliViewInput slide = view_key("");
     slide.type = CLI_VIEW_SLIDE;
     slide.column = 30ull;
     input_sent(&slide);
-    const CliViewFrame *const frame = cli_view_frame_build(&(CliViewAtCfg){.key = s_key});
+    const CliViewFrame *const frame = cli_unity_frame(s_key);
     TEST_ASSERT_NOT_NULL(frame);
     TEST_ASSERT_EQUAL_UINT64(30ull, frame->left);
     TEST_ASSERT_EQUAL_UINT64(30ull + 80ull, frame->row[1].length);
     TEST_ASSERT_EQUAL_UINT64(2ull, frame->row[0].length);
     slide.column = 5000ull;
     input_sent(&slide);
-    const CliViewFrame *const far = cli_view_frame_build(&(CliViewAtCfg){.key = s_key});
+    const CliViewFrame *const far = cli_unity_frame(s_key);
     TEST_ASSERT_NOT_NULL(far);
     TEST_ASSERT_EQUAL_UINT64(200ull - 80ull, far->left);
     TEST_ASSERT_EQUAL_UINT64(200ull, far->row[1].length);
@@ -451,7 +451,7 @@ void test_a_slide_puts_the_first_column_and_stops_at_the_widest_line_less_the_co
 void test_a_table_frame_positions_each_field_at_its_column_offset(void)
 {
     fresh_named("a\tbb\tc\nxxxx\ty\tz", "check/table.tsv");
-    const CliViewFrame *const frame = cli_view_frame_build(&(CliViewAtCfg){.key = s_key});
+    const CliViewFrame *const frame = cli_unity_frame(s_key);
     TEST_ASSERT_NOT_NULL(frame);
     TEST_ASSERT_EQUAL_UINT32('\t', frame->table);
     TEST_ASSERT_EQUAL_UINT32(0u, frame->table_quote);
@@ -467,7 +467,7 @@ void test_a_cell_in_a_table_column_maps_to_the_field_at_that_cell(void)
     unsigned long long line = 0ull;
     unsigned long long col = 0ull;
     fresh_named("a\tbb\tc\nxxxx\ty\tz", "check/table.tsv");
-    const CliViewFrame *const frame = cli_view_frame_build(&(CliViewAtCfg){.key = s_key});
+    const CliViewFrame *const frame = cli_unity_frame(s_key);
     TEST_ASSERT_NOT_NULL(frame);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_view_row.position_at, CliViewRowCfg, .key = s_key, .row = 0ull, .column = 6ull,
                                 .line = &line, .col = &col));
@@ -480,7 +480,7 @@ void test_a_cell_in_a_table_column_maps_to_the_field_at_that_cell(void)
 void test_a_quoted_field_contains_the_delimiter_as_a_character(void)
 {
     fresh_named("a,\"x,y\",c\nlonger,b,c", "check/table.csv");
-    const CliViewFrame *const frame = cli_view_frame_build(&(CliViewAtCfg){.key = s_key});
+    const CliViewFrame *const frame = cli_unity_frame(s_key);
     TEST_ASSERT_NOT_NULL(frame);
     TEST_ASSERT_EQUAL_UINT32(',', frame->table);
     TEST_ASSERT_EQUAL_UINT32('"', frame->table_quote);
@@ -492,7 +492,7 @@ void test_a_quoted_field_contains_the_delimiter_as_a_character(void)
 void test_a_file_that_is_not_a_table_has_no_column_offsets(void)
 {
     fresh(s_text);
-    const CliViewFrame *const frame = cli_view_frame_build(&(CliViewAtCfg){.key = s_key});
+    const CliViewFrame *const frame = cli_unity_frame(s_key);
     TEST_ASSERT_NOT_NULL(frame);
     TEST_ASSERT_EQUAL_UINT32(0u, frame->table);
     TEST_ASSERT_EQUAL_UINT32(0u, frame->column_count);
@@ -504,7 +504,7 @@ void test_a_table_s_column_widths_are_measured_over_every_line_as_it_opens(void)
     // the frame of a one-row view holds the rows past it too, three lines of five, and the widest field is on the last
     fresh_named("a\tb\nx\ty\nx\ty\nx\ty\nlonger\tc", "check/table.tsv");
     input_sent(&size);
-    const CliViewFrame *const frame = cli_view_frame_build(&(CliViewAtCfg){.key = s_key});
+    const CliViewFrame *const frame = cli_unity_frame(s_key);
     TEST_ASSERT_NOT_NULL(frame);
     TEST_ASSERT_EQUAL_UINT32(1u + CLI_VIEW_ROWS_PAST, frame->count);
     TEST_ASSERT_EQUAL_UINT32(2u, frame->column_count);
@@ -514,7 +514,7 @@ void test_a_table_s_column_widths_are_measured_over_every_line_as_it_opens(void)
 void test_a_table_frame_carries_the_offset_past_its_last_column(void)
 {
     fresh_named("a\tbb\tc\nxxxx\ty\tz", "check/table.tsv");
-    const CliViewFrame *const frame = cli_view_frame_build(&(CliViewAtCfg){.key = s_key});
+    const CliViewFrame *const frame = cli_unity_frame(s_key);
     TEST_ASSERT_NOT_NULL(frame);
     TEST_ASSERT_EQUAL_UINT32(3u, frame->column_count);
     TEST_ASSERT_EQUAL_UINT64(10ull, frame->column_offset[3]);
@@ -528,13 +528,13 @@ void test_a_column_input_sets_that_column_s_width(void)
     input.columns = 10u;
     fresh_named("a\tbb\tc\nxxxx\ty\tz", "check/table.tsv");
     input_sent(&input);
-    const CliViewFrame *const frame = cli_view_frame_build(&(CliViewAtCfg){.key = s_key});
+    const CliViewFrame *const frame = cli_unity_frame(s_key);
     TEST_ASSERT_NOT_NULL(frame);
     TEST_ASSERT_EQUAL_UINT64(11ull, frame->column_offset[1]);
     TEST_ASSERT_EQUAL_UINT64(14ull, frame->column_offset[2]);
     input.columns = 2u;
     input_sent(&input);
-    const CliViewFrame *const narrowed = cli_view_frame_build(&(CliViewAtCfg){.key = s_key});
+    const CliViewFrame *const narrowed = cli_unity_frame(s_key);
     TEST_ASSERT_NOT_NULL(narrowed);
     TEST_ASSERT_EQUAL_UINT64(3ull, narrowed->column_offset[1]);
 }
@@ -542,7 +542,7 @@ void test_a_column_input_sets_that_column_s_width(void)
 void test_a_table_s_map_positions_each_field_at_its_column(void)
 {
     fresh_named("a\tbb\tc\nxxxx\ty\tz", "check/table.tsv");
-    const CliViewFrame *const frame = cli_view_frame_build(&(CliViewAtCfg){.key = s_key});
+    const CliViewFrame *const frame = cli_unity_frame(s_key);
     TEST_ASSERT_NOT_NULL(frame);
     TEST_ASSERT_TRUE(cli_view_map_place(&(CliViewMapCfg){.key = s_key, .first = 0ull, .last = 1ull}));
     unsigned long long from = 0ull;
@@ -604,7 +604,7 @@ void test_the_watcher_is_passed_each_view_opened_each_frame_made_and_each_view_c
     fresh_named("one\ntwo\nthree", "check/watched.c");
     TEST_ASSERT_EQUAL_STRING("opened check:view check/watched.c", s_watched);
     key_times("Down", 1u);
-    const CliViewFrame *const frame = cli_view_frame_build(&(CliViewAtCfg){.key = s_key});
+    const CliViewFrame *const frame = cli_unity_frame(s_key);
     TEST_ASSERT_NOT_NULL(frame);
     TEST_ASSERT_EQUAL_STRING("drawn check:view", s_watched);
     TEST_ASSERT_EQUAL_UINT64(1ull, s_drawn.cursor.line);
@@ -1212,7 +1212,7 @@ void test_up_steps_back_over_the_lines_hidden(void)
 void test_the_frame_carries_the_head_lines_of_the_regions_the_top_line_is_in_as_sticky_rows(void)
 {
     main_view();
-    const CliViewFrame *const at_top = cli_view_frame_build(&(CliViewAtCfg){.key = s_key});
+    const CliViewFrame *const at_top = cli_unity_frame(s_key);
     TEST_ASSERT_NOT_NULL(at_top);
     TEST_ASSERT_EQUAL_UINT(0u, at_top->stickies);
     // scroll the view to `return 0;`, inside the folding range that the brace line opens. The head of that range,
@@ -1221,7 +1221,7 @@ void test_the_frame_carries_the_head_lines_of_the_regions_the_top_line_is_in_as_
     scroll.type = CLI_VIEW_SCROLL;
     scroll.top = 2ull;
     input_sent(&scroll);
-    const CliViewFrame *const frame = cli_view_frame_build(&(CliViewAtCfg){.key = s_key});
+    const CliViewFrame *const frame = cli_unity_frame(s_key);
     TEST_ASSERT_NOT_NULL(frame);
     TEST_ASSERT_EQUAL_UINT64(2ull, frame->top);
     TEST_ASSERT_EQUAL_UINT(1u, frame->stickies);
@@ -1241,7 +1241,7 @@ void test_nested_regions_pin_each_head_line_outermost_first(void)
     scroll.type = CLI_VIEW_SCROLL;
     scroll.top = 4ull;
     input_sent(&scroll);
-    const CliViewFrame *const frame = cli_view_frame_build(&(CliViewAtCfg){.key = s_key});
+    const CliViewFrame *const frame = cli_unity_frame(s_key);
     TEST_ASSERT_NOT_NULL(frame);
     TEST_ASSERT_EQUAL_UINT(2u, frame->stickies);
     TEST_ASSERT_EQUAL_UINT64(0ull, frame->row[frame->count].number);
@@ -1978,7 +1978,7 @@ void test_a_pages_edits_are_written_to_the_paged_text(void)
     paged_view();
     TEST_ASSERT_TRUE(EMBED_CALL(cli_document_out.paged_edit, CliDocumentOutCfg, .key = s_paged, .changes = changes,
                                 .edits = edits, .count_u32 = 1u, .err_msg = &err_msg));
-    const CliViewFrame *const frame = cli_view_frame_build(&(CliViewAtCfg){.key = s_paged});
+    const CliViewFrame *const frame = cli_unity_frame(s_paged);
     TEST_ASSERT_NOT_NULL(frame);
     TEST_ASSERT_GREATER_OR_EQUAL_UINT64(7ull, frame->row[0].length);
     TEST_ASSERT_EQUAL_MEMORY("xline 0", frame->bytes + frame->row[0].text, 7u);

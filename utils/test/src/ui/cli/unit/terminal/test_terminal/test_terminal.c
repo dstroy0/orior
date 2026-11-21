@@ -663,7 +663,7 @@ void test_the_terminal_opens_on_a_tab_whose_shell_takes_what_is_typed_and_shows_
     TEST_ASSERT_EQUAL_UINT(24u, pane.rows);
     // the pane is a view of the tab's text, located on the xterm's rows
     TEST_ASSERT_NOT_NULL(pane.key);
-    const CliViewFrame *const frame = cli_view_frame_build(&(CliViewAtCfg){.key = pane.key});
+    const CliViewFrame *const frame = cli_unity_frame(pane.key);
     TEST_ASSERT_NOT_NULL(frame);
     TEST_ASSERT_EQUAL_UINT64(pane.xterm_line, frame->top);
     // Control with a character goes to the shell, a plain character comes as text, and Ctrl+` goes on to the window
@@ -1005,7 +1005,7 @@ void test_the_panels_next_timer_is_its_running_shells_look_and_the_wheel_stays_o
     cli_terminal_tabs_wheel(&(CliTerminalTabsCfg){.view = 0u, .notches = 3});
     CliTerminalView pane;
     TEST_ASSERT_TRUE(cli_terminal_tabs_view(&(CliTerminalTabsCfg){.view = 0u, .out = &pane}));
-    const CliViewFrame *const frame = cli_view_frame_build(&(CliViewAtCfg){.key = pane.key});
+    const CliViewFrame *const frame = cli_unity_frame(pane.key);
     TEST_ASSERT_NOT_NULL(frame);
     TEST_ASSERT_EQUAL_UINT64(pane.xterm_line, frame->top);
     terminal_ended();

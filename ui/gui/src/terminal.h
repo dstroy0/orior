@@ -19,11 +19,11 @@
 
 typedef struct GuiTerminalCfg GuiTerminalCfg;
 
-// sizes in the page's pixels: the side_menu's padding at its top and its left, the gap between its items, a tab's
-// height, its padding at the left and the right, the gap before its × and the ×'s own padding, a tool's width and
-// height and its icon's side, a tab's corner and the line under the tab displayed; the views' padding at the top, the
-// sides and the foot, the text's size and a row's height, 13px at 1.3; the tabs' text size; and the line marking the
-// screen the keys go to
+// Sizes in the page's pixels. First the side_menu's padding at its top and its left, and the gap between its items.
+// Then a tab's height, its padding at the left and the right, the gap before its ×, and the ×'s own padding. Then a
+// tool's width and height and its icon's side, a tab's corner, and the line under the tab on display. Then the views'
+// padding at the top, the sides and the foot, the text's size, and a row's height, 13px at 1.3. Last, the tabs' text
+// size, and the line that marks the screen the keys go to
 #define GUI_TERMINAL_STRIP_PAD_TOP 2
 #define GUI_TERMINAL_STRIP_PAD_LEFT 6
 #define GUI_TERMINAL_STRIP_GAP 2
@@ -45,27 +45,30 @@ typedef struct GuiTerminalCfg GuiTerminalCfg;
 #define GUI_TERMINAL_TAB_SIZE 12u
 #define GUI_TERMINAL_CHOSEN_LINE 2
 
-// The terminal as the window last read it of the terminal's tabs: the panel, its two panes, the one displayed then the
-// one beside it, and each pane's frame of its tab's text, NULL for none
+// The terminal as the window last read it of the terminal's tabs: the panel, and its two panes. The one on display
+// comes first, then the one beside it. Then each pane's frame of its tab's text, read for the window's call alone,
+// NULL for none.
+// Last, whether each pane's view keeps a frame to read
 typedef struct
 {
     CliTerminalPanel panel;
     CliTerminalView view[2];
     const CliViewFrame *frame[2];
+    int framed[2];
 } GuiTerminal;
 
-// the columns and rows the pane `view` shows, 0 the one displayed and 1 the one beside it, into `columns` and `rows`,
-// two of each at the least: 1, or 0 where the panel is closed or the view not displayed
+// The columns and rows the pane `view` shows, 0 the one on display and 1 the one beside it, into `columns` and `rows`.
+// There are two of each at the least. Returns 1, or 0 where the panel is not open or the view not on display
 int gui_terminal_size(const GuiTerminalCfg *args);
-// what the pixel at x, y is on in the panel: CLI_HIT_TERMINAL with the pane into `index` and the row and the
-// column the pixel is nearest the left edge of into `row` and `column`, CLI_HIT_TERMINAL_TAB or
-// CLI_HIT_TERMINAL_TAB_CLOSE with the tab, CLI_HIT_TERMINAL_NEW or CLI_HIT_TERMINAL_SPLIT, CLI_HIT_TERMINAL_PANEL on
-// none of these, and CLI_HIT_NONE outside the panel or with it closed
+// What the pixel at x, y is on in the panel. CLI_HIT_TERMINAL comes with the pane into `index`, and the row and the
+// column whose left edge the pixel is nearest into `row` and `column`. CLI_HIT_TERMINAL_TAB or
+// CLI_HIT_TERMINAL_TAB_CLOSE comes with the tab. Then CLI_HIT_TERMINAL_NEW or CLI_HIT_TERMINAL_SPLIT, and
+// CLI_HIT_TERMINAL_PANEL on none of these. CLI_HIT_NONE is outside the panel, or where it is not open
 unsigned int gui_terminal_hit(const GuiTerminalCfg *args);
-// the row and the column of the pane `view` the pixel at x, y is nearest, into `row` and `column`, a pixel outside
-// the pane taking the nearest of its rows and columns: 1, or 0 where the pane is not displayed
+// The row and the column of the pane `view` the pixel at x, y is nearest, into `row` and `column`. A pixel outside the
+// pane takes the nearest of its rows and columns. Returns 1, or 0 where the pane is not on display
 int gui_terminal_cell_at(const GuiTerminalCfg *args);
-// the panel drawn in the frame's terminal, nothing while it is closed
+// the panel drawn in the frame's terminal, and nothing while it is not open
 void gui_terminal_draw(const GuiTerminalCfg *args);
 struct GuiTerminalCfg
 {

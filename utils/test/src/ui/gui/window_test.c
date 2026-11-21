@@ -35,6 +35,26 @@
 static GuiWindow s_window;
 static char s_root[CLI_PATH_MAX_LEN];
 
+// The frame the window last built for the view on display, read into the checks' buffer for the check, NULL for none.
+// It also goes into the window's editor record, which the window empties at the end of each of its calls
+static const CliViewFrame *editor_frame(void)
+{
+    char key[CLI_NAME_MAX_LEN];
+    const int displayed = cli_view_displayed();
+    s_window.editor.frame =
+        ((displayed >= 0) && cli_view_key(&(CliViewAtCfg){.at = (unsigned int)displayed, .key_out = key}))
+            ? cli_check_frame_kept(key)
+            : NULL;
+    return s_window.editor.frame;
+}
+
+// the window's editor record, with the frame the window last built read into it for the check
+static GuiEditor *editor_framed(void)
+{
+    (void)editor_frame();
+    return &s_window.editor;
+}
+
 // A command the check asks of the window through the interface, on a thread of its own, as the command line asks it.
 // The record holds the command, its word, NULL for none, what the window answered, what the ask came to, and whether
 // the answer came.
@@ -550,7 +570,7 @@ static void cells_rounds_checked(void)
 // the runs the editor's frame holds for its row `row`, 0 where it holds none
 static unsigned int row_runs(unsigned int row)
 {
-    const CliViewFrame *const frame = s_window.editor.frame;
+    const CliViewFrame *const frame = editor_frame();
     return ((frame != NULL) && (row < frame->count))
                ? EMBED_CALL(cli_document_line_run_table.count, CliDocumentLineRunCfg, .key = frame->key,
                             .line = frame->row[row].number, .mirrored = 1)
@@ -601,7 +621,7 @@ static void typed_colored_checked(void)
 // the runs of the row `row` copied into `words`, `capacity` runs at most, a column then a name a run: how many runs
 static unsigned int row_runs_copied(unsigned int row, unsigned int *words, unsigned int capacity)
 {
-    const CliViewFrame *const frame = s_window.editor.frame;
+    const CliViewFrame *const frame = editor_frame();
     const unsigned int runs = row_runs(row);
     if ((runs == 0u) || (runs > capacity))
     {
@@ -965,13 +985,12 @@ static void place_checked(void)
                   cellul.eq(&(CatenaFinitaCfg){
                       .src = displayed_path, .cap = CLI_POOL_BYTES, .other = "placed.txt", .other_cap = 11u}),
               "the file of the path before the line and the column is as the tab displayed");
-    const CliViewFrame *const frame = s_window.editor.frame;
+    const CliViewFrame *const frame = editor_frame();
     cli_check((frame != NULL) && (frame->cursor.line == 1ULL) && (frame->cursor.col == 2ULL),
               "the cursor is at the line and the column");
     tree_path("placed.txt:3", path);
     (void)asked("file", path);
-    cli_check((s_window.editor.frame != NULL) && (s_window.editor.frame->cursor.line == 2ULL) &&
-                  (s_window.editor.frame->cursor.col == 0ULL),
+    cli_check((editor_frame() != NULL) && (editor_frame()->cursor.line == 2ULL) && (editor_frame()->cursor.col == 0ULL),
               "a line alone puts the cursor at the line's start");
 }
 
@@ -1135,7 +1154,7 @@ static void released_with(int x, int y, unsigned int button)
 static GuiRect caret_box(void)
 {
     stepped();
-    return EMBED_CALL(gui_editor_position.caret_rect, GuiEditorPositionCfg, .editor_read = &s_window.editor,
+    return EMBED_CALL(gui_editor_position.caret_rect, GuiEditorPositionCfg, .editor_read = editor_framed(),
                       .glyphs = &s_window.glyphs, .place = s_window.frame.editor, .scale = s_window.frame.scale);
 }
 
@@ -1164,9 +1183,9 @@ static int cell_near(int x, int start, float cell, int cells)
 // at the caret's own frame.
 static int line_start_x(float cell)
 {
-    const CliViewFrame *const frame = s_window.editor.frame;
+    const CliViewFrame *const frame = editor_frame();
     const int gutter = EMBED_CALL(gui_editor_position_cell.gutter, GuiEditorPositionCellCfg,
-                                  .editor_read = &s_window.editor, .cell = cell, .scale = s_window.frame.scale);
+                                  .editor_read = editor_framed(), .cell = cell, .scale = s_window.frame.scale);
     const float slid = (float)((frame != NULL) ? frame->left : 0ULL) * cell;
     return (int)(((float)(s_window.frame.editor.x + gutter) - slid - s_window.editor.scroll_x) + 0.5f);
 }
@@ -1177,7 +1196,7 @@ static int caret_at_cells(float cell, int cells)
 {
     const int x = caret_x();
     const int start = line_start_x(cell);
-    const CliViewFrame *const frame = s_window.editor.frame;
+    const CliViewFrame *const frame = editor_frame();
     const int near = (frame != NULL) && cell_near(x, start, cell, cells);
     if (!near)
     {
@@ -1192,7 +1211,7 @@ static void table_checked(void)
 {
     tabs_closed("grid.tsv", "a\tbb\tc\nxxxx\ty\tz\n", NULL, NULL);
     cli_check(tab_opened("grid.tsv"), "a tsv file opens as a table");
-    const CliViewFrame *const frame = s_window.editor.frame;
+    const CliViewFrame *const frame = editor_frame();
     cli_check((frame != NULL) && (frame->table == '\t') && (frame->table_quote == 0u) && (frame->column_count == 3u) &&
                   (frame->column_offset[1] == 5ULL) && (frame->column_offset[2] == 8ULL),
               "the frame carries the tab delimiter and three column offsets, the second at cell 5 and the third at 8");
@@ -1207,7 +1226,7 @@ static void table_checked(void)
               "the caret at the second field's first character is five cells right of the line's start");
     key_pressed("End");
     cli_check(caret_at_cells(cell, 9), "the caret at the line's end is at cell 9");
-    cli_check((s_window.editor.frame != NULL) && (s_window.editor.frame->column_offset[3] == 10ULL),
+    cli_check((editor_frame() != NULL) && (editor_frame()->column_offset[3] == 10ULL),
               "the offset past the last column is at cell 10");
     // the second column's line, at cell 8, dragged to cell 10 widens the second column from 2 cells to 5
     const GuiRect caret = caret_box();
@@ -1217,8 +1236,7 @@ static void table_checked(void)
     cli_check(s_window.column_drag == 2u, "a press on the second column's line grips it");
     moved(cell_x(first_x, cell, 10), row_y);
     released_with(cell_x(first_x, cell, 10), row_y, GUI_BUTTON_LEFT);
-    cli_check((s_window.column_drag == 0u) && (s_window.editor.frame != NULL) &&
-                  (s_window.editor.frame->column_offset[2] == 11ULL),
+    cli_check((s_window.column_drag == 0u) && (editor_frame() != NULL) && (editor_frame()->column_offset[2] == 11ULL),
               "the line let go leaves the third column's offset at cell 11");
 }
 
@@ -2008,7 +2026,7 @@ static void sticky_notch_checked(void)
     cli_check(asked("file", path), "the view is placed inside the function");
     typed("x");
     stepped_for(GUI_AUTOHIDE_ANIMATION_MS + 100ULL);
-    cli_check(s_window.claim.autohidden && (s_window.editor.frame != NULL) && (s_window.editor.frame->stickies == 1u),
+    cli_check(s_window.claim.autohidden && (editor_frame() != NULL) && (editor_frame()->stickies == 1u),
               "typing claims the edges and the function's head is the one sticky row");
     cli_check(EMBED_CALL(cli_window_input.timeout_ms, GuiWindowInputCfg, .window_read = &s_window) != 0ULL,
               "the window wants a tick while the caret blinks and the claim slides");
@@ -2029,7 +2047,7 @@ static void sticky_notch_checked(void)
                          .height = (unsigned int)place.height),
               "a raster for the editor is made");
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = place, .color = clear);
-    EMBED_CALL(gui_editor_position_scale.draw, GuiEditorPositionScaleCfg, .editor = &s_window.editor, .raster = &raster,
+    EMBED_CALL(gui_editor_position_scale.draw, GuiEditorPositionScaleCfg, .editor = editor_framed(), .raster = &raster,
                .glyphs = &s_window.glyphs, .palette = s_window.palette, .place = place, .notch = notch,
                .radius = s_window.frame.radius, .scale = s_window.frame.scale, .key = "long.c");
     // the probes are inside the raster, whose sides an unsigned int represents
@@ -2042,16 +2060,15 @@ static void sticky_notch_checked(void)
     // A press on the sticky row puts its line at the view's top, and the frame follows within a second. The row is
     // under the top band, where the claim reads a press in as the bar's.
     const GuiRect editor = s_window.frame.editor;
-    const unsigned long long pinned = s_window.editor.frame->row[s_window.editor.frame->count].number;
+    const unsigned long long pinned = editor_frame()->row[editor_frame()->count].number;
     pressed_with(editor.x + 60, editor.y + line_height - 2, GUI_BUTTON_LEFT);
     released_with(editor.x + 60, editor.y + line_height - 2, GUI_BUTTON_LEFT);
     const unsigned long long scrolled_until = cli_clock_milliseconds() + 1000ULL;
-    while ((cli_clock_milliseconds() < scrolled_until) &&
-           ((s_window.editor.frame == NULL) || (s_window.editor.frame->top != pinned)))
+    while ((cli_clock_milliseconds() < scrolled_until) && ((editor_frame() == NULL) || (editor_frame()->top != pinned)))
     {
         stepped_for(20ULL);
     }
-    cli_check((s_window.editor.frame != NULL) && (s_window.editor.frame->top == pinned),
+    cli_check((editor_frame() != NULL) && (editor_frame()->top == pinned),
               "a press on the sticky row puts its line at the view's top");
 }
 
@@ -2635,8 +2652,8 @@ static void hover_checked(void)
     cursor_put(3ULL, 12ULL);
     // the check reads the caret box at a frame that places the cursor on the word
     unsigned int frames = 0u;
-    while ((frames < 100u) && ((s_window.editor.frame == NULL) || (s_window.editor.frame->cursor.line != 3ULL) ||
-                               (s_window.editor.frame->cursor.col != 12ULL)))
+    while ((frames < 100u) &&
+           ((editor_frame() == NULL) || (editor_frame()->cursor.line != 3ULL) || (editor_frame()->cursor.col != 12ULL)))
     {
         stepped_for(20ULL);
         frames += 1u;
