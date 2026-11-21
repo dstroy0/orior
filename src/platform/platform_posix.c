@@ -191,6 +191,11 @@ void platform_terminal_write(int errors, const char *text, unsigned long long le
     }
 }
 
+int platform_terminal_is(int errors)
+{
+    return (isatty(errors ? 2 : 1) != 0) ? 1 : 0;
+}
+
 unsigned long long platform_environment(const char *name, char *out, unsigned long long capacity)
 {
     const char *const value = getenv(name);

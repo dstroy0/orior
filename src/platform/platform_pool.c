@@ -8,6 +8,8 @@
 
 #include "memoria_operor/memoria_operor.h"
 
+#include <stdlib.h>
+
 // The pool. Its bytes come from the system at the process stage, outside the image of the program, and the record of
 // the cellblock lies over them. Minimum security: a release leaves the bytes of a cell as they are
 ParsMemoriaeHospes(platform_pool);
@@ -43,6 +45,9 @@ EMBED_ALIGN(PLATFORM_PARTS_ALIGN) static char s_block[PLATFORM_BLOCK_BYTES];
 
 // the line of the output stream, over its part of the block
 static VerbaLinea s_line_out;
+
+// 1 where the output stream is a terminal, which platform_open asks the system once
+static int s_line_out_terminal;
 
 // the clock that badges a take of a cell, the clock of the host
 embed_u64 mmgr_carcer_hw_clock_ns(void)
@@ -173,6 +178,9 @@ int platform_open(unsigned long long bytes)
                                 .thread_yield = platform_thread_yield,
                                 .thread_moving = NULL});
     s_line_out = (VerbaLinea){s_block, (size_t)PLATFORM_LINE_BYTES, 0u, platform_line_written, NULL, 0u};
+    s_line_out_terminal = platform_terminal_is(0);
+    // a program that calls exit before program_main returns skips platform_close, and its line goes out at exit
+    (void)atexit(platform_line_flushed);
     return 1;
 }
 
@@ -198,6 +206,14 @@ void platform_line_flushed(void)
     if (s_line_out.at != 0u)
     {
         (void)mmgr_line_flush(&s_line_out);
+    }
+}
+
+void platform_line_out_ended(void)
+{
+    if (s_line_out_terminal != 0)
+    {
+        platform_line_flushed();
     }
 }
 

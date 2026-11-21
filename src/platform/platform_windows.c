@@ -135,6 +135,13 @@ void platform_terminal_write(int errors, const char *text, unsigned long long le
     }
 }
 
+int platform_terminal_is(int errors)
+{
+    // a console answers its mode, and a pipe or a file answers none
+    DWORD mode = 0u;
+    return (GetConsoleMode(GetStdHandle(errors ? STD_ERROR_HANDLE : STD_OUTPUT_HANDLE), &mode) != 0) ? 1 : 0;
+}
+
 unsigned long long platform_environment(const char *name, char *out, unsigned long long capacity)
 {
     // a capacity past what a DWORD counts reads as the most that it counts
