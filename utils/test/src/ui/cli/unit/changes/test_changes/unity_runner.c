@@ -82,18 +82,18 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("utils/test/src/ui/cli/unit/changes/test_changes/test_changes.c");
-  run_test(test_a_line_put_in_is_one_change_marked_added, "test_a_line_put_in_is_one_change_marked_added", 101);
-  run_test(test_a_line_taken_out_marks_the_line_above_it, "test_a_line_taken_out_marks_the_line_above_it", 110);
-  run_test(test_a_line_changed_is_one_change_marked_changed_with_its_two_lines, "test_a_line_changed_is_one_change_marked_changed_with_its_two_lines", 118);
-  run_test(test_the_gutter_marks_a_change_from_its_first_line_and_a_removal_on_the_line_above, "test_the_gutter_marks_a_change_from_its_first_line_and_a_removal_on_the_line_above", 133);
-  run_test(test_the_marks_of_a_run_of_lines, "test_the_marks_of_a_run_of_lines", 146);
-  run_test(test_stepping_wraps_in_both_directions, "test_stepping_wraps_in_both_directions", 158);
-  run_test(test_a_revert_of_a_line_put_in_leaves_the_last_commits_text, "test_a_revert_of_a_line_put_in_leaves_the_last_commits_text", 181);
-  run_test(test_a_revert_of_a_line_taken_out_leaves_the_last_commits_text, "test_a_revert_of_a_line_taken_out_leaves_the_last_commits_text", 188);
-  run_test(test_a_revert_of_a_line_changed_leaves_the_last_commits_text, "test_a_revert_of_a_line_changed_leaves_the_last_commits_text", 195);
-  run_test(test_a_revert_of_lines_at_the_end_leaves_the_last_commits_text, "test_a_revert_of_lines_at_the_end_leaves_the_last_commits_text", 202);
-  run_test(test_the_changes_read_again_are_until_the_text_moves, "test_the_changes_read_again_are_until_the_text_moves", 209);
-  run_test(test_no_head_reads_no_change, "test_no_head_reads_no_change", 220);
+  run_test(test_a_line_put_in_is_one_change_marked_added, "test_a_line_put_in_is_one_change_marked_added", 109);
+  run_test(test_a_line_taken_out_marks_the_line_above_it, "test_a_line_taken_out_marks_the_line_above_it", 118);
+  run_test(test_a_line_changed_is_one_change_marked_changed_with_its_two_lines, "test_a_line_changed_is_one_change_marked_changed_with_its_two_lines", 126);
+  run_test(test_the_gutter_marks_a_change_from_its_first_line_and_a_removal_on_the_line_above, "test_the_gutter_marks_a_change_from_its_first_line_and_a_removal_on_the_line_above", 141);
+  run_test(test_the_marks_of_a_run_of_lines, "test_the_marks_of_a_run_of_lines", 154);
+  run_test(test_stepping_wraps_in_both_directions, "test_stepping_wraps_in_both_directions", 166);
+  run_test(test_a_revert_of_a_line_put_in_leaves_the_last_commits_text, "test_a_revert_of_a_line_put_in_leaves_the_last_commits_text", 189);
+  run_test(test_a_revert_of_a_line_taken_out_leaves_the_last_commits_text, "test_a_revert_of_a_line_taken_out_leaves_the_last_commits_text", 196);
+  run_test(test_a_revert_of_a_line_changed_leaves_the_last_commits_text, "test_a_revert_of_a_line_changed_leaves_the_last_commits_text", 203);
+  run_test(test_a_revert_of_lines_at_the_end_leaves_the_last_commits_text, "test_a_revert_of_lines_at_the_end_leaves_the_last_commits_text", 210);
+  run_test(test_the_changes_read_again_are_until_the_text_moves, "test_the_changes_read_again_are_until_the_text_moves", 217);
+  run_test(test_no_head_reads_no_change, "test_no_head_reads_no_change", 228);
 
   return UNITY_END();
 }
