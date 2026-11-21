@@ -305,3 +305,13 @@ qubits	thing	the list of qubits a gate or a barrier acts on	openqasm2_0
 parameters	thing	the list of angles a gate declares	openqasm2_0																																																											
 name	thing	the name a register or a gate declares	openqasm2_0																																																											
 h	doing	the Hadamard gate on one qubit	openqasm2_0																																																											
+add_assign	doing	a verb																																																			1									
+sub_assign	doing	a verb																																																				1								
+mul_assign	doing	a verb																																																					1							
+div_assign	doing	a verb																																																						1						
+rem_assign	doing	a verb																																																							1					
+bitand_assign	doing	a verb																																																								1				
+bitor_assign	doing	a verb																																																									1			
+bitxor_assign	doing	a verb																																																										1		
+shl_assign	doing	a verb																																																											1	
+shr_assign	doing	a verb																																																												1

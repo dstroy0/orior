@@ -1,0 +1,31 @@
+word	type	names	probe	expected	witness	selected_by_process	selected_by_step	selected_by_branch	selected_by_fulltrace	bits	signed	transpiler	+	-	*	/	%	&	|	^	<<	>>	<	<=	>	>=	==	!=	==0	!=0	<0	&&	||	-x	~x	!x	?:	=	(T)	*p	*p=	f()	.	if	return	goto	label:	switch	{}	T x	//	const	atomic()	+=	-=	*=	/=	%=	&=	|=	^=	<<=	>>=
+=	plain	a name given a value	a = 9; print(a)	9	python 3.14.6							set																										1																									
++	core op	the sum of two values	print(7 + -3)	4	python 3.14.6							add	1																																																		
+-	core op	the difference of two values	print(7 - 10)	-3	python 3.14.6							sub		1																																																	
+*	core op	the product of two values	print(-7 * 3)	-21	python 3.14.6							mul			1																																																
+//	core op	the quotient of two integers, rounded down	print(-7 // 2)	-3								div				1																																															
+%	core op	the remainder of the quotient rounded down, with the sign of the divisor	print(-7 % 2)	-1								rem					1																																														
+&	core op	the bitwise AND of two values	print(12 & 10)	8	python 3.14.6							bitand						1																																													
+|	core op	the bitwise OR of two values	print(12 | 10)	14	python 3.14.6							bitor							1																																												
+^	core op	the bitwise exclusive OR of two values	print(12 ^ 10)	6	python 3.14.6							bitxor								1																																											
+<<	core op	a value with its bits moved to the left	print(3 << 4)	48	python 3.14.6							shl									1																																										
+>>	core op	a value with its bits moved to the right, and its sign kept	print(-16 >> 2)	-4	python 3.14.6							shr										1																																									
+<	core op	True where the first value is less than the second, and False where it is not	print(int(2 < 3), int(3 < 2))	1 0	python 3.14.6							lt											1																																								
+<=	core op	True where the first value is not more than the second, and False where it is	print(int(2 <= 2), int(3 <= 2))	1 0	python 3.14.6							le												1																																							
+>	core op	True where the first value is more than the second, and False where it is not	print(int(3 > 2), int(2 > 3))	1 0	python 3.14.6							gt													1																																						
+>=	core op	True where the first value is not less than the second, and False where it is	print(int(2 >= 2), int(2 >= 3))	1 0	python 3.14.6							ge														1																																					
+==	core op	True where two values are the same, and False where they are not	print(int(2 == 2), int(2 == 3))	1 0	python 3.14.6							eq															1																																				
+!=	core op	True where two values are not the same, and False where they are	print(int(2 != 3), int(2 != 2))	1 0	python 3.14.6							ne																1																																			
+-	core op	the negative of a value	a = 5; print(-a)	-5	python 3.14.6							neg																						1																													
+~	core op	a value with each of its bits inverted	print(~5)	-6	python 3.14.6							not																							1																												
+not	core op	True where a value is false, and False where it is not	print(int(not 0), int(not 5))	1 0	python 3.14.6							unless																								1																											
++=	core op	a name given its value plus a value	a = 5; a += 3; print(a)	8	python 3.14.6							add_assign																																										1									
+-=	core op	a name given its value minus a value	a = 5; a -= 8; print(a)	-3	python 3.14.6							sub_assign																																											1								
+*=	core op	a name given its value times a value	a = -7; a *= 3; print(a)	-21	python 3.14.6							mul_assign																																												1							
+//=	core op	a name given the quotient of its value and a value, rounded down	a = -7; a //= 2; print(a)	-3								div_assign																																													1						
+%=	core op	a name given the remainder of its value and a value, with the sign of the divisor	a = -7; a %= 2; print(a)	-1								rem_assign																																														1					
+&=	core op	a name given the bitwise AND of its value and a value	a = 12; a &= 10; print(a)	8	python 3.14.6							bitand_assign																																															1				
+|=	core op	a name given the bitwise OR of its value and a value	a = 12; a |= 10; print(a)	14	python 3.14.6							bitor_assign																																																1			
+^=	core op	a name given the bitwise exclusive OR of its value and a value	a = 12; a ^= 10; print(a)	6	python 3.14.6							bitxor_assign																																																	1		
+<<=	core op	a name given its value with its bits moved to the left	a = 3; a <<= 4; print(a)	48	python 3.14.6							shl_assign																																																		1	
+>>=	core op	a name given its value with its bits moved to the right, and its sign kept	a = -16; a >>= 2; print(a)	-4	python 3.14.6							shr_assign																																																			1

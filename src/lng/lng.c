@@ -1869,3 +1869,177 @@ void lng_used_check(const LngTable *table, const char *path, const LngMap *used,
         }
     }
 }
+
+// the row of the transpiler's own words in `transpiler` whose word is `word`, or the table's count of rows where none
+// is
+static unsigned int lng_bridge_word_row(const LngTable *transpiler, const char *word)
+{
+    for (unsigned int row = 0u; row < transpiler->rows; row += 1u)
+    {
+        if (!lng_row_targeted(transpiler, row) && (strcmp(lng_cell_or_none(transpiler, row, "word"), word) == 0))
+        {
+            return row;
+        }
+    }
+    return transpiler->rows;
+}
+
+// the first row of the target table `target` that bridges to the transpiler word `bridge`, or the table's count of
+// rows where none does
+static unsigned int lng_bridged_row(const LngTable *target, const char *bridge)
+{
+    for (unsigned int row = 0u; row < target->rows; row += 1u)
+    {
+        if (strcmp(lng_cell_or_none(target, row, "transpiler"), bridge) == 0)
+        {
+            return row;
+        }
+    }
+    return target->rows;
+}
+
+void lng_target_check(const LngTable *transpiler, const LngTable *target, const char *name, LngList *defects,
+                      LngList *findings)
+{
+    LngList bridged = {NULL, 0u, 0u};
+    for (unsigned int row = 0u; row < target->rows; row += 1u)
+    {
+        const char *const word = lng_cell_or_none(target, row, "word");
+        const char *const type = lng_cell_or_none(target, row, "type");
+        const char *const bridge = lng_cell_or_none(target, row, "transpiler");
+        const int probed = (lng_cell_or_none(target, row, "probe")[0] != '\0');
+        const int expected = (lng_cell_or_none(target, row, "expected")[0] != '\0');
+        if (!lng_one_of(type, g_lng_hol_types, LNG_HOL_KINDS))
+        {
+            lng_list_printed(defects, "%s's %s has the type %s, which no table names", name, word, type);
+        }
+        if (probed != expected)
+        {
+            lng_list_printed(defects, "%s's %s has a %s and no %s", name, word, probed ? "probe" : "expected output",
+                             probed ? "expected output" : "probe");
+        }
+        if (bridge[0] == '\0')
+        {
+            lng_list_printed(defects, "%s's %s bridges to no transpiler word, and no lift takes it to gsm", name, word);
+            continue;
+        }
+        const unsigned int crossed = lng_bridge_word_row(transpiler, bridge);
+        if (crossed == transpiler->rows)
+        {
+            lng_list_printed(defects, "%s's %s bridges to %s, which the transpiler has no word for", name, word,
+                             bridge);
+            continue;
+        }
+        if (lng_set_has(&bridged, bridge))
+        {
+            lng_list_printed(defects, "%s bridges to %s twice", name, bridge);
+        }
+        lng_set_add(&bridged, bridge);
+        // a type and its bridge agree on width and sign
+        if ((strcmp(type, "type") == 0) &&
+            ((strcmp(lng_cell_or_none(target, row, "bits"), lng_cell_or_none(transpiler, crossed, "bits")) != 0) ||
+             (strcmp(lng_cell_or_none(target, row, "signed"), lng_cell_or_none(transpiler, crossed, "signed")) != 0)))
+        {
+            lng_list_printed(defects, "%s's %s is %s bits signed %s and bridges to %s, which is %s bits signed %s",
+                             name, word, lng_cell_or_none(target, row, "bits"), lng_cell_or_none(target, row, "signed"),
+                             bridge, lng_cell_or_none(transpiler, crossed, "bits"),
+                             lng_cell_or_none(transpiler, crossed, "signed"));
+        }
+        // each relation the row marks, its bridge marks too
+        LngList marked = {NULL, 0u, 0u};
+        LngList bridge_marked = {NULL, 0u, 0u};
+        lng_operators_of(target, row, &marked);
+        lng_operators_of(transpiler, crossed, &bridge_marked);
+        for (unsigned int at = 0u; at < marked.count; at += 1u)
+        {
+            if (!lng_set_has(&bridge_marked, marked.text[at]))
+            {
+                lng_list_printed(defects, "%s's %s marks %s, and its bridge %s does not", name, word, marked.text[at],
+                                 bridge);
+            }
+        }
+        lng_list_free(&bridge_marked);
+        lng_list_free(&marked);
+        if (lng_cell_or_none(target, row, "witness")[0] == '\0')
+        {
+            lng_list_printed(findings, "%s's %s for %s has no witness, and no lift goes through it", name, word,
+                             bridge);
+        }
+    }
+    lng_list_free(&bridged);
+}
+
+void lng_targets_holes(const LngTable *const *targets, const char *const *names, unsigned int count, LngList *defects,
+                       LngList *findings)
+{
+    // every bridge word a target table gives, with the first table that gives it
+    LngMap given = {{NULL, 0u, 0u}, {NULL, 0u, 0u}};
+    for (unsigned int table = 0u; table < count; table += 1u)
+    {
+        for (unsigned int row = 0u; row < targets[table]->rows; row += 1u)
+        {
+            const char *const bridge = lng_cell_or_none(targets[table], row, "transpiler");
+            if (bridge[0] != '\0')
+            {
+                lng_map_put(&given, bridge, names[table]);
+            }
+        }
+    }
+    for (unsigned int at = 0u; at < given.key.count; at += 1u)
+    {
+        const char *const bridge = given.key.text[at];
+        const char *first_expected = NULL;
+        const char *first_name = NULL;
+        for (unsigned int table = 0u; table < count; table += 1u)
+        {
+            const unsigned int row = lng_bridged_row(targets[table], bridge);
+            if (row == targets[table]->rows)
+            {
+                lng_list_printed(findings, "%s has no row for %s, which %s bridges to", names[table], bridge,
+                                 given.value.text[at]);
+                continue;
+            }
+            // one bridge word, one output for every target's probe
+            const char *const expected = lng_cell_or_none(targets[table], row, "expected");
+            if ((first_expected != NULL) && (strcmp(first_expected, expected) != 0))
+            {
+                lng_list_printed(defects, "%s expects %s for %s, and %s expects %s", first_name, first_expected, bridge,
+                                 names[table], expected);
+            }
+            first_expected = (first_expected == NULL) ? expected : first_expected;
+            first_name = (first_name == NULL) ? names[table] : first_name;
+        }
+    }
+    lng_map_free(&given);
+}
+
+// the word of the witnessed row of `target` that bridges to `bridge`, or NULL with the refusal in `refusals`
+static const char *lng_lift_side(const LngTable *target, const char *name, const char *bridge, LngList *refusals)
+{
+    const unsigned int row = lng_bridged_row(target, bridge);
+    if (row == target->rows)
+    {
+        lng_list_printed(refusals, "%s has no row for %s", name, bridge);
+        return NULL;
+    }
+    if (lng_cell_or_none(target, row, "witness")[0] == '\0')
+    {
+        lng_list_printed(refusals, "%s's %s for %s has no witness", name, lng_cell_or_none(target, row, "word"),
+                         bridge);
+        return NULL;
+    }
+    return lng_cell_or_none(target, row, "word");
+}
+
+const char *lng_lift(const LngTable *transpiler, const LngTable *from, const char *from_name, const LngTable *to,
+                     const char *to_name, const char *bridge, LngList *refusals)
+{
+    if (lng_bridge_word_row(transpiler, bridge) == transpiler->rows)
+    {
+        lng_list_printed(refusals, "the transpiler has no word %s, and no lift goes through it", bridge);
+        return NULL;
+    }
+    const char *const taken = lng_lift_side(from, from_name, bridge, refusals);
+    const char *const given = lng_lift_side(to, to_name, bridge, refusals);
+    return ((taken != NULL) && (given != NULL)) ? given : NULL;
+}

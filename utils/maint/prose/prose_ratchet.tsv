@@ -11,7 +11,6 @@ examples/00_blob_viz_tools/bend_view_template.html	11
 examples/00_blob_viz_tools/blind_view_template.html	2
 examples/00_blob_viz_tools/bloch_cost.py	15
 examples/00_blob_viz_tools/bloch_reach.py	37
-examples/00_blob_viz_tools/block_view_template.html	1
 examples/00_blob_viz_tools/boundary_read.py	31
 examples/00_blob_viz_tools/build_beam_view.py	21
 examples/00_blob_viz_tools/build_blind_view.py	24
@@ -36,7 +35,7 @@ examples/00_blob_viz_tools/chain_kat.py	24
 examples/00_blob_viz_tools/conserved.py	20
 examples/00_blob_viz_tools/cut_project.py	22
 examples/00_blob_viz_tools/deform_rate.py	52
-examples/00_blob_viz_tools/earth_view_template.html	2
+examples/00_blob_viz_tools/earth_view_template.html	1
 examples/00_blob_viz_tools/exact_qubits.py	34
 examples/00_blob_viz_tools/frame_audit.py	27
 examples/00_blob_viz_tools/funnel_coherence.py	10
@@ -78,15 +77,14 @@ examples/00_blob_viz_tools/quantum_recursion.py	19
 examples/00_blob_viz_tools/quotient_coherence.py	25
 examples/00_blob_viz_tools/reading_rank.py	24
 examples/00_blob_viz_tools/ring_quadrant.py	25
-examples/00_blob_viz_tools/scope_view_template.html	6
+examples/00_blob_viz_tools/scope_view_template.html	5
 examples/00_blob_viz_tools/script_check.py	44
 examples/00_blob_viz_tools/shapes_view_template.html	2
 examples/00_blob_viz_tools/shor_trace.py	22
 examples/00_blob_viz_tools/sources_view_template.html	2
-examples/00_blob_viz_tools/spiral_view_template.html	1
 examples/00_blob_viz_tools/stabilizer_rank.py	49
 examples/00_blob_viz_tools/step_view_template.html	3
-examples/00_blob_viz_tools/survey_view_template.html	2
+examples/00_blob_viz_tools/survey_view_template.html	1
 examples/00_blob_viz_tools/tail_bit.py	20
 examples/00_blob_viz_tools/tgate_free.py	14
 examples/00_blob_viz_tools/topology_match.py	30
@@ -94,12 +92,10 @@ examples/00_blob_viz_tools/torus_count.py	25
 examples/00_blob_viz_tools/track_room_template.html	14
 examples/00_blob_viz_tools/unmodeled.py	48
 examples/00_blob_viz_tools/view/blind_view.html	2
-examples/00_blob_viz_tools/view/block_view.html	1
-examples/00_blob_viz_tools/view/earth_view.html	2
-examples/00_blob_viz_tools/view/scope_view.html	6
+examples/00_blob_viz_tools/view/earth_view.html	1
+examples/00_blob_viz_tools/view/scope_view.html	5
 examples/00_blob_viz_tools/view/shapes_view.html	24
-examples/00_blob_viz_tools/view/spiral_view.html	1
-examples/00_blob_viz_tools/view/survey_view.html	2
+examples/00_blob_viz_tools/view/survey_view.html	1
 examples/00_blob_viz_tools/view/track_room.html	14
 examples/00_blob_viz_tools/wire_compute.py	46
 examples/0_experimental/bloom_is_the_sift_theorem.py	8
@@ -135,7 +131,6 @@ examples/0_experimental/magnitude_vector_transfer.py	29
 examples/0_experimental/morphology_opening_and_closing.py	10
 examples/0_experimental/ntt_double_transform_inverts.py	15
 examples/0_experimental/ntt_twiddle_certificate.py	20
-examples/0_experimental/pi_has_no_last_digit.py	10
 examples/0_experimental/theil_sen_robust_trend.py	19
 examples/0_experimental/zeta_zero_certificate.py	27
 examples/0_experimental/zeta_zero_symmetry.py	14
@@ -215,7 +210,7 @@ examples/chemistry/5_sift/valence_is_a_necessary_condition.py	14
 examples/chemistry/casmi/build_driver.sh	1
 examples/chemistry/casmi/src/casmi_config.h	3
 examples/chemistry/casmi/src/check/lane_check.cu	32
-examples/chemistry/casmi/src/mass/isotope_table.c	16
+examples/chemistry/casmi/src/mass/isotope_table.c	14
 examples/chemistry/casmi/src/mass/mass.c	3
 examples/chemistry/casmi/src/mass/mass.h	11
 examples/chemistry/casmi/src/parquet/parquet.c	39
@@ -374,7 +369,6 @@ examples/proteins/build_protein_view.py	8
 examples/proteins/derive_family_rules.py	14
 examples/proteins/ramachandran_rules.py	26
 examples/qasm/build.sh	2
-examples/qasm/maint/emit_qasm_pi.py	1
 examples/qasm/src/qasm.cu	1
 examples/qasm/src/qasm_bitstring.cu	3
 examples/qasm/src/qasm_chain_apply.c	1
@@ -540,7 +534,7 @@ src/cu/engine/engine.h	7
 src/cu/engine/engine_config_key.h	5
 src/cu/engine/engine_config_requests.h	26
 src/cu/engine/engine_files.cu	18
-src/cu/engine/engine_listing.cu	11
+src/cu/engine/engine_listing.cu	1
 src/cu/engine/engine_record.cu	1
 src/cu/engine/engine_report.cu	2
 src/cu/engine/engine_residual.cu	6
@@ -695,7 +689,7 @@ src/cu/transpiler/lstar/protocol/table/decoder/bridge.cu	8
 src/cu/transpiler/lstar/protocol/table/decoder/decoder_internal.h	16
 src/cu/transpiler/lstar/protocol/table/decoder/log.cu	6
 src/cu/transpiler/lstar/protocol/table/decoder/puts.cu	12
-src/cu/transpiler/lstar/protocol/table/identity/alike.cu	18
+src/cu/transpiler/lstar/protocol/table/identity/alike.cu	17
 src/cu/transpiler/lstar/protocol/table/identity/arrangements.cu	5
 src/cu/transpiler/lstar/protocol/table/identity/assembled.cu	1
 src/cu/transpiler/lstar/protocol/table/identity/broken.cu	10
@@ -774,7 +768,7 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/assemble.c	14
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/encoding.c	13
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/fields.c	36
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/sass_assemble_internal.h	7
-src/cu/transpiler/vendor_bin_layouts/nvidia/sass_listing_seeds.c	2
+src/cu/transpiler/vendor_bin_layouts/nvidia/sass_listing_seeds.c	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.h	45
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/sass_machine_internal.h	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/tokens.c	10
@@ -789,7 +783,7 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_ptx_probe_runs
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_ptx_test.c	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_ptx_test.sh	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_fields.sh	12
-src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_check.c	11
+src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_check.c	5
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_class.c	21
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_cubin.c	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_fields.c	14
@@ -807,7 +801,7 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_que
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_query/cubin_queries.c	51
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_query/loops.c	11
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_query/probe_query_internal.h	26
-src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_read.c	16
+src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_read.c	6
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_take.c	8
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_unprinted.c	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_unprinted/forms.c	17
@@ -828,7 +822,7 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_writings/
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/mmio.h	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/mmio_read.h	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/mmio_read_check.c	1
-src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_emit.cpp	43
+src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_emit.cpp	42
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_emit.sh	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_forms.sh	6
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_run.c	12
@@ -1204,7 +1198,7 @@ utils/test/examples/cu/cell_tracking/peaks_test.cu	7
 utils/test/examples/cu/cell_tracking/sort_test.cu	42
 utils/test/examples/cu/cell_tracking/sort_test.sh	1
 utils/test/examples/python/cell_tracking/score_metric_test.py	4
-utils/test/harness.py	40
+utils/test/harness.py	2
 utils/test/harness_appium.py	12
 utils/test/harness_build.py	20
 utils/test/harness_cdp.py	10
@@ -1337,7 +1331,7 @@ utils/test/src/cu/transpiler/lstar/protocol/scheduler_check.c	16
 utils/test/src/cu/transpiler/lstar/protocol/stem_group_check.c	3
 utils/test/src/cu/transpiler/lstar/protocol/survivors_check.c	1
 utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/constant_check.c	4
-utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_listing_check.c	7
+utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_listing_check.c	6
 utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/tables_funnel_check.c	4
 utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/tables_read_check.c	7
 utils/test/src/cu/types/file_defs/kdecode_check.sh	5
@@ -1365,7 +1359,7 @@ utils/test/src/ui/cli/unit/cargo_tests/test_cargo_tests/test_cargo_tests.c	1
 utils/test/src/ui/cli/unit/catalog/test_catalog/test_catalog.c	1
 utils/test/src/ui/cli/unit/commands/test_commands/test_commands.c	1
 utils/test/src/ui/cli/unit/comms/test_comms/test_comms.c	13
-utils/test/src/ui/cli/unit/comms_pane/test_comms_pane/test_comms_pane.c	17
+utils/test/src/ui/cli/unit/comms_pane/test_comms_pane/test_comms_pane.c	4
 utils/test/src/ui/cli/unit/compile_db/test_compile_db/test_compile_db.c	1
 utils/test/src/ui/cli/unit/container/test_container/test_container.c	2
 utils/test/src/ui/cli/unit/db/test_db/test_db.c	1
@@ -1377,7 +1371,6 @@ utils/test/src/ui/cli/unit/debug_pane/test_debug_pane/test_debug_pane.c	3
 utils/test/src/ui/cli/unit/diff/test_diff/test_diff.c	3
 utils/test/src/ui/cli/unit/digest/test_digest/test_digest.c	1
 utils/test/src/ui/cli/unit/disasm_verify/test_disasm_verify/test_disasm_verify.c	1
-utils/test/src/ui/cli/unit/editorconfig/test_editorconfig/test_editorconfig.c	1
 utils/test/src/ui/cli/unit/executables/test_executables/test_executables.c	3
 utils/test/src/ui/cli/unit/file_writing/test_file_writing/test_file_writing.c	1
 utils/test/src/ui/cli/unit/git/test_git/test_git.c	2
@@ -1396,7 +1389,7 @@ utils/test/src/ui/cli/unit/notebook_kernel/test_notebook_kernel/test_notebook_ke
 utils/test/src/ui/cli/unit/notices/test_notices/test_notices.c	1
 utils/test/src/ui/cli/unit/page/test_page/test_page.c	2
 utils/test/src/ui/cli/unit/pages/test_pages/test_pages.c	1
-utils/test/src/ui/cli/unit/patterns/test_patterns/test_patterns.c	5
+utils/test/src/ui/cli/unit/patterns/test_patterns/test_patterns.c	1
 utils/test/src/ui/cli/unit/pg/test_pg/test_pg.c	2
 utils/test/src/ui/cli/unit/preview/test_preview/test_preview.c	5
 utils/test/src/ui/cli/unit/problems/test_problems/test_problems.c	4
@@ -1409,7 +1402,7 @@ utils/test/src/ui/cli/unit/query_tools/test_query_tools/test_query_tools.c	1
 utils/test/src/ui/cli/unit/query_words/test_query_words/test_query_words.c	1
 utils/test/src/ui/cli/unit/query_writer/test_query_writer/test_query_writer.c	2
 utils/test/src/ui/cli/unit/raster/test_raster/test_raster.c	1
-utils/test/src/ui/cli/unit/reach/test_reach/test_reach.c	12
+utils/test/src/ui/cli/unit/reach/test_reach/test_reach.c	2
 utils/test/src/ui/cli/unit/regexp/test_regexp/test_regexp.c	1
 utils/test/src/ui/cli/unit/requests/test_requests/test_requests.c	3
 utils/test/src/ui/cli/unit/requests_pane/test_requests_pane/test_requests_pane.c	2
@@ -1434,7 +1427,7 @@ utils/test/src/ui/gui/bead_test.c	3
 utils/test/src/ui/gui/button_test.c	1
 utils/test/src/ui/gui/changes_test.c	5
 utils/test/src/ui/gui/claim_test.c	2
-utils/test/src/ui/gui/comms_test.c	15
+utils/test/src/ui/gui/comms_test.c	8
 utils/test/src/ui/gui/crumbs_test.c	1
 utils/test/src/ui/gui/dialog_test.c	1
 utils/test/src/ui/gui/diffview_test.c	2
@@ -1464,7 +1457,6 @@ utils/test/src/ui/gui/statusbar_test.c	2
 utils/test/src/ui/gui/system_test.c	8
 utils/test/src/ui/gui/tabs_test.c	3
 utils/test/src/ui/gui/themes_test.c	2
-utils/test/src/ui/gui/window_test.c	2
 utils/test/src/ui/gui/work_test.c	3
 utils/test/src/ui/sanitized.sh	1
 utils/test/test_motion_read.py	4

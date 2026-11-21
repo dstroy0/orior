@@ -180,6 +180,31 @@ extern "C"
     // A row with a target contains its word only for a file of that target
     void lng_used_check(const LngTable *table, const char *path, const LngMap *used, LngList *defects);
 
+    // A target table, src/lng/<target>_lng.tsv, gives the symbols of one language. Each row names the transpiler word
+    // its symbol bridges to, and the bridge takes the symbol to gsm. A probe shows the symbol at work, and the
+    // witness cell names the run that printed the expected output (harness.py lng witness). A row with no witness is
+    // a hole. No lift goes through a hole.
+    //
+    // Defects of the target table `target`, named `name`, against `transpiler`, appended to `defects`. A type outside
+    // the types of .g is a defect, and so is a probe with no expected output. A bridge word the transpiler has no
+    // word for is a defect, and so are two rows with one bridge word. A type that disagrees with its bridge on width
+    // or sign is a defect. A relation the row marks and its bridge does not is a defect. Each hole goes into
+    // `findings`
+    void lng_target_check(const LngTable *transpiler, const LngTable *target, const char *name, LngList *defects,
+                          LngList *findings);
+
+    // The holes between the target tables `targets`, `count` of them, with their names in `names`. A finding goes into
+    // `findings` for each bridge word one table gives and another does not. Two tables whose expected outputs for one
+    // bridge word are not the same are a defect in `defects`
+    void lng_targets_holes(const LngTable *const *targets, const char *const *names, unsigned int count,
+                           LngList *defects, LngList *findings);
+
+    // The lift of one bridge word, `bridge`, from the table `from`, named `from_name`, to the table `to`, named
+    // `to_name`. The result is the word of `to` for it. The lift refuses with NULL where the transpiler has no word
+    // `bridge`, or where a side has no witnessed row for it. Each refusal names the row and goes into `refusals`
+    const char *lng_lift(const LngTable *transpiler, const LngTable *from, const char *from_name, const LngTable *to,
+                         const char *to_name, const char *bridge, LngList *refusals);
+
 #ifdef __cplusplus
 }
 #endif
