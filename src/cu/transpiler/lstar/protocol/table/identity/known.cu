@@ -1,14 +1,16 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// known.cu: the known and the permute: the engine's writing of the stick sifted through what nvcc writes, and nvcc's chains put together by their categories
+// known.cu: the known and the permute: the engine's writing of the stick sifted through what nvcc writes, and nvcc's
+// chains put together by their categories
 #include "identity_internal.h"
+#include "../../../../../../platform/platform.h"
 
 // Each candidate chain sifted through the identities nvcc's chains contain, before anything of it is put to the part:
 // its whole known at an address, or read as the longest known windows from each link, with every link whose primitive
 // nvcc never writes and every two links side by side nvcc never writes so, each known apart. A part unknown that rule 2
 // blocks from the part is marked with the rule. The run's blob known.txt contains a candidate a group of lines
 int identity_known(const char *listing, const char *manifest, const std::string &folder,
-                          const std::vector<std::string> &paths)
+                   const std::vector<std::string> &paths)
 {
     std::vector<Question> questions;
     if (!questions_read(listing, manifest, &questions))
@@ -50,7 +52,11 @@ int identity_known(const char *listing, const char *manifest, const std::string 
         const std::vector<unsigned long long> from_first = window_identities(candidate, 0u);
         const Occurrence *const whole = known(candidate, 0u, links, from_first.back());
         char number[17];
-        snprintf(number, sizeof(number), "%016llx", from_first.back());
+        {
+            VerbaLinea buffer_line = mmgr_line_over(number, sizeof(number));
+            mmgr_line_hex(&buffer_line, from_first.back(), 16u);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         run_print(&file, "candidate %s %s %s\n", candidate.number.c_str(), number,
                   (whole == nullptr) ? "unknown"
                                      : ("known " + address_text(questions, whole->question, whole->link)).c_str());
@@ -64,7 +70,8 @@ int identity_known(const char *listing, const char *manifest, const std::string 
         {
             const std::vector<unsigned long long> identities = window_identities(candidate, link);
             unsigned int length = 0u;
-            for (unsigned int longest = (unsigned int)identities.size(); (longest > 0u) && (length == 0u); longest -= 1u)
+            for (unsigned int longest = (unsigned int)identities.size(); (longest > 0u) && (length == 0u);
+                 longest -= 1u)
             {
                 const Occurrence *const first = known(candidate, link, longest, identities[longest - 1u]);
                 if (first != nullptr)
@@ -88,7 +95,9 @@ int identity_known(const char *listing, const char *manifest, const std::string 
             const int alone = known(candidate, link, 1u, identities[0]) != nullptr;
             const int paired = ((link + 1u) < links) ? (known(candidate, link, 2u, identities[1]) != nullptr) : 1;
             const int next_alone =
-                ((link + 1u) < links) ? (known(candidate, link + 1u, 1u, window_identities(candidate, link + 1u)[0]) != nullptr) : 0;
+                ((link + 1u) < links)
+                    ? (known(candidate, link + 1u, 1u, window_identities(candidate, link + 1u)[0]) != nullptr)
+                    : 0;
             const Link &written = candidate.chain[link];
             const std::string rule = rule_broken(written.exact) ? " rule 2: its form transfers control or waits" : "";
             if (!alone)

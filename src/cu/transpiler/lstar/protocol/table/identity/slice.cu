@@ -1,7 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// slice.cu: the slice: nvcc's writing of the stick cut into windows, each an identity at the address it occurs at, and the chains written
+// slice.cu: the slice: nvcc's writing of the stick cut into windows, each an identity at the address it occurs at, and
+// the chains written
 #include "identity_internal.h"
+#include "../../../../../../platform/platform.h"
 
 // the link written with each register by its class and the order the window first names it in, r for R, p for P, ur
 // for UR, each literal operand as a part of its own, k, in the order the window first writes its value, and each target
@@ -92,10 +94,10 @@ std::string address_text(const std::vector<Question> &questions, unsigned int qu
 
 // The chains of every question, each window of each an identity recorded at its first occurrence, the lowest address it
 // occurs at: every later occurrence reaffirms it at a new address, with the same constituents. A link whose identity
-// first occurs where it is located is a primitive. Each question's chain is read from its first link as the constituents
-// that came before it, at each link the longest window whose identity first occurs at a lower address, or the link
-// alone where nothing does, and its signature is those constituents in order, each an identity at its address, with
-// the primitive of each link and the literal operands in that order: identity:address with its primitives.
+// first occurs where it is located is a primitive. Each question's chain is read from its first link as the
+// constituents that came before it, at each link the longest window whose identity first occurs at a lower address, or
+// the link alone where nothing does, and its signature is those constituents in order, each an identity at its address,
+// with the primitive of each link and the literal operands in that order: identity:address with its primitives.
 //
 // The run's blob chains.txt contains the primitives in the order of their addresses, each with its count and its link,
 // then for each question its chain: the identity of the whole at its address and its count, the constituents, each an
@@ -148,7 +150,8 @@ static int chains_write(const std::vector<Question> &questions, const std::strin
         {
             const std::vector<unsigned long long> identities = window_identities(current, link);
             unsigned int length = 0u;
-            for (unsigned int longest = (unsigned int)identities.size(); (longest > 0u) && (length == 0u); longest -= 1u)
+            for (unsigned int longest = (unsigned int)identities.size(); (longest > 0u) && (length == 0u);
+                 longest -= 1u)
             {
                 const Occurrence &first = windows.at(identities[longest - 1u]);
                 const int lower = (first.question < question) || ((first.question == question) && (first.link < link));
@@ -194,13 +197,17 @@ static int chains_write(const std::vector<Question> &questions, const std::strin
             }
             link += length;
         }
-        // the number of the whole is the hash of its contents in their order, the same wherever and in whichever stick it
-        // is read
+        // the number of the whole is the hash of its contents in their order, the same wherever and in whichever stick
+        // it is read
         char number[17];
-        snprintf(number, sizeof(number), "%016llx", whole_identity);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(number, sizeof(number));
+            mmgr_line_hex(&buffer_line, whole_identity, 16u);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         chains += "chain " + address_text(questions, question, 0u) + " " +
-                  address_text(questions, whole.question, whole.link) + " " + std::to_string(whole.count) + " " + number +
-                  "\n";
+                  address_text(questions, whole.question, whole.link) + " " + std::to_string(whole.count) + " " +
+                  number + "\n";
         chains += "constituents" + read + "\nprimitives" + primitive_row + "\noperands" + operand_row + "\n";
     }
     run_print(&file, "%s%s", primitives.c_str(), chains.c_str());
@@ -232,7 +239,7 @@ int slice_found(const Question &one, const Question &other, const Link **left, c
 }
 
 int identity_slice(const char *listing, const char *manifest, const char *stick_path, const std::string &folder,
-                          const std::string &ours)
+                   const std::string &ours)
 {
     std::vector<Question> questions;
     if (!questions_read(listing, manifest, &questions))
@@ -259,8 +266,9 @@ int identity_slice(const char *listing, const char *manifest, const char *stick_
             }
             const Link &left = *found_left;
             const Link &right = *found_right;
-            // each slice a line: its two members, each a question and the position of its link in that question's chain,
-            // then the identity, the two links in order, the first member writing the first, then each member's context
+            // each slice a line: its two members, each a question and the position of its link in that question's
+            // chain, then the identity, the two links in order, the first member writing the first, then each member's
+            // context
             const int swapped = right.type < left.type;
             const Question &lead = swapped ? questions[other] : questions[one];
             const Question &rite = swapped ? questions[one] : questions[other];

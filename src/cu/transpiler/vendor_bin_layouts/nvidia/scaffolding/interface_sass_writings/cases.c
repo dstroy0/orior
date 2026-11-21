@@ -1,7 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// cases.c: the cases: a file read, an anchor that fits, the relations and the expected answers, the cases written, the kernel, a splice, a mark and a swap, a form that fits, the table and the sources, digits in order, an instruction and the container written
+// cases.c: the cases: a file read, an anchor that fits, the relations and the expected answers, the cases written, the
+// kernel, a splice, a mark and a swap, a form that fits, the table and the sources, digits in order, an instruction and
+// the container written
 #include "writings_internal.h"
+#include "../../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../../engine/rmc/precept_value.h"
 
 #define LADDER_WORD_COUNT(name_, text_, words_, measured_) words_,
@@ -134,24 +139,25 @@ void writings_cases(void)
 // the kernel the kernel opens with, `.text.<kernel>:`, into `kernel`: 1, or 0 where it opens otherwise
 int writings_kernel(const char *kernel_text, char *kernel, size_t room)
 {
-    if (strncmp(kernel_text, ".text.", 6u) != 0)
+    if (!mmgr_text_starts(kernel_text, ".text.", PLATFORM_TEXT_TO_TERMINATOR))
     {
         return 0;
     }
     const size_t length = strcspn(kernel_text + 6, ":\r\n");
-    return (kernel_text[6u + length] == ':') && (snprintf(kernel, room, "%.*s", (int)length, kernel_text + 6) < (int)room);
+    return (kernel_text[6u + length] == ':') &&
+           (snprintf(kernel, room, "%.*s", (int)length, kernel_text + 6) < (int)room);
 }
 
 // the kernel with its line that begins `IADD3 ` replaced by `lines`, into `text`: 1, or 0 where the kernel contains no
 // such line or `text` will not fit the whole
 int writings_splice(const char *kernel_text, const char *lines, char *text, size_t room)
 {
-    const char *const line = strstr(kernel_text, "\nIADD3 ");
+    const char *const line = mmgr_text_find(kernel_text, "\nIADD3 ", PLATFORM_TEXT_TO_TERMINATOR);
     if (line == NULL)
     {
         return 0;
     }
-    const char *const after = strchr(line + 1, '\n');
+    const char *const after = mmgr_text_char(line + 1, '\n', PLATFORM_TEXT_TO_TERMINATOR);
     const size_t before = (size_t)(line - kernel_text) + 1u;
     return snprintf(text, room, "%.*s%s%s", (int)before, kernel_text, lines, (after != NULL) ? after : "") < (int)room;
 }
@@ -184,8 +190,14 @@ static void writings_swap(const char *operand, const char *put, char *out, size_
         length = (operand[1] == 'Z') ? 2u : (1u + strspn(operand + 1, "0123456789"));
     }
     const char *const rest = operand + length;
-    const size_t rest_length = strlen(rest) - (sass_high_half(operand) ? 3u : 0u);
-    snprintf(out, room, "%s%.*s", put, (int)rest_length, rest);
+    const size_t rest_length =
+        mmgr_text_length(rest, PLATFORM_TEXT_TO_TERMINATOR) - (sass_high_half(operand) ? 3u : 0u);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(out, room);
+        mmgr_line_put(&buffer_line, put);
+        mmgr_line_put_max(&buffer_line, rest, (size_t)((int)rest_length));
+        (void)mmgr_line_finish(&buffer_line);
+    }
 }
 
 // 1 where `form` is put to the part: it writes its first operand, a register, it neither transfers control nor waits,
@@ -193,7 +205,8 @@ static void writings_swap(const char *operand, const char *put, char *out, size_
 int writings_form_fits(const SassForm *form)
 {
     if ((form->operands < 2u) || (form->type[0] != SASS_OPERAND_REGISTER) ||
-        sass_operation_control_or_wait(form->operation) || (strncmp(form->operation, "NOP", 3u) == 0))
+        sass_operation_control_or_wait(form->operation) ||
+        (mmgr_text_starts(form->operation, "NOP", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         return 0;
     }
@@ -269,7 +282,7 @@ unsigned int writings_in_order(unsigned int sources)
 // WRITINGS_LEFT, WRITINGS_RIGHT or RZ by `assignment` (writings_digit). The operand `table` is written as `value`;
 // every other predicate and number retains the value the form was seen with. 1, or 0 where `out` will not fit it
 int writings_instruction(const SassForm *form, unsigned int table, unsigned int value, unsigned int assignment,
-                                char *out, size_t room)
+                         char *out, size_t room)
 {
     static const char *const s_given[3] = {WRITINGS_LEFT, WRITINGS_RIGHT, "RZ"};
     SassInstructionParts parts;
@@ -291,11 +304,16 @@ int writings_instruction(const SassForm *form, unsigned int table, unsigned int 
         }
         else if (operand == table)
         {
-            snprintf(text, sizeof(text), "0x%02x", value);
+            VerbaLinea buffer_line = mmgr_line_over(text, sizeof(text));
+            mmgr_line_put(&buffer_line, "0x");
+            mmgr_line_hex(&buffer_line, value, 2u);
+            (void)mmgr_line_finish(&buffer_line);
         }
         else
         {
-            snprintf(text, sizeof(text), "%s", parts.operand[operand]);
+            VerbaLinea buffer_line = mmgr_line_over(text, sizeof(text));
+            mmgr_line_put(&buffer_line, parts.operand[operand]);
+            (void)mmgr_line_finish(&buffer_line);
         }
         at += (size_t)snprintf(&out[at], (at < room) ? (room - at) : 0u, "%s%s%s", (operand == 0u) ? " " : ", ",
                                writings_mark(parts.mark[operand]), text);
@@ -308,7 +326,7 @@ int writings_cubin(unsigned int count, const char *path)
 {
     const unsigned long long code_size = 16ULL * count;
     CubinWrite written;
-    memset(&written, 0, sizeof(written));
+    mmgr_bytes_set(&written, 0, sizeof(written));
     written.pattern = s_pattern;
     written.pattern_size = s_pattern_size;
     written.kernel = s_kernel;

@@ -3,6 +3,7 @@
 // bridge.cu: the bridge read from the run, each pair's concept folded, each pair closed with what it is read
 // into written beneath it, the bridge passed back to the run's writer, and the decoding printed
 #include "decoder_internal.h"
+#include "../../../../../../platform/platform.h"
 
 // 1 where a line of the bridge is a set's name alone, `<set>_coherence`
 static int set_line(const std::string &entry)
@@ -108,9 +109,8 @@ void Decoding::pair_closed()
         int read_down = 0;
         for (const std::string &set : lit)
         {
-            read_down |= (!named_in(s_categories, std::size(s_categories), set) && (set != "unknown_coherence"))
-                             ? 1
-                             : 0;
+            read_down |=
+                (!named_in(s_categories, std::size(s_categories), set) && (set != "unknown_coherence")) ? 1 : 0;
         }
         if (read_down)
         {
@@ -159,7 +159,12 @@ void Decoding::pair_closed()
         for (const unsigned long long value : pair_qualifiers[pair_beneath])
         {
             char written_value[24];
-            snprintf(written_value, sizeof(written_value), " %llx", value);
+            {
+                VerbaLinea buffer_line = mmgr_line_over(written_value, sizeof(written_value));
+                mmgr_line_put(&buffer_line, " ");
+                mmgr_line_hex(&buffer_line, value, 1u);
+                (void)mmgr_line_finish(&buffer_line);
+            }
             intent += written_value;
         }
         intent = !intent.empty()                       ? ("intent_coherence" + intent)

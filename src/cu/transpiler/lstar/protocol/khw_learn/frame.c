@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // frame.c: the frame round: the frame relation each place answers read by the gate (Open 6.4)
 #include "khw_learn_internal.h"
+#include "../../../../../platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 // the register the part's .ksc names fixed `name`, `run answers <n> fixed <name>`, or KHW_FIXED_NONE where it names
 // none
@@ -10,13 +12,19 @@ unsigned int khw_fixed_register(const char *name)
     static KscFile s_file;
     static KscRow s_row;
     char query_text[64];
-    snprintf(query_text, sizeof(query_text), "fixed %s", name);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(query_text, sizeof(query_text));
+        mmgr_line_put(&buffer_line, "fixed ");
+        mmgr_line_put(&buffer_line, name);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     unsigned int found = KHW_FIXED_NONE;
     ksc_read(&s_file, s_ksc_path);
     for (unsigned int at = 0u; at < s_file.lines; at += 1u)
     {
-        if (ksc_row_read(s_file.line[at], "run", &s_row) && (strcmp(s_row.answer, "answers") == 0) &&
-            (strcmp(s_row.question, query_text) == 0))
+        if (ksc_row_read(s_file.line[at], "run", &s_row) &&
+            (mmgr_text_equal(s_row.answer, "answers", PLATFORM_TEXT_TO_TERMINATOR)) &&
+            (mmgr_text_equal(s_row.question, query_text, PLATFORM_TEXT_TO_TERMINATOR)))
         {
             // a register's number is at max eight hex digits
             found = (unsigned int)s_row.value;
@@ -38,7 +46,8 @@ int khw_field_read(const char *name, unsigned int *first, unsigned int *bits)
         char read[64];
         unsigned int from = 0u;
         unsigned int width = 0u;
-        if (ksc_field_read(s_file.line[at], read, sizeof(read), &from, &width) && (strcmp(read, name) == 0))
+        if (ksc_field_read(s_file.line[at], read, sizeof(read), &from, &width) &&
+            (mmgr_text_equal(read, name, PLATFORM_TEXT_TO_TERMINATOR)))
         {
             *first = from;
             *bits = width;
@@ -61,10 +70,14 @@ int khw_field_covering(unsigned int first, unsigned int last, char *name, size_t
         char read[64];
         unsigned int from = 0u;
         unsigned int width = 0u;
-        if (ksc_field_read(s_file.line[at], read, sizeof(read), &from, &width) && (width != 0u) &&
-            (from <= first) && (last < (from + width)) && (!found || (width < narrowest)))
+        if (ksc_field_read(s_file.line[at], read, sizeof(read), &from, &width) && (width != 0u) && (from <= first) &&
+            (last < (from + width)) && (!found || (width < narrowest)))
         {
-            snprintf(name, room, "%s", read);
+            {
+                VerbaLinea buffer_line = mmgr_line_over(name, room);
+                mmgr_line_put(&buffer_line, read);
+                (void)mmgr_line_finish(&buffer_line);
+            }
             *field_first = from;
             *field_bits = width;
             narrowest = width;
@@ -227,9 +240,9 @@ void khw_frame_nothing_read(const RunQuestion *question)
 int khw_frame_of(const RunQuestion *question, KhwAnswered *form)
 {
     static unsigned char s_fails[GATE_CANDIDATES][GATE_CASES];
-    static const unsigned int s_relation[KHW_FRAME_CANDIDATES] = {
-        FRAME_LANE, FRAME_BLOCK, FRAME_LOAD, FRAME_LOAD, FRAME_STORE, FRAME_EXIT, FRAME_NUMBER, FRAME_DIM,
-        FRAME_PARAMETER};
+    static const unsigned int s_relation[KHW_FRAME_CANDIDATES] = {FRAME_LANE,   FRAME_BLOCK, FRAME_LOAD,
+                                                                  FRAME_LOAD,   FRAME_STORE, FRAME_EXIT,
+                                                                  FRAME_NUMBER, FRAME_DIM,   FRAME_PARAMETER};
     const unsigned long long reading[KHW_FRAME_CANDIDATES] = {
         0ULL, 0ULL, 0ULL, 1ULL, 1ULL, 0ULL, question->answered[0], 0ULL, (unsigned long long)RUN_COUNT_PLACE};
     khw_frame_cases_written();

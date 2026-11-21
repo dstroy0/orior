@@ -50,6 +50,13 @@ MINGW* | MSYS* | CYGWIN*) EXACT_TYPES_LIBRARIES=(-lsynchronization) ;;
 *) EXACT_TYPES_LIBRARIES=(-lpthread -ldl) ;;
 esac
 
+# what one command of the compiler adds to the sources of a program of the platform. It holds the flags of MMgr and
+# of the platform, the line of MMgr, the platform and the cellblock. The libraries of the system come last in it, and
+# so it goes after every source of the command. It goes with FILE_DEFS_FORMATS, as FILE_DEFS holds a second copy of
+# MMgr
+EXACT_TYPES_PLATFORM_PROGRAM=("${FILE_DEFS_MMGR_FLAGS[@]}" -I "$EXACT_TYPES_REPO/src/platform" "${FILE_DEFS_LINEA[@]}"
+    "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" "${EXACT_TYPES_LIBRARIES[@]}")
+
 # exact_types_compile SUFFIX SOURCE...: each source compiled as C11 into $OUT, its object named for the source and
 # SUFFIX. The compile takes the caller's HOST_FLAGS, the caller's EXACT_TYPES_EXTRA where set, and EXACT_TYPES_FLAGS.
 # EXACT_TYPES_OBJECTS holds the objects in the order of the sources. 0, or 1 where a source did not compile

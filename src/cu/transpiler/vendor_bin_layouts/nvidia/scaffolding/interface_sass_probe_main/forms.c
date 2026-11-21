@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // forms.c: the forms: the listing, the operations taken and counted, a form printed, a bit read, and the fields
 #include "probe_main_internal.h"
+#include "../../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 SassProbe s_sass_probe;
 SassMachine s_sass_machine;
@@ -16,8 +19,22 @@ int sass_list(SassProbe *probe, const char *name, SassListing *listing)
 {
     char cubin[1024];
     char output[1024];
-    snprintf(cubin, sizeof(cubin), "%s/%s.cubin", probe->folder, name);
-    snprintf(output, sizeof(output), "%s/%s.sass", probe->folder, name);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(cubin, sizeof(cubin));
+        mmgr_line_put(&buffer_line, probe->folder);
+        mmgr_line_put(&buffer_line, "/");
+        mmgr_line_put(&buffer_line, name);
+        mmgr_line_put(&buffer_line, ".cubin");
+        (void)mmgr_line_finish(&buffer_line);
+    }
+    {
+        VerbaLinea buffer_line = mmgr_line_over(output, sizeof(output));
+        mmgr_line_put(&buffer_line, probe->folder);
+        mmgr_line_put(&buffer_line, "/");
+        mmgr_line_put(&buffer_line, name);
+        mmgr_line_put(&buffer_line, ".sass");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     char *const command[] = {"nvdisasm", "-c", "-hex", cubin, NULL};
     const int status = sass_run(command, output);
     if (status != 0)
@@ -31,7 +48,14 @@ int sass_list(SassProbe *probe, const char *name, SassListing *listing)
         return 0;
     }
     // the rest of the cubin as cuobjdump reads it: its sections, symbols, segments and the kernel's attributes
-    snprintf(output, sizeof(output), "%s/%s.elf", probe->folder, name);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(output, sizeof(output));
+        mmgr_line_put(&buffer_line, probe->folder);
+        mmgr_line_put(&buffer_line, "/");
+        mmgr_line_put(&buffer_line, name);
+        mmgr_line_put(&buffer_line, ".elf");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     char *const elf[] = {"cuobjdump", "-elf", cubin, NULL};
     const int elf_status = sass_run(elf, output);
     if (elf_status != 0)
@@ -72,7 +96,7 @@ static unsigned int sass_operation_count(const SassListing *listing, const char 
     {
         SassParts parts;
         sass_parts_read(listing->instructions[number].text, &parts);
-        found += (strcmp(parts.operation, operation) == 0) ? 1u : 0u;
+        found += (mmgr_text_equal(parts.operation, operation, PLATFORM_TEXT_TO_TERMINATOR)) ? 1u : 0u;
     }
     return found;
 }
@@ -96,12 +120,12 @@ void sass_form_print(const char *name, const SassListing *form, const SassListin
             {
                 SassParts other;
                 sass_parts_read(counted->instructions[before].text, &other);
-                earlier = earlier || (strcmp(other.operation, parts.operation) == 0);
+                earlier = earlier || (mmgr_text_equal(other.operation, parts.operation, PLATFORM_TEXT_TO_TERMINATOR));
             }
             const unsigned int here = sass_operation_count(counted, parts.operation);
             const unsigned int there = sass_operation_count(against, parts.operation);
             // NOP fills the code to its alignment and is none of a form's
-            if (!earlier && (here > there) && (strcmp(parts.operation, "NOP") != 0))
+            if (!earlier && (here > there) && (!mmgr_text_equal(parts.operation, "NOP", PLATFORM_TEXT_TO_TERMINATOR)))
             {
                 printf(" %s%s x%u", more ? "" : "-", parts.operation, here - there);
             }
@@ -115,37 +139,72 @@ static void sass_bit_read(const SassParts *base, const char *base_text, const ch
 {
     SassParts parts;
     sass_parts_read(text, &parts);
-    snprintf(example, SASS_EXAMPLE, "%s", text);
-    if ((strcmp(text, "illegal") == 0) || (strcmp(text, "unprinted") == 0))
     {
-        snprintf(category, SASS_CATEGORY, "%s", text);
+        VerbaLinea buffer_line = mmgr_line_over(example, SASS_EXAMPLE);
+        mmgr_line_put(&buffer_line, text);
+        (void)mmgr_line_finish(&buffer_line);
+    }
+    if ((mmgr_text_equal(text, "illegal", PLATFORM_TEXT_TO_TERMINATOR)) ||
+        (mmgr_text_equal(text, "unprinted", PLATFORM_TEXT_TO_TERMINATOR)))
+    {
+        {
+            VerbaLinea buffer_line = mmgr_line_over(category, SASS_CATEGORY);
+            mmgr_line_put(&buffer_line, text);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         return;
     }
-    if (strcmp(text, base_text) == 0)
+    if (mmgr_text_equal(text, base_text, PLATFORM_TEXT_TO_TERMINATOR))
     {
-        snprintf(category, SASS_CATEGORY, "unchanged");
+        {
+            VerbaLinea buffer_line = mmgr_line_over(category, SASS_CATEGORY);
+            mmgr_line_put(&buffer_line, "unchanged");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         return;
     }
-    if (strcmp(parts.operation, base->operation) != 0)
+    if (!mmgr_text_equal(parts.operation, base->operation, PLATFORM_TEXT_TO_TERMINATOR))
     {
         const size_t stem = strcspn(base->operation, ".");
         const int same_stem =
             (strcspn(parts.operation, ".") == stem) && (strncmp(parts.operation, base->operation, stem) == 0);
-        snprintf(category, SASS_CATEGORY, "%s", same_stem ? "modifier" : "operation");
-        snprintf(example, SASS_EXAMPLE, "%s -> %s", base->operation, parts.operation);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(category, SASS_CATEGORY);
+            mmgr_line_put(&buffer_line, same_stem ? "modifier" : "operation");
+            (void)mmgr_line_finish(&buffer_line);
+        }
+        {
+            VerbaLinea buffer_line = mmgr_line_over(example, SASS_EXAMPLE);
+            mmgr_line_put(&buffer_line, base->operation);
+            mmgr_line_put(&buffer_line, " -> ");
+            mmgr_line_put(&buffer_line, parts.operation);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         return;
     }
-    if (strcmp(parts.predicate, base->predicate) != 0)
+    if (!mmgr_text_equal(parts.predicate, base->predicate, PLATFORM_TEXT_TO_TERMINATOR))
     {
-        snprintf(category, SASS_CATEGORY, "predicate");
-        snprintf(example, SASS_EXAMPLE, "'%s' -> '%s'", base->predicate, parts.predicate);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(category, SASS_CATEGORY);
+            mmgr_line_put(&buffer_line, "predicate");
+            (void)mmgr_line_finish(&buffer_line);
+        }
+        {
+            VerbaLinea buffer_line = mmgr_line_over(example, SASS_EXAMPLE);
+            mmgr_line_put(&buffer_line, "'");
+            mmgr_line_put(&buffer_line, base->predicate);
+            mmgr_line_put(&buffer_line, "' -> '");
+            mmgr_line_put(&buffer_line, parts.predicate);
+            mmgr_line_put(&buffer_line, "'");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         return;
     }
     unsigned int changed = 0u;
     unsigned int which = 0u;
     for (unsigned int operand = 0u; (operand < parts.operands) && (operand < base->operands); operand += 1u)
     {
-        if (strcmp(parts.operand[operand], base->operand[operand]) != 0)
+        if (!mmgr_text_equal(parts.operand[operand], base->operand[operand], PLATFORM_TEXT_TO_TERMINATOR))
         {
             changed += 1u;
             which = operand;
@@ -153,11 +212,26 @@ static void sass_bit_read(const SassParts *base, const char *base_text, const ch
     }
     if ((parts.operands == base->operands) && (changed == 1u))
     {
-        snprintf(category, SASS_CATEGORY, "operand %u", which);
-        snprintf(example, SASS_EXAMPLE, "%s -> %s", base->operand[which], parts.operand[which]);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(category, SASS_CATEGORY);
+            mmgr_line_put(&buffer_line, "operand ");
+            mmgr_line_decimal(&buffer_line, which, 1u);
+            (void)mmgr_line_finish(&buffer_line);
+        }
+        {
+            VerbaLinea buffer_line = mmgr_line_over(example, SASS_EXAMPLE);
+            mmgr_line_put(&buffer_line, base->operand[which]);
+            mmgr_line_put(&buffer_line, " -> ");
+            mmgr_line_put(&buffer_line, parts.operand[which]);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         return;
     }
-    snprintf(category, SASS_CATEGORY, "operands");
+    {
+        VerbaLinea buffer_line = mmgr_line_over(category, SASS_CATEGORY);
+        mmgr_line_put(&buffer_line, "operands");
+        (void)mmgr_line_finish(&buffer_line);
+    }
 }
 
 // the operation's 128 bits turned over one at a time and decoded: each run of bits of one category printed, and each
@@ -174,7 +248,13 @@ int sass_fields(SassProbe *probe, const SassOperation *operation)
         high[1u + bit] = high[0] ^ ((bit >= 64u) ? (1ULL << (bit - 64u)) : 0ULL);
     }
     char path[1024];
-    snprintf(path, sizeof(path), "%s/opcode_%03x", probe->folder, operation->key);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+        mmgr_line_put(&buffer_line, probe->folder);
+        mmgr_line_put(&buffer_line, "/opcode_");
+        mmgr_line_hex(&buffer_line, operation->key, 3u);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     printf("operation %03x: %s (0x%016llx 0x%016llx)\n", operation->key, operation->first.text, low[0], high[0]);
     if (!sass_decode(probe->architecture, path, low, high, SASS_ENCODINGS, s_sass_texts))
     {
@@ -183,7 +263,14 @@ int sass_fields(SassProbe *probe, const SassOperation *operation)
     }
     SassParts base;
     sass_parts_read(s_sass_texts[0], &base);
-    snprintf(path, sizeof(path), "%s/opcode_%03x.bits", probe->folder, operation->key);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+        mmgr_line_put(&buffer_line, probe->folder);
+        mmgr_line_put(&buffer_line, "/opcode_");
+        mmgr_line_hex(&buffer_line, operation->key, 3u);
+        mmgr_line_put(&buffer_line, ".bits");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     FILE *const bits = fopen(path, "w");
     if (bits != NULL)
     {
@@ -205,8 +292,9 @@ int sass_fields(SassProbe *probe, const SassOperation *operation)
             }
         }
         // a modifier bit is a run of its own, since each names a modifier of its own
-        const int joined = (bit < SASS_BITS) && (bit != 0u) && (strcmp(category, run_category) == 0) &&
-                           (strcmp(category, "modifier") != 0) && (bit != 64u);
+        const int joined = (bit < SASS_BITS) && (bit != 0u) &&
+                           (mmgr_text_equal(category, run_category, PLATFORM_TEXT_TO_TERMINATOR)) &&
+                           (!mmgr_text_equal(category, "modifier", PLATFORM_TEXT_TO_TERMINATOR)) && (bit != 64u);
         if (!joined && (bit != 0u))
         {
             printf("  bits %3u-%3u %s: %s\n", run_start, bit - 1u, run_category, run_example);
@@ -214,8 +302,8 @@ int sass_fields(SassProbe *probe, const SassOperation *operation)
         if (!joined)
         {
             run_start = bit;
-            memcpy(run_category, category, sizeof(run_category));
-            memcpy(run_example, example, sizeof(run_example));
+            mmgr_bytes_copy(run_category, category, sizeof(run_category));
+            mmgr_bytes_copy(run_example, example, sizeof(run_example));
         }
     }
     if (bits != NULL)

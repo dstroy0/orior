@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // floor_track_main.cu: the scene and main
 #include "floor_track_internal.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
 
 // the tolerances d, and the patch sizes: the body's own cell, then its 27
 static const unsigned int s_track_deltas[TRACK_DELTAS] = {0u, 4u, 8u, 16u, 32u, 64u};
@@ -96,7 +98,7 @@ static int track_scene(SimResults *results, const char *name, const SimScene *sc
                 for (unsigned int delta = 0u; delta < deltas; delta += 1u)
                 {
                     TrackQuery *const query = &host->queries[count];
-                    memset(query, 0, sizeof(*query));
+                    mmgr_bytes_set(query, 0, sizeof(*query));
                     // frame t + stride is below the scene's frame count, far under 2^32
                     query->frame = (unsigned int)(frame + stride);
                     for (unsigned int cell = 0u; cell < TRACK_PATCH_MAX; cell += 1u)
@@ -119,7 +121,7 @@ static int track_scene(SimResults *results, const char *name, const SimScene *sc
                             (unsigned long long)((((at[0] * side) + at[1]) * side) + at[2]);
                         const unsigned int value = host->floors[(frame * TRACK_FLOOR_VALUES) + place];
                         const unsigned int range = s_track_deltas[delta];
-                        memcpy(query->step[query->count], step, sizeof(step));
+                        mmgr_bytes_copy(query->step[query->count], step, sizeof(step));
                         query->low[query->count] = (value > range) ? (value - range) : 0u;
                         query->high[query->count] =
                             ((TRACK_VALUE_MAX - value) > range) ? (value + range) : TRACK_VALUE_MAX;
@@ -277,7 +279,7 @@ int program_main(int count, char **arguments)
     sim_check(&results, ok, "the host buffers are allocated");
     ok = ok && sim_job_submit(&results, "floor_track", count, arguments, TRACK_DECLARED);
     TrackDevice device;
-    memset(&device, 0, sizeof(device));
+    mmgr_bytes_set(&device, 0, sizeof(device));
     ok =
         ok &&
         sim_status_check(
@@ -306,7 +308,7 @@ int program_main(int count, char **arguments)
     // the control: every body a floor-2 cell a frame, no noise, no ramp, no pattern. Floor 2 translates exactly
     SimBody control_body[TRACK_CONTROL_BODIES];
     SimScene control;
-    memset(&control, 0, sizeof(control));
+    mmgr_bytes_set(&control, 0, sizeof(control));
     control.frames = TRACK_CONTROL_FRAMES;
     control.extent[0] = TRACK_SIDE;
     control.extent[1] = TRACK_SIDE;
@@ -316,12 +318,12 @@ int program_main(int count, char **arguments)
     track_control_bodies(control_body, TRACK_CONTROL_FRAMES);
     control.body = control_body;
     SimCamera still;
-    memset(&still, 0, sizeof(still));
+    mmgr_bytes_set(&still, 0, sizeof(still));
     still.key = TRACK_KEY;
     still.offset = 100ULL;
     still.gain = 1ULL;
     TrackSetting control_settings[TRACK_PATCHES][TRACK_DELTAS];
-    memset(control_settings, 0, sizeof(control_settings));
+    mmgr_bytes_set(control_settings, 0, sizeof(control_settings));
     ok = ok && track_scene(&results, "control, a cell a frame, no noise", &control, &still, 1ULL, &host, &device,
                            control_settings, 1u);
     sim_check(&results,
@@ -332,7 +334,7 @@ int program_main(int count, char **arguments)
     // the camera law: bodies a voxel a frame, shot and read noise, the ramp and the fixed pattern
     SimBody camera_body[TRACK_CAMERA_BODIES];
     SimScene scene;
-    memset(&scene, 0, sizeof(scene));
+    mmgr_bytes_set(&scene, 0, sizeof(scene));
     scene.frames = TRACK_CAMERA_FRAMES;
     scene.extent[0] = TRACK_SIDE;
     scene.extent[1] = TRACK_SIDE;
@@ -346,7 +348,7 @@ int program_main(int count, char **arguments)
     sim_founders_draw(&draws, &scene, camera_body, TRACK_CAMERA_BODIES);
     scene.body = camera_body;
     SimCamera camera;
-    memset(&camera, 0, sizeof(camera));
+    mmgr_bytes_set(&camera, 0, sizeof(camera));
     camera.key = TRACK_KEY;
     camera.offset = 100ULL;
     camera.gain = 1ULL;
@@ -354,26 +356,26 @@ int program_main(int count, char **arguments)
     camera.pattern_range = 8ULL;
     camera.shot = 1ULL;
     TrackSetting camera_settings[TRACK_PATCHES][TRACK_DELTAS];
-    memset(camera_settings, 0, sizeof(camera_settings));
+    mmgr_bytes_set(camera_settings, 0, sizeof(camera_settings));
     ok = ok && track_scene(&results, "camera law, a voxel a frame", &scene, &camera, 1ULL, &host, &device,
                            camera_settings, TRACK_DELTAS);
     // the floor's own time step: over 2^2 frames a body moving a whole voxel a frame moves whole floor-2 cells
     TrackSetting floor_step_settings[TRACK_PATCHES][TRACK_DELTAS];
-    memset(floor_step_settings, 0, sizeof(floor_step_settings));
+    mmgr_bytes_set(floor_step_settings, 0, sizeof(floor_step_settings));
     ok = ok && track_scene(&results, "camera law, a voxel a frame", &scene, &camera, (unsigned long long)TRACK_CELL,
                            &host, &device, floor_step_settings, TRACK_DELTAS);
     // the same bodies without noise, ramp or pattern: what the floor's time step leaves once the noise is gone
     SimScene quiet = scene;
     quiet.ramp = 0ULL;
     TrackSetting quiet_settings[TRACK_PATCHES][TRACK_DELTAS];
-    memset(quiet_settings, 0, sizeof(quiet_settings));
+    mmgr_bytes_set(quiet_settings, 0, sizeof(quiet_settings));
     ok = ok && track_scene(&results, "the camera law's bodies, no noise", &quiet, &still,
                            (unsigned long long)TRACK_CELL, &host, &device, quiet_settings, TRACK_DELTAS);
 
     // the first three of those bodies spread along z. No body reaches another's footprint, with the camera's noise
     // and without it
     SimBody sparse_body[TRACK_SPARSE_BODIES];
-    memcpy(sparse_body, camera_body, sizeof(sparse_body));
+    mmgr_bytes_copy(sparse_body, camera_body, sizeof(sparse_body));
     for (unsigned int index = 0u; index < TRACK_SPARSE_BODIES; index += 1u)
     {
         sparse_body[index].center[0] = TRACK_SPARSE_FIRST_Z + ((long long)index * TRACK_SPARSE_Z_STEP);
@@ -382,13 +384,13 @@ int program_main(int count, char **arguments)
     sparse.bodies = TRACK_SPARSE_BODIES;
     sparse.body = sparse_body;
     TrackSetting sparse_settings[TRACK_PATCHES][TRACK_DELTAS];
-    memset(sparse_settings, 0, sizeof(sparse_settings));
+    mmgr_bytes_set(sparse_settings, 0, sizeof(sparse_settings));
     ok = ok && track_scene(&results, "three bodies apart, camera law", &sparse, &camera, (unsigned long long)TRACK_CELL,
                            &host, &device, sparse_settings, TRACK_DELTAS);
     SimScene sparse_quiet = sparse;
     sparse_quiet.ramp = 0ULL;
     TrackSetting sparse_quiet_settings[TRACK_PATCHES][TRACK_DELTAS];
-    memset(sparse_quiet_settings, 0, sizeof(sparse_quiet_settings));
+    mmgr_bytes_set(sparse_quiet_settings, 0, sizeof(sparse_quiet_settings));
     ok = ok && track_scene(&results, "three bodies apart, no noise", &sparse_quiet, &still,
                            (unsigned long long)TRACK_CELL, &host, &device, sparse_quiet_settings, TRACK_DELTAS);
     mmgr_line_put(&results.line, "  clear steps among the three, no noise: ");
@@ -406,15 +408,11 @@ int program_main(int count, char **arguments)
     {
         for (unsigned int delta = 0u; delta < TRACK_DELTAS; delta += 1u)
         {
+            max = (camera_settings[patch][delta].reads_max > max) ? camera_settings[patch][delta].reads_max : max;
             max =
-                (camera_settings[patch][delta].reads_max > max) ? camera_settings[patch][delta].reads_max : max;
-            max = (floor_step_settings[patch][delta].reads_max > max)
-                          ? floor_step_settings[patch][delta].reads_max
-                          : max;
-            max =
-                (quiet_settings[patch][delta].reads_max > max) ? quiet_settings[patch][delta].reads_max : max;
-            max =
-                (sparse_settings[patch][delta].reads_max > max) ? sparse_settings[patch][delta].reads_max : max;
+                (floor_step_settings[patch][delta].reads_max > max) ? floor_step_settings[patch][delta].reads_max : max;
+            max = (quiet_settings[patch][delta].reads_max > max) ? quiet_settings[patch][delta].reads_max : max;
+            max = (sparse_settings[patch][delta].reads_max > max) ? sparse_settings[patch][delta].reads_max : max;
             const unsigned long long quiet_max = sparse_quiet_settings[patch][delta].reads_max;
             max = (quiet_max > max) ? quiet_max : max;
         }

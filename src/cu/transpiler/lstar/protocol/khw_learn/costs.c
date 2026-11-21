@@ -2,10 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // costs.c: the costs and the fields written, and the pass enumerated
 #include "khw_learn_internal.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../../../includes/parsers/who.h"
 
 // the code of a costs question: the kernel's places before the position, `copies` of the form `low` and `high` from the
-// position on, and the kernel's places after the position after them; the kernel as the part accepted it where `copies` is 0
+// position on, and the kernel's places after the position after them; the kernel as the part accepted it where `copies`
+// is 0
 static unsigned char s_cost_code[(KHW_PLACES + KHW_COST_COPIES) * KHW_INSTRUCTION];
 
 // A form timed on the timer register: the costs question of `copies` copies put over `count` cases from `word`
@@ -28,11 +32,11 @@ static int khw_cost_timed(unsigned int copies, unsigned long long low, unsigned 
             khw_word_write(&s_cost_code[(s_probe_place + copy) * KHW_INSTRUCTION], 0u, low);
             khw_word_write(&s_cost_code[(s_probe_place + copy) * KHW_INSTRUCTION], 8u, high);
         }
-        memcpy(&s_cost_code[(s_probe_place + copies) * KHW_INSTRUCTION],
-               &s_kernel_text[(s_probe_place + 1u) * KHW_INSTRUCTION], (size_t)after * KHW_INSTRUCTION);
+        mmgr_bytes_copy(&s_cost_code[(s_probe_place + copies) * KHW_INSTRUCTION],
+                        &s_kernel_text[(s_probe_place + 1u) * KHW_INSTRUCTION], (size_t)after * KHW_INSTRUCTION);
         places = s_probe_place + copies + after;
     }
-    memset(&s_cost_question, 0, sizeof(s_cost_question));
+    mmgr_bytes_set(&s_cost_question, 0, sizeof(s_cost_question));
     s_cost_question.code = s_cost_code;
     s_cost_question.code_size = (unsigned long long)places * KHW_INSTRUCTION;
     s_cost_question.registers = s_registers;
@@ -81,12 +85,12 @@ unsigned int khw_costs_queried(const char *path)
     const unsigned char *machine = NULL;
     unsigned long long machine_size = 0ULL;
     const char *const machine_name = qry_member_file_name(s_path);
-    const size_t named = (machine_name != NULL) ? strlen(machine_name) : 0u;
+    const size_t named = (machine_name != NULL) ? mmgr_text_length(machine_name, PLATFORM_TEXT_TO_TERMINATOR) : 0u;
     unsigned long long at = 0ULL;
     const QryRecord *record = NULL;
     while ((named != 0u) && (machine == NULL) && qry_member_read(&at, &record))
     {
-        if ((record->name_length == named) && (memcmp(QRY_RECORD_NAME(record), machine_name, named) == 0))
+        if ((record->name_length == named) && (mmgr_bytes_compare(QRY_RECORD_NAME(record), machine_name, named) == 0))
         {
             machine = QRY_RECORD_BLOB(record);
             machine_size = record->blob_length;
@@ -210,7 +214,7 @@ void khw_fields_written(const char *path)
     ksc_read(&s_read, path);
     for (unsigned int at = 0u; at < s_read.lines; at += 1u)
     {
-        if (strncmp(s_read.line[at], "field ", 6u) != 0)
+        if (!mmgr_text_starts(s_read.line[at], "field ", PLATFORM_TEXT_TO_TERMINATOR))
         {
             ksc_line_add(&s_stored, s_read.line[at]);
         }
@@ -223,8 +227,16 @@ void khw_fields_written(const char *path)
             continue;
         }
         char line[LAYOUT_NAME_MAX_LEN + 48u];
-        snprintf(line, sizeof(line), "field %s %llu %u", s_table.row[at].name, s_table.row[at].offset,
-                 s_table.row[at].width);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(line, sizeof(line));
+            mmgr_line_put(&buffer_line, "field ");
+            mmgr_line_put(&buffer_line, s_table.row[at].name);
+            mmgr_line_put(&buffer_line, " ");
+            mmgr_line_decimal(&buffer_line, s_table.row[at].offset, 1u);
+            mmgr_line_put(&buffer_line, " ");
+            mmgr_line_decimal(&buffer_line, s_table.row[at].width, 1u);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         ksc_line_add(&s_stored, line);
     }
     if (!ksc_write_by(&s_stored, path, who))
@@ -273,7 +285,7 @@ void khw_enumerate(unsigned int place, const char *forms)
     if (known == 0u)
     {
         KhwAnswered form;
-        memset(&form, 0, sizeof(form));
+        mmgr_bytes_set(&form, 0, sizeof(form));
         form.low = khw_word_read(&s_kernel_text[place * KHW_INSTRUCTION], 0u);
         form.high = khw_word_read(&s_kernel_text[place * KHW_INSTRUCTION], 8u);
         khw_turns_queried(&form, word);

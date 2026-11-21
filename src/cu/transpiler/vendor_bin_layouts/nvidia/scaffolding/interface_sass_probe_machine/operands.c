@@ -1,7 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// operands.c: the operands: the machine's listing, the same operation root, an operand dropped, changed, twinned or gained, a form turned, and a form unprinted
+// operands.c: the operands: the machine's listing, the same operation root, an operand dropped, changed, twinned or
+// gained, a form turned, and a form unprinted
 #include "probe_machine_internal.h"
+#include "../../../../../../platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 // the encodings one form is decoded with: itself, and the 128 that are one bit from it
 unsigned long long s_low[SASS_ENCODINGS];
@@ -40,15 +43,17 @@ static int sass_operation_root_same(const char *one, const char *other)
 // BAR.SYNC's barrier with BAR.SYNCALL, is the operation's bit and not the operand's
 static unsigned int sass_operand_dropped(const SassInstructionParts *base, const SassInstructionParts *parts)
 {
-    const int named = (strcmp(parts->operation, base->operation) == 0);
+    const int named = (mmgr_text_equal(parts->operation, base->operation, PLATFORM_TEXT_TO_TERMINATOR));
     for (unsigned int dropped = 0u; dropped < base->operands; dropped += 1u)
     {
-        const int type = (base->type[dropped] == SASS_OPERAND_IMMEDIATE) || (base->type[dropped] == SASS_OPERAND_PREDICATE);
+        const int type =
+            (base->type[dropped] == SASS_OPERAND_IMMEDIATE) || (base->type[dropped] == SASS_OPERAND_PREDICATE);
         int rest = (type && named) ? 1 : 0;
         for (unsigned int place = 0u; rest && (place < parts->operands); place += 1u)
         {
             const unsigned int was = (place < dropped) ? place : (place + 1u);
-            rest = (strcmp(parts->operand[place], base->operand[was]) == 0) && (parts->mark[place] == base->mark[was]);
+            rest = (mmgr_text_equal(parts->operand[place], base->operand[was], PLATFORM_TEXT_TO_TERMINATOR)) &&
+                   (parts->mark[place] == base->mark[was]);
         }
         if (rest != 0)
         {
@@ -68,7 +73,8 @@ unsigned int sass_operand_changed(const SassInstructionParts *base, const char *
 {
     SassInstructionParts parts;
     sass_instruction_read(text, &parts);
-    if ((strcmp(parts.guard, base->guard) != 0) || !sass_operation_root_same(parts.operation, base->operation))
+    if ((!mmgr_text_equal(parts.guard, base->guard, PLATFORM_TEXT_TO_TERMINATOR)) ||
+        !sass_operation_root_same(parts.operation, base->operation))
     {
         return base->operands;
     }
@@ -80,7 +86,7 @@ unsigned int sass_operand_changed(const SassInstructionParts *base, const char *
     {
         return base->operands;
     }
-    const int renamed = (strcmp(parts.operation, base->operation) != 0);
+    const int renamed = (!mmgr_text_equal(parts.operation, base->operation, PLATFORM_TEXT_TO_TERMINATOR));
     unsigned int changed = base->operands;
     unsigned int count = 0u;
     // operands that print one field twice, as BAR.SYNC R0, R0 prints its one register: each that moved carried the
@@ -88,12 +94,14 @@ unsigned int sass_operand_changed(const SassInstructionParts *base, const char *
     int twins = 1;
     for (unsigned int place = 0u; place < base->operands; place += 1u)
     {
-        if ((strcmp(parts.operand[place], base->operand[place]) != 0) || (parts.mark[place] != base->mark[place]))
+        if ((!mmgr_text_equal(parts.operand[place], base->operand[place], PLATFORM_TEXT_TO_TERMINATOR)) ||
+            (parts.mark[place] != base->mark[place]))
         {
             changed = (count == 0u) ? place : changed;
             count += 1u;
-            twins = twins && (strcmp(base->operand[place], base->operand[changed]) == 0) &&
-                    (strcmp(parts.operand[place], parts.operand[changed]) == 0) &&
+            twins = twins &&
+                    (mmgr_text_equal(base->operand[place], base->operand[changed], PLATFORM_TEXT_TO_TERMINATOR)) &&
+                    (mmgr_text_equal(parts.operand[place], parts.operand[changed], PLATFORM_TEXT_TO_TERMINATOR)) &&
                     (base->type[place] == base->type[changed]);
         }
     }
@@ -111,12 +119,11 @@ unsigned int sass_operand_twin(const SassInstructionParts *base, const char *tex
 {
     SassInstructionParts parts;
     sass_instruction_read(text, &parts);
-    for (unsigned int place = operand + 1u; (parts.operands == base->operands) && (place < base->operands);
-         place += 1u)
+    for (unsigned int place = operand + 1u; (parts.operands == base->operands) && (place < base->operands); place += 1u)
     {
-        if ((strcmp(base->operand[place], base->operand[operand]) == 0) &&
-            (strcmp(parts.operand[place], parts.operand[operand]) == 0) &&
-            (strcmp(parts.operand[place], base->operand[place]) != 0))
+        if ((mmgr_text_equal(base->operand[place], base->operand[operand], PLATFORM_TEXT_TO_TERMINATOR)) &&
+            (mmgr_text_equal(parts.operand[place], parts.operand[operand], PLATFORM_TEXT_TO_TERMINATOR)) &&
+            (!mmgr_text_equal(parts.operand[place], base->operand[place], PLATFORM_TEXT_TO_TERMINATOR)))
         {
             return place;
         }
@@ -145,12 +152,13 @@ static int sass_operand_gained(const SassInstructionParts *base, const char *tex
 {
     SassInstructionParts parts;
     sass_instruction_read(text, &parts);
-    int same_base = (strcmp(parts.guard, base->guard) == 0) &&
+    int same_base = (mmgr_text_equal(parts.guard, base->guard, PLATFORM_TEXT_TO_TERMINATOR)) &&
                     sass_operation_root_same(parts.operation, base->operation) &&
-                    (strcmp(parts.operation, base->operation) != 0) && (parts.operands == (base->operands + 1u));
+                    (!mmgr_text_equal(parts.operation, base->operation, PLATFORM_TEXT_TO_TERMINATOR)) &&
+                    (parts.operands == (base->operands + 1u));
     for (unsigned int place = 0u; same_base && (place < base->operands); place += 1u)
     {
-        same_base = (strcmp(parts.operand[place], base->operand[place]) == 0);
+        same_base = (mmgr_text_equal(parts.operand[place], base->operand[place], PLATFORM_TEXT_TO_TERMINATOR));
     }
     return same_base;
 }
@@ -159,8 +167,8 @@ static int sass_operand_gained(const SassInstructionParts *base, const char *tex
 // A turned bit that adds one operand at the end and retains the rest names it, as bit 74 of IMAD.IADD does, which
 // prints IMAD.X with its carry-in predicate; that encoding's own bits turned over give the run of the operand it added.
 // The form takes the first such bit and one unprinted operand. 1, or 0 where the disassembler failed on the turned bits
-int sass_form_unprinted(SassForm *form, const SassInstructionParts *base, const char *architecture,
-                               const char *folder, unsigned int number)
+int sass_form_unprinted(SassForm *form, const SassInstructionParts *base, const char *architecture, const char *folder,
+                        unsigned int number)
 {
     unsigned int gained = SASS_BITS;
     for (unsigned int bit = 0u; (gained == SASS_BITS) && (bit < SASS_BITS); bit += 1u)
@@ -176,7 +184,14 @@ int sass_form_unprinted(SassForm *form, const SassInstructionParts *base, const 
     sibling.high = s_high[1u + gained];
     sass_form_turned(&sibling);
     char path[1024];
-    snprintf(path, sizeof(path), "%s/form_%03u_unprinted", folder, number);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+        mmgr_line_put(&buffer_line, folder);
+        mmgr_line_put(&buffer_line, "/form_");
+        mmgr_line_decimal(&buffer_line, number, 3u);
+        mmgr_line_put(&buffer_line, "_unprinted");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     if (!sass_decode(architecture, path, s_low, s_high, SASS_ENCODINGS, s_texts))
     {
         return 0;

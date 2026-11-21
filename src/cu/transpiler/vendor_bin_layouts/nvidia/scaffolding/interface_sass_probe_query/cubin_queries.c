@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cubin_queries.c: the container queried: every query of the container put to the part in turn
 #include "probe_query_internal.h"
+#include "../../../../../../platform/platform.h"
 
 // a question of the interface's own, queried in the part's code: the instruction to put in place of form_0's own, and
 // the word the device should answer for the case sass_cubin_answer gives it
@@ -157,7 +158,12 @@ unsigned int sass_cubin_queries(SassProbe *probe, const SassMachine *machine, un
             printf("  query %s: not written\n", s_queries[number].instruction);
             continue;
         }
-        snprintf(path, sizeof(path), "%s/queried.cubin", probe->folder);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+            mmgr_line_put(&buffer_line, probe->folder);
+            mmgr_line_put(&buffer_line, "/queried.cubin");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         if (!sass_cubin_answer(probe, path, answered, sizeof(answered)))
         {
             // the part was passed the question and would not run it: illegal on its own, however it assembled

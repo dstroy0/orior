@@ -3,6 +3,9 @@
 // forms.c: the forms: the vendor's run, the forms, costs and givens read, a form's cost and given, and the forms of a
 // word ranked
 #include "../../../parsers/line_read.h"
+#include "../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "krs_write_internal.h"
 
 // each form's cost as the part's .ksc stores it: its encoding, its least launch m and its spread s
@@ -55,33 +58,35 @@ unsigned int krs_forms_read(const unsigned char *bytes, unsigned long long size)
     for (unsigned long long at = 0ULL; (at < rows) && (s_forms < KRS_FORMS); at += 1ULL)
     {
         FormsBlobRow row;
-        memcpy(&row, bytes + (at * sizeof(FormsBlobRow)), sizeof(row));
+        mmgr_bytes_copy(&row, bytes + (at * sizeof(FormsBlobRow)), sizeof(row));
         row.relation[sizeof(row.relation) - 1u] = '\0';
         row.text[sizeof(row.text) - 1u] = '\0';
-        const size_t prefix = strlen(KRS_READS_LADDER);
+        const size_t prefix = mmgr_text_length(KRS_READS_LADDER, PLATFORM_TEXT_TO_TERMINATOR);
         const char *const name =
             (strncmp(row.relation, KRS_READS_LADDER, prefix) == 0) ? (row.relation + prefix) : row.relation;
         unsigned int anchor = (unsigned int)LADDER_ANCHOR_COUNT;
         for (unsigned int each = 0u; each < (unsigned int)LADDER_ANCHOR_COUNT; each += 1u)
         {
-            anchor = (strcmp(s_anchor_text[each], name) == 0) ? each : anchor;
+            anchor = (mmgr_text_equal(s_anchor_text[each], name, PLATFORM_TEXT_TO_TERMINATOR)) ? each : anchor;
         }
         // the form of a frame relation or of a predicate relation goes out as a form of the schema. That is the form
-        // that the table beside this writer maps it to. A predicate relation read as signed goes under its relation with `.signed` after
-        // it
+        // that the table beside this writer maps it to. A predicate relation read as signed goes under its relation
+        // with `.signed` after it
         const int predicate = (anchor != (unsigned int)LADDER_ANCHOR_COUNT) && ladder_predicate(anchor);
-        if ((strncmp(row.relation, KRS_READS_FRAME, strlen(KRS_READS_FRAME)) == 0) || predicate)
+        if ((strncmp(row.relation, KRS_READS_FRAME, mmgr_text_length(KRS_READS_FRAME, PLATFORM_TEXT_TO_TERMINATOR)) ==
+             0) ||
+            predicate)
         {
             static const char s_signed[] = ".signed";
-            const size_t relation = strlen(row.relation);
+            const size_t relation = mmgr_text_length(row.relation, PLATFORM_TEXT_TO_TERMINATOR);
             const size_t marked = (predicate && (row.signed_read != 0u)) ? (sizeof(s_signed) - 1u) : 0u;
             if ((s_frame_forms < KRS_FRAME_FORMS) && ((relation + marked) < KRS_FRAME_RELATION))
             {
                 KrsFrameForm *const frame_form = &s_frame_form[s_frame_forms];
-                memcpy(frame_form->relation, row.relation, relation);
-                memcpy(frame_form->relation + relation, s_signed, marked);
+                mmgr_bytes_copy(frame_form->relation, row.relation, relation);
+                mmgr_bytes_copy(frame_form->relation + relation, s_signed, marked);
                 frame_form->relation[relation + marked] = '\0';
-                memcpy(frame_form->text, row.text, sizeof(row.text));
+                mmgr_bytes_copy(frame_form->text, row.text, sizeof(row.text));
                 s_frame_forms += 1u;
             }
             continue;
@@ -94,7 +99,7 @@ unsigned int krs_forms_read(const unsigned char *bytes, unsigned long long size)
         s_form[s_forms].signed_read = (int)row.signed_read;
         s_form[s_forms].low = row.low;
         s_form[s_forms].high = row.high;
-        memcpy(s_form[s_forms].text, row.text, sizeof(row.text));
+        mmgr_bytes_copy(s_form[s_forms].text, row.text, sizeof(row.text));
         s_forms += 1u;
     }
     return s_forms;
@@ -112,7 +117,8 @@ unsigned int krs_costs_read(const char *path)
     {
         KrsCost cost;
         const char *question = s_row.question;
-        if (ksc_row_read(s_file.line[at], "run", &s_row) && (strcmp(s_row.answer, "answers") == 0) &&
+        if (ksc_row_read(s_file.line[at], "run", &s_row) &&
+            (mmgr_text_equal(s_row.answer, "answers", PLATFORM_TEXT_TO_TERMINATOR)) &&
             line_characters(&question, "cost ") && line_number(&question, 1, &cost.low) &&
             line_number(&question, 1, &cost.high) && line_number(&question, 1, &cost.spread))
         {
@@ -155,11 +161,20 @@ unsigned int krs_given_read(const char *path)
         char type[KRS_NAME];
         char name[KRS_NAME];
         const char *at = line;
-        if (line_word(&at, type, sizeof(type)) && line_word(&at, name, sizeof(name)) && (strcmp(type, "form") == 0))
+        if (line_word(&at, type, sizeof(type)) && line_word(&at, name, sizeof(name)) &&
+            (mmgr_text_equal(type, "form", PLATFORM_TEXT_TO_TERMINATOR)))
         {
             line[strcspn(line, "\r\n")] = '\0';
-            snprintf(s_given[s_givens], sizeof(s_given[s_givens]), "%s", line);
-            snprintf(s_given_name[s_givens], sizeof(s_given_name[s_givens]), "%s", name);
+            {
+                VerbaLinea buffer_line = mmgr_line_over(s_given[s_givens], sizeof(s_given[s_givens]));
+                mmgr_line_put(&buffer_line, line);
+                (void)mmgr_line_finish(&buffer_line);
+            }
+            {
+                VerbaLinea buffer_line = mmgr_line_over(s_given_name[s_givens], sizeof(s_given_name[s_givens]));
+                mmgr_line_put(&buffer_line, name);
+                (void)mmgr_line_finish(&buffer_line);
+            }
             s_givens += 1u;
         }
     }
@@ -171,7 +186,7 @@ const char *krs_given_of(const char *name)
 {
     for (unsigned int at = 0u; at < s_givens; at += 1u)
     {
-        if (strcmp(s_given_name[at], name) == 0)
+        if (mmgr_text_equal(s_given_name[at], name, PLATFORM_TEXT_TO_TERMINATOR))
         {
             return s_given[at];
         }
@@ -192,14 +207,20 @@ unsigned int krs_fewest_operands(const unsigned int *writer, unsigned int writer
         for (unsigned int place = 0u; place <= words; place += 1u)
         {
             char place_text[8];
-            snprintf(place_text, sizeof(place_text), "{%u}", place);
-            carries = carries && (strstr(form->text, place_text) != NULL);
+            {
+                VerbaLinea buffer_line = mmgr_line_over(place_text, sizeof(place_text));
+                mmgr_line_put(&buffer_line, "{");
+                mmgr_line_decimal(&buffer_line, place, 1u);
+                mmgr_line_put(&buffer_line, "}");
+                (void)mmgr_line_finish(&buffer_line);
+            }
+            carries = carries && (mmgr_text_find(form->text, place_text, PLATFORM_TEXT_TO_TERMINATOR) != NULL);
         }
         if (!carries)
         {
             continue;
         }
-        unsigned int operands = (strchr(form->text, ' ') != NULL) ? 1u : 0u;
+        unsigned int operands = (mmgr_text_char(form->text, ' ', PLATFORM_TEXT_TO_TERMINATOR) != NULL) ? 1u : 0u;
         for (const char *walk = form->text; *walk != '\0'; walk += 1)
         {
             operands += (*walk == ',') ? 1u : 0u;
@@ -213,10 +234,9 @@ unsigned int krs_fewest_operands(const unsigned int *writer, unsigned int writer
     return (found == writers) ? 0u : found;
 }
 
-// The form that P6 gives a word, of the `writers` forms in `writer`. It is c_1, the form of least m, where the next least
-// m is past it by more than s, the greatest spread of them.
-// The result is its place in `writer`. It is `writers` where a form has no stored cost or the least do not separate.
-// The survivors are then one cost
+// The form that P6 gives a word, of the `writers` forms in `writer`. It is c_1, the form of least m, where the next
+// least m is past it by more than s, the greatest spread of them. The result is its place in `writer`. It is `writers`
+// where a form has no stored cost or the least do not separate. The survivors are then one cost
 unsigned int krs_ranked(const unsigned int *writer, unsigned int writers)
 {
     unsigned int first = writers;

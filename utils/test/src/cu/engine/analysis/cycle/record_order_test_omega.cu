@@ -304,6 +304,10 @@ static void order_omega(OrderResults *results)
     free(stack.steps);
 }
 
+// the pool of the test. The check of the compiled run against the interpreter takes cells of up to 56 MiB on the
+// temporary tier
+extern "C" const unsigned long long g_program_pool_bytes = 1ULL << 30u;
+
 int program_main(int count, char **arguments)
 {
     OrderResults results;

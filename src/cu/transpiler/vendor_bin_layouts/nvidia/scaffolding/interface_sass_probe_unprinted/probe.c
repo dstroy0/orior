@@ -1,7 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// probe.c: the probe: a file read and written, bits and words read and written, the binary and the text, the kernel, a place found and written, and one question run on the part
+// probe.c: the probe: a file read and written, bits and words read and written, the binary and the text, the kernel, a
+// place found and written, and one question run on the part
 #include "unprinted_internal.h"
+#include "../../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 SassMachine s_machine;
 
@@ -56,7 +60,7 @@ static void unprinted_bits_write(unsigned long long *low, unsigned long long *hi
 
 // `bits` bits of the encoding read from `first`
 unsigned long long unprinted_bits_read(unsigned long long low, unsigned long long high, unsigned int first,
-                                              unsigned int bits)
+                                       unsigned int bits)
 {
     unsigned long long value = 0ULL;
     for (unsigned int bit = 0u; bit < bits; bit += 1u)
@@ -102,12 +106,12 @@ void unprinted_binary(unsigned long long value, unsigned int bits, char *text)
 // contains no such line or `text` will not fit the whole
 int unprinted_text(const char *kernel_text, const char *lines, char *text, size_t room)
 {
-    const char *const line = strstr(kernel_text, "\nIADD3 ");
+    const char *const line = mmgr_text_find(kernel_text, "\nIADD3 ", PLATFORM_TEXT_TO_TERMINATOR);
     if (line == NULL)
     {
         return 0;
     }
-    const char *const after = strchr(line + 1, '\n');
+    const char *const after = mmgr_text_char(line + 1, '\n', PLATFORM_TEXT_TO_TERMINATOR);
     const size_t before = (size_t)(line - kernel_text) + 1u;
     return snprintf(text, room, "%.*s%s%s", (int)before, kernel_text, lines, (after != NULL) ? after : "") < (int)room;
 }
@@ -115,18 +119,19 @@ int unprinted_text(const char *kernel_text, const char *lines, char *text, size_
 // the kernel the kernel's text opens with, `.text.<kernel>:`, into `kernel`: 1, or 0 where it opens otherwise
 int unprinted_kernel(const char *kernel_text, char *kernel, size_t room)
 {
-    if (strncmp(kernel_text, ".text.", 6u) != 0)
+    if (!mmgr_text_starts(kernel_text, ".text.", PLATFORM_TEXT_TO_TERMINATOR))
     {
         return 0;
     }
     const size_t length = strcspn(kernel_text + 6, ":\r\n");
-    return (kernel_text[6u + length] == ':') && (snprintf(kernel, room, "%.*s", (int)length, kernel_text + 6) < (int)room);
+    return (kernel_text[6u + length] == ':') &&
+           (snprintf(kernel, room, "%.*s", (int)length, kernel_text + 6) < (int)room);
 }
 
 // every instruction of `code`, `count` of them, whose operation bits are `low` and `high`'s, their numbers in order
 // into `found`, sized for `room`: how many there are
 unsigned int unprinted_find(const unsigned char *code, unsigned int count, unsigned long long low,
-                                   unsigned long long high, unsigned int *found, unsigned int room)
+                            unsigned long long high, unsigned int *found, unsigned int room)
 {
     unsigned int matches = 0u;
     for (unsigned int number = 0u; number < count; number += 1u)
@@ -148,8 +153,7 @@ unsigned int unprinted_find(const unsigned char *code, unsigned int count, unsig
 // the encoding at place `place` of `code` with `bits` bits from `first` set to `value`, and the bits each question
 // fixes beside it
 void unprinted_place_write(unsigned char *code, unsigned int place, const UnprintedFixed *fixed,
-                                  unsigned int fixed_count, unsigned int first, unsigned int bits,
-                                  unsigned long long value)
+                           unsigned int fixed_count, unsigned int first, unsigned int bits, unsigned long long value)
 {
     unsigned long long low = unprinted_word_read(&code[16u * place]);
     unsigned long long high = unprinted_word_read(&code[(16u * place) + 8u]);
@@ -165,10 +169,10 @@ void unprinted_place_write(unsigned char *code, unsigned int place, const Unprin
 // the cubin of `code` run on the part over the case: 1 with the four words it answered in `answered`, or 0 where the
 // cubin was not written or did not run, with how it ended in `ended`
 int unprinted_run(const unsigned char *code, unsigned long long code_size, unsigned int *answered, char *ended,
-                         size_t room)
+                  size_t room)
 {
     CubinWrite written;
-    memset(&written, 0, sizeof(written));
+    mmgr_bytes_set(&written, 0, sizeof(written));
     written.pattern = s_pattern;
     written.pattern_size = s_pattern_size;
     written.kernel = s_kernel;
@@ -179,10 +183,19 @@ int unprinted_run(const unsigned char *code, unsigned long long code_size, unsig
     written.exits = s_exits;
     unsigned long long size = 0ULL;
     char cubin[1024];
-    snprintf(cubin, sizeof(cubin), "%s/unprinted.cubin", s_folder);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(cubin, sizeof(cubin));
+        mmgr_line_put(&buffer_line, s_folder);
+        mmgr_line_put(&buffer_line, "/unprinted.cubin");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     if (!cubin_write(&written, s_cubin, sizeof(s_cubin), &size) || !unprinted_file_write(cubin, s_cubin, size))
     {
-        snprintf(ended, room, "not written");
+        {
+            VerbaLinea buffer_line = mmgr_line_over(ended, room);
+            mmgr_line_put(&buffer_line, "not written");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         return 0;
     }
     // the gate the carrier and the rest of the scaffolding share: a turned bit whose operation key transfers control or
@@ -192,36 +205,58 @@ int unprinted_run(const unsigned char *code, unsigned long long code_size, unsig
     unsigned long long value_at = 0ULL;
     if (cubin_safe_image(&s_machine, s_cubin, size, written.registers, &value_at) != CUBIN_SAFE)
     {
-        snprintf(ended, room, "blocked from the part by cubin_safe at byte %llu", value_at);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(ended, room);
+            mmgr_line_put(&buffer_line, "blocked from the part by cubin_safe at byte ");
+            mmgr_line_decimal(&buffer_line, value_at, 1u);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         return 0;
     }
     char output[1024];
-    snprintf(output, sizeof(output), "%s/unprinted.out", s_folder);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(output, sizeof(output));
+        mmgr_line_put(&buffer_line, s_folder);
+        mmgr_line_put(&buffer_line, "/unprinted.out");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     // one case of eight words, none of the other seven zero, the case every question of the probe is tested over
-    char *const command[] = {(char *)s_runner,   (char *)"run",      cubin,              (char *)"0000000b",
-                             (char *)"00000007", (char *)"00000003", (char *)"00000005", (char *)"00000002",
-                             (char *)"00000009", (char *)"00000001", (char *)"00000004", NULL};
+    char *const command[] = {(char *)s_runner,   (char *)"run",      cubin,
+                             (char *)"0000000b", (char *)"00000007", (char *)"00000003",
+                             (char *)"00000005", (char *)"00000002", (char *)"00000009",
+                             (char *)"00000001", (char *)"00000004", NULL};
     const InterfaceProbe probe = {command, output, UNPRINTED_LIMIT};
     InterfaceAnswer answer;
-    memset(&answer, 0, sizeof(answer));
+    mmgr_bytes_set(&answer, 0, sizeof(answer));
     answer.output = s_output;
     answer.output_capacity = sizeof(s_output);
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     if (interface_probe_run(&probe, &answer, &error) != 0L)
     {
-        snprintf(ended, room, "the interface failed");
+        {
+            VerbaLinea buffer_line = mmgr_line_over(ended, room);
+            mmgr_line_put(&buffer_line, "the interface failed");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         return 0;
     }
-    const char *const line = strstr(s_output, "answered ");
+    const char *const line = mmgr_text_find(s_output, "answered ", PLATFORM_TEXT_TO_TERMINATOR);
     if ((answer.ending != INTERFACE_ENDING_EXITED) || (answer.code != 0ULL) || (line == NULL))
     {
         // the runner names the error the part raised on a line of its own, "error <number> <name>"
-        const char *const raised = strstr(s_output, "error ");
-        const char *const name = (raised != NULL) ? strchr(raised + 6, ' ') : NULL;
-        snprintf(ended, room, "%s, code %llu%s%.*s", interface_ending_name(answer.ending), answer.code,
-                 (name != NULL) ? ", " : "", (name != NULL) ? (int)strcspn(name + 1, "\r\n") : 0,
-                 (name != NULL) ? name + 1 : "");
+        const char *const raised = mmgr_text_find(s_output, "error ", PLATFORM_TEXT_TO_TERMINATOR);
+        const char *const name = (raised != NULL) ? mmgr_text_char(raised + 6, ' ', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
+        {
+            VerbaLinea buffer_line = mmgr_line_over(ended, room);
+            mmgr_line_put(&buffer_line, interface_ending_name(answer.ending));
+            mmgr_line_put(&buffer_line, ", code ");
+            mmgr_line_decimal(&buffer_line, answer.code, 1u);
+            mmgr_line_put(&buffer_line, (name != NULL) ? ", " : "");
+            mmgr_line_put_max(&buffer_line, (name != NULL) ? name + 1 : "",
+                              (size_t)((name != NULL) ? (int)strcspn(name + 1, "\r\n") : 0));
+            (void)mmgr_line_finish(&buffer_line);
+        }
         return 0;
     }
     // the runner prints each answered word as eight hexadecimal digits, which an unsigned int stores

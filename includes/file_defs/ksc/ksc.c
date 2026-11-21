@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // ksc.c: a system's .ksc read, its rows read and replaced, and written back whole (ksc.h)
 #include "ksc.h"
+#include "../../../src/platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include "../../parsers/line_read.h"
 #include "../../parsers/who.h"
@@ -42,7 +45,7 @@ static int ksc_word_read(const char *text, size_t *at, char *word, size_t room)
     {
         return 0;
     }
-    memcpy(word, text + *at, length);
+    mmgr_bytes_copy(word, text + *at, length);
     word[length] = '\0';
     *at += length;
     return 1;
@@ -51,7 +54,8 @@ static int ksc_word_read(const char *text, size_t *at, char *word, size_t room)
 int ksc_row_read(const char *line, const char *channel, KscRow *row)
 {
     size_t at = 0u;
-    if (!ksc_word_read(line, &at, row->channel, sizeof(row->channel)) || (strcmp(row->channel, channel) != 0) ||
+    if (!ksc_word_read(line, &at, row->channel, sizeof(row->channel)) ||
+        (!mmgr_text_equal(row->channel, channel, PLATFORM_TEXT_TO_TERMINATOR)) ||
         !ksc_word_read(line, &at, row->answer, sizeof(row->answer)) ||
         !ksc_word_read(line, &at, row->word, sizeof(row->word)))
     {
@@ -60,7 +64,11 @@ int ksc_row_read(const char *line, const char *channel, KscRow *row)
     char *after = NULL;
     row->value = strtoull(row->word, &after, 16);
     at += strspn(line + at, " \t");
-    snprintf(row->question, sizeof(row->question), "%s", line + at);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(row->question, sizeof(row->question));
+        mmgr_line_put(&buffer_line, line + at);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     return 1;
 }
 
@@ -68,7 +76,7 @@ int ksc_row_read(const char *line, const char *channel, KscRow *row)
 static int ksc_row_question_starts(const char *line, const char *channel, const char *question_prefix)
 {
     static KscRow s_row;
-    const size_t length = strlen(question_prefix);
+    const size_t length = mmgr_text_length(question_prefix, PLATFORM_TEXT_TO_TERMINATOR);
     return ksc_row_read(line, channel, &s_row) && (strncmp(s_row.question, question_prefix, length) == 0) &&
            ((s_row.question[length] == '\0') || (s_row.question[length] == ' '));
 }
@@ -79,8 +87,10 @@ static int ksc_count_read(const char *line, const char *channel, char *answer)
     size_t at = 0u;
     char word[KSC_CHANNEL];
     char counted[KSC_CHANNEL];
-    return ksc_word_read(line, &at, word, sizeof(word)) && (strcmp(word, "count") == 0) &&
-           ksc_word_read(line, &at, counted, sizeof(counted)) && (strcmp(counted, channel) == 0) &&
+    return ksc_word_read(line, &at, word, sizeof(word)) &&
+           (mmgr_text_equal(word, "count", PLATFORM_TEXT_TO_TERMINATOR)) &&
+           ksc_word_read(line, &at, counted, sizeof(counted)) &&
+           (mmgr_text_equal(counted, channel, PLATFORM_TEXT_TO_TERMINATOR)) &&
            ksc_word_read(line, &at, answer, KSC_ANSWER);
 }
 
@@ -102,7 +112,7 @@ int ksc_rows_replaced_traced_by(KscFile *file, const char *channel, const char *
             continue;
         }
         unsigned int same = 0u;
-        while ((same < count) && (strcmp(rows[same], file->line[at]) != 0))
+        while ((same < count) && (!mmgr_text_equal(rows[same], file->line[at], PLATFORM_TEXT_TO_TERMINATOR)))
         {
             same += 1u;
         }
@@ -160,13 +170,17 @@ int ksc_rows_replaced_traced_by(KscFile *file, const char *channel, const char *
             continue;
         }
         unsigned int seen = 0u;
-        while ((seen < distinct) && (strcmp(answers[seen], s_row.answer) != 0))
+        while ((seen < distinct) && (!mmgr_text_equal(answers[seen], s_row.answer, PLATFORM_TEXT_TO_TERMINATOR)))
         {
             seen += 1u;
         }
         if ((seen == distinct) && (distinct < KSC_ANSWERS))
         {
-            snprintf(answers[distinct], sizeof(answers[distinct]), "%s", s_row.answer);
+            {
+                VerbaLinea buffer_line = mmgr_line_over(answers[distinct], sizeof(answers[distinct]));
+                mmgr_line_put(&buffer_line, s_row.answer);
+                (void)mmgr_line_finish(&buffer_line);
+            }
             counted[distinct] = 0u;
             distinct += 1u;
         }
@@ -180,12 +194,21 @@ int ksc_rows_replaced_traced_by(KscFile *file, const char *channel, const char *
             continue;
         }
         unsigned int seen = 0u;
-        while ((seen < distinct) && (strcmp(answers[seen], answer) != 0))
+        while ((seen < distinct) && (!mmgr_text_equal(answers[seen], answer, PLATFORM_TEXT_TO_TERMINATOR)))
         {
             seen += 1u;
         }
         char line[KSC_CHANNEL + KSC_ANSWER + 32u];
-        snprintf(line, sizeof(line), "count %-8s %-8s %u", channel, answer, (seen < distinct) ? counted[seen] : 0u);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(line, sizeof(line));
+            mmgr_line_put(&buffer_line, "count ");
+            mmgr_line_put_columns(&buffer_line, channel, 8u);
+            mmgr_line_put(&buffer_line, " ");
+            mmgr_line_put_columns(&buffer_line, answer, 8u);
+            mmgr_line_put(&buffer_line, " ");
+            mmgr_line_decimal(&buffer_line, (seen < distinct) ? counted[seen] : 0u, 1u);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         kfile_lines_line_replaced(file, at, line);
     }
     return 1;
@@ -197,9 +220,9 @@ int ksc_field_read(const char *line, char *name, size_t room, unsigned int *from
     unsigned long long first = 0ULL;
     unsigned long long bits = 0ULL;
     const char *at = line;
-    if (!line_word(&at, type, sizeof(type)) || (strcmp(type, "field") != 0) || !line_word(&at, name, room) ||
-        !line_number(&at, 0, &first) || !line_number(&at, 0, &bits) || (first > 0xffffffffULL) ||
-        (bits > 0xffffffffULL))
+    if (!line_word(&at, type, sizeof(type)) || (!mmgr_text_equal(type, "field", PLATFORM_TEXT_TO_TERMINATOR)) ||
+        !line_word(&at, name, room) || !line_number(&at, 0, &first) || !line_number(&at, 0, &bits) ||
+        (first > 0xffffffffULL) || (bits > 0xffffffffULL))
     {
         return 0;
     }

@@ -3,6 +3,8 @@
 // flat.cu: the flat ruleset: the relations read, a file, the names and the schema, the capacities, the memory's size,
 // the template, what is stored, and the constructs
 #include "ruleset_flat_internal.h"
+#include "../../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 int ruleset_relations_read(const std::string *paths, unsigned int count, const RulesetCoreSchema *schema,
                            RulesetRelationMemory *memory, RulesetCoreRelations *relations, std::string *error)
@@ -72,7 +74,8 @@ static void ruleset_flat_names(const RulesetName *names, unsigned int count, Rul
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         // a schema's names are a few words each, a few thousand characters in all
-        const RulesetCoreSpan span = {(unsigned int)flat->characters.size(), (unsigned int)strlen(names[at].text)};
+        const RulesetCoreSpan span = {(unsigned int)flat->characters.size(),
+                                      (unsigned int)mmgr_text_length(names[at].text, PLATFORM_TEXT_TO_TERMINATOR)};
         flat->characters.insert(flat->characters.end(), names[at].text, names[at].text + span.length);
         spans->push_back(span);
     }
@@ -107,9 +110,9 @@ void ruleset_flat_schema(const RulesetSchema *schema, RulesetFlat *flat)
 void ruleset_capacities(unsigned int text_length, RulesetCoreRead *read)
 {
     // every character written is one of the file's or is for an escape of two; every piece begins a text or follows a
-    // placeholder, each at least three characters of the file, and every text is at least a line's; every word is at least
-    // a character and a space, and a head's parameters are its words a form's fixed registers are folded into its text
-    // past the characters read, at max once each
+    // placeholder, each at least three characters of the file, and every text is at least a line's; every word is at
+    // least a character and a space, and a head's parameters are its words a form's fixed registers are folded into its
+    // text past the characters read, at max once each
     read->character_capacity = (2u * text_length) + 2u;
     read->piece_capacity = (2u * text_length) + 2u;
     read->word_capacity = text_length + 2u;
@@ -266,9 +269,14 @@ void ruleset_store(const RulesetCoreRead *read, const std::string &text, Ruleset
     if (read->end != RULESET_CORE_OK)
     {
         char where[32];
-        snprintf(where, sizeof(where), "line %u: ", read->line);
-        rules->error =
-            ((read->line != 0u) ? std::string(where) : std::string()) + ruleset_flat_why(read, text, schema);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(where, sizeof(where));
+            mmgr_line_put(&buffer_line, "line ");
+            mmgr_line_decimal(&buffer_line, read->line, 1u);
+            mmgr_line_put(&buffer_line, ": ");
+            (void)mmgr_line_finish(&buffer_line);
+        }
+        rules->error = ((read->line != 0u) ? std::string(where) : std::string()) + ruleset_flat_why(read, text, schema);
     }
 }
 

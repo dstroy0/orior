@@ -3,6 +3,9 @@
 // assemble.c: the assembly: one instruction assembled from its text, a line taken, a label and an instruction
 // distinguished, a label's address, and the lines of a listing assembled
 #include "sass_assemble_internal.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 typedef struct
 {
@@ -28,10 +31,10 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
     {
         const char *const operand = parts.operand[place];
         const char *const open = strrchr(operand, '[');
-        const char *const named = (parts.type[place] == SASS_OPERAND_ADDRESS) ? ((open != NULL) ? (open + 1) : NULL)
+        const char *const named = (parts.type[place] == SASS_OPERAND_ADDRESS)    ? ((open != NULL) ? (open + 1) : NULL)
                                   : (parts.type[place] == SASS_OPERAND_REGISTER) ? operand
                                                                                  : NULL;
-        if ((named == NULL) || (named[0] != 'R') || (strncmp(named, "RZ", 2u) == 0))
+        if ((named == NULL) || (named[0] != 'R') || (mmgr_text_starts(named, "RZ", PLATFORM_TEXT_TO_TERMINATOR)))
         {
             continue;
         }
@@ -78,7 +81,7 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
     {
         if (places[place].by_text != 0)
         {
-            if (strcmp(parts.operand[place], base.operand[place]) != 0)
+            if (!mmgr_text_equal(parts.operand[place], base.operand[place], PLATFORM_TEXT_TO_TERMINATOR))
             {
                 printf("  sass_assemble: %s takes %s where its form carries %s\n", text, parts.operand[place],
                        base.operand[place]);
@@ -97,15 +100,16 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
             sass_bits_write(low, high, places[place].offset.first, places[place].offset.bits, offset);
         }
         // A memory operand that names its descriptor writes the uniform register into the descriptor field and
-        // specifies whether it is displayed: desc[URn] sets bit 101 and term[URn] clears it. One that names none retains
-        // both as its form carries them
-        const int named = (strncmp(parts.operand[place], "desc[", 5u) == 0) ||
-                          (strncmp(parts.operand[place], "term[", 5u) == 0);
+        // specifies whether it is displayed: desc[URn] sets bit 101 and term[URn] clears it. One that names none
+        // retains both as its form carries them
+        const int named = (mmgr_text_starts(parts.operand[place], "desc[", PLATFORM_TEXT_TO_TERMINATOR)) ||
+                          (mmgr_text_starts(parts.operand[place], "term[", PLATFORM_TEXT_TO_TERMINATOR));
         if ((places[place].has_descriptor != 0) && named)
         {
             const char *const uniform = parts.operand[place] + 5;
-            const unsigned long long descriptor = (strncmp(uniform, "URZ", 3u) == 0) ? SASS_DESCRIPTOR_ZERO
-                                                                                    : sass_register_value(uniform);
+            const unsigned long long descriptor = (mmgr_text_starts(uniform, "URZ", PLATFORM_TEXT_TO_TERMINATOR))
+                                                      ? SASS_DESCRIPTOR_ZERO
+                                                      : sass_register_value(uniform);
             sass_bits_write(low, high, places[place].descriptor.first, places[place].descriptor.bits, descriptor);
             sass_bits_write(low, high, SASS_DESCRIPTOR_DISPLAYED, 1u, (parts.operand[place][0] == 'd') ? 1ULL : 0ULL);
         }
@@ -124,15 +128,14 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
             }
             if (((value % places[place].value.scale) != 0ULL) || ((counted >> places[place].value.bits) != 0ULL))
             {
-                printf("  sass_assemble: %s reads offset 0x%llx, which is no word its %u-bit field holds\n", text, value,
-                       places[place].value.bits);
+                printf("  sass_assemble: %s reads offset 0x%llx, which is no word its %u-bit field holds\n", text,
+                       value, places[place].value.bits);
                 return 0;
             }
         }
     }
-    const unsigned long long guard = (parts.guard[0] == '\0')
-                                         ? 7ULL
-                                         : sass_register_value(parts.guard + ((parts.guard[1] == '!') ? 2u : 1u));
+    const unsigned long long guard =
+        (parts.guard[0] == '\0') ? 7ULL : sass_register_value(parts.guard + ((parts.guard[1] == '!') ? 2u : 1u));
     sass_bits_write(low, high, SASS_GUARD_FIRST, SASS_GUARD_BITS, guard);
     sass_bits_write(low, high, SASS_GUARD_NOT, 1u, (parts.guard[1] == '!') ? 1ULL : 0ULL);
     if (control == SASS_CONTROL_SAFE)
@@ -164,7 +167,7 @@ static const char *sass_line_take(const char *text, char *line, size_t room)
         first += 1u;
     }
     const size_t taken = ((line_length - first) < (room - 1u)) ? (line_length - first) : (room - 1u);
-    memcpy(line, text + first, taken);
+    mmgr_bytes_copy(line, text + first, taken);
     line[taken] = '\0';
     return text + length + ((text[length] == '\n') ? 1u : 0u);
 }
@@ -172,7 +175,7 @@ static const char *sass_line_take(const char *text, char *line, size_t room)
 // what a line is: an instruction, a label, or neither
 static int sass_line_is_label(const char *line)
 {
-    const size_t length = strlen(line);
+    const size_t length = mmgr_text_length(line, PLATFORM_TEXT_TO_TERMINATOR);
     return (length != 0u) && (line[length - 1u] == ':');
 }
 
@@ -184,13 +187,14 @@ static int sass_line_is_instruction(const char *line)
 // the address the labels give for `operand`, which a listing writes `(.L_x_0); the count where they give none
 static unsigned long long sass_label_address(const SassLabels *labels, const char *operand, int *known)
 {
-    const char *const open = strchr(operand, '(');
+    const char *const open = mmgr_text_char(operand, '(', PLATFORM_TEXT_TO_TERMINATOR);
     const size_t length = (open != NULL) ? strcspn(open + 1, ")") : 0u;
     *known = 0;
     unsigned long long found = 0ULL;
     for (unsigned int at = 0u; (open != NULL) && (at < labels->count); at += 1u)
     {
-        if ((strlen(labels->name[at]) == length) && (strncmp(labels->name[at], open + 1, length) == 0))
+        if ((mmgr_text_length(labels->name[at], PLATFORM_TEXT_TO_TERMINATOR) == length) &&
+            (strncmp(labels->name[at], open + 1, length) == 0))
         {
             found = labels->address[at];
             *known = 1;
@@ -212,14 +216,20 @@ unsigned int sass_assemble_lines(const SassMachine *machine, const char *text, u
         if (sass_line_is_label(line))
         {
             // a label past the max one text names, or longer than a name is stored, is refused and not dropped
-            if ((s_labels.count == SASS_LABELS) || (strlen(line) > SASS_LABEL_TOKEN))
+            if ((s_labels.count == SASS_LABELS) ||
+                (mmgr_text_length(line, PLATFORM_TEXT_TO_TERMINATOR) > SASS_LABEL_TOKEN))
             {
-                printf(
-                    "  sass_assemble: %s is past the %u labels a text names or the %u characters a name is limited to\n",
-                    line, SASS_LABELS, SASS_LABEL_TOKEN - 1u);
+                printf("  sass_assemble: %s is past the %u labels a text names or the %u characters a name is limited "
+                       "to\n",
+                       line, SASS_LABELS, SASS_LABEL_TOKEN - 1u);
                 return 0u;
             }
-            snprintf(s_labels.name[s_labels.count], SASS_LABEL_TOKEN, "%.*s", (int)(strlen(line) - 1u), line);
+            {
+                VerbaLinea buffer_line = mmgr_line_over(s_labels.name[s_labels.count], SASS_LABEL_TOKEN);
+                mmgr_line_put_max(&buffer_line, line,
+                                  (size_t)((int)(mmgr_text_length(line, PLATFORM_TEXT_TO_TERMINATOR) - 1u)));
+                (void)mmgr_line_finish(&buffer_line);
+            }
             s_labels.address[s_labels.count] = address;
             s_labels.count += 1u;
         }
@@ -245,7 +255,7 @@ unsigned int sass_assemble_lines(const SassMachine *machine, const char *text, u
         int known = 1;
         for (unsigned int place = 0u; place < parts.operands; place += 1u)
         {
-            const char *const open = strchr(parts.operand[place], '(');
+            const char *const open = mmgr_text_char(parts.operand[place], '(', PLATFORM_TEXT_TO_TERMINATOR);
             // a label of the text names where it is; a symbol is a relocation the loader fills, and the text
             // specifies nothing about where it will be
             if ((parts.type[place] == SASS_OPERAND_LABEL) && (open != NULL) && (open[1] == '.'))

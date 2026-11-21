@@ -36,6 +36,9 @@
 // the lanes of the record program: l^2 summed over them passes 2^64
 #define SUM_TEST_LANES (1ull << 22u)
 
+// the pool of the test. The sweep of 2^22 lanes takes a cell of 208 MiB on the temporary tier
+extern "C" const unsigned long long g_program_pool_bytes = 1ULL << 30u;
+
 // the runs the program's lanes are cut into
 #define SUM_TEST_RUN (1ull << 16u)
 

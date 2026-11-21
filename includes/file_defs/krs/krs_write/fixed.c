@@ -4,6 +4,9 @@
 // gave before, or absent. The module also puts a fixed register's placeholder into a form's text where the text holds
 // the register's numeric name.
 #include "fixed.h"
+#include "../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../parsers/line_read.h"
 #include "../../krf/krf.h"
 #include "../../ksc/ksc.h"
@@ -55,13 +58,22 @@ static unsigned int fixed_given_read(const char *krs_path, KrsFixedGiven *given)
         char type[64];
         char name[64];
         const char *at = line;
-        if (!line_word(&at, type, sizeof(type)) || !line_word(&at, name, sizeof(name)) || (strcmp(type, "fixed") != 0))
+        if (!line_word(&at, type, sizeof(type)) || !line_word(&at, name, sizeof(name)) ||
+            (!mmgr_text_equal(type, "fixed", PLATFORM_TEXT_TO_TERMINATOR)))
         {
             continue;
         }
         line[strcspn(line, "\r\n")] = '\0';
-        snprintf(given[count].name, sizeof(given[count].name), "%s", name);
-        snprintf(given[count].line, sizeof(given[count].line), "%s", line);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(given[count].name, sizeof(given[count].name));
+            mmgr_line_put(&buffer_line, name);
+            (void)mmgr_line_finish(&buffer_line);
+        }
+        {
+            VerbaLinea buffer_line = mmgr_line_over(given[count].line, sizeof(given[count].line));
+            mmgr_line_put(&buffer_line, line);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         count += 1u;
     }
     return count;
@@ -73,7 +85,7 @@ static const char *fixed_given_of(const KrsFixedGiven *given, unsigned int count
 {
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        if (strcmp(given[at].name, name) == 0)
+        if (mmgr_text_equal(given[at].name, name, PLATFORM_TEXT_TO_TERMINATOR))
         {
             return given[at].line;
         }
@@ -86,7 +98,7 @@ static int fixed_is_placeholder_name(const char *name)
 {
     for (unsigned int at = 0u; at < KRS_FIXED_NAMES; at += 1u)
     {
-        if (strcmp(s_fixed_names[at], name) == 0)
+        if (mmgr_text_equal(s_fixed_names[at], name, PLATFORM_TEXT_TO_TERMINATOR))
         {
             return 1;
         }
@@ -113,14 +125,15 @@ static void fixed_answers_read(const char *ksc_path, int *answered, unsigned lon
             *top = (bits >= 64u) ? 0xffffffffffffffffULL : ((1ULL << bits) - 1ULL);
             continue;
         }
-        if (!ksc_row_read(s_file.line[line], "run", &s_row) || (strcmp(s_row.answer, "answers") != 0) ||
-            (strncmp(s_row.question, "fixed ", 6u) != 0))
+        if (!ksc_row_read(s_file.line[line], "run", &s_row) ||
+            (!mmgr_text_equal(s_row.answer, "answers", PLATFORM_TEXT_TO_TERMINATOR)) ||
+            (!mmgr_text_starts(s_row.question, "fixed ", PLATFORM_TEXT_TO_TERMINATOR)))
         {
             continue;
         }
         for (unsigned int name = 0u; name < KRS_FIXED_NAMES; name += 1u)
         {
-            if (strcmp(s_row.question + 6, s_fixed_names[name]) == 0)
+            if (mmgr_text_equal(s_row.question + 6, s_fixed_names[name], PLATFORM_TEXT_TO_TERMINATOR))
             {
                 answered[name] = 1;
                 number[name] = s_row.value;
@@ -135,24 +148,41 @@ static void fixed_line_of(unsigned int name, unsigned long long value, unsigned 
 {
     if ((top != 0ULL) && (value == top))
     {
-        snprintf(line, room, "fixed %s = RZ", s_fixed_names[name]);
+        VerbaLinea buffer_line = mmgr_line_over(line, room);
+        mmgr_line_put(&buffer_line, "fixed ");
+        mmgr_line_put(&buffer_line, s_fixed_names[name]);
+        mmgr_line_put(&buffer_line, " = RZ");
+        (void)mmgr_line_finish(&buffer_line);
     }
     else
     {
-        snprintf(line, room, "fixed %s = R%llu", s_fixed_names[name], value);
+        VerbaLinea buffer_line = mmgr_line_over(line, room);
+        mmgr_line_put(&buffer_line, "fixed ");
+        mmgr_line_put(&buffer_line, s_fixed_names[name]);
+        mmgr_line_put(&buffer_line, " = R");
+        mmgr_line_decimal(&buffer_line, value, 1u);
+        (void)mmgr_line_finish(&buffer_line);
     }
 }
 
 // Keep the register of the fixed line `line` under `name` in s_register, if the line reads `fixed <name> = <text>`.
 static void fixed_register_kept(const char *name, const char *line)
 {
-    const char *const equals = strstr(line, "= ");
+    const char *const equals = mmgr_text_find(line, "= ", PLATFORM_TEXT_TO_TERMINATOR);
     if ((equals == NULL) || (s_registers >= KRS_FIXED_GIVEN_MAX))
     {
         return;
     }
-    snprintf(s_register[s_registers].name, sizeof(s_register[s_registers].name), "%s", name);
-    snprintf(s_register[s_registers].text, sizeof(s_register[s_registers].text), "%s", equals + 2);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(s_register[s_registers].name, sizeof(s_register[s_registers].name));
+        mmgr_line_put(&buffer_line, name);
+        (void)mmgr_line_finish(&buffer_line);
+    }
+    {
+        VerbaLinea buffer_line = mmgr_line_over(s_register[s_registers].text, sizeof(s_register[s_registers].text));
+        mmgr_line_put(&buffer_line, equals + 2);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     s_register[s_registers].text[strcspn(s_register[s_registers].text, " \t")] = '\0';
     s_registers += 1u;
 }
@@ -224,7 +254,7 @@ int krs_fixed_placed(char *text, size_t room)
         const KrsFixedRegister *found = NULL;
         for (unsigned int each = 0u; (found == NULL) && (each < s_registers); each += 1u)
         {
-            const size_t length = strlen(s_register[each].text);
+            const size_t length = mmgr_text_length(s_register[each].text, PLATFORM_TEXT_TO_TERMINATOR);
             const int whole = !fixed_word_character(before) && (before != '{') &&
                               (strncmp(walk, s_register[each].text, length) == 0) &&
                               !fixed_word_character(walk[length]);
@@ -247,14 +277,14 @@ int krs_fixed_placed(char *text, size_t room)
             return 0;
         }
         at += (size_t)added;
-        walk += strlen(found->text);
+        walk += mmgr_text_length(found->text, PLATFORM_TEXT_TO_TERMINATOR);
     }
     placed[at] = '\0';
     if ((at + 1u) > room)
     {
         return 0;
     }
-    memcpy(text, placed, at + 1u);
+    mmgr_bytes_copy(text, placed, at + 1u);
     return 1;
 }
 
@@ -283,7 +313,7 @@ unsigned int krs_fixed_written(char *out, size_t cap, size_t *at, const char *ks
             *at = verba_littera.ch(&(VerbaLitteraCfg){.out = out, .cap = cap, .at = *at, .ch = '\n'});
             written += 1u;
             const char *const before = fixed_given_of(s_given, givens, s_fixed_names[name]);
-            if ((before != NULL) && (strcmp(before, line) != 0))
+            if ((before != NULL) && (!mmgr_text_equal(before, line, PLATFORM_TEXT_TO_TERMINATOR)))
             {
                 removed[removals] = before;
                 removals += 1u;

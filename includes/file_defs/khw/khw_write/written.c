@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // written.c: what the pass writes: the run's texts, the runs read, the answers and the working set
 #include "../../../parsers/who.h"
+#include "../../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "khw_write.h"
 #include "verba_scribo/verba_scribo.h"
 
@@ -143,31 +145,47 @@ int khw_runs_read(KhwAnswered *answered, const char *text)
             // the none mark, with its type's character after it where the run is no register's, or the place with its
             // character after it. The character's place among the four is its type, and no character is a register's
             char *end = NULL;
-            const int none = (strncmp(place, KHW_PLACE_NONE_TEXT, strlen(KHW_PLACE_NONE_TEXT)) == 0);
+            const int none = (strncmp(place, KHW_PLACE_NONE_TEXT,
+                                      mmgr_text_length(KHW_PLACE_NONE_TEXT, PLATFORM_TEXT_TO_TERMINATOR)) == 0);
             answered->place[run] = none ? KHW_PLACE_NONE : (unsigned int)strtoul(place, &end, 10);
-            end = none ? (place + strlen(KHW_PLACE_NONE_TEXT)) : end;
-            const char *const character = ((end != NULL) && (*end != '\0')) ? strchr(KHW_KIND_CHARACTERS, *end) : NULL;
-            answered->type[run] = (character != NULL) ? (unsigned int)(character - KHW_KIND_CHARACTERS) : KHW_KIND_REGISTER;
+            end = none ? (place + mmgr_text_length(KHW_PLACE_NONE_TEXT, PLATFORM_TEXT_TO_TERMINATOR)) : end;
+            const char *const character = ((end != NULL) && (*end != '\0'))
+                                              ? mmgr_text_char(KHW_KIND_CHARACTERS, *end, PLATFORM_TEXT_TO_TERMINATOR)
+                                              : NULL;
+            answered->type[run] =
+                (character != NULL) ? (unsigned int)(character - KHW_KIND_CHARACTERS) : KHW_KIND_REGISTER;
         }
     }
     return 1;
 }
 
 // the relation that `form` answered, as the answers and the working set write it, into `written` of `room` bytes. It
-// is `ladder.<anchor>` or `frame.<relation>`. Where `with_reading` is not 0, the read of the frame comes after a dot. The text
+// is `ladder.<anchor>` or `frame.<relation>`. Where `with_reading` is not 0, the read of the frame comes after a dot.
+// The text
 const char *khw_relation_named(const KhwAnswered *answered, int with_reading, char *written, size_t room)
 {
     if (answered->frame == (unsigned int)FRAME_RELATION_COUNT)
     {
-        snprintf(written, room, "%s%s", KHW_READS_LADDER, s_anchor_text[answered->anchor]);
+        VerbaLinea buffer_line = mmgr_line_over(written, room);
+        mmgr_line_put(&buffer_line, KHW_READS_LADDER);
+        mmgr_line_put(&buffer_line, s_anchor_text[answered->anchor]);
+        (void)mmgr_line_finish(&buffer_line);
     }
     else if (with_reading != 0)
     {
-        snprintf(written, room, "%s%s.%llx", FRAME_READS, s_frame_text[answered->frame], answered->reading);
+        VerbaLinea buffer_line = mmgr_line_over(written, room);
+        mmgr_line_put(&buffer_line, FRAME_READS);
+        mmgr_line_put(&buffer_line, s_frame_text[answered->frame]);
+        mmgr_line_put(&buffer_line, ".");
+        mmgr_line_hex(&buffer_line, answered->reading, 1u);
+        (void)mmgr_line_finish(&buffer_line);
     }
     else
     {
-        snprintf(written, room, "%s%s", FRAME_READS, s_frame_text[answered->frame]);
+        VerbaLinea buffer_line = mmgr_line_over(written, room);
+        mmgr_line_put(&buffer_line, FRAME_READS);
+        mmgr_line_put(&buffer_line, s_frame_text[answered->frame]);
+        (void)mmgr_line_finish(&buffer_line);
     }
     return written;
 }

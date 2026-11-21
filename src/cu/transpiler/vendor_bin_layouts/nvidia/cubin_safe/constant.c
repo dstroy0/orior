@@ -3,6 +3,7 @@
 // constant.c: rule 13, a read of the constant bank blocked before the part where it reaches a bank the container has no
 // section for or past the bank's end, read through the vendor's own instruction set
 #include "cubin_safe_internal.h"
+#include "../../../../../platform/platform.h"
 
 #include "../tables/read.h"
 
@@ -14,7 +15,13 @@ static int s_tables_ready;
 int cubin_safe_tables_read(const char *part)
 {
     char path[512];
-    snprintf(path, sizeof(path), "build/vendor/nvidia/tables/%s_instructions.txt", part);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+        mmgr_line_put(&buffer_line, "build/vendor/nvidia/tables/");
+        mmgr_line_put(&buffer_line, part);
+        mmgr_line_put(&buffer_line, "_instructions.txt");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     FILE *const file = fopen(path, "rb");
     if (file == NULL)
     {

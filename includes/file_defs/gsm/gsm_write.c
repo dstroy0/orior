@@ -20,6 +20,8 @@
 // It runs in a query run, the .qry that QRY names (qry_member.h). The forms that the writer of the vendor passes back
 // are the blob GSM_FORMS_NAME of the run. What it prints goes to the run as GSM_MACHINE_NAME.
 #include "../../../src/cu/transpiler/lstar/protocol/counterexample/ladder.h"
+#include "../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../../parsers/line_read.h"
 #include "../qry/writer/qry_member.h"
 #include "../vendor_writer_run.h"
@@ -65,7 +67,11 @@ static unsigned int gsm_relations_read(const unsigned char *bytes, unsigned long
     {
         const unsigned char *const end = (const unsigned char *)memchr(bytes + next, '\n', (size_t)(size - next));
         const size_t length = (end != NULL) ? (size_t)(end - (bytes + next)) : (size_t)(size - next);
-        snprintf(line, sizeof(line), "%.*s", (int)length, (const char *)(bytes + next));
+        {
+            VerbaLinea buffer_line = mmgr_line_over(line, sizeof(line));
+            mmgr_line_put_max(&buffer_line, (const char *)(bytes + next), (size_t)((int)length));
+            (void)mmgr_line_finish(&buffer_line);
+        }
         next += (unsigned long long)length + 1ULL;
         char relation[256];
         unsigned long long signed_read = 0ULL;
@@ -74,11 +80,11 @@ static unsigned int gsm_relations_read(const unsigned char *bytes, unsigned long
         {
             continue;
         }
-        const size_t prefix = strlen(GSM_READS_LADDER);
+        const size_t prefix = mmgr_text_length(GSM_READS_LADDER, PLATFORM_TEXT_TO_TERMINATOR);
         const char *const name = (strncmp(relation, GSM_READS_LADDER, prefix) == 0) ? (relation + prefix) : relation;
         for (unsigned int anchor = 0u; anchor < (unsigned int)LADDER_ANCHOR_COUNT; anchor += 1u)
         {
-            if (strcmp(s_anchor_text[anchor], name) == 0)
+            if (mmgr_text_equal(s_anchor_text[anchor], name, PLATFORM_TEXT_TO_TERMINATOR))
             {
                 s_answered[anchor][(signed_read != 0) ? 1 : 0] = 1;
                 read += 1u;
@@ -96,10 +102,18 @@ static void gsm_folder_of(const char *path, char *folder, size_t room)
     const char *const last = ((slash != NULL) && ((back == NULL) || (slash > back))) ? slash : back;
     if (last == NULL)
     {
-        snprintf(folder, room, ".");
+        {
+            VerbaLinea buffer_line = mmgr_line_over(folder, room);
+            mmgr_line_put(&buffer_line, ".");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         return;
     }
-    snprintf(folder, room, "%.*s", (int)(last - path), path);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(folder, room);
+        mmgr_line_put_max(&buffer_line, path, (size_t)((int)(last - path)));
+        (void)mmgr_line_finish(&buffer_line);
+    }
 }
 
 int main(int count, char **word)
@@ -139,7 +153,14 @@ int main(int count, char **word)
     char rulesets[1024];
     gsm_folder_of(machine, rulesets, sizeof(rulesets));
     char path[1200];
-    snprintf(path, sizeof(path), "%s/%s.gsm", rulesets, part);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+        mmgr_line_put(&buffer_line, rulesets);
+        mmgr_line_put(&buffer_line, "/");
+        mmgr_line_put(&buffer_line, part);
+        mmgr_line_put(&buffer_line, ".gsm");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     static char s_out_bytes[QRY_WRITER_RING_BYTES / 2ULL];
     const size_t room = sizeof(s_out_bytes);
     size_t out = 0u;
@@ -182,6 +203,7 @@ int main(int count, char **word)
         printf("  orior_gsm_write: %s could not be written\n", path);
         return 1;
     }
-    printf("  orior_gsm_write: %u relations the %u forms answered, %u cases, written to %s\n", relations, forms, cases, path);
+    printf("  orior_gsm_write: %u relations the %u forms answered, %u cases, written to %s\n", relations, forms, cases,
+           path);
     return 0;
 }

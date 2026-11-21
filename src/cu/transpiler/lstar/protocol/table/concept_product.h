@@ -14,6 +14,7 @@
 #define CONCEPT_PRODUCT_H
 
 #include <stdio.h>
+#include "../../../../../platform/platform.h"
 
 #include <algorithm>
 #include <map>
@@ -127,10 +128,10 @@ static inline void concept_product_made(const ConceptReads &reads, const std::ve
     std::vector<int> types;
     for (size_t value = 0u; value < bases.size(); value += 1u)
     {
-        types.push_back((bases[value][0] == 'P')                               ? CONCEPT_VALUE_FLAG
-                        : (bases[value][0] == '[')                             ? CONCEPT_VALUE_WIDE
+        types.push_back((bases[value][0] == 'P')                          ? CONCEPT_VALUE_FLAG
+                        : (bases[value][0] == '[')                        ? CONCEPT_VALUE_WIDE
                         : ((low_at[value] >= 0) && (high_at[value] >= 0)) ? CONCEPT_VALUE_WIDE
-                                                                               : CONCEPT_VALUE_WORD);
+                                                                          : CONCEPT_VALUE_WORD);
     }
     if (types.empty())
     {
@@ -170,7 +171,12 @@ static inline void concept_product_made(const ConceptReads &reads, const std::ve
                                                                    : high;
             cased_all &= (cased[(size_t)types[value]].count(read) != 0u) ? 1 : 0;
             char written[24];
-            snprintf(written, sizeof(written), "%llx,", read);
+            {
+                VerbaLinea buffer_line = mmgr_line_over(written, sizeof(written));
+                mmgr_line_hex(&buffer_line, read, 1u);
+                mmgr_line_put(&buffer_line, ",");
+                (void)mmgr_line_finish(&buffer_line);
+            }
             values += written;
         }
         if (cased_all)
@@ -222,7 +228,11 @@ static inline std::string concept_identity(const ConceptProduct &product,
         hashed = (hashed ^ (unsigned char)character) * 0x100000001b3ULL;
     }
     char identity[24];
-    snprintf(identity, sizeof(identity), "%016llx", hashed);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(identity, sizeof(identity));
+        mmgr_line_hex(&buffer_line, hashed, 16u);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     return identity;
 }
 

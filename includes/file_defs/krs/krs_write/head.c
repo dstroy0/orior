@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // head.c: the lines of a SASS ruleset's head, each the part's answer in its .ksc or left out
 #include "head.h"
+#include "../../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include "../../ksc/ksc.h"
 #include "verba_scribo/verba_scribo.h"
@@ -18,12 +20,13 @@ unsigned int krs_head_written(char *out, size_t cap, size_t *at, const char *ksc
     ksc_read(&s_file, ksc_path);
     for (unsigned int line = 0u; line < s_file.lines; line += 1u)
     {
-        if (!ksc_row_read(s_file.line[line], "run", &s_row) || (strcmp(s_row.answer, "answers") != 0))
+        if (!ksc_row_read(s_file.line[line], "run", &s_row) ||
+            (!mmgr_text_equal(s_row.answer, "answers", PLATFORM_TEXT_TO_TERMINATOR)))
         {
             continue;
         }
-        returned = returned || (strcmp(s_row.question, "container returned") == 0);
-        least = least || (strncmp(s_row.question, "opening least", 13u) == 0);
+        returned = returned || (mmgr_text_equal(s_row.question, "container returned", PLATFORM_TEXT_TO_TERMINATOR));
+        least = least || (mmgr_text_starts(s_row.question, "opening least", PLATFORM_TEXT_TO_TERMINATOR));
     }
     ksc_free(&s_file);
     unsigned int written = 0u;
@@ -37,7 +40,12 @@ unsigned int krs_head_written(char *out, size_t cap, size_t *at, const char *ksc
         *at = verba_textus.put(&(VerbaTextusCfg){.out = out, .cap = cap, .at = *at, .text = "header container\n"});
         written += 1u;
     }
-    snprintf(missing, room, "%s%s%s", returned ? "" : "toolchain", (!returned && !least) ? ", " : "",
-             least ? "" : "header");
+    {
+        VerbaLinea buffer_line = mmgr_line_over(missing, room);
+        mmgr_line_put(&buffer_line, returned ? "" : "toolchain");
+        mmgr_line_put(&buffer_line, (!returned && !least) ? ", " : "");
+        mmgr_line_put(&buffer_line, least ? "" : "header");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     return written;
 }

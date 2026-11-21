@@ -1,7 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// launch.c: the launch: the host's clock and its turn given up, the launch bounded and timed, the answers read, the container out, and a dry run written
+// launch.c: the launch: the host's clock and its turn given up, the launch bounded and timed, the answers read, the
+// container out, and a dry run written
 #include "cubin_run_internal.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 CubinRunClocks s_clocks;
 
@@ -95,9 +99,9 @@ static CubinRunStatus cubin_run_bounded(const CubinRunDriver *driver, void *func
     CubinRunStatus status = (s_start != NULL) ? 0 : driver->event_create(&s_start, 0u);
     status = ((status == 0) && (s_stop == NULL)) ? driver->event_create(&s_stop, 0u) : status;
     status = (status == 0) ? driver->event_record(s_start, NULL) : status;
-    status = (status == 0) ? driver->launch(function, shape->blocks, 1u, 1u, shape->threads, 1u, 1u, 0u, NULL,
-                                            arguments, NULL)
-                           : status;
+    status = (status == 0)
+                 ? driver->launch(function, shape->blocks, 1u, 1u, shape->threads, 1u, 1u, 0u, NULL, arguments, NULL)
+                 : status;
     status = (status == 0) ? driver->event_record(s_stop, NULL) : status;
     const unsigned long long began = cubin_run_host_now();
     unsigned long long waited = 0ULL;
@@ -214,7 +218,7 @@ static void cubin_run_answers_read(const unsigned int *written, unsigned int cou
 // case t of the cases taken round, and each case's answer into s_answers as the kernel wrote it; where `launches`
 // is not 0, that many launches after it timed into `nanoseconds`. 0, or the status the driver gave
 CubinRunStatus cubin_run_launch(const CubinRunDriver *driver, const char *kernel, const CubinRunShape *shape,
-                                       unsigned int launches, unsigned long long *nanoseconds)
+                                unsigned int launches, unsigned long long *nanoseconds)
 {
     // the driver and the part's primary context, reached once for the process
     static int s_context_set = 0;
@@ -225,7 +229,7 @@ CubinRunStatus cubin_run_launch(const CubinRunDriver *driver, const char *kernel
     unsigned int count = shape->threads * shape->blocks;
     const size_t in_bytes = (size_t)count * sizeof(s_cases[0]);
     const size_t out_bytes = (size_t)count * CUBIN_RUN_OUT_ROOM * sizeof(unsigned int);
-    unsigned int(*const given)[CUBIN_RUN_IN_WORDS] = malloc(in_bytes);
+    unsigned int (*const given)[CUBIN_RUN_IN_WORDS] = malloc(in_bytes);
     unsigned int *const written = malloc(out_bytes);
     if ((given == NULL) || (written == NULL))
     {
@@ -235,7 +239,7 @@ CubinRunStatus cubin_run_launch(const CubinRunDriver *driver, const char *kernel
     }
     for (unsigned int thread = 0u; thread < count; thread += 1u)
     {
-        memcpy(given[thread], s_cases[thread % s_case_count], sizeof(s_cases[0]));
+        mmgr_bytes_copy(given[thread], s_cases[thread % s_case_count], sizeof(s_cases[0]));
     }
     const unsigned long long load_began = cubin_run_host_now();
     CubinRunStatus status = s_context_set ? 0 : driver->init(0u);
@@ -307,7 +311,7 @@ int s_driver_opened = 0;
 // 1 where the run is dry: every question is written and checked against the gate as ever, and none reaches the driver
 int s_dry = 0;
 
-                                 // against the vendor's own disassembler, which scaffolding compiles the same C through
+// against the vendor's own disassembler, which scaffolding compiles the same C through
 unsigned int s_facets = 0u;
 
 // The container as it would reach the part, `size` bytes of it, passed as the run's blob named as `answers_path` with
@@ -318,8 +322,14 @@ void cubin_run_container_out(const char *answers_path, const unsigned char *cont
 {
     char path[CUBIN_RUN_LINE];
     const char *const dot = strrchr(answers_path, '.');
-    const int stem = (dot != NULL) ? (int)(dot - answers_path) : (int)strlen(answers_path);
-    snprintf(path, sizeof(path), "%.*s.cubin", stem, answers_path);
+    const int stem =
+        (dot != NULL) ? (int)(dot - answers_path) : (int)mmgr_text_length(answers_path, PLATFORM_TEXT_TO_TERMINATOR);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+        mmgr_line_put_max(&buffer_line, answers_path, (size_t)(stem));
+        mmgr_line_put(&buffer_line, ".cubin");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     qry_member_append(path, container, size, QRY_ORDINARY);
 }
 
@@ -329,7 +339,7 @@ void cubin_run_container_out(const char *answers_path, const unsigned char *cont
 // stored as dry_base.bin, and every place of it is written. The record is a blob dry.txt of the run, a blob
 // a question, and the base the blob dry_base.bin
 void cubin_run_dry_written(unsigned long long code_size, unsigned int registers, unsigned int launches,
-                                  const CubinRunShape *shape, unsigned int verdict, unsigned long long at)
+                           const CubinRunShape *shape, unsigned int verdict, unsigned long long at)
 {
     const char *const path = "dry.txt";
     const char *const base_path = "dry_base.bin";
@@ -372,7 +382,8 @@ void cubin_run_dry_written(unsigned long long code_size, unsigned int registers,
     }
     for (unsigned long long place = 0ULL; (place + 16ULL) <= code_size; place += 16ULL)
     {
-        const int base_matches = ((place + 16ULL) <= base_size) && (memcmp(&s_code[place], &s_base[place], 16u) == 0);
+        const int base_matches =
+            ((place + 16ULL) <= base_size) && (mmgr_bytes_compare(&s_code[place], &s_base[place], 16u) == 0);
         if (base_matches && !(s_facets & CUBIN_FACET_QUERY))
         {
             continue;
@@ -387,7 +398,9 @@ void cubin_run_dry_written(unsigned long long code_size, unsigned int registers,
         char text[256];
         if (!sass_encoding_read(&s_machine, low, high, place, text, sizeof(text)))
         {
-            snprintf(text, sizeof(text), "no form");
+            VerbaLinea buffer_line = mmgr_line_over(text, sizeof(text));
+            mmgr_line_put(&buffer_line, "no form");
+            (void)mmgr_line_finish(&buffer_line);
         }
         mmgr_line_put(dry, "  ");
         mmgr_line_hex(dry, (unsigned long long)(place), 4u);

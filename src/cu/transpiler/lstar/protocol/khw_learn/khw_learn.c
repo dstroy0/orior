@@ -47,11 +47,14 @@
 // which stores every place of the kernel whole under its own encoding so the gate reads a question against what the
 // part has already run, and a final mode, which at the end stores only the forms the part named.
 #include "khw_learn_internal.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 int main(int count, char **word)
 {
     int split = 0;
-    while ((split < count) && (strcmp(word[split], "--") != 0))
+    while ((split < count) && (!mmgr_text_equal(word[split], "--", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         split += 1;
     }
@@ -89,34 +92,34 @@ int main(int count, char **word)
     int costs = 0;
     for (int at = 7; at < split; at += 1)
     {
-        if ((strcmp(word[at], "--position") == 0) && ((at + 1) < split))
+        if ((mmgr_text_equal(word[at], "--position", PLATFORM_TEXT_TO_TERMINATOR)) && ((at + 1) < split))
         {
             enumerate = (unsigned int)strtoul(word[at + 1], NULL, 10);
             at += 1;
         }
-        else if ((strcmp(word[at], "--forms") == 0) && ((at + 1) < split))
+        else if ((mmgr_text_equal(word[at], "--forms", PLATFORM_TEXT_TO_TERMINATOR)) && ((at + 1) < split))
         {
             forms = word[at + 1];
             at += 1;
         }
-        else if ((strcmp(word[at], "--seeds") == 0) && ((at + 1) < split))
+        else if ((mmgr_text_equal(word[at], "--seeds", PLATFORM_TEXT_TO_TERMINATOR)) && ((at + 1) < split))
         {
             seeds = word[at + 1];
             at += 1;
         }
-        else if (strcmp(word[at], "--discover") == 0)
+        else if (mmgr_text_equal(word[at], "--discover", PLATFORM_TEXT_TO_TERMINATOR))
         {
             discover = 1;
         }
-        else if (strcmp(word[at], "--turns") == 0)
+        else if (mmgr_text_equal(word[at], "--turns", PLATFORM_TEXT_TO_TERMINATOR))
         {
             turns = 1;
         }
-        else if (strcmp(word[at], "--registers") == 0)
+        else if (mmgr_text_equal(word[at], "--registers", PLATFORM_TEXT_TO_TERMINATOR))
         {
             registers = 1;
         }
-        else if (strcmp(word[at], "--costs") == 0)
+        else if (mmgr_text_equal(word[at], "--costs", PLATFORM_TEXT_TO_TERMINATOR))
         {
             costs = 1;
         }
@@ -129,8 +132,8 @@ int main(int count, char **word)
     {
         return 1;
     }
-    // the gate's file written before querying: the vendor's writer positions the kernel's places out, and the carrier reads
-    // the questions of every round against them
+    // the gate's file written before querying: the vendor's writer positions the kernel's places out, and the carrier
+    // reads the questions of every round against them
     if (!khw_vendor_run("gate", KHW_FORMS_NAME))
     {
         return 1;
@@ -149,20 +152,38 @@ int main(int count, char **word)
     }
     // R beside the machine file, its .kqr, so that no question the part has answered is put to it again
     char record[1024];
-    const size_t stem =
-        strlen(s_path) - (((strlen(s_path) > 4u) && (strcmp(s_path + strlen(s_path) - 4u, ".khw") == 0)) ? 4u : 0u);
+    const size_t stem = mmgr_text_length(s_path, PLATFORM_TEXT_TO_TERMINATOR) -
+                        (((mmgr_text_length(s_path, PLATFORM_TEXT_TO_TERMINATOR) > 4u) &&
+                          (mmgr_text_equal(s_path + mmgr_text_length(s_path, PLATFORM_TEXT_TO_TERMINATOR) - 4u, ".khw",
+                                           PLATFORM_TEXT_TO_TERMINATOR)))
+                             ? 4u
+                             : 0u);
     // how far a container's code reaches, from the .ksc beside the machine file, for a register refusal the cross gives
     char reach[1024];
-    snprintf(reach, sizeof(reach), "%.*s.ksc", (int)stem, s_path);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(reach, sizeof(reach));
+        mmgr_line_put_max(&buffer_line, s_path, (size_t)((int)stem));
+        mmgr_line_put(&buffer_line, ".ksc");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     // the part's operand fields into the .ksc the walks read them from
-    snprintf(s_ksc_path, sizeof(s_ksc_path), "%s", reach);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(s_ksc_path, sizeof(s_ksc_path));
+        mmgr_line_put(&buffer_line, reach);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     khw_fields_written(reach);
     if (!run_channel_registers_past(reach))
     {
         printf("  %s contains no answer of how far a container's code reaches: a register refusal stays refused\n",
                reach);
     }
-    snprintf(record, sizeof(record), "%.*s.kqr", (int)stem, s_path);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(record, sizeof(record));
+        mmgr_line_put_max(&buffer_line, s_path, (size_t)((int)stem));
+        mmgr_line_put(&buffer_line, ".kqr");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     if (!run_channel_record(record, s_part, "khw_write"))
     {
         run_channel_close();
@@ -175,8 +196,8 @@ int main(int count, char **word)
         run_channel_close();
         return 1;
     }
-    // tuned off the part: the position's first field-finding round emitted for the vendor's disassembler, the learn loop
-    // left for a run that reaches the part
+    // tuned off the part: the position's first field-finding round emitted for the vendor's disassembler, the learn
+    // loop left for a run that reaches the part
     if (enumerate != 0xffffffffu)
     {
         if (enumerate >= s_kernel_places)
@@ -199,7 +220,7 @@ int main(int count, char **word)
     if ((discover != 0) || (turns != 0) || (registers != 0) || (costs != 0))
     {
         KhwAnswered kernel;
-        memset(&kernel, 0, sizeof(kernel));
+        mmgr_bytes_set(&kernel, 0, sizeof(kernel));
         unsigned long long nanoseconds = 0ULL;
         unsigned int probe_place = 0u;
         if (!khw_first_round(&kernel, &probe_place, &nanoseconds) || (probe_place == s_kernel_places))
@@ -229,7 +250,7 @@ int main(int count, char **word)
                 // queried but its fields left for the turns and register passes to query once a cross read them, as
                 // of any form. The relation is the real instruction the part already ran, safe to query without a cross
                 KhwAnswered form;
-                memset(&form, 0, sizeof(form));
+                mmgr_bytes_set(&form, 0, sizeof(form));
                 if (khw_relation_queried(probe_low, probe_high, &form))
                 {
                     form.phase = KHW_PHASE_DISCOVERED;
@@ -278,8 +299,7 @@ int main(int count, char **word)
             // after: a discover set its relation and the order its words read, which the turns need and read back
             // from the working set
             static KhwAnswered *s_forms[KHW_FORMS];
-            const unsigned int count =
-                khw_comparisons_void(s_forms, khw_forms_in_phase(KHW_PHASE_DISCOVERED, s_forms));
+            const unsigned int count = khw_comparisons_void(s_forms, khw_forms_in_phase(KHW_PHASE_DISCOVERED, s_forms));
             unsigned long long stages = 0ULL;
             for (unsigned int at = 0u; at < count; at += 1u)
             {
@@ -305,7 +325,12 @@ int main(int count, char **word)
             // `costs`). After, the machine file is arranged by the vendor once more from the forms the part answered
             // for, as the registers pass leaves it
             char ksc_path[1024];
-            snprintf(ksc_path, sizeof(ksc_path), "%.*s.ksc", (int)stem, s_path);
+            {
+                VerbaLinea buffer_line = mmgr_line_over(ksc_path, sizeof(ksc_path));
+                mmgr_line_put_max(&buffer_line, s_path, (size_t)((int)stem));
+                mmgr_line_put(&buffer_line, ".ksc");
+                (void)mmgr_line_finish(&buffer_line);
+            }
             if (!khw_answers_written() || !khw_vendor_run("costs", KHW_FORMS_NAME))
             {
                 run_channel_close();
@@ -349,7 +374,7 @@ int main(int count, char **word)
         return 0;
     }
     KhwAnswered kernel;
-    memset(&kernel, 0, sizeof(kernel));
+    mmgr_bytes_set(&kernel, 0, sizeof(kernel));
     unsigned long long nanoseconds = 0ULL;
     unsigned int probe_place = 0u;
     const int related = khw_first_round(&kernel, &probe_place, &nanoseconds);
@@ -367,7 +392,7 @@ int main(int count, char **word)
     }
     // a dry channel carries every question by nothing: the kernel answers no relation, and the pass goes on with the
     // position the .ksc names, every round put through the airlock as on a live channel and nothing launched
-    const int dry = !related && (strncmp(s_pool[0].refused, "dry:", 4u) == 0);
+    const int dry = !related && (mmgr_text_starts(s_pool[0].refused, "dry:", PLATFORM_TEXT_TO_TERMINATOR));
     if (!related && !dry)
     {
         printf("  khw_write: the kernel the system accepted answered no relation of the ladder (%s), and "

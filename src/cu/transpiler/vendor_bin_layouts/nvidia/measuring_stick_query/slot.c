@@ -1,7 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// slot.c: the slot: whether the vendor read an illegal instruction, every register the slot's lines reach and write, the container's code, and the distinct readings a run takes once each
+// slot.c: the slot: whether the vendor read an illegal instruction, every register the slot's lines reach and write,
+// the container's code, and the distinct readings a run takes once each
 #include "msq_internal.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 // 1 where the vendor's output reports it found an illegal instruction
 int msq_illegal_found(const char *text, size_t length)
@@ -10,7 +14,7 @@ int msq_illegal_found(const char *text, size_t length)
     const size_t marker_length = sizeof(s_illegal_marker) - 1u;
     for (size_t at = 0u; (at + marker_length) <= length; at += 1u)
     {
-        if (memcmp(text + at, s_illegal_marker, marker_length) == 0)
+        if (mmgr_bytes_compare(text + at, s_illegal_marker, marker_length) == 0)
         {
             return 1;
         }
@@ -55,18 +59,18 @@ static int msq_addresses_added(const char *raw, MsqRegisters *set)
             walk += 1u;
         }
         msq_register_add(set, number);
-        if (strncmp(raw + walk, ".64", 3u) == 0)
+        if (mmgr_text_starts(raw + walk, ".64", PLATFORM_TEXT_TO_TERMINATOR))
         {
             msq_register_add(set, number + 1ULL);
         }
     }
-    return (strncmp(raw, "EXIT", 4u) == 0) && !msq_word(raw[4]);
+    return (mmgr_text_starts(raw, "EXIT", PLATFORM_TEXT_TO_TERMINATOR)) && !msq_word(raw[4]);
 }
 
 // every register the lines `first` to `end` of `listing` read an address from, to the first EXIT with no guard
 void msq_addresses(const MsqListing *listing, size_t first, size_t end, MsqRegisters *set)
 {
-    memset(set, 0, sizeof(*set));
+    mmgr_bytes_set(set, 0, sizeof(*set));
     for (size_t at = first; at < end; at += 1u)
     {
         if (msq_addresses_added(listing->lines[at].raw, set))
@@ -81,11 +85,14 @@ static unsigned int msq_widened(const char *operation, size_t length)
 {
     char retained[96];
     const size_t copied = (length < (sizeof(retained) - 1u)) ? length : (sizeof(retained) - 1u);
-    memcpy(retained, operation, copied);
+    mmgr_bytes_copy(retained, operation, copied);
     retained[copied] = '\0';
-    return (strstr(retained, ".128") != NULL)
+    return (mmgr_text_find(retained, ".128", PLATFORM_TEXT_TO_TERMINATOR) != NULL)
                ? 3u
-               : (((strstr(retained, ".WIDE") != NULL) || (strstr(retained, ".64") != NULL)) ? 1u : 0u);
+               : (((mmgr_text_find(retained, ".WIDE", PLATFORM_TEXT_TO_TERMINATOR) != NULL) ||
+                   (mmgr_text_find(retained, ".64", PLATFORM_TEXT_TO_TERMINATOR) != NULL))
+                      ? 1u
+                      : 0u);
 }
 
 // the length of the first word of `text`, its spaces before skipped into `*start`
@@ -139,11 +146,11 @@ int msq_register_reached(const char *body, unsigned int registers, unsigned long
         // the width the operand names where `.64` or `.128` follows it and a word's edge after that, else the
         // operation's
         unsigned int width = widened;
-        if ((strncmp(rest + walk, ".128", 4u) == 0) && !msq_word(rest[walk + 4u]))
+        if ((mmgr_text_starts(rest + walk, ".128", PLATFORM_TEXT_TO_TERMINATOR)) && !msq_word(rest[walk + 4u]))
         {
             width = 3u;
         }
-        else if ((strncmp(rest + walk, ".64", 3u) == 0) && !msq_word(rest[walk + 3u]))
+        else if ((mmgr_text_starts(rest + walk, ".64", PLATFORM_TEXT_TO_TERMINATOR)) && !msq_word(rest[walk + 3u]))
         {
             width = 1u;
         }
@@ -165,7 +172,7 @@ int msq_register_reached(const char *body, unsigned int registers, unsigned long
 // edge, and the rest of a pair or a quad where the operation reads .WIDE, .64 or .128
 void msq_registers_written(const char *body, MsqRegisters *set)
 {
-    memset(set, 0, sizeof(*set));
+    mmgr_bytes_set(set, 0, sizeof(*set));
     size_t start = 0u;
     const size_t operation = msq_first_word(body, &start);
     const char *const rest = body + start + operation;
@@ -220,19 +227,19 @@ int msq_container_code(const MsqBytes *container, MsqBytes *code)
 {
     const unsigned char *const data = container->bytes;
     const unsigned long long size = container->size;
-    if ((size < 0x40ULL) || (memcmp(data,
-                                    "\x7f"
-                                    "ELF",
-                                    4u) != 0))
+    if ((size < 0x40ULL) || (mmgr_bytes_compare(data,
+                                                "\x7f"
+                                                "ELF",
+                                                4u) != 0))
     {
         return 0;
     }
     unsigned long long section_offset = 0ULL;
-    memcpy(&section_offset, data + 0x28u, 8u);
+    mmgr_bytes_copy(&section_offset, data + 0x28u, 8u);
     unsigned short entry_size = 0u;
     unsigned short entries = 0u;
-    memcpy(&entry_size, data + 0x3Au, 2u);
-    memcpy(&entries, data + 0x3Cu, 2u);
+    mmgr_bytes_copy(&entry_size, data + 0x3Au, 2u);
+    mmgr_bytes_copy(&entries, data + 0x3Cu, 2u);
     for (unsigned int index = 0u; index < entries; index += 1u)
     {
         const unsigned long long header = section_offset + ((unsigned long long)index * entry_size);
@@ -243,9 +250,9 @@ int msq_container_code(const MsqBytes *container, MsqBytes *code)
         unsigned long long flags = 0ULL;
         unsigned long long offset = 0ULL;
         unsigned long long length = 0ULL;
-        memcpy(&flags, data + header + 0x08u, 8u);
-        memcpy(&offset, data + header + 0x18u, 8u);
-        memcpy(&length, data + header + 0x20u, 8u);
+        mmgr_bytes_copy(&flags, data + header + 0x08u, 8u);
+        mmgr_bytes_copy(&offset, data + header + 0x18u, 8u);
+        mmgr_bytes_copy(&length, data + header + 0x20u, 8u);
         if (((flags & MSQ_EXECUTABLE) != 0ULL) && (length != 0ULL))
         {
             // the section as far as the container contains it
@@ -270,7 +277,7 @@ static unsigned long long msq_bytes_hash(const MsqBytes *item)
 // the set made ready for as many as `max` distinct runs: 1, or 0 where the system gives no memory
 int msq_distinct_made(MsqDistinct *set, size_t max)
 {
-    memset(set, 0, sizeof(*set));
+    mmgr_bytes_set(set, 0, sizeof(*set));
     size_t slots = 64u;
     while (slots < (2u * max))
     {
@@ -306,7 +313,8 @@ size_t msq_distinct_index(MsqDistinct *set, const MsqBytes *item)
             return set->count - 1u;
         }
         if ((set->items[stored].size == item->size) &&
-            ((item->size == 0ULL) || (memcmp(set->items[stored].bytes, item->bytes, (size_t)item->size) == 0)))
+            ((item->size == 0ULL) ||
+             (mmgr_bytes_compare(set->items[stored].bytes, item->bytes, (size_t)item->size) == 0)))
         {
             return stored;
         }
@@ -317,5 +325,5 @@ void msq_distinct_free(MsqDistinct *set)
 {
     free(set->items);
     free(set->slots);
-    memset(set, 0, sizeof(*set));
+    mmgr_bytes_set(set, 0, sizeof(*set));
 }

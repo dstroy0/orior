@@ -3,6 +3,9 @@
 // pieces.c: the pieces: a word and a run read, the pieces of the vendor's listing read, what a read contains, a piece's
 // reading and name, a form's name and text composed, and a form stored
 #include "khw_machine_write_internal.h"
+#include "../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 // one piece of a name as the vendor's table gives it
 typedef struct
@@ -69,22 +72,34 @@ int khw_pieces_read(const char *path)
         {
             continue;
         }
-        char *const piece = strchr(line, '\t');
-        char *const reads = (piece != NULL) ? strchr(piece + 1, '\t') : NULL;
+        char *const piece = mmgr_text_char(line, '\t', PLATFORM_TEXT_TO_TERMINATOR);
+        char *const reads = (piece != NULL) ? mmgr_text_char(piece + 1, '\t', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
         if (reads == NULL)
         {
             continue;
         }
         *piece = '\0';
         *reads = '\0';
-        char *const gloss = strchr(reads + 1, '\t');
+        char *const gloss = mmgr_text_char(reads + 1, '\t', PLATFORM_TEXT_TO_TERMINATOR);
         if (gloss != NULL)
         {
             *gloss = '\0';
         }
-        snprintf(s_piece[s_pieces].type, sizeof(s_piece[s_pieces].type), "%.*s", (int)(KHW_PIECE - 1u), line);
-        snprintf(s_piece[s_pieces].piece, sizeof(s_piece[s_pieces].piece), "%.*s", (int)(KHW_PIECE - 1u), piece + 1);
-        snprintf(s_piece[s_pieces].reads, sizeof(s_piece[s_pieces].reads), "%.*s", (int)(KHW_READS - 1u), reads + 1);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(s_piece[s_pieces].type, sizeof(s_piece[s_pieces].type));
+            mmgr_line_put_max(&buffer_line, line, (size_t)((int)(KHW_PIECE - 1u)));
+            (void)mmgr_line_finish(&buffer_line);
+        }
+        {
+            VerbaLinea buffer_line = mmgr_line_over(s_piece[s_pieces].piece, sizeof(s_piece[s_pieces].piece));
+            mmgr_line_put_max(&buffer_line, piece + 1, (size_t)((int)(KHW_PIECE - 1u)));
+            (void)mmgr_line_finish(&buffer_line);
+        }
+        {
+            VerbaLinea buffer_line = mmgr_line_over(s_piece[s_pieces].reads, sizeof(s_piece[s_pieces].reads));
+            mmgr_line_put_max(&buffer_line, reads + 1, (size_t)((int)(KHW_READS - 1u)));
+            (void)mmgr_line_finish(&buffer_line);
+        }
         s_pieces += 1u;
     }
     fclose(file);
@@ -99,9 +114,9 @@ int khw_pieces_read(const char *path)
 // 1 where the reads of `piece` contain `word` whole, and not as part of a longer one
 static int khw_reads_contain(const KhwPiece *piece, const char *word)
 {
-    const size_t length = strlen(word);
+    const size_t length = mmgr_text_length(word, PLATFORM_TEXT_TO_TERMINATOR);
     const char *at = piece->reads;
-    while ((at = strstr(at, word)) != NULL)
+    while ((at = mmgr_text_find(at, word, PLATFORM_TEXT_TO_TERMINATOR)) != NULL)
     {
         const int before = (at == piece->reads) || (*(at - 1) == ' ');
         const int after = (at[length] == '\0') || (at[length] == ' ');
@@ -119,7 +134,8 @@ const char *khw_piece_reading(const char *type, const char *word)
 {
     for (unsigned int at = 0u; at < s_pieces; at += 1u)
     {
-        if ((strcmp(s_piece[at].type, type) == 0) && khw_reads_contain(&s_piece[at], word))
+        if ((mmgr_text_equal(s_piece[at].type, type, PLATFORM_TEXT_TO_TERMINATOR)) &&
+            khw_reads_contain(&s_piece[at], word))
         {
             return s_piece[at].piece;
         }
@@ -132,7 +148,8 @@ static const char *khw_piece_named(const char *type, const char *text)
 {
     for (unsigned int at = 0u; at < s_pieces; at += 1u)
     {
-        if ((strcmp(s_piece[at].type, type) == 0) && (strcmp(s_piece[at].piece, text) == 0))
+        if ((mmgr_text_equal(s_piece[at].type, type, PLATFORM_TEXT_TO_TERMINATOR)) &&
+            (mmgr_text_equal(s_piece[at].piece, text, PLATFORM_TEXT_TO_TERMINATOR)))
         {
             return s_piece[at].piece;
         }
@@ -159,10 +176,15 @@ static void khw_name_composed(const KhwForm *form, char *written, size_t room)
     at += (size_t)snprintf(&written[at], room - at, "%s%s", (type != NULL) ? type : "", operation);
     // the count of sources the part answered fields for, written where the table contains that count for this relation
     char sources[KHW_PIECE];
-    snprintf(sources, sizeof(sources), "%u", (form->runs > 0u) ? (form->runs - 1u) : 0u);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(sources, sizeof(sources));
+        mmgr_line_decimal(&buffer_line, (form->runs > 0u) ? (form->runs - 1u) : 0u, 1u);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     for (unsigned int piece = 0u; piece < s_pieces; piece += 1u)
     {
-        if ((strcmp(s_piece[piece].type, "count") == 0) && (strcmp(s_piece[piece].piece, sources) == 0) &&
+        if ((mmgr_text_equal(s_piece[piece].type, "count", PLATFORM_TEXT_TO_TERMINATOR)) &&
+            (mmgr_text_equal(s_piece[piece].piece, sources, PLATFORM_TEXT_TO_TERMINATOR)) &&
             khw_reads_contain(&s_piece[piece], form->relation))
         {
             at += (size_t)snprintf(&written[at], room - at, "%s", sources);
@@ -292,7 +314,7 @@ static unsigned int khw_printed_runs(const KhwForm *form, unsigned int *order)
         }
     }
     const char *const pattern = khw_piece_reading("order", form->relation);
-    if ((pattern == NULL) || (strlen(pattern) != count))
+    if ((pattern == NULL) || (mmgr_text_length(pattern, PLATFORM_TEXT_TO_TERMINATOR) != count))
     {
         return count;
     }
@@ -315,7 +337,7 @@ static unsigned int khw_printed_runs(const KhwForm *form, unsigned int *order)
         taken[found] = 1u;
         ordered[each] = order[found];
     }
-    memcpy(order, ordered, count * sizeof(order[0]));
+    mmgr_bytes_copy(order, ordered, count * sizeof(order[0]));
     return count;
 }
 
@@ -369,7 +391,12 @@ void khw_text_composed(const KhwForm *form, char *written, size_t room)
         const unsigned long long number = khw_run_read(form->low, form->high, form->first[run], form->last[run]);
         const char *const mark = ((marked != NULL) && (form->place[run] == 1u)) ? marked : "";
         char between[8];
-        snprintf(between, sizeof(between), "%s%s", (printed == 0u) ? " " : ", ", mark);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(between, sizeof(between));
+            mmgr_line_put(&buffer_line, (printed == 0u) ? " " : ", ");
+            mmgr_line_put(&buffer_line, mark);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         if (form->type[run] == KHW_KIND_PREDICATE)
         {
             ((number & 7ULL) == 7ULL)
@@ -411,7 +438,11 @@ int khw_form_store(SassMachine *machine, const KhwForm *form, const char *text)
         return 0;
     }
     // the name of the relation fits the room of the form, and the code cuts a longer name to it
-    snprintf(stored->relation, sizeof(stored->relation), "%.*s", (int)(sizeof(stored->relation) - 1u), form->relation);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(stored->relation, sizeof(stored->relation));
+        mmgr_line_put_max(&buffer_line, form->relation, (size_t)((int)(sizeof(stored->relation) - 1u)));
+        (void)mmgr_line_finish(&buffer_line);
+    }
     stored->signed_read = form->signed_read;
     stored->runs = 0u;
     // the operand of each run is its order among the printed runs. The runs of one place take the operand of the first.

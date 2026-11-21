@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pair.cu: the pair: each pair of the bridge put to the part through the carriers, its verdict written beneath it
 #include "pair.h"
+#include "../../../../../../platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 thread_local RunQuestion *t_question = NULL;
 thread_local std::vector<unsigned int> *t_places = NULL;
@@ -100,8 +102,8 @@ unsigned int PairWork::conferred(const std::string &from, const std::string &to,
 // verdict is written beneath its pair in the bridge in place of the one it recorded. Where the log is retained, each
 // put is followed by the values the form reads there on every case, the carrier cut at the form, for orior_klq_decoder
 // to read its product off
-int identity_pair(const char *engine, const char *answers, const char *ksc, const char *klq,
-                  const char *machine_path, const char *const *carrier)
+int identity_pair(const char *engine, const char *answers, const char *ksc, const char *klq, const char *machine_path,
+                  const char *const *carrier)
 {
     PairWork work;
     work.host = host_answers_read(answers);
@@ -228,12 +230,16 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
             unsigned long long reads = record_hash(first_text.c_str(), first_text.size() + 1u, engine_read);
             reads = record_hash(second_text.c_str(), second_text.size() + 1u, reads);
             char hashed[17];
-            snprintf(hashed, sizeof(hashed), "%016llx", reads);
+            {
+                VerbaLinea buffer_line = mmgr_line_over(hashed, sizeof(hashed));
+                mmgr_line_hex(&buffer_line, reads, 16u);
+                (void)mmgr_line_finish(&buffer_line);
+            }
             pair.reads = hashed;
             const auto path = recorded_paths.find(pair.first + " " + pair.second);
             if ((path != recorded_paths.end()) && path->second.read &&
                 (strtoull(pair.reads.c_str(), NULL, 16) == path->second.reads) &&
-                (strncmp(path->second.verdict, "closed ", 7u) == 0))
+                (mmgr_text_starts(path->second.verdict, "closed ", PLATFORM_TEXT_TO_TERMINATOR)))
             {
                 pair.verdict = path->second.verdict;
                 pair.put_whole = 1;
@@ -386,12 +392,12 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
         printf("orior_klq_identity pair: %s could not be written\n", klq);
         return 1;
     }
-    printf("orior_klq_identity pair: %llu queries, %u open, %u closed, %u not queried, written to %s\n",
-           work.queries, open, closed, unqueried, klq);
+    printf("orior_klq_identity pair: %llu queries, %u open, %u closed, %u not queried, written to %s\n", work.queries,
+           open, closed, unqueried, klq);
     // the lessons stored, those carried in and those taught, passed to the run for the next run to carry
     overseer_lessons_passed(qry_member_run());
-    printf("orior_klq_identity pair: %u conferences called by refusals, %u lessons taught, %u carried in\n", work.conferences,
-           work.lessons_taught, lessons_carried);
+    printf("orior_klq_identity pair: %u conferences called by refusals, %u lessons taught, %u carried in\n",
+           work.conferences, work.lessons_taught, lessons_carried);
     // the path this cycle read off the queries, each pair and its verdict, an open pair the question a further pass
     // takes up, written to the query record with every query it contained and every query this cycle put once R is
     // written back
@@ -399,11 +405,23 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
     static KqrPath s_path;
     for (const PairPut &pair : pairs)
     {
-        snprintf(s_path.first, sizeof(s_path.first), "%s", pair.first.c_str());
-        snprintf(s_path.second, sizeof(s_path.second), "%s", pair.second.c_str());
+        {
+            VerbaLinea buffer_line = mmgr_line_over(s_path.first, sizeof(s_path.first));
+            mmgr_line_put(&buffer_line, pair.first.c_str());
+            (void)mmgr_line_finish(&buffer_line);
+        }
+        {
+            VerbaLinea buffer_line = mmgr_line_over(s_path.second, sizeof(s_path.second));
+            mmgr_line_put(&buffer_line, pair.second.c_str());
+            (void)mmgr_line_finish(&buffer_line);
+        }
         s_path.read = pair.reads.empty() ? 0 : 1;
         s_path.reads = strtoull(pair.reads.c_str(), NULL, 16);
-        snprintf(s_path.verdict, sizeof(s_path.verdict), "%s", pair.verdict.c_str());
+        {
+            VerbaLinea buffer_line = mmgr_line_over(s_path.verdict, sizeof(s_path.verdict));
+            mmgr_line_put(&buffer_line, pair.verdict.c_str());
+            (void)mmgr_line_finish(&buffer_line);
+        }
         kqr_path_add(&s_query_record, &s_path);
         pair_row_passed(pair.first, pair.second, s_path.read, s_path.reads, pair.verdict);
     }

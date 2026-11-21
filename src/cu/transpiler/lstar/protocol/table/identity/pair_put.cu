@@ -3,6 +3,7 @@
 // pair_put.cu: the put: one form was in for by the other at each of its links in each carrier, until the
 // part answers one apart
 #include "pair.h"
+#include "../../../../../../platform/platform.h"
 
 // `from` was in for by `to` at each of its links in each carrier, until the part answers one apart: 1 with its
 // verdict, closed at the first link apart or open with the cases alike at every link the part answered, 0 where the
@@ -64,9 +65,16 @@ int PairWork::put(const std::string &from, const std::string &to, std::string *v
         const auto &chain = *found_link.chain;
         const std::smatch &found = found_link.found;
         char link_address[32];
-        snprintf(
-            link_address, sizeof(link_address), "%s:%04x", chain.first.c_str(),
-            16u * (unsigned int)std::count(chain.second.begin(), chain.second.begin() + found.position(0), '\n'));
+        {
+            VerbaLinea buffer_line = mmgr_line_over(link_address, sizeof(link_address));
+            mmgr_line_put(&buffer_line, chain.first.c_str());
+            mmgr_line_put(&buffer_line, ":");
+            mmgr_line_hex(
+                &buffer_line,
+                16u * (unsigned int)std::count(chain.second.begin(), chain.second.begin() + found.position(0), '\n'),
+                4u);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         std::map<std::string, std::string> given;
         for (const auto &each : group)
         {
@@ -128,8 +136,8 @@ int PairWork::put(const std::string &from, const std::string &to, std::string *v
         // registers past the chain's own
         std::string located;
         unsigned int scratch_taken = 0u;
-        if (ruleset_opcode(sass, to, arguments, scratch_past(sass, carriers.magnitudes[chain.first].first, &scratch_taken),
-                           located) == 0)
+        if (ruleset_opcode(sass, to, arguments,
+                           scratch_past(sass, carriers.magnitudes[chain.first].first, &scratch_taken), located) == 0)
         {
             chose("unwritable", link_address);
             return 0;
@@ -142,7 +150,8 @@ int PairWork::put(const std::string &from, const std::string &to, std::string *v
         }
         t_dangerous = form_dangerous(located);
         const std::string before = chain.second.substr(0u, (size_t)found.position(0));
-        const std::string changed = before + located + chain.second.substr((size_t)(found.position(0) + found.length(0)));
+        const std::string changed =
+            before + located + chain.second.substr((size_t)(found.position(0) + found.length(0)));
         std::vector<unsigned char> code = vendor_assembled(machine, changed);
         const unsigned int count = (unsigned int)(code.size() / 16u);
         if (count == 0u)
@@ -152,7 +161,13 @@ int PairWork::put(const std::string &from, const std::string &to, std::string *v
         }
         const unsigned int link = (unsigned int)std::count(before.begin(), before.end(), '\n');
         char address[32];
-        snprintf(address, sizeof(address), "%s:%04x", chain.first.c_str(), 16u * link);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(address, sizeof(address));
+            mmgr_line_put(&buffer_line, chain.first.c_str());
+            mmgr_line_put(&buffer_line, ":");
+            mmgr_line_hex(&buffer_line, 16u * link, 4u);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         const std::vector<std::string> &expected = host[chain.first];
         // a stand-in a lesson of the overseer blocks is answered as blocked at this link, and the part never sees it
         char overseen[160];
@@ -190,8 +205,8 @@ int PairWork::put(const std::string &from, const std::string &to, std::string *v
             band_truthy = 0;
         }
         const int shape_new =
-            shapes.insert(read_shape(flow.first, carrier_pieces(chain.second, '\n'), flow.second, found.str(0),
-                                     link_at))
+            shapes
+                .insert(read_shape(flow.first, carrier_pieces(chain.second, '\n'), flow.second, found.str(0), link_at))
                 .second;
         if (past_closed && !shape_new)
         {
@@ -230,29 +245,11 @@ int PairWork::put(const std::string &from, const std::string &to, std::string *v
         // line of the log, and the operands only the form it was as names
         if (s_query_log != NULL)
         {
-            const PutLink link = {from,
-                                  to,
-                                  from_names,
-                                  from_text,
-                                  read_by_to,
-                                  unified,
-                                  fixed,
-                                  qualifiers,
-                                  pair_cased,
-                                  question,
-                                  places,
-                                  product,
-                                  chain,
-                                  found,
-                                  given,
-                                  flow,
-                                  link_at,
-                                  link_address,
-                                  located,
-                                  address,
-                                  found_link.vector.first,
-                                  are_in_blocked,
-                                  shape_new};
+            const PutLink link = {
+                from,           to,         from_names, from_text,    read_by_to, unified, fixed,
+                qualifiers,     pair_cased, question,   places,       product,    chain,   found,
+                given,          flow,       link_at,    link_address, located,    address, found_link.vector.first,
+                are_in_blocked, shape_new};
             band_truthy |= link.logged(*this);
         }
         // the conference's guidance: the stand-in brought it on, and the pair is put the other way round, or its
@@ -287,9 +284,10 @@ int PairWork::put(const std::string &from, const std::string &to, std::string *v
         if (put_outcome == RUN_ANSWERED)
         {
             // the verdict is the first case apart; with the log retained, the pair is put on until its product is whole
-            closed = closed.empty() ? ("closed " + std::string(address) + " " + case_text(s_apart_at) + "->" +
-                                       expected[s_apart_at])
-                                    : closed;
+            closed =
+                closed.empty()
+                    ? ("closed " + std::string(address) + " " + case_text(s_apart_at) + "->" + expected[s_apart_at])
+                    : closed;
             if ((s_query_log == NULL) || concept_whole(product, pair_cased))
             {
                 *verdict = closed;

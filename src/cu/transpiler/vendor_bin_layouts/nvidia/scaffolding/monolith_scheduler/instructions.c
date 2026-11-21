@@ -1,7 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// instructions.c: the instructions: a word and a field, an operation, predicates alone, control, what an instruction reads and whether a register, and an instruction read whole
+// instructions.c: the instructions: a word and a field, an operation, predicates alone, control, what an instruction
+// reads and whether a register, and an instruction read whole
 #include "scheduler_internal.h"
+#include "../../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 SassMachine s_machine;
 unsigned char s_cubin[SCHEDULER_CUBIN_BYTES];
@@ -34,7 +38,7 @@ static unsigned int scheduler_operation(const char *name)
 {
     for (unsigned int at = 0u; at < s_operations; at += 1u)
     {
-        if (strcmp(s_operation[at].name, name) == 0)
+        if (mmgr_text_equal(s_operation[at].name, name, PLATFORM_TEXT_TO_TERMINATOR))
         {
             return at;
         }
@@ -44,8 +48,12 @@ static unsigned int scheduler_operation(const char *name)
         return SCHEDULER_OPERATIONS;
     }
     SchedulerOperation *const made = &s_operation[s_operations];
-    memset(made, 0, sizeof(*made));
-    snprintf(made->name, sizeof(made->name), "%s", name);
+    mmgr_bytes_set(made, 0, sizeof(*made));
+    {
+        VerbaLinea buffer_line = mmgr_line_over(made->name, sizeof(made->name));
+        mmgr_line_put(&buffer_line, name);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     made->soonest_read = UINT_MAX;
     made->soonest_after_earlier = UINT_MAX;
     s_operations += 1u;
@@ -59,7 +67,7 @@ static int scheduler_predicates_only(const char *operation)
     static const char *const setters[] = {"ISETP", "FSETP", "DSETP", "HSETP2", "PSETP", "PLOP3", "UISETP", "UPLOP3"};
     for (unsigned int at = 0u; at < (sizeof(setters) / sizeof(setters[0])); at += 1u)
     {
-        if (strncmp(operation, setters[at], strlen(setters[at])) == 0)
+        if (strncmp(operation, setters[at], mmgr_text_length(setters[at], PLATFORM_TEXT_TO_TERMINATOR)) == 0)
         {
             return 1;
         }
@@ -71,11 +79,11 @@ static int scheduler_predicates_only(const char *operation)
 // which a reader is not looked for
 static int scheduler_control(const char *operation)
 {
-    static const char *const leaves[] = {"BRA", "BRX", "JMP", "JMX", "CALL", "RET", "EXIT", "BSSY", "BSYNC", "BREAK",
-                                         "WARPSYNC", "BAR", "KILL", "BPT", "YIELD", "NANOSLEEP"};
+    static const char *const leaves[] = {"BRA",   "BRX",   "JMP",      "JMX", "CALL", "RET", "EXIT",  "BSSY",
+                                         "BSYNC", "BREAK", "WARPSYNC", "BAR", "KILL", "BPT", "YIELD", "NANOSLEEP"};
     for (unsigned int at = 0u; at < (sizeof(leaves) / sizeof(leaves[0])); at += 1u)
     {
-        if (strncmp(operation, leaves[at], strlen(leaves[at])) == 0)
+        if (strncmp(operation, leaves[at], mmgr_text_length(leaves[at], PLATFORM_TEXT_TO_TERMINATOR)) == 0)
         {
             return 1;
         }
@@ -97,7 +105,7 @@ static void scheduler_reads(const char *text, SchedulerInstruction *instruction)
         }
         char *after = NULL;
         const unsigned long number = strtoul(walk + 1, &after, 10);
-        const unsigned int pair = (strncmp(after, ".64", 3u) == 0) ? 2u : 1u;
+        const unsigned int pair = (mmgr_text_starts(after, ".64", PLATFORM_TEXT_TO_TERMINATOR)) ? 2u : 1u;
         for (unsigned int add = 0u; (add < pair) && (instruction->reads < SCHEDULER_READS); add += 1u)
         {
             instruction->read[instruction->reads] = (unsigned int)number + add;
@@ -120,12 +128,11 @@ int scheduler_reads_register(const SchedulerInstruction *instruction, unsigned i
 }
 
 // the instruction at `bytes` read into `instruction` and counted against its operation
-void scheduler_instruction(const unsigned char *bytes, unsigned long long address,
-                                  SchedulerInstruction *instruction)
+void scheduler_instruction(const unsigned char *bytes, unsigned long long address, SchedulerInstruction *instruction)
 {
     const unsigned long long low = scheduler_word(bytes, 8u);
     const unsigned long long high = scheduler_word(&bytes[8], 8u);
-    memset(instruction, 0, sizeof(*instruction));
+    mmgr_bytes_set(instruction, 0, sizeof(*instruction));
     instruction->stall = scheduler_field(high, SASS_STALL_FIRST, 4u);
     instruction->write_barrier = scheduler_field(high, SASS_WRITE_BARRIER_FIRST, 3u);
     instruction->read_barrier = scheduler_field(high, SASS_READ_BARRIER_FIRST, 3u);
@@ -139,11 +146,20 @@ void scheduler_instruction(const unsigned char *bytes, unsigned long long addres
     if (read)
     {
         sass_instruction_read(text, &parts);
-        snprintf(name, sizeof(name), "%s", parts.operation);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(name, sizeof(name));
+            mmgr_line_put(&buffer_line, parts.operation);
+            (void)mmgr_line_finish(&buffer_line);
+        }
     }
     else
     {
-        snprintf(name, sizeof(name), "no form, key 0x%03llx", low & 0xfffULL);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(name, sizeof(name));
+            mmgr_line_put(&buffer_line, "no form, key 0x");
+            mmgr_line_hex(&buffer_line, low & 0xfffULL, 3u);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         s_unread += 1ULL;
     }
     s_instructions += 1ULL;
@@ -181,7 +197,7 @@ void scheduler_instruction(const unsigned char *bytes, unsigned long long addres
     }
     const int writes_register = (written < parts.operands) && (parts.type[written] == SASS_OPERAND_REGISTER) &&
                                 !instruction->control && !scheduler_predicates_only(parts.operation);
-    if (writes_register && (strcmp(parts.operand[written], "RZ") != 0))
+    if (writes_register && (!mmgr_text_equal(parts.operand[written], "RZ", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         instruction->writes = (unsigned int)strtoul(parts.operand[written] + 1, NULL, 10);
     }

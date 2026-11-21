@@ -1,7 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// schedule.c: the schedule: what is waited on, the same operation, what is behind later or earlier, an instruction followed, the container read, the stalls, the operations by count, and the record written
+// schedule.c: the schedule: what is waited on, the same operation, what is behind later or earlier, an instruction
+// followed, the container read, the stalls, the operations by count, and the record written
 #include "scheduler_internal.h"
+#include "../../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 // 1 where an instruction of the section from `first` to `last` waits on barrier `barrier`
 static int scheduler_waited(unsigned int barrier, unsigned int first, unsigned int last)
@@ -129,7 +133,10 @@ static void scheduler_follow(unsigned int count)
 // reads
 int scheduler_cubin(unsigned long long size)
 {
-    if ((size < 0x40ULL) || (memcmp(s_cubin, "\x7f" "ELF", 4u) != 0))
+    if ((size < 0x40ULL) || (mmgr_bytes_compare(s_cubin,
+                                                "\x7f"
+                                                "ELF",
+                                                4u) != 0))
     {
         return 0;
     }
@@ -148,7 +155,8 @@ int scheduler_cubin(unsigned long long size)
         const unsigned long long label = strings + scheduler_word(header, 4u);
         const unsigned long long offset = scheduler_word(&header[0x18], 8u);
         const unsigned long long length = scheduler_word(&header[0x20], 8u);
-        if ((label >= size) || (strncmp((const char *)&s_cubin[label], ".text.", 6u) != 0) ||
+        if ((label >= size) ||
+            (!mmgr_text_starts((const char *)&s_cubin[label], ".text.", PLATFORM_TEXT_TO_TERMINATOR)) ||
             ((offset + length) > size))
         {
             continue;
@@ -181,7 +189,15 @@ static void scheduler_stalls(const SchedulerOperation *operation, char *text, si
         max = stall;
         often = (operation->stalls[stall] > operation->stalls[often]) ? stall : often;
     }
-    snprintf(text, room, "%u to %u, usually %u", least, max, often);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(text, room);
+        mmgr_line_decimal(&buffer_line, least, 1u);
+        mmgr_line_put(&buffer_line, " to ");
+        mmgr_line_decimal(&buffer_line, max, 1u);
+        mmgr_line_put(&buffer_line, ", usually ");
+        mmgr_line_decimal(&buffer_line, often, 1u);
+        (void)mmgr_line_finish(&buffer_line);
+    }
 }
 
 static int scheduler_by_count(const void *left, const void *right)
@@ -229,29 +245,42 @@ int scheduler_record(const char *path)
         scheduler_stalls(operation, stalls, sizeof(stalls));
         if (operation->timed_reads == 0ULL)
         {
-            snprintf(soonest, sizeof(soonest), "-");
+            VerbaLinea buffer_line = mmgr_line_over(soonest, sizeof(soonest));
+            mmgr_line_put(&buffer_line, "-");
+            (void)mmgr_line_finish(&buffer_line);
         }
         else
         {
-            snprintf(soonest, sizeof(soonest), "%u over %llu", operation->soonest_read, operation->timed_reads);
+            VerbaLinea buffer_line = mmgr_line_over(soonest, sizeof(soonest));
+            mmgr_line_decimal(&buffer_line, operation->soonest_read, 1u);
+            mmgr_line_put(&buffer_line, " over ");
+            mmgr_line_decimal(&buffer_line, operation->timed_reads, 1u);
+            (void)mmgr_line_finish(&buffer_line);
         }
         char earlier[64];
         if (operation->readers_behind_earlier == 0ULL)
         {
-            snprintf(earlier, sizeof(earlier), "0");
+            VerbaLinea buffer_line = mmgr_line_over(earlier, sizeof(earlier));
+            mmgr_line_put(&buffer_line, "0");
+            (void)mmgr_line_finish(&buffer_line);
         }
         else
         {
-            snprintf(earlier, sizeof(earlier), "%llu, %u after the wait", operation->readers_behind_earlier,
-                     operation->soonest_after_earlier);
+            VerbaLinea buffer_line = mmgr_line_over(earlier, sizeof(earlier));
+            mmgr_line_decimal(&buffer_line, operation->readers_behind_earlier, 1u);
+            mmgr_line_put(&buffer_line, ", ");
+            mmgr_line_decimal(&buffer_line, operation->soonest_after_earlier, 1u);
+            mmgr_line_put(&buffer_line, " after the wait");
+            (void)mmgr_line_finish(&buffer_line);
         }
-        fprintf(out,
-                "| `%s` | %llu | %s | %llu | %llu | %llu | %s | %llu of %llu | %llu | %s | %llu of %llu | %llu of %llu |\n",
-                operation->name, operation->count, stalls, operation->write_barriers, operation->read_barriers,
-                operation->waits, soonest, operation->readers_waiting,
-                operation->readers_waiting + operation->readers_not_waiting, operation->readers_behind_later, earlier,
-                operation->machine_barriers, operation->machine_formed, operation->machine_read_barriers,
-                operation->machine_formed);
+        fprintf(
+            out,
+            "| `%s` | %llu | %s | %llu | %llu | %llu | %s | %llu of %llu | %llu | %s | %llu of %llu | %llu of %llu |\n",
+            operation->name, operation->count, stalls, operation->write_barriers, operation->read_barriers,
+            operation->waits, soonest, operation->readers_waiting,
+            operation->readers_waiting + operation->readers_not_waiting, operation->readers_behind_later, earlier,
+            operation->machine_barriers, operation->machine_formed, operation->machine_read_barriers,
+            operation->machine_formed);
     }
     fclose(out);
     return 1;

@@ -1,7 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// record.cu: the fields of the part's .ksc the walks read, the stall and the registers, the cases a question is put over, and the query record opened and closed
+// record.cu: the fields of the part's .ksc the walks read, the stall and the registers, the cases a question is put
+// over, and the query record opened and closed
 #include "identity_internal.h"
+#include "../../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../../../../includes/parsers/who.h"
 
 // the instructions' bits `field` takes at instruction `index` of `code`, sixteen bytes an instruction
@@ -17,8 +21,7 @@ unsigned long long stall_bits(const std::vector<unsigned char> &code, size_t ind
 }
 
 // `value` written into the bits `field` takes at instruction `index` of `code`
-void stall_bits_write(std::vector<unsigned char> *code, size_t index, const StallField &field,
-                             unsigned long long value)
+void stall_bits_write(std::vector<unsigned char> *code, size_t index, const StallField &field, unsigned long long value)
 {
     for (unsigned int bit = 0u; bit < field.bits; bit += 1u)
     {
@@ -140,8 +143,7 @@ unsigned int whole_cases(RunQuestion *question, const std::set<unsigned long lon
     const unsigned long long each = values.size();
     const unsigned long long count = each * each * each;
     const unsigned long long first = (unsigned long long)run * RUN_CASES_MAX;
-    question->cases =
-        (unsigned int)std::min<unsigned long long>(RUN_CASES_MAX, (count > first) ? (count - first) : 0u);
+    question->cases = (unsigned int)std::min<unsigned long long>(RUN_CASES_MAX, (count > first) ? (count - first) : 0u);
     for (unsigned int place = 0u; place < question->cases; place += 1u)
     {
         const unsigned long long at = first + place;
@@ -156,7 +158,7 @@ unsigned int whole_cases(RunQuestion *question, const std::set<unsigned long lon
                                                   (unsigned int)(third >> 32u),
                                                   0u,
                                                   0u};
-        memcpy(question->word[place], words, sizeof(words));
+        mmgr_bytes_copy(question->word[place], words, sizeof(words));
     }
     return (unsigned int)((count + RUN_CASES_MAX - 1u) / RUN_CASES_MAX);
 }
@@ -173,10 +175,15 @@ void stall_cases(RunQuestion *question, std::vector<unsigned int> *places)
         const unsigned int at = (unsigned int)(((unsigned long long)place * IDENTITY_CASES) / count);
         const unsigned long long left = s_values[(at / IDENTITY_VALUES) % IDENTITY_VALUES];
         const unsigned long long right = s_values[at % IDENTITY_VALUES];
-        const unsigned int words[RUN_IN_WORDS] = {(unsigned int)(left & 0xffffffffULL), (unsigned int)(left >> 32u),
-                                                  (unsigned int)(right & 0xffffffffULL), (unsigned int)(right >> 32u),
-                                                  (unsigned int)(at / (IDENTITY_VALUES * IDENTITY_VALUES)), 0u, 0u, 0u};
-        memcpy(question->word[place], words, sizeof(words));
+        const unsigned int words[RUN_IN_WORDS] = {(unsigned int)(left & 0xffffffffULL),
+                                                  (unsigned int)(left >> 32u),
+                                                  (unsigned int)(right & 0xffffffffULL),
+                                                  (unsigned int)(right >> 32u),
+                                                  (unsigned int)(at / (IDENTITY_VALUES * IDENTITY_VALUES)),
+                                                  0u,
+                                                  0u,
+                                                  0u};
+        mmgr_bytes_copy(question->word[place], words, sizeof(words));
         places->push_back(at);
     }
 }
@@ -230,7 +237,11 @@ void record_close(void)
     for (const auto &recorded : s_record)
     {
         char word[16];
-        snprintf(word, sizeof(word), "%08x", recorded.second.word);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(word, sizeof(word));
+            mmgr_line_hex(&buffer_line, recorded.second.word, 8u);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         rows.push_back("run " + recorded.second.answer + " " + word + " query " + recorded.first +
                        (recorded.second.refusal.empty() ? "" : (" " + recorded.second.refusal)));
     }
@@ -263,7 +274,8 @@ void record_open(const char *ksc, const char *mode)
     ksc_read(&ksc_file, ksc);
     for (unsigned int at = 0u; at < ksc_file.lines; at += 1u)
     {
-        if (!ksc_row_read(ksc_file.line[at], "run", &s_row) || (strncmp(s_row.question, "query ", 6u) != 0))
+        if (!ksc_row_read(ksc_file.line[at], "run", &s_row) ||
+            (!mmgr_text_starts(s_row.question, "query ", PLATFORM_TEXT_TO_TERMINATOR)))
         {
             continue;
         }

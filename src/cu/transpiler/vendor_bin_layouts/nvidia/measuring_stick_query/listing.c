@@ -1,7 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// listing.c: the vendor's listing: the disassembler run over a container and its output read, the listing cut into lines, each line's guard, word and body, the line at an address, and the address the vendor stopped at
+// listing.c: the vendor's listing: the disassembler run over a container and its output read, the listing cut into
+// lines, each line's guard, word and body, the line at an address, and the address the vendor stopped at
 #include "msq_internal.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
 QryShared *s_run = NULL;
 const char *s_nvdisasm = NULL;
 const char *s_architecture = NULL;
@@ -46,7 +49,7 @@ int msq_added(unsigned char **memory, size_t *size_used, size_t *room, const voi
         *memory = larger;
         *room = grown;
     }
-    memcpy(*memory + *size_used, bytes, size);
+    mmgr_bytes_copy(*memory + *size_used, bytes, size);
     *size_used += size;
     return 1;
 }
@@ -68,10 +71,15 @@ int msq_read(MsqReader *reader, const MsqBytes *runs, size_t count)
     }
     char stream_name[64];
     char stream_path[1400];
-    snprintf(stream_name, sizeof(stream_name), "msq_stream_%u", reader->stream);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(stream_name, sizeof(stream_name));
+        mmgr_line_put(&buffer_line, "msq_stream_");
+        mmgr_line_decimal(&buffer_line, reader->stream, 1u);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     const unsigned long long streamed_began = msq_now();
     const int streamed = joined && (qry_member_streamed(stream_name, reader->raw, (unsigned long long)reader->raw_size,
-                                                 stream_path, sizeof(stream_path)) != 0ULL);
+                                                        stream_path, sizeof(stream_path)) != 0ULL);
     atomic_fetch_add(&s_streamed_nanoseconds, msq_now() - streamed_began);
     if (!streamed)
     {
@@ -84,12 +92,12 @@ int msq_read(MsqReader *reader, const MsqBytes *runs, size_t count)
     // read again where the output ran past the room it was given, the room grown to contain it
     for (unsigned int tried = 0u; tried < 2u; tried += 1u)
     {
-        memset(&answer, 0, sizeof(answer));
+        mmgr_bytes_set(&answer, 0, sizeof(answer));
         answer.output = reader->output;
         answer.output_capacity = reader->output_room;
         const InterfaceProbe probe = {command, NULL, 0ULL};
         EngineError error;
-        memset(&error, 0, sizeof(error));
+        mmgr_bytes_set(&error, 0, sizeof(error));
         if ((interface_probe_run(&probe, &answer, &error) != 0L) || (answer.ending == INTERFACE_ENDING_NOT_STARTED))
         {
             return -1;
@@ -114,7 +122,14 @@ int msq_read(MsqReader *reader, const MsqBytes *runs, size_t count)
     if (qry_member_run() != NULL)
     {
         char name[64];
-        snprintf(name, sizeof(name), "run_%u_%llu", reader->ident, reader->calls);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(name, sizeof(name));
+            mmgr_line_put(&buffer_line, "run_");
+            mmgr_line_decimal(&buffer_line, reader->ident, 1u);
+            mmgr_line_put(&buffer_line, "_");
+            mmgr_line_decimal(&buffer_line, reader->calls, 1u);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         qry_member_append(name, reader->output, reader->output_size, QRY_ORDINARY);
     }
     return ((answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ULL)) ? 0 : 1;
@@ -140,7 +155,7 @@ void msq_listing_free(MsqListing *listing)
         free(listing->lines);
     }
     free(listing->text);
-    memset(listing, 0, sizeof(*listing));
+    mmgr_bytes_set(listing, 0, sizeof(*listing));
 }
 
 // Every instruction of the listing `printed` of `length` bytes, in the order printed: a comment of four or more hex
@@ -149,13 +164,13 @@ void msq_listing_free(MsqListing *listing)
 // where it ends. 1, or 0 where the system gives no memory
 int msq_listing_read(const char *printed, size_t length, MsqListing *listing)
 {
-    memset(listing, 0, sizeof(*listing));
+    mmgr_bytes_set(listing, 0, sizeof(*listing));
     char *const text = (char *)malloc(length + 1u);
     if (text == NULL)
     {
         return 0;
     }
-    memcpy(text, printed, length);
+    mmgr_bytes_copy(text, printed, length);
     text[length] = '\0';
     listing->text = text;
     size_t at = 0u;
@@ -264,7 +279,7 @@ int msq_listing_read(const char *printed, size_t length, MsqListing *listing)
 MsqReading msq_listing_at(const MsqListing *listing, unsigned long long offset)
 {
     MsqReading reading;
-    memset(&reading, 0, sizeof(reading));
+    mmgr_bytes_set(&reading, 0, sizeof(reading));
     for (size_t at = listing->count; at > 0u; at -= 1u)
     {
         const MsqLine *const line = &listing->lines[at - 1u];
@@ -279,7 +294,7 @@ MsqReading msq_listing_at(const MsqListing *listing, unsigned long long offset)
         {
             length += 1u;
         }
-        memcpy(reading.operation, line->body, length);
+        mmgr_bytes_copy(reading.operation, line->body, length);
         reading.operation[length] = '\0';
         reading.body = line->body;
         break;
@@ -294,7 +309,7 @@ int msq_stopped_at(const char *text, size_t length, unsigned long long *address)
     const size_t marker_length = sizeof(s_address_marker) - 1u;
     for (size_t at = 0u; (at + marker_length) < length; at += 1u)
     {
-        if (memcmp(text + at, s_address_marker, marker_length) != 0)
+        if (mmgr_bytes_compare(text + at, s_address_marker, marker_length) != 0)
         {
             continue;
         }

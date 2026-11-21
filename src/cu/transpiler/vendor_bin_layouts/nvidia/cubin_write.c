@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cubin_write.c: a cubin written by the one emitter, from the layout of the ELF a CUDA toolchain writes
 #include "cubin_write.h"
+#include "../../../../platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include "../container_write.h"
 #include "../../../../../includes/parsers/line_read.h"
@@ -24,7 +26,12 @@ static const ContainerLayout *cubin_layout(void)
         // the folder is __FILE__ up to and with its last slash, and a file named with no folder is in this one
         const int folder = (slash != NULL) ? (int)((slash - file) + 1) : 0;
         char path[1024];
-        snprintf(path, sizeof(path), "%.*self64_nvidia.tsv", folder, file);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+            mmgr_line_put_max(&buffer_line, file, (size_t)(folder));
+            mmgr_line_put(&buffer_line, "elf64_nvidia.tsv");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         s_read = container_layout_read(&s_layout, path) ? 1 : -1;
     }
     return (s_read == 1) ? &s_layout : NULL;
@@ -92,12 +99,17 @@ unsigned long long cubin_pattern_read(const char *path, unsigned char *pattern, 
     {
         char name[256];
         const char *read = line;
-        if (line_characters(&read, "container ") && line_characters(&read, "kernel ") && line_word(&read, name, sizeof(name)))
+        if (line_characters(&read, "container ") && line_characters(&read, "kernel ") &&
+            line_word(&read, name, sizeof(name)))
         {
-            snprintf(kernel, kernel_room, "%s", name);
+            {
+                VerbaLinea buffer_line = mmgr_line_over(kernel, kernel_room);
+                mmgr_line_put(&buffer_line, name);
+                (void)mmgr_line_finish(&buffer_line);
+            }
             continue;
         }
-        if (strncmp(line, "container pattern ", 18u) != 0)
+        if (!mmgr_text_starts(line, "container pattern ", PLATFORM_TEXT_TO_TERMINATOR))
         {
             continue;
         }

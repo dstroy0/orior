@@ -16,6 +16,9 @@
 // of it. The tail is the registers, widths, loads and stores of the part, in their block of the language of the
 // ruleset, and its pipes.
 #include "../../../src/cu/transpiler/lstar/protocol/gate/chain_build.h"
+#include "../../../src/platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include "../qry/writer/qry_member.h"
 #include "kdm.h"
@@ -88,23 +91,31 @@ static void kdm_costs_read(const char *path)
     kdm_read(&s_file, path);
     for (unsigned int at = 0u; (at < s_file.lines) && (s_cost_row_count < KDM_ROWS); at += 1u)
     {
-        if (!kdm_row_read(s_file.line[at], &s_row) || (strlen(s_row.chain) >= sizeof(s_cost_rows[0].text)))
+        if (!kdm_row_read(s_file.line[at], &s_row) ||
+            (mmgr_text_length(s_row.chain, PLATFORM_TEXT_TO_TERMINATOR) >= sizeof(s_cost_rows[0].text)))
         {
             continue;
         }
         KdmCostRow *const row = &s_cost_rows[s_cost_row_count];
-        snprintf(row->text, sizeof(row->text), "%s", s_row.chain);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(row->text, sizeof(row->text));
+            mmgr_line_put(&buffer_line, s_row.chain);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         row->runs = s_row.runs;
         // the code does not carry a cost that is not an exact rational of decimal digits. It refuses the cost, and
         // the row reads as never timed
-        if ((kdm_exact_text(s_row.cost) == 0) || (strlen(s_row.cost) >= sizeof(row->cost)))
+        if ((kdm_exact_text(s_row.cost) == 0) ||
+            (mmgr_text_length(s_row.cost, PLATFORM_TEXT_TO_TERMINATOR) >= sizeof(row->cost)))
         {
             row->runs = 0u;
             row->cost[0] = '\0';
         }
         else
         {
-            snprintf(row->cost, sizeof(row->cost), "%s", s_row.cost);
+            VerbaLinea buffer_line = mmgr_line_over(row->cost, sizeof(row->cost));
+            mmgr_line_put(&buffer_line, s_row.cost);
+            (void)mmgr_line_finish(&buffer_line);
         }
         s_cost_row_count += 1u;
     }
@@ -115,7 +126,7 @@ static const KdmCostRow *kdm_cost(const char *text)
 {
     for (unsigned int at = 0u; at < s_cost_row_count; at += 1u)
     {
-        if ((strcmp(s_cost_rows[at].text, text) == 0) && (s_cost_rows[at].runs != 0u))
+        if ((mmgr_text_equal(s_cost_rows[at].text, text, PLATFORM_TEXT_TO_TERMINATOR)) && (s_cost_rows[at].runs != 0u))
         {
             return &s_cost_rows[at];
         }
@@ -217,7 +228,7 @@ int main(int count, char **word)
         {
             chain_text(&set.chain[at], text, sizeof(text));
             unsigned int seen = 0u;
-            while ((seen < distinct) && (strcmp(s_written[seen], text) != 0))
+            while ((seen < distinct) && (!mmgr_text_equal(s_written[seen], text, PLATFORM_TEXT_TO_TERMINATOR)))
             {
                 seen += 1u;
             }
@@ -225,7 +236,7 @@ int main(int count, char **word)
             {
                 continue;
             }
-            memcpy(s_written[distinct], text, sizeof(text));
+            mmgr_bytes_copy(s_written[distinct], text, sizeof(text));
             distinct += 1u;
             const KdmCostRow *const cost_row = kdm_cost(text);
             if (cost_row == NULL)

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // curve.cu: the curve: the cost of registers to a task, timed on the part at each count of threads
 #include "identity_internal.h"
+#include "../../../../../../platform/platform.h"
 
 // `band` widened to contain `time`: 1 where it had to widen, 0 where it contained `time` already
 static int curve_band_widened(CurveBand *band, unsigned long long time)
@@ -49,7 +50,7 @@ static int curve_point(const std::vector<unsigned char> &code, const std::vector
 // <threads>`, and each task's count of threads whose fewest registers run soonest as `run answers <threads> curve
 // <task> threads`; the run's blob curve.txt contains every point queried
 int identity_curve(const char *engine, const char *answers, const char *ksc, const std::string &folder,
-                          const std::vector<std::string> &tasks, const char *const *carrier)
+                   const std::vector<std::string> &tasks, const char *const *carrier)
 {
     std::map<std::string, StallField> fields = stall_fields(ksc);
     if ((fields.count("stall") == 0u) || (fields.count("rd") == 0u) || (fields.count("ra") == 0u) ||
@@ -178,11 +179,21 @@ int identity_curve(const char *engine, const char *answers, const char *ksc, con
                 }
                 return 0;
             };
-            const unsigned int truthy = (unsigned int)walk_halved(within_band, (long long)fewest, (long long)highest + 1);
+            const unsigned int truthy =
+                (unsigned int)walk_halved(within_band, (long long)fewest, (long long)highest + 1);
             printf("  %s, blocks of %u threads: %llu to %llu ns a launch at %u registers, the knee at %u\n",
                    task.c_str(), threads, band.low, band.high, fewest, truthy);
             char row[128];
-            snprintf(row, sizeof(row), "run answers %08x curve %s %u", truthy, task.c_str(), threads);
+            {
+                VerbaLinea buffer_line = mmgr_line_over(row, sizeof(row));
+                mmgr_line_put(&buffer_line, "run answers ");
+                mmgr_line_hex(&buffer_line, truthy, 8u);
+                mmgr_line_put(&buffer_line, " curve ");
+                mmgr_line_put(&buffer_line, task.c_str());
+                mmgr_line_put(&buffer_line, " ");
+                mmgr_line_decimal(&buffer_line, threads, 1u);
+                (void)mmgr_line_finish(&buffer_line);
+            }
             rows.push_back(row);
             if ((soonest_threads == 0u) || (band.low < soonest))
             {
@@ -194,7 +205,15 @@ int identity_curve(const char *engine, const char *answers, const char *ksc, con
         {
             printf("  %s: soonest in blocks of %u threads, %llu ns a launch\n", task.c_str(), soonest_threads, soonest);
             char row[128];
-            snprintf(row, sizeof(row), "run answers %08x curve %s threads", soonest_threads, task.c_str());
+            {
+                VerbaLinea buffer_line = mmgr_line_over(row, sizeof(row));
+                mmgr_line_put(&buffer_line, "run answers ");
+                mmgr_line_hex(&buffer_line, soonest_threads, 8u);
+                mmgr_line_put(&buffer_line, " curve ");
+                mmgr_line_put(&buffer_line, task.c_str());
+                mmgr_line_put(&buffer_line, " threads");
+                (void)mmgr_line_finish(&buffer_line);
+            }
             rows.push_back(row);
         }
     }

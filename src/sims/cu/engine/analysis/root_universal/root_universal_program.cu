@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // root_universal_program.cu: floors, regions, programs, volumes and the crystal
 #include "root_universal_internal.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
 
 static unsigned int root_floors(const unsigned long long extent[4])
 {
     unsigned long long left[4];
-    memcpy(left, extent, sizeof(left));
+    mmgr_bytes_copy(left, extent, sizeof(left));
     unsigned int floors = 0u;
     while ((left[0] > 1ULL) || (left[1] > 1ULL) || (left[2] > 1ULL) || (left[3] > 1ULL))
     {
@@ -23,7 +25,7 @@ static unsigned int root_floors(const unsigned long long extent[4])
 unsigned long long root_region(const unsigned long long extent[4], unsigned int floor)
 {
     unsigned long long left[4];
-    memcpy(left, extent, sizeof(left));
+    mmgr_bytes_copy(left, extent, sizeof(left));
     for (unsigned int level = 0u; level < floor; level += 1u)
     {
         for (unsigned int axis = 0u; axis < 4u; axis += 1u)
@@ -90,8 +92,8 @@ void root_program_place(RootProgram *program, unsigned int bits, unsigned int fi
 
 int root_volume_open(SimResults *results, RootVolume *volume, const unsigned long long extent[4])
 {
-    memset(&volume->scene, 0, sizeof(volume->scene));
-    memcpy(volume->extent, extent, sizeof(volume->extent));
+    mmgr_bytes_set(&volume->scene, 0, sizeof(volume->scene));
+    mmgr_bytes_copy(volume->extent, extent, sizeof(volume->extent));
     volume->scene.frames = extent[0];
     volume->scene.extent[0] = extent[1];
     volume->scene.extent[1] = extent[2];
@@ -139,14 +141,14 @@ int root_lift_crystal(SimResults *results, const RootVolume *volume, const Tower
                       int *crystal)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     const int *coefficients = NULL;
     unsigned int *scratch = NULL;
     unsigned int floors = 0u;
     TowerLiftRequest lift;
-    memset(&lift, 0, sizeof(lift));
+    mmgr_bytes_set(&lift, 0, sizeof(lift));
     lift.device_lanes = volume->device;
-    memcpy(lift.extent, volume->extent, sizeof(lift.extent));
+    mmgr_bytes_copy(lift.extent, volume->extent, sizeof(lift.extent));
     lift.coefficients = &coefficients;
     lift.scratch = &scratch;
     lift.floors = &floors;
@@ -167,15 +169,15 @@ int root_crystal_trip(SimResults *results, RootVolume *volume, const TowerEdge *
                       int *crystal, unsigned long long *bits, int *exact)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     *exact = 0;
     const int *coefficients = NULL;
     unsigned int *scratch = NULL;
     unsigned int floors = 0u;
     TowerLiftRequest lift;
-    memset(&lift, 0, sizeof(lift));
+    mmgr_bytes_set(&lift, 0, sizeof(lift));
     lift.device_lanes = volume->device;
-    memcpy(lift.extent, volume->extent, sizeof(lift.extent));
+    mmgr_bytes_copy(lift.extent, volume->extent, sizeof(lift.extent));
     lift.coefficients = &coefficients;
     lift.scratch = &scratch;
     lift.floors = &floors;
@@ -196,7 +198,7 @@ int root_crystal_trip(SimResults *results, RootVolume *volume, const TowerEdge *
     if (ok)
     {
         CompressionEncodeRequest code;
-        memset(&code, 0, sizeof(code));
+        mmgr_bytes_set(&code, 0, sizeof(code));
         code.device_coefficients = coefficients;
         code.count = volume->lanes;
         code.device_scratch = scratch;
@@ -218,7 +220,7 @@ int root_crystal_trip(SimResults *results, RootVolume *volume, const TowerEdge *
     if (ok)
     {
         CompressionDecodeRequest decode;
-        memset(&decode, 0, sizeof(decode));
+        mmgr_bytes_set(&decode, 0, sizeof(decode));
         decode.offsets = offsets;
         decode.chunks = chunks;
         decode.stream = stream;
@@ -234,9 +236,9 @@ int root_crystal_trip(SimResults *results, RootVolume *volume, const TowerEdge *
     {
         const unsigned short *device_rebuilt = NULL;
         TowerLowerRequest lower;
-        memset(&lower, 0, sizeof(lower));
+        mmgr_bytes_set(&lower, 0, sizeof(lower));
         lower.device_lanes = volume->device;
-        memcpy(lower.extent, volume->extent, sizeof(lower.extent));
+        mmgr_bytes_copy(lower.extent, volume->extent, sizeof(lower.extent));
         lower.mismatches = &mismatches;
         lower.device_rebuilt = &device_rebuilt;
         lower.rebuilt = volume->rebuilt;
@@ -248,8 +250,8 @@ int root_crystal_trip(SimResults *results, RootVolume *volume, const TowerEdge *
     }
     if (ok)
     {
-        *exact = (mismatches == 0ULL) &&
-                 (memcmp(volume->rebuilt, volume->host, (size_t)volume->lanes * sizeof(unsigned short)) == 0);
+        *exact = (mismatches == 0ULL) && (mmgr_bytes_compare(volume->rebuilt, volume->host,
+                                                             (size_t)volume->lanes * sizeof(unsigned short)) == 0);
     }
     return ok;
 }

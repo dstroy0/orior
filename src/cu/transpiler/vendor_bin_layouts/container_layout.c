@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // container_layout.c: a container's layout read from its file, and looked up by name
 #include "container_layout.h"
+#include "../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,8 +36,12 @@ int container_layout_read(ContainerLayout *layout, const char *path)
         printf("  container_layout: %s could not be read\n", path);
         return 0;
     }
-    memset(layout, 0, sizeof(*layout));
-    snprintf(layout->from, sizeof(layout->from), "%s", path);
+    mmgr_bytes_set(layout, 0, sizeof(*layout));
+    {
+        VerbaLinea buffer_line = mmgr_line_over(layout->from, sizeof(layout->from));
+        mmgr_line_put(&buffer_line, path);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     char line[512];
     unsigned int refused = 0u;
     while (fgets(line, sizeof(line), file) != NULL)
@@ -62,7 +69,7 @@ int container_layout_read(ContainerLayout *layout, const char *path)
         }
         char value[LAYOUT_TEXT_MAX_LEN];
         at = layout_word(line, at, value, sizeof(value));
-        if (strcmp(type, "field") == 0)
+        if (mmgr_text_equal(type, "field", PLATFORM_TEXT_TO_TERMINATOR))
         {
             char width[LAYOUT_TEXT_MAX_LEN];
             row->type = LAYOUT_FIELD;
@@ -70,17 +77,23 @@ int container_layout_read(ContainerLayout *layout, const char *path)
             layout_word(line, at, width, sizeof(width));
             row->width = (unsigned int)strtoul(width, NULL, 10);
         }
-        else if ((strcmp(type, "size") == 0) || (strcmp(type, "tag") == 0))
+        else if ((mmgr_text_equal(type, "size", PLATFORM_TEXT_TO_TERMINATOR)) ||
+                 (mmgr_text_equal(type, "tag", PLATFORM_TEXT_TO_TERMINATOR)))
         {
-            row->type = (strcmp(type, "size") == 0) ? (unsigned int)LAYOUT_SIZE : (unsigned int)LAYOUT_TAG;
+            row->type = (mmgr_text_equal(type, "size", PLATFORM_TEXT_TO_TERMINATOR)) ? (unsigned int)LAYOUT_SIZE
+                                                                                     : (unsigned int)LAYOUT_TAG;
             row->offset = strtoull(value, NULL, 10);
         }
-        else if (strcmp(type, "name") == 0)
+        else if (mmgr_text_equal(type, "name", PLATFORM_TEXT_TO_TERMINATOR))
         {
             row->type = LAYOUT_NAME;
-            snprintf(row->text, sizeof(row->text), "%s", value);
+            {
+                VerbaLinea buffer_line = mmgr_line_over(row->text, sizeof(row->text));
+                mmgr_line_put(&buffer_line, value);
+                (void)mmgr_line_finish(&buffer_line);
+            }
         }
-        else if (strcmp(type, "container") == 0)
+        else if (mmgr_text_equal(type, "container", PLATFORM_TEXT_TO_TERMINATOR))
         {
             // the container the system accepted, which the pattern's reader takes (cubin_pattern_read)
             continue;
@@ -104,7 +117,8 @@ static const LayoutRow *layout_row(const ContainerLayout *layout, const char *na
 {
     for (unsigned int at = 0u; at < layout->rows; at += 1u)
     {
-        if ((layout->row[at].type == type) && (strcmp(layout->row[at].name, name) == 0))
+        if ((layout->row[at].type == type) &&
+            (mmgr_text_equal(layout->row[at].name, name, PLATFORM_TEXT_TO_TERMINATOR)))
         {
             return &layout->row[at];
         }
@@ -141,13 +155,22 @@ int layout_text(const ContainerLayout *layout, const char *name, const char *par
         return 0;
     }
     // {part} is all a name is in for. What a part is called belongs to the program and not to the format
-    const char *const is = strstr(row->text, "{part}");
+    const char *const is = mmgr_text_find(row->text, "{part}", PLATFORM_TEXT_TO_TERMINATOR);
     if (is == NULL)
     {
-        snprintf(written, room, "%s", row->text);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(written, room);
+            mmgr_line_put(&buffer_line, row->text);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         return 1;
     }
-    snprintf(written, room, "%.*s%s%s", (int)(is - row->text), row->text, (part != NULL) ? part : "",
-             is + 6);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(written, room);
+        mmgr_line_put_max(&buffer_line, row->text, (size_t)((int)(is - row->text)));
+        mmgr_line_put(&buffer_line, (part != NULL) ? part : "");
+        mmgr_line_put(&buffer_line, is + 6);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     return 1;
 }

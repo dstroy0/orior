@@ -3,6 +3,8 @@
 // fixed.cu: the fixed registers queried of the part: the probe place of the kernel the system accepted, the register
 // that reads 0 whatever is written to it, and what each register contains at the probe place (Open 6.2)
 #include "fixed_read.h"
+#include "../../../../../../platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "identity_internal.h"
 
 // the place the least opening begins at, the part's answer in its .ksc, and 0 where none is
@@ -14,8 +16,9 @@ static unsigned int fixed_opening_read(const char *ksc)
     ksc_read(&file, ksc);
     for (unsigned int at = 0u; at < file.lines; at += 1u)
     {
-        if (ksc_row_read(file.line[at], "run", &s_row) && (strcmp(s_row.answer, "answers") == 0) &&
-            (strcmp(s_row.question, "opening least") == 0))
+        if (ksc_row_read(file.line[at], "run", &s_row) &&
+            (mmgr_text_equal(s_row.answer, "answers", PLATFORM_TEXT_TO_TERMINATOR)) &&
+            (mmgr_text_equal(s_row.question, "opening least", PLATFORM_TEXT_TO_TERMINATOR)))
         {
             // the row's word is a place, at max eight hex digits
             from = (unsigned int)s_row.value;
@@ -81,7 +84,7 @@ static int fixed_alike(FixedQuery *query, const std::vector<unsigned char> &vari
                        const std::vector<std::string> &reference, const char *what)
 {
     const int alike = question_alike(variant, reference, query->places, query->question, &query->queries);
-    query->dry = query->dry || (strncmp(query->question->refused, "skipped dry", 11u) == 0);
+    query->dry = query->dry || (mmgr_text_starts(query->question->refused, "skipped dry", PLATFORM_TEXT_TO_TERMINATOR));
     const char *const why = (query->question->outcome == RUN_ANSWERED) ? "apart" : query->question->refused;
     run_print(&query->table, "%s %s%s%s\n", what, alike ? "truthy" : "falsy", alike ? "" : ": ", alike ? "" : why);
     printf("  %s: %s\n", what, alike ? "truthy" : "falsy");
@@ -159,7 +162,11 @@ int identity_fixed(const char *engine, const char *answers, const char *ksc, con
     for (unsigned int at = 0u; at < s_question.cases; at += 1u)
     {
         char word[24];
-        snprintf(word, sizeof(word), "%x", s_question.word[at][1]);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(word, sizeof(word));
+            mmgr_line_hex(&buffer_line, s_question.word[at][1], 1u);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         second[query.places[at]] = word;
     }
     unsigned int probe_place = places;
@@ -173,7 +180,12 @@ int identity_fixed(const char *engine, const char *answers, const char *ksc, con
             continue;
         }
         char what[32];
-        snprintf(what, sizeof(what), "probe place %u", place);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(what, sizeof(what));
+            mmgr_line_put(&buffer_line, "probe place ");
+            mmgr_line_decimal(&buffer_line, place, 1u);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         if (fixed_alike(&query, place_put(kernel, place, unreached_low, unreached_high), second, what))
         {
             probe_place = place;
@@ -192,7 +204,13 @@ int identity_fixed(const char *engine, const char *answers, const char *ksc, con
         return 1;
     }
     char row[64];
-    snprintf(row, sizeof(row), "run answers %08x probe place", probe_place);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(row, sizeof(row));
+        mmgr_line_put(&buffer_line, "run answers ");
+        mmgr_line_hex(&buffer_line, probe_place, 8u);
+        mmgr_line_put(&buffer_line, " probe place");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     if (!ksc_answers_write(ksc, "probe", std::vector<std::string>{row}))
     {
         fixed_closed(&query);
@@ -208,17 +226,29 @@ int identity_fixed(const char *engine, const char *answers, const char *ksc, con
     stall_bits_write(&zero_variant, probe_place, rd, top);
     place_stalled_longest(&zero_variant, probe_place, stall, longest);
     char what[32];
-    snprintf(what, sizeof(what), "zero %llu", top);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(what, sizeof(what));
+        mmgr_line_put(&buffer_line, "zero ");
+        mmgr_line_decimal(&buffer_line, top, 1u);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     if (!fixed_alike(&query, zero_variant, second, what))
     {
         fixed_closed(&query);
-        printf("orior_klq_identity fixed: register %llu, the field's top, does not read 0 whatever is written to it, and "
-               "nothing more is written\n",
-               top);
+        printf(
+            "orior_klq_identity fixed: register %llu, the field's top, does not read 0 whatever is written to it, and "
+            "nothing more is written\n",
+            top);
         return 1;
     }
     const unsigned long long zero = top;
-    snprintf(row, sizeof(row), "run answers %08llx fixed zero", zero);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(row, sizeof(row));
+        mmgr_line_put(&buffer_line, "run answers ");
+        mmgr_line_hex(&buffer_line, zero, 8u);
+        mmgr_line_put(&buffer_line, " fixed zero");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     std::vector<std::string> fixed_rows = {row};
     std::vector<std::string> case_rows;
     printf("  zero is register %llu\n", zero);
@@ -253,8 +283,15 @@ int identity_fixed(const char *engine, const char *answers, const char *ksc, con
             continue;
         }
         given.insert(type);
-        snprintf(row, sizeof(row), "run answers %08x %s", number, question);
-        ((strncmp(question, "fixed", 5u) == 0) ? fixed_rows : case_rows).push_back(row);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(row, sizeof(row));
+            mmgr_line_put(&buffer_line, "run answers ");
+            mmgr_line_hex(&buffer_line, number, 8u);
+            mmgr_line_put(&buffer_line, " ");
+            mmgr_line_put(&buffer_line, question);
+            (void)mmgr_line_finish(&buffer_line);
+        }
+        ((mmgr_text_starts(question, "fixed", PLATFORM_TEXT_TO_TERMINATOR)) ? fixed_rows : case_rows).push_back(row);
     }
     fixed_closed(&query);
     if (!ksc_answers_write(ksc, "fixed", fixed_rows) || !ksc_answers_write(ksc, "case word", case_rows))

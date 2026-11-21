@@ -1,7 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// alike.cu: a question put and read alike or apart with the host, the host's questions written and its answers read, and a chain's code read from the engine
+// alike.cu: a question put and read alike or apart with the host, the host's questions written and its answers read,
+// and a chain's code read from the engine
 #include "identity_internal.h"
+#include "../../../../../../platform/platform.h"
 #include "../../../../../../../includes/parsers/who.h"
 
 // 1 where the part answers `code`, put as `question` specifies of its registers, shape and launches, alike with the
@@ -25,10 +27,23 @@ int question_alike(const std::vector<unsigned char> &code, const std::vector<std
         hosted = record_hash(host[places[place]].c_str(), host[places[place]].size() + 1u, hosted);
     }
     char keyed[160];
-    snprintf(keyed, sizeof(keyed), "%016llx %u %u %u %016llx %016llx",
-             record_hash(code.data(), code.size(), 0xcbf29ce484222325ULL), question->registers, question->threads,
-             question->blocks, record_hash(question->word, sizeof(question->word[0]) * question->cases, 0xcbf29ce484222325ULL),
-             hosted);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(keyed, sizeof(keyed));
+        mmgr_line_hex(&buffer_line, record_hash(code.data(), code.size(), 0xcbf29ce484222325ULL), 16u);
+        mmgr_line_put(&buffer_line, " ");
+        mmgr_line_decimal(&buffer_line, question->registers, 1u);
+        mmgr_line_put(&buffer_line, " ");
+        mmgr_line_decimal(&buffer_line, question->threads, 1u);
+        mmgr_line_put(&buffer_line, " ");
+        mmgr_line_decimal(&buffer_line, question->blocks, 1u);
+        mmgr_line_put(&buffer_line, " ");
+        mmgr_line_hex(&buffer_line,
+                      record_hash(question->word, sizeof(question->word[0]) * question->cases, 0xcbf29ce484222325ULL),
+                      16u);
+        mmgr_line_put(&buffer_line, " ");
+        mmgr_line_hex(&buffer_line, hosted, 16u);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     const std::string key = keyed;
     // R stores a query's verdict and its first case apart, and the query record and the log what came back of every
     // case: with the log retained, a query is read from the query record or put to the part, and R written as ever
@@ -41,7 +56,11 @@ int question_alike(const std::vector<unsigned char> &code, const std::vector<std
         question->outcome = (stored.answer == "answers")   ? RUN_ANSWERED
                             : (stored.answer == "illegal") ? RUN_GATED
                                                            : RUN_NOTHING;
-        snprintf(question->refused, sizeof(question->refused), "%s", stored.refusal.c_str());
+        {
+            VerbaLinea buffer_line = mmgr_line_over(question->refused, sizeof(question->refused));
+            mmgr_line_put(&buffer_line, stored.refusal.c_str());
+            (void)mmgr_line_finish(&buffer_line);
+        }
         const int alike = (stored.answer == "answers") && (stored.word == 0xffffffffu);
         s_apart_at = (stored.answer == "answers") ? stored.word : 0xffffffffu;
         if (s_trace_log != NULL)
@@ -213,7 +232,7 @@ std::map<std::string, std::vector<std::string>> host_answers_read(const char *an
 // chain `number` of ours, read from `engine`: its code, sixteen bytes an instruction, and the links its listing gives.
 // 0 where either is missing or the listing gives more links than the code contains instructions
 int chain_code_read(const char *engine, const std::string &number, std::vector<unsigned char> *code,
-                           std::vector<Link> *links)
+                    std::vector<Link> *links)
 {
     const std::string base = std::string(engine) + "/" + number;
     std::ifstream listing(base + ".dis");
@@ -282,7 +301,6 @@ int ksc_answers_written(const char *ksc, const std::string &queried, const std::
     return written;
 }
 
-
 // the kernel `number` of the stick's text, from its signature to the brace that closes it
 static std::string kernel_text(const std::string &stick, const std::string &number)
 {
@@ -327,8 +345,8 @@ int host_questions_write(const std::string &path, const std::string &stick, cons
                             (kernel.find("/=") != std::string::npos) || (kernel.find("%=") != std::string::npos) ||
                             (kernel.find(" / ") != std::string::npos);
         const int shifts = (kernel.find("<<") != std::string::npos) || (kernel.find(">>") != std::string::npos);
-        // 1 where the host's C would trap on the case or leave it undefined: a divisor of zero, the least value over -1,
-        // or a shift by the width or past it
+        // 1 where the host's C would trap on the case or leave it undefined: a divisor of zero, the least value over
+        // -1, or a shift by the width or past it
         run_print(&file, "static int refused_%s(const unsigned long long *in)\n{\n", number.c_str());
         run_print(&file, "    const %s a = (%s)in[0];\n    const %s b = (%s)in[1];\n    (void)a;\n    (void)b;\n",
                   type.c_str(), type.c_str(), type.c_str(), type.c_str());

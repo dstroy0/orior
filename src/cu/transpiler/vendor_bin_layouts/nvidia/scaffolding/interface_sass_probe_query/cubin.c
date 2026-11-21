@@ -3,6 +3,9 @@
 // cubin.c: the container: checked safe and run, its answers first and whole and by the toolchain, the environment, the
 // clock, a query's text and name, and the loop or the time preferred
 #include "probe_query_internal.h"
+#include "../../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 // A question of preference instead of membership. Every question above tests whether the part CAN do a thing;
 // this tests which of two codings of one thing the part prefers. Both must answer the same, or they are not
@@ -43,22 +46,36 @@ int sass_cubin_safe(const SassProbe *probe, const char *path)
 static int sass_cubin_run(SassProbe *probe, const char *path, unsigned int first, char *answered, size_t room)
 {
     char output[1024];
-    snprintf(output, sizeof(output), "%s/run.out", probe->folder);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(output, sizeof(output));
+        mmgr_line_put(&buffer_line, probe->folder);
+        mmgr_line_put(&buffer_line, "/run.out");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     char first_word[16];
-    snprintf(first_word, sizeof(first_word), "%08x", first);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(first_word, sizeof(first_word));
+        mmgr_line_hex(&buffer_line, first, 8u);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     // one case of eight words, none of the other seven zero, so that a question that divides is not queried for a zero
     // divisor
     char *const command[] = {(char *)probe->prober, (char *)"run",      (char *)path,       first_word,
                              (char *)"00000007",    (char *)"00000003", (char *)"00000005", (char *)"00000002",
                              (char *)"00000009",    (char *)"00000001", (char *)"00000004", NULL};
     const int status = sass_run(command, output);
-    const char *const line = (status == 0) ? strstr(sass_output(), "answered ") : NULL;
+    const char *const line =
+        (status == 0) ? mmgr_text_find(sass_output(), "answered ", PLATFORM_TEXT_TO_TERMINATOR) : NULL;
     if (line == NULL)
     {
         printf("  cubin: %s did not run (exit %d)\n%s", path, status, (status > 0) ? sass_output() : "");
         return 0;
     }
-    snprintf(answered, room, "%.*s", (int)strcspn(line, "\r\n"), line);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(answered, room);
+        mmgr_line_put_max(&buffer_line, line, (size_t)((int)strcspn(line, "\r\n")));
+        (void)mmgr_line_finish(&buffer_line);
+    }
     return 1;
 }
 
@@ -84,7 +101,13 @@ void sass_environment(const char *name, const char *value)
 {
 #if defined(_WIN32)
     char both[64];
-    snprintf(both, sizeof(both), "%s=%s", name, value);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(both, sizeof(both));
+        mmgr_line_put(&buffer_line, name);
+        mmgr_line_put(&buffer_line, "=");
+        mmgr_line_put(&buffer_line, value);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     _putenv(both);
 #else
     setenv(name, value, 1);
@@ -95,8 +118,8 @@ void sass_environment(const char *name, const char *value)
 // times a run only where PROBE_REPEATS is set, and the count is what the caller set before calling
 double sass_cubin_nanoseconds(void)
 {
-    const char *const line = strstr(sass_output(), "timed ");
-    const char *const taken = (line != NULL) ? strstr(line, ", ") : NULL;
+    const char *const line = mmgr_text_find(sass_output(), "timed ", PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const taken = (line != NULL) ? mmgr_text_find(line, ", ", PLATFORM_TEXT_TO_TERMINATOR) : NULL;
     return (taken != NULL) ? strtod(taken + 2, NULL) : 0.0;
 }
 
@@ -110,12 +133,13 @@ int sass_query_text(const char *was, const char *instruction, char *text, size_t
     while ((*walk != '\0') && (at < (room - 1u)))
     {
         const size_t length = strcspn(walk, "\n");
-        const char *const chosen = (strncmp(walk, "IADD3 ", 6u) == 0) ? instruction : walk;
-        const size_t copied = (chosen == instruction) ? strlen(instruction) : length;
+        const char *const chosen = (mmgr_text_starts(walk, "IADD3 ", PLATFORM_TEXT_TO_TERMINATOR)) ? instruction : walk;
+        const size_t copied =
+            (chosen == instruction) ? mmgr_text_length(instruction, PLATFORM_TEXT_TO_TERMINATOR) : length;
         put = put || (chosen == instruction);
         if ((at + copied + 1u) < room)
         {
-            memcpy(&text[at], chosen, copied);
+            mmgr_bytes_copy(&text[at], chosen, copied);
             at += copied;
             text[at] = '\n';
             at += 1u;
@@ -140,7 +164,7 @@ void sass_query_named(const char *instruction, char *named, size_t room)
     // 52 is the column the answers line up in, and a question past it is named by its opening
     if (at > 52u)
     {
-        memcpy(&named[49], "...", 4u);
+        mmgr_bytes_copy(&named[49], "...", 4u);
     }
 }
 
@@ -167,16 +191,29 @@ static double sass_prefer_time(SassProbe *probe, const SassMachine *machine, con
     static char s_query_text[65536];
     char path[1024];
     // the answer emptied first: a coding the assembler refuses is read as refused and not as the last one's word
-    snprintf(answered, room, "refused");
+    {
+        VerbaLinea buffer_line = mmgr_line_over(answered, room);
+        mmgr_line_put(&buffer_line, "refused");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     if (!sass_prefer_loop(coding, s_looped, sizeof(s_looped)) ||
         !sass_query_text(was, s_looped, s_query_text, sizeof(s_query_text)) ||
         !sass_cubin_from_text(machine, probe->folder, "form_0", s_query_text, "queried"))
     {
         return 0.0;
     }
-    snprintf(path, sizeof(path), "%s/queried.cubin", probe->folder);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+        mmgr_line_put(&buffer_line, probe->folder);
+        mmgr_line_put(&buffer_line, "/queried.cubin");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     char repeats[32];
-    snprintf(repeats, sizeof(repeats), "%u", SASS_PREFER_RUNS);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(repeats, sizeof(repeats));
+        mmgr_line_decimal(&buffer_line, SASS_PREFER_RUNS, 1u);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     sass_environment("PROBE_REPEATS", repeats);
     const int ran = sass_cubin_answer(probe, path, answered, room);
     const double nanoseconds = ran ? sass_cubin_nanoseconds() : 0.0;
@@ -226,9 +263,11 @@ unsigned int sass_cubin_prefers(SassProbe *probe, const SassMachine *machine, un
                 char answer[256];
                 const double taken = sass_prefer_time(probe, machine, s_was, coding, answer, sizeof(answer));
                 // the answer is "answered <word> ..." where it ran, and "refused" where it did not assemble
-                const unsigned int word =
-                    (strncmp(answer, "answered ", 9u) == 0) ? (unsigned int)strtoul(answer + 9, NULL, 16) : 0u;
-                if ((taken == 0.0) || (strncmp(answer, "answered ", 9u) != 0) || (word != prefer->answer))
+                const unsigned int word = (mmgr_text_starts(answer, "answered ", PLATFORM_TEXT_TO_TERMINATOR))
+                                              ? (unsigned int)strtoul(answer + 9, NULL, 16)
+                                              : 0u;
+                if ((taken == 0.0) || (!mmgr_text_starts(answer, "answered ", PLATFORM_TEXT_TO_TERMINATOR)) ||
+                    (word != prefer->answer))
                 {
                     printf("  prefer %-24s no reading: the %s coding %s\n", prefer->what,
                            (side == 0u) ? "first" : "second",

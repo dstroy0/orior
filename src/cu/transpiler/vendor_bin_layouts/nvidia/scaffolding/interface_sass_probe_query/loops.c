@@ -2,12 +2,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // loops.c: the loops: an operand renamed, a candidate and its answer, the loop written, and the loops queried
 #include "probe_query_internal.h"
+#include "../../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 // `from` into `into`, every register named `stem` ("R" or "UR") and a number made the one numbered 8, which the loop
 // does not retain. A stem following a character is part of another name and is copied as it is
 static void sass_loop_rename(const char *from, const char *stem, char *into, size_t room)
 {
-    const size_t stem_length = strlen(stem);
+    const size_t stem_length = mmgr_text_length(stem, PLATFORM_TEXT_TO_TERMINATOR);
     size_t at = 0u;
     size_t walk = 0u;
     while ((from[walk] != '\0') && ((at + stem_length + 2u) < room))
@@ -15,7 +18,7 @@ static void sass_loop_rename(const char *from, const char *stem, char *into, siz
         const int alone = (walk == 0u) || !isalpha((unsigned char)from[walk - 1u]);
         if (alone && (strncmp(&from[walk], stem, stem_length) == 0) && isdigit((unsigned char)from[walk + stem_length]))
         {
-            memcpy(&into[at], stem, stem_length);
+            mmgr_bytes_copy(&into[at], stem, stem_length);
             at += stem_length;
             into[at] = '8';
             at += 1u;
@@ -51,7 +54,8 @@ static void sass_loop_operand(const char *base, unsigned int type, unsigned int 
         sass_loop_rename(base, "UR", filled, sizeof(filled));
         break;
     case SASS_OPERAND_PREDICATE:
-        snprintf(filled, sizeof(filled), "%s", (strcmp(base, "PT") == 0) ? "PT" : "P0");
+        snprintf(filled, sizeof(filled), "%s",
+                 (mmgr_text_equal(base, "PT", PLATFORM_TEXT_TO_TERMINATOR)) ? "PT" : "P0");
         break;
     case SASS_OPERAND_LABEL:
         snprintf(filled, sizeof(filled), "%s", SASS_LOOP_LABEL);
@@ -63,7 +67,12 @@ static void sass_loop_operand(const char *base, unsigned int type, unsigned int 
         snprintf(filled, sizeof(filled), "%s", base);
         break;
     }
-    snprintf(operand, room, "%s%s", s_marks[mark], filled);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(operand, room);
+        mmgr_line_put(&buffer_line, s_marks[mark]);
+        mmgr_line_put(&buffer_line, filled);
+        (void)mmgr_line_finish(&buffer_line);
+    }
 }
 
 // `form` written as the candidate in loop_back_if's place, guarded by the flag, into `text`: 1, or 0 where one of its
@@ -91,7 +100,12 @@ static int sass_loop_candidate(const SassForm *form, char *text, size_t room)
 static int sass_loop_answer(SassProbe *probe, unsigned int count, unsigned int *word)
 {
     char path[1024];
-    snprintf(path, sizeof(path), "%s/queried.cubin", probe->folder);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+        mmgr_line_put(&buffer_line, probe->folder);
+        mmgr_line_put(&buffer_line, "/queried.cubin");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     char answered[256];
     if (!sass_cubin_answer_first(probe, path, count, answered, sizeof(answered)))
     {
@@ -107,7 +121,12 @@ static int sass_loop_written(SassProbe *probe, const SassMachine *machine, const
 {
     static char s_body[4096];
     static char s_query_text[65536];
-    snprintf(s_body, sizeof(s_body), "%s%s", SASS_LOOP_BODY, candidate);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(s_body, sizeof(s_body));
+        mmgr_line_put(&buffer_line, SASS_LOOP_BODY);
+        mmgr_line_put(&buffer_line, candidate);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     return sass_query_text(was, s_body, s_query_text, sizeof(s_query_text)) &&
            sass_cubin_from_text(machine, probe->folder, "form_0", s_query_text, "queried");
 }
@@ -164,7 +183,11 @@ unsigned int sass_cubin_loops(SassProbe *probe, const SassMachine *machine, unsi
         sass_class_take(SASS_CHANNEL_RUN, SASS_CLASS_ANSWERS, candidate, 0u);
         if (retained < SASS_LOOPS_MAX)
         {
-            snprintf(s_retained[retained], SASS_TEXT, "%s", candidate);
+            {
+                VerbaLinea buffer_line = mmgr_line_over(s_retained[retained], SASS_TEXT);
+                mmgr_line_put(&buffer_line, candidate);
+                (void)mmgr_line_finish(&buffer_line);
+            }
             retained += 1u;
         }
     }
@@ -184,7 +207,11 @@ unsigned int sass_cubin_loops(SassProbe *probe, const SassMachine *machine, unsi
         for (unsigned int take = 0u; take < SASS_PREFER_TAKES; take += 1u)
         {
             char repeats[32];
-            snprintf(repeats, sizeof(repeats), "%u", SASS_PREFER_RUNS);
+            {
+                VerbaLinea buffer_line = mmgr_line_over(repeats, sizeof(repeats));
+                mmgr_line_decimal(&buffer_line, SASS_PREFER_RUNS, 1u);
+                (void)mmgr_line_finish(&buffer_line);
+            }
             sass_environment("PROBE_REPEATS", repeats);
             unsigned int word = 0u;
             const int ran = sass_loop_written(probe, machine, s_was, s_retained[index]) &&

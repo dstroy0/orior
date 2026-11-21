@@ -3,6 +3,9 @@
 // interface_sass_probe_check.c: one kernel's text found in what a toolchain printed, and every form of the machine
 // assembled again and read back, which shows whether a form carries what the part read from it (sass_machine.h)
 #include "interface_sass_probe.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include "../sass_assemble.h"
 #include "../sass_machine.h"
@@ -13,7 +16,13 @@
 unsigned int sass_text_read(const char *output, const char *kernel, char *text, unsigned int room)
 {
     char wanted[256];
-    snprintf(wanted, sizeof(wanted), ".text.%s,", kernel);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(wanted, sizeof(wanted));
+        mmgr_line_put(&buffer_line, ".text.");
+        mmgr_line_put(&buffer_line, kernel);
+        mmgr_line_put(&buffer_line, ",");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     unsigned int at = 0u;
     int inside = 0;
     const char *walk = output;
@@ -22,37 +31,39 @@ unsigned int sass_text_read(const char *output, const char *kernel, char *text, 
         const size_t length = strcspn(walk, "\n");
         char line[SASS_TEXT * 2u];
         const size_t taken = (length < (sizeof(line) - 1u)) ? length : (sizeof(line) - 1u);
-        memcpy(line, walk, taken);
+        mmgr_bytes_copy(line, walk, taken);
         line[taken] = '\0';
         // the disassembler's output ends its lines the way the host does, and a carriage return is none of the text
         line[strcspn(line, "\r")] = '\0';
         walk += length + ((walk[length] == '\n') ? 1u : 0u);
         // a listing contains a section a function, and only the kernel's own is written back. .sectioninfo names no
         // section, and the name it shares the front of is not a line that opens one
-        const char *const section = strstr(line, ".section");
+        const char *const section = mmgr_text_find(line, ".section", PLATFORM_TEXT_TO_TERMINATOR);
         if ((section != NULL) && ((section[8] == ' ') || (section[8] == '\t')))
         {
-            inside = (strstr(line, wanted) != NULL) ? 1 : 0;
+            inside = (mmgr_text_find(line, wanted, PLATFORM_TEXT_TO_TERMINATOR) != NULL) ? 1 : 0;
             continue;
         }
         if (inside == 0)
         {
             continue;
         }
-        const char *const address = strstr(line, "/*");
+        const char *const address = mmgr_text_find(line, "/*", PLATFORM_TEXT_TO_TERMINATOR);
         const char *chosen = NULL;
         size_t copied = 0u;
-        if ((address != NULL) && (strlen(address) > 8u) && (address[6] == '*') && (address[7] == '/'))
+        if ((address != NULL) && (mmgr_text_length(address, PLATFORM_TEXT_TO_TERMINATOR) > 8u) && (address[6] == '*') &&
+            (address[7] == '/'))
         {
             // an instruction: its text lies past the address, /*0000*/, and before the encoding printed after it
             chosen = address + 8;
-            const char *const encoding = strstr(chosen, "/*");
-            copied = (encoding != NULL) ? (size_t)(encoding - chosen) : strlen(chosen);
+            const char *const encoding = mmgr_text_find(chosen, "/*", PLATFORM_TEXT_TO_TERMINATOR);
+            copied = (encoding != NULL) ? (size_t)(encoding - chosen)
+                                        : mmgr_text_length(chosen, PLATFORM_TEXT_TO_TERMINATOR);
         }
-        else if ((line[0] == '.') && (line[strlen(line) - 1u] == ':'))
+        else if ((line[0] == '.') && (line[mmgr_text_length(line, PLATFORM_TEXT_TO_TERMINATOR) - 1u] == ':'))
         {
             chosen = line;
-            copied = strlen(line);
+            copied = mmgr_text_length(line, PLATFORM_TEXT_TO_TERMINATOR);
         }
         if (chosen == NULL)
         {
@@ -69,7 +80,7 @@ unsigned int sass_text_read(const char *output, const char *kernel, char *text, 
         }
         if ((copied != 0u) && ((at + copied + 1u) < room))
         {
-            memcpy(&text[at], chosen, copied);
+            mmgr_bytes_copy(&text[at], chosen, copied);
             at += (unsigned int)copied;
             text[at] = '\n';
             at += 1u;
@@ -93,7 +104,7 @@ static void sass_reuse_cut(const char *text, char *without, size_t room)
     size_t at = 0u;
     for (const char *walk = text; (*walk != '\0') && (at < (room - 1u)); walk += 1)
     {
-        if (strncmp(walk, ".reuse", 6u) == 0)
+        if (mmgr_text_starts(walk, ".reuse", PLATFORM_TEXT_TO_TERMINATOR))
         {
             walk += 5;
             continue;
@@ -105,7 +116,7 @@ static void sass_reuse_cut(const char *text, char *without, size_t room)
 }
 
 unsigned int sass_machine_check(const SassMachine *machine, const SassListing *listing, const char *architecture,
-                               const char *folder, SassCheck *tally, unsigned int report)
+                                const char *folder, SassCheck *tally, unsigned int report)
 {
     unsigned int filled = 0u;
     unsigned int differed = 0u;
@@ -128,8 +139,7 @@ unsigned int sass_machine_check(const SassMachine *machine, const SassListing *l
             }
             // the scheduler's bits are none of the text's, and the form carries whatever they were when it was seen
             const unsigned long long control = 0xfffffe0000000000ULL;
-            const int same_bits =
-                (low == instruction->low) && ((high | control) == (instruction->high | control));
+            const int same_bits = (low == instruction->low) && ((high | control) == (instruction->high | control));
             tally->same_bits += same_bits ? 1u : 0u;
             SassInstructionParts parts;
             sass_instruction_read(instruction->text, &parts);
@@ -155,14 +165,23 @@ unsigned int sass_machine_check(const SassMachine *machine, const SassListing *l
             }
             s_check_low[filled] = low;
             s_check_high[filled] = high;
-            snprintf(s_check_queried[filled], SASS_TEXT, "%s", instruction->text);
+            {
+                VerbaLinea buffer_line = mmgr_line_over(s_check_queried[filled], SASS_TEXT);
+                mmgr_line_put(&buffer_line, instruction->text);
+                (void)mmgr_line_finish(&buffer_line);
+            }
             filled += 1u;
         }
         // the block decoded whenever it is full, and at the end of the listing
         if ((filled == SASS_CHECK_BLOCK) || ((number == listing->count) && (filled != 0u)))
         {
             char path[1024];
-            snprintf(path, sizeof(path), "%s/written", folder);
+            {
+                VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+                mmgr_line_put(&buffer_line, folder);
+                mmgr_line_put(&buffer_line, "/written");
+                (void)mmgr_line_finish(&buffer_line);
+            }
             if (!sass_decode(architecture, path, s_check_low, s_check_high, filled, s_check_texts))
             {
                 tally->refused += filled;
@@ -174,7 +193,7 @@ unsigned int sass_machine_check(const SassMachine *machine, const SassListing *l
                 char read[SASS_TEXT];
                 sass_reuse_cut(s_check_queried[at], query_text, sizeof(query_text));
                 sass_reuse_cut(s_check_texts[at], read, sizeof(read));
-                const int same = (strcmp(query_text, read) == 0);
+                const int same = (mmgr_text_equal(query_text, read, PLATFORM_TEXT_TO_TERMINATOR));
                 tally->same_text += same ? 1u : 0u;
                 differed += same ? 0u : 1u;
                 if (!same && (differed <= report))

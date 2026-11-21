@@ -3,6 +3,9 @@
 // frame.cu: the frame queried of the part: the container the vendor's writer makes loaded and returned from, and the
 // least opening a kernel runs with (Open 6.3)
 #include "frame_walk.h"
+#include "../../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "identity_internal.h"
 
 // the kernel the system accepted, as the vendor's writer appends it to the run in its kernel mode (kernel_blob.h): the
@@ -18,7 +21,7 @@ int frame_kernel_read(const unsigned char **code, unsigned int *places, unsigned
     {
         return 0;
     }
-    memcpy(&head, kernel, sizeof(head));
+    mmgr_bytes_copy(&head, kernel, sizeof(head));
     if ((head.places == 0u) || ((kernel_size - sizeof(head)) < (16ULL * head.places)))
     {
         return 0;
@@ -91,13 +94,13 @@ int identity_frame(const char *engine, const char *answers, const char *ksc, con
     const int returned = question_alike(kernel, nothing, case_places, &s_question, &queries);
     run_print(&table, "container %s%s%s\n", returned ? "returned" : "not returned", returned ? "" : ": ",
               returned ? "" : s_question.refused);
-    const int dry = strncmp(s_question.refused, "skipped dry", 11u) == 0;
+    const int dry = mmgr_text_starts(s_question.refused, "skipped dry", PLATFORM_TEXT_TO_TERMINATOR);
     if (!returned)
     {
         run_closed(&table);
         run_channel_close();
         printf("orior_klq_identity frame: %s\n", dry ? "the run is dry, and nothing is written"
-                                             : "the container was not returned from, and nothing is written");
+                                                     : "the container was not returned from, and nothing is written");
         return dry ? 0 : 1;
     }
     if (!ksc_answers_write(ksc, "container", std::vector<std::string>{"run answers 00000001 container returned"}))
@@ -112,7 +115,11 @@ int identity_frame(const char *engine, const char *answers, const char *ksc, con
     for (unsigned int place = 0u; place < s_question.cases; place += 1u)
     {
         char answered[24];
-        snprintf(answered, sizeof(answered), "%llx", s_question.answered[place]);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(answered, sizeof(answered));
+            mmgr_line_hex(&buffer_line, s_question.answered[place], 1u);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         reference[case_places[place]] = answered;
     }
     FrameQuery query = {&kernel, &reference, &case_places, &s_question, &queries, &table};
@@ -125,7 +132,13 @@ int identity_frame(const char *engine, const char *answers, const char *ksc, con
     }
     run_channel_close();
     char row[64];
-    snprintf(row, sizeof(row), "run answers %08llx opening least", from);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(row, sizeof(row));
+        mmgr_line_put(&buffer_line, "run answers ");
+        mmgr_line_hex(&buffer_line, from, 8u);
+        mmgr_line_put(&buffer_line, " opening least");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     if (!ksc_answers_write(ksc, "opening", std::vector<std::string>{row}))
     {
         printf("orior_klq_identity frame: %s could not be written\n", ksc);

@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // khw_machine_write.c: the vendor's writer, which reads what the query protocol answered and writes the .khw the gate
-// reads. The protocol queries and records the answers; this names them and positions them out in the vendor's own machine
-// file (P14). It is a program the protocol runs through the interface, and nothing of it reaches back into the
+// reads. The protocol queries and records the answers; this names them and positions them out in the vendor's own
+// machine file (P14). It is a program the protocol runs through the interface, and nothing of it reaches back into the
 // protocol.
 //
 //     orior_khw_machine_write <part> <path.khw> <layout> <mnemonics> <answers> <mode>
@@ -46,6 +46,9 @@
 // that the part answered for, as `final` puts them out. A costs question is a form, written many times over from the
 // probe place inside the places of the kernel. The gate then reads a costs question as stored whole.
 #include "khw_machine_write/khw_machine_write_internal.h"
+#include "../../../src/platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "khw_machine_write/opening.h"
 
 // the path of the .ksc of the part beside the machine file at `path`, into `ksc`, which has room for `room`. Its
@@ -54,14 +57,14 @@ static int khw_ksc_path(const char *path, char *ksc, size_t room)
 {
     static const char s_extension[] = ".ksc";
     const char *const dot = strrchr(path, '.');
-    const size_t stem = (dot != NULL) ? (size_t)(dot - path) : strlen(path);
+    const size_t stem = (dot != NULL) ? (size_t)(dot - path) : mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR);
     const size_t extension = (dot != NULL) ? sizeof(s_extension) : 1u;
     if ((stem + extension) > room)
     {
         return 0;
     }
-    memcpy(ksc, path, stem);
-    memcpy(ksc + stem, (dot != NULL) ? s_extension : "", extension);
+    mmgr_bytes_copy(ksc, path, stem);
+    mmgr_bytes_copy(ksc + stem, (dot != NULL) ? s_extension : "", extension);
     return 1;
 }
 
@@ -78,7 +81,7 @@ int main(int count, char **word)
     const char *const mnemonics = word[4];
     const char *const answers = word[5];
     const char *const mode = word[6];
-    if (strcmp(mode, "kernel") == 0)
+    if (mmgr_text_equal(mode, "kernel", PLATFORM_TEXT_TO_TERMINATOR))
     {
         // the kernel, read out of the container and appended for the protocol as `answers` (kernel_blob.h). It is its
         // head, then the encoding of each place as the container stores it
@@ -96,19 +99,19 @@ int main(int count, char **word)
             ((place != KHW_PROBE_PLACE_NONE) && (place < s_kernel_places)) ? place : KERNEL_BLOB_PLACE_NONE};
         static unsigned char s_kernel_blob[sizeof(KernelBlobHead) + sizeof(s_kernel_text)];
         const size_t code = (size_t)s_kernel_places * KHW_INSTRUCTION;
-        memcpy(s_kernel_blob, &head, sizeof(head));
-        memcpy(s_kernel_blob + sizeof(head), s_kernel_text, code);
+        mmgr_bytes_copy(s_kernel_blob, &head, sizeof(head));
+        mmgr_bytes_copy(s_kernel_blob + sizeof(head), s_kernel_text, code);
         QryShared *const run = qry_member_run();
         const int appended =
             (run != NULL) && (qry_member_append(answers, s_kernel_blob, sizeof(head) + code, QRY_ORDINARY) != 0);
         return appended ? 0 : 1;
     }
-    if (strcmp(mode, "assemble") == 0)
+    if (mmgr_text_equal(mode, "assemble", PLATFORM_TEXT_TO_TERMINATOR))
     {
         // the texts the protocol passed as `answers`, assembled against the machine file and passed back
         return khw_texts_assembled(path, answers) ? 0 : 1;
     }
-    if (strcmp(mode, "krs") == 0)
+    if (mmgr_text_equal(mode, "krs", PLATFORM_TEXT_TO_TERMINATOR))
     {
         // each form of the machine file that answered a relation, one row a form (forms_blob.h), appended for the
         // protocol as `answers`
@@ -122,14 +125,14 @@ int main(int count, char **word)
         {
             const SassForm *const form = &s_machine.form[at];
             FormsBlobRow *const row = &s_rows[written];
-            memset(row, 0, sizeof(*row));
-            const size_t relation = strlen(form->relation);
+            mmgr_bytes_set(row, 0, sizeof(*row));
+            const size_t relation = mmgr_text_length(form->relation, PLATFORM_TEXT_TO_TERMINATOR);
             if ((relation == 0u) || (relation >= sizeof(row->relation)) ||
                 !sass_text_placed(form, row->text, sizeof(row->text)))
             {
                 continue;
             }
-            memcpy(row->relation, form->relation, relation);
+            mmgr_bytes_copy(row->relation, form->relation, relation);
             row->signed_read = (form->signed_read != 0) ? 1u : 0u;
             row->low = form->low;
             row->high = form->high;
@@ -155,11 +158,15 @@ int main(int count, char **word)
             khw_guard_field_set(guard_first, guard_bits);
         }
     }
-    memset(&s_machine, 0, sizeof(s_machine));
-    snprintf(s_machine.part, sizeof(s_machine.part), "%s", part);
-    const int gate = strcmp(mode, "gate") == 0;
-    const int costs = strcmp(mode, "costs") == 0;
-    if (!gate && !costs && (strcmp(mode, "final") != 0))
+    mmgr_bytes_set(&s_machine, 0, sizeof(s_machine));
+    {
+        VerbaLinea buffer_line = mmgr_line_over(s_machine.part, sizeof(s_machine.part));
+        mmgr_line_put(&buffer_line, part);
+        (void)mmgr_line_finish(&buffer_line);
+    }
+    const int gate = mmgr_text_equal(mode, "gate", PLATFORM_TEXT_TO_TERMINATOR);
+    const int costs = mmgr_text_equal(mode, "costs", PLATFORM_TEXT_TO_TERMINATOR);
+    if (!gate && !costs && (!mmgr_text_equal(mode, "final", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         printf("  orior_khw_machine_write: %s is no mode this writes\n", mode);
         return 2;
@@ -215,7 +222,8 @@ int main(int count, char **word)
                kernel_forms, named, forms, path);
         return 0;
     }
-    printf("  orior_khw_machine_write: %u of the %u forms the part answered for named by the vendor's table and written to "
+    printf("  orior_khw_machine_write: %u of the %u forms the part answered for named by the vendor's table and "
+           "written to "
            "%s\n",
            named, forms, path);
     return 0;

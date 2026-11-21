@@ -3,6 +3,9 @@
 // read.c: the vendor's instruction set read: each CLASS with its opcode, its fields by name and its constant-bank
 // operand
 #include "read.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include "../../../../../../includes/parsers/line_read.h"
 
@@ -44,14 +47,14 @@ static int tables_class_head(const char *line, char *name, size_t room)
     {
         return 0;
     }
-    const char *const end = strchr(line + 7, '"');
+    const char *const end = mmgr_text_char(line + 7, '"', PLATFORM_TEXT_TO_TERMINATOR);
     if (end == NULL)
     {
         return 0;
     }
     const size_t length = (size_t)(end - (line + 7));
     const size_t copied = (length < room) ? length : (room - 1u);
-    memcpy(name, line + 7, copied);
+    mmgr_bytes_copy(name, line + 7, copied);
     name[copied] = '\0';
     return 1;
 }
@@ -59,7 +62,7 @@ static int tables_class_head(const char *line, char *name, size_t room)
 // the opcode of an OPCODES line, `<name> = 0b<bits>;`, the bits read as they are
 static int tables_opcode_read(const char *line, unsigned long long *opcode)
 {
-    const char *const at = strstr(line, "0b");
+    const char *const at = mmgr_text_find(line, "0b", PLATFORM_TEXT_TO_TERMINATOR);
     if (at == NULL)
     {
         return 0;
@@ -76,11 +79,11 @@ static int tables_opcode_read(const char *line, unsigned long long *opcode)
 // `BITS_<n>_<hi>_<lo>..._<name>=<operand>;` into `field`: 1, or 0 where the line is no such field
 static int tables_field_line(const char *line, TablesField *field)
 {
-    if (strncmp(line, "BITS_", 5u) != 0)
+    if (!mmgr_text_starts(line, "BITS_", PLATFORM_TEXT_TO_TERMINATOR))
     {
         return 0;
     }
-    memset(field, 0, sizeof(*field));
+    mmgr_bytes_set(field, 0, sizeof(*field));
     const char *at = line + 5;
     char *end = NULL;
     // the count, then pairs of numbers while a number follows the underscore
@@ -118,7 +121,7 @@ static int tables_field_line(const char *line, TablesField *field)
     {
         return 0;
     }
-    const char *const equals = strchr(at, '=');
+    const char *const equals = mmgr_text_char(at, '=', PLATFORM_TEXT_TO_TERMINATOR);
     if (equals == NULL)
     {
         return 0;
@@ -130,7 +133,7 @@ static int tables_field_line(const char *line, TablesField *field)
         length -= 1u;
     }
     const size_t copied = (length < TABLES_NAME) ? length : (TABLES_NAME - 1u);
-    memcpy(field->name, at, copied);
+    mmgr_bytes_copy(field->name, at, copied);
     field->name[copied] = '\0';
     const char *operand = tables_past_spaces(equals + 1);
     if (*operand == '*')
@@ -144,7 +147,7 @@ static int tables_field_line(const char *line, TablesField *field)
         operand_length -= 1u;
     }
     const size_t operand_copied = (operand_length < TABLES_NAME) ? operand_length : (TABLES_NAME - 1u);
-    memcpy(field->operand, operand, operand_copied);
+    mmgr_bytes_copy(field->operand, operand, operand_copied);
     field->operand[operand_copied] = '\0';
     // the width the line counts is the runs' where the runs are whole; a count past them is a line cut short
     return (unsigned long)field->width == count;
@@ -155,14 +158,14 @@ static int tables_field_line(const char *line, TablesField *field)
 // each field takes the operand's argument in its place, and the whole operand where it has none to give
 static void tables_fields_line(const char *line, TablesClass *class_)
 {
-    const char *const equals = strchr(line, '=');
-    if ((equals == NULL) || (strncmp(line, "BITS_", 5u) != 0))
+    const char *const equals = mmgr_text_char(line, '=', PLATFORM_TEXT_TO_TERMINATOR);
+    if ((equals == NULL) || (!mmgr_text_starts(line, "BITS_", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         return;
     }
     const char *const operand = tables_past_spaces(equals + 1);
     // the operand's arguments, where it is a call: the text between its parentheses, split on commas
-    const char *const open = strchr(operand, '(');
+    const char *const open = mmgr_text_char(operand, '(', PLATFORM_TEXT_TO_TERMINATOR);
     const char *const close = (open != NULL) ? strrchr(operand, ')') : NULL;
     unsigned int parts = 1u;
     for (const char *at = line; at < equals; at += 1)
@@ -172,7 +175,8 @@ static void tables_fields_line(const char *line, TablesClass *class_)
     const char *part = line;
     for (unsigned int index = 0u; index < parts; index += 1u)
     {
-        const char *const part_end = (index + 1u < parts) ? strchr(part, ',') : equals;
+        const char *const part_end =
+            (index + 1u < parts) ? mmgr_text_char(part, ',', PLATFORM_TEXT_TO_TERMINATOR) : equals;
         if (part_end == NULL)
         {
             return;
@@ -183,7 +187,7 @@ static void tables_fields_line(const char *line, TablesClass *class_)
         {
             return;
         }
-        memcpy(one, part, left);
+        mmgr_bytes_copy(one, part, left);
         size_t length = left;
         one[length] = '=';
         length += 1u;
@@ -197,7 +201,7 @@ static void tables_fields_line(const char *line, TablesClass *class_)
             {
                 skipped += (*at == ',') ? 1u : 0u;
             }
-            const char *const comma = strchr(at, ',');
+            const char *const comma = mmgr_text_char(at, ',', PLATFORM_TEXT_TO_TERMINATOR);
             argument = at;
             argument_length = (size_t)((((comma != NULL) && (comma < close)) ? comma : close) - at);
         }
@@ -205,7 +209,7 @@ static void tables_fields_line(const char *line, TablesClass *class_)
         {
             return;
         }
-        memcpy(one + length, argument, argument_length);
+        mmgr_bytes_copy(one + length, argument, argument_length);
         length += argument_length;
         one[length] = ';';
         one[length + 1u] = '\0';
@@ -248,7 +252,7 @@ static unsigned int tables_immediate_bits(const char *open, const char *end)
 {
     for (const char *at = open; at + 4 < end; at += 1)
     {
-        if (strncmp(at, "Imm(", 4u) == 0)
+        if (mmgr_text_starts(at, "Imm(", PLATFORM_TEXT_TO_TERMINATOR))
         {
             return (unsigned int)strtoul(at + 4, NULL, 10);
         }
@@ -261,9 +265,9 @@ static unsigned int tables_immediate_bits(const char *open, const char *end)
 // after the colon
 static void tables_size_read(const char *line, TablesClass *class_)
 {
-    const char *const size = strstr(line, "/SZ_");
-    const char *const open = (size != NULL) ? strchr(size, '(') : NULL;
-    const char *const close = (open != NULL) ? strchr(open, ')') : NULL;
+    const char *const size = mmgr_text_find(line, "/SZ_", PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const open = (size != NULL) ? mmgr_text_char(size, '(', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
+    const char *const close = (open != NULL) ? mmgr_text_char(open, ')', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
     if ((close == NULL) || (close[1] != ':'))
     {
         return;
@@ -272,7 +276,7 @@ static void tables_size_read(const char *line, TablesClass *class_)
     // the list's name, from the slash to the parenthesis, which a condition's constant names a choice under
     const size_t list_length = (size_t)(open - (size + 1));
     const size_t list_copied = (list_length < TABLES_NAME) ? list_length : (TABLES_NAME - 1u);
-    memcpy(class_->size_list, size + 1, list_copied);
+    mmgr_bytes_copy(class_->size_list, size + 1, list_copied);
     class_->size_list[list_copied] = '\0';
     for (const char *at = size + 4; (at < open) && (class_->sizes < TABLES_SIZES);)
     {
@@ -319,18 +323,45 @@ int tables_class_described(const TablesSet *set, unsigned long long low, unsigne
     const TablesClass *const class_ = tables_class_of(set, low, high);
     if (class_ == NULL)
     {
-        snprintf(text, room, "%016llx %016llx -", low, high);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(text, room);
+            mmgr_line_hex(&buffer_line, low, 16u);
+            mmgr_line_put(&buffer_line, " ");
+            mmgr_line_hex(&buffer_line, high, 16u);
+            mmgr_line_put(&buffer_line, " -");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         return 0;
     }
     const TablesField *const bank = (class_->bank[0] != '\0') ? tables_field_by_operand(class_, class_->bank) : NULL;
     if (bank == NULL)
     {
-        snprintf(text, room, "%016llx %016llx %s", low, high, class_->name);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(text, room);
+            mmgr_line_hex(&buffer_line, low, 16u);
+            mmgr_line_put(&buffer_line, " ");
+            mmgr_line_hex(&buffer_line, high, 16u);
+            mmgr_line_put(&buffer_line, " ");
+            mmgr_line_put(&buffer_line, class_->name);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         return 1;
     }
-    snprintf(text, room, "%016llx %016llx %s bank %llu offset 0x%llx reads %u", low, high, class_->name,
-             tables_field_read(bank, low, high), tables_class_offset(class_, low, high),
-             tables_class_bytes(class_, low, high));
+    {
+        VerbaLinea buffer_line = mmgr_line_over(text, room);
+        mmgr_line_hex(&buffer_line, low, 16u);
+        mmgr_line_put(&buffer_line, " ");
+        mmgr_line_hex(&buffer_line, high, 16u);
+        mmgr_line_put(&buffer_line, " ");
+        mmgr_line_put(&buffer_line, class_->name);
+        mmgr_line_put(&buffer_line, " bank ");
+        mmgr_line_decimal(&buffer_line, tables_field_read(bank, low, high), 1u);
+        mmgr_line_put(&buffer_line, " offset 0x");
+        mmgr_line_hex(&buffer_line, tables_class_offset(class_, low, high), 1u);
+        mmgr_line_put(&buffer_line, " reads ");
+        mmgr_line_decimal(&buffer_line, tables_class_bytes(class_, low, high), 1u);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     return 1;
 }
 
@@ -350,14 +381,15 @@ unsigned int tables_class_bytes(const TablesClass *class_, unsigned long long lo
 // operand's width the immediate's inside that bracket
 static void tables_constant_read(const char *line, TablesClass *class_)
 {
-    const char *const constant = strstr(line, "C:");
+    const char *const constant = mmgr_text_find(line, "C:", PLATFORM_TEXT_TO_TERMINATOR);
     if ((constant == NULL) ||
         (constant != line && (constant[-1] != '\'') && (constant[-1] != ' ') && (constant[-1] != ',')))
     {
         return;
     }
-    const char *const first_open = strchr(constant, '[');
-    const char *const first_close = (first_open != NULL) ? strchr(first_open, ']') : NULL;
+    const char *const first_open = mmgr_text_char(constant, '[', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const first_close =
+        (first_open != NULL) ? mmgr_text_char(first_open, ']', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
     if (first_close == NULL)
     {
         return;
@@ -403,8 +435,8 @@ int tables_set_read(TablesSet *set, const unsigned char *text, size_t size)
             }
             class_ = &set->class_[set->count];
             set->count += 1u;
-            memset(class_, 0, sizeof(*class_));
-            memcpy(class_->name, name, sizeof(name));
+            mmgr_bytes_set(class_, 0, sizeof(*class_));
+            mmgr_bytes_copy(class_->name, name, sizeof(name));
             part = ELSEWHERE;
             continue;
         }
@@ -412,22 +444,22 @@ int tables_set_read(TablesSet *set, const unsigned char *text, size_t size)
         {
             continue;
         }
-        const size_t length = strlen(line);
-        if (strncmp(line, "FORMAT", 6u) == 0)
+        const size_t length = mmgr_text_length(line, PLATFORM_TEXT_TO_TERMINATOR);
+        if (mmgr_text_starts(line, "FORMAT", PLATFORM_TEXT_TO_TERMINATOR))
         {
             part = FORMAT;
         }
-        else if (strcmp(line, "OPCODES") == 0)
+        else if (mmgr_text_equal(line, "OPCODES", PLATFORM_TEXT_TO_TERMINATOR))
         {
             part = OPCODES;
             continue;
         }
-        else if (strcmp(line, "ENCODING") == 0)
+        else if (mmgr_text_equal(line, "ENCODING", PLATFORM_TEXT_TO_TERMINATOR))
         {
             part = ENCODING;
             continue;
         }
-        else if (strcmp(line, "CONDITIONS") == 0)
+        else if (mmgr_text_equal(line, "CONDITIONS", PLATFORM_TEXT_TO_TERMINATOR))
         {
             part = CONDITIONS;
             register_type = 0;
@@ -437,9 +469,10 @@ int tables_set_read(TablesSet *set, const unsigned char *text, size_t size)
         {
             // within CONDITIONS, a type of error the conditions after it are under; elsewhere another part's head,
             // PROPERTIES, PREDICATES: capitals and underscores alone
-            if ((part == CONDITIONS) && (length > 6u) && (strcmp(line + length - 6u, "_ERROR") == 0))
+            if ((part == CONDITIONS) && (length > 6u) &&
+                (mmgr_text_equal(line + length - 6u, "_ERROR", PLATFORM_TEXT_TO_TERMINATOR)))
             {
-                register_type = (strstr(line, "REG_ERROR") != NULL);
+                register_type = (mmgr_text_find(line, "REG_ERROR", PLATFORM_TEXT_TO_TERMINATOR) != NULL);
                 continue;
             }
             part = ELSEWHERE;
@@ -450,15 +483,16 @@ int tables_set_read(TablesSet *set, const unsigned char *text, size_t size)
             // a condition is a line ending in a colon, under a type on the registers. The line after it, in quotes, is
             // its message, and a condition longer than its room is not stored
             const char *const text_at = tables_past_spaces(line);
-            size_t copied = strlen(text_at);
+            size_t copied = mmgr_text_length(text_at, PLATFORM_TEXT_TO_TERMINATOR);
             while ((copied != 0u) && ((text_at[copied - 1u] == ' ') || (text_at[copied - 1u] == ':')))
             {
                 copied -= 1u;
             }
-            if (register_type && (copied != 0u) && (text_at[strlen(text_at) - 1u] == ':') &&
+            if (register_type && (copied != 0u) &&
+                (text_at[mmgr_text_length(text_at, PLATFORM_TEXT_TO_TERMINATOR) - 1u] == ':') &&
                 (copied + 1u < TABLES_CONDITION_TEXT) && (class_->conditions < TABLES_CONDITIONS))
             {
-                memcpy(class_->condition[class_->conditions], text_at, copied);
+                mmgr_bytes_copy(class_->condition[class_->conditions], text_at, copied);
                 class_->condition[class_->conditions][copied] = '\0';
                 class_->conditions += 1u;
             }
@@ -468,7 +502,8 @@ int tables_set_read(TablesSet *set, const unsigned char *text, size_t size)
         {
             tables_constant_read(line, class_);
             tables_size_read(line, class_);
-            if (line[strlen(line) - ((strlen(line) != 0u) ? 1u : 0u)] == ';')
+            if (line[mmgr_text_length(line, PLATFORM_TEXT_TO_TERMINATOR) -
+                     ((mmgr_text_length(line, PLATFORM_TEXT_TO_TERMINATOR) != 0u) ? 1u : 0u)] == ';')
             {
                 part = ELSEWHERE;
             }
@@ -501,7 +536,7 @@ const TablesField *tables_field_named(const TablesClass *class_, const char *nam
 {
     for (unsigned int field = 0u; field < class_->fields; field += 1u)
     {
-        if (strcmp(class_->field[field].name, name) == 0)
+        if (mmgr_text_equal(class_->field[field].name, name, PLATFORM_TEXT_TO_TERMINATOR))
         {
             return &class_->field[field];
         }
@@ -513,7 +548,8 @@ const TablesField *tables_field_by_operand(const TablesClass *class_, const char
 {
     for (unsigned int field = 0u; field < class_->fields; field += 1u)
     {
-        if (!class_->field[field].fixed && (strcmp(class_->field[field].operand, operand) == 0))
+        if (!class_->field[field].fixed &&
+            (mmgr_text_equal(class_->field[field].operand, operand, PLATFORM_TEXT_TO_TERMINATOR)))
         {
             return &class_->field[field];
         }
@@ -612,7 +648,7 @@ static void tables_condition_spaces(TablesCondition *condition)
 static int tables_condition_word(TablesCondition *condition, const char *word)
 {
     tables_condition_spaces(condition);
-    const size_t length = strlen(word);
+    const size_t length = mmgr_text_length(word, PLATFORM_TEXT_TO_TERMINATOR);
     if (strncmp(condition->at, word, length) != 0)
     {
         return 0;
@@ -660,9 +696,9 @@ static long long tables_condition_constant(TablesCondition *condition)
     }
     value[length] = '\0';
     condition->at += (quoted && (*condition->at == '"')) ? 1 : 0;
-    if (strcmp(list, "Register") == 0)
+    if (mmgr_text_equal(list, "Register", PLATFORM_TEXT_TO_TERMINATOR))
     {
-        if (strcmp(value, "RZ") == 0)
+        if (mmgr_text_equal(value, "RZ", PLATFORM_TEXT_TO_TERMINATOR))
         {
             return TABLES_REGISTER_ZERO;
         }
@@ -671,34 +707,39 @@ static long long tables_condition_constant(TablesCondition *condition)
             return strtoll(value + 1, NULL, 10);
         }
     }
-    if (strcmp(list, "UniformRegister") == 0)
+    if (mmgr_text_equal(list, "UniformRegister", PLATFORM_TEXT_TO_TERMINATOR))
     {
-        if (strcmp(value, "URZ") == 0)
+        if (mmgr_text_equal(value, "URZ", PLATFORM_TEXT_TO_TERMINATOR))
         {
             return TABLES_UNIFORM_ZERO;
         }
-        if (strncmp(value, "UR", 2u) == 0)
+        if (mmgr_text_starts(value, "UR", PLATFORM_TEXT_TO_TERMINATOR))
         {
             return strtoll(value + 2, NULL, 10);
         }
     }
-    if (((strcmp(list, "Predicate") == 0) && (strcmp(value, "PT") == 0)) ||
-        ((strcmp(list, "UniformPredicate") == 0) && (strcmp(value, "UPT") == 0)))
+    if (((mmgr_text_equal(list, "Predicate", PLATFORM_TEXT_TO_TERMINATOR)) &&
+         (mmgr_text_equal(value, "PT", PLATFORM_TEXT_TO_TERMINATOR))) ||
+        ((mmgr_text_equal(list, "UniformPredicate", PLATFORM_TEXT_TO_TERMINATOR)) &&
+         (mmgr_text_equal(value, "UPT", PLATFORM_TEXT_TO_TERMINATOR))))
     {
         return TABLES_PREDICATE_TRUE;
     }
-    if ((condition->class_->size_list[0] != '\0') && (strcmp(list, condition->class_->size_list) == 0))
+    if ((condition->class_->size_list[0] != '\0') &&
+        (mmgr_text_equal(list, condition->class_->size_list, PLATFORM_TEXT_TO_TERMINATOR)))
     {
         // the choice's place in the list, counted from the first underscore past the list's prefix: the size field
         // stores that place
-        const char *choice = strchr(list, '_');
+        const char *choice = mmgr_text_char(list, '_', PLATFORM_TEXT_TO_TERMINATOR);
         long long place = 0LL;
         while (choice != NULL)
         {
             choice += 1;
-            const char *const end = strchr(choice, '_');
-            const size_t choice_length = (end != NULL) ? (size_t)(end - choice) : strlen(choice);
-            if ((choice_length == strlen(value)) && (strncmp(choice, value, choice_length) == 0))
+            const char *const end = mmgr_text_char(choice, '_', PLATFORM_TEXT_TO_TERMINATOR);
+            const size_t choice_length =
+                (end != NULL) ? (size_t)(end - choice) : mmgr_text_length(choice, PLATFORM_TEXT_TO_TERMINATOR);
+            if ((choice_length == mmgr_text_length(value, PLATFORM_TEXT_TO_TERMINATOR)) &&
+                (strncmp(choice, value, choice_length) == 0))
             {
                 return place;
             }
@@ -921,8 +962,7 @@ static long long tables_condition_implies(TablesCondition *condition)
     return left;
 }
 
-int tables_class_legal(const TablesClass *class_, unsigned long long low, unsigned long long high,
-                       const char **failed)
+int tables_class_legal(const TablesClass *class_, unsigned long long low, unsigned long long high, const char **failed)
 {
     for (unsigned int at = 0u; at < class_->conditions; at += 1u)
     {

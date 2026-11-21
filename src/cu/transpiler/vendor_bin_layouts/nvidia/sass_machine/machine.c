@@ -4,6 +4,9 @@
 // transfer control or wait, the barrier and the schedule. It takes the machine from text, writes and reads the runs,
 // the types and the answers, and writes and reads the file.
 #include "../../../../../../includes/parsers/line_read.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "sass_machine_internal.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
@@ -24,7 +27,9 @@ unsigned long long sass_exit_encoding(const SassMachine *machine)
     unsigned long long found = 0ULL;
     for (unsigned int number = 0u; number < machine->forms; number += 1u)
     {
-        found = (strcmp(machine->form[number].operation, "EXIT") == 0) ? machine->form[number].low : found;
+        found = (mmgr_text_equal(machine->form[number].operation, "EXIT", PLATFORM_TEXT_TO_TERMINATOR))
+                    ? machine->form[number].low
+                    : found;
     }
     return found;
 }
@@ -36,7 +41,7 @@ int sass_operation_control_or_wait(const char *operation)
         "WARPSYNC", "YIELD", "BAR", "DEPBAR", "NANOSLEEP", "BPT", "RTT",  "KILL", "RPCMOV", "RETIRE", "PMTRIG"};
     for (unsigned int at = 0u; at < (sizeof(s_unsafe) / sizeof(s_unsafe[0])); at += 1u)
     {
-        if (strncmp(operation, s_unsafe[at], strlen(s_unsafe[at])) == 0)
+        if (strncmp(operation, s_unsafe[at], mmgr_text_length(s_unsafe[at], PLATFORM_TEXT_TO_TERMINATOR)) == 0)
         {
             return 1;
         }
@@ -58,21 +63,23 @@ unsigned int sass_operation_schedule(const SassMachine *machine, const char *ope
     *soonest = SASS_STALL_MAX_LEN;
     for (unsigned int at = 0u; at < (sizeof(s_late) / sizeof(s_late[0])); at += 1u)
     {
-        if ((strlen(s_late[at]) == base) && (strncmp(operation, s_late[at], base) == 0))
+        if ((mmgr_text_length(s_late[at], PLATFORM_TEXT_TO_TERMINATOR) == base) &&
+            (strncmp(operation, s_late[at], base) == 0))
         {
             return SASS_SCHEDULE_LATE;
         }
     }
     for (unsigned int at = 0u; at < (sizeof(s_store) / sizeof(s_store[0])); at += 1u)
     {
-        if ((strlen(s_store[at]) == base) && (strncmp(operation, s_store[at], base) == 0))
+        if ((mmgr_text_length(s_store[at], PLATFORM_TEXT_TO_TERMINATOR) == base) &&
+            (strncmp(operation, s_store[at], base) == 0))
         {
             return SASS_SCHEDULE_STORE;
         }
     }
     for (unsigned int at = 0u; at < machine->soonests; at += 1u)
     {
-        if (strcmp(operation, machine->soonest[at].operation) == 0)
+        if (mmgr_text_equal(operation, machine->soonest[at].operation, PLATFORM_TEXT_TO_TERMINATOR))
         {
             *soonest = machine->soonest[at].stall;
         }
@@ -98,8 +105,8 @@ int sass_machine_take(SassMachine *machine, const char *text, unsigned long long
         return 0;
     }
     SassForm *const form = &machine->form[machine->forms];
-    memset(form, 0, sizeof(*form));
-    memcpy(form->operation, parts.operation, sizeof(form->operation));
+    mmgr_bytes_set(form, 0, sizeof(*form));
+    mmgr_bytes_copy(form->operation, parts.operation, sizeof(form->operation));
     form->operands = parts.operands;
     for (unsigned int place = 0u; place < parts.operands; place += 1u)
     {
@@ -108,7 +115,11 @@ int sass_machine_take(SassMachine *machine, const char *text, unsigned long long
     }
     form->low = low;
     form->high = high;
-    snprintf(form->text, sizeof(form->text), "%s", text);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(form->text, sizeof(form->text));
+        mmgr_line_put(&buffer_line, text);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     machine->forms += 1u;
     *taken = form;
     return 1;
@@ -122,7 +133,8 @@ int sass_machine_take_related(SassMachine *machine, const char *text, unsigned l
     for (unsigned int number = 0u; number < machine->forms; number += 1u)
     {
         SassForm *const form = &machine->form[number];
-        if (sass_form_same(form, &parts) && ((form->relation[0] == '\0') || (strcmp(form->relation, relation) == 0)))
+        if (sass_form_same(form, &parts) &&
+            ((form->relation[0] == '\0') || (mmgr_text_equal(form->relation, relation, PLATFORM_TEXT_TO_TERMINATOR))))
         {
             *taken = form;
             return 1;
@@ -135,8 +147,8 @@ int sass_machine_take_related(SassMachine *machine, const char *text, unsigned l
         return 0;
     }
     SassForm *const form = &machine->form[machine->forms];
-    memset(form, 0, sizeof(*form));
-    memcpy(form->operation, parts.operation, sizeof(form->operation));
+    mmgr_bytes_set(form, 0, sizeof(*form));
+    mmgr_bytes_copy(form->operation, parts.operation, sizeof(form->operation));
     form->operands = parts.operands;
     for (unsigned int place = 0u; place < parts.operands; place += 1u)
     {
@@ -145,7 +157,11 @@ int sass_machine_take_related(SassMachine *machine, const char *text, unsigned l
     }
     form->low = low;
     form->high = high;
-    snprintf(form->text, sizeof(form->text), "%s", text);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(form->text, sizeof(form->text));
+        mmgr_line_put(&buffer_line, text);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     machine->forms += 1u;
     *taken = form;
     return 1;
@@ -156,8 +172,9 @@ int sass_machine_take_related(SassMachine *machine, const char *text, unsigned l
 // of the form `c[<bank>][<offset>]`.
 static size_t sass_constant_head(const char *text)
 {
-    const char *const first_close = strchr(text, ']');
-    const char *const second = (first_close != NULL) ? strchr(first_close + 1, '[') : NULL;
+    const char *const first_close = mmgr_text_char(text, ']', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const second =
+        (first_close != NULL) ? mmgr_text_char(first_close + 1, '[', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
     if (second == NULL)
     {
         return 0u;
@@ -183,11 +200,17 @@ int sass_text_placed(const SassForm *form, char *written, size_t room)
     char guard[SASS_MACHINE_TOKEN];
     if (guard_place != SASS_RUN_NO_PLACE)
     {
-        snprintf(guard, sizeof(guard), "@{%u}", guard_place);
+        VerbaLinea buffer_line = mmgr_line_over(guard, sizeof(guard));
+        mmgr_line_put(&buffer_line, "@{");
+        mmgr_line_decimal(&buffer_line, guard_place, 1u);
+        mmgr_line_put(&buffer_line, "}");
+        (void)mmgr_line_finish(&buffer_line);
     }
     else
     {
-        snprintf(guard, sizeof(guard), "%s", parts.guard);
+        VerbaLinea buffer_line = mmgr_line_over(guard, sizeof(guard));
+        mmgr_line_put(&buffer_line, parts.guard);
+        (void)mmgr_line_finish(&buffer_line);
     }
     int printed = snprintf(written, room, "%s%s%s", guard, (guard[0] != '\0') ? " " : "", parts.operation);
     size_t at = (printed > 0) ? (size_t)printed : room;
@@ -231,11 +254,15 @@ static void sass_runs_write(const SassForm *form, char *written, size_t room)
         char place[16];
         if (run->place == SASS_RUN_NO_PLACE)
         {
-            snprintf(place, sizeof(place), "%s", SASS_RUN_NO_PLACE_TEXT);
+            VerbaLinea buffer_line = mmgr_line_over(place, sizeof(place));
+            mmgr_line_put(&buffer_line, SASS_RUN_NO_PLACE_TEXT);
+            (void)mmgr_line_finish(&buffer_line);
         }
         else
         {
-            snprintf(place, sizeof(place), "%u", run->place);
+            VerbaLinea buffer_line = mmgr_line_over(place, sizeof(place));
+            mmgr_line_decimal(&buffer_line, run->place, 1u);
+            (void)mmgr_line_finish(&buffer_line);
         }
         const int printed = snprintf(written + at, room - at, "%s%u:%u-%u:%s", (number == 0u) ? "" : ";", run->operand,
                                      run->first, run->last, place);
@@ -244,7 +271,9 @@ static void sass_runs_write(const SassForm *form, char *written, size_t room)
     }
     if (form->runs == 0u)
     {
-        snprintf(written, room, "none");
+        VerbaLinea buffer_line = mmgr_line_over(written, room);
+        mmgr_line_put(&buffer_line, "none");
+        (void)mmgr_line_finish(&buffer_line);
     }
 }
 
@@ -253,7 +282,7 @@ static void sass_runs_write(const SassForm *form, char *written, size_t room)
 static int sass_runs_read(SassForm *form, const char *column)
 {
     form->runs = 0u;
-    if (strcmp(column, "none") == 0)
+    if (mmgr_text_equal(column, "none", PLATFORM_TEXT_TO_TERMINATOR))
     {
         return 1;
     }
@@ -277,7 +306,8 @@ static int sass_runs_read(SassForm *form, const char *column)
         // A run's characters are within its column, and an int counts them.
         const int read = (int)(walk - at);
         unsigned int place = SASS_RUN_NO_PLACE;
-        if ((at[read] == ':') && (strncmp(&at[read + 1], SASS_RUN_NO_PLACE_TEXT, strlen(SASS_RUN_NO_PLACE_TEXT)) != 0))
+        if ((at[read] == ':') && (strncmp(&at[read + 1], SASS_RUN_NO_PLACE_TEXT,
+                                          mmgr_text_length(SASS_RUN_NO_PLACE_TEXT, PLATFORM_TEXT_TO_TERMINATOR)) != 0))
         {
             place = (unsigned int)strtoul(&at[read + 1], NULL, 10);
         }
@@ -306,7 +336,9 @@ static void sass_types_write(const SassForm *form, char *written, size_t room)
     }
     if (form->operands == 0u)
     {
-        snprintf(written, room, "none");
+        VerbaLinea buffer_line = mmgr_line_over(written, room);
+        mmgr_line_put(&buffer_line, "none");
+        (void)mmgr_line_finish(&buffer_line);
     }
 }
 
@@ -365,7 +397,10 @@ static unsigned int sass_name_place(const char *const *names, unsigned int count
     unsigned int found = count;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        found = ((strlen(names[at]) == length) && (strncmp(names[at], word, length) == 0)) ? at : found;
+        found = ((mmgr_text_length(names[at], PLATFORM_TEXT_TO_TERMINATOR) == length) &&
+                 (strncmp(names[at], word, length) == 0))
+                    ? at
+                    : found;
     }
     return found;
 }
@@ -374,7 +409,7 @@ static unsigned int sass_name_place(const char *const *names, unsigned int count
 static int sass_types_read(SassForm *form, const char *column)
 {
     form->operands = 0u;
-    if (strcmp(column, "none") == 0)
+    if (mmgr_text_equal(column, "none", PLATFORM_TEXT_TO_TERMINATOR))
     {
         return 1;
     }
@@ -413,9 +448,14 @@ static void sass_answers_read(SassMachine *machine, const char *path)
     machine->register_last = SASS_MACHINE_UNANSWERED;
     machine->register_past = SASS_MACHINE_UNANSWERED;
     char ksc[1024];
-    const size_t length = strlen(path);
-    const int typed = (length > 4u) && (strcmp(path + length - 4u, ".khw") == 0);
-    snprintf(ksc, sizeof(ksc), "%.*s.ksc", (int)(typed ? (length - 4u) : length), path);
+    const size_t length = mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR);
+    const int typed = (length > 4u) && (mmgr_text_equal(path + length - 4u, ".khw", PLATFORM_TEXT_TO_TERMINATOR));
+    {
+        VerbaLinea buffer_line = mmgr_line_over(ksc, sizeof(ksc));
+        mmgr_line_put_max(&buffer_line, path, (size_t)((int)(typed ? (length - 4u) : length)));
+        mmgr_line_put(&buffer_line, ".ksc");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     // The .ksc as the run stores it (ksc.h).
     static KscFile s_file;
     static KscRow s_row;
@@ -424,18 +464,19 @@ static void sass_answers_read(SassMachine *machine, const char *path)
     {
         char writer[SASS_MACHINE_TOKEN];
         char reader[SASS_MACHINE_TOKEN];
-        if (!ksc_row_read(s_file.line[line], "run", &s_row) || (strcmp(s_row.answer, "answers") != 0))
+        if (!ksc_row_read(s_file.line[line], "run", &s_row) ||
+            (!mmgr_text_equal(s_row.answer, "answers", PLATFORM_TEXT_TO_TERMINATOR)))
         {
             continue;
         }
         // A stall and a register are each at max eight hex digits, and an unsigned int represents each.
         const unsigned int answered = (unsigned int)s_row.value;
-        if (strncmp(s_row.question, "register last", 13u) == 0)
+        if (mmgr_text_starts(s_row.question, "register last", PLATFORM_TEXT_TO_TERMINATOR))
         {
             machine->register_last = answered;
             continue;
         }
-        if (strncmp(s_row.question, "register past", 13u) == 0)
+        if (mmgr_text_starts(s_row.question, "register past", PLATFORM_TEXT_TO_TERMINATOR))
         {
             machine->register_past = answered;
             continue;
@@ -448,7 +489,8 @@ static void sass_answers_read(SassMachine *machine, const char *path)
         }
         const unsigned int stall = answered;
         unsigned int at = 0u;
-        while ((at < machine->soonests) && (strcmp(machine->soonest[at].operation, writer) != 0))
+        while ((at < machine->soonests) &&
+               (!mmgr_text_equal(machine->soonest[at].operation, writer, PLATFORM_TEXT_TO_TERMINATOR)))
         {
             at += 1u;
         }
@@ -458,7 +500,12 @@ static void sass_answers_read(SassMachine *machine, const char *path)
         }
         if (at == machine->soonests)
         {
-            snprintf(machine->soonest[at].operation, sizeof(machine->soonest[at].operation), "%s", writer);
+            {
+                VerbaLinea buffer_line =
+                    mmgr_line_over(machine->soonest[at].operation, sizeof(machine->soonest[at].operation));
+                mmgr_line_put(&buffer_line, writer);
+                (void)mmgr_line_finish(&buffer_line);
+            }
             machine->soonest[at].stall = 0u;
             machine->soonests += 1u;
         }
@@ -478,7 +525,7 @@ int sass_machine_read(SassMachine *machine, const char *path)
         printf("  sass_machine: %s could not be read\n", path);
         return 0;
     }
-    memset(machine, 0, sizeof(*machine));
+    mmgr_bytes_set(machine, 0, sizeof(*machine));
     char line[SASS_MACHINE_TEXT + (SASS_MACHINE_TOKEN * (SASS_MACHINE_OPERANDS + 4u))];
     unsigned int version = 0u;
     int broken = 0;
@@ -489,18 +536,22 @@ int sass_machine_read(SassMachine *machine, const char *path)
         {
             continue;
         }
-        if (strncmp(line, "forms ", 6u) == 0)
+        if (mmgr_text_starts(line, "forms ", PLATFORM_TEXT_TO_TERMINATOR))
         {
             version = (unsigned int)strtoul(line + 6, NULL, 10);
             continue;
         }
-        if (strncmp(line, "part ", 5u) == 0)
+        if (mmgr_text_starts(line, "part ", PLATFORM_TEXT_TO_TERMINATOR))
         {
             // A part's name is short, and the field cuts a longer one to what it fits.
-            snprintf(machine->part, sizeof(machine->part), "%.*s", (int)(sizeof(machine->part) - 1u), line + 5);
+            {
+                VerbaLinea buffer_line = mmgr_line_over(machine->part, sizeof(machine->part));
+                mmgr_line_put_max(&buffer_line, line + 5, (size_t)((int)(sizeof(machine->part) - 1u)));
+                (void)mmgr_line_finish(&buffer_line);
+            }
             continue;
         }
-        if (strncmp(line, "form ", 5u) != 0)
+        if (!mmgr_text_starts(line, "form ", PLATFORM_TEXT_TO_TERMINATOR))
         {
             broken = 1;
             continue;
@@ -534,15 +585,27 @@ int sass_machine_read(SassMachine *machine, const char *path)
             continue;
         }
         SassForm *const form = &machine->form[machine->forms];
-        memset(form, 0, sizeof(*form));
-        snprintf(form->operation, sizeof(form->operation), "%s", operation);
-        snprintf(form->text, sizeof(form->text), "%s", seen);
+        mmgr_bytes_set(form, 0, sizeof(*form));
+        {
+            VerbaLinea buffer_line = mmgr_line_over(form->operation, sizeof(form->operation));
+            mmgr_line_put(&buffer_line, operation);
+            (void)mmgr_line_finish(&buffer_line);
+        }
+        {
+            VerbaLinea buffer_line = mmgr_line_over(form->text, sizeof(form->text));
+            mmgr_line_put(&buffer_line, seen);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         form->low = low;
         form->high = high;
-        if (strcmp(relation, SASS_RUN_NO_PLACE_TEXT) != 0)
+        if (!mmgr_text_equal(relation, SASS_RUN_NO_PLACE_TEXT, PLATFORM_TEXT_TO_TERMINATOR))
         {
-            snprintf(form->relation, sizeof(form->relation), "%s", relation);
-            form->signed_read = (strcmp(signed_read, "1") == 0) ? 1 : 0;
+            {
+                VerbaLinea buffer_line = mmgr_line_over(form->relation, sizeof(form->relation));
+                mmgr_line_put(&buffer_line, relation);
+                (void)mmgr_line_finish(&buffer_line);
+            }
+            form->signed_read = (mmgr_text_equal(signed_read, "1", PLATFORM_TEXT_TO_TERMINATOR)) ? 1 : 0;
         }
         broken = sass_types_read(form, types) ? broken : 1;
         broken = sass_runs_read(form, runs) ? broken : 1;

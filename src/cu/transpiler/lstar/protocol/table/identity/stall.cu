@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // stall.cu: the stall walk: the soonest a result is read, queried of the part link by link
 #include "identity_internal.h"
+#include "../../../../../../platform/platform.h"
 
 // The soonest each operation's result is read, queried of the part. Every chain of ours the host also computes is put
 // with every stall the longest, all in one round, and a chain the part answers alike with the host there is a probe
@@ -22,7 +23,7 @@
 // stall.txt contains every pair with its probes and what came back at every stall: `=` alike on every probe, `x` apart
 // on one, `!` refused on one
 int identity_stall(const char *engine, const char *answers, const char *ksc, const std::string &folder,
-                          const char *machine_path, const char *const *carrier)
+                   const char *machine_path, const char *const *carrier)
 {
     std::map<std::string, StallField> fields = stall_fields(ksc);
     if ((fields.count("stall") == 0u) || (fields.count("write_barrier") == 0u))
@@ -279,7 +280,8 @@ int identity_stall(const char *engine, const char *answers, const char *ksc, con
     {
         stall_numbers.push_back(each.number);
     }
-    printf("orior_klq_identity stall: %zu questions, every stall of every pair, put in one round\n", stall_codes.size());
+    printf("orior_klq_identity stall: %zu questions, every stall of every pair, put in one round\n",
+           stall_codes.size());
     const std::string marks = marks_put(stall_codes, stall_numbers);
     std::map<std::pair<std::string, std::string>, std::string> came_back;
     std::map<std::pair<std::string, std::string>, std::set<std::string>> queried_over;
@@ -312,8 +314,16 @@ int identity_stall(const char *engine, const char *answers, const char *ksc, con
         if (soonest <= longest)
         {
             char row[256];
-            snprintf(row, sizeof(row), "run answers %08llx stall %s %s", soonest, each.first.first.c_str(),
-                     each.first.second.c_str());
+            {
+                VerbaLinea buffer_line = mmgr_line_over(row, sizeof(row));
+                mmgr_line_put(&buffer_line, "run answers ");
+                mmgr_line_hex(&buffer_line, soonest, 8u);
+                mmgr_line_put(&buffer_line, " stall ");
+                mmgr_line_put(&buffer_line, each.first.first.c_str());
+                mmgr_line_put(&buffer_line, " ");
+                mmgr_line_put(&buffer_line, each.first.second.c_str());
+                (void)mmgr_line_finish(&buffer_line);
+            }
             rows.push_back(row);
         }
     }

@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // interface_sass_probe_read.c: running the disassembler through the interface and reading what it printed
 #include "interface_sass_probe.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -17,11 +20,11 @@ int sass_run(char *const *command, const char *output_path)
 {
     const InterfaceProbe probe = {command, output_path, SASS_LIMIT};
     InterfaceAnswer answer;
-    memset(&answer, 0, sizeof(answer));
+    mmgr_bytes_set(&answer, 0, sizeof(answer));
     answer.output = s_sass_output;
     answer.output_capacity = sizeof(s_sass_output);
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     if (interface_probe_run(&probe, &answer, &error) != 0L)
     {
         printf("  %s: the interface failed, module %d site %u status %d\n", command[0], (int)error.module, error.site,
@@ -57,7 +60,8 @@ static size_t sass_address_length(const char *text)
         return 0u;
     }
     size_t digits = 0u;
-    while ((text[2u + digits] != '\0') && (strchr("0123456789abcdef", text[2u + digits]) != NULL))
+    while ((text[2u + digits] != '\0') &&
+           (mmgr_text_char("0123456789abcdef", text[2u + digits], PLATFORM_TEXT_TO_TERMINATOR) != NULL))
     {
         digits += 1u;
     }
@@ -68,7 +72,7 @@ static size_t sass_address_length(const char *text)
 // there is none
 static unsigned long long sass_word_read(const char *text, const char *line_end, int *found)
 {
-    const char *const start = strstr(text, "/* 0x");
+    const char *const start = mmgr_text_find(text, "/* 0x", PLATFORM_TEXT_TO_TERMINATOR);
     *found = (start != NULL) && (start < line_end);
     return *found ? strtoull(start + 5, NULL, 16) : 0ULL;
 }
@@ -80,8 +84,9 @@ int sass_listing_read(const char *output, SassListing *listing)
     const char *line = output;
     while (*line != '\0')
     {
-        const char *const newline = strchr(line, '\n');
-        const char *const line_end = (newline != NULL) ? newline : (line + strlen(line));
+        const char *const newline = mmgr_text_char(line, '\n', PLATFORM_TEXT_TO_TERMINATOR);
+        const char *const line_end =
+            (newline != NULL) ? newline : (line + mmgr_text_length(line, PLATFORM_TEXT_TO_TERMINATOR));
         const char *address = line;
         size_t address_length = 0u;
         while ((address < line_end) && (address_length == 0u))
@@ -116,7 +121,7 @@ int sass_listing_read(const char *output, SassListing *listing)
             // the text runs from its start to the ';', which lies past it
             size_t length = (size_t)(end - text);
             length = (length < (SASS_TEXT - 1u)) ? length : (SASS_TEXT - 1u);
-            memcpy(instruction->text, text, length);
+            mmgr_bytes_copy(instruction->text, text, length);
             instruction->text[length] = '\0';
             instruction->low = sass_word_read(semicolon, line_end, &encoded);
             instruction->high = 0ULL;
@@ -146,13 +151,13 @@ static void sass_token_copy(char *into, const char *text, size_t length)
         length -= 1u;
     }
     length = (length < (SASS_OPERAND_TEXT - 1u)) ? length : (SASS_OPERAND_TEXT - 1u);
-    memcpy(into, text, length);
+    mmgr_bytes_copy(into, text, length);
     into[length] = '\0';
 }
 
 void sass_parts_read(const char *text, SassParts *parts)
 {
-    memset(parts, 0, sizeof(*parts));
+    mmgr_bytes_set(parts, 0, sizeof(*parts));
     while (*text == ' ')
     {
         text += 1;
@@ -228,9 +233,12 @@ static SassListing s_sass_decoded;
 // CALL.REL and BSSY. JMP and CALL.ABS name an address outright
 static int sass_operation_relative(const char *operation)
 {
-    const int branch = (strncmp(operation, "BRA", 3u) == 0) && ((operation[3] == '\0') || (operation[3] == '.'));
-    const int call = (strncmp(operation, "CALL.REL", 8u) == 0) && ((operation[8] == '\0') || (operation[8] == '.'));
-    const int sync = (strncmp(operation, "BSSY", 4u) == 0) && ((operation[4] == '\0') || (operation[4] == '.'));
+    const int branch = (mmgr_text_starts(operation, "BRA", PLATFORM_TEXT_TO_TERMINATOR)) &&
+                       ((operation[3] == '\0') || (operation[3] == '.'));
+    const int call = (mmgr_text_starts(operation, "CALL.REL", PLATFORM_TEXT_TO_TERMINATOR)) &&
+                     ((operation[8] == '\0') || (operation[8] == '.'));
+    const int sync = (mmgr_text_starts(operation, "BSSY", PLATFORM_TEXT_TO_TERMINATOR)) &&
+                     ((operation[4] == '\0') || (operation[4] == '.'));
     return branch || call || sync;
 }
 
@@ -247,12 +255,18 @@ static void sass_target_relative(char *text, unsigned long long address)
         operation += strspn(operation, " ");
     }
     char name[SASS_OPERAND_TEXT];
-    snprintf(name, sizeof(name), "%.*s", (int)strcspn(operation, " "), operation);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(name, sizeof(name));
+        mmgr_line_put_max(&buffer_line, operation, (size_t)((int)strcspn(operation, " ")));
+        (void)mmgr_line_finish(&buffer_line);
+    }
     char *const comma = strrchr(text, ',');
-    char *target = (comma != NULL) ? (comma + 1) : (char *)(operation + strlen(name));
+    char *target =
+        (comma != NULL) ? (comma + 1) : (char *)(operation + mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR));
     target += strspn(target, " ");
     const int negative = (target[0] == '-');
-    if (!sass_operation_relative(name) || (strncmp(target + (negative ? 1 : 0), "0x", 2u) != 0))
+    if (!sass_operation_relative(name) ||
+        (!mmgr_text_starts(target + (negative ? 1 : 0), "0x", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         return;
     }
@@ -260,8 +274,13 @@ static void sass_target_relative(char *text, unsigned long long address)
     // the address and the distance are both two's complement words of 64 bits, and their difference is taken as one
     const long long distance = (long long)((negative ? (0ULL - magnitude) : magnitude) - (address + 16ULL));
     const size_t room = SASS_TEXT - (size_t)(target - text);
-    snprintf(target, room, "%s0x%llx", (distance < 0) ? "-" : "",
-             (unsigned long long)((distance < 0) ? -distance : distance));
+    {
+        VerbaLinea buffer_line = mmgr_line_over(target, room);
+        mmgr_line_put(&buffer_line, (distance < 0) ? "-" : "");
+        mmgr_line_put(&buffer_line, "0x");
+        mmgr_line_hex(&buffer_line, (unsigned long long)((distance < 0) ? -distance : distance), 1u);
+        (void)mmgr_line_finish(&buffer_line);
+    }
 }
 
 // the encodings at `chosen` decoded, their texts into `texts` at the same places: the disassembler's exit status, or
@@ -272,8 +291,18 @@ static int sass_decode_pass(const char *architecture, const char *path, const un
 {
     char binary[1024];
     char output[1024];
-    snprintf(binary, sizeof(binary), "%s.bin", path);
-    snprintf(output, sizeof(output), "%s.out", path);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(binary, sizeof(binary));
+        mmgr_line_put(&buffer_line, path);
+        mmgr_line_put(&buffer_line, ".bin");
+        (void)mmgr_line_finish(&buffer_line);
+    }
+    {
+        VerbaLinea buffer_line = mmgr_line_over(output, sizeof(output));
+        mmgr_line_put(&buffer_line, path);
+        mmgr_line_put(&buffer_line, ".out");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     if (!sass_binary_write(binary, low, high, chosen, count))
     {
         printf("  %s could not be written\n", binary);
@@ -292,7 +321,9 @@ static int sass_decode_pass(const char *architecture, const char *path, const un
     }
     for (unsigned int number = 0u; number < count; number += 1u)
     {
-        snprintf(texts[chosen[number]], SASS_TEXT, "unprinted");
+        VerbaLinea buffer_line = mmgr_line_over(texts[chosen[number]], SASS_TEXT);
+        mmgr_line_put(&buffer_line, "unprinted");
+        (void)mmgr_line_finish(&buffer_line);
     }
     // each line goes to the encoding at its address, 16 bytes to an encoding
     for (unsigned int number = 0u; number < s_sass_decoded.count; number += 1u)
@@ -303,7 +334,7 @@ static int sass_decode_pass(const char *architecture, const char *path, const un
             printf("  %s: a line at address 0x%llx, past the %u encodings given\n", output, decoded->address, count);
             return -1;
         }
-        memcpy(texts[chosen[decoded->address / 16ULL]], decoded->text, SASS_TEXT);
+        mmgr_bytes_copy(texts[chosen[decoded->address / 16ULL]], decoded->text, SASS_TEXT);
         sass_target_relative(texts[chosen[decoded->address / 16ULL]], decoded->address);
     }
     return 0;
@@ -320,7 +351,11 @@ int sass_decode(const char *architecture, const char *path, const unsigned long 
     for (unsigned int number = 0u; number < count; number += 1u)
     {
         chosen[number] = number;
-        snprintf(texts[number], SASS_TEXT, "illegal");
+        {
+            VerbaLinea buffer_line = mmgr_line_over(texts[number], SASS_TEXT);
+            mmgr_line_put(&buffer_line, "illegal");
+            (void)mmgr_line_finish(&buffer_line);
+        }
     }
     const int status = sass_decode_pass(architecture, path, low, high, chosen, count, texts);
     if (status == 0)
@@ -333,10 +368,10 @@ int sass_decode(const char *architecture, const char *path, const unsigned long 
     }
     // the disassembler refused the batch and named each encoding it refused by its address, 16 bytes to an encoding
     int refused[SASS_LISTING_LIMIT];
-    memset(refused, 0, sizeof(refused));
+    mmgr_bytes_set(refused, 0, sizeof(refused));
     unsigned int named = 0u;
-    for (const char *walk = strstr(sass_output(), "at address 0x"); walk != NULL;
-         walk = strstr(walk + 1, "at address 0x"))
+    for (const char *walk = mmgr_text_find(sass_output(), "at address 0x", PLATFORM_TEXT_TO_TERMINATOR); walk != NULL;
+         walk = mmgr_text_find(walk + 1, "at address 0x", PLATFORM_TEXT_TO_TERMINATOR))
     {
         const unsigned long long place = strtoull(walk + 13, NULL, 16) / 16ULL;
         if (place < (unsigned long long)count)
@@ -360,6 +395,11 @@ int sass_decode(const char *architecture, const char *path, const unsigned long 
         }
     }
     char second[1024];
-    snprintf(second, sizeof(second), "%s_legal", path);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(second, sizeof(second));
+        mmgr_line_put(&buffer_line, path);
+        mmgr_line_put(&buffer_line, "_legal");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     return (legal == 0u) || (sass_decode_pass(architecture, second, low, high, chosen, legal, texts) == 0);
 }

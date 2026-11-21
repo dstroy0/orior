@@ -3,6 +3,9 @@
 // words.c: the words: a form's parameters named, a word's answers and the word written, a text named, and the folder of
 // a path
 #include "../../../../src/cu/engine/rmc/precept_value.h"
+#include "../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../parsers/line_read.h"
 #include "krs_write_internal.h"
 
@@ -32,16 +35,17 @@ unsigned int krs_parameters_named(const char *path, const char *name, char param
         int naming = 0;
         for (unsigned int each = 0u; each < (sizeof(s_naming) / sizeof(s_naming[0])); each += 1u)
         {
-            naming = naming || (strcmp(type, s_naming[each]) == 0);
+            naming = naming || (mmgr_text_equal(type, s_naming[each], PLATFORM_TEXT_TO_TERMINATOR));
         }
-        if (!naming || (strcmp(named, name) != 0))
+        if (!naming || (!mmgr_text_equal(named, name, PLATFORM_TEXT_TO_TERMINATOR)))
         {
             continue;
         }
         char word[KRS_NAME];
-        while ((count < KRS_PARAMETERS) && line_word(&rest, word, sizeof(word)) && (strcmp(word, "=") != 0))
+        while ((count < KRS_PARAMETERS) && line_word(&rest, word, sizeof(word)) &&
+               (!mmgr_text_equal(word, "=", PLATFORM_TEXT_TO_TERMINATOR)))
         {
-            memcpy(parameter[count], word, strlen(word) + 1u);
+            mmgr_bytes_copy(parameter[count], word, mmgr_text_length(word, PLATFORM_TEXT_TO_TERMINATOR) + 1u);
             count += 1u;
         }
     }
@@ -64,7 +68,7 @@ static int krs_word_answers(const Word *word, unsigned int anchor, int signed_re
         }
         answer = (signed_read != 0) ? ladder_signed_answer(anchor, ladder_case->word) : answer;
         PreceptCase given;
-        memset(&given, 0, sizeof(given));
+        mmgr_bytes_set(&given, 0, sizeof(given));
         given.operands = word->reads;
         for (unsigned int leaf = 0u; leaf < word->reads; leaf += 1u)
         {
@@ -136,7 +140,8 @@ int krs_text_named(const KrsForm *form, const unsigned int *order, char paramete
             {
                 named = (order[leaf] == place) ? (leaf + 1u) : named;
             }
-            if ((named >= parameters) || ((at + strlen(parameter[named]) + 3u) >= room))
+            if ((named >= parameters) ||
+                ((at + mmgr_text_length(parameter[named], PLATFORM_TEXT_TO_TERMINATOR) + 3u) >= room))
             {
                 return 0;
             }
@@ -165,10 +170,18 @@ void krs_folder_of(const char *path, char *folder, size_t room)
     const char *const last = ((slash != NULL) && ((back == NULL) || (slash > back))) ? slash : back;
     if (last == NULL)
     {
-        snprintf(folder, room, ".");
+        {
+            VerbaLinea buffer_line = mmgr_line_over(folder, room);
+            mmgr_line_put(&buffer_line, ".");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         return;
     }
-    snprintf(folder, room, "%.*s", (int)(last - path), path);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(folder, room);
+        mmgr_line_put_max(&buffer_line, path, (size_t)((int)(last - path)));
+        (void)mmgr_line_finish(&buffer_line);
+    }
 }
 
 int krs_place_read(const char *walk, unsigned int *place, int *length)

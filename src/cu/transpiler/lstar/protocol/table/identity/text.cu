@@ -1,7 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// text.cu: the queue of the stick's manifest read against the record, and the text identity each side of a slice is put through
+// text.cu: the queue of the stick's manifest read against the record, and the text identity each side of a slice is put
+// through
 #include "identity_internal.h"
+#include "../../../../../../platform/platform.h"
 
 // The queue over the stick's questions (P13, the scheduler). Every question of the manifest is an entry of its
 // category, and R gives each what it reads: 1 where the part answers it as the host does on every case the host
@@ -14,7 +16,7 @@
 // order would. The run's blob queue.txt contains every entry with its category, what it reads and what retains it gray,
 // and each category's entries are counted on the standard output as a row of P12's table
 int identity_queue(const char *engine, const char *answers, const char *ksc, const std::string &folder,
-                          const char *manifest, const char *const *carrier)
+                   const char *manifest, const char *const *carrier)
 {
     std::map<std::string, std::vector<std::string>> host = host_answers_read(answers);
     // the engine's answer to each question and its note where it writes no chain
@@ -43,7 +45,8 @@ int identity_queue(const char *engine, const char *answers, const char *ksc, con
         line = (!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line;
         const size_t first_tab = line.find('\t');
         const size_t second_tab = line.find('\t', first_tab + 1u);
-        if ((first_tab == std::string::npos) || (second_tab == std::string::npos) || (line.compare(0u, 6u, "number") == 0))
+        if ((first_tab == std::string::npos) || (second_tab == std::string::npos) ||
+            (line.compare(0u, 6u, "number") == 0))
         {
             continue;
         }
@@ -139,7 +142,15 @@ std::string case_text(unsigned int at)
     const unsigned int left = (at / IDENTITY_VALUES) % IDENTITY_VALUES;
     const unsigned int right = at % IDENTITY_VALUES;
     char written[96];
-    snprintf(written, sizeof(written), "%llx,%llx,%x", s_values[left], s_values[right], third);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(written, sizeof(written));
+        mmgr_line_hex(&buffer_line, s_values[left], 1u);
+        mmgr_line_put(&buffer_line, ",");
+        mmgr_line_hex(&buffer_line, s_values[right], 1u);
+        mmgr_line_put(&buffer_line, ",");
+        mmgr_line_hex(&buffer_line, third, 1u);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     return written;
 }
 
@@ -152,8 +163,8 @@ std::string case_text(unsigned int at)
 // are computed on. A side with no chain, no host answer, or that the part refuses or the gate blocks is not queried,
 // and its identity is open with 0. Each identity's verdict is written beneath it in the bridge in place of the one it
 // recorded
-int identity_text(const char *engine, const char *answers, const char *ksc, const char *klq,
-                         const char *manifest, const char *const *carrier)
+int identity_text(const char *engine, const char *answers, const char *ksc, const char *klq, const char *manifest,
+                  const char *const *carrier)
 {
     std::map<std::string, std::vector<std::string>> host = host_answers_read(answers);
     std::map<std::string, std::string> numbered;

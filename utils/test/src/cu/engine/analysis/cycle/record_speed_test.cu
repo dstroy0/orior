@@ -19,6 +19,9 @@
 
 #define SPEED_TEST_LANES (1u << 22u)
 
+// the pool of the test. A program over 2^22 lanes takes cells of up to 144 MiB on the temporary tier
+extern "C" const unsigned long long g_program_pool_bytes = 1ULL << 30u;
+
 #define SPEED_TEST_CHECKED 65536u
 
 #define SPEED_TEST_RUNS 5u

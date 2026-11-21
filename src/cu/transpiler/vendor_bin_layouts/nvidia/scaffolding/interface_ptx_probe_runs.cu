@@ -3,6 +3,8 @@
 // interface_ptx_probe_runs.cu: the probe's runs: PTX's header and the kernel, the cubins assembled, built, written
 // and run, and the membership, single and clocks probes
 #include "interface_ptx_probe_internal.h"
+#include "../../../../../platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 // PTX's header for the device, requested of NVRTC by compiling an empty kernel to PTX: the .version, .target and
 // .address_size lines. Empty where NVRTC does not answer
@@ -16,7 +18,13 @@ std::string probe_header(int major, int minor)
         return lines;
     }
     char architecture[48];
-    snprintf(architecture, sizeof(architecture), "--gpu-architecture=compute_%d%d", major, minor);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(architecture, sizeof(architecture));
+        mmgr_line_put(&buffer_line, "--gpu-architecture=compute_");
+        mmgr_line_decimal_signed(&buffer_line, major);
+        mmgr_line_decimal_signed(&buffer_line, minor);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     const char *const options[] = {architecture};
     size_t size = 0u;
     if ((nvrtcCompileProgram(program, 1, options) == NVRTC_SUCCESS) &&
@@ -29,8 +37,9 @@ std::string probe_header(int major, int minor)
             const char *const wanted[] = {".version ", ".target ", ".address_size "};
             for (const char *const start : wanted)
             {
-                const char *const found = strstr(ptx.data(), start);
-                const char *const end = (found != NULL) ? strchr(found, '\n') : NULL;
+                const char *const found = mmgr_text_find(ptx.data(), start, PLATFORM_TEXT_TO_TERMINATOR);
+                const char *const end =
+                    (found != NULL) ? mmgr_text_char(found, '\n', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
                 // a line ends past its start
                 lines += (end != NULL) ? (std::string(found, (size_t)(end - found)) + "\n") : std::string();
             }
@@ -63,10 +72,14 @@ static std::string probe_kernel(ProbeWriter *writer, const std::string &header, 
     text += "\tld.param.u32 \t%interface_word0, [interface_probe_count];\n\tmov.u32 \t%interface_word1, %ctaid.x;\n";
     text += "\tmov.u32 \t%interface_word2, %ntid.x;\n\tmov.u32 \t%interface_word3, %tid.x;\n";
     text += "\tmad.lo.u32 \t%interface_word1, %interface_word1, %interface_word2, %interface_word3;\n";
-    text += "\tsetp.ge.u32 \t%interface_past, %interface_word1, %interface_word0;\n\t@%interface_past bra \t$Linterface_done;\n";
-    text += "\tcvta.to.global.u64 \t%interface_wide0, %interface_wide0;\n\tcvta.to.global.u64 \t%interface_wide1, %interface_wide1;\n";
-    text += "\tmul.wide.u32 \t%interface_wide2, %interface_word1, 32;\n\tadd.s64 \t%interface_wide2, %interface_wide0, %interface_wide2;\n";
-    text += "\tmul.wide.u32 \t%interface_wide3, %interface_word1, 16;\n\tadd.s64 \t%interface_wide3, %interface_wide1, %interface_wide3;\n";
+    text += "\tsetp.ge.u32 \t%interface_past, %interface_word1, %interface_word0;\n\t@%interface_past bra "
+            "\t$Linterface_done;\n";
+    text += "\tcvta.to.global.u64 \t%interface_wide0, %interface_wide0;\n\tcvta.to.global.u64 \t%interface_wide1, "
+            "%interface_wide1;\n";
+    text += "\tmul.wide.u32 \t%interface_wide2, %interface_word1, 32;\n\tadd.s64 \t%interface_wide2, %interface_wide0, "
+            "%interface_wide2;\n";
+    text += "\tmul.wide.u32 \t%interface_wide3, %interface_word1, 16;\n\tadd.s64 \t%interface_wide3, %interface_wide1, "
+            "%interface_wide3;\n";
     for (unsigned int word = 0u; word < PROBE_IN_WORDS; word += 1u)
     {
         probe_form(writer, text, "global_load_constant_word",
@@ -92,7 +105,13 @@ static std::string probe_kernel(ProbeWriter *writer, const std::string &header, 
 static int probe_assemble(const std::string &text, int major, int minor, std::vector<char> &cubin)
 {
     char architecture[32];
-    snprintf(architecture, sizeof(architecture), "-arch=sm_%d%d", major, minor);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(architecture, sizeof(architecture));
+        mmgr_line_put(&buffer_line, "-arch=sm_");
+        mmgr_line_decimal_signed(&buffer_line, major);
+        mmgr_line_decimal_signed(&buffer_line, minor);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     const char *options[] = {architecture};
     nvJitLinkHandle handle = NULL;
     if (nvJitLinkCreate(&handle, 1u, options) != NVJITLINK_SUCCESS)

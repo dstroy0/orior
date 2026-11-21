@@ -3,6 +3,8 @@
 // widened.c: the machine widened: a form's fields, an operation named, what a widening contains, the machine widened,
 // its fields, the sweep's carriers, the machine swept, and two machines the same
 #include "probe_machine_internal.h"
+#include "../../../../../../platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 // one form's fields found: each of its 128 bits turned over and decoded, and each run of bits that changes one
 // printed operand retained as that operand's, then the run of an operand it carries and does not print. 1, or 0 where
@@ -11,7 +13,13 @@ static int sass_form_fields(SassForm *form, const char *architecture, const char
 {
     sass_form_turned(form);
     char path[1024];
-    snprintf(path, sizeof(path), "%s/form_%03u", folder, number);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+        mmgr_line_put(&buffer_line, folder);
+        mmgr_line_put(&buffer_line, "/form_");
+        mmgr_line_decimal(&buffer_line, number, 3u);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     if (!sass_decode(architecture, path, s_low, s_high, SASS_ENCODINGS, s_texts))
     {
         return 0;
@@ -23,8 +31,7 @@ static int sass_form_fields(SassForm *form, const char *architecture, const char
     unsigned int first = 0u;
     for (unsigned int bit = 0u; bit <= SASS_BITS; bit += 1u)
     {
-        const unsigned int changed =
-            (bit < SASS_BITS) ? sass_operand_changed(&base, s_texts[1u + bit]) : base.operands;
+        const unsigned int changed = (bit < SASS_BITS) ? sass_operand_changed(&base, s_texts[1u + bit]) : base.operands;
         // a run ends where the operand it changes does, and the two words never share one
         const int joined = (changed == running) && (changed != base.operands) && (bit != 64u);
         if (!joined && (running != base.operands) && (form->runs < SASS_MACHINE_RUNS))
@@ -58,9 +65,10 @@ static int sass_form_fields(SassForm *form, const char *architecture, const char
 // reads. The three are one refusal wearing three definitions, and a form stored under any of them is a false branch
 static int sass_operation_named(const char *operation)
 {
-    const size_t length = strlen(operation);
-    return (length != 0u) && (operation[length - 1u] != '.') && (strstr(operation, "INVALID") == NULL) &&
-           (strstr(operation, "???") == NULL);
+    const size_t length = mmgr_text_length(operation, PLATFORM_TEXT_TO_TERMINATOR);
+    return (length != 0u) && (operation[length - 1u] != '.') &&
+           (mmgr_text_find(operation, "INVALID", PLATFORM_TEXT_TO_TERMINATOR) == NULL) &&
+           (mmgr_text_find(operation, "???", PLATFORM_TEXT_TO_TERMINATOR) == NULL);
 }
 
 // 1 where `text` is an instruction a form can be stored from: the disassembler took it, it names an operation it could
@@ -73,7 +81,8 @@ static int sass_operation_named(const char *operation)
 // moved, or its control bits -- is turned away by sass_machine_take, which finds the operation and the types
 static int sass_widened_matches(const char *text, SassInstructionParts *parts)
 {
-    if ((strcmp(text, "illegal") == 0) || (strcmp(text, "unprinted") == 0))
+    if ((mmgr_text_equal(text, "illegal", PLATFORM_TEXT_TO_TERMINATOR)) ||
+        (mmgr_text_equal(text, "unprinted", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         return 0;
     }
@@ -107,12 +116,11 @@ unsigned int sass_machine_widen(SassMachine *machine, const char *architecture, 
     // lies between. One round reaches the constant and the round after reaches the number.
     //
     // SASS_WIDEN_ROUNDS is that reach. Letting the walk run to its own end does not close: it continues finding more,
-    // because the component reachable a bit at a time is the majority of what the part decodes. Two things are wrong with
-    // taking all of it. It
-    // does not close anywhere near the 16384 a machine contains: the run ends in `refused` and reports nothing. And a
-    // form reached far out carries the operand bits of a chain of forms it has nothing to do with, the PLOP3.LUT
-    // reading written down below -- a form that decodes and that no operation can be written from. The bound is the
-    // field the lane is short of, measured, in place of a guess at how far is far enough
+    // because the component reachable a bit at a time is the majority of what the part decodes. Two things are wrong
+    // with taking all of it. It does not close anywhere near the 16384 a machine contains: the run ends in `refused`
+    // and reports nothing. And a form reached far out carries the operand bits of a chain of forms it has nothing to do
+    // with, the PLOP3.LUT reading written down below -- a form that decodes and that no operation can be written from.
+    // The bound is the field the lane is short of, measured, in place of a guess at how far is far enough
     unsigned int done = 0u;
     while ((done < machine->forms) && (rounds < SASS_WIDEN_ROUNDS))
     {
@@ -121,7 +129,13 @@ unsigned int sass_machine_widen(SassMachine *machine, const char *architecture, 
         {
             sass_form_turned(&machine->form[number]);
             char path[1024];
-            snprintf(path, sizeof(path), "%s/widen_%04u", folder, number);
+            {
+                VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+                mmgr_line_put(&buffer_line, folder);
+                mmgr_line_put(&buffer_line, "/widen_");
+                mmgr_line_decimal(&buffer_line, number, 4u);
+                (void)mmgr_line_finish(&buffer_line);
+            }
             if (!sass_decode(architecture, path, s_low, s_high, SASS_ENCODINGS, s_texts))
             {
                 failed += 1u;
@@ -135,9 +149,11 @@ unsigned int sass_machine_widen(SassMachine *machine, const char *architecture, 
                 // what the decoder reported about this one bit, for the .ksc: it refused the encoding, it took it and
                 // printed no line, or it named it. Every bit of every form goes through here: they are counted and
                 // not stored whole
-                sass_class_count(SASS_CHANNEL_DECODE, (strcmp(text, "illegal") == 0)     ? SASS_CLASS_ILLEGAL
-                                                      : (strcmp(text, "unprinted") == 0) ? SASS_CLASS_NOTHING
-                                                                                         : SASS_CLASS_ANSWERS);
+                sass_class_count(SASS_CHANNEL_DECODE,
+                                 (mmgr_text_equal(text, "illegal", PLATFORM_TEXT_TO_TERMINATOR)) ? SASS_CLASS_ILLEGAL
+                                 : (mmgr_text_equal(text, "unprinted", PLATFORM_TEXT_TO_TERMINATOR))
+                                     ? SASS_CLASS_NOTHING
+                                     : SASS_CLASS_ANSWERS);
                 if (sass_widened_matches(text, &parts))
                 {
                     sass_machine_take(machine, text, s_low[1u + bit], s_high[1u + bit], &found_form);
@@ -161,9 +177,19 @@ int sass_machine_fields(SassMachine *machine, const char *architecture, const ch
         failed += sass_form_fields(&machine->form[number], architecture, folder, number) ? 0u : 1u;
     }
     char path[1024];
-    snprintf(path, sizeof(path), "%s/machine", folder);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+        mmgr_line_put(&buffer_line, folder);
+        mmgr_line_put(&buffer_line, "/machine");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     // the disassembler defines the part SM86 and everything else here defines it sm_86
-    snprintf(machine->part, sizeof(machine->part), "sm_%s", architecture + 2);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(machine->part, sizeof(machine->part));
+        mmgr_line_put(&buffer_line, "sm_");
+        mmgr_line_put(&buffer_line, architecture + 2);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     const int written = sass_machine_write(machine, path);
     // the file read back, so that the assembler reading it elsewhere is reading what this wrote
     static SassMachine s_again;
@@ -174,7 +200,7 @@ int sass_machine_fields(SassMachine *machine, const char *architecture, const ch
         const SassForm *const was = &machine->form[number];
         const SassForm *const now = &s_again.form[number];
         differed += ((number >= s_again.forms) || (was->low != now->low) || (was->high != now->high) ||
-                     (was->runs != now->runs) || (strcmp(was->text, now->text) != 0))
+                     (was->runs != now->runs) || (!mmgr_text_equal(was->text, now->text, PLATFORM_TEXT_TO_TERMINATOR)))
                         ? 1u
                         : 0u;
     }
@@ -244,7 +270,15 @@ unsigned int sass_machine_sweep(SassMachine *machine, const char *architecture, 
                 s_high[at] = high;
             }
             char path[1024];
-            snprintf(path, sizeof(path), "%s/sweep_%u_%04u", folder, which, first);
+            {
+                VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+                mmgr_line_put(&buffer_line, folder);
+                mmgr_line_put(&buffer_line, "/sweep_");
+                mmgr_line_decimal(&buffer_line, which, 1u);
+                mmgr_line_put(&buffer_line, "_");
+                mmgr_line_decimal(&buffer_line, first, 4u);
+                (void)mmgr_line_finish(&buffer_line);
+            }
             if (!sass_decode(architecture, path, s_low, s_high, count, s_texts))
             {
                 failed += 1u;
@@ -253,10 +287,15 @@ unsigned int sass_machine_sweep(SassMachine *machine, const char *architecture, 
             for (unsigned int at = 0u; at < count; at += 1u)
             {
                 const char *const text = s_texts[at];
-                sass_class_count(SASS_CHANNEL_DECODE, (strcmp(text, "illegal") == 0)     ? SASS_CLASS_ILLEGAL
-                                                      : (strcmp(text, "unprinted") == 0) ? SASS_CLASS_NOTHING
-                                                                                         : SASS_CLASS_ANSWERS);
-                named += ((strcmp(text, "illegal") != 0) && (strcmp(text, "unprinted") != 0)) ? 1u : 0u;
+                sass_class_count(SASS_CHANNEL_DECODE,
+                                 (mmgr_text_equal(text, "illegal", PLATFORM_TEXT_TO_TERMINATOR)) ? SASS_CLASS_ILLEGAL
+                                 : (mmgr_text_equal(text, "unprinted", PLATFORM_TEXT_TO_TERMINATOR))
+                                     ? SASS_CLASS_NOTHING
+                                     : SASS_CLASS_ANSWERS);
+                named += ((!mmgr_text_equal(text, "illegal", PLATFORM_TEXT_TO_TERMINATOR)) &&
+                          (!mmgr_text_equal(text, "unprinted", PLATFORM_TEXT_TO_TERMINATOR)))
+                             ? 1u
+                             : 0u;
                 SassInstructionParts parts;
                 SassForm *found_form = NULL;
                 // a swept encoding came from no form, and is read the same way a widened one is: every operation the
@@ -278,7 +317,14 @@ unsigned int sass_machine_sweep(SassMachine *machine, const char *architecture, 
 int sass_machine_same(const SassMachine *machine, const char *machines)
 {
     char path[1024];
-    snprintf(path, sizeof(path), "%s/%s.khw", machines, machine->part);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+        mmgr_line_put(&buffer_line, machines);
+        mmgr_line_put(&buffer_line, "/");
+        mmgr_line_put(&buffer_line, machine->part);
+        mmgr_line_put(&buffer_line, ".khw");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     static SassMachine s_tree;
     if (!sass_machine_read(&s_tree, path))
     {
@@ -291,7 +337,8 @@ int sass_machine_same(const SassMachine *machine, const char *machines)
         const SassForm *const filled = &s_tree.form[number];
         const SassForm *const found = &machine->form[number];
         differed += ((filled->low != found->low) || (filled->high != found->high) ||
-                     (strcmp(filled->text, found->text) != 0) || (filled->runs != found->runs))
+                     (!mmgr_text_equal(filled->text, found->text, PLATFORM_TEXT_TO_TERMINATOR)) ||
+                     (filled->runs != found->runs))
                         ? 1u
                         : 0u;
     }

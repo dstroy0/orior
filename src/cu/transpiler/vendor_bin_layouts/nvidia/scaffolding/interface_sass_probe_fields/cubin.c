@@ -3,6 +3,9 @@
 // cubin.c: the container: a file read and written, a word read and written, the kernel, a splice, a place found, the
 // container written, the keys, a flip checked safe, the first field and the operand at a place
 #include "fields_internal.h"
+#include "../../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 SassMachine s_machine;
 unsigned char s_pattern[FIELDS_CUBIN_BYTES];
@@ -63,32 +66,32 @@ static void fields_word_write(unsigned char *bytes, unsigned long long word)
 // the kernel the kernel opens with, `.text.<kernel>:`, into `kernel`: 1, or 0 where it opens otherwise
 int fields_kernel(const char *kernel_text, char *kernel, size_t room)
 {
-    if (strncmp(kernel_text, ".text.", 6u) != 0)
+    if (!mmgr_text_starts(kernel_text, ".text.", PLATFORM_TEXT_TO_TERMINATOR))
     {
         return 0;
     }
     const size_t length = strcspn(kernel_text + 6, ":\r\n");
-    return (kernel_text[6u + length] == ':') && (snprintf(kernel, room, "%.*s", (int)length, kernel_text + 6) < (int)room);
+    return (kernel_text[6u + length] == ':') &&
+           (snprintf(kernel, room, "%.*s", (int)length, kernel_text + 6) < (int)room);
 }
 
 // the kernel with its line that begins `IADD3 ` replaced by `lines`, into `text`: 1, or 0 where the kernel contains no
 // such line or `text` will not contain the whole
 int fields_splice(const char *kernel_text, const char *lines, char *text, size_t room)
 {
-    const char *const line = strstr(kernel_text, "\nIADD3 ");
+    const char *const line = mmgr_text_find(kernel_text, "\nIADD3 ", PLATFORM_TEXT_TO_TERMINATOR);
     if (line == NULL)
     {
         return 0;
     }
-    const char *const after = strchr(line + 1, '\n');
+    const char *const after = mmgr_text_char(line + 1, '\n', PLATFORM_TEXT_TO_TERMINATOR);
     const size_t before = (size_t)(line - kernel_text) + 1u;
     return snprintf(text, room, "%.*s%s%s", (int)before, kernel_text, lines, (after != NULL) ? after : "") < (int)room;
 }
 
 // the instruction of `code`, `count` of them, whose operation bits are `low` and `high`'s: its number, or `count`
 // where none is or more than one is. The scheduler's bits, 105 and above, are left out of the match
-unsigned int fields_find(const unsigned char *code, unsigned int count, unsigned long long low,
-                                unsigned long long high)
+unsigned int fields_find(const unsigned char *code, unsigned int count, unsigned long long low, unsigned long long high)
 {
     const unsigned long long mask = (1ULL << (FIELDS_OPERATION_BITS - 64u)) - 1ULL;
     unsigned int found = count;
@@ -106,14 +109,13 @@ unsigned int fields_find(const unsigned char *code, unsigned int count, unsigned
     return (matches == 1u) ? found : count;
 }
 
-// `code` of `count` instructions, with the instruction at `place` turned at bit `bit` where `bit` is under 128, positioned
-// into a cubin and written to `path`: 1, or 0 with the reason printed. A bit of 128 writes the code as it is
-int fields_cubin(const unsigned char *code, unsigned int count, unsigned int place, unsigned int bit,
-                        const char *path)
+// `code` of `count` instructions, with the instruction at `place` turned at bit `bit` where `bit` is under 128,
+// positioned into a cubin and written to `path`: 1, or 0 with the reason printed. A bit of 128 writes the code as it is
+int fields_cubin(const unsigned char *code, unsigned int count, unsigned int place, unsigned int bit, const char *path)
 {
     static unsigned char s_turned[FIELDS_CODE_BYTES];
     const unsigned long long code_size = 16ULL * count;
-    memcpy(s_turned, code, (size_t)code_size);
+    mmgr_bytes_copy(s_turned, code, (size_t)code_size);
     if (bit < 128u)
     {
         const unsigned int at = (16u * place) + ((bit < 64u) ? 0u : 8u);
@@ -122,7 +124,7 @@ int fields_cubin(const unsigned char *code, unsigned int count, unsigned int pla
         fields_word_write(&s_turned[at], word);
     }
     CubinWrite written;
-    memset(&written, 0, sizeof(written));
+    mmgr_bytes_set(&written, 0, sizeof(written));
     written.pattern = s_pattern;
     written.pattern_size = s_pattern_size;
     written.kernel = s_kernel;
@@ -186,11 +188,18 @@ int fields_flip_safe(unsigned int place, unsigned int bit, char *name, size_t ro
     {
         SassInstructionParts parts;
         sass_instruction_read(text, &parts);
-        snprintf(name, room, "%s", parts.operation);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(name, room);
+            mmgr_line_put(&buffer_line, parts.operation);
+            (void)mmgr_line_finish(&buffer_line);
+        }
     }
     else
     {
-        snprintf(name, room, "key_0x%03llx", key);
+        VerbaLinea buffer_line = mmgr_line_over(name, room);
+        mmgr_line_put(&buffer_line, "key_0x");
+        mmgr_line_hex(&buffer_line, key, 3u);
+        (void)mmgr_line_finish(&buffer_line);
     }
     return (s_key_known[key] != 0u) && (s_key_control[key] == 0u);
 }
@@ -210,7 +219,7 @@ int fields_first(const char *path, char *instruction, size_t room)
     {
         line[strcspn(line, "\r\n")] = '\0';
         const char *const walk = line + strspn(line, " \t");
-        if ((*walk != '\0') && (strncmp(walk, "IADD3 R8", 8u) != 0))
+        if ((*walk != '\0') && (!mmgr_text_starts(walk, "IADD3 R8", PLATFORM_TEXT_TO_TERMINATOR)))
         {
             found = snprintf(instruction, room, "%s", walk) < (int)room;
         }

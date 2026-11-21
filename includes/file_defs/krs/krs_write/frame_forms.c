@@ -3,6 +3,8 @@
 // frame_forms.c: the frame forms of a part's ruleset. The module reads the table of names, writes a form's line as
 // the schema's form, and writes the lines. The ruleset's own line stays where the run passes none.
 #include "frame_forms.h"
+#include "../../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include "../../../parsers/line_read.h"
 #include "../../krf/krf.h"
@@ -49,7 +51,12 @@ static void frame_table_beside(char *path, size_t room)
     const char *const slash = (back == NULL) ? forward : ((forward == NULL) || (back > forward)) ? back : forward;
     // The folder is __FILE__ up to and with its last slash. A file name with no folder is in this folder.
     const int folder = (slash != NULL) ? (int)((slash - file) + 1) : 0;
-    snprintf(path, room, "%.*sframe_forms.tsv", folder, file);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, room);
+        mmgr_line_put_max(&buffer_line, file, (size_t)(folder));
+        mmgr_line_put(&buffer_line, "frame_forms.tsv");
+        (void)mmgr_line_finish(&buffer_line);
+    }
 }
 
 unsigned int krs_frame_read(const char *path)
@@ -76,26 +83,34 @@ unsigned int krs_frame_read(const char *path)
         {
             continue;
         }
-        char *const form = strchr(line, '\t');
+        char *const form = mmgr_text_char(line, '\t', PLATFORM_TEXT_TO_TERMINATOR);
         if (form == NULL)
         {
             continue;
         }
         *form = '\0';
         // The places column can be empty, a form of no parameters, and a line can end before it.
-        char *const places = strchr(form + 1, '\t');
+        char *const places = mmgr_text_char(form + 1, '\t', PLATFORM_TEXT_TO_TERMINATOR);
         if (places != NULL)
         {
             *places = '\0';
         }
         // The head line names the columns.
-        if (strcmp(line, "relation") == 0)
+        if (mmgr_text_equal(line, "relation", PLATFORM_TEXT_TO_TERMINATOR))
         {
             continue;
         }
         KrsFrameRow *const row = &s_row[s_rows];
-        snprintf(row->relation, sizeof(row->relation), "%.*s", (int)(sizeof(row->relation) - 1u), line);
-        snprintf(row->form, sizeof(row->form), "%.*s", (int)(sizeof(row->form) - 1u), form + 1);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(row->relation, sizeof(row->relation));
+            mmgr_line_put_max(&buffer_line, line, (size_t)((int)(sizeof(row->relation) - 1u)));
+            (void)mmgr_line_finish(&buffer_line);
+        }
+        {
+            VerbaLinea buffer_line = mmgr_line_over(row->form, sizeof(row->form));
+            mmgr_line_put_max(&buffer_line, form + 1, (size_t)((int)(sizeof(row->form) - 1u)));
+            (void)mmgr_line_finish(&buffer_line);
+        }
         row->places = 0u;
         const char *rest = (places != NULL) ? (places + 1) : "";
         unsigned long long place = 0ULL;
@@ -135,7 +150,8 @@ static unsigned int frame_places_count(const char *text)
 // contains.
 static int frame_row_fits(const KrsFrameRow *row, const KrsFrameForm *form)
 {
-    return (strcmp(row->relation, form->relation) == 0) && (row->places == frame_places_count(form->text));
+    return (mmgr_text_equal(row->relation, form->relation, PLATFORM_TEXT_TO_TERMINATOR)) &&
+           (row->places == frame_places_count(form->text));
 }
 
 // Return the first row that names `form`, or NULL if none does.
@@ -164,7 +180,11 @@ static int frame_unguarded(const KrsFrameForm *form, KrsFrameForm *bare)
         return 0;
     }
     *bare = *form;
-    snprintf(bare->text, sizeof(bare->text), "%s", form->text + length + 2);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(bare->text, sizeof(bare->text));
+        mmgr_line_put(&buffer_line, form->text + length + 2);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     return 1;
 }
 
@@ -197,7 +217,8 @@ static int frame_row_named(const KrsFrameRow *row, const KrsFrameForm *form, con
             {
                 named = (row->place[each] == place) ? each : named;
             }
-            if ((named == row->places) || ((at + strlen(parameter[named]) + 3u) >= sizeof(text)))
+            if ((named == row->places) ||
+                ((at + mmgr_text_length(parameter[named], PLATFORM_TEXT_TO_TERMINATOR) + 3u) >= sizeof(text)))
             {
                 return 0;
             }
@@ -258,13 +279,22 @@ static unsigned int frame_given_read(const char *krs_path, KrsFrameGiven *given)
         char type[KRS_NAME];
         char name[KRS_NAME];
         const char *at = line;
-        if (!line_word(&at, type, sizeof(type)) || !line_word(&at, name, sizeof(name)) || (strcmp(type, "form") != 0))
+        if (!line_word(&at, type, sizeof(type)) || !line_word(&at, name, sizeof(name)) ||
+            (!mmgr_text_equal(type, "form", PLATFORM_TEXT_TO_TERMINATOR)))
         {
             continue;
         }
         line[strcspn(line, "\r\n")] = '\0';
-        snprintf(given[count].name, sizeof(given[count].name), "%s", name);
-        snprintf(given[count].line, sizeof(given[count].line), "%s", line);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(given[count].name, sizeof(given[count].name));
+            mmgr_line_put(&buffer_line, name);
+            (void)mmgr_line_finish(&buffer_line);
+        }
+        {
+            VerbaLinea buffer_line = mmgr_line_over(given[count].line, sizeof(given[count].line));
+            mmgr_line_put(&buffer_line, line);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         count += 1u;
     }
     return count;
@@ -276,7 +306,7 @@ static const char *frame_given_of(const KrsFrameGiven *given, unsigned int count
 {
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        if (strcmp(given[at].name, name) == 0)
+        if (mmgr_text_equal(given[at].name, name, PLATFORM_TEXT_TO_TERMINATOR))
         {
             return given[at].line;
         }
@@ -288,7 +318,7 @@ static const char *frame_given_of(const KrsFrameGiven *given, unsigned int count
 static int frame_same_line(const char *before, const char *line)
 {
     const size_t length = strcspn(line, "\n");
-    return (strlen(before) == length) && (strncmp(before, line, length) == 0);
+    return (mmgr_text_length(before, PLATFORM_TEXT_TO_TERMINATOR) == length) && (strncmp(before, line, length) == 0);
 }
 
 // Write `row` into `line` from the first of the `count` forms in `form` it fits. Return 1, or 0 if it names none.
@@ -311,7 +341,7 @@ static int frame_row_written(const KrsFrameRow *row, const KrsFrameForm *form, u
 static unsigned int frame_form_first(unsigned int at)
 {
     unsigned int first = 0u;
-    while (strcmp(s_row[first].form, s_row[at].form) != 0)
+    while (!mmgr_text_equal(s_row[first].form, s_row[at].form, PLATFORM_TEXT_TO_TERMINATOR))
     {
         first += 1u;
     }
@@ -341,7 +371,7 @@ unsigned int krs_frame_written(char *out, size_t cap, size_t *at, const KrsFrame
         int named = 0;
         for (unsigned int other = place; (other < s_rows) && !named; other += 1u)
         {
-            named = (strcmp(s_row[other].form, row->form) == 0) &&
+            named = (mmgr_text_equal(s_row[other].form, row->form, PLATFORM_TEXT_TO_TERMINATOR)) &&
                     frame_row_written(&s_row[other], form, count, named_ruleset, line, sizeof(line));
         }
         const char *const before = frame_given_of(s_given, givens, row->form);
@@ -360,7 +390,11 @@ unsigned int krs_frame_written(char *out, size_t cap, size_t *at, const KrsFrame
         {
             // Keep the line as the ruleset gave it. Each fixed register it names by its number gets its placeholder.
             char kept[KRS_FRAME_LINE];
-            snprintf(kept, sizeof(kept), "%s", before);
+            {
+                VerbaLinea buffer_line = mmgr_line_over(kept, sizeof(kept));
+                mmgr_line_put(&buffer_line, before);
+                (void)mmgr_line_finish(&buffer_line);
+            }
             (void)krs_fixed_placed(kept, sizeof(kept));
             *at = verba_textus.put(&(VerbaTextusCfg){.out = out, .cap = cap, .at = *at, .text = kept});
             *at = verba_littera.ch(&(VerbaLitteraCfg){.out = out, .cap = cap, .at = *at, .ch = '\n'});

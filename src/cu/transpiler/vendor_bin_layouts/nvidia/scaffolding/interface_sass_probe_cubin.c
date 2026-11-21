@@ -5,6 +5,8 @@
 // run, with a cubin the toolchain built located as the pattern for everything an ELF carries that no instruction
 // states
 #include "interface_sass_probe.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
 #include "../cubin_write.h"
 #include "../sass_assemble.h"
 
@@ -52,7 +54,14 @@ static int sass_file_write(const char *path, const unsigned char *bytes, unsigne
 unsigned int sass_cubin_text(const char *folder, const char *name, char *text, unsigned int room)
 {
     char path[1024];
-    snprintf(path, sizeof(path), "%s/%s.sass", folder, name);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+        mmgr_line_put(&buffer_line, folder);
+        mmgr_line_put(&buffer_line, "/");
+        mmgr_line_put(&buffer_line, name);
+        mmgr_line_put(&buffer_line, ".sass");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     static unsigned char s_listing[SASS_TEXT_BYTES];
     const unsigned long long listing_size = sass_file_read(path, s_listing, sizeof(s_listing) - 1u);
     if (listing_size == 0ULL)
@@ -62,7 +71,14 @@ unsigned int sass_cubin_text(const char *folder, const char *name, char *text, u
     s_listing[listing_size] = '\0';
     const unsigned int text_size = sass_text_read((const char *)s_listing, "interface_probe", text, room);
     // the text the listing was turned back into, stored beside it for a reader
-    snprintf(path, sizeof(path), "%s/%s.text", folder, name);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+        mmgr_line_put(&buffer_line, folder);
+        mmgr_line_put(&buffer_line, "/");
+        mmgr_line_put(&buffer_line, name);
+        mmgr_line_put(&buffer_line, ".text");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     sass_file_write(path, (const unsigned char *)text, text_size);
     return text_size;
 }
@@ -71,7 +87,14 @@ int sass_cubin_kernel(const SassMachine *machine, const char *folder, const char
                       const char *into, const char *kernel)
 {
     char path[1024];
-    snprintf(path, sizeof(path), "%s/%s.cubin", folder, pattern);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+        mmgr_line_put(&buffer_line, folder);
+        mmgr_line_put(&buffer_line, "/");
+        mmgr_line_put(&buffer_line, pattern);
+        mmgr_line_put(&buffer_line, ".cubin");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     const unsigned long long pattern_size = sass_file_read(path, s_pattern, sizeof(s_pattern));
     if (pattern_size == 0ULL)
     {
@@ -85,7 +108,7 @@ int sass_cubin_kernel(const SassMachine *machine, const char *folder, const char
     }
     const unsigned long long code_size = 16ULL * instructions;
     CubinWrite written;
-    memset(&written, 0, sizeof(written));
+    mmgr_bytes_set(&written, 0, sizeof(written));
     written.pattern = s_pattern;
     written.pattern_size = pattern_size;
     written.kernel = kernel;
@@ -99,7 +122,14 @@ int sass_cubin_kernel(const SassMachine *machine, const char *folder, const char
     {
         return 0;
     }
-    snprintf(path, sizeof(path), "%s/%s.cubin", folder, into);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+        mmgr_line_put(&buffer_line, folder);
+        mmgr_line_put(&buffer_line, "/");
+        mmgr_line_put(&buffer_line, into);
+        mmgr_line_put(&buffer_line, ".cubin");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     return sass_file_write(path, s_cubin, size);
 }
 
@@ -112,7 +142,12 @@ int sass_cubin_from_text(const SassMachine *machine, const char *folder, const c
 int sass_cubin_round(const SassMachine *machine, const char *folder, const char *name)
 {
     char into[256];
-    snprintf(into, sizeof(into), "%s_written", name);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(into, sizeof(into));
+        mmgr_line_put(&buffer_line, name);
+        mmgr_line_put(&buffer_line, "_written");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     return (sass_cubin_text(folder, name, s_text, sizeof(s_text)) != 0u) &&
            sass_cubin_from_text(machine, folder, name, s_text, into);
 }

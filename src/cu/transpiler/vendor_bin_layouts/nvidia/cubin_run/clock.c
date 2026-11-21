@@ -7,6 +7,8 @@
 // or the BAR0 driver is not reached, the launches are timed on the driver's event timer as before, and the answer
 // reports which clock timed them
 #include "cubin_run_internal.h"
+#include "../../../../../platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../../../includes/file_defs/ksc/ksc.h"
 
 #if defined(_WIN32)
@@ -20,9 +22,17 @@ int cubin_run_clock_open(const char *machine_path)
 {
     // the .ksc beside the machine file, its stem the machine file's
     char ksc[1200];
-    const size_t length = strlen(machine_path);
-    const size_t stem = (length > 4u) && (strcmp(machine_path + length - 4u, ".khw") == 0) ? length - 4u : length;
-    snprintf(ksc, sizeof(ksc), "%.*s.ksc", (int)stem, machine_path);
+    const size_t length = mmgr_text_length(machine_path, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t stem =
+        (length > 4u) && (mmgr_text_equal(machine_path + length - 4u, ".khw", PLATFORM_TEXT_TO_TERMINATOR))
+            ? length - 4u
+            : length;
+    {
+        VerbaLinea buffer_line = mmgr_line_over(ksc, sizeof(ksc));
+        mmgr_line_put_max(&buffer_line, machine_path, (size_t)((int)stem));
+        mmgr_line_put(&buffer_line, ".ksc");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     KscFile file = {0};
     static KscRow s_row;
     int named = 0;
@@ -30,8 +40,9 @@ int cubin_run_clock_open(const char *machine_path)
     {
         for (unsigned int at = 0u; !named && (at < file.lines); at += 1u)
         {
-            if (ksc_row_read(file.line[at], "run", &s_row) && (strcmp(s_row.answer, "answers") == 0) &&
-                (strcmp(s_row.question, "clock address") == 0))
+            if (ksc_row_read(file.line[at], "run", &s_row) &&
+                (mmgr_text_equal(s_row.answer, "answers", PLATFORM_TEXT_TO_TERMINATOR)) &&
+                (mmgr_text_equal(s_row.question, "clock address", PLATFORM_TEXT_TO_TERMINATOR)))
             {
                 // an offset into BAR0 is far below what an unsigned int represents
                 s_clock_offset = (unsigned int)s_row.value;
@@ -48,7 +59,8 @@ int cubin_run_clock_open(const char *machine_path)
     s_clock_read = (s_bus != INVALID_HANDLE_VALUE);
     if (!s_clock_read)
     {
-        printf("  clock: the part names the timer register at 0x%x and the BAR0 driver is not reached; the driver's clock times "
+        printf("  clock: the part names the timer register at 0x%x and the BAR0 driver is not reached; the driver's "
+               "clock times "
                "the launches\n",
                s_clock_offset);
     }

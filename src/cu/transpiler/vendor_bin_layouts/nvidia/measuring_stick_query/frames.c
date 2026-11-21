@@ -3,6 +3,9 @@
 // frames.c: the pieces set aside from the accumulated run read alone by a pool of reader threads, each frame read
 // against the vendor, and what the cross reports of an instruction read clear or blocked
 #include "msq_internal.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 // the pool marked failed for `why`, the first reason given recorded as the pool's
 static void msq_failed(MsqPool *pool, const char *why)
@@ -63,7 +66,7 @@ void *msq_pool_worker(void *argument)
 {
     MsqPool *const pool = (MsqPool *)argument;
     MsqReader reader;
-    memset(&reader, 0, sizeof(reader));
+    mmgr_bytes_set(&reader, 0, sizeof(reader));
     reader.output_room = 8ULL << 20u;
     reader.output = (char *)malloc((size_t)reader.output_room);
     if (reader.output == NULL)
@@ -109,7 +112,7 @@ unsigned int msq_processors(void)
 // clean or stops at no instruction it names. 1, or 0 where a reading could not be run or the system gave no memory
 int msq_frame_read(MsqReader *reader, const MsqBytes *frame, MsqFrame *read)
 {
-    memset(read, 0, sizeof(*read));
+    mmgr_bytes_set(read, 0, sizeof(*read));
     const size_t instructions = (size_t)(frame->size / 16ULL);
     unsigned char *const copy = (unsigned char *)malloc((size_t)frame->size + 1u);
     read->illegal = (unsigned long long *)malloc((instructions + 1u) * sizeof(unsigned long long));
@@ -118,7 +121,7 @@ int msq_frame_read(MsqReader *reader, const MsqBytes *frame, MsqFrame *read)
         free(copy);
         return 0;
     }
-    memcpy(copy, frame->bytes, (size_t)frame->size);
+    mmgr_bytes_copy(copy, frame->bytes, (size_t)frame->size);
     const MsqBytes run = {copy, frame->size};
     while (1)
     {
@@ -148,7 +151,7 @@ int msq_frame_read(MsqReader *reader, const MsqBytes *frame, MsqFrame *read)
         }
         read->illegal[read->illegal_count] = address;
         read->illegal_count += 1u;
-        memcpy(copy + address, s_nop, sizeof(s_nop));
+        mmgr_bytes_copy(copy + address, s_nop, sizeof(s_nop));
     }
 }
 
@@ -156,7 +159,7 @@ void msq_frame_free(MsqFrame *read)
 {
     free(read->illegal);
     msq_listing_free(&read->listing);
-    memset(read, 0, sizeof(*read));
+    mmgr_bytes_set(read, 0, sizeof(*read));
 }
 
 // 1 where the instruction `body` is a control transfer or a wait (s_control) other than the EXIT a kernel ends in, by
@@ -170,13 +173,14 @@ int msq_control_read(const char *body)
     {
         length += 1u;
     }
-    if ((length == 4u) && (memcmp(body + start, "EXIT", 4u) == 0))
+    if ((length == 4u) && (mmgr_bytes_compare(body + start, "EXIT", 4u) == 0))
     {
         return 0;
     }
     for (size_t at = 0u; at < (sizeof(s_control) / sizeof(s_control[0])); at += 1u)
     {
-        if ((strlen(s_control[at]) == length) && (memcmp(body + start, s_control[at], length) == 0))
+        if ((mmgr_text_length(s_control[at], PLATFORM_TEXT_TO_TERMINATOR) == length) &&
+            (mmgr_bytes_compare(body + start, s_control[at], length) == 0))
         {
             return 1;
         }
@@ -199,8 +203,8 @@ void msq_clear_reported(MsqVerdicts *verdicts, const MsqQuestion *question, cons
     }
     unsigned long long low = 0ULL;
     unsigned long long high = 0ULL;
-    memcpy(&low, encoding, 8u);
-    memcpy(&high, encoding + 8u, 8u);
+    mmgr_bytes_copy(&low, encoding, 8u);
+    mmgr_bytes_copy(&high, encoding + 8u, 8u);
     char clear[400];
     const int written = snprintf(clear, sizeof(clear), "%s %.*s %016llx %016llx\n", question->stem, (int)length,
                                  body + start, low, high);
@@ -226,12 +230,18 @@ void msq_gate_reported(MsqVerdicts *verdicts, const MsqQuestion *question, const
     {
         unsigned long long low = 0ULL;
         unsigned long long high = 0ULL;
-        memcpy(&low, encoding, 8u);
-        memcpy(&high, encoding + 8u, 8u);
+        mmgr_bytes_copy(&low, encoding, 8u);
+        mmgr_bytes_copy(&high, encoding + 8u, 8u);
         char line[48];
         const int length = snprintf(line, sizeof(line), "%016llx %016llx\n", low, high);
         msq_added(&verdicts->gated, &verdicts->gated_size, &verdicts->gated_room, line, (size_t)length);
-        snprintf(where, sizeof(where), "%016llx %016llx", low, high);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(where, sizeof(where));
+            mmgr_line_hex(&buffer_line, low, 16u);
+            mmgr_line_put(&buffer_line, " ");
+            mmgr_line_hex(&buffer_line, high, 16u);
+            (void)mmgr_line_finish(&buffer_line);
+        }
     }
     char report_line[640];
     int length = snprintf(report_line, sizeof(report_line), "  %s  %s  [%s]\n", question->stem, why, where);
@@ -250,8 +260,12 @@ void msq_stem(const char *name, char *stem, size_t room)
     const char *const slash = ((forward != NULL) && ((back == NULL) || (forward > back))) ? forward : back;
     const char *const base = (slash != NULL) ? (slash + 1) : name;
     const char *const dot = strrchr(base, '.');
-    const size_t length = (dot != NULL) ? (size_t)(dot - base) : strlen(base);
-    snprintf(stem, room, "%.*s", (int)length, base);
+    const size_t length = (dot != NULL) ? (size_t)(dot - base) : mmgr_text_length(base, PLATFORM_TEXT_TO_TERMINATOR);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(stem, room);
+        mmgr_line_put_max(&buffer_line, base, (size_t)((int)length));
+        (void)mmgr_line_finish(&buffer_line);
+    }
 }
 
 // `name` short of its last `.`, the extension past it put in its place
@@ -261,6 +275,13 @@ void msq_extension_put(const char *name, const char *extension, char *put, size_
     const char *const back = strrchr(name, '\\');
     const char *const slash = ((forward != NULL) && ((back == NULL) || (forward > back))) ? forward : back;
     const char *const dot = strrchr(name, '.');
-    const size_t length = ((dot != NULL) && ((slash == NULL) || (dot > slash))) ? (size_t)(dot - name) : strlen(name);
-    snprintf(put, room, "%.*s%s", (int)length, name, extension);
+    const size_t length = ((dot != NULL) && ((slash == NULL) || (dot > slash)))
+                              ? (size_t)(dot - name)
+                              : mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(put, room);
+        mmgr_line_put_max(&buffer_line, name, (size_t)((int)length));
+        mmgr_line_put(&buffer_line, extension);
+        (void)mmgr_line_finish(&buffer_line);
+    }
 }

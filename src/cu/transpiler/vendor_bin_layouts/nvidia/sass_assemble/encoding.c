@@ -4,6 +4,9 @@
 // holder named, the places an encoding matches, an encoding's form, an operand read, the encoding read, and the loop
 // walked
 #include "sass_assemble_internal.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 // one form that matches an encoding, where its operands sit, and how many bits it leaves to them
 typedef struct
@@ -106,7 +109,8 @@ static int sass_form_relocated(const SassForm *form, const SassPlace *places)
 // is read as the place it lands, which a number in the same bits does not specify
 static int sass_form_lands(const SassForm *form, const SassForm *other)
 {
-    if ((other == NULL) || (strcmp(form->operation, other->operation) != 0) || (form->operands != other->operands))
+    if ((other == NULL) || (!mmgr_text_equal(form->operation, other->operation, PLATFORM_TEXT_TO_TERMINATOR)) ||
+        (form->operands != other->operands))
     {
         return 0;
     }
@@ -123,8 +127,9 @@ static int sass_form_lands(const SassForm *form, const SassForm *other)
 static int sass_name_within(const char *plain, const char *named)
 {
     const size_t length = strcspn(plain, ".");
-    int within = (strcspn(named, ".") == length) && (strncmp(plain, named, length) == 0) &&
-                 (strlen(plain) < strlen(named));
+    int within =
+        (strcspn(named, ".") == length) && (strncmp(plain, named, length) == 0) &&
+        (mmgr_text_length(plain, PLATFORM_TEXT_TO_TERMINATOR) < mmgr_text_length(named, PLATFORM_TEXT_TO_TERMINATOR));
     for (const char *walk = plain + length; within && (*walk == '.'); walk += 1u + strcspn(walk + 1, "."))
     {
         const size_t modifier = 1u + strcspn(walk + 1, ".");
@@ -149,8 +154,8 @@ static int sass_holder_named(const SassHolder *holder, const SassHolder *sibling
 {
     const SassForm *const form = holder->form;
     const SassForm *const other = sibling->form;
-    int same = (form != other) && sass_name_within(other->operation, form->operation) &&
-               (form->operands == other->operands);
+    int same =
+        (form != other) && sass_name_within(other->operation, form->operation) && (form->operands == other->operands);
     for (unsigned int place = 0u; same && (place < form->operands); place += 1u)
     {
         same = (form->type[place] == other->type[place]) && (form->mark[place] == other->mark[place]);
@@ -166,8 +171,8 @@ static int sass_holder_named(const SassHolder *holder, const SassHolder *sibling
             continue;
         }
         const unsigned long long own = sass_bits_read(form->low, form->high, field->first, field->bits);
-        const unsigned long long theirs = sass_bits_read(other->low, other->high, field_other->first,
-                                                         field_other->bits);
+        const unsigned long long theirs =
+            sass_bits_read(other->low, other->high, field_other->first, field_other->bits);
         const unsigned long long given = sass_bits_read(low, high, field->first, field->bits);
         // the value a name is taken from is a multiplier of 0 or 1, a number 0 or 1 or the register RZ; a register
         // the two forms' encodings were seen with apart from that is the encoding's own and names nothing
@@ -218,7 +223,7 @@ static const SassForm *sass_encoding_form(const SassMachine *machine, unsigned l
             {
                 continue;
             }
-            memcpy(holder.places, placed[number].places, sizeof(holder.places));
+            mmgr_bytes_copy(holder.places, placed[number].places, sizeof(holder.places));
             holder.open = placed[number].open;
         }
         else
@@ -264,9 +269,9 @@ static const SassForm *sass_encoding_form(const SassMachine *machine, unsigned l
         const int named = (found != NULL) && (sass_holder_named(holder, found, low, high) > 0);
         const int holder_named = (found != NULL) && (sass_holder_named(found, holder, low, high) > 0);
         const int fewer = (found == NULL) || named || (!holder_named && (holder->open < found->open));
-        const int better = (found == NULL) || (found_relocated && !relocated) ||
-                           ((relocated == found_relocated) &&
-                            (sass_form_lands(form, was) || (!sass_form_lands(was, form) && fewer)));
+        const int better =
+            (found == NULL) || (found_relocated && !relocated) ||
+            ((relocated == found_relocated) && (sass_form_lands(form, was) || (!sass_form_lands(was, form) && fewer)));
         if (better)
         {
             found = holder;
@@ -275,7 +280,7 @@ static const SassForm *sass_encoding_form(const SassMachine *machine, unsigned l
     }
     if (found != NULL)
     {
-        memcpy(places, found->places, sizeof(found->places));
+        mmgr_bytes_copy(places, found->places, sizeof(found->places));
     }
     return (found != NULL) ? found->form : NULL;
 }
@@ -289,7 +294,12 @@ static void sass_operand_read(const SassForm *form, const SassInstructionParts *
     const char *const mark = (form->mark[at] < (sizeof(s_marks) / sizeof(s_marks[0]))) ? s_marks[form->mark[at]] : "";
     if (place->by_text != 0)
     {
-        snprintf(operand, room, "%s%s", mark, base->operand[at]);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(operand, room);
+            mmgr_line_put(&buffer_line, mark);
+            mmgr_line_put(&buffer_line, base->operand[at]);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         return;
     }
     const unsigned long long operand_value = sass_bits_read(low, high, place->value.first, place->value.bits);
@@ -313,31 +323,58 @@ static void sass_operand_read(const SassForm *form, const SassInstructionParts *
             // a distance, signed over its field
             const long long distance =
                 sass_signed(value / place->value.scale, place->value.bits) * (long long)place->value.scale;
-            snprintf(operand, room, "%s%s0x%llx", mark, (distance < 0) ? "-" : "",
-                     (unsigned long long)((distance < 0) ? -distance : distance));
+            {
+                VerbaLinea buffer_line = mmgr_line_over(operand, room);
+                mmgr_line_put(&buffer_line, mark);
+                mmgr_line_put(&buffer_line, (distance < 0) ? "-" : "");
+                mmgr_line_put(&buffer_line, "0x");
+                mmgr_line_hex(&buffer_line, (unsigned long long)((distance < 0) ? -distance : distance), 1u);
+                (void)mmgr_line_finish(&buffer_line);
+            }
             return;
         }
-        snprintf(operand, room, "%s0x%llx", mark, value);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(operand, room);
+            mmgr_line_put(&buffer_line, mark);
+            mmgr_line_put(&buffer_line, "0x");
+            mmgr_line_hex(&buffer_line, value, 1u);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         return;
     case SASS_OPERAND_LABEL:
         // a branch counts its target from the instruction after it, and the field stores a two's complement distance
-        snprintf(operand, room, "`(0x%llx)",
-                 address + 16ULL +
-                     (unsigned long long)(sass_signed(value / place->value.scale, place->value.bits) *
-                                          (long long)place->value.scale));
+        {
+            VerbaLinea buffer_line = mmgr_line_over(operand, room);
+            mmgr_line_put(&buffer_line, "`(0x");
+            mmgr_line_hex(&buffer_line,
+                          address + 16ULL +
+                              (unsigned long long)(sass_signed(value / place->value.scale, place->value.bits) *
+                                                   (long long)place->value.scale),
+                          1u);
+            mmgr_line_put(&buffer_line, ")");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         return;
-    case SASS_OPERAND_CONSTANT:
-    {
+    case SASS_OPERAND_CONSTANT: {
         unsigned long long bank = 0ULL;
         sass_constant_value(base->operand[at], &bank);
-        snprintf(operand, room, "%sc[0x%llx][0x%llx]", mark, bank, value);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(operand, room);
+            mmgr_line_put(&buffer_line, mark);
+            mmgr_line_put(&buffer_line, "c[0x");
+            mmgr_line_hex(&buffer_line, bank, 1u);
+            mmgr_line_put(&buffer_line, "][0x");
+            mmgr_line_hex(&buffer_line, value, 1u);
+            mmgr_line_put(&buffer_line, "]");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         return;
     }
-    case SASS_OPERAND_ADDRESS:
-    {
+    case SASS_OPERAND_ADDRESS: {
         const unsigned long long offset =
             (place->has_offset != 0) ? sass_bits_read(low, high, place->offset.first, place->offset.bits) : 0ULL;
-        const char *const wide = (strstr(base->operand[at], ".64") != NULL) ? ".64" : "";
+        const char *const wide =
+            (mmgr_text_find(base->operand[at], ".64", PLATFORM_TEXT_TO_TERMINATOR) != NULL) ? ".64" : "";
         char named[16];
         (value == 255ULL) ? snprintf(named, sizeof(named), "RZ%s", wide)
                           : snprintf(named, sizeof(named), "R%llu%s", value, wide);
@@ -370,7 +407,11 @@ int sass_encoding_read(const SassMachine *machine, unsigned long long low, unsig
     const SassForm *const form = sass_encoding_form(machine, low, high, places);
     if (form == NULL)
     {
-        snprintf(text, room, "no form");
+        {
+            VerbaLinea buffer_line = mmgr_line_over(text, room);
+            mmgr_line_put(&buffer_line, "no form");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         return 0;
     }
     SassInstructionParts base;
@@ -395,8 +436,8 @@ int sass_encoding_read(const SassMachine *machine, unsigned long long low, unsig
     return 1;
 }
 
-int sass_loop_walk(const SassMachine *machine, const SassLoopWalk *walk, unsigned long long low, unsigned long long high,
-                   unsigned int *step)
+int sass_loop_walk(const SassMachine *machine, const SassLoopWalk *walk, unsigned long long low,
+                   unsigned long long high, unsigned int *step)
 {
     unsigned int stopped = 0u;
     int through = 0;

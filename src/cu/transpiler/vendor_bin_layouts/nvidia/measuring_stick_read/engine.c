@@ -1,7 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// engine.c: the engine: nvcc's listing read and its operations, the lane operations, the cells, the engine's writing read, the ruleset's operations, the engine of a kernel, the orders, and the counts written
+// engine.c: the engine: nvcc's listing read and its operations, the lane operations, the cells, the engine's writing
+// read, the ruleset's operations, the engine of a kernel, the orders, and the counts written
 #include "stick_internal.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "verba_scribo/verba_scribo.h"
 
 // each kernel's operations from cuobjdump's listing at `path`, NOP left out
@@ -30,7 +34,7 @@ void stick_nvcc_read(const char *path)
                 {
                     s_kernel =
                         (StickKernel *)stick_allocated(realloc(s_kernel, (s_kernels + 1u) * sizeof(StickKernel)));
-                    memset(&s_kernel[at], 0, sizeof(StickKernel));
+                    mmgr_bytes_set(&s_kernel[at], 0, sizeof(StickKernel));
                     s_kernel[at].name = stick_copy(name, length);
                     s_kernels += 1u;
                 }
@@ -72,13 +76,14 @@ static void stick_lane_operations(const char *path, StickNumbers *operations)
     {
         // the line, the space at either end cut
         char *const text = s_file.line[line] + strspn(s_file.line[line], s_space);
-        size_t length = strlen(text);
-        while ((length != 0u) && (strchr(s_space, text[length - 1u]) != NULL))
+        size_t length = mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR);
+        while ((length != 0u) && (mmgr_text_char(s_space, text[length - 1u], PLATFORM_TEXT_TO_TERMINATOR) != NULL))
         {
             length -= 1u;
         }
         text[length] = '\0';
-        if ((length == 0u) || (strncmp(text, "//", 2u) == 0) || (text[0] == '.') || (text[length - 1u] == ':'))
+        if ((length == 0u) || (mmgr_text_starts(text, "//", PLATFORM_TEXT_TO_TERMINATOR)) || (text[0] == '.') ||
+            (text[length - 1u] == ':'))
         {
             continue;
         }
@@ -104,7 +109,8 @@ unsigned int stick_cells(const char *line, char **cell, unsigned int max)
     const char *at = line;
     while (count < max)
     {
-        const size_t length = ((count + 1u) == max) ? strlen(at) : strcspn(at, "\t");
+        const size_t length =
+            ((count + 1u) == max) ? mmgr_text_length(at, PLATFORM_TEXT_TO_TERMINATOR) : strcspn(at, "\t");
         cell[count] = stick_copy(at, length);
         count += 1u;
         if (at[length] != '\t')
@@ -127,38 +133,57 @@ void stick_engine_read(const char *table, const char *directory)
     {
         char *cell[5] = {NULL, NULL, NULL, NULL, NULL};
         const unsigned int cells = stick_cells(lines.line[line], cell, 5u);
-        if ((cells == 5u) && (strcmp(cell[0], "number") != 0))
+        if ((cells == 5u) && (!mmgr_text_equal(cell[0], "number", PLATFORM_TEXT_TO_TERMINATOR)))
         {
             char name[256];
-            snprintf(name, sizeof(name), "%s%s", s_prefix, cell[0]);
+            {
+                VerbaLinea buffer_line = mmgr_line_over(name, sizeof(name));
+                mmgr_line_put(&buffer_line, s_prefix);
+                mmgr_line_put(&buffer_line, cell[0]);
+                (void)mmgr_line_finish(&buffer_line);
+            }
             unsigned int at = 0u;
-            while ((at < s_engines) && (strcmp(s_engine[at].name, name) != 0))
+            while ((at < s_engines) && (!mmgr_text_equal(s_engine[at].name, name, PLATFORM_TEXT_TO_TERMINATOR)))
             {
                 at += 1u;
             }
             if (at == s_engines)
             {
                 s_engine = (StickEngine *)stick_allocated(realloc(s_engine, (s_engines + 1u) * sizeof(StickEngine)));
-                memset(&s_engine[at], 0, sizeof(StickEngine));
-                s_engine[at].name = stick_copy(name, strlen(name));
+                mmgr_bytes_set(&s_engine[at], 0, sizeof(StickEngine));
+                s_engine[at].name = stick_copy(name, mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR));
                 s_engines += 1u;
             }
             StickEngine *const entry = &s_engine[at];
             free(entry->answer);
             free(entry->note);
-            entry->answer = stick_copy(cell[1], strlen(cell[1]));
+            entry->answer = stick_copy(cell[1], mmgr_text_length(cell[1], PLATFORM_TEXT_TO_TERMINATOR));
             entry->steps = (unsigned int)strtoul(cell[2], NULL, 10);
-            entry->note = stick_copy(cell[4], strlen(cell[4]));
+            entry->note = stick_copy(cell[4], mmgr_text_length(cell[4], PLATFORM_TEXT_TO_TERMINATOR));
             entry->operations.count = 0u;
             entry->agree = 0u;
             entry->text = 0u;
-            if (strcmp(cell[1], "answered") == 0)
+            if (mmgr_text_equal(cell[1], "answered", PLATFORM_TEXT_TO_TERMINATOR))
             {
                 char path[1024];
-                snprintf(path, sizeof(path), "%s/%s.dis", directory, cell[0]);
+                {
+                    VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+                    mmgr_line_put(&buffer_line, directory);
+                    mmgr_line_put(&buffer_line, "/");
+                    mmgr_line_put(&buffer_line, cell[0]);
+                    mmgr_line_put(&buffer_line, ".dis");
+                    (void)mmgr_line_finish(&buffer_line);
+                }
                 stick_listing_operations(path, &entry->operations);
                 StickNumbers text = {NULL, 0u, 0u};
-                snprintf(path, sizeof(path), "%s/%s.sass", directory, cell[0]);
+                {
+                    VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+                    mmgr_line_put(&buffer_line, directory);
+                    mmgr_line_put(&buffer_line, "/");
+                    mmgr_line_put(&buffer_line, cell[0]);
+                    mmgr_line_put(&buffer_line, ".sass");
+                    (void)mmgr_line_finish(&buffer_line);
+                }
                 stick_lane_operations(path, &text);
                 for (unsigned int one = 0u; (one < text.count) && (one < entry->operations.count); one += 1u)
                 {
@@ -189,12 +214,35 @@ void stick_ruleset_operations(const char *path, unsigned char **buffer, unsigned
     }
     const size_t folder = (slash != NULL) ? (size_t)(slash - path) : 0u;
     const char *const dot = strrchr(path, '.');
-    const size_t stem = ((dot != NULL) && ((slash == NULL) || (dot > slash))) ? (size_t)(dot - path) : strlen(path);
+    const size_t stem = ((dot != NULL) && ((slash == NULL) || (dot > slash)))
+                            ? (size_t)(dot - path)
+                            : mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR);
     char files[4][1024];
-    snprintf(files[0], sizeof(files[0]), "%s", path);
-    snprintf(files[1], sizeof(files[1]), "%.*s%ssm_86.krs", (int)folder, path, (slash != NULL) ? "/" : "");
-    snprintf(files[2], sizeof(files[2]), "%.*s%ssm_86.kdm", (int)folder, path, (slash != NULL) ? "/" : "");
-    snprintf(files[3], sizeof(files[3]), "%.*s.ksc", (int)stem, path);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(files[0], sizeof(files[0]));
+        mmgr_line_put(&buffer_line, path);
+        (void)mmgr_line_finish(&buffer_line);
+    }
+    {
+        VerbaLinea buffer_line = mmgr_line_over(files[1], sizeof(files[1]));
+        mmgr_line_put_max(&buffer_line, path, (size_t)((int)folder));
+        mmgr_line_put(&buffer_line, (slash != NULL) ? "/" : "");
+        mmgr_line_put(&buffer_line, "sm_86.krs");
+        (void)mmgr_line_finish(&buffer_line);
+    }
+    {
+        VerbaLinea buffer_line = mmgr_line_over(files[2], sizeof(files[2]));
+        mmgr_line_put_max(&buffer_line, path, (size_t)((int)folder));
+        mmgr_line_put(&buffer_line, (slash != NULL) ? "/" : "");
+        mmgr_line_put(&buffer_line, "sm_86.kdm");
+        (void)mmgr_line_finish(&buffer_line);
+    }
+    {
+        VerbaLinea buffer_line = mmgr_line_over(files[3], sizeof(files[3]));
+        mmgr_line_put_max(&buffer_line, path, (size_t)((int)stem));
+        mmgr_line_put(&buffer_line, ".ksc");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     for (unsigned int file = 0u; file < 4u; file += 1u)
     {
         stick_read(files[file]);
@@ -208,8 +256,8 @@ void stick_ruleset_operations(const char *path, unsigned char **buffer, unsigned
             for (unsigned int line = first; line < past; line += 1u)
             {
                 const char *const text = s_file.line[line];
-                const char *const equals = strstr(text, " = ");
-                if ((strncmp(text, "form ", 5u) != 0) || (equals == NULL))
+                const char *const equals = mmgr_text_find(text, " = ", PLATFORM_TEXT_TO_TERMINATOR);
+                if ((!mmgr_text_starts(text, "form ", PLATFORM_TEXT_TO_TERMINATOR)) || (equals == NULL))
                 {
                     continue;
                 }
@@ -217,26 +265,30 @@ void stick_ruleset_operations(const char *path, unsigned char **buffer, unsigned
                 const char *instruction = equals + 3;
                 for (;;)
                 {
-                    const char *const newline = strstr(instruction, "\\n");
-                    const size_t length = (newline != NULL) ? (size_t)(newline - instruction) : strlen(instruction);
+                    const char *const newline = mmgr_text_find(instruction, "\\n", PLATFORM_TEXT_TO_TERMINATOR);
+                    const size_t length = (newline != NULL)
+                                              ? (size_t)(newline - instruction)
+                                              : mmgr_text_length(instruction, PLATFORM_TEXT_TO_TERMINATOR);
                     char *const cut = stick_copy(instruction, length);
-                    for (char *tab = strstr(cut, "\\t"); tab != NULL; tab = strstr(cut, "\\t"))
+                    for (char *tab = mmgr_text_find(cut, "\\t", PLATFORM_TEXT_TO_TERMINATOR); tab != NULL;
+                         tab = mmgr_text_find(cut, "\\t", PLATFORM_TEXT_TO_TERMINATOR))
                     {
                         tab[0] = ' ';
-                        memmove(&tab[1], &tab[2], strlen(&tab[2]) + 1u);
+                        mmgr_bytes_move(&tab[1], &tab[2], mmgr_text_length(&tab[2], PLATFORM_TEXT_TO_TERMINATOR) + 1u);
                     }
                     // the instruction, the space at either end cut, then its guard
                     char *const start = cut + strspn(cut, s_space);
-                    size_t size = strlen(start);
-                    while ((size != 0u) && (strchr(s_space, start[size - 1u]) != NULL))
+                    size_t size = mmgr_text_length(start, PLATFORM_TEXT_TO_TERMINATOR);
+                    while ((size != 0u) &&
+                           (mmgr_text_char(s_space, start[size - 1u], PLATFORM_TEXT_TO_TERMINATOR) != NULL))
                     {
                         size -= 1u;
                     }
                     start[size] = '\0';
                     const char *const word = start + stick_form_guard(start);
-                    const size_t words = strlen(word);
-                    if ((words != 0u) && (strncmp(word, "//", 2u) != 0) && (word[0] != '.') &&
-                        (word[words - 1u] != ':'))
+                    const size_t words = mmgr_text_length(word, PLATFORM_TEXT_TO_TERMINATOR);
+                    if ((words != 0u) && (!mmgr_text_starts(word, "//", PLATFORM_TEXT_TO_TERMINATOR)) &&
+                        (word[0] != '.') && (word[words - 1u] != ':'))
                     {
                         size_t characters = strcspn(word, s_space);
                         while ((characters != 0u) && (word[characters - 1u] == ';'))
@@ -248,7 +300,7 @@ void stick_ruleset_operations(const char *path, unsigned char **buffer, unsigned
                         {
                             const unsigned int grown = (operation + 1u) * 2u;
                             *buffer = (unsigned char *)stick_allocated(realloc(*buffer, grown));
-                            memset(&(*buffer)[*room], 0, grown - *room);
+                            mmgr_bytes_set(&(*buffer)[*room], 0, grown - *room);
                             *room = grown;
                         }
                         (*buffer)[operation] = 1u;
@@ -275,7 +327,7 @@ const StickEngine *stick_engine_of(const char *name)
 {
     for (unsigned int at = 0u; at < s_engines; at += 1u)
     {
-        if (strcmp(s_engine[at].name, name) == 0)
+        if (mmgr_text_equal(s_engine[at].name, name, PLATFORM_TEXT_TO_TERMINATOR))
         {
             return &s_engine[at];
         }
@@ -314,7 +366,7 @@ size_t stick_escaped(char *record, size_t room, size_t at, const char *text)
 // the count of each operation of `operations` into `count`, one for each name of the table
 void stick_counted(const StickNumbers *operations, unsigned int *count)
 {
-    memset(count, 0, s_names * sizeof(unsigned int));
+    mmgr_bytes_set(count, 0, s_names * sizeof(unsigned int));
     for (unsigned int at = 0u; at < operations->count; at += 1u)
     {
         count[operations->number[at]] += 1u;

@@ -3,6 +3,8 @@
 // queries.c: the queries: two containers the same, the lane written, the compiles counted, the questions read and
 // compiled, the loop and the queries run
 #include "probe_main_internal.h"
+#include "../../../../../../platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 // the kernel `name` written again from its own listing, then both cubins run and their answers compared: 1 where the
 // two answer the same. A written kernel cubin_safe blocks from the part is run on nothing, and adds one to `same`
@@ -15,23 +17,44 @@ int sass_cubin_same(SassProbe *probe, const SassMachine *machine, const char *na
     char path[1024];
     char was[256];
     char now[256];
-    snprintf(path, sizeof(path), "%s/%s_written.cubin", probe->folder, name);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+        mmgr_line_put(&buffer_line, probe->folder);
+        mmgr_line_put(&buffer_line, "/");
+        mmgr_line_put(&buffer_line, name);
+        mmgr_line_put(&buffer_line, "_written.cubin");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     if (!sass_cubin_safe(probe, path))
     {
         *same += 1u;
         return 0;
     }
-    snprintf(path, sizeof(path), "%s/%s.cubin", probe->folder, name);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+        mmgr_line_put(&buffer_line, probe->folder);
+        mmgr_line_put(&buffer_line, "/");
+        mmgr_line_put(&buffer_line, name);
+        mmgr_line_put(&buffer_line, ".cubin");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     if (!sass_cubin_answer_toolchain(probe, path, was, sizeof(was)))
     {
         return 0;
     }
-    snprintf(path, sizeof(path), "%s/%s_written.cubin", probe->folder, name);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+        mmgr_line_put(&buffer_line, probe->folder);
+        mmgr_line_put(&buffer_line, "/");
+        mmgr_line_put(&buffer_line, name);
+        mmgr_line_put(&buffer_line, "_written.cubin");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     if (!sass_cubin_answer(probe, path, now, sizeof(now)))
     {
         return 0;
     }
-    if (strcmp(was, now) != 0)
+    if (!mmgr_text_equal(was, now, PLATFORM_TEXT_TO_TERMINATOR))
     {
         printf("  cubin %s: the toolchain's %s, the one written %s\n", name, was, now);
         return 0;
@@ -92,17 +115,18 @@ int sass_lane_written(SassProbe *probe)
 static void sass_compiles_count(const char *output)
 {
     const char *const emitted = "\ncubin 0 ";
-    if (strstr(output, emitted) != NULL)
+    if (mmgr_text_find(output, emitted, PLATFORM_TEXT_TO_TERMINATOR) != NULL)
     {
         sass_class_count(SASS_CHANNEL_COMPILE, SASS_CLASS_ANSWERS);
         sass_class_count(SASS_CHANNEL_COMPILE, SASS_CLASS_ANSWERS);
     }
-    for (const char *line = strstr(output, "\ncubin "); line != NULL; line = strstr(line + 1, "\ncubin "))
+    for (const char *line = mmgr_text_find(output, "\ncubin ", PLATFORM_TEXT_TO_TERMINATOR); line != NULL;
+         line = mmgr_text_find(line + 1, "\ncubin ", PLATFORM_TEXT_TO_TERMINATOR))
     {
         sass_class_count(SASS_CHANNEL_COMPILE, SASS_CLASS_ANSWERS);
     }
-    for (const char *line = strstr(output, "errored: nvJitLink"); line != NULL;
-         line = strstr(line + 1, "errored: nvJitLink"))
+    for (const char *line = mmgr_text_find(output, "errored: nvJitLink", PLATFORM_TEXT_TO_TERMINATOR); line != NULL;
+         line = mmgr_text_find(line + 1, "errored: nvJitLink", PLATFORM_TEXT_TO_TERMINATOR))
     {
         sass_class_count(SASS_CHANNEL_COMPILE, SASS_CLASS_ILLEGAL);
     }
@@ -111,15 +135,23 @@ static void sass_compiles_count(const char *output)
 static int sass_questions_read(SassProbe *probe, const char *output)
 {
     // the line may follow others the ruleset's reader printed
-    const char *const line = (strncmp(output, "sm_", 3u) == 0) ? output : strstr(output, "\nsm_");
+    const char *const line = (mmgr_text_starts(output, "sm_", PLATFORM_TEXT_TO_TERMINATOR))
+                                 ? output
+                                 : mmgr_text_find(output, "\nsm_", PLATFORM_TEXT_TO_TERMINATOR);
     if (line == NULL)
     {
         return 0;
     }
     const unsigned long version = strtoul(line + ((*line == '\n') ? 4 : 3), NULL, 10);
-    snprintf(probe->architecture, sizeof(probe->architecture), "SM%lu", version);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(probe->architecture, sizeof(probe->architecture));
+        mmgr_line_put(&buffer_line, "SM");
+        mmgr_line_decimal(&buffer_line, version, 1u);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     probe->questions = 0u;
-    for (const char *line = strstr(output, "\ncubin "); line != NULL; line = strstr(line + 1, "\ncubin "))
+    for (const char *line = mmgr_text_find(output, "\ncubin ", PLATFORM_TEXT_TO_TERMINATOR); line != NULL;
+         line = mmgr_text_find(line + 1, "\ncubin ", PLATFORM_TEXT_TO_TERMINATOR))
     {
         char *after = NULL;
         const unsigned long number = strtoul(line + 7, &after, 10);
@@ -128,7 +160,11 @@ static int sass_questions_read(SassProbe *probe, const char *output)
             return 0;
         }
         const size_t length = strcspn(after + 1, "\r\n");
-        snprintf(probe->names[probe->questions], SASS_NAME, "%.*s", (int)length, after + 1);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(probe->names[probe->questions], SASS_NAME);
+            mmgr_line_put_max(&buffer_line, after + 1, (size_t)((int)length));
+            (void)mmgr_line_finish(&buffer_line);
+        }
         probe->questions += 1u;
     }
     return probe->questions != 0u;
@@ -153,7 +189,12 @@ int sass_loop_main(SassProbe *probe, const char *path)
 int sass_questions_compile(SassProbe *probe)
 {
     char output[1024];
-    snprintf(output, sizeof(output), "%s/cubins.out", probe->folder);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(output, sizeof(output));
+        mmgr_line_put(&buffer_line, probe->folder);
+        mmgr_line_put(&buffer_line, "/cubins.out");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     char *const command[] = {(char *)probe->prober, "cubins", (char *)probe->folder, NULL};
     const int status = sass_run(command, output);
     sass_compiles_count(sass_output());
@@ -184,10 +225,17 @@ int sass_queries_main(SassProbe *probe, const char *path)
     for (unsigned int number = 0u; number <= probe->questions; number += 1u)
     {
         char name[32];
-        snprintf(name, sizeof(name), "form_%u", number - 1u);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(name, sizeof(name));
+            mmgr_line_put(&buffer_line, "form_");
+            mmgr_line_decimal(&buffer_line, number - 1u, 1u);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         if (number == 0u)
         {
-            snprintf(name, sizeof(name), "kernel");
+            VerbaLinea buffer_line = mmgr_line_over(name, sizeof(name));
+            mmgr_line_put(&buffer_line, "kernel");
+            (void)mmgr_line_finish(&buffer_line);
         }
         const unsigned int was_same = same_count;
         const int same =

@@ -3,6 +3,9 @@
 // kfile_lines.c: a k-file people read and write, its lines read, put by a who, and written back whole
 // (kfile_lines.h)
 #include "kfile_lines.h"
+#include "../../../src/platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "verba_scribo/verba_scribo.h"
 
 #include "../klang/klang.h"
@@ -19,7 +22,7 @@ static char *kfile_lines_copy(const char *text, size_t length)
     char *const copy = (char *)malloc(length + 1u);
     if (copy != NULL)
     {
-        memcpy(copy, text, length);
+        mmgr_bytes_copy(copy, text, length);
         copy[length] = '\0';
     }
     return copy;
@@ -101,7 +104,8 @@ int kfile_lines_write_by(const KfileLines *file, const char *path, Who who)
     if ((time != 0ULL) && (name != NULL))
     {
         // the file's row of the table files (files.oracle.tsv): the who that wrote it, its record and its name
-        unsigned long long row[4] = {0ULL, 0ULL, time, table_text(name, strlen(name))};
+        unsigned long long row[4] = {0ULL, 0ULL, time,
+                                     table_text(name, mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR))};
         who_words(who, row);
         qry_member_append(TABLE_FILES, row, sizeof(row), QRY_CRITICAL);
     }
@@ -115,12 +119,12 @@ void kfile_lines_free(KfileLines *file)
         free(file->line[at]);
     }
     free(file->line);
-    memset(file, 0, sizeof(*file));
+    mmgr_bytes_set(file, 0, sizeof(*file));
 }
 
 int kfile_lines_line_add(KfileLines *file, const char *text)
 {
-    char *const copy = kfile_lines_copy(text, strlen(text));
+    char *const copy = kfile_lines_copy(text, mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR));
     if ((copy == NULL) || !kfile_lines_room(file, 1u))
     {
         free(copy);
@@ -133,7 +137,8 @@ int kfile_lines_line_add(KfileLines *file, const char *text)
 
 int kfile_lines_line_replaced(KfileLines *file, unsigned int at, const char *text)
 {
-    char *const copy = (at < file->lines) ? kfile_lines_copy(text, strlen(text)) : NULL;
+    char *const copy =
+        (at < file->lines) ? kfile_lines_copy(text, mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR)) : NULL;
     if (copy == NULL)
     {
         return 0;
@@ -150,17 +155,17 @@ void kfile_lines_line_drop(KfileLines *file, unsigned int at)
         return;
     }
     free(file->line[at]);
-    memmove(&file->line[at], &file->line[at + 1u], (size_t)(file->lines - at - 1u) * sizeof(char *));
+    mmgr_bytes_move(&file->line[at], &file->line[at + 1u], (size_t)(file->lines - at - 1u) * sizeof(char *));
     file->lines -= 1u;
 }
 
 int kfile_lines_who_line(const char *line, Who *who, int *has_who)
 {
-    if (strncmp(line, "who ", 4u) != 0)
+    if (!mmgr_text_starts(line, "who ", PLATFORM_TEXT_TO_TERMINATOR))
     {
         return 0;
     }
-    if (strcmp(line + 4, "-") == 0)
+    if (mmgr_text_equal(line + 4, "-", PLATFORM_TEXT_TO_TERMINATOR))
     {
         *has_who = 0;
         return 1;
@@ -187,7 +192,12 @@ static void kfile_lines_who_written(Who who, int has_who, char *line, size_t roo
 {
     char code[WHO_CODE_CHARACTERS + 1u];
     who_code(who, code, sizeof(code));
-    snprintf(line, room, "who %s", has_who ? code : "-");
+    {
+        VerbaLinea buffer_line = mmgr_line_over(line, room);
+        mmgr_line_put(&buffer_line, "who ");
+        mmgr_line_put(&buffer_line, has_who ? code : "-");
+        (void)mmgr_line_finish(&buffer_line);
+    }
 }
 
 unsigned int kfile_lines_put_by(KfileLines *file, unsigned int at, const char *const *lines, unsigned int count,
@@ -216,20 +226,20 @@ unsigned int kfile_lines_put_by(KfileLines *file, unsigned int at, const char *c
     if (!own)
     {
         kfile_lines_who_written(who, 1, whose, sizeof(whose));
-        made[next] = kfile_lines_copy(whose, strlen(whose));
+        made[next] = kfile_lines_copy(whose, mmgr_text_length(whose, PLATFORM_TEXT_TO_TERMINATOR));
         ok = ok && (made[next] != NULL);
         next += 1u;
     }
     for (unsigned int line = 0u; line < count; line += 1u)
     {
-        made[next] = kfile_lines_copy(lines[line], strlen(lines[line]));
+        made[next] = kfile_lines_copy(lines[line], mmgr_text_length(lines[line], PLATFORM_TEXT_TO_TERMINATOR));
         ok = ok && (made[next] != NULL);
         next += 1u;
     }
     if (!own && follows)
     {
         kfile_lines_who_written(there, there_has_who, whose, sizeof(whose));
-        made[next] = kfile_lines_copy(whose, strlen(whose));
+        made[next] = kfile_lines_copy(whose, mmgr_text_length(whose, PLATFORM_TEXT_TO_TERMINATOR));
         ok = ok && (made[next] != NULL);
         next += 1u;
     }
@@ -242,8 +252,8 @@ unsigned int kfile_lines_put_by(KfileLines *file, unsigned int at, const char *c
         free(made);
         return 0u;
     }
-    memmove(&file->line[at + put], &file->line[at], (size_t)(file->lines - at) * sizeof(char *));
-    memcpy(&file->line[at], made, (size_t)put * sizeof(char *));
+    mmgr_bytes_move(&file->line[at + put], &file->line[at], (size_t)(file->lines - at) * sizeof(char *));
+    mmgr_bytes_copy(&file->line[at], made, (size_t)put * sizeof(char *));
     file->lines += put;
     free(made);
     return put;
@@ -388,11 +398,13 @@ int kfile_lines_written_by(KfileLines *file, unsigned int first, const char *con
             low = (strcmp(entries[middle].text, lines[line]) < 0) ? (middle + 1u) : low;
             high = (strcmp(entries[middle].text, lines[line]) < 0) ? high : middle;
         }
-        while ((low < entry_count) && (strcmp(entries[low].text, lines[line]) == 0) && taken[entries[low].at])
+        while ((low < entry_count) && (mmgr_text_equal(entries[low].text, lines[line], PLATFORM_TEXT_TO_TERMINATOR)) &&
+               taken[entries[low].at])
         {
             low += 1u;
         }
-        const int found = (low < entry_count) && (strcmp(entries[low].text, lines[line]) == 0);
+        const int found =
+            (low < entry_count) && (mmgr_text_equal(entries[low].text, lines[line], PLATFORM_TEXT_TO_TERMINATOR));
         if (found)
         {
             taken[entries[low].at] = 1u;

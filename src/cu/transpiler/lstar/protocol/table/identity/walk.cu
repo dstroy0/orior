@@ -3,6 +3,7 @@
 // walk.cu: the one walk over numbers a relation is true at: the last register, the last predicate, and how far a
 // container's code reaches
 #include "identity_internal.h"
+#include "../../../../../../platform/platform.h"
 
 // one question the register walk puts: a chain of ours, its code with every stall the longest, the register it
 // writes that the walk renames, and every number its register fields represent
@@ -72,9 +73,8 @@ static std::vector<unsigned char> register_renamed(const std::vector<unsigned ch
 // number queried with its verdict. `token` is the character the group's values are printed with, R for registers and P
 // for predicates. The register walk and the predicate walk are this one walk over their own fields (P11 Step 9)
 static int identity_last(const char *engine, const char *answers, const char *ksc, const std::string &folder,
-                         const char *const *carrier, const StallField &stall,
-                         const std::vector<StallField> &group, const char *answer, const char *blob,
-                         const char *mode, char token)
+                         const char *const *carrier, const StallField &stall, const std::vector<StallField> &group,
+                         const char *answer, const char *blob, const char *mode, char token)
 {
     const unsigned long long longest = (1ULL << stall.bits) - 1ULL;
     const unsigned long long highest = (1ULL << group[0].bits) - 1ULL;
@@ -196,7 +196,14 @@ static int identity_last(const char *engine, const char *answers, const char *ks
         return 1;
     }
     char row[64];
-    snprintf(row, sizeof(row), "run answers %08llx %s", (unsigned long long)last, answer);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(row, sizeof(row));
+        mmgr_line_put(&buffer_line, "run answers ");
+        mmgr_line_hex(&buffer_line, (unsigned long long)last, 8u);
+        mmgr_line_put(&buffer_line, " ");
+        mmgr_line_put(&buffer_line, answer);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     if (!ksc_answers_write(ksc, mode, std::vector<std::string>{row}))
     {
         printf("orior_klq_identity %s: %s could not be written\n", mode, ksc);
@@ -211,7 +218,7 @@ static int identity_last(const char *engine, const char *answers, const char *ks
 // (identity_last): written to the .ksc as `run answers <last> register last`, R255 being RZ and excepted where
 // renaming a register to it drops the chain's value and answers apart
 int identity_register(const char *engine, const char *answers, const char *ksc, const std::string &folder,
-                             const char *const *carrier)
+                      const char *const *carrier)
 {
     std::map<std::string, StallField> fields = stall_fields(ksc);
     if ((fields.count("stall") == 0u) || (fields.count("rd") == 0u) || (fields.count("ra") == 0u) ||
@@ -230,7 +237,7 @@ int identity_register(const char *engine, const char *answers, const char *ksc, 
 // `run answers <last> predicate last`, P7 being PT and excepted where renaming a predicate to it answers always and
 // apart from the chain's. The walk is the register walk over the predicate fields (P11 Step 9)
 int identity_predicate(const char *engine, const char *answers, const char *ksc, const std::string &folder,
-                              const char *const *carrier)
+                       const char *const *carrier)
 {
     std::map<std::string, StallField> fields = stall_fields(ksc);
     if ((fields.count("stall") == 0u) || (fields.count("pg") == 0u) || (fields.count("guard") == 0u) ||
@@ -252,7 +259,7 @@ int identity_predicate(const char *engine, const char *answers, const char *ksc,
 // the max any gives, the count that clears every chain's refusal. Written to the .ksc as `run answers <past> register
 // past`, and the run's blob past.txt contains every count queried with what came back
 int identity_past(const char *engine, const char *answers, const char *ksc, const std::string &folder,
-                         const char *const *carrier)
+                  const char *const *carrier)
 {
     std::map<std::string, StallField> fields = stall_fields(ksc);
     if ((fields.count("stall") == 0u) || (fields.count("rd") == 0u) || (fields.count("ra") == 0u) ||
@@ -338,7 +345,13 @@ int identity_past(const char *engine, const char *answers, const char *ksc, cons
         return 1;
     }
     char row[64];
-    snprintf(row, sizeof(row), "run answers %08llx register past", (unsigned long long)past);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(row, sizeof(row));
+        mmgr_line_put(&buffer_line, "run answers ");
+        mmgr_line_hex(&buffer_line, (unsigned long long)past, 8u);
+        mmgr_line_put(&buffer_line, " register past");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     if (!ksc_answers_write(ksc, "past", std::vector<std::string>{row}))
     {
         printf("orior_klq_identity past: %s could not be written\n", ksc);

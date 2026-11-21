@@ -47,6 +47,8 @@
 // The writer runs in a query run, the .qry QRY names (qry_member.h). The forms the vendor's writer passes back are the
 // blob FORMS_BLOB_NAME of the run (forms_blob.h). What the writer prints goes into the run as KRS_MACHINE_NAME.
 #include "../../../src/cu/engine/rmc/schema_forms.h"
+#include "../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "krs_write/fixed.h"
 #include "krs_write/head.h"
 #include "krs_write/krs_write_internal.h"
@@ -71,7 +73,11 @@ static void forms_text(const char *text)
 static void forms_given(const char *given)
 {
     char line[KRS_LINE * 2u];
-    snprintf(line, sizeof(line), "%s", given);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(line, sizeof(line));
+        mmgr_line_put(&buffer_line, given);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     (void)krs_fixed_placed(line, sizeof(line));
     forms_text(line);
     forms_text("\n");
@@ -166,13 +172,34 @@ int main(int count, char **word)
     char ksc[1200];
     // Read the costs the part's .ksc stores, and the lines its ruleset gave before this run, before the ruleset
     // changes.
-    snprintf(ksc, sizeof(ksc), "%s/%s.ksc", rulesets, part);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(ksc, sizeof(ksc));
+        mmgr_line_put(&buffer_line, rulesets);
+        mmgr_line_put(&buffer_line, "/");
+        mmgr_line_put(&buffer_line, part);
+        mmgr_line_put(&buffer_line, ".ksc");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     krs_costs_read(ksc);
     // Read the fixed registers the language's head names. A form's text names each by its placeholder.
     char language_krs[1200];
-    snprintf(language_krs, sizeof(language_krs), "%s/%s.krs", rulesets, language);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(language_krs, sizeof(language_krs));
+        mmgr_line_put(&buffer_line, rulesets);
+        mmgr_line_put(&buffer_line, "/");
+        mmgr_line_put(&buffer_line, language);
+        mmgr_line_put(&buffer_line, ".krs");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     krs_fixed_read(ksc, language_krs);
-    snprintf(path, sizeof(path), "%s/%s.krs", rulesets, part);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+        mmgr_line_put(&buffer_line, rulesets);
+        mmgr_line_put(&buffer_line, "/");
+        mmgr_line_put(&buffer_line, part);
+        mmgr_line_put(&buffer_line, ".krs");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     krs_given_read(path);
     forms_text("krs 1\n");
     unsigned int given = 0u;
@@ -274,7 +301,14 @@ int main(int count, char **word)
         printf("  orior_krs_write: %s could not be written\n", path);
         return 1;
     }
-    snprintf(path, sizeof(path), "%s/%s.krs", rulesets, language);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+        mmgr_line_put(&buffer_line, rulesets);
+        mmgr_line_put(&buffer_line, "/");
+        mmgr_line_put(&buffer_line, language);
+        mmgr_line_put(&buffer_line, ".krs");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     head_text("krs 1\nruleset ");
     head_text(language);
     head_text("\n");
@@ -282,7 +316,7 @@ int main(int count, char **word)
     // from (krs.oracle.tsv). Each line is the part's answer in its .ksc (Open 6.3). The lines name the container
     // the vendor's writer makes, loaded and returned from, and the least head a kernel runs with. A line the part has
     // not answered for stays out, and the reader refuses the ruleset without it.
-    if (strcmp(language, "sass") == 0)
+    if (mmgr_text_equal(language, "sass", PLATFORM_TEXT_TO_TERMINATOR))
     {
         char missing[128];
         krs_head_written(s_head_bytes, sizeof(s_head_bytes), &s_head_at, ksc, missing, sizeof(missing));
@@ -303,7 +337,7 @@ int main(int count, char **word)
     //
     // The rows register last and predicate last in the part's .ksc bound the numbers. The bank line names, it does
     // not bound.
-    if (strcmp(language, "sass") == 0)
+    if (mmgr_text_equal(language, "sass", PLATFORM_TEXT_TO_TERMINATOR))
     {
         head_text("bank file = R{n}\n");
         head_text("bank sign = R{n}\n");

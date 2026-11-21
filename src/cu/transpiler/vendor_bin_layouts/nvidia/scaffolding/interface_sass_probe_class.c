@@ -5,6 +5,9 @@
 // what came back was an answer, nothing, or a refusal. The pipes the system writes on are the part's and are written
 // into <part>.kdm
 #include "interface_sass_probe.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include "../../../../../../includes/file_defs/kdm/kdm.h"
 #include "../../../../../../includes/file_defs/ksc/ksc.h"
@@ -98,8 +101,10 @@ int sass_equal_known(const char *one, const char *other)
 {
     for (unsigned int number = 0u; number < s_equal_count; number += 1u)
     {
-        const int straight = (strcmp(s_equal[number].one, one) == 0) && (strcmp(s_equal[number].other, other) == 0);
-        const int crossed = (strcmp(s_equal[number].one, other) == 0) && (strcmp(s_equal[number].other, one) == 0);
+        const int straight = (mmgr_text_equal(s_equal[number].one, one, PLATFORM_TEXT_TO_TERMINATOR)) &&
+                             (mmgr_text_equal(s_equal[number].other, other, PLATFORM_TEXT_TO_TERMINATOR));
+        const int crossed = (mmgr_text_equal(s_equal[number].one, other, PLATFORM_TEXT_TO_TERMINATOR)) &&
+                            (mmgr_text_equal(s_equal[number].other, one, PLATFORM_TEXT_TO_TERMINATOR));
         if (straight || crossed)
         {
             return 1;
@@ -123,7 +128,7 @@ int sass_pipe_found(const char *operation, char *writing, unsigned int *least, u
 {
     for (unsigned int number = 0u; number < s_pipe_count; number += 1u)
     {
-        if (strcmp(s_pipe[number].operation, operation) == 0)
+        if (mmgr_text_equal(s_pipe[number].operation, operation, PLATFORM_TEXT_TO_TERMINATOR))
         {
             sass_text_copy(writing, s_pipe[number].writing);
             *least = s_pipe[number].least;
@@ -137,7 +142,8 @@ int sass_pipe_found(const char *operation, char *writing, unsigned int *least, u
 void sass_pipe_take(const char *operation, const char *writing, unsigned int least, unsigned int over)
 {
     unsigned int number = 0u;
-    while ((number < s_pipe_count) && (strcmp(s_pipe[number].operation, operation) != 0))
+    while ((number < s_pipe_count) &&
+           (!mmgr_text_equal(s_pipe[number].operation, operation, PLATFORM_TEXT_TO_TERMINATOR)))
     {
         number += 1u;
     }
@@ -184,13 +190,13 @@ void sass_class_take(unsigned int channel, unsigned int answered, const char *qu
 
 void sass_class_drop(unsigned int channel, unsigned int answered, const char *opening)
 {
-    const size_t length = strlen(opening);
+    const size_t length = mmgr_text_length(opening, PLATFORM_TEXT_TO_TERMINATOR);
     unsigned int retained = 0u;
     for (unsigned int number = 0u; number < s_classed_count; number += 1u)
     {
         const SassClassed *const one = &s_classed[number];
-        const int dropped = (one->channel == channel) && (one->answered == answered) &&
-                            (strncmp(one->question, opening, length) == 0);
+        const int dropped =
+            (one->channel == channel) && (one->answered == answered) && (strncmp(one->question, opening, length) == 0);
         if (dropped != 0)
         {
             s_tally[channel][answered] -= (s_tally[channel][answered] != 0u) ? 1u : 0u;
@@ -207,7 +213,7 @@ static unsigned int sass_channel_of(const char *text)
 {
     for (unsigned int channel = 0u; channel < SASS_CHANNEL_COUNT; channel += 1u)
     {
-        if (strcmp(s_channel_text[channel], text) == 0)
+        if (mmgr_text_equal(s_channel_text[channel], text, PLATFORM_TEXT_TO_TERMINATOR))
         {
             return channel;
         }
@@ -219,7 +225,7 @@ static unsigned int sass_class_of(const char *text)
 {
     for (unsigned int answered = 0u; answered < SASS_CLASS_COUNT; answered += 1u)
     {
-        if (strcmp(s_class_text[answered], text) == 0)
+        if (mmgr_text_equal(s_class_text[answered], text, PLATFORM_TEXT_TO_TERMINATOR))
         {
             return answered;
         }
@@ -230,7 +236,14 @@ static unsigned int sass_class_of(const char *text)
 int sass_class_read(const char *machines, const char *part)
 {
     char path[1024];
-    snprintf(path, sizeof(path), "%s/%s.ksc", machines, part);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+        mmgr_line_put(&buffer_line, machines);
+        mmgr_line_put(&buffer_line, "/");
+        mmgr_line_put(&buffer_line, part);
+        mmgr_line_put(&buffer_line, ".ksc");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     // the .ksc as the run stores it (ksc.h)
     static KscFile s_file;
     if (!ksc_read(&s_file, path) || (s_file.lines == 0u))
@@ -243,7 +256,7 @@ int sass_class_read(const char *machines, const char *part)
     s_classed_count = 0u;
     s_forms_length = 0u;
     s_containers_length = 0u;
-    memset(s_tally, 0, sizeof(s_tally));
+    mmgr_bytes_set(s_tally, 0, sizeof(s_tally));
     char line[SASS_TEXT * 8u];
     // the forms are the text of the file's block of the ruleset's language (klang.h), the lines between its opener and
     // its closer, which the ruleset beside the file reads after its own
@@ -256,11 +269,16 @@ int sass_class_read(const char *machines, const char *part)
     }
     for (unsigned int at = block; at < block_past; at += 1u)
     {
-        snprintf(line, sizeof(line), "%s\n", s_file.line[at]);
-        const size_t length = strlen(line);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(line, sizeof(line));
+            mmgr_line_put(&buffer_line, s_file.line[at]);
+            mmgr_line_put(&buffer_line, "\n");
+            (void)mmgr_line_finish(&buffer_line);
+        }
+        const size_t length = mmgr_text_length(line, PLATFORM_TEXT_TO_TERMINATOR);
         if ((s_forms_length + length) < sizeof(s_forms))
         {
-            memcpy(&s_forms[s_forms_length], line, length);
+            mmgr_bytes_copy(&s_forms[s_forms_length], line, length);
             s_forms_length += length;
         }
     }
@@ -268,18 +286,24 @@ int sass_class_read(const char *machines, const char *part)
     {
         // each line with its end, as the classification retains the lines it carries whole; a who line is the file's
         // and none of the classification's, and the block and its opener and closer were read above
-        snprintf(line, sizeof(line), "%s\n", s_file.line[at]);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(line, sizeof(line));
+            mmgr_line_put(&buffer_line, s_file.line[at]);
+            mmgr_line_put(&buffer_line, "\n");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         const int blocked = (block != s_file.lines) && ((at + 1u) >= block) && (at <= block_past);
-        if ((strncmp(line, "who ", 4u) == 0) || blocked)
+        if ((mmgr_text_starts(line, "who ", PLATFORM_TEXT_TO_TERMINATOR)) || blocked)
         {
             continue;
         }
-        const size_t length = strlen(line);
-        if ((strncmp(line, "container ", 10u) == 0) || (strncmp(line, "field ", 6u) == 0))
+        const size_t length = mmgr_text_length(line, PLATFORM_TEXT_TO_TERMINATOR);
+        if ((mmgr_text_starts(line, "container ", PLATFORM_TEXT_TO_TERMINATOR)) ||
+            (mmgr_text_starts(line, "field ", PLATFORM_TEXT_TO_TERMINATOR)))
         {
             if ((s_containers_length + length) < sizeof(s_containers))
             {
-                memcpy(&s_containers[s_containers_length], line, length);
+                mmgr_bytes_copy(&s_containers[s_containers_length], line, length);
                 s_containers_length += length;
             }
             continue;
@@ -292,7 +316,8 @@ int sass_class_read(const char *machines, const char *part)
         unsigned int word = 0u;
         unsigned int tally = 0u;
         const char *read = line;
-        if (line_characters(&read, "equal ") && line_word(&read, one, sizeof(one)) && line_word(&read, other, sizeof(other)))
+        if (line_characters(&read, "equal ") && line_word(&read, one, sizeof(one)) &&
+            line_word(&read, other, sizeof(other)))
         {
             sass_equal_take(one, other);
             continue;
@@ -405,7 +430,14 @@ static int sass_class_lines_put(KscFile *file, Who who)
 int sass_class_write_by(const char *machines, const char *part, Who who)
 {
     char path[1024];
-    snprintf(path, sizeof(path), "%s/%s.ksc", machines, part);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+        mmgr_line_put(&buffer_line, machines);
+        mmgr_line_put(&buffer_line, "/");
+        mmgr_line_put(&buffer_line, part);
+        mmgr_line_put(&buffer_line, ".ksc");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     // the classification put together in memory, its first line, and then every line after it under a who line of
     // `who`, passed whole to the run's writer (ksc.h)
     s_lines_at = 0u;
@@ -472,7 +504,8 @@ int sass_class_write_by(const char *machines, const char *part, Who who)
     }
     if (s_forms_length != 0u)
     {
-        lines_text("\n# forms the system folds into one instruction of its own, as the ruleset beside this file reads\n");
+        lines_text(
+            "\n# forms the system folds into one instruction of its own, as the ruleset beside this file reads\n");
         lines_text("# them after its own lines and its part's.\n");
         lines_text("__krs__(\n");
         lines_counted((const char *)s_forms, s_forms_length);
@@ -480,16 +513,23 @@ int sass_class_write_by(const char *machines, const char *part, Who who)
     }
     if (s_containers_length != 0u)
     {
-        lines_text("\n# the fields of an instruction a question on the run channel turns, each its first bit and its bits, a\n");
+        lines_text("\n# the fields of an instruction a question on the run channel turns, each its first bit and its "
+                   "bits, a\n");
         lines_text(
             "# barrier containing every bit setting none; then the container the system accepted, which every such\n");
-        lines_text("# question is put in: the kernel it enters at, then its bytes in hex, sixty-four a row. A question's code,\n");
+        lines_text("# question is put in: the kernel it enters at, then its bytes in hex, sixty-four a row. A "
+                   "question's code,\n");
         lines_text("# registers and exits replace the code's.\n");
         lines_counted((const char *)s_containers, s_containers_length);
     }
     static KscFile s_file;
     char first[SASS_TEXT];
-    snprintf(first, sizeof(first), "ksc %s", part);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(first, sizeof(first));
+        mmgr_line_put(&buffer_line, "ksc ");
+        mmgr_line_put(&buffer_line, part);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     const int written =
         ksc_line_add(&s_file, first) && sass_class_lines_put(&s_file, who) && ksc_write_by(&s_file, path, who);
     ksc_free(&s_file);
@@ -511,7 +551,14 @@ static const char *const s_pipe_comment[] = {
 int sass_pipe_read(const char *machines, const char *part)
 {
     char path[1024];
-    snprintf(path, sizeof(path), "%s/%s.kdm", machines, part);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+        mmgr_line_put(&buffer_line, machines);
+        mmgr_line_put(&buffer_line, "/");
+        mmgr_line_put(&buffer_line, part);
+        mmgr_line_put(&buffer_line, ".kdm");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     // the .kdm as the run stores it (kdm.h)
     static KdmFile s_file;
     if (!kdm_read(&s_file, path) || (s_file.lines == 0u))
@@ -526,8 +573,8 @@ int sass_pipe_read(const char *machines, const char *part)
         unsigned int least = 0u;
         unsigned int over = 0u;
         const char *read = s_file.line[at];
-        if (line_characters(&read, "pipe ") && line_word(&read, one, sizeof(one)) && line_word(&read, other, sizeof(other)) &&
-            line_unsigned(&read, &least) && line_unsigned(&read, &over))
+        if (line_characters(&read, "pipe ") && line_word(&read, one, sizeof(one)) &&
+            line_word(&read, other, sizeof(other)) && line_unsigned(&read, &least) && line_unsigned(&read, &over))
         {
             sass_pipe_take(one, other, least, over);
         }
@@ -539,7 +586,14 @@ int sass_pipe_read(const char *machines, const char *part)
 int sass_pipe_write_by(const char *machines, const char *part, Who who)
 {
     char path[1024];
-    snprintf(path, sizeof(path), "%s/%s.kdm", machines, part);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+        mmgr_line_put(&buffer_line, machines);
+        mmgr_line_put(&buffer_line, "/");
+        mmgr_line_put(&buffer_line, part);
+        mmgr_line_put(&buffer_line, ".kdm");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     // the .kdm as the run stores it, its pipes put in place of those it contained, at the end of its tail (kdm.h)
     static KdmFile s_file;
     s_lines_at = 0u;
@@ -560,8 +614,7 @@ int sass_pipe_write_by(const char *machines, const char *part, Who who)
     const unsigned int comments = (unsigned int)(sizeof(s_pipe_comment) / sizeof(s_pipe_comment[0]));
     const int written = verba_finis.ok(&(VerbaFinisCfg){.cap = sizeof(s_lines_bytes), .at = s_lines_at}) &&
                         kfile_lines_cut(s_lines_bytes, s_lines_at, &pipes, &count) && (count == s_pipe_count) &&
-                        kdm_read(&s_file, path) &&
-                        (s_file.lines != 0u) &&
+                        kdm_read(&s_file, path) && (s_file.lines != 0u) &&
                         kdm_pipes_replaced_by(&s_file, s_pipe_comment, comments, pipes, count, who) &&
                         kdm_write_by(&s_file, path, who);
     free(pipes);

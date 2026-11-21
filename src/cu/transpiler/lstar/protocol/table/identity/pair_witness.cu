@@ -3,6 +3,8 @@
 // pair_witness.cu: the lower witness: a pair whose puts queried nothing put at the links of a third form, both
 // forms located in there and the part's two answers checked against each other
 #include "pair.h"
+#include "../../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
 
 // The lower witness: a pair whose puts queried nothing, neither form located at a link that carries the cases, is
 // put at the links of a third form, the first of the bridge's keys whose parameters name every parameter of both
@@ -32,39 +34,38 @@ int PairWork::witness_lower(const std::string &first, const std::string &second,
     // the arguments of a form of parameters `names`: each its operand of the third form's link where `given`
     // names it, or else what the other form writes in its place, the operand `given` names of the other's
     // parameter there or the literal it writes. 1 where every parameter has an argument
-    const auto arguments_of =
-        [](const std::vector<std::string> &names, int unified, const std::map<char, std::string> &bound,
-           const std::vector<std::string> &other_names, const std::map<std::string, std::string> &given,
-           std::vector<std::string> *arguments) {
-            arguments->clear();
-            for (size_t at = 0u; at < names.size(); at += 1u)
+    const auto arguments_of = [](const std::vector<std::string> &names, int unified,
+                                 const std::map<char, std::string> &bound, const std::vector<std::string> &other_names,
+                                 const std::map<std::string, std::string> &given, std::vector<std::string> *arguments) {
+        arguments->clear();
+        for (size_t at = 0u; at < names.size(); at += 1u)
+        {
+            const auto direct = given.find(names[at]);
+            const auto aligned = bound.find((char)('A' + at));
+            if (direct != given.end())
             {
-                const auto direct = given.find(names[at]);
-                const auto aligned = bound.find((char)('A' + at));
-                if (direct != given.end())
-                {
-                    arguments->push_back(direct->second);
-                    continue;
-                }
-                if (!unified || (aligned == bound.end()))
-                {
-                    return 0;
-                }
-                if (aligned->second[0] != '\x01')
-                {
-                    arguments->push_back(aligned->second);
-                    continue;
-                }
-                const size_t other = (size_t)(aligned->second[1] - 'A');
-                const auto through = (other < other_names.size()) ? given.find(other_names[other]) : given.end();
-                if (through == given.end())
-                {
-                    return 0;
-                }
-                arguments->push_back(through->second);
+                arguments->push_back(direct->second);
+                continue;
             }
-            return 1;
-        };
+            if (!unified || (aligned == bound.end()))
+            {
+                return 0;
+            }
+            if (aligned->second[0] != '\x01')
+            {
+                arguments->push_back(aligned->second);
+                continue;
+            }
+            const size_t other = (size_t)(aligned->second[1] - 'A');
+            const auto through = (other < other_names.size()) ? given.find(other_names[other]) : given.end();
+            if (through == given.end())
+            {
+                return 0;
+            }
+            arguments->push_back(through->second);
+        }
+        return 1;
+    };
     unsigned int alike_cases = 0u;
     int answered = 0;
     for (const std::string &third : keys)
@@ -96,11 +97,15 @@ int PairWork::witness_lower(const std::string &first, const std::string &second,
         {
             const auto &chain = *found_link.chain;
             const std::smatch &found = found_link.found;
-            const long link_at =
-                (long)std::count(chain.second.begin(), chain.second.begin() + found.position(0), '\n');
+            const long link_at = (long)std::count(chain.second.begin(), chain.second.begin() + found.position(0), '\n');
             char link_address[32];
-            snprintf(link_address, sizeof(link_address), "%s:%04x", chain.first.c_str(),
-                     16u * (unsigned int)link_at);
+            {
+                VerbaLinea buffer_line = mmgr_line_over(link_address, sizeof(link_address));
+                mmgr_line_put(&buffer_line, chain.first.c_str());
+                mmgr_line_put(&buffer_line, ":");
+                mmgr_line_hex(&buffer_line, 16u * (unsigned int)link_at, 4u);
+                (void)mmgr_line_finish(&buffer_line);
+            }
             const auto lower = [&](const char *name) {
                 const char *const names[2] = {"lower", name};
                 chosen(names, 2u, link_address);
@@ -130,8 +135,8 @@ int PairWork::witness_lower(const std::string &first, const std::string &second,
                 continue;
             }
             if (!shapes
-                     .insert(read_shape(flow.first, carrier_pieces(chain.second, '\n'), flow.second, found.str(0),
-                                        link_at))
+                     .insert(
+                         read_shape(flow.first, carrier_pieces(chain.second, '\n'), flow.second, found.str(0), link_at))
                      .second)
             {
                 lower("shape_read");
@@ -200,7 +205,8 @@ int PairWork::witness_lower(const std::string &first, const std::string &second,
                 sides[side].place = (unsigned int)link_at;
                 sides[side].registers = carriers.magnitudes[chain.first].first;
                 sides[side].cases = t_question->cases;
-                memcpy(sides[side].word, t_question->word, (size_t)t_question->cases * sizeof(t_question->word[0]));
+                mmgr_bytes_copy(sides[side].word, t_question->word,
+                                (size_t)t_question->cases * sizeof(t_question->word[0]));
             }
             queries += 2ULL;
             queries_carried(sides_put, dangerous, 2u);
@@ -243,9 +249,14 @@ int PairWork::witness_lower(const std::string &first, const std::string &second,
             {
                 lower("apart");
                 char answers[64];
-                snprintf(answers, sizeof(answers), "%llx/%llx", sides[0].answered[place], sides[1].answered[place]);
-                *verdict =
-                    "closed " + std::string(link_address) + " " + case_text((*t_places)[place]) + "->" + answers;
+                {
+                    VerbaLinea buffer_line = mmgr_line_over(answers, sizeof(answers));
+                    mmgr_line_hex(&buffer_line, sides[0].answered[place], 1u);
+                    mmgr_line_put(&buffer_line, "/");
+                    mmgr_line_hex(&buffer_line, sides[1].answered[place], 1u);
+                    (void)mmgr_line_finish(&buffer_line);
+                }
+                *verdict = "closed " + std::string(link_address) + " " + case_text((*t_places)[place]) + "->" + answers;
                 return 1;
             }
             // the link reaches what the part answers where a stand-in's answer leaves the host's for the chain as

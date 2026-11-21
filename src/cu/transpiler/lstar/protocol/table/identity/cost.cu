@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cost.cu: the cost: each arrangement put at a link of its operator's word and the part's clock read around it
 #include "identity_internal.h"
+#include "../../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
 #include "../../../../../../../includes/parsers/who.h"
 
 // The link the arrangements of an operator, `own` among `rows`, are put at: of the links of the word of the web they
@@ -79,8 +81,8 @@ static int operator_link(const Ruleset *sass, Carriers &carriers, unsigned long 
     return 0;
 }
 
-// `placed` with each place `{n}` filled as the relation's tuple is: `{0}` the first word, `{1}` the second and `{2}` the
-// answer, the register written `to`
+// `placed` with each place `{n}` filled as the relation's tuple is: `{0}` the first word, `{1}` the second and `{2}`
+// the answer, the register written `to`
 static std::string placed_filled(const std::string &placed, const std::string &to, const std::string &left,
                                  const std::string &right)
 {
@@ -121,8 +123,8 @@ static std::string placed_filled(const std::string &placed, const std::string &t
 // less the link's clock read alone, and its spread the max difference less the least, both in the part's clock count
 // over COST_REPEATS: written as the part's .ksc stores a cost, `run answers <least> cost <low> <high> <spread>`, every
 // cost row the file contained before let go, since one reading is for every form
-int identity_cost(const char *engine, const char *answers, const char *ksc, const std::string &folder,
-                         const char *kdm, const char *machine_path, const char *forms, const char *const *carrier)
+int identity_cost(const char *engine, const char *answers, const char *ksc, const std::string &folder, const char *kdm,
+                  const char *machine_path, const char *forms, const char *const *carrier)
 {
     std::map<std::string, std::vector<std::string>> host = host_answers_read(answers);
     const Ruleset *const sass = identity_ruleset();
@@ -164,14 +166,13 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
              row_at += 1ULL)
         {
             FormsBlobRow row;
-            memcpy(&row, rows + (row_at * sizeof(FormsBlobRow)), sizeof(row));
+            mmgr_bytes_copy(&row, rows + (row_at * sizeof(FormsBlobRow)), sizeof(row));
             row.relation[sizeof(row.relation) - 1u] = '\0';
             row.text[sizeof(row.text) - 1u] = '\0';
             CostForm form = {row.relation, row.low, row.high, row.text, ULLONG_MAX, 0ULL, std::string()};
-            const int two_words = (form.placed.find("{0}") != std::string::npos) &&
-                                  (form.placed.find("{1}") != std::string::npos) &&
-                                  (form.placed.find("{2}") != std::string::npos) &&
-                                  (form.placed.find("{3}") == std::string::npos);
+            const int two_words =
+                (form.placed.find("{0}") != std::string::npos) && (form.placed.find("{1}") != std::string::npos) &&
+                (form.placed.find("{2}") != std::string::npos) && (form.placed.find("{3}") == std::string::npos);
             form.verdict = two_words ? std::string() : std::string("no two-word places");
             costed_forms.push_back(form);
         }
@@ -248,7 +249,13 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
         const std::string found_text = found.str(0);
         const long form_lines = operator_at.form_lines;
         char address[64];
-        snprintf(address, sizeof(address), "%s:%04x", chain.first.c_str(), 16u * (unsigned int)link_at);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(address, sizeof(address));
+            mmgr_line_put(&buffer_line, chain.first.c_str());
+            mmgr_line_put(&buffer_line, ":");
+            mmgr_line_hex(&buffer_line, 16u * (unsigned int)link_at, 4u);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         run_print(&table, "%s at %s, %s in place of %s", each.first.c_str(), address, word->name, found_text.c_str());
         run_print(&table, "%s", (!found_text.empty() && (found_text.back() == '\n')) ? "" : "\n");
         const std::string ones = ruleset_register(sass, "file", base);
@@ -463,14 +470,25 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
     {
         if (!form.verdict.empty() || (form.least == ULLONG_MAX) || (clock_alone == ULLONG_MAX))
         {
-            run_print(&table, "  %s: %s\n", form.placed.c_str(), form.verdict.empty() ? "untimed" : form.verdict.c_str());
+            run_print(&table, "  %s: %s\n", form.placed.c_str(),
+                      form.verdict.empty() ? "untimed" : form.verdict.c_str());
             continue;
         }
         const unsigned long long least = (form.least > clock_alone) ? (form.least - clock_alone) : 0ULL;
         const unsigned long long spread = form.max - form.least;
         char row[192];
-        snprintf(row, sizeof(row), "run answers %016llx cost %016llx %016llx %016llx", least, form.low, form.high,
-                 spread);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(row, sizeof(row));
+            mmgr_line_put(&buffer_line, "run answers ");
+            mmgr_line_hex(&buffer_line, least, 16u);
+            mmgr_line_put(&buffer_line, " cost ");
+            mmgr_line_hex(&buffer_line, form.low, 16u);
+            mmgr_line_put(&buffer_line, " ");
+            mmgr_line_hex(&buffer_line, form.high, 16u);
+            mmgr_line_put(&buffer_line, " ");
+            mmgr_line_hex(&buffer_line, spread, 16u);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         cost_rows.push_back(row);
         run_print(&table, "  %s: %llu clocks over %u, the clock alone %llu, the spread %llu\n", form.placed.c_str(),
                   form.least, COST_REPEATS, clock_alone, spread);
@@ -566,8 +584,8 @@ void arrangement_probes(const char *engine, const std::map<std::string, std::vec
         {
             const CostRow &row = rows[at];
             const std::string located = row.verdict.empty() ? arrangement_written(sass, row.nodes, at_link.operands,
-                                                                                   ones, at_link.to, at_link.base + 4u)
-                                                             : std::string();
+                                                                                  ones, at_link.to, at_link.base + 4u)
+                                                            : std::string();
             std::vector<std::string> node_lines;
             for (const std::string &piece : carrier_pieces(located, '\n'))
             {

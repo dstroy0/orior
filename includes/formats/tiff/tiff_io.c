@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tiff_io.c: errors, file access and directory entries
 #include "tiff_internal.h"
+#include "../../../src/platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
 
 int tiff_fail(TiffFile *file, const char *reason)
 {
@@ -13,7 +15,15 @@ int tiff_fail_number(TiffFile *file, const char *before, unsigned long long numb
 {
     if (file->reason == NULL)
     {
-        snprintf(file->detail, sizeof(file->detail), "%s %llu %s", before, number, after);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(file->detail, sizeof(file->detail));
+            mmgr_line_put(&buffer_line, before);
+            mmgr_line_put(&buffer_line, " ");
+            mmgr_line_decimal(&buffer_line, number, 1u);
+            mmgr_line_put(&buffer_line, " ");
+            mmgr_line_put(&buffer_line, after);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         file->reason = file->detail;
     }
     return file->reason == NULL;
@@ -23,7 +33,13 @@ int tiff_fail_named(TiffFile *file, const char *before, const char *name)
 {
     if (file->reason == NULL)
     {
-        snprintf(file->detail, sizeof(file->detail), "%s %s", before, name);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(file->detail, sizeof(file->detail));
+            mmgr_line_put(&buffer_line, before);
+            mmgr_line_put(&buffer_line, " ");
+            mmgr_line_put(&buffer_line, name);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         file->reason = file->detail;
     }
     return file->reason == NULL;
@@ -88,7 +104,7 @@ unsigned long long tiff_unpack(const TiffFile *file, const unsigned char *raw, u
 
 int tiff_open(TiffFile *file, const char *path, const char *member, const EngineIngestTools *tools)
 {
-    memset(file, 0, sizeof(*file));
+    mmgr_bytes_set(file, 0, sizeof(*file));
     file->path = path;
     file->tools = tools;
     if (member != NULL)
@@ -152,7 +168,7 @@ int tiff_entry_bytes(TiffFile *file, const TiffEntry *entry, unsigned long long 
     const unsigned int inline_bytes = file->bigtiff ? 8u : 4u;
     if ((file->reason == NULL) && (total <= inline_bytes))
     {
-        memcpy(out, entry->value, (size_t)total);
+        mmgr_bytes_copy(out, entry->value, (size_t)total);
         return file->reason == NULL;
     }
     return tiff_fetch(file, tiff_unpack(file, entry->value, inline_bytes), total, out);

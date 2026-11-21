@@ -3,6 +3,9 @@
 // queries.cu: the queries: the trace and the log of the thread that carries them, each question's identity, and a round
 // answered from the record or carried
 #include "identity_internal.h"
+#include "../../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 // The trace of every query, in the query's .qry (qry_member.h): the query's number, the code's size,
 // the registers, the shape and the launches it is put with and its count of cases, then what came back: alike, apart
@@ -160,7 +163,11 @@ static void answer_given(RunQuestion *question, const KqrQuery &stored)
                         : ((stored.answer == KQR_ILLEGAL) || (stored.answer == KQR_CENSORED))
                             ? (unsigned int)RUN_GATED
                             : (unsigned int)RUN_NOTHING;
-    snprintf(question->refused, sizeof(question->refused), "%s", stored.refusal);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(question->refused, sizeof(question->refused));
+        mmgr_line_put(&buffer_line, stored.refusal);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     for (unsigned int place = 0u; (place < stored.words) && (place < RUN_CASES_MAX); place += 1u)
     {
         question->answered[place] = stored.word[place];
@@ -188,8 +195,10 @@ static unsigned int answer_recorded(const RunQuestion *question)
     {
         return KQR_ANSWER_COUNT;
     }
-    return (strstr(question->refused, interface_ending_name(INTERFACE_ENDING_OUT_OF_TIME)) != NULL) ? KQR_TIMED_OUT
-                                                                                                    : KQR_NOTHING;
+    return (mmgr_text_find(question->refused, interface_ending_name(INTERFACE_ENDING_OUT_OF_TIME),
+                           PLATFORM_TEXT_TO_TERMINATOR) != NULL)
+               ? KQR_TIMED_OUT
+               : KQR_NOTHING;
 }
 
 // The queries `carried` answered. A timed query is put every time and stored as a sample of its own, with its cost:
@@ -228,7 +237,11 @@ void queries_answered(const std::vector<CarriedQuery> &carried)
         if ((question->launches != 0u) && (censored != timed_censored.end()))
         {
             question->outcome = RUN_GATED;
-            snprintf(question->refused, sizeof(question->refused), "%s", censored->second.c_str());
+            {
+                VerbaLinea buffer_line = mmgr_line_over(question->refused, sizeof(question->refused));
+                mmgr_line_put(&buffer_line, censored->second.c_str());
+                (void)mmgr_line_finish(&buffer_line);
+            }
             s_round_recalled += 1ULL;
             continue;
         }
@@ -304,15 +317,18 @@ void queries_answered(const std::vector<CarriedQuery> &carried)
         const unsigned int answer = answer_recorded(question);
         if (answer != KQR_ANSWER_COUNT)
         {
-            memset(&s_sample, 0, sizeof(s_sample));
+            mmgr_bytes_set(&s_sample, 0, sizeof(s_sample));
             s_sample.identity = question_numbered(question);
             s_sample.answer = answer;
             s_sample.nanoseconds = question->nanoseconds;
             s_sample.launched = (question->max != 0ULL) ? 1 : 0;
             s_sample.least = question->least;
             s_sample.max = question->max;
-            snprintf(s_sample.refusal, sizeof(s_sample.refusal), "%s",
-                     (answer == KQR_ANSWERS) ? "" : question->refused);
+            {
+                VerbaLinea buffer_line = mmgr_line_over(s_sample.refusal, sizeof(s_sample.refusal));
+                mmgr_line_put(&buffer_line, (answer == KQR_ANSWERS) ? "" : question->refused);
+                (void)mmgr_line_finish(&buffer_line);
+            }
             kqr_sample(&s_query_record, &s_sample);
         }
     }
@@ -325,7 +341,7 @@ void queries_answered(const std::vector<CarriedQuery> &carried)
         {
             continue;
         }
-        memset(&s_stored, 0, sizeof(s_stored));
+        mmgr_bytes_set(&s_stored, 0, sizeof(s_stored));
         s_stored.identity = identity;
         s_stored.answer = answer;
         if (answer == KQR_ANSWERS)
@@ -338,16 +354,22 @@ void queries_answered(const std::vector<CarriedQuery> &carried)
         }
         else
         {
-            snprintf(s_stored.refusal, sizeof(s_stored.refusal), "%s", question->refused);
+            VerbaLinea buffer_line = mmgr_line_over(s_stored.refusal, sizeof(s_stored.refusal));
+            mmgr_line_put(&buffer_line, question->refused);
+            (void)mmgr_line_finish(&buffer_line);
         }
         kqr_store(&s_query_record, &s_stored);
     }
     for (const auto &copy : copies)
     {
         copy.first->outcome = copy.second->outcome;
-        snprintf(copy.first->refused, sizeof(copy.first->refused), "%s", copy.second->refused);
-        memcpy(copy.first->answered, copy.second->answered,
-               (size_t)copy.first->cases * sizeof(copy.first->answered[0]));
+        {
+            VerbaLinea buffer_line = mmgr_line_over(copy.first->refused, sizeof(copy.first->refused));
+            mmgr_line_put(&buffer_line, copy.second->refused);
+            (void)mmgr_line_finish(&buffer_line);
+        }
+        mmgr_bytes_copy(copy.first->answered, copy.second->answered,
+                        (size_t)copy.first->cases * sizeof(copy.first->answered[0]));
     }
 }
 

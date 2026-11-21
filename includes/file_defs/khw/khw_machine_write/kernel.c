@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // kernel.c: the kernel: its code read, its forms stored, the runs and the answers read, and the listing given
 #include "khw_machine_write_internal.h"
+#include "../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 // the kernel, read out of the container in the layout at `path`. That is the bytes of the container, the part where it
 // enters, the registers that a thread of it uses, and its code. The result is 1, or 0 with the reason printed
@@ -26,7 +29,7 @@ int khw_kernel_read(const char *path)
         printf("  orior_khw_machine_write: the kernel is %llu bytes, which is no whole count of places\n", sizes[0]);
         return 0;
     }
-    memcpy(s_kernel_text, &s_pattern[offsets[0]], (size_t)sizes[0]);
+    mmgr_bytes_copy(s_kernel_text, &s_pattern[offsets[0]], (size_t)sizes[0]);
     s_kernel_places = (unsigned int)(sizes[0] / KHW_INSTRUCTION);
     s_registers = cubin_registers_read(s_pattern, s_pattern_size, s_kernel);
     if (s_registers == 0u)
@@ -62,11 +65,17 @@ unsigned int khw_kernel_forms_store(void)
         char text[KHW_NAME];
         if ((ending != 0) && (ends != NULL))
         {
-            snprintf(text, sizeof(text), "%s", ends);
+            VerbaLinea buffer_line = mmgr_line_over(text, sizeof(text));
+            mmgr_line_put(&buffer_line, ends);
+            (void)mmgr_line_finish(&buffer_line);
         }
         else
         {
-            snprintf(text, sizeof(text), "0x%016llx%016llx", low, high);
+            VerbaLinea buffer_line = mmgr_line_over(text, sizeof(text));
+            mmgr_line_put(&buffer_line, "0x");
+            mmgr_line_hex(&buffer_line, low, 16u);
+            mmgr_line_hex(&buffer_line, high, 16u);
+            (void)mmgr_line_finish(&buffer_line);
         }
         SassForm *taken = NULL;
         const int took = sass_machine_take(&s_machine, text, low, high, &taken);
@@ -130,11 +139,15 @@ static int khw_runs_read(KhwForm *answered_form, const char *text)
             // the none mark, with its type's character after it where the run is no register's, or the place with its
             // character after it. The character's place among the four is its type, and no character is a register's
             char *end = NULL;
-            const int none = (strncmp(place, SASS_RUN_NO_PLACE_TEXT, strlen(SASS_RUN_NO_PLACE_TEXT)) == 0);
+            const int none = (strncmp(place, SASS_RUN_NO_PLACE_TEXT,
+                                      mmgr_text_length(SASS_RUN_NO_PLACE_TEXT, PLATFORM_TEXT_TO_TERMINATOR)) == 0);
             answered_form->place[run] = none ? SASS_RUN_NO_PLACE : (unsigned int)strtoul(place, &end, 10);
-            end = none ? (place + strlen(SASS_RUN_NO_PLACE_TEXT)) : end;
-            const char *const character = ((end != NULL) && (*end != '\0')) ? strchr(KHW_KIND_CHARACTERS, *end) : NULL;
-            answered_form->type[run] = (character != NULL) ? (unsigned int)(character - KHW_KIND_CHARACTERS) : KHW_KIND_REGISTER;
+            end = none ? (place + mmgr_text_length(SASS_RUN_NO_PLACE_TEXT, PLATFORM_TEXT_TO_TERMINATOR)) : end;
+            const char *const character = ((end != NULL) && (*end != '\0'))
+                                              ? mmgr_text_char(KHW_KIND_CHARACTERS, *end, PLATFORM_TEXT_TO_TERMINATOR)
+                                              : NULL;
+            answered_form->type[run] =
+                (character != NULL) ? (unsigned int)(character - KHW_KIND_CHARACTERS) : KHW_KIND_REGISTER;
         }
     }
     return 1;
@@ -165,14 +178,18 @@ unsigned int khw_answers_read(const char *answers, KhwForm *form, unsigned int r
     {
         const unsigned char *const end = (const unsigned char *)memchr(bytes + next, '\n', (size_t)(size - next));
         const size_t length = (end != NULL) ? (size_t)(end - (bytes + next)) : (size_t)(size - next);
-        snprintf(line, sizeof(line), "%.*s", (int)length, (const char *)(bytes + next));
+        {
+            VerbaLinea buffer_line = mmgr_line_over(line, sizeof(line));
+            mmgr_line_put_max(&buffer_line, (const char *)(bytes + next), (size_t)((int)length));
+            (void)mmgr_line_finish(&buffer_line);
+        }
         next += (unsigned long long)length + 1ULL;
         if ((line[0] == '#') || (line[0] == '\0') || (line[0] == '\r'))
         {
             continue;
         }
         KhwForm answered_form;
-        memset(&answered_form, 0, sizeof(answered_form));
+        mmgr_bytes_set(&answered_form, 0, sizeof(answered_form));
         const char *runs_at = line;
         if (!line_word(&runs_at, answered_form.relation, sizeof(answered_form.relation)) ||
             !line_signed(&runs_at, &answered_form.signed_read) ||

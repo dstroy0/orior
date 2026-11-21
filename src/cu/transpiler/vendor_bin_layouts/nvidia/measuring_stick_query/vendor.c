@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // vendor.c: the vendor's instruction set for the part the cross reads for, and whether its disassembler reads a piece
 #include "msq_internal.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
 
 #include "../tables/read.h"
 
@@ -36,7 +38,13 @@ int msq_tables_read(void)
         part[length] = '\0';
     }
     char path[512];
-    snprintf(path, sizeof(path), "build/vendor/nvidia/tables/%s_instructions.txt", part);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+        mmgr_line_put(&buffer_line, "build/vendor/nvidia/tables/");
+        mmgr_line_put(&buffer_line, part);
+        mmgr_line_put(&buffer_line, "_instructions.txt");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     const unsigned char *text = NULL;
     unsigned long long size = 0ULL;
     if (!qry_member_file_blob(path, &text, &size))
@@ -56,8 +64,8 @@ int msq_vendor_reads(const MsqBytes *piece)
     {
         unsigned long long low = 0ULL;
         unsigned long long high = 0ULL;
-        memcpy(&low, piece->bytes + at, 8u);
-        memcpy(&high, piece->bytes + at + 8u, 8u);
+        mmgr_bytes_copy(&low, piece->bytes + at, 8u);
+        mmgr_bytes_copy(&high, piece->bytes + at + 8u, 8u);
         if (tables_class_of(&s_tables, low, high) == NULL)
         {
             return 0;

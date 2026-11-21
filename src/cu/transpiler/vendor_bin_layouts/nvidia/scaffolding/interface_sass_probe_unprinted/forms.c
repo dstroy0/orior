@@ -3,6 +3,9 @@
 // forms.c: the forms: a question probed, an operand, a form's text, lines and addresses, a memory form's text and
 // lines, the tally and the value, a form run and every form probed
 #include "unprinted_internal.h"
+#include "../../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 // how a form's unprinted run answered, value by value
 typedef struct
@@ -21,11 +24,17 @@ int unprinted_query(const UnprintedQuestion *question, unsigned int number, FILE
     char span[32];
     if (question->bits == 0u)
     {
-        snprintf(span, sizeof(span), "none");
+        VerbaLinea buffer_line = mmgr_line_over(span, sizeof(span));
+        mmgr_line_put(&buffer_line, "none");
+        (void)mmgr_line_finish(&buffer_line);
     }
     else
     {
-        snprintf(span, sizeof(span), "%u-%u", question->first, (question->first + question->bits) - 1u);
+        VerbaLinea buffer_line = mmgr_line_over(span, sizeof(span));
+        mmgr_line_decimal(&buffer_line, question->first, 1u);
+        mmgr_line_put(&buffer_line, "-");
+        mmgr_line_decimal(&buffer_line, (question->first + question->bits) - 1u, 1u);
+        (void)mmgr_line_finish(&buffer_line);
     }
     unsigned long long low = 0ULL;
     unsigned long long high = 0ULL;
@@ -33,8 +42,8 @@ int unprinted_query(const UnprintedQuestion *question, unsigned int number, FILE
         unprinted_text(s_kernel_text, question->lines, s_query_text, sizeof(s_query_text))
             ? sass_assemble_lines(&s_machine, s_query_text, SASS_CONTROL_SAFE, s_code, sizeof(s_code))
             : 0u;
-    const int alone = (count != 0u) && sass_assemble(&s_machine, question->turned, 0ULL, 0ULL, SASS_CONTROL_SAFE,
-                                                     &low, &high);
+    const int alone =
+        (count != 0u) && sass_assemble(&s_machine, question->turned, 0ULL, 0ULL, SASS_CONTROL_SAFE, &low, &high);
     unsigned int place = 0u;
     if (!alone || (unprinted_find(s_code, count, low, high, &place, 1u) != 1u))
     {
@@ -45,7 +54,8 @@ int unprinted_query(const UnprintedQuestion *question, unsigned int number, FILE
     }
     // the instruction read back through the machine file, which gives its text where the reader defines its field
     char read[SASS_MACHINE_TEXT];
-    if (!sass_encoding_read(&s_machine, low, high, 0ULL, read, sizeof(read)) || (strcmp(read, question->turned) != 0))
+    if (!sass_encoding_read(&s_machine, low, high, 0ULL, read, sizeof(read)) ||
+        (!mmgr_text_equal(read, question->turned, PLATFORM_TEXT_TO_TERMINATOR)))
     {
         printf("  %s reads back as %s\n", question->turned, read);
     }
@@ -58,8 +68,15 @@ int unprinted_query(const UnprintedQuestion *question, unsigned int number, FILE
         const UnprintedFixed *const one = &question->fixed[at];
         if (one->bits != 0u)
         {
-            const size_t written = strlen(fixed);
-            snprintf(&fixed[written], sizeof(fixed) - written, ", bit %u fixed at %llu", one->first, one->value);
+            const size_t written = mmgr_text_length(fixed, PLATFORM_TEXT_TO_TERMINATOR);
+            {
+                VerbaLinea buffer_line = mmgr_line_over(&fixed[written], sizeof(fixed) - written);
+                mmgr_line_put(&buffer_line, ", bit ");
+                mmgr_line_decimal(&buffer_line, one->first, 1u);
+                mmgr_line_put(&buffer_line, " fixed at ");
+                mmgr_line_decimal(&buffer_line, one->value, 1u);
+                (void)mmgr_line_finish(&buffer_line);
+            }
         }
     }
     printf("  %s, bits %s%s, the form contains %s, as printed %08x\n", question->turned, span, fixed, value_text,
@@ -68,7 +85,7 @@ int unprinted_query(const UnprintedQuestion *question, unsigned int number, FILE
     const unsigned long long values = 1ULL << question->bits;
     for (unsigned long long value = 0ULL; value < values; value += 1ULL)
     {
-        memcpy(s_turned, s_code, (size_t)code_size);
+        mmgr_bytes_copy(s_turned, s_code, (size_t)code_size);
         unprinted_place_write(s_turned, place, question->fixed, UNPRINTED_FIXED, question->first, question->bits,
                               value);
         unsigned int answered[UNPRINTED_COPIES] = {0u, 0u, 0u, 0u};
@@ -81,11 +98,17 @@ int unprinted_query(const UnprintedQuestion *question, unsigned int number, FILE
         char reading[128];
         if (ran)
         {
-            snprintf(reading, sizeof(reading), "%08x%s", answered[0], same ? ", as printed" : "");
+            VerbaLinea buffer_line = mmgr_line_over(reading, sizeof(reading));
+            mmgr_line_hex(&buffer_line, answered[0], 8u);
+            mmgr_line_put(&buffer_line, same ? ", as printed" : "");
+            (void)mmgr_line_finish(&buffer_line);
         }
         else
         {
-            snprintf(reading, sizeof(reading), "did not run: %s", ended);
+            VerbaLinea buffer_line = mmgr_line_over(reading, sizeof(reading));
+            mmgr_line_put(&buffer_line, "did not run: ");
+            mmgr_line_put(&buffer_line, ended);
+            (void)mmgr_line_finish(&buffer_line);
         }
         printf("    %s %s\n", digits, reading);
         fprintf(record, "| %u | `%s` | %s%s | %s | %s | %s |\n", number, question->turned, span, fixed, value_text,
@@ -106,29 +129,35 @@ static int unprinted_operand(const char *base, unsigned int type, unsigned int m
 {
     static const char *const s_marks[] = {"", "-", "~", "!"};
     const char *const displayed = (mark < (sizeof(s_marks) / sizeof(s_marks[0]))) ? s_marks[mark] : "";
-    const char *const dot = strchr(base, '.');
+    const char *const dot = mmgr_text_char(base, '.', PLATFORM_TEXT_TO_TERMINATOR);
     const char *const after = (dot != NULL) ? dot : "";
     switch (type)
     {
     case SASS_OPERAND_REGISTER:
-        if ((place != 0u) && (strncmp(base, "RZ", 2u) == 0))
+        if ((place != 0u) && (mmgr_text_starts(base, "RZ", PLATFORM_TEXT_TO_TERMINATOR)))
         {
             return snprintf(operand, room, "%s%s", displayed, base) < (int)room;
         }
         *reads += (place != 0u) ? 1u : 0u;
-        return snprintf(operand, room, "%s%s%s", displayed, (place == 0u) ? "R8" : (((*reads % 2u) == 1u) ? "R0" : "R6"),
-                        after) < (int)room;
+        return snprintf(operand, room, "%s%s%s", displayed,
+                        (place == 0u) ? "R8" : (((*reads % 2u) == 1u) ? "R0" : "R6"), after) < (int)room;
     case SASS_OPERAND_PREDICATE:
         return snprintf(operand, room, "%s%s", displayed,
-                        (place == 0u) ? "P0" : ((strcmp(base, "PT") == 0) ? "PT" : "P1")) < (int)room;
+                        (place == 0u)
+                            ? "P0"
+                            : ((mmgr_text_equal(base, "PT", PLATFORM_TEXT_TO_TERMINATOR)) ? "PT" : "P1")) < (int)room;
     case SASS_OPERAND_UNIFORM:
         return snprintf(operand, room, "%s%s", displayed,
-                        (place == 0u) ? "UR6" : ((strcmp(base, "URZ") == 0) ? "URZ" : "UR4")) < (int)room;
+                        (place == 0u) ? "UR6"
+                                      : ((mmgr_text_equal(base, "URZ", PLATFORM_TEXT_TO_TERMINATOR)) ? "URZ" : "UR4")) <
+               (int)room;
     case SASS_OPERAND_IMMEDIATE:
         return (place != 0u) && (snprintf(operand, room, "%s%s", displayed, base) < (int)room);
     case SASS_OPERAND_CONSTANT:
-        return (place != 0u) && (snprintf(operand, room, "%s%s", displayed,
-                                          (strncmp(base, "c[0x0]", 6u) == 0) ? "c[0x0][0x0]" : base) < (int)room);
+        return (place != 0u) &&
+               (snprintf(operand, room, "%s%s", displayed,
+                         (mmgr_text_starts(base, "c[0x0]", PLATFORM_TEXT_TO_TERMINATOR)) ? "c[0x0][0x0]" : base) <
+                (int)room);
     default:
         return 0;
     }
@@ -159,8 +188,7 @@ static int unprinted_form_text(const SassForm *form, char *text, size_t room, co
             *why = "an operand is an address, a label or a type the question does not fill";
             return 0;
         }
-        at += (size_t)snprintf(text + at, (at < room) ? (room - at) : 0u, "%s%s", (place == 0u) ? " " : ", ",
-                               operand);
+        at += (size_t)snprintf(text + at, (at < room) ? (room - at) : 0u, "%s%s", (place == 0u) ? " " : ", ", operand);
     }
     return at < room;
 }
@@ -179,11 +207,17 @@ static int unprinted_form_lines(const char *instruction, unsigned int result, ch
         char field_text[64];
         if (copy == 0u)
         {
-            snprintf(field_text, sizeof(field_text), "IMAD.MOV.U32 R7, RZ, RZ, R8");
+            VerbaLinea buffer_line = mmgr_line_over(field_text, sizeof(field_text));
+            mmgr_line_put(&buffer_line, "IMAD.MOV.U32 R7, RZ, RZ, R8");
+            (void)mmgr_line_finish(&buffer_line);
         }
         else
         {
-            snprintf(field_text, sizeof(field_text), "STG.E term[UR4][R4.64+0x%x], R8", 4u * copy);
+            VerbaLinea buffer_line = mmgr_line_over(field_text, sizeof(field_text));
+            mmgr_line_put(&buffer_line, "STG.E term[UR4][R4.64+0x");
+            mmgr_line_hex(&buffer_line, 4u * copy, 1u);
+            mmgr_line_put(&buffer_line, "], R8");
+            (void)mmgr_line_finish(&buffer_line);
         }
         at += (size_t)snprintf(lines + at, room - at, "%s%s\n%s%s%s", UNPRINTED_PREDICATES, instruction, moved,
                                field_text, (copy + 1u < UNPRINTED_COPIES) ? "\n" : "");
@@ -219,22 +253,27 @@ static int unprinted_memory_text(const SassForm *form, char *text, size_t room, 
         switch (form->type[place])
         {
         case SASS_OPERAND_PREDICATE:
-            snprintf(operand, sizeof(operand), "%s", (strcmp(base.operand[place], "PT") == 0) ? "PT" : "P0");
+            snprintf(operand, sizeof(operand), "%s",
+                     (mmgr_text_equal(base.operand[place], "PT", PLATFORM_TEXT_TO_TERMINATOR)) ? "PT" : "P0");
             break;
         case SASS_OPERAND_ADDRESS:
-            snprintf(operand, sizeof(operand), "[R4%s+0x8]", (strstr(base.operand[place], ".64") != NULL) ? ".64" : "");
+            snprintf(operand, sizeof(operand), "[R4%s+0x8]",
+                     (mmgr_text_find(base.operand[place], ".64", PLATFORM_TEXT_TO_TERMINATOR) != NULL) ? ".64" : "");
             after = 1;
             break;
         case SASS_OPERAND_REGISTER:
             reads += after ? 1u : 0u;
-            snprintf(operand, sizeof(operand), "%s", !after ? "R10" : (((reads % 2u) == 1u) ? "R0" : "R6"));
+            {
+                VerbaLinea buffer_line = mmgr_line_over(operand, sizeof(operand));
+                mmgr_line_put(&buffer_line, !after ? "R10" : (((reads % 2u) == 1u) ? "R0" : "R6"));
+                (void)mmgr_line_finish(&buffer_line);
+            }
             break;
         default:
             *why = "an operand beside its address is a type the memory question does not fill";
             return 0;
         }
-        at += (size_t)snprintf(text + at, (at < room) ? (room - at) : 0u, "%s%s", (place == 0u) ? " " : ", ",
-                               operand);
+        at += (size_t)snprintf(text + at, (at < room) ? (room - at) : 0u, "%s%s", (place == 0u) ? " " : ", ", operand);
     }
     return at < room;
 }
@@ -256,8 +295,15 @@ static void unprinted_tally_otherwise(UnprintedTally *tally, unsigned long long 
 {
     char digits[64];
     unprinted_binary(value, (bits < 63u) ? bits : 63u, digits);
-    const size_t at = strlen(tally->otherwise);
-    snprintf(&tally->otherwise[at], sizeof(tally->otherwise) - at, "%s%s %s", (at == 0u) ? "" : "; ", digits, reading);
+    const size_t at = mmgr_text_length(tally->otherwise, PLATFORM_TEXT_TO_TERMINATOR);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(&tally->otherwise[at], sizeof(tally->otherwise) - at);
+        mmgr_line_put(&buffer_line, (at == 0u) ? "" : "; ");
+        mmgr_line_put(&buffer_line, digits);
+        mmgr_line_put(&buffer_line, " ");
+        mmgr_line_put(&buffer_line, reading);
+        (void)mmgr_line_finish(&buffer_line);
+    }
 }
 
 // The values probed in one run: every one where the run is UNPRINTED_FIELD_MAX bits or fewer, else the form's own
@@ -282,7 +328,7 @@ static void unprinted_form_run(const unsigned int *places, unsigned int copies, 
     unprinted_value(bits, field_value, 0ULL, &count);
     for (unsigned long long start = 0ULL; start < count; start += copies)
     {
-        memcpy(s_turned, s_code, (size_t)code_size);
+        mmgr_bytes_copy(s_turned, s_code, (size_t)code_size);
         for (unsigned int copy = 0u; (copy < copies) && ((start + copy) < count); copy += 1u)
         {
             unprinted_place_write(s_turned, places[copy], NULL, 0u, run->first, bits,
@@ -298,7 +344,7 @@ static void unprinted_form_run(const unsigned int *places, unsigned int copies, 
             int alone = ran;
             if (!ran && (copies > 1u))
             {
-                memcpy(s_turned, s_code, (size_t)code_size);
+                mmgr_bytes_copy(s_turned, s_code, (size_t)code_size);
                 unprinted_place_write(s_turned, places[0], NULL, 0u, run->first, bits, value);
                 alone = unprinted_run(s_turned, code_size, answered, ended, sizeof(ended));
                 word = answered[0];
@@ -307,16 +353,28 @@ static void unprinted_form_run(const unsigned int *places, unsigned int copies, 
             char reading[128];
             if (!alone)
             {
-                snprintf(reading, sizeof(reading), "did not run: %s", ended);
+                VerbaLinea buffer_line = mmgr_line_over(reading, sizeof(reading));
+                mmgr_line_put(&buffer_line, "did not run: ");
+                mmgr_line_put(&buffer_line, ended);
+                (void)mmgr_line_finish(&buffer_line);
             }
             else if (copies > 1u)
             {
-                snprintf(reading, sizeof(reading), "%08x", word);
+                VerbaLinea buffer_line = mmgr_line_over(reading, sizeof(reading));
+                mmgr_line_hex(&buffer_line, word, 8u);
+                (void)mmgr_line_finish(&buffer_line);
             }
             else
             {
-                snprintf(reading, sizeof(reading), "%08x %08x %08x %08x", answered[0], answered[1], answered[2],
-                         answered[3]);
+                VerbaLinea buffer_line = mmgr_line_over(reading, sizeof(reading));
+                mmgr_line_hex(&buffer_line, answered[0], 8u);
+                mmgr_line_put(&buffer_line, " ");
+                mmgr_line_hex(&buffer_line, answered[1], 8u);
+                mmgr_line_put(&buffer_line, " ");
+                mmgr_line_hex(&buffer_line, answered[2], 8u);
+                mmgr_line_put(&buffer_line, " ");
+                mmgr_line_hex(&buffer_line, answered[3], 8u);
+                (void)mmgr_line_finish(&buffer_line);
             }
             const int alike = (copies > 1u) ? (word == own[0])
                                             : ((answered[0] == own[0]) && (answered[1] == own[1]) &&
@@ -380,9 +438,9 @@ void unprinted_forms(FILE *record)
         const unsigned int copies = memory ? 1u : UNPRINTED_COPIES;
         const int written = memory ? unprinted_memory_text(form, instruction, sizeof(instruction), &why)
                                    : unprinted_form_text(form, instruction, sizeof(instruction), &why);
-        const int lined = written && (memory ? unprinted_memory_lines(instruction, s_lines, sizeof(s_lines))
-                                             : unprinted_form_lines(instruction, form->type[0], s_lines,
-                                                                    sizeof(s_lines)));
+        const int lined =
+            written && (memory ? unprinted_memory_lines(instruction, s_lines, sizeof(s_lines))
+                               : unprinted_form_lines(instruction, form->type[0], s_lines, sizeof(s_lines)));
         const unsigned int count =
             (lined && unprinted_text(s_kernel_text, s_lines, s_query_text, sizeof(s_query_text)))
                 ? sass_assemble_lines(&s_machine, s_query_text, SASS_CONTROL_SAFE, s_code, sizeof(s_code))
@@ -421,7 +479,7 @@ void unprinted_forms(FILE *record)
             const unsigned int bits = (run->last - run->first) + 1u;
             const unsigned long long field_value = unprinted_bits_read(low, high, run->first, bits);
             UnprintedTally tally;
-            memset(&tally, 0, sizeof(tally));
+            mmgr_bytes_set(&tally, 0, sizeof(tally));
             unprinted_form_run(places, copies, 16ULL * count, run, field_value, own, &tally);
             unread += (tally.alike == tally.queried) ? 1u : 0u;
             char digits[64];
