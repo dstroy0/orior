@@ -60,10 +60,13 @@ done
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$INTERFACE" -I "$CUBIN" "${FILE_DEFS_MMGR_FLAGS[@]}")
 rm -f "$BINARY" "$PROBE"
 OBJECTS=()
-# the formats' and the line's objects, which the PTX probe links too: its ruleset reader reads a ruleset's .ksc as the
-# run stores it (qry_member.h)
+# the formats' objects, which the PTX probe links too: its ruleset reader reads a ruleset's .ksc as the run stores it
+# (qry_member.h). The probe is a program of the platform, and links MMgr's line with the platform
+# (exact_types_platform_link)
+source "$TOP/includes/exact_types/exact_types.sh"
+exact_types_platform_link probe || exit 1
 declare -A FORMAT_SOURCE=()
-for source in "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}"; do
+for source in "${FILE_DEFS_FORMATS[@]}"; do
     FORMAT_SOURCE["$source"]=1
 done
 FORMAT_OBJECTS=()
@@ -97,7 +100,7 @@ for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/../file_de
 done
 nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${GENCODE[@]}" -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" "${FILE_DEFS_MMGR_FLAGS[@]}" \
     -o "$PROBE" "$TEST_CU"/interface_ptx_probe_{questions,runs,main}.cu "$TEST_CU/ptx_target.cu" \
-    "${CODEGEN_SOURCES[@]}" "${FORMAT_OBJECTS[@]}" -lnvrtc -lnvJitLink
+    "${CODEGEN_SOURCES[@]}" "${FORMAT_OBJECTS[@]}" -lnvrtc -lnvJitLink "${PLATFORM_LINK[@]}"
 [ -f "$PROBE" ] || { echo "  build failed: the PTX probe did not build"; exit 1; }
 source "$TOP/src/cu/transpiler/lstar/protocol/qry_run.sh"
 qry_writer_built "$OUT"

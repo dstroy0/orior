@@ -398,6 +398,9 @@ static void lane_indexed(LaneResults *results)
     lane_free(&loaded);
 }
 
+// the pool of the test. The scale search checks 2^24 lanes, and each record array of the check takes 64 MiB
+extern "C" const unsigned long long g_program_pool_bytes = 1ULL << 30u;
+
 int program_main(int count, char **arguments)
 {
     LaneResults results;

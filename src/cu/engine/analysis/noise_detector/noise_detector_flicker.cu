@@ -191,7 +191,7 @@ static void noise_flicker_summary(const char *name, const unsigned long long ext
             if (noise_per_mille(pooled[lag][types[type][0]], pooled[lag][types[type][1]], pooled[0][types[type][0]],
                                 pooled[0][types[type][1]], &per_mille))
             {
-                printf(" %6LLU", per_mille);
+                printf(" %6llu", per_mille);
             }
             else
             {

@@ -61,7 +61,7 @@ static void noise_lines_summary(const char *name, const NoiseLineCell cells[NOIS
         unsigned long long per_mille = 0ULL;
         if (noise_line_per_mille(&pooled.line_squares, pooled.member_squares, &per_mille))
         {
-            printf(" %9LLU", per_mille);
+            printf(" %9llu", per_mille);
         }
         else
         {

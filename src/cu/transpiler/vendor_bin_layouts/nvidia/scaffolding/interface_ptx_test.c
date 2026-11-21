@@ -50,7 +50,7 @@ static int interface_ptx_probe(InterfacePtxTest *test, const char *question, Int
                error.status);
         return 0;
     }
-    printf("  %s: %s, code %llu (0x%llx), fault %s, %llu bytes of output, %llu.%06LLU s\n", question,
+    printf("  %s: %s, code %llu (0x%llx), fault %s, %llu bytes of output, %llu.%06llu s\n", question,
            interface_ending_name(answer->ending), answer->code, answer->code, interface_fault_name(answer->fault),
            answer->output_bytes, answer->microseconds / 1000000ULL, answer->microseconds % 1000000ULL);
     printf("%s", s_interface_ptx_output);

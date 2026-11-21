@@ -17,8 +17,8 @@
 //
 // The code stores a form cut at its parameters. A write of one appends its pieces with each argument between them
 
-// the folder of the rulesets: $CYCLE_RULESETS, else transpiler/lstar/protocol/table two folders above the folder of
-// this file in the tree of its build
+// the folder of the rulesets. It is $CYCLE_RULESETS where set. Otherwise it is src/cu/transpiler/lstar/protocol/table
+// two folders above the folder of this file, in the tree of its build
 std::string ruleset_folder(void)
 {
     const char *const named = getenv("CYCLE_RULESETS");
@@ -26,7 +26,7 @@ std::string ruleset_folder(void)
     {
         return std::string(named);
     }
-    return tree_folder_from(__FILE__, 2u, "transpiler/lstar/protocol/table");
+    return tree_folder_from(__FILE__, 2u, "src/cu/transpiler/lstar/protocol/table");
 }
 
 // the place of `word` among `count` names, or `count` where it is none of them

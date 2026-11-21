@@ -388,7 +388,7 @@ int flatten_set(const FlattenSetRequest *request)
             frames_done += ok ? 1ULL : 0ULL;
         }
         free(volume);
-        printf("  %-24s %4u frames, %8LLU bodies so far\n", names[sample], ok ? header[0] : 0u, bodies);
+        printf("  %-24s %4u frames, %8llu bodies so far\n", names[sample], ok ? header[0] : 0u, bodies);
         fflush(stdout);
     }
     const unsigned long long wall = engine_clock_microseconds() - began;

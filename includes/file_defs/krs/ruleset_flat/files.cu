@@ -9,7 +9,7 @@
 // machine file of the part, its .kdm and its .ksc are there
 static std::string ruleset_part_folder(void)
 {
-    return tree_folder_from(__FILE__, 4u, "transpiler/lstar/protocol/table");
+    return tree_folder_from(__FILE__, 4u, "src/cu/transpiler/lstar/protocol/table");
 }
 
 int ruleset_bytes_read(const std::string &path, std::string *text)

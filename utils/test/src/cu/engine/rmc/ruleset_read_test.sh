@@ -14,14 +14,16 @@ CODEGEN_CU="$TOP/src/cu/engine/rmc"
 CODEGEN_CU_2="$TOP/includes/parsers"
 source "$TOP/utils/maint/engine/build_stamp.sh"
 source "$TOP/includes/file_defs/file_defs.sh"
+source "$TOP/includes/exact_types/exact_types.sh"
 build_stamp ruleset_read_test
 
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$CODEGEN" -I "$CODEGEN_CU" -I "$CODEGEN_CU_2" "${FILE_DEFS_MMGR_FLAGS[@]}")
 BINARY="$OUT/ruleset_read_test"
 rm -f "$BINARY"
 OBJECTS=()
-# the formats and MMgr's line, as C: the ruleset reader reads a ruleset's .ksc as the run stores it (qry_member.h)
-for source in "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}"; do
+# the formats and MMgr's line, as C: the ruleset reader reads a ruleset's .ksc as the run stores it (qry_member.h).
+# The test is a program of the platform. It links the process stage, the pool, the system calls and the carcer
+for source in "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}"; do
     object="$OUT/$(basename "$source" .c)_rr.o"
     rm -f "$object"
     cc -std=c11 -O2 "${INCLUDES[@]}" -c "$source" -o "$object"
@@ -38,7 +40,7 @@ for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/../file_de
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
 done
-"$FILE_DEFS_CXX" -o "$BINARY" "${OBJECTS[@]}" -static
+"$FILE_DEFS_CXX" -o "$BINARY" "${OBJECTS[@]}" -static "${EXACT_TYPES_LIBRARIES[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: the test did not link"; exit 1; }
 
 "$BINARY" "$@"

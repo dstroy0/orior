@@ -50,7 +50,7 @@ esac
 rm -f "$BINARY"
 OBJECTS=()
 for source in "$MODULE"/max_tree_{build,nodes,pairs}.c \
-              "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" \
+              "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" "${FILE_DEFS_LINEA[@]}" \
               "$TEST"/max_tree_levels_test_{draw,agree}.c; do
     object="$OUT/$(basename "$source" .c)_test.$EXTENSION"
     rm -f "$object"

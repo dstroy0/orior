@@ -14,6 +14,8 @@
 QRY_SOURCE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 QRY_TOP="$(cd "$QRY_SOURCE/../../../../.." && pwd)"
 export QRY_TOP
+# the writer and the reader copy and compare through MMgr, whose sources the writer compiles beside them
+source "$QRY_TOP/includes/file_defs/file_defs.sh"
 
 qry_writer_built() {
     QRY_WRITER="$1/orior_qry_writer"
@@ -29,7 +31,8 @@ qry_writer_built() {
     done
     if [ "$stale" -eq 1 ]; then
         mkdir -p "$1"
-        cc -std=c11 -O2 -Wall -Wextra -o "$QRY_WRITER" "${sources[@]}" ||
+        cc -std=c11 -O2 -Wall -Wextra "${FILE_DEFS_MMGR_FLAGS[@]}" -o "$QRY_WRITER" "${sources[@]}" \
+            "${FILE_DEFS_LINEA[@]}" ||
             { echo "  build failed: orior_qry_writer did not compile"; exit 1; }
     fi
 }

@@ -114,7 +114,7 @@ void survey_report(void)
             continue;
         }
         const unsigned long long hundredths = (10000ULL * s_survey_rungs[band]) / s_survey_positive;
-        printf("      rung %-3u from %-12LLU %12LLU voxels  %3LLU.%02LLU%%\n", band, band_floor(band),
+        printf("      rung %-3u from %-12llu %12llu voxels  %3llu.%02llu%%\n", band, band_floor(band),
                s_survey_rungs[band], hundredths / 100ULL, hundredths % 100ULL);
     }
 }

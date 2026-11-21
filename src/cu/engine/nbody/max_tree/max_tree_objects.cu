@@ -420,6 +420,6 @@ extern "C" void max_tree_profile_report(void)
 {
     for (unsigned int stage = 0u; (g_max_tree_profile > 0) && (stage < MAX_TREE_STAGES); stage += 1u)
     {
-        printf("    %-10s %8LLU ms\n", MAX_TREE_STAGE_NAMES[stage], s_max_tree_stage_us[stage] / 1000ULL);
+        printf("    %-10s %8llu ms\n", MAX_TREE_STAGE_NAMES[stage], s_max_tree_stage_us[stage] / 1000ULL);
     }
 }

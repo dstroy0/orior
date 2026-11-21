@@ -11,6 +11,7 @@
 // lines a lane cannot be read through as it is, written and failing nothing
 #include "code_generator.h"
 #include "target_internal.h"
+#include "../../../../../../src/platform/platform.h"
 
 #include <stdio.h>
 
@@ -173,7 +174,7 @@ static void map_check(const char *label, const LanguageSet *from, const Language
     printf("  %s: %u relations of the map witnessed, %u open\n", label, count - open, open);
 }
 
-int main(int argc, char **argv)
+int program_main(int argc, char **argv)
 {
     printf("ruleset read test\n");
     if (argc > 1)

@@ -232,7 +232,7 @@ static void entropy_history_report_cloud(const EngineHistory *history)
     printf("    the cloud: each floor's quietest partner, the first floor its nulls are drawn from:\n      floor");
     for (unsigned long long floor = 0ULL; floor < windows; floor += 1ULL)
     {
-        printf(" %2LLU", floor);
+        printf(" %2llu", floor);
     }
     printf("\n      quiet");
     for (unsigned long long floor = 0ULL; floor < windows; floor += 1ULL)
@@ -244,7 +244,7 @@ static void entropy_history_report_cloud(const EngineHistory *history)
                                                     history->cloud[(size_t)((floor * windows) + quietest)]);
             quietest = better ? other : quietest;
         }
-        printf(" %2LLU", quietest);
+        printf(" %2llu", quietest);
     }
     printf("\n");
 }
@@ -257,7 +257,7 @@ extern "C" void entropy_history_report(const EngineHistory *history)
     printf("    flips per thousand transitions, bit by window:\n      bit");
     for (unsigned long long window = 0ULL; window < windows; window += 1ULL)
     {
-        printf(" %5LLU", window);
+        printf(" %5llu", window);
     }
     printf("\n");
     for (unsigned int bit = ENGINE_HISTORY_BITS; bit > 0u; bit -= 1u)
@@ -276,7 +276,7 @@ extern "C" void entropy_history_report(const EngineHistory *history)
             {
                 flips += (row[voxel] >> (4u * (bit - 1u))) & 0xFULL;
             }
-            printf(" %5LLU", (1000ULL * flips) / (taken * voxels));
+            printf(" %5llu", (1000ULL * flips) / (taken * voxels));
         }
         printf("\n");
     }

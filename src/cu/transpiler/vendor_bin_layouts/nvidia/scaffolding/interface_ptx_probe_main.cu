@@ -5,7 +5,7 @@
 #include "../../../../../platform/platform.h"
 #include "cellularum_laboro/cellularum_linea.h"
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     const char *const question = (count > 1) ? arguments[1] : "";
     int device = 0;
