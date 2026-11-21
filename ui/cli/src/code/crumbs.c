@@ -16,8 +16,8 @@
 #define CRUMBS_PAST (~0ULL)
 #define CRUMBS_DIGITS 24u
 
-// A crumb as it is in the cell: its type, where its text starts among the texts and its bytes, its depth, and for
-// a declaration its row of the outline
+// A crumb as it is in the cell. It holds its type, and where its text starts among the texts with its bytes. Last,
+// its depth, and for a declaration its row of the outline
 typedef struct
 {
     unsigned int type;
@@ -27,9 +27,9 @@ typedef struct
     unsigned int outline;
 } CrumbStored;
 
-// The crumbs: a movable cell sized to them, its rows and the texts after them at `text_at`, how many; the path read and
-// the lines from `from` to before `to` the declarations answer for, which a read inside on the same path leaves
-// located; and whether the crumbs show
+// The crumbs. They lie in a movable cell sized to them, the rows first and the texts after them at `text_at`, with
+// how many. Then the path read, and the lines from `from` to before `to` the declarations answer for. A read inside
+// those lines on the same path leaves the crumbs as they are. Last, whether the crumbs show
 typedef struct
 {
     const CarcerMovableEntry *cell;
@@ -71,9 +71,9 @@ EMBED_INLINE void crumbs_released(const CrumbsCtx *args)
     s_crumbs.path[0] = '\0';
 }
 
-// the declarations the line `line` is inside, innermost first, into `chain`, their count into `chain_count`, and
-// the lines they answer for into the crumbs' `from` and `to`: the last row whose line is at max the line by halving,
-// then each row before it located less deep than the last taken
+// The declarations the line `line` is inside, innermost first, into `chain`, and their count into `chain_count`. The
+// lines they answer for go into the crumbs' `from` and `to`. A binary search finds the last row whose line is at max
+// the line. Then each row before it that is less deep than the last taken comes next
 EMBED_INLINE void crumbs_chain_read(const CrumbsCtx *args)
 {
     const unsigned int rows = EMBED_CALL(cli_outline.rows, CliOutlineCfg, .at = 0u);
@@ -187,7 +187,7 @@ void cli_crumbs_read(const CliCrumbsCfg *args)
     }
     CrumbStored *const stored = (CrumbStored *)(void *)cell;
     char *const text = (char *)(cell + rows_bytes);
-    // the path copied whole, each separator ended, so each part is a text of its own
+    // the path copied whole, with a 0 at each separator, and each part is then a text of its own
     memor.cpy(&(MemoriaCfg){.dst = text, .src = args->path, .bytes = path_length});
     text[path_length] = '\0';
     unsigned int positioned = 0u;
@@ -281,8 +281,8 @@ typedef struct
     const char *command;
 } CrumbsMenuCtx;
 
-// the menu's rows, `count` of them, built as the menus' own, each running `command` with its word, their texts ended
-// in a cell of this call, which the menus copy: 1, or 0 where none is or the cell cannot be taken
+// The menu's rows, `count` of them, built as the menus' own, each running `command` with its word. Their texts, each
+// with a 0, lie in a cell of this call, which the menus copy. Returns 1, or 0 where none is or the cell is not there
 EMBED_INLINE int crumbs_menu_built(const CrumbsMenuCtx *args)
 {
     unsigned long long bytes = 0ULL;
@@ -307,10 +307,34 @@ EMBED_INLINE int crumbs_menu_built(const CrumbsMenuCtx *args)
         memor.cpy(&(MemoriaCfg){.dst = word_copy, .src = row->word_text, .bytes = row->word_length});
         word_copy[row->word_length] = '\0';
         used += row->label_length + row->word_length + 2ULL;
-        cli_menus_own_row(&(CliMenusCfg){.item = &(CliItem){label, args->command, "", word_copy, "", "", 0, 0, 0, 0, 0u}});
+        cli_menus_own_row(
+            &(CliMenusCfg){.item = &(CliItem){label, args->command, "", word_copy, "", "", 0, 0, 0, 0, 0u}});
     }
     g_cli_guard->persistent_buf_release(texts, g_cli_widgets_owner);
     return 1;
+}
+
+// A folder's entries as the menu's rows, at max CLI_MENU_OWN_ROWS of them. Each entry's name and path go into buffers
+// of this call, and the menu copies them into its own rows. `context` gets 1 where the menu has rows
+static void crumbs_folder_rows(const CliFilesListedEachCfg *each)
+{
+    int *const built = each->context;
+    const CliFilesListed *const listed = each->listed;
+    if (listed->count == 0u)
+    {
+        return;
+    }
+    cli_menus_own_begin();
+    for (unsigned int at = 0u; (at < listed->count) && (at < CLI_MENU_OWN_ROWS); at += 1u)
+    {
+        char name[CLI_PATH_MAX_LEN];
+        char path[CLI_PATH_MAX_LEN];
+        CliFileEntry entry;
+        (void)EMBED_CALL(cli_files_listed.at, CliFilesListedAtCfg, .listed = listed, .index = at, .entry_out = &entry,
+                         .name_out = name, .path_out = path);
+        cli_menus_own_row(&(CliMenusCfg){.item = &(CliItem){name, "file-open", "", path, "", "", 0, 0, 0, 0, 0u}});
+    }
+    *built = 1;
 }
 
 // the entries of the folder of the first `length` bytes of the path read, the top where 0, in the tree at `root`, as
@@ -322,30 +346,14 @@ EMBED_INLINE int crumbs_folder_menu(const CrumbsCtx *args)
     folder[args->at] = '\0';
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-    CliFileEntries *const entries = EMBED_CALL(cli_files_listing.entries_alloc, CliFilesEntriesCfg, .root = args->root,
-                                               .dir = folder, .owner = g_cli_widgets_owner, .err_msg = &err_msg);
-    if (entries == NULL)
-    {
-        return 0;
-    }
-    CrumbsMenuRow rows[CLI_MENU_OWN_ROWS];
-    unsigned int count = 0u;
-    for (unsigned int at = 0u; (at < entries->count) && (count < CLI_MENU_OWN_ROWS); at += 1u)
-    {
-        const CliFileEntry *const entry = &entries->entry[at];
-        rows[count] =
-            (CrumbsMenuRow){entry->name, cellul.len(&(CatenaFinitaCfg){.src = entry->name, .cap = CLI_PATH_MAX_LEN}),
-                            entry->path, cellul.len(&(CatenaFinitaCfg){.src = entry->path, .cap = CLI_PATH_MAX_LEN})};
-        count += 1u;
-    }
-    const int built =
-        EMBED_CALL(crumbs_menu_built, CrumbsMenuCtx, .rows = rows, .count = count, .command = "file-open");
-    g_cli_guard->persistent_buf_release(entries, g_cli_widgets_owner);
+    int built = 0;
+    (void)EMBED_CALL(cli_files_listing.entries_each, CliFilesEntriesCfg, .root = args->root, .dir = folder,
+                     .each = crumbs_folder_rows, .context = &built, .err_msg = &err_msg);
     return built;
 }
 
-// the declarations at the depth `depth` under the one the outline's row `at` is in, or at the top where it is
-// in none, as the menu's rows, each word its line
+// The declarations at the depth `depth` under the one the outline's row `at` is in, or at the top where it is in
+// none. They become the menu's rows, each word its line
 EMBED_INLINE int crumbs_symbol_menu(const CrumbsCtx *args)
 {
     const unsigned int rows = EMBED_CALL(cli_outline.rows, CliOutlineCfg, .at = 0u);
@@ -443,7 +451,7 @@ void cli_crumbs_displayed_set(const CliCrumbsCfg *args)
     {
         EMBED_CALL(crumbs_released, CrumbsCtx, .at = 0u);
     }
-    // the folder it is saved in and the error line, for the save alone
+    // the folder the save writes into and the error line, for the save alone
     char *const folder = g_cli_guard->temporary_buf_alloc(CLI_PATH_MAX_LEN + CLI_ERR_MSG_MAX_LEN, g_cli_widgets_owner);
     if (folder == NULL)
     {

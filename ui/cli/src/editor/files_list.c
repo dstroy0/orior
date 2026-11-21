@@ -14,9 +14,9 @@
 // the max entries a folder lists
 #define CLI_LIST_MAX 65536u
 
-// An entry of a folder: its name and path, places in the texts, whether it is a folder, whether the tree's ignore
-// files leave it out, whether it is an archive, which opens as a folder, and its name's own bytes in hex where they are
-// not UTF-8 by the archive's word
+// An entry of a folder. It holds its name and path as places in the texts, and whether it is a folder. Then whether
+// the tree's ignore files leave it out, and whether it is an archive, which opens as a folder. Last, its name's own
+// bytes in hex where the archive's word says they are not UTF-8
 typedef struct
 {
     unsigned int name;
@@ -28,8 +28,8 @@ typedef struct
     int has_raw;
 } CliEntry;
 
-// The entries of the folder being listed and their texts, in one cell at their max, and the folders a file the
-// patterns leave sits in, a list made of the files cellblock, under the lock
+// The entries of the folder in the listing now and their texts, in one cell at their max. Then the folders that hold
+// a file the patterns leave, a list made of the files cellblock, under the lock
 typedef struct
 {
     CliEntry *item;
@@ -165,8 +165,8 @@ EMBED_INLINE CliFileEntries *cli_entries_alloc(const FilesListCtx *args)
     return entries;
 }
 
-// each folder containing the file `path`, the path cut at one of its slashes: counted into `count`, with the bytes it
-// takes into `bytes`, where `counting`, else put among the listing's folders
+// Each folder that holds the file `path`, the path cut at one of its slashes. Where `counting`, each goes into
+// `count`, with the bytes it takes into `bytes`. Else each goes among the listing's folders
 EMBED_INLINE void cli_folders_of(const FilesListCtx *args)
 {
     const char *const file = args->path;
@@ -186,8 +186,8 @@ EMBED_INLINE void cli_folders_of(const FilesListCtx *args)
     }
 }
 
-// every folder of the view's files that contains a file the patterns leave, counted on a first pass, the containing
-// folders made at that size, put on a second, and sorted
+// Every folder of the view's files that holds a file the patterns leave. A first pass counts them, and the list of
+// folders comes at that size. A second pass puts them in, and a sort puts them in order
 EMBED_INLINE void cli_folders_collect(const FilesListCtx *args)
 {
     const char *root = args->root;
@@ -218,8 +218,8 @@ EMBED_INLINE void cli_folders_collect(const FilesListCtx *args)
     (void)EMBED_CALL(cli_files_bytes_internal.sort, CliFilesBytesCtx, .files = &s_listing->folders);
 }
 
-// A folder of the tree being listed: its path in the tree, git's view, and whether a pattern includes only what it
-// names
+// A folder of the tree in the listing now: its path in the tree, git's view, and whether a pattern includes only what
+// it names
 typedef struct
 {
     const char *root;
@@ -276,7 +276,7 @@ static void cli_listing_each(const CliEachNameIsFolderCfg *args)
                .ignored = ignored, .archive = archive, .raw = NULL);
 }
 
-// the listing given back, its containing folders with it, and the lock with it
+// the listing given back, the folders that hold its files with it, and the lock with it
 static void list_release(void)
 {
     EMBED_CALL(cli_files_bytes_internal.clear, CliFilesBytesCtx, .files = &s_listing->folders);
@@ -367,8 +367,91 @@ CliFileEntries *cli_files_entries_alloc(const CliFilesEntriesCfg *args)
     return entries;
 }
 
-// One folder the explorer listed: its path from the tree's top, the entry of its parent's listing that names it, empty
-// for the top folder; its entries as cli_files_entries_alloc read them; and whether it is open
+int cli_files_entries_each(const CliFilesEntriesCfg *args)
+{
+    CliFileEntries *const entries = cli_files_entries_alloc(&(CliFilesEntriesCfg){
+        .root = args->root, .dir = args->dir, .owner = g_cli_editor_owner, .err_msg = args->err_msg});
+    if (entries == NULL)
+    {
+        return 0;
+    }
+    // the entries lie first in the cell, and each name and path after them with its 0
+    const unsigned long long rows_bytes = (unsigned long long)entries->count * sizeof(CliFileListed);
+    unsigned long long text_bytes = 0ULL;
+    for (unsigned int at = 0u; at < entries->count; at += 1u)
+    {
+        text_bytes += cellul.len(&(CatenaFinitaCfg){.src = entries->entry[at].name, .cap = CLI_PATH_MAX_LEN}) +
+                      cellul.len(&(CatenaFinitaCfg){.src = entries->entry[at].path, .cap = CLI_PATH_MAX_LEN}) + 2ULL;
+    }
+    const CarcerMovableEntry *const cell =
+        (entries->count != 0u) ? g_cli_guard->movable_buf_alloc(rows_bytes + text_bytes, g_cli_editor_owner) : NULL;
+    if ((entries->count != 0u) && (cell == NULL))
+    {
+        g_cli_guard->persistent_buf_release(entries, g_cli_editor_owner);
+        mmgr_line_put(args->err_msg, "a folder's entries could not be taken");
+        return 0;
+    }
+    unsigned long long used = 0ULL;
+    for (unsigned int at = 0u; at < entries->count; at += 1u)
+    {
+        const CliFileEntry *const entry = &entries->entry[at];
+        const unsigned long long name =
+            cellul.len(&(CatenaFinitaCfg){.src = entry->name, .cap = CLI_PATH_MAX_LEN}) + 1ULL;
+        const unsigned long long path =
+            cellul.len(&(CatenaFinitaCfg){.src = entry->path, .cap = CLI_PATH_MAX_LEN}) + 1ULL;
+        const CliFileListed listed = {used, used + name, entry->dir, entry->ignored};
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            .cell = cell, .offset = (unsigned long long)at * sizeof(listed), .src = &listed, .bytes = sizeof(listed)});
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = cell, .offset = rows_bytes + used, .src = entry->name, .bytes = name});
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = cell, .offset = rows_bytes + used + name, .src = entry->path, .bytes = path});
+        used += name + path;
+    }
+    const CliFilesListed listed = {cell, entries->count, rows_bytes};
+    // the module lets its work go before the entries go to the caller
+    g_cli_guard->persistent_buf_release(entries, g_cli_editor_owner);
+    args->each(&(CliFilesListedEachCfg){.context = args->context, .listed = &listed});
+    if (cell != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(cell, g_cli_editor_owner);
+    }
+    return 1;
+}
+
+// the text at `at` of the listed cell read into `out`, CLI_PATH_MAX_LEN bytes, with a 0 after it
+EMBED_INLINE void listed_text_read(const CliFilesListed *listed, unsigned long long at, char *out)
+{
+    const unsigned long long length =
+        g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = listed->cell, .offset = listed->text_at + at});
+    const unsigned long long bytes = (length < CLI_PATH_MAX_LEN - 1ULL) ? length : CLI_PATH_MAX_LEN - 1ULL;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = listed->cell, .offset = listed->text_at + at, .dst = out, .bytes = bytes});
+    out[bytes] = '\0';
+}
+
+int cli_files_listed_at(const CliFilesListedAtCfg *args)
+{
+    const CliFilesListed *const listed = args->listed;
+    args->name_out[0] = '\0';
+    args->path_out[0] = '\0';
+    if ((listed->cell == NULL) || (args->index >= listed->count))
+    {
+        return 0;
+    }
+    CliFileListed one = {0ULL, 0ULL, 0, 0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = listed->cell,
+                                                            .offset = (unsigned long long)args->index * sizeof(one),
+                                                            .dst = &one,
+                                                            .bytes = sizeof(one)});
+    listed_text_read(listed, one.name_at, args->name_out);
+    listed_text_read(listed, one.path_at, args->path_out);
+    *args->entry_out = (CliFileEntry){args->name_out, args->path_out, one.dir, one.ignored};
+    return 1;
+}
+
+// One folder the explorer listed. It holds its path from the tree's top, and the entry of its parent's listing that
+// names it, empty for the top folder. Then its entries as cli_files_entries_alloc read them, and whether it is open
 struct FilesExplorerFolder
 {
     const char *dir;
@@ -376,13 +459,13 @@ struct FilesExplorerFolder
     int open;
 };
 
-// The explorer: the tree it lists; the folders listed, the top folder first, in a movable cell grown as folders are
-// listed, how many there are and the cell's capacity
+// The explorer. It holds the tree it lists, and the folders listed, the top folder first. They lie in a movable cell
+// that grows as the explorer lists more folders. Last, how many there are and the cell's capacity
 static const char *s_explorer_root;
 static const CarcerMovableEntry *s_explorer;
 static unsigned int s_explorer_folders;
 static unsigned int s_explorer_capacity;
-// no folder, where a folder is looked for by its path
+// no folder, where a search looks for a folder by its path
 #define FILES_EXPLORER_NONE 0xffffffffu
 // how many times the watch marked the explorer stale, counted on the watch's thread and read on the window's
 static embed_atomic_u32 s_explorer_stale;
@@ -417,9 +500,9 @@ static unsigned int explorer_folder(const FilesListCtx *args)
     return FILES_EXPLORER_NONE;
 }
 
-// the folder `dir` listed for the explorer, its path located as long as its parent's listing does, the folders' cell
-// grown to twice its capacity where it is full: the listing's place, or FILES_EXPLORER_NONE where it could not be
-// read or the cells refuse the growth
+// The folder `dir` listed for the explorer, its path valid while its parent's listing is. Where the folders' cell is
+// full, it grows to twice its capacity. Returns the listing's place, or FILES_EXPLORER_NONE where the read fails or
+// the cells refuse the growth
 static unsigned int explorer_list(const FilesListCtx *args)
 {
     if (s_explorer_root == NULL)
@@ -519,8 +602,8 @@ void cli_files_explorer_end(void)
     s_explorer_rows_stale = 0;
 }
 
-// counts the rows of the folder `folder`, at `folder_at`, and of the open folders under it into `*left`, `depth` deep,
-// and writes each row at its count into `rows` where `rows` is not NULL
+// counts the rows of the folder `folder`, at `folder_at`, and of the open folders under it into `*left`, `depth`
+// deep. Where `rows` is not NULL, it writes each row at its count into `rows`
 static void explorer_walk(const FilesListCtx *args)
 {
     for (unsigned int at = 0u; at < args->folder->entries->count; at += 1u)
@@ -554,8 +637,8 @@ static void explorer_walk(const FilesListCtx *args)
     }
 }
 
-// lays the rows again after the listing changes: one walk counts them, a cell of that count is taken, and a second walk
-// writes them. A refused cell leaves the rows stale, with none
+// lays the rows again after the listing changes. One walk counts them, the explorer takes a cell of that count, and a
+// second walk writes them. A refused cell leaves the rows stale, with none
 static void explorer_rows_lay(void)
 {
     if (!s_explorer_rows_stale)
@@ -639,7 +722,7 @@ int cli_files_explorer_open(const CliFilesExplorerCfg *args)
     return 0;
 }
 
-// the bytes the open folders' paths are copied into as the explorer lists again
+// the bytes that take a copy of the open folders' paths as the explorer lists again
 #define FILES_EXPLORER_OPEN_TEXT (1u << 20u)
 
 void cli_files_explorer_refresh(void)
@@ -663,7 +746,7 @@ void cli_files_explorer_refresh(void)
         if (folder.open && (length + 1ULL <= (unsigned long long)(FILES_EXPLORER_OPEN_TEXT - used)))
         {
             memor.cpy(&(MemoriaCfg){.dst = open + used, .src = dir, .bytes = length + 1ULL});
-            // a path that fits the bytes is counted by an unsigned int
+            // an unsigned int counts a path that fits the bytes
             used += (unsigned int)length + 1u;
             count += 1u;
         }
@@ -724,8 +807,8 @@ int cli_files_explorer_menu(const CliFilesExplorerCfg *args)
         // off the rows the pane's own, the list's Explorer popup
         return cli_menus_popup(&(CliMenusCfg){.title = "Explorer", .item_args = ""});
     }
-    // the rows the list's Files popup gives, each run with the row's path, which is in the listing while the menu
-    // is open; an open folder's first row closes it
+    // The rows the list's Files popup gives, each run with the row's path, which is in the listing while the menu
+    // is open. An open folder's first row closes it
     if (!cli_menus_popup(&(CliMenusCfg){.title = "Files", .item_args = row.path}))
     {
         return 0;

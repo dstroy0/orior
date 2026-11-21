@@ -125,25 +125,76 @@ typedef struct
     unsigned int count;
     CliFileEntry *entry;
 } CliFileEntries;
+// One entry of a folder in a movable cell of the files module. It holds the places of its name and its path among
+// the cell's text, whether it is a folder, and whether git ignores it
+typedef struct
+{
+    unsigned long long name_at;
+    unsigned long long path_at;
+    int dir;
+    int ignored;
+} CliFileListed;
+// A folder's entries in one movable cell of the files module, NULL where there are none. The `count` entries come
+// first, and their text starts at `text_at`, a 0 after each name and path
+typedef struct
+{
+    const CarcerMovableEntry *cell;
+    unsigned int count;
+    unsigned long long text_at;
+} CliFilesListed;
+// What a folder's listing passes to its callback: `context`, and the entries, valid for the call alone
+typedef struct
+{
+    void *context;
+    const CliFilesListed *listed;
+} CliFilesListedEachCfg;
 // The entries of the folder `dir` of `root`, the top folder where empty, less what the explorer's patterns hide. They
 // go in a cell of `owner`, folders first, then by name, case aside. Where a pattern includes only some names, a folder
 // shows while it holds a file included or a pattern includes it. Returns the cell, or NULL with why given
-// (files_list.c)
+// (files_list.c).
+//
+// The same entries in a movable cell of the files module go to `each` with `context`, and the module gives the cell
+// back before it returns. Returns 1, or 0 with why given, and nothing goes to `each`.
+//
+// The entry `index` of `listed` read into `entry_out`, its name into `name_out` and its path into `path_out`, each
+// CLI_PATH_MAX_LEN bytes. The entry's name and path point at those buffers. Returns 1, or 0 past the entries
 typedef struct
 {
     const char *root;
     const char *dir;
     const CellOwner *owner;
+    void (*each)(const CliFilesListedEachCfg *args);
+    void *context;
     VerbaLinea *err_msg;
 } CliFilesEntriesCfg;
+typedef struct
+{
+    const CliFilesListed *listed;
+    unsigned int index;
+    CliFileEntry *entry_out;
+    char *name_out;
+    char *path_out;
+} CliFilesListedAtCfg;
 CliFileEntries *cli_files_entries_alloc(const CliFilesEntriesCfg *args);
+int cli_files_entries_each(const CliFilesEntriesCfg *args);
+int cli_files_listed_at(const CliFilesListedAtCfg *args);
 typedef struct
 {
     CliFileEntries *(*entries_alloc)(const CliFilesEntriesCfg *args);
+    int (*entries_each)(const CliFilesEntriesCfg *args);
 } CliFilesListingNs;
-EMBED_TABLE_LAYOUT(CliFilesListingNs, entries_alloc);
+EMBED_TABLE_LAYOUT(CliFilesListingNs, entries_alloc, entries_each);
 EMBED_TABLE_STORAGE CliFilesListingNs cli_files_listing EMBED_UNUSED = {
     .entries_alloc = cli_files_entries_alloc,
+    .entries_each = cli_files_entries_each,
+};
+typedef struct
+{
+    int (*at)(const CliFilesListedAtCfg *args);
+} CliFilesListedNs;
+EMBED_TABLE_LAYOUT(CliFilesListedNs, at);
+EMBED_TABLE_STORAGE CliFilesListedNs cli_files_listed EMBED_UNUSED = {
+    .at = cli_files_listed_at,
 };
 
 // One row of the explorer. It holds the path from the tree's top and the name, valid while its folder's listing is.
