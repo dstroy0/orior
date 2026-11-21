@@ -22,9 +22,36 @@ anchors of the ladder. Three finite partial maps make the transform:
   R &: A \to \bigl(W_n \times W_n \rightharpoonup W_n\bigr).
 \end{align*}
 Here $W_n$ is the set of words of $n$ places, $\tau_L$ is the target table of $L$, $\alpha$ is the anchor column
-of the transpiler table, and $R_a$ is the relation of the anchor $a$. The meaning that the bridge gives a symbol
-$\sigma$ is the relation $R_{\alpha(\tau_L(\sigma))}$. The gsm of $\sigma$ is the list of cases of that relation in
-ladder.h.
+of the transpiler table, and $R_a$ is the relation of the anchor $a$.
+
+\begin{definition}
+A chart is a target table $\tau_L$. The atlas is the set of charts $\{\tau_L\}$ together with $\alpha$ and $R$.
+Every chart maps into the one set $B$, and $\alpha$ and $R$ carry $B$ to the one set of relations.
+\end{definition}
+
+The meaning that the atlas gives a symbol $\sigma$ is the relation $R_{\alpha(\tau_L(\sigma))}$. The gsm of
+$\sigma$ is the list of cases of that relation in ladder.h. A new language adds one chart, and every chart it meets
+shares the same relations.
+
+\begin{definition}
+The multi-cardinality of the atlas is the path
+\[
+  \text{any} \;\to\; \text{atlas} \;\to\; \text{gsm} \;\to\; \text{atlas} \;\to\; \text{any}.
+\]
+A symbol of any language enters the atlas through its chart, projects to gsm, and leaves the atlas through the
+chart of any language.
+\end{definition}
+
+The path through gsm is the matrix projection of the title. The projection has four cardinalities.
+\begin{itemize}
+  \item 1:1. One symbol of one language projects to one symbol of another, as C's $+$ to Python's masked $+$.
+  \item 1:many. One symbol projects to a symbol of each of many languages, each through its own chart.
+  \item many:many. Many symbols reach one relation and leave as many symbols. C's $+$ and $+{=}$ reach add, and
+        add leaves as Python's $+$ and $+{=}$.
+  \item n:many. The charts of $n$ languages project through the one gsm to the charts of many languages.
+\end{itemize}
+One term can be in more than one category. The atlas keeps the intent of a term until it transcribes the term's
+meaning to gsm. Each lift is a projection in and a projection out, whatever its cardinality.
 
 A lift of $\sigma \in \Sigma_L$ into a second language $M$ is a symbol $\sigma' \in \Sigma_M$ with
 $\tau_M(\sigma') = \tau_L(\sigma)$. Chapter~\ref{ch:targets} shows that a lift keeps the meaning of $\sigma$
