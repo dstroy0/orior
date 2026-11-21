@@ -94,7 +94,7 @@ GAM-2-002	live	examples/game_theory/2_partition/board_width.py
 GAM-3-001	live	examples/game_theory/3_reference/what_random_play_reaches.py
 GAM-3-002	live	examples/game_theory/3_reference/position_null.py
 GAM-4-001	live	examples/game_theory/4_measure/entropy_of_the_outcome_given_the_move.py
-GAM-4-002	live	examples/game_theory/4_measure/grundy_period.py
+GAM-4-002	live	examples/game_theory/4_measure/grundy_period.cu
 GAM-4-003	live	examples/game_theory/4_measure/rules_and_play.py
 GAM-5-001	live	examples/game_theory/5_sift/survivorship_changes_the_question.py
 GAM-6-001	live	examples/game_theory/6_oracle/against_published_values.py

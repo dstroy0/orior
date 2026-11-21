@@ -14,7 +14,7 @@ that carry their own answer key, and show what pruning the opponent's replies do
 | `3_reference` | `what_random_play_reaches.py`              | what the same position returns when nobody is trying                       |
 | `3_reference` | `position_null.py`                         | the departure is the flip rule, not the board                              |
 | `4_measure`   | `entropy_of_the_outcome_given_the_move.py` | H(Y\|X), and how many bits the choice of move is worth                     |
-| `4_measure`   | `grundy_period.py`                         | 383 of 383 readable subtraction games return their exact Grundy period     |
+| `4_measure`   | `grundy_period.cu`                         | 383 of 383 readable subtraction games return their exact Grundy period     |
 | `4_measure`   | `rules_and_play.py`                        | the departure reads the rules and does not order the players               |
 | `5_sift`      | `survivorship_changes_the_question.py`     | what pruning the opponent's branches does to the quantity being reported   |
 | `6_oracle`    | `against_published_values.py`              | whether any of it matches what somebody else published                     |
@@ -190,6 +190,7 @@ python examples/game_theory/6_oracle/against_published_values.py
 python examples/game_theory/5_sift/survivorship_changes_the_question.py
 python examples/game_theory/2_partition/what_the_branching_costs.py 5
 python examples/game_theory/3_reference/what_random_play_reaches.py 20000
+bash examples/game_theory/build_game_theory.sh grundy_period 10 4
 ```
 
 Run stage six first -- it is the positive control, it takes a few seconds, and no other stage
