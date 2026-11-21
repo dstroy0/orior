@@ -81,7 +81,11 @@ static int sass_loop_candidate(const SassForm *form, char *text, size_t room)
 {
     SassInstructionParts base;
     sass_instruction_read(form->text, &base);
-    size_t at = (size_t)snprintf(text, room, "@P0 %s", form->operation);
+    VerbaLinea formed_line_1 = mmgr_line_over(text, room);
+    mmgr_line_put(&formed_line_1, "@P0 ");
+    mmgr_line_put(&formed_line_1, form->operation);
+    (void)mmgr_line_finish(&formed_line_1);
+    size_t at = (size_t)(int)formed_line_1.at;
     for (unsigned int place = 0u; (place < form->operands) && (at < room); place += 1u)
     {
         if (form->type[place] == SASS_OPERAND_UNKNOWN)
@@ -90,7 +94,11 @@ static int sass_loop_candidate(const SassForm *form, char *text, size_t room)
         }
         char operand[SASS_OPERAND_TEXT];
         sass_loop_operand(base.operand[place], form->type[place], form->mark[place], operand, sizeof(operand));
-        at += (size_t)snprintf(text + at, room - at, "%s%s", (place == 0u) ? " " : ", ", operand);
+        VerbaLinea formed_line_2 = mmgr_line_over(text + at, room - at);
+        mmgr_line_put(&formed_line_2, (place == 0u) ? " " : ", ");
+        mmgr_line_put(&formed_line_2, operand);
+        (void)mmgr_line_finish(&formed_line_2);
+        at += (size_t)(int)formed_line_2.at;
     }
     return at < room;
 }

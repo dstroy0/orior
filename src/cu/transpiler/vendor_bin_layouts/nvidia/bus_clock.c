@@ -133,7 +133,12 @@ int program_main(int count, char **words)
     }
     QryShared *const run = qry_member_run();
     char plan[64];
-    const int plan_length = snprintf(plan, sizeof(plan), "clock %llu\n", address_given);
+    VerbaLinea formed_line_1 = mmgr_line_over(plan, sizeof(plan));
+    mmgr_line_put(&formed_line_1, "clock ");
+    mmgr_line_decimal(&formed_line_1, address_given, 1u);
+    mmgr_line_put(&formed_line_1, "\n");
+    (void)mmgr_line_finish(&formed_line_1);
+    const int plan_length = (int)formed_line_1.at;
     if ((plan_length > 0) && (run != NULL))
     {
         qry_member_append("plan.txt", plan, (unsigned long long)plan_length, QRY_ORDINARY);
@@ -168,8 +173,15 @@ int program_main(int count, char **words)
             }
         }
         const unsigned int advanced = query_advanced(first, then);
-        const int length =
-            snprintf(s_lines + value_read, sizeof(s_lines) - value_read, "%x %u %u\n", offset, advanced, then - first);
+        VerbaLinea formed_line_2 = mmgr_line_over(s_lines + value_read, sizeof(s_lines) - value_read);
+        mmgr_line_hex(&formed_line_2, offset, 1u);
+        mmgr_line_put(&formed_line_2, " ");
+        mmgr_line_decimal(&formed_line_2, advanced, 1u);
+        mmgr_line_put(&formed_line_2, " ");
+        mmgr_line_decimal(&formed_line_2, then - first, 1u);
+        mmgr_line_put(&formed_line_2, "\n");
+        (void)mmgr_line_finish(&formed_line_2);
+        const int length = (int)formed_line_2.at;
         // a line of three short numbers fits what is left of the room while the words are bounded
         value_read += (length > 0) ? (unsigned long long)length : 0ULL;
         if (advanced && !found)

@@ -514,9 +514,16 @@ int program_main(int count, char **words)
     }
     const unsigned long long readings_count = accumulated_calls + atomic_load(&pool.calls);
     char head[256];
-    const int head_length =
-        snprintf(head, sizeof(head), "questions read: %zu in %llu readings; blocked from the part: %zu\n",
-                 question_count, readings_count, gated_count);
+    VerbaLinea formed_line_1 = mmgr_line_over(head, sizeof(head));
+    mmgr_line_put(&formed_line_1, "questions read: ");
+    mmgr_line_decimal(&formed_line_1, question_count, 1u);
+    mmgr_line_put(&formed_line_1, " in ");
+    mmgr_line_decimal(&formed_line_1, readings_count, 1u);
+    mmgr_line_put(&formed_line_1, " readings; blocked from the part: ");
+    mmgr_line_decimal(&formed_line_1, gated_count, 1u);
+    mmgr_line_put(&formed_line_1, "\n");
+    (void)mmgr_line_finish(&formed_line_1);
+    const int head_length = (int)formed_line_1.at;
     unsigned char *whole_report = NULL;
     size_t whole_report_size = 0u;
     size_t whole_report_room = 0u;

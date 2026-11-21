@@ -222,7 +222,12 @@ static int frame_row_named(const KrsFrameRow *row, const KrsFrameForm *form, con
             {
                 return 0;
             }
-            at += (size_t)snprintf(text + at, sizeof(text) - at, "{%s}", parameter[named]);
+            VerbaLinea formed_line_1 = mmgr_line_over(text + at, sizeof(text) - at);
+            mmgr_line_put(&formed_line_1, "{");
+            mmgr_line_put(&formed_line_1, parameter[named]);
+            mmgr_line_put(&formed_line_1, "}");
+            (void)mmgr_line_finish(&formed_line_1);
+            at += (size_t)(int)formed_line_1.at;
             walk += length;
             continue;
         }
@@ -241,16 +246,29 @@ static int frame_row_named(const KrsFrameRow *row, const KrsFrameForm *form, con
     }
     // The line is the form's name, its parameters, and the text as the ruleset reads a form's, with \n at its end.
     size_t used = 0u;
-    int added = snprintf(line, room, "form %s", row->form);
+    VerbaLinea formed_line_2 = mmgr_line_over(line, room);
+    mmgr_line_put(&formed_line_2, "form ");
+    mmgr_line_put(&formed_line_2, row->form);
+    (void)mmgr_line_finish(&formed_line_2);
+    int added = (int)formed_line_2.at;
     used += (added > 0) ? (size_t)added : room;
     for (unsigned int each = 0u; (each < parameters) && (used < room); each += 1u)
     {
-        added = snprintf(line + used, room - used, " %s", parameter[each]);
+        VerbaLinea formed_line_3 = mmgr_line_over(line + used, room - used);
+        mmgr_line_put(&formed_line_3, " ");
+        mmgr_line_put(&formed_line_3, parameter[each]);
+        (void)mmgr_line_finish(&formed_line_3);
+        added = (int)formed_line_3.at;
         used += (added > 0) ? (size_t)added : room;
     }
     if (used < room)
     {
-        added = snprintf(line + used, room - used, " = %s\\n\n", text);
+        VerbaLinea formed_line_4 = mmgr_line_over(line + used, room - used);
+        mmgr_line_put(&formed_line_4, " = ");
+        mmgr_line_put(&formed_line_4, text);
+        mmgr_line_put(&formed_line_4, "\\n\n");
+        (void)mmgr_line_finish(&formed_line_4);
+        added = (int)formed_line_4.at;
         used += (added > 0) ? (size_t)added : room;
     }
     return (used < room) ? 1 : 0;

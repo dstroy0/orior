@@ -40,7 +40,10 @@ static int writings_chain_read(const char **walk, WritingsNode *nodes, unsigned 
         {
             if (mmgr_text_equal(name, leaves[at][0], PLATFORM_TEXT_TO_TERMINATOR))
             {
-                return snprintf(operand, room, "%s", leaves[at][1]) < (int)room;
+                VerbaLinea formed_line_1 = mmgr_line_over(operand, room);
+                mmgr_line_put(&formed_line_1, leaves[at][1]);
+                (void)mmgr_line_finish(&formed_line_1);
+                return (int)formed_line_1.at < (int)room;
             }
         }
         return 0;
@@ -110,7 +113,10 @@ static int writings_put(const char *writing, const char *to, const char *left, c
         }
         if (which < 3u)
         {
-            at += (size_t)snprintf(&out[at], room - at, "%s", into[which]);
+            VerbaLinea formed_line_2 = mmgr_line_over(&out[at], room - at);
+            mmgr_line_put(&formed_line_2, into[which]);
+            (void)mmgr_line_finish(&formed_line_2);
+            at += (size_t)(int)formed_line_2.at;
             walk += mmgr_text_length(from[which], PLATFORM_TEXT_TO_TERMINATOR);
             continue;
         }

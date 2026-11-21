@@ -245,7 +245,11 @@ static int cubin_section_written(const char *listing, CubinSection *section, uns
                 continue;
             }
             char offset[32];
-            const int written = snprintf(offset, sizeof(offset), "0x%llx", section->labels[found].offset);
+            VerbaLinea formed_line_1 = mmgr_line_over(offset, sizeof(offset));
+            mmgr_line_put(&formed_line_1, "0x");
+            mmgr_line_hex(&formed_line_1, section->labels[found].offset, 1u);
+            (void)mmgr_line_finish(&formed_line_1);
+            const int written = (int)formed_line_1.at;
             written_ok = (written > 0) && cubin_text_added(cut, offset, (size_t)written);
             at = (size_t)(close - listing) + 1u;
         }

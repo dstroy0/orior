@@ -34,6 +34,7 @@
  */
 
 #include "orior.h"
+#include "../../../../platform/platform.h"
 
 #include <cuda_runtime.h>
 
@@ -92,8 +93,17 @@ extern "C" int orior_steer_cuda_describe(char *text, size_t capacity)
     {
         return 0;
     }
-    (void)snprintf(text, capacity, "%s, compute %d.%d, %d SMs", properties.name, properties.major, properties.minor,
-                   properties.multiProcessorCount);
+    VerbaLinea formed_line_1 = mmgr_line_over(text, capacity);
+    mmgr_line_put(&formed_line_1, properties.name);
+    mmgr_line_put(&formed_line_1, ", compute ");
+    mmgr_line_decimal_signed(&formed_line_1, properties.major);
+    mmgr_line_put(&formed_line_1, ".");
+    mmgr_line_decimal_signed(&formed_line_1, properties.minor);
+    mmgr_line_put(&formed_line_1, ", ");
+    mmgr_line_decimal_signed(&formed_line_1, properties.multiProcessorCount);
+    mmgr_line_put(&formed_line_1, " SMs");
+    (void)mmgr_line_finish(&formed_line_1);
+    (void)(int)formed_line_1.at;
     return 1;
 }
 
@@ -123,7 +133,7 @@ static size_t scan_host_fallback(const unsigned char *corpus, size_t alignments,
 }
 
 extern "C" size_t orior_steer_truthy_after_cuda(const uint8_t *corpus, size_t alignments, const uint8_t *alive,
-                                                 uint8_t wanted, size_t offset)
+                                                uint8_t wanted, size_t offset)
 {
     /* Counted before the argument check. A caller passing nothing still records that this arm was
      * the one requested. The claim the counters carry is which arm RAN and not what it returned. */
@@ -162,7 +172,7 @@ extern "C" size_t orior_steer_truthy_after_cuda(const uint8_t *corpus, size_t al
         const unsigned int blocks =
             (unsigned int)((alignments + (size_t)ORIOR_STEER_GPU_BLOCK - 1u) / (size_t)ORIOR_STEER_GPU_BLOCK);
         scan_kernel<<<blocks, ORIOR_STEER_GPU_BLOCK>>>(device_corpus, alignments, device_alive, (unsigned char)wanted,
-                                                        offset, device_located);
+                                                       offset, device_located);
         if ((cudaGetLastError() != cudaSuccess) || (cudaDeviceSynchronize() != cudaSuccess))
         {
             goto done;

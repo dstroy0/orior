@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // zarr_chunks.c: checksums, keys, codecs and placing a chunk
 #include "zarr_internal.h"
+#include "../../../src/platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 static unsigned int zarr_crc32c_step(unsigned int crc, unsigned int byte)
@@ -73,7 +74,11 @@ int zarr_reserve(unsigned char **buffer, unsigned long long *capacity, unsigned 
 int zarr_key(const ZarrLayout *layout, const char *root, const unsigned long long *position, unsigned int rank,
              char *path)
 {
-    int written = snprintf(path, ZARR_PATH_CAPACITY, "%s/", root);
+    VerbaLinea formed_line_1 = mmgr_line_over(path, ZARR_PATH_CAPACITY);
+    mmgr_line_put(&formed_line_1, root);
+    mmgr_line_put(&formed_line_1, "/");
+    (void)mmgr_line_finish(&formed_line_1);
+    int written = (int)formed_line_1.at;
     if ((written < 0) || ((unsigned int)written >= ZARR_PATH_CAPACITY))
     {
         return 0;
@@ -82,7 +87,10 @@ int zarr_key(const ZarrLayout *layout, const char *root, const unsigned long lon
     const char separator = (layout->format == ZARR_FORMAT_N5) ? '/' : layout->separator;
     if (layout->prefixed != 0u)
     {
-        written = snprintf(&path[at], ZARR_PATH_CAPACITY - at, "c");
+        VerbaLinea formed_line_2 = mmgr_line_over(&path[at], ZARR_PATH_CAPACITY - at);
+        mmgr_line_put(&formed_line_2, "c");
+        (void)mmgr_line_finish(&formed_line_2);
+        written = (int)formed_line_2.at;
         at += (written > 0) ? (size_t)written : 0u;
     }
     for (unsigned int axis = 0u; axis < rank; axis += 1u)
@@ -99,7 +107,10 @@ int zarr_key(const ZarrLayout *layout, const char *root, const unsigned long lon
     }
     if ((rank == 0u) && (layout->prefixed == 0u))
     {
-        written = snprintf(&path[at], ZARR_PATH_CAPACITY - at, "0");
+        VerbaLinea formed_line_3 = mmgr_line_over(&path[at], ZARR_PATH_CAPACITY - at);
+        mmgr_line_put(&formed_line_3, "0");
+        (void)mmgr_line_finish(&formed_line_3);
+        written = (int)formed_line_3.at;
         at += (written > 0) ? (size_t)written : 0u;
     }
     return at < ZARR_PATH_CAPACITY;

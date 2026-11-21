@@ -26,7 +26,10 @@ static int sim_job_daemon(char *path, size_t capacity)
     const char *const named = getenv("TESSERA_DAEMON");
     if ((named != NULL) && (named[0] != '\0'))
     {
-        const int written = snprintf(path, capacity, "%s", named);
+        VerbaLinea formed_line_1 = mmgr_line_over(path, capacity);
+        mmgr_line_put(&formed_line_1, named);
+        (void)mmgr_line_finish(&formed_line_1);
+        const int written = (int)formed_line_1.at;
         // a non-negative length is compared whole against the capacity
         return (written > 0) && ((size_t)written < capacity);
     }

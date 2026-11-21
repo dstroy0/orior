@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // hdf5_locate.c: finding a dataset, the survey, and the checks on it
 #include "hdf5_internal.h"
+#include "../../../src/platform/platform.h"
 #include "../../../src/cu/engine/engine_note.h"
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
@@ -230,7 +231,11 @@ int hdf5_locate(Hdf5File *file, const char *member, unsigned long long *address)
         {
             if (file->reason[0u] == '\0')
             {
-                (void)snprintf(file->reason, sizeof(file->reason), "no member named %s", member);
+                VerbaLinea formed_line_1 = mmgr_line_over(file->reason, sizeof(file->reason));
+                mmgr_line_put(&formed_line_1, "no member named ");
+                mmgr_line_put(&formed_line_1, member);
+                (void)mmgr_line_finish(&formed_line_1);
+                (void)(int)formed_line_1.at;
             }
             return 0;
         }

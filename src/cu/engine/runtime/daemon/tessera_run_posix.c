@@ -30,7 +30,10 @@ int run_cpu(const RunChild *child, unsigned long long *microseconds)
 int run_processors_named(unsigned long long processors)
 {
     char text[24];
-    const int written = snprintf(text, sizeof(text), "%llu", processors);
+    VerbaLinea formed_line_1 = mmgr_line_over(text, sizeof(text));
+    mmgr_line_decimal(&formed_line_1, processors, 1u);
+    (void)mmgr_line_finish(&formed_line_1);
+    const int written = (int)formed_line_1.at;
     return (written > 0) && (setenv("TESSERA_RUN_PROCESSORS", text, 1) == 0);
 }
 

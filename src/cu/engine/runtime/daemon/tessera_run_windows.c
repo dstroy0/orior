@@ -19,8 +19,7 @@ static char *run_command_line(const char *program, char *const *words, int count
     {
         capacity += (2u * mmgr_text_length(words[at], PLATFORM_TEXT_TO_TERMINATOR)) + 3u;
     }
-    char *const line =
-        (char *)malloc(capacity);
+    char *const line = (char *)malloc(capacity);
     if (line == NULL)
     {
         return NULL;
@@ -120,7 +119,13 @@ int run_mounted_path(const char *path, char *mounted, size_t capacity)
     }
     // a capital character's lower case is the same character 32 above it, still a char
     const char drive = upper ? (char)(path[0] + ('a' - 'A')) : path[0];
-    const int written = snprintf(mounted, capacity, "/mnt/%c/%s", drive, path + 3);
+    VerbaLinea formed_line_1 = mmgr_line_over(mounted, capacity);
+    mmgr_line_put(&formed_line_1, "/mnt/");
+    mmgr_line_ch(&formed_line_1, (char)(drive));
+    mmgr_line_put(&formed_line_1, "/");
+    mmgr_line_put(&formed_line_1, path + 3);
+    (void)mmgr_line_finish(&formed_line_1);
+    const int written = (int)formed_line_1.at;
     // a non-negative length is compared whole against the capacity
     if ((written <= 0) || ((size_t)written >= capacity))
     {
@@ -139,7 +144,10 @@ int run_wsl_program(char *mounted, size_t capacity)
     const char *const named = getenv("TESSERA_RUN_WSL");
     if ((named != NULL) && (named[0] != '\0'))
     {
-        const int written = snprintf(mounted, capacity, "%s", named);
+        VerbaLinea formed_line_2 = mmgr_line_over(mounted, capacity);
+        mmgr_line_put(&formed_line_2, named);
+        (void)mmgr_line_finish(&formed_line_2);
+        const int written = (int)formed_line_2.at;
         // a non-negative length is compared whole against the capacity
         return (written > 0) && ((size_t)written < capacity);
     }
@@ -157,7 +165,10 @@ int run_wsl_program(char *mounted, size_t capacity)
 int run_processors_named(unsigned long long processors)
 {
     char text[24];
-    const int written = snprintf(text, sizeof(text), "%llu", processors);
+    VerbaLinea formed_line_3 = mmgr_line_over(text, sizeof(text));
+    mmgr_line_decimal(&formed_line_3, processors, 1u);
+    (void)mmgr_line_finish(&formed_line_3);
+    const int written = (int)formed_line_3.at;
     return (written > 0) && (SetEnvironmentVariableA("TESSERA_RUN_PROCESSORS", text) != 0);
 }
 

@@ -178,11 +178,19 @@ static int unprinted_operand(const char *base, unsigned int type, unsigned int m
     case SASS_OPERAND_REGISTER:
         if ((place != 0u) && (mmgr_text_starts(base, "RZ", PLATFORM_TEXT_TO_TERMINATOR)))
         {
-            return snprintf(operand, room, "%s%s", displayed, base) < (int)room;
+            VerbaLinea formed_line_1 = mmgr_line_over(operand, room);
+            mmgr_line_put(&formed_line_1, displayed);
+            mmgr_line_put(&formed_line_1, base);
+            (void)mmgr_line_finish(&formed_line_1);
+            return (int)formed_line_1.at < (int)room;
         }
         *reads += (place != 0u) ? 1u : 0u;
-        return snprintf(operand, room, "%s%s%s", displayed,
-                        (place == 0u) ? "R8" : (((*reads % 2u) == 1u) ? "R0" : "R6"), after) < (int)room;
+        VerbaLinea formed_line_2 = mmgr_line_over(operand, room);
+        mmgr_line_put(&formed_line_2, displayed);
+        mmgr_line_put(&formed_line_2, (place == 0u) ? "R8" : (((*reads % 2u) == 1u) ? "R0" : "R6"));
+        mmgr_line_put(&formed_line_2, after);
+        (void)mmgr_line_finish(&formed_line_2);
+        return (int)formed_line_2.at < (int)room;
     case SASS_OPERAND_PREDICATE:
         return snprintf(operand, room, "%s%s", displayed,
                         (place == 0u)
@@ -219,7 +227,10 @@ static int unprinted_form_text(const SassForm *form, char *text, size_t room, co
     }
     SassInstructionParts base;
     sass_instruction_read(form->text, &base);
-    size_t at = (size_t)snprintf(text, room, "%s", form->operation);
+    VerbaLinea formed_line_3 = mmgr_line_over(text, room);
+    mmgr_line_put(&formed_line_3, form->operation);
+    (void)mmgr_line_finish(&formed_line_3);
+    size_t at = (size_t)(int)formed_line_3.at;
     unsigned int reads = 0u;
     for (unsigned int place = 0u; place < form->operands; place += 1u)
     {
@@ -230,7 +241,11 @@ static int unprinted_form_text(const SassForm *form, char *text, size_t room, co
             *why = "an operand is an address, a label or a type the question does not fill";
             return 0;
         }
-        at += (size_t)snprintf(text + at, (at < room) ? (room - at) : 0u, "%s%s", (place == 0u) ? " " : ", ", operand);
+        VerbaLinea formed_line_4 = mmgr_line_over(text + at, (at < room) ? (room - at) : 0u);
+        mmgr_line_put(&formed_line_4, (place == 0u) ? " " : ", ");
+        mmgr_line_put(&formed_line_4, operand);
+        (void)mmgr_line_finish(&formed_line_4);
+        at += (size_t)(int)formed_line_4.at;
     }
     return at < room;
 }
@@ -240,7 +255,10 @@ static int unprinted_form_text(const SassForm *form, char *text, size_t room, co
 // into R7, which the kernel stores as the first word, and each copy past it stores its R8 as a word of its own
 static int unprinted_form_lines(const char *instruction, unsigned int result, char *lines, size_t room)
 {
-    size_t at = (size_t)snprintf(lines, room, "IMAD.MOV.U32 R6, RZ, RZ, R7\n");
+    VerbaLinea formed_line_5 = mmgr_line_over(lines, room);
+    mmgr_line_put(&formed_line_5, "IMAD.MOV.U32 R6, RZ, RZ, R7\n");
+    (void)mmgr_line_finish(&formed_line_5);
+    size_t at = (size_t)(int)formed_line_5.at;
     for (unsigned int copy = 0u; (copy < UNPRINTED_COPIES) && (at < room); copy += 1u)
     {
         const char *const moved = (result == SASS_OPERAND_PREDICATE) ? "SEL R8, R0, RZ, P0\n"
@@ -261,8 +279,15 @@ static int unprinted_form_lines(const char *instruction, unsigned int result, ch
             mmgr_line_put(&buffer_line, "], R8");
             (void)mmgr_line_finish(&buffer_line);
         }
-        at += (size_t)snprintf(lines + at, room - at, "%s%s\n%s%s%s", UNPRINTED_PREDICATES, instruction, moved,
-                               field_text, (copy + 1u < UNPRINTED_COPIES) ? "\n" : "");
+        VerbaLinea formed_line_6 = mmgr_line_over(lines + at, room - at);
+        mmgr_line_put(&formed_line_6, UNPRINTED_PREDICATES);
+        mmgr_line_put(&formed_line_6, instruction);
+        mmgr_line_put(&formed_line_6, "\n");
+        mmgr_line_put(&formed_line_6, moved);
+        mmgr_line_put(&formed_line_6, field_text);
+        mmgr_line_put(&formed_line_6, (copy + 1u < UNPRINTED_COPIES) ? "\n" : "");
+        (void)mmgr_line_finish(&formed_line_6);
+        at += (size_t)(int)formed_line_6.at;
     }
     return at < room;
 }
@@ -286,7 +311,10 @@ static int unprinted_memory_text(const SassForm *form, char *text, size_t room, 
 {
     SassInstructionParts base;
     sass_instruction_read(form->text, &base);
-    size_t at = (size_t)snprintf(text, room, "%s", form->operation);
+    VerbaLinea formed_line_7 = mmgr_line_over(text, room);
+    mmgr_line_put(&formed_line_7, form->operation);
+    (void)mmgr_line_finish(&formed_line_7);
+    size_t at = (size_t)(int)formed_line_7.at;
     int after = 0;
     unsigned int reads = 0u;
     for (unsigned int place = 0u; place < form->operands; place += 1u)
@@ -315,7 +343,11 @@ static int unprinted_memory_text(const SassForm *form, char *text, size_t room, 
             *why = "an operand beside its address is a type the memory question does not fill";
             return 0;
         }
-        at += (size_t)snprintf(text + at, (at < room) ? (room - at) : 0u, "%s%s", (place == 0u) ? " " : ", ", operand);
+        VerbaLinea formed_line_8 = mmgr_line_over(text + at, (at < room) ? (room - at) : 0u);
+        mmgr_line_put(&formed_line_8, (place == 0u) ? " " : ", ");
+        mmgr_line_put(&formed_line_8, operand);
+        (void)mmgr_line_finish(&formed_line_8);
+        at += (size_t)(int)formed_line_8.at;
     }
     return at < room;
 }

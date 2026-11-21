@@ -200,7 +200,10 @@ static int writings_fill(const char *text, const char *name, const char *put, ch
     {
         if (strncmp(walk, brace, mmgr_text_length(brace, PLATFORM_TEXT_TO_TERMINATOR)) == 0)
         {
-            at += (size_t)snprintf(&out[at], room - at, "%s", put);
+            VerbaLinea formed_line_1 = mmgr_line_over(&out[at], room - at);
+            mmgr_line_put(&formed_line_1, put);
+            (void)mmgr_line_finish(&formed_line_1);
+            at += (size_t)(int)formed_line_1.at;
             walk += mmgr_text_length(brace, PLATFORM_TEXT_TO_TERMINATOR);
             continue;
         }

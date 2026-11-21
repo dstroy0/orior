@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_daemon_state.c: the daemon's lock, clocks, state file, history and tickets
 #include "tessera_daemon_internal.h"
+#include "../../../../platform/platform.h"
 #include "../../engine_note.h"
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
@@ -301,8 +302,12 @@ static int daemon_ticket_path(unsigned long long identity, const TesseraPeer *pe
     {
         return 0;
     }
-    const int written =
-        snprintf(path, ENGINE_PATH_CAPACITY, "%s%c%s", folder, TESSERA_DAEMON_SEPARATOR, s_daemon_ticket);
+    VerbaLinea formed_line_1 = mmgr_line_over(path, ENGINE_PATH_CAPACITY);
+    mmgr_line_put(&formed_line_1, folder);
+    mmgr_line_ch(&formed_line_1, (char)(TESSERA_DAEMON_SEPARATOR));
+    mmgr_line_put(&formed_line_1, s_daemon_ticket);
+    (void)mmgr_line_finish(&formed_line_1);
+    const int written = (int)formed_line_1.at;
     // a non-negative length is compared whole against the capacity
     return (written >= 0) && ((unsigned int)written < ENGINE_PATH_CAPACITY);
 }
@@ -353,11 +358,28 @@ int daemon_ticket_write(unsigned long long identity, const TesseraPeer *peer, un
         mmgr_line_hex(&buffer_line, peer->signum.bytes[byte], 2u);
         (void)mmgr_line_finish(&buffer_line);
     }
-    const int written =
-        snprintf(text, sizeof(text), "%s%016llx%s%s%s%llu%s%llu%s%llu%s%llu%s%llu%s%llu%s%s\n", s_daemon_identity,
-                 identity, s_daemon_signum, signum, s_daemon_pid, peer->pid, s_daemon_declared, peer->declared,
-                 s_daemon_peak, peak, s_daemon_measured, measured, s_daemon_grace, peer->grace_microseconds,
-                 s_daemon_sweep, peer->sweep_microseconds, s_daemon_reason, reason);
+    VerbaLinea formed_line_2 = mmgr_line_over(text, sizeof(text));
+    mmgr_line_put(&formed_line_2, s_daemon_identity);
+    mmgr_line_hex(&formed_line_2, identity, 16u);
+    mmgr_line_put(&formed_line_2, s_daemon_signum);
+    mmgr_line_put(&formed_line_2, signum);
+    mmgr_line_put(&formed_line_2, s_daemon_pid);
+    mmgr_line_decimal(&formed_line_2, peer->pid, 1u);
+    mmgr_line_put(&formed_line_2, s_daemon_declared);
+    mmgr_line_decimal(&formed_line_2, peer->declared, 1u);
+    mmgr_line_put(&formed_line_2, s_daemon_peak);
+    mmgr_line_decimal(&formed_line_2, peak, 1u);
+    mmgr_line_put(&formed_line_2, s_daemon_measured);
+    mmgr_line_decimal(&formed_line_2, measured, 1u);
+    mmgr_line_put(&formed_line_2, s_daemon_grace);
+    mmgr_line_decimal(&formed_line_2, peer->grace_microseconds, 1u);
+    mmgr_line_put(&formed_line_2, s_daemon_sweep);
+    mmgr_line_decimal(&formed_line_2, peer->sweep_microseconds, 1u);
+    mmgr_line_put(&formed_line_2, s_daemon_reason);
+    mmgr_line_put(&formed_line_2, reason);
+    mmgr_line_put(&formed_line_2, "\n");
+    (void)mmgr_line_finish(&formed_line_2);
+    const int written = (int)formed_line_2.at;
     // a non-negative length is compared whole against the capacity
     return (written >= 0) && ((unsigned int)written < TESSERA_TICKET_CAPACITY) &&
            daemon_ticket_seal_write(path, text, (unsigned long long)written);

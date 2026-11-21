@@ -212,7 +212,12 @@ int sass_text_placed(const SassForm *form, char *written, size_t room)
         mmgr_line_put(&buffer_line, parts.guard);
         (void)mmgr_line_finish(&buffer_line);
     }
-    int printed = snprintf(written, room, "%s%s%s", guard, (guard[0] != '\0') ? " " : "", parts.operation);
+    VerbaLinea formed_line_1 = mmgr_line_over(written, room);
+    mmgr_line_put(&formed_line_1, guard);
+    mmgr_line_put(&formed_line_1, (guard[0] != '\0') ? " " : "");
+    mmgr_line_put(&formed_line_1, parts.operation);
+    (void)mmgr_line_finish(&formed_line_1);
+    int printed = (int)formed_line_1.at;
     size_t at = (printed > 0) ? (size_t)printed : room;
     for (unsigned int operand = 0u; (operand < parts.operands) && (at < room); operand += 1u)
     {
@@ -264,8 +269,17 @@ static void sass_runs_write(const SassForm *form, char *written, size_t room)
             mmgr_line_decimal(&buffer_line, run->place, 1u);
             (void)mmgr_line_finish(&buffer_line);
         }
-        const int printed = snprintf(written + at, room - at, "%s%u:%u-%u:%s", (number == 0u) ? "" : ";", run->operand,
-                                     run->first, run->last, place);
+        VerbaLinea formed_line_2 = mmgr_line_over(written + at, room - at);
+        mmgr_line_put(&formed_line_2, (number == 0u) ? "" : ";");
+        mmgr_line_decimal(&formed_line_2, run->operand, 1u);
+        mmgr_line_put(&formed_line_2, ":");
+        mmgr_line_decimal(&formed_line_2, run->first, 1u);
+        mmgr_line_put(&formed_line_2, "-");
+        mmgr_line_decimal(&formed_line_2, run->last, 1u);
+        mmgr_line_put(&formed_line_2, ":");
+        mmgr_line_put(&formed_line_2, place);
+        (void)mmgr_line_finish(&formed_line_2);
+        const int printed = (int)formed_line_2.at;
         // snprintf gives the characters of the whole text, and the room below bounds them.
         at += ((printed > 0) && ((size_t)printed < (room - at))) ? (size_t)printed : 0u;
     }
@@ -329,8 +343,12 @@ static void sass_types_write(const SassForm *form, char *written, size_t room)
     written[0] = '\0';
     for (unsigned int place = 0u; place < form->operands; place += 1u)
     {
-        const int printed = snprintf(written + at, room - at, "%s%s%s", (place == 0u) ? "" : ",",
-                                     s_type_names[form->type[place]], s_mark_names[form->mark[place]]);
+        VerbaLinea formed_line_3 = mmgr_line_over(written + at, room - at);
+        mmgr_line_put(&formed_line_3, (place == 0u) ? "" : ",");
+        mmgr_line_put(&formed_line_3, s_type_names[form->type[place]]);
+        mmgr_line_put(&formed_line_3, s_mark_names[form->mark[place]]);
+        (void)mmgr_line_finish(&formed_line_3);
+        const int printed = (int)formed_line_3.at;
         // snprintf gives the characters of the whole text, and the room below bounds them.
         at += ((printed > 0) && ((size_t)printed < (room - at))) ? (size_t)printed : 0u;
     }

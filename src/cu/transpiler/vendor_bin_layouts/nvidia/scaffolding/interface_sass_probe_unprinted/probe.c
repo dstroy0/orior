@@ -113,7 +113,12 @@ int unprinted_text(const char *kernel_text, const char *lines, char *text, size_
     }
     const char *const after = mmgr_text_char(line + 1, '\n', PLATFORM_TEXT_TO_TERMINATOR);
     const size_t before = (size_t)(line - kernel_text) + 1u;
-    return snprintf(text, room, "%.*s%s%s", (int)before, kernel_text, lines, (after != NULL) ? after : "") < (int)room;
+    VerbaLinea formed_line_1 = mmgr_line_over(text, room);
+    mmgr_line_put_max(&formed_line_1, kernel_text, (size_t)((int)before));
+    mmgr_line_put(&formed_line_1, lines);
+    mmgr_line_put(&formed_line_1, (after != NULL) ? after : "");
+    (void)mmgr_line_finish(&formed_line_1);
+    return (int)formed_line_1.at < (int)room;
 }
 
 // the kernel the kernel's text opens with, `.text.<kernel>:`, into `kernel`: 1, or 0 where it opens otherwise

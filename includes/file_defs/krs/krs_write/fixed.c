@@ -271,7 +271,12 @@ int krs_fixed_placed(char *text, size_t room)
             walk += 1;
             continue;
         }
-        const int added = snprintf(placed + at, sizeof(placed) - at, "{%s}", found->name);
+        VerbaLinea formed_line_1 = mmgr_line_over(placed + at, sizeof(placed) - at);
+        mmgr_line_put(&formed_line_1, "{");
+        mmgr_line_put(&formed_line_1, found->name);
+        mmgr_line_put(&formed_line_1, "}");
+        (void)mmgr_line_finish(&formed_line_1);
+        const int added = (int)formed_line_1.at;
         if ((added < 0) || ((at + (size_t)added) >= sizeof(placed)))
         {
             return 0;
@@ -328,7 +333,11 @@ unsigned int krs_fixed_written(char *out, size_t cap, size_t *at, const char *ks
             written += 1u;
             continue;
         }
-        const int added = snprintf(missing + used, room - used, "%s%s", (used == 0u) ? "" : ", ", s_fixed_names[name]);
+        VerbaLinea formed_line_2 = mmgr_line_over(missing + used, room - used);
+        mmgr_line_put(&formed_line_2, (used == 0u) ? "" : ", ");
+        mmgr_line_put(&formed_line_2, s_fixed_names[name]);
+        (void)mmgr_line_finish(&formed_line_2);
+        const int added = (int)formed_line_2.at;
         // snprintf counts what it would write. The count is no wider than the room, and what fits is what it wrote.
         used += (added > 0) ? (size_t)added : 0u;
         used = (used < room) ? used : (room - 1u);

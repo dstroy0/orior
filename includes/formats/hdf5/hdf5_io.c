@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // hdf5_io.c: errors, byte order, checksums and file access
 #include "hdf5_internal.h"
+#include "../../../src/platform/platform.h"
 #include "../../../src/cu/engine/engine_note.h"
 #include "memoria_operor/memoria_linea.h"
 
@@ -9,7 +10,10 @@ int hdf5_error(Hdf5File *file, const char *reason)
 {
     if (file->reason[0u] == '\0')
     {
-        (void)snprintf(file->reason, sizeof(file->reason), "%s", reason);
+        VerbaLinea formed_line_1 = mmgr_line_over(file->reason, sizeof(file->reason));
+        mmgr_line_put(&formed_line_1, reason);
+        (void)mmgr_line_finish(&formed_line_1);
+        (void)(int)formed_line_1.at;
     }
     return 0;
 }
@@ -18,7 +22,12 @@ int hdf5_error_number(Hdf5File *file, const char *reason, unsigned long long num
 {
     if (file->reason[0u] == '\0')
     {
-        (void)snprintf(file->reason, sizeof(file->reason), "%s %llu", reason, number);
+        VerbaLinea formed_line_2 = mmgr_line_over(file->reason, sizeof(file->reason));
+        mmgr_line_put(&formed_line_2, reason);
+        mmgr_line_put(&formed_line_2, " ");
+        mmgr_line_decimal(&formed_line_2, number, 1u);
+        (void)mmgr_line_finish(&formed_line_2);
+        (void)(int)formed_line_2.at;
     }
     return 0;
 }

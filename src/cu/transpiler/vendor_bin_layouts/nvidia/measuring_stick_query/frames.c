@@ -206,8 +206,17 @@ void msq_clear_reported(MsqVerdicts *verdicts, const MsqQuestion *question, cons
     mmgr_bytes_copy(&low, encoding, 8u);
     mmgr_bytes_copy(&high, encoding + 8u, 8u);
     char clear[400];
-    const int written = snprintf(clear, sizeof(clear), "%s %.*s %016llx %016llx\n", question->stem, (int)length,
-                                 body + start, low, high);
+    VerbaLinea formed_line_1 = mmgr_line_over(clear, sizeof(clear));
+    mmgr_line_put(&formed_line_1, question->stem);
+    mmgr_line_put(&formed_line_1, " ");
+    mmgr_line_put_max(&formed_line_1, body + start, (size_t)((int)length));
+    mmgr_line_put(&formed_line_1, " ");
+    mmgr_line_hex(&formed_line_1, low, 16u);
+    mmgr_line_put(&formed_line_1, " ");
+    mmgr_line_hex(&formed_line_1, high, 16u);
+    mmgr_line_put(&formed_line_1, "\n");
+    (void)mmgr_line_finish(&formed_line_1);
+    const int written = (int)formed_line_1.at;
     msq_added(&verdicts->read, &verdicts->read_size, &verdicts->read_room, clear, (size_t)written);
 }
 
@@ -233,7 +242,13 @@ void msq_gate_reported(MsqVerdicts *verdicts, const MsqQuestion *question, const
         mmgr_bytes_copy(&low, encoding, 8u);
         mmgr_bytes_copy(&high, encoding + 8u, 8u);
         char line[48];
-        const int length = snprintf(line, sizeof(line), "%016llx %016llx\n", low, high);
+        VerbaLinea formed_line_2 = mmgr_line_over(line, sizeof(line));
+        mmgr_line_hex(&formed_line_2, low, 16u);
+        mmgr_line_put(&formed_line_2, " ");
+        mmgr_line_hex(&formed_line_2, high, 16u);
+        mmgr_line_put(&formed_line_2, "\n");
+        (void)mmgr_line_finish(&formed_line_2);
+        const int length = (int)formed_line_2.at;
         msq_added(&verdicts->gated, &verdicts->gated_size, &verdicts->gated_room, line, (size_t)length);
         {
             VerbaLinea buffer_line = mmgr_line_over(where, sizeof(where));
@@ -244,11 +259,35 @@ void msq_gate_reported(MsqVerdicts *verdicts, const MsqQuestion *question, const
         }
     }
     char report_line[640];
-    int length = snprintf(report_line, sizeof(report_line), "  %s  %s  [%s]\n", question->stem, why, where);
+    VerbaLinea formed_line_3 = mmgr_line_over(report_line, sizeof(report_line));
+    mmgr_line_put(&formed_line_3, "  ");
+    mmgr_line_put(&formed_line_3, question->stem);
+    mmgr_line_put(&formed_line_3, "  ");
+    mmgr_line_put(&formed_line_3, why);
+    mmgr_line_put(&formed_line_3, "  [");
+    mmgr_line_put(&formed_line_3, where);
+    mmgr_line_put(&formed_line_3, "]\n");
+    (void)mmgr_line_finish(&formed_line_3);
+    int length = (int)formed_line_3.at;
     msq_added(&verdicts->report, &verdicts->report_size, &verdicts->report_room, report_line, (size_t)length);
-    length = snprintf(report_line, sizeof(report_line), "    %s  %s\n", question->stem, why);
+    VerbaLinea formed_line_4 = mmgr_line_over(report_line, sizeof(report_line));
+    mmgr_line_put(&formed_line_4, "    ");
+    mmgr_line_put(&formed_line_4, question->stem);
+    mmgr_line_put(&formed_line_4, "  ");
+    mmgr_line_put(&formed_line_4, why);
+    mmgr_line_put(&formed_line_4, "\n");
+    (void)mmgr_line_finish(&formed_line_4);
+    length = (int)formed_line_4.at;
     msq_added(&verdicts->report, &verdicts->report_size, &verdicts->report_room, report_line, (size_t)length);
-    length = snprintf(report_line, sizeof(report_line), "%s %u %s\n", question->stem, clearing, why);
+    VerbaLinea formed_line_5 = mmgr_line_over(report_line, sizeof(report_line));
+    mmgr_line_put(&formed_line_5, question->stem);
+    mmgr_line_put(&formed_line_5, " ");
+    mmgr_line_decimal(&formed_line_5, clearing, 1u);
+    mmgr_line_put(&formed_line_5, " ");
+    mmgr_line_put(&formed_line_5, why);
+    mmgr_line_put(&formed_line_5, "\n");
+    (void)mmgr_line_finish(&formed_line_5);
+    length = (int)formed_line_5.at;
     msq_added(&verdicts->listed, &verdicts->listed_size, &verdicts->listed_room, report_line, (size_t)length);
 }
 

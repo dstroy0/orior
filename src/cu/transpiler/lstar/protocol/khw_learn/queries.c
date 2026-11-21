@@ -256,7 +256,13 @@ void khw_round_printed(unsigned int count, const unsigned long long before[4])
 void khw_plan_passed(const char *pass, unsigned long long questions)
 {
     char line[128];
-    const int length = snprintf(line, sizeof(line), "%s %llu\n", pass, questions);
+    VerbaLinea formed_line_1 = mmgr_line_over(line, sizeof(line));
+    mmgr_line_put(&formed_line_1, pass);
+    mmgr_line_put(&formed_line_1, " ");
+    mmgr_line_decimal(&formed_line_1, questions, 1u);
+    mmgr_line_put(&formed_line_1, "\n");
+    (void)mmgr_line_finish(&formed_line_1);
+    const int length = (int)formed_line_1.at;
     if ((length > 0) && (qry_member_run() != NULL))
     {
         // the line fits its room, and its length is positive

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // engine_source.cu: zip names, the source's type, its description and its bytes
 #include "engine_internal.h"
+#include "../../platform/platform.h"
 #include "engine_note.h"
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
@@ -438,7 +439,13 @@ extern "C" int engine_source_find(const char *source, const char *sample, char *
 {
     for (unsigned int suffix = 0u; suffix < ENTRY_SOURCE_SUFFIX_COUNT; suffix += 1u)
     {
-        const int written = snprintf(out, capacity, "%s/%s%s", source, sample, ENTRY_SOURCE_SUFFIXES[suffix]);
+        VerbaLinea formed_line_1 = mmgr_line_over(out, capacity);
+        mmgr_line_put(&formed_line_1, source);
+        mmgr_line_put(&formed_line_1, "/");
+        mmgr_line_put(&formed_line_1, sample);
+        mmgr_line_put(&formed_line_1, ENTRY_SOURCE_SUFFIXES[suffix]);
+        (void)mmgr_line_finish(&formed_line_1);
+        const int written = (int)formed_line_1.at;
         if ((written > 0) && ((size_t)written < capacity) && entry_exists(out))
         {
             return 1;

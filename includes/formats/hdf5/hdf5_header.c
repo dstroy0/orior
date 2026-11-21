@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // hdf5_header.c: the file's opening and the object header's messages
 #include "hdf5_internal.h"
+#include "../../../src/platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 int hdf5_open(Hdf5File *file, const char *path, const EngineIngestTools *tools)
@@ -206,7 +207,12 @@ void hdf5_object_unsupported(Hdf5Object *object, const char *reason, unsigned lo
 {
     if (object->unsupported[0u] == '\0')
     {
-        (void)snprintf(object->unsupported, sizeof(object->unsupported), "%s %llu", reason, number);
+        VerbaLinea formed_line_1 = mmgr_line_over(object->unsupported, sizeof(object->unsupported));
+        mmgr_line_put(&formed_line_1, reason);
+        mmgr_line_put(&formed_line_1, " ");
+        mmgr_line_decimal(&formed_line_1, number, 1u);
+        (void)mmgr_line_finish(&formed_line_1);
+        (void)(int)formed_line_1.at;
     }
 }
 

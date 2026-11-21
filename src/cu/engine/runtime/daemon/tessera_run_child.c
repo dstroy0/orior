@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_run_child.c: the job's folders and records, the daemon channel, the wait and the child
 #include "tessera_run_internal.h"
+#include "../../../../platform/platform.h"
 #include "../../engine_note.h"
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
@@ -78,14 +79,23 @@ static int run_records_place(RunChannel *channel, const EngineSignum *signum)
         return 0;
     }
     size_t at = mmgr_text_length(records, PLATFORM_TEXT_TO_TERMINATOR);
-    const int folder = snprintf(records + at, capacity - at, "%c%s", RUN_SEPARATOR, s_run_children);
+    VerbaLinea formed_line_1 = mmgr_line_over(records + at, capacity - at);
+    mmgr_line_ch(&formed_line_1, (char)(RUN_SEPARATOR));
+    mmgr_line_put(&formed_line_1, s_run_children);
+    (void)mmgr_line_finish(&formed_line_1);
+    const int folder = (int)formed_line_1.at;
     // a non-negative length is compared whole against the capacity
     if ((folder <= 0) || ((size_t)folder >= (capacity - at)) || !run_folders_make(records))
     {
         return 0;
     }
     at = mmgr_text_length(records, PLATFORM_TEXT_TO_TERMINATOR);
-    const int named = snprintf(records + at, capacity - at, "%c%016llx-", RUN_SEPARATOR, run_self_pid());
+    VerbaLinea formed_line_2 = mmgr_line_over(records + at, capacity - at);
+    mmgr_line_ch(&formed_line_2, (char)(RUN_SEPARATOR));
+    mmgr_line_hex(&formed_line_2, run_self_pid(), 16u);
+    mmgr_line_put(&formed_line_2, "-");
+    (void)mmgr_line_finish(&formed_line_2);
+    const int named = (int)formed_line_2.at;
     // a non-negative length is compared whole against the capacity
     if ((named <= 0) || ((size_t)named >= (capacity - at)))
     {

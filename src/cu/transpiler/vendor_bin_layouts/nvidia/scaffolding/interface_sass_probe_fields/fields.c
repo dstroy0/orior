@@ -257,11 +257,18 @@ static int fields_address_swap(const char *operand, const char *put, char *out, 
     const char *const open = strrchr(operand, '[');
     if ((open == NULL) || (open[1] != 'R') || ((open[2] != 'Z') && ((open[2] < '0') || (open[2] > '9'))))
     {
-        return snprintf(out, room, "%s", operand) < (int)room;
+        VerbaLinea formed_line_1 = mmgr_line_over(out, room);
+        mmgr_line_put(&formed_line_1, operand);
+        (void)mmgr_line_finish(&formed_line_1);
+        return (int)formed_line_1.at < (int)room;
     }
     char swapped[SASS_MACHINE_TOKEN];
     fields_swap(open + 1, put, swapped, sizeof(swapped));
-    return snprintf(out, room, "%.*s%s", (int)(open + 1 - operand), operand, swapped) < (int)room;
+    VerbaLinea formed_line_2 = mmgr_line_over(out, room);
+    mmgr_line_put_max(&formed_line_2, operand, (size_t)((int)(open + 1 - operand)));
+    mmgr_line_put(&formed_line_2, swapped);
+    (void)mmgr_line_finish(&formed_line_2);
+    return (int)formed_line_2.at < (int)room;
 }
 
 // `instruction` written to `redirected`, rebuilt from its parts, with its first operand moved where the kernel reads it
@@ -282,7 +289,10 @@ int fields_redirect(const char *instruction, char *redirected, size_t room, char
     const int writes_predicate = (parts.operands != 0u) && (parts.type[0] == SASS_OPERAND_PREDICATE);
     if ((!writes_register && !writes_predicate) || !fields_writes_first(parts.operation))
     {
-        return snprintf(redirected, room, "%s", instruction) < (int)room;
+        VerbaLinea formed_line_3 = mmgr_line_over(redirected, room);
+        mmgr_line_put(&formed_line_3, instruction);
+        (void)mmgr_line_finish(&formed_line_3);
+        return (int)formed_line_3.at < (int)room;
     }
     if (writes_predicate && (snprintf(observe, observe_room, "%s", FIELDS_LINES_PREDICATE) >= (int)observe_room))
     {
@@ -291,9 +301,16 @@ int fields_redirect(const char *instruction, char *redirected, size_t room, char
     size_t at = 0u;
     if (parts.guard[0] != '\0')
     {
-        at += (size_t)snprintf(&redirected[at], (at < room) ? (room - at) : 0u, "%s ", parts.guard);
+        VerbaLinea formed_line_4 = mmgr_line_over(&redirected[at], (at < room) ? (room - at) : 0u);
+        mmgr_line_put(&formed_line_4, parts.guard);
+        mmgr_line_put(&formed_line_4, " ");
+        (void)mmgr_line_finish(&formed_line_4);
+        at += (size_t)(int)formed_line_4.at;
     }
-    at += (size_t)snprintf(&redirected[at], (at < room) ? (room - at) : 0u, "%s", parts.operation);
+    VerbaLinea formed_line_5 = mmgr_line_over(&redirected[at], (at < room) ? (room - at) : 0u);
+    mmgr_line_put(&formed_line_5, parts.operation);
+    (void)mmgr_line_finish(&formed_line_5);
+    at += (size_t)(int)formed_line_5.at;
     unsigned int source = 0u;
     for (unsigned int operand = 0u; operand < parts.operands; operand += 1u)
     {
@@ -335,8 +352,12 @@ int fields_redirect(const char *instruction, char *redirected, size_t room, char
             mmgr_line_put(&buffer_line, parts.operand[operand]);
             (void)mmgr_line_finish(&buffer_line);
         }
-        at += (size_t)snprintf(&redirected[at], (at < room) ? (room - at) : 0u, "%s%s%s", (operand == 0u) ? " " : ", ",
-                               fields_mark(parts.mark[operand]), text);
+        VerbaLinea formed_line_6 = mmgr_line_over(&redirected[at], (at < room) ? (room - at) : 0u);
+        mmgr_line_put(&formed_line_6, (operand == 0u) ? " " : ", ");
+        mmgr_line_put(&formed_line_6, fields_mark(parts.mark[operand]));
+        mmgr_line_put(&formed_line_6, text);
+        (void)mmgr_line_finish(&formed_line_6);
+        at += (size_t)(int)formed_line_6.at;
     }
     return at < room;
 }

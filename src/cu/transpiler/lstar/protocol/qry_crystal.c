@@ -63,8 +63,12 @@ static void qry_crystal_error_printed(const char *what, const EngineError *error
 static int qry_crystal_npy_written(const char *path, const unsigned char *bytes, unsigned long long count)
 {
     char header[160];
-    int length =
-        snprintf(header, sizeof(header), "{'descr': '|u1', 'fortran_order': False, 'shape': (%llu,), }", count);
+    VerbaLinea formed_line_1 = mmgr_line_over(header, sizeof(header));
+    mmgr_line_put(&formed_line_1, "{'descr': '|u1', 'fortran_order': False, 'shape': (");
+    mmgr_line_decimal(&formed_line_1, count, 1u);
+    mmgr_line_put(&formed_line_1, ",), }");
+    (void)mmgr_line_finish(&formed_line_1);
+    int length = (int)formed_line_1.at;
     // the header is padded with spaces to a line ending that leaves the data on a 64 byte boundary, as the format
     // requires
     while (((10 + length + 1) % 64) != 0)

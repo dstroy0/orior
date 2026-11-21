@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // engine_files.cu: directories, decoders and the JSON reader of an entry
 #include "engine_internal.h"
+#include "../../platform/platform.h"
 #include "engine_note.h"
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
@@ -110,7 +111,15 @@ extern "C" int engine_program_directory(char *out, size_t capacity)
 
 extern "C" int engine_sample_path(char *out, size_t capacity, const char *set, const char *sample, const char *suffix)
 {
-    const int written = snprintf(out, capacity, "%s/%s/%s%s", set, sample, sample, suffix);
+    VerbaLinea formed_line_1 = mmgr_line_over(out, capacity);
+    mmgr_line_put(&formed_line_1, set);
+    mmgr_line_put(&formed_line_1, "/");
+    mmgr_line_put(&formed_line_1, sample);
+    mmgr_line_put(&formed_line_1, "/");
+    mmgr_line_put(&formed_line_1, sample);
+    mmgr_line_put(&formed_line_1, suffix);
+    (void)mmgr_line_finish(&formed_line_1);
+    const int written = (int)formed_line_1.at;
     return (written > 0) && ((size_t)written < capacity);
 }
 
@@ -393,7 +402,12 @@ int entry_is_file(const char *path)
 
 int entry_joined(char *out, size_t capacity, const char *root, const char *leaf)
 {
-    const int written = snprintf(out, capacity, "%s/%s", root, leaf);
+    VerbaLinea formed_line_2 = mmgr_line_over(out, capacity);
+    mmgr_line_put(&formed_line_2, root);
+    mmgr_line_put(&formed_line_2, "/");
+    mmgr_line_put(&formed_line_2, leaf);
+    (void)mmgr_line_finish(&formed_line_2);
+    const int written = (int)formed_line_2.at;
     return (written > 0) && ((size_t)written < capacity);
 }
 

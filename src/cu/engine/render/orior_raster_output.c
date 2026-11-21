@@ -256,7 +256,11 @@ int orior_volume_write_raw(const char *path, const uint8_t *voxels, const OriorV
     // the only reader of its own output. A generated file states it is generated and names what made
     // it, and somebody meeting the .raw alone can work out what to do with it.
     char sidecar[512];
-    const int used = snprintf(sidecar, sizeof(sidecar), "%s.txt", path);
+    VerbaLinea formed_line_1 = mmgr_line_over(sidecar, sizeof(sidecar));
+    mmgr_line_put(&formed_line_1, path);
+    mmgr_line_put(&formed_line_1, ".txt");
+    (void)mmgr_line_finish(&formed_line_1);
+    const int used = (int)formed_line_1.at;
     if ((used <= 0) || ((size_t)used >= sizeof(sidecar)))
     {
         return 0;

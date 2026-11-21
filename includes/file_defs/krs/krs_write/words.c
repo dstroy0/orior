@@ -145,7 +145,12 @@ int krs_text_named(const KrsForm *form, const unsigned int *order, char paramete
             {
                 return 0;
             }
-            at += (size_t)snprintf(written + at, room - at, "{%s}", parameter[named]);
+            VerbaLinea formed_line_1 = mmgr_line_over(written + at, room - at);
+            mmgr_line_put(&formed_line_1, "{");
+            mmgr_line_put(&formed_line_1, parameter[named]);
+            mmgr_line_put(&formed_line_1, "}");
+            (void)mmgr_line_finish(&formed_line_1);
+            at += (size_t)(int)formed_line_1.at;
             found |= 1u << place;
             walk += length;
             continue;

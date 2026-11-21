@@ -127,7 +127,10 @@ int run_daemon_path(char *path, size_t capacity)
     const char *const named = getenv("TESSERA_DAEMON");
     if ((named != NULL) && (named[0] != '\0'))
     {
-        const int written = snprintf(path, capacity, "%s", named);
+        VerbaLinea formed_line_1 = mmgr_line_over(path, capacity);
+        mmgr_line_put(&formed_line_1, named);
+        (void)mmgr_line_finish(&formed_line_1);
+        const int written = (int)formed_line_1.at;
         // a non-negative length is compared whole against the capacity
         return (written > 0) && ((size_t)written < capacity);
     }
@@ -177,7 +180,11 @@ int run_signum(const RunRequest *request, char **arguments, int count, EngineSig
 // a text and a suffix as one path, 0 where the capacity does not fit it
 int run_path_joined(const char *first, const char *second, char *path, size_t capacity)
 {
-    const int written = snprintf(path, capacity, "%s%s", first, second);
+    VerbaLinea formed_line_2 = mmgr_line_over(path, capacity);
+    mmgr_line_put(&formed_line_2, first);
+    mmgr_line_put(&formed_line_2, second);
+    (void)mmgr_line_finish(&formed_line_2);
+    const int written = (int)formed_line_2.at;
     // a non-negative length is compared whole against the capacity
     return (written > 0) && ((size_t)written < capacity);
 }

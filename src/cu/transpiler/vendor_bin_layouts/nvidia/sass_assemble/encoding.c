@@ -434,14 +434,27 @@ int sass_encoding_read(const SassMachine *machine, unsigned long long low, unsig
         char predicate[16];
         (guard == 7ULL) ? snprintf(predicate, sizeof(predicate), "PT")
                         : snprintf(predicate, sizeof(predicate), "P%llu", guard);
-        at += (size_t)snprintf(text + at, room - at, "@%s%s ", (negated != 0ULL) ? "!" : "", predicate);
+        VerbaLinea formed_line_1 = mmgr_line_over(text + at, room - at);
+        mmgr_line_put(&formed_line_1, "@");
+        mmgr_line_put(&formed_line_1, (negated != 0ULL) ? "!" : "");
+        mmgr_line_put(&formed_line_1, predicate);
+        mmgr_line_put(&formed_line_1, " ");
+        (void)mmgr_line_finish(&formed_line_1);
+        at += (size_t)(int)formed_line_1.at;
     }
-    at += (size_t)snprintf(text + at, (at < room) ? (room - at) : 0u, "%s", form->operation);
+    VerbaLinea formed_line_2 = mmgr_line_over(text + at, (at < room) ? (room - at) : 0u);
+    mmgr_line_put(&formed_line_2, form->operation);
+    (void)mmgr_line_finish(&formed_line_2);
+    at += (size_t)(int)formed_line_2.at;
     for (unsigned int place = 0u; (place < form->operands) && (at < room); place += 1u)
     {
         char operand[SASS_MACHINE_TOKEN];
         sass_operand_read(form, &base, &places[place], place, low, high, address, operand, sizeof(operand));
-        at += (size_t)snprintf(text + at, room - at, "%s%s", (place == 0u) ? " " : ", ", operand);
+        VerbaLinea formed_line_3 = mmgr_line_over(text + at, room - at);
+        mmgr_line_put(&formed_line_3, (place == 0u) ? " " : ", ");
+        mmgr_line_put(&formed_line_3, operand);
+        (void)mmgr_line_finish(&formed_line_3);
+        at += (size_t)(int)formed_line_3.at;
     }
     return 1;
 }

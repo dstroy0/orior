@@ -30,6 +30,7 @@
  */
 
 #include "arm.h"
+#include "../../../src/platform/platform.h"
 #include "arm_cuda.h"
 
 #include <cuda_runtime.h>
@@ -288,13 +289,22 @@ extern "C" int orior_exact_cuda_describe(char *text, size_t capacity)
     {
         return 0;
     }
-    (void)snprintf(text, capacity, "%s, compute %d.%d, %d SMs", properties.name, properties.major, properties.minor,
-                   properties.multiProcessorCount);
+    VerbaLinea formed_line_1 = mmgr_line_over(text, capacity);
+    mmgr_line_put(&formed_line_1, properties.name);
+    mmgr_line_put(&formed_line_1, ", compute ");
+    mmgr_line_decimal_signed(&formed_line_1, properties.major);
+    mmgr_line_put(&formed_line_1, ".");
+    mmgr_line_decimal_signed(&formed_line_1, properties.minor);
+    mmgr_line_put(&formed_line_1, ", ");
+    mmgr_line_decimal_signed(&formed_line_1, properties.multiProcessorCount);
+    mmgr_line_put(&formed_line_1, " SMs");
+    (void)mmgr_line_finish(&formed_line_1);
+    (void)(int)formed_line_1.at;
     return 1;
 }
 
 extern "C" size_t orior_exact_agreement_cuda(const OriorExactInteger *positions, const uint64_t *values, size_t count,
-                                              const OriorExactInteger *lag)
+                                             const OriorExactInteger *lag)
 {
     if (count == 0u)
     {
@@ -333,7 +343,7 @@ extern "C" size_t orior_exact_agreement_cuda(const OriorExactInteger *positions,
     {
         const unsigned int blocks = (unsigned int)((count + (size_t)ORIOR_GPU_BLOCK - 1u) / (size_t)ORIOR_GPU_BLOCK);
         agreement_kernel<<<blocks, ORIOR_GPU_BLOCK>>>(device_positions, device_values, count, device_lag,
-                                                       device_displaced, device_agreed);
+                                                      device_displaced, device_agreed);
         if ((cudaGetLastError() != cudaSuccess) || (cudaDeviceSynchronize() != cudaSuccess))
         {
             goto done;

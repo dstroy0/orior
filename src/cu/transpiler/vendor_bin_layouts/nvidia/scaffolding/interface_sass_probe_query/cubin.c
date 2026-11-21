@@ -191,14 +191,15 @@ void sass_query_named(const char *instruction, char *named, size_t room)
 // own four instructions are under both codings alike and cancel out of the difference
 static int sass_prefer_loop(const char *coding, char *text, size_t room)
 {
-    return snprintf(text, room,
-                    "IMAD.MOV.U32 R6, RZ, RZ, %u\n"
-                    ".L_turn:\n"
-                    "%s\n"
-                    "IADD3 R6, P6, R6, -0x1, RZ\n"
-                    "ISETP.NE.U32.AND P1, PT, R6, RZ, PT\n"
-                    "@P1 BRA `(.L_turn)",
-                    SASS_PREFER_TURNS, coding) < (int)room;
+    VerbaLinea formed_line_1 = mmgr_line_over(text, room);
+    mmgr_line_put(&formed_line_1, "IMAD.MOV.U32 R6, RZ, RZ, ");
+    mmgr_line_decimal(&formed_line_1, SASS_PREFER_TURNS, 1u);
+    mmgr_line_put(&formed_line_1, "\n.L_turn:\n");
+    mmgr_line_put(&formed_line_1, coding);
+    mmgr_line_put(&formed_line_1,
+                  "\nIADD3 R6, P6, R6, -0x1, RZ\nISETP.NE.U32.AND P1, PT, R6, RZ, PT\n@P1 BRA `(.L_turn)");
+    (void)mmgr_line_finish(&formed_line_1);
+    return (int)formed_line_1.at < (int)room;
 }
 
 // one coding written into a cubin, run, and timed; its answer through `answered` and its nanoseconds returned, 0

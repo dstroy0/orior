@@ -9,7 +9,12 @@
 int noise_table_open(const char *set, const char *file, const char *header, char path[ENGINE_PATH_CAPACITY],
                      FILE **table, EngineError *error)
 {
-    const int written = snprintf(path, ENGINE_PATH_CAPACITY, "%s/%s", set, file);
+    VerbaLinea formed_line_1 = mmgr_line_over(path, ENGINE_PATH_CAPACITY);
+    mmgr_line_put(&formed_line_1, set);
+    mmgr_line_put(&formed_line_1, "/");
+    mmgr_line_put(&formed_line_1, file);
+    (void)mmgr_line_finish(&formed_line_1);
+    const int written = (int)formed_line_1.at;
     const int named = (written > 0) && ((size_t)written < ENGINE_PATH_CAPACITY);
     *table = named ? fopen(path, "wb") : NULL;
     return NOISE_DETECTOR_CHECK(named, set, error, ENGINE_ERROR_REQUEST) &&

@@ -378,7 +378,12 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
     }
     // the plan passed as the teacher passes one, for the panel: the questions of the one round
     char plan[64];
-    const int plan_length = snprintf(plan, sizeof(plan), "cost %zu\n", round.size());
+    VerbaLinea formed_line_1 = mmgr_line_over(plan, sizeof(plan));
+    mmgr_line_put(&formed_line_1, "cost ");
+    mmgr_line_decimal(&formed_line_1, round.size(), 1u);
+    mmgr_line_put(&formed_line_1, "\n");
+    (void)mmgr_line_finish(&formed_line_1);
+    const int plan_length = (int)formed_line_1.at;
     if ((plan_length > 0) && (qry_member_run() != NULL))
     {
         qry_member_append("plan.txt", plan, (unsigned long long)plan_length, QRY_ORDINARY);

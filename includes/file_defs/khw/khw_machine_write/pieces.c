@@ -187,7 +187,11 @@ static void khw_name_composed(const KhwForm *form, char *written, size_t room)
         return;
     }
     size_t at = 0u;
-    at += (size_t)snprintf(&written[at], room - at, "%s%s", (type != NULL) ? type : "", operation);
+    VerbaLinea formed_line_1 = mmgr_line_over(&written[at], room - at);
+    mmgr_line_put(&formed_line_1, (type != NULL) ? type : "");
+    mmgr_line_put(&formed_line_1, operation);
+    (void)mmgr_line_finish(&formed_line_1);
+    at += (size_t)(int)formed_line_1.at;
     // the count of sources the part answered fields for, written where the table contains that count for this relation
     char sources[KHW_PIECE];
     {
@@ -201,7 +205,10 @@ static void khw_name_composed(const KhwForm *form, char *written, size_t room)
             (mmgr_text_equal(s_piece[piece].piece, sources, PLATFORM_TEXT_TO_TERMINATOR)) &&
             khw_reads_contain(&s_piece[piece], form->relation))
         {
-            at += (size_t)snprintf(&written[at], room - at, "%s", sources);
+            VerbaLinea formed_line_2 = mmgr_line_over(&written[at], room - at);
+            mmgr_line_put(&formed_line_2, sources);
+            (void)mmgr_line_finish(&formed_line_2);
+            at += (size_t)(int)formed_line_2.at;
             break;
         }
     }
@@ -210,7 +217,11 @@ static void khw_name_composed(const KhwForm *form, char *written, size_t room)
     const char *const test = khw_piece_reading("test", form->relation);
     if (test != NULL)
     {
-        at += (size_t)snprintf(&written[at], room - at, ".%s", test);
+        VerbaLinea formed_line_3 = mmgr_line_over(&written[at], room - at);
+        mmgr_line_put(&formed_line_3, ".");
+        mmgr_line_put(&formed_line_3, test);
+        (void)mmgr_line_finish(&formed_line_3);
+        at += (size_t)(int)formed_line_3.at;
     }
     if ((form->signedness_queried != 0) && ((test == NULL) || (form->signed_read == 0)))
     {
@@ -218,13 +229,21 @@ static void khw_name_composed(const KhwForm *form, char *written, size_t room)
             khw_piece_named("qualifier", (form->signed_read != 0) ? KHW_PIECE_SIGNED : KHW_PIECE_UNSIGNED);
         if (read_as != NULL)
         {
-            at += (size_t)snprintf(&written[at], room - at, ".%s", read_as);
+            VerbaLinea formed_line_4 = mmgr_line_over(&written[at], room - at);
+            mmgr_line_put(&formed_line_4, ".");
+            mmgr_line_put(&formed_line_4, read_as);
+            (void)mmgr_line_finish(&formed_line_4);
+            at += (size_t)(int)formed_line_4.at;
         }
     }
     const char *const join = khw_piece_reading("join", form->relation);
     if (join != NULL)
     {
-        at += (size_t)snprintf(&written[at], room - at, ".%s", join);
+        VerbaLinea formed_line_5 = mmgr_line_over(&written[at], room - at);
+        mmgr_line_put(&formed_line_5, ".");
+        mmgr_line_put(&formed_line_5, join);
+        (void)mmgr_line_finish(&formed_line_5);
+        at += (size_t)(int)formed_line_5.at;
     }
     (void)at;
 }
@@ -389,11 +408,20 @@ void khw_text_composed(const KhwForm *form, char *written, size_t room)
         const unsigned long long predicate = guard & 7ULL;
         if (predicate != 7ULL)
         {
-            at +=
-                (size_t)snprintf(&written[at], room - at, "@%sP%llu ", ((guard & 8ULL) != 0ULL) ? "!" : "", predicate);
+            VerbaLinea formed_line_6 = mmgr_line_over(&written[at], room - at);
+            mmgr_line_put(&formed_line_6, "@");
+            mmgr_line_put(&formed_line_6, ((guard & 8ULL) != 0ULL) ? "!" : "");
+            mmgr_line_put(&formed_line_6, "P");
+            mmgr_line_decimal(&formed_line_6, predicate, 1u);
+            mmgr_line_put(&formed_line_6, " ");
+            (void)mmgr_line_finish(&formed_line_6);
+            at += (size_t)(int)formed_line_6.at;
         }
     }
-    at += (size_t)snprintf(&written[at], room - at, "%s", name);
+    VerbaLinea formed_line_7 = mmgr_line_over(&written[at], room - at);
+    mmgr_line_put(&formed_line_7, name);
+    (void)mmgr_line_finish(&formed_line_7);
+    at += (size_t)(int)formed_line_7.at;
     // the mark the vendor writes before the operand at the relation's second word, where the table gives one
     const char *const marked = khw_piece_reading("mark", form->relation);
     unsigned int printed = 0u;
@@ -419,24 +447,51 @@ void khw_text_composed(const KhwForm *form, char *written, size_t room)
         }
         else if (form->type[run] == KHW_TYPE_CONSTANT)
         {
-            at += (size_t)snprintf(&written[at], room - at, "%sc[0x%llx][0x%llx]", between,
-                                   khw_constant_bank(form, run), number);
+            VerbaLinea formed_line_8 = mmgr_line_over(&written[at], room - at);
+            mmgr_line_put(&formed_line_8, between);
+            mmgr_line_put(&formed_line_8, "c[0x");
+            mmgr_line_hex(&formed_line_8, khw_constant_bank(form, run), 1u);
+            mmgr_line_put(&formed_line_8, "][0x");
+            mmgr_line_hex(&formed_line_8, number, 1u);
+            mmgr_line_put(&formed_line_8, "]");
+            (void)mmgr_line_finish(&formed_line_8);
+            at += (size_t)(int)formed_line_8.at;
         }
         else if (form->type[run] == KHW_TYPE_IMMEDIATE)
         {
-            at += (size_t)snprintf(&written[at], room - at, "%s0x%llx", between, number);
+            VerbaLinea formed_line_9 = mmgr_line_over(&written[at], room - at);
+            mmgr_line_put(&formed_line_9, between);
+            mmgr_line_put(&formed_line_9, "0x");
+            mmgr_line_hex(&formed_line_9, number, 1u);
+            (void)mmgr_line_finish(&formed_line_9);
+            at += (size_t)(int)formed_line_9.at;
         }
         else if (form->type[run] == KHW_TYPE_ADDRESS)
         {
-            at += (size_t)snprintf(&written[at], room - at, "%s[R%llu.64]", between, number);
+            VerbaLinea formed_line_10 = mmgr_line_over(&written[at], room - at);
+            mmgr_line_put(&formed_line_10, between);
+            mmgr_line_put(&formed_line_10, "[R");
+            mmgr_line_decimal(&formed_line_10, number, 1u);
+            mmgr_line_put(&formed_line_10, ".64]");
+            (void)mmgr_line_finish(&formed_line_10);
+            at += (size_t)(int)formed_line_10.at;
         }
         else if (number == KHW_REGISTER_NONE)
         {
-            at += (size_t)snprintf(&written[at], room - at, "%s%s", between, KHW_REGISTER_NONE_TEXT);
+            VerbaLinea formed_line_11 = mmgr_line_over(&written[at], room - at);
+            mmgr_line_put(&formed_line_11, between);
+            mmgr_line_put(&formed_line_11, KHW_REGISTER_NONE_TEXT);
+            (void)mmgr_line_finish(&formed_line_11);
+            at += (size_t)(int)formed_line_11.at;
         }
         else
         {
-            at += (size_t)snprintf(&written[at], room - at, "%sR%llu", between, number);
+            VerbaLinea formed_line_12 = mmgr_line_over(&written[at], room - at);
+            mmgr_line_put(&formed_line_12, between);
+            mmgr_line_put(&formed_line_12, "R");
+            mmgr_line_decimal(&formed_line_12, number, 1u);
+            (void)mmgr_line_finish(&formed_line_12);
+            at += (size_t)(int)formed_line_12.at;
         }
         printed += 1u;
     }

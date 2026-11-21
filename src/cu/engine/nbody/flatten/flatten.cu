@@ -118,7 +118,11 @@ int flatten_read(const char *set, FlattenResident *resident, EngineError *error)
     }
     mmgr_bytes_set(resident, 0, sizeof(*resident));
     char path[ENGINE_PATH_CAPACITY];
-    const int written = snprintf(path, sizeof(path), "%s/flattened.iapx", set);
+    VerbaLinea formed_line_1 = mmgr_line_over(path, sizeof(path));
+    mmgr_line_put(&formed_line_1, set);
+    mmgr_line_put(&formed_line_1, "/flattened.iapx");
+    (void)mmgr_line_finish(&formed_line_1);
+    const int written = (int)formed_line_1.at;
     const int named = (written > 0) && ((size_t)written < sizeof(path));
     FILE *const file = named ? fopen(path, "rb") : NULL;
     unsigned int head[FLATTEN_HEAD_LIMBS] = {0u, 0u, 0u, 0u, 0u};
@@ -494,7 +498,11 @@ int flatten_set(const FlattenSetRequest *request)
     }
     max_tree_profile_report();
     char iapx_path[ENGINE_PATH_CAPACITY];
-    const int named = snprintf(iapx_path, sizeof(iapx_path), "%s/flattened.iapx", set);
+    VerbaLinea formed_line_2 = mmgr_line_over(iapx_path, sizeof(iapx_path));
+    mmgr_line_put(&formed_line_2, set);
+    mmgr_line_put(&formed_line_2, "/flattened.iapx");
+    (void)mmgr_line_finish(&formed_line_2);
+    const int named = (int)formed_line_2.at;
     const int proved =
         ok && FLATTEN_CHECK((named > 0) && ((size_t)named < sizeof(iapx_path)), set, error, ENGINE_ERROR_REQUEST) &&
         FLATTEN_CHECK((lost_bits == 0ULL) && (proofs == frames_done), &proofs, error, ENGINE_ERROR_LOGIC);

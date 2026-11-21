@@ -86,7 +86,12 @@ int fields_splice(const char *kernel_text, const char *lines, char *text, size_t
     }
     const char *const after = mmgr_text_char(line + 1, '\n', PLATFORM_TEXT_TO_TERMINATOR);
     const size_t before = (size_t)(line - kernel_text) + 1u;
-    return snprintf(text, room, "%.*s%s%s", (int)before, kernel_text, lines, (after != NULL) ? after : "") < (int)room;
+    VerbaLinea formed_line_1 = mmgr_line_over(text, room);
+    mmgr_line_put_max(&formed_line_1, kernel_text, (size_t)((int)before));
+    mmgr_line_put(&formed_line_1, lines);
+    mmgr_line_put(&formed_line_1, (after != NULL) ? after : "");
+    (void)mmgr_line_finish(&formed_line_1);
+    return (int)formed_line_1.at < (int)room;
 }
 
 // the instruction of `code`, `count` of them, whose operation bits are `low` and `high`'s: its number, or `count`
@@ -237,7 +242,10 @@ int fields_first(const char *path, char *instruction, size_t room)
         const char *const walk = line + strspn(line, " \t");
         if ((*walk != '\0') && (!mmgr_text_starts(walk, "IADD3 R8", PLATFORM_TEXT_TO_TERMINATOR)))
         {
-            found = snprintf(instruction, room, "%s", walk) < (int)room;
+            VerbaLinea formed_line_2 = mmgr_line_over(instruction, room);
+            mmgr_line_put(&formed_line_2, walk);
+            (void)mmgr_line_finish(&formed_line_2);
+            found = (int)formed_line_2.at < (int)room;
         }
     }
     fclose(file);

@@ -159,7 +159,12 @@ int writings_splice(const char *kernel_text, const char *lines, char *text, size
     }
     const char *const after = mmgr_text_char(line + 1, '\n', PLATFORM_TEXT_TO_TERMINATOR);
     const size_t before = (size_t)(line - kernel_text) + 1u;
-    return snprintf(text, room, "%.*s%s%s", (int)before, kernel_text, lines, (after != NULL) ? after : "") < (int)room;
+    VerbaLinea formed_line_1 = mmgr_line_over(text, room);
+    mmgr_line_put_max(&formed_line_1, kernel_text, (size_t)((int)before));
+    mmgr_line_put(&formed_line_1, lines);
+    mmgr_line_put(&formed_line_1, (after != NULL) ? after : "");
+    (void)mmgr_line_finish(&formed_line_1);
+    return (int)formed_line_1.at < (int)room;
 }
 
 // the sign an operand carries back as its text, since the parts reader cuts it off
@@ -291,7 +296,10 @@ int writings_instruction(const SassForm *form, unsigned int table, unsigned int 
     {
         return 0;
     }
-    size_t at = (size_t)snprintf(out, room, "%s", parts.operation);
+    VerbaLinea formed_line_2 = mmgr_line_over(out, room);
+    mmgr_line_put(&formed_line_2, parts.operation);
+    (void)mmgr_line_finish(&formed_line_2);
+    size_t at = (size_t)(int)formed_line_2.at;
     unsigned int source = 0u;
     for (unsigned int operand = 0u; operand < parts.operands; operand += 1u)
     {
@@ -315,8 +323,12 @@ int writings_instruction(const SassForm *form, unsigned int table, unsigned int 
             mmgr_line_put(&buffer_line, parts.operand[operand]);
             (void)mmgr_line_finish(&buffer_line);
         }
-        at += (size_t)snprintf(&out[at], (at < room) ? (room - at) : 0u, "%s%s%s", (operand == 0u) ? " " : ", ",
-                               writings_mark(parts.mark[operand]), text);
+        VerbaLinea formed_line_3 = mmgr_line_over(&out[at], (at < room) ? (room - at) : 0u);
+        mmgr_line_put(&formed_line_3, (operand == 0u) ? " " : ", ");
+        mmgr_line_put(&formed_line_3, writings_mark(parts.mark[operand]));
+        mmgr_line_put(&formed_line_3, text);
+        (void)mmgr_line_finish(&formed_line_3);
+        at += (size_t)(int)formed_line_3.at;
     }
     return at < room;
 }
