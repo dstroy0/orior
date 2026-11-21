@@ -1,12 +1,15 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// test_archive.c: deflate and inflate restore every byte; a CRC is what zip and gzip compute; the DOS page has a character for each high byte; a zip opens as
-// a folder, its files read and one saved back; a run's .qry opens as a folder of its blobs and is never written back; an archive inside an archive opens and
-// saves too; a gzipped tar and a gzipped file open and save back; archives Python writes are read here and those orior writes are read by Python; and a path
-// of the tree runs into an archive only past an archive's file
+// test_archive.c: deflate and inflate restore every byte; a CRC is what zip and gzip compute; the DOS page has a
+// character for each high byte; a zip opens as a folder, its files read and one saved back; a run's .qry opens as a
+// folder of its blobs and is never written back; an archive inside an archive opens and saves too; a gzipped tar and a
+// gzipped file open and save back; archives Python writes are read here and those orior writes are read by Python; and
+// a path of the tree runs into an archive only past an archive's file
 #include "includes/file_defs/qry/qry.h"
 #include "includes/file_defs/qry/qry_read.h"
 #include "ui/cli/src/editor/archive.h"
+#include "ui/cli/src/editor/document.h"
+#include "ui/cli/src/editor/files.h"
 #include "ui/cli/src/runs/runner.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
@@ -20,7 +23,10 @@ typedef struct
     int utf8;
 } ArchiveEntry;
 
-static const ArchiveEntry s_zip_entries[4] = {{"docs/read.me", "hello from a zip\n", 17ull, 1, 1}, {"docs/", "", 0ull, 0, 1}, {"top.txt", "top", 3ull, 0, 1}, {"caf\x82.txt", "dos", 3ull, 0, 0}};
+static const ArchiveEntry s_zip_entries[4] = {{"docs/read.me", "hello from a zip\n", 17ull, 1, 1},
+                                              {"docs/", "", 0ull, 0, 1},
+                                              {"top.txt", "top", 3ull, 0, 1},
+                                              {"caf\x82.txt", "dos", 3ull, 0, 0}};
 
 static unsigned char s_text[200000];
 static unsigned char s_packed[1u << 20u];
@@ -49,7 +55,8 @@ static void le_written(unsigned char *out, unsigned long long *at, unsigned long
 }
 
 // an entry's record head, a local one or the central directory's, written after the `at` bytes of `out`
-static void head_written(unsigned char *out, unsigned long long *at, const ArchiveEntry *entry, unsigned long long body, unsigned long long offset, int central)
+static void head_written(unsigned char *out, unsigned long long *at, const ArchiveEntry *entry, unsigned long long body,
+                         unsigned long long offset, int central)
 {
     const unsigned long long name_size = CLI_UNITY_LENGTH(entry->name);
     const unsigned long long data_size = entry->size;
@@ -62,7 +69,10 @@ static void head_written(unsigned char *out, unsigned long long *at, const Archi
     le_written(out, at, entry->utf8 ? (1ull << 11u) : 0ull, 2u);
     le_written(out, at, entry->deflated ? 8ull : 0ull, 2u);
     le_written(out, at, 0ull, 4u);
-    le_written(out, at, EMBED_CALL(cli_archive_bytes_size.crc32, CliArchiveBytesSizeCfg, .bytes = (const unsigned char *)entry->data, .size = data_size), 4u);
+    le_written(out, at,
+               EMBED_CALL(cli_archive_bytes_size.crc32, CliArchiveBytesSizeCfg,
+                          .bytes = (const unsigned char *)entry->data, .size = data_size),
+               4u);
     le_written(out, at, body, 4u);
     le_written(out, at, data_size, 4u);
     le_written(out, at, name_size, 2u);
@@ -89,10 +99,16 @@ static unsigned long long zip_written(const ArchiveEntry *entries, unsigned int 
     {
         const ArchiveEntry *const entry = &entries[index];
         const unsigned long long data_size = entry->size;
-        const unsigned long long body = entry->deflated ? EMBED_CALL(cli_archive_size.deflate, CliArchiveSizeCfg, .data = (const unsigned char *)entry->data, .size = data_size, .out = s_packed, .capacity = sizeof(s_packed)) : data_size;
+        const unsigned long long body =
+            entry->deflated
+                ? EMBED_CALL(cli_archive_size.deflate, CliArchiveSizeCfg, .data = (const unsigned char *)entry->data,
+                             .size = data_size, .out = s_packed, .capacity = sizeof(s_packed))
+                : data_size;
         const unsigned long long offset = at;
         head_written(s_zip, &at, entry, body, offset, 0);
-        memor.cpy(&(MemoriaCfg){.dst = s_zip + at, .src = entry->deflated ? (const void *)s_packed : (const void *)entry->data, .bytes = body});
+        memor.cpy(&(MemoriaCfg){.dst = s_zip + at,
+                                .src = entry->deflated ? (const void *)s_packed : (const void *)entry->data,
+                                .bytes = body});
         at += body;
         head_written(s_directory, &directory, entry, body, offset, 1);
     }
@@ -151,8 +167,10 @@ static unsigned long long tar_written(const char *const (*entries)[2], unsigned 
     return at + 1024ull;
 }
 
-// a record of `name` containing `blob`, written at `time`, ordinary, written after the `at` bytes of s_run: the bytes after it
-static unsigned long long record_written(unsigned long long at, const char *name, const char *blob, unsigned long long time)
+// a record of `name` that contains `blob`, written at `time`, ordinary, written after the `at` bytes of s_run: the
+// bytes after it
+static unsigned long long record_written(unsigned long long at, const char *name, const char *blob,
+                                         unsigned long long time)
 {
     const unsigned long long name_size = CLI_UNITY_LENGTH(name);
     const unsigned long long blob_size = CLI_UNITY_LENGTH(blob);
@@ -176,16 +194,20 @@ static void bytes_written(const char *name, const void *bytes, unsigned long lon
 {
     char path[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_dir, .relative = name, .joined = path);
-    TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path, .bytes = bytes, .size = size), name);
+    TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path,
+                                        .bytes = bytes, .size = size),
+                             name);
 }
 
-// what the folder `path` of s_dir contains, each child `name dir archive` joined by `|`, in s_list_result: 1, or 0 where it does not list
+// what the folder `path` of s_dir contains, each child `name dir archive` joined by `|`, in s_list_result: 1, or 0
+// where it does not list
 static int folder_listing(const char *path)
 {
     char why[1024];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     VerbaLinea line = {s_list_result, sizeof(s_list_result), 0ull};
-    const int list_entries = EMBED_CALL(cli_archive_err_msg_root.list, CliArchiveErrMsgRootCfg, .root = s_dir, .path = path, .found = &s_children, .err_msg = &err_msg);
+    const int list_entries = EMBED_CALL(cli_archive_err_msg_root.list, CliArchiveErrMsgRootCfg, .root = s_dir,
+                                        .path = path, .found = &s_children, .err_msg = &err_msg);
     for (unsigned int at = 0u; list_entries && (at < s_children.count); at += 1u)
     {
         const CliChild *const child = &s_children.item[at];
@@ -198,24 +220,52 @@ static int folder_listing(const char *path)
     return list_entries;
 }
 
+// What the archive passes the suite's callback, compared with the text the file must be. It holds the calls,
+// whether the bytes match the text, and whether a 0 follows them
+typedef struct
+{
+    const char *required;
+    unsigned int calls;
+    int matched;
+    int ended;
+} ArchiveRead;
+
+// The bytes in the archive's cell read into a buffer of this call and compared with the context's text. The byte
+// after them must be 0. A file past the buffer matches nothing
+static void archive_read_held(const CliArchiveEachCfg *args)
+{
+    ArchiveRead *const read = args->context;
+    read->calls += 1u;
+    char bytes[4096];
+    const int fits = (args->size + 1ULL) <= sizeof(bytes);
+    const int got = fits && g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                                .cell = args->cell, .offset = 0ULL, .dst = bytes, .bytes = args->size + 1ULL});
+    read->matched = got && (CLI_UNITY_LENGTH(read->required) == args->size) &&
+                    (memor.cmp(&(MemoriaCfg){.src = bytes, .other = read->required, .bytes = args->size}) == 0);
+    read->ended = got && (bytes[args->size] == '\0');
+}
+
 // the file `path` of s_dir read, asserted to be `required` with a 0 after it
 static void assert_file_reads(const char *path, const char *required)
 {
     char why[1024];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    unsigned long long size = 0ull;
-    char *const read = EMBED_CALL(cli_archive_err_msg.take, CliArchiveErrMsgCfg, .root = s_dir, .path = path, .size_pointer = &size, .owner = g_cli_editor_owner, .err_msg = &err_msg);
-    TEST_ASSERT_NOT_NULL_MESSAGE(read, path);
-    CLI_TEST_ASSERT_TEXT(required, read, size);
-    TEST_ASSERT_EQUAL_CHAR('\0', read[size]);
-    g_cli_guard->persistent_buf_release(read, g_cli_editor_owner);
+    ArchiveRead read = {required, 0u, 0, 0};
+    TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(cli_archive_err_msg.each, CliArchiveErrMsgCfg, .root = s_dir, .path = path,
+                                        .each = archive_read_held, .context = &read, .err_msg = &err_msg),
+                             path);
+    TEST_ASSERT_EQUAL_UINT(1u, read.calls);
+    TEST_ASSERT_TRUE_MESSAGE(read.matched, path);
+    TEST_ASSERT_TRUE(read.ended);
 }
 
 // `text` saved as the file `path` of s_dir: 1, or 0 with why in s_error
 static int text_saved(const char *path, const char *text)
 {
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
-    const int saved = EMBED_CALL(cli_archive_size_data.write, CliArchiveSizeDataCfg, .root = s_dir, .path = path, .data = (const unsigned char *)text, .size = CLI_UNITY_LENGTH(text), .err_msg = &err_msg);
+    const int saved =
+        EMBED_CALL(cli_archive_size_data.write, CliArchiveSizeDataCfg, .root = s_dir, .path = path,
+                   .data = (const unsigned char *)text, .size = CLI_UNITY_LENGTH(text), .err_msg = &err_msg);
     (void)mmgr_line_finish(&err_msg);
     return saved;
 }
@@ -227,11 +277,15 @@ static int deflated_and_back(const unsigned char *data, unsigned long long size)
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     unsigned long long back = 0ull;
     unsigned long long used = 0ull;
-    const unsigned long long packed = EMBED_CALL(cli_archive_size.deflate, CliArchiveSizeCfg, .data = data, .size = size, .out = s_packed, .capacity = sizeof(s_packed));
-    return EMBED_CALL(cli_archive_size.inflate, CliArchiveSizeCfg, .data = s_packed, .size = packed, .out = s_back, .capacity = sizeof(s_back), .out_size = &back, .used = &used, .err_msg = &err_msg) && (back == size) && ((size == 0ull) || (memor.cmp(&(MemoriaCfg){.src = s_back, .other = data, .bytes = size}) == 0));
+    const unsigned long long packed = EMBED_CALL(cli_archive_size.deflate, CliArchiveSizeCfg, .data = data,
+                                                 .size = size, .out = s_packed, .capacity = sizeof(s_packed));
+    return EMBED_CALL(cli_archive_size.inflate, CliArchiveSizeCfg, .data = s_packed, .size = packed, .out = s_back,
+                      .capacity = sizeof(s_back), .out_size = &back, .used = &used, .err_msg = &err_msg) &&
+           (back == size) &&
+           ((size == 0ull) || (memor.cmp(&(MemoriaCfg){.src = s_back, .other = data, .bytes = size}) == 0));
 }
 
-// the long text of repeating words written in s_text
+// the long text of words that repeat, written in s_text
 static void text_of_words(void)
 {
     static const char s_words[] = "impero reads archives ";
@@ -269,8 +323,8 @@ static void nested_written(void)
     bytes_written("outer.zip", s_zip, zip_written(&outer, 1u));
 }
 
-// a tar whose first member's name a GNU long name member gives and whose second's a pax extended header gives, written
-// at long.tar in a fresh folder
+// A tar at long.tar in a fresh folder. A GNU long name member gives its first member's name, and a pax extended header
+// gives the second's
 static void long_named_written(void)
 {
     static const char *const s_entries[4][2] = {{"././@LongLink", "deep/long/name.txt"},
@@ -290,18 +344,25 @@ static void gzipped_written(void)
     static const char *const s_entries[2][2] = {{"a/b.txt", "one"}, {"c.txt", "two"}};
     cli_unity_folder("archive_gz", s_dir);
     const unsigned long long tar = tar_written(s_entries, 2u);
-    bytes_written("src.tgz", s_back, EMBED_CALL(cli_archive_size.gzip, CliArchiveSizeCfg, .data = s_tar, .size = tar, .out = s_back, .capacity = sizeof(s_back)));
-    bytes_written("big.log.gz", s_back, EMBED_CALL(cli_archive_size.gzip, CliArchiveSizeCfg, .data = (const unsigned char *)"line\n", .size = 5ull, .out = s_back, .capacity = sizeof(s_back)));
+    bytes_written("src.tgz", s_back,
+                  EMBED_CALL(cli_archive_size.gzip, CliArchiveSizeCfg, .data = s_tar, .size = tar, .out = s_back,
+                             .capacity = sizeof(s_back)));
+    bytes_written("big.log.gz", s_back,
+                  EMBED_CALL(cli_archive_size.gzip, CliArchiveSizeCfg, .data = (const unsigned char *)"line\n",
+                             .size = 5ull, .out = s_back, .capacity = sizeof(s_back)));
 }
 
-// what Python wrote out, its lines joined by `|`, into `out`, which is sized for `capacity`: 1, or 0 where it did not run whole
+// what Python wrote out, its lines joined by `|`, into `out`, which has capacity for `capacity` bytes: 1, or 0 where it
+// did not run whole
 static int python_run_result(const char *code, char *out, unsigned long long capacity)
 {
     const char *const words[5] = {s_python, "-c", code, s_dir, NULL};
     char why[1024];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     CliRunResult *const run_result = cli_run_result_alloc();
-    const int whole = EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = NULL, .settings = NULL, .count = 0u, .run_result = run_result, .err_msg = &err_msg) && (run_result->code == 0ll);
+    const int whole = EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = NULL, .settings = NULL,
+                                 .count = 0u, .run_result = run_result, .err_msg = &err_msg) &&
+                      (run_result->code == 0ll);
     VerbaLinea line = {out, capacity, 0ull};
     for (unsigned long long at = 0ull; whole && (at < run_result->out_size); at += 1ull)
     {
@@ -323,10 +384,11 @@ static int python_run_result(const char *code, char *out, unsigned long long cap
 // archives Python's own zipfile and tarfile write made in a fresh folder, the case ignored with no Python
 static void python_archives_created(void)
 {
-    static const char s_make[] = "import sys, zipfile, tarfile, io\nd = sys.argv[1]\nwith zipfile.ZipFile(d + '/py.zip', 'w', "
-                                 "zipfile.ZIP_DEFLATED) as z:\n    z.writestr('src/m.py', 'x = 1\\n' * 500)\n    z.writestr('notes.txt', "
-                                 "'plain')\nwith tarfile.open(d + '/py.tar.gz', 'w:gz') as t:\n    data = b'tar text'\n    info = "
-                                 "tarfile.TarInfo('pkg/a.txt'); info.size = len(data); t.addfile(info, io.BytesIO(data))\n";
+    static const char s_make[] =
+        "import sys, zipfile, tarfile, io\nd = sys.argv[1]\nwith zipfile.ZipFile(d + '/py.zip', 'w', "
+        "zipfile.ZIP_DEFLATED) as z:\n    z.writestr('src/m.py', 'x = 1\\n' * 500)\n    z.writestr('notes.txt', "
+        "'plain')\nwith tarfile.open(d + '/py.tar.gz', 'w:gz') as t:\n    data = b'tar text'\n    info = "
+        "tarfile.TarInfo('pkg/a.txt'); info.size = len(data); t.addfile(info, io.BytesIO(data))\n";
     char out[1024];
     cli_unity_folder("archive_python", s_dir);
     EMBED_CALL(cli_runner_name.python, CliRunnerNameCfg, .path = s_python);
@@ -336,7 +398,7 @@ static void python_archives_created(void)
     }
 }
 
-// `path` with its backslashes made slashes, into `out`, which is sized for CLI_PATH_MAX_LEN
+// `path` with its backslashes made slashes, into `out`, which has capacity for CLI_PATH_MAX_LEN bytes
 static void path_slashed(const char *path, char *out)
 {
     memor.cpy(&(MemoriaCfg){.dst = out, .src = path, .bytes = CLI_UNITY_LENGTH(path) + 1u});
@@ -380,7 +442,9 @@ void test_deflate_and_inflate_restore_every_byte(void)
 void test_deflate_compresses_runs_to_lengths_and_distances(void)
 {
     text_of_words();
-    TEST_ASSERT_LESS_THAN_UINT64(sizeof(s_text) / 3u, EMBED_CALL(cli_archive_size.deflate, CliArchiveSizeCfg, .data = s_text, .size = sizeof(s_text), .out = s_packed, .capacity = sizeof(s_packed)));
+    TEST_ASSERT_LESS_THAN_UINT64(sizeof(s_text) / 3u,
+                                 EMBED_CALL(cli_archive_size.deflate, CliArchiveSizeCfg, .data = s_text,
+                                            .size = sizeof(s_text), .out = s_packed, .capacity = sizeof(s_packed)));
 }
 
 void test_gzip_and_gunzip_restore_every_byte(void)
@@ -389,16 +453,20 @@ void test_gzip_and_gunzip_restore_every_byte(void)
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     unsigned long long back = 0ull;
     text_of_words();
-    const unsigned long long zipped = EMBED_CALL(cli_archive_size.gzip, CliArchiveSizeCfg, .data = s_text, .size = sizeof(s_text), .out = s_packed, .capacity = sizeof(s_packed));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_archive_bytes.gunzip, CliArchiveBytesCfg, .bytes = s_packed, .size = zipped, .out = s_back, .capacity = sizeof(s_back), .out_size = &back, .err_msg = &err_msg));
+    const unsigned long long zipped = EMBED_CALL(cli_archive_size.gzip, CliArchiveSizeCfg, .data = s_text,
+                                                 .size = sizeof(s_text), .out = s_packed, .capacity = sizeof(s_packed));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_archive_bytes.gunzip, CliArchiveBytesCfg, .bytes = s_packed, .size = zipped,
+                                .out = s_back, .capacity = sizeof(s_back), .out_size = &back, .err_msg = &err_msg));
     TEST_ASSERT_EQUAL_UINT64(sizeof(s_text), back);
     TEST_ASSERT_EQUAL_MEMORY(s_text, s_back, sizeof(s_text));
 }
 
 void test_a_crc_is_what_zip_and_gzip_compute(void)
 {
-    TEST_ASSERT_EQUAL_HEX32(0xCBF43926u, EMBED_CALL(cli_archive_bytes_size.crc32, CliArchiveBytesSizeCfg, .bytes = (const unsigned char *)"123456789", .size = 9ull));
-    TEST_ASSERT_EQUAL_HEX32(0u, EMBED_CALL(cli_archive_bytes_size.crc32, CliArchiveBytesSizeCfg, .bytes = (const unsigned char *)"", .size = 0ull));
+    TEST_ASSERT_EQUAL_HEX32(0xCBF43926u, EMBED_CALL(cli_archive_bytes_size.crc32, CliArchiveBytesSizeCfg,
+                                                    .bytes = (const unsigned char *)"123456789", .size = 9ull));
+    TEST_ASSERT_EQUAL_HEX32(0u, EMBED_CALL(cli_archive_bytes_size.crc32, CliArchiveBytesSizeCfg,
+                                           .bytes = (const unsigned char *)"", .size = 0ull));
 }
 
 void test_the_dos_page_has_a_character_for_each_high_byte(void)
@@ -411,7 +479,8 @@ void test_the_dos_page_has_a_character_for_each_high_byte(void)
         // a high byte fits a byte
         high[at] = (unsigned char)(0x80u + at);
     }
-    EMBED_CALL(cli_archive_bytes_size.dos, CliArchiveBytesSizeCfg, .bytes = high, .size = sizeof(high), .out_verba_linea_pointer = &line);
+    EMBED_CALL(cli_archive_bytes_size.dos, CliArchiveBytesSizeCfg, .bytes = high, .size = sizeof(high),
+               .out_verba_linea_pointer = &line);
     unsigned int characters = 0u;
     for (unsigned long long at = 0ull; at < line.at; at += 1ull)
     {
@@ -426,7 +495,8 @@ void test_the_dos_page_reads_as_the_page_defines_it(void)
     static const unsigned char s_some[4] = {'a', 0x81u, 0x9cu, 0xe1u};
     char out[512];
     VerbaLinea line = {out, sizeof(out), 0ull};
-    EMBED_CALL(cli_archive_bytes_size.dos, CliArchiveBytesSizeCfg, .bytes = s_some, .size = sizeof(s_some), .out_verba_linea_pointer = &line);
+    EMBED_CALL(cli_archive_bytes_size.dos, CliArchiveBytesSizeCfg, .bytes = s_some, .size = sizeof(s_some),
+               .out_verba_linea_pointer = &line);
     CLI_TEST_ASSERT_TEXT("a\xC3\xBC\xC2\xA3\xC3\x9F", out, line.at);
 }
 
@@ -459,6 +529,31 @@ void test_a_file_in_a_zip_reads(void)
     assert_file_reads("a.jar/docs/read.me", "hello from a zip\n");
 }
 
+// the stored text compared with the context's text, the result into the context's match
+static void stored_text_held(const CliEachTextLengthCfg *args)
+{
+    ArchiveRead *const read = args->context;
+    read->calls += 1u;
+    read->matched = (CLI_UNITY_LENGTH(read->required) == args->length) &&
+                    (memor.cmp(&(MemoriaCfg){.src = args->text, .other = read->required, .bytes = args->length}) == 0);
+}
+
+void test_a_file_in_a_zip_opens_whole_as_its_text(void)
+{
+    char why[1024];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    jar_written();
+    TEST_ASSERT_EQUAL_UINT(CLI_FILES_OPEN_WHOLE,
+                           EMBED_CALL(cli_files_opening.open, CliFilesOpenCfg, .root = s_dir,
+                                      .file = "a.jar/docs/read.me", .key = "zipped", .err_msg = &err_msg));
+    ArchiveRead read = {"hello from a zip\n", 0u, 0, 0};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key.text_each, CliDocumentKeyCfg, .key = "zipped",
+                                .each = stored_text_held, .context = &read));
+    TEST_ASSERT_EQUAL_UINT(1u, read.calls);
+    TEST_ASSERT_TRUE(read.matched);
+    EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "zipped");
+}
+
 void test_a_file_saved_back_in_a_zip_reads_as_saved_and_the_others_are_unchanged(void)
 {
     char saving[CLI_PATH_MAX_LEN];
@@ -474,7 +569,8 @@ void test_a_file_saved_back_in_a_zip_reads_as_saved_and_the_others_are_unchanged
 
 void test_a_qry_is_a_runs_file_regardless_of_case(void)
 {
-    TEST_ASSERT_EQUAL_INT(CLI_ARCHIVE_QRY, EMBED_CALL(cli_archive.type_get, CliArchiveCfg, .name = "build/qry/query1-x.QRY"));
+    TEST_ASSERT_EQUAL_INT(CLI_ARCHIVE_QRY,
+                          EMBED_CALL(cli_archive.type_get, CliArchiveCfg, .name = "build/qry/query1-x.QRY"));
 }
 
 void test_a_runs_file_lists_a_name_with_slashes_in_folders_of_its_own(void)
@@ -581,9 +677,10 @@ void test_a_gzipped_tar_python_wrote_reads(void)
 
 void test_python_reads_what_orior_saved_back(void)
 {
-    static const char s_check[] = "import sys, zipfile, tarfile\nd = sys.argv[1]\nz = zipfile.ZipFile(d + '/py.zip')\nassert z.testzip() is "
-                                  "None\nprint(z.read('notes.txt').decode())\nprint(len(z.read('src/m.py')))\nprint(tarfile.open(d + "
-                                  "'/py.tar.gz').extractfile('pkg/a.txt').read().decode())\n";
+    static const char s_check[] =
+        "import sys, zipfile, tarfile\nd = sys.argv[1]\nz = zipfile.ZipFile(d + '/py.zip')\nassert z.testzip() is "
+        "None\nprint(z.read('notes.txt').decode())\nprint(len(z.read('src/m.py')))\nprint(tarfile.open(d + "
+        "'/py.tar.gz').extractfile('pkg/a.txt').read().decode())\n";
     char out[1024];
     python_archives_created();
     TEST_ASSERT_TRUE_MESSAGE(text_saved("py.zip/notes.txt", "written by orior"), s_error);
@@ -601,7 +698,8 @@ void test_a_path_runs_into_an_archive(void)
     split_tree_written();
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_dir, .relative = "lib/a.zip", .joined = full);
     path_slashed(full, required);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_archive_root.split, CliArchiveRootCfg, .root = s_dir, .path = "lib/a.zip/x", .file = file, .inner = inner));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_archive_root.split, CliArchiveRootCfg, .root = s_dir, .path = "lib/a.zip/x",
+                                .file = file, .inner = inner));
     path_slashed(file, full);
     TEST_ASSERT_EQUAL_STRING(required, full);
     TEST_ASSERT_EQUAL_STRING("x", inner);
@@ -612,7 +710,8 @@ void test_a_plain_file_is_no_archive(void)
     char file[CLI_PATH_MAX_LEN];
     char inner[CLI_PATH_MAX_LEN];
     split_tree_written();
-    TEST_ASSERT_FALSE(EMBED_CALL(cli_archive_root.split, CliArchiveRootCfg, .root = s_dir, .path = "lib/plain.txt", .file = file, .inner = inner));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_archive_root.split, CliArchiveRootCfg, .root = s_dir, .path = "lib/plain.txt",
+                                 .file = file, .inner = inner));
 }
 
 void test_a_folder_is_no_archive(void)
@@ -620,14 +719,18 @@ void test_a_folder_is_no_archive(void)
     char file[CLI_PATH_MAX_LEN];
     char inner[CLI_PATH_MAX_LEN];
     split_tree_written();
-    TEST_ASSERT_FALSE(EMBED_CALL(cli_archive_root.split, CliArchiveRootCfg, .root = s_dir, .path = "lib", .file = file, .inner = inner));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_archive_root.split, CliArchiveRootCfg, .root = s_dir, .path = "lib", .file = file,
+                                 .inner = inner));
 }
 
 void test_a_file_an_archive_does_not_contain_does_not_read(void)
 {
     char why[1024];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    unsigned long long size = 0ull;
+    ArchiveRead read = {"", 0u, 0, 0};
     split_tree_written();
-    TEST_ASSERT_NULL(EMBED_CALL(cli_archive_err_msg.take, CliArchiveErrMsgCfg, .root = s_dir, .path = "lib/a.zip/missing", .size_pointer = &size, .owner = g_cli_editor_owner, .err_msg = &err_msg));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_archive_err_msg.each, CliArchiveErrMsgCfg, .root = s_dir,
+                                 .path = "lib/a.zip/missing", .each = archive_read_held, .context = &read,
+                                 .err_msg = &err_msg));
+    TEST_ASSERT_EQUAL_UINT(0u, read.calls);
 }

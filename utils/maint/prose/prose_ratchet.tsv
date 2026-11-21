@@ -1365,7 +1365,6 @@ utils/test/src/ui/cli/bench/cli_bench_files.c	2
 utils/test/src/ui/cli/bench/cli_bench_rules.c	4
 utils/test/src/ui/cli/cli_check.c	6
 utils/test/src/ui/cli/cli_check.h	6
-utils/test/src/ui/cli/unit/archive/test_archive/test_archive.c	5
 utils/test/src/ui/cli/unit/at_terminal/test_at_terminal/test_at_terminal.c	2
 utils/test/src/ui/cli/unit/binary/test_binary/test_binary.c	3
 utils/test/src/ui/cli/unit/bridge/test_bridge/test_bridge.c	1

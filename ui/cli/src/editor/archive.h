@@ -29,6 +29,15 @@ typedef struct CliArchiveRootCfg CliArchiveRootCfg;
 typedef struct CliArchiveBytesSizeCfg CliArchiveBytesSizeCfg;
 typedef struct CliArchiveCfg CliArchiveCfg;
 
+// What the archive passes the callback of a read: `context`, the movable cell of the archive module the bytes are in,
+// and the bytes' count. The cell holds a 0 after them
+typedef struct
+{
+    void *context;
+    const CarcerMovableEntry *cell;
+    unsigned long long size;
+} CliArchiveEachCfg;
+
 // the types of archive, and none
 enum
 {
@@ -109,13 +118,16 @@ void cli_dos(const CliArchiveBytesSizeCfg *args);
 // where a path of the tree runs into an archive: the archive's file into `file`, sized for CLI_PATH_MAX_LEN, and the
 // path's parts past it, joined by `/`, into `inner`, sized for CLI_PATH_MAX_LEN: 1, or 0 where the path runs into no
 // archive; the children of the folder of the tree `path` that is an archive or runs into one: 1, or 0 with why given;
-// the bytes of the file of the tree `path` within an archive, in a cell of their size and a 0 after counted to `owner`,
-// their size into `size`: the cell, given back by the caller, or NULL with why given; and `size` bytes of `data` saved
-// as that file, the archive written anew beside the old one and then put in its place: 1, or 0 with why given
-// (archive_path.c)
+// and `size` bytes of `data` saved as that file, the archive written anew beside the old one and then put in its
+// place: 1, or 0 with why given (archive_path.c)
+//
+// The bytes of the file of the tree `path` within an archive go into a movable cell of the archive module, a 0 after
+// them. The cell and the bytes' count go to `each` with `context`. `each` reads the bytes it needs through
+// movable_buf_read into a buffer of its own call. The archive gives the cell back after `each` returns, and its lock
+// is free while `each` runs. Returns 1, or 0 with why given, where the cell does not go to `each` (archive_path.c)
 int cli_archive_split(const CliArchiveRootCfg *args);
 int cli_archive_list(const CliArchiveErrMsgRootCfg *args);
-char *cli_archive_alloc(const CliArchiveErrMsgCfg *args);
+int cli_archive_each(const CliArchiveErrMsgCfg *args);
 int cli_archive_write(const CliArchiveSizeDataCfg *args);
 
 struct CliArchiveSizeCfg
@@ -144,8 +156,8 @@ struct CliArchiveErrMsgCfg
     VerbaLinea *err_msg;
     const char *root;
     const char *path;
-    unsigned long long *size_pointer;
-    const CellOwner *owner;
+    void (*each)(const CliArchiveEachCfg *args);
+    void *context;
 };
 
 struct CliArchiveSizeDataCfg
@@ -247,11 +259,11 @@ EMBED_TABLE_STORAGE CliArchiveErrMsgRootNs cli_archive_err_msg_root EMBED_UNUSED
 
 typedef struct
 {
-    char *(*take)(const CliArchiveErrMsgCfg *args);
+    int (*each)(const CliArchiveErrMsgCfg *args);
 } CliArchiveErrMsgNs;
-EMBED_TABLE_LAYOUT(CliArchiveErrMsgNs, take);
+EMBED_TABLE_LAYOUT(CliArchiveErrMsgNs, each);
 EMBED_TABLE_STORAGE CliArchiveErrMsgNs cli_archive_err_msg EMBED_UNUSED = {
-    .take = cli_archive_alloc,
+    .each = cli_archive_each,
 };
 
 typedef struct
