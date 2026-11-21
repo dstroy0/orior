@@ -359,6 +359,31 @@ EMBED_INLINE void quick_recent_each(const QuickRecentCtx *args)
     g_cli_guard->persistent_buf_release(text, g_cli_quick_owner);
 }
 
+// The rows of a ranked find for the quick open that `context` builds. Each row's path and places go into buffers of
+// this call, and then the row goes into the build. The read's row comes last while the read of the tree runs
+static void quick_ranked_rows(const CliFilesRankedEachCfg *each)
+{
+    const QuickCtx *const args = each->context;
+    QuickBuild *const build = args->build;
+    const CliFilesRanked *const ranked = each->ranked;
+    char path[CLI_PATH_MAX_LEN];
+    unsigned int hits[CLI_QUICK_TEXT_MAX];
+    for (unsigned int at = 0u; at < ranked->count; at += 1u)
+    {
+        CliFileRanked row = {0ULL, 0.0, 0u, 0u};
+        (void)EMBED_CALL(cli_files_root_rows.ranked_at, CliFilesRankedAtCfg, .ranked = ranked, .index = at,
+                         .row_out = &row, .path_out = path, .hits_out = hits, .hits_max = CLI_QUICK_TEXT_MAX);
+        EMBED_CALL(quick_file_row, QuickCtx, .build = build, .text = path,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN}), .hits = hits,
+                   .hit_count = row.hit_count, .from = 0u, .line = args->line, .column = args->column);
+    }
+    if (ranked->reading)
+    {
+        build->reading = 1;
+        EMBED_CALL(quick_said, QuickCtx, .build = build, .type = CLI_QUICK_ROW_READING, .text = QUICK_READING);
+    }
+}
+
 // The files' rows for the place `args` holds, with the files opened last as `each`'s rows. With no path they are the
 // files opened last. Else they are the tree's files that answer the path, at max `max`, and the read's row while the
 // read of the tree runs
@@ -384,24 +409,9 @@ static void quick_files_ranked(const CliEachRowsCountCfg *each)
     VerbaLinea typed = {query, sizeof(query), 0ULL};
     mmgr_line_put_n(&typed, args->text, *args->path_length);
     (void)mmgr_line_finish(&typed);
-    CliFilesRanked ranked = {NULL, 0u, NULL, NULL, 0};
-    (void)EMBED_CALL(cli_files_root_rows.ranked_find, CliFilesRootRowsCfg, .root = s_quick.root, .rows = &ranked,
-                     .query = query, .recent = recent, .recents = recents, .max = args->max, .fuzzy = 1,
-                     .owner = g_cli_quick_owner);
-    for (unsigned int at = 0u; at < ranked.count; at += 1u)
-    {
-        const CliFileRanked *const one = &ranked.row[at];
-        EMBED_CALL(quick_file_row, QuickCtx, .build = build, .text = one->path,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = one->path, .cap = CLI_PATH_MAX_LEN}),
-                   .hits = ranked.hit + one->hit_first, .hit_count = one->hit_count, .from = 0u, .line = line,
-                   .column = column);
-    }
-    if (ranked.reading)
-    {
-        build->reading = 1;
-        EMBED_CALL(quick_said, QuickCtx, .build = build, .type = CLI_QUICK_ROW_READING, .text = QUICK_READING);
-    }
-    g_cli_guard->persistent_buf_release(ranked.cell, g_cli_quick_owner);
+    (void)EMBED_CALL(cli_files_root_rows.ranked_find, CliFilesRootRowsCfg, .root = s_quick.root, .query = query,
+                     .recent = recent, .recents = recents, .max = args->max, .fuzzy = 1, .each = quick_ranked_rows,
+                     .context = each->context);
 }
 
 // the files' rows for `length` bytes of `text`, a path and a place after it, at max `max`

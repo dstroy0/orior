@@ -20,6 +20,7 @@ typedef struct CliFilesRootCfg CliFilesRootCfg;
 typedef struct CliFilesCountOutCfg CliFilesCountOutCfg;
 typedef struct CliFilesRootCountCfg CliFilesRootCountCfg;
 typedef struct CliFilesRootRowsCfg CliFilesRootRowsCfg;
+typedef struct CliFilesRankedAtCfg CliFilesRankedAtCfg;
 typedef struct CliFilesRootPathCfg CliFilesRootPathCfg;
 typedef struct CliFilesQueryCfg CliFilesQueryCfg;
 typedef struct CliFilesRootOutErrMsgCfg CliFilesRootOutErrMsgCfg;
@@ -221,39 +222,54 @@ int cli_files_unread(const CliFilesRootPathsCfg *args);
 // the max files a ranked find answers
 #define CLI_FILES_RANKED_MAX 200u
 
-// A file that answers a query. It holds its path from the tree's top, its score, and the places of its path's
-// characters that matched, counted in characters. There are `hit_count` of them from `hit_first` among the answer's
-// places
+// A file that answers a query, as a reader reads it into a record of its own call. It holds the place of its path
+// among the answer's paths, and its score. It also holds the places of its path's characters that matched, counted
+// in characters. There are `hit_count` of them from `hit_first` among the answer's places
 typedef struct
 {
-    const char *path;
+    unsigned long long path_at;
     double score;
     unsigned int hit_first;
     unsigned int hit_count;
 } CliFileRanked;
 
-// The files that answer a query, in one cell, NULL where none do. It holds how many, the files best first, and the
-// places their characters matched. Last, whether the read of the tree's files runs still, and more can answer
+// The files that answer a query, in one movable cell of the files module, NULL where none do. The rows come first,
+// `count` of them best first. The places their characters matched start at `hit_at`, and the paths at `text_at`, a 0
+// after each. Last, whether the read of the tree's files runs still, and more can answer
 typedef struct
 {
-    void *cell;
+    const CarcerMovableEntry *cell;
     unsigned int count;
-    const CliFileRanked *row;
-    const unsigned int *hit;
+    unsigned long long hit_at;
+    unsigned long long text_at;
     int reading;
 } CliFilesRanked;
 
+// What a ranked find passes to its callback: `context`, and the answer in the files module's movable cell, valid for
+// the call alone
+typedef struct
+{
+    void *context;
+    const CliFilesRanked *ranked;
+} CliFilesRankedEachCfg;
+
 // The tree's files at `root` that answer `query`, the best first, at max `max` of them and CLI_FILES_RANKED_MAX at
-// most. One pass over the files in order puts them into `rows`, whose cell of `owner` goes back and comes anew at the
-// answer's size. A file whose name equals the query scores CLI_FILES_RANKED_EXACT over the match, and one whose name
-// starts with it half that. One among the `recents` paths of `recent` scores CLI_FILES_RANKED_LATELY over it. With
-// `fuzzy` off, a file answers only where its path holds the query's characters in a row, case aside.
+// most. One pass over the files in order puts them into a movable cell of the files module, at the answer's size. A
+// file whose name equals the query scores CLI_FILES_RANKED_EXACT over the match, and one whose name starts with it
+// half that. One among the `recents` paths of `recent` scores CLI_FILES_RANKED_LATELY over it. With `fuzzy` off, a
+// file answers only where its path holds the query's characters in a row, case aside.
 //
-// Until the tree has its listing, the paths of `recent` alone answer and `reading` is 1. Returns 1, or 0 where the
-// cells cannot meet the answer, `rows` empty
+// Until the tree has its listing, the paths of `recent` alone answer and `reading` is 1. The answer goes to `each`
+// with `context`, and the module gives the cell back before it returns. Returns 1, or 0 where the cells cannot meet
+// the answer and nothing goes to `each`.
+//
+// The row at `index` of `ranked` read into `row_out`, its path into `path_out`, CLI_PATH_MAX_LEN bytes. Its places go
+// into `hits_out`, at max `hits_max` of them, and `row_out`'s `hit_count` tells how many. Returns 1, or 0 past the
+// rows
 #define CLI_FILES_RANKED_EXACT 100000.0
 #define CLI_FILES_RANKED_LATELY 6.0
 int cli_files_ranked_find(const CliFilesRootRowsCfg *args);
+int cli_files_ranked_at(const CliFilesRankedAtCfg *args);
 // How a search reads its query: case as given or not, whole words only or not, and a regular expression or the text
 typedef struct
 {
@@ -395,13 +411,23 @@ struct CliFilesRootCountCfg
 struct CliFilesRootRowsCfg
 {
     const char *root;
-    CliFilesRanked *rows;
     const char *query;
     const char *const *recent;
     unsigned int recents;
     unsigned int max;
     int fuzzy;
-    const CellOwner *owner;
+    void (*each)(const CliFilesRankedEachCfg *args);
+    void *context;
+};
+
+struct CliFilesRankedAtCfg
+{
+    const CliFilesRanked *ranked;
+    unsigned int index;
+    CliFileRanked *row_out;
+    char *path_out;
+    unsigned int *hits_out;
+    unsigned int hits_max;
 };
 
 struct CliFilesRootPathCfg
@@ -571,10 +597,12 @@ EMBED_TABLE_STORAGE CliFilesRootPathsNs cli_files_root_paths EMBED_UNUSED = {
 typedef struct
 {
     int (*ranked_find)(const CliFilesRootRowsCfg *args);
+    int (*ranked_at)(const CliFilesRankedAtCfg *args);
 } CliFilesRootRowsNs;
-EMBED_TABLE_LAYOUT(CliFilesRootRowsNs, ranked_find);
+EMBED_TABLE_LAYOUT(CliFilesRootRowsNs, ranked_find, ranked_at);
 EMBED_TABLE_STORAGE CliFilesRootRowsNs cli_files_root_rows EMBED_UNUSED = {
     .ranked_find = cli_files_ranked_find,
+    .ranked_at = cli_files_ranked_at,
 };
 
 typedef struct

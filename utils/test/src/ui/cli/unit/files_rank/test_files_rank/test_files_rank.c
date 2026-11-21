@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// test_files_rank.c: quick open and the editor's windows: a name as typed ranks above every looser match and above recently opened files, with
-// fuzzy matching off only the text as typed answers, a quick open answers from the recent files until the tree is read, and a typed name
-// matches its characters in the name
+// test_files_rank.c: quick open and the editor's windows: a name as typed ranks above every looser match and above
+// recently opened files, with fuzzy matching off only the text as typed answers, a quick open answers from the recent
+// files until the tree is read, and a typed name matches its characters in the name
 #include "ui/cli/src/code/symbols.h"
 #include "ui/cli/src/editor/files.h"
 #include "ui/cli/src/text/text.h"
@@ -21,7 +21,9 @@ static void assert_hits(const char *required, const char *query, const char *tex
 {
     double score = 0.0;
     unsigned int count = 0u;
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_query.fuzzy, CliFilesQueryCfg, .query = query, .text = text, .from_u64 = from, .score = &score, .hits = s_hits, .count_pointer = &count, .owner = g_cli_files_views_owner));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_query.fuzzy, CliFilesQueryCfg, .query = query, .text = text, .from_u64 = from,
+                                .score = &score, .hits = s_hits, .count_pointer = &count,
+                                .owner = g_cli_files_views_owner));
     char hits[256];
     VerbaLinea line = {hits, sizeof(hits), 0ull};
     for (unsigned int at = 0u; at < count; at += 1u)
@@ -38,7 +40,9 @@ static void assert_score(double required, const char *query, const char *text, u
 {
     double score = 0.0;
     unsigned int count = 0u;
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_query.fuzzy, CliFilesQueryCfg, .query = query, .text = text, .from_u64 = from, .score = &score, .hits = s_hits, .count_pointer = &count, .owner = g_cli_files_views_owner));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_query.fuzzy, CliFilesQueryCfg, .query = query, .text = text, .from_u64 = from,
+                                .score = &score, .hits = s_hits, .count_pointer = &count,
+                                .owner = g_cli_files_views_owner));
     TEST_ASSERT_DOUBLE_WITHIN(1e-9, required, score);
 }
 
@@ -47,7 +51,9 @@ static void assert_no_fuzzy_match(const char *query, const char *text, unsigned 
 {
     double score = 0.0;
     unsigned int count = 0u;
-    TEST_ASSERT_FALSE(EMBED_CALL(cli_files_query.fuzzy, CliFilesQueryCfg, .query = query, .text = text, .from_u64 = from, .score = &score, .hits = s_hits, .count_pointer = &count, .owner = g_cli_files_views_owner));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_files_query.fuzzy, CliFilesQueryCfg, .query = query, .text = text,
+                                 .from_u64 = from, .score = &score, .hits = s_hits, .count_pointer = &count,
+                                 .owner = g_cli_files_views_owner));
 }
 
 void setUp(void)
@@ -91,9 +97,40 @@ void test_a_query_torn_into_too_many_pieces_is_no_match(void)
     assert_no_fuzzy_match("abcd", "a/x/b/x/c/x/d", 12ull);
 }
 
+// the max rows and places of a row the test reads off a find's answer
+#define RANKED_ROWS 10u
+#define RANKED_HITS 16u
+
+// The answer of the last find, read off the files module's cell in the callback. It holds the count, whether a cell
+// came, and whether the read of the tree runs. Then each row, its path and its places
+typedef struct
+{
+    unsigned int count;
+    int cell;
+    int reading;
+    CliFileRanked row[RANKED_ROWS];
+    char path[RANKED_ROWS][CLI_PATH_MAX_LEN];
+    unsigned int hit[RANKED_ROWS][RANKED_HITS];
+} RankedRead;
+
 // the ranked tree's folder, and the answer of the last find
 static char s_tree[CLI_PATH_MAX_LEN];
-static CliFilesRanked s_ranked;
+static RankedRead s_ranked;
+
+// the answer of a find read into s_ranked, at max RANKED_ROWS rows
+static void ranked_read(const CliFilesRankedEachCfg *each)
+{
+    const CliFilesRanked *const ranked = each->ranked;
+    s_ranked.count = ranked->count;
+    s_ranked.cell = ranked->cell != NULL;
+    s_ranked.reading = ranked->reading;
+    for (unsigned int at = 0u; (at < ranked->count) && (at < RANKED_ROWS); at += 1u)
+    {
+        TEST_ASSERT_TRUE(EMBED_CALL(cli_files_root_rows.ranked_at, CliFilesRankedAtCfg, .ranked = ranked, .index = at,
+                                    .row_out = &s_ranked.row[at], .path_out = s_ranked.path[at],
+                                    .hits_out = s_ranked.hit[at], .hits_max = RANKED_HITS));
+    }
+}
 
 // the file `name` of the ranked tree written, its folder `folder` made first where it is not NULL
 static void tree_file(const char *folder, const char *name)
@@ -107,7 +144,7 @@ static void tree_file(const char *folder, const char *name)
     cli_unity_file(s_tree, name, "x");
 }
 
-// the tree of the ranked finds positioned and listed the first time it is asked
+// the tree of the ranked finds, made and listed the first time a test asks for it
 static void tree_listed(void)
 {
     if (s_tree[0] == '\0')
@@ -129,9 +166,10 @@ static void tree_listed(void)
 static unsigned int ranked(const char *root, const char *query, int fuzzy, const char *const *recent,
                            unsigned int recents)
 {
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_root_rows.ranked_find, CliFilesRootRowsCfg, .root = root, .rows = &s_ranked,
-                                .query = query, .recent = recent, .recents = recents, .max = 10u, .fuzzy = fuzzy,
-                                .owner = g_cli_files_views_owner));
+    s_ranked = (RankedRead){0};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_root_rows.ranked_find, CliFilesRootRowsCfg, .root = root, .query = query,
+                                .recent = recent, .recents = recents, .max = RANKED_ROWS, .fuzzy = fuzzy,
+                                .each = ranked_read));
     return s_ranked.count;
 }
 
@@ -139,27 +177,27 @@ void test_a_name_as_typed_outranks_one_that_starts_with_it_which_outranks_a_long
 {
     tree_listed();
     TEST_ASSERT_EQUAL_UINT(3u, ranked(s_tree, "view", 1, NULL, 0u));
-    TEST_ASSERT_EQUAL_STRING("src/view.rs", s_ranked.row[0].path);
-    TEST_ASSERT_EQUAL_STRING("src/view_model.rs", s_ranked.row[1].path);
-    TEST_ASSERT_EQUAL_STRING("src/review.rs", s_ranked.row[2].path);
+    TEST_ASSERT_EQUAL_STRING("src/view.rs", s_ranked.path[0]);
+    TEST_ASSERT_EQUAL_STRING("src/view_model.rs", s_ranked.path[1]);
+    TEST_ASSERT_EQUAL_STRING("src/review.rs", s_ranked.path[2]);
     TEST_ASSERT_TRUE(s_ranked.row[0].score > s_ranked.row[1].score);
     TEST_ASSERT_TRUE(s_ranked.row[1].score > s_ranked.row[2].score);
     TEST_ASSERT_FALSE(s_ranked.reading);
     // the name's characters the match took, counted in the path's characters
     TEST_ASSERT_EQUAL_UINT(4u, s_ranked.row[0].hit_count);
-    TEST_ASSERT_EQUAL_UINT(4u, s_ranked.hit[s_ranked.row[0].hit_first]);
-    TEST_ASSERT_EQUAL_UINT(7u, s_ranked.hit[s_ranked.row[0].hit_first + 3u]);
+    TEST_ASSERT_EQUAL_UINT(4u, s_ranked.hit[0][0]);
+    TEST_ASSERT_EQUAL_UINT(7u, s_ranked.hit[0][3]);
 }
 
 void test_a_file_opened_lately_outranks_an_equal_match(void)
 {
     tree_listed();
     TEST_ASSERT_EQUAL_UINT(2u, ranked(s_tree, "notes", 1, NULL, 0u));
-    TEST_ASSERT_EQUAL_STRING("a/notes.txt", s_ranked.row[0].path);
+    TEST_ASSERT_EQUAL_STRING("a/notes.txt", s_ranked.path[0]);
     const char *const recent[1] = {"b/notes.txt"};
     TEST_ASSERT_EQUAL_UINT(2u, ranked(s_tree, "notes", 1, recent, 1u));
-    TEST_ASSERT_EQUAL_STRING("b/notes.txt", s_ranked.row[0].path);
-    TEST_ASSERT_EQUAL_STRING("a/notes.txt", s_ranked.row[1].path);
+    TEST_ASSERT_EQUAL_STRING("b/notes.txt", s_ranked.path[0]);
+    TEST_ASSERT_EQUAL_STRING("a/notes.txt", s_ranked.path[1]);
 }
 
 void test_with_fuzzy_off_a_path_answers_only_where_it_contains_the_query(void)
@@ -167,7 +205,7 @@ void test_with_fuzzy_off_a_path_answers_only_where_it_contains_the_query(void)
     tree_listed();
     TEST_ASSERT_EQUAL_UINT(1u, ranked(s_tree, "vmr", 1, NULL, 0u));
     TEST_ASSERT_EQUAL_UINT(0u, ranked(s_tree, "vmr", 0, NULL, 0u));
-    TEST_ASSERT_NULL(s_ranked.cell);
+    TEST_ASSERT_FALSE(s_ranked.cell);
     TEST_ASSERT_EQUAL_UINT(2u, ranked(s_tree, "ew.r", 0, NULL, 0u));
     TEST_ASSERT_EQUAL_UINT(4u, s_ranked.row[0].hit_count);
 }
@@ -180,8 +218,6 @@ void test_with_the_tree_unread_only_the_recent_files_answer_and_reading_is_1(voi
     cli_unity_file(s_other, "one.c", "x");
     const char *const recent[2] = {"x/one.c", "y/two.c"};
     TEST_ASSERT_EQUAL_UINT(1u, ranked(s_other, "one", 1, recent, 2u));
-    TEST_ASSERT_EQUAL_STRING("x/one.c", s_ranked.row[0].path);
+    TEST_ASSERT_EQUAL_STRING("x/one.c", s_ranked.path[0]);
     TEST_ASSERT_TRUE(s_ranked.reading);
-    g_cli_guard->persistent_buf_release(s_ranked.cell, g_cli_files_views_owner);
-    s_ranked = (CliFilesRanked){NULL, 0u, NULL, NULL, 0};
 }
