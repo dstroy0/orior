@@ -72,7 +72,7 @@ typedef struct
     CliFiles *files;
     unsigned int *reserve;
 } FilesCellsCtx;
-// the places of `files` sorted by their paths' bytes, runs of one, two, four and on merged in turn between the places
+// The places of `files` sorted by their paths' bytes. Runs of one, two, four and on merge in turn between the places
 // and `reserve`, sized for as many
 EMBED_INLINE void files_merge(const FilesCellsCtx *args)
 {
@@ -180,8 +180,8 @@ int cli_files_pick(const CliFilesPickedCtx *args)
     unsigned int count = 0u;
     unsigned long long bytes = 0ULL;
     EMBED_CALL(cli_symbols_count.tree_files_count, CliSymbolsCountCfg, .count_pointer = &count, .bytes = &bytes);
-    // the max the tree has, one list of this call: a filter admits no more than every file; the paths the filter
-    // admits, sorted, are written into the picked cell as the call ends
+    // The max the tree has, one list of this call: a filter admits no more than every file. The call writes the paths
+    // the filter admits, sorted, into the picked cell as it ends
     const unsigned long long cell_bytes = sizeof(CliFiles) + ((unsigned long long)count * sizeof(unsigned int)) + bytes;
     CliFiles *const files = EMBED_CALL(cli_files_bytes_internal.work_alloc, CliFilesBytesCtx, .bytes = cell_bytes);
     if (files == NULL)
@@ -270,7 +270,7 @@ unsigned int cli_picked_index(const CliFilesPickedIndexCtx *args)
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_PATH_MAX_LEN});
     unsigned int low = 0u;
     unsigned int high = (picked->cell != NULL) ? picked->count : 0u;
-    // the paths are sorted, so the one looked for is found by halving
+    // The paths are in order. The search halves the range until it finds the path or the range is empty
     while (low < high)
     {
         const unsigned int middle = low + ((high - low) / 2u);

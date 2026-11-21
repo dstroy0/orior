@@ -9,8 +9,8 @@
 #include "../text/text.h"
 #include "python_paths_internal.h"
 
-// a file larger than this is not read; how long a tree's reading is, in milliseconds; and the bytes a list's cell
-// starts at
+// The bytes past which the search reads no file, and how long a tree's read stays fresh, in milliseconds. Then the
+// bytes a list's cell starts at
 #define CLI_PY_LARGEST (1ULL << 20u)
 #define CLI_PY_FRESH_FOR 30000ULL
 #define CLI_PY_CELL_FIRST (8ULL * CLI_PATH_MAX_LEN)
@@ -29,8 +29,8 @@ typedef struct
     unsigned long long bytes;
 } CliPyCell;
 
-// The tree's reading: the tree, when it was read, how many folders are counted, in their cell as records, and how many
-// one script names, in their cell as paths
+// The tree's read: the tree, and the millisecond of its read. It holds how many folders the read counts, in their cell
+// as records, and how many one script names, in their cell as paths
 typedef struct
 {
     char root[CLI_PATH_MAX_LEN];
@@ -58,9 +58,9 @@ typedef struct
     const CliPyCount *record;
 } PythonPathsSearchCtx;
 
-// the list's cell grown to hold `needed` bytes where it is less: doubled from its bytes, or taken at the need where
-// that is more, the records so far copied through a page of the stack and the cell before released: 1, or 0 where the
-// cells cannot meet it and the list stays as it is
+// The list's cell grown to hold `needed` bytes where it holds less. It doubles from its bytes, or takes the need
+// where that is more. The records so far go across through a page of the stack, and the old cell goes back. Returns
+// 1, or 0 where the cells cannot meet it and the list stays as it is
 EMBED_INLINE int cli_py_cell_grown(const PythonPathsSearchCtx *args)
 {
     CliPyCell *const store = args->store;
@@ -104,10 +104,8 @@ EMBED_INLINE int cli_py_seen_is(const PythonPathsSearchCtx *args)
                .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_PATH_MAX_LEN}) + 1ULL}) == 0;
 }
 
-// the record `index` records into the counted cell read
-// the record `record` written `index` records into the counted cell
-// whether a file of the tree is a script a search reads: one ending in .py in no folder of an environment, of what a
-// build writes, or of a cache
+// Whether a file of the tree is a script the search reads. It ends in .py and lies in no folder of an environment,
+// of what a build writes, or of a cache
 EMBED_INLINE int cli_search(const PythonPathsSearchCtx *args)
 {
     static const char *const s_not[8] = {"venv",          ".venv",       "env",  "node_modules",
@@ -325,8 +323,8 @@ unsigned int cli_python_paths(const CliPythonPathsCfg *args)
         PythonPathsSearchCtx searched = {.root = root, .top = top};
         (void)EMBED_CALL(cli_files_root_paths.each, CliFilesRootPathsCfg, .root = root, .each = python_files_searched,
                          .context = &searched);
-        // the max used first, then by path: each record read out of the cell, the ones before it moved up a record
-        // while they order after it, and it written where they stop
+        // The max used first, then by path. The sort takes each record out of the cell, and moves the ones before it
+        // up a record while they order after it. It writes the record where they stop
         for (unsigned int at = 1u; at < s_search.counts; at += 1u)
         {
             CliPyCount pivot;

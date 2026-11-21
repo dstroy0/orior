@@ -20,8 +20,8 @@ int cli_templates_folder(const CliTemplatesCfg *args)
     return 1;
 }
 
-// The names listed as a folder is read: counted with their bytes where `name` is NULL, and else put in the cell a
-// count took, `max` names and `text_max` bytes of them at max
+// The names a folder read lists. Where `name` is NULL, the read counts them with their bytes. Else it puts them in
+// the cell a count took, at max `max` names and `text_max` bytes of them
 typedef struct
 {
     const char **name;
@@ -43,8 +43,8 @@ typedef struct
     VerbaLinea *err_msg;
     const char *path;
 } TemplatesCtx;
-// whether a name is one a folder may take: not blank, no separator, no `..`, and none of the characters a path reads
-// as more than a name
+// Whether a name is one a folder may take. It is not blank, has no separator and no `..`, and has none of the
+// characters a path reads as more than a name
 EMBED_INLINE int cli_plain(const TemplatesCtx *args)
 {
     int blank = 1;
@@ -94,7 +94,7 @@ typedef struct
 
 EMBED_INLINE int cli_copy(const TemplatesCtx *args);
 
-// that a path could not be copied, reported
+// the report that the copy of a path failed
 EMBED_INLINE int cli_uncopied(const TemplatesCtx *args)
 {
     mmgr_line_put(args->err_msg, args->path);

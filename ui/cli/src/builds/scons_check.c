@@ -13,8 +13,8 @@
 
 #include "../text/text.h"
 
-// the max names a file imports stored, the max names exported matched to them and the bytes they take, the max files
-// read for what they export, and the max bytes of one read
+// The max names a file imports, and the max names exported matched to them with the bytes they take. Then the max
+// files the check reads for what they export, and the max bytes of one read
 #define CLI_SCONS_IMPORTS 4096u
 #define CLI_SCONS_EXPORTS 65536u
 #define CLI_SCONS_EXPORTS_TEXT (1u << 22u)
@@ -39,9 +39,9 @@ typedef struct
     int exported;
 } CliSconsImport;
 
-// the check under way; the names the file imports, a cell for the check containing `s_imports_max` of them, NULL while
-// they are only counted, and how many there are; the names exported matched to them and the bytes those take; and what
-// the checks' capacities occupy in the cellblock
+// The check under way. It holds the names the file imports, in a cell with capacity for `s_imports_max`, and how
+// many there are. The cell is NULL while the check counts them. It holds the names exported matched to them and the
+// bytes those take. Last, what the checks' capacities occupy in the cellblock
 static CliSconsCheck s_check;
 static CliSconsImport *s_import;
 static unsigned int s_imports_max;
@@ -68,9 +68,9 @@ typedef struct
     unsigned long long at;
     CliCompletions *items;
 } SconsCheckCtx;
-// `size` bytes of `text` read as a file of SCons, its class bytes a cell: the cell, for the caller to give back, or
-// NULL, nothing allocated, where it is larger than a file read, the cellblock cannot meet its class bytes or it is not
-// read
+// `size` bytes of `text` read as a file of SCons, its class bytes a cell. Returns the cell, for the caller to give
+// back. Returns NULL, with no cell taken, where the text is past a read's max or the read fails. Also NULL where the
+// cellblock cannot meet the class bytes
 EMBED_INLINE unsigned char *check_read(const SconsCheckCtx *args)
 {
     const char *text = args->text;
@@ -94,8 +94,8 @@ EMBED_INLINE void check_copy(const SconsCheckCtx *args)
     (void)mmgr_line_finish(&line);
 }
 
-// the folder of the SConstruct the file at `path` belongs to: the nearest above it in the tree that contains one, the
-// tree's top where none does
+// The folder of the SConstruct the file at `path` belongs to. It is the nearest folder above it in the tree that
+// contains one, and the tree's top where none does
 EMBED_INLINE void check_top_folder(const SconsCheckCtx *args)
 {
     const char *root = args->root;
@@ -196,8 +196,8 @@ static void check_import(const CliSconsSpanCfg *args)
     }
 }
 
-// a name exported matched against the names the file imports, each it matches marked exported, while as many are stored
-// as a check allows
+// A name exported matched against the names the file imports, and each it matches marked exported. The marks stop
+// at the names a check allows
 static void check_export(const CliEachNameSizeCfg *args)
 {
     if ((s_exports >= CLI_SCONS_EXPORTS) || (args->size > CLI_SCONS_EXPORTS_TEXT - s_export_used))
@@ -218,8 +218,8 @@ static void check_export(const CliEachNameSizeCfg *args)
     s_export_used += (unsigned int)args->size;
 }
 
-// what the other SConstructs and SConscripts of the tree export, the file at `path` left out: the tree's files
-// positioned flat for the walk, and each file read into cells given back before the next
+// What the other SConstructs and SConscripts of the tree export, the file at `path` left out. The walk goes over the
+// tree's files in order, and each file goes into cells that go back before the next
 static void check_others_each(const CliFilesEachCfg *view)
 {
     const SconsCheckCtx *const args = view->context;
@@ -336,7 +336,7 @@ void cli_scons_check(const CliSconsTextCtx *args)
     g_cli_guard->persistent_buf_release(class_of, g_cli_scons_work_states_owner);
 }
 
-// The hand a name SCons gives is passed to
+// What a name SCons gives goes to: `each`, with `context`
 typedef struct
 {
     void (*each)(const CliEachNameSizeCfg *args);

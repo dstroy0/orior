@@ -8,8 +8,8 @@
 
 #include "../text/text.h"
 
-// What the search of one package records: the tree, where the tests go, the manifest, package and target, and the files
-// followed, where each starts in their texts, both in cells at their max
+// What the search of one package records. It holds the tree, where the tests go, the manifest, package and target,
+// and the files the search follows. It holds where each starts in their texts, both in cells at their max
 typedef struct
 {
     const char *root;
@@ -46,8 +46,8 @@ typedef struct
     const CliRustItem *item;
     int owner_folder;
 } CargoFoundCtx;
-// a text put in the tests' texts, in the newest piece where it has capacity, else in a new piece put before it, so a
-// text put stays where it is: where it is, "" where it does not fit or no piece could be taken
+// A text put in the tests' texts, in the newest piece where it has capacity, else in a new piece put before it. A
+// text put stays where it is. Returns where it is, "" where it does not fit or the pool has no piece for it
 EMBED_INLINE const char *found_append(const CargoFoundCtx *args)
 {
     if (args->tests->used + args->length + 1ULL > CLI_CARGO_TEXT)
@@ -78,7 +78,7 @@ EMBED_INLINE const char *found_append(const CargoFoundCtx *args)
     return at;
 }
 
-// whether a file of the package was followed already: 1, else it is recorded as followed and 0
+// whether the search followed a file of the package already: 1, else it records the file as followed and returns 0
 EMBED_INLINE int found_visit(const CargoFoundCtx *args)
 {
     for (unsigned long long at = 0ULL; at < args->walk->seen_count; at += 1ULL)
@@ -144,9 +144,9 @@ EMBED_INLINE void found_test(const CargoFoundCtx *args)
     tests->count += 1u;
 }
 
-// the modules of `file`, a path in the tree whose own module path is `path`, followed: each test it contains found, and
-// each module it names with `mod name;` followed in turn. A file that is a target's first, or a mod.rs, has its
-// modules' files beside it; any other stores them in the folder of its own name
+// The modules of `file`, a path in the tree whose own module path is `path`, followed. The walk finds each test it
+// contains, and follows each module it names with `mod name;` in turn. A target's first file, or a mod.rs, has its
+// modules' files beside it. Any other file keeps them in the folder of its own name
 static void found_walk(const CargoFoundCtx *args)
 {
     const char *path = args->path;
