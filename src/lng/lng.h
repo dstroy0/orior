@@ -181,15 +181,20 @@ extern "C"
     void lng_used_check(const LngTable *table, const char *path, const LngMap *used, LngList *defects);
 
     // A target table, src/lng/<target>_lng.tsv, gives the symbols of one language. Each row names the transpiler word
-    // its symbol bridges to, and the bridge takes the symbol to gsm. A probe shows the symbol at work, and the
-    // witness cell names the run that printed the expected output (harness.py lng witness). A row with no witness is
-    // a hole. No lift goes through a hole.
+    // its symbol bridges to. The `anchor` column of the transpiler table gives the bridge word's ladder anchor. The
+    // anchor takes a relation to gsm, and its cases in ladder.h are the relation's gsm.
+    //
+    // A relation's probe is a template that the witness run puts on each of those cases. A type's probe prints its
+    // expected output. The witness cell names the run that gave every answer (harness.py lng witness). A row with no
+    // witness is a hole, and so is a relation whose bridge word has no anchor. No lift goes through a hole.
     //
     // Defects of the target table `target`, named `name`, against `transpiler`, appended to `defects`. A type outside
-    // the types of .g is a defect, and so is a probe with no expected output. A bridge word the transpiler has no
-    // word for is a defect, and so are two rows with one bridge word. A type that disagrees with its bridge on width
-    // or sign is a defect. A relation the row marks and its bridge does not is a defect. Each hole goes into
-    // `findings`
+    // the types of .g is a defect, and so is a type's probe with no expected output. A relation with an expected
+    // output is a defect, and so is an anchored relation with no probe. A bridge word the transpiler has no word for
+    // is a defect, and so are two rows with one bridge word.
+    //
+    // A type that disagrees with its bridge on width or sign is a defect. A relation the row marks and its bridge does
+    // not is a defect. Each hole goes into `findings`
     void lng_target_check(const LngTable *transpiler, const LngTable *target, const char *name, LngList *defects,
                           LngList *findings);
 
@@ -201,7 +206,8 @@ extern "C"
 
     // The lift of one bridge word, `bridge`, from the table `from`, named `from_name`, to the table `to`, named
     // `to_name`. The result is the word of `to` for it. The lift refuses with NULL where the transpiler has no word
-    // `bridge`, or where a side has no witnessed row for it. Each refusal names the row and goes into `refusals`
+    // `bridge`. It refuses where `bridge` is no thing and has no ladder anchor, and so no gsm cases. It refuses too
+    // where a side has no witnessed row for it. Each refusal names the row and goes into `refusals`
     const char *lng_lift(const LngTable *transpiler, const LngTable *from, const char *from_name, const LngTable *to,
                          const char *to_name, const char *bridge, LngList *refusals);
 

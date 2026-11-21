@@ -17,6 +17,7 @@
 #define LNG_SCHEMA "src/cu/engine/rmc/machine_ir_types.h"
 #define LNG_GNASCOR "src/cu/transpiler/gnascor.md"
 #define LNG_FORMS "src/cu/transpiler/lstar/protocol/table/cu.krs"
+#define LNG_LADDER "src/cu/transpiler/lstar/protocol/counterexample/ladder.h"
 
 static KfileLines s_file;
 
@@ -60,6 +61,33 @@ int main(void)
     LngTable asm_table = {{NULL, 0u, 0u}, NULL, 0u, 0u};
     lng_check_table("src/lng/transpiler_lng.tsv", &table, &defects);
     lng_table_check(&table, g_lng_types, LNG_KINDS, &defects);
+    // each anchor a row names is an anchor of the ladder, the text of an `anchor_(NAME, "text"` of ladder.h
+    LngList ladder_anchors = {NULL, 0u, 0u};
+    lng_check_read(LNG_LADDER);
+    for (unsigned int line = 0u; line < s_file.lines; line += 1u)
+    {
+        const char *const opened = strstr(s_file.line[line], "anchor_(");
+        const char *const quote = (opened != NULL) ? strchr(opened, '"') : NULL;
+        const char *const closed = (quote != NULL) ? strchr(quote + 1, '"') : NULL;
+        if (closed != NULL)
+        {
+            LngList text = {NULL, 0u, 0u};
+            lng_list_printed(&text, "%.*s", (int)(closed - quote - 1), quote + 1);
+            lng_set_add(&ladder_anchors, text.text[0]);
+            lng_list_free(&text);
+        }
+    }
+    for (unsigned int row = 0u; row < table.rows; row += 1u)
+    {
+        const char *const anchor = lng_cell(&table, row, "anchor");
+        unsigned int place = 0u;
+        if ((anchor != NULL) && (anchor[0] != '\0') && !lng_set_find(&ladder_anchors, anchor, &place))
+        {
+            lng_list_printed(&defects, "%s has the anchor %s, which the ladder has no anchor for",
+                             lng_cell(&table, row, "word"), anchor);
+        }
+    }
+    lng_list_free(&ladder_anchors);
     lng_table_findings(&table, &findings);
     lng_check_table("src/lng/gnascor_hol_lng.tsv", &hol, &defects);
     lng_table_check(&hol, g_lng_hol_types, LNG_HOL_KINDS, &defects);

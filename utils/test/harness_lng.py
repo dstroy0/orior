@@ -6,14 +6,21 @@
     harness.py lng witness c python     the tables of those targets alone
 
 A target table is a file src/lng/<target>_lng.tsv with a `witness` column. Each row gives a symbol of the target's
-language, the transpiler word it bridges to, a probe and the output the probe must print. The witness command runs
-each probe through the target's tool. Where the output is the expected output, the witness cell gets the tool and its
-version. Where the output is another output, or the row has no probe, the cell is empty. That row is a hole, and no
-lift goes through it. lng_check (src/lng/lng_check.sh) reads the tables and reports each hole."""
+language and the transpiler word it bridges to. The bridge word's ladder anchor, the `anchor` column of
+src/lng/transpiler_lng.tsv, takes the symbol to gsm. The cases of that anchor in ladder.h are its gsm, as gsm_write
+writes them: 1,1->2 for add.
+
+A relation's probe is a template that sets `answer` from `left` and `right`. The command runs it on each case of the
+anchor at the ladder's word of 32 bits. A predicate answers the target's true or 0, and the target's true is what its
+`==` answers for 1,1, as the ladder reads SAME. A type's probe prints its expected output.
+
+Where every answer is the case's answer, the witness cell gets the tool and its version. Else the cell is empty. That
+row is a hole, and no lift goes through it. lng_check (src/lng/lng_check.sh) reads the tables and reports each hole."""
 
 import glob
 import os
 import platform
+import re
 import subprocess
 import sys
 
@@ -23,10 +30,40 @@ from utils.tools import findroot  # noqa: E402
 
 ROOT = findroot.root()
 TABLES = os.path.join(ROOT, "src", "lng")
+TRANSPILER = os.path.join(TABLES, "transpiler_lng.tsv")
+LADDER = os.path.join(ROOT, "src", "cu", "transpiler", "lstar", "protocol", "counterexample", "ladder.h")
 OUT = os.path.join(ROOT, "build", "lng", "witness")
 
 # the text a C probe goes into: the probe is the body of main
 C_FRAME = "#include <stdint.h>\n#include <stdio.h>\n\nint main(void)\n{\n    %s\n    return 0;\n}\n"
+
+# the text a relation's template goes into for one case, in C and in Python
+C_CASE = 'uint32_t left = %su; uint32_t right = %su; uint32_t answer = 0u; %s printf("%%u", (unsigned)answer);'
+PYTHON_CASE = "left = %s; right = %s; answer = 0; %s; print(int(answer))"
+
+# the ladder anchors whose answer is a predicate, true or false
+PREDICATES = {"same", "less", "at_max", "more", "at_least", "apart"}
+
+
+def ladder():
+    """Each ladder anchor's text and its cases, each case its words and its answer, read from ladder.h."""
+    with open(LADDER, encoding="utf-8") as handle:
+        text = handle.read()
+    names = dict(re.findall(r'anchor_\((\w+), "(\w+)"', text))
+    cases = {}
+    for name, words, answer in re.findall(r"\{LADDER_(\w+), \{([^}]*)\}, \d+u, (0x[0-9a-fA-F]+|\d+)u", text):
+        values = [int(word.strip().rstrip("u"), 0) for word in words.split(",") if word.strip()]
+        cases.setdefault(names[name], []).append((values, int(answer, 0)))
+    return cases
+
+
+def anchors():
+    """Each transpiler word with a ladder anchor, and its anchor's text."""
+    with open(TRANSPILER, encoding="utf-8") as handle:
+        lines = [line.split("\t") for line in handle.read().split("\n") if line != ""]
+    head = lines[0]
+    word, anchor, target = head.index("word"), head.index("anchor"), head.index("target")
+    return {cells[word]: cells[anchor] for cells in lines[1:] if cells[anchor] != "" and cells[target] == ""}
 
 
 def tables():
@@ -81,6 +118,19 @@ def python_output(probe, folder, name):
 RUNNERS = {"c": (c_tool, c_output), "python": (python_tool, python_output)}
 
 
+def case_body(name, template, cases):
+    """The probe body that runs `template` on each of `cases`, one answer a line."""
+    if name == "c":
+        return " ".join("{ " + C_CASE % (words[0], words[1], template) + ' printf("\\n"); }' for words, _ in cases)
+    return "\n".join(PYTHON_CASE % (words[0], words[1], template) for words, _ in cases)
+
+
+def relation_answers(name, output, folder, number, template, cases):
+    """What the template answers on each case, or None where the probe does not run."""
+    got = output(case_body(name, template, cases), folder, "row_%d" % number)
+    return None if got is None else got.split()
+
+
 def witness(name, path):
     """The probes of one table run, its witness cells written. 0 where the command writes the table, and 2 where the
     host has no tool for it."""
@@ -89,30 +139,48 @@ def witness(name, path):
     if text is None:
         print("lng witness: %s has no tool on this host, and its witnesses stay as written" % name)
         return 2
+    cases = ladder()
+    anchor_of = anchors()
     with open(path, encoding="utf-8", newline="") as handle:
         lines = handle.read().split("\n")
     head = lines[0].split("\t")
     at = {column: place for place, column in enumerate(head)}
     folder = os.path.join(OUT, name)
     os.makedirs(folder, exist_ok=True)
-    rows = 0
+    rows = [(number, line.split("\t")) for number, line in enumerate(lines[1:], start=1) if line != ""]
+    # the target's true: what its symbol for eq answers on the first case of same, 1,1
+    truth = None
+    for number, cells in rows:
+        if (cells[at["transpiler"]] == "eq") and (cells[at["probe"]] != ""):
+            got = relation_answers(name, output, folder, number, cells[at["probe"]], cases["same"][:1])
+            truth = got[0] if got else None
     witnessed = 0
-    for number, line in enumerate(lines[1:], start=1):
-        if line == "":
-            continue
-        cells = line.split("\t")
+    for number, cells in rows:
         probe = cells[at["probe"]]
-        expected = cells[at["expected"]]
-        got = output(probe, folder, "row_%d" % number) if probe != "" else None
-        cells[at["witness"]] = text if (got is not None) and (got == expected) else ""
-        if (got is not None) and (got != expected):
-            print("  %s: %s prints %s, and the row expects %s" % (name, cells[at["word"]], got, expected))
-        rows += 1
-        witnessed += 1 if cells[at["witness"]] != "" else 0
+        anchor = anchor_of.get(cells[at["transpiler"]], "")
+        passed = False
+        if cells[at["type"]] == "type":
+            got = output(probe, folder, "row_%d" % number) if probe != "" else None
+            passed = (got is not None) and (got == cells[at["expected"]])
+        elif (anchor != "") and (probe != ""):
+            want = [str(answer) for _, answer in cases[anchor]]
+            if anchor in PREDICATES:
+                want = [(truth if answer != 0 else "0") for _, answer in cases[anchor]]
+            got = relation_answers(name, output, folder, number, probe, cases[anchor])
+            passed = (got is not None) and (truth is not None or anchor not in PREDICATES) and (got == want)
+            if (got is not None) and not passed:
+                wrong = [(case, given) for case, given, wanted in zip(cases[anchor], got, want) if given != wanted]
+                if wrong:
+                    (words, answer), given = wrong[0]
+                    print("  %s: %s answers %s for %s, and gsm's %s answers %s" % (
+                        name, cells[at["word"]], given, ",".join(str(word) for word in words), anchor,
+                        want[cases[anchor].index((words, answer))]))
+        cells[at["witness"]] = text if passed else ""
+        witnessed += 1 if passed else 0
         lines[number] = "\t".join(cells)
     with open(path, "w", encoding="utf-8", newline="") as handle:
         handle.write("\n".join(lines))
-    print("lng witness: %s, %d rows, %d witnessed by %s" % (name, rows, witnessed, text))
+    print("lng witness: %s, %d rows, %d witnessed by %s" % (name, len(rows), witnessed, text))
     return 0
 
 

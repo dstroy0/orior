@@ -1909,14 +1909,23 @@ void lng_target_check(const LngTable *transpiler, const LngTable *target, const 
         const char *const bridge = lng_cell_or_none(target, row, "transpiler");
         const int probed = (lng_cell_or_none(target, row, "probe")[0] != '\0');
         const int expected = (lng_cell_or_none(target, row, "expected")[0] != '\0');
+        const int typed = (strcmp(type, "type") == 0);
         if (!lng_one_of(type, g_lng_hol_types, LNG_HOL_KINDS))
         {
             lng_list_printed(defects, "%s's %s has the type %s, which no table names", name, word, type);
         }
-        if (probed != expected)
+        // a type's probe prints its expected output; a relation's probe runs on the ladder's cases, which give the
+        // expected outputs
+        if (typed && (probed != expected))
         {
             lng_list_printed(defects, "%s's %s has a %s and no %s", name, word, probed ? "probe" : "expected output",
                              probed ? "expected output" : "probe");
+        }
+        if (!typed && expected)
+        {
+            lng_list_printed(defects,
+                             "%s's %s has an expected output, and the ladder's cases give a relation's outputs", name,
+                             word);
         }
         if (bridge[0] == '\0')
         {
@@ -1960,6 +1969,19 @@ void lng_target_check(const LngTable *transpiler, const LngTable *target, const 
         }
         lng_list_free(&bridge_marked);
         lng_list_free(&marked);
+        // a relation goes to gsm through the ladder anchor of its bridge word
+        const char *const anchor = lng_cell_or_none(transpiler, crossed, "anchor");
+        if (!typed && (anchor[0] == '\0'))
+        {
+            lng_list_printed(findings, "%s's %s bridges to %s, which has no gsm cases, and no lift goes through it",
+                             name, word, bridge);
+            continue;
+        }
+        if (!typed && !probed)
+        {
+            lng_list_printed(defects, "%s's %s bridges to %s, which gsm reads as %s, and has no probe", name, word,
+                             bridge, anchor);
+        }
         if (lng_cell_or_none(target, row, "witness")[0] == '\0')
         {
             lng_list_printed(findings, "%s's %s for %s has no witness, and no lift goes through it", name, word,
@@ -2034,9 +2056,17 @@ static const char *lng_lift_side(const LngTable *target, const char *name, const
 const char *lng_lift(const LngTable *transpiler, const LngTable *from, const char *from_name, const LngTable *to,
                      const char *to_name, const char *bridge, LngList *refusals)
 {
-    if (lng_bridge_word_row(transpiler, bridge) == transpiler->rows)
+    const unsigned int crossed = lng_bridge_word_row(transpiler, bridge);
+    if (crossed == transpiler->rows)
     {
         lng_list_printed(refusals, "the transpiler has no word %s, and no lift goes through it", bridge);
+        return NULL;
+    }
+    // a relation goes through gsm, and a word with no ladder anchor has no gsm cases; a thing goes by its width
+    if ((strcmp(lng_cell_or_none(transpiler, crossed, "type"), "thing") != 0) &&
+        (lng_cell_or_none(transpiler, crossed, "anchor")[0] == '\0'))
+    {
+        lng_list_printed(refusals, "%s has no gsm cases, and no lift goes through it", bridge);
         return NULL;
     }
     const char *const taken = lng_lift_side(from, from_name, bridge, refusals);

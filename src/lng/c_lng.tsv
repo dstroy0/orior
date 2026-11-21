@@ -7,33 +7,33 @@ int32_t	type	a signed integer of exactly 32 bits	printf("%d %d", (int)(sizeof(in
 uint32_t	type	an unsigned integer of exactly 32 bits	printf("%d %d", (int)(sizeof(uint32_t) * 8), (uint32_t)-1 < 0);	32 0	cc 16.1.0 -std=c11 -O0					32	0	word																																																			
 int64_t	type	a signed integer of exactly 64 bits	printf("%d %d", (int)(sizeof(int64_t) * 8), (int64_t)-1 < 0);	64 1	cc 16.1.0 -std=c11 -O0					64	1	signed_wide																																																			
 uint64_t	type	an unsigned integer of exactly 64 bits	printf("%d %d", (int)(sizeof(uint64_t) * 8), (uint64_t)-1 < 0);	64 0	cc 16.1.0 -std=c11 -O0					64	0	wide																																																			
-=	plain	a name given a value	int a; a = 9; printf("%d", a);	9	cc 16.1.0 -std=c11 -O0							set																										1																									
-+	core op	the sum of two values	printf("%d", 7 + -3);	4	cc 16.1.0 -std=c11 -O0							add	1																																																		
--	core op	the difference of two values	printf("%d", 7 - 10);	-3	cc 16.1.0 -std=c11 -O0							sub		1																																																	
-*	core op	the product of two values	printf("%d", -7 * 3);	-21	cc 16.1.0 -std=c11 -O0							mul			1																																																
-/	core op	the quotient of two integers, with the fraction cut off toward zero	printf("%d", -7 / 2);	-3	cc 16.1.0 -std=c11 -O0							div				1																																															
-%	core op	the remainder of the quotient, with the sign of the dividend	printf("%d", -7 % 2);	-1	cc 16.1.0 -std=c11 -O0							rem					1																																														
-&	core op	the bitwise AND of two values	printf("%d", 12 & 10);	8	cc 16.1.0 -std=c11 -O0							bitand						1																																													
-|	core op	the bitwise OR of two values	printf("%d", 12 | 10);	14	cc 16.1.0 -std=c11 -O0							bitor							1																																												
-^	core op	the bitwise exclusive OR of two values	printf("%d", 12 ^ 10);	6	cc 16.1.0 -std=c11 -O0							bitxor								1																																											
-<<	core op	a value with its bits moved to the left	printf("%d", 3 << 4);	48	cc 16.1.0 -std=c11 -O0							shl									1																																										
->>	core op	a value with its bits moved to the right, and the sign bit copied in for a negative value	printf("%d", -16 >> 2);	-4	cc 16.1.0 -std=c11 -O0							shr										1																																									
-<	core op	1 where the first value is less than the second, and 0 where it is not	printf("%d %d", 2 < 3, 3 < 2);	1 0	cc 16.1.0 -std=c11 -O0							lt											1																																								
-<=	core op	1 where the first value is not more than the second, and 0 where it is	printf("%d %d", 2 <= 2, 3 <= 2);	1 0	cc 16.1.0 -std=c11 -O0							le												1																																							
->	core op	1 where the first value is more than the second, and 0 where it is not	printf("%d %d", 3 > 2, 2 > 3);	1 0	cc 16.1.0 -std=c11 -O0							gt													1																																						
->=	core op	1 where the first value is not less than the second, and 0 where it is	printf("%d %d", 2 >= 2, 2 >= 3);	1 0	cc 16.1.0 -std=c11 -O0							ge														1																																					
-==	core op	1 where two values are the same, and 0 where they are not	printf("%d %d", 2 == 2, 2 == 3);	1 0	cc 16.1.0 -std=c11 -O0							eq															1																																				
-!=	core op	1 where two values are not the same, and 0 where they are	printf("%d %d", 2 != 3, 2 != 2);	1 0	cc 16.1.0 -std=c11 -O0							ne																1																																			
--	core op	the negative of a value	int a = 5; printf("%d", -a);	-5	cc 16.1.0 -std=c11 -O0							neg																						1																													
-~	core op	a value with each of its bits inverted	printf("%d", ~5);	-6	cc 16.1.0 -std=c11 -O0							not																							1																												
-!	core op	1 where a value is 0, and 0 where it is not	printf("%d %d", !0, !5);	1 0	cc 16.1.0 -std=c11 -O0							unless																								1																											
-+=	core op	a name given its value plus a value	int a = 5; a += 3; printf("%d", a);	8	cc 16.1.0 -std=c11 -O0							add_assign																																										1									
--=	core op	a name given its value minus a value	int a = 5; a -= 8; printf("%d", a);	-3	cc 16.1.0 -std=c11 -O0							sub_assign																																											1								
-*=	core op	a name given its value times a value	int a = -7; a *= 3; printf("%d", a);	-21	cc 16.1.0 -std=c11 -O0							mul_assign																																												1							
-/=	core op	a name given the quotient of its value and a value, with the fraction cut off toward zero	int a = -7; a /= 2; printf("%d", a);	-3	cc 16.1.0 -std=c11 -O0							div_assign																																													1						
-%=	core op	a name given the remainder of its value and a value, with the sign of its value	int a = -7; a %= 2; printf("%d", a);	-1	cc 16.1.0 -std=c11 -O0							rem_assign																																														1					
-&=	core op	a name given the bitwise AND of its value and a value	int a = 12; a &= 10; printf("%d", a);	8	cc 16.1.0 -std=c11 -O0							bitand_assign																																															1				
-|=	core op	a name given the bitwise OR of its value and a value	int a = 12; a |= 10; printf("%d", a);	14	cc 16.1.0 -std=c11 -O0							bitor_assign																																																1			
-^=	core op	a name given the bitwise exclusive OR of its value and a value	int a = 12; a ^= 10; printf("%d", a);	6	cc 16.1.0 -std=c11 -O0							bitxor_assign																																																	1		
-<<=	core op	a name given its value with its bits moved to the left	int a = 3; a <<= 4; printf("%d", a);	48	cc 16.1.0 -std=c11 -O0							shl_assign																																																		1	
->>=	core op	a name given its value with its bits moved to the right, and the sign bit copied in for a negative value	int a = -16; a >>= 2; printf("%d", a);	-4	cc 16.1.0 -std=c11 -O0							shr_assign																																																			1
+=	plain	a name given a value										set																										1																									
++	core op	the sum of two values	answer = left + right;		cc 16.1.0 -std=c11 -O0							add	1																																																		
+-	core op	the difference of two values	answer = left - right;		cc 16.1.0 -std=c11 -O0							sub		1																																																	
+*	core op	the product of two values	answer = left * right;		cc 16.1.0 -std=c11 -O0							mul			1																																																
+/	core op	the quotient of two integers, with the fraction cut off toward zero										div				1																																															
+%	core op	the remainder of the quotient, with the sign of the dividend										rem					1																																														
+&	core op	the bitwise AND of two values										bitand						1																																													
+|	core op	the bitwise OR of two values										bitor							1																																												
+^	core op	the bitwise exclusive OR of two values										bitxor								1																																											
+<<	core op	a value with its bits moved to the left	answer = left << right;		cc 16.1.0 -std=c11 -O0							shl									1																																										
+>>	core op	a value with its bits moved to the right, and the sign bit copied in for a negative value	answer = left >> right;		cc 16.1.0 -std=c11 -O0							shr										1																																									
+<	core op	1 where the first value is less than the second, and 0 where it is not	answer = left < right;		cc 16.1.0 -std=c11 -O0							lt											1																																								
+<=	core op	1 where the first value is not more than the second, and 0 where it is	answer = left <= right;		cc 16.1.0 -std=c11 -O0							le												1																																							
+>	core op	1 where the first value is more than the second, and 0 where it is not	answer = left > right;		cc 16.1.0 -std=c11 -O0							gt													1																																						
+>=	core op	1 where the first value is not less than the second, and 0 where it is	answer = left >= right;		cc 16.1.0 -std=c11 -O0							ge														1																																					
+==	core op	1 where two values are the same, and 0 where they are not	answer = left == right;		cc 16.1.0 -std=c11 -O0							eq															1																																				
+!=	core op	1 where two values are not the same, and 0 where they are	answer = left != right;		cc 16.1.0 -std=c11 -O0							ne																1																																			
+-	core op	the negative of a value										neg																						1																													
+~	core op	a value with each of its bits inverted										not																							1																												
+!	core op	1 where a value is 0, and 0 where it is not										unless																								1																											
++=	core op	a name given its value plus a value	left += right; answer = left;		cc 16.1.0 -std=c11 -O0							add_assign																																										1									
+-=	core op	a name given its value minus a value	left -= right; answer = left;		cc 16.1.0 -std=c11 -O0							sub_assign																																											1								
+*=	core op	a name given its value times a value	left *= right; answer = left;		cc 16.1.0 -std=c11 -O0							mul_assign																																												1							
+/=	core op	a name given the quotient of its value and a value, with the fraction cut off toward zero										div_assign																																													1						
+%=	core op	a name given the remainder of its value and a value, with the sign of its value										rem_assign																																														1					
+&=	core op	a name given the bitwise AND of its value and a value										bitand_assign																																															1				
+|=	core op	a name given the bitwise OR of its value and a value										bitor_assign																																																1			
+^=	core op	a name given the bitwise exclusive OR of its value and a value										bitxor_assign																																																	1		
+<<=	core op	a name given its value with its bits moved to the left	left <<= right; answer = left;		cc 16.1.0 -std=c11 -O0							shl_assign																																																		1	
+>>=	core op	a name given its value with its bits moved to the right, and the sign bit copied in for a negative value	left >>= right; answer = left;		cc 16.1.0 -std=c11 -O0							shr_assign																																																			1
