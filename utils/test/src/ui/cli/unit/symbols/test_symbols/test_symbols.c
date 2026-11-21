@@ -184,8 +184,8 @@ void test_cs_declarations_are_read(void)
         "#define LIMIT 4\n#  define TWICE(x) ((x) * 2)\nstruct grid {\ntypedef enum shade\nstatic int "
         "count_cells(const struct grid *g) {\nint scale(int a,\n  return helper(1);\nint value = make(2);\nvoid "
         "declared(int);\nif (x) {\n",
-        "LIMIT constant 0|TWICE constant 1|grid class 2|shade class 3|count_cells function 4|scale function 5|declared "
-        "function 8");
+        "LIMIT constant 0|TWICE constant 1|grid class 2|shade class 3|count_cells function 4|scale function 5|value "
+        "variable 7|declared function 8");
 }
 
 void test_a_shells_declarations_are_read(void)

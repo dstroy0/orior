@@ -21,6 +21,7 @@
 #include "../../../../../ui/cli/src/machine/trust.h"
 #include "../../../../../ui/cli/src/plugins/templates.h"
 #include "../../../../../ui/cli/src/runs/job_runs.h"
+#include "../../../../../ui/cli/src/servers/servers.h"
 #include "../../../../../ui/cli/src/terminal/terminal_tabs.h"
 #include "../../../../../ui/cli/src/text/text.h"
 #include "../../../../../ui/gui/src/explorer.h"
@@ -406,19 +407,20 @@ static int walk_rested(unsigned long long milliseconds)
 }
 
 // Return the cells in use after they rest. First wait until no walker colors a text, five seconds at most. Then read
-// the cells again each 50 ms until two readings agree, two seconds at most. A release still in flight lands before a
-// round's measure.
+// the cells again each 50 ms until two readings agree and no job of the servers waits or runs, five seconds at most. A
+// release still in flight lands before a round's measure.
 static unsigned long long cells_settled(unsigned long long *owners)
 {
     CliWake pause = CLI_WAKE_INIT;
     (void)walk_rested(5000ULL);
     unsigned long long before = cells_in_use(owners);
-    const unsigned long long last_ms = cli_clock_milliseconds() + 2000ULL;
+    const unsigned long long last_ms = cli_clock_milliseconds() + 5000ULL;
     for (;;)
     {
         (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &pause, .milliseconds_u64 = 50ULL);
         const unsigned long long now = cells_in_use(owners);
-        if ((now == before) || (cli_clock_milliseconds() >= last_ms))
+        // a job in flight, as a git read for a tab opened, keeps its temporary cells until it ends
+        if (((now == before) && cli_servers_jobs_idle()) || (cli_clock_milliseconds() >= last_ms))
         {
             return now;
         }
@@ -1472,9 +1474,12 @@ static void preferences_window_checked(void)
                .input = &(GuiInput){.type = GUI_INPUT_UP, .x = x, .y = y, .button = GUI_BUTTON_LEFT});
     stepped();
     cli_check(s_window.preferences.section == 1u, "a press on the second section's tab shows that section");
+    cli_check(s_window.preferences_pointer.shown, "the pointer over Preferences shows on Preferences' surface");
     EMBED_CALL(gui_window_table.preferences_close, GuiWindowCfg, .window = &s_window);
     stepped();
     cli_check(!s_window.preferences.displayed, "Preferences closed again");
+    // a closed window sends no leave: the close itself takes its pointer off, and the main window's pointer follows
+    cli_check(!s_window.preferences_pointer.shown, "Preferences closed takes its pointer off with it");
 }
 
 // the inputs the window's own pointer drove, each taken as the view's thread takes the system's own

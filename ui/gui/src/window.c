@@ -1956,6 +1956,14 @@ EMBED_INLINE void window_preferences_toggle(const GuiWindowCtx *args)
         EMBED_CALL(cli_plugins_each_id.palettes_each, CliPluginsEachIdCfg, .each = window_palette_id_each,
                    .context = &args->window->preferences);
     }
+    // Preferences' window closed sends no leave: its pointer goes off with the window, and the main window's pointer
+    // follows the next move
+    if (!args->window->preferences.displayed)
+    {
+        GuiPointer *const pointer = &args->window->preferences_pointer;
+        (void)EMBED_CALL(gui_pointer_place_table.place, GuiPointerPlaceCfg, .pointer = pointer, .x = pointer->x,
+                         .y = pointer->y, .shape = pointer->shape, .shown = 0);
+    }
     // Preferences' own lattice runs while its window shows, and its clock stays still while the window does not show
     EMBED_CALL(gui_background.pause, GuiBackgroundCfg, .background_fill = &args->window->preferences_ground,
                .paused = !args->window->preferences.displayed || args->window->lattice_frozen,

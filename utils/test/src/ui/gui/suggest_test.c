@@ -50,7 +50,7 @@ int main(void)
 {
     (void)cli_pool_made(CLI_POOL_BYTES);
     static const char s_key[] = "check:suggest";
-    static const char s_text[] = "int alpha(void);\nint beta(void);\nint alphabet(void);\nint albatross(void);\nalp";
+    static const char s_text[] = "int alpha(void);\nint beta(void);\nint alphabet;\nint albatross(void);\nalp";
     char error_text[1024];
     VerbaLinea why = {error_text, sizeof(error_text), 0ULL};
     char grammar[CLI_NAME_MAX_LEN];

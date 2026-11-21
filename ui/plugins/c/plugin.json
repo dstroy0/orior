@@ -19,6 +19,7 @@
     "identifier.declaration.class": "#6fdcb4ff",
     "identifier.declaration.constant": "#f0a07aff",
     "identifier.declaration.function": "#7fd8e8ff",
+    "identifier.declaration.variable": "#aed694ff",
     "identifier.local": "#a8c8ffff",
     "identifier.member": "#c9b8ffff",
     "identifier.parameter": "#f2d48aff",
@@ -80,6 +81,11 @@
           "^(\\s+)(?=(?!(?:return|goto|else|case|do|sizeof|typedef|break|continue|default|if|for|while|switch)\\b)[A-Za-z_]\\w*(?:\\s+|\\s*\\*+\\s*)(?:[A-Za-z_]\\w*(?:\\s+|\\s*\\*+\\s*))*[A-Za-z_]\\w*\\s*(?:\\[[^\\]]*\\]\\s*)*(?:=(?!=)|;|,))",
           "",
           "@local"
+        ],
+        [
+          "^(?=(?:(?:struct|enum|union|class)\\s+[A-Za-z_]\\w*(?:\\s+|\\s*\\*+\\s*)|(?!(?:return|goto|else|case|do|sizeof|typedef|break|continue|default|if|for|while|switch|struct|enum|union|class|namespace|template|using|friend|public|private|protected)\\b)[A-Za-z_]\\w*(?:\\s+|\\s*\\*+\\s*))(?:[A-Za-z_]\\w*(?:\\s+|\\s*\\*+\\s*))*[A-Za-z_]\\w*\\s*(?:\\[[^\\]]*\\]\\s*)*(?:=(?!=)|;|,))",
+          "",
+          "@global"
         ],
         [
           "(^\\s*#\\s*)(define)(\\s+)([A-Za-z_]\\w*)(\\()",
@@ -193,6 +199,18 @@
         [
           "[A-Za-z_]\\w*(?=\\s*(?:\\[[^\\]]*\\]\\s*)*(?:=(?!=)|;|,))",
           {"cases":{"@words":"keyword","@numbers":"type.number","@types":"type","@default":"identifier.local"}},
+          "@pop"
+        ],
+        ["[A-Za-z_]\\w*",{"cases":{"@words":"keyword","@numbers":"type.number","@types":"type","@default":"type"}}],
+        ["\\*","operator.memory"],
+        ["$","","@pop"]
+      ],
+      "global": [
+        ["\\s+",""],
+        ["char\\b(?=\\s*\\*)","type.string"],
+        [
+          "[A-Za-z_]\\w*(?=\\s*(?:\\[[^\\]]*\\]\\s*)*(?:=(?!=)|;|,))",
+          {"cases":{"@words":"keyword","@numbers":"type.number","@types":"type","@default":"identifier.declaration.variable"}},
           "@pop"
         ],
         ["[A-Za-z_]\\w*",{"cases":{"@words":"keyword","@numbers":"type.number","@types":"type","@default":"type"}}],
