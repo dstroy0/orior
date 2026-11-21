@@ -15,15 +15,15 @@ static const char *const s_prettier[6] = {".prettierrc.js",     ".prettierrc.cjs
 static const char *const s_eslint[5] = {".eslintrc.js", ".eslintrc.cjs", "eslint.config.js", "eslint.config.cjs",
                                         "eslint.config.mjs"};
 
-// how long a tree's code found is cached before the tree is looked through again, in milliseconds
+// how long the cache keeps a tree's code found before the next look through the tree, in milliseconds
 #define CLI_TRUST_FOUND_FOR 10000ULL
 
-// the max trees whose code found is cached, and the bytes the paths of a tree's code are written in
+// the max trees the cache keeps the code found of, and the bytes the paths of a tree's code take
 #define CLI_TRUST_TREES 8u
 #define CLI_TRUST_PATHS_CAPACITY (1ULL << 20u)
 
-// The code found in a tree looked through, and when: its paths in a movable cell of their bytes, how many bytes and
-// how many paths
+// The code found in a tree looked through, and when. Its paths are in a movable cell of their bytes, with how many
+// bytes and how many paths
 typedef struct
 {
     char tree[CLI_PATH_MAX_LEN];
@@ -72,7 +72,8 @@ void cli_trust_forget(void)
 }
 
 // `count` paths, `size` bytes of them at `paths`, copied into `code`, a cell of the temporary tier where there are
-// any, the caller's for its one call: 1, or 0 with none into `code` where the cellblock could not meet them
+// any. The cell is the caller's for its one call. Returns 1, or 0 with none into `code` where the cellblock cannot
+// meet them
 EMBED_INLINE int cli_code_copy(const TrustCodeCtx *args)
 {
     const char *paths = args->paths;
@@ -192,8 +193,8 @@ int cli_trust_names_a_hook(const CliTrustCfg *args)
     return 0;
 }
 
-// the file `name` under `folder` read whole, a zero after it, into a cell of its size given back with
-// g_cli_guard->persistent_buf_release: the cell, or NULL where it could not be read or the cellblock could not meet it
+// The file `name` under `folder` read whole, a zero after it, into a cell of its size. The caller gives it back with
+// g_cli_guard->persistent_buf_release. Returns the cell, or NULL where the read fails or the cellblock cannot meet it
 EMBED_INLINE char *cli_read_in(const TrustCodeCtx *args)
 {
     char path[CLI_PATH_MAX_LEN];
@@ -282,7 +283,7 @@ typedef struct
     unsigned int found;
 } TrustLooked;
 
-// each file of the tree that runs code as it is opened or built put on the context's line of paths and counted
+// each file of the tree that runs code as an open or a build reads it, put on the context's line of paths and counted
 static void trust_files_looked(const CliFilesEachCfg *view)
 {
     TrustLooked *const looked = view->context;
@@ -376,7 +377,7 @@ int cli_trust_own_code(const CliTrustTreeCodeCfg *args)
             return 1;
         }
     }
-    // a tree whose code the cellblock could not meet is not cached, and it is looked through again when next requested
+    // the cache keeps no tree whose code the cellblock cannot meet, and the next ask looks through it again
     CliTrustCode looked = {NULL, 0ULL, 0u};
     if (!EMBED_CALL(cli_trust_tree_code.looked_for, CliTrustTreeCodeCfg, .tree = args->tree, .code = &looked))
     {
@@ -420,7 +421,8 @@ int cli_trust_own_code(const CliTrustTreeCodeCfg *args)
     one->when = cli_clock_milliseconds();
     one->has = 1;
     EMBED_CALL(trust_found_let, TrustCodeCtx, .one = one);
-    // the paths cached in a movable cell of their bytes; a tree the cells cannot cache is looked through again
+    // the paths go in the cache's movable cell of their bytes; the next ask looks again through a tree the cells cannot
+    // keep
     one->paths = (looked.count != 0u) ? g_cli_guard->movable_buf_alloc(looked.size, g_cli_trust_owner) : NULL;
     one->has = (one->paths != NULL) || (looked.count == 0u);
     if (one->paths != NULL)
@@ -442,7 +444,7 @@ int cli_trust_block(const CliTrustTreeWordsCfg *args)
     {
         return 0;
     }
-    // a tree whose code the cellblock could not meet is disabled, as one that contains code is
+    // the trust blocks a tree whose code the cellblock cannot meet, as it blocks one that contains code
     CliTrustCode code = {NULL, 0ULL, 0u};
     const int blocked =
         !EMBED_CALL(cli_trust_tree_code.own_code, CliTrustTreeCodeCfg, .tree = args->tree, .code = &code) ||

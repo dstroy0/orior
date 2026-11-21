@@ -10,8 +10,8 @@
 #include "../text/text.h"
 #include "files_internal.h"
 
-// A walk of the tree's folders: those still to look in, each a cell containing its path, the folder looked in, and
-// where each file found goes
+// A walk of the tree's folders. It holds those still to look in, each a cell that holds its path, and the folder it
+// looks in now. Then where each file it finds goes
 typedef struct
 {
     char **pending;
@@ -123,9 +123,9 @@ void cli_files_walk(const CliFilesRootEachContextCfg *args)
     EMBED_CALL(walked_from, FilesSeenCtx, .root = root, .from = root, .each = each, .context = context);
 }
 
-// git's listing of the tree at `root`, or of the folder `folder` under it where one is named, each path passed to
-// `each`: 1 where git read it, its whole answer into `*whole`, and for the whole tree where it lists a file. A tree in
-// a folder its repository ignores is one git lists nothing of
+// git's listing of the tree at `root`, or of the folder `folder` under it where the call names one. Each path goes to
+// `each`. Returns 1 where git read it, its whole answer into `*whole`, and for the whole tree where it lists a file. A
+// tree in a folder its repository ignores is one git lists nothing of
 static int git_list(const FilesSeenCtx *args)
 {
     const char *folder = args->folder;
@@ -274,7 +274,7 @@ void cli_files_ignored_read(const CliFilesRootPathsCfg *args)
                    .err_msg = &unstarted) &&
         (run_result->code == 0LL))
     {
-        // git answers in the order it was asked, the paths it ignores alone
+        // git answers in the order of the ask, with the paths it ignores alone
         const char *answer = run_result->out;
         const char *const end = run_result->out + run_result->out_size;
         for (unsigned int at = 0u; (at < args->count) && (answer < end); at += 1u)
@@ -320,11 +320,11 @@ const CliFiles *cli_files_view(const CliFilesRootPathsCfg *args)
 
 void cli_files_let(const CliFilesCfg *args)
 {
-    // the cell is given back as it was taken; const is the reader's view of it
+    // the release gives the cell back as the view took it, and const is the reader's view of it
     g_cli_guard->persistent_buf_release(((void *)(embed_word)args->files), g_cli_files_views_owner);
 }
 
-// where the name of the file at `path`, `length` bytes, starts in it, and the bytes of its ending from its last dot
+// Where the name of the file at `path`, `length` bytes, starts in it. The bytes of its ending from its last dot go
 // into `*ending`, 0 where no dot is past the name's first character
 EMBED_INLINE unsigned long long seen_name(const FilesSeenCtx *args)
 {
@@ -391,8 +391,8 @@ const CliFiles *cli_files_types_view(const CliFilesRootPathsCfg *args)
     return types;
 }
 
-// The view `files` written into a movable cell of the files module, its work cell given back, and the movable cell
-// passed to `each` with `context`, then given back: 1, or 0 where the view or the cell is not there
+// The view `files` written into a movable cell of the files module, and its work cell given back. The movable cell
+// goes to `each` with `context`, then goes back. Returns 1, or 0 where the view or the cell is not there
 EMBED_INLINE int seen_view_each(const FilesSeenCtx *args)
 {
     if (args->files_read == NULL)
