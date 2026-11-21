@@ -71,7 +71,7 @@ int main(void)
     memor.set(&(MemoriaCfg){.dst = &terminal, .val = 0, .bytes = sizeof(terminal)});
     terminal.panel = (CliTerminalPanel){1, 0, 240u, 1u, 0, -1, 1u};
     terminal.view[0] = (CliTerminalView){s_key, 0ull, 40u, 3u, 0u, 0u, 0, 0};
-    terminal.frame[0] = cli_view_frame_alloc(&(CliViewAtCfg){.key = s_key});
+    terminal.frame[0] = cli_view_frame_build(&(CliViewAtCfg){.key = s_key});
     cli_check((terminal.frame[0] != NULL) &&
                   (EMBED_CALL(cli_document_names.count, CliDocumentNamesCfg, .key = s_key) != 0u),
               "the pane's frame is taken and its names are read");
@@ -115,7 +115,6 @@ int main(void)
                          .column = &column) &&
                   (row == 0ull) && (column == 0ull),
               "a pixel outside the pane takes its nearest cell");
-    cli_view_frame_release(&(CliViewAtCfg){.frame = (CliViewFrame *)terminal.frame[0]});
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;

@@ -75,7 +75,7 @@ int main(void)
 
     GuiEditor editor;
     EMBED_CALL(gui_editor_table.init, GuiEditorCfg, .editor = &editor);
-    editor.frame = cli_view_frame_alloc(&(CliViewAtCfg){.key = s_key});
+    editor.frame = cli_view_frame_build(&(CliViewAtCfg){.key = s_key});
     cli_check(editor.frame != NULL, "the view's frame is taken");
     GuiRaster raster;
     cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 800u, .height = 400u),
@@ -105,9 +105,8 @@ int main(void)
               "a press on the marks' column lands on it");
     // the caret drawn again with nothing saved under it answers an empty rectangle, and once drawn, its own
     editor.caret_saved = 0;
-    const GuiRect not_saved =
-        EMBED_CALL(gui_editor_raster.caret_redrawn, GuiEditorRasterCfg, .editor = &editor, .raster = &raster,
-                   .palette = palette);
+    const GuiRect not_saved = EMBED_CALL(gui_editor_raster.caret_redrawn, GuiEditorRasterCfg, .editor = &editor,
+                                         .raster = &raster, .palette = palette);
     cli_check((not_saved.width == 0) || (not_saved.height == 0), "a caret never drawn is not drawn again");
     const GuiRect caret_at = {text_x, 0, 2, GUI_CODE_LINE};
     const GuiRect drawn_caret = EMBED_CALL(gui_editor_raster.caret_draw, GuiEditorRasterCfg, .editor = &editor,
@@ -139,8 +138,8 @@ int main(void)
     GuiRect unit = {0, 0, 0, 0};
     cli_check(EMBED_CALL(gui_editor_position_cell.position_rect, GuiEditorPositionCellCfg, .editor_read = &editor,
                          .place = place, .cell = cell, .scale = 100, .line = 1ULL, .col = 2ULL, .rect = &unit) &&
-                  (unit.y >= GUI_CODE_LINE) && (unit.y < (2 * GUI_CODE_LINE)) && (unit.x > text_x) && (unit.width > 0) &&
-                  (unit.height > 0),
+                  (unit.y >= GUI_CODE_LINE) && (unit.y < (2 * GUI_CODE_LINE)) && (unit.x > text_x) &&
+                  (unit.width > 0) && (unit.height > 0),
               "a unit's pixels lie in its row past the text's left edge");
     cli_check(!EMBED_CALL(gui_editor_position_cell.position_rect, GuiEditorPositionCellCfg, .editor_read = &editor,
                           .place = place, .cell = cell, .scale = 100, .line = 900ULL, .col = 0ULL, .rect = &unit),
@@ -182,7 +181,6 @@ int main(void)
     cli_check(pixel_at(&raster, column, GUI_CODE_LINE / 2) != 0u, "a changed line's mark colors the marks' column");
     cli_check(pixel_at(&raster, text_x + 4, GUI_CODE_LINE / 2) == 0u, "and leaves the text's own column");
 
-    cli_view_frame_release(&(CliViewAtCfg){.frame = (CliViewFrame *)editor.frame});
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key);
     EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);

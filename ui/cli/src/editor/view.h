@@ -184,15 +184,16 @@ typedef struct
     char key[CLI_NAME_MAX_LEN];
 } CliViewFrame;
 
-// the frame of the view under `key` in cells taken for it, sized to its rows and columns: the frame, or NULL where no
-// view is open under the key or the cells cannot meet it; and a frame's cells released
-// the views' table: the view `key`'s frame and its map over the lines `first` to `last`, each taken and
-// released; the watcher; the view `at`, its key into `key_out` and its path into `path_out`, shown, its close
-// `closing`, its file closed; the sticky lines `on`; the fill `columns`; and the session saved for the tree `root`
+// The view under `key` builds its frame, sized to its rows and columns, in a pinned cell the view keeps. The caller
+// reads the frame in place and gives nothing back. The frame stays until the view builds its next frame or closes.
+// Returns the frame, or NULL where no view is open under the key or the cells cannot meet it.
+//
+// The views' table: the view `key`'s frame and its lines `first` to `last`; the watcher; the view `at`, its key into
+// `key_out` and its path into `path_out`, shown, its close `closing`, its file closed; the sticky lines `on`; the fill
+// `columns`; and the session saved for the tree `root`
 typedef struct
 {
     const char *key;
-    CliViewFrame *frame;
     unsigned long long first;
     unsigned long long last;
     const CliViewWatcher *watcher;
@@ -204,8 +205,7 @@ typedef struct
     unsigned long long columns;
     const char *root;
 } CliViewAtCfg;
-CliViewFrame *cli_view_frame_alloc(const CliViewAtCfg *args);
-void cli_view_frame_release(const CliViewAtCfg *args);
+const CliViewFrame *cli_view_frame_build(const CliViewAtCfg *args);
 
 // The minimap's map the views keep. The place puts the lines from `first` to `last` of the view under `key` as bars,
 // as cli_document_map_alloc puts them, in place of the map before. A text that indents by tabs takes a tab's step of

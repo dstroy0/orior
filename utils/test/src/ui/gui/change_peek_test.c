@@ -47,12 +47,11 @@ static void head_stored_each(const CliEachHunkCfg *args)
     (void)args;
 }
 
-// `now` stored with a view open on it, sized, the head text stored beside it, and the editor's frame taken
+// `now` stored with a view open on it, sized, the head text stored beside it, and the editor's frame built
 static void opened(const char *now, GuiEditor *editor)
 {
     CliShape shape;
     EMBED_CALL(gui_change_peek.close, GuiChangePeekCfg, .key = s_key);
-    cli_view_frame_release(&(CliViewAtCfg){.frame = (CliViewFrame *)editor->frame});
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key);
     cli_check(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = s_key, .text = now,
@@ -66,7 +65,7 @@ static void opened(const char *now, GuiEditor *editor)
     (void)EMBED_CALL(cli_document_out_key_head_input.changes, CliDocumentOutKeyHeadInputCfg, .key = s_key,
                      .head_given = 1, .head = s_head, .head_size = sizeof(s_head) - 1u, .each = head_stored_each,
                      .context = NULL);
-    editor->frame = cli_view_frame_alloc(&(CliViewAtCfg){.key = s_key});
+    editor->frame = cli_view_frame_build(&(CliViewAtCfg){.key = s_key});
 }
 
 // The text a check holds the document's text to: the text required and whether the two are the same
@@ -210,7 +209,6 @@ int main(void)
     cli_check(EMBED_CALL(gui_change_peek.settled, GuiChangePeekCfg, .key = s_key),
               "with no change displayed a scroll moves the view");
 
-    cli_view_frame_release(&(CliViewAtCfg){.frame = (CliViewFrame *)editor.frame});
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key);
     EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);

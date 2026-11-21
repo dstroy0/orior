@@ -94,7 +94,9 @@ typedef struct
 // line it is and whether it is known: a line's units are read once for the moves along it; and whether its close waits
 // on a second press, its text changed. Last, the bracket pair at the cursor as it was last read: whether it is known,
 // whether a pair is there, and the cursor, the text's serial and the count of the text's states it was read at, and the
-// pair. A frame reads the pair again only where one of those three has moved
+// pair. A frame reads the pair again only where one of those three has moved. Then the view's frame, in a pinned cell
+// the view keeps, and the bytes the cell holds. The view builds each frame in place where it fits, and the window
+// reads it there until the view builds the next
 typedef struct
 {
     int used;
@@ -166,6 +168,8 @@ typedef struct
     unsigned long long pair_serial;
     unsigned int pair_states;
     CliPosition pair[2];
+    CliViewFrame *frame;
+    unsigned long long frame_capacity;
     unsigned int place;
 } CliView;
 // The rows a frame shows: their line numbers and, for a paged text's lines read, their texts, in one cell; and how many
@@ -532,6 +536,9 @@ static void view_cells_released(const ViewCtx *args)
     (void)g_cli_guard->movable_buf_release(args->view->line_units, g_cli_views_owner);
     (void)g_cli_guard->movable_buf_release(args->view->column_width, g_cli_views_owner);
     (void)g_cli_guard->movable_buf_release(args->view->column_set, g_cli_views_owner);
+    g_cli_guard->persistent_buf_release(args->view->frame, g_cli_views_owner);
+    args->view->frame = NULL;
+    args->view->frame_capacity = 0ULL;
 }
 
 // the units of the line read last copied into a temporary cell with a zero unit after them, NULL where the cell could
@@ -5951,14 +5958,6 @@ static void view_fold_visit(const CliFoldEachCfg *args)
     }
 }
 
-void cli_view_frame_release(const CliViewAtCfg *args)
-{
-    if (args->frame != NULL)
-    {
-        g_cli_guard->persistent_buf_release(args->frame, g_cli_views_owner);
-    }
-}
-
 // the frame's rows from the line `line` filled into `rows_out`: each line displayed from it, a closed fold's lines
 // passed over, `count` rows at max and none past the text's `max` lines
 EMBED_INLINE void view_rows_fill(const ViewCtx *args)
@@ -6298,12 +6297,19 @@ EMBED_INLINE CliViewFrame *view_frame_made(const ViewCtx *args)
     // the column widths updated from the rows before any cell index is computed; one column offset per column
     EMBED_CALL(view_column_width_update, ViewCtx, .view = view, .displayed = &displayed);
     const unsigned long long column_count = (view->table != 0u) ? view->column_count + 1ULL : 0ULL;
-    // the frame lives from one frame of the window to the next: a cell of the temporary tier
-    CliViewFrame *const frame = g_cli_guard->temporary_buf_alloc(
-        sizeof(*frame) + ((displayed.count + stickies) * sizeof(CliViewFrameRow)) +
-            (folds.count * sizeof(CliViewFrameFold)) + (matches_max * sizeof(*frame->match)) +
-            (column_count * sizeof(*frame->column_offset)) + query_bytes + text_bytes,
-        g_cli_views_owner);
+    // The frame is the view's, in a pinned cell it keeps, and the window reads it in place. The view builds the next
+    // frame into the same cell where it fits, and takes a larger cell where it does not
+    const unsigned long long frame_bytes =
+        sizeof(CliViewFrame) + ((displayed.count + stickies) * sizeof(CliViewFrameRow)) +
+        (folds.count * sizeof(CliViewFrameFold)) + (matches_max * sizeof(*view->frame->match)) +
+        (column_count * sizeof(*view->frame->column_offset)) + query_bytes + text_bytes;
+    if ((view->frame == NULL) || (view->frame_capacity < frame_bytes))
+    {
+        g_cli_guard->persistent_buf_release(view->frame, g_cli_views_owner);
+        view->frame = g_cli_guard->persistent_buf_alloc(frame_bytes, g_cli_views_owner);
+        view->frame_capacity = (view->frame != NULL) ? frame_bytes : 0ULL;
+    }
+    CliViewFrame *const frame = view->frame;
     if (frame == NULL)
     {
         g_cli_guard->persistent_buf_release(number, g_cli_views_owner);
@@ -6412,7 +6418,6 @@ EMBED_INLINE CliViewFrame *view_frame_made(const ViewCtx *args)
                       .bytes = cellul.len(&(CatenaFinitaCfg){.src = view->key, .cap = CLI_NAME_MAX_LEN - 1u}) + 1u});
     if (!walked)
     {
-        cli_view_frame_release(&(CliViewAtCfg){.frame = frame});
         return NULL;
     }
     if ((s_watcher != NULL) && (s_watcher->drawn != NULL))
@@ -6423,7 +6428,7 @@ EMBED_INLINE CliViewFrame *view_frame_made(const ViewCtx *args)
     return frame;
 }
 
-CliViewFrame *cli_view_frame_alloc(const CliViewAtCfg *args)
+const CliViewFrame *cli_view_frame_build(const CliViewAtCfg *args)
 {
     CliView copy;
     CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key, .copy = &copy);

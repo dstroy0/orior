@@ -316,11 +316,8 @@ void gui_window_end(const GuiWindowCfg *args)
     EMBED_CALL(gui_explorer_theme.set, GuiExplorerThemeCfg, .theme_read = NULL);
     EMBED_CALL(gui_themes_owner.free, GuiThemesOwnerCfg, .themes = &window->themes);
     EMBED_CALL(cli_document_colored.colors_to, CliDocumentColoredCfg, .colored = NULL, .threaded = 0);
-    // what the window took of the views goes back to them: nothing of it is read from here on
-    cli_view_frame_release(&(CliViewAtCfg){.frame = window->editor.frame});
+    // the window reads nothing of the views from here on: the map goes back, and the frames stay the views'
     cli_view_map_release(&(CliViewMapCfg){.key = NULL});
-    cli_view_frame_release(&(CliViewAtCfg){.frame = window->terminal.frame[0]});
-    cli_view_frame_release(&(CliViewAtCfg){.frame = window->terminal.frame[1]});
     window->editor.frame = NULL;
     window->minimap.lines = 0;
     window->terminal.frame[0] = NULL;
@@ -510,8 +507,7 @@ EMBED_INLINE void window_terminal_take(const GuiWindowCtx *args)
     {
         const int displayed = cli_terminal_tabs_view(&(CliTerminalTabsCfg){.view = view, .out = &terminal->view[view]});
         const char *const key = displayed ? terminal->view[view].key : NULL;
-        cli_view_frame_release(&(CliViewAtCfg){.frame = terminal->frame[view]});
-        terminal->frame[view] = (key != NULL) ? cli_view_frame_alloc(&(CliViewAtCfg){.key = key}) : NULL;
+        terminal->frame[view] = (key != NULL) ? cli_view_frame_build(&(CliViewAtCfg){.key = key}) : NULL;
     }
     args->window->pending = 1;
 }
@@ -723,8 +719,7 @@ EMBED_INLINE void window_view_take(const GuiWindowCtx *args)
                              .err_msg = &err_msg);
         }
     }
-    cli_view_frame_release(&(CliViewAtCfg){.frame = window->editor.frame});
-    window->editor.frame = (key != NULL) ? cli_view_frame_alloc(&(CliViewAtCfg){.key = key}) : NULL;
+    window->editor.frame = (key != NULL) ? cli_view_frame_build(&(CliViewAtCfg){.key = key}) : NULL;
     // The names and the map's colors move only as the text's colors move. They are read again where the text or its
     // colors serial is not the one they were read at, and stay as read where only the frame moved
     const unsigned int colors = (window->editor.frame != NULL) ? window->editor.frame->colors_serial : 0u;
@@ -4347,7 +4342,7 @@ EMBED_INLINE void window_session_save(const GuiWindowCtx *args)
     }
 }
 
-// another view displayed, or none: the panels hidden, its frame taken, the editor let go of the keys where none is, the
+// another view displayed, or none: the panels hidden, its frame built, the editor let go of the keys where none is, the
 // session saved
 EMBED_INLINE void window_displayed(const GuiWindowCtx *args)
 {
@@ -4405,7 +4400,7 @@ EMBED_INLINE void window_frame_telemetry(const GuiWindowCtx *args)
                .length = mmgr_line_finish(&line));
 }
 
-// `view_input` passed to the view displayed, its frame taken anew; `edited` where it may have edited the text
+// `view_input` passed to the view displayed, its frame built anew; `edited` where it may have edited the text
 EMBED_INLINE void window_view_input(const GuiWindowCtx *args)
 {
     const char *const key = EMBED_CALL(window_displayed_key, GuiWindowCtx, .at = 0u);

@@ -114,7 +114,7 @@ typedef struct
     unsigned int focused;
     CliNotebookFrameRow *row;
     char *bytes;
-    CliViewFrame *view;
+    const CliViewFrame *view;
 } CliNotebookFrame;
 
 // the notebook in `size` bytes of `text`, the file at `path`, opened as a model under `key`, each cell's source and

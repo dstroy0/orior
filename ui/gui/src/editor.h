@@ -61,7 +61,7 @@ typedef struct GuiEditorCfg GuiEditorCfg;
 // `colored_palette`. A name at GUI_EDITOR_NAME_COLORS or past it is read from the palette each time
 typedef struct
 {
-    CliViewFrame *frame;
+    const CliViewFrame *frame;
     char names_key[CLI_NAME_MAX_LEN];
     unsigned int names_count;
     unsigned int names_serial;
