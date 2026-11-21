@@ -336,10 +336,12 @@ EMBED_INLINE void runs_pending_take(const QryListedCtx *args)
 // each of the tree's files that is a run or an overseer's: its folder put among the runs' folders
 static void runs_files_walked(const CliFilesEachCfg *view)
 {
-    const CliFiles *const files = view->files;
+    const CliPicked *const files = view->files;
     for (unsigned int at = 0u; at < files->count; at += 1u)
     {
-        const char *const path = EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = at);
+        char path_read[CLI_PATH_MAX_LEN];
+        const char *const path =
+            EMBED_CALL(cli_files_view_read.at, CliFilesViewCfg, .view = files, .index = at, .path_out = path_read);
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN});
         if (EMBED_CALL(runs_path_is_run, QryListedCtx, .path = path, .length = length) ||
             EMBED_CALL(runs_path_is_overseer, QryListedCtx, .path = path, .length = length))

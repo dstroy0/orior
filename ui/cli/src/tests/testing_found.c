@@ -485,10 +485,12 @@ static void python_files_found(const CliFilesEachCfg *view)
 {
     const TestingFoundCtx *const args = view->context;
     const char *root = args->root;
-    const CliFiles *const files = view->files;
+    const CliPicked *const files = view->files;
     for (unsigned int index = 0u; index < files->count; index += 1u)
     {
-        const char *const file = EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = index);
+        char file_read[CLI_PATH_MAX_LEN];
+        const char *const file =
+            EMBED_CALL(cli_files_view_read.at, CliFilesViewCfg, .view = files, .index = index, .path_out = file_read);
         if (!EMBED_CALL(found_search, TestingFoundCtx, .file = file, .rules = &s_work_state->rules))
         {
             continue;

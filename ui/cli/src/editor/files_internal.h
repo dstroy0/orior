@@ -34,15 +34,6 @@ typedef struct
     unsigned int at;
 } CliTopPlace;
 
-// The files a reader picks off the tree, sorted, in one movable cell the reader owns and gives back: each path's
-// place from `text_at` first, as many as `count`, the paths zero-ended after them
-typedef struct
-{
-    const CarcerMovableEntry *cell;
-    unsigned int count;
-    unsigned long long text_at;
-} CliPicked;
-
 // a cell of `bytes` for work given back within its call, from the temporary tier, or NULL where the cellblock cannot
 // meet it, the files' report reported where their mark rose a step past the one last reported; it is given back with
 // g_cli_guard->persistent_buf_release, NULL given back as nothing. A list made for work for `count` paths of `bytes`
@@ -62,6 +53,9 @@ int cli_files_pick(const CliFilesPickedCtx *args);
 const char *cli_picked_at(const CliFilesPickedIndexCtx *args);
 unsigned int cli_picked_index(const CliFilesPickedIndexCtx *args);
 void cli_picked_let(const CliFilesPickedCtx *args);
+// the sorted list `files_read` written whole into a movable cell of the files module, set in `picked`: 1, or 0
+// where the cellblock cannot meet it (files_cells.c)
+int cli_files_picked_put(const CliFilesPickedCtx *args);
 
 // the max lines a search returns, the max characters of a found line retained, and the max bytes they take
 #define CLI_HITS_MAX 2000u
@@ -211,6 +205,7 @@ struct CliFilesContextErrMsgCtx
 struct CliFilesPickedCtx
 {
     CliPicked *picked;
+    const CliFiles *files_read;
     const char *root;
     int (*filter)(const CliEachPathCfg *args);
     void *context;
@@ -326,11 +321,13 @@ typedef struct
 {
     int (*pick)(const CliFilesPickedCtx *args);
     void (*picked_let)(const CliFilesPickedCtx *args);
+    int (*picked_put)(const CliFilesPickedCtx *args);
 } CliFilesPickedNs;
-EMBED_TABLE_LAYOUT(CliFilesPickedNs, pick, picked_let);
+EMBED_TABLE_LAYOUT(CliFilesPickedNs, pick, picked_let, picked_put);
 EMBED_TABLE_STORAGE CliFilesPickedNs cli_files_picked_internal EMBED_UNUSED = {
     .pick = cli_files_pick,
     .picked_let = cli_picked_let,
+    .picked_put = cli_files_picked_put,
 };
 
 typedef struct

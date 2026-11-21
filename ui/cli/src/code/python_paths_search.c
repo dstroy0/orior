@@ -292,10 +292,12 @@ EMBED_INLINE void cli_script_read(const PythonPathsSearchCtx *args)
 static void python_files_searched(const CliFilesEachCfg *view)
 {
     const PythonPathsSearchCtx *const args = view->context;
-    const CliFiles *const files = view->files;
+    const CliPicked *const files = view->files;
     for (unsigned int index = 0u; index < files->count; index += 1u)
     {
-        const char *const file = EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = index);
+        char file_read[CLI_PATH_MAX_LEN];
+        const char *const file =
+            EMBED_CALL(cli_files_view_read.at, CliFilesViewCfg, .view = files, .index = index, .path_out = file_read);
         if (EMBED_CALL(cli_search, PythonPathsSearchCtx, .file = file))
         {
             EMBED_CALL(cli_script_read, PythonPathsSearchCtx, .root = args->root, .top = args->top, .file = file);

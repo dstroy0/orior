@@ -223,13 +223,15 @@ static void check_export(const CliEachNameSizeCfg *args)
 static void check_others_each(const CliFilesEachCfg *view)
 {
     const SconsCheckCtx *const args = view->context;
-    const CliFiles *const files = view->files;
+    const CliPicked *const files = view->files;
     const char *root = args->root;
     const char *path = args->path;
     unsigned int read = 0u;
     for (unsigned int at = 0u; (at < files->count) && (read < CLI_SCONS_OTHERS); at += 1u)
     {
-        const char *const file = EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = at);
+        char file_read[CLI_PATH_MAX_LEN];
+        const char *const file =
+            EMBED_CALL(cli_files_view_read.at, CliFilesViewCfg, .view = files, .index = at, .path_out = file_read);
         if (EMBED_CALL(cli_builds_path.build_type_get, CliBuildsPathCfg, .path = file) != CLI_BUILD_SCONS)
         {
             continue;

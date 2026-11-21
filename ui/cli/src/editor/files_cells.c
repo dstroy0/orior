@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // files_cells.c: the files' cells and the lists built of them: a list's paths and places taken for one call at the
 // sizes a count of them sets, put, sorted and released; and the files of the tree a reader picks, by their places in
-// it, positioned in one movable cell the reader owns and reads by index. The cells are the one cellblock's, counted to the
-// files' own mark, which their report writes
+// it, positioned in one movable cell the reader owns and reads by index. The cells are the one cellblock's, counted to
+// the files' own mark, which their report writes
 #include "../code/symbols.h"
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
@@ -27,8 +27,7 @@ const char *cli_files_at(const CliFilesCfg *args)
 
 int cli_files_append(const CliFilesPathLengthCtx *args)
 {
-    if ((args->files->count >= args->files->max) ||
-        ((args->files->used + args->length + 1ULL) > args->files->text_max))
+    if ((args->files->count >= args->files->max) || ((args->files->used + args->length + 1ULL) > args->files->text_max))
     {
         return 0;
     }
@@ -202,22 +201,44 @@ int cli_files_pick(const CliFilesPickedCtx *args)
         }
     }
     const int sorted = EMBED_CALL(cli_files_bytes_internal.sort, CliFilesBytesCtx, .files = files);
+    const int put = sorted && EMBED_CALL(cli_files_picked_internal.picked_put, CliFilesPickedCtx, .picked = picked,
+                                         .files_read = files);
+    g_cli_guard->persistent_buf_release(files, g_cli_files_views_owner);
+    return put;
+}
+
+int cli_files_picked_put(const CliFilesPickedCtx *args)
+{
+    const CliFiles *const files = args->files_read;
+    *args->picked = (CliPicked){NULL, 0u, 0ULL};
     const unsigned long long starts_bytes = (unsigned long long)files->count * sizeof(unsigned int);
     const CarcerMovableEntry *const cell =
-        sorted ? g_cli_guard->movable_buf_alloc(starts_bytes + files->used + 1ULL, g_cli_files_views_owner) : NULL;
-    if (cell != NULL)
+        g_cli_guard->movable_buf_alloc(starts_bytes + files->used + 1ULL, g_cli_files_views_owner);
+    if (cell == NULL)
     {
-        (void)g_cli_guard->movable_buf_write(
-            &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .src = files->start, .bytes = starts_bytes});
-        (void)g_cli_guard->movable_buf_write(
-            &(CarcerMovableCfg){.cell = cell, .offset = starts_bytes, .src = files->text, .bytes = files->used});
-        const char zero = '\0';
-        (void)g_cli_guard->movable_buf_write(
-            &(CarcerMovableCfg){.cell = cell, .offset = starts_bytes + files->used, .src = &zero, .bytes = 1ULL});
-        *picked = (CliPicked){cell, files->count, starts_bytes};
+        return 0;
     }
-    g_cli_guard->persistent_buf_release(files, g_cli_files_views_owner);
-    return cell != NULL;
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .src = files->start, .bytes = starts_bytes});
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = cell, .offset = starts_bytes, .src = files->text, .bytes = files->used});
+    const char zero = '\0';
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = cell, .offset = starts_bytes + files->used, .src = &zero, .bytes = 1ULL});
+    *args->picked = (CliPicked){cell, files->count, starts_bytes};
+    return 1;
+}
+
+const char *cli_files_view_at(const CliFilesViewCfg *args)
+{
+    return EMBED_CALL(cli_files_picked_index_internal.picked_at, CliFilesPickedIndexCtx, .picked_read = args->view,
+                      .index = args->index, .path_out = args->path_out);
+}
+
+int cli_files_view_contains(const CliFilesViewCfg *args)
+{
+    return EMBED_CALL(cli_files_picked_index_internal.picked_index, CliFilesPickedIndexCtx, .picked_read = args->view,
+                      .path = args->path) < args->view->count;
 }
 
 const char *cli_picked_at(const CliFilesPickedIndexCtx *args)

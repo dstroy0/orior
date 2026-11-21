@@ -34,6 +34,7 @@ typedef struct CliFilesPathCfg CliFilesPathCfg;
 typedef struct CliFilesPathErrMsgCfg CliFilesPathErrMsgCfg;
 typedef struct CliFilesQueryLettersCfg CliFilesQueryLettersCfg;
 typedef struct CliFilesCfg CliFilesCfg;
+typedef struct CliFilesViewCfg CliFilesViewCfg;
 typedef struct CliFilesPathTypeCfg CliFilesPathTypeCfg;
 typedef struct CliFilesGitCfg CliFilesGitCfg;
 
@@ -55,17 +56,31 @@ typedef struct
     unsigned long long text_max;
 } CliFiles;
 
-// What a view of the tree's files passes to its callback: `context`, and the files, valid for the call alone
+// A sorted list of paths in one movable cell of the files module. Each path's place from `text_at` comes first, as
+// many as `count`, and the paths follow, a 0 after each. A reader reads a path into a buffer of its own call
+typedef struct
+{
+    const CarcerMovableEntry *cell;
+    unsigned int count;
+    unsigned long long text_at;
+} CliPicked;
+
+// What a view of the tree's files passes to its callback: `context`, and the files in the files module's movable
+// cell, valid for the call alone
 typedef struct
 {
     void *context;
-    const CliFiles *files;
+    const CliPicked *files;
 } CliFilesEachCfg;
 
-// Every file of the tree at `root`, at max CLI_FILES_MAX of them, sorted, positioned flat in a temporary cell of the
-// files module. The files go to `each` with `context`, and the module gives the cell back before it returns. Returns
-// 1, or 0 where the cellblock cannot meet the view and the files do not go to `each` (files_seen.c)
+// Every file of the tree at `root`, at max CLI_FILES_MAX of them, sorted, in a movable cell of the files module. The
+// files go to `each` with `context`, and the module gives the cell back before it returns. Returns 1, or 0 where the
+// cellblock cannot meet the view and the files do not go to `each` (files_seen.c)
 int cli_files_each(const CliFilesRootPathsCfg *args);
+// The path at `index` of the view `view` read into `path_out`, CLI_PATH_MAX_LEN bytes: `path_out`, empty past the
+// view. Whether `path` is among the files of the view (files_cells.c)
+const char *cli_files_view_at(const CliFilesViewCfg *args);
+int cli_files_view_contains(const CliFilesViewCfg *args);
 // the files of the folder at `root`, less `.git` and `target`, walked from its top: each file's path from the top
 // passed to `each`, at max CLI_FILES_MAX of them (files_seen.c)
 void cli_files_walk(const CliFilesRootEachContextCfg *args);
@@ -496,6 +511,14 @@ struct CliFilesCfg
     unsigned int index;
 };
 
+struct CliFilesViewCfg
+{
+    const CliPicked *view;
+    unsigned int index;
+    char *path_out;
+    const char *path;
+};
+
 struct CliFilesPathTypeCfg
 {
     const CliFiles *files;
@@ -534,6 +557,17 @@ typedef struct
 EMBED_TABLE_LAYOUT(CliFilesRootRowsNs, ranked_find);
 EMBED_TABLE_STORAGE CliFilesRootRowsNs cli_files_root_rows EMBED_UNUSED = {
     .ranked_find = cli_files_ranked_find,
+};
+
+typedef struct
+{
+    const char *(*at)(const CliFilesViewCfg *args);
+    int (*contains)(const CliFilesViewCfg *args);
+} CliFilesViewReadNs;
+EMBED_TABLE_LAYOUT(CliFilesViewReadNs, at, contains);
+EMBED_TABLE_STORAGE CliFilesViewReadNs cli_files_view_read EMBED_UNUSED = {
+    .at = cli_files_view_at,
+    .contains = cli_files_view_contains,
 };
 
 typedef struct

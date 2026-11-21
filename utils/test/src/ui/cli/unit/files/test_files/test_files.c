@@ -290,11 +290,8 @@ static void files_seen(const CliFilesEachCfg *args)
     seen->calls += 1u;
     seen->count = args->files->count;
     seen->in_use = mmgr_owner_in_use(g_cli_files_views_owner);
-    const char *const first =
-        (args->files->count != 0u) ? EMBED_CALL(cli_files.at, CliFilesCfg, .files = args->files, .index = 0u) : "";
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = first, .cap = CLI_PATH_MAX_LEN - 1u});
-    memor.cpy(&(MemoriaCfg){.dst = seen->first, .src = first, .bytes = length});
-    seen->first[length] = '\0';
+    (void)EMBED_CALL(cli_files_view_read.at, CliFilesViewCfg, .view = args->files, .index = 0u,
+                     .path_out = seen->first);
 }
 
 void test_the_files_go_to_the_callback_once_and_their_cell_goes_back_before_the_return(void)

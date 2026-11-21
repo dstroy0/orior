@@ -278,10 +278,12 @@ static void cargo_files_found(const CliFilesEachCfg *view)
     const CargoFilesFound *const finding = view->context;
     const CliCargoTestsCfg *const args = finding->args;
     CliCargoWalk *const walk = finding->walk;
-    const CliFiles *const files = view->files;
+    const CliPicked *const files = view->files;
     for (unsigned int index = 0u; index < files->count; index += 1u)
     {
-        const char *const manifest = EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = index);
+        char manifest_read[CLI_PATH_MAX_LEN];
+        const char *const manifest = EMBED_CALL(cli_files_view_read.at, CliFilesViewCfg, .view = files, .index = index,
+                                                .path_out = manifest_read);
         const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = manifest, .cap = CLI_POOL_BYTES});
         if (!((length == 10u) &&
               (cellul.eq(&(CatenaFinitaCfg){.src = manifest, .other = "Cargo.toml", .cap = CLI_POOL_BYTES}))) &&

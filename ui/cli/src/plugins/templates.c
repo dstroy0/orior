@@ -254,10 +254,12 @@ static void templates_files_copied(const CliFilesEachCfg *view)
 {
     TemplatesCopied *const copy = view->context;
     const CliTemplatesNameCfg *const args = copy->args;
-    const CliFiles *const files = view->files;
+    const CliPicked *const files = view->files;
     for (unsigned int index = 0u; index < files->count; index += 1u)
     {
-        const char *const file = EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = index);
+        char file_read[CLI_PATH_MAX_LEN];
+        const char *const file =
+            EMBED_CALL(cli_files_view_read.at, CliFilesViewCfg, .view = files, .index = index, .path_out = file_read);
         if ((cellul.eq(&(CatenaFinitaCfg){.src = file, .other = ".git", .cap = CLI_POOL_BYTES})) ||
             (cellul.starts(&(CatenaFinitaCfg){.src = file, .other = ".git/", .cap = CLI_POOL_BYTES})))
         {

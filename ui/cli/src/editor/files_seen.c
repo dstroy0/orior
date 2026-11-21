@@ -40,6 +40,8 @@ typedef struct
     int *whole;
     unsigned long long length;
     unsigned long long *ending;
+    const CliFiles *files_read;
+    void (*view_each)(const CliFilesEachCfg *args);
 } FilesSeenCtx;
 // `path` copied into a cell of its own, put among the folders still to look in
 EMBED_INLINE void walk_pending(const FilesSeenCtx *args)
@@ -389,28 +391,36 @@ const CliFiles *cli_files_types_view(const CliFilesRootPathsCfg *args)
     return types;
 }
 
-int cli_files_each(const CliFilesRootPathsCfg *args)
+// The view `files` written into a movable cell of the files module, its work cell given back, and the movable cell
+// passed to `each` with `context`, then given back: 1, or 0 where the view or the cell is not there
+EMBED_INLINE int seen_view_each(const FilesSeenCtx *args)
 {
-    const CliFiles *const files = cli_files_view_internal.view(args);
-    if (files == NULL)
+    if (args->files_read == NULL)
     {
         return 0;
     }
-    args->each(&(CliFilesEachCfg){.context = args->context, .files = files});
-    EMBED_CALL(cli_files_let_internal.let, CliFilesCfg, .files = files);
-    return 1;
+    CliPicked picked = {NULL, 0u, 0ULL};
+    const int put = EMBED_CALL(cli_files_picked_internal.picked_put, CliFilesPickedCtx, .picked = &picked,
+                               .files_read = args->files_read);
+    EMBED_CALL(cli_files_let_internal.let, CliFilesCfg, .files = args->files_read);
+    if (put)
+    {
+        args->view_each(&(CliFilesEachCfg){.context = args->context, .files = &picked});
+    }
+    EMBED_CALL(cli_files_picked_internal.picked_let, CliFilesPickedCtx, .picked = &picked);
+    return put;
+}
+
+int cli_files_each(const CliFilesRootPathsCfg *args)
+{
+    return EMBED_CALL(seen_view_each, FilesSeenCtx, .files_read = cli_files_view_internal.view(args),
+                      .view_each = args->each, .context = args->context);
 }
 
 int cli_files_types_each(const CliFilesRootPathsCfg *args)
 {
-    const CliFiles *const types = cli_files_view_internal.types_view(args);
-    if (types == NULL)
-    {
-        return 0;
-    }
-    args->each(&(CliFilesEachCfg){.context = args->context, .files = types});
-    EMBED_CALL(cli_files_let_internal.let, CliFilesCfg, .files = types);
-    return 1;
+    return EMBED_CALL(seen_view_each, FilesSeenCtx, .files_read = cli_files_view_internal.types_view(args),
+                      .view_each = args->each, .context = args->context);
 }
 
 // the tree listed behind the window, as a tree opens, for the first list or search

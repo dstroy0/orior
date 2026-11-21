@@ -286,10 +286,12 @@ typedef struct
 static void trust_files_looked(const CliFilesEachCfg *view)
 {
     TrustLooked *const looked = view->context;
-    const CliFiles *const files = view->files;
+    const CliPicked *const files = view->files;
     for (unsigned int index = 0u; index < files->count; index += 1u)
     {
-        const char *const file = EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = index);
+        char file_read[CLI_PATH_MAX_LEN];
+        const char *const file =
+            EMBED_CALL(cli_files_view_read.at, CliFilesViewCfg, .view = files, .index = index, .path_out = file_read);
         const char *const slash =
             EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = file,
                        .length_value = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_POOL_BYTES}), .byte = '/');
@@ -302,7 +304,7 @@ static void trust_files_looked(const CliFilesEachCfg *view)
             mmgr_line_put_n(&line, file, (unsigned long long)(name - file));
             mmgr_line_put(&line, "Cargo.toml");
             is_code = (mmgr_line_finish(&line) != 0ULL) &&
-                      EMBED_CALL(cli_files_path_type.contains, CliFilesPathTypeCfg, .files = files, .path = adjacent);
+                      EMBED_CALL(cli_files_view_read.contains, CliFilesViewCfg, .view = files, .path = adjacent);
         }
         else if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "Cargo.toml", .cap = CLI_POOL_BYTES}))
         {

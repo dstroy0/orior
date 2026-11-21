@@ -570,21 +570,35 @@ int cli_servers_problems_press(const CliServersProblemsCfg *args)
 static void problems_files_checked(const CliFilesEachCfg *view)
 {
     const CliServersProblemsCfg *const args = view->context;
-    const CliFiles *const files = view->files;
-    const char **const paths = g_cli_guard->temporary_buf_alloc(
-        ((unsigned long long)files->count + 1ULL) * sizeof(*paths), g_cli_servers_owner);
-    if (paths == NULL)
+    const CliPicked *const files = view->files;
+    // The paths read out of the view into one cell of this call, with the list of them first. A first pass counts the
+    // paths' bytes and their ends
+    unsigned long long text_bytes = 0ULL;
+    for (unsigned int at = 0u; at < files->count; at += 1u)
+    {
+        char path[CLI_PATH_MAX_LEN];
+        (void)EMBED_CALL(cli_files_view_read.at, CliFilesViewCfg, .view = files, .index = at, .path_out = path);
+        text_bytes += cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN}) + 1ULL;
+    }
+    const unsigned long long list_bytes = ((unsigned long long)files->count + 1ULL) * sizeof(const char *);
+    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(list_bytes + text_bytes, g_cli_servers_owner);
+    if (cell == NULL)
     {
         return;
     }
+    const char **const paths = (const char **)(void *)cell;
+    char *const text = (char *)(cell + list_bytes);
+    unsigned long long used = 0ULL;
     for (unsigned int at = 0u; at < files->count; at += 1u)
     {
-        paths[at] = EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = at);
+        (void)EMBED_CALL(cli_files_view_read.at, CliFilesViewCfg, .view = files, .index = at, .path_out = text + used);
+        paths[at] = text + used;
+        used += cellul.len(&(CatenaFinitaCfg){.src = text + used, .cap = CLI_PATH_MAX_LEN}) + 1ULL;
     }
     const CliServersSink sink = cli_servers_problems_sink(&(CliServersProblemsCfg){.root = args->root});
     (void)EMBED_CALL(cli_servers_root_sink_count.check_tree, CliServersRootSinkCountCfg, .root = args->root,
                      .files = paths, .count = files->count, .sink = &sink);
-    g_cli_guard->persistent_buf_release(paths, g_cli_servers_owner);
+    g_cli_guard->persistent_buf_release(cell, g_cli_servers_owner);
 }
 
 void cli_servers_problems_check(const CliServersProblemsCfg *args)
