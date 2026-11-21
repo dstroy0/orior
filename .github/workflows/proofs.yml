@@ -1,0 +1,93 @@
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+# SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+#
+# The Lean proofs of theory/lng, the language check and its test, on each push to main and each pull request that
+# changes them. The harness runs each step, and this file holds no second copy of its flags.
+#
+#   lean   lng prove writes the tables of the tree into Lean data and builds every proof with Lake. Its data must
+#          be the data of the commit. No proof may stay open.
+#   check  lng_check holds the tables against each other. Its test links the lift that Lean compiles to C. The test
+#          therefore runs the proved code. lng witness then runs the probe of each row of each target table.
+#
+# The job fails where any step fails.
+
+name: proofs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "theory/lng/**"
+      - "src/lng/**"
+      - "utils/test/harness_lng.py"
+      - "utils/test/src/lng/**"
+      - ".github/workflows/proofs.yml"
+  pull_request:
+    paths:
+      - "theory/lng/**"
+      - "src/lng/**"
+      - "utils/test/harness_lng.py"
+      - "utils/test/src/lng/**"
+      - ".github/workflows/proofs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch stops the run it makes stale.
+concurrency:
+  group: proofs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lean:
+    name: Lean
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install elan
+        # elan installs the toolchain that theory/lng/lean-toolchain names, at the first lake command.
+        run: |
+          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Build the proofs
+        run: python utils/test/harness.py lng prove
+
+      - name: The Lean data is the data of the commit
+        # lng prove writes each data file from the tables of the tree. A difference is a table that changed without
+        # its data, or data that changed without its table.
+        run: |
+          if ! git diff --exit-code -- theory/lng; then
+            echo "::error title=stale data::lng prove wrote Lean data that differs from the commit"
+            exit 1
+          fi
+
+      - name: No proof is open
+        # lake build passes a theorem that sorry closes, and only shows a warning. This step fails on it.
+        working-directory: theory/lng
+        run: |
+          if grep -rn --include='*.lean' -w sorry Lng Lng.lean LngLift.lean; then
+            echo "::error title=sorry::a proof is open"
+            exit 1
+          fi
+
+      - name: The language check
+        run: bash src/lng/lng_check.sh
+
+      - name: The test of the language check, with the lift that Lean compiles
+        run: bash utils/test/src/lng/lng_check_test.sh
+
+      - name: The witness of each target table
+        run: python utils/test/harness.py lng witness
