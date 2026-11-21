@@ -856,9 +856,6 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/tables/tables_capture.sh	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/tables/tables_funnel.c	4
 src/cu/transpiler/vendor_bin_layouts/nvidia/tables/tables_intercept.c	9
 src/cu/transpiler/vendor_bin_layouts/nvidia/tables/tables_read.c	4
-src/lng/lng.c	11
-src/lng/lng.h	25
-src/lng/lng_check.c	3
 src/sims/cu/engine/analysis/art/periodic_energy.h	1
 src/sims/cu/engine/analysis/floor_match/floor_match_floors.cu	2
 src/sims/cu/engine/analysis/floor_match/floor_match_internal.h	12
@@ -1357,7 +1354,6 @@ utils/test/src/cu/types/integers/exact_record_test.cu	1
 utils/test/src/cu/types/integers/exact_transform_test.cu	1
 utils/test/src/cu/types/integers/test_arm_agreement.c	19
 utils/test/src/cu/unit/CMakeLists.txt	6
-utils/test/src/lng/lng_check_test.c	5
 utils/test/src/ui/cli/bench/bench.h	3
 utils/test/src/ui/cli/bench/cli_bench.c	3
 utils/test/src/ui/cli/bench/cli_bench_files.c	2

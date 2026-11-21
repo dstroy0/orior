@@ -46,7 +46,7 @@ static const char *const s_punctuators[LNG_PUNCTUATORS] = {
 static const char *const s_family[LNG_FAMILY][2] = {{"==0", "=="}, {"!=0", "!="}, {"<0", "<"}, {"-x", "-"}, {"~x", "~"},
                                                     {"!x", "!"},   {"?:", "?"},   {"*p", "*"}, {"*p=", "="}};
 
-// the operators a form is checked against
+// the operators the check reads in the text of a form
 #define LNG_CHECKED 21u
 static const char *const s_checked[LNG_CHECKED] = {"+",  "-", "*",  "/",  "%",  "&",  "|",  "^", "<<", ">>", "<",
                                                    "<=", ">", ">=", "==", "!=", "&&", "||", "~", "!",  "?"};
@@ -61,7 +61,7 @@ static const char *const s_hol_as_c[LNG_HOL_AS_C] = {"f()", "(T)", "&&",    "||"
                                                      "//",  "T x", "const", "atomic()", "{}",   "==0",    "!=0",
                                                      "<0",  "?:",  "if",    "switch",   "goto", "return", "label:"};
 
-// the tables whose transitions are compared across
+// the tables whose transitions the check compares with each other
 static const char s_matrix[] = "the state-transition matrix";
 static const char s_high_energy_matrix[] = "the high-energy transition matrix";
 
@@ -436,6 +436,12 @@ static const char *lng_cell_or_none(const LngTable *table, unsigned int row, con
     return (cell != NULL) ? cell : "";
 }
 
+// 1 where the row `row` names a target, a ruleset's own word, and 0 where the word is the transpiler's
+static int lng_row_targeted(const LngTable *table, unsigned int row)
+{
+    return lng_cell_or_none(table, row, "target")[0] != '\0';
+}
+
 // the first operator column of `table`, the one after the last selected column, or the head's count where it has none
 static unsigned int lng_operators_start(const LngTable *table)
 {
@@ -488,11 +494,13 @@ void lng_table_check(const LngTable *table, const char *const *types, unsigned i
     {
         const char *const word = lng_cell_or_none(table, row, "word");
         const char *const type = lng_cell_or_none(table, row, "type");
+        const char *const target = lng_cell_or_none(table, row, "target");
         LngList found = {NULL, 0u, 0u};
-        lng_list_printed(&found, "%s\x1f%s", word, type);
+        lng_list_printed(&found, "%s\x1f%s\x1f%s", word, type, target);
         if (lng_set_has(&seen, found.text[0]))
         {
-            lng_list_printed(defects, "%s %s is listed twice", word, type);
+            lng_list_printed(defects, "%s %s%s%s is listed twice", word, type, (target[0] != '\0') ? " of " : "",
+                             target);
         }
         lng_set_add(&seen, found.text[0]);
         lng_list_free(&found);
@@ -586,8 +594,8 @@ void lng_table_check(const LngTable *table, const char *const *types, unsigned i
     lng_list_free(&order);
 }
 
-// rows of one type marking the same operators and the same width, sign and type: the type, the operators, and the
-// words, in the order the rows are
+// a group of rows of one type that mark the same operators, width, sign and C type. It keeps the type, the operators
+// and the words in the order of the rows
 typedef struct
 {
     char *key;
@@ -661,17 +669,28 @@ void lng_table_findings(const LngTable *table, LngList *findings)
     }
     free(group);
 
+    // a word of the transpiler and a target's word of the same letters are two words. The check reads each word in
+    // its target
     LngList words = {NULL, 0u, 0u};
     for (unsigned int row = 0u; row < table->rows; row += 1u)
     {
-        lng_set_add(&words, lng_cell_or_none(table, row, "word"));
+        LngList keyed = {NULL, 0u, 0u};
+        lng_list_printed(&keyed, "%s\x1f%s", lng_cell_or_none(table, row, "word"),
+                         lng_cell_or_none(table, row, "target"));
+        lng_set_add(&words, keyed.text[0]);
+        lng_list_free(&keyed);
     }
     for (unsigned int at = 0u; at < words.count; at += 1u)
     {
+        const char *const unit = strchr(words.text[at], '\x1f');
+        const size_t word_length = (size_t)(unit - words.text[at]);
+        const char *const target = unit + 1;
         LngList meanings = {NULL, 0u, 0u};
         for (unsigned int row = 0u; row < table->rows; row += 1u)
         {
-            if (strcmp(lng_cell_or_none(table, row, "word"), words.text[at]) != 0)
+            const char *const word = lng_cell_or_none(table, row, "word");
+            if ((strlen(word) != word_length) || (strncmp(word, words.text[at], word_length) != 0) ||
+                (strcmp(lng_cell_or_none(table, row, "target"), target) != 0))
             {
                 continue;
             }
@@ -686,7 +705,8 @@ void lng_table_findings(const LngTable *table, LngList *findings)
         if (meanings.count > 1u)
         {
             char *const meaning = lng_list_joined(&meanings, " and ");
-            lng_list_printed(findings, "%s is %s", words.text[at], meaning);
+            lng_list_printed(findings, "%.*s%s%s is %s", (int)word_length, words.text[at],
+                             (target[0] != '\0') ? " of " : "", target, meaning);
             free(meaning);
         }
         lng_list_free(&meanings);
@@ -849,9 +869,9 @@ void lng_ruleset_words(const char *path, const char *const *line, unsigned int l
     }
 }
 
-// Each line of `file` cut by the blocks of the ruleset's language (klang.h): what of the line is inside a block's
-// text appended to `inside`, and what is outside every block, its opener and its closer among the block, appended
-// to `outside`, a text each for every line, "" where the line contains none
+// Each line of `file` cut at the blocks of the ruleset's language (klang.h). The part of a line in the text of a
+// block goes into `inside`. The part outside every block goes into `outside`, and a block's opener and closer are
+// part of the block. Each list gets one text for each line, and "" where the line has no such part
 static void lng_block_parts(const KfileLines *file, LngList *inside, LngList *outside)
 {
     // the lines joined, each ended by a newline, and where each starts
@@ -1042,7 +1062,8 @@ static void lng_ticked(const char *text, size_t length, LngList *set)
         {
             characters += 1u;
         }
-        if ((text[at] == '`') && (characters != 0u) && ((at + 1u + characters) < length) && (text[at + 1u + characters] == '`'))
+        if ((text[at] == '`') && (characters != 0u) && ((at + 1u + characters) < length) &&
+            (text[at + 1u + characters] == '`'))
         {
             char *const name = lng_copy(&text[at + 1u], characters);
             lng_set_add(set, name);
@@ -1056,8 +1077,8 @@ static void lng_ticked(const char *text, size_t length, LngList *set)
     }
 }
 
-// the part of the `length` characters at `text` from past its `field`th `mark` to the next, or to their end: 1 with its
-// start and length, or 0 where they contain fewer marks
+// The part of the `length` characters at `text` after their `field`th `mark`, to the next mark or to their end. The
+// result is 1 with its start and length, or 0 where they contain fewer marks
 static int lng_field(const char *text, size_t length, char mark, unsigned int field, size_t *start, size_t *size)
 {
     size_t at = 0u;
@@ -1142,8 +1163,8 @@ static void lng_punctuator_added(const char *punctuator, LngList *found)
     lng_set_add(found, punctuator);
 }
 
-// the length of a literal or a name at `text`, or 0 where none starts there: a name in braces, a C name, a hex number
-// with its u, or a decimal number with its suffix
+// The length of a literal or a name at `text`, or 0 where none starts there. It reads a name in braces, a C name, a
+// hex number with its u, or a decimal number with its suffix
 static size_t lng_literal_at(const char *text)
 {
     size_t name = 0u;
@@ -1278,6 +1299,11 @@ void lng_form_findings(const LngTable *table, const LngList *names, const LngLis
     LngList doing = {NULL, 0u, 0u};
     for (unsigned int row = 0u; row < table->rows; row += 1u)
     {
+        // a target's own word names no form of the transpiler's
+        if (lng_row_targeted(table, row))
+        {
+            continue;
+        }
         const char *const word = lng_cell_or_none(table, row, "word");
         LngList *const claimed = lng_sets_at(&claims, word);
         LngList operators = {NULL, 0u, 0u};
@@ -1357,13 +1383,14 @@ void lng_form_findings(const LngTable *table, const LngList *names, const LngLis
     lng_sets_free(&claims);
 }
 
-// the last row of `table` whose word is `word` and whose type is `type`, or the table's count of rows where none is
+// The last row of `table` with the word `word` and the type `type`, or the table's count of rows where none is. A row
+// with a target is not a row of the transpiler, and this skips it
 static unsigned int lng_row_of(const LngTable *table, const char *word, const char *type)
 {
     unsigned int found = table->rows;
     for (unsigned int row = 0u; row < table->rows; row += 1u)
     {
-        found = ((strcmp(lng_cell_or_none(table, row, "word"), word) == 0) &&
+        found = (!lng_row_targeted(table, row) && (strcmp(lng_cell_or_none(table, row, "word"), word) == 0) &&
                  (strcmp(lng_cell_or_none(table, row, "type"), type) == 0))
                     ? row
                     : found;
@@ -1375,8 +1402,13 @@ void lng_hol_check(const LngTable *transpiler, const LngTable *hol, LngList *def
 {
     LngList things = {NULL, 0u, 0u};
     LngList words = {NULL, 0u, 0u};
+    // the high order language crosses into the transpiler's own words, and no target's word
     for (unsigned int row = 0u; row < transpiler->rows; row += 1u)
     {
+        if (lng_row_targeted(transpiler, row))
+        {
+            continue;
+        }
         lng_set_add(&words, lng_cell_or_none(transpiler, row, "word"));
         if (strcmp(lng_cell_or_none(transpiler, row, "type"), "thing") == 0)
         {
@@ -1522,7 +1554,7 @@ const char *lng_arrow_of(const LngTable *table, unsigned int row)
     return "->";
 }
 
-// `side`, lead and rite trading places
+// the mirror of `side`, with lead and rite in each other's places
 static const char *lng_mirror(const char *side)
 {
     return (strcmp(side, "lead") == 0) ? "rite" : ((strcmp(side, "rite") == 0) ? "lead" : side);
@@ -1584,8 +1616,9 @@ void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings)
         lng_list_free(&transitions);
     }
 
-    // each transition, its table, its past and its present apart by \x1f, which is before every character a cell
-    // contains: the keys are in the order of the three; and the mnemonics each table names it by
+    // A key for each transition: its table, its past and its present, with \x1f between them. The \x1f sorts before
+    // every character of a cell, and the keys sort in the order of the three. Each key maps to the mnemonics each
+    // table gives the transition
     LngSets named = {{NULL, 0u, 0u}, NULL, 0u};
     LngSets doing = {{NULL, 0u, 0u}, NULL, 0u};
     for (unsigned int row = 0u; row < table->rows; row += 1u)
@@ -1721,9 +1754,9 @@ typedef struct
     LngList *found;
 } LngWalk;
 
-// the entry `name` of the folder `folder`, a folder where `folder_exists`: each file under it the walk seeks put in its
-// set where it is a folder, or it where it is a file that ends in a suffix the walk seeks, as a path from the folder
-// the run is in
+// The entry `name` of the folder `folder`, a folder where `folder_exists`. For a folder, each file under it that the
+// walk seeks goes into its set. For a file that ends in a suffix the walk seeks, the file goes into its set. Each
+// path starts at the folder the run is in
 static void lng_files_under(const char *folder, const LngWalk *walk);
 static void lng_entry_taken(const char *folder, const char *name, int folder_exists, const LngWalk *walk)
 {
@@ -1799,5 +1832,40 @@ void lng_files_ending(const char *const *suffixes, unsigned int count, LngList *
     for (unsigned int at = 0u; at < 2u; at += 1u)
     {
         lng_files_under(s_searched[at], &walk);
+    }
+}
+
+void lng_target_of(const char *path, char *target, size_t capacity)
+{
+    const char *name = path;
+    for (const char *at = path; *at != '\0'; at += 1)
+    {
+        name = ((*at == '/') || (*at == '\\')) ? (at + 1) : name;
+    }
+    const char *const dot = strchr(name, '.');
+    const size_t length = (dot != NULL) ? (size_t)(dot - name) : strlen(name);
+    const size_t kept = (length < capacity) ? length : (capacity - 1u);
+    memcpy(target, name, kept);
+    target[kept] = '\0';
+}
+
+void lng_used_check(const LngTable *table, const char *path, const LngMap *used, LngList *defects)
+{
+    char target[256];
+    lng_target_of(path, target, sizeof(target));
+    for (unsigned int at = 0u; at < used->key.count; at += 1u)
+    {
+        int contained = 0;
+        for (unsigned int row = 0u; (row < table->rows) && !contained; row += 1u)
+        {
+            const char *const row_target = lng_cell_or_none(table, row, "target");
+            contained = (strcmp(lng_cell_or_none(table, row, "word"), used->key.text[at]) == 0) &&
+                        ((row_target[0] == '\0') || (strcmp(row_target, target) == 0));
+        }
+        if (!contained)
+        {
+            lng_list_printed(defects, "%s is used at %s and no table contains it", used->key.text[at],
+                             used->value.text[at]);
+        }
     }
 }
