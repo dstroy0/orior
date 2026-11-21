@@ -67,7 +67,8 @@ static int scheduler_predicates_only(const char *operation)
     static const char *const setters[] = {"ISETP", "FSETP", "DSETP", "HSETP2", "PSETP", "PLOP3", "UISETP", "UPLOP3"};
     for (unsigned int at = 0u; at < (sizeof(setters) / sizeof(setters[0])); at += 1u)
     {
-        if (strncmp(operation, setters[at], mmgr_text_length(setters[at], PLATFORM_TEXT_TO_TERMINATOR)) == 0)
+        if (mmgr_text_order(operation, setters[at],
+                            (size_t)(mmgr_text_length(setters[at], PLATFORM_TEXT_TO_TERMINATOR))) == 0)
         {
             return 1;
         }
@@ -83,7 +84,8 @@ static int scheduler_control(const char *operation)
                                          "BSYNC", "BREAK", "WARPSYNC", "BAR", "KILL", "BPT", "YIELD", "NANOSLEEP"};
     for (unsigned int at = 0u; at < (sizeof(leaves) / sizeof(leaves[0])); at += 1u)
     {
-        if (strncmp(operation, leaves[at], mmgr_text_length(leaves[at], PLATFORM_TEXT_TO_TERMINATOR)) == 0)
+        if (mmgr_text_order(operation, leaves[at],
+                            (size_t)(mmgr_text_length(leaves[at], PLATFORM_TEXT_TO_TERMINATOR))) == 0)
         {
             return 1;
         }

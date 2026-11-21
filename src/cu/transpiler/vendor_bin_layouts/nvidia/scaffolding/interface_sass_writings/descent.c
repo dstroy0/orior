@@ -198,7 +198,7 @@ static int writings_fill(const char *text, const char *name, const char *put, ch
     const char *walk = text;
     while ((*walk != '\0') && (at < room))
     {
-        if (strncmp(walk, brace, mmgr_text_length(brace, PLATFORM_TEXT_TO_TERMINATOR)) == 0)
+        if (mmgr_text_order(walk, brace, (size_t)(mmgr_text_length(brace, PLATFORM_TEXT_TO_TERMINATOR))) == 0)
         {
             VerbaLinea formed_line_1 = mmgr_line_over(&out[at], room - at);
             mmgr_line_put(&formed_line_1, put);
@@ -313,7 +313,8 @@ int writings_krs_read(const char *folder, const char *ruleset, const char *recor
         const char *rule = NULL;
         for (unsigned int at = 0u; (rule == NULL) && (at < rule_count); at += 1u)
         {
-            rule = ((strncmp(s_rule[at] + 5, one->name, name_length) == 0) && (s_rule[at][5u + name_length] == ' '))
+            rule = ((mmgr_text_order(s_rule[at] + 5, one->name, (size_t)(name_length)) == 0) &&
+                    (s_rule[at][5u + name_length] == ' '))
                        ? s_rule[at]
                        : NULL;
         }

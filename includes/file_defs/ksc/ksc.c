@@ -77,7 +77,8 @@ static int ksc_row_question_starts(const char *line, const char *channel, const 
 {
     static KscRow s_row;
     const size_t length = mmgr_text_length(question_prefix, PLATFORM_TEXT_TO_TERMINATOR);
-    return ksc_row_read(line, channel, &s_row) && (strncmp(s_row.question, question_prefix, length) == 0) &&
+    return ksc_row_read(line, channel, &s_row) &&
+           (mmgr_text_order(s_row.question, question_prefix, (size_t)(length)) == 0) &&
            ((s_row.question[length] == '\0') || (s_row.question[length] == ' '));
 }
 

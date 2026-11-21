@@ -12,7 +12,7 @@
 static int kqr_line_type(const char *line, const char *type)
 {
     const size_t length = mmgr_text_length(type, PLATFORM_TEXT_TO_TERMINATOR);
-    return (strncmp(line, type, length) == 0) && ((line[length] == ' ') || (line[length] == '\0'));
+    return (mmgr_text_order(line, type, (size_t)(length)) == 0) && ((line[length] == ' ') || (line[length] == '\0'));
 }
 
 // the `length` bytes at `text`, as many of them as fit, into `out`, which has room for `room`, and ended

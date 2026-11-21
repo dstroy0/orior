@@ -106,7 +106,8 @@ static int writings_put(const char *writing, const char *to, const char *left, c
         for (unsigned int one = 0u; starts && (one < 3u); one += 1u)
         {
             const size_t length = mmgr_text_length(from[one], PLATFORM_TEXT_TO_TERMINATOR);
-            if ((strncmp(walk, from[one], length) == 0) && ((walk[length] < '0') || (walk[length] > '9')))
+            if ((mmgr_text_order(walk, from[one], (size_t)(length)) == 0) &&
+                ((walk[length] < '0') || (walk[length] > '9')))
             {
                 which = one;
             }

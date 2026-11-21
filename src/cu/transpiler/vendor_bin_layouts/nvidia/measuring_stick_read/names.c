@@ -65,7 +65,7 @@ unsigned int stick_named(const char *text, size_t length)
     while (s_hash[slot] != 0u)
     {
         const char *const name_text = s_name[s_hash[slot] - 1u];
-        if ((strncmp(name_text, text, length) == 0) && (name_text[length] == '\0'))
+        if ((mmgr_text_order(name_text, text, (size_t)(length)) == 0) && (name_text[length] == '\0'))
         {
             return s_hash[slot] - 1u;
         }

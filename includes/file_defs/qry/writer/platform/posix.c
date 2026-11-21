@@ -328,7 +328,7 @@ int qry_member_named(char *path, size_t room)
     for (char **each = environ; (each != NULL) && (*each != NULL); each += 1)
     {
         const size_t named = sizeof(QRY_ENVIRONMENT) - 1u;
-        if ((strncmp(*each, QRY_ENVIRONMENT, named) == 0) && ((*each)[named] == '='))
+        if ((mmgr_text_order(*each, QRY_ENVIRONMENT, (size_t)(named)) == 0) && ((*each)[named] == '='))
         {
             const size_t length = mmgr_text_length(*each + named + 1u, PLATFORM_TEXT_TO_TERMINATOR);
             if ((length == 0u) || (length >= room))

@@ -128,7 +128,7 @@ static int sass_name_within(const char *plain, const char *named)
 {
     const size_t length = strcspn(plain, ".");
     int within =
-        (strcspn(named, ".") == length) && (strncmp(plain, named, length) == 0) &&
+        (strcspn(named, ".") == length) && (mmgr_text_order(plain, named, (size_t)(length)) == 0) &&
         (mmgr_text_length(plain, PLATFORM_TEXT_TO_TERMINATOR) < mmgr_text_length(named, PLATFORM_TEXT_TO_TERMINATOR));
     for (const char *walk = plain + length; within && (*walk == '.'); walk += 1u + strcspn(walk + 1, "."))
     {
@@ -136,7 +136,8 @@ static int sass_name_within(const char *plain, const char *named)
         int carried = 0;
         for (const char *seek = named + length; !carried && (*seek == '.'); seek += 1u + strcspn(seek + 1, "."))
         {
-            carried = ((1u + strcspn(seek + 1, ".")) == modifier) && (strncmp(seek, walk, modifier) == 0);
+            carried =
+                ((1u + strcspn(seek + 1, ".")) == modifier) && (mmgr_text_order(seek, walk, (size_t)(modifier)) == 0);
         }
         within = carried;
     }

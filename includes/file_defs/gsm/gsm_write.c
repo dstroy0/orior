@@ -81,7 +81,8 @@ static unsigned int gsm_relations_read(const unsigned char *bytes, unsigned long
             continue;
         }
         const size_t prefix = mmgr_text_length(GSM_READS_LADDER, PLATFORM_TEXT_TO_TERMINATOR);
-        const char *const name = (strncmp(relation, GSM_READS_LADDER, prefix) == 0) ? (relation + prefix) : relation;
+        const char *const name =
+            (mmgr_text_order(relation, GSM_READS_LADDER, (size_t)(prefix)) == 0) ? (relation + prefix) : relation;
         for (unsigned int anchor = 0u; anchor < (unsigned int)LADDER_ANCHOR_COUNT; anchor += 1u)
         {
             if (mmgr_text_equal(s_anchor_text[anchor], name, PLATFORM_TEXT_TO_TERMINATOR))

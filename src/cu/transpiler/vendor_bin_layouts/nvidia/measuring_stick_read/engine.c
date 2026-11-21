@@ -18,15 +18,15 @@ void stick_nvcc_read(const char *path)
     {
         const char *const text = stick_spaced(s_file.line[line]);
         static const char s_function[] = "Function : ";
-        if (strncmp(text, s_function, sizeof(s_function) - 1u) == 0)
+        if (mmgr_text_order(text, s_function, (size_t)(sizeof(s_function) - 1u)) == 0)
         {
             const char *const name = text + (sizeof(s_function) - 1u);
             const size_t length = strcspn(name, s_space);
             if (length != 0u)
             {
                 unsigned int at = 0u;
-                while ((at < s_kernels) &&
-                       !((strncmp(s_kernel[at].name, name, length) == 0) && (s_kernel[at].name[length] == '\0')))
+                while ((at < s_kernels) && !((mmgr_text_order(s_kernel[at].name, name, (size_t)(length)) == 0) &&
+                                             (s_kernel[at].name[length] == '\0')))
                 {
                     at += 1u;
                 }
@@ -338,13 +338,15 @@ const StickEngine *stick_engine_of(const char *name)
 // <0, 0 or >0 as the kernel at `left` is named before, with or after the one at `right`
 int stick_kernel_order(const void *left, const void *right)
 {
-    return strcmp(((const StickKernel *)left)->name, ((const StickKernel *)right)->name);
+    return mmgr_text_order(((const StickKernel *)left)->name, ((const StickKernel *)right)->name,
+                           PLATFORM_TEXT_TO_TERMINATOR);
 }
 
 // <0, 0 or >0 as the name of the operation at `left` is before, with or after the one at `right`
 int stick_name_order(const void *left, const void *right)
 {
-    return strcmp(s_name[*(const unsigned int *)left], s_name[*(const unsigned int *)right]);
+    return mmgr_text_order(s_name[*(const unsigned int *)left], s_name[*(const unsigned int *)right],
+                           PLATFORM_TEXT_TO_TERMINATOR);
 }
 
 // `text` with every `|` written `\|`, written into `record`, which has room for `room`, at `at`: the offset past it,

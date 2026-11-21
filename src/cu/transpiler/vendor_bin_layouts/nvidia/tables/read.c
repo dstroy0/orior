@@ -43,7 +43,7 @@ static int tables_set_grown(TablesSet *set)
 // `CLASS "<name>"`: the name into `name`, `room` long: 1, or 0 where the line is no class head
 static int tables_class_head(const char *line, char *name, size_t room)
 {
-    if (strncmp(line, "CLASS \"", 7u) != 0)
+    if (mmgr_text_order(line, "CLASS \"", (size_t)(7u)) != 0)
     {
         return 0;
     }
@@ -649,7 +649,7 @@ static int tables_condition_word(TablesCondition *condition, const char *word)
 {
     tables_condition_spaces(condition);
     const size_t length = mmgr_text_length(word, PLATFORM_TEXT_TO_TERMINATOR);
-    if (strncmp(condition->at, word, length) != 0)
+    if (mmgr_text_order(condition->at, word, (size_t)(length)) != 0)
     {
         return 0;
     }
@@ -739,7 +739,7 @@ static long long tables_condition_constant(TablesCondition *condition)
             const size_t choice_length =
                 (end != NULL) ? (size_t)(end - choice) : mmgr_text_length(choice, PLATFORM_TEXT_TO_TERMINATOR);
             if ((choice_length == mmgr_text_length(value, PLATFORM_TEXT_TO_TERMINATOR)) &&
-                (strncmp(choice, value, choice_length) == 0))
+                (mmgr_text_order(choice, value, (size_t)(choice_length)) == 0))
             {
                 return place;
             }

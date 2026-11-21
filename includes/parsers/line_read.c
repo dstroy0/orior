@@ -126,7 +126,7 @@ int line_characters(const char **at, const char *text)
 {
     line_spaces_passed(at);
     const size_t length = mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR);
-    if (strncmp(*at, text, length) != 0)
+    if (mmgr_text_order(*at, text, (size_t)(length)) != 0)
     {
         return 0;
     }

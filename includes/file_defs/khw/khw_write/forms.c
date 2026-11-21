@@ -102,7 +102,7 @@ unsigned int khw_forms_read(const char *name)
         answered.frame = (unsigned int)FRAME_RELATION_COUNT;
         const size_t ladder_prefix = mmgr_text_length(KHW_READS_LADDER, PLATFORM_TEXT_TO_TERMINATOR);
         const size_t frame_prefix = mmgr_text_length(FRAME_READS, PLATFORM_TEXT_TO_TERMINATOR);
-        if (strncmp(relation, FRAME_READS, frame_prefix) == 0)
+        if (mmgr_text_order(relation, FRAME_READS, (size_t)(frame_prefix)) == 0)
         {
             char *const dot = mmgr_text_char(relation + frame_prefix, '.', PLATFORM_TEXT_TO_TERMINATOR);
             answered.reading = (dot != NULL) ? strtoull(dot + 1, NULL, 16) : 0ULL;
@@ -120,8 +120,9 @@ unsigned int khw_forms_read(const char *name)
         }
         else
         {
-            const char *const name =
-                (strncmp(relation, KHW_READS_LADDER, ladder_prefix) == 0) ? (relation + ladder_prefix) : relation;
+            const char *const name = (mmgr_text_order(relation, KHW_READS_LADDER, (size_t)(ladder_prefix)) == 0)
+                                         ? (relation + ladder_prefix)
+                                         : relation;
             for (unsigned int anchor = 0u; anchor < (unsigned int)LADDER_ANCHOR_COUNT; anchor += 1u)
             {
                 if (mmgr_text_equal(s_anchor_text[anchor], name, PLATFORM_TEXT_TO_TERMINATOR))

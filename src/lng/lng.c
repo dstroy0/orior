@@ -158,7 +158,7 @@ int lng_set_find(const LngList *set, const char *text, unsigned int *at)
     while (low < high)
     {
         const unsigned int middle = low + ((high - low) / 2u);
-        const int order = strcmp(set->text[middle], text);
+        const int order = mmgr_text_order(set->text[middle], text, PLATFORM_TEXT_TO_TERMINATOR);
         if (order == 0)
         {
             *at = middle;
@@ -203,7 +203,7 @@ static int lng_list_order(const LngList *left, const LngList *right)
 {
     for (unsigned int at = 0u; (at < left->count) && (at < right->count); at += 1u)
     {
-        const int order = strcmp(left->text[at], right->text[at]);
+        const int order = mmgr_text_order(left->text[at], right->text[at], PLATFORM_TEXT_TO_TERMINATOR);
         if (order != 0)
         {
             return order;
@@ -730,7 +730,7 @@ void lng_schema_forms(const char *text, LngList *names)
         const char *const upper = at + (sizeof(s_form) - 1u);
         const size_t uppers = strspn(upper, "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_");
         const char *next = at + 1;
-        if ((uppers != 0u) && (strncmp(&upper[uppers], ", \"", 3u) == 0))
+        if ((uppers != 0u) && (mmgr_text_order(&upper[uppers], ", \"", (size_t)(3u)) == 0))
         {
             const char *const name = &upper[uppers + 3u];
             const size_t length = strspn(name, "abcdefghijklmnopqrstuvwxyz0123456789_");
@@ -982,7 +982,7 @@ static void lng_folds(const char *line, LngList *folds, LngList *puts)
         const char *const fold = at + (sizeof(s_folds) - 1u);
         const size_t fold_length = strcspn(fold, s_space);
         const char *next = at + 1;
-        if ((fold_length != 0u) && (strncmp(&fold[fold_length], s_put, sizeof(s_put) - 1u) == 0))
+        if ((fold_length != 0u) && (mmgr_text_order(&fold[fold_length], s_put, (size_t)(sizeof(s_put) - 1u)) == 0))
         {
             const char *const put = &fold[fold_length + (sizeof(s_put) - 1u)];
             const size_t put_length = strcspn(put, s_space);
@@ -1207,7 +1207,7 @@ static size_t lng_literal_at(const char *text)
     for (unsigned int at = 0u; at < 5u; at += 1u)
     {
         const size_t suffix = mmgr_text_length(s_suffix[at], PLATFORM_TEXT_TO_TERMINATOR);
-        if (strncmp(&text[digits], s_suffix[at], suffix) == 0)
+        if (mmgr_text_order(&text[digits], s_suffix[at], (size_t)(suffix)) == 0)
         {
             return digits + suffix;
         }
@@ -1265,8 +1265,8 @@ void lng_c_operators(const char *text, LngList *operators)
         }
         unsigned int which = 0u;
         while ((which < LNG_PUNCTUATORS) &&
-               (strncmp(&stripped[at], s_punctuators[which],
-                        mmgr_text_length(s_punctuators[which], PLATFORM_TEXT_TO_TERMINATOR)) != 0))
+               (mmgr_text_order(&stripped[at], s_punctuators[which],
+                                (size_t)(mmgr_text_length(s_punctuators[which], PLATFORM_TEXT_TO_TERMINATOR))) != 0))
         {
             which += 1u;
         }
@@ -1743,8 +1743,9 @@ void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings)
         LngList key = {NULL, 0u, 0u};
         lng_list_printed(&key, "%s\x1f%s\x1f%s", table_name, mirror_past, mirror_present);
         const LngList *const mirror = lng_sets_get(&named, key.text[0]);
-        const int order = strcmp(past, mirror_past);
-        const int sooner = (order < 0) || ((order == 0) && (strcmp(present, mirror_present) < 0));
+        const int order = mmgr_text_order(past, mirror_past, PLATFORM_TEXT_TO_TERMINATOR);
+        const int sooner = (order < 0) || ((order == 0) &&
+                                           (mmgr_text_order(present, mirror_present, PLATFORM_TEXT_TO_TERMINATOR) < 0));
         if ((!mmgr_text_equal(key.text[0], named.key.text[at], PLATFORM_TEXT_TO_TERMINATOR)) && (mirror != NULL) &&
             !lng_list_same(mirror, &named.set[at]) && sooner)
         {
@@ -1882,8 +1883,9 @@ void lng_used_check(const LngTable *table, const char *path, const LngMap *used,
         for (unsigned int row = 0u; (row < table->rows) && !contained; row += 1u)
         {
             const char *const row_target = lng_cell_or_none(table, row, "target");
-            contained = (strcmp(lng_cell_or_none(table, row, "word"), used->key.text[at]) == 0) &&
-                        ((row_target[0] == '\0') || (strcmp(row_target, target) == 0));
+            contained = (mmgr_text_equal(lng_cell_or_none(table, row, "word"), used->key.text[at],
+                                         PLATFORM_TEXT_TO_TERMINATOR)) &&
+                        ((row_target[0] == '\0') || (mmgr_text_equal(row_target, target, PLATFORM_TEXT_TO_TERMINATOR)));
         }
         if (!contained)
         {
@@ -1899,7 +1901,8 @@ static unsigned int lng_bridge_word_row(const LngTable *transpiler, const char *
 {
     for (unsigned int row = 0u; row < transpiler->rows; row += 1u)
     {
-        if (!lng_row_targeted(transpiler, row) && (strcmp(lng_cell_or_none(transpiler, row, "word"), word) == 0))
+        if (!lng_row_targeted(transpiler, row) &&
+            (mmgr_text_equal(lng_cell_or_none(transpiler, row, "word"), word, PLATFORM_TEXT_TO_TERMINATOR)))
         {
             return row;
         }
@@ -1913,7 +1916,7 @@ static unsigned int lng_bridged_row(const LngTable *target, const char *bridge)
 {
     for (unsigned int row = 0u; row < target->rows; row += 1u)
     {
-        if (strcmp(lng_cell_or_none(target, row, "transpiler"), bridge) == 0)
+        if (mmgr_text_equal(lng_cell_or_none(target, row, "transpiler"), bridge, PLATFORM_TEXT_TO_TERMINATOR))
         {
             return row;
         }
@@ -1932,7 +1935,7 @@ void lng_target_check(const LngTable *transpiler, const LngTable *target, const 
         const char *const bridge = lng_cell_or_none(target, row, "transpiler");
         const int probed = (lng_cell_or_none(target, row, "probe")[0] != '\0');
         const int expected = (lng_cell_or_none(target, row, "expected")[0] != '\0');
-        const int typed = (strcmp(type, "type") == 0);
+        const int typed = (mmgr_text_equal(type, "type", PLATFORM_TEXT_TO_TERMINATOR));
         if (!lng_one_of(type, g_lng_hol_types, LNG_HOL_TYPES))
         {
             lng_list_printed(defects, "%s's %s has the type %s, which no table names", name, word, type);
@@ -1968,9 +1971,11 @@ void lng_target_check(const LngTable *transpiler, const LngTable *target, const 
         }
         lng_set_add(&bridged, bridge);
         // a type and its bridge agree on width and sign
-        if ((strcmp(type, "type") == 0) &&
-            ((strcmp(lng_cell_or_none(target, row, "bits"), lng_cell_or_none(transpiler, crossed, "bits")) != 0) ||
-             (strcmp(lng_cell_or_none(target, row, "signed"), lng_cell_or_none(transpiler, crossed, "signed")) != 0)))
+        if ((mmgr_text_equal(type, "type", PLATFORM_TEXT_TO_TERMINATOR)) &&
+            ((!mmgr_text_equal(lng_cell_or_none(target, row, "bits"), lng_cell_or_none(transpiler, crossed, "bits"),
+                               PLATFORM_TEXT_TO_TERMINATOR)) ||
+             (!mmgr_text_equal(lng_cell_or_none(target, row, "signed"), lng_cell_or_none(transpiler, crossed, "signed"),
+                               PLATFORM_TEXT_TO_TERMINATOR))))
         {
             lng_list_printed(defects, "%s's %s is %s bits signed %s and bridges to %s, which is %s bits signed %s",
                              name, word, lng_cell_or_none(target, row, "bits"), lng_cell_or_none(target, row, "signed"),
@@ -2046,7 +2051,7 @@ void lng_targets_holes(const LngTable *const *targets, const char *const *names,
             }
             // one bridge word, one output for every target's probe
             const char *const expected = lng_cell_or_none(targets[table], row, "expected");
-            if ((first_expected != NULL) && (strcmp(first_expected, expected) != 0))
+            if ((first_expected != NULL) && (!mmgr_text_equal(first_expected, expected, PLATFORM_TEXT_TO_TERMINATOR)))
             {
                 lng_list_printed(defects, "%s expects %s for %s, and %s expects %s", first_name, first_expected, bridge,
                                  names[table], expected);
@@ -2063,17 +2068,17 @@ void lng_theorem_names(const char *const *line, unsigned int lines, LngList *nam
     static const char s_theorem[] = "theorem ";
     for (unsigned int at = 0u; at < lines; at += 1u)
     {
-        if (strncmp(line[at], s_theorem, sizeof(s_theorem) - 1u) != 0)
+        if (mmgr_text_order(line[at], s_theorem, (size_t)(sizeof(s_theorem) - 1u)) != 0)
         {
             continue;
         }
         // a name that Lean keeps for itself goes in guillemets, as «not»
         const char *start = line[at] + sizeof(s_theorem) - 1u;
-        const int guarded = (strncmp(start, "\xc2\xab", 2u) == 0);
+        const int guarded = (mmgr_text_order(start, "\xc2\xab", (size_t)(2u)) == 0);
         start += guarded ? 2u : 0u;
         size_t length = 0u;
         while ((start[length] != '\0') && (start[length] != ' ') && (start[length] != ':') &&
-               (strncmp(&start[length], "\xc2\xbb", 2u) != 0))
+               (mmgr_text_order(&start[length], "\xc2\xbb", (size_t)(2u)) != 0))
         {
             length += 1u;
         }
@@ -2096,8 +2101,8 @@ void lng_target_proofs(const LngTable *target, const char *name, const char *pat
     {
         const char *const bridge = lng_cell_or_none(target, row, "transpiler");
         // a type and a hole have no proof to give: a type is a width, and a hole is no symbol of the relation
-        if ((strcmp(lng_cell_or_none(target, row, "type"), "type") == 0) || (bridge[0] == '\0') ||
-            (lng_cell_or_none(target, row, "witness")[0] == '\0'))
+        if ((mmgr_text_equal(lng_cell_or_none(target, row, "type"), "type", PLATFORM_TEXT_TO_TERMINATOR)) ||
+            (bridge[0] == '\0') || (lng_cell_or_none(target, row, "witness")[0] == '\0'))
         {
             continue;
         }
@@ -2111,12 +2116,12 @@ void lng_target_proofs(const LngTable *target, const char *name, const char *pat
 
 const char *lng_side_anchor(const char *operation)
 {
-    if ((operation[0] == '\0') || (strcmp(operation, "-") == 0))
+    if ((operation[0] == '\0') || (mmgr_text_equal(operation, "-", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         return NULL;
     }
     // a side that keeps its bit copies it, and a side that reaches the other bit inverts it
-    return (strcmp(operation, "=") == 0) ? "copy" : "invert";
+    return (mmgr_text_equal(operation, "=", PLATFORM_TEXT_TO_TERMINATOR)) ? "copy" : "invert";
 }
 
 // the transpiler's own word whose anchor is `anchor`, or NULL where no word or two words have it
@@ -2125,7 +2130,8 @@ static const char *lng_anchor_word(const LngTable *transpiler, const char *ancho
     const char *found = NULL;
     for (unsigned int row = 0u; row < transpiler->rows; row += 1u)
     {
-        if (lng_row_targeted(transpiler, row) || (strcmp(lng_cell_or_none(transpiler, row, "anchor"), anchor) != 0))
+        if (lng_row_targeted(transpiler, row) ||
+            (!mmgr_text_equal(lng_cell_or_none(transpiler, row, "anchor"), anchor, PLATFORM_TEXT_TO_TERMINATOR)))
         {
             continue;
         }
@@ -2179,7 +2185,8 @@ unsigned int lng_asm_forms(const LngTable *transpiler, const LngTable *table, Ln
         {
             const char *left = NULL;
             const char *right = NULL;
-            if ((strcmp(lng_cell_or_none(table, row, "mnemonic"), mnemonics.text[at]) == 0) &&
+            if ((mmgr_text_equal(lng_cell_or_none(table, row, "mnemonic"), mnemonics.text[at],
+                                 PLATFORM_TEXT_TO_TERMINATOR)) &&
                 lng_asm_form(transpiler, table, row, &left, &right))
             {
                 given += 1u;

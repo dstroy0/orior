@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tiff_metadata.c: rows, chains, ImageJ and OME metadata
 #include "tiff_internal.h"
+#include "../../../src/platform/platform.h"
 #include "../../../src/cu/engine/engine_note.h"
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
@@ -145,7 +146,7 @@ static void tiff_imagej_value(TiffFile *file, const char *text, const char *key,
          line = mmgr_text_char(line, '\n', PLATFORM_TEXT_TO_TERMINATOR))
     {
         line += (*line == '\n') ? 1u : 0u;
-        if ((strncmp(line, key, key_length) == 0) && (line[key_length] == '='))
+        if ((mmgr_text_order(line, key, (size_t)(key_length)) == 0) && (line[key_length] == '='))
         {
             const char *const digits = &line[key_length + 1u];
             const size_t length = strcspn(digits, "\r\n");
@@ -227,7 +228,7 @@ static const char *tiff_xml_element(const char *text, const char *name)
     for (const char *at = mmgr_text_char(text, '<', PLATFORM_TEXT_TO_TERMINATOR); at != NULL;
          at = mmgr_text_char(at + 1u, '<', PLATFORM_TEXT_TO_TERMINATOR))
     {
-        if (strncmp(at + 1u, name, length) == 0)
+        if (mmgr_text_order(at + 1u, name, (size_t)(length)) == 0)
         {
             const char after = at[length + 1u];
             if ((after == ' ') || (after == '\t') || (after == '\r') || (after == '\n') || (after == '>') ||
@@ -247,7 +248,7 @@ static const char *tiff_xml_attribute(const char *tag, const char *tag_end, cons
     {
         const char before = *(at - 1u);
         const int spaced = (before == ' ') || (before == '\t') || (before == '\r') || (before == '\n');
-        if (spaced && (strncmp(at, name, name_length) == 0) && (at[name_length] == '=') &&
+        if (spaced && (mmgr_text_order(at, name, (size_t)(name_length)) == 0) && (at[name_length] == '=') &&
             ((at[name_length + 1u] == '"') || (at[name_length + 1u] == '\'')))
         {
             const char quote = at[name_length + 1u];

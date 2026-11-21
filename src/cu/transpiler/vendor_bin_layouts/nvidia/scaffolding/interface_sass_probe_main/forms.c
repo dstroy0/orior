@@ -213,8 +213,8 @@ static void sass_bit_read(const SassParts *base, const char *base_text, const ch
     if (!mmgr_text_equal(parts.operation, base->operation, PLATFORM_TEXT_TO_TERMINATOR))
     {
         const size_t stem = strcspn(base->operation, ".");
-        const int same_stem =
-            (strcspn(parts.operation, ".") == stem) && (strncmp(parts.operation, base->operation, stem) == 0);
+        const int same_stem = (strcspn(parts.operation, ".") == stem) &&
+                              (mmgr_text_order(parts.operation, base->operation, (size_t)(stem)) == 0);
         {
             VerbaLinea buffer_line = mmgr_line_over(category, SASS_CATEGORY);
             mmgr_line_put(&buffer_line, same_stem ? "modifier" : "operation");

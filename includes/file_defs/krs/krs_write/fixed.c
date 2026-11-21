@@ -256,7 +256,7 @@ int krs_fixed_placed(char *text, size_t room)
         {
             const size_t length = mmgr_text_length(s_register[each].text, PLATFORM_TEXT_TO_TERMINATOR);
             const int whole = !fixed_word_character(before) && (before != '{') &&
-                              (strncmp(walk, s_register[each].text, length) == 0) &&
+                              (mmgr_text_order(walk, s_register[each].text, (size_t)(length)) == 0) &&
                               !fixed_word_character(walk[length]);
             found = (whole && fixed_numeric(s_register[each].text)) ? &s_register[each] : NULL;
         }

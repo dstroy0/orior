@@ -201,7 +201,8 @@ static int fields_writes_first(const char *operation)
     static const char *const reads[] = {"RET", "BRX", "JMX", "CALL", "BRA", "JMP", "EXIT", "BAR", "NOP"};
     for (unsigned int at = 0u; at < (sizeof(reads) / sizeof(reads[0])); at += 1u)
     {
-        if (strncmp(operation, reads[at], mmgr_text_length(reads[at], PLATFORM_TEXT_TO_TERMINATOR)) == 0)
+        if (mmgr_text_order(operation, reads[at], (size_t)(mmgr_text_length(reads[at], PLATFORM_TEXT_TO_TERMINATOR))) ==
+            0)
         {
             return 0;
         }

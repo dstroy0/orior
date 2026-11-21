@@ -195,8 +195,8 @@ void sass_class_drop(unsigned int channel, unsigned int answered, const char *op
     for (unsigned int number = 0u; number < s_classed_count; number += 1u)
     {
         const SassClassed *const one = &s_classed[number];
-        const int dropped =
-            (one->channel == channel) && (one->answered == answered) && (strncmp(one->question, opening, length) == 0);
+        const int dropped = (one->channel == channel) && (one->answered == answered) &&
+                            (mmgr_text_order(one->question, opening, (size_t)(length)) == 0);
         if (dropped != 0)
         {
             s_tally[channel][answered] -= (s_tally[channel][answered] != 0u) ? 1u : 0u;

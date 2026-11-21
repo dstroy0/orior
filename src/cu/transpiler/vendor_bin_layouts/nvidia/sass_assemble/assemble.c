@@ -256,7 +256,7 @@ static unsigned long long sass_label_address(const SassLabels *labels, const cha
     for (unsigned int at = 0u; (open != NULL) && (at < labels->count); at += 1u)
     {
         if ((mmgr_text_length(labels->name[at], PLATFORM_TEXT_TO_TERMINATOR) == length) &&
-            (strncmp(labels->name[at], open + 1, length) == 0))
+            (mmgr_text_order(labels->name[at], open + 1, (size_t)(length)) == 0))
         {
             found = labels->address[at];
             *known = 1;

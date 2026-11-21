@@ -342,7 +342,7 @@ static int kfile_lines_entry_order(const void *left, const void *right)
 {
     const KfileLinesEntry *const one = (const KfileLinesEntry *)left;
     const KfileLinesEntry *const other = (const KfileLinesEntry *)right;
-    const int order = strcmp(one->text, other->text);
+    const int order = mmgr_text_order(one->text, other->text, PLATFORM_TEXT_TO_TERMINATOR);
     return (order != 0) ? order : ((one->at < other->at) ? -1 : ((one->at > other->at) ? 1 : 0));
 }
 
@@ -395,8 +395,10 @@ int kfile_lines_written_by(KfileLines *file, unsigned int first, const char *con
         while (low < high)
         {
             const unsigned int middle = low + ((high - low) / 2u);
-            low = (strcmp(entries[middle].text, lines[line]) < 0) ? (middle + 1u) : low;
-            high = (strcmp(entries[middle].text, lines[line]) < 0) ? high : middle;
+            low = (mmgr_text_order(entries[middle].text, lines[line], PLATFORM_TEXT_TO_TERMINATOR) < 0) ? (middle + 1u)
+                                                                                                        : low;
+            high =
+                (mmgr_text_order(entries[middle].text, lines[line], PLATFORM_TEXT_TO_TERMINATOR) < 0) ? high : middle;
         }
         while ((low < entry_count) && (mmgr_text_equal(entries[low].text, lines[line], PLATFORM_TEXT_TO_TERMINATOR)) &&
                taken[entries[low].at])

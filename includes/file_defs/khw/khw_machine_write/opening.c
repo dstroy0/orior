@@ -22,7 +22,8 @@ static unsigned int opening_row_read(const char *ksc_path, const char *question,
     {
         if (ksc_row_read(s_file.line[at], "run", &s_row) &&
             (mmgr_text_equal(s_row.answer, "answers", PLATFORM_TEXT_TO_TERMINATOR)) &&
-            (strncmp(s_row.question, question, mmgr_text_length(question, PLATFORM_TEXT_TO_TERMINATOR)) == 0))
+            (mmgr_text_order(s_row.question, question,
+                             (size_t)(mmgr_text_length(question, PLATFORM_TEXT_TO_TERMINATOR))) == 0))
         {
             word = (unsigned int)s_row.value;
         }

@@ -41,7 +41,8 @@ int sass_operation_control_or_wait(const char *operation)
         "WARPSYNC", "YIELD", "BAR", "DEPBAR", "NANOSLEEP", "BPT", "RTT",  "KILL", "RPCMOV", "RETIRE", "PMTRIG"};
     for (unsigned int at = 0u; at < (sizeof(s_unsafe) / sizeof(s_unsafe[0])); at += 1u)
     {
-        if (strncmp(operation, s_unsafe[at], mmgr_text_length(s_unsafe[at], PLATFORM_TEXT_TO_TERMINATOR)) == 0)
+        if (mmgr_text_order(operation, s_unsafe[at],
+                            (size_t)(mmgr_text_length(s_unsafe[at], PLATFORM_TEXT_TO_TERMINATOR))) == 0)
         {
             return 1;
         }
@@ -64,7 +65,7 @@ unsigned int sass_operation_schedule(const SassMachine *machine, const char *ope
     for (unsigned int at = 0u; at < (sizeof(s_late) / sizeof(s_late[0])); at += 1u)
     {
         if ((mmgr_text_length(s_late[at], PLATFORM_TEXT_TO_TERMINATOR) == base) &&
-            (strncmp(operation, s_late[at], base) == 0))
+            (mmgr_text_order(operation, s_late[at], (size_t)(base)) == 0))
         {
             return SASS_SCHEDULE_LATE;
         }
@@ -72,7 +73,7 @@ unsigned int sass_operation_schedule(const SassMachine *machine, const char *ope
     for (unsigned int at = 0u; at < (sizeof(s_store) / sizeof(s_store[0])); at += 1u)
     {
         if ((mmgr_text_length(s_store[at], PLATFORM_TEXT_TO_TERMINATOR) == base) &&
-            (strncmp(operation, s_store[at], base) == 0))
+            (mmgr_text_order(operation, s_store[at], (size_t)(base)) == 0))
         {
             return SASS_SCHEDULE_STORE;
         }
@@ -320,8 +321,9 @@ static int sass_runs_read(SassForm *form, const char *column)
         // A run's characters are within its column, and an int counts them.
         const int read = (int)(walk - at);
         unsigned int place = SASS_RUN_NO_PLACE;
-        if ((at[read] == ':') && (strncmp(&at[read + 1], SASS_RUN_NO_PLACE_TEXT,
-                                          mmgr_text_length(SASS_RUN_NO_PLACE_TEXT, PLATFORM_TEXT_TO_TERMINATOR)) != 0))
+        if ((at[read] == ':') &&
+            (mmgr_text_order(&at[read + 1], SASS_RUN_NO_PLACE_TEXT,
+                             (size_t)(mmgr_text_length(SASS_RUN_NO_PLACE_TEXT, PLATFORM_TEXT_TO_TERMINATOR))) != 0))
         {
             place = (unsigned int)strtoul(&at[read + 1], NULL, 10);
         }
@@ -423,7 +425,7 @@ static unsigned int sass_name_place(const char *const *names, unsigned int count
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         found = ((mmgr_text_length(names[at], PLATFORM_TEXT_TO_TERMINATOR) == length) &&
-                 (strncmp(names[at], word, length) == 0))
+                 (mmgr_text_order(names[at], word, (size_t)(length)) == 0))
                     ? at
                     : found;
     }

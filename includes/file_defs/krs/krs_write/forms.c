@@ -62,8 +62,9 @@ unsigned int krs_forms_read(const unsigned char *bytes, unsigned long long size)
         row.relation[sizeof(row.relation) - 1u] = '\0';
         row.text[sizeof(row.text) - 1u] = '\0';
         const size_t prefix = mmgr_text_length(KRS_READS_LADDER, PLATFORM_TEXT_TO_TERMINATOR);
-        const char *const name =
-            (strncmp(row.relation, KRS_READS_LADDER, prefix) == 0) ? (row.relation + prefix) : row.relation;
+        const char *const name = (mmgr_text_order(row.relation, KRS_READS_LADDER, (size_t)(prefix)) == 0)
+                                     ? (row.relation + prefix)
+                                     : row.relation;
         unsigned int anchor = (unsigned int)LADDER_ANCHOR_COUNT;
         for (unsigned int each = 0u; each < (unsigned int)LADDER_ANCHOR_COUNT; each += 1u)
         {
@@ -73,8 +74,8 @@ unsigned int krs_forms_read(const unsigned char *bytes, unsigned long long size)
         // that the table beside this writer maps it to. A predicate relation read as signed goes under its relation
         // with `.signed` after it
         const int predicate = (anchor != (unsigned int)LADDER_ANCHOR_COUNT) && ladder_predicate(anchor);
-        if ((strncmp(row.relation, KRS_READS_FRAME, mmgr_text_length(KRS_READS_FRAME, PLATFORM_TEXT_TO_TERMINATOR)) ==
-             0) ||
+        if ((mmgr_text_order(row.relation, KRS_READS_FRAME,
+                             (size_t)(mmgr_text_length(KRS_READS_FRAME, PLATFORM_TEXT_TO_TERMINATOR))) == 0) ||
             predicate)
         {
             static const char s_signed[] = ".signed";

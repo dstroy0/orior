@@ -336,7 +336,8 @@ static const char *frame_given_of(const KrsFrameGiven *given, unsigned int count
 static int frame_same_line(const char *before, const char *line)
 {
     const size_t length = strcspn(line, "\n");
-    return (mmgr_text_length(before, PLATFORM_TEXT_TO_TERMINATOR) == length) && (strncmp(before, line, length) == 0);
+    return (mmgr_text_length(before, PLATFORM_TEXT_TO_TERMINATOR) == length) &&
+           (mmgr_text_order(before, line, (size_t)(length)) == 0);
 }
 
 // Write `row` into `line` from the first of the `count` forms in `form` it fits. Return 1, or 0 if it names none.

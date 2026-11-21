@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // engine_listing.cu: the listing, geff arrays, lanes and the iapx codec
 #include "engine_internal.h"
+#include "../../platform/platform.h"
 #include "engine_note.h"
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
 
 static int entry_order_names(const void *left, const void *right)
 {
-    return strcmp(*(const char *const *)left, *(const char *const *)right);
+    return mmgr_text_order(*(const char *const *)left, *(const char *const *)right, PLATFORM_TEXT_TO_TERMINATOR);
 }
 
 static unsigned int entry_listing(const char *directory, char ***names, int samples_of_set)

@@ -8,12 +8,12 @@
 
 int run_channel_key_gated(const char *refused)
 {
-    return strncmp(refused, RUN_GATE_KEY_RULE, sizeof(RUN_GATE_KEY_RULE) - 1u) == 0;
+    return mmgr_text_order(refused, RUN_GATE_KEY_RULE, (size_t)(sizeof(RUN_GATE_KEY_RULE) - 1u)) == 0;
 }
 
 int run_channel_vendor_gated(const char *refused)
 {
-    return strncmp(refused, RUN_GATE_VENDOR_RULE, sizeof(RUN_GATE_VENDOR_RULE) - 1u) == 0;
+    return mmgr_text_order(refused, RUN_GATE_VENDOR_RULE, (size_t)(sizeof(RUN_GATE_VENDOR_RULE) - 1u)) == 0;
 }
 
 RunChannel s_channel;

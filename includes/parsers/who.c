@@ -195,7 +195,7 @@ static unsigned int who_program_number(void)
     while (who_row(table, size, &at, &number, source))
     {
         const char *const own = (strrchr(source, '/') != NULL) ? (strrchr(source, '/') + 1) : source;
-        if ((number == 0u) || (strncmp(own, base, stem) != 0) || (own[stem] != '.'))
+        if ((number == 0u) || (mmgr_text_order(own, base, (size_t)(stem)) != 0) || (own[stem] != '.'))
         {
             continue;
         }

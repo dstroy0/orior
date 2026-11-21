@@ -303,7 +303,8 @@ int program_main(int argc, char **argv)
                     continue;
                 }
                 best = ((best == notes) || (note_kernels[one] > note_kernels[best]) ||
-                        ((note_kernels[one] == note_kernels[best]) && (strcmp(note[one], note[best]) < 0)))
+                        ((note_kernels[one] == note_kernels[best]) &&
+                         (mmgr_text_order(note[one], note[best], PLATFORM_TEXT_TO_TERMINATOR) < 0)))
                            ? one
                            : best;
             }

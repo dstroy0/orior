@@ -26,7 +26,7 @@ static int scheduler_same_operation(unsigned int one, unsigned int two)
     const char *const left = s_operation[one].name;
     const char *const right = s_operation[two].name;
     const size_t length = strcspn(left, ".");
-    return (length == strcspn(right, ".")) && (strncmp(left, right, length) == 0);
+    return (length == strcspn(right, ".")) && (mmgr_text_order(left, right, (size_t)(length)) == 0);
 }
 
 // 1 where an instruction after `writer` and before `reader`, of the writer's operation, sets a write barrier that an
@@ -204,7 +204,9 @@ static int scheduler_by_count(const void *left, const void *right)
 {
     const SchedulerOperation *const one = (const SchedulerOperation *)left;
     const SchedulerOperation *const two = (const SchedulerOperation *)right;
-    return (one->count < two->count) ? 1 : ((one->count > two->count) ? -1 : strcmp(one->name, two->name));
+    return (one->count < two->count)
+               ? 1
+               : ((one->count > two->count) ? -1 : mmgr_text_order(one->name, two->name, PLATFORM_TEXT_TO_TERMINATOR));
 }
 
 // the record: every operation by how often NVIDIA wrote it, and the readings gathered from them
