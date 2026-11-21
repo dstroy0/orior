@@ -215,11 +215,13 @@ endif()
 
 add_library(orior_raster STATIC ${ORIOR_RASTER_SOURCES})
 target_include_directories(orior_raster PUBLIC engine/render)
+target_link_libraries(orior_raster PUBLIC orior_platform_library)
 target_compile_definitions(orior_raster PUBLIC ${ORIOR_RASTER_DEFINES})
 target_compile_options(orior_raster PRIVATE $<$<COMPILE_LANGUAGE:C>:${SIFT_WARNINGS}>)
 
 add_library(orior_render SHARED ${ORIOR_RASTER_SOURCES})
 target_include_directories(orior_render PUBLIC engine/render)
+target_link_libraries(orior_render PRIVATE orior_platform_library)
 target_compile_definitions(orior_render PUBLIC ${ORIOR_RASTER_DEFINES})
 target_compile_options(orior_render PRIVATE $<$<COMPILE_LANGUAGE:C>:${SIFT_WARNINGS}>)
 set_target_properties(orior_render PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)

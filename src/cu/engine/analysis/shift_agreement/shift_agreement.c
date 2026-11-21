@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "shift_agreement.h"
+#include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 #include <stdlib.h>
@@ -129,12 +130,16 @@ long shift_agreement_host(ShiftAgreementRequest *args)
     }
     const size_t total = (size_t)padded_total;
     const size_t count = (size_t)voxels;
-    unsigned int *const reflected = (unsigned int *)calloc(total, sizeof(unsigned int));
-    unsigned int *const moved = (unsigned int *)calloc(total, sizeof(unsigned int));
+    unsigned int *const reflected =
+        (unsigned int *)platform_cell_cleared((unsigned long long)(total), (unsigned long long)(sizeof(unsigned int)),
+                                              (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned int *const moved =
+        (unsigned int *)platform_cell_cleared((unsigned long long)(total), (unsigned long long)(sizeof(unsigned int)),
+                                              (unsigned int)platform_place_g_engine_owner, 0);
     if ((reflected == NULL) || (moved == NULL))
     {
-        free(reflected);
-        free(moved);
+        platform_cell_released(reflected, (unsigned int)platform_place_g_engine_owner);
+        platform_cell_released(moved, (unsigned int)platform_place_g_engine_owner);
         return SHIFT_AGREEMENT_ERROR;
     }
 
@@ -239,7 +244,7 @@ long shift_agreement_host(ShiftAgreementRequest *args)
     {
         mmgr_bytes_copy(args->counts, reflected, total * sizeof(unsigned int));
     }
-    free(reflected);
-    free(moved);
+    platform_cell_released(reflected, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(moved, (unsigned int)platform_place_g_engine_owner);
     return 0L;
 }

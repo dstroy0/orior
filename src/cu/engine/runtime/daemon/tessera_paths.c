@@ -28,7 +28,9 @@ _Alignas(8) static const char s_tessera_lost[] = "lostandfound";
 int tessera_text_staged(VerbaLinea *line, const char *text)
 {
     const size_t length = mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR);
-    char *const staged = (char *)calloc((length / 8u) + 1u, 8u);
+    char *const staged =
+        (char *)platform_cell_cleared((unsigned long long)((length / 8u) + 1u), (unsigned long long)(8u),
+                                      (unsigned int)platform_place_g_engine_owner, 0);
     if (staged == NULL)
     {
         line->at = line->capacity;
@@ -36,7 +38,7 @@ int tessera_text_staged(VerbaLinea *line, const char *text)
     }
     mmgr_bytes_copy(staged, text, length);
     mmgr_line_put(line, staged);
-    free(staged);
+    platform_cell_released(staged, (unsigned int)platform_place_g_engine_owner);
     return 1;
 }
 

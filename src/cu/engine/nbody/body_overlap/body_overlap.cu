@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "body_overlap.h"
+#include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 #include "../../runtime/radix_keys/radix_keys.h"
 
@@ -164,9 +165,9 @@ static void release_overlap(OverlapResident *resident)
     cudaFree(resident->lengths);
     cudaFree(resident->lag_peaks);
     cudaFree(resident->lag_steps);
-    free(resident->host_offsets);
-    free(resident->host_pairs);
-    free(resident->host_lengths);
+    platform_cell_released(resident->host_offsets, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(resident->host_pairs, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(resident->host_lengths, (unsigned int)platform_place_g_engine_owner);
     mmgr_bytes_set(resident, 0, sizeof(*resident));
 }
 
@@ -212,7 +213,9 @@ static int reserve_overlap(size_t voxels, unsigned int chunks, int uploads, size
         }
         ok = ok && (cudaMalloc((void **)&resident->counts, (size_t)chunks * sizeof(unsigned int)) == cudaSuccess);
         ok = ok && (cudaMalloc((void **)&resident->offsets, (size_t)chunks * sizeof(unsigned int)) == cudaSuccess);
-        resident->host_offsets = (unsigned int *)malloc((size_t)chunks * sizeof(unsigned int));
+        resident->host_offsets =
+            (unsigned int *)platform_cell_taken((unsigned long long)((size_t)chunks * sizeof(unsigned int)),
+                                                (unsigned int)platform_place_g_engine_owner, 0);
         ok = ok && (resident->host_offsets != NULL);
         resident->voxels = voxels;
         resident->chunks = chunks;
@@ -223,14 +226,17 @@ static int reserve_overlap(size_t voxels, unsigned int chunks, int uploads, size
         const size_t capacity = (runs + 1u) + (runs + 1u) / 2u;
         cudaFree(resident->pairs);
         cudaFree(resident->lengths);
-        free(resident->host_pairs);
-        free(resident->host_lengths);
+        platform_cell_released(resident->host_pairs, (unsigned int)platform_place_g_engine_owner);
+        platform_cell_released(resident->host_lengths, (unsigned int)platform_place_g_engine_owner);
         resident->pairs = NULL;
         resident->lengths = NULL;
         ok = ok && (cudaMalloc((void **)&resident->pairs, capacity * sizeof(unsigned long long)) == cudaSuccess);
         ok = ok && (cudaMalloc((void **)&resident->lengths, capacity * sizeof(unsigned int)) == cudaSuccess);
-        resident->host_pairs = (unsigned long long *)malloc(capacity * sizeof(unsigned long long));
-        resident->host_lengths = (unsigned int *)malloc(capacity * sizeof(unsigned int));
+        resident->host_pairs =
+            (unsigned long long *)platform_cell_taken((unsigned long long)(capacity * sizeof(unsigned long long)),
+                                                      (unsigned int)platform_place_g_engine_owner, 0);
+        resident->host_lengths = (unsigned int *)platform_cell_taken(
+            (unsigned long long)(capacity * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
         ok = ok && (resident->host_pairs != NULL) && (resident->host_lengths != NULL);
         resident->run_capacity = (ok != 0) ? capacity : 0u;
     }

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // period_select.cu: the lattice, the null axis, selection, reading and printing
 #include "period_internal.h"
+#include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 int period_lattice_fill(const PeriodRequest *request, PeriodLattice *lattice, unsigned long long *voxels)
@@ -239,13 +240,20 @@ extern "C" long period_read(const PeriodRequest *request)
     }
     const unsigned long long draws = request->draws;
     const size_t agreement_entries = (size_t)((entries != 0ULL) ? entries : 1ULL);
-    unsigned int *const histogram = (unsigned int *)malloc(PERIOD_VALUES * sizeof(unsigned int));
-    unsigned int *const shuffled_histogram = (unsigned int *)malloc(PERIOD_VALUES * sizeof(unsigned int));
-    unsigned long long *const agreement = (unsigned long long *)calloc(agreement_entries, sizeof(unsigned long long));
-    unsigned long long *const shuffled_agreement =
-        (unsigned long long *)calloc(agreement_entries, sizeof(unsigned long long));
+    unsigned int *const histogram = (unsigned int *)platform_cell_taken(
+        (unsigned long long)(PERIOD_VALUES * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned int *const shuffled_histogram = (unsigned int *)platform_cell_taken(
+        (unsigned long long)(PERIOD_VALUES * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned long long *const agreement = (unsigned long long *)platform_cell_cleared(
+        (unsigned long long)(agreement_entries), (unsigned long long)(sizeof(unsigned long long)),
+        (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned long long *const shuffled_agreement = (unsigned long long *)platform_cell_cleared(
+        (unsigned long long)(agreement_entries), (unsigned long long)(sizeof(unsigned long long)),
+        (unsigned int)platform_place_g_engine_owner, 0);
     const size_t band_count = (size_t)((draws != 0ULL) ? (draws * lattice.rank) : 1ULL);
-    PeriodMargin *const bands = (PeriodMargin *)calloc(band_count, sizeof(PeriodMargin));
+    PeriodMargin *const bands = (PeriodMargin *)platform_cell_cleared((unsigned long long)(band_count),
+                                                                      (unsigned long long)(sizeof(PeriodMargin)),
+                                                                      (unsigned int)platform_place_g_engine_owner, 0);
     unsigned long long band_counts[ENGINE_ARRAY_RANK] = {0ULL};
     int ok = PERIOD_CHECK((histogram != NULL) && (shuffled_histogram != NULL) && (agreement != NULL) &&
                               (shuffled_agreement != NULL) && (bands != NULL),
@@ -302,11 +310,11 @@ extern "C" long period_read(const PeriodRequest *request)
     {
         mmgr_bytes_copy(request->band, bands, (size_t)(draws * lattice.rank) * sizeof(PeriodMargin));
     }
-    free(histogram);
-    free(shuffled_histogram);
-    free(agreement);
-    free(shuffled_agreement);
-    free(bands);
+    platform_cell_released(histogram, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(shuffled_histogram, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(agreement, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(shuffled_agreement, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(bands, (unsigned int)platform_place_g_engine_owner);
     return (ok != 0) ? 0L : PERIOD_ERROR;
 }
 
@@ -334,10 +342,13 @@ extern "C" long period_draw(const PeriodRequest *request, unsigned long long dra
     }
     const unsigned long long entries = lattice.lag_total;
     const size_t agreement_entries = (size_t)((entries != 0ULL) ? entries : 1ULL);
-    unsigned int *const histogram = (unsigned int *)malloc(PERIOD_VALUES * sizeof(unsigned int));
-    unsigned int *const shuffled_histogram = (unsigned int *)malloc(PERIOD_VALUES * sizeof(unsigned int));
-    unsigned long long *const shuffled_agreement =
-        (unsigned long long *)calloc(agreement_entries, sizeof(unsigned long long));
+    unsigned int *const histogram = (unsigned int *)platform_cell_taken(
+        (unsigned long long)(PERIOD_VALUES * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned int *const shuffled_histogram = (unsigned int *)platform_cell_taken(
+        (unsigned long long)(PERIOD_VALUES * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned long long *const shuffled_agreement = (unsigned long long *)platform_cell_cleared(
+        (unsigned long long)(agreement_entries), (unsigned long long)(sizeof(unsigned long long)),
+        (unsigned int)platform_place_g_engine_owner, 0);
     int ok = PERIOD_CHECK((histogram != NULL) && (shuffled_histogram != NULL) && (shuffled_agreement != NULL), request,
                           error, ENGINE_ERROR_RESOURCE) &&
              period_reserve(voxels, agreement_entries, error);
@@ -361,9 +372,9 @@ extern "C" long period_draw(const PeriodRequest *request, unsigned long long dra
                                   &shuffled_pass, histogram, &heights[axis], error);
         }
     }
-    free(histogram);
-    free(shuffled_histogram);
-    free(shuffled_agreement);
+    platform_cell_released(histogram, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(shuffled_histogram, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(shuffled_agreement, (unsigned int)platform_place_g_engine_owner);
     return (ok != 0) ? 0L : PERIOD_ERROR;
 }
 
@@ -382,7 +393,8 @@ extern "C" int period_print(const PeriodMeasurement *measurement, FILE *file)
     }
     VerbaLinea line;
     line.capacity = PERIOD_ROW_TEXT * ((unsigned long long)measurement->rank + 1ULL);
-    line.out = (char *)malloc((size_t)line.capacity);
+    line.out = (char *)platform_cell_taken((unsigned long long)((size_t)line.capacity),
+                                           (unsigned int)platform_place_g_engine_owner, 0);
     line.at = 0ULL;
     if (line.out == NULL)
     {
@@ -433,6 +445,6 @@ extern "C" int period_print(const PeriodMeasurement *measurement, FILE *file)
         mmgr_line_put(&line, ")\n");
     }
     const int written = (mmgr_line_ok(&line) && (fwrite(line.out, 1u, mmgr_line_finish(&line), file) == line.at));
-    free(line.out);
+    platform_cell_released(line.out, (unsigned int)platform_place_g_engine_owner);
     return written;
 }

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // max_tree_build.c: the tree built
 #include "max_tree_internal.h"
+#include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 OriorExactInteger g_compare_left;
@@ -103,14 +104,17 @@ static long max_tree_grow(const unsigned int *residual, unsigned int depth, unsi
     tree->depth = depth;
     tree->height = height;
     tree->width = width;
-    tree->parent = (unsigned int *)malloc(voxels * sizeof(unsigned int));
-    unsigned int *const zpar = (unsigned int *)malloc(voxels * sizeof(unsigned int));
-    unsigned char *const arrived = (unsigned char *)calloc(voxels, 1u);
+    tree->parent = (unsigned int *)platform_cell_taken((unsigned long long)(voxels * sizeof(unsigned int)),
+                                                       (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned int *const zpar = (unsigned int *)platform_cell_taken((unsigned long long)(voxels * sizeof(unsigned int)),
+                                                                   (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned char *const arrived = (unsigned char *)platform_cell_cleared(
+        (unsigned long long)(voxels), (unsigned long long)(1u), (unsigned int)platform_place_g_engine_owner, 0);
     if ((tree->parent == NULL) || (zpar == NULL) || (arrived == NULL))
     {
-        free(tree->parent);
-        free(zpar);
-        free(arrived);
+        platform_cell_released(tree->parent, (unsigned int)platform_place_g_engine_owner);
+        platform_cell_released(zpar, (unsigned int)platform_place_g_engine_owner);
+        platform_cell_released(arrived, (unsigned int)platform_place_g_engine_owner);
         mmgr_bytes_set(tree, 0, sizeof(*tree));
         return MAX_TREE_ERROR;
     }
@@ -121,12 +125,14 @@ static long max_tree_grow(const unsigned int *residual, unsigned int depth, unsi
         admitted += (unsigned int)max_tree_selects(residual, (unsigned int)voxel);
     }
     tree->admitted = admitted;
-    tree->order = (unsigned int *)malloc(((size_t)admitted + 1u) * sizeof(unsigned int));
+    tree->order =
+        (unsigned int *)platform_cell_taken((unsigned long long)(((size_t)admitted + 1u) * sizeof(unsigned int)),
+                                            (unsigned int)platform_place_g_engine_owner, 0);
     if (tree->order == NULL)
     {
-        free(tree->parent);
-        free(zpar);
-        free(arrived);
+        platform_cell_released(tree->parent, (unsigned int)platform_place_g_engine_owner);
+        platform_cell_released(zpar, (unsigned int)platform_place_g_engine_owner);
+        platform_cell_released(arrived, (unsigned int)platform_place_g_engine_owner);
         mmgr_bytes_set(tree, 0, sizeof(*tree));
         return MAX_TREE_ERROR;
     }
@@ -195,8 +201,8 @@ static long max_tree_grow(const unsigned int *residual, unsigned int depth, unsi
             tree->parent[voxel] = (same != 0) ? over : above;
         }
     }
-    free(zpar);
-    free(arrived);
+    platform_cell_released(zpar, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(arrived, (unsigned int)platform_place_g_engine_owner);
     return (long)admitted;
 }
 
@@ -233,8 +239,8 @@ void max_tree_release(MaxTree *tree)
     {
         return;
     }
-    free(tree->parent);
-    free(tree->order);
+    platform_cell_released(tree->parent, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(tree->order, (unsigned int)platform_place_g_engine_owner);
     mmgr_bytes_set(tree, 0, sizeof(*tree));
 }
 
@@ -251,9 +257,12 @@ int max_tree_valid(const unsigned int *residual, const MaxTree *tree, unsigned i
     }
     const size_t voxels = tree->voxels;
     const size_t plane = (size_t)tree->height * tree->width;
-    unsigned int *const located = (unsigned int *)malloc(voxels * sizeof(unsigned int));
-    unsigned int *const flooded = (unsigned int *)malloc(voxels * sizeof(unsigned int));
-    unsigned int *const waiting = (unsigned int *)malloc(voxels * sizeof(unsigned int));
+    unsigned int *const located = (unsigned int *)platform_cell_taken(
+        (unsigned long long)(voxels * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned int *const flooded = (unsigned int *)platform_cell_taken(
+        (unsigned long long)(voxels * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned int *const waiting = (unsigned int *)platform_cell_taken(
+        (unsigned long long)(voxels * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
     int ok = (located != NULL) && (flooded != NULL) && (waiting != NULL);
     for (unsigned int taken = 0u; (ok != 0) && (taken < levels); taken += 1u)
     {
@@ -341,8 +350,8 @@ int max_tree_valid(const unsigned int *residual, const MaxTree *tree, unsigned i
             ok = ((ok != 0) && (flooded[voxel] == flooded[located[voxel]])) ? ok : 0;
         }
     }
-    free(located);
-    free(flooded);
-    free(waiting);
+    platform_cell_released(located, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(flooded, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(waiting, (unsigned int)platform_place_g_engine_owner);
     return ok;
 }

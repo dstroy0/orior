@@ -72,6 +72,10 @@ void *platform_cell_taken(unsigned long long bytes, unsigned int place, int ephe
 // a cell given back to the pool by the owner that took it, and nothing where the cell is NULL [TAKES OWNERSHIP]
 void platform_cell_released(void *cell, unsigned int place);
 
+// a cell of `count` elements of `size` bytes each, every byte 0, as calloc gives one. NULL where the product of `count`
+// and `size` passes an unsigned long long, or where the pool cannot meet the cell
+void *platform_cell_cleared(unsigned long long count, unsigned long long size, unsigned int place, int ephemeral);
+
 // A cell grown to `bytes`. A new cell of that size comes from the same tier. The first `held` bytes of the old cell go
 // into it, and the old cell goes back. NULL where the pool cannot meet the bytes, and the old cell is then as it was
 // [TAKES OWNERSHIP] [RETURNS OWNERSHIP]

@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "residual_survey.h"
+#include "../../../../platform/platform.h"
 
 #include "../../engine_config.h"
 #include "../golden_bands/golden_bands.h"
@@ -50,7 +51,8 @@ void survey_residual(const unsigned int *residual, size_t voxels)
     {
         return;
     }
-    unsigned long long *const keys = (unsigned long long *)malloc(positive * sizeof(unsigned long long));
+    unsigned long long *const keys = (unsigned long long *)platform_cell_taken(
+        (unsigned long long)(positive * sizeof(unsigned long long)), (unsigned int)platform_place_g_engine_owner, 0);
     if (keys == NULL)
     {
         return;
@@ -81,7 +83,7 @@ void survey_residual(const unsigned int *residual, size_t voxels)
     {
         s_survey_rungs[band_of(keys[at])] += 1ULL;
     }
-    free(keys);
+    platform_cell_released(keys, (unsigned int)platform_place_g_engine_owner);
 }
 
 void survey_report(void)

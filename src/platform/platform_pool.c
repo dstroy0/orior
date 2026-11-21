@@ -201,6 +201,23 @@ void platform_line_flushed(void)
     }
 }
 
+// a note on the error stream that the pool did not meet a cell. It names the bytes of the cell, its tier, and the bytes
+// of the pool. A program that needs more defines g_program_pool_bytes
+static void platform_cell_refused(unsigned long long bytes, int ephemeral)
+{
+    EMBED_ALIGN(MMGR_ALIGN_BYTES) char text[192];
+    VerbaLinea line = mmgr_line_over(text, sizeof(text));
+    mmgr_line_put(&line, "  platform: the pool of ");
+    mmgr_line_decimal(&line, s_pool_bytes, 1u);
+    mmgr_line_put(&line, " bytes cannot meet a cell of ");
+    mmgr_line_decimal(&line, bytes, 1u);
+    mmgr_line_put(&line, (ephemeral != 0) ? " bytes on the temporary tier" : " bytes on the persistent tier");
+    mmgr_line_put(&line, "; a program that needs more defines g_program_pool_bytes");
+    mmgr_line_ch(&line, '\n');
+    const size_t length = mmgr_line_finish(&line);
+    platform_terminal_write(1, text, (unsigned long long)length);
+}
+
 void *platform_cell_taken(unsigned long long bytes, unsigned int place, int ephemeral)
 {
     if (place >= (unsigned int)platform_place_count)
@@ -208,8 +225,27 @@ void *platform_cell_taken(unsigned long long bytes, unsigned int place, int ephe
         return NULL;
     }
     const CellOwner *const owner = &mmgr_owner_table[place];
-    return ephemeral ? g_platform_guard->temporary_buf_alloc((size_t)bytes, owner)
-                     : g_platform_guard->persistent_buf_alloc((size_t)bytes, owner);
+    void *const cell = ephemeral ? g_platform_guard->temporary_buf_alloc((size_t)bytes, owner)
+                                 : g_platform_guard->persistent_buf_alloc((size_t)bytes, owner);
+    if ((cell == NULL) && (bytes != 0ULL))
+    {
+        platform_cell_refused(bytes, ephemeral);
+    }
+    return cell;
+}
+
+void *platform_cell_cleared(unsigned long long count, unsigned long long size, unsigned int place, int ephemeral)
+{
+    if ((size != 0ULL) && (count > (~0ULL / size)))
+    {
+        return NULL;
+    }
+    void *const cell = platform_cell_taken(count * size, place, ephemeral);
+    if (cell != NULL)
+    {
+        memor.set(&(MemoriaCfg){.dst = cell, .bytes = (size_t)(count * size), .val = 0u});
+    }
+    return cell;
 }
 
 void platform_cell_released(void *cell, unsigned int place)

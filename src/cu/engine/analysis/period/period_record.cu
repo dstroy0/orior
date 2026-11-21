@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // period_record.cu: the agreement and the null on the record machine
 #include "period_internal.h"
+#include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 #include "../cycle/cycle.h"
@@ -427,12 +428,18 @@ extern "C" long period_record_read(const PeriodRequest *request)
     const unsigned long long entries = lattice.lag_total;
     const unsigned long long draws = request->draws;
     const size_t agreement_entries = (size_t)((entries != 0ULL) ? entries : 1ULL);
-    unsigned int *const histogram = (unsigned int *)malloc(PERIOD_VALUES * sizeof(unsigned int));
-    unsigned long long *const agreement = (unsigned long long *)calloc(agreement_entries, sizeof(unsigned long long));
-    unsigned long long *const shuffled_agreement =
-        (unsigned long long *)calloc(agreement_entries, sizeof(unsigned long long));
+    unsigned int *const histogram = (unsigned int *)platform_cell_taken(
+        (unsigned long long)(PERIOD_VALUES * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned long long *const agreement = (unsigned long long *)platform_cell_cleared(
+        (unsigned long long)(agreement_entries), (unsigned long long)(sizeof(unsigned long long)),
+        (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned long long *const shuffled_agreement = (unsigned long long *)platform_cell_cleared(
+        (unsigned long long)(agreement_entries), (unsigned long long)(sizeof(unsigned long long)),
+        (unsigned int)platform_place_g_engine_owner, 0);
     const size_t band_count = (size_t)((draws != 0ULL) ? (draws * lattice.rank) : 1ULL);
-    PeriodMargin *const bands = (PeriodMargin *)calloc(band_count, sizeof(PeriodMargin));
+    PeriodMargin *const bands = (PeriodMargin *)platform_cell_cleared((unsigned long long)(band_count),
+                                                                      (unsigned long long)(sizeof(PeriodMargin)),
+                                                                      (unsigned int)platform_place_g_engine_owner, 0);
     unsigned long long band_counts[ENGINE_ARRAY_RANK] = {0ULL};
     int ok = PERIOD_CHECK((histogram != NULL) && (agreement != NULL) && (shuffled_agreement != NULL) && (bands != NULL),
                           request, error, ENGINE_ERROR_RESOURCE) &&
@@ -498,10 +505,10 @@ extern "C" long period_record_read(const PeriodRequest *request)
     {
         mmgr_bytes_copy(request->band, bands, (size_t)(draws * lattice.rank) * sizeof(PeriodMargin));
     }
-    free(histogram);
-    free(agreement);
-    free(shuffled_agreement);
-    free(bands);
+    platform_cell_released(histogram, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(agreement, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(shuffled_agreement, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(bands, (unsigned int)platform_place_g_engine_owner);
     return (ok != 0) ? 0L : PERIOD_ERROR;
 }
 
@@ -523,8 +530,9 @@ extern "C" long period_record_draw(const PeriodRequest *request, unsigned long l
         return PERIOD_ERROR;
     }
     const size_t agreement_entries = (size_t)((lattice.lag_total != 0ULL) ? lattice.lag_total : 1ULL);
-    unsigned long long *const shuffled_agreement =
-        (unsigned long long *)calloc(agreement_entries, sizeof(unsigned long long));
+    unsigned long long *const shuffled_agreement = (unsigned long long *)platform_cell_cleared(
+        (unsigned long long)(agreement_entries), (unsigned long long)(sizeof(unsigned long long)),
+        (unsigned int)platform_place_g_engine_owner, 0);
     int ok = PERIOD_CHECK(shuffled_agreement != NULL, request, error, ENGINE_ERROR_RESOURCE);
     for (unsigned int axis = 0u; (ok != 0) && (axis < lattice.rank); axis += 1u)
     {
@@ -538,6 +546,6 @@ extern "C" long period_record_draw(const PeriodRequest *request, unsigned long l
                                     &shuffled_agreement[lattice.first[axis]], &heights[axis], error);
         }
     }
-    free(shuffled_agreement);
+    platform_cell_released(shuffled_agreement, (unsigned int)platform_place_g_engine_owner);
     return (ok != 0) ? 0L : PERIOD_ERROR;
 }

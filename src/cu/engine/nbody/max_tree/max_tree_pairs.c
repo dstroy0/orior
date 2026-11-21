@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // max_tree_pairs.c: pairs and overlap sums
 #include "max_tree_internal.h"
+#include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 unsigned int max_tree_probe_partition(const unsigned int *sorted, const unsigned int *own_level,
@@ -43,9 +44,9 @@ void max_tree_pairs_release(MaxTreePairs *pairs)
     {
         return;
     }
-    free(pairs->earlier);
-    free(pairs->later);
-    free(pairs->voxels);
+    platform_cell_released(pairs->earlier, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(pairs->later, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(pairs->voxels, (unsigned int)platform_place_g_engine_owner);
     mmgr_bytes_set(pairs, 0, sizeof(*pairs));
 }
 
@@ -71,7 +72,9 @@ long max_tree_pairs(const MaxTreePairsRequest *request)
     mmgr_bytes_set(pairs, 0, sizeof(*pairs));
     const size_t voxels = earlier->voxels;
     const size_t plane = (size_t)earlier->height * earlier->width;
-    unsigned long long *const keys = (unsigned long long *)malloc((voxels + 1u) * sizeof(unsigned long long));
+    unsigned long long *const keys =
+        (unsigned long long *)platform_cell_taken((unsigned long long)((voxels + 1u) * sizeof(unsigned long long)),
+                                                  (unsigned int)platform_place_g_engine_owner, 0);
     if (!MAX_TREE_HOST_CHECK(keys != NULL, request, error, ENGINE_ERROR_RESOURCE))
     {
         return MAX_TREE_ERROR;
@@ -109,13 +112,19 @@ long max_tree_pairs(const MaxTreePairsRequest *request)
     {
         distinct += ((at == 0u) || (keys[at] != keys[at - 1u])) ? 1u : 0u;
     }
-    pairs->earlier = (unsigned int *)malloc(((size_t)distinct + 1u) * sizeof(unsigned int));
-    pairs->later = (unsigned int *)malloc(((size_t)distinct + 1u) * sizeof(unsigned int));
-    pairs->voxels = (unsigned long long *)malloc(((size_t)distinct + 1u) * sizeof(unsigned long long));
+    pairs->earlier =
+        (unsigned int *)platform_cell_taken((unsigned long long)(((size_t)distinct + 1u) * sizeof(unsigned int)),
+                                            (unsigned int)platform_place_g_engine_owner, 0);
+    pairs->later =
+        (unsigned int *)platform_cell_taken((unsigned long long)(((size_t)distinct + 1u) * sizeof(unsigned int)),
+                                            (unsigned int)platform_place_g_engine_owner, 0);
+    pairs->voxels = (unsigned long long *)platform_cell_taken(
+        (unsigned long long)(((size_t)distinct + 1u) * sizeof(unsigned long long)),
+        (unsigned int)platform_place_g_engine_owner, 0);
     if (!MAX_TREE_HOST_CHECK((pairs->earlier != NULL) && (pairs->later != NULL) && (pairs->voxels != NULL), request,
                              error, ENGINE_ERROR_RESOURCE))
     {
-        free(keys);
+        platform_cell_released(keys, (unsigned int)platform_place_g_engine_owner);
         max_tree_pairs_release(pairs);
         return MAX_TREE_ERROR;
     }
@@ -133,7 +142,7 @@ long max_tree_pairs(const MaxTreePairsRequest *request)
         pairs->voxels[entry] = 1ULL;
         entry += 1u;
     }
-    free(keys);
+    platform_cell_released(keys, (unsigned int)platform_place_g_engine_owner);
     pairs->count = distinct;
     return (long)distinct;
 }
@@ -199,16 +208,20 @@ long max_tree_overlap_sums(const MaxTreeOverlapSumsRequest *request)
         return 0L;
     }
     const size_t events = 2u * (size_t)pair_count;
-    unsigned long long *const keys = (unsigned long long *)malloc(events * sizeof(unsigned long long));
-    unsigned long long *const below = (unsigned long long *)malloc((size_t)pair_count * sizeof(unsigned long long));
-    unsigned long long *const fenwick =
-        (unsigned long long *)calloc((size_t)later->count + 1u, sizeof(unsigned long long));
+    unsigned long long *const keys = (unsigned long long *)platform_cell_taken(
+        (unsigned long long)(events * sizeof(unsigned long long)), (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned long long *const below =
+        (unsigned long long *)platform_cell_taken((unsigned long long)((size_t)pair_count * sizeof(unsigned long long)),
+                                                  (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned long long *const fenwick = (unsigned long long *)platform_cell_cleared(
+        (unsigned long long)((size_t)later->count + 1u), (unsigned long long)(sizeof(unsigned long long)),
+        (unsigned int)platform_place_g_engine_owner, 0);
     if (!MAX_TREE_HOST_CHECK((keys != NULL) && (below != NULL) && (fenwick != NULL), request, error,
                              ENGINE_ERROR_RESOURCE))
     {
-        free(keys);
-        free(below);
-        free(fenwick);
+        platform_cell_released(keys, (unsigned int)platform_place_g_engine_owner);
+        platform_cell_released(below, (unsigned int)platform_place_g_engine_owner);
+        platform_cell_released(fenwick, (unsigned int)platform_place_g_engine_owner);
         return MAX_TREE_ERROR;
     }
     for (unsigned int query = 0u; query < pair_count; query += 1u)
@@ -252,8 +265,8 @@ long max_tree_overlap_sums(const MaxTreeOverlapSumsRequest *request)
             MAX_TREE_HOST_CHECK(request->sums[query] >= below[query], &request->sums[query], error, ENGINE_ERROR_LOGIC);
         request->sums[query] -= (ok != 0) ? below[query] : 0ULL;
     }
-    free(keys);
-    free(below);
-    free(fenwick);
+    platform_cell_released(keys, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(below, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(fenwick, (unsigned int)platform_place_g_engine_owner);
     return (ok != 0) ? (long)pair_count : MAX_TREE_ERROR;
 }

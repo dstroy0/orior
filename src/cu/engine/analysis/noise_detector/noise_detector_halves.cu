@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_detector_halves.cu: halves
 #include "noise_detector_internal.h"
+#include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 // One thread a camera pixel: its values in the planes below the middle and in those from it up, each summed over the
@@ -135,8 +136,9 @@ extern "C" long noise_flicker_volume(const unsigned short *volume, const unsigne
     {
         return NOISE_DETECTOR_ERROR;
     }
-    unsigned long long *const sums =
-        (unsigned long long *)malloc((size_t)NOISE_FLICKER_CELLS * sizeof(unsigned long long));
+    unsigned long long *const sums = (unsigned long long *)platform_cell_taken(
+        (unsigned long long)((size_t)NOISE_FLICKER_CELLS * sizeof(unsigned long long)),
+        (unsigned int)platform_place_g_engine_owner, 0);
     int ok = NOISE_DETECTOR_CHECK((volume != NULL) && (extent != NULL) && (per_mille != NULL) &&
                                       (neighbor_per_mille != NULL),
                                   volume, error, ENGINE_ERROR_REQUEST) &&
@@ -161,7 +163,7 @@ extern "C" long noise_flicker_volume(const unsigned short *volume, const unsigne
             }
         }
     }
-    free(sums);
+    platform_cell_released(sums, (unsigned int)platform_place_g_engine_owner);
     return (ok != 0) ? 0L : NOISE_DETECTOR_ERROR;
 }
 
@@ -172,9 +174,12 @@ extern "C" long noise_lines_volume(const unsigned short *volume, const unsigned 
     {
         return NOISE_DETECTOR_ERROR;
     }
-    NoiseLineCell *const cells = (NoiseLineCell *)malloc((size_t)NOISE_LINE_CELLS * sizeof(NoiseLineCell));
+    NoiseLineCell *const cells =
+        (NoiseLineCell *)platform_cell_taken((unsigned long long)((size_t)NOISE_LINE_CELLS * sizeof(NoiseLineCell)),
+                                             (unsigned int)platform_place_g_engine_owner, 0);
     // four exact integers, stored apart from the stack
-    NoisePlanePool *const pool = (NoisePlanePool *)malloc(sizeof(NoisePlanePool));
+    NoisePlanePool *const pool = (NoisePlanePool *)platform_cell_taken((unsigned long long)(sizeof(NoisePlanePool)),
+                                                                       (unsigned int)platform_place_g_engine_owner, 0);
     NoiseStaticPool still;
     // a volume read alone writes no plane table and so needs no name
     int ok = NOISE_DETECTOR_CHECK((volume != NULL) && (extent != NULL) && (readings != NULL), volume, error,
@@ -187,8 +192,8 @@ extern "C" long noise_lines_volume(const unsigned short *volume, const unsigned 
         noise_planes_readings(pool, readings, valid);
         noise_static_readings(&still, &readings[NOISE_STATIC_ROWS], &valid[NOISE_STATIC_ROWS]);
     }
-    free(cells);
-    free(pool);
+    platform_cell_released(cells, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(pool, (unsigned int)platform_place_g_engine_owner);
     return (ok != 0) ? 0L : NOISE_DETECTOR_ERROR;
 }
 
@@ -199,8 +204,9 @@ extern "C" long noise_neighbors_volume(const unsigned short *volume, const unsig
     {
         return NOISE_DETECTOR_ERROR;
     }
-    unsigned long long *const sums =
-        (unsigned long long *)malloc((size_t)NOISE_NEIGHBORS_CELLS * sizeof(unsigned long long));
+    unsigned long long *const sums = (unsigned long long *)platform_cell_taken(
+        (unsigned long long)((size_t)NOISE_NEIGHBORS_CELLS * sizeof(unsigned long long)),
+        (unsigned int)platform_place_g_engine_owner, 0);
     int ok = NOISE_DETECTOR_CHECK((volume != NULL) && (extent != NULL) && (per_mille != NULL), volume, error,
                                   ENGINE_ERROR_REQUEST) &&
              NOISE_DETECTOR_CHECK(sums != NULL, &sums, error, ENGINE_ERROR_RESOURCE) &&
@@ -222,7 +228,7 @@ extern "C" long noise_neighbors_volume(const unsigned short *volume, const unsig
             per_mille[radius] = 0LL;
         }
     }
-    free(sums);
+    platform_cell_released(sums, (unsigned int)platform_place_g_engine_owner);
     return (ok != 0) ? 0L : NOISE_DETECTOR_ERROR;
 }
 
@@ -234,7 +240,8 @@ extern "C" long noise_clips_volume(const unsigned short *volume, const unsigned 
     {
         return NOISE_DETECTOR_ERROR;
     }
-    NoiseClips *const clips = (NoiseClips *)malloc(sizeof(NoiseClips));
+    NoiseClips *const clips = (NoiseClips *)platform_cell_taken((unsigned long long)(sizeof(NoiseClips)),
+                                                                (unsigned int)platform_place_g_engine_owner, 0);
     int ok = NOISE_DETECTOR_CHECK((volume != NULL) && (extent != NULL) && (counts != NULL) && (box != NULL) &&
                                       (spikes != NULL),
                                   volume, error, ENGINE_ERROR_REQUEST) &&
@@ -246,7 +253,7 @@ extern "C" long noise_clips_volume(const unsigned short *volume, const unsigned 
         mmgr_bytes_copy(box, clips->box, sizeof(clips->box));
         noise_spikes_pooled(clips, spikes);
     }
-    free(clips);
+    platform_cell_released(clips, (unsigned int)platform_place_g_engine_owner);
     return (ok != 0) ? 0L : NOISE_DETECTOR_ERROR;
 }
 

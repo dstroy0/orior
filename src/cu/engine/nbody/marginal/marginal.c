@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "marginal.h"
+#include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 #include "../../../../../includes/exact_types/integers/exact_integer.h"
 
@@ -68,8 +69,9 @@ static int marginal_host_question(const MarginalRequest *request, unsigned int q
 {
     const MarginalQuestion *const one = &request->questions[question];
     const MarginalSource *const sources = &request->sources[one->source_first];
-    OriorExactInteger *const totals =
-        (OriorExactInteger *)malloc(((size_t)sources[0].options + MARGINAL_SUMS) * sizeof(OriorExactInteger));
+    OriorExactInteger *const totals = (OriorExactInteger *)platform_cell_taken(
+        (unsigned long long)(((size_t)sources[0].options + MARGINAL_SUMS) * sizeof(OriorExactInteger)),
+        (unsigned int)platform_place_g_engine_owner, 0);
     if (totals == NULL)
     {
         return 0;
@@ -139,7 +141,7 @@ static int marginal_host_question(const MarginalRequest *request, unsigned int q
         ok = marginal_host_put(&totals[MARGINAL_SUMS + option],
                                &request->option_sums[(size_t)(sources[0].option_first + option) * MARGINAL_LIMBS]);
     }
-    free(totals);
+    platform_cell_released(totals, (unsigned int)platform_place_g_engine_owner);
     return ok;
 }
 

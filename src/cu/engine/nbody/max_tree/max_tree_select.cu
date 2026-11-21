@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // max_tree_select.cu: admission, gather, count and scatter
 #include "max_tree_device_internal.h"
+#include "../../../../platform/platform.h"
 
 __global__ static void max_tree_select_kernel(const unsigned int *residual, unsigned int voxels, unsigned int *admits)
 {
@@ -136,8 +137,10 @@ extern "C" int max_tree_order_agrees(const unsigned int *residual, unsigned int 
         max_tree_select_kernel<<<spread, MAX_TREE_BLOCK>>>(device_residual, (unsigned int)voxels, device_admits);
         ok = MAX_TREE_STATUS_CHECK(cudaGetLastError(), device_admits, error);
     }
-    unsigned int *const admits = (unsigned int *)malloc(voxels * sizeof(unsigned int));
-    unsigned int *const offsets = (unsigned int *)malloc(voxels * sizeof(unsigned int));
+    unsigned int *const admits = (unsigned int *)platform_cell_taken(
+        (unsigned long long)(voxels * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned int *const offsets = (unsigned int *)platform_cell_taken(
+        (unsigned long long)(voxels * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
     ok = ok && MAX_TREE_CHECK(admits != NULL, &admits, error, ENGINE_ERROR_RESOURCE) &&
          MAX_TREE_CHECK(offsets != NULL, &offsets, error, ENGINE_ERROR_RESOURCE);
     ok = ok &&
@@ -159,7 +162,9 @@ extern "C" int max_tree_order_agrees(const unsigned int *residual, unsigned int 
                                                            device_order);
         ok = MAX_TREE_STATUS_CHECK(cudaGetLastError(), device_order, error);
     }
-    unsigned int *const counts = (unsigned int *)malloc((size_t)blocks * MAX_TREE_BUCKETS * sizeof(unsigned int));
+    unsigned int *const counts = (unsigned int *)platform_cell_taken(
+        (unsigned long long)((size_t)blocks * MAX_TREE_BUCKETS * sizeof(unsigned int)),
+        (unsigned int)platform_place_g_engine_owner, 0);
     ok = ok && MAX_TREE_CHECK(counts != NULL, &counts, error, ENGINE_ERROR_RESOURCE);
     for (unsigned int at = 0u; (ok != 0) && (at < MAX_TREE_KEY_BYTES); at += 1u)
     {
@@ -197,7 +202,9 @@ extern "C" int max_tree_order_agrees(const unsigned int *residual, unsigned int 
         device_order = device_sorted;
         device_sorted = swap;
     }
-    unsigned int *const theirs = (unsigned int *)malloc(((size_t)selected_count + 1u) * sizeof(unsigned int));
+    unsigned int *const theirs =
+        (unsigned int *)platform_cell_taken((unsigned long long)(((size_t)selected_count + 1u) * sizeof(unsigned int)),
+                                            (unsigned int)platform_place_g_engine_owner, 0);
     ok = ok && MAX_TREE_CHECK(theirs != NULL, &theirs, error, ENGINE_ERROR_RESOURCE);
     ok = ok && MAX_TREE_STATUS_CHECK(cudaMemcpy(theirs, device_order, (size_t)selected_count * sizeof(unsigned int),
                                                 cudaMemcpyDeviceToHost),
@@ -207,10 +214,10 @@ extern "C" int max_tree_order_agrees(const unsigned int *residual, unsigned int 
     {
         agrees = MAX_TREE_CHECK(theirs[at] == host.order[at], &theirs[at], error, ENGINE_ERROR_LOGIC);
     }
-    free(admits);
-    free(offsets);
-    free(counts);
-    free(theirs);
+    platform_cell_released(admits, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(offsets, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(counts, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(theirs, (unsigned int)platform_place_g_engine_owner);
     cudaFree(device_residual);
     cudaFree(device_admits);
     cudaFree(device_offsets);

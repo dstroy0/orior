@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_daemon_admission.c: frames, admission, the handler and the timer
 #include "tessera_daemon_internal.h"
+#include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 _Alignas(8) static const char s_daemon_precalc[] = "precalc saved\n";
@@ -80,7 +81,9 @@ static void daemon_admit(unsigned long long now)
     {
         return;
     }
-    TesseraEvent *const events = (TesseraEvent *)calloc((size_t)start_limit, sizeof(TesseraEvent));
+    TesseraEvent *const events = (TesseraEvent *)platform_cell_cleared((unsigned long long)((size_t)start_limit),
+                                                                       (unsigned long long)(sizeof(TesseraEvent)),
+                                                                       (unsigned int)platform_place_g_engine_owner, 0);
     if (events == NULL)
     {
         return;
@@ -97,7 +100,7 @@ static void daemon_admit(unsigned long long now)
             peer->decisive.declared = peer->located + peer->declared;
         }
     }
-    free(events);
+    platform_cell_released(events, (unsigned int)platform_place_g_engine_owner);
     daemon_signal_changed();
 }
 

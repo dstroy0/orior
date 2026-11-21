@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // raster_entry.cu: the device entry points
 #include "raster_cuda_internal.h"
+#include "../../../platform/platform.h"
 
 extern "C" int orior_volume_device_available(void)
 {
@@ -14,8 +15,8 @@ extern "C" int orior_volume_device_available(void)
 }
 
 extern "C" int orior_volume_device(uint8_t *voxels, const OriorVolumeConfig *config, const uint8_t *corpus,
-                                    size_t corpus_len, const uint8_t *needle, size_t needle_len,
-                                    const OriorRasterProbe *probes, size_t probe_count, const void *census)
+                                   size_t corpus_len, const uint8_t *needle, size_t needle_len,
+                                   const OriorRasterProbe *probes, size_t probe_count, const void *census)
 {
     // RESERVED. Built from the corpus below exactly as the host arm does. The two
     // agree on rarity, and a caller supplied census is discarded on both.
@@ -92,7 +93,8 @@ extern "C" int orior_volume_device(uint8_t *voxels, const OriorVolumeConfig *con
         // The staging buffer starts at the reduction's identity and the narrowing pass turns any
         // untouched cell back into empty, the same bytes the host's first-arrival fill writes.
         const unsigned int identity = (config->reduce == ORIOR_REDUCE_MAX) ? 0u : 0xFFFFFFFFu;
-        unsigned int *seed = (unsigned int *)malloc(cells * sizeof(unsigned int));
+        unsigned int *seed = (unsigned int *)platform_cell_taken((unsigned long long)(cells * sizeof(unsigned int)),
+                                                                 (unsigned int)platform_place_g_engine_owner, 0);
         if (seed == NULL)
         {
             ok = 0;
@@ -105,7 +107,7 @@ extern "C" int orior_volume_device(uint8_t *voxels, const OriorVolumeConfig *con
             }
             ok = ok && (cudaMemcpy(device_staging, seed, cells * sizeof(unsigned int), cudaMemcpyHostToDevice) ==
                         cudaSuccess);
-            free(seed);
+            platform_cell_released(seed, (unsigned int)platform_place_g_engine_owner);
         }
     }
 
@@ -145,7 +147,8 @@ extern "C" int orior_volume_device(uint8_t *voxels, const OriorVolumeConfig *con
 
     if (ok != 0)
     {
-        unsigned int *result = (unsigned int *)malloc(cells * sizeof(unsigned int));
+        unsigned int *result = (unsigned int *)platform_cell_taken((unsigned long long)(cells * sizeof(unsigned int)),
+                                                                   (unsigned int)platform_place_g_engine_owner, 0);
         if (result == NULL)
         {
             ok = 0;
@@ -162,7 +165,7 @@ extern "C" int orior_volume_device(uint8_t *voxels, const OriorVolumeConfig *con
                     voxels[cell] = (result[cell] == identity) ? (uint8_t)ORIOR_RASTER_EMPTY : (uint8_t)result[cell];
                 }
             }
-            free(result);
+            platform_cell_released(result, (unsigned int)platform_place_g_engine_owner);
         }
     }
 
@@ -176,8 +179,8 @@ extern "C" int orior_volume_device(uint8_t *voxels, const OriorVolumeConfig *con
 }
 
 extern "C" int orior_raster_device(uint8_t *pixels, const OriorRasterConfig *config, const uint8_t *corpus,
-                                    size_t corpus_len, const uint8_t *needle, size_t needle_len,
-                                    const OriorRasterProbe *probes, size_t probe_count)
+                                   size_t corpus_len, const uint8_t *needle, size_t needle_len,
+                                   const OriorRasterProbe *probes, size_t probe_count)
 {
     if ((pixels == NULL) || (config == NULL) || (corpus == NULL) || (needle == NULL) || (config->width == 0u) ||
         (config->height == 0u) || (needle_len == 0u) || (needle_len > corpus_len))
@@ -250,7 +253,8 @@ extern "C" int orior_raster_device(uint8_t *pixels, const OriorRasterConfig *con
          * The host marks which cells an arrival reached. Here the staging buffer starts
          * at the identity and the narrowing pass below turns any untouched cell back into zero. */
         const unsigned int identity = (config->reduce == ORIOR_REDUCE_MAX) ? 0u : 0xFFFFFFFFu;
-        unsigned int *seed = (unsigned int *)malloc(cells * sizeof(unsigned int));
+        unsigned int *seed = (unsigned int *)platform_cell_taken((unsigned long long)(cells * sizeof(unsigned int)),
+                                                                 (unsigned int)platform_place_g_engine_owner, 0);
         if (seed == NULL)
         {
             ok = 0;
@@ -263,7 +267,7 @@ extern "C" int orior_raster_device(uint8_t *pixels, const OriorRasterConfig *con
             }
             ok = ok && (cudaMemcpy(device_staging, seed, cells * sizeof(unsigned int), cudaMemcpyHostToDevice) ==
                         cudaSuccess);
-            free(seed);
+            platform_cell_released(seed, (unsigned int)platform_place_g_engine_owner);
         }
     }
 
@@ -290,7 +294,8 @@ extern "C" int orior_raster_device(uint8_t *pixels, const OriorRasterConfig *con
 
     if (ok != 0)
     {
-        unsigned int *result = (unsigned int *)malloc(cells * sizeof(unsigned int));
+        unsigned int *result = (unsigned int *)platform_cell_taken((unsigned long long)(cells * sizeof(unsigned int)),
+                                                                   (unsigned int)platform_place_g_engine_owner, 0);
         if (result == NULL)
         {
             ok = 0;
@@ -307,7 +312,7 @@ extern "C" int orior_raster_device(uint8_t *pixels, const OriorRasterConfig *con
                     pixels[cell] = (result[cell] == identity) ? (uint8_t)ORIOR_RASTER_EMPTY : (uint8_t)result[cell];
                 }
             }
-            free(result);
+            platform_cell_released(result, (unsigned int)platform_place_g_engine_owner);
         }
     }
 

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_run_common.c: tessera_run's clock, arguments, paths, limits, record and log
 #include "tessera_run_internal.h"
+#include "../../../../platform/platform.h"
 #include "../../engine_note.h"
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
@@ -152,7 +153,8 @@ int run_signum(const RunRequest *request, char **arguments, int count, EngineSig
     {
         bytes += mmgr_text_length(arguments[at], PLATFORM_TEXT_TO_TERMINATOR) + 1ULL;
     }
-    unsigned char *const text = (unsigned char *)malloc((size_t)bytes);
+    unsigned char *const text = (unsigned char *)platform_cell_taken((unsigned long long)((size_t)bytes),
+                                                                     (unsigned int)platform_place_g_engine_owner, 0);
     if (text == NULL)
     {
         return 0;
@@ -168,7 +170,7 @@ int run_signum(const RunRequest *request, char **arguments, int count, EngineSig
     const ObsignatioSignumRequest hashed = {text, bytes, NULL, OBSIGNATIO_MODE_HASH, signum->bytes, ENGINE_SIGNUM_BYTES,
                                             error};
     const int ok = obsignatio_signum(&hashed) == 0L;
-    free(text);
+    platform_cell_released(text, (unsigned int)platform_place_g_engine_owner);
     return ok;
 }
 

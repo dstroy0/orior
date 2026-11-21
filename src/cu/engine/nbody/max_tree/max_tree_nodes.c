@@ -2,11 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // max_tree_nodes.c: nodes and probes
 #include "max_tree_internal.h"
+#include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 static void max_tree_part(const unsigned int *residual, const MaxTree *theirs, const MaxTree *mine)
 {
-    unsigned int *const place = (unsigned int *)malloc((size_t)theirs->voxels * sizeof(unsigned int));
+    unsigned int *const place =
+        (unsigned int *)platform_cell_taken((unsigned long long)((size_t)theirs->voxels * sizeof(unsigned int)),
+                                            (unsigned int)platform_place_g_engine_owner, 0);
     if (place == NULL)
     {
         return;
@@ -36,7 +39,7 @@ static void max_tree_part(const unsigned int *residual, const MaxTree *theirs, c
                max_tree_same(residual, first, my_parent), max_tree_same(residual, their_parent, my_parent),
                theirs->parent[their_parent], mine->parent[my_parent]);
     }
-    free(place);
+    platform_cell_released(place, (unsigned int)platform_place_g_engine_owner);
 }
 
 static void max_tree_key_encode(const unsigned int *residual, unsigned int weaker, unsigned int name, unsigned int *key)
@@ -79,12 +82,19 @@ int max_tree_poc(const unsigned int *residual, unsigned int depth, unsigned int 
     const size_t voxels = (size_t)depth * height * width;
     const size_t plane = (size_t)height * width;
     mmgr_bytes_set(bound, 0, voxels * 3u);
-    unsigned int *const left = (unsigned int *)malloc(voxels * 3u * sizeof(unsigned int));
-    unsigned int *const right = (unsigned int *)malloc(voxels * 3u * sizeof(unsigned int));
-    unsigned int *const axes = (unsigned int *)malloc(voxels * 3u * sizeof(unsigned int));
-    unsigned int *const keys = (unsigned int *)malloc(voxels * 3u * MAX_TREE_KEY_LIMBS * sizeof(unsigned int));
-    unsigned int *const belongs = (unsigned int *)malloc(voxels * sizeof(unsigned int));
-    unsigned int *const strongest = (unsigned int *)malloc(voxels * sizeof(unsigned int));
+    unsigned int *const left = (unsigned int *)platform_cell_taken(
+        (unsigned long long)(voxels * 3u * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned int *const right = (unsigned int *)platform_cell_taken(
+        (unsigned long long)(voxels * 3u * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned int *const axes = (unsigned int *)platform_cell_taken(
+        (unsigned long long)(voxels * 3u * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned int *const keys = (unsigned int *)platform_cell_taken(
+        (unsigned long long)(voxels * 3u * MAX_TREE_KEY_LIMBS * sizeof(unsigned int)),
+        (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned int *const belongs = (unsigned int *)platform_cell_taken(
+        (unsigned long long)(voxels * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned int *const strongest = (unsigned int *)platform_cell_taken(
+        (unsigned long long)(voxels * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
     int ok = (left != NULL) && (right != NULL) && (axes != NULL) && (keys != NULL) && (belongs != NULL) &&
              (strongest != NULL);
     unsigned int faces = 0u;
@@ -188,12 +198,12 @@ int max_tree_poc(const unsigned int *residual, unsigned int depth, unsigned int 
         max_tree_part(residual, &reference, &tree);
     }
     max_tree_release(&tree);
-    free(left);
-    free(right);
-    free(axes);
-    free(keys);
-    free(belongs);
-    free(strongest);
+    platform_cell_released(left, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(right, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(axes, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(keys, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(belongs, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(strongest, (unsigned int)platform_place_g_engine_owner);
     max_tree_release(&reference);
     return ok;
 }
@@ -211,12 +221,12 @@ void max_tree_nodes_release(MaxTreeNodes *nodes)
     {
         return;
     }
-    free(nodes->voxel);
-    free(nodes->parent);
-    free(nodes->level);
-    free(nodes->subtree_end);
-    free(nodes->root);
-    free(nodes->own);
+    platform_cell_released(nodes->voxel, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(nodes->parent, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(nodes->level, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(nodes->subtree_end, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(nodes->root, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(nodes->own, (unsigned int)platform_place_g_engine_owner);
     mmgr_bytes_set(nodes, 0, sizeof(*nodes));
 }
 
@@ -226,12 +236,24 @@ static int max_tree_nodes_build(const MaxTree *tree, const unsigned int *node_of
                                 unsigned int count, MaxTreeNodes *nodes, EngineError *error)
 {
     const size_t voxels = tree->voxels;
-    unsigned int *const starts = (unsigned int *)calloc((size_t)count + 2u, sizeof(unsigned int));
-    unsigned int *const children = (unsigned int *)malloc(((size_t)count + 1u) * sizeof(unsigned int));
-    unsigned int *const canonical = (unsigned int *)malloc(((size_t)count + 1u) * sizeof(unsigned int));
-    unsigned int *const filled = (unsigned int *)malloc(((size_t)count + 1u) * sizeof(unsigned int));
-    unsigned int *const placed = (unsigned int *)malloc(((size_t)count + 1u) * sizeof(unsigned int));
-    unsigned int *const waiting = (unsigned int *)malloc(((size_t)count + 1u) * sizeof(unsigned int));
+    unsigned int *const starts = (unsigned int *)platform_cell_cleared((unsigned long long)((size_t)count + 2u),
+                                                                       (unsigned long long)(sizeof(unsigned int)),
+                                                                       (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned int *const children =
+        (unsigned int *)platform_cell_taken((unsigned long long)(((size_t)count + 1u) * sizeof(unsigned int)),
+                                            (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned int *const canonical =
+        (unsigned int *)platform_cell_taken((unsigned long long)(((size_t)count + 1u) * sizeof(unsigned int)),
+                                            (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned int *const filled =
+        (unsigned int *)platform_cell_taken((unsigned long long)(((size_t)count + 1u) * sizeof(unsigned int)),
+                                            (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned int *const placed =
+        (unsigned int *)platform_cell_taken((unsigned long long)(((size_t)count + 1u) * sizeof(unsigned int)),
+                                            (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned int *const waiting =
+        (unsigned int *)platform_cell_taken((unsigned long long)(((size_t)count + 1u) * sizeof(unsigned int)),
+                                            (unsigned int)platform_place_g_engine_owner, 0);
     int ok = MAX_TREE_HOST_CHECK((starts != NULL) && (children != NULL) && (canonical != NULL) && (filled != NULL) &&
                                      (placed != NULL) && (waiting != NULL),
                                  tree, error, ENGINE_ERROR_RESOURCE);
@@ -329,12 +351,12 @@ static int max_tree_nodes_build(const MaxTree *tree, const unsigned int *node_of
         ok = MAX_TREE_HOST_CHECK(node_at != MAX_TREE_ABSENT, &tree->parent[voxel], error, ENGINE_ERROR_LOGIC);
         nodes->own[voxel] = (ok != 0) ? placed[node_at] : MAX_TREE_ABSENT;
     }
-    free(starts);
-    free(children);
-    free(canonical);
-    free(filled);
-    free(placed);
-    free(waiting);
+    platform_cell_released(starts, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(children, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(canonical, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(filled, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(placed, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(waiting, (unsigned int)platform_place_g_engine_owner);
     return ok;
 }
 
@@ -357,8 +379,10 @@ long max_tree_nodes(const MaxTreeNodesRequest *request)
     mmgr_bytes_set(nodes, 0, sizeof(*nodes));
     const size_t voxels = tree->voxels;
     const unsigned int admitted = tree->admitted;
-    unsigned int *const rank = (unsigned int *)malloc((voxels + 1u) * sizeof(unsigned int));
-    unsigned int *const node_of = (unsigned int *)malloc((voxels + 1u) * sizeof(unsigned int));
+    unsigned int *const rank = (unsigned int *)platform_cell_taken(
+        (unsigned long long)((voxels + 1u) * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned int *const node_of = (unsigned int *)platform_cell_taken(
+        (unsigned long long)((voxels + 1u) * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
     int ok = MAX_TREE_HOST_CHECK((rank != NULL) && (node_of != NULL), request, error, ENGINE_ERROR_RESOURCE);
     unsigned int levels = 0u;
     for (unsigned int at = admitted; (ok != 0) && (at > 0u); at -= 1u)
@@ -380,19 +404,30 @@ long max_tree_nodes(const MaxTreeNodesRequest *request)
     }
     if (ok != 0)
     {
-        nodes->voxel = (unsigned int *)malloc(((size_t)count + 1u) * sizeof(unsigned int));
-        nodes->parent = (unsigned int *)malloc(((size_t)count + 1u) * sizeof(unsigned int));
-        nodes->level = (unsigned int *)malloc(((size_t)count + 1u) * sizeof(unsigned int));
-        nodes->subtree_end = (unsigned int *)malloc(((size_t)count + 1u) * sizeof(unsigned int));
-        nodes->root = (unsigned int *)malloc(((size_t)count + 1u) * sizeof(unsigned int));
-        nodes->own = (unsigned int *)malloc((voxels + 1u) * sizeof(unsigned int));
+        nodes->voxel =
+            (unsigned int *)platform_cell_taken((unsigned long long)(((size_t)count + 1u) * sizeof(unsigned int)),
+                                                (unsigned int)platform_place_g_engine_owner, 0);
+        nodes->parent =
+            (unsigned int *)platform_cell_taken((unsigned long long)(((size_t)count + 1u) * sizeof(unsigned int)),
+                                                (unsigned int)platform_place_g_engine_owner, 0);
+        nodes->level =
+            (unsigned int *)platform_cell_taken((unsigned long long)(((size_t)count + 1u) * sizeof(unsigned int)),
+                                                (unsigned int)platform_place_g_engine_owner, 0);
+        nodes->subtree_end =
+            (unsigned int *)platform_cell_taken((unsigned long long)(((size_t)count + 1u) * sizeof(unsigned int)),
+                                                (unsigned int)platform_place_g_engine_owner, 0);
+        nodes->root =
+            (unsigned int *)platform_cell_taken((unsigned long long)(((size_t)count + 1u) * sizeof(unsigned int)),
+                                                (unsigned int)platform_place_g_engine_owner, 0);
+        nodes->own = (unsigned int *)platform_cell_taken((unsigned long long)((voxels + 1u) * sizeof(unsigned int)),
+                                                         (unsigned int)platform_place_g_engine_owner, 0);
         ok = MAX_TREE_HOST_CHECK((nodes->voxel != NULL) && (nodes->parent != NULL) && (nodes->level != NULL) &&
                                      (nodes->subtree_end != NULL) && (nodes->root != NULL) && (nodes->own != NULL),
                                  request, error, ENGINE_ERROR_RESOURCE);
     }
     ok = (ok != 0) && max_tree_nodes_build(tree, node_of, rank, count, nodes, error);
-    free(rank);
-    free(node_of);
+    platform_cell_released(rank, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(node_of, (unsigned int)platform_place_g_engine_owner);
     if (ok == 0)
     {
         max_tree_nodes_release(nodes);
@@ -449,7 +484,9 @@ long max_tree_probe_levels(const MaxTreeProbeRequest *request)
     {
         return 0L;
     }
-    unsigned long long *const keys = (unsigned long long *)malloc((size_t)probes * sizeof(unsigned long long));
+    unsigned long long *const keys =
+        (unsigned long long *)platform_cell_taken((unsigned long long)((size_t)probes * sizeof(unsigned long long)),
+                                                  (unsigned int)platform_place_g_engine_owner, 0);
     if (!MAX_TREE_HOST_CHECK(keys != NULL, request, error, ENGINE_ERROR_RESOURCE))
     {
         return MAX_TREE_ERROR;
@@ -489,6 +526,6 @@ long max_tree_probe_levels(const MaxTreeProbeRequest *request)
         }
         request->joined[at] = joined;
     }
-    free(keys);
+    platform_cell_released(keys, (unsigned int)platform_place_g_engine_owner);
     return (long)probes;
 }

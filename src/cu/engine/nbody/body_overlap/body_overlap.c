@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "body_overlap.h"
+#include "../../../../platform/platform.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -75,7 +76,8 @@ long body_overlap_host(const BodyOverlapRequest *args)
         return BODY_OVERLAP_ERROR;
     }
     const size_t voxels = (size_t)args->voxels;
-    unsigned long long *const pairs = (unsigned long long *)malloc(voxels * sizeof(unsigned long long));
+    unsigned long long *const pairs = (unsigned long long *)platform_cell_taken(
+        (unsigned long long)(voxels * sizeof(unsigned long long)), (unsigned int)platform_place_g_engine_owner, 0);
     if (pairs == NULL)
     {
         return BODY_OVERLAP_ERROR;
@@ -137,6 +139,6 @@ long body_overlap_host(const BodyOverlapRequest *args)
             }
         }
     }
-    free(pairs);
+    platform_cell_released(pairs, (unsigned int)platform_place_g_engine_owner);
     return answer;
 }

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_detector_structure.cu: structure
 #include "noise_detector_internal.h"
+#include "../../../../platform/platform.h"
 
 // a 128 bit value times a factor, limited to 128 bits
 __device__ static void noise_wide_scaled(unsigned long long low, unsigned long long high, unsigned long long factor,
@@ -115,9 +116,8 @@ void noise_exact_words(OriorExactInteger *value, const unsigned long long *words
 }
 
 // pooled gains a bin's centerd sum N sum u v - sum u sum v, exactly
-static int noise_centerd_add(OriorExactInteger *pooled, const OriorExactInteger *count,
-                             const OriorExactInteger *first, const OriorExactInteger *second,
-                             const OriorExactInteger *product)
+static int noise_centerd_add(OriorExactInteger *pooled, const OriorExactInteger *count, const OriorExactInteger *first,
+                             const OriorExactInteger *second, const OriorExactInteger *product)
 {
     OriorExactInteger term;
     return noise_exact_add_product(pooled, count, product) &&
@@ -162,7 +162,8 @@ extern "C" long noise_structure_volume(const unsigned short *volume, const unsig
     }
     const size_t lane_bytes = (size_t)(frames * voxels) * sizeof(unsigned short);
     const size_t sum_bytes = (size_t)NOISE_STRUCTURE_CELLS * sizeof(unsigned long long);
-    unsigned long long *const sums = (unsigned long long *)malloc(sum_bytes);
+    unsigned long long *const sums = (unsigned long long *)platform_cell_taken(
+        (unsigned long long)(sum_bytes), (unsigned int)platform_place_g_engine_owner, 0);
     unsigned short *device_lanes = NULL;
     unsigned long long *device_sums = NULL;
     int ok = NOISE_DETECTOR_CHECK(sums != NULL, &sums, error, ENGINE_ERROR_RESOURCE) &&
@@ -183,14 +184,15 @@ extern "C" long noise_structure_volume(const unsigned short *volume, const unsig
     cudaFree(device_sums);
     if (ok == 0)
     {
-        free(sums);
+        platform_cell_released(sums, (unsigned int)platform_place_g_engine_owner);
         return NOISE_DETECTOR_ERROR;
     }
     // the measurement's 28 exact integers are stored off the stack
-    NoiseStructureMeasurement *const read = (NoiseStructureMeasurement *)malloc(sizeof(NoiseStructureMeasurement));
+    NoiseStructureMeasurement *const read = (NoiseStructureMeasurement *)platform_cell_taken(
+        (unsigned long long)(sizeof(NoiseStructureMeasurement)), (unsigned int)platform_place_g_engine_owner, 0);
     if (!NOISE_DETECTOR_CHECK(read != NULL, &read, error, ENGINE_ERROR_RESOURCE))
     {
-        free(sums);
+        platform_cell_released(sums, (unsigned int)platform_place_g_engine_owner);
         return NOISE_DETECTOR_ERROR;
     }
     int formed = 1;
@@ -277,13 +279,13 @@ extern "C" long noise_structure_volume(const unsigned short *volume, const unsig
                  (orior_exact_multiply(&count, &denominator, &read->intercept_denominator[lag]) == ORIOR_EXACT_OK);
         read->slope_denominator[lag] = denominator;
     }
-    free(sums);
+    platform_cell_released(sums, (unsigned int)platform_place_g_engine_owner);
     if (!NOISE_DETECTOR_CHECK(formed, read, error, ENGINE_ERROR_RESOURCE))
     {
-        free(read);
+        platform_cell_released(read, (unsigned int)platform_place_g_engine_owner);
         return NOISE_DETECTOR_ERROR;
     }
     *measurement = *read;
-    free(read);
+    platform_cell_released(read, (unsigned int)platform_place_g_engine_owner);
     return 0L;
 }

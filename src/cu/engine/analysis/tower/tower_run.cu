@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tower_run.cu: allocation, edges, lifting and lowering
 #include "tower_internal.h"
+#include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 static int tower_reserve(size_t lanes, EngineError *error)
@@ -70,7 +71,9 @@ static int tower_edge_check(const TowerEdge *edges, unsigned int edge_count, uns
             return 0;
         }
         const unsigned long long entries = 1ULL << edge->index_bits;
-        unsigned char *const seen = (unsigned char *)calloc((size_t)entries, sizeof(unsigned char));
+        unsigned char *const seen = (unsigned char *)platform_cell_cleared(
+            (unsigned long long)((size_t)entries), (unsigned long long)(sizeof(unsigned char)),
+            (unsigned int)platform_place_g_engine_owner, 0);
         if (!TOWER_CHECK(seen != NULL, edge, error, ENGINE_ERROR_RESOURCE))
         {
             return 0;
@@ -88,7 +91,7 @@ static int tower_edge_check(const TowerEdge *edges, unsigned int edge_count, uns
                 seen[value] = 1u;
             }
         }
-        free(seen);
+        platform_cell_released(seen, (unsigned int)platform_place_g_engine_owner);
         if (!TOWER_CHECK(permutation != 0, edge, error, ENGINE_ERROR_REQUEST))
         {
             return 0;
@@ -162,7 +165,8 @@ static int tower_edge_run(const TowerEdge *edges, unsigned int edge_count, const
         unsigned int *inverted = NULL;
         if (inverse != 0)
         {
-            inverted = (unsigned int *)malloc((size_t)entries * sizeof(unsigned int));
+            inverted = (unsigned int *)platform_cell_taken((unsigned long long)((size_t)entries * sizeof(unsigned int)),
+                                                           (unsigned int)platform_place_g_engine_owner, 0);
             if (!TOWER_CHECK(inverted != NULL, edge, error, ENGINE_ERROR_RESOURCE))
             {
                 return 0;
@@ -182,7 +186,7 @@ static int tower_edge_run(const TowerEdge *edges, unsigned int edge_count, const
                                                                              resident->edge_table, edge->index_bits);
             ok = TOWER_STATUS_CHECK(cudaGetLastError(), resident->coefficients, error);
         }
-        free(inverted);
+        platform_cell_released(inverted, (unsigned int)platform_place_g_engine_owner);
     }
     return ok;
 }

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_detector_root.cu: the root pattern
 #include "noise_detector_internal.h"
+#include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 // the box's voxels, 0 where an axis is empty or the count passes NOISE_ROOT_VOXELS_MAX
@@ -140,10 +141,15 @@ extern "C" long noise_root_box(const NoiseRootRequest *request)
     NoiseRootMeasurement *const measurement = request->measurement;
     mmgr_bytes_set(measurement, 0, sizeof(*measurement));
     measurement->root = NOISE_ROOT_TERMS;
-    int *const values = (int *)malloc((size_t)voxels * sizeof(int));
-    int *const residual = (int *)malloc((size_t)voxels * sizeof(int));
-    int *const pattern = (int *)malloc((size_t)voxels * sizeof(int));
-    unsigned long long *const sums = (unsigned long long *)malloc((size_t)voxels * sizeof(unsigned long long));
+    int *const values = (int *)platform_cell_taken((unsigned long long)((size_t)voxels * sizeof(int)),
+                                                   (unsigned int)platform_place_g_engine_owner, 0);
+    int *const residual = (int *)platform_cell_taken((unsigned long long)((size_t)voxels * sizeof(int)),
+                                                     (unsigned int)platform_place_g_engine_owner, 0);
+    int *const pattern = (int *)platform_cell_taken((unsigned long long)((size_t)voxels * sizeof(int)),
+                                                    (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned long long *const sums =
+        (unsigned long long *)platform_cell_taken((unsigned long long)((size_t)voxels * sizeof(unsigned long long)),
+                                                  (unsigned int)platform_place_g_engine_owner, 0);
     int ok = NOISE_DETECTOR_CHECK((values != NULL) && (residual != NULL) && (pattern != NULL) && (sums != NULL),
                                   &values, error, ENGINE_ERROR_RESOURCE);
     if (ok != 0)
@@ -186,10 +192,10 @@ extern "C" long noise_root_box(const NoiseRootRequest *request)
         mmgr_bytes_copy(request->pattern, pattern,
                         (size_t)(extent[0] * extent[1] * extent[2] * extent[3]) * sizeof(int));
     }
-    free(values);
-    free(residual);
-    free(pattern);
-    free(sums);
+    platform_cell_released(values, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(residual, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(pattern, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(sums, (unsigned int)platform_place_g_engine_owner);
     return (ok != 0) ? 0L : NOISE_DETECTOR_ERROR;
 }
 

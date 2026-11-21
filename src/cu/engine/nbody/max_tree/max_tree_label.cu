@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // max_tree_label.cu: labeling
 #include "max_tree_device_internal.h"
+#include "../../../../platform/platform.h"
 
 __global__ static void max_tree_ranges_kernel(const unsigned int *residual, unsigned int voxels, unsigned int level,
                                               unsigned char *ranges)
@@ -234,7 +235,8 @@ extern "C" long max_tree_bind(const MaxTreeBindRequest *request)
     const unsigned long long proved_at_end = engine_clock_microseconds();
 
     unsigned int last = 0u;
-    unsigned int *const differ = (unsigned int *)malloc(proved_at * sizeof(unsigned int));
+    unsigned int *const differ = (unsigned int *)platform_cell_taken(
+        (unsigned long long)(proved_at * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
     ok =
         ok && MAX_TREE_CHECK(differ != NULL, &differ, error, ENGINE_ERROR_RESOURCE) &&
         MAX_TREE_STATUS_CHECK(cudaMemcpy(request->bound, device_bound, voxels * 3u, cudaMemcpyDeviceToHost),
@@ -275,7 +277,7 @@ extern "C" long max_tree_bind(const MaxTreeBindRequest *request)
     {
         *request->proved_microseconds = proved_at_end - bound_at;
     }
-    free(differ);
+    platform_cell_released(differ, (unsigned int)platform_place_g_engine_owner);
     cudaFree(device_residual);
     cudaFree(device_faces);
     cudaFree(device_belongs);

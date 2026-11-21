@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // orior_raster_output.c: the PGM, the volume and the device entry points
 #include "orior_raster_internal.h"
+#include "../../../platform/platform.h"
 
 int orior_raster_write_pgm(const char *path, const uint8_t *pixels, size_t width, size_t height)
 {
@@ -147,9 +148,9 @@ size_t orior_volume_cell_for(const OriorVolumeConfig *config, size_t alignment)
     }
 }
 
-int orior_volume_render_host(uint8_t *voxels, const OriorVolumeConfig *config, const uint8_t *corpus,
-                              size_t corpus_len, const uint8_t *needle, size_t needle_len,
-                              const OriorRasterProbe *probes, size_t probe_count, const void *census_in)
+int orior_volume_render_host(uint8_t *voxels, const OriorVolumeConfig *config, const uint8_t *corpus, size_t corpus_len,
+                             const uint8_t *needle, size_t needle_len, const OriorRasterProbe *probes,
+                             size_t probe_count, const void *census_in)
 {
     // RESERVED, NOT READ, AND NOT DELETED. The census below is built from `corpus`. A caller
     // supplied one is discarded here. The parameter stays because a tunable with no reader is an
@@ -169,7 +170,8 @@ int orior_volume_render_host(uint8_t *voxels, const OriorVolumeConfig *config, c
 
     const size_t cells = config->width * config->height * config->depth;
     // which cells an alignment reached; a cell nothing reaches writes ORIOR_RASTER_EMPTY
-    uint8_t *const filled = (uint8_t *)calloc(cells, 1u);
+    uint8_t *const filled = (uint8_t *)platform_cell_cleared((unsigned long long)(cells), (unsigned long long)(1u),
+                                                             (unsigned int)platform_place_g_engine_owner, 0);
     if (filled == NULL)
     {
         return 0;
@@ -184,7 +186,7 @@ int orior_volume_render_host(uint8_t *voxels, const OriorVolumeConfig *config, c
     // a decision that has one place, and the two copies would answer differently the first time a
     // channel is added to one of them.
     const OriorRasterConfig flat = {config->width,   config->height, ORIOR_LAYOUT_ROWS,
-                                     config->channel, config->reduce, config->gain};
+                                    config->channel, config->reduce, config->gain};
 
     OriorRasterCensus census;
     raster_census(&census, corpus, corpus_len);
@@ -197,21 +199,21 @@ int orior_volume_render_host(uint8_t *voxels, const OriorVolumeConfig *config, c
         {
             // The layout errored on this configuration. Erroring on every alignment identically
             // makes the error visible as an empty volume and not as a partial one.
-            free(filled);
+            platform_cell_released(filled, (unsigned int)platform_place_g_engine_owner);
             return 0;
         }
 
         const uint8_t value = orior_raster_sample(&flat, corpus, needle, needle_len, probes, probe_count, at,
-                                                   census.occurrences, census.total);
+                                                  census.occurrences, census.total);
         raster_reduce(voxels, filled, cell, value, config->reduce);
     }
-    free(filled);
+    platform_cell_released(filled, (unsigned int)platform_place_g_engine_owner);
     return 1;
 }
 
 int orior_volume_render(uint8_t *voxels, const OriorVolumeConfig *config, const uint8_t *corpus, size_t corpus_len,
-                         const uint8_t *needle, size_t needle_len, const OriorRasterProbe *probes, size_t probe_count,
-                         const void *census)
+                        const uint8_t *needle, size_t needle_len, const OriorRasterProbe *probes, size_t probe_count,
+                        const void *census)
 {
     // DEVICE FIRST WHERE THERE IS ONE, exactly as orior_raster_render does for a sheet. Both arms
     // produce the same bytes. This is a performance choice and never a correctness one.
@@ -224,7 +226,7 @@ int orior_volume_render(uint8_t *voxels, const OriorVolumeConfig *config, const 
         }
     }
     return orior_volume_render_host(voxels, config, corpus, corpus_len, needle, needle_len, probes, probe_count,
-                                     census);
+                                    census);
 }
 
 int orior_volume_write_raw(const char *path, const uint8_t *voxels, const OriorVolumeConfig *config)
@@ -289,7 +291,7 @@ int orior_raster_device_available(void)
 }
 
 int orior_raster_device(uint8_t *pixels, const OriorRasterConfig *config, const uint8_t *corpus, size_t corpus_len,
-                         const uint8_t *needle, size_t needle_len, const OriorRasterProbe *probes, size_t probe_count)
+                        const uint8_t *needle, size_t needle_len, const OriorRasterProbe *probes, size_t probe_count)
 {
     (void)pixels;
     (void)config;
@@ -308,8 +310,8 @@ int orior_volume_device_available(void)
 }
 
 int orior_volume_device(uint8_t *voxels, const OriorVolumeConfig *config, const uint8_t *corpus, size_t corpus_len,
-                         const uint8_t *needle, size_t needle_len, const OriorRasterProbe *probes, size_t probe_count,
-                         const void *census)
+                        const uint8_t *needle, size_t needle_len, const OriorRasterProbe *probes, size_t probe_count,
+                        const void *census)
 {
     (void)voxels;
     (void)config;

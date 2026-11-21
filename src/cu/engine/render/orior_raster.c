@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // orior_raster.c: the raster on the host
 #include "orior_raster_internal.h"
+#include "../../../platform/platform.h"
 
 /**
  * @brief Gray value for an alignment that died at `level`, or passed every probe.
@@ -116,8 +117,8 @@ size_t orior_raster_cell(const OriorRasterConfig *config, size_t at, size_t alig
 }
 
 uint8_t orior_raster_sample(const OriorRasterConfig *config, const uint8_t *corpus, const uint8_t *needle,
-                             size_t needle_len, const OriorRasterProbe *probes, size_t probe_count, size_t at,
-                             const uint64_t *occurrences, uint64_t total)
+                            size_t needle_len, const OriorRasterProbe *probes, size_t probe_count, size_t at,
+                            const uint64_t *occurrences, uint64_t total)
 {
     const uint8_t gain = (config->gain == 0u) ? 1u : config->gain;
 
@@ -185,7 +186,7 @@ void raster_reduce(uint8_t *values, uint8_t *filled, size_t cell, uint8_t value,
 }
 
 int orior_raster_host(uint8_t *pixels, const OriorRasterConfig *config, const uint8_t *corpus, size_t corpus_len,
-                       const uint8_t *needle, size_t needle_len, const OriorRasterProbe *probes, size_t probe_count)
+                      const uint8_t *needle, size_t needle_len, const OriorRasterProbe *probes, size_t probe_count)
 {
     if ((pixels == NULL) || (config == NULL) || (corpus == NULL) || (needle == NULL) || (config->width == 0u) ||
         (config->height == 0u) || (needle_len == 0u) || (needle_len > corpus_len))
@@ -199,7 +200,8 @@ int orior_raster_host(uint8_t *pixels, const OriorRasterConfig *config, const ui
 
     const size_t cells = config->width * config->height;
     // which cells an alignment reached; a cell nothing reaches writes ORIOR_RASTER_EMPTY
-    uint8_t *const filled = (uint8_t *)calloc(cells, 1u);
+    uint8_t *const filled = (uint8_t *)platform_cell_cleared((unsigned long long)(cells), (unsigned long long)(1u),
+                                                             (unsigned int)platform_place_g_engine_owner, 0);
     if (filled == NULL)
     {
         return 0;
@@ -216,10 +218,10 @@ int orior_raster_host(uint8_t *pixels, const OriorRasterConfig *config, const ui
     for (size_t at = 0u; at < alignments; at += 1u)
     {
         const uint8_t value = orior_raster_sample(config, corpus, needle, needle_len, probes, probe_count, at,
-                                                   census.occurrences, census.total);
+                                                  census.occurrences, census.total);
         raster_reduce(pixels, filled, orior_raster_cell(config, at, alignments), value, config->reduce);
     }
-    free(filled);
+    platform_cell_released(filled, (unsigned int)platform_place_g_engine_owner);
     return 1;
 }
 
@@ -271,7 +273,7 @@ const char *orior_raster_channel_name(OriorRasterChannel channel)
 }
 
 int orior_raster_render(uint8_t *pixels, const OriorRasterConfig *config, const uint8_t *corpus, size_t corpus_len,
-                         const uint8_t *needle, size_t needle_len, const OriorRasterProbe *probes, size_t probe_count)
+                        const uint8_t *needle, size_t needle_len, const OriorRasterProbe *probes, size_t probe_count)
 {
     /* DEVICE FIRST WHERE THERE IS ONE. Both arms produce the same bytes. This is a performance
      * choice and never a correctness one, and a machine carrying a device should use it without the

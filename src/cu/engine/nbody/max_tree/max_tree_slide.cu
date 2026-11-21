@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // max_tree_slide.cu: the sliding search
 #include "max_tree_device_internal.h"
+#include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 __global__ static void max_tree_slide_gather_kernel(const unsigned int *probe_voxels, unsigned int probes,
@@ -107,13 +108,15 @@ static int max_tree_slide_search(MaxTreeSlide *slide, unsigned int low, unsigned
         return 1;
     }
     const unsigned int middle = low + ((high - low) / 2u);
-    unsigned int *const middle_partition = (unsigned int *)malloc(((size_t)slide->probes + 1u) * sizeof(unsigned int));
+    unsigned int *const middle_partition =
+        (unsigned int *)platform_cell_taken((unsigned long long)(((size_t)slide->probes + 1u) * sizeof(unsigned int)),
+                                            (unsigned int)platform_place_g_engine_owner, 0);
     MaxTreeSlideStep middle_step;
     const int ok = MAX_TREE_CHECK(middle_partition != NULL, &middle_partition, error, ENGINE_ERROR_RESOURCE) &&
                    max_tree_slide_partition(slide, middle, middle_partition, &middle_step) &&
                    max_tree_slide_search(slide, middle, high, middle_partition, &middle_step, high_partition) &&
                    max_tree_slide_search(slide, low, middle, low_partition, low_step, middle_partition);
-    free(middle_partition);
+    platform_cell_released(middle_partition, (unsigned int)platform_place_g_engine_owner);
     return ok;
 }
 
@@ -154,9 +157,12 @@ extern "C" long max_tree_slide(const MaxTreeSlideRequest *request)
     const size_t voxels = resident->voxels;
     const size_t probe_capacity = (size_t)request->probe_count + 1u;
     unsigned int *device_probes = NULL;
-    slide.raw = (unsigned int *)malloc(probe_capacity * sizeof(unsigned int));
-    unsigned int *const low_partition = (unsigned int *)malloc(probe_capacity * sizeof(unsigned int));
-    unsigned int *const high_partition = (unsigned int *)malloc(probe_capacity * sizeof(unsigned int));
+    slide.raw = (unsigned int *)platform_cell_taken((unsigned long long)(probe_capacity * sizeof(unsigned int)),
+                                                    (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned int *const low_partition = (unsigned int *)platform_cell_taken(
+        (unsigned long long)(probe_capacity * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned int *const high_partition = (unsigned int *)platform_cell_taken(
+        (unsigned long long)(probe_capacity * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
     int ok =
         MAX_TREE_CHECK(slide.raw != NULL, &slide.raw, error, ENGINE_ERROR_RESOURCE) &&
         MAX_TREE_CHECK(low_partition != NULL, &low_partition, error, ENGINE_ERROR_RESOURCE) &&
@@ -200,9 +206,9 @@ extern "C" long max_tree_slide(const MaxTreeSlideRequest *request)
     {
         cudaEventDestroy(slide.blocks_done[1]);
     }
-    free(slide.raw);
-    free(low_partition);
-    free(high_partition);
+    platform_cell_released(slide.raw, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(low_partition, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(high_partition, (unsigned int)platform_place_g_engine_owner);
     if (ok == 0)
     {
         return MAX_TREE_ERROR;

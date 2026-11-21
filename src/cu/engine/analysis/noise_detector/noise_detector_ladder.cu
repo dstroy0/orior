@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_detector_ladder.cu: the ladder
 #include "noise_detector_internal.h"
+#include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 // A sample's quiet static voxels, their frames in blocks as the moment pass takes them, each retained block added to
@@ -25,7 +26,8 @@ static long noise_ladder_sample(const unsigned short *volume, const unsigned lon
     mmgr_bytes_set(sums, 0, sizeof(*sums));
     *left_out = 0ULL;
     unsigned long long ceiling = 0ULL;
-    unsigned char *const mask = (unsigned char *)malloc((size_t)voxels);
+    unsigned char *const mask = (unsigned char *)platform_cell_taken((unsigned long long)((size_t)voxels),
+                                                                     (unsigned int)platform_place_g_engine_owner, 0);
     int ok = NOISE_DETECTOR_CHECK(mask != NULL, &mask, error, ENGINE_ERROR_RESOURCE) &&
              NOISE_DETECTOR_CHECK(noise_static_mask(volume, frames, voxels, 1u, mask, &ceiling) != 0, mask, error,
                                   ENGINE_ERROR_RESOURCE);
@@ -35,10 +37,12 @@ static long noise_ladder_sample(const unsigned short *volume, const unsigned lon
         members += mask[voxel];
     }
     // one more than the members. A sample with none still allocates
-    unsigned long long *const places =
-        (unsigned long long *)malloc((size_t)(members + 1ULL) * sizeof(unsigned long long));
-    unsigned long long *const totals =
-        (unsigned long long *)calloc((size_t)(members + 1ULL), sizeof(unsigned long long));
+    unsigned long long *const places = (unsigned long long *)platform_cell_taken(
+        (unsigned long long)((size_t)(members + 1ULL) * sizeof(unsigned long long)),
+        (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned long long *const totals = (unsigned long long *)platform_cell_cleared(
+        (unsigned long long)((size_t)(members + 1ULL)), (unsigned long long)(sizeof(unsigned long long)),
+        (unsigned int)platform_place_g_engine_owner, 0);
     ok = ok && NOISE_DETECTOR_CHECK((places != NULL) && (totals != NULL), &places, error, ENGINE_ERROR_RESOURCE);
     if (ok != 0)
     {
@@ -118,9 +122,9 @@ static long noise_ladder_sample(const unsigned short *volume, const unsigned lon
             }
         }
     }
-    free(mask);
-    free(places);
-    free(totals);
+    platform_cell_released(mask, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(places, (unsigned int)platform_place_g_engine_owner);
+    platform_cell_released(totals, (unsigned int)platform_place_g_engine_owner);
     return (ok != 0) ? 0L : NOISE_DETECTOR_ERROR;
 }
 
@@ -136,7 +140,8 @@ extern "C" long noise_ladder_volume(const unsigned short *volume, const unsigned
     {
         return NOISE_DETECTOR_ERROR;
     }
-    NoiseLadderSums *const sums = (NoiseLadderSums *)malloc(sizeof(NoiseLadderSums));
+    NoiseLadderSums *const sums = (NoiseLadderSums *)platform_cell_taken(
+        (unsigned long long)(sizeof(NoiseLadderSums)), (unsigned int)platform_place_g_engine_owner, 0);
     unsigned long long left_out = 0ULL;
     int ok = NOISE_DETECTOR_CHECK(sums != NULL, &sums, error, ENGINE_ERROR_RESOURCE) &&
              (noise_ladder_sample(volume, extent, sums, &left_out, error) == 0L);
@@ -161,7 +166,7 @@ extern "C" long noise_ladder_volume(const unsigned short *volume, const unsigned
     }
     read.blocks = (sums != NULL) ? sums->blocks : 0ULL;
     read.left_out = left_out;
-    free(sums);
+    platform_cell_released(sums, (unsigned int)platform_place_g_engine_owner);
     const NoiseLine *const second = &read.cumulant[0];
     const NoiseLine *const third = &read.cumulant[1];
     const NoiseLine *const fourth = &read.cumulant[2];

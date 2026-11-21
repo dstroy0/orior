@@ -125,7 +125,9 @@ int tessera_measure_host(const TesseraMeasure *measure)
 
 TesseraMeasure *tessera_measure_open(const unsigned char device[TESSERA_DEVICE_BYTES], unsigned long long luid)
 {
-    TesseraMeasure *const measure = (TesseraMeasure *)calloc(1u, sizeof(TesseraMeasure));
+    TesseraMeasure *const measure =
+        (TesseraMeasure *)platform_cell_cleared((unsigned long long)(1u), (unsigned long long)(sizeof(TesseraMeasure)),
+                                                (unsigned int)platform_place_g_engine_owner, 0);
     if (measure == NULL)
     {
         return NULL;
@@ -208,7 +210,7 @@ void tessera_measure_close(TesseraMeasure *measure)
         dlclose(measure->library);
 #endif
     }
-    free(measure);
+    platform_cell_released(measure, (unsigned int)platform_place_g_engine_owner);
 }
 
 int tessera_measure_device(TesseraMeasure *measure, unsigned long long *capacity, unsigned long long *in_use)
@@ -284,7 +286,8 @@ int tessera_measure_process(TesseraMeasure *measure, unsigned long long pid, uns
     {
         return status == ERROR_SUCCESS;
     }
-    PDH_FMT_COUNTERVALUE_ITEM_A *const items = (PDH_FMT_COUNTERVALUE_ITEM_A *)malloc(bytes);
+    PDH_FMT_COUNTERVALUE_ITEM_A *const items = (PDH_FMT_COUNTERVALUE_ITEM_A *)platform_cell_taken(
+        (unsigned long long)(bytes), (unsigned int)platform_place_g_engine_owner, 0);
     if (items == NULL)
     {
         return 0;
@@ -303,7 +306,7 @@ int tessera_measure_process(TesseraMeasure *measure, unsigned long long pid, uns
             *used += (unsigned long long)items[at].FmtValue.largeValue;
         }
     }
-    free(items);
+    platform_cell_released(items, (unsigned int)platform_place_g_engine_owner);
     return ok;
 #else
     unsigned int count = 0u;
@@ -316,7 +319,9 @@ int tessera_measure_process(TesseraMeasure *measure, unsigned long long pid, uns
     {
         return 0;
     }
-    TesseraNvmlProcess *const list = (TesseraNvmlProcess *)calloc((size_t)count + 1u, sizeof(TesseraNvmlProcess));
+    TesseraNvmlProcess *const list = (TesseraNvmlProcess *)platform_cell_cleared(
+        (unsigned long long)((size_t)count + 1u), (unsigned long long)(sizeof(TesseraNvmlProcess)),
+        (unsigned int)platform_place_g_engine_owner, 0);
     if (list == NULL)
     {
         return 0;
@@ -332,7 +337,7 @@ int tessera_measure_process(TesseraMeasure *measure, unsigned long long pid, uns
             *used += ok ? list[at].used : 0ULL;
         }
     }
-    free(list);
+    platform_cell_released(list, (unsigned int)platform_place_g_engine_owner);
     return ok;
 #endif
 }
@@ -373,7 +378,9 @@ static unsigned long long tessera_started(unsigned long long pid)
 
 TesseraProcess *tessera_process_open(unsigned long long pid)
 {
-    TesseraProcess *const process = (TesseraProcess *)calloc(1u, sizeof(TesseraProcess));
+    TesseraProcess *const process =
+        (TesseraProcess *)platform_cell_cleared((unsigned long long)(1u), (unsigned long long)(sizeof(TesseraProcess)),
+                                                (unsigned int)platform_place_g_engine_owner, 0);
     if (process == NULL)
     {
         return NULL;
@@ -384,7 +391,7 @@ TesseraProcess *tessera_process_open(unsigned long long pid)
     process->handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | SYNCHRONIZE, FALSE, (DWORD)pid);
     if (process->handle == NULL)
     {
-        free(process);
+        platform_cell_released(process, (unsigned int)platform_place_g_engine_owner);
         return NULL;
     }
 #else
@@ -397,7 +404,7 @@ TesseraProcess *tessera_process_open(unsigned long long pid)
     process->started = tessera_started(pid);
     if ((process->descriptor < 0) && (process->started == 0ULL))
     {
-        free(process);
+        platform_cell_released(process, (unsigned int)platform_place_g_engine_owner);
         return NULL;
     }
 #endif
@@ -435,5 +442,5 @@ void tessera_process_release(TesseraProcess *process)
         close(process->descriptor);
     }
 #endif
-    free(process);
+    platform_cell_released(process, (unsigned int)platform_place_g_engine_owner);
 }
