@@ -21,6 +21,10 @@ mkdir -p "$OUT" "$OBJECTS"
 
 LEAN_PREFIX="$(cd "$LNG" && lean --print-prefix)" || { echo "  build failed: no Lean toolchain for theory/lng"; exit 2; }
 (cd "$LNG" && lake build LngLift:static > /dev/null) || { echo "  build failed: LngLift did not build"; exit 2; }
+# Lake names the archive Lng_LngLift.a on Windows and libLng_LngLift.a on every other system
+ARCHIVE="$LNG/.lake/build/lib/Lng_LngLift.a"
+[ -f "$ARCHIVE" ] || ARCHIVE="$LNG/.lake/build/lib/libLng_LngLift.a"
+[ -f "$ARCHIVE" ] || { echo "  build failed: Lake wrote no archive of LngLift"; exit 2; }
 
 # EXACT_TYPES_PLATFORM_PROGRAM holds flags, sources and libraries in one list. Each flag goes to every compile, each
 # source becomes an object, and each library goes to the link
@@ -54,6 +58,6 @@ for source in "${sources[@]}"; do
     objects+=("$object")
     place=$((place + 1))
 done
-"$LEAN_PREFIX/bin/leanc" -o "$OUT/lng_check_test" "${objects[@]}" "$LNG/.lake/build/lib/Lng_LngLift.a" \
+"$LEAN_PREFIX/bin/leanc" -o "$OUT/lng_check_test" "${objects[@]}" "$ARCHIVE" \
     "${libraries[@]}" || { echo "  build failed: lng_check_test did not link"; exit 2; }
 "$OUT/lng_check_test"
