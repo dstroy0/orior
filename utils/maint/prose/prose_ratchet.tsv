@@ -628,7 +628,6 @@ src/cu/transpiler/lstar/interface/interface.h	20
 src/cu/transpiler/lstar/interface/platform/interface_internal.h	7
 src/cu/transpiler/lstar/interface/platform/posix.c	16
 src/cu/transpiler/lstar/interface/platform/windows.c	20
-src/cu/transpiler/lstar/protocol/counterexample/ladder.h	54
 src/cu/transpiler/lstar/protocol/gate/chain_build.c	23
 src/cu/transpiler/lstar/protocol/gate/chain_build.h	16
 src/cu/transpiler/lstar/protocol/gate/survivors.h	7
@@ -1309,7 +1308,6 @@ utils/test/src/cu/transpiler/lstar/protocol/branch_side_check.c	26
 utils/test/src/cu/transpiler/lstar/protocol/bus_enum_check.c	7
 utils/test/src/cu/transpiler/lstar/protocol/chain_check.c	8
 utils/test/src/cu/transpiler/lstar/protocol/frame_check.c	14
-utils/test/src/cu/transpiler/lstar/protocol/gate_descent.c	20
 utils/test/src/cu/transpiler/lstar/protocol/hadamard_order_check.c	11
 utils/test/src/cu/transpiler/lstar/protocol/host_entry_check.c	2
 utils/test/src/cu/transpiler/lstar/protocol/overseer_carrier.c	8

@@ -21,6 +21,7 @@ tessera_run, which admits it on the device's daemon, and the daemon decides what
     harness.py docs ste                   every technical document checked against ASD-STE100 (harness_docs.py)
     harness.py evidence r                 the R hypotheses' CSVs written from build/corpora and each script run (harness_evidence.py)
     harness.py lng witness                every target table's probes run through its tool, each witness cell written (harness_lng.py)
+    harness.py lng prove                  the ladder cases and the matrix rows into theory/lng, and its Lean proofs built (harness_lng.py)
     harness.py source ...               the C sources read by the compiler and the linker's tools (harness_build.py)
     harness.py package [--check]          the install bundle: imp, tab and the license texts archived, installed and removed (harness_package.py)
     harness.py sonarqube ...              the server's project, scan and duplications (harness_sonarqube.py)

@@ -2,29 +2,32 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // gate_descent.c: the gate run as the engine's own sift descent, against every arrangement given every case
 //
-// The gate decides which arrangements satisfy a relation. Here it is the descent orior already runs over any
-// field it can test equality of. Each arrangement chain_build retains against a relation's ladder cases is an
-// alignment, the needle is those cases and then the words chain_build's own sweep puts, and the oracle answers
-// whether an arrangement gives a case the word the relation gives it.
+// The gate decides which arrangements satisfy a relation. Here it is the descent that orior runs over any field
+// where it can test equality. Each arrangement that chain_build retains against the ladder cases of a relation is an
+// alignment. The needle is those cases, and then the words of the sweep of chain_build. The oracle answers whether an
+// arrangement gives a case the word that the relation gives it.
 //
-// Three readings, each against a ground truth that does not depend on the descent:
+// The readings follow, each against a ground truth that does not depend on the descent.
 //
-//   survivors   what the descent leaves located, verified case by case, equals what every arrangement given every
-//               case leaves located, and both equal what chain_build retains with its sweep on
-//   depth       a descent with the destroy rule off leaves the same count as one with it on. Stopping where the best
-//               case prunes nothing gives up nothing, and this checks the descent against that claim
-//   cases       the cases the descent places, which are the ones that decide the relation
-//   queries        how many queries a target takes for every arrangement against those cases, by what one answer
-//   carries
+// Survivors: the descent leaves some arrangements located, and a check of each case verifies them. They equal what
+// every arrangement leaves located on every case. Both equal what chain_build retains with its sweep on. With a full
+// set of arrangements, each one that the sweep retains gives every case its word.
 //
-// The planning reads every case against every survivor at each level. That is the price of choosing well, and it is
-// paid on this host against arithmetic every system that computes agrees about. A target is queried only on the cases
-// the descent placed.
-#include "../../../../../../../src/cu/engine/nbody/orior/orior.h"
+// Depth: a descent with the destroy rule off leaves the same count as one with it on. The descent can stop where the
+// best case prunes nothing, and it gives up nothing there. This reading checks that claim.
+//
+// Cases: the cases that the descent places, which are the ones that decide the relation.
+//
+// Queries: how many queries a target takes for every arrangement against those cases, by what one answer carries.
+//
+// The plan reads every case against every survivor at each level, and a good choice needs that work. This host does
+// it, against arithmetic that every system that computes agrees about. The target gets questions only on the cases
+// that the descent placed.
 #include "../../../../../../../includes/file_defs/kdm/kdm.h"
+#include "../../../../../../../src/cu/engine/nbody/orior/orior.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/gate/chain_build.h"
-#include "verba_scribo/verba_scribo.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/teacher/run_channel.h"
+#include "verba_scribo/verba_scribo.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -142,8 +145,8 @@ static unsigned long long gate_split_queries(const unsigned char *checks, unsign
 
 // How many queries a target takes for every arrangement against every case placed, by what one answer carries. One
 // check a query; one bit a check, as many as the channel's answer words contain. And one bit over a set, 1 where every
-// check in it passes, halved on a 0. The last is also counted with the checks in an order drawn from a seed, because
-// how the failing checks sit together changes what halving costs
+// check in it passes, and the set halves on a 0. The last count comes again with the checks in an order from a seed.
+// The places of the checks that fail change what each halved set costs
 static void gate_queries_put(unsigned int anchor, unsigned int alignments, const size_t *chosen, unsigned int placed)
 {
     static unsigned char s_checks[CHAIN_MAX * GATE_DESCENTS_MAX * ORIOR_STEER_ANCHORS];
@@ -180,14 +183,14 @@ static void gate_queries_put(unsigned int anchor, unsigned int alignments, const
            s_anchor_text[anchor], checks, failing, checks, (checks + bits - 1u) / bits, bits, halved, drawn);
 }
 
-// the folder a target's half is written to, or NULL where none was named
+// the folder that gets a target's half, or NULL where the command line names none
 static const char *s_put_folder;
 
-// What a target is queried for `anchor`, passed to the run's writer in s_put_folder where one was named: <anchor>.kdm
-// (kdm.h), every arrangement the descent ran over as a row of a .kdm with the descent's verdict last, 1 located and 0
-// out, after a who line of the descent's, and <anchor>_cases.txt, the cases it placed, a line each as the two words and
-// the word the relation gives them. A target that runs every arrangement over the placed cases alone leaves located
-// what the descent leaves located
+// The questions for a target about `anchor`, to the run's writer in s_put_folder where the command line names one.
+// The first file is <anchor>.kdm (kdm.h), with a who line of the descent's first. Each arrangement of the descent is a
+// row of it, with the verdict of the descent last: 1 located and 0 out. The second file is <anchor>_cases.txt, the
+// cases that the descent placed. Each line holds the two words of a case and the word that the relation gives them.
+// A target that runs every arrangement over the placed cases alone leaves located what the descent leaves located
 static void gate_put(unsigned int anchor, unsigned int alignments, const size_t *chosen, unsigned int placed)
 {
     if (s_put_folder == NULL)
@@ -208,8 +211,8 @@ static void gate_put(unsigned int anchor, unsigned int alignments, const size_t 
             &(VerbaNumerusCfg){.out = s_rows_bytes, .cap = rows_room, .at = rows, .val = s_fitted.chain[at].nodes});
         rows = verba_littera.ch(&(VerbaLitteraCfg){.out = s_rows_bytes, .cap = rows_room, .at = rows, .ch = '\t'});
         rows = verba_textus.put(&(VerbaTextusCfg){.out = s_rows_bytes, .cap = rows_room, .at = rows, .text = text});
-        rows = verba_textus.put(
-            &(VerbaTextusCfg){.out = s_rows_bytes, .cap = rows_room, .at = rows, .text = "\t-\t0\t"});
+        rows =
+            verba_textus.put(&(VerbaTextusCfg){.out = s_rows_bytes, .cap = rows_room, .at = rows, .text = "\t-\t0\t"});
         rows = verba_numerus.u64(&(VerbaNumerusCfg){
             .out = s_rows_bytes, .cap = rows_room, .at = rows, .val = (s_survivors[at] != 0u) ? 1u : 0u});
         rows = verba_littera.ch(&(VerbaLitteraCfg){.out = s_rows_bytes, .cap = rows_room, .at = rows, .ch = '\n'});
@@ -234,8 +237,8 @@ static void gate_put(unsigned int anchor, unsigned int alignments, const size_t 
                                              s_gate.expected[which]};
         for (unsigned int word = 0u; word < 3u; word += 1u)
         {
-            cases = verba_numerus.hex(
-                &(VerbaNumerusCfg){.out = s_cases_bytes, .cap = cases_room, .at = cases, .val = words[word], .min = 8u});
+            cases = verba_numerus.hex(&(VerbaNumerusCfg){
+                .out = s_cases_bytes, .cap = cases_room, .at = cases, .val = words[word], .min = 8u});
             cases = verba_littera.ch(&(VerbaLitteraCfg){
                 .out = s_cases_bytes, .cap = cases_room, .at = cases, .ch = (word < 2u) ? ' ' : '\n'});
         }
@@ -282,8 +285,8 @@ static unsigned int gate_relation(unsigned int anchor, const LadderQuestion *cas
     {
         const size_t depth =
             ORIOR_STEER_CALL(orior_steer_spawn_coarms, OriorSteerDescent, .offsets = offsets,
-                              .count = ORIOR_STEER_ANCHORS, .survivors = s_survivors, .survivors_length = alignments,
-                              .sample_stride = 1u, .any = &field, .resume = resume);
+                             .count = ORIOR_STEER_ANCHORS, .survivors = s_survivors, .survivors_length = alignments,
+                             .sample_stride = 1u, .any = &field, .resume = resume);
         for (size_t index = 0u; index < depth; index += 1u)
         {
             const size_t at = offsets[index];
@@ -312,15 +315,29 @@ static unsigned int gate_relation(unsigned int anchor, const LadderQuestion *cas
     }
 
     ORIOR_STEER_CALL(orior_steer_spawn_coarms, OriorSteerDescent, .offsets = offsets, .count = ORIOR_STEER_ANCHORS,
-                      .survivors = s_one_descent, .survivors_length = alignments, .sample_stride = 1u, .any = &field);
+                     .survivors = s_one_descent, .survivors_length = alignments, .sample_stride = 1u, .any = &field);
     ORIOR_STEER_CALL(orior_steer_spawn_coarms, OriorSteerDescent, .offsets = offsets, .count = ORIOR_STEER_ANCHORS,
-                      .survivors = s_full_depth, .survivors_length = alignments, .sample_stride = 1u, .any = &field,
-                      .force_full_depth = 1);
+                     .survivors = s_full_depth, .survivors_length = alignments, .sample_stride = 1u, .any = &field,
+                     .force_full_depth = 1);
     const unsigned int stopped = gate_located(s_one_descent, alignments);
     const unsigned int continued = gate_located(s_full_depth, alignments);
 
+    // A full set holds the first CHAIN_MAX arrangements that fit the cases. The swept set holds the first CHAIN_MAX
+    // that pass the sweep, and the two counts then do not compare. Thus each arrangement of the swept set must give
+    // every case the word of the relation
+    unsigned int retained = (truth == built) ? 1u : 0u;
+    if (s_fitted.over != 0u)
+    {
+        s_gate.arrangements = &s_swept;
+        retained = 1u;
+        for (unsigned int at = 0u; at < built; at += 1u)
+        {
+            retained &= gate_matches_every_case(&s_gate, at);
+        }
+        s_gate.arrangements = &s_fitted;
+    }
     const unsigned int agreed =
-        ((lost == 0u) && (verified == truth) && (truth == built) && (stopped == continued)) ? 1u : 0u;
+        ((lost == 0u) && (verified == truth) && (retained != 0u) && (stopped == continued)) ? 1u : 0u;
     gate_put(anchor, alignments, chosen, placed);
     printf("  %-8s %4u fit the ladder, %4u satisfy every case, %4u retained by the sweep; %u case(s) placed, %4u "
            "located, "
@@ -331,8 +348,8 @@ static unsigned int gate_relation(unsigned int anchor, const LadderQuestion *cas
     return agreed;
 }
 
-// Given a folder, each relation's arrangements, the descent's verdict on each and the cases it placed are written there
-// for a target to be queried (gate_put)
+// Each relation measured. With a folder, gate_put writes into it the arrangements of each relation, the verdict of
+// the descent on each, and the cases that it placed. A target answers those questions
 int program_main(int count, char **words)
 {
     s_put_folder = (count > 1) ? words[1] : NULL;

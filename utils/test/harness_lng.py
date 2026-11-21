@@ -11,11 +11,16 @@ src/lng/transpiler_lng.tsv, takes the symbol to gsm. The cases of that anchor in
 writes them: 1,1->2 for add.
 
 A relation's probe is a template that sets `answer` from `left` and `right`. The command runs it on each case of the
-anchor at the ladder's word of 32 bits. A predicate answers the target's true or 0, and the target's true is what its
+anchor at the ladder's word of 32 bits. A case of one word gives `left`, and `right` is 0. A predicate answers the target's true or 0, and the target's true is what its
 `==` answers for 1,1, as the ladder reads SAME. A type's probe prints its expected output.
 
 Where every answer is the case's answer, the witness cell gets the tool and its version. Else the cell is empty. That
-row is a hole, and no lift goes through it. lng_check (src/lng/lng_check.sh) reads the tables and reports each hole."""
+row is a hole, and no lift goes through it. lng_check (src/lng/lng_check.sh) reads the tables and reports each hole.
+
+The command harness.py lng prove writes the cases of ladder.h into theory/lng/Lng/ladder_cases.lean. It writes the rows of
+gnascor_asm_lng.tsv into theory/lng/Lng/matrix_rows.lean, then builds theory/lng with lake. Each target has a Lean
+file, theory/lng/Lng/<target>_lng.lean. That file has a theorem for each witnessed relation, with the name of its
+bridge word. lng_check reports each relation with none."""
 
 import glob
 import os
@@ -42,7 +47,7 @@ C_CASE = 'uint32_t left = %su; uint32_t right = %su; uint32_t answer = 0u; %s pr
 PYTHON_CASE = "left = %s; right = %s; answer = 0; %s; print(int(answer))"
 
 # the ladder anchors whose answer is a predicate, true or false
-PREDICATES = {"same", "less", "at_max", "more", "at_least", "apart"}
+PREDICATES = {"same", "less", "at_max", "more", "at_least", "apart", "zero"}
 
 
 def ladder():
@@ -119,10 +124,12 @@ RUNNERS = {"c": (c_tool, c_output), "python": (python_tool, python_output)}
 
 
 def case_body(name, template, cases):
-    """The probe body that runs `template` on each of `cases`, one answer a line."""
+    """The probe body that runs `template` on each of `cases`, one answer a line. A case of one word puts 0 in
+    `right`."""
+    pairs = [(words[0], words[1] if len(words) > 1 else 0) for words, _ in cases]
     if name == "c":
-        return " ".join("{ " + C_CASE % (words[0], words[1], template) + ' printf("\\n"); }' for words, _ in cases)
-    return "\n".join(PYTHON_CASE % (words[0], words[1], template) for words, _ in cases)
+        return " ".join("{ " + C_CASE % (left, right, template) + ' printf("\\n"); }' for left, right in pairs)
+    return "\n".join(PYTHON_CASE % (left, right, template) for left, right in pairs)
 
 
 def relation_answers(name, output, folder, number, template, cases):
@@ -202,6 +209,80 @@ def cmd_witness(a):
     return code
 
 
+THEORY = os.path.join(ROOT, "theory", "lng")
+ASM = os.path.join(TABLES, "gnascor_asm_lng.tsv")
+
+
+def lean_text(text):
+    """`text` as a Lean string literal."""
+    return '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def write_ladder_cases():
+    """Lng/ladder_cases.lean: every case of ladder.h as Lean data, its anchor's text, its words and its answer."""
+    lines = ["/-! The cases of ladder.h, written by harness.py lng prove. Each is an anchor, its words and its answer. -/",
+             "", "namespace Lng.LadderCases", "", "def cases : List (String × List Nat × Nat) := ["]
+    entries = []
+    for anchor, cases in ladder().items():
+        for words, answer in cases:
+            entries.append("  (%s, [%s], %d)" % (lean_text(anchor), ", ".join(str(word) for word in words), answer))
+    lines.append(",\n".join(entries))
+    lines += ["]", "", "end Lng.LadderCases", ""]
+    with open(os.path.join(THEORY, "Lng", "ladder_cases.lean"), "w", encoding="utf-8", newline="\n") as handle:
+        handle.write("\n".join(lines))
+    return len(entries)
+
+
+def write_matrix_rows():
+    """Lng/matrix_rows.lean: every row of gnascor_asm_lng.tsv as Lean data, each cell a string."""
+    with open(ASM, encoding="utf-8") as handle:
+        rows = [line.split("\t") for line in handle.read().split("\n") if line != ""]
+    head = rows[0]
+    fields = ["mnemonic", "table", "past", "present", "past left", "past right", "present left", "present right",
+              "left", "right", "arrow"]
+    at = [head.index(field) if field in head else None for field in fields]
+    lines = ["/-! The rows of gnascor_asm_lng.tsv, written by harness.py lng prove. Each cell is a string. -/", "",
+             "namespace Lng.MatrixRows", "",
+             "structure Row where",
+             "  mnemonic : String", "  table : String", "  past : String", "  present : String",
+             "  pastLeft : String", "  pastRight : String", "  presentLeft : String", "  presentRight : String",
+             "  left : String", "  right : String", "  arrow : String", "",
+             "def rows : List Row := ["]
+    entries = []
+    for cells in rows[1:]:
+        values = [cells[place] if (place is not None and place < len(cells)) else "" for place in at]
+        entries.append("  ⟨" + ", ".join(lean_text(value) for value in values) + "⟩")
+    lines.append(",\n".join(entries))
+    lines += ["]", "", "end Lng.MatrixRows", ""]
+    with open(os.path.join(THEORY, "Lng", "matrix_rows.lean"), "w", encoding="utf-8", newline="\n") as handle:
+        handle.write("\n".join(lines))
+    return len(entries)
+
+
+def cmd_prove(a):
+    """The ladder's cases and the matrix rows written as Lean data, the proofs built, and no proof left open."""
+    cases = write_ladder_cases()
+    rows = write_matrix_rows()
+    print("lng prove: %d ladder cases and %d matrix rows written" % (cases, rows))
+    built = subprocess.run(["lake", "build"], cwd=THEORY)
+    if built.returncode != 0:
+        print("lng prove: lake build failed")
+        return 1
+    # lake build passes a theorem that sorry closes, and only shows a warning; this fails on it
+    open_proofs = []
+    for path in glob.glob(os.path.join(THEORY, "Lng", "*.lean")) + [os.path.join(THEORY, "Lng.lean")]:
+        with open(path, encoding="utf-8") as handle:
+            for number, line in enumerate(handle, start=1):
+                if re.search(r"\bsorry\b", line):
+                    open_proofs.append("%s:%d" % (os.path.relpath(path, ROOT).replace("\\", "/"), number))
+    for place in open_proofs:
+        print("lng prove: a proof is open at %s" % place)
+    if open_proofs:
+        return 1
+    print("lng prove: every proof is closed")
+    return 0
+
+
 def register(sub):
     """The lng group's commands added to harness.py's subparsers."""
     group = sub.add_parser("lng", help="the target tables of src/lng, each symbol bridged to a transpiler word")
@@ -209,3 +290,6 @@ def register(sub):
     p = lng.add_parser("witness", help="every target table's probes run, each witness cell written")
     p.add_argument("targets", nargs="*", help="the targets whose tables run, every table where none is named")
     p.set_defaults(fn=cmd_witness)
+    p = lng.add_parser("prove", help="the ladder's cases and the matrix rows written as Lean data, and the proofs of "
+                       "theory/lng built with no proof open")
+    p.set_defaults(fn=cmd_prove)

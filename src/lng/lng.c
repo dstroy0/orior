@@ -3,8 +3,8 @@
 // lng.c: the three language tables read, and each checked against the tree and against the others (lng.h)
 #include "lng.h"
 #include "../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
+#include "memoria_operor/memoria_linea.h"
 
 #include "../../includes/file_defs/klang/klang.h"
 #include "../../includes/parsers/who.h"
@@ -2095,4 +2095,55 @@ const char *lng_lift(const LngTable *transpiler, const LngTable *from, const cha
     const char *const taken = lng_lift_side(from, from_name, bridge, refusals);
     const char *const given = lng_lift_side(to, to_name, bridge, refusals);
     return ((taken != NULL) && (given != NULL)) ? given : NULL;
+}
+
+void lng_theorem_names(const char *const *line, unsigned int lines, LngList *names)
+{
+    static const char s_theorem[] = "theorem ";
+    for (unsigned int at = 0u; at < lines; at += 1u)
+    {
+        if (strncmp(line[at], s_theorem, sizeof(s_theorem) - 1u) != 0)
+        {
+            continue;
+        }
+        // a name that Lean keeps for itself goes in guillemets, as «not»
+        const char *start = line[at] + sizeof(s_theorem) - 1u;
+        const int guarded = (strncmp(start, "\xc2\xab", 2u) == 0);
+        start += guarded ? 2u : 0u;
+        size_t length = 0u;
+        while ((start[length] != '\0') && (start[length] != ' ') && (start[length] != ':') &&
+               (strncmp(&start[length], "\xc2\xbb", 2u) != 0))
+        {
+            length += 1u;
+        }
+        LngList name = {NULL, 0u, 0u};
+        lng_list_printed(&name, "%.*s", (int)length, start);
+        lng_set_add(names, name.text[0]);
+        lng_list_free(&name);
+    }
+}
+
+void lng_target_proofs(const LngTable *target, const char *name, const char *path, const LngList *theorems,
+                       LngList *findings)
+{
+    if (theorems == NULL)
+    {
+        lng_list_printed(findings, "%s has no proof file, %s", name, path);
+        return;
+    }
+    for (unsigned int row = 0u; row < target->rows; row += 1u)
+    {
+        const char *const bridge = lng_cell_or_none(target, row, "transpiler");
+        // a type and a hole have no proof to give: a type is a width, and a hole is no symbol of the relation
+        if ((strcmp(lng_cell_or_none(target, row, "type"), "type") == 0) || (bridge[0] == '\0') ||
+            (lng_cell_or_none(target, row, "witness")[0] == '\0'))
+        {
+            continue;
+        }
+        if (!lng_set_has(theorems, bridge))
+        {
+            lng_list_printed(findings, "%s's %s for %s has no proof in %s", name, lng_cell_or_none(target, row, "word"),
+                             bridge, path);
+        }
+    }
 }

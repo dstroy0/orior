@@ -51,21 +51,21 @@ idx	thing	CUDA's own
 dim	thing	CUDA's own																																																													
 warp	thing	CUDA's own																																																													
 size	thing	CUDA's own																																																													
-set	doing	a verb																																				1																									
+set	doing	a verb		copy																																		1																									
 copy	doing	a verb																																				1																									
 add	doing	a verb		add									1																																																		
 sub	doing	a verb		take										1																																																	
 borrow	doing	a verb												1																																																	
 mul	doing	a verb		product											1																																																
-div	doing	a verb														1																																															
-bitand	doing	a verb																1																																													
-bitor	doing	a verb																	1																																												
-bitxor	doing	a verb																		1																																											
+div	doing	a verb		quotient												1																																															
+bitand	doing	a verb		both														1																																													
+bitor	doing	a verb		either															1																																												
+bitxor	doing	a verb		differ																1																																											
 shl	doing	a verb		up																	1																																										
 shr	doing	a verb		down																		1																																									
 funnel	doing	a verb																				1																																									
 select	doing	a verb																																			1																										
-neg	doing	a verb																																1																													
+neg	doing	a verb		negate																														1																													
 absolute	doing	a verb																													1			1			1																										
 pack	doing	a verb																	1		1																																										
 unpack	doing	a verb																				1																	1																								
@@ -100,7 +100,7 @@ constant	doing	a word that follows the doing word																															
 atomic	doing	a word that follows the doing word																																																			1										
 from	gluing	a word that joins a name to a thing or a condition																																					1																								
 if	gluing	a word that joins a name to a thing or a condition																																										1																			
-unless	gluing	a word that joins a name to a thing or a condition																																		1								1																			
+unless	gluing	a word that joins a name to a thing or a condition		zero																																1								1																			
 and	gluing	a word that joins a name to a thing or a condition																														1																															
 or	gluing	a word that joins a name to a thing or a condition																															1																														
 register	ksc	a fold of the register a form writes			orior_measuring_stick_engine	read	the form's to moves a word of the constant bank	stick_kernel > value > read > fold																																																							
@@ -222,13 +222,13 @@ otherwise	gluing	a word that joins a name to a thing or a condition
 every	gluing	a word that joins a name to a thing or a condition																																																													
 all	gluing	a word that joins a name to a thing or a condition																																																													
 once	gluing	a word that joins a name to a thing or a condition																																																													
-not	doing	a verb																																	1																												
+not	doing	a verb		invert																															1																												
 carry	thing	a fixed name a lane reads																																																													
 nand	doing	a verb																1																	1																												
 nor	doing	a verb																	1																1																												
 rol	doing	a verb																	1		1	1																																									
 ror	doing	a verb																	1		1	1																																									
-rem	doing	a verb															1																																														
+rem	doing	a verb		remainder													1																																														
 part	record	a record a ruleset or a ksc line opens with																																																													
 field	record	a record a ruleset or a ksc line opens with																																																													
 ports	thing	the count of the memory writes the text makes in one state																																																													
@@ -308,10 +308,10 @@ h	doing	the Hadamard gate on one qubit	openqasm2_0
 add_assign	doing	a verb		add																																																		1									
 sub_assign	doing	a verb		take																																																			1								
 mul_assign	doing	a verb		product																																																				1							
-div_assign	doing	a verb																																																							1						
-rem_assign	doing	a verb																																																								1					
-bitand_assign	doing	a verb																																																									1				
-bitor_assign	doing	a verb																																																										1			
-bitxor_assign	doing	a verb																																																											1		
+div_assign	doing	a verb		quotient																																																					1						
+rem_assign	doing	a verb		remainder																																																						1					
+bitand_assign	doing	a verb		both																																																							1				
+bitor_assign	doing	a verb		either																																																								1			
+bitxor_assign	doing	a verb		differ																																																									1		
 shl_assign	doing	a verb		up																																																										1	
 shr_assign	doing	a verb		down																																																											1

@@ -722,6 +722,37 @@ int main(void)
         expect("a lift into a hole", &refusals, s_hole, 1u);
         expect_count("a lift into a hole", unwitnessed == NULL, 1u);
         lng_list_free(&refusals);
+
+        // the proofs: the theorem names of a Lean file, one in guillemets, and a def that is no theorem
+        static const char *const s_lean[4] = {
+            "theorem add (a b : Word) : True := trivial",
+            "theorem \xc2\xab"
+            "not"
+            "\xc2\xbb (a : Word) : True := trivial",
+            "def sub := 0",
+            "  theorem inner : True := trivial",
+        };
+        LngList theorems = {NULL, 0u, 0u};
+        lng_theorem_names(s_lean, 4u, &theorems);
+        static const char *const s_named[2] = {"add", "not"};
+        expect("the theorems of a Lean file", &theorems, s_named, 2u);
+        // a witnessed relation with a theorem, one with none, a type and a hole: only the second is a finding
+        language_head(&lines);
+        language_row(&lines, "+", "core op", "", "python", "", "", "add", s_add, 1u);
+        language_row(&lines, "-", "core op", "", "python", "", "", "sub", NULL, 0u);
+        language_row(&lines, "uint32_t", "type", "32 0", "python", "32", "0", "word", NULL, 0u);
+        language_row(&lines, "*", "core op", "", "", "", "", "mul", NULL, 0u);
+        table_of(&lines, &py, &defects);
+        lng_target_proofs(&py, "py", "Lng/py_lng.lean", &theorems, &findings);
+        static const char *const s_unproven[1] = {"py's - for sub has no proof in Lng/py_lng.lean"};
+        expect("a witnessed relation with no theorem", &findings, s_unproven, 1u);
+        lng_list_free(&findings);
+        lng_target_proofs(&py, "py", "Lng/py_lng.lean", NULL, &findings);
+        static const char *const s_no_file[1] = {"py has no proof file, Lng/py_lng.lean"};
+        expect("a target with no Lean file", &findings, s_no_file, 1u);
+        lng_list_free(&findings);
+        lng_list_free(&theorems);
+        lng_list_free(&defects);
         lng_table_free(&py);
         lng_table_free(&c);
         lng_table_free(&bridge);

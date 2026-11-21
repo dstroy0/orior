@@ -211,6 +211,16 @@ extern "C"
     const char *lng_lift(const LngTable *transpiler, const LngTable *from, const char *from_name, const LngTable *to,
                          const char *to_name, const char *bridge, LngList *refusals);
 
+    // The name of each theorem a Lean file states, `lines` of its lines at `line`, into the set `names`. A theorem
+    // starts a line with `theorem `, and a name in guillemets, as «not», goes in without them
+    void lng_theorem_names(const char *const *line, unsigned int lines, LngList *names);
+
+    // The proofs of the target table `target`, named `name`, against the theorems of its Lean file at `path`. Each
+    // witnessed relation row needs a theorem with the name of its bridge word, and a finding goes into `findings`
+    // for each row with none. Where `theorems` is NULL, the target has no Lean file, and that is one finding
+    void lng_target_proofs(const LngTable *target, const char *name, const char *path, const LngList *theorems,
+                           LngList *findings);
+
 #ifdef __cplusplus
 }
 #endif

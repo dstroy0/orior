@@ -226,6 +226,20 @@ int main(void)
         name[(length > 4u) ? (length - 4u) : length] = '\0';
         lng_list_add(&target_names, name);
         lng_target_check(&table, read, name, &defects, &findings);
+        // each witnessed relation of the table has a theorem of its bridge word in its Lean file
+        LngList proof_path = {NULL, 0u, 0u};
+        LngList theorems = {NULL, 0u, 0u};
+        lng_list_printed(&proof_path, "theory/lng/Lng/%s_lng.lean", name);
+        static KfileLines s_proof;
+        const int proven = kfile_lines_read(&s_proof, proof_path.text[0]);
+        if (proven)
+        {
+            lng_theorem_names((const char *const *)s_proof.line, s_proof.lines, &theorems);
+        }
+        lng_target_proofs(read, name, proof_path.text[0], proven ? &theorems : NULL, &findings);
+        lng_list_free(&theorems);
+        lng_list_free(&proof_path);
+        kfile_lines_free(&s_proof);
         // each bridge word a row gives is a use of that transpiler word
         for (unsigned int row = 0u; row < read->rows; row += 1u)
         {

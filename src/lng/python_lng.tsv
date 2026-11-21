@@ -1,14 +1,22 @@
 word	type	names	probe	expected	witness	selected_by_process	selected_by_step	selected_by_branch	selected_by_fulltrace	bits	signed	transpiler	+	-	*	/	%	&	|	^	<<	>>	<	<=	>	>=	==	!=	==0	!=0	<0	&&	||	-x	~x	!x	?:	=	(T)	*p	*p=	f()	.	if	return	goto	label:	switch	{}	T x	//	const	atomic()	+=	-=	*=	/=	%=	&=	|=	^=	<<=	>>=
-=	plain	a name given a value										set																										1																									
-+	core op	the sum of two values	answer = left + right									add	1																																																		
--	core op	the difference of two values	answer = left - right									sub		1																																																	
-*	core op	the product of two values	answer = left * right		python 3.14.6							mul			1																																																
-//	core op	the quotient of two integers, rounded down										div				1																																															
-%	core op	the remainder of the quotient rounded down, with the sign of the divisor										rem					1																																														
-&	core op	the bitwise AND of two values										bitand						1																																													
-|	core op	the bitwise OR of two values										bitor							1																																												
-^	core op	the bitwise exclusive OR of two values										bitxor								1																																											
-<<	core op	a value with its bits moved to the left	answer = left << right									shl									1																																										
+ctypes.c_int8	type	a signed integer of exactly 8 bits, from the ctypes module	import ctypes; print(ctypes.sizeof(ctypes.c_int8) * 8, int(ctypes.c_int8(-1).value < 0))	8 1	python 3.14.6					8	1	signed_byte																																																			
+ctypes.c_uint8	type	a unsigned integer of exactly 8 bits, from the ctypes module	import ctypes; print(ctypes.sizeof(ctypes.c_uint8) * 8, int(ctypes.c_uint8(-1).value < 0))	8 0	python 3.14.6					8	0	byte																																																			
+ctypes.c_int16	type	a signed integer of exactly 16 bits, from the ctypes module	import ctypes; print(ctypes.sizeof(ctypes.c_int16) * 8, int(ctypes.c_int16(-1).value < 0))	16 1	python 3.14.6					16	1	signed_halfword																																																			
+ctypes.c_uint16	type	a unsigned integer of exactly 16 bits, from the ctypes module	import ctypes; print(ctypes.sizeof(ctypes.c_uint16) * 8, int(ctypes.c_uint16(-1).value < 0))	16 0	python 3.14.6					16	0	halfword																																																			
+ctypes.c_int32	type	a signed integer of exactly 32 bits, from the ctypes module	import ctypes; print(ctypes.sizeof(ctypes.c_int32) * 8, int(ctypes.c_int32(-1).value < 0))	32 1	python 3.14.6					32	1	signed_word																																																			
+ctypes.c_uint32	type	a unsigned integer of exactly 32 bits, from the ctypes module	import ctypes; print(ctypes.sizeof(ctypes.c_uint32) * 8, int(ctypes.c_uint32(-1).value < 0))	32 0	python 3.14.6					32	0	word																																																			
+ctypes.c_int64	type	a signed integer of exactly 64 bits, from the ctypes module	import ctypes; print(ctypes.sizeof(ctypes.c_int64) * 8, int(ctypes.c_int64(-1).value < 0))	64 1	python 3.14.6					64	1	signed_wide																																																			
+ctypes.c_uint64	type	a unsigned integer of exactly 64 bits, from the ctypes module	import ctypes; print(ctypes.sizeof(ctypes.c_uint64) * 8, int(ctypes.c_uint64(-1).value < 0))	64 0	python 3.14.6					64	0	wide																																																			
+=	plain	a name given a value	answer = left		python 3.14.6							set																										1																									
++ & 0xffffffff	core op	the sum of two values, cut to the 32 places of a word	answer = (left + right) & 0xffffffff		python 3.14.6							add	1																																																		
+- & 0xffffffff	core op	the difference of two values, cut to the 32 places of a word	answer = (left - right) & 0xffffffff		python 3.14.6							sub		1																																																	
+* & 0xffffffff	core op	the product of two values, cut to the 32 places of a word	answer = (left * right) & 0xffffffff		python 3.14.6							mul			1																																																
+//	core op	the quotient of two integers, rounded down	answer = left // right		python 3.14.6							div				1																																															
+%	core op	the remainder of the quotient rounded down, with the sign of the divisor	answer = left % right		python 3.14.6							rem					1																																														
+&	core op	the bitwise AND of two values	answer = left & right		python 3.14.6							bitand						1																																													
+|	core op	the bitwise OR of two values	answer = left | right		python 3.14.6							bitor							1																																												
+^	core op	the bitwise exclusive OR of two values	answer = left ^ right		python 3.14.6							bitxor								1																																											
+<< & 0xffffffff	core op	a value with its bits moved to the left, cut to the 32 places of a word	answer = (left << right) & 0xffffffff		python 3.14.6							shl									1																																										
 >>	core op	a value with its bits moved to the right, and its sign kept	answer = left >> right		python 3.14.6							shr										1																																									
 <	core op	True where the first value is less than the second, and False where it is not	answer = left < right		python 3.14.6							lt											1																																								
 <=	core op	True where the first value is not more than the second, and False where it is	answer = left <= right		python 3.14.6							le												1																																							
@@ -16,16 +24,16 @@ word	type	names	probe	expected	witness	selected_by_process	selected_by_step	sele
 >=	core op	True where the first value is not less than the second, and False where it is	answer = left >= right		python 3.14.6							ge														1																																					
 ==	core op	True where two values are the same, and False where they are not	answer = left == right		python 3.14.6							eq															1																																				
 !=	core op	True where two values are not the same, and False where they are	answer = left != right		python 3.14.6							ne																1																																			
--	core op	the negative of a value										neg																						1																													
-~	core op	a value with each of its bits inverted										not																							1																												
-not	core op	True where a value is false, and False where it is not										unless																								1																											
-+=	core op	a name given its value plus a value	left += right; answer = left									add_assign																																										1									
--=	core op	a name given its value minus a value	left -= right; answer = left									sub_assign																																											1								
-*=	core op	a name given its value times a value	left *= right; answer = left		python 3.14.6							mul_assign																																												1							
-//=	core op	a name given the quotient of its value and a value, rounded down										div_assign																																													1						
-%=	core op	a name given the remainder of its value and a value, with the sign of the divisor										rem_assign																																														1					
-&=	core op	a name given the bitwise AND of its value and a value										bitand_assign																																															1				
-|=	core op	a name given the bitwise OR of its value and a value										bitor_assign																																																1			
-^=	core op	a name given the bitwise exclusive OR of its value and a value										bitxor_assign																																																	1		
-<<=	core op	a name given its value with its bits moved to the left	left <<= right; answer = left									shl_assign																																																		1	
+- & 0xffffffff	core op	the negative of a value, cut to the 32 places of a word	answer = (-left) & 0xffffffff		python 3.14.6							neg																						1																													
+~ & 0xffffffff	core op	a value with each of its bits inverted, cut to the 32 places of a word	answer = (~left) & 0xffffffff		python 3.14.6							not																							1																												
+not	core op	True where a value is false, and False where it is not	answer = not left		python 3.14.6							unless																								1																											
++= &= 0xffffffff	core op	a name given its value plus a value	left += right; left &= 0xffffffff; answer = left		python 3.14.6							add_assign																																										1									
+-= &= 0xffffffff	core op	a name given its value minus a value	left -= right; left &= 0xffffffff; answer = left		python 3.14.6							sub_assign																																											1								
+*= &= 0xffffffff	core op	a name given its value times a value	left *= right; left &= 0xffffffff; answer = left		python 3.14.6							mul_assign																																												1							
+//=	core op	a name given the quotient of its value and a value, rounded down	left //= right; answer = left		python 3.14.6							div_assign																																													1						
+%=	core op	a name given the remainder of its value and a value, with the sign of the divisor	left %= right; answer = left		python 3.14.6							rem_assign																																														1					
+&=	core op	a name given the bitwise AND of its value and a value	left &= right; answer = left		python 3.14.6							bitand_assign																																															1				
+|=	core op	a name given the bitwise OR of its value and a value	left |= right; answer = left		python 3.14.6							bitor_assign																																																1			
+^=	core op	a name given the bitwise exclusive OR of its value and a value	left ^= right; answer = left		python 3.14.6							bitxor_assign																																																	1		
+<<= &= 0xffffffff	core op	a name given its value with its bits moved to the left	left <<= right; left &= 0xffffffff; answer = left		python 3.14.6							shl_assign																																																		1	
 >>=	core op	a name given its value with its bits moved to the right, and its sign kept	left >>= right; answer = left		python 3.14.6							shr_assign																																																			1
