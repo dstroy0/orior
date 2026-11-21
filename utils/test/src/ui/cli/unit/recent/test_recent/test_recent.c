@@ -26,44 +26,20 @@ void setUp(void)
 void tearDown(void)
 {
 }
-// The test's copy of the rows the list passes. It holds the text of each row, the rows that point into it
-// and how many calls the copier took
-// the calls to the copier
-typedef struct
+// the list `list`, at max `max` rows, read into `text`, `capacity` bytes, with `rows` pointed into it: how many
+static unsigned int listed_into(unsigned int list, unsigned int max, char *text, unsigned long long capacity,
+                                const char **rows)
 {
-    char (*text)[CLI_PATH_MAX_LEN];
-    const char **rows;
-    unsigned int calls;
-} RecentCopy;
-
-// each row the list passes copied into the test's text, and the row pointed at its copy
-static void recent_copied(const CliEachRowsCountCfg *args)
-{
-    RecentCopy *const copy = args->context;
-    copy->calls += 1u;
-    for (unsigned int at = 0u; at < args->count; at += 1u)
-    {
-        const unsigned long long length =
-            cellul.len(&(CatenaFinitaCfg){.src = args->rows[at], .cap = CLI_PATH_MAX_LEN - 1u});
-        memor.cpy(&(MemoriaCfg){.dst = copy->text[at], .src = args->rows[at], .bytes = length});
-        copy->text[at][length] = '\0';
-        copy->rows[at] = copy->text[at];
-    }
+    return EMBED_CALL(cli_recent.read, CliRecentCfg, .list = list, .max = max, .text_out = text, .capacity = capacity,
+                      .rows_out = rows);
 }
 
-// the list `list`, at max `max` rows, copied into `text` and `rows`: how many
-static unsigned int listed_into(unsigned int list, unsigned int max, char (*text)[CLI_PATH_MAX_LEN], const char **rows)
-{
-    RecentCopy copy = {text, rows, 0u};
-    return EMBED_CALL(cli_recent.each, CliRecentCfg, .list = list, .max = max, .each = recent_copied, .context = &copy);
-}
-
-// the list `list` into `rows`, sized for CLI_RECENT_MAX: how many. The rows point into the suite's one copy, and the
+// the list `list` into `rows`, sized for CLI_RECENT_MAX: how many. The rows point into the suite's one buffer, and the
 // next call writes over it
-static char s_listed[CLI_RECENT_MAX][CLI_PATH_MAX_LEN];
+static char s_listed[CLI_RECENT_MAX * CLI_PATH_MAX_LEN];
 static unsigned int listed(unsigned int list, const char **rows)
 {
-    return listed_into(list, CLI_RECENT_MAX, s_listed, rows);
+    return listed_into(list, CLI_RECENT_MAX, s_listed, sizeof(s_listed), rows);
 }
 
 void test_a_push_puts_the_newest_first(void)
@@ -119,8 +95,9 @@ void test_the_files_and_the_commands_are_apart(void)
     const char *commands[CLI_RECENT_MAX];
     const char *files[CLI_RECENT_MAX];
     // the commands' rows in a copy of this test's own: the helper writes over its copy when it lists the files
-    static char s_commands[CLI_RECENT_MAX][CLI_PATH_MAX_LEN];
-    const unsigned int command_count = listed_into(CLI_RECENT_COMMANDS, CLI_RECENT_MAX, s_commands, commands);
+    static char s_commands[CLI_RECENT_MAX * CLI_PATH_MAX_LEN];
+    const unsigned int command_count =
+        listed_into(CLI_RECENT_COMMANDS, CLI_RECENT_MAX, s_commands, sizeof(s_commands), commands);
     const unsigned int file_count = listed(CLI_RECENT_FILES, files);
     TEST_ASSERT_EQUAL_UINT(2u, command_count);
     TEST_ASSERT_EQUAL_STRING("palette", commands[0]);
@@ -144,18 +121,16 @@ void test_an_empty_entry_or_one_with_a_line_end_changes_nothing(void)
     EMBED_CALL(cli_recent.push, CliRecentCfg, .list = CLI_RECENT_LISTS, .entry = "no list");
     TEST_ASSERT_EQUAL_UINT(before, listed(CLI_RECENT_COMMANDS, rows));
     TEST_ASSERT_EQUAL_STRING(first, rows[0]);
-    // a list past the lists answers none and does not go to the copier
-    RecentCopy none = {s_listed, rows, 0u};
-    TEST_ASSERT_EQUAL_UINT(0u, EMBED_CALL(cli_recent.each, CliRecentCfg, .list = CLI_RECENT_LISTS, .max = 3u,
-                                          .each = recent_copied, .context = &none));
-    TEST_ASSERT_EQUAL_UINT(0u, none.calls);
+    // a list past the lists has no bytes and reads none
+    TEST_ASSERT_EQUAL_UINT64(0ull, EMBED_CALL(cli_recent.bytes, CliRecentCfg, .list = CLI_RECENT_LISTS));
+    TEST_ASSERT_EQUAL_UINT(0u, listed(CLI_RECENT_LISTS, rows));
 }
 
 void test_a_list_asked_for_fewer_answers_its_newest(void)
 {
     EMBED_CALL(cli_recent.push, CliRecentCfg, .list = CLI_RECENT_COMMANDS, .entry = "line");
     const char *rows[2];
-    TEST_ASSERT_EQUAL_UINT(1u, listed_into(CLI_RECENT_COMMANDS, 1u, s_listed, rows));
+    TEST_ASSERT_EQUAL_UINT(1u, listed_into(CLI_RECENT_COMMANDS, 1u, s_listed, sizeof(s_listed), rows));
     TEST_ASSERT_EQUAL_STRING("line", rows[0]);
 }
 

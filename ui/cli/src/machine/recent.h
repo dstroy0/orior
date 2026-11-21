@@ -17,33 +17,38 @@ typedef struct CliRecentCfg CliRecentCfg;
 #define CLI_RECENT_LISTS 2u
 #define CLI_RECENT_MAX 20u
 
-// `entry` put first in the list `list`, out of the place it was where it was in it already, the oldest past
-// CLI_RECENT_MAX let go, and the list stored; an entry empty or with a line end in it changes nothing.
+// `entry` put first in the list `list`, and taken out of its old place where the list holds it already. The oldest
+// past CLI_RECENT_MAX goes, and the list goes into orior's folder. An empty entry, or one with a line end, changes
+// nothing.
 //
-// The list `list`, at max `max` of its entries, newest first, goes to `each` with `context` as one set of rows. The
-// rows are in a temporary cell of the recent module. They stay valid for the call to `each` alone, and the module
-// gives the cell back before it returns. A list with no entries goes to `each` as 0 rows, and a list past
-// CLI_RECENT_LISTS does not go to `each`. Returns the row count
+// The list's entries are in a movable cell of the recent module. A caller reads them into a buffer of its own call.
+// The first call gives the bytes of the list `list`'s entries and their ends, 0 where it has none or is no list.
+// The second reads at max `max` entries, newest first, into `text_out`, `capacity` bytes. It points `rows_out`,
+// sized for `max`, at each entry there. It returns how many, 0 where the entries do not fit the capacity
 void cli_recent_push(const CliRecentCfg *args);
-unsigned int cli_recent_each(const CliRecentCfg *args);
+unsigned long long cli_recent_bytes(const CliRecentCfg *args);
+unsigned int cli_recent_read(const CliRecentCfg *args);
 struct CliRecentCfg
 {
     unsigned int list;
     const char *entry;
     unsigned int max;
-    void (*each)(const CliEachRowsCountCfg *args);
-    void *context;
+    char *text_out;
+    unsigned long long capacity;
+    const char **rows_out;
 };
 
 typedef struct
 {
     void (*push)(const CliRecentCfg *args);
-    unsigned int (*each)(const CliRecentCfg *args);
+    unsigned long long (*bytes)(const CliRecentCfg *args);
+    unsigned int (*read)(const CliRecentCfg *args);
 } CliRecentNs;
-EMBED_TABLE_LAYOUT(CliRecentNs, push, each);
+EMBED_TABLE_LAYOUT(CliRecentNs, push, bytes, read);
 EMBED_TABLE_STORAGE CliRecentNs cli_recent EMBED_UNUSED = {
     .push = cli_recent_push,
-    .each = cli_recent_each,
+    .bytes = cli_recent_bytes,
+    .read = cli_recent_read,
 };
 
 #endif

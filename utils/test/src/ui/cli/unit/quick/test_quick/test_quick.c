@@ -373,16 +373,6 @@ void test_shift_twice_within_its_time_opens_search_everywhere(void)
     TEST_ASSERT_EQUAL_UINT(CLI_QUICK_EVERYWHERE, viewed().mode);
 }
 
-// the newest row the recent list passes, copied into `context`, CLI_PATH_MAX_LEN bytes; empty where it passes none
-static void newest_copied(const CliEachRowsCountCfg *args)
-{
-    char *const newest = args->context;
-    const unsigned long long length =
-        (args->count != 0u) ? cellul.len(&(CatenaFinitaCfg){.src = args->rows[0], .cap = CLI_PATH_MAX_LEN - 1u}) : 0ULL;
-    memor.cpy(&(MemoriaCfg){.dst = newest, .src = (args->count != 0u) ? args->rows[0] : "", .bytes = length});
-    newest[length] = '\0';
-}
-
 void test_a_command_chosen_answers_its_word_and_runs_first_after(void)
 {
     opened("palette", 0, "close all editors");
@@ -392,10 +382,11 @@ void test_a_command_chosen_answers_its_word_and_runs_first_after(void)
     TEST_ASSERT_TRUE(EMBED_CALL(cli_quick.choose, CliQuickCfg, .at = 0u, .choice_out = &choice));
     TEST_ASSERT_EQUAL_UINT(CLI_QUICK_CHOSE_COMMAND, choice.type);
     TEST_ASSERT_EQUAL_STRING("close-all", choice.command);
-    char newest[CLI_PATH_MAX_LEN];
-    TEST_ASSERT_EQUAL_UINT(1u, EMBED_CALL(cli_recent.each, CliRecentCfg, .list = CLI_RECENT_COMMANDS, .max = 1u,
-                                          .each = newest_copied, .context = newest));
-    TEST_ASSERT_EQUAL_STRING("close-all", newest);
+    char text[CLI_PATH_MAX_LEN];
+    const char *rows[1];
+    TEST_ASSERT_EQUAL_UINT(1u, EMBED_CALL(cli_recent.read, CliRecentCfg, .list = CLI_RECENT_COMMANDS, .max = 1u,
+                                          .text_out = text, .capacity = sizeof(text), .rows_out = rows));
+    TEST_ASSERT_EQUAL_STRING("close-all", rows[0]);
 }
 
 void test_the_rows_asked_again_while_the_tree_is_read_retain_the_chosen_row(void)
