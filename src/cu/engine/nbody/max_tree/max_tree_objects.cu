@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // max_tree_objects.cu: roots, peaks, census, packing and retention
 #include "max_tree_device_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 int max_tree_cc(const unsigned char *ranges, unsigned int depth, unsigned int height, unsigned int width,
                 unsigned int *parent, unsigned int *moved, unsigned int *pinned_moved, cudaEvent_t *blocks_done,
@@ -242,7 +243,7 @@ void max_tree_release_resident(MaxTreeResident *resident)
         cudaFree(resident->frame_values[body_at]);
     }
     const int retaining = resident->retaining_frames;
-    memset(resident, 0, sizeof(*resident));
+    mmgr_bytes_set(resident, 0, sizeof(*resident));
     resident->retaining_frames = retaining;
 }
 
@@ -354,11 +355,10 @@ extern "C" unsigned long long max_tree_objects_bytes(size_t voxels, size_t bodie
     size_t max_bytes = 0u;
     cub::DoubleBuffer<unsigned int> no_keys(NULL, NULL);
     cub::DoubleBuffer<unsigned int> no_values(NULL, NULL);
-    const int sized =
-        (cub::DeviceRadixSort::SortPairs(NULL, sort_bytes, no_keys, no_values, items) == cudaSuccess) &&
-        (cub::DeviceScan::InclusiveSum(NULL, scan_bytes, (const unsigned int *)NULL, (unsigned int *)NULL, items) ==
-         cudaSuccess) &&
-        (cub::DeviceReduce::Max(NULL, max_bytes, (const int *)NULL, (int *)NULL, items) == cudaSuccess);
+    const int sized = (cub::DeviceRadixSort::SortPairs(NULL, sort_bytes, no_keys, no_values, items) == cudaSuccess) &&
+                      (cub::DeviceScan::InclusiveSum(NULL, scan_bytes, (const unsigned int *)NULL, (unsigned int *)NULL,
+                                                     items) == cudaSuccess) &&
+                      (cub::DeviceReduce::Max(NULL, max_bytes, (const int *)NULL, (int *)NULL, items) == cudaSuccess);
     if ((sized == 0) || (voxels == 0u))
     {
         return 0ULL;
@@ -375,7 +375,8 @@ extern "C" unsigned long long max_tree_objects_bytes(size_t voxels, size_t bodie
                                (2ULL * max_tree_paged((lanes + 2ULL) * sizeof(int))) + (4ULL * DEVICE_POOL_PAGE_BYTES) +
                                max_tree_paged((unsigned long long)chunks * sizeof(unsigned int)) +
                                max_tree_paged((unsigned long long)words * sizeof(unsigned long long));
-    const unsigned long long capacity = ((unsigned long long)bodies + 1ULL) + (((unsigned long long)bodies + 1ULL) / 2ULL);
+    const unsigned long long capacity =
+        ((unsigned long long)bodies + 1ULL) + (((unsigned long long)bodies + 1ULL) / 2ULL);
     bytes += max_tree_paged(capacity * sizeof(EngineBody));
     return bytes;
 }

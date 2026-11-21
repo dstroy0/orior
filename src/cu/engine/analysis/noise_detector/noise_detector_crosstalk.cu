@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_detector_crosstalk.cu: crosstalk and charge
 #include "noise_detector_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 // One thread a voxel. Along y and along x, where the voxel three steps on is inside the view, every frame pair's
 // difference is squared and multiplied by the differences one, two and three steps on, each product's sign preserved by
@@ -249,7 +250,7 @@ extern "C" long noise_charge_series(const unsigned short *bias, const unsigned s
         return NOISE_DETECTOR_ERROR;
     }
     NoiseChargeMeasurement read;
-    memset(&read, 0, sizeof(read));
+    mmgr_bytes_set(&read, 0, sizeof(read));
     OriorExactInteger dark_total;
     OriorExactInteger dark_squares;
     noise_exact_word(&read.offset, bias_sums[0]);

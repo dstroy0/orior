@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_client_jobs.c: self reports, submitting, waiting and releasing jobs
 #include "tessera_client_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 #if !defined(_WIN32)
 static int tessera_self_report(TesseraClient *client)
@@ -156,7 +157,7 @@ static long tessera_decided(TesseraClient *client, TesseraTicket *ticket, unsign
 long tessera_job_submit(const TesseraJobSubmit *submit, TesseraClient **client, TesseraTicket *ticket)
 {
     *client = NULL;
-    memset(ticket, 0, sizeof(*ticket));
+    mmgr_bytes_set(ticket, 0, sizeof(*ticket));
     if (!TESSERA_CHECK((submit->declared != 0ULL) && (submit->sweep_microseconds != 0ULL) &&
                            (submit->override_budget <= 1u),
                        submit, submit->error, ENGINE_ERROR_REQUEST))
@@ -176,7 +177,7 @@ long tessera_job_submit(const TesseraJobSubmit *submit, TesseraClient **client, 
     pthread_mutex_init(&made->watch, NULL);
     pthread_cond_init(&made->woken, NULL);
 #endif
-    memcpy(made->device, submit->device, TESSERA_DEVICE_BYTES);
+    mmgr_bytes_copy(made->device, submit->device, TESSERA_DEVICE_BYTES);
     made->luid = submit->luid;
     made->signum = submit->signum;
     made->declared = submit->declared;

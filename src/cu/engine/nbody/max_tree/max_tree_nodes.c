@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // max_tree_nodes.c: nodes and probes
 #include "max_tree_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 static void max_tree_part(const unsigned int *residual, const MaxTree *theirs, const MaxTree *mine)
 {
@@ -77,7 +78,7 @@ int max_tree_poc(const unsigned int *residual, unsigned int depth, unsigned int 
     }
     const size_t voxels = (size_t)depth * height * width;
     const size_t plane = (size_t)height * width;
-    memset(bound, 0, voxels * 3u);
+    mmgr_bytes_set(bound, 0, voxels * 3u);
     unsigned int *const left = (unsigned int *)malloc(voxels * 3u * sizeof(unsigned int));
     unsigned int *const right = (unsigned int *)malloc(voxels * 3u * sizeof(unsigned int));
     unsigned int *const axes = (unsigned int *)malloc(voxels * 3u * sizeof(unsigned int));
@@ -178,7 +179,7 @@ int max_tree_poc(const unsigned int *residual, unsigned int depth, unsigned int 
     }
 
     MaxTree tree;
-    memset(&tree, 0, sizeof(tree));
+    mmgr_bytes_set(&tree, 0, sizeof(tree));
     ok = (ok != 0) && (max_tree_build_bound(residual, depth, height, width, bound, &tree) >= 0L);
     const int built = ok;
     ok = (ok != 0) && (max_tree_equal(&reference, &tree) != 0);
@@ -216,7 +217,7 @@ void max_tree_nodes_release(MaxTreeNodes *nodes)
     free(nodes->subtree_end);
     free(nodes->root);
     free(nodes->own);
-    memset(nodes, 0, sizeof(*nodes));
+    mmgr_bytes_set(nodes, 0, sizeof(*nodes));
 }
 
 // the node arrays numbered in DFS order from the canonical voxels: `node_of` names each canonical voxel's place among
@@ -353,7 +354,7 @@ long max_tree_nodes(const MaxTreeNodesRequest *request)
     const unsigned int *const residual = request->residual;
     const MaxTree *const tree = request->tree;
     MaxTreeNodes *const nodes = request->nodes;
-    memset(nodes, 0, sizeof(*nodes));
+    mmgr_bytes_set(nodes, 0, sizeof(*nodes));
     const size_t voxels = tree->voxels;
     const unsigned int admitted = tree->admitted;
     unsigned int *const rank = (unsigned int *)malloc((voxels + 1u) * sizeof(unsigned int));

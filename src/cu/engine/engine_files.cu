@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // engine_files.cu: directories, decoders and the JSON reader of an entry
 #include "engine_internal.h"
+#include "engine_note.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include <atomic>
 #include <thread>
@@ -17,13 +20,13 @@ static int entry_directory_end(const char *walk, size_t at, size_t length, int i
 int entry_directories_make(const char *path, int include_last, unsigned int *made)
 {
     *made = 0u;
-    const size_t length = strlen(path);
+    const size_t length = mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR);
     char *const walk = (char *)malloc(length + 1u);
     if (walk == NULL)
     {
         return 0;
     }
-    memcpy(walk, path, length + 1u);
+    mmgr_bytes_copy(walk, path, length + 1u);
     int ok = 1;
     for (size_t at = 1u; ok && (at <= length); at += 1u)
     {
@@ -48,13 +51,13 @@ void entry_directories_remove(const char *path, int include_last, unsigned int m
     {
         return;
     }
-    const size_t length = strlen(path);
+    const size_t length = mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR);
     char *const walk = (char *)malloc(length + 1u);
     if (walk == NULL)
     {
         return;
     }
-    memcpy(walk, path, length + 1u);
+    mmgr_bytes_copy(walk, path, length + 1u);
     unsigned int left = made;
     for (size_t at = length; (left != 0u) && (at >= 1u); at -= 1u)
     {
@@ -117,7 +120,7 @@ static long long entry_raw_decode(const EngineBytesRequest *request)
     {
         return ENGINE_BYTES_ERROR;
     }
-    memcpy(request->out, request->in, (size_t)request->in_bytes);
+    mmgr_bytes_copy(request->out, request->in, (size_t)request->in_bytes);
     return (long long)request->in_bytes;
 }
 
@@ -243,7 +246,8 @@ static long long entry_span_read(const EngineFileRange *range)
     {
         EntrySpan *const candidate = &s_spans[at];
         const int inside = (range != NULL) && (range->path != NULL) && (candidate->bytes != NULL) &&
-                           (strcmp(range->path, candidate->path) == 0) && (range->offset >= candidate->first) &&
+                           (mmgr_text_equal(range->path, candidate->path, PLATFORM_TEXT_TO_TERMINATOR)) &&
+                           (range->offset >= candidate->first) &&
                            ((range->offset - candidate->first) <= candidate->length) &&
                            (range->bytes <= (candidate->length - (range->offset - candidate->first)));
         span = inside ? candidate : NULL;
@@ -273,7 +277,7 @@ static long long entry_span_read(const EngineFileRange *range)
         entry_span_release(span);
         return stack_file_read(range);
     }
-    memcpy(range->out, span->bytes + (range->offset - span->first), (size_t)range->bytes);
+    mmgr_bytes_copy(range->out, span->bytes + (range->offset - span->first), (size_t)range->bytes);
     // a range's bytes are bounded to the span's length above, which a long long represents
     return (long long)range->bytes;
 }
@@ -292,13 +296,13 @@ extern "C" long engine_source_prefetch(const char *source, const char *sample, E
     }
     entry_span_release(at);
     const EngineIngestTools *const tools = entry_ingest_tools();
-    const ZipArchive *const archive =
-        ((source != NULL) && (sample != NULL) && entry_is_file(source)) ? zip_archive_cached(tools, source, error)
-                                                                         : NULL;
+    const ZipArchive *const archive = ((source != NULL) && (sample != NULL) && entry_is_file(source))
+                                          ? zip_archive_cached(tools, source, error)
+                                          : NULL;
     unsigned long long first = 0ULL;
     unsigned long long count = 0ULL;
     if ((archive == NULL) || !zip_folder_find(archive, sample, &first, &count) || (count == 0ULL) ||
-        (strlen(source) >= sizeof(at->path)))
+        (mmgr_text_length(source, PLATFORM_TEXT_TO_TERMINATOR) >= sizeof(at->path)))
     {
         return ENGINE_ERROR;
     }
@@ -323,7 +327,7 @@ extern "C" long engine_source_prefetch(const char *source, const char *sample, E
     {
         return ENGINE_ERROR;
     }
-    memcpy(at->path, source, strlen(source) + 1u);
+    mmgr_bytes_copy(at->path, source, mmgr_text_length(source, PLATFORM_TEXT_TO_TERMINATOR) + 1u);
     at->first = begin;
     at->length = end - begin;
     at->read = 0LL;
@@ -397,7 +401,7 @@ void entry_json_release(EntryJson *json)
 {
     free(json->text);
     free(json->tokens);
-    memset(json, 0, sizeof(*json));
+    mmgr_bytes_set(json, 0, sizeof(*json));
 }
 
 static int entry_file_read_all(const char *path, char **bytes, size_t *length)
@@ -426,7 +430,7 @@ static int entry_file_read_all(const char *path, char **bytes, size_t *length)
 
 int entry_json_load(const char *path, EntryJson *json)
 {
-    memset(json, 0, sizeof(*json));
+    mmgr_bytes_set(json, 0, sizeof(*json));
     if (entry_file_read_all(path, &json->text, &json->length) == 0)
     {
         return 0;
@@ -434,13 +438,22 @@ int entry_json_load(const char *path, EntryJson *json)
     const unsigned int capacity = (unsigned int)(json->length / 2u) + 4u;
     json->tokens = (CfgJsonToken *)malloc((size_t)capacity * sizeof(CfgJsonToken));
     CfgJsonParse parse;
-    memset(&parse, 0, sizeof(parse));
+    mmgr_bytes_set(&parse, 0, sizeof(parse));
     const int ok = (json->tokens != NULL) &&
                    cfg_json_parse_metadata(json->text, json->length, json->tokens, capacity, &parse) &&
                    (json->tokens[0].type == CFG_JSON_OBJECT);
     if (ok == 0)
     {
-        fprintf(stderr, "  %s: %s\n", path, (parse.reason != NULL) ? parse.reason : "not one JSON object");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  ");
+            mmgr_line_put(&engine_note.line, path);
+            mmgr_line_put(&engine_note.line, ": ");
+            mmgr_line_put(&engine_note.line, (parse.reason != NULL) ? parse.reason : "not one JSON object");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         entry_json_release(json);
         return 0;
     }
@@ -501,14 +514,14 @@ int entry_element_named(const char *name, EngineArrayExtent *extent, unsigned in
         ENGINE_ELEMENT_FLOAT,    ENGINE_ELEMENT_FLOAT};
     for (unsigned int at = 0u; at < 10u; at += 1u)
     {
-        if (strcmp(name, NAMES[at]) == 0)
+        if (mmgr_text_equal(name, NAMES[at], PLATFORM_TEXT_TO_TERMINATOR))
         {
             extent->element_bytes = BYTES[at];
             extent->element_type = KINDS[at];
             return 1;
         }
     }
-    const size_t length = strlen(name);
+    const size_t length = mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR);
     const int ordered =
         (length >= 3u) && ((name[0] == '<') || (name[0] == '>') || (name[0] == '|') || (name[0] == '='));
     const char type = ordered ? name[1] : '\0';
@@ -533,7 +546,7 @@ int entry_codec_named(const char *name, EngineCodec *codec)
                                           ENGINE_CODEC_ZLIB,  ENGINE_CODEC_LZ4_SIZED, ENGINE_CODEC_SNAPPY};
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {
-        if (strcmp(name, NAMES[at]) == 0)
+        if (mmgr_text_equal(name, NAMES[at], PLATFORM_TEXT_TO_TERMINATOR))
         {
             *codec = CODECS[at];
             return 1;
@@ -556,7 +569,7 @@ char entry_axis_named(const char *name)
     lowered[length] = '\0';
     for (unsigned int at = 0u; at < 7u; at += 1u)
     {
-        if (strcmp(lowered, NAMES[at]) == 0)
+        if (mmgr_text_equal(lowered, NAMES[at], PLATFORM_TEXT_TO_TERMINATOR))
         {
             return AXES[at];
         }
@@ -566,7 +579,7 @@ char entry_axis_named(const char *name)
 
 int entry_ome(const EntryJson *json, unsigned int attributes, EntryOme *ome)
 {
-    memset(ome, 0, sizeof(*ome));
+    mmgr_bytes_set(ome, 0, sizeof(*ome));
     unsigned int scales = entry_json_at(json, attributes, "multiscales");
     scales = (scales != 0u) ? scales : entry_json_at(json, entry_json_at(json, attributes, "ome"), "multiscales");
     const unsigned int first = entry_json_element(json, scales, 0u);

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_detector_flicker.cu: flicker
 #include "noise_detector_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 __device__ static void noise_flicker_flush(unsigned long long *cells, unsigned int lag, unsigned int level_bin,
                                            unsigned long long run[NOISE_FLICKER_SUMS])
@@ -158,7 +159,7 @@ int noise_per_mille(unsigned long long squares, unsigned long long pairs, unsign
 void noise_flicker_pooled(const unsigned long long sums[NOISE_FLICKER_CELLS],
                           unsigned long long pooled[NOISE_FLICKER_LAGS][NOISE_FLICKER_SUMS])
 {
-    memset(pooled, 0, (size_t)NOISE_FLICKER_LAGS * NOISE_FLICKER_SUMS * sizeof(unsigned long long));
+    mmgr_bytes_set(pooled, 0, (size_t)NOISE_FLICKER_LAGS * NOISE_FLICKER_SUMS * sizeof(unsigned long long));
     for (unsigned int lag = 0u; lag < NOISE_FLICKER_LAGS; lag += 1u)
     {
         for (unsigned int level_bin = NOISE_SUMMARY_FIRST_BIN; level_bin <= NOISE_SUMMARY_LAST_BIN; level_bin += 1u)

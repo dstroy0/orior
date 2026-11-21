@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_daemon_main.c: the daemon's arguments and main
 #include "tessera_daemon_internal.h"
+#include "../../../../platform/platform.h"
+#include "../../engine_note.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 _Alignas(8) static const char s_daemon_lock_file[] = "daemon.lock";
 _Alignas(8) static const char s_daemon_usage[] = "  tessera daemon: --device <32 hex digits, all zero for the host's "
@@ -20,7 +24,7 @@ _Alignas(8) static const char s_daemon_no_cores[] =
 _Alignas(8) static const char s_daemon_no_pipe[] = "  tessera daemon: the next pipe instance could not be made\n";
 #endif
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     unsigned long long idle = 0ULL;
     if (!daemon_arguments(count, arguments, &idle))
@@ -38,13 +42,27 @@ int main(int count, char **arguments)
     // the history is read before the endpoint exists: no client reaches a daemon that then errors on its history
     if (!tessera_ledger_open(&g_daemon.ledger))
     {
-        fprintf(stderr, "  tessera daemon: the ledger could not be opened\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  tessera daemon: the ledger could not be opened");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return daemon_error();
     }
     g_daemon.ledger.next_identity = daemon_wall();
     if (!daemon_history_load() || !tessera_ledger_idle(&g_daemon.ledger, daemon_now(), idle))
     {
-        fprintf(stderr, "  tessera daemon: the history in %s could not be read\n", g_daemon.state);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  tessera daemon: the history in ");
+            mmgr_line_put(&engine_note.line, g_daemon.state);
+            mmgr_line_put(&engine_note.line, " could not be read");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return daemon_error();
     }
 #if defined(_WIN32)
@@ -72,14 +90,22 @@ int main(int count, char **arguments)
     if (!g_daemon.socket_activated)
     {
         struct sockaddr_un address;
-        memset(&address, 0, sizeof(address));
+        mmgr_bytes_set(&address, 0, sizeof(address));
         address.sun_family = AF_UNIX;
-        if (strlen(g_daemon.endpoint) >= sizeof(address.sun_path))
+        if (mmgr_text_length(g_daemon.endpoint, PLATFORM_TEXT_TO_TERMINATOR) >= sizeof(address.sun_path))
         {
-            fprintf(stderr, "%s%s\n", s_daemon_long_socket, g_daemon.endpoint);
+            {
+                EngineNote engine_note;
+                engine_note_begun(&engine_note);
+                mmgr_line_put(&engine_note.line, s_daemon_long_socket);
+                mmgr_line_put(&engine_note.line, g_daemon.endpoint);
+                mmgr_line_ch(&engine_note.line, '\n');
+                engine_note_written(&engine_note);
+            }
             return 1;
         }
-        memcpy(address.sun_path, g_daemon.endpoint, strlen(g_daemon.endpoint) + 1u);
+        mmgr_bytes_copy(address.sun_path, g_daemon.endpoint,
+                        mmgr_text_length(g_daemon.endpoint, PLATFORM_TEXT_TO_TERMINATOR) + 1u);
         // the path names the device instead of the state: a daemon with another state, or systemd's socket, may occupy
         // it
         const int probe = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -90,7 +116,14 @@ int main(int count, char **arguments)
         }
         if (answered)
         {
-            fprintf(stderr, "%s%s\n", s_daemon_answered, g_daemon.endpoint);
+            {
+                EngineNote engine_note;
+                engine_note_begun(&engine_note);
+                mmgr_line_put(&engine_note.line, s_daemon_answered);
+                mmgr_line_put(&engine_note.line, g_daemon.endpoint);
+                mmgr_line_ch(&engine_note.line, '\n');
+                engine_note_written(&engine_note);
+            }
             return 1;
         }
         unlink(g_daemon.endpoint);
@@ -99,7 +132,14 @@ int main(int count, char **arguments)
         if ((listening < 0) || (bind(listening, (const struct sockaddr *)&address, sizeof(address)) != 0) ||
             (listen(listening, SOMAXCONN) != 0) || (stat(g_daemon.endpoint, &endpoint) != 0))
         {
-            fprintf(stderr, "%s%s\n", s_daemon_unbound, g_daemon.endpoint);
+            {
+                EngineNote engine_note;
+                engine_note_begun(&engine_note);
+                mmgr_line_put(&engine_note.line, s_daemon_unbound);
+                mmgr_line_put(&engine_note.line, g_daemon.endpoint);
+                mmgr_line_ch(&engine_note.line, '\n');
+                engine_note_written(&engine_note);
+            }
             return 1;
         }
         g_daemon.endpoint_device = endpoint.st_dev;
@@ -124,7 +164,7 @@ int main(int count, char **arguments)
     for (;;)
     {
         OVERLAPPED connecting;
-        memset(&connecting, 0, sizeof(connecting));
+        mmgr_bytes_set(&connecting, 0, sizeof(connecting));
         connecting.hEvent = CreateEventA(NULL, TRUE, FALSE, NULL);
         DWORD moved = 0u;
         const int connected =

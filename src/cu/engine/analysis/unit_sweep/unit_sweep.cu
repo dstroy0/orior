@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "unit_sweep.h"
+#include "memoria_operor/memoria_linea.h"
 #include "../../runtime/device_pool/device_pool.h"
 
 #include <cuda_runtime.h>
@@ -258,7 +259,8 @@ __global__ static void unit_sweep_comb_kernel(unsigned int *planes, UnitSweepExt
     {
         for (unsigned int limb = 0u; limb < live_limbs; limb += 1u)
         {
-            planes[((unsigned long long)limb * extent.voxels) + base + (place * stride)] = back[(limb * length) + place];
+            planes[((unsigned long long)limb * extent.voxels) + base + (place * stride)] =
+                back[(limb * length) + place];
         }
     }
 }
@@ -676,8 +678,8 @@ extern "C" long unit_sweep_residual(const UnitSweepRequest *request)
     {
         paired_bits += 2u * narrow_pairs[axis];
     }
-    ok = ok && unit_sweep_spaced(buffers->narrow_planes, &extent, narrow_limbs, request->smooth_spaced, paired_bits,
-                                 error);
+    ok = ok &&
+         unit_sweep_spaced(buffers->narrow_planes, &extent, narrow_limbs, request->smooth_spaced, paired_bits, error);
     // the smooth's spaced bits are bounded at or below 32 limbs' bits above, and narrow to unsigned int exactly
     paired_bits += (unsigned int)smooth_spaced_bits;
     ok = ok && unit_sweep_combs(buffers->narrow_planes, &extent, narrow_limbs, request->comb, paired_bits, error);
@@ -748,5 +750,5 @@ extern "C" void unit_sweep_release(void)
     cudaFree(buffers->wide_planes);
     cudaFree(buffers->disagreements);
     cudaFree(buffers->over_width);
-    memset(buffers, 0, sizeof(*buffers));
+    mmgr_bytes_set(buffers, 0, sizeof(*buffers));
 }

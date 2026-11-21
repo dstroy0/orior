@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "division.h"
+#include "memoria_operor/memoria_linea.h"
 
 #include <string.h>
 
@@ -45,7 +46,7 @@ extern "C" long division_program(const DivisionRequest *request, EngineRecordSte
     }
     const unsigned long long unit =
         engine_common_unit(engine_common_unit(request->voxel_pm[0], request->voxel_pm[1]), request->voxel_pm[2]);
-    memset(program, 0, DIVISION_STEPS * sizeof(EngineRecordStep));
+    mmgr_bytes_set(program, 0, DIVISION_STEPS * sizeof(EngineRecordStep));
     DivisionWriter writer = {program, 0u};
     const unsigned int parent_mass =
         division_put(&writer, ENGINE_RECORD_FIELD, request->mass_field, 0u, DIVISION_PARENT);

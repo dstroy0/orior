@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_run_common.c: tessera_run's clock, arguments, paths, limits, record and log
 #include "tessera_run_internal.h"
+#include "../../engine_note.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #if (defined(_WIN32))
 _Alignas(8) static const char s_run_daemon[] = "tessera_daemon.exe";
@@ -58,9 +61,9 @@ unsigned long long run_self_pid(void)
 int run_arguments(int count, char **arguments, RunRequest *request)
 {
     int at = 1;
-    while ((at < count) && (strcmp(arguments[at], "--") != 0))
+    while ((at < count) && (!mmgr_text_equal(arguments[at], "--", PLATFORM_TEXT_TO_TERMINATOR)))
     {
-        if (strcmp(arguments[at], "--child") == 0)
+        if (mmgr_text_equal(arguments[at], "--child", PLATFORM_TEXT_TO_TERMINATOR))
         {
             request->child = 1;
             at += 1;
@@ -68,7 +71,7 @@ int run_arguments(int count, char **arguments, RunRequest *request)
         }
         const int valued = (at + 1) < count;
         char *end = NULL;
-        if (valued && (strcmp(arguments[at], "--processors") == 0))
+        if (valued && (mmgr_text_equal(arguments[at], "--processors", PLATFORM_TEXT_TO_TERMINATOR)))
         {
             request->processors = strtoull(arguments[at + 1], &end, 10);
             if ((end == arguments[at + 1]) || (*end != '\0'))
@@ -76,11 +79,11 @@ int run_arguments(int count, char **arguments, RunRequest *request)
                 return 0;
             }
         }
-        else if (valued && (strcmp(arguments[at], "--name") == 0))
+        else if (valued && (mmgr_text_equal(arguments[at], "--name", PLATFORM_TEXT_TO_TERMINATOR)))
         {
             request->name = arguments[at + 1];
         }
-        else if (valued && (strcmp(arguments[at], "--parent") == 0))
+        else if (valued && (mmgr_text_equal(arguments[at], "--parent", PLATFORM_TEXT_TO_TERMINATOR)))
         {
             request->parent = arguments[at + 1];
         }
@@ -136,7 +139,7 @@ int run_daemon_path(char *path, size_t capacity)
     {
         return 0;
     }
-    memcpy(path + directory_length, s_run_daemon, sizeof(s_run_daemon));
+    mmgr_bytes_copy(path + directory_length, s_run_daemon, sizeof(s_run_daemon));
     return 1;
 }
 
@@ -144,22 +147,23 @@ int run_signum(const RunRequest *request, char **arguments, int count, EngineSig
 {
     // the request is the name, then every word of the command, each ended by a zero byte
     const char *const name = (request->name != NULL) ? request->name : "";
-    unsigned long long bytes = strlen(name) + 1ULL;
+    unsigned long long bytes = mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR) + 1ULL;
     for (int at = request->command; at < count; at += 1)
     {
-        bytes += strlen(arguments[at]) + 1ULL;
+        bytes += mmgr_text_length(arguments[at], PLATFORM_TEXT_TO_TERMINATOR) + 1ULL;
     }
     unsigned char *const text = (unsigned char *)malloc((size_t)bytes);
     if (text == NULL)
     {
         return 0;
     }
-    memcpy(text, name, strlen(name) + 1u);
-    unsigned long long at_byte = strlen(name) + 1ULL;
+    mmgr_bytes_copy(text, name, mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR) + 1u);
+    unsigned long long at_byte = mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR) + 1ULL;
     for (int at = request->command; at < count; at += 1)
     {
-        memcpy(text + at_byte, arguments[at], strlen(arguments[at]) + 1u);
-        at_byte += strlen(arguments[at]) + 1ULL;
+        mmgr_bytes_copy(text + at_byte, arguments[at],
+                        mmgr_text_length(arguments[at], PLATFORM_TEXT_TO_TERMINATOR) + 1u);
+        at_byte += mmgr_text_length(arguments[at], PLATFORM_TEXT_TO_TERMINATOR) + 1ULL;
     }
     const ObsignatioSignumRequest hashed = {text, bytes, NULL, OBSIGNATIO_MODE_HASH, signum->bytes, ENGINE_SIGNUM_BYTES,
                                             error};
@@ -195,7 +199,7 @@ static int run_record_fields(const char *line, char state[RUN_STATE_CAPACITY], u
     {
         return -1;
     }
-    memcpy(state, line, length);
+    mmgr_bytes_copy(state, line, length);
     state[length] = '\0';
     const char *walk = line + length;
     int count = 0;
@@ -252,5 +256,12 @@ void run_log(const char *records, const char *entry)
         fprintf(file, "%s %s\n", stamp, entry);
         fclose(file);
     }
-    fprintf(stderr, "  tessera_run: %s\n", entry);
+    {
+        EngineNote engine_note;
+        engine_note_begun(&engine_note);
+        mmgr_line_put(&engine_note.line, "  tessera_run: ");
+        mmgr_line_put(&engine_note.line, entry);
+        mmgr_line_ch(&engine_note.line, '\n');
+        engine_note_written(&engine_note);
+    }
 }

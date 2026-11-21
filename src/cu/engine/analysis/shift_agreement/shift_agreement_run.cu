@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // shift_agreement_run.cu: the axis, volumes and the run
 #include "shift_agreement_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 static int agreement_axis(unsigned int *values, AgreementLayout layout, unsigned int axis, int inverse)
 {
@@ -49,7 +50,7 @@ static int agreement_axis(unsigned int *values, AgreementLayout layout, unsigned
 static int agreement_layout(unsigned int axes, const unsigned int *extents, const unsigned int *weights,
                             AgreementLayout *layout)
 {
-    memset(layout, 0, sizeof(*layout));
+    mmgr_bytes_set(layout, 0, sizeof(*layout));
     layout->axes = axes;
     unsigned long long voxels = 1ULL;
     unsigned long long padded_total = 1ULL;
@@ -127,11 +128,11 @@ static int reserve_volumes(size_t total, size_t words)
     }
     device_pool_release(&resident->pool);
     free(resident->cached_words);
-    memset(resident, 0, sizeof(*resident));
+    mmgr_bytes_set(resident, 0, sizeof(*resident));
     resident->cached = SHIFT_AGREEMENT_NONE_CACHED;
     // the run errors without detail, and the pool's error is recorded here and dropped
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     DevicePoolTakeRequest takes[SHIFT_AGREEMENT_SLICES];
     const DevicePoolPlan plan = plan_volumes(total, words, &error, takes);
     const DevicePoolReserveRequest reserve = {&plan, &resident->pool, &error};
@@ -147,7 +148,7 @@ static int reserve_volumes(size_t total, size_t words)
     {
         device_pool_release(&resident->pool);
         free(resident->cached_words);
-        memset(resident, 0, sizeof(*resident));
+        mmgr_bytes_set(resident, 0, sizeof(*resident));
         resident->cached = SHIFT_AGREEMENT_NONE_CACHED;
         return 0;
     }
@@ -162,13 +163,13 @@ static int reserve_negation(const AgreementLayout *layout)
 {
     NegationResident *const resident = &s_negation_resident;
     if ((resident->negation != NULL) && (resident->axes == layout->axes) &&
-        (memcmp(resident->padded, layout->padded, sizeof(resident->padded)) == 0))
+        (mmgr_bytes_compare(resident->padded, layout->padded, sizeof(resident->padded)) == 0))
     {
         return 1;
     }
     s_volumes_resident.cached = SHIFT_AGREEMENT_NONE_CACHED;
     cudaFree(resident->negation);
-    memset(resident, 0, sizeof(*resident));
+    mmgr_bytes_set(resident, 0, sizeof(*resident));
     size_t entries = 0u;
     for (unsigned int axis = 0u; axis < layout->axes; axis += 1u)
     {
@@ -187,8 +188,8 @@ static int reserve_negation(const AgreementLayout *layout)
         ok = (tables != NULL) ? 1 : 0;
         if (ok != 0)
         {
-            memcpy(&host[layout->table_offsets[axis]], tables->negation,
-                   (size_t)layout->padded[axis] * sizeof(unsigned int));
+            mmgr_bytes_copy(&host[layout->table_offsets[axis]], tables->negation,
+                            (size_t)layout->padded[axis] * sizeof(unsigned int));
         }
     }
     ok = ok && (cudaMalloc((void **)&resident->negation, (entries + 1u) * sizeof(unsigned int)) == cudaSuccess);
@@ -198,11 +199,11 @@ static int reserve_negation(const AgreementLayout *layout)
     if (ok == 0)
     {
         cudaFree(resident->negation);
-        memset(resident, 0, sizeof(*resident));
+        mmgr_bytes_set(resident, 0, sizeof(*resident));
         return 0;
     }
     resident->axes = layout->axes;
-    memcpy(resident->padded, layout->padded, sizeof(resident->padded));
+    mmgr_bytes_copy(resident->padded, layout->padded, sizeof(resident->padded));
     return 1;
 }
 
@@ -264,10 +265,10 @@ extern "C" long shift_agreement_run(ShiftAgreementRequest *args)
     unsigned long long *const device_before = resident->before;
     unsigned long long *const device_after = resident->after;
     // the retained transform was scattered by its own extents, and one padding and one word count cover several extents
-    const int reuse = (ok != 0) && (resident->cached != SHIFT_AGREEMENT_NONE_CACHED) &&
-                      (resident->cached_axes == layout.axes) &&
-                      (memcmp(resident->cached_extents, layout.extents, sizeof(resident->cached_extents)) == 0) &&
-                      (memcmp(resident->cached_words, args->before, words * sizeof(unsigned long long)) == 0);
+    const int reuse =
+        (ok != 0) && (resident->cached != SHIFT_AGREEMENT_NONE_CACHED) && (resident->cached_axes == layout.axes) &&
+        (mmgr_bytes_compare(resident->cached_extents, layout.extents, sizeof(resident->cached_extents)) == 0) &&
+        (mmgr_bytes_compare(resident->cached_words, args->before, words * sizeof(unsigned long long)) == 0);
     unsigned int *roles[SHIFT_AGREEMENT_VOLUMES - 1u] = {NULL, NULL, NULL};
     unsigned int filled = 0u;
     for (unsigned int at = 0u; (ok != 0) && (at < SHIFT_AGREEMENT_VOLUMES); at += 1u)
@@ -367,7 +368,7 @@ extern "C" long shift_agreement_run(ShiftAgreementRequest *args)
         args->agreement = winner_count;
         if (args->counts != NULL)
         {
-            memcpy(args->counts, host_counts, total * sizeof(unsigned int));
+            mmgr_bytes_copy(args->counts, host_counts, total * sizeof(unsigned int));
         }
         answer = 0L;
     }
@@ -377,9 +378,9 @@ extern "C" long shift_agreement_run(ShiftAgreementRequest *args)
         if (resident->volumes[at] == moved)
         {
             resident->cached = at;
-            memcpy(resident->cached_words, args->after, words * sizeof(unsigned long long));
+            mmgr_bytes_copy(resident->cached_words, args->after, words * sizeof(unsigned long long));
             resident->cached_axes = layout.axes;
-            memcpy(resident->cached_extents, layout.extents, sizeof(resident->cached_extents));
+            mmgr_bytes_copy(resident->cached_extents, layout.extents, sizeof(resident->cached_extents));
         }
     }
     free(host_counts);

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // codegen_rules.cu: the assembly printer's ruleset built on the device, and checked against the host's
 #include "asm_printer_internal.h"
+#include "memoria_operor/memoria_linea.h"
 #include "codegen_device.h"
 #include "codegen_device_internal.h"
 
@@ -14,12 +15,12 @@ int asm_printer_ruleset_same(const AsmPrinterRuleset *left, const AsmPrinterRule
         (left->part_lanes == right->part_lanes) && (left->form_part_first == right->form_part_first) &&
         (left->form_parts == right->form_parts) && (left->form_placeholder_first == right->form_placeholder_first) &&
         (left->placeholder_parameters == right->placeholder_parameters) &&
-        (memcmp(left->bank_before, right->bank_before, sizeof(left->bank_before)) == 0) &&
-        (memcmp(left->bank_after, right->bank_after, sizeof(left->bank_after)) == 0) &&
-        (memcmp(left->fixed_word, right->fixed_word, sizeof(left->fixed_word)) == 0) &&
+        (mmgr_bytes_compare(left->bank_before, right->bank_before, sizeof(left->bank_before)) == 0) &&
+        (mmgr_bytes_compare(left->bank_after, right->bank_after, sizeof(left->bank_after)) == 0) &&
+        (mmgr_bytes_compare(left->fixed_word, right->fixed_word, sizeof(left->fixed_word)) == 0) &&
         (left->minus_word == right->minus_word) && (left->hash_word == right->hash_word) &&
         (left->header_part == right->header_part) &&
-        (memcmp(left->target_numbers, right->target_numbers, sizeof(left->target_numbers)) == 0) &&
+        (mmgr_bytes_compare(left->target_numbers, right->target_numbers, sizeof(left->target_numbers)) == 0) &&
         (left_program.steps.size() == right_program.steps.size()) &&
         (left_program.field_bits == right_program.field_bits) &&
         (left_program.field_offset == right_program.field_offset) && (left_program.values == right_program.values) &&
@@ -58,7 +59,8 @@ static void codegen_rules_memory(DeviceArena *memory, AsmPrinterCoreBuild *build
 {
     build->word_start = codegen_device_take<unsigned int>(memory, (unsigned long long)build->word_capacity + 1ULL);
     build->word_length = codegen_device_take<unsigned int>(memory, (unsigned long long)build->word_capacity + 1ULL);
-    build->word_characters = codegen_device_take<unsigned char>(memory, (unsigned long long)build->character_capacity + 1ULL);
+    build->word_characters =
+        codegen_device_take<unsigned char>(memory, (unsigned long long)build->character_capacity + 1ULL);
     build->part_pieces = codegen_device_take<unsigned int>(
         memory, ((unsigned long long)build->part_capacity * ASM_PRINTER_PIECES) + 1ULL);
     build->part_lanes = codegen_device_take<unsigned int>(memory, (unsigned long long)build->part_capacity + 1ULL);

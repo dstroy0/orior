@@ -1,6 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "tessera_text.h"
+#include "../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -24,14 +27,14 @@ _Alignas(8) static const char s_tessera_lost[] = "lostandfound";
 
 int tessera_text_staged(VerbaLinea *line, const char *text)
 {
-    const size_t length = strlen(text);
+    const size_t length = mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR);
     char *const staged = (char *)calloc((length / 8u) + 1u, 8u);
     if (staged == NULL)
     {
         line->at = line->capacity;
         return 0;
     }
-    memcpy(staged, text, length);
+    mmgr_bytes_copy(staged, text, length);
     mmgr_line_put(line, staged);
     free(staged);
     return 1;
@@ -142,7 +145,7 @@ int tessera_path_lost(const unsigned char device[TESSERA_DEVICE_BYTES], unsigned
         return 0;
     }
     VerbaLinea line = {path, capacity, 0ULL};
-    line.at = strlen(path);
+    line.at = mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR);
     mmgr_line_ch(&line, TESSERA_SEPARATOR);
     mmgr_line_put(&line, s_tessera_lost);
     mmgr_line_ch(&line, TESSERA_SEPARATOR);

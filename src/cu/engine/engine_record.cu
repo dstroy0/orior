@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // engine_record.cu: the error recorded for the caller, and the record layout on the device
 #include "engine_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 extern "C" void engine_percent_of(unsigned long long numerator, unsigned long long denominator,
                                   unsigned long long *percent, unsigned long long *tenth)
@@ -54,7 +55,7 @@ extern "C" void engine_error_read(EngineError *error)
 
 extern "C" void engine_error_clear(void)
 {
-    memset(&s_engine_error, 0, sizeof(s_engine_error));
+    mmgr_bytes_set(&s_engine_error, 0, sizeof(s_engine_error));
 }
 
 extern "C" long engine_key_encode(const EngineStep *steps, unsigned int count, CycleKey **key, EngineError *error)
@@ -197,7 +198,7 @@ extern "C" long engine_record_host(const EngineRecordRequest *request, const Eng
         return ENGINE_ERROR;
     }
     CycleRecordHostRequest run;
-    memset(&run, 0, sizeof(run));
+    mmgr_bytes_set(&run, 0, sizeof(run));
     run.layout = &layout;
     for (unsigned int member = 0u; member < ENGINE_RECORD_MEMBERS_MAX; member += 1u)
     {
@@ -224,10 +225,10 @@ extern "C" long engine_record_sweep(const EngineRecordSweep *request)
     const size_t index_words = (request->index != NULL) ? (size_t)request->count * members : 0u;
     const size_t out_words = (size_t)request->count * cycle_record_out_limbs(request->record);
     CycleRecordRunRequest run;
-    memset(&run, 0, sizeof(run));
+    mmgr_bytes_set(&run, 0, sizeof(run));
     run.error = error;
     unsigned int *device_in[ENGINE_RECORD_MEMBERS_MAX];
-    memset(device_in, 0, sizeof(device_in));
+    mmgr_bytes_set(device_in, 0, sizeof(device_in));
     unsigned int *device_index = NULL;
     unsigned int *device_out = NULL;
     int ok =

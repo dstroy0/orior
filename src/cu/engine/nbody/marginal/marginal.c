@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "marginal.h"
+#include "memoria_operor/memoria_linea.h"
 #include "../../../../../includes/exact_types/integers/exact_integer.h"
 
 #include <stdlib.h>
@@ -149,7 +150,7 @@ long marginal_run_host(const MarginalRequest *request)
     {
         return MARGINAL_ERROR;
     }
-    memset(request->option_sums, 0, (size_t)request->option_count * MARGINAL_LIMBS * sizeof(unsigned int));
+    mmgr_bytes_set(request->option_sums, 0, (size_t)request->option_count * MARGINAL_LIMBS * sizeof(unsigned int));
     for (unsigned int question = 0u; question < request->question_count; question += 1u)
     {
         if ((marginal_arrangements(request, &request->questions[question]) == MARGINAL_ERROR) ||

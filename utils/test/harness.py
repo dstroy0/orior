@@ -475,10 +475,33 @@ def wsl_path(path):
     return p
 
 
+def gitlinks_exported(full, partial):
+    """Each gitlink of the commit filled in the export. git archive leaves a gitlink as an empty folder. The tree comes
+    from the repository at the path of the gitlink in this clone, at the commit that the gitlink records. That
+    repository fetches the commit from its origin where it does not hold it. False where the export of a gitlink
+    fails."""
+    listed = subprocess.run(["git", "-C", ROOT, "ls-tree", "-r", full], capture_output=True, text=True, check=True)
+    for row in listed.stdout.splitlines():
+        mode, kind, sha, path = row.split(None, 3)
+        if kind != "commit":
+            continue
+        repository = os.path.join(ROOT, path)
+        held = subprocess.run(["git", "-C", repository, "cat-file", "-e", sha + "^{commit}"], capture_output=True)
+        if held.returncode != 0:
+            subprocess.run(["git", "-C", repository, "fetch", "--quiet", "origin", sha])
+        archive = subprocess.run(["git", "-C", repository, "archive", "--format=tar", sha], capture_output=True)
+        if archive.returncode != 0:
+            print("harness: the gitlink %s at %s cannot be exported" % (path, sha[:12]), flush=True)
+            return False
+        with tarfile.open(fileobj=io.BytesIO(archive.stdout)) as tar:
+            tar.extractall(os.path.join(partial, path), filter="tar")
+    return True
+
+
 def pinned_root(commit):
-    """orior as it was at a commit, exported once to build/trees/<commit> (fetched from origin where this clone
-    does not hold it), with a .pinned file naming the commit, the compile cache's key for it. None where git
-    cannot name the commit."""
+    """orior as it was at a commit, exported once to build/trees/<commit>. Where this clone does not hold the commit,
+    the call fetches it from origin. A .pinned file names the commit. The compile cache keys the tree on that name. None
+    where git cannot name the commit, or where the export of a gitlink fails."""
     found = subprocess.run(["git", "-C", ROOT, "rev-parse", "--verify", "--quiet", commit + "^{commit}"],
                            capture_output=True, text=True)
     if found.returncode != 0:
@@ -496,6 +519,9 @@ def pinned_root(commit):
         shutil.rmtree(partial, ignore_errors=True)
         with tarfile.open(fileobj=io.BytesIO(archive.stdout)) as tar:
             tar.extractall(partial, filter="tar")
+        if not gitlinks_exported(full, partial):
+            shutil.rmtree(partial, ignore_errors=True)
+            return None
         with open(os.path.join(partial, ".pinned"), "w", encoding="utf-8", newline="\n") as fh:
             fh.write(full + "\n")
         shutil.rmtree(tree, ignore_errors=True)
@@ -635,7 +661,7 @@ def cmd_run(a):
     if a.at:
         root = pinned_root(a.at)
         if root is None:
-            print("error: no commit %s here or at origin" % a.at)
+            print("error: no commit %s here or at origin, or a gitlink of it that cannot be exported" % a.at)
             return 1
         script_build = os.path.join(SCRIPT_BUILD, "at_" + os.path.basename(root)[:12])
         print("pinned: %s" % root)

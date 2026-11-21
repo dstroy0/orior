@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_detector_lines.cu: line and plane noise sampled
 #include "noise_detector_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 void noise_wide_add(NoiseWide *sum, unsigned long long low, unsigned long long high)
 {
@@ -179,7 +180,7 @@ int noise_static_mask(const unsigned short *volume, unsigned long long frames, u
     *ceiling = 0ULL;
     if (ok != 0)
     {
-        memset(least, 0xFF, (size_t)voxels * sizeof(unsigned short));
+        mmgr_bytes_set(least, 0xFF, (size_t)voxels * sizeof(unsigned short));
         for (unsigned long long frame = 0ULL; frame < frames; frame += 1ULL)
         {
             const unsigned short *const lanes = &volume[frame * voxels];
@@ -202,10 +203,9 @@ int noise_static_mask(const unsigned short *volume, unsigned long long frames, u
         {
             const unsigned long long bound = (NOISE_QUIET_SLOPE * totals[voxel]) + (NOISE_QUIET_FLOOR * frames);
             const int still = (quiet == 0u) || ((squares[voxel] * frames) <= ((frames - 1ULL) * bound));
-            mask[voxel] = ((least[voxel] != 0u) && (max[voxel] != NOISE_LANE_TOP) &&
-                           (least[voxel] != max[voxel]) && still)
-                              ? 1u
-                              : 0u;
+            mask[voxel] =
+                ((least[voxel] != 0u) && (max[voxel] != NOISE_LANE_TOP) && (least[voxel] != max[voxel]) && still) ? 1u
+                                                                                                                  : 0u;
             if (mask[voxel] != 0u)
             {
                 // a mean of values that are each below 2^16 is below 2^16
@@ -269,8 +269,8 @@ long noise_lines_sample(const unsigned short *volume, const unsigned long long e
     {
         return NOISE_DETECTOR_ERROR;
     }
-    memset(cells, 0, (size_t)NOISE_LINE_CELLS * sizeof(NoiseLineCell));
-    memset(still, 0, sizeof(*still));
+    mmgr_bytes_set(cells, 0, (size_t)NOISE_LINE_CELLS * sizeof(NoiseLineCell));
+    mmgr_bytes_set(still, 0, sizeof(*still));
     const unsigned long long frame_pairs = frames - 1ULL;
     const unsigned long long row_lines = frame_pairs * depth * height;
     const unsigned long long column_lines = frame_pairs * depth * width;

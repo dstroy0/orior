@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_ledger_test_scenarios.c: located, idle, head, shadow, scenarios, backfill and main
 #include "tessera_ledger_test_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 // a process occupying bytes as it requests is reserved them beside its declaration, and admitted on what it has yet to
 // find, since the device's measured use already counts what it occupies; the over-budget rule weighs the declaration
@@ -239,8 +240,10 @@ static void test_backfill(TestResults *head_results, TestResults *finished)
     }
 }
 
-int main(void)
+int program_main(int count, char **arguments)
 {
+    (void)count;
+    (void)arguments;
     TestResults headroom = {"headroom identity", 0ull, 0ull};
     TestResults heap = {"deadlines in order", 0ull, 0ull};
     TestResults budget = {"budget, over-budget, override, lost", 0ull, 0ull};

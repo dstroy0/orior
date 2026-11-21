@@ -12,6 +12,7 @@ source "$REPOSITORY/utils/maint/engine/build_stamp.sh"
 TOP="$REPOSITORY" build_stamp tessera_test
 
 source "$TOP/../includes/file_defs/file_defs.sh"
+source "$TOP/../includes/exact_types/exact_types.sh"
 OBSIGNATIO="$TOP/cu/engine/runtime/obsignatio"
 OBSIGNATIO_CU="$TOP/cu/engine/runtime/obsignatio"
 INCLUDES=(-I "$TOP/cu/engine" -I "$MODULE" "${FILE_DEFS_MMGR_FLAGS[@]}" -I "$OBSIGNATIO" -I "$OBSIGNATIO_CU")
@@ -22,6 +23,7 @@ case "$(uname -s)" in
             MSVC_BIN="$(ls -d "/c/Program Files/Microsoft Visual Studio"/*/*/VC/Tools/MSVC/*/bin/Hostx64/x64 2>/dev/null | tail -1)"
         fi
         [ -n "$MSVC_BIN" ] || { echo "  no host compiler nvcc accepts on this platform was found."; exit 1; }
+        HOST_FLAGS=(-ccbin "$MSVC_BIN" -Xcompiler /Zc:preprocessor)
         SUFFIX=.exe
         OBJECT=obj
         build_host()
@@ -73,6 +75,11 @@ case "$(uname -s)" in
         ;;
 esac
 
+# each program of the suite that links daemon code is a program of the platform. It links the MMgr sources, the process
+# stage, the pool and the system calls of the platform, and the carcer of the pool
+exact_types_compile platform "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" || exit 1
+PLATFORM_LINK=("${EXACT_TYPES_OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}")
+
 FAILED=0
 run_one()
 {
@@ -86,10 +93,10 @@ run_one()
 }
 
 rm -f "$OUT/tessera_ledger_test$SUFFIX" "$OUT/tessera_frame_test$SUFFIX" "$OUT/tessera_measure_test$SUFFIX"
-build_host "$TEST"/tessera_ledger_test_{heap,scenarios}.c "$MODULE/tessera_ledger.c" \
+build_host "$TEST"/tessera_ledger_test_{heap,scenarios}.c "$MODULE/tessera_ledger.c" "${PLATFORM_LINK[@]}" \
     -o "$OUT/tessera_ledger_test$SUFFIX"
 run_one tessera_ledger_test
-build_host "$TEST/tessera_frame_test.c" "$MODULE/tessera_frame.c" -o "$OUT/tessera_frame_test$SUFFIX"
+build_host "$TEST/tessera_frame_test.c" "$MODULE/tessera_frame.c" "${PLATFORM_LINK[@]}" -o "$OUT/tessera_frame_test$SUFFIX"
 run_one tessera_frame_test
 if [ "${TESSERA_DEVICE:-1}" = "1" ]; then
     if [ "$DEVICE_TOOLCHAIN" = "1" ]; then
@@ -98,7 +105,8 @@ if [ "${TESSERA_DEVICE:-1}" = "1" ]; then
         rm -f "$MEASURE_OBJECT" "$SELF_OBJECT"
         build_host -c "$MODULE/tessera_measure.c" -o "$MEASURE_OBJECT"
         build_host -c "$MODULE/tessera_self.c" -o "$SELF_OBJECT"
-        build_device "$TEST/tessera_measure_test.cu" "$MEASURE_OBJECT" "$SELF_OBJECT" "${LONG_PATHS[@]}" \
+        build_device "$TEST/tessera_measure_test.cu" "$MEASURE_OBJECT" "$SELF_OBJECT" "${PLATFORM_LINK[@]}" \
+            "${LONG_PATHS[@]}" \
             -o "$OUT/tessera_measure_test$SUFFIX"
         run_one tessera_measure_test
     else
@@ -115,7 +123,7 @@ if [ "${TESSERA_DEVICE:-1}" = "1" ]; then
     # the daemon, and the client against it end to end
     rm -f "$OUT/tessera_daemon$SUFFIX" "$OUT/tessera_job_test$SUFFIX"
     OBJECTS=()
-    for source in "${FILE_DEFS_LINEA[@]}" "$MODULE"/tessera_ledger.c "$MODULE"/tessera_measure.c "$MODULE"/tessera_paths.c \
+    for source in "$MODULE"/tessera_ledger.c "$MODULE"/tessera_measure.c "$MODULE"/tessera_paths.c \
                   "$MODULE"/tessera_frame.c "$MODULE"/tessera_self.c "$MODULE"/tessera_client_{socket,jobs}.c \
                   "$MODULE"/tessera_daemon_{state,admission,peers,main}.c; do
         object="$OUT/$(basename "$source" .c)_tessera.$OBJECT"
@@ -140,10 +148,11 @@ if [ "${TESSERA_DEVICE:-1}" = "1" ]; then
             *) DAEMON_OBJECTS+=("$object"); CLIENT_OBJECTS+=("$object") ;;
         esac
     done
-    build_device "${DAEMON_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${LONG_PATHS[@]}" -o "$OUT/tessera_daemon$SUFFIX"
+    build_device "${DAEMON_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${PLATFORM_LINK[@]}" "${LONG_PATHS[@]}" -o "$OUT/tessera_daemon$SUFFIX"
     [ -f "$OUT/tessera_daemon$SUFFIX" ] || { echo "  build failed: the daemon did not link"; FAILED=1; }
     if [ "$DEVICE_TOOLCHAIN" = "1" ]; then
-        build_device "$TEST/tessera_job_test.cu" "${CLIENT_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${LONG_PATHS[@]}" \
+        build_device "$TEST/tessera_job_test.cu" "${CLIENT_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${PLATFORM_LINK[@]}" \
+            "${LONG_PATHS[@]}" \
             -o "$OUT/tessera_job_test$SUFFIX"
     fi
     if [ "$DEVICE_TOOLCHAIN" != "1" ]; then
@@ -172,7 +181,8 @@ if [ "${TESSERA_DEVICE:-1}" = "1" ]; then
         build_host -c "$MODULE/$name.c" -o "$object"
         RUN_OBJECTS+=("$object")
     done
-    build_device "${RUN_OBJECTS[@]}" "${CLIENT_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${LONG_PATHS[@]}" \
+    build_device "${RUN_OBJECTS[@]}" "${CLIENT_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${PLATFORM_LINK[@]}" \
+        "${LONG_PATHS[@]}" \
         -o "$OUT/tessera_run$SUFFIX"
     build_host "$TEST/tessera_burn.c" -o "$OUT/tessera_burn$SUFFIX"
     if [ -f "$OUT/tessera_run$SUFFIX" ] && [ -f "$OUT/tessera_burn$SUFFIX" ]; then

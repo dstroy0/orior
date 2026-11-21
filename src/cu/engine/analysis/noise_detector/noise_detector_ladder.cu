@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_detector_ladder.cu: the ladder
 #include "noise_detector_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 // A sample's quiet static voxels, their frames in blocks as the moment pass takes them, each retained block added to
 // the ladder's sums at its voxel's level over the other blocks
@@ -21,7 +22,7 @@ static long noise_ladder_sample(const unsigned short *volume, const unsigned lon
     {
         return NOISE_DETECTOR_ERROR;
     }
-    memset(sums, 0, sizeof(*sums));
+    mmgr_bytes_set(sums, 0, sizeof(*sums));
     *left_out = 0ULL;
     unsigned long long ceiling = 0ULL;
     unsigned char *const mask = (unsigned char *)malloc((size_t)voxels);
@@ -142,7 +143,7 @@ extern "C" long noise_ladder_volume(const unsigned short *volume, const unsigned
     // a block's level is its voxel's frames over the other blocks. The level scale is those frames' count
     const unsigned long long other_frames = ((extent[0] / NOISE_MOMENT_BLOCK) - 1ULL) * NOISE_MOMENT_BLOCK;
     NoiseLadderMeasurement read;
-    memset(&read, 0, sizeof(read));
+    mmgr_bytes_set(&read, 0, sizeof(read));
     unsigned long long falling = NOISE_MOMENT_BLOCK;
     for (unsigned int order = 0u; ok && (order < NOISE_LADDER_ORDERS); order += 1u)
     {

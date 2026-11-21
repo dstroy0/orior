@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // climb_machine_open.cu: the runs cut, the machine opened and a frame stored
 #include "climb_machine_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 static int machine_split_runs(ClimbMachine *machine, unsigned int resident, const unsigned int *labels,
                               const ClimbMachineFrame *frame)
@@ -79,7 +80,7 @@ static int machine_split_runs(ClimbMachine *machine, unsigned int resident, cons
     }
 
     unsigned int *const counts = machine->leaf_counts;
-    memset(counts, 0, ((size_t)leaves + 1u) * sizeof(unsigned int));
+    mmgr_bytes_set(counts, 0, ((size_t)leaves + 1u) * sizeof(unsigned int));
     for (size_t run = 0u; run < runs; run += 1u)
     {
         counts[machine->unsorted_leaf[run] + 1u] += 1u;
@@ -321,9 +322,9 @@ extern "C" int climb_machine_store(ClimbMachine *machine, const ClimbMachineFram
         ok = (machine->resident_contact_start[resident] != NULL) && (machine->resident_contacts[resident] != NULL);
         if (ok != 0)
         {
-            memcpy(machine->resident_contact_start[resident], frame->contact_start,
-                   ((size_t)frame->leaf_count + 1u) * sizeof(unsigned int));
-            memcpy(machine->resident_contacts[resident], frame->contacts, contacts * sizeof(unsigned int));
+            mmgr_bytes_copy(machine->resident_contact_start[resident], frame->contact_start,
+                            ((size_t)frame->leaf_count + 1u) * sizeof(unsigned int));
+            mmgr_bytes_copy(machine->resident_contacts[resident], frame->contacts, contacts * sizeof(unsigned int));
         }
     }
     machine->resident_frame[resident] = (ok != 0) ? frame->frame : CLIMB_MACHINE_EMPTY;

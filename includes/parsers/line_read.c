@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // line_read.c: a text's lines read one at a time out of its bytes, and a line's words and numbers read one at a time
 #include "line_read.h"
+#include "../../src/platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include <string.h>
 
@@ -15,7 +18,7 @@ int line_read(const unsigned char *bytes, unsigned long long size, unsigned long
     const unsigned char *const end = (const unsigned char *)memchr(bytes + *at, '\n', (size_t)(size - *at));
     const size_t length = (end != NULL) ? (size_t)(end - (bytes + *at)) : (size_t)(size - *at);
     const size_t copy_len = (length < room) ? length : (room - 1u);
-    memcpy(line, bytes + *at, copy_len);
+    mmgr_bytes_copy(line, bytes + *at, copy_len);
     line[copy_len] = '\0';
     *at += (unsigned long long)length + 1ULL;
     return 1;
@@ -33,7 +36,8 @@ static void line_spaces_passed(const char **at)
 // 1 where `character` ends a word: a space, a tab, a line's end or the text's end
 static int line_word_ended(char character)
 {
-    return (character == ' ') || (character == '\t') || (character == '\r') || (character == '\n') || (character == '\0');
+    return (character == ' ') || (character == '\t') || (character == '\r') || (character == '\n') ||
+           (character == '\0');
 }
 
 int line_word(const char **at, char *word, size_t room)
@@ -48,7 +52,7 @@ int line_word(const char **at, char *word, size_t room)
     {
         return 0;
     }
-    memcpy(word, *at, length);
+    mmgr_bytes_copy(word, *at, length);
     word[length] = '\0';
     *at += length;
     return 1;
@@ -65,7 +69,7 @@ int line_until(const char **at, char end, char *text, size_t room)
     {
         return 0;
     }
-    memcpy(text, *at, length);
+    mmgr_bytes_copy(text, *at, length);
     text[length] = '\0';
     *at += length;
     return 1;
@@ -121,7 +125,7 @@ int line_number(const char **at, int hex, unsigned long long *value)
 int line_characters(const char **at, const char *text)
 {
     line_spaces_passed(at);
-    const size_t length = strlen(text);
+    const size_t length = mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR);
     if (strncmp(*at, text, length) != 0)
     {
         return 0;

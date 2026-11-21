@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_client_socket.c: connecting, spawning, sending and receiving
 #include "tessera_client_internal.h"
+#include "../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #if defined(_WIN32)
 _Alignas(8) static const char s_client_quote[] = "\"";
@@ -34,13 +37,13 @@ TesseraConnect tessera_connect(TesseraClient *client, const char *endpoint)
     }
 #else
     struct sockaddr_un address;
-    memset(&address, 0, sizeof(address));
+    mmgr_bytes_set(&address, 0, sizeof(address));
     address.sun_family = AF_UNIX;
-    if (strlen(endpoint) >= sizeof(address.sun_path))
+    if (mmgr_text_length(endpoint, PLATFORM_TEXT_TO_TERMINATOR) >= sizeof(address.sun_path))
     {
         return TESSERA_CONNECT_FAILED;
     }
-    memcpy(address.sun_path, endpoint, strlen(endpoint) + 1u);
+    mmgr_bytes_copy(address.sun_path, endpoint, mmgr_text_length(endpoint, PLATFORM_TEXT_TO_TERMINATOR) + 1u);
     // the connection closes on exec: a program this process starts never leaves its job open
     client->socket_descriptor = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
     if (client->socket_descriptor < 0)
@@ -66,7 +69,7 @@ static int tessera_daemon_owns_lock(const unsigned char device[TESSERA_DEVICE_BY
     {
         return 0;
     }
-    VerbaLinea line = {lock_path, ENGINE_PATH_CAPACITY, strlen(lock_path)};
+    VerbaLinea line = {lock_path, ENGINE_PATH_CAPACITY, mmgr_text_length(lock_path, PLATFORM_TEXT_TO_TERMINATOR)};
     mmgr_line_put(&line, s_client_lock);
     if (mmgr_line_finish(&line) == 0ULL)
     {
@@ -116,9 +119,9 @@ int tessera_spawn_and_connect(TesseraClient *client, const TesseraJobSubmit *sub
     }
     STARTUPINFOA startup;
     PROCESS_INFORMATION daemon;
-    memset(&startup, 0, sizeof(startup));
+    mmgr_bytes_set(&startup, 0, sizeof(startup));
     startup.cb = sizeof(startup);
-    memset(&daemon, 0, sizeof(daemon));
+    mmgr_bytes_set(&daemon, 0, sizeof(daemon));
     if (!CreateProcessA(NULL, command, NULL, NULL, FALSE, DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP, NULL, NULL,
                         &startup, &daemon))
     {
@@ -312,11 +315,11 @@ int tessera_readable(TesseraClient *client, unsigned long long deadline)
 
 void tessera_frame_start(const TesseraClient *client, TesseraFrame *frame, unsigned int type)
 {
-    memset(frame, 0, sizeof(*frame));
+    mmgr_bytes_set(frame, 0, sizeof(*frame));
     frame->magic = TESSERA_MAGIC;
     frame->version = TESSERA_VERSION;
     frame->type = type;
-    memcpy(frame->device, client->device, TESSERA_DEVICE_BYTES);
+    mmgr_bytes_copy(frame->device, client->device, TESSERA_DEVICE_BYTES);
     frame->signum = client->signum;
     frame->identity = client->identity;
     frame->luid = client->luid;

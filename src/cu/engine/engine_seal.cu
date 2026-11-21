@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // engine_seal.cu: side bytes, the seal and the crystal's verification
 #include "engine_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 int entry_side_pack(EngineSideSection *section, EngineError *error)
 {
@@ -62,14 +63,14 @@ int entry_side_same(const EngineSideBytes *one, const EngineSideBytes *other)
     {
         return 1;
     }
-    return (memcmp(one->pixel_at, other->pixel_at, words) == 0) &&
-           (memcmp(one->pixel_stored, other->pixel_stored, words) == 0) &&
-           (memcmp(one->byte_start, other->byte_start, fenced) == 0) &&
-           (memcmp(one->name_start, other->name_start, fenced) == 0) &&
-           (memcmp(one->member_crc, other->member_crc, words) == 0) &&
-           (memcmp(one->member_bytes, other->member_bytes, words) == 0) &&
-           (memcmp(one->bytes, other->bytes, (size_t)one->byte_start[leaves]) == 0) &&
-           (memcmp(one->names, other->names, (size_t)one->name_start[leaves]) == 0);
+    return (mmgr_bytes_compare(one->pixel_at, other->pixel_at, words) == 0) &&
+           (mmgr_bytes_compare(one->pixel_stored, other->pixel_stored, words) == 0) &&
+           (mmgr_bytes_compare(one->byte_start, other->byte_start, fenced) == 0) &&
+           (mmgr_bytes_compare(one->name_start, other->name_start, fenced) == 0) &&
+           (mmgr_bytes_compare(one->member_crc, other->member_crc, words) == 0) &&
+           (mmgr_bytes_compare(one->member_bytes, other->member_bytes, words) == 0) &&
+           (mmgr_bytes_compare(one->bytes, other->bytes, (size_t)one->byte_start[leaves]) == 0) &&
+           (mmgr_bytes_compare(one->names, other->names, (size_t)one->name_start[leaves]) == 0);
 }
 
 #define ENTRY_SAMPLE_WORDS 12u
@@ -78,7 +79,7 @@ int entry_side_same(const EngineSideBytes *one, const EngineSideBytes *other)
 
 int entry_signum_same(const EngineSignum *one, const EngineSignum *other)
 {
-    return memcmp(one->bytes, other->bytes, ENGINE_SIGNUM_BYTES) == 0;
+    return mmgr_bytes_compare(one->bytes, other->bytes, ENGINE_SIGNUM_BYTES) == 0;
 }
 
 static int entry_keyed(ObsignatioLevel level, const unsigned char *bytes, unsigned long long count, EngineSignum *out,
@@ -172,7 +173,7 @@ static int entry_seal_stream(const EngineStream *stream, const EngineSignum *lea
     }
     entry_words_place(buffer, stream->offsets, stream->chunks);
     entry_words_place(&buffer[offset_bytes], &stream->bits, 1ULL);
-    memcpy(&buffer[offset_bytes + 8ULL], leaves, (size_t)(ENGINE_SIGNUM_BYTES * stream->chunks));
+    mmgr_bytes_copy(&buffer[offset_bytes + 8ULL], leaves, (size_t)(ENGINE_SIGNUM_BYTES * stream->chunks));
     const int ok = entry_keyed(OBSIGNATIO_LEVEL_STREAM, buffer, bytes, root, error);
     free(buffer);
     return ok;
@@ -194,8 +195,8 @@ static int entry_seal_side_inflated(const EngineSideSection *section, EngineSign
 static int entry_seal_side_root(EngineSignum *roots, EngineError *error)
 {
     unsigned char both[2u * ENGINE_SIGNUM_BYTES];
-    memcpy(both, roots[ENGINE_SEAL_SIDE_STORED].bytes, ENGINE_SIGNUM_BYTES);
-    memcpy(&both[ENGINE_SIGNUM_BYTES], roots[ENGINE_SEAL_SIDE_INFLATED].bytes, ENGINE_SIGNUM_BYTES);
+    mmgr_bytes_copy(both, roots[ENGINE_SEAL_SIDE_STORED].bytes, ENGINE_SIGNUM_BYTES);
+    mmgr_bytes_copy(&both[ENGINE_SIGNUM_BYTES], roots[ENGINE_SEAL_SIDE_INFLATED].bytes, ENGINE_SIGNUM_BYTES);
     return entry_keyed(OBSIGNATIO_LEVEL_SIDE, both, sizeof(both), &roots[ENGINE_SEAL_SIDE], error);
 }
 
@@ -226,7 +227,7 @@ static int entry_seal_members(const EngineSideSection *section, EngineSignum *ro
         at = &at[8ULL * leaves];
         entry_words_place(at, side->member_bytes, leaves);
         at = &at[8ULL * leaves];
-        memcpy(at, side->names, (size_t)names);
+        mmgr_bytes_copy(at, side->names, (size_t)names);
     }
     const int ok = entry_keyed(OBSIGNATIO_LEVEL_MEMBERS, buffer, bytes, root, error);
     free(buffer);
@@ -253,16 +254,16 @@ static int entry_seal_sample(const EngineStream *stream, const EngineSideSection
     unsigned char byte[(8u * ENTRY_SAMPLE_WORDS) + (ENTRY_SAMPLE_ROOTS * ENGINE_SIGNUM_BYTES)];
     entry_words_place(byte, words, ENTRY_SAMPLE_WORDS);
     unsigned char *const roots = &byte[8u * ENTRY_SAMPLE_WORDS];
-    memcpy(roots, seal->lane_nodes[seal->lane_count - 1ULL].bytes, ENGINE_SIGNUM_BYTES);
-    memcpy(&roots[ENGINE_SIGNUM_BYTES], seal->roots[ENGINE_SEAL_STREAM].bytes, ENGINE_SIGNUM_BYTES);
-    memcpy(&roots[2u * ENGINE_SIGNUM_BYTES], seal->roots[ENGINE_SEAL_SIDE].bytes, ENGINE_SIGNUM_BYTES);
-    memcpy(&roots[3u * ENGINE_SIGNUM_BYTES], seal->roots[ENGINE_SEAL_MEMBERS].bytes, ENGINE_SIGNUM_BYTES);
+    mmgr_bytes_copy(roots, seal->lane_nodes[seal->lane_count - 1ULL].bytes, ENGINE_SIGNUM_BYTES);
+    mmgr_bytes_copy(&roots[ENGINE_SIGNUM_BYTES], seal->roots[ENGINE_SEAL_STREAM].bytes, ENGINE_SIGNUM_BYTES);
+    mmgr_bytes_copy(&roots[2u * ENGINE_SIGNUM_BYTES], seal->roots[ENGINE_SEAL_SIDE].bytes, ENGINE_SIGNUM_BYTES);
+    mmgr_bytes_copy(&roots[3u * ENGINE_SIGNUM_BYTES], seal->roots[ENGINE_SEAL_MEMBERS].bytes, ENGINE_SIGNUM_BYTES);
     return entry_keyed(OBSIGNATIO_LEVEL_SAMPLE, byte, sizeof(byte), &seal->roots[ENGINE_SEAL_SAMPLE], error);
 }
 
 static int entry_seal_open(const EngineStream *stream, EngineSeal *seal, EngineError *error)
 {
-    memset(seal, 0, sizeof(*seal));
+    mmgr_bytes_set(seal, 0, sizeof(*seal));
     seal->lane_count = obsignatio_lanes_nodes(stream->extent);
     seal->chunk_count = stream->chunks;
     seal->lane_nodes = (EngineSignum *)calloc((size_t)seal->lane_count + 1u, sizeof(EngineSignum));
@@ -300,7 +301,7 @@ int entry_crystal_verify(const EngineStream *file, EngineSideSection *section, c
                          EngineError *error)
 {
     record->crystal_read = 1ULL;
-    memcpy(record->extent, file->extent, sizeof(record->extent));
+    mmgr_bytes_copy(record->extent, file->extent, sizeof(record->extent));
     record->root = seal->roots[ENGINE_SEAL_SAMPLE];
     EngineSeal fresh;
     int ok = entry_seal_open(file, &fresh, error);
@@ -388,8 +389,7 @@ void entry_percent(VerbaLinea *line, unsigned long long part, unsigned long long
 unsigned long long entry_report_capacity(char *const *samples, unsigned long long reached, const char *source,
                                          const char *set)
 {
-    const unsigned long long fixed =
-        strnlen(source, ENTRY_PATH_CAPACITY) + strnlen(set, ENTRY_PATH_CAPACITY);
+    const unsigned long long fixed = strnlen(source, ENTRY_PATH_CAPACITY) + strnlen(set, ENTRY_PATH_CAPACITY);
     unsigned long long needed = (2ULL * ENTRY_ROW_TEXT) + fixed;
     for (unsigned long long sample = 0ULL; sample < reached; sample += 1ULL)
     {
@@ -429,7 +429,7 @@ void entry_seal_failure(VerbaLinea *line, const EngineSampleRecord *record)
     if (record->crystal_read == 0ULL)
     {
         mmgr_line_put(line, "the file did not read as a crystal (missing, short, or arranged otherwise than its head "
-                             "describes), so no node was compared");
+                            "describes), so no node was compared");
         return;
     }
     if (record->extent_differ != 0ULL)

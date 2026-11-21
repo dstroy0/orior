@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // orior_steer.c: the census and the steering probe order
 #include "orior_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 /* ---- the steering, folded in ---- */
 
@@ -12,7 +13,7 @@ void orior_field_census(const uint8_t *corpus, size_t corpus_len, OriorFieldCens
         return;
     }
 
-    memset(census, 0, sizeof(*census));
+    mmgr_bytes_set(census, 0, sizeof(*census));
     if ((corpus == NULL) || (corpus_len == 0u))
     {
         return;
@@ -43,7 +44,7 @@ uint64_t orior_steer_magnitude(const OriorFieldCensus *census, uint8_t symbol)
 }
 
 void orior_steer_probe_order(size_t *offsets, size_t count, const OriorFieldCensus *census, const uint8_t *needle,
-                              size_t needle_len)
+                             size_t needle_len)
 {
     if ((offsets == NULL) || (census == NULL) || (needle == NULL) || (count == 0u) || (needle_len == 0u) ||
         (census->total == 0u))

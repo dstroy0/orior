@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // engine_zarr.cu: zarr v2 and v3, n5, and their description
 #include "engine_internal.h"
+#include "engine_note.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 static int entry_zarr_v3_chain(const EntryJson *json, unsigned int codecs, ZarrLayout *layout, int inner)
 {
@@ -20,10 +23,16 @@ static int entry_zarr_v3_chain(const EntryJson *json, unsigned int codecs, ZarrL
         if ((entry_json_text(json, entry_json_at(json, codec, "name"), name, sizeof(name)) == 0) ||
             (chain->crc32c != 0u))
         {
-            fprintf(stderr, "  zarr: a codec is unnamed, or follows crc32c\n");
+            {
+                EngineNote engine_note;
+                engine_note_begun(&engine_note);
+                mmgr_line_put(&engine_note.line, "  zarr: a codec is unnamed, or follows crc32c");
+                mmgr_line_ch(&engine_note.line, '\n');
+                engine_note_written(&engine_note);
+            }
             return 0;
         }
-        if (strcmp(name, "bytes") == 0)
+        if (mmgr_text_equal(name, "bytes", PLATFORM_TEXT_TO_TERMINATOR))
         {
             char endian[16] = "little";
             const unsigned int stated = entry_json_at(json, configuration, "endian");
@@ -31,10 +40,10 @@ static int entry_zarr_v3_chain(const EntryJson *json, unsigned int codecs, ZarrL
             {
                 return 0;
             }
-            layout->big_endian = (strcmp(endian, "big") == 0) ? 1u : 0u;
+            layout->big_endian = (mmgr_text_equal(endian, "big", PLATFORM_TEXT_TO_TERMINATOR)) ? 1u : 0u;
             bytes_seen = 1;
         }
-        else if (strcmp(name, "transpose") == 0)
+        else if (mmgr_text_equal(name, "transpose", PLATFORM_TEXT_TO_TERMINATOR))
         {
             unsigned long long order[ENGINE_ARRAY_RANK];
             unsigned int count = 0u;
@@ -43,7 +52,14 @@ static int entry_zarr_v3_chain(const EntryJson *json, unsigned int codecs, ZarrL
                  0) ||
                 (count != rank))
             {
-                fprintf(stderr, "  zarr: transpose is supported only as an order list before bytes\n");
+                {
+                    EngineNote engine_note;
+                    engine_note_begun(&engine_note);
+                    mmgr_line_put(&engine_note.line,
+                                  "  zarr: transpose is supported only as an order list before bytes");
+                    mmgr_line_ch(&engine_note.line, '\n');
+                    engine_note_written(&engine_note);
+                }
                 return 0;
             }
             for (unsigned int axis = 0u; axis < rank; axis += 1u)
@@ -51,7 +67,7 @@ static int entry_zarr_v3_chain(const EntryJson *json, unsigned int codecs, ZarrL
                 layout->order[axis] = (unsigned int)order[axis];
             }
         }
-        else if (strcmp(name, "sharding_indexed") == 0)
+        else if (mmgr_text_equal(name, "sharding_indexed", PLATFORM_TEXT_TO_TERMINATOR))
         {
             unsigned int count = 0u;
             if ((inner != 0) || (at != 0u) ||
@@ -60,7 +76,14 @@ static int entry_zarr_v3_chain(const EntryJson *json, unsigned int codecs, ZarrL
                 (count != rank) ||
                 (entry_zarr_v3_chain(json, entry_json_at(json, configuration, "codecs"), layout, 1) == 0))
             {
-                fprintf(stderr, "  zarr: sharding_indexed is supported only as the first codec, with its own chain\n");
+                {
+                    EngineNote engine_note;
+                    engine_note_begun(&engine_note);
+                    mmgr_line_put(&engine_note.line,
+                                  "  zarr: sharding_indexed is supported only as the first codec, with its own chain");
+                    mmgr_line_ch(&engine_note.line, '\n');
+                    engine_note_written(&engine_note);
+                }
                 return 0;
             }
             layout->sharded = 1u;
@@ -75,14 +98,17 @@ static int entry_zarr_v3_chain(const EntryJson *json, unsigned int codecs, ZarrL
                     return 0;
                 }
                 const unsigned int stated = entry_json_at(json, entry_json_at(json, step, "configuration"), "endian");
-                if ((strcmp(step_name, "bytes") == 0) && (stated != 0u) &&
+                if ((mmgr_text_equal(step_name, "bytes", PLATFORM_TEXT_TO_TERMINATOR)) && (stated != 0u) &&
                     entry_json_text(json, stated, endian, sizeof(endian)))
                 {
-                    layout->index_big_endian = (strcmp(endian, "big") == 0) ? 1u : 0u;
+                    layout->index_big_endian = (mmgr_text_equal(endian, "big", PLATFORM_TEXT_TO_TERMINATOR)) ? 1u : 0u;
                 }
-                layout->index_chain.crc32c |= (strcmp(step_name, "crc32c") == 0) ? 1u : 0u;
-                layout->index_chain.count +=
-                    ((strcmp(step_name, "bytes") != 0) && (strcmp(step_name, "crc32c") != 0)) ? 1u : 0u;
+                layout->index_chain.crc32c |=
+                    (mmgr_text_equal(step_name, "crc32c", PLATFORM_TEXT_TO_TERMINATOR)) ? 1u : 0u;
+                layout->index_chain.count += ((!mmgr_text_equal(step_name, "bytes", PLATFORM_TEXT_TO_TERMINATOR)) &&
+                                              (!mmgr_text_equal(step_name, "crc32c", PLATFORM_TEXT_TO_TERMINATOR)))
+                                                 ? 1u
+                                                 : 0u;
             }
             char location[16] = "end";
             const unsigned int placed = entry_json_at(json, configuration, "index_location");
@@ -90,10 +116,10 @@ static int entry_zarr_v3_chain(const EntryJson *json, unsigned int codecs, ZarrL
             {
                 return 0;
             }
-            layout->index_at_start = (strcmp(location, "start") == 0) ? 1u : 0u;
+            layout->index_at_start = (mmgr_text_equal(location, "start", PLATFORM_TEXT_TO_TERMINATOR)) ? 1u : 0u;
             bytes_seen = 1;
         }
-        else if (strcmp(name, "crc32c") == 0)
+        else if (mmgr_text_equal(name, "crc32c", PLATFORM_TEXT_TO_TERMINATOR))
         {
             chain->crc32c = 1u;
         }
@@ -102,7 +128,15 @@ static int entry_zarr_v3_chain(const EntryJson *json, unsigned int codecs, ZarrL
             EngineCodec byte_codec = ENGINE_CODEC_RAW;
             if ((bytes_seen == 0) || (entry_codec_named(name, &byte_codec) == 0) || (chain->count >= ZARR_CODECS))
             {
-                fprintf(stderr, "  zarr: the codec %s is not supported here\n", name);
+                {
+                    EngineNote engine_note;
+                    engine_note_begun(&engine_note);
+                    mmgr_line_put(&engine_note.line, "  zarr: the codec ");
+                    mmgr_line_put(&engine_note.line, name);
+                    mmgr_line_put(&engine_note.line, " is not supported here");
+                    mmgr_line_ch(&engine_note.line, '\n');
+                    engine_note_written(&engine_note);
+                }
                 return 0;
             }
             chain->codec[chain->count] = byte_codec;
@@ -131,7 +165,13 @@ static int entry_zarr_v3(const EntryJson *json, ZarrLayout *layout)
         (rank == 0u) || (entry_json_text(json, entry_json_at(json, 0u, "data_type"), type, sizeof(type)) == 0) ||
         (entry_element_named(type, &layout->extent, &layout->big_endian) == 0))
     {
-        fprintf(stderr, "  zarr: the array's shape or data type is not supported\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  zarr: the array's shape or data type is not supported");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 0;
     }
     layout->extent.rank = rank;
@@ -141,7 +181,13 @@ static int entry_zarr_v3(const EntryJson *json, ZarrLayout *layout)
                          ENGINE_ARRAY_RANK) == 0) ||
         (chunk_rank != rank))
     {
-        fprintf(stderr, "  zarr: only a regular chunk grid is supported\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  zarr: only a regular chunk grid is supported");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 0;
     }
     const unsigned int encoding = entry_json_at(json, 0u, "chunk_key_encoding");
@@ -151,7 +197,7 @@ static int entry_zarr_v3(const EntryJson *json, ZarrLayout *layout)
     const int split =
         entry_json_text(json, entry_json_at(json, entry_json_at(json, encoding, "configuration"), "separator"),
                         separator, sizeof(separator));
-    layout->prefixed = (strcmp(encoding_name, "v2") == 0) ? 0u : 1u;
+    layout->prefixed = (mmgr_text_equal(encoding_name, "v2", PLATFORM_TEXT_TO_TERMINATOR)) ? 0u : 1u;
     layout->separator = (split != 0) ? separator[0] : ((layout->prefixed != 0u) ? '/' : '.');
     for (unsigned int axis = 0u; axis < rank; axis += 1u)
     {
@@ -162,7 +208,13 @@ static int entry_zarr_v3(const EntryJson *json, ZarrLayout *layout)
     const int chained = entry_zarr_v3_chain(json, entry_json_at(json, 0u, "codecs"), layout, 0);
     if ((chained == 0) || ((layout->sharded != 0u) && ((layout->chain.count != 0u) || (layout->chain.crc32c != 0u))))
     {
-        fprintf(stderr, "  zarr: the codec chain is not supported\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  zarr: the codec chain is not supported");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 0;
     }
     return 1;
@@ -181,7 +233,13 @@ static int entry_zarr_v2(const EntryJson *json, ZarrLayout *layout)
         (chunk_rank != rank) || (entry_json_text(json, entry_json_at(json, 0u, "dtype"), type, sizeof(type)) == 0) ||
         (entry_element_named(type, &layout->extent, &layout->big_endian) == 0))
     {
-        fprintf(stderr, "  zarr: the v2 array's shape, chunks or dtype is not supported\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  zarr: the v2 array's shape, chunks or dtype is not supported");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 0;
     }
     layout->extent.rank = rank;
@@ -189,7 +247,13 @@ static int entry_zarr_v2(const EntryJson *json, ZarrLayout *layout)
     if ((filters != 0u) && (json->tokens[filters].type != CFG_JSON_NULL) &&
         !((json->tokens[filters].type == CFG_JSON_ARRAY) && (json->tokens[filters].count == 0u)))
     {
-        fprintf(stderr, "  zarr: v2 filters are not supported\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  zarr: v2 filters are not supported");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 0;
     }
     const unsigned int compressor = entry_json_at(json, 0u, "compressor");
@@ -200,7 +264,13 @@ static int entry_zarr_v2(const EntryJson *json, ZarrLayout *layout)
         if ((entry_json_text(json, entry_json_at(json, compressor, "id"), name, sizeof(name)) == 0) ||
             (entry_codec_named(name, &codec) == 0))
         {
-            fprintf(stderr, "  zarr: the v2 compressor is not supported\n");
+            {
+                EngineNote engine_note;
+                engine_note_begun(&engine_note);
+                mmgr_line_put(&engine_note.line, "  zarr: the v2 compressor is not supported");
+                mmgr_line_ch(&engine_note.line, '\n');
+                engine_note_written(&engine_note);
+            }
             return 0;
         }
         layout->chain.codec[0] = codec;
@@ -235,7 +305,13 @@ static int entry_n5(const EntryJson *json, ZarrLayout *layout)
         (block_rank != rank) || (entry_json_text(json, entry_json_at(json, 0u, "dataType"), type, sizeof(type)) == 0) ||
         (entry_element_named(type, &layout->extent, &ignored) == 0))
     {
-        fprintf(stderr, "  n5: the dataset's dimensions, blockSize or dataType is not supported\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  n5: the dataset's dimensions, blockSize or dataType is not supported");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 0;
     }
     layout->extent.rank = rank;
@@ -256,20 +332,29 @@ static int entry_n5(const EntryJson *json, ZarrLayout *layout)
         entry_json_text(json, entry_json_at(json, 0u, "compressionType"), type, sizeof(type));
     }
     const unsigned int zlib = entry_json_at(json, compression, "useZlib");
-    if (strcmp(type, "gzip") == 0)
+    if (mmgr_text_equal(type, "gzip", PLATFORM_TEXT_TO_TERMINATOR))
     {
         layout->chain.codec[0] =
             ((zlib != 0u) && (json->tokens[zlib].type == CFG_JSON_TRUE)) ? ENGINE_CODEC_ZLIB : ENGINE_CODEC_GZIP;
         layout->chain.count = 1u;
     }
-    else if ((strcmp(type, "blosc") == 0) || (strcmp(type, "zstd") == 0))
+    else if ((mmgr_text_equal(type, "blosc", PLATFORM_TEXT_TO_TERMINATOR)) ||
+             (mmgr_text_equal(type, "zstd", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         layout->chain.codec[0] = (type[0] == 'b') ? ENGINE_CODEC_BLOSC : ENGINE_CODEC_ZSTD;
         layout->chain.count = 1u;
     }
-    else if (strcmp(type, "raw") != 0)
+    else if (!mmgr_text_equal(type, "raw", PLATFORM_TEXT_TO_TERMINATOR))
     {
-        fprintf(stderr, "  n5: the compression %s is not supported\n", type);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  n5: the compression ");
+            mmgr_line_put(&engine_note.line, type);
+            mmgr_line_put(&engine_note.line, " is not supported");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 0;
     }
     layout->big_endian = 1u;
@@ -289,24 +374,32 @@ static int entry_n5(const EntryJson *json, ZarrLayout *layout)
 
 int entry_zarr_describe(const char *root, const char *member, ZarrLayout *layout, char *array_root, size_t capacity)
 {
-    memset(layout, 0, sizeof(*layout));
+    mmgr_bytes_set(layout, 0, sizeof(*layout));
     char path[ENTRY_PATH_CAPACITY];
     EntryJson json;
-    memset(&json, 0, sizeof(json));
+    mmgr_bytes_set(&json, 0, sizeof(json));
     EntryOme ome;
-    memset(&ome, 0, sizeof(ome));
+    mmgr_bytes_set(&ome, 0, sizeof(ome));
     int ok = 0;
     if (entry_joined(path, sizeof(path), root, "zarr.json") && entry_json_load(path, &json))
     {
         char node[16] = "";
         entry_json_text(&json, entry_json_at(&json, 0u, "node_type"), node, sizeof(node));
-        const int group = (strcmp(node, "group") == 0);
+        const int group = (mmgr_text_equal(node, "group", PLATFORM_TEXT_TO_TERMINATOR));
         const int described = group ? entry_ome(&json, entry_json_at(&json, 0u, "attributes"), &ome) : 0;
         const char *const leaf = (member != NULL) ? member : (described ? ome.path : NULL);
         entry_json_release(&json);
         if (group && (leaf == NULL))
         {
-            fprintf(stderr, "  %s: a group with no multiscales; name the array\n", root);
+            {
+                EngineNote engine_note;
+                engine_note_begun(&engine_note);
+                mmgr_line_put(&engine_note.line, "  ");
+                mmgr_line_put(&engine_note.line, root);
+                mmgr_line_put(&engine_note.line, ": a group with no multiscales; name the array");
+                mmgr_line_ch(&engine_note.line, '\n');
+                engine_note_written(&engine_note);
+            }
             return 0;
         }
         ok = (group ? entry_joined(array_root, capacity, root, leaf) : entry_joined(array_root, capacity, root, ".")) &&

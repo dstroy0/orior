@@ -4,6 +4,7 @@
 // The device's tessera (tessera_device.h): the ledger's decisions made on the device by one thread, from the source
 // the host daemon's ledger makes them by (tessera_ledger_core.h).
 #include "tessera_device.h"
+#include "memoria_operor/memoria_linea.h"
 #include "tessera_ledger_core.h"
 
 #include <cuda_runtime.h>
@@ -73,7 +74,7 @@ static int tessera_device_reserve(TesseraLedger *ledger, TesseraCallKind type)
 
 int tessera_device_open(TesseraDevice *device, unsigned long long capacity)
 {
-    memset(device, 0, sizeof(*device));
+    mmgr_bytes_set(device, 0, sizeof(*device));
     TesseraLedger *const host_ledger = &device->host_ledger;
     host_ledger->next_identity = 1ULL;
     const unsigned long long first_capacity = (capacity == 0ULL) ? 1ULL : capacity;
@@ -99,7 +100,7 @@ void tessera_device_close(TesseraDevice *device)
     cudaFree(device->host_ledger.history);
     cudaFree(device->host_ledger.heap);
     cudaFree(device->ledger);
-    memset(device, 0, sizeof(*device));
+    mmgr_bytes_set(device, 0, sizeof(*device));
 }
 
 int tessera_device_calls(TesseraDevice *device, const TesseraCall *calls, unsigned long long count,
@@ -149,7 +150,7 @@ int tessera_device_read(const TesseraDevice *device, TesseraLedger *copy)
     TesseraLedger host_ledger;
     if (cudaMemcpy(&host_ledger, device->ledger, sizeof(host_ledger), cudaMemcpyDeviceToHost) != cudaSuccess)
     {
-        memset(copy, 0, sizeof(*copy));
+        mmgr_bytes_set(copy, 0, sizeof(*copy));
         return 0;
     }
     *copy = host_ledger;
@@ -173,7 +174,7 @@ int tessera_device_read(const TesseraDevice *device, TesseraLedger *copy)
         free(copy->jobs);
         free(copy->history);
         free(copy->heap);
-        memset(copy, 0, sizeof(*copy));
+        mmgr_bytes_set(copy, 0, sizeof(*copy));
     }
     return read;
 }

@@ -1,6 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "tessera.h"
+#include "../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -68,7 +71,8 @@ int tessera_self_paravirtual(void)
     {
         fclose(kernel);
     }
-    return read && ((strstr(release, "microsoft") != NULL) || (strstr(release, "WSL") != NULL));
+    return read && ((mmgr_text_find(release, "microsoft", PLATFORM_TEXT_TO_TERMINATOR) != NULL) ||
+                    (mmgr_text_find(release, "WSL", PLATFORM_TEXT_TO_TERMINATOR) != NULL));
 #endif
 }
 
@@ -91,7 +95,7 @@ int tessera_self_measure(unsigned long long luid, unsigned long long *used)
     // each symbol is converted back to the type it was exported with
     const TesseraKmtQuery query = (TesseraKmtQuery)dlsym(library, "D3DKMTQueryVideoMemoryInfo");
     TesseraKmtAdapter adapters[TESSERA_SELF_ADAPTERS];
-    memset(adapters, 0, sizeof(adapters));
+    mmgr_bytes_set(adapters, 0, sizeof(adapters));
     TesseraKmtAdapters listed = {TESSERA_SELF_ADAPTERS, adapters};
     int ok = (enumerate != NULL) && (query != NULL) && (enumerate(&listed) == 0) && (listed.count != 0u);
     int chosen = -1;
@@ -108,7 +112,7 @@ int tessera_self_measure(unsigned long long luid, unsigned long long *used)
     if (ok)
     {
         TesseraKmtVideoMemory memory;
-        memset(&memory, 0, sizeof(memory));
+        mmgr_bytes_set(&memory, 0, sizeof(memory));
         memory.process = NULL;
         memory.adapter = adapters[chosen].adapter;
         memory.segment_group = TESSERA_SELF_LOCAL_SEGMENTS;
@@ -167,7 +171,13 @@ static unsigned int tessera_self_cores(unsigned long long cores[TESSERA_SELF_COR
     for (unsigned int processor = 0u; (processor < TESSERA_SELF_CORES) && (count < TESSERA_SELF_CORES); processor += 1u)
     {
         char path[128];
-        snprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%u/topology/thread_siblings", processor);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+            mmgr_line_put(&buffer_line, "/sys/devices/system/cpu/cpu");
+            mmgr_line_decimal(&buffer_line, processor, 1u);
+            mmgr_line_put(&buffer_line, "/topology/thread_siblings");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         FILE *const siblings = fopen(path, "r");
         if (siblings == NULL)
         {

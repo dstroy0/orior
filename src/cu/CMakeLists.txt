@@ -168,6 +168,7 @@ endif()
 
 add_library(shift_agreement_host SHARED engine/analysis/shift_agreement/shift_agreement.c)
 target_include_directories(shift_agreement_host PRIVATE engine/analysis/shift_agreement ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(shift_agreement_host PRIVATE orior_platform_library)
 target_compile_definitions(shift_agreement_host PRIVATE SHIFT_AGREEMENT_BUILD_DLL=1)
 target_compile_options(shift_agreement_host PRIVATE $<$<COMPILE_LANGUAGE:C>:${SIFT_WARNINGS}>)
 

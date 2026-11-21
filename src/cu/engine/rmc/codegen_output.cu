@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // codegen_output.cu: the assembly text written on the device, the step layout, and the entry points
 #include "codegen_device_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 #include "../../../platform/platform.h"
 
@@ -314,7 +315,7 @@ static int layout_steps(DeviceArena *memory, const LayoutRequest *request, Engin
     }
     // the sizes as key_schedule_record_layout positions it out; the layout limited the file to ENGINE_RECORD_LIMBS_MAX
     // limbs and the record's bits to a 31-bit count
-    memset(layout, 0, sizeof(*layout));
+    mmgr_bytes_set(layout, 0, sizeof(*layout));
     layout->steps = count;
     layout->members = request->members;
     layout->file_limbs = (unsigned int)ended.file_limbs;

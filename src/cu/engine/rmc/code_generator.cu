@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "code_generator.h"
+#include "../../../platform/platform.h"
 #include "codegen_core.h"
 #include "../../../../includes/file_defs/krs/ruleset_reader.h"
 
@@ -22,10 +23,10 @@ static const RulesetName s_physreg_names[PHYSREG_COUNT] = {PHYSREGS(PHYSREG_WRIT
 
 // The record program as a register lane, in any language whose ruleset writes the lane's forms: each step
 // unrolled at its widths into straight-line text over registers the lane uses itself. The
-// file is a bank by place and its signs another, as key_schedule positioned them out; the record's words are a bank, arranged
-// by each put and each stored once the last put that positions it out has run; the atoms' words are a bank, each loaded
-// at its first reader. What a compiler would loop over a register's limbs is written out here limb by limb from
-// the program's own widths. The code generator writes no text of its own: every line is a form of the language's
+// file is a bank by place and its signs another, as key_schedule positioned them out; the record's words are a bank,
+// arranged by each put and each stored once the last put that positions it out has run; the atoms' words are a bank,
+// each loaded at its first reader. What a compiler would loop over a register's limbs is written out here limb by limb
+// from the program's own widths. The code generator writes no text of its own: every line is a form of the language's
 // ruleset, and every register a written form of its banks and fixed registers. The code generator decides what a step
 // does and the ruleset how the language writes it. What each step does, and the lane's opening, close and split into
 // states, is decided in codegen_core.h, which the device compiles as well. Here the forms it decides are written in the
@@ -41,8 +42,8 @@ static const RulesetName s_physreg_names[PHYSREG_COUNT] = {PHYSREGS(PHYSREG_WRIT
 // Where each bank begins in the register file, and how many registers one of its own takes. A language whose
 // registers are virtual gives every bank a namespace of its own and leaves this zero; a language with one register
 // file has every bank in that file, and a bank numbered from 0 like every other collides with them. The banks are
-// positioned end to end from the counts the lane declares, and a bank whose registers are 64 bits takes two of the file's for
-// each of its own.
+// positioned end to end from the counts the lane declares, and a bank whose registers are 64 bits takes two of the
+// file's for each of its own.
 struct RegisterFile
 {
     unsigned int at[REGCLASS_COUNT];
@@ -91,11 +92,11 @@ static unsigned int code_generator_takes(unsigned int bank)
     return ((bank == REGCLASS_WIDE) || (bank == REGCLASS_MEMBER)) ? 2u : 1u;
 }
 
-// The banks positioned into one register file, from the counts the lane declared: each bank begins where the one before it
-// ended, in the order the declarations come. A language whose banks are namespaces of their own leaves every bank at
+// The banks positioned into one register file, from the counts the lane declared: each bank begins where the one before
+// it ended, in the order the declarations come. A language whose banks are namespaces of their own leaves every bank at
 // 0, which writes each register by its own number. The predicates are a file of their own on every
-// language that has them, and are not positioned with the rest. 0 where the banks run past what the file contains, the lane
-// then written by nobody: every register from there on would be one the language has already pinned
+// language that has them, and are not positioned with the rest. 0 where the banks run past what the file contains, the
+// lane then written by nobody: every register from there on would be one the language has already pinned
 static int code_generator_file(const CodeGenerator *generator, const std::vector<MachineInstr> &items,
                                RegisterFile *file)
 {
@@ -110,9 +111,9 @@ static int code_generator_file(const CodeGenerator *generator, const std::vector
         return 1;
     }
     // each bank's count is the argument of the form that declares it, in the order the lane's declarations are written
-    const unsigned int declares[] = {OPCODE_DECLARE_FILE,        OPCODE_DECLARE_SIGNS, OPCODE_DECLARE_OUT,
-                                     OPCODE_DECLARE_ATOMS,       OPCODE_DECLARE_TEMPORARIES,
-                                     OPCODE_DECLARE_WIDES,       OPCODE_DECLARE_MEMBERS};
+    const unsigned int declares[] = {OPCODE_DECLARE_FILE,   OPCODE_DECLARE_SIGNS,       OPCODE_DECLARE_OUT,
+                                     OPCODE_DECLARE_ATOMS,  OPCODE_DECLARE_TEMPORARIES, OPCODE_DECLARE_WIDES,
+                                     OPCODE_DECLARE_MEMBERS};
     const unsigned int banks[] = {REGCLASS_FILE,      REGCLASS_SIGN, REGCLASS_OUT,   REGCLASS_ATOM,
                                   REGCLASS_TEMPORARY, REGCLASS_WIDE, REGCLASS_MEMBER};
     unsigned int at = 0u;
@@ -140,7 +141,11 @@ static void code_generator_text(const Ruleset *rules, const RegisterFile *file, 
     if (item.form == OPCODE_PROGRAM_NOTE)
     {
         char block[32];
-        snprintf(block, sizeof(block), "%016llx", target->block_hash);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(block, sizeof(block));
+            mmgr_line_hex(&buffer_line, target->block_hash, 16u);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         // a device's compute capability and NVRTC's version are small counts, never negative
         arguments = {std::to_string(item.arguments[0].number),
                      std::to_string((unsigned long long)target->major),
@@ -319,10 +324,10 @@ static unsigned int code_generator_write_ports(const Ruleset *rules)
 
 // A program's lane and its resident as the core decides them, into `items` in the text's order: the note, the header's
 // place, occupied by an item of the form ASM_PRINTER_ALL_ONES, the lane's opening and declarations, the body's opening,
-// the body and the end; the places a thread uses in shared memory (the file's where the language positions it out there,
-// else 0), and the max words it uses live at once. The core decides the steps first, then the lane's own forms in the
-// order the lane writes them. 0 where the ruleset is not read, a step is one the lane does not support, or a form
-// breaks the lane. With a schedule model, the body is split into states and `report` informed how
+// the body and the end; the places a thread uses in shared memory (the file's where the language positions it out
+// there, else 0), and the max words it uses live at once. The core decides the steps first, then the lane's own forms
+// in the order the lane writes them. 0 where the ruleset is not read, a step is one the lane does not support, or a
+// form breaks the lane. With a schedule model, the body is split into states and `report` informed how
 int CodeGenerator::decide(const EngineRecordLayout *layout, const ScheduleModel *model, ScheduleReport *report,
                           unsigned int *places, unsigned int *live, std::vector<MachineInstr> *items)
 {

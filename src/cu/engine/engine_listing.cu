@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // engine_listing.cu: the listing, geff arrays, lanes and the iapx codec
 #include "engine_internal.h"
+#include "engine_note.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 static int entry_order_names(const void *left, const void *right)
 {
@@ -13,7 +16,12 @@ static unsigned int entry_listing(const char *directory, char ***names, int samp
     std::vector<char *> found;
 #ifdef _WIN32
     char pattern[ENTRY_PATH_CAPACITY];
-    snprintf(pattern, sizeof(pattern), "%s/*", directory);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(pattern, sizeof(pattern));
+        mmgr_line_put(&buffer_line, directory);
+        mmgr_line_put(&buffer_line, "/*");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     struct __finddata64_t entry;
     const intptr_t search = _findfirst64(pattern, &entry);
     for (int more = (search != -1) ? 0 : -1; more == 0; more = _findnext64(search, &entry))
@@ -30,7 +38,11 @@ static unsigned int entry_listing(const char *directory, char ***names, int samp
             continue;
         }
         char stem[ENTRY_PATH_CAPACITY];
-        snprintf(stem, sizeof(stem), "%s", name);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(stem, sizeof(stem));
+            mmgr_line_put(&buffer_line, name);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         int has_sample = 0;
         if (samples_of_set != 0)
         {
@@ -43,17 +55,18 @@ static unsigned int entry_listing(const char *directory, char ***names, int samp
         {
             if (entry_ends(stem, ENTRY_SOURCE_SUFFIXES[suffix]))
             {
-                stem[strlen(stem) - strlen(ENTRY_SOURCE_SUFFIXES[suffix])] = '\0';
+                stem[mmgr_text_length(stem, PLATFORM_TEXT_TO_TERMINATOR) -
+                     mmgr_text_length(ENTRY_SOURCE_SUFFIXES[suffix], PLATFORM_TEXT_TO_TERMINATOR)] = '\0';
                 has_sample = 1;
             }
         }
         if (has_sample != 0)
         {
-            const size_t size = strlen(stem) + 1u;
+            const size_t size = mmgr_text_length(stem, PLATFORM_TEXT_TO_TERMINATOR) + 1u;
             char *const copy = (char *)malloc(size);
             if (copy != NULL)
             {
-                memcpy(copy, stem, size);
+                mmgr_bytes_copy(copy, stem, size);
                 found.push_back(copy);
             }
         }
@@ -112,7 +125,18 @@ static long long entry_geff_array(const char *root, const char *leaf, unsigned l
         (layout.extent.rank != want_rank) || (layout.extent.element_bytes != 8u) ||
         (layout.extent.element_type == ENGINE_ELEMENT_FLOAT))
     {
-        fprintf(stderr, "  %s/%s: not an 8 byte integer array of rank %llu\n", root, leaf, want_rank);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  ");
+            mmgr_line_put(&engine_note.line, root);
+            mmgr_line_put(&engine_note.line, "/");
+            mmgr_line_put(&engine_note.line, leaf);
+            mmgr_line_put(&engine_note.line, ": not an 8 byte integer array of rank ");
+            mmgr_line_decimal(&engine_note.line, want_rank, 1u);
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return -1LL;
     }
     unsigned long long elements = 1ULL;
@@ -144,12 +168,12 @@ extern "C" void engine_geff_release(EngineGeff *geff)
     free(geff->node_identity);
     free(geff->node_place);
     free(geff->edge_ends);
-    memset(geff, 0, sizeof(*geff));
+    mmgr_bytes_set(geff, 0, sizeof(*geff));
 }
 
 extern "C" long engine_geff_read(const char *path, EngineGeff *geff)
 {
-    memset(geff, 0, sizeof(*geff));
+    mmgr_bytes_set(geff, 0, sizeof(*geff));
     static const char *const PLACES[4] = {"nodes/props/t/values", "nodes/props/z/values", "nodes/props/y/values",
                                           "nodes/props/x/values"};
     unsigned long long rows = 0ULL;
@@ -168,10 +192,10 @@ extern "C" long engine_geff_read(const char *path, EngineGeff *geff)
     ok = ok && (geff->node_identity != NULL) && (geff->node_place != NULL);
     for (unsigned long long node = 0ULL; ok && (node < geff->nodes); node += 1ULL)
     {
-        memcpy(&geff->node_identity[node], &ids[8ULL * node], 8u);
+        mmgr_bytes_copy(&geff->node_identity[node], &ids[8ULL * node], 8u);
         for (unsigned int axis = 0u; axis < 4u; axis += 1u)
         {
-            memcpy(&geff->node_place[(4ULL * node) + axis], &places[axis][8ULL * node], 8u);
+            mmgr_bytes_copy(&geff->node_place[(4ULL * node) + axis], &places[axis][8ULL * node], 8u);
         }
     }
     if (ok)
@@ -201,7 +225,7 @@ extern "C" long engine_iapx_head(const char *set, const char *sample, unsigned l
     }
     char path[ENTRY_PATH_CAPACITY];
     EngineStream stream;
-    memset(&stream, 0, sizeof(stream));
+    mmgr_bytes_set(&stream, 0, sizeof(stream));
     if ((ENGINE_CHECK(engine_sample_path(path, sizeof(path), set, sample, ENTRY_CRYSTAL_SUFFIX) != 0, sample, error,
                       ENGINE_ERROR_REQUEST) == 0) ||
         (krep_crystal_head(path, &stream, NULL, error) == 0))
@@ -210,7 +234,7 @@ extern "C" long engine_iapx_head(const char *set, const char *sample, unsigned l
         engine_error_latch(error);
         return ENGINE_ERROR;
     }
-    memcpy(extent, stream.extent, sizeof(stream.extent));
+    mmgr_bytes_copy(extent, stream.extent, sizeof(stream.extent));
     return 0L;
 }
 
@@ -237,7 +261,7 @@ int entry_iapx_decode(const EngineStream *stream, const unsigned short *device_l
         return 0;
     }
     CompressionDecodeRequest code;
-    memset(&code, 0, sizeof(code));
+    mmgr_bytes_set(&code, 0, sizeof(code));
     code.offsets = stream->offsets;
     code.chunks = stream->chunks;
     code.stream = stream->stream;
@@ -250,9 +274,9 @@ int entry_iapx_decode(const EngineStream *stream, const unsigned short *device_l
         return 0;
     }
     TowerLowerRequest lower;
-    memset(&lower, 0, sizeof(lower));
+    mmgr_bytes_set(&lower, 0, sizeof(lower));
     lower.device_lanes = device_lanes;
-    memcpy(lower.extent, stream->extent, sizeof(lower.extent));
+    mmgr_bytes_copy(lower.extent, stream->extent, sizeof(lower.extent));
     lower.mismatches = mismatches;
     lower.device_rebuilt = device_rebuilt;
     lower.rebuilt = rebuilt;
@@ -263,14 +287,14 @@ int entry_iapx_decode(const EngineStream *stream, const unsigned short *device_l
 int entry_iapx_encode(const unsigned short *device_lanes, const unsigned long long extent[4], EngineStream *stream,
                       unsigned int *floors, EngineError *error)
 {
-    memset(stream, 0, sizeof(*stream));
-    memcpy(stream->extent, extent, sizeof(stream->extent));
+    mmgr_bytes_set(stream, 0, sizeof(*stream));
+    mmgr_bytes_copy(stream->extent, extent, sizeof(stream->extent));
     const int *coefficients = NULL;
     unsigned int *scratch = NULL;
     TowerLiftRequest lift;
-    memset(&lift, 0, sizeof(lift));
+    mmgr_bytes_set(&lift, 0, sizeof(lift));
     lift.device_lanes = device_lanes;
-    memcpy(lift.extent, extent, sizeof(lift.extent));
+    mmgr_bytes_copy(lift.extent, extent, sizeof(lift.extent));
     lift.coefficients = &coefficients;
     lift.scratch = &scratch;
     lift.floors = floors;
@@ -280,7 +304,7 @@ int entry_iapx_encode(const unsigned short *device_lanes, const unsigned long lo
         return 0;
     }
     CompressionEncodeRequest code;
-    memset(&code, 0, sizeof(code));
+    mmgr_bytes_set(&code, 0, sizeof(code));
     code.device_coefficients = coefficients;
     code.count = entry_lanes(extent);
     code.device_scratch = scratch;
@@ -312,9 +336,9 @@ extern "C" long engine_lattice_bits(const int *values, const unsigned long long 
     if (ok != 0)
     {
         TowerLiftRequest lift;
-        memset(&lift, 0, sizeof(lift));
+        mmgr_bytes_set(&lift, 0, sizeof(lift));
         lift.device_values = device_values;
-        memcpy(lift.extent, extent, sizeof(lift.extent));
+        mmgr_bytes_copy(lift.extent, extent, sizeof(lift.extent));
         lift.coefficients = &coefficients;
         lift.scratch = &scratch;
         lift.floors = &floors;
@@ -325,9 +349,9 @@ extern "C" long engine_lattice_bits(const int *values, const unsigned long long 
     {
         // the offsets and the stream are compression's own, retained for its next call; only the bits are retained
         EngineStream stream;
-        memset(&stream, 0, sizeof(stream));
+        mmgr_bytes_set(&stream, 0, sizeof(stream));
         CompressionEncodeRequest code;
-        memset(&code, 0, sizeof(code));
+        mmgr_bytes_set(&code, 0, sizeof(code));
         code.device_coefficients = coefficients;
         code.count = lanes;
         code.device_scratch = scratch;

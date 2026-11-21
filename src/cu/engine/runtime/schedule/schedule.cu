@@ -1,6 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "schedule.h"
+#include "../../engine_note.h"
+#include "memoria_operor/memoria_linea.h"
 
 #include "../../engine.h"
 
@@ -18,14 +20,27 @@ int schedule_program(const char *set, char *const *names, unsigned int count)
     size_t total_bytes = 0u;
     if (cudaMemGetInfo(&free_bytes, &total_bytes) != cudaSuccess)
     {
-        fprintf(stderr, "  the tower did not answer how much it allocates\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  the tower did not answer how much it allocates");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 0;
     }
     const unsigned long long cap = (unsigned long long)free_bytes / 3ULL * 2ULL;
     FILE *const out = fopen(g_schedule_path, "w");
     if (out == NULL)
     {
-        fprintf(stderr, "  could not open %s\n", g_schedule_path);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  could not open ");
+            mmgr_line_put(&engine_note.line, g_schedule_path);
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 0;
     }
     printf("  tower: %llu MiB free of %llu, scheduling against %llu MiB\n", (unsigned long long)free_bytes >> 20u,
@@ -39,10 +54,20 @@ int schedule_program(const char *set, char *const *names, unsigned int count)
     {
         unsigned long long head[4] = {0ULL, 0ULL, 0ULL, 0ULL};
         EngineError error;
-        memset(&error, 0, sizeof(error));
+        mmgr_bytes_set(&error, 0, sizeof(error));
         if (engine_iapx_head(set, names[at], head, &error) != 0L)
         {
-            fprintf(stderr, "  %s: no .iapx in %s; not scheduled\n", names[at], set);
+            {
+                EngineNote engine_note;
+                engine_note_begun(&engine_note);
+                mmgr_line_put(&engine_note.line, "  ");
+                mmgr_line_put(&engine_note.line, names[at]);
+                mmgr_line_put(&engine_note.line, ": no .iapx in ");
+                mmgr_line_put(&engine_note.line, set);
+                mmgr_line_put(&engine_note.line, "; not scheduled");
+                mmgr_line_ch(&engine_note.line, '\n');
+                engine_note_written(&engine_note);
+            }
             continue;
         }
         const unsigned long long frames = head[0];

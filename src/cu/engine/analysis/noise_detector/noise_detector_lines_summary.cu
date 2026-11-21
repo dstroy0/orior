@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_detector_lines_summary.cu: line and plane noise summarized
 #include "noise_detector_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 static const char *const NOISE_LINE_NAMES[NOISE_LINE_KINDS] = {"row", "column", "plane"};
 
@@ -48,7 +49,7 @@ static void noise_lines_summary(const char *name, const NoiseLineCell cells[NOIS
     for (unsigned int type = 0u; type < NOISE_LINE_KINDS; type += 1u)
     {
         NoiseLineCell pooled;
-        memset(&pooled, 0, sizeof(pooled));
+        mmgr_bytes_set(&pooled, 0, sizeof(pooled));
         for (unsigned int level_bin = NOISE_SUMMARY_FIRST_BIN; level_bin <= NOISE_SUMMARY_LAST_BIN; level_bin += 1u)
         {
             const NoiseLineCell *const cell = &cells[(type * NOISE_LEVEL_BINS) + level_bin];
@@ -126,7 +127,7 @@ void noise_planes_readings(const NoisePlanePool *pool, long long readings[NOISE_
     noise_exact_word(&counted, height * width * pool->planes);
     ok = ok && (orior_exact_multiply(&counted, &factor, &counted) == ORIOR_EXACT_OK);
     const OriorExactInteger *const numerators[NOISE_TWO_WAY_READINGS] = {&row_part, &column_part, &plane_part,
-                                                                          &residual};
+                                                                         &residual};
     const OriorExactInteger *const denominators[NOISE_TWO_WAY_READINGS] = {&residual, &residual, &residual, &counted};
     const unsigned long long scales[NOISE_TWO_WAY_READINGS] = {1000ULL, 1000ULL, 1000ULL, 1ULL};
     for (unsigned int ratio = 0u; ratio < NOISE_TWO_WAY_READINGS; ratio += 1u)
@@ -215,9 +216,9 @@ void noise_static_readings(const NoiseStaticPool *still, long long readings[NOIS
          (orior_exact_subtract(&row_part, &plane_part, &row_part) == ORIOR_EXACT_OK) &&
          (orior_exact_subtract(&column_part, &plane_part, &column_part) == ORIOR_EXACT_OK);
     const OriorExactInteger *const numerators[NOISE_STATIC_READINGS] = {&row_part, &column_part, &plane_part,
-                                                                         &independent};
+                                                                        &independent};
     const OriorExactInteger *const denominators[NOISE_STATIC_READINGS] = {&independent, &independent, &independent,
-                                                                           &common};
+                                                                          &common};
     for (unsigned int measurement = 0u; measurement < NOISE_STATIC_READINGS; measurement += 1u)
     {
         readings[measurement] = 0LL;
@@ -313,7 +314,7 @@ extern "C" long noise_lines_set(const NoiseSetRequest *request)
     NoisePlanePool *const pool = (NoisePlanePool *)malloc(sizeof(NoisePlanePool));
     ok = ok && NOISE_DETECTOR_CHECK(pool != NULL, &pool, error, ENGINE_ERROR_RESOURCE);
     NoiseStaticPool still;
-    memset(&still, 0, sizeof(still));
+    mmgr_bytes_set(&still, 0, sizeof(still));
     const unsigned long long began = engine_clock_microseconds();
     for (unsigned int sample = 0u; ok && (sample < request->count); sample += 1u)
     {

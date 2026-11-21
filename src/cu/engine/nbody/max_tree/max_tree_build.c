@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // max_tree_build.c: the tree built
 #include "max_tree_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 OriorExactInteger g_compare_left;
 OriorExactInteger g_compare_right;
@@ -92,7 +93,7 @@ static long max_tree_grow(const unsigned int *residual, unsigned int depth, unsi
     {
         return MAX_TREE_ERROR;
     }
-    memset(tree, 0, sizeof(*tree));
+    mmgr_bytes_set(tree, 0, sizeof(*tree));
     const size_t voxels = (size_t)depth * height * width;
     if (voxels > 0xFFFFFFFEu)
     {
@@ -110,7 +111,7 @@ static long max_tree_grow(const unsigned int *residual, unsigned int depth, unsi
         free(tree->parent);
         free(zpar);
         free(arrived);
-        memset(tree, 0, sizeof(*tree));
+        mmgr_bytes_set(tree, 0, sizeof(*tree));
         return MAX_TREE_ERROR;
     }
     unsigned int admitted = 0u;
@@ -126,7 +127,7 @@ static long max_tree_grow(const unsigned int *residual, unsigned int depth, unsi
         free(tree->parent);
         free(zpar);
         free(arrived);
-        memset(tree, 0, sizeof(*tree));
+        mmgr_bytes_set(tree, 0, sizeof(*tree));
         return MAX_TREE_ERROR;
     }
     unsigned int order_count = 0u;
@@ -222,8 +223,8 @@ int max_tree_equal(const MaxTree *left, const MaxTree *right)
     {
         return 0;
     }
-    return (memcmp(left->parent, right->parent, (size_t)left->voxels * sizeof(unsigned int)) == 0) &&
-           (memcmp(left->order, right->order, (size_t)left->admitted * sizeof(unsigned int)) == 0);
+    return (mmgr_bytes_compare(left->parent, right->parent, (size_t)left->voxels * sizeof(unsigned int)) == 0) &&
+           (mmgr_bytes_compare(left->order, right->order, (size_t)left->admitted * sizeof(unsigned int)) == 0);
 }
 
 void max_tree_release(MaxTree *tree)
@@ -234,7 +235,7 @@ void max_tree_release(MaxTree *tree)
     }
     free(tree->parent);
     free(tree->order);
-    memset(tree, 0, sizeof(*tree));
+    mmgr_bytes_set(tree, 0, sizeof(*tree));
 }
 
 static int max_tree_ranges(const unsigned int *residual, unsigned int voxel, unsigned int level)

@@ -2,11 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // engine_source.cu: zip names, the source's type, its description and its bytes
 #include "engine_internal.h"
+#include "engine_note.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 int entry_ends(const char *path, const char *suffix)
 {
-    const size_t length = strlen(path);
-    const size_t size = strlen(suffix);
+    const size_t length = mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t size = mmgr_text_length(suffix, PLATFORM_TEXT_TO_TERMINATOR);
     int same = (length >= size);
     for (size_t at = 0u; same && (at < size); at += 1u)
     {
@@ -20,7 +23,7 @@ int entry_ends(const char *path, const char *suffix)
 static int entry_zip_names(const char *path, const char *member)
 {
     EngineError probe;
-    memset(&probe, 0, sizeof(probe));
+    mmgr_bytes_set(&probe, 0, sizeof(probe));
     const ZipArchive *const archive = zip_archive_cached(entry_ingest_tools(), path, &probe);
     unsigned long long first = 0ULL;
     unsigned long long count = 0ULL;
@@ -28,7 +31,7 @@ static int entry_zip_names(const char *path, const char *member)
     {
         return archive != NULL;
     }
-    const size_t length = strlen(member);
+    const size_t length = mmgr_text_length(member, PLATFORM_TEXT_TO_TERMINATOR);
     int named = 0;
     for (unsigned long long at = 0ULL; (named == 0) && (at < archive->entries); at += 1ULL)
     {
@@ -37,9 +40,9 @@ static int entry_zip_names(const char *path, const char *member)
         {
             return 0;
         }
-        const int stem = (entry.name_length >= length) && (memcmp(entry.name, member, length) == 0);
-        named = stem && ((entry.name_length == length) ||
-                         ((entry.name_length == (length + 4u)) && (memcmp(entry.name + length, ".npy", 4u) == 0)));
+        const int stem = (entry.name_length >= length) && (mmgr_bytes_compare(entry.name, member, length) == 0);
+        named = stem && ((entry.name_length == length) || ((entry.name_length == (length + 4u)) &&
+                                                           (mmgr_bytes_compare(entry.name + length, ".npy", 4u) == 0)));
     }
     return named;
 }
@@ -65,11 +68,11 @@ static EntrySourceKind entry_source_type(const char *path, const char *member)
     static unsigned char cached_head[352];
     static long long cached_read = -1LL;
     unsigned char head[352];
-    memset(head, 0, sizeof(head));
+    mmgr_bytes_set(head, 0, sizeof(head));
     long long bytes_read = -1LL;
-    if ((cached_read >= 0LL) && (strcmp(cached_path, path) == 0))
+    if ((cached_read >= 0LL) && (mmgr_text_equal(cached_path, path, PLATFORM_TEXT_TO_TERMINATOR)))
     {
-        memcpy(head, cached_head, sizeof(head));
+        mmgr_bytes_copy(head, cached_head, sizeof(head));
         bytes_read = cached_read;
     }
     else
@@ -80,12 +83,13 @@ static EntrySourceKind entry_source_type(const char *path, const char *member)
         range.bytes = sizeof(head);
         range.out = head;
         bytes_read = stack_file_read(&range);
-        const int cacheable = (bytes_read >= 0LL) && (strlen(path) < sizeof(cached_path));
+        const int cacheable =
+            (bytes_read >= 0LL) && (mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR) < sizeof(cached_path));
         cached_read = cacheable ? bytes_read : -1LL;
         if (cacheable)
         {
-            memcpy(cached_path, path, strlen(path) + 1u);
-            memcpy(cached_head, head, sizeof(head));
+            mmgr_bytes_copy(cached_path, path, mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR) + 1u);
+            mmgr_bytes_copy(cached_head, head, sizeof(head));
         }
     }
     if (bytes_read < 8LL)
@@ -101,28 +105,28 @@ static EntrySourceKind entry_source_type(const char *path, const char *member)
     {
         return ENTRY_SOURCE_TIFF;
     }
-    if ((memcmp(head, "\x89HDF\r\n\x1a\n", 8u) == 0) || entry_ends(path, ".h5") || entry_ends(path, ".hdf5") ||
-        entry_ends(path, ".ims"))
+    if ((mmgr_bytes_compare(head, "\x89HDF\r\n\x1a\n", 8u) == 0) || entry_ends(path, ".h5") ||
+        entry_ends(path, ".hdf5") || entry_ends(path, ".ims"))
     {
         return ENTRY_SOURCE_HDF5;
     }
-    if (memcmp(head, "PAR1", 4u) == 0)
+    if (mmgr_bytes_compare(head, "PAR1", 4u) == 0)
     {
         return ENTRY_SOURCE_PARQUET;
     }
-    if ((memcmp(head, "PK\x03\x04", 4u) == 0) && dicom_zip_has_member(entry_ingest_tools(), path, member))
+    if ((mmgr_bytes_compare(head, "PK\x03\x04", 4u) == 0) && dicom_zip_has_member(entry_ingest_tools(), path, member))
     {
         return ENTRY_SOURCE_DICOM;
     }
-    if ((memcmp(head, "PK\x03\x04", 4u) == 0) && (member != NULL) && !entry_zip_names(path, member))
+    if ((mmgr_bytes_compare(head, "PK\x03\x04", 4u) == 0) && (member != NULL) && !entry_zip_names(path, member))
     {
         return ENTRY_SOURCE_NO_MEMBER;
     }
-    if ((memcmp(head, "\x93NUMPY", 6u) == 0) || (memcmp(head, "PK\x03\x04", 4u) == 0))
+    if ((mmgr_bytes_compare(head, "\x93NUMPY", 6u) == 0) || (mmgr_bytes_compare(head, "PK\x03\x04", 4u) == 0))
     {
         return ENTRY_SOURCE_NPY;
     }
-    if (memcmp(head, "NRRD000", 7u) == 0)
+    if (mmgr_bytes_compare(head, "NRRD000", 7u) == 0)
     {
         return ENTRY_SOURCE_NRRD;
     }
@@ -136,7 +140,7 @@ static EntrySourceKind entry_source_type(const char *path, const char *member)
 
 static int entry_source_describe(const char *path, const char *member, EntrySource *source, EngineError *error)
 {
-    memset(source, 0, sizeof(*source));
+    mmgr_bytes_set(source, 0, sizeof(*source));
     source->type = entry_source_type(path, member);
     source->member = member;
     const EngineIngestTools *const tools = entry_ingest_tools();
@@ -146,7 +150,11 @@ static int entry_source_describe(const char *path, const char *member, EntrySour
     describe.tools = tools;
     describe.extent = &source->extent;
     describe.error = error;
-    snprintf(source->path, sizeof(source->path), "%s", path);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(source->path, sizeof(source->path));
+        mmgr_line_put(&buffer_line, path);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     switch (source->type)
     {
     case ENTRY_SOURCE_ZARR: {
@@ -263,24 +271,33 @@ extern "C" long engine_source_read(const EngineSourceRequest *request, unsigned 
     const EngineArrayExtent *const array_extent = &source->extent;
     const unsigned int rank = array_extent->rank;
     char axes[ENGINE_ARRAY_RANK];
-    const size_t stated = (request->axes != NULL) ? strlen(request->axes) : 0u;
+    const size_t stated = (request->axes != NULL) ? mmgr_text_length(request->axes, PLATFORM_TEXT_TO_TERMINATOR) : 0u;
     int ok = (rank != 0u) && ((request->axes == NULL) || (stated == rank));
     // a c axis, at max one, gives its lanes at the channel requested; every other axis is one of t z y x
     int channel_axis = -1;
     for (unsigned int axis = 0u; ok && (axis < rank); axis += 1u)
     {
         axes[axis] = (request->axes != NULL) ? request->axes[axis] : array_extent->axes[axis];
-        const int channel = (axes[axis] == 'c') && (channel_axis < 0) &&
-                            (request->channel < array_extent->sizes[axis]);
+        const int channel = (axes[axis] == 'c') && (channel_axis < 0) && (request->channel < array_extent->sizes[axis]);
         channel_axis = channel ? (int)axis : channel_axis;
         ok = (axes[axis] == 't') || (axes[axis] == 'z') || (axes[axis] == 'y') || (axes[axis] == 'x') || channel;
     }
     if (ok == 0)
     {
-        fprintf(stderr,
-                "  %s: the source's %u axes are not all named t z y x and one c containing channel %u; name them in "
-                "the .cfg's input axes and the channel in its input channel\n",
-                request->path, rank, request->channel);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  ");
+            mmgr_line_put(&engine_note.line, request->path);
+            mmgr_line_put(&engine_note.line, ": the source's ");
+            mmgr_line_decimal(&engine_note.line, rank, 1u);
+            mmgr_line_put(&engine_note.line, " axes are not all named t z y x and one c containing channel ");
+            mmgr_line_decimal(&engine_note.line, request->channel, 1u);
+            mmgr_line_put(&engine_note.line,
+                          "; name them in the .cfg's input axes and the channel in its input channel");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         free(source);
         return ENGINE_ERROR;
     }
@@ -288,11 +305,23 @@ extern "C" long engine_source_read(const EngineSourceRequest *request, unsigned 
     if ((array_extent->element_type == ENGINE_ELEMENT_FLOAT) ||
         ((array_extent->element_bytes != 1u) && (array_extent->element_bytes != 2u)))
     {
-        fprintf(stderr, "  %s: %u byte %s elements are not supported; the engine takes 8 and 16 bit integer samples\n",
-                request->path, array_extent->element_bytes,
-                (array_extent->element_type == ENGINE_ELEMENT_FLOAT)
-                    ? "float"
-                    : ((array_extent->element_type == ENGINE_ELEMENT_SIGNED) ? "signed" : "unsigned"));
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  ");
+            mmgr_line_put(&engine_note.line, request->path);
+            mmgr_line_put(&engine_note.line, ": ");
+            mmgr_line_decimal(&engine_note.line, array_extent->element_bytes, 1u);
+            mmgr_line_put(&engine_note.line, " byte ");
+            mmgr_line_put(&engine_note.line,
+                          (array_extent->element_type == ENGINE_ELEMENT_FLOAT)
+                              ? "float"
+                              : ((array_extent->element_type == ENGINE_ELEMENT_SIGNED) ? "signed" : "unsigned"));
+            mmgr_line_put(&engine_note.line,
+                          " elements are not supported; the engine takes 8 and 16 bit integer samples");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         free(source);
         return ENGINE_ERROR;
     }
@@ -325,7 +354,15 @@ extern "C" long engine_source_read(const EngineSourceRequest *request, unsigned 
     ok = ok && (raw != NULL) && (entry_source_bytes(source, raw, bytes, request->side, error) == (long long)bytes);
     if (ok == 0)
     {
-        fprintf(stderr, "  %s: the source was not read whole\n", request->path);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  ");
+            mmgr_line_put(&engine_note.line, request->path);
+            mmgr_line_put(&engine_note.line, ": the source was not read whole");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         free(raw);
         free(source);
         return ENGINE_ERROR;

@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_daemon_peers.c: writing to, delivering to and serving the peers
 #include "tessera_daemon_internal.h"
+#include "../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 _Alignas(8) static const char s_daemon_reason_closed[] = "its connection closed";
 
@@ -14,7 +17,7 @@ static int daemon_write(TesseraPeer *peer, const TesseraFrame *frame)
     }
 #if defined(_WIN32)
     OVERLAPPED writing;
-    memset(&writing, 0, sizeof(writing));
+    mmgr_bytes_set(&writing, 0, sizeof(writing));
     writing.hEvent = CreateEventA(NULL, TRUE, FALSE, NULL);
     if (writing.hEvent == NULL)
     {
@@ -119,7 +122,7 @@ static DWORD WINAPI daemon_peer(LPVOID argument)
 {
     TesseraPeer *const peer = (TesseraPeer *)argument;
     OVERLAPPED measurement;
-    memset(&measurement, 0, sizeof(measurement));
+    mmgr_bytes_set(&measurement, 0, sizeof(measurement));
     measurement.hEvent = CreateEventA(NULL, TRUE, FALSE, NULL);
     unsigned char bytes[TESSERA_FRAME_BYTES];
     unsigned int got = 0u;
@@ -256,7 +259,7 @@ int daemon_peer_start(TesseraPeer *peer, unsigned long long pid)
 
 static int daemon_hex(const char *text, unsigned char *bytes, unsigned int count)
 {
-    if (strlen(text) != (2u * count))
+    if (mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR) != (2u * count))
     {
         return 0;
     }
@@ -289,16 +292,16 @@ int daemon_arguments(int count, char **arguments, unsigned long long *idle)
     for (int at = 1; (at + 1) < count; at += 2)
     {
         char *end = NULL;
-        if (strcmp(arguments[at], "--device") == 0)
+        if (mmgr_text_equal(arguments[at], "--device", PLATFORM_TEXT_TO_TERMINATOR))
         {
             have_device = daemon_hex(arguments[at + 1], g_daemon.device, TESSERA_DEVICE_BYTES);
         }
-        else if (strcmp(arguments[at], "--luid") == 0)
+        else if (mmgr_text_equal(arguments[at], "--luid", PLATFORM_TEXT_TO_TERMINATOR))
         {
             g_daemon.luid = strtoull(arguments[at + 1], &end, 16);
             have_luid = (end != arguments[at + 1]) && (*end == '\0');
         }
-        else if (strcmp(arguments[at], "--idle") == 0)
+        else if (mmgr_text_equal(arguments[at], "--idle", PLATFORM_TEXT_TO_TERMINATOR))
         {
             *idle = strtoull(arguments[at + 1], &end, 10);
             have_idle = (end != arguments[at + 1]) && (*end == '\0');
@@ -320,7 +323,8 @@ int daemon_socket_passed(void)
     const char *const listen_pid = getenv("LISTEN_PID");
     const char *const listen_fds = getenv("LISTEN_FDS");
     return (listen_pid != NULL) && (listen_fds != NULL) &&
-           (strtoull(listen_pid, NULL, 10) == (unsigned long long)getpid()) && (strcmp(listen_fds, "1") == 0);
+           (strtoull(listen_pid, NULL, 10) == (unsigned long long)getpid()) &&
+           (mmgr_text_equal(listen_fds, "1", PLATFORM_TEXT_TO_TERMINATOR));
 #endif
 }
 

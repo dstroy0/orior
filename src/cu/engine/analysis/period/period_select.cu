@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // period_select.cu: the lattice, the null axis, selection, reading and printing
 #include "period_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 int period_lattice_fill(const PeriodRequest *request, PeriodLattice *lattice, unsigned long long *voxels)
 {
@@ -22,7 +23,7 @@ int period_lattice_fill(const PeriodRequest *request, PeriodLattice *lattice, un
         }
         count *= extent;
     }
-    memset(lattice, 0, sizeof(*lattice));
+    mmgr_bytes_set(lattice, 0, sizeof(*lattice));
     lattice->rank = rank;
     unsigned long long stride = 1ULL;
     for (unsigned int axis = rank; axis > 0u; axis -= 1u)
@@ -130,7 +131,7 @@ int period_request_valid(const PeriodRequest *request, unsigned long long entrie
 
 void period_axis_open(const PeriodLattice *lattice, unsigned int axis, PeriodAxis *result)
 {
-    memset(result, 0, sizeof(*result));
+    mmgr_bytes_set(result, 0, sizeof(*result));
     result->extent = lattice->extent[axis];
     result->lags = lattice->extent[axis] / 2u;
     result->pairs_per_lag = lattice->pairs[axis];
@@ -159,10 +160,11 @@ static int period_null_axis(const PeriodRequest *request, const PeriodLattice *l
     // only this axis's lags are counted: the strongest peak is read from them alone
     const unsigned long long begin = lattice->first[axis];
     const unsigned long long end = begin + (lattice->extent[axis] / 2u);
-    int ok = PERIOD_STATUS_CHECK(cudaGetLastError(), device_shuffled, error) &&
-             period_count(shuffled_pass, lattice, begin, end, error) &&
-             PERIOD_CHECK(memcmp(histogram, shuffled_pass->histogram, PERIOD_VALUES * sizeof(unsigned int)) == 0,
-                          shuffled_pass->histogram, error, ENGINE_ERROR_LOGIC);
+    int ok =
+        PERIOD_STATUS_CHECK(cudaGetLastError(), device_shuffled, error) &&
+        period_count(shuffled_pass, lattice, begin, end, error) &&
+        PERIOD_CHECK(mmgr_bytes_compare(histogram, shuffled_pass->histogram, PERIOD_VALUES * sizeof(unsigned int)) == 0,
+                     shuffled_pass->histogram, error, ENGINE_ERROR_LOGIC);
     if (ok != 0)
     {
         PeriodAxis drawn;
@@ -265,7 +267,7 @@ extern "C" long period_read(const PeriodRequest *request)
         ok = PERIOD_CHECK(counted == voxels, histogram, error, ENGINE_ERROR_LOGIC);
     }
     PeriodMeasurement *const measurement = request->measurement;
-    memset(measurement, 0, sizeof(*measurement));
+    mmgr_bytes_set(measurement, 0, sizeof(*measurement));
     measurement->rank = lattice.rank;
     measurement->voxels = voxels;
     measurement->collisions = collisions;
@@ -294,11 +296,11 @@ extern "C" long period_read(const PeriodRequest *request)
     }
     if ((ok != 0) && (request->agreement != NULL) && (entries != 0ULL))
     {
-        memcpy(request->agreement, agreement, (size_t)entries * sizeof(unsigned long long));
+        mmgr_bytes_copy(request->agreement, agreement, (size_t)entries * sizeof(unsigned long long));
     }
     if ((ok != 0) && (request->band != NULL))
     {
-        memcpy(request->band, bands, (size_t)(draws * lattice.rank) * sizeof(PeriodMargin));
+        mmgr_bytes_copy(request->band, bands, (size_t)(draws * lattice.rank) * sizeof(PeriodMargin));
     }
     free(histogram);
     free(shuffled_histogram);

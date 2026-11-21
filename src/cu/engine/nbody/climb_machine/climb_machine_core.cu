@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // climb_machine_core.cu: painting, reach and the core
 #include "climb_machine_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 __global__ static void machine_paint_kernel(const unsigned int *run_start, const unsigned int *run_length,
                                             const unsigned int *run_leaf, unsigned int runs, unsigned int *painted)
@@ -178,7 +179,7 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
     {
         return 0;
     }
-    memset(core, 0, sizeof(*core));
+    mmgr_bytes_set(core, 0, sizeof(*core));
     machine_core_release(machine);
     const unsigned long long started = engine_clock_microseconds();
     const MachineGeometry geometry = machine->geometry;
@@ -270,7 +271,7 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
     steps_succeeded = steps_succeeded && (resident_fill != NULL);
     if (steps_succeeded)
     {
-        memcpy(resident_fill, resident_first, (residents + 1u) * sizeof(unsigned int));
+        mmgr_bytes_copy(resident_fill, resident_first, (residents + 1u) * sizeof(unsigned int));
     }
     for (unsigned int listed_place = 0u; steps_succeeded && (listed_place < listed_count); listed_place += 1u)
     {
@@ -425,10 +426,9 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
         }
     }
     unsigned int error = 0u;
-    steps_succeeded =
-        steps_succeeded &&
-        (cudaMemcpy(&error, device_error, sizeof(unsigned int), cudaMemcpyDeviceToHost) == cudaSuccess) &&
-        (error == 0u) && (staged_count <= 0xFFFFFFFFULL);
+    steps_succeeded = steps_succeeded &&
+                      (cudaMemcpy(&error, device_error, sizeof(unsigned int), cudaMemcpyDeviceToHost) == cudaSuccess) &&
+                      (error == 0u) && (staged_count <= 0xFFFFFFFFULL);
     machine->core_fields =
         steps_succeeded
             ? (unsigned long long *)malloc((staged_count + 1u) * CLIMB_MACHINE_CORE_FIELDS * sizeof(unsigned long long))
@@ -440,9 +440,9 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
         // widths_written is at max staged_count, bounded within 32 bits above. It narrows from size_t to unsigned int
         // exactly
         machine->core_width_first[listed_place] = (unsigned int)widths_written;
-        memcpy(&machine->core_fields[widths_written * CLIMB_MACHINE_CORE_FIELDS],
-               &staged[staged_at[listed_place] * CLIMB_MACHINE_CORE_FIELDS],
-               widths[listed_place] * sizeof(unsigned long long) * CLIMB_MACHINE_CORE_FIELDS);
+        mmgr_bytes_copy(&machine->core_fields[widths_written * CLIMB_MACHINE_CORE_FIELDS],
+                        &staged[staged_at[listed_place] * CLIMB_MACHINE_CORE_FIELDS],
+                        widths[listed_place] * sizeof(unsigned long long) * CLIMB_MACHINE_CORE_FIELDS);
         widths_written += widths[listed_place];
     }
     if (steps_succeeded)

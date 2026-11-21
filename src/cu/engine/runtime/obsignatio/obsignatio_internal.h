@@ -5,6 +5,8 @@
 #define OBSIGNATIO_INTERNAL_H
 
 #include "obsignatio.h"
+#include "../../../../platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 // a part with no CUDA toolchain (the Pi, tessera on every target) compiles the seal as C++: the functions the host and
 // the device share are the host's alone, and the kernels and the calls that launch them are left out
@@ -415,8 +417,8 @@ static inline int obsignatio_host_level_key(ObsignatioLevel level, unsigned char
         return 0;
     }
     // the context's chars are hashed as the unsigned bytes they are stored as
-    obsignatio_host_digest(NULL, OBSIGNATIO_MODE_CONTEXT, (const unsigned char *)context, strlen(context), key,
-                           OBSIGNATIO_KEY_BYTES);
+    obsignatio_host_digest(NULL, OBSIGNATIO_MODE_CONTEXT, (const unsigned char *)context,
+                           mmgr_text_length(context, PLATFORM_TEXT_TO_TERMINATOR), key, OBSIGNATIO_KEY_BYTES);
     return 1;
 }
 

@@ -1199,7 +1199,7 @@ utils/test/examples/cu/cell_tracking/peaks_test.cu	7
 utils/test/examples/cu/cell_tracking/sort_test.cu	42
 utils/test/examples/cu/cell_tracking/sort_test.sh	1
 utils/test/examples/python/cell_tracking/score_metric_test.py	4
-utils/test/harness.py	40
+utils/test/harness.py	39
 utils/test/harness_appium.py	12
 utils/test/harness_build.py	20
 utils/test/harness_cdp.py	10

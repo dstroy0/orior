@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_run_main.c: tessera_run's main
 #include "tessera_run_internal.h"
+#include "../../../../platform/platform.h"
+#include "../../engine_note.h"
+#include "memoria_operor/memoria_linea.h"
 
 _Alignas(8) static const
     char s_run_usage[] = "  tessera_run: --processors <count> [--name <text>] [--child] -- <command> [arguments]\n"
@@ -9,10 +12,10 @@ _Alignas(8) static const
 _Alignas(8) static const
     char s_run_unsubmitted[] = "  tessera_run: the job could not be submitted (its signum, or the daemon's place)\n";
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     RunRequest request;
-    memset(&request, 0, sizeof(request));
+    mmgr_bytes_set(&request, 0, sizeof(request));
     if (!run_arguments(count, arguments, &request))
     {
         fputs(s_run_usage, stderr);
@@ -23,8 +26,16 @@ int main(int count, char **arguments)
     const unsigned long long given = (unsigned long long)engine_word_population(mask);
     if ((mask == 0ULL) || (request.processors > given))
     {
-        fprintf(stderr, "  tessera_run: requests %llu processors, and the host gives jobs %llu\n", request.processors,
-                given);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  tessera_run: requests ");
+            mmgr_line_decimal(&engine_note.line, request.processors, 1u);
+            mmgr_line_put(&engine_note.line, " processors, and the host gives jobs ");
+            mmgr_line_decimal(&engine_note.line, given, 1u);
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return RUN_FAILED;
     }
     const char *const label = (request.name != NULL) ? request.name : arguments[request.command];
@@ -33,10 +44,10 @@ int main(int count, char **arguments)
         return run_child(&request, arguments, count, mask, label);
     }
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     char daemon[ENGINE_PATH_CAPACITY];
     TesseraJobSubmit submit;
-    memset(&submit, 0, sizeof(submit));
+    mmgr_bytes_set(&submit, 0, sizeof(submit));
     if (!run_daemon_path(daemon, sizeof(daemon)) || !run_signum(&request, arguments, count, &submit.signum, &error))
     {
         fputs(s_run_unsubmitted, stderr);
@@ -56,30 +67,61 @@ int main(int count, char **arguments)
     TesseraTicket ticket;
     if (tessera_job_submit(&submit, &client, &ticket) != 0L)
     {
-        fprintf(stderr, "  tessera_run: %s was not admitted by the host's daemon (%s)\n", label, daemon);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  tessera_run: ");
+            mmgr_line_put(&engine_note.line, label);
+            mmgr_line_put(&engine_note.line, " was not admitted by the host's daemon (");
+            mmgr_line_put(&engine_note.line, daemon);
+            mmgr_line_put(&engine_note.line, ")");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return RUN_FAILED;
     }
     const unsigned long long waited = run_now() - submitted_at;
-    fprintf(stderr,
-            "  tessera_run: %s admitted after %llu.%03LLU s, %llu.%03LLU of %llu processors reserved, on processors "
-            "0x%llx at below normal priority\n",
-            label, waited / RUN_MILLION, (waited % RUN_MILLION) / RUN_THOUSAND, ticket.granted / TESSERA_HOST_PROCESSOR,
-            ticket.granted % TESSERA_HOST_PROCESSOR, given, mask);
+    {
+        EngineNote engine_note;
+        engine_note_begun(&engine_note);
+        mmgr_line_put(&engine_note.line, "  tessera_run: ");
+        mmgr_line_put(&engine_note.line, label);
+        mmgr_line_put(&engine_note.line, " admitted after ");
+        mmgr_line_decimal(&engine_note.line, waited / RUN_MILLION, 1u);
+        mmgr_line_put(&engine_note.line, ".");
+        mmgr_line_decimal(&engine_note.line, (waited % RUN_MILLION) / RUN_THOUSAND, 3u);
+        mmgr_line_put(&engine_note.line, " s, ");
+        mmgr_line_decimal(&engine_note.line, ticket.granted / TESSERA_HOST_PROCESSOR, 1u);
+        mmgr_line_put(&engine_note.line, ".");
+        mmgr_line_decimal(&engine_note.line, ticket.granted % TESSERA_HOST_PROCESSOR, 3u);
+        mmgr_line_put(&engine_note.line, " of ");
+        mmgr_line_decimal(&engine_note.line, given, 1u);
+        mmgr_line_put(&engine_note.line, " processors reserved, on processors 0x");
+        mmgr_line_hex(&engine_note.line, mask, 1u);
+        mmgr_line_put(&engine_note.line, " at below normal priority");
+        mmgr_line_ch(&engine_note.line, '\n');
+        engine_note_written(&engine_note);
+    }
     RunChannel channel;
-    memset(&channel, 0, sizeof(channel));
+    mmgr_bytes_set(&channel, 0, sizeof(channel));
     int started_count = count - request.command;
     char **const watched = run_channel_open(&channel, &request, arguments + request.command, count - request.command,
                                             &submit.signum, &started_count);
     char *const *const words = (watched != NULL) ? watched : (arguments + request.command);
     RunChild child;
-    memset(&child, 0, sizeof(child));
+    mmgr_bytes_set(&child, 0, sizeof(child));
     int code = RUN_NOT_STARTED;
     // the whole processors of the reservation, and never none: a job reserves its tracked peak where that is more than
     // it named, and the count of whole ones in it is what the command may run on
     const unsigned long long whole = ticket.granted / TESSERA_HOST_PROCESSOR;
     if (!run_processors_named((whole != 0ULL) ? whole : 1ULL))
     {
-        fprintf(stderr, "  tessera_run: the processors granted were not passed on to %s\n", label);
+        EngineNote engine_note;
+        engine_note_begun(&engine_note);
+        mmgr_line_put(&engine_note.line, "  tessera_run: the processors granted were not passed on to ");
+        mmgr_line_put(&engine_note.line, label);
+        mmgr_line_ch(&engine_note.line, '\n');
+        engine_note_written(&engine_note);
     }
     const unsigned long long started = run_now();
     if (run_start(&child, words, started_count, mask, &channel))
@@ -89,21 +131,48 @@ int main(int count, char **arguments)
     }
     else
     {
-        fprintf(stderr, "  tessera_run: %s could not be started\n", arguments[request.command]);
+        EngineNote engine_note;
+        engine_note_begun(&engine_note);
+        mmgr_line_put(&engine_note.line, "  tessera_run: ");
+        mmgr_line_put(&engine_note.line, arguments[request.command]);
+        mmgr_line_put(&engine_note.line, " could not be started");
+        mmgr_line_ch(&engine_note.line, '\n');
+        engine_note_written(&engine_note);
     }
     free(watched);
     run_channel_close(&channel);
     const unsigned long long ran = run_now() - started;
     if (tessera_job_release(client, &ticket, &error) == 0L)
     {
-        fprintf(stderr, "  tessera_run: %s released after %llu.%03LLU s, exit %d, peak %llu.%03LLU processors\n", label,
-                ran / RUN_MILLION, (ran % RUN_MILLION) / RUN_THOUSAND, code, ticket.last_peak / TESSERA_HOST_PROCESSOR,
-                ticket.last_peak % TESSERA_HOST_PROCESSOR);
+        EngineNote engine_note;
+        engine_note_begun(&engine_note);
+        mmgr_line_put(&engine_note.line, "  tessera_run: ");
+        mmgr_line_put(&engine_note.line, label);
+        mmgr_line_put(&engine_note.line, " released after ");
+        mmgr_line_decimal(&engine_note.line, ran / RUN_MILLION, 1u);
+        mmgr_line_put(&engine_note.line, ".");
+        mmgr_line_decimal(&engine_note.line, (ran % RUN_MILLION) / RUN_THOUSAND, 3u);
+        mmgr_line_put(&engine_note.line, " s, exit ");
+        mmgr_line_decimal_signed(&engine_note.line, code);
+        mmgr_line_put(&engine_note.line, ", peak ");
+        mmgr_line_decimal(&engine_note.line, ticket.last_peak / TESSERA_HOST_PROCESSOR, 1u);
+        mmgr_line_put(&engine_note.line, ".");
+        mmgr_line_decimal(&engine_note.line, ticket.last_peak % TESSERA_HOST_PROCESSOR, 3u);
+        mmgr_line_put(&engine_note.line, " processors");
+        mmgr_line_ch(&engine_note.line, '\n');
+        engine_note_written(&engine_note);
     }
     else
     {
-        fprintf(stderr, "  tessera_run: %s ended with exit %d, and the daemon did not answer its release\n", label,
-                code);
+        EngineNote engine_note;
+        engine_note_begun(&engine_note);
+        mmgr_line_put(&engine_note.line, "  tessera_run: ");
+        mmgr_line_put(&engine_note.line, label);
+        mmgr_line_put(&engine_note.line, " ended with exit ");
+        mmgr_line_decimal_signed(&engine_note.line, code);
+        mmgr_line_put(&engine_note.line, ", and the daemon did not answer its release");
+        mmgr_line_ch(&engine_note.line, '\n');
+        engine_note_written(&engine_note);
     }
     return code;
 }

@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "tessera.h"
+#include "memoria_operor/memoria_linea.h"
 
 #include <string.h>
 
@@ -78,8 +79,8 @@ int tessera_frame_pack(const TesseraFrame *frame, unsigned char bytes[TESSERA_FR
     tessera_put_word(bytes, TESSERA_AT_VERSION, frame->version);
     tessera_put_word(bytes, TESSERA_AT_KIND, frame->type);
     tessera_put_word(bytes, TESSERA_AT_OVERRIDE, frame->override_budget);
-    memcpy(bytes + TESSERA_AT_DEVICE, frame->device, TESSERA_DEVICE_BYTES);
-    memcpy(bytes + TESSERA_AT_SIGNUM, frame->signum.bytes, ENGINE_SIGNUM_BYTES);
+    mmgr_bytes_copy(bytes + TESSERA_AT_DEVICE, frame->device, TESSERA_DEVICE_BYTES);
+    mmgr_bytes_copy(bytes + TESSERA_AT_SIGNUM, frame->signum.bytes, ENGINE_SIGNUM_BYTES);
     tessera_put_long(bytes, TESSERA_AT_DECLARED, frame->declared);
     tessera_put_long(bytes, TESSERA_AT_RUNNING, frame->grace_microseconds);
     tessera_put_long(bytes, TESSERA_AT_SWEEP, frame->sweep_microseconds);
@@ -98,8 +99,8 @@ int tessera_frame_unpack(const unsigned char bytes[TESSERA_FRAME_BYTES], Tessera
     read.version = tessera_get_word(bytes, TESSERA_AT_VERSION);
     read.type = tessera_get_word(bytes, TESSERA_AT_KIND);
     read.override_budget = tessera_get_word(bytes, TESSERA_AT_OVERRIDE);
-    memcpy(read.device, bytes + TESSERA_AT_DEVICE, TESSERA_DEVICE_BYTES);
-    memcpy(read.signum.bytes, bytes + TESSERA_AT_SIGNUM, ENGINE_SIGNUM_BYTES);
+    mmgr_bytes_copy(read.device, bytes + TESSERA_AT_DEVICE, TESSERA_DEVICE_BYTES);
+    mmgr_bytes_copy(read.signum.bytes, bytes + TESSERA_AT_SIGNUM, ENGINE_SIGNUM_BYTES);
     read.declared = tessera_get_long(bytes, TESSERA_AT_DECLARED);
     read.grace_microseconds = tessera_get_long(bytes, TESSERA_AT_RUNNING);
     read.sweep_microseconds = tessera_get_long(bytes, TESSERA_AT_SWEEP);

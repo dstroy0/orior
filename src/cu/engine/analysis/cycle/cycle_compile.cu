@@ -11,6 +11,8 @@
 // interpreter as it checks the device's. On Windows the compiler is nvcc handing the source to the host compiler
 // alone, with -ccbin $CYCLE_HOST_CCBIN where it is set; elsewhere it is $CXX, else c++
 #include "cycle_compile_internal.h"
+#include "../../engine_note.h"
+#include "memoria_operor/memoria_linea.h"
 #include "cycle_record_internal.h"
 
 #include <thread>
@@ -174,7 +176,7 @@ static int cycle_host_compiler_run(const std::string &source, const std::string 
     std::vector<char> line(command.begin(), command.end());
     line.push_back('\0');
     SECURITY_ATTRIBUTES inherited;
-    memset(&inherited, 0, sizeof(inherited));
+    mmgr_bytes_set(&inherited, 0, sizeof(inherited));
     inherited.nLength = sizeof(inherited);
     inherited.bInheritHandle = TRUE;
     const HANDLE output = CreateFileA(log.c_str(), GENERIC_WRITE, FILE_SHARE_READ, &inherited, CREATE_ALWAYS,
@@ -184,14 +186,14 @@ static int cycle_host_compiler_run(const std::string &source, const std::string 
         return 0;
     }
     STARTUPINFOA startup;
-    memset(&startup, 0, sizeof(startup));
+    mmgr_bytes_set(&startup, 0, sizeof(startup));
     startup.cb = sizeof(startup);
     startup.dwFlags = STARTF_USESTDHANDLES;
     startup.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
     startup.hStdOutput = output;
     startup.hStdError = output;
     PROCESS_INFORMATION process;
-    memset(&process, 0, sizeof(process));
+    mmgr_bytes_set(&process, 0, sizeof(process));
     DWORD status = 1u;
     const BOOL started =
         CreateProcessA(NULL, line.data(), NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &startup, &process);
@@ -263,8 +265,13 @@ int cycle_host_program_load(const EngineRecordLayout *layout, CycleRecord *recor
             record->compiled = 1u;
             if (report != 0)
             {
-                fprintf(stderr, "  cycle: a program of %u steps found in this process, as a host library\n",
-                        layout->steps);
+                EngineNote engine_note;
+                engine_note_begun(&engine_note);
+                mmgr_line_put(&engine_note.line, "  cycle: a program of ");
+                mmgr_line_decimal(&engine_note.line, layout->steps, 1u);
+                mmgr_line_put(&engine_note.line, " steps found in this process, as a host library");
+                mmgr_line_ch(&engine_note.line, '\n');
+                engine_note_written(&engine_note);
             }
             return 1;
         }
@@ -285,7 +292,12 @@ int cycle_host_program_load(const EngineRecordLayout *layout, CycleRecord *recor
     const char *const separator = "/";
 #endif
     char name[64];
-    snprintf(name, sizeof(name), "%016llx.host", cycle_source_hash(text));
+    {
+        VerbaLinea buffer_line = mmgr_line_over(name, sizeof(name));
+        mmgr_line_hex(&buffer_line, cycle_source_hash(text), 16u);
+        mmgr_line_put(&buffer_line, ".host");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     const std::string stem = folder + separator + name;
     const int found = cycle_host_file_read(stem + ".cpp") == text;
     unsigned long long compile_nanoseconds = 0ULL;
@@ -293,15 +305,21 @@ int cycle_host_program_load(const EngineRecordLayout *layout, CycleRecord *recor
     if (!found)
     {
         char suffix[32];
-        snprintf(suffix, sizeof(suffix), ".%d", process);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(suffix, sizeof(suffix));
+            mmgr_line_put(&buffer_line, ".");
+            mmgr_line_decimal_signed(&buffer_line, process);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         const std::string partial = stem + suffix;
         log = partial + ".log";
         const auto began = std::chrono::steady_clock::now();
         const int built = cycle_host_file_write(partial + ".cpp", text) &&
                           cycle_host_compiler_run(partial + ".cpp", partial + CYCLE_HOST_LIBRARY, log);
         // a steady clock's span is never negative
-        compile_nanoseconds =
-            (unsigned long long)std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - began).count();
+        compile_nanoseconds = (unsigned long long)std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                  std::chrono::steady_clock::now() - began)
+                                  .count();
         // a name another process took first is left as it is, and its library is loaded
         if (built)
         {
@@ -341,8 +359,17 @@ int cycle_host_program_load(const EngineRecordLayout *layout, CycleRecord *recor
         }
         if (report != 0)
         {
-            fprintf(stderr, "  cycle: a program of %u steps did not build on the host (%s%s)\n", layout->steps,
-                    log.empty() ? "its library did not load" : "the compiler errored, its log ", log.c_str());
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  cycle: a program of ");
+            mmgr_line_decimal(&engine_note.line, layout->steps, 1u);
+            mmgr_line_put(&engine_note.line, " steps did not build on the host (");
+            mmgr_line_put(&engine_note.line,
+                          log.empty() ? "its library did not load" : "the compiler errored, its log ");
+            mmgr_line_put(&engine_note.line, log.c_str());
+            mmgr_line_put(&engine_note.line, ")");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
         }
         return 0;
     }
@@ -353,14 +380,29 @@ int cycle_host_program_load(const EngineRecordLayout *layout, CycleRecord *recor
     record->compiled = 1u;
     if ((report != 0) && found)
     {
-        fprintf(stderr, "  cycle: a program of %u steps read from the cache as a host library\n", layout->steps);
+        EngineNote engine_note;
+        engine_note_begun(&engine_note);
+        mmgr_line_put(&engine_note.line, "  cycle: a program of ");
+        mmgr_line_decimal(&engine_note.line, layout->steps, 1u);
+        mmgr_line_put(&engine_note.line, " steps read from the cache as a host library");
+        mmgr_line_ch(&engine_note.line, '\n');
+        engine_note_written(&engine_note);
     }
     else if (report != 0)
     {
-        fprintf(stderr,
-                "  cycle: a program of %u steps as C source on the host: written in %llu ns to %zu bytes, compiled "
-                "in %llu ns\n",
-                layout->steps, written, text.size(), compile_nanoseconds);
+        EngineNote engine_note;
+        engine_note_begun(&engine_note);
+        mmgr_line_put(&engine_note.line, "  cycle: a program of ");
+        mmgr_line_decimal(&engine_note.line, layout->steps, 1u);
+        mmgr_line_put(&engine_note.line, " steps as C source on the host: written in ");
+        mmgr_line_decimal(&engine_note.line, written, 1u);
+        mmgr_line_put(&engine_note.line, " ns to ");
+        mmgr_line_decimal(&engine_note.line, text.size(), 1u);
+        mmgr_line_put(&engine_note.line, " bytes, compiled in ");
+        mmgr_line_decimal(&engine_note.line, compile_nanoseconds, 1u);
+        mmgr_line_put(&engine_note.line, " ns");
+        mmgr_line_ch(&engine_note.line, '\n');
+        engine_note_written(&engine_note);
     }
     return 1;
 }
@@ -439,7 +481,7 @@ int cycle_host_resident(const CycleRecord *record, CycleCompiledLaunch program, 
     }
     out.assign(out_words, 0u);
     CycleHot hot;
-    memset(&hot, 0, sizeof(hot));
+    mmgr_bytes_set(&hot, 0, sizeof(hot));
     program.index = (program.index != NULL) ? index.data() : NULL;
     program.tables = (program.tables != NULL) ? tables.data() : NULL;
     program.out = out.data();
@@ -450,7 +492,7 @@ int cycle_host_resident(const CycleRecord *record, CycleCompiledLaunch program, 
     const unsigned long long wdt = 1000ULL * CYCLE_PROGRAM_WDT_MICROSECONDS;
     const EngineSignum signature = block->signature;
     const unsigned long long generation = block->generation + 1ULL;
-    memset(block, 0, sizeof(EngineProgramBlock));
+    mmgr_bytes_set(block, 0, sizeof(EngineProgramBlock));
     block->signature = signature;
     block->generation = generation;
     block->command = ENGINE_PROGRAM_RUN;

@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cycle_compile_cache.cu: the cache, compiling and linking, the PTX header
 #include "cycle_compile_internal.h"
+#include "../../engine_note.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 // the target for relocatable cubin, then the target for LTO-IR
 static CycleTarget s_cycle_lane_targets[2];
@@ -31,11 +34,11 @@ std::vector<char> cycle_cache_read(const std::string &path, const std::string &s
     unsigned long long length = 0ULL;
     if (contents.size() >= head)
     {
-        memcpy(&length, &contents[magic], sizeof(length));
+        mmgr_bytes_copy(&length, &contents[magic], sizeof(length));
     }
-    const int ok = (contents.size() >= head) && (memcmp(&contents[0], s_cycle_cache_magic, magic) == 0) &&
+    const int ok = (contents.size() >= head) && (mmgr_bytes_compare(&contents[0], s_cycle_cache_magic, magic) == 0) &&
                    (length == source.size()) && ((contents.size() - head) > length) &&
-                   (memcmp(&contents[head], source.data(), source.size()) == 0);
+                   (mmgr_bytes_compare(&contents[head], source.data(), source.size()) == 0);
     if (ok)
     {
         // a source length the file read whole is below its size. It converts exactly
@@ -58,7 +61,13 @@ void cycle_cache_write(const std::string &folder, const std::string &path, const
     const int process = (int)getpid();
 #endif
     char suffix[32];
-    snprintf(suffix, sizeof(suffix), ".%d.partial", process);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(suffix, sizeof(suffix));
+        mmgr_line_put(&buffer_line, ".");
+        mmgr_line_decimal_signed(&buffer_line, process);
+        mmgr_line_put(&buffer_line, ".partial");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     const std::string partial = path + suffix;
     FILE *const file = fopen(partial.c_str(), "wb");
     if (file == NULL)
@@ -91,7 +100,13 @@ std::vector<char> cycle_program_compile(const std::string &source, const char *n
         return image;
     }
     char architecture[48];
-    snprintf(architecture, sizeof(architecture), "--gpu-architecture=sm_%d%d", major, minor);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(architecture, sizeof(architecture));
+        mmgr_line_put(&buffer_line, "--gpu-architecture=sm_");
+        mmgr_line_decimal_signed(&buffer_line, major);
+        mmgr_line_decimal_signed(&buffer_line, minor);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     const char *const options[] = {architecture, "--std=c++17", "--relocatable-device-code=true", "-dlto"};
     const nvrtcResult compiled = compiler->compile(program, (lto != 0) ? 4 : 3, options);
     size_t size = 0u;
@@ -113,7 +128,16 @@ std::vector<char> cycle_program_compile(const std::string &source, const char *n
         std::vector<char> log(log_size);
         if (compiler->log(program, log.data()) == NVRTC_SUCCESS)
         {
-            fprintf(stderr, "  cycle: NVRTC errored %s (%d):\n%s\n", name, (int)compiled, log.data());
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  cycle: NVRTC errored ");
+            mmgr_line_put(&engine_note.line, name);
+            mmgr_line_put(&engine_note.line, " (");
+            mmgr_line_decimal_signed(&engine_note.line, (int)compiled);
+            mmgr_line_put(&engine_note.line, "):\n");
+            mmgr_line_put(&engine_note.line, log.data());
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
         }
     }
     compiler->destroy(&program);
@@ -129,7 +153,13 @@ std::vector<char> cycle_program_link(const CycleTarget *lane_target, const std::
     CycleLinker *const linker = &g_cycle_linker;
     std::vector<char> cubin;
     char architecture[32];
-    snprintf(architecture, sizeof(architecture), "-arch=sm_%d%d", lane_target->major, lane_target->minor);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(architecture, sizeof(architecture));
+        mmgr_line_put(&buffer_line, "-arch=sm_");
+        mmgr_line_decimal_signed(&buffer_line, lane_target->major);
+        mmgr_line_decimal_signed(&buffer_line, lane_target->minor);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     const char *options[] = {architecture, "-lto"};
     nvJitLinkHandle handle = NULL;
     if (linker->create(&handle, (lto != 0) ? 2u : 1u, options) != NVJITLINK_SUCCESS)
@@ -157,7 +187,12 @@ std::vector<char> cycle_program_link(const CycleTarget *lane_target, const std::
         std::vector<char> log(log_size);
         if (linker->log(handle, log.data()) == NVJITLINK_SUCCESS)
         {
-            fprintf(stderr, "  cycle: nvJitLink errored on a record program:\n%s\n", log.data());
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  cycle: nvJitLink errored on a record program:\n");
+            mmgr_line_put(&engine_note.line, log.data());
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
         }
     }
     linker->destroy(&handle);
@@ -180,8 +215,18 @@ const CycleTarget *cycle_target(int major, int minor, int lto, int report)
     lane_target->hash = cycle_source_hash(lane_target->source);
     if (report != 0)
     {
-        fprintf(stderr, "  cycle: lanes written for sm_%d%d as %s against %016llx, each with its own resident\n", major,
-                minor, (lto != 0) ? "LTO-IR" : "relocatable cubin", lane_target->hash);
+        EngineNote engine_note;
+        engine_note_begun(&engine_note);
+        mmgr_line_put(&engine_note.line, "  cycle: lanes written for sm_");
+        mmgr_line_decimal_signed(&engine_note.line, major);
+        mmgr_line_decimal_signed(&engine_note.line, minor);
+        mmgr_line_put(&engine_note.line, " as ");
+        mmgr_line_put(&engine_note.line, (lto != 0) ? "LTO-IR" : "relocatable cubin");
+        mmgr_line_put(&engine_note.line, " against ");
+        mmgr_line_hex(&engine_note.line, lane_target->hash, 16u);
+        mmgr_line_put(&engine_note.line, ", each with its own resident");
+        mmgr_line_ch(&engine_note.line, '\n');
+        engine_note_written(&engine_note);
     }
     return lane_target;
 }
@@ -196,9 +241,10 @@ static std::string cycle_ptx_header_lines(const char *ptx)
     const char *line = ptx;
     while (*line != '\0')
     {
-        const char *const end = strchr(line, '\n');
+        const char *const end = mmgr_text_char(line, '\n', PLATFORM_TEXT_TO_TERMINATOR);
         // a line ends past its start, and its length is never negative
-        const size_t length = (end != NULL) ? (size_t)(end - line) : strlen(line);
+        const size_t length =
+            (end != NULL) ? (size_t)(end - line) : mmgr_text_length(line, PLATFORM_TEXT_TO_TERMINATOR);
         const std::string text_line(line, length);
         if (version.empty() && (text_line.compare(0u, 9u, ".version ") == 0))
         {
@@ -251,7 +297,13 @@ const std::string &cycle_ptx_header(int major, int minor, int report)
     if (!found && (compiler->create(&program, question.c_str(), "cycle_probe.cu", 0, NULL, NULL) == NVRTC_SUCCESS))
     {
         char architecture[48];
-        snprintf(architecture, sizeof(architecture), "--gpu-architecture=compute_%d%d", major, minor);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(architecture, sizeof(architecture));
+            mmgr_line_put(&buffer_line, "--gpu-architecture=compute_");
+            mmgr_line_decimal_signed(&buffer_line, major);
+            mmgr_line_decimal_signed(&buffer_line, minor);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         const char *const options[] = {architecture};
         size_t size = 0u;
         if ((compiler->compile(program, 1, options) == NVRTC_SUCCESS) &&
@@ -273,8 +325,17 @@ const std::string &cycle_ptx_header(int major, int minor, int report)
     header->lines = answer;
     if (report != 0)
     {
-        fprintf(stderr, "  cycle: PTX's header for sm_%d%d %s: %s\n", major, minor,
-                found ? "read from the cache" : "requested from NVRTC", answer.empty() ? "none" : answer.c_str());
+        EngineNote engine_note;
+        engine_note_begun(&engine_note);
+        mmgr_line_put(&engine_note.line, "  cycle: PTX's header for sm_");
+        mmgr_line_decimal_signed(&engine_note.line, major);
+        mmgr_line_decimal_signed(&engine_note.line, minor);
+        mmgr_line_put(&engine_note.line, " ");
+        mmgr_line_put(&engine_note.line, found ? "read from the cache" : "requested from NVRTC");
+        mmgr_line_put(&engine_note.line, ": ");
+        mmgr_line_put(&engine_note.line, answer.empty() ? "none" : answer.c_str());
+        mmgr_line_ch(&engine_note.line, '\n');
+        engine_note_written(&engine_note);
     }
     return header->lines;
 }

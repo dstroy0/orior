@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_run_posix.c: starting, timing and ending a job's process tree on POSIX
 #include "tessera_run_internal.h"
+#include "../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
 
 #if !(defined(_WIN32))
 
@@ -113,7 +115,7 @@ int run_ended(RunChild *child, unsigned long long microseconds)
         run_pause(microseconds);
     }
     siginfo_t ended;
-    memset(&ended, 0, sizeof(ended));
+    mmgr_bytes_set(&ended, 0, sizeof(ended));
     const int wait_result = waitid(P_PID, (id_t)child->pid, &ended, WEXITED | WNOHANG | WNOWAIT);
     return ((wait_result == 0) && (ended.si_pid == child->pid)) || ((wait_result != 0) && (errno != EINTR));
 }
@@ -239,7 +241,13 @@ int run_parent_alive(const char *parent)
 int run_process_read(unsigned long long pid, RunProcess *process)
 {
     char path[64];
-    snprintf(path, sizeof(path), "/proc/%llu/stat", pid);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+        mmgr_line_put(&buffer_line, "/proc/");
+        mmgr_line_decimal(&buffer_line, pid, 1u);
+        mmgr_line_put(&buffer_line, "/stat");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     FILE *const stat = fopen(path, "r");
     if (stat == NULL)
     {

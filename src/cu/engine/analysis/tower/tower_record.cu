@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tower_record.cu: the tower as record floors
 #include "tower_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 // the ruleset tower_forward_kernel and tower_inverse_kernel run: the highs less floor((x_2j + x_(2j+2)) / 2), then the
 // lows plus floor((d_(j-1) + d_j + 2) / 4)
@@ -102,8 +103,8 @@ static void tower_record_lifting_step(TowerRecordBuilder *builder, const TowerLi
 
 // one level along one line of `length` values, or its undoing. Lifting splits the line into its evens, the lows,
 // and its odds, the highs, runs the ruleset's steps in order and arranges the lows first and the highs after them, as
-// tower_forward_kernel positions them out; lowering reads the two bands back from there, runs the steps last first with each
-// sign turned, and interleaves them again, as tower_inverse_kernel does.
+// tower_forward_kernel positions them out; lowering reads the two bands back from there, runs the steps last first with
+// each sign turned, and interleaves them again, as tower_inverse_kernel does.
 static void tower_record_line(TowerRecordBuilder *builder, const TowerLiftingStep *rules, unsigned int rule_count,
                               std::vector<unsigned int> &registers, unsigned long long line, unsigned long long stride,
                               unsigned long long length, int inverse)
@@ -262,7 +263,7 @@ static long tower_record_run(const TowerRecordRequest *request, int inverse)
         TowerRecordBuilder written = {request->steps, start, {}};
         tower_record_build(&written, rules, rule_count, floors, registers, inverse);
     }
-    memcpy(request->out_registers, named.data(), (size_t)lanes * sizeof(unsigned int));
+    mmgr_bytes_copy(request->out_registers, named.data(), (size_t)lanes * sizeof(unsigned int));
     // the count was bounded by 2^32 - 1 above. It narrows to the program's next step exactly
     *request->count = (unsigned int)counted.count;
     return 0L;

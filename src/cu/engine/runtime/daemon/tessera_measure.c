@@ -5,6 +5,9 @@
 #define _GNU_SOURCE
 #endif
 #include "tessera_measure.h"
+#include "../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -92,7 +95,7 @@ static void tessera_uuid_text(const unsigned char device[TESSERA_DEVICE_BYTES], 
     static const char digits[17] = "0123456789abcdef";
     static const unsigned int dashes[4] = {4u, 6u, 8u, 10u};
     unsigned int at = 0u;
-    memcpy(text, "GPU-", 4u);
+    mmgr_bytes_copy(text, "GPU-", 4u);
     at = 4u;
     unsigned int dash = 0u;
     for (unsigned int byte = 0u; byte < TESSERA_DEVICE_BYTES; byte += 1u)
@@ -217,7 +220,7 @@ int tessera_measure_device(TesseraMeasure *measure, unsigned long long *capacity
         return 1;
     }
     TesseraNvmlMemory memory;
-    memset(&memory, 0, sizeof(memory));
+    mmgr_bytes_set(&memory, 0, sizeof(memory));
     if (measure->memory_info(measure->device, &memory) != TESSERA_NVML_SUCCESS)
     {
         return 0;
@@ -230,12 +233,12 @@ int tessera_measure_device(TesseraMeasure *measure, unsigned long long *capacity
 #if defined(_WIN32)
 static int tessera_instance_field(const char *name, const char *label, unsigned long long *value)
 {
-    const char *const found = strstr(name, label);
+    const char *const found = mmgr_text_find(name, label, PLATFORM_TEXT_TO_TERMINATOR);
     if (found == NULL)
     {
         return 0;
     }
-    const char *const start = found + strlen(label);
+    const char *const start = found + mmgr_text_length(label, PLATFORM_TEXT_TO_TERMINATOR);
     const int hexadecimal = (start[0] == '0') && ((start[1] == 'x') || (start[1] == 'X'));
     char *end = NULL;
     *value = strtoull(hexadecimal ? (start + 2) : start, &end, hexadecimal ? 16 : 10);
@@ -244,14 +247,14 @@ static int tessera_instance_field(const char *name, const char *label, unsigned 
 
 static int tessera_instance_luid(const char *name, unsigned long long *luid)
 {
-    const char *const found = strstr(name, "luid_");
+    const char *const found = mmgr_text_find(name, "luid_", PLATFORM_TEXT_TO_TERMINATOR);
     unsigned long long high = 0ULL;
     unsigned long long low = 0ULL;
     if ((found == NULL) || !tessera_instance_field(found, "luid_", &high))
     {
         return 0;
     }
-    const char *const second = strstr(found + 5, "_0x");
+    const char *const second = mmgr_text_find(found + 5, "_0x", PLATFORM_TEXT_TO_TERMINATOR);
     if ((second == NULL) || !tessera_instance_field(second, "_", &low))
     {
         return 0;
@@ -338,7 +341,13 @@ int tessera_measure_process(TesseraMeasure *measure, unsigned long long pid, uns
 static unsigned long long tessera_started(unsigned long long pid)
 {
     char path[ENGINE_PATH_CAPACITY];
-    snprintf(path, sizeof(path), "/proc/%llu/stat", pid);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+        mmgr_line_put(&buffer_line, "/proc/");
+        mmgr_line_decimal(&buffer_line, pid, 1u);
+        mmgr_line_put(&buffer_line, "/stat");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     FILE *const stat = fopen(path, "r");
     if (stat == NULL)
     {
@@ -355,7 +364,7 @@ static unsigned long long tessera_started(unsigned long long pid)
     const char *field = after_name + 2;
     for (unsigned int skipped = 0u; (field != NULL) && (skipped < 19u); skipped += 1u)
     {
-        field = strchr(field, ' ');
+        field = mmgr_text_char(field, ' ', PLATFORM_TEXT_TO_TERMINATOR);
         field = (field != NULL) ? (field + 1) : NULL;
     }
     return (field != NULL) ? strtoull(field, NULL, 10) : 0ULL;

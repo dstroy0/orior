@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // max_tree_pairs.c: pairs and overlap sums
 #include "max_tree_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 unsigned int max_tree_probe_partition(const unsigned int *sorted, const unsigned int *own_level,
                                       const unsigned int *joined, unsigned int probe_count, unsigned int level,
@@ -45,7 +46,7 @@ void max_tree_pairs_release(MaxTreePairs *pairs)
     free(pairs->earlier);
     free(pairs->later);
     free(pairs->voxels);
-    memset(pairs, 0, sizeof(*pairs));
+    mmgr_bytes_set(pairs, 0, sizeof(*pairs));
 }
 
 long max_tree_pairs(const MaxTreePairsRequest *request)
@@ -67,7 +68,7 @@ long max_tree_pairs(const MaxTreePairsRequest *request)
     {
         return MAX_TREE_ERROR;
     }
-    memset(pairs, 0, sizeof(*pairs));
+    mmgr_bytes_set(pairs, 0, sizeof(*pairs));
     const size_t voxels = earlier->voxels;
     const size_t plane = (size_t)earlier->height * earlier->width;
     unsigned long long *const keys = (unsigned long long *)malloc((voxels + 1u) * sizeof(unsigned long long));

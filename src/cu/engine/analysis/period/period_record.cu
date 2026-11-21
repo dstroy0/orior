@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // period_record.cu: the agreement and the null on the record machine
 #include "period_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 #include "../cycle/cycle.h"
 #include "../key_schedule/key_schedule.h"
@@ -74,7 +75,7 @@ static void period_program_release(PeriodProgram *program)
     }
     key_schedule_record_release(&program->layout);
     keymath_record_release(&program->key);
-    memset(program, 0, sizeof(*program));
+    mmgr_bytes_set(program, 0, sizeof(*program));
 }
 
 // imprints, arranges and loads a built program
@@ -82,12 +83,12 @@ static int period_program_load(const ExactRecordProgram *built, unsigned int mem
                                unsigned int output_count, const unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX],
                                PeriodProgram *program, EngineError *error)
 {
-    memset(program, 0, sizeof(*program));
-    const KeymathRecordRequest encode = {built->steps,  built->count,       built->field_bits, built->fields,
-                                         members,       outputs,            output_count,      built->tables,
-                                         built->table_count, &program->key, error};
-    const KeyScheduleRecordRequest layout = {&program->key, built->field_offset, built->fields, in_limbs, 1,
-                                             &program->layout, error};
+    mmgr_bytes_set(program, 0, sizeof(*program));
+    const KeymathRecordRequest encode = {
+        built->steps, built->count,  built->field_bits,  built->fields, members, outputs,
+        output_count, built->tables, built->table_count, &program->key, error};
+    const KeyScheduleRecordRequest layout = {
+        &program->key, built->field_offset, built->fields, in_limbs, 1, &program->layout, error};
     return PERIOD_CHECK(built->failed == 0, built, error, ENGINE_ERROR_RESOURCE) &&
            (keymath_record_encode(&encode) != KEYMATH_ERROR) &&
            (key_schedule_record_layout(&layout) != KEY_SCHEDULE_ERROR) &&
@@ -167,8 +168,8 @@ static int period_make_key(PeriodRecordResident *resident, EngineError *error)
     const unsigned int place = exact_record_narrow(
         &built, exact_record_sum(&built, exact_record_product(&built, row, stride), inner), PERIOD_RECORD_PLACE_BITS);
     // the line is below 2^31. Its high word, the second round's, is 0, and the round takes the hash alone
-    unsigned int hash = period_record_round(
-        &built, exact_record_step(&built, ENGINE_RECORD_XOR, line, keys[0], 0u), keys[1]);
+    unsigned int hash =
+        period_record_round(&built, exact_record_step(&built, ENGINE_RECORD_XOR, line, keys[0], 0u), keys[1]);
     hash = period_record_round(&built, hash, keys[2]);
     hash = period_record_round(&built, exact_record_step(&built, ENGINE_RECORD_XOR, hash, step, 0u), keys[3]);
     const unsigned int outputs[2] = {place, hash};
@@ -288,12 +289,12 @@ extern "C" void period_record_release(void)
     period_program_release(&resident->place);
     period_program_release(&resident->gather);
     device_pool_release(&resident->pool);
-    memset(resident, 0, sizeof(*resident));
+    mmgr_bytes_set(resident, 0, sizeof(*resident));
 }
 
-// the agreement of one axis at every lag, of `data` positioned with `stride` along the axis: lag L sweeps the lanes that have
-// a voxel L strides on, the program writes 1 where the pair agrees and the place along the axis is usable, and the sum
-// of those is the count
+// the agreement of one axis at every lag, of `data` positioned with `stride` along the axis: lag L sweeps the lanes
+// that have a voxel L strides on, the program writes 1 where the pair agrees and the place along the axis is usable,
+// and the sum of those is the count
 static int period_record_agreement(const unsigned int *data, unsigned long long voxels, unsigned int stride,
                                    unsigned int extent, unsigned long long *same, EngineError *error)
 {
@@ -307,7 +308,7 @@ static int period_record_agreement(const unsigned int *data, unsigned long long 
         const unsigned long long reach = (unsigned long long)lag * stride;
         const unsigned long long lanes = voxels - reach;
         CycleRecordRunRequest sweep;
-        memset(&sweep, 0, sizeof(sweep));
+        mmgr_bytes_set(&sweep, 0, sizeof(sweep));
         sweep.record = resident->agree.record;
         sweep.device_in[0] = data;
         sweep.device_in[1] = data + reach;
@@ -320,8 +321,8 @@ static int period_record_agreement(const unsigned int *data, unsigned long long 
         sweep.device_out = resident->keyed;
         sweep.error = error;
         unsigned int sum[2] = {0u, 0u};
-        const CycleRecordSumRequest total = {resident->keyed, lanes, lanes, 1u, resident->agree_offset,
-                                             resident->agree_bits, 2u, sum, error};
+        const CycleRecordSumRequest total = {resident->keyed,      lanes, lanes, 1u,   resident->agree_offset,
+                                             resident->agree_bits, 2u,    sum,   error};
         ok = (cycle_record_run(&sweep) != CYCLE_ERROR) && (cycle_record_sum(&total) != CYCLE_ERROR);
         same[lag - 1u] = ((unsigned long long)sum[1] << 32u) | sum[0];
     }
@@ -339,12 +340,12 @@ static int period_record_null(const PeriodRequest *request, const PeriodLattice 
     PeriodShuffle shuffle;
     period_shuffle_fill(&shuffle, &request->content, counter);
     const unsigned int shared[PERIOD_RECORD_KEY_LIMBS] = {lattice->extent[axis], lattice->stride[axis],
-                                                          shuffle.keys[0], shuffle.keys[1], shuffle.keys[2],
-                                                          shuffle.keys[3]};
+                                                          shuffle.keys[0],       shuffle.keys[1],
+                                                          shuffle.keys[2],       shuffle.keys[3]};
     int ok = PERIOD_STATUS_CHECK(cudaMemcpy(resident->shared, shared, sizeof(shared), cudaMemcpyHostToDevice),
                                  resident->shared, error);
     CycleRecordRunRequest sweep;
-    memset(&sweep, 0, sizeof(sweep));
+    mmgr_bytes_set(&sweep, 0, sizeof(sweep));
     sweep.record = resident->key.record;
     sweep.device_in[0] = resident->shared;
     sweep.bodies[0] = 1ULL;
@@ -352,10 +353,12 @@ static int period_record_null(const PeriodRequest *request, const PeriodLattice 
     sweep.device_out = resident->keyed;
     sweep.error = error;
     ok = ok && (cycle_record_run(&sweep) != CYCLE_ERROR);
-    const CycleRecordSortRequest sort = {resident->keyed, voxels, lattice->extent[axis], PERIOD_RECORD_KEYED_LIMBS,
-                                         resident->key_offset, PERIOD_RECORD_KEY_BITS, resident->order, error};
+    const CycleRecordSortRequest sort = {resident->keyed,       voxels,
+                                         lattice->extent[axis], PERIOD_RECORD_KEYED_LIMBS,
+                                         resident->key_offset,  PERIOD_RECORD_KEY_BITS,
+                                         resident->order,       error};
     ok = ok && (cycle_record_sort(&sort) != CYCLE_ERROR);
-    memset(&sweep, 0, sizeof(sweep));
+    mmgr_bytes_set(&sweep, 0, sizeof(sweep));
     sweep.record = resident->place.record;
     sweep.device_in[0] = resident->keyed;
     sweep.bodies[0] = voxels;
@@ -463,7 +466,7 @@ extern "C" long period_record_read(const PeriodRequest *request)
                                      &agreement[lattice.first[axis]], error);
     }
     PeriodMeasurement *const measurement = request->measurement;
-    memset(measurement, 0, sizeof(*measurement));
+    mmgr_bytes_set(measurement, 0, sizeof(*measurement));
     measurement->rank = lattice.rank;
     measurement->voxels = voxels;
     measurement->collisions = collisions;
@@ -489,11 +492,11 @@ extern "C" long period_record_read(const PeriodRequest *request)
     }
     if ((ok != 0) && (request->agreement != NULL) && (entries != 0ULL))
     {
-        memcpy(request->agreement, agreement, (size_t)entries * sizeof(unsigned long long));
+        mmgr_bytes_copy(request->agreement, agreement, (size_t)entries * sizeof(unsigned long long));
     }
     if ((ok != 0) && (request->band != NULL))
     {
-        memcpy(request->band, bands, (size_t)(draws * lattice.rank) * sizeof(PeriodMargin));
+        mmgr_bytes_copy(request->band, bands, (size_t)(draws * lattice.rank) * sizeof(PeriodMargin));
     }
     free(histogram);
     free(agreement);

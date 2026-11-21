@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "velocity.h"
+#include "memoria_operor/memoria_linea.h"
 
 #include <string.h>
 
@@ -26,7 +27,7 @@ static void velocity_step(EngineRecordStep *step, EngineRecordOperation operatio
 extern "C" long velocity_program(const VelocityRequest *request, EngineRecordStep program[VELOCITY_STEPS],
                                  unsigned int outputs[VELOCITY_OUTPUTS])
 {
-    memset(program, 0, VELOCITY_STEPS * sizeof(EngineRecordStep));
+    mmgr_bytes_set(program, 0, VELOCITY_STEPS * sizeof(EngineRecordStep));
     velocity_step(&program[VELOCITY_EARLIER_MASS], ENGINE_RECORD_FIELD, request->mass_field, 0u, VELOCITY_EARLIER);
     velocity_step(&program[VELOCITY_LATER_MASS], ENGINE_RECORD_FIELD, request->mass_field, 0u, VELOCITY_LATER);
     velocity_step(&program[VELOCITY_ONE], ENGINE_RECORD_CONSTANT, 1u, 0u, 0u);

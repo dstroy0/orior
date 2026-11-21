@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "heaviest_matching.h"
+#include "memoria_operor/memoria_linea.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -339,7 +340,7 @@ long heaviest_matching_run(const HeaviestMatchingRequest *args)
         unsigned int *const filled = (unsigned int *)malloc((objects + 1u) * sizeof(unsigned int));
         if (filled != NULL)
         {
-            memcpy(filled, starts, (objects + 1u) * sizeof(unsigned int));
+            mmgr_bytes_copy(filled, starts, (objects + 1u) * sizeof(unsigned int));
             for (unsigned int pair = 0u; pair < args->pairs; pair += 1u)
             {
                 members[filled[component_of[pair]]] = pair;
@@ -359,7 +360,7 @@ long heaviest_matching_run(const HeaviestMatchingRequest *args)
             }
             if (answer >= 0)
             {
-                memcpy(args->chosen, staged, (size_t)args->pairs);
+                mmgr_bytes_copy(args->chosen, staged, (size_t)args->pairs);
             }
         }
     }

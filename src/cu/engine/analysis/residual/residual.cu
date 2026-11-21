@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "residual.h"
+#include "memoria_operor/memoria_linea.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -44,14 +45,14 @@ extern "C" long residual_program(const EngineResidualRequest *request, EngineSte
     {
         return RESIDUAL_ERROR;
     }
-    memset(program, 0, RESIDUAL_STEPS * sizeof(EngineStep));
+    mmgr_bytes_set(program, 0, RESIDUAL_STEPS * sizeof(EngineStep));
     unsigned int at = 0u;
     // the comb runs before the save, and both terms take it alike
     program[at].operation = ENGINE_COMB;
-    memcpy(program[at].orders, request->comb, sizeof(program[at].orders));
+    mmgr_bytes_copy(program[at].orders, request->comb, sizeof(program[at].orders));
     at += 1u;
     program[at].operation = ENGINE_SMOOTH;
-    memcpy(program[at].orders, request->smooth_orders, sizeof(program[at].orders));
+    mmgr_bytes_copy(program[at].orders, request->smooth_orders, sizeof(program[at].orders));
     at += 1u;
     for (unsigned int spacing = 0u; spacing < ENGINE_SPACINGS; spacing += 1u)
     {
@@ -66,7 +67,7 @@ extern "C" long residual_program(const EngineResidualRequest *request, EngineSte
     program[at].operation = ENGINE_SAVE;
     at += 1u;
     program[at].operation = ENGINE_SMOOTH;
-    memcpy(program[at].orders, request->background_orders, sizeof(program[at].orders));
+    mmgr_bytes_copy(program[at].orders, request->background_orders, sizeof(program[at].orders));
     at += 1u;
     for (unsigned int spacing = 0u; spacing < ENGINE_SPACINGS; spacing += 1u)
     {

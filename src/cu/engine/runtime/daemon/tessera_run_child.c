@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_run_child.c: the job's folders and records, the daemon channel, the wait and the child
 #include "tessera_run_internal.h"
+#include "../../engine_note.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 _Alignas(8) static const char s_run_unwatched[] =
     "  tessera_run: the command runs with no child to watch it: its records could not be made under the "
@@ -66,7 +69,7 @@ void run_record_launched(RunChannel *channel, unsigned long long pid)
 static int run_records_place(RunChannel *channel, const EngineSignum *signum)
 {
     unsigned char host[TESSERA_DEVICE_BYTES];
-    memset(host, 0, sizeof(host));
+    mmgr_bytes_set(host, 0, sizeof(host));
     char *const records = channel->records;
     const size_t capacity = sizeof(channel->records);
     // the capacity is a buffer size this file allocates, which an unsigned int counts
@@ -74,28 +77,32 @@ static int run_records_place(RunChannel *channel, const EngineSignum *signum)
     {
         return 0;
     }
-    size_t at = strlen(records);
+    size_t at = mmgr_text_length(records, PLATFORM_TEXT_TO_TERMINATOR);
     const int folder = snprintf(records + at, capacity - at, "%c%s", RUN_SEPARATOR, s_run_children);
     // a non-negative length is compared whole against the capacity
     if ((folder <= 0) || ((size_t)folder >= (capacity - at)) || !run_folders_make(records))
     {
         return 0;
     }
-    at = strlen(records);
+    at = mmgr_text_length(records, PLATFORM_TEXT_TO_TERMINATOR);
     const int named = snprintf(records + at, capacity - at, "%c%016llx-", RUN_SEPARATOR, run_self_pid());
     // a non-negative length is compared whole against the capacity
     if ((named <= 0) || ((size_t)named >= (capacity - at)))
     {
         return 0;
     }
-    at = strlen(records);
+    at = mmgr_text_length(records, PLATFORM_TEXT_TO_TERMINATOR);
     for (unsigned int byte = 0u; byte < ENGINE_SIGNUM_BYTES; byte += 1u)
     {
         if ((at + 3u) > capacity)
         {
             return 0;
         }
-        snprintf(records + at, capacity - at, "%02x", signum->bytes[byte]);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(records + at, capacity - at);
+            mmgr_line_hex(&buffer_line, signum->bytes[byte], 2u);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         at += 2u;
     }
     return 1;
@@ -113,8 +120,9 @@ char **run_channel_open(RunChannel *channel, const RunRequest *request, char *co
     if (channel->across)
     {
         inside_at = 1;
-        while ((inside_at < count) && (strcmp(words[inside_at], "-e") != 0) &&
-               (strcmp(words[inside_at], "--exec") != 0) && (strcmp(words[inside_at], "--") != 0))
+        while ((inside_at < count) && (!mmgr_text_equal(words[inside_at], "-e", PLATFORM_TEXT_TO_TERMINATOR)) &&
+               (!mmgr_text_equal(words[inside_at], "--exec", PLATFORM_TEXT_TO_TERMINATOR)) &&
+               (!mmgr_text_equal(words[inside_at], "--", PLATFORM_TEXT_TO_TERMINATOR)))
         {
             inside_at += 1;
         }
@@ -160,18 +168,27 @@ char **run_channel_open(RunChannel *channel, const RunRequest *request, char *co
     remove(run_path_joined(channel->records, ".child", path, sizeof(path)) ? path : "");
     remove(run_path_joined(channel->records, ".log", path, sizeof(path)) ? path : "");
     // the words before the command's own, a count at least 0. It converts exactly
-    memcpy(watched, words, (size_t)inside_at * sizeof(char *));
+    mmgr_bytes_copy(watched, words, (size_t)inside_at * sizeof(char *));
     watched[inside_at] = channel->program;
     watched[inside_at + 1] = "--parent";
     watched[inside_at + 2] = channel->named_records;
     watched[inside_at + 3] = "--";
     // the command's own words, a positive count. It converts exactly
-    memcpy(watched + inside_at + RUN_WATCH_WORDS, words + inside_at, (size_t)(count - inside_at) * sizeof(char *));
+    mmgr_bytes_copy(watched + inside_at + RUN_WATCH_WORDS, words + inside_at,
+                    (size_t)(count - inside_at) * sizeof(char *));
     watched[count + RUN_WATCH_WORDS] = NULL;
     channel->open = 1;
     *started_count = count + RUN_WATCH_WORDS;
-    fprintf(stderr, "  tessera_run: the command runs under a child tessera_run (%s), their records at %s\n",
-            channel->program, channel->records);
+    {
+        EngineNote engine_note;
+        engine_note_begun(&engine_note);
+        mmgr_line_put(&engine_note.line, "  tessera_run: the command runs under a child tessera_run (");
+        mmgr_line_put(&engine_note.line, channel->program);
+        mmgr_line_put(&engine_note.line, "), their records at ");
+        mmgr_line_put(&engine_note.line, channel->records);
+        mmgr_line_ch(&engine_note.line, '\n');
+        engine_note_written(&engine_note);
+    }
     return watched;
 }
 
@@ -195,8 +212,17 @@ static void run_channel_refresh(RunChannel *channel)
         {
             channel->bound = 1;
             channel->child = numbers[0];
-            fprintf(stderr, "  tessera_run: child %llu, launched as %llu, reports it lives; its pid is recorded\n",
-                    channel->child, channel->launched);
+            {
+                EngineNote engine_note;
+                engine_note_begun(&engine_note);
+                mmgr_line_put(&engine_note.line, "  tessera_run: child ");
+                mmgr_line_decimal(&engine_note.line, channel->child, 1u);
+                mmgr_line_put(&engine_note.line, ", launched as ");
+                mmgr_line_decimal(&engine_note.line, channel->launched, 1u);
+                mmgr_line_put(&engine_note.line, ", reports it lives; its pid is recorded");
+                mmgr_line_ch(&engine_note.line, '\n');
+                engine_note_written(&engine_note);
+            }
         }
         // the command's processors between two of the child's records, on its clock, once they span half a sweep: a
         // record read late, or missed mid-write, shifts no time into the next reading
@@ -210,7 +236,7 @@ static void run_channel_refresh(RunChannel *channel)
         }
         if (channel->bound && (numbers[0] == channel->child))
         {
-            memcpy(channel->state, state, sizeof(channel->state));
+            mmgr_bytes_copy(channel->state, state, sizeof(channel->state));
         }
     }
     run_record_write(channel);
@@ -226,13 +252,20 @@ void run_channel_close(RunChannel *channel)
     }
     run_record_close(channel);
     char path[ENGINE_PATH_CAPACITY];
-    const int ended = strcmp(channel->state, "ended") == 0;
+    const int ended = mmgr_text_equal(channel->state, "ended", PLATFORM_TEXT_TO_TERMINATOR);
     FILE *const logged =
         (!ended && run_path_joined(channel->records, ".log", path, sizeof(path))) ? fopen(path, "rb") : NULL;
     if (logged != NULL)
     {
         fclose(logged);
-        fprintf(stderr, "  tessera_run: the child's records are retained, its log at %s\n", path);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  tessera_run: the child's records are retained, its log at ");
+            mmgr_line_put(&engine_note.line, path);
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return;
     }
     remove(run_path_joined(channel->records, ".parent", path, sizeof(path)) ? path : "");
@@ -325,8 +358,17 @@ int run_child(const RunRequest *request, char **arguments, int count, unsigned l
     if (!run_path_joined(records, ".parent", parent, sizeof(parent)) ||
         (run_record_read(parent, state, parent_fields) < 2))
     {
-        snprintf(entry, sizeof(entry), "child %llu: no launch record at %s.parent; %s was not run", self, records,
-                 label);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(entry, sizeof(entry));
+            mmgr_line_put(&buffer_line, "child ");
+            mmgr_line_decimal(&buffer_line, self, 1u);
+            mmgr_line_put(&buffer_line, ": no launch record at ");
+            mmgr_line_put(&buffer_line, records);
+            mmgr_line_put(&buffer_line, ".parent; ");
+            mmgr_line_put(&buffer_line, label);
+            mmgr_line_put(&buffer_line, " was not run");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         run_log(records, entry);
         return RUN_FAILED;
     }
@@ -338,13 +380,22 @@ int run_child(const RunRequest *request, char **arguments, int count, unsigned l
     {
         run_pause(RUN_GREETING_MICROSECONDS);
         const int fields = run_record_read(parent, state, parent_fields);
-        bound = (fields == 3) && (strcmp(state, "launched") == 0);
+        bound = (fields == 3) && (mmgr_text_equal(state, "launched", PLATFORM_TEXT_TO_TERMINATOR));
     }
     if (!bound)
     {
         const int alive = run_parent_alive(parent);
-        snprintf(entry, sizeof(entry), "child %llu: its parent %s and did not record this pid; %s was not run", self,
-                 alive ? "locks its record" : "is gone", label);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(entry, sizeof(entry));
+            mmgr_line_put(&buffer_line, "child ");
+            mmgr_line_decimal(&buffer_line, self, 1u);
+            mmgr_line_put(&buffer_line, ": its parent ");
+            mmgr_line_put(&buffer_line, alive ? "locks its record" : "is gone");
+            mmgr_line_put(&buffer_line, " and did not record this pid; ");
+            mmgr_line_put(&buffer_line, label);
+            mmgr_line_put(&buffer_line, " was not run");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         run_log(records, entry);
         run_child_write(records, "orphaned", self, 0ULL, 0ULL, 1, RUN_ORPHANED);
         return RUN_ORPHANED;
@@ -352,24 +403,50 @@ int run_child(const RunRequest *request, char **arguments, int count, unsigned l
     // the parent's record names the child it launched: the command runs only where that is this process
     if (parent_fields[1] != self)
     {
-        snprintf(entry, sizeof(entry),
-                 "child %llu: the parent's record names child %llu, launched as %llu, not this "
-                 "process; %s was not run",
-                 self, parent_fields[1], parent_fields[0], label);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(entry, sizeof(entry));
+            mmgr_line_put(&buffer_line, "child ");
+            mmgr_line_decimal(&buffer_line, self, 1u);
+            mmgr_line_put(&buffer_line, ": the parent's record names child ");
+            mmgr_line_decimal(&buffer_line, parent_fields[1], 1u);
+            mmgr_line_put(&buffer_line, ", launched as ");
+            mmgr_line_decimal(&buffer_line, parent_fields[0], 1u);
+            mmgr_line_put(&buffer_line, ", not this process; ");
+            mmgr_line_put(&buffer_line, label);
+            mmgr_line_put(&buffer_line, " was not run");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         run_log(records, entry);
         return RUN_FAILED;
     }
-    snprintf(entry, sizeof(entry),
-             "child %llu, launched as %llu: its pid confirmed against the parent's record; %s runs "
-             "on processors 0x%llx at below normal priority",
-             self, parent_fields[0], label, mask);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(entry, sizeof(entry));
+        mmgr_line_put(&buffer_line, "child ");
+        mmgr_line_decimal(&buffer_line, self, 1u);
+        mmgr_line_put(&buffer_line, ", launched as ");
+        mmgr_line_decimal(&buffer_line, parent_fields[0], 1u);
+        mmgr_line_put(&buffer_line, ": its pid confirmed against the parent's record; ");
+        mmgr_line_put(&buffer_line, label);
+        mmgr_line_put(&buffer_line, " runs on processors 0x");
+        mmgr_line_hex(&buffer_line, mask, 1u);
+        mmgr_line_put(&buffer_line, " at below normal priority");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     run_log(records, entry);
     run_child_write(records, "confirmed", self, 0ULL, 0ULL, 0, 0);
     RunChild child;
-    memset(&child, 0, sizeof(child));
+    mmgr_bytes_set(&child, 0, sizeof(child));
     if (!run_start(&child, arguments + request->command, count - request->command, mask, NULL))
     {
-        snprintf(entry, sizeof(entry), "child %llu: %s could not be started", self, label);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(entry, sizeof(entry));
+            mmgr_line_put(&buffer_line, "child ");
+            mmgr_line_decimal(&buffer_line, self, 1u);
+            mmgr_line_put(&buffer_line, ": ");
+            mmgr_line_put(&buffer_line, label);
+            mmgr_line_put(&buffer_line, " could not be started");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         run_log(records, entry);
         run_child_write(records, "ended", self, 0ULL, 0ULL, 1, RUN_NOT_STARTED);
         return RUN_NOT_STARTED;
@@ -392,8 +469,17 @@ int run_child(const RunRequest *request, char **arguments, int count, unsigned l
         const int parent_alive = (fields == 3) && (parent_fields[2] != keepalive);
         if (parent_alive && looked)
         {
-            snprintf(entry, sizeof(entry), "child %llu: the parent's keepalive is received again after %llu.%03LLU s",
-                     self, (now - seen_at) / RUN_MILLION, ((now - seen_at) % RUN_MILLION) / RUN_THOUSAND);
+            {
+                VerbaLinea buffer_line = mmgr_line_over(entry, sizeof(entry));
+                mmgr_line_put(&buffer_line, "child ");
+                mmgr_line_decimal(&buffer_line, self, 1u);
+                mmgr_line_put(&buffer_line, ": the parent's keepalive is received again after ");
+                mmgr_line_decimal(&buffer_line, (now - seen_at) / RUN_MILLION, 1u);
+                mmgr_line_put(&buffer_line, ".");
+                mmgr_line_decimal(&buffer_line, ((now - seen_at) % RUN_MILLION) / RUN_THOUSAND, 3u);
+                mmgr_line_put(&buffer_line, " s");
+                (void)mmgr_line_finish(&buffer_line);
+            }
             run_log(records, entry);
         }
         looked = parent_alive ? 0 : looked;
@@ -405,10 +491,19 @@ int run_child(const RunRequest *request, char **arguments, int count, unsigned l
         orphaned = !ended && (!alive || (silence >= unresponsive));
         if (!ended && !orphaned && (silence >= silent) && !looked)
         {
-            snprintf(entry, sizeof(entry),
-                     "child %llu: no keepalive for %llu.%03LLU s; the parent still locks its record, "
-                     "and is given until %llu s",
-                     self, silence / RUN_MILLION, (silence % RUN_MILLION) / RUN_THOUSAND, unresponsive / RUN_MILLION);
+            {
+                VerbaLinea buffer_line = mmgr_line_over(entry, sizeof(entry));
+                mmgr_line_put(&buffer_line, "child ");
+                mmgr_line_decimal(&buffer_line, self, 1u);
+                mmgr_line_put(&buffer_line, ": no keepalive for ");
+                mmgr_line_decimal(&buffer_line, silence / RUN_MILLION, 1u);
+                mmgr_line_put(&buffer_line, ".");
+                mmgr_line_decimal(&buffer_line, (silence % RUN_MILLION) / RUN_THOUSAND, 3u);
+                mmgr_line_put(&buffer_line, " s; the parent still locks its record, and is given until ");
+                mmgr_line_decimal(&buffer_line, unresponsive / RUN_MILLION, 1u);
+                mmgr_line_put(&buffer_line, " s");
+                (void)mmgr_line_finish(&buffer_line);
+            }
             run_log(records, entry);
             looked = 1;
         }
@@ -420,18 +515,45 @@ int run_child(const RunRequest *request, char **arguments, int count, unsigned l
         cpu = run_child_cpu(&child, cpu);
         const int code = run_finish(&child);
         run_child_write(records, "orphaned", self, cpu, run_now() - began, 1, code);
-        snprintf(entry, sizeof(entry),
-                 "child %llu: its parent %s, with no keepalive for %llu.%03LLU s; %s was requested to "
-                 "end, %llu of its processes ended by force, exit %d. The parent may relaunch or resume it",
-                 self, alive ? "locks its record but is not responding" : "is gone", silence / RUN_MILLION,
-                 (silence % RUN_MILLION) / RUN_THOUSAND, label, forced, code);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(entry, sizeof(entry));
+            mmgr_line_put(&buffer_line, "child ");
+            mmgr_line_decimal(&buffer_line, self, 1u);
+            mmgr_line_put(&buffer_line, ": its parent ");
+            mmgr_line_put(&buffer_line, alive ? "locks its record but is not responding" : "is gone");
+            mmgr_line_put(&buffer_line, ", with no keepalive for ");
+            mmgr_line_decimal(&buffer_line, silence / RUN_MILLION, 1u);
+            mmgr_line_put(&buffer_line, ".");
+            mmgr_line_decimal(&buffer_line, (silence % RUN_MILLION) / RUN_THOUSAND, 3u);
+            mmgr_line_put(&buffer_line, " s; ");
+            mmgr_line_put(&buffer_line, label);
+            mmgr_line_put(&buffer_line, " was requested to end, ");
+            mmgr_line_decimal(&buffer_line, forced, 1u);
+            mmgr_line_put(&buffer_line, " of its processes ended by force, exit ");
+            mmgr_line_decimal_signed(&buffer_line, code);
+            mmgr_line_put(&buffer_line, ". The parent may relaunch or resume it");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         run_log(records, entry);
         return RUN_ORPHANED;
     }
     const int code = run_finish(&child);
     run_child_write(records, "ended", self, cpu, run_now() - began, 1, code);
-    snprintf(entry, sizeof(entry), "child %llu: %s ended, exit %d, after %llu.%03LLU s of processor time", self, label,
-             code, cpu / RUN_MILLION, (cpu % RUN_MILLION) / RUN_THOUSAND);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(entry, sizeof(entry));
+        mmgr_line_put(&buffer_line, "child ");
+        mmgr_line_decimal(&buffer_line, self, 1u);
+        mmgr_line_put(&buffer_line, ": ");
+        mmgr_line_put(&buffer_line, label);
+        mmgr_line_put(&buffer_line, " ended, exit ");
+        mmgr_line_decimal_signed(&buffer_line, code);
+        mmgr_line_put(&buffer_line, ", after ");
+        mmgr_line_decimal(&buffer_line, cpu / RUN_MILLION, 1u);
+        mmgr_line_put(&buffer_line, ".");
+        mmgr_line_decimal(&buffer_line, (cpu % RUN_MILLION) / RUN_THOUSAND, 3u);
+        mmgr_line_put(&buffer_line, " s of processor time");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     run_log(records, entry);
     return code;
 }

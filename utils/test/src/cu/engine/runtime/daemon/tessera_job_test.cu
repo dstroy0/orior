@@ -12,6 +12,7 @@
 // one byte, cut short, and stripped of its seal, and each time no daemon will start on it; restored, it starts and the
 // recorded peak is still there. The damage is done in $TESSERA_STATE, which run.sh points at a scratch directory.
 #include "../../../../../../../src/cu/engine/runtime/obsignatio/obsignatio.h"
+#include "../../../../../../../src/platform/platform.h"
 #include "../../../../../../../src/cu/engine/runtime/daemon/tessera.h"
 
 #include <cuda_runtime.h>
@@ -181,7 +182,7 @@ static int job_ticket_sealed(const char *lost_path)
     return passed;
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     if (count < 2)
     {

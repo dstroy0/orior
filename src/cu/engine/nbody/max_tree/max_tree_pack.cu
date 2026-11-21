@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // max_tree_pack.cu: packing the bodies
 #include "max_tree_device_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 static unsigned int max_tree_bits_for(unsigned long long bound)
 {
@@ -19,7 +20,7 @@ extern "C" void max_tree_layout(unsigned int depth, unsigned int height, unsigne
     const unsigned long long voxels = (unsigned long long)depth * height * width;
     const unsigned long long range[3] = {(depth > 0u) ? (depth - 1u) : 0u, (height > 0u) ? (height - 1u) : 0u,
                                          (width > 0u) ? (width - 1u) : 0u};
-    memset(layout, 0, sizeof(*layout));
+    mmgr_bytes_set(layout, 0, sizeof(*layout));
     layout->bits[MAX_TREE_FIELD_MOMENT_ZZ] = max_tree_bits_for(voxels * range[0] * range[0]);
     layout->bits[MAX_TREE_FIELD_MOMENT_YY] = max_tree_bits_for(voxels * range[1] * range[1]);
     layout->bits[MAX_TREE_FIELD_MOMENT_XX] = max_tree_bits_for(voxels * range[2] * range[2]);

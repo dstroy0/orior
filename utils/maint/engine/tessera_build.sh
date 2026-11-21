@@ -10,6 +10,9 @@
 # TESSERA_OBJECTS and TESSERA_SEAL. tessera_run_build, after it, builds tessera_run beside the daemon.
 TESSERA_INCLUDES=(-I "$ENGINE/../../sims/cu" -I "$ENGINE/runtime/daemon" -I "$ENGINE/runtime/obsignatio"
                   -I "$ENGINE/../../cu/engine/runtime/obsignatio")
+# the daemon and tessera_run are programs of the platform, as every program is. They link its process stage, its pool
+# and system calls, and the carcer of the pool. TESSERA_PLATFORM holds those objects, which tessera_build compiles
+source "$ENGINE/../../../includes/exact_types/exact_types.sh"
 
 tessera_build()
 {
@@ -63,9 +66,15 @@ tessera_build()
         [ -f "$object" ] || { echo "  build failed: $name.cu did not compile"; return 1; }
         TESSERA_SEAL+=("$object")
     done
+    # the caller's objects stay as the caller compiled them
+    local caller_objects=("${EXACT_TYPES_OBJECTS[@]+"${EXACT_TYPES_OBJECTS[@]}"}")
+    exact_types_compile "${suffix}_tessera" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" || return 1
+    TESSERA_PLATFORM=("${EXACT_TYPES_OBJECTS[@]}")
+    EXACT_TYPES_OBJECTS=("${caller_objects[@]+"${caller_objects[@]}"}")
     rm -f "$daemon"
     nvcc "${HOST_FLAGS[@]}" "${GENCODE[@]}" "${long_paths[@]}" -o "$daemon" "${daemon_objects[@]}" \
-        "${linea_objects[@]}" "${TESSERA_SEAL[@]}" "${daemon_libraries[@]}"
+        "${linea_objects[@]}" "${TESSERA_PLATFORM[@]}" "${TESSERA_SEAL[@]}" "${daemon_libraries[@]}" \
+        "${EXACT_TYPES_LIBRARIES[@]}"
     [ -f "$daemon" ] || { echo "  build failed: the tessera daemon did not link"; return 1; }
 }
 
@@ -108,6 +117,7 @@ tessera_run_build()
         run_objects+=("$object")
     done
     nvcc "${HOST_FLAGS[@]}" "${GENCODE[@]}" "${long_paths[@]}" -o "$run" "${run_objects[@]}" "${TESSERA_OBJECTS[@]}" \
-        "${linea_objects[@]}" "${TESSERA_SEAL[@]}" "${run_libraries[@]}"
+        "${linea_objects[@]}" "${TESSERA_PLATFORM[@]}" "${TESSERA_SEAL[@]}" "${run_libraries[@]}" \
+        "${EXACT_TYPES_LIBRARIES[@]}"
     [ -f "$run" ] || { echo "  build failed: tessera_run did not link"; return 1; }
 }

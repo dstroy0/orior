@@ -4,6 +4,7 @@
 #define RADIX_KEYS_H
 
 #include <stdlib.h>
+#include "memoria_operor/memoria_linea.h"
 #include <string.h>
 
 #ifdef __cplusplus
@@ -27,7 +28,7 @@ extern "C"
         size_t histogram[256];
         for (unsigned int shift = 0u; shift < 64u; shift += 8u)
         {
-            memset(histogram, 0, sizeof(histogram));
+            mmgr_bytes_set(histogram, 0, sizeof(histogram));
             for (size_t at = 0u; at < count; at += 1u)
             {
                 histogram[(source[at] >> shift) & 0xFFULL] += 1u;
@@ -55,7 +56,7 @@ extern "C"
         }
         if (source != keys)
         {
-            memcpy(keys, source, count * sizeof(unsigned long long));
+            mmgr_bytes_copy(keys, source, count * sizeof(unsigned long long));
         }
         free(scratch);
         return 1;
@@ -82,7 +83,7 @@ extern "C"
         size_t histogram[256];
         for (unsigned int shift = 0u; shift < 64u; shift += 8u)
         {
-            memset(histogram, 0, sizeof(histogram));
+            mmgr_bytes_set(histogram, 0, sizeof(histogram));
             for (size_t at = 0u; at < count; at += 1u)
             {
                 histogram[(source_keys[at] >> shift) & 0xFFULL] += 1u;
@@ -114,8 +115,8 @@ extern "C"
         }
         if (source_keys != keys)
         {
-            memcpy(keys, source_keys, count * sizeof(unsigned long long));
-            memcpy(values, source_values, count * sizeof(unsigned int));
+            mmgr_bytes_copy(keys, source_keys, count * sizeof(unsigned long long));
+            mmgr_bytes_copy(values, source_values, count * sizeof(unsigned int));
         }
         free(scratch_keys);
         free(scratch_values);

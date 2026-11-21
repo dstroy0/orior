@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_daemon_state.c: the daemon's lock, clocks, state file, history and tickets
 #include "tessera_daemon_internal.h"
+#include "../../engine_note.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 _Alignas(8) static const char s_daemon_history[] = "history";
 _Alignas(8) static const char s_daemon_history_fresh[] = "history.fresh";
@@ -123,12 +126,12 @@ void daemon_wait_until(unsigned long long when)
 int daemon_directories_make(const char *path)
 {
     char walk[ENGINE_PATH_CAPACITY];
-    const size_t length = strlen(path);
+    const size_t length = mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR);
     if (length >= sizeof(walk))
     {
         return 0;
     }
-    memcpy(walk, path, length + 1u);
+    mmgr_bytes_copy(walk, path, length + 1u);
     for (size_t at = 1u; at <= length; at += 1u)
     {
         const int separator = (walk[at] == '/') || (walk[at] == '\\') || (walk[at] == '\0');
@@ -209,13 +212,13 @@ int daemon_history_load(void)
     fclose(file);
     const unsigned long long sealed = total - OBSIGNATIO_SIGNUM_BYTES;
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     const ObsignatioSealRequest seal = {bytes, sealed, (bytes != NULL) ? bytes + sealed : NULL, &error};
     ok = ok && (obsignatio_seal_verify(&seal) == 1L);
     for (unsigned long long at = 0ULL; ok && (at < sealed); at += TESSERA_HISTORY_RECORD)
     {
         TesseraHistory entry;
-        memcpy(entry.signum.bytes, bytes + at, ENGINE_SIGNUM_BYTES);
+        mmgr_bytes_copy(entry.signum.bytes, bytes + at, ENGINE_SIGNUM_BYTES);
         entry.peak = daemon_get_long(bytes + at + ENGINE_SIGNUM_BYTES);
         entry.duration = daemon_get_long(bytes + at + ENGINE_SIGNUM_BYTES + 8u);
         ok = tessera_ledger_remember(&g_daemon.ledger, &entry);
@@ -223,7 +226,12 @@ int daemon_history_load(void)
     free(bytes);
     if (!ok)
     {
-        fprintf(stderr, "%s%s\n", s_daemon_history_bad, path);
+        EngineNote engine_note;
+        engine_note_begun(&engine_note);
+        mmgr_line_put(&engine_note.line, s_daemon_history_bad);
+        mmgr_line_put(&engine_note.line, path);
+        mmgr_line_ch(&engine_note.line, '\n');
+        engine_note_written(&engine_note);
     }
     return ok;
 }
@@ -242,19 +250,26 @@ int daemon_history_save(void)
     unsigned char *const bytes = (unsigned char *)malloc((size_t)total);
     if (bytes == NULL)
     {
-        fprintf(stderr, "%s%s\n", s_daemon_history_unsaved, path);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, s_daemon_history_unsaved);
+            mmgr_line_put(&engine_note.line, path);
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 0;
     }
     for (unsigned long long at = 0ULL; at < g_daemon.ledger.history_count; at += 1ULL)
     {
         const TesseraHistory *const entry = &g_daemon.ledger.history[at];
         unsigned char *const record = bytes + (at * TESSERA_HISTORY_RECORD);
-        memcpy(record, entry->signum.bytes, ENGINE_SIGNUM_BYTES);
+        mmgr_bytes_copy(record, entry->signum.bytes, ENGINE_SIGNUM_BYTES);
         daemon_put_long(record + ENGINE_SIGNUM_BYTES, entry->peak);
         daemon_put_long(record + ENGINE_SIGNUM_BYTES + 8u, entry->duration);
     }
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     const ObsignatioSealRequest seal = {bytes, sealed, bytes + sealed, &error};
     int ok = obsignatio_seal(&seal) == 0L;
     FILE *const file = ok ? fopen(fresh, "wb") : NULL;
@@ -268,7 +283,12 @@ int daemon_history_save(void)
 #endif
     if (!ok)
     {
-        fprintf(stderr, "%s%s\n", s_daemon_history_unsaved, path);
+        EngineNote engine_note;
+        engine_note_begun(&engine_note);
+        mmgr_line_put(&engine_note.line, s_daemon_history_unsaved);
+        mmgr_line_put(&engine_note.line, path);
+        mmgr_line_ch(&engine_note.line, '\n');
+        engine_note_written(&engine_note);
     }
     return ok;
 }
@@ -293,7 +313,7 @@ static int daemon_ticket_seal_write(const char *path, const char *text, unsigned
     static const char s_hex[] = "0123456789abcdef";
     unsigned char signum[OBSIGNATIO_SIGNUM_BYTES];
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     const ObsignatioSealRequest seal = {(const unsigned char *)text, length, signum, &error};
     if (obsignatio_seal(&seal) != 0L)
     {
@@ -329,7 +349,9 @@ int daemon_ticket_write(unsigned long long identity, const TesseraPeer *peer, un
     char signum[(2u * ENGINE_SIGNUM_BYTES) + 1u];
     for (unsigned int byte = 0u; byte < ENGINE_SIGNUM_BYTES; byte += 1u)
     {
-        snprintf(signum + (2u * byte), 3u, "%02x", peer->signum.bytes[byte]);
+        VerbaLinea buffer_line = mmgr_line_over(signum + (2u * byte), 3u);
+        mmgr_line_hex(&buffer_line, peer->signum.bytes[byte], 2u);
+        (void)mmgr_line_finish(&buffer_line);
     }
     const int written =
         snprintf(text, sizeof(text), "%s%016llx%s%s%s%llu%s%llu%s%llu%s%llu%s%llu%s%llu%s%s\n", s_daemon_identity,
@@ -360,7 +382,7 @@ int daemon_ticket_note(unsigned long long identity, const TesseraPeer *peer, con
     fclose(file);
     const size_t seal_line = (sizeof(s_daemon_seal) - 1u) + (2u * OBSIGNATIO_SIGNUM_BYTES) + 1u;
     if (!at_end || (length < seal_line) || (text[length - 1u] != '\n') ||
-        (memcmp(text + (length - seal_line), s_daemon_seal, sizeof(s_daemon_seal) - 1u) != 0))
+        (mmgr_bytes_compare(text + (length - seal_line), s_daemon_seal, sizeof(s_daemon_seal) - 1u) != 0))
     {
         return 0;
     }
@@ -386,14 +408,14 @@ int daemon_ticket_note(unsigned long long identity, const TesseraPeer *peer, con
         signum[byte] = (unsigned char)value;
     }
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     const ObsignatioSealRequest seal = {(const unsigned char *)text, body, signum, &error};
     // the note is a whole line, its newline included
-    const size_t added = strlen(note);
+    const size_t added = mmgr_text_length(note, PLATFORM_TEXT_TO_TERMINATOR);
     if ((obsignatio_seal_verify(&seal) != 1L) || ((body + added) >= sizeof(text)))
     {
         return 0;
     }
-    memcpy(text + body, note, added);
+    mmgr_bytes_copy(text + body, note, added);
     return daemon_ticket_seal_write(path, text, body + added);
 }

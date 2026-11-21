@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "print_pair.h"
+#include "memoria_operor/memoria_linea.h"
 
 #include <string.h>
 
@@ -23,7 +24,7 @@ static void print_pair_step(EngineRecordStep *step, EngineRecordOperation operat
 
 extern "C" long print_pair_program(EngineRecordStep program[PRINT_PAIR_STEPS], unsigned int outputs[PRINT_PAIR_OUTPUTS])
 {
-    memset(program, 0, PRINT_PAIR_STEPS * sizeof(EngineRecordStep));
+    mmgr_bytes_set(program, 0, PRINT_PAIR_STEPS * sizeof(EngineRecordStep));
     for (unsigned int band = 0u; band < PRINT_PAIR_BANDS; band += 1u)
     {
         print_pair_step(&program[band], ENGINE_RECORD_FIELD_SIGNED, band, 0u, 0u);

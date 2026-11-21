@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "body_overlap.h"
+#include "memoria_operor/memoria_linea.h"
 #include "../../runtime/radix_keys/radix_keys.h"
 
 #include <cuda_runtime.h>
@@ -166,7 +167,7 @@ static void release_overlap(OverlapResident *resident)
     free(resident->host_offsets);
     free(resident->host_pairs);
     free(resident->host_lengths);
-    memset(resident, 0, sizeof(*resident));
+    mmgr_bytes_set(resident, 0, sizeof(*resident));
 }
 
 extern "C" void body_overlap_release(void)
@@ -254,7 +255,7 @@ static int overlap_view(const BodyOverlapRequest *args, OverlapView *view)
     {
         return 0;
     }
-    memset(view, 0, sizeof(*view));
+    mmgr_bytes_set(view, 0, sizeof(*view));
     view->axes = args->axes;
     unsigned long long product = 1ULL;
     for (unsigned int axis = 0u; axis < args->axes; axis += 1u)

@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "shift_agreement.h"
+#include "memoria_operor/memoria_linea.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -236,7 +237,7 @@ long shift_agreement_host(ShiftAgreementRequest *args)
     args->agreement = reflected[best];
     if (args->counts != NULL)
     {
-        memcpy(args->counts, reflected, total * sizeof(unsigned int));
+        mmgr_bytes_copy(args->counts, reflected, total * sizeof(unsigned int));
     }
     free(reflected);
     free(moved);

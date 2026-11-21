@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // orior_steer_count.c: sweeping the probes and counting
 #include "orior_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 /**
  * @brief The sweep itself, which the public entry names.
@@ -118,8 +119,8 @@ void orior_steer_probes_reset(void)
     orior_steer_probes = 0u;
 }
 
-size_t orior_steer_count_with_probes(const uint8_t *corpus, size_t corpus_len, const uint8_t *needle,
-                                      size_t needle_len, const OriorProbe *probes, size_t count)
+size_t orior_steer_count_with_probes(const uint8_t *corpus, size_t corpus_len, const uint8_t *needle, size_t needle_len,
+                                     const OriorProbe *probes, size_t count)
 {
     if ((corpus == NULL) || (needle == NULL) || (needle_len > corpus_len))
     {
@@ -177,7 +178,7 @@ size_t orior_steer_count_with_probes(const uint8_t *corpus, size_t corpus_len, c
         }
         if (index == count)
         {
-            if (memcmp(corpus + at, needle, needle_len) == 0)
+            if (mmgr_bytes_compare(corpus + at, needle, needle_len) == 0)
             {
                 found += 1u;
             }
@@ -187,7 +188,7 @@ size_t orior_steer_count_with_probes(const uint8_t *corpus, size_t corpus_len, c
 }
 
 size_t orior_steer_count(const uint8_t *corpus, size_t corpus_len, const uint8_t *needle, size_t needle_len,
-                          int steered)
+                         int steered)
 {
     if ((corpus == NULL) || (needle == NULL) || (needle_len > corpus_len))
     {
@@ -231,7 +232,7 @@ size_t orior_steer_count(const uint8_t *corpus, size_t corpus_len, const uint8_t
         }
         if (index == ORIOR_STEER_ANCHORS)
         {
-            if (memcmp(corpus + at, needle, needle_len) == 0)
+            if (mmgr_bytes_compare(corpus + at, needle, needle_len) == 0)
             {
                 found += 1u;
             }

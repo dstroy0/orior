@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "fingerprint.h"
+#include "memoria_operor/memoria_linea.h"
 
 #include <string.h>
 
@@ -41,7 +42,7 @@ extern "C" long fingerprint_program(const FingerprintRequest *request, EngineRec
     {
         return FINGERPRINT_ERROR;
     }
-    memset(program, 0, FINGERPRINT_STEPS * sizeof(EngineRecordStep));
+    mmgr_bytes_set(program, 0, FINGERPRINT_STEPS * sizeof(EngineRecordStep));
     fingerprint_step(&program[FINGERPRINT_MASS], ENGINE_RECORD_FIELD, request->mass_field, 0u);
     for (unsigned int axis = 0u; axis < 3u; axis += 1u)
     {

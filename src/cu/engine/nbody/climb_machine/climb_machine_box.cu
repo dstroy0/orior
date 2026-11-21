@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // climb_machine_box.cu: boxes released, ordered and merged
 #include "climb_machine_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 void machine_box_release(ClimbMachine *machine)
 {
@@ -98,7 +99,7 @@ extern "C" int climb_machine_box(ClimbMachine *machine, ClimbMachineBox *box)
     {
         return 0;
     }
-    memset(box, 0, sizeof(*box));
+    mmgr_bytes_set(box, 0, sizeof(*box));
     machine_box_release(machine);
     const unsigned long long started = engine_clock_microseconds();
     unsigned int boxed = 0u;
@@ -164,7 +165,7 @@ extern "C" int climb_machine_box(ClimbMachine *machine, ClimbMachineBox *box)
         machine->box_cell_first[boxed] = (unsigned int)cell_count;
     }
     MachineBoxCells device;
-    memset(&device, 0, sizeof(device));
+    mmgr_bytes_set(&device, 0, sizeof(device));
     unsigned int *device_cell_climber = NULL;
     unsigned int *device_climber_of_box = NULL;
     int *device_cell_shift = NULL;
@@ -253,7 +254,7 @@ extern "C" int climb_machine_box(ClimbMachine *machine, ClimbMachineBox *box)
                                   (cudaMemcpy(machine->box_count, device_count, entry_count * sizeof(unsigned int),
                                               cudaMemcpyDeviceToHost) == cudaSuccess)));
     const int counted = (device_error != NULL) && (cudaMemcpy(error, device_error, 2u * sizeof(unsigned int),
-                                                                cudaMemcpyDeviceToHost) == cudaSuccess);
+                                                              cudaMemcpyDeviceToHost) == cudaSuccess);
     box->climbers = boxed;
     box->cells = (unsigned int)((cells <= 0xFFFFFFFFULL) ? cells : 0xFFFFFFFFULL);
     box->crowded = counted ? error[0] : 0u;

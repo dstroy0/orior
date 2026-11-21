@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "../../../../../../../src/cu/engine/runtime/daemon/tessera.h"
+#include "../../../../../../../src/platform/platform.h"
 #include "../../../../../../../src/cu/engine/runtime/daemon/tessera_measure.h"
 
 #include <cuda_runtime.h>
@@ -81,8 +82,10 @@ static int measure_test_child_ends(unsigned long long *failed)
     return 2;
 }
 
-int main(void)
+int program_main(int count, char **arguments)
 {
+    (void)count;
+    (void)arguments;
     unsigned long long failed = 0ull;
     unsigned long long cases = 0ull;
     cudaDeviceProp properties;

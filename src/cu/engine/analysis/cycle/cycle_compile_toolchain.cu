@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cycle_compile_toolchain.cu: the environment, the compiler and linker, and the cache's names
 #include "cycle_compile_internal.h"
+#include "../../../../platform/platform.h"
 
 CycleCompiler g_cycle_compiler;
 
@@ -58,11 +59,22 @@ int cycle_compiler_ready(void)
     compiler->tried = 1;
     char name[64];
 #if defined(_WIN32)
-    snprintf(name, sizeof(name), "nvrtc64_%d0_0.dll", CUDART_VERSION / 1000);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(name, sizeof(name));
+        mmgr_line_put(&buffer_line, "nvrtc64_");
+        mmgr_line_decimal_signed(&buffer_line, CUDART_VERSION / 1000);
+        mmgr_line_put(&buffer_line, "0_0.dll");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     // a module handle is stored as a plain pointer beside the Linux one
     void *const library = (void *)LoadLibraryA(name);
 #else
-    snprintf(name, sizeof(name), "libnvrtc.so.%d", CUDART_VERSION / 1000);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(name, sizeof(name));
+        mmgr_line_put(&buffer_line, "libnvrtc.so.");
+        mmgr_line_decimal_signed(&buffer_line, CUDART_VERSION / 1000);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     void *library = dlopen(name, RTLD_NOW);
     library = (library != NULL) ? library : dlopen("libnvrtc.so", RTLD_NOW);
 #endif
@@ -94,7 +106,16 @@ int cycle_compiler_ready(void)
 static void *cycle_linker_symbol(void *library, const char *call)
 {
     char name[64];
-    snprintf(name, sizeof(name), "__nvJitLink%s_%d_%d", call, CUDART_VERSION / 1000, (CUDART_VERSION % 1000) / 10);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(name, sizeof(name));
+        mmgr_line_put(&buffer_line, "__nvJitLink");
+        mmgr_line_put(&buffer_line, call);
+        mmgr_line_put(&buffer_line, "_");
+        mmgr_line_decimal_signed(&buffer_line, CUDART_VERSION / 1000);
+        mmgr_line_put(&buffer_line, "_");
+        mmgr_line_decimal_signed(&buffer_line, (CUDART_VERSION % 1000) / 10);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     return cycle_compiler_symbol(library, name);
 }
 
@@ -108,11 +129,22 @@ int cycle_linker_ready(void)
     linker->tried = 1;
     char name[64];
 #if defined(_WIN32)
-    snprintf(name, sizeof(name), "nvJitLink_%d0_0.dll", CUDART_VERSION / 1000);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(name, sizeof(name));
+        mmgr_line_put(&buffer_line, "nvJitLink_");
+        mmgr_line_decimal_signed(&buffer_line, CUDART_VERSION / 1000);
+        mmgr_line_put(&buffer_line, "0_0.dll");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     // a module handle is stored as a plain pointer beside the Linux one
     void *const library = (void *)LoadLibraryA(name);
 #else
-    snprintf(name, sizeof(name), "libnvJitLink.so.%d", CUDART_VERSION / 1000);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(name, sizeof(name));
+        mmgr_line_put(&buffer_line, "libnvJitLink.so.");
+        mmgr_line_decimal_signed(&buffer_line, CUDART_VERSION / 1000);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     void *library = dlopen(name, RTLD_NOW);
     library = (library != NULL) ? library : dlopen("libnvJitLink.so", RTLD_NOW);
 #endif
@@ -190,7 +222,12 @@ unsigned long long cycle_source_hash(const std::string &source)
 std::string cycle_cache_path(const std::string &folder, const std::string &source)
 {
     char name[32];
-    snprintf(name, sizeof(name), "%016llx.image", cycle_source_hash(source));
+    {
+        VerbaLinea buffer_line = mmgr_line_over(name, sizeof(name));
+        mmgr_line_hex(&buffer_line, cycle_source_hash(source), 16u);
+        mmgr_line_put(&buffer_line, ".image");
+        (void)mmgr_line_finish(&buffer_line);
+    }
 #if defined(_WIN32)
     return folder + "\\" + name;
 #else

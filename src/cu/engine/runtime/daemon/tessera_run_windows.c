@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_run_windows.c: starting, timing and ending a job's process tree on Windows
 #include "tessera_run_internal.h"
+#include "../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #if (defined(_WIN32))
 _Alignas(8) static const char s_run_unjoined[] =
@@ -11,10 +14,10 @@ _Alignas(8) static const char s_run_unjoined[] =
 // the command's words as one command line, the program first, each quoted as the C runtime splits them back
 static char *run_command_line(const char *program, char *const *words, int count)
 {
-    size_t capacity = 1u + (2u * strlen(program)) + 3u;
+    size_t capacity = 1u + (2u * mmgr_text_length(program, PLATFORM_TEXT_TO_TERMINATOR)) + 3u;
     for (int at = 1; at < count; at += 1)
     {
-        capacity += (2u * strlen(words[at])) + 3u;
+        capacity += (2u * mmgr_text_length(words[at], PLATFORM_TEXT_TO_TERMINATOR)) + 3u;
     }
     char *const line = (char *)malloc(capacity);
     if (line == NULL)
@@ -33,8 +36,8 @@ static char *run_command_line(const char *program, char *const *words, int count
         const int quoted = (word[0] == '\0') || (strpbrk(word, " \t\n\v\"") != NULL);
         if (!quoted)
         {
-            memcpy(line + length, word, strlen(word));
-            length += strlen(word);
+            mmgr_bytes_copy(line + length, word, mmgr_text_length(word, PLATFORM_TEXT_TO_TERMINATOR));
+            length += mmgr_text_length(word, PLATFORM_TEXT_TO_TERMINATOR);
             continue;
         }
         line[length] = '"';
@@ -169,14 +172,14 @@ int run_start(RunChild *child, char *const *words, int count, unsigned long long
     // what the command's tree has used
     child->job = CreateJobObjectA(NULL, NULL);
     JOBOBJECT_BASIC_LIMIT_INFORMATION limits;
-    memset(&limits, 0, sizeof(limits));
+    mmgr_bytes_set(&limits, 0, sizeof(limits));
     limits.LimitFlags = JOB_OBJECT_LIMIT_AFFINITY;
     // the mask covers the first sixty-four processors, which the machine word represents whole
     limits.Affinity = (ULONG_PTR)mask;
     const int limited = (child->job != NULL) &&
                         SetInformationJobObject(child->job, JobObjectBasicLimitInformation, &limits, sizeof(limits));
     STARTUPINFOA startup;
-    memset(&startup, 0, sizeof(startup));
+    mmgr_bytes_set(&startup, 0, sizeof(startup));
     startup.cb = sizeof(startup);
     startup.dwFlags = STARTF_USESTDHANDLES;
     startup.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
@@ -186,7 +189,7 @@ int run_start(RunChild *child, char *const *words, int count, unsigned long long
     run_inheritable(startup.hStdOutput);
     run_inheritable(startup.hStdError);
     PROCESS_INFORMATION started;
-    memset(&started, 0, sizeof(started));
+    mmgr_bytes_set(&started, 0, sizeof(started));
     // below normal is the class every process the command starts inherits
     const int made = CreateProcessA(NULL, line, NULL, NULL, TRUE, CREATE_SUSPENDED | BELOW_NORMAL_PRIORITY_CLASS, NULL,
                                     NULL, &startup, &started);
@@ -244,7 +247,7 @@ int run_finish(RunChild *child)
 int run_cpu(const RunChild *child, unsigned long long *microseconds)
 {
     JOBOBJECT_BASIC_ACCOUNTING_INFORMATION accounting;
-    memset(&accounting, 0, sizeof(accounting));
+    mmgr_bytes_set(&accounting, 0, sizeof(accounting));
     if ((child->job == NULL) || !QueryInformationJobObject(child->job, JobObjectBasicAccountingInformation, &accounting,
                                                            sizeof(accounting), NULL))
     {

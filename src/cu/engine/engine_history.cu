@@ -2,16 +2,18 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // engine_history.cu: the history and the public entry points
 #include "engine_internal.h"
+#include "engine_note.h"
+#include "memoria_operor/memoria_linea.h"
 
 static int entry_history_same(const EngineHistory *one, const EngineHistory *other)
 {
     const size_t entries = (size_t)(one->windows * one->windows);
     const size_t words = (size_t)(one->windows * one->extent[1] * one->extent[2] * one->extent[3]);
-    return (memcmp(one->extent, other->extent, sizeof(one->extent)) == 0) && (one->windows == other->windows) &&
-           entry_signum_same(&one->sample, &other->sample) && (one->payload_crc == other->payload_crc) &&
-           (one->cloud_crc == other->cloud_crc) &&
-           (memcmp(one->cloud, other->cloud, entries * sizeof(unsigned long long)) == 0) &&
-           (memcmp(one->history, other->history, words * sizeof(unsigned long long)) == 0);
+    return (mmgr_bytes_compare(one->extent, other->extent, sizeof(one->extent)) == 0) &&
+           (one->windows == other->windows) && entry_signum_same(&one->sample, &other->sample) &&
+           (one->payload_crc == other->payload_crc) && (one->cloud_crc == other->cloud_crc) &&
+           (mmgr_bytes_compare(one->cloud, other->cloud, entries * sizeof(unsigned long long)) == 0) &&
+           (mmgr_bytes_compare(one->history, other->history, words * sizeof(unsigned long long)) == 0);
 }
 
 extern "C" long engine_entropy_set(const EngineEntropySetRequest *request)
@@ -47,7 +49,7 @@ extern "C" long engine_entropy_set(const EngineEntropySetRequest *request)
         EngineStream located;
         EngineSignum located_root;
         EngineError probe;
-        memset(&probe, 0, sizeof(probe));
+        mmgr_bytes_set(&probe, 0, sizeof(probe));
         if ((request->reuse != 0u) && krep_crystal_head(iapx_path, &located, &located_root, &probe))
         {
             EngineHistory stored_history;
@@ -67,7 +69,7 @@ extern "C" long engine_entropy_set(const EngineEntropySetRequest *request)
         unsigned long long extent[4] = {0ULL, 0ULL, 0ULL, 0ULL};
         unsigned short *volume = NULL;
         EngineSignum sample_root;
-        memset(&sample_root, 0, sizeof(sample_root));
+        mmgr_bytes_set(&sample_root, 0, sizeof(sample_root));
         ok = (engine_iapx_load(request->set.set, name, extent, &volume, &sample_root, NULL, error) == 0L);
         const long windows = ok ? entropy_history_windows(extent, error) : ENTROPY_HISTORY_ERROR;
         ok = ok && (windows != ENTROPY_HISTORY_ERROR);
@@ -75,13 +77,13 @@ extern "C" long engine_entropy_set(const EngineEntropySetRequest *request)
         std::vector<unsigned long long> cloud((size_t)(window_count * window_count));
         std::vector<unsigned long long> payload((size_t)(window_count * extent[1] * extent[2] * extent[3]));
         EngineHistory history;
-        memset(&history, 0, sizeof(history));
+        mmgr_bytes_set(&history, 0, sizeof(history));
         history.cloud = cloud.data();
         history.history = payload.data();
         EntropyHistoryProjectRequest project;
-        memset(&project, 0, sizeof(project));
+        mmgr_bytes_set(&project, 0, sizeof(project));
         project.volume = volume;
-        memcpy(project.extent, extent, sizeof(project.extent));
+        mmgr_bytes_copy(project.extent, extent, sizeof(project.extent));
         project.sample = sample_root;
         project.history = &history;
         project.error = error;
@@ -90,21 +92,38 @@ extern "C" long engine_entropy_set(const EngineEntropySetRequest *request)
         free(volume);
         if (ENGINE_CHECK(broken == 0ULL, &broken, error, ENGINE_ERROR_LOGIC) == 0)
         {
-            fprintf(stderr, "  %s: entropy not conserved: %llu voxels' flips break parity with their net change\n",
-                    name, broken);
+            {
+                EngineNote engine_note;
+                engine_note_begun(&engine_note);
+                mmgr_line_put(&engine_note.line, "  ");
+                mmgr_line_put(&engine_note.line, name);
+                mmgr_line_put(&engine_note.line, ": entropy not conserved: ");
+                mmgr_line_decimal(&engine_note.line, broken, 1u);
+                mmgr_line_put(&engine_note.line, " voxels' flips break parity with their net change");
+                mmgr_line_ch(&engine_note.line, '\n');
+                engine_note_written(&engine_note);
+            }
             ok = 0;
             break;
         }
 
         EngineHistory read;
-        memset(&read, 0, sizeof(read));
+        mmgr_bytes_set(&read, 0, sizeof(read));
         ok = ok && ENGINE_IO(engine_directories_make(path, 0) != 0, path, error) &&
              krep_history_write(path, &history, error) && krep_history_read(path, &read, 1u, error) &&
              ENGINE_CHECK(entry_history_same(&history, &read) != 0, &read, error, ENGINE_ERROR_LOGIC);
         krep_history_release(&read);
         if (ok == 0)
         {
-            fprintf(stderr, "  %s: the entropy history was not written and read back whole\n", name);
+            {
+                EngineNote engine_note;
+                engine_note_begun(&engine_note);
+                mmgr_line_put(&engine_note.line, "  ");
+                mmgr_line_put(&engine_note.line, name);
+                mmgr_line_put(&engine_note.line, ": the entropy history was not written and read back whole");
+                mmgr_line_ch(&engine_note.line, '\n');
+                engine_note_written(&engine_note);
+            }
             break;
         }
         printf("  %-24s %llu frames, %llu windows of %u transitions, entropy conserved at every voxel, %llu MiB, read "
@@ -140,7 +159,7 @@ extern "C" long engine_entropy_cloud(const char *path, unsigned int *windows, un
         return ENGINE_ERROR;
     }
     *windows = (unsigned int)history.windows;
-    memcpy(cloud, history.cloud, (size_t)(history.windows * history.windows) * sizeof(unsigned long long));
+    mmgr_bytes_copy(cloud, history.cloud, (size_t)(history.windows * history.windows) * sizeof(unsigned long long));
     krep_history_release(&history);
     return 0L;
 }
@@ -191,12 +210,13 @@ extern "C" long engine_bodies_write(const char *set, const char *sample, EngineB
     const int ok = krep_bodies_read(path, &back, error);
     const int same =
         (ok != 0) &&
-        ENGINE_CHECK((back.bodies == table->bodies) && (back.crc == table->crc) &&
-                         (memcmp(back.frame_start, table->frame_start,
-                                 (size_t)(table->frames + 1ULL) * sizeof(unsigned long long)) == 0) &&
-                         (memcmp(back.words, table->words,
-                                 (size_t)(table->bodies * ENGINE_BODY_WORDS) * sizeof(unsigned long long)) == 0),
-                     &back, error, ENGINE_ERROR_LOGIC);
+        ENGINE_CHECK(
+            (back.bodies == table->bodies) && (back.crc == table->crc) &&
+                (mmgr_bytes_compare(back.frame_start, table->frame_start,
+                                    (size_t)(table->frames + 1ULL) * sizeof(unsigned long long)) == 0) &&
+                (mmgr_bytes_compare(back.words, table->words,
+                                    (size_t)(table->bodies * ENGINE_BODY_WORDS) * sizeof(unsigned long long)) == 0),
+            &back, error, ENGINE_ERROR_LOGIC);
     krep_bodies_release(&back);
     if (same == 0)
     {

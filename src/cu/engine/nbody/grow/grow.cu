@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "grow.h"
+#include "memoria_operor/memoria_linea.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -19,7 +20,7 @@ extern "C" long grow_leaves(const EngineBody *bodies, unsigned int count, Engine
     {
         return GROW_ERROR;
     }
-    memset(leaves, 0, sizeof(*leaves));
+    mmgr_bytes_set(leaves, 0, sizeof(*leaves));
     const size_t capacity = (size_t)count + 1u;
     leaves->peaks = (unsigned int *)malloc(capacity * sizeof(unsigned int));
     leaves->sizes = (unsigned int *)malloc(capacity * sizeof(unsigned int));
@@ -37,7 +38,7 @@ extern "C" long grow_leaves(const EngineBody *bodies, unsigned int count, Engine
         free(leaves->moments);
         free(leaves->touches);
         free(leaves->joined);
-        memset(leaves, 0, sizeof(*leaves));
+        mmgr_bytes_set(leaves, 0, sizeof(*leaves));
         return GROW_ERROR;
     }
     for (unsigned int leaf = 0u; leaf < count; leaf += 1u)
@@ -46,8 +47,8 @@ extern "C" long grow_leaves(const EngineBody *bodies, unsigned int count, Engine
         leaves->peaks[leaf] = body->peak;
         leaves->sizes[leaf] = body->mass;
         leaves->touches[leaf] = body->touches;
-        memcpy(&leaves->sums[(size_t)leaf * 3u], body->sums, 3u * sizeof(unsigned long long));
-        memcpy(&leaves->moments[(size_t)leaf * 6u], body->moments, 6u * sizeof(unsigned long long));
+        mmgr_bytes_copy(&leaves->sums[(size_t)leaf * 3u], body->sums, 3u * sizeof(unsigned long long));
+        mmgr_bytes_copy(&leaves->moments[(size_t)leaf * 6u], body->moments, 6u * sizeof(unsigned long long));
     }
     leaves->leaf_count = count;
     leaves->joined_count = 0u;
@@ -64,7 +65,7 @@ extern "C" void grow_group_voxels(const EngineGroupRequest *request)
     {
         leaf_at_peak[request->peaks[leaf]] = (int)leaf;
     }
-    memset(start, 0, ((size_t)request->leaf_count + 2u) * sizeof(unsigned int));
+    mmgr_bytes_set(start, 0, ((size_t)request->leaf_count + 2u) * sizeof(unsigned int));
     // each pass reads its first run at voxel 0, and an empty volume reads no label
     unsigned int run_label = 0u;
     int run_leaf = -1;

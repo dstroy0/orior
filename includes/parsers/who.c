@@ -3,6 +3,9 @@
 // who.c: the who of a write, its source and program numbered by the who table as the run stores it and its time on
 // the run's one clock, its two words, its code and its name
 #include "who.h"
+#include "../../src/platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include "line_read.h"
 
@@ -64,14 +67,14 @@ static int who_table(const unsigned char **table, unsigned long long *size)
 {
     const char *const run_top = qry_member_top();
     char path[WHO_PATH_MAX_LEN + sizeof(WHO_TABLE) + 1u];
-    const size_t top = (run_top != NULL) ? strlen(run_top) : 0u;
+    const size_t top = (run_top != NULL) ? mmgr_text_length(run_top, PLATFORM_TEXT_TO_TERMINATOR) : 0u;
     if ((top == 0u) || (top >= WHO_PATH_MAX_LEN))
     {
         return 0;
     }
-    memcpy(path, run_top, top);
+    mmgr_bytes_copy(path, run_top, top);
     path[top] = '/';
-    memcpy(path + top + 1u, WHO_TABLE, sizeof(WHO_TABLE));
+    mmgr_bytes_copy(path + top + 1u, WHO_TABLE, sizeof(WHO_TABLE));
     return qry_member_file_blob(path, table, size);
 }
 
@@ -86,7 +89,7 @@ static int who_row(const unsigned char *table, unsigned long long size, unsigned
         return 0;
     }
     unsigned long long value = 0ULL;
-    const char *const tab = strchr(line, '\t');
+    const char *const tab = mmgr_text_char(line, '\t', PLATFORM_TEXT_TO_TERMINATOR);
     *number = 0u;
     source[0] = '\0';
     if ((line[0] != '0') || (line[1] != 'x') || (tab == NULL) || ((tab - line) != 6) || !who_hex(line + 2, 4u, &value))
@@ -98,7 +101,7 @@ static int who_row(const unsigned char *table, unsigned long long size, unsigned
     {
         return 1;
     }
-    memcpy(source, tab + 1, length);
+    mmgr_bytes_copy(source, tab + 1, length);
     source[length] = '\0';
     // four hex digits are below 0x10000, which an unsigned int represents
     *number = (unsigned int)value;
@@ -125,7 +128,7 @@ static int who_same_characters(const char *one, const char *other, size_t length
 static unsigned int who_source_number(const char *file)
 {
     char plain[WHO_PATH_MAX_LEN];
-    const size_t length = strlen(file);
+    const size_t length = mmgr_text_length(file, PLATFORM_TEXT_TO_TERMINATOR);
     const char *const run_top = qry_member_top();
     if ((run_top == NULL) || (length >= WHO_PATH_MAX_LEN))
     {
@@ -135,7 +138,7 @@ static unsigned int who_source_number(const char *file)
     {
         plain[at] = (file[at] == '\\') ? '/' : file[at];
     }
-    const size_t top = strlen(run_top);
+    const size_t top = mmgr_text_length(run_top, PLATFORM_TEXT_TO_TERMINATOR);
     const char *name = plain;
     if ((length > top) && who_same_characters(plain, run_top, top) && (plain[top] == '/'))
     {
@@ -156,7 +159,7 @@ static unsigned int who_source_number(const char *file)
     }
     while (who_row(table, size, &at, &number, source))
     {
-        if ((number != 0u) && (strcmp(source, name) == 0))
+        if ((number != 0u) && (mmgr_text_equal(source, name, PLATFORM_TEXT_TO_TERMINATOR)))
         {
             return number;
         }
@@ -197,7 +200,9 @@ static unsigned int who_program_number(void)
             continue;
         }
         const char *const type = own + stem;
-        if ((strcmp(type, ".h") != 0) && (strcmp(type, ".cuh") != 0) && (strcmp(type, ".hpp") != 0))
+        if ((!mmgr_text_equal(type, ".h", PLATFORM_TEXT_TO_TERMINATOR)) &&
+            (!mmgr_text_equal(type, ".cuh", PLATFORM_TEXT_TO_TERMINATOR)) &&
+            (!mmgr_text_equal(type, ".hpp", PLATFORM_TEXT_TO_TERMINATOR)))
         {
             found = number;
         }
@@ -270,7 +275,8 @@ void who_code(Who who, char *code, size_t room)
 int who_read(const char *code, Who *who)
 {
     unsigned long long words[2];
-    if ((strlen(code) < WHO_CODE_CHARACTERS) || !who_hex(code, 16u, &words[0]) || !who_hex(code + 16, 16u, &words[1]))
+    if ((mmgr_text_length(code, PLATFORM_TEXT_TO_TERMINATOR) < WHO_CODE_CHARACTERS) || !who_hex(code, 16u, &words[0]) ||
+        !who_hex(code + 16, 16u, &words[1]))
     {
         return 0;
     }

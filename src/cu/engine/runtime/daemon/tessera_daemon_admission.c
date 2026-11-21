@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_daemon_admission.c: frames, admission, the handler and the timer
 #include "tessera_daemon_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 _Alignas(8) static const char s_daemon_precalc[] = "precalc saved\n";
 _Alignas(8) static const char s_daemon_reason_grace[] = "reserved past its grace time over its signum's last peak";
@@ -9,11 +10,11 @@ _Alignas(8) static const char s_daemon_reason_ended[] = "its process ended";
 
 void daemon_frame_start(TesseraFrame *frame, unsigned int type, unsigned long long identity)
 {
-    memset(frame, 0, sizeof(*frame));
+    mmgr_bytes_set(frame, 0, sizeof(*frame));
     frame->magic = TESSERA_MAGIC;
     frame->version = TESSERA_VERSION;
     frame->type = type;
-    memcpy(frame->device, g_daemon.device, TESSERA_DEVICE_BYTES);
+    mmgr_bytes_copy(frame->device, g_daemon.device, TESSERA_DEVICE_BYTES);
     frame->identity = identity;
     frame->luid = g_daemon.luid;
 }
@@ -119,7 +120,7 @@ void daemon_handle(TesseraPeer *peer, const TesseraFrame *frame)
     if (frame->type == TESSERA_REQUEST_SUBMIT)
     {
         const int acceptable = (peer->identity == 0ULL) && (peer->lost_identity == 0ULL) &&
-                               (memcmp(frame->device, g_daemon.device, TESSERA_DEVICE_BYTES) == 0) &&
+                               (mmgr_bytes_compare(frame->device, g_daemon.device, TESSERA_DEVICE_BYTES) == 0) &&
                                (frame->luid == g_daemon.luid) && (frame->declared != 0ULL) &&
                                (frame->sweep_microseconds != 0ULL);
         TesseraJobRequest request;

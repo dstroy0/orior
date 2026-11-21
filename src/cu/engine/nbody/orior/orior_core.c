@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // orior_core.c: the sift: naive, in order, free, choice and run
 #include "orior_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 #if ORIOR_COUNT_READS
 
@@ -76,7 +77,7 @@ size_t orior_naive(const uint8_t *corpus, size_t corpus_len, const uint8_t *need
     for (size_t at = 0u; (at + needle_len) <= corpus_len; at += 1u)
     {
         ORIOR_VERIFIED();
-        if (memcmp(corpus + at, needle, needle_len) == 0)
+        if (mmgr_bytes_compare(corpus + at, needle, needle_len) == 0)
         {
             found += 1u;
         }
@@ -132,7 +133,7 @@ static size_t sift_inorder_n(const uint8_t *corpus, size_t corpus_len, const uin
         if (index == anchors)
         {
             ORIOR_VERIFIED();
-            if (memcmp(corpus + at, needle, needle_len) == 0)
+            if (mmgr_bytes_compare(corpus + at, needle, needle_len) == 0)
             {
                 found += 1u;
             }
@@ -179,7 +180,7 @@ size_t orior_free(const uint8_t *corpus, size_t corpus_len, const uint8_t *needl
         if (agree != 0u)
         {
             ORIOR_VERIFIED();
-            if (memcmp(corpus + at, needle, needle_len) == 0)
+            if (mmgr_bytes_compare(corpus + at, needle, needle_len) == 0)
             {
                 found += 1u;
             }
@@ -239,7 +240,7 @@ size_t orior_anchors_for(const OriorPlan *plan)
 }
 
 size_t orior_run(const OriorPlan *plan, const uint8_t *corpus, size_t corpus_len, const uint8_t *needle,
-                       size_t needle_len)
+                 size_t needle_len)
 {
     const OriorEngine chosen = orior_choose(plan);
 

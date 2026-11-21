@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "../../../../../../../src/cu/engine/runtime/daemon/tessera.h"
+#include "../../../../../../../src/platform/platform.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -154,8 +155,10 @@ static unsigned long long frame_test_error(unsigned long long *failed)
     return cases;
 }
 
-int main(void)
+int program_main(int count, char **arguments)
 {
+    (void)count;
+    (void)arguments;
     unsigned long long failed_total = 0ull;
     unsigned long long failed = 0ull;
     unsigned long long cases = frame_test_round_trip(&failed);

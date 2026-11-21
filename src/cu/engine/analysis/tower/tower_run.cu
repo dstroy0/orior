@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tower_run.cu: allocation, edges, lifting and lowering
 #include "tower_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 static int tower_reserve(size_t lanes, EngineError *error)
 {
@@ -128,7 +129,7 @@ static int tower_edge_run(const TowerEdge *edges, unsigned int edge_count, const
 {
     TowerResident *const resident = &g_tower_resident;
     TowerStep region;
-    memset(&region, 0, sizeof(region));
+    mmgr_bytes_set(&region, 0, sizeof(region));
     // the global strides are the full-extent strides, fixed constant across the in-place lifting levels
     region.stride[3] = 1ULL;
     region.stride[2] = extent[3];

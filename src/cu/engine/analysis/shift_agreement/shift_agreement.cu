@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // shift_agreement.cu: the kernels and the agreement's arithmetic
 #include "shift_agreement_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 __device__ static unsigned long long lag_length(unsigned int index, const AgreementLayout *layout)
 {
@@ -340,7 +341,7 @@ const AxisTables *axis_tables(unsigned int length)
         cudaFree(tables->roots[0]);
         cudaFree(tables->roots[1]);
         free(tables->negation);
-        memset(tables, 0, sizeof(*tables));
+        mmgr_bytes_set(tables, 0, sizeof(*tables));
         return NULL;
     }
     tables->length = length;

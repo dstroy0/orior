@@ -51,6 +51,10 @@ void platform_close(void);
 // `length` bytes of `text` written to the output stream of the process, or to its error stream where `errors` is 1
 void platform_terminal_write(int errors, const char *text, unsigned long long length);
 
+// the cap of a text call of MMgr that stops at the terminator alone. The text calls count the cap and never add it to a
+// pointer. A cap of all ones bounds nothing
+#define PLATFORM_TEXT_TO_TERMINATOR (~(size_t)0)
+
 // the line of the output stream: a line over the part of the block that platform_open positions. Its flush writes
 // what it holds to the output stream, and so the line never fills. platform_line_out answers the same line on each call
 VerbaLinea *platform_line_out(void);

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // engine_residual.cu: the residual: keys, planes and their growth
 #include "engine_internal.h"
+#include "memoria_operor/memoria_linea.h"
 #include "runtime/device_pool/device_pool.h"
 
 static EngineResidualResident s_residual_resident;
@@ -15,11 +16,13 @@ static int engine_residual_key(const EngineResidualRequest *request, unsigned in
     EngineResidualResident *const resident = &s_residual_resident;
     EngineError *const error = request->error;
     if ((resident->key != NULL) &&
-        (memcmp(resident->smooth_orders, request->smooth_orders, sizeof(resident->smooth_orders)) == 0) &&
-        (memcmp(resident->background_orders, request->background_orders, sizeof(resident->background_orders)) == 0) &&
-        (memcmp(resident->comb, request->comb, sizeof(resident->comb)) == 0) &&
-        (memcmp(resident->smooth_spaced, request->smooth_spaced, sizeof(resident->smooth_spaced)) == 0) &&
-        (memcmp(resident->background_spaced, request->background_spaced, sizeof(resident->background_spaced)) == 0))
+        (mmgr_bytes_compare(resident->smooth_orders, request->smooth_orders, sizeof(resident->smooth_orders)) == 0) &&
+        (mmgr_bytes_compare(resident->background_orders, request->background_orders,
+                            sizeof(resident->background_orders)) == 0) &&
+        (mmgr_bytes_compare(resident->comb, request->comb, sizeof(resident->comb)) == 0) &&
+        (mmgr_bytes_compare(resident->smooth_spaced, request->smooth_spaced, sizeof(resident->smooth_spaced)) == 0) &&
+        (mmgr_bytes_compare(resident->background_spaced, request->background_spaced,
+                            sizeof(resident->background_spaced)) == 0))
     {
         return 1;
     }
@@ -34,20 +37,20 @@ static int engine_residual_key(const EngineResidualRequest *request, unsigned in
     CycleKey *key = NULL;
     const long bits = engine_key_encode(program, RESIDUAL_STEPS, &key, error);
     // bits is checked non-negative before it re-signs to unsigned long
-    const int imprinted = ENGINE_CHECK(bits >= 0L, program, error, ENGINE_ERROR_REQUEST) &&
-                          ENGINE_CHECK((unsigned long)bits <= (32UL * limbs), request->background_orders, error,
-                                       ENGINE_ERROR_REQUEST);
+    const int imprinted =
+        ENGINE_CHECK(bits >= 0L, program, error, ENGINE_ERROR_REQUEST) &&
+        ENGINE_CHECK((unsigned long)bits <= (32UL * limbs), request->background_orders, error, ENGINE_ERROR_REQUEST);
     if (imprinted == 0)
     {
         cycle_key_release(key);
         return 0;
     }
     resident->key = key;
-    memcpy(resident->smooth_orders, request->smooth_orders, sizeof(resident->smooth_orders));
-    memcpy(resident->background_orders, request->background_orders, sizeof(resident->background_orders));
-    memcpy(resident->comb, request->comb, sizeof(resident->comb));
-    memcpy(resident->smooth_spaced, request->smooth_spaced, sizeof(resident->smooth_spaced));
-    memcpy(resident->background_spaced, request->background_spaced, sizeof(resident->background_spaced));
+    mmgr_bytes_copy(resident->smooth_orders, request->smooth_orders, sizeof(resident->smooth_orders));
+    mmgr_bytes_copy(resident->background_orders, request->background_orders, sizeof(resident->background_orders));
+    mmgr_bytes_copy(resident->comb, request->comb, sizeof(resident->comb));
+    mmgr_bytes_copy(resident->smooth_spaced, request->smooth_spaced, sizeof(resident->smooth_spaced));
+    mmgr_bytes_copy(resident->background_spaced, request->background_spaced, sizeof(resident->background_spaced));
     return 1;
 }
 
@@ -85,13 +88,12 @@ static int engine_residual_reserve(size_t voxels, unsigned int limbs, int provin
 {
     EngineResidualResident *const resident = &s_residual_resident;
     const size_t words = voxels * limbs;
-    const int ok =
-        engine_residual_grow((void **)&resident->volume, &resident->volume_voxels, voxels, sizeof(unsigned short),
-                             error) &&
-        engine_residual_grow((void **)&resident->residual, &resident->residual_words, words, sizeof(unsigned int),
-                             error) &&
-        ((proving == 0) || engine_residual_grow((void **)&resident->check, &resident->check_words, words,
-                                                sizeof(unsigned int), error));
+    const int ok = engine_residual_grow((void **)&resident->volume, &resident->volume_voxels, voxels,
+                                        sizeof(unsigned short), error) &&
+                   engine_residual_grow((void **)&resident->residual, &resident->residual_words, words,
+                                        sizeof(unsigned int), error) &&
+                   ((proving == 0) || engine_residual_grow((void **)&resident->check, &resident->check_words, words,
+                                                           sizeof(unsigned int), error));
     if (ok == 0)
     {
         engine_residual_free();
@@ -102,15 +104,15 @@ static int engine_residual_reserve(size_t voxels, unsigned int limbs, int provin
 // the unit sweep's request for a residual request, its lanes not yet on the device
 static void engine_residual_sweep_of(const EngineResidualRequest *request, UnitSweepRequest *sweep)
 {
-    memset(sweep, 0, sizeof(*sweep));
+    mmgr_bytes_set(sweep, 0, sizeof(*sweep));
     sweep->depth = request->depth;
     sweep->height = request->height;
     sweep->width = request->width;
-    memcpy(sweep->smooth_orders, request->smooth_orders, sizeof(sweep->smooth_orders));
-    memcpy(sweep->background_orders, request->background_orders, sizeof(sweep->background_orders));
-    memcpy(sweep->comb, request->comb, sizeof(sweep->comb));
-    memcpy(sweep->smooth_spaced, request->smooth_spaced, sizeof(sweep->smooth_spaced));
-    memcpy(sweep->background_spaced, request->background_spaced, sizeof(sweep->background_spaced));
+    mmgr_bytes_copy(sweep->smooth_orders, request->smooth_orders, sizeof(sweep->smooth_orders));
+    mmgr_bytes_copy(sweep->background_orders, request->background_orders, sizeof(sweep->background_orders));
+    mmgr_bytes_copy(sweep->comb, request->comb, sizeof(sweep->comb));
+    mmgr_bytes_copy(sweep->smooth_spaced, request->smooth_spaced, sizeof(sweep->smooth_spaced));
+    mmgr_bytes_copy(sweep->background_spaced, request->background_spaced, sizeof(sweep->background_spaced));
 }
 
 extern "C" unsigned long long engine_residual_limbs(const EngineResidualRequest *request)
@@ -145,7 +147,7 @@ extern "C" void engine_resident_release(void)
     EngineResidualPlanesResident *const planes = &s_residual_planes_resident;
     cudaFree(planes->planes);
     cudaFree(planes->residual);
-    memset(planes, 0, sizeof(*planes));
+    mmgr_bytes_set(planes, 0, sizeof(*planes));
     unit_sweep_release();
     max_tree_resident_release();
     tower_resident_release();
@@ -236,13 +238,13 @@ extern "C" long engine_residual(const EngineResidualRequest *request, const unsi
                                        cudaMemcpyHostToDevice),
                             resident->volume, error);
     Atom atom;
-    memset(&atom, 0, sizeof(atom));
+    mmgr_bytes_set(&atom, 0, sizeof(atom));
     atom.lanes = resident->volume;
     atom.depth = request->depth;
     atom.height = request->height;
     atom.width = request->width;
     CycleRunRequest cycle_request;
-    memset(&cycle_request, 0, sizeof(cycle_request));
+    mmgr_bytes_set(&cycle_request, 0, sizeof(cycle_request));
     cycle_request.key = resident->key;
     cycle_request.atoms = &atom;
     cycle_request.count = 1ULL;
@@ -271,7 +273,8 @@ extern "C" long engine_residual(const EngineResidualRequest *request, const unsi
                                ENGINE_STATUS_CHECK(cudaDeviceSynchronize(), sweep_request.device_out, error)));
     const unsigned long long sweep_finished = engine_clock_microseconds();
     unsigned long long differing_lanes = 0ULL;
-    const UnitSweepComparison comparison = {resident->residual, resident->check, voxels, limbs, &differing_lanes, error};
+    const UnitSweepComparison comparison = {
+        resident->residual, resident->check, voxels, limbs, &differing_lanes, error};
     steps_succeeded =
         steps_succeeded && ((proving == 0) || ENGINE_CHECK(unit_sweep_lanes_compare(&comparison) == 0L, resident->check,
                                                            error, ENGINE_ERROR_RESOURCE));
@@ -355,17 +358,19 @@ extern "C" long engine_residual_planes(const EngineResidualPlanesRequest *reques
                                        (size_t)(voxels * input_limbs) * sizeof(unsigned int), cudaMemcpyHostToDevice),
                             resident->planes, error);
     UnitSweepRequest sweep_request;
-    memset(&sweep_request, 0, sizeof(sweep_request));
+    mmgr_bytes_set(&sweep_request, 0, sizeof(sweep_request));
     sweep_request.device_planes = resident->planes;
     sweep_request.input_bits = request->input_bits;
     sweep_request.depth = request->depth;
     sweep_request.height = request->height;
     sweep_request.width = request->width;
-    memcpy(sweep_request.smooth_orders, request->smooth_orders, sizeof(sweep_request.smooth_orders));
-    memcpy(sweep_request.background_orders, request->background_orders, sizeof(sweep_request.background_orders));
-    memcpy(sweep_request.comb, request->comb, sizeof(sweep_request.comb));
-    memcpy(sweep_request.smooth_spaced, request->smooth_spaced, sizeof(sweep_request.smooth_spaced));
-    memcpy(sweep_request.background_spaced, request->background_spaced, sizeof(sweep_request.background_spaced));
+    mmgr_bytes_copy(sweep_request.smooth_orders, request->smooth_orders, sizeof(sweep_request.smooth_orders));
+    mmgr_bytes_copy(sweep_request.background_orders, request->background_orders,
+                    sizeof(sweep_request.background_orders));
+    mmgr_bytes_copy(sweep_request.comb, request->comb, sizeof(sweep_request.comb));
+    mmgr_bytes_copy(sweep_request.smooth_spaced, request->smooth_spaced, sizeof(sweep_request.smooth_spaced));
+    mmgr_bytes_copy(sweep_request.background_spaced, request->background_spaced,
+                    sizeof(sweep_request.background_spaced));
     // the limbs are bounded at or below 2^32 / 32 above. They narrow to unsigned int exactly
     sweep_request.limbs = (unsigned int)residual_limbs;
     sweep_request.device_out = resident->residual;
@@ -402,7 +407,7 @@ extern "C" long engine_frame_bodies(const EngineBodiesRequest *request, EngineLe
         engine_error_latch(error);
         return ENGINE_ERROR;
     }
-    memset(leaves, 0, sizeof(*leaves));
+    mmgr_bytes_set(leaves, 0, sizeof(*leaves));
     const unsigned int *device_residual = NULL;
     EngineResidualRequest residual = request->residual;
     residual.error = error;
@@ -416,7 +421,7 @@ extern "C" long engine_frame_bodies(const EngineBodiesRequest *request, EngineLe
     unsigned int level_code = 0u;
     unsigned int proven = 0u;
     MaxTreeObjectsRequest objects;
-    memset(&objects, 0, sizeof(objects));
+    mmgr_bytes_set(&objects, 0, sizeof(objects));
     objects.error = error;
     objects.device_residual = device_residual;
     objects.depth = request->residual.depth;

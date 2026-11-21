@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "device_pool.h"
+#include "memoria_operor/memoria_linea.h"
 
 #include <cuda_runtime.h>
 
@@ -71,7 +72,7 @@ extern "C" long device_pool_reserve(const DevicePoolReserveRequest *request)
         return DEVICE_POOL_ERROR;
     }
     DevicePool *const pool = request->pool;
-    memset(pool, 0, sizeof(*pool));
+    mmgr_bytes_set(pool, 0, sizeof(*pool));
     const unsigned long long bytes = device_pool_plan_bytes(request->plan);
     if (bytes == 0ULL)
     {
@@ -120,5 +121,5 @@ extern "C" void device_pool_return(DevicePool *pool)
 extern "C" void device_pool_release(DevicePool *pool)
 {
     cudaFree(pool->base);
-    memset(pool, 0, sizeof(*pool));
+    mmgr_bytes_set(pool, 0, sizeof(*pool));
 }

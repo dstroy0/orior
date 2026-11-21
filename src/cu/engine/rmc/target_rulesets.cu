@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // target_rulesets.cu: rulesets read, loaded and written
 #include "target_internal.h"
+#include "../engine_note.h"
 
 #include <map>
 
@@ -65,9 +66,9 @@ std::vector<std::string> ruleset_parameters(const Ruleset *rules, const std::str
         const size_t end = (text.find('\n', at) == std::string::npos) ? text.size() : text.find('\n', at);
         const std::vector<std::string> words = ruleset_words(text.substr(at, end - at));
         at = end + 1u;
-        const int named = (words.size() >= 2u) && (words[1] == form) &&
-                          ((words[0] == "form") || (words[0] == "err") || (words[0] == "nop") ||
-                           (words[0] == "construct"));
+        const int named =
+            (words.size() >= 2u) && (words[1] == form) &&
+            ((words[0] == "form") || (words[0] == "err") || (words[0] == "nop") || (words[0] == "construct"));
         for (size_t word = 2u; (named != 0) && (word < words.size()) && (words[word] != "="); word += 1u)
         {
             names.push_back(words[word]);
@@ -111,8 +112,8 @@ void ruleset_folds_read(Ruleset *rules)
         const std::string type = fold.substr(colon + system.size(), type_end - colon - system.size());
         const std::vector<std::string> role = ruleset_words(fold.substr(type_end + put.size()));
         const RulesetSchema *const schema = rules->schema;
-        const unsigned int form = (head.size() == 4u) ? ruleset_find(schema->forms, schema->form_count, head[3])
-                                                       : schema->form_count;
+        const unsigned int form =
+            (head.size() == 4u) ? ruleset_find(schema->forms, schema->form_count, head[3]) : schema->form_count;
         if ((form == schema->form_count) || (role.size() != 1u))
         {
             continue;
@@ -152,11 +153,26 @@ static const Ruleset *ruleset_load(Ruleset *rules, const RulesetSchema *schema, 
     }
     if ((report != 0) && (rules->ready != 0))
     {
-        fprintf(stderr, "  cycle: the ruleset %s read from %s\n", rules->name.c_str(), rules->path.c_str());
+        EngineNote engine_note;
+        engine_note_begun(&engine_note);
+        mmgr_line_put(&engine_note.line, "  cycle: the ruleset ");
+        mmgr_line_put(&engine_note.line, rules->name.c_str());
+        mmgr_line_put(&engine_note.line, " read from ");
+        mmgr_line_put(&engine_note.line, rules->path.c_str());
+        mmgr_line_ch(&engine_note.line, '\n');
+        engine_note_written(&engine_note);
     }
     else if (report != 0)
     {
-        fprintf(stderr, "  cycle: the ruleset at %s errors (%s)\n", rules->path.c_str(), rules->error.c_str());
+        EngineNote engine_note;
+        engine_note_begun(&engine_note);
+        mmgr_line_put(&engine_note.line, "  cycle: the ruleset at ");
+        mmgr_line_put(&engine_note.line, rules->path.c_str());
+        mmgr_line_put(&engine_note.line, " errors (");
+        mmgr_line_put(&engine_note.line, rules->error.c_str());
+        mmgr_line_put(&engine_note.line, ")");
+        mmgr_line_ch(&engine_note.line, '\n');
+        engine_note_written(&engine_note);
     }
     return (rules->ready != 0) ? rules : NULL;
 }

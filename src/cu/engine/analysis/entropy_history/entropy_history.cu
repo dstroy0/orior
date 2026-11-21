@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "entropy_history.h"
+#include "memoria_operor/memoria_linea.h"
 
 #include "crc.h"
 
@@ -217,7 +218,7 @@ extern "C" long entropy_history_project(const EntropyHistoryProjectRequest *requ
             history->cloud[(size_t)((one * windows) + other)] = history->cloud[(size_t)((other * windows) + one)];
         }
     }
-    memcpy(history->extent, request->extent, sizeof(history->extent));
+    mmgr_bytes_copy(history->extent, request->extent, sizeof(history->extent));
     history->windows = windows;
     history->sample = request->sample;
     history->payload_crc = crc_words(CRC_TABLE, history->history, words);
