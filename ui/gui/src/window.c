@@ -839,10 +839,15 @@ EMBED_INLINE void window_view_take(const GuiWindowCtx *args)
     }
     if (args->edited || recolored || !window->minimap.lines || (key == NULL))
     {
-        cli_view_map_release(&(CliViewMapCfg){.key = NULL});
-        window->minimap.lines =
+        // the map goes again into the cell the view keeps, and the cell goes back only where no text shows
+        const int placed =
             (key != NULL) && window->map_known &&
             cli_view_map_place(&(CliViewMapCfg){.key = key, .first = window->map_first, .last = window->map_last});
+        if (!placed)
+        {
+            cli_view_map_release(&(CliViewMapCfg){.key = NULL});
+        }
+        window->minimap.lines = placed;
     }
     window->colors_serial = colors;
     window->colors_key[0] = '\0';
@@ -1136,9 +1141,12 @@ EMBED_INLINE void window_map_span(const GuiWindowCtx *args)
     window->map_first = first;
     window->map_last = last;
     const char *const key = EMBED_CALL(window_displayed_key, GuiWindowCtx, .at = 0u);
-    cli_view_map_release(&(CliViewMapCfg){.key = NULL});
-    window->minimap.lines =
-        (key != NULL) && cli_view_map_place(&(CliViewMapCfg){.key = key, .first = first, .last = last});
+    const int placed = (key != NULL) && cli_view_map_place(&(CliViewMapCfg){.key = key, .first = first, .last = last});
+    if (!placed)
+    {
+        cli_view_map_release(&(CliViewMapCfg){.key = NULL});
+    }
+    window->minimap.lines = placed;
     window->pending = 1;
 }
 

@@ -398,6 +398,7 @@ typedef struct
     unsigned long long serial;
     unsigned int states;
     unsigned long long reach;
+    unsigned long long *capacity_pointer;
 } ViewCtx;
 
 // A view's lists live in movable cells, which the mover sorts down. A read copies a record by value, and a write puts
@@ -1772,7 +1773,8 @@ EMBED_INLINE const CarcerMovableEntry *view_table_map_alloc(const ViewCtx *args)
         }
     }
     const CarcerMovableEntry *const map =
-        g_cli_guard->movable_buf_alloc(CLI_DOCUMENT_MAP_BAR_AT(count, max), g_cli_views_owner);
+        EMBED_CALL(cli_document_map.map_cell, CliDocumentMapCfg, .owner = g_cli_views_owner, .map = args->entry,
+                   .capacity = args->capacity_pointer, .bytes = CLI_DOCUMENT_MAP_BAR_AT(count, max));
     if (map == NULL)
     {
         return NULL;
@@ -6569,8 +6571,10 @@ int cli_view_cursor(const CliViewCursorCfg *args)
     return 1;
 }
 
-// The minimap's map the views keep: its movable cell, NULL for none, and the head written at the cell's start
+// The minimap's map the views keep: its movable cell, NULL for none, the cell's bytes, and the head written at the
+// cell's start. A map built again goes into the same cell while the lines fit it
 static const CarcerMovableEntry *s_view_map;
+static unsigned long long s_view_map_capacity;
 static CliDocumentMapHead s_view_map_head;
 
 void cli_view_map_release(const CliViewMapCfg *args)
@@ -6578,23 +6582,27 @@ void cli_view_map_release(const CliViewMapCfg *args)
     (void)args;
     (void)g_cli_guard->movable_buf_release(s_view_map, g_cli_views_owner);
     s_view_map = NULL;
+    s_view_map_capacity = 0ULL;
     s_view_map_head = (CliDocumentMapHead){0ULL, 0u, 0u};
 }
 
 int cli_view_map_place(const CliViewMapCfg *args)
 {
-    cli_view_map_release(args);
     CliView copy;
     CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key, .copy = &copy);
     if (view == NULL)
     {
+        cli_view_map_release(args);
         return 0;
     }
     const unsigned int tab = (view->indent.tabs == 1) ? EMBED_CALL(view_tab, ViewCtx, .view_read = view) : 1u;
     s_view_map = (view->table != 0u)
-                     ? EMBED_CALL(view_table_map_alloc, ViewCtx, .view = view, .first = args->first, .last = args->last)
+                     ? EMBED_CALL(view_table_map_alloc, ViewCtx, .view = view, .first = args->first, .last = args->last,
+                                  .entry = s_view_map, .capacity_pointer = &s_view_map_capacity)
                      : EMBED_CALL(cli_document_map.map_alloc, CliDocumentMapCfg, .key = args->key, .first = args->first,
-                                  .last = args->last, .tab = tab, .owner = g_cli_views_owner);
+                                  .last = args->last, .tab = tab, .owner = g_cli_views_owner, .map = s_view_map,
+                                  .capacity = &s_view_map_capacity);
+    s_view_map_head = (CliDocumentMapHead){0ULL, 0u, 0u};
     if (s_view_map != NULL)
     {
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){

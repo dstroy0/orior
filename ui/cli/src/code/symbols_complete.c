@@ -238,23 +238,34 @@ int cli_symbols_complete(const CliSymbolsPathTextSizeCfg *args)
                             args->context};
     cli_grown_begin(&complete.transferred, CLI_COMPLETE_CAPACITY, g_cli_code_owner);
     int done = complete.transferred.cell != NULL;
-    CliEffect *const effect = done ? EMBED_CALL(cli_symbols_path_name_internal.effect_init, CliSymbolsPathNameCtx,
-                                                .path = args->path, .name = "", .slicing = 1, .err_msg = args->err_msg)
-                                   : NULL;
-    if (effect != NULL)
+    // the walk at the scale that fit the last walk, taken again a scale up where its lists or texts fill
+    int walked = 0;
+    for (unsigned int scale = cli_effect_scale_first(); done; scale += 1u)
     {
+        CliEffect *const effect =
+            EMBED_CALL(cli_symbols_path_name_internal.effect_init, CliSymbolsPathNameCtx, .path = args->path,
+                       .name = "", .slicing = 1, .err_msg = args->err_msg, .scale = scale);
+        if (effect == NULL)
+        {
+            break;
+        }
         effect->start_text = args->text;
         effect->start_size = args->size;
         EMBED_CALL(cli_symbols_path_effect_internal.effect_alloc, CliSymbolsPathEffectCtx, .effect = effect,
                    .path = args->path, .line_u32 = args->line);
-        done = !effect->refused;
-        if (done)
+        walked = !effect->refused;
+        if (walked)
         {
             EMBED_CALL(complete_walk, SymbolsCompleteCtx, .complete = &complete, .effect = effect);
         }
+        const int again = cli_effect_scale_again(effect);
         EMBED_CALL(cli_symbols_text_length_internal.effect_input_back, CliSymbolsTextLengthCtx, .effect = effect);
+        if (!again)
+        {
+            break;
+        }
     }
-    done = done && (effect != NULL);
+    done = done && walked;
     if (done && leaved)
     {
         EMBED_CALL(complete_locals, SymbolsCompleteCtx, .complete = &complete, .read = &read, .place = place);

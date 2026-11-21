@@ -1929,8 +1929,11 @@ void test_a_views_change_is_reported_once_and_its_words_and_map_come_off_the_wal
     typed("x");
     TEST_ASSERT_TRUE(EMBED_CALL(cli_view_table.changed_clear, CliViewCfg, .key = s_key));
     TEST_ASSERT_FALSE(EMBED_CALL(cli_view_table.changed_clear, CliViewCfg, .key = s_key));
-    const CarcerMovableEntry *const map = EMBED_CALL(cli_document_map.map_alloc, CliDocumentMapCfg, .key = s_key,
-                                                     .first = 0ull, .last = 4ull, .tab = 4u, .owner = g_cli_text_owner);
+    unsigned long long capacity = 0ull;
+    const CarcerMovableEntry *const map =
+        EMBED_CALL(cli_document_map.map_alloc, CliDocumentMapCfg, .key = s_key, .first = 0ull, .last = 4ull, .tab = 4u,
+                   .owner = g_cli_text_owner, .map = NULL, .capacity = &capacity);
+    TEST_ASSERT_GREATER_THAN_UINT64(0ull, capacity);
     TEST_ASSERT_NOT_NULL(map);
     CliDocumentMapHead head = {0ull, 0u, 0u};
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = map, .dst = &head, .bytes = sizeof(head)});

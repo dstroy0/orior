@@ -1228,7 +1228,6 @@ utils/test/harness_sonarqube.py	7
 utils/test/harness_unity.py	19
 utils/test/harness_webdriver.py	10
 utils/test/harness_win32.py	37
-utils/test/harness_window.py	44
 utils/test/harness_window_host.py	10
 utils/test/harness_window_test.py	6
 utils/test/harness_wsl.py	16

@@ -1457,48 +1457,93 @@ static void cli_effect_walk(const SymbolsEffectCtx *args)
     g_cli_guard->persistent_buf_release(branch, g_cli_code_owner);
 }
 
+// the least scale that fit the last walk taken whole, where the next walk starts
+static embed_atomic_u32 s_effect_scale = EMBED_ATOMIC_INIT(0u);
+
+unsigned int cli_effect_scale_first(void)
+{
+    return EMBED_ATOMIC_LOAD(&s_effect_scale);
+}
+
+// the least scale whose lists and texts fit what `effect` put in them
+static unsigned int effect_scale_held(const CliEffect *effect)
+{
+    unsigned int scale = 0u;
+    for (; scale < (CLI_EFFECT_SCALES - 1u); scale += 1u)
+    {
+        const unsigned int down = (CLI_EFFECT_SCALES - 1u) - scale;
+        const unsigned int list = CLI_EFFECT_LIST_MAX >> down;
+        if ((effect->branches_read <= list) && (effect->macros <= list) && (effect->seens <= list) &&
+            (effect->walks <= list) && (effect->value_leaves <= (CLI_EFFECT_VALUES_MAX >> down)) &&
+            (effect->text.at < (CLI_EFFECT_TEXT_CAPACITY >> down)))
+        {
+            break;
+        }
+    }
+    return scale;
+}
+
+int cli_effect_scale_again(const CliEffect *effect)
+{
+    if (!effect->refused)
+    {
+        EMBED_ATOMIC_STORE(&s_effect_scale, effect_scale_held(effect));
+        return 0;
+    }
+    const int again = effect->scale < (CLI_EFFECT_SCALES - 1u);
+    if (again)
+    {
+        EMBED_ATOMIC_STORE(&s_effect_scale, effect->scale + 1u);
+    }
+    return again;
+}
+
 CliEffect *cli_effect_init(const CliSymbolsPathNameCtx *args)
 {
     const char *name = args->name;
     int slicing = args->slicing;
+    const unsigned int scale = (args->scale < CLI_EFFECT_SCALES) ? args->scale : (CLI_EFFECT_SCALES - 1u);
+    const unsigned int down = (CLI_EFFECT_SCALES - 1u) - scale;
+    const unsigned int list = CLI_EFFECT_LIST_MAX >> down;
+    const unsigned int values = CLI_EFFECT_VALUES_MAX >> down;
+    const unsigned long long texts = CLI_EFFECT_TEXT_CAPACITY >> down;
     // the effect lives for the one walk that takes it: a cell of the temporary tier
     CliEffect *const effect = g_cli_guard->temporary_buf_alloc(sizeof(CliEffect), g_cli_code_owner);
-    // the walk's lists and texts in one cell, each at its max
-    const unsigned long long branch_bytes = CLI_EFFECT_LIST_MAX * sizeof(CliEffectBranchRead);
-    const unsigned long long macro_bytes = CLI_EFFECT_LIST_MAX * sizeof(CliEffectMacro);
-    const unsigned long long seen_bytes = CLI_EFFECT_LIST_MAX * sizeof(CliEffectSeen);
-    const unsigned long long leaf_bytes = CLI_EFFECT_VALUES_MAX * sizeof(CliEffectValueLeaf);
-    const unsigned long long walked_bytes = CLI_EFFECT_LIST_MAX * sizeof(unsigned int);
+    // the walk's lists and texts in one cell, each at the scale's size
+    const unsigned long long branch_bytes = list * sizeof(CliEffectBranchRead);
+    const unsigned long long macro_bytes = list * sizeof(CliEffectMacro);
+    const unsigned long long seen_bytes = list * sizeof(CliEffectSeen);
+    const unsigned long long leaf_bytes = values * sizeof(CliEffectValueLeaf);
+    const unsigned long long walked_bytes = list * sizeof(unsigned int);
     const unsigned long long list_bytes = branch_bytes + macro_bytes + seen_bytes + leaf_bytes + walked_bytes;
-    char *const cell = (effect != NULL)
-                           ? g_cli_guard->temporary_buf_alloc(list_bytes + CLI_EFFECT_TEXT_CAPACITY, g_cli_code_owner)
-                           : NULL;
+    char *const cell = (effect != NULL) ? g_cli_guard->temporary_buf_alloc(list_bytes + texts, g_cli_code_owner) : NULL;
     if (cell == NULL)
     {
         g_cli_guard->persistent_buf_release(effect, g_cli_code_owner);
         mmgr_line_put(args->err_msg, "the cells cannot meet the walk");
         return NULL;
     }
-    effect->text = (VerbaLinea){cell + list_bytes, CLI_EFFECT_TEXT_CAPACITY, 0ULL};
+    effect->scale = scale;
+    effect->text = (VerbaLinea){cell + list_bytes, texts, 0ULL};
     memor.cpy(&(MemoriaCfg){.dst = effect->root, .src = g_cli_tree_root, .bytes = CLI_PATH_MAX_LEN});
     effect->start = args->path;
     effect->start_text = NULL;
     effect->start_size = 0ULL;
     effect->branch_read = (CliEffectBranchRead *)(void *)cell;
     effect->branches_read = 0u;
-    effect->branch_read_capacity = CLI_EFFECT_LIST_MAX;
+    effect->branch_read_capacity = list;
     effect->macro = (CliEffectMacro *)(void *)(cell + branch_bytes);
     effect->macros = 0u;
-    effect->macro_capacity = CLI_EFFECT_LIST_MAX;
+    effect->macro_capacity = list;
     effect->seen = (CliEffectSeen *)(void *)(cell + branch_bytes + macro_bytes);
     effect->seens = 0u;
-    effect->seen_capacity = CLI_EFFECT_LIST_MAX;
+    effect->seen_capacity = list;
     effect->value_leaf = (CliEffectValueLeaf *)(void *)(cell + branch_bytes + macro_bytes + seen_bytes);
     effect->value_leaves = 0u;
-    effect->value_leaf_capacity = CLI_EFFECT_VALUES_MAX;
+    effect->value_leaf_capacity = values;
     effect->walked = (unsigned int *)(void *)(cell + branch_bytes + macro_bytes + seen_bytes + leaf_bytes);
     effect->walks = 0u;
-    effect->walk_capacity = CLI_EFFECT_LIST_MAX;
+    effect->walk_capacity = list;
     effect->name = name;
     effect->length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES});
     effect->found = 0;

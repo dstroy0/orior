@@ -271,26 +271,37 @@ EMBED_INLINE int usages_walk(const SymbolsUsagesCtx *args)
 {
     const char *path = args->path;
     VerbaLinea *err_msg = args->err_msg;
-    cli_grown_reset(&args->usages_out->notes);
-    cli_grown_reset(&args->usages_out->texts);
-    cli_grown_reset(&args->usages_out->paths);
-    args->usages_out->noted = 0u;
-    args->usages_out->read = NULL;
-    CliEffect *const effect =
-        EMBED_CALL(cli_symbols_path_name_internal.effect_init, CliSymbolsPathNameCtx, .path = path,
-                   .name = args->usages_out->name, .slicing = 0, .err_msg = err_msg);
-    if (effect == NULL)
+    int refused = 1;
+    // the walk at the scale that fit the last walk, taken again a scale up where its lists or texts fill. Each walk
+    // notes the notes again from none
+    for (unsigned int scale = cli_effect_scale_first();; scale += 1u)
     {
-        return 0;
+        cli_grown_reset(&args->usages_out->notes);
+        cli_grown_reset(&args->usages_out->texts);
+        cli_grown_reset(&args->usages_out->paths);
+        args->usages_out->noted = 0u;
+        args->usages_out->read = NULL;
+        CliEffect *const effect =
+            EMBED_CALL(cli_symbols_path_name_internal.effect_init, CliSymbolsPathNameCtx, .path = path,
+                       .name = args->usages_out->name, .slicing = 0, .err_msg = err_msg, .scale = scale);
+        if (effect == NULL)
+        {
+            return 0;
+        }
+        effect->start_text = args->text;
+        effect->start_size = args->size;
+        effect->noted = usages_note;
+        effect->noted_context = args->usages_out;
+        EMBED_CALL(cli_symbols_path_effect_internal.effect_alloc, CliSymbolsPathEffectCtx, .effect = effect,
+                   .path = path, .line_u32 = CLI_EFFECT_INPUT);
+        refused = effect->refused || args->usages_out->refused;
+        const int again = cli_effect_scale_again(effect);
+        EMBED_CALL(cli_symbols_text_length_internal.effect_input_back, CliSymbolsTextLengthCtx, .effect = effect);
+        if (!again)
+        {
+            break;
+        }
     }
-    effect->start_text = args->text;
-    effect->start_size = args->size;
-    effect->noted = usages_note;
-    effect->noted_context = args->usages_out;
-    EMBED_CALL(cli_symbols_path_effect_internal.effect_alloc, CliSymbolsPathEffectCtx, .effect = effect, .path = path,
-               .line_u32 = CLI_EFFECT_INPUT);
-    const int refused = effect->refused || args->usages_out->refused;
-    EMBED_CALL(cli_symbols_text_length_internal.effect_input_back, CliSymbolsTextLengthCtx, .effect = effect);
     if (refused)
     {
         mmgr_line_put(err_msg, "the cells cannot meet the usages' walk");

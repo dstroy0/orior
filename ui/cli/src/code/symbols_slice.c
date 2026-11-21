@@ -757,10 +757,13 @@ int cli_symbols_slice_each(const CliSymbolsPathCfg *args)
     const unsigned int outer = (args->openers != 0u) ? args->opener[0] : args->first;
     const unsigned int from = (outer < args->first) ? outer : args->first;
     int cut = 0;
+    // a walk its lists or texts fill goes again a scale up, in the same round; a refused walk cuts no line
+    unsigned int scale = cli_effect_scale_first();
     for (;;)
     {
-        CliEffect *const effect = EMBED_CALL(cli_symbols_path_name_internal.effect_init, CliSymbolsPathNameCtx,
-                                             .path = args->path, .name = "", .slicing = 1, .err_msg = args->err_msg);
+        CliEffect *const effect =
+            EMBED_CALL(cli_symbols_path_name_internal.effect_init, CliSymbolsPathNameCtx, .path = args->path,
+                       .name = "", .slicing = 1, .err_msg = args->err_msg, .scale = scale);
         if (effect == NULL)
         {
             break;
@@ -782,7 +785,13 @@ int cli_symbols_slice_each(const CliSymbolsPathCfg *args)
               EMBED_CALL(cli_slice_cut, SymbolsSliceCtx, .effect = effect, .path = args->path, .first = args->first,
                          .last_value = args->last, .opener = args->opener, .openers = args->openers,
                          .each = args->each_slice_line, .context = args->context, .carry = &carry);
+        const int again = cli_effect_scale_again(effect);
         EMBED_CALL(cli_symbols_text_length_internal.effect_input_back, CliSymbolsTextLengthCtx, .effect = effect);
+        if (again)
+        {
+            scale += 1u;
+            continue;
+        }
         if (!cut || !carry.again)
         {
             break;
@@ -887,8 +896,11 @@ static int cli_slices_reach(const CliEffectReachedCfg *args)
 
 int cli_symbols_slices_each(const CliSymbolsPathTextSizeContextErrMsgCfg *args)
 {
-    CliEffect *const effect = EMBED_CALL(cli_symbols_path_name_internal.effect_init, CliSymbolsPathNameCtx,
-                                         .path = args->path, .name = "", .slicing = 1, .err_msg = args->err_msg);
+    // This walk hands its slices on as it reaches their lines, and a second walk would hand them on twice. Thus its
+    // cell takes the max scale
+    CliEffect *const effect =
+        EMBED_CALL(cli_symbols_path_name_internal.effect_init, CliSymbolsPathNameCtx, .path = args->path, .name = "",
+                   .slicing = 1, .err_msg = args->err_msg, .scale = CLI_EFFECT_SCALES - 1u);
     if (effect == NULL)
     {
         return 0;
