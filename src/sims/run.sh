@@ -50,7 +50,7 @@ build_stamp "sim_$SIM"
 
 # every sim's folder lies under cu/, at the place in the tree its subject has, and carries the sim's name
 case "$SIM" in
-    fixed_pattern|classify_reject_recover) SOURCES=("$SIMS/cu/engine/analysis/art$SIM.cu") ;;
+    fixed_pattern|classify_reject_recover) SOURCES=("$SIMS/cu/engine/analysis/art/$SIM.cu") ;;
     *)
         FOLDER="$(find "$SIMS_CU" -type d -name "$SIM" | head -1)"
         [ -n "$FOLDER" ] || { echo "  no folder named $SIM under $SIMS_CU"; exit 2; }
