@@ -6,4 +6,4 @@ any	-	straight line	lead -> void, 1,0 -> 0,0	a transition where the sides do not
 any	-	unknown	busy *> dual	the unknown or a superstate: a transition where a side holds no pair bit
 any	-	halt	|	a halt
 any	-	mnemonic	<mnemonic>	a mnemonic written where a transition is, held against its pair
-any	-	sequence	[lead, rite]	a sequence of states, read as one movement
+any	-	sequence	<lead, rite>	a sequence of states, read as one movement

@@ -83,7 +83,7 @@
         [{"words": "arrows"}, "operator"],
         ["[A-Za-z_]\\w*", {"cases": {"@mnemonics": "keyword", "@states": "type", "@default": "identifier"}}],
         ["\\|", "operator"],
-        ["[[\\],]", "delimiter"],
+        ["[[\\]<>,]", "delimiter"],
         ["\\d+", "number"],
         ["\\s+", ""]
       ]

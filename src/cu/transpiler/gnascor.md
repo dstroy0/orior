@@ -72,10 +72,12 @@ Nothing in the language depends on anything outside its own coherence, and so it
 
 | left branch | right branch | pair state | mnemonic | meaning |
 |---|---|---|---|---|
-| lead (1) | void (0) | 1, 0 | core | The primary intent persists; the secondary path dissolved. |
-| rite (0) | lead (1) | 0, 1 | shift | Focus has migrated from the left domain to the right. |
-| dual (2) | void (0) | 2, 0 | echo | An amplified state is sustained without new external input. |
-| dual (2) | dual (2) | 2, 2 | nexus | Max systemic coherence; both major systems are aligned. |
+| lead (1,0) | void (0,0) | [lead, void] | core | The primary intent persists; the secondary path dissolved. |
+| rite (0,1) | lead (1,0) | [rite, lead] | shift | Focus has migrated from the left domain to the right. |
+| dual (1,1) | void (0,0) | [dual, void] | echo | An amplified state is sustained without new external input. |
+| dual (1,1) | dual (1,1) | [dual, dual] | nexus | Max systemic coherence; both major systems are aligned. |
+
+Each branch is a state, and every state is its two bits. A pair `[ ]` holds two branches at once, and a sequence `< >` holds one state over two cycles.
 
 ## The query protocol
 
@@ -191,7 +193,7 @@ Two microservices or LLM contexts under query, `@system.A` and `@system.B`:
 
 1. Cycle 1: `@system.A` is processing inside cost bounds and `@system.B` is idle. The engine yields lead.
 2. Cycle 2: `@system.A` finishes and goes idle, and `@system.B` picks up the task inside cost bounds. The engine yields rite.
-3. The coherence engine registers the temporal sequence `[lead, rite]` and outputs pass, a clean uncorrupted shift right.
+3. The coherence engine registers the temporal sequence `<lead, rite>` and outputs pass, a clean uncorrupted shift right.
 
 ## Environmental base states
 

@@ -166,6 +166,21 @@ extern "C"
     // the name of a state is a finding
     void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings);
 
+    // The ladder anchor of what a transition does to one side, `operation`. It is copy where the side keeps its bit
+    // (`=`), and invert where the side reaches the other bit (`0` or `1`). NULL where the side holds no pair bit (`-`)
+    const char *lng_side_anchor(const char *operation);
+
+    // The transpiler form of the transition at `row` of the gsm table `table`: the transpiler word of each side's
+    // anchor, into `left` and `right`. The result is 1, or 0 where a side holds no pair bit. It is 0 too where no
+    // word of `transpiler`, or more than one, has the anchor
+    int lng_asm_form(const LngTable *transpiler, const LngTable *table, unsigned int row, const char **left,
+                     const char **right);
+
+    // The transpiler forms of the gsm table `table`, and the count of its mnemonics with a form. A side anchor that
+    // no one transpiler word has goes into `defects`. A mnemonic with no transition that gives each side a bit has
+    // no form, and that hole goes into `findings`
+    unsigned int lng_asm_forms(const LngTable *transpiler, const LngTable *table, LngList *defects, LngList *findings);
+
     // Every file under src and utils, from the folder the run is in, that ends in one of `suffixes`, `count` of them.
     // Each path starts at that folder and goes into the set of `found` at the place of its suffix. The walk goes over
     // the two trees once

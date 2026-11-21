@@ -7,9 +7,9 @@
 //
 // The check prints each defect, and the run exits 1 where it finds one. A finding does not fail the run. The run exits
 // 2 where it cannot read a table, the schema or gnascor
-#include "lng.h"
 #include "../cu/engine/engine_note.h"
 #include "cellularum_laboro/cellularum_linea.h"
+#include "lng.h"
 #include "verba_scribo/verba_scribo.h"
 
 #include <stdio.h>
@@ -339,6 +339,8 @@ int program_main(int argc, char **argv)
     lng_form_findings(&table, &form_names, &form_texts, &findings);
     lng_hol_check(&table, &hol, &defects, &findings);
     lng_asm_check(&asm_table, &defects, &findings);
+    // each mnemonic's transpiler form, from the anchor of what its transitions do to each side
+    const unsigned int formed = lng_asm_forms(&table, &asm_table, &defects, &findings);
 
     for (unsigned int at = 0u; at < defects.count; at += 1u)
     {
@@ -348,8 +350,9 @@ int program_main(int argc, char **argv)
     {
         printf("finding: %s\n", findings.text[at]);
     }
-    printf("%u defects, %u findings, %u words, %u high order words, %u transitions\n", defects.count, findings.count,
-           table.rows, hol.rows, asm_table.rows);
+    printf("%u defects, %u findings, %u words, %u high order words, %u transitions, %u mnemonics with a transpiler "
+           "form\n",
+           defects.count, findings.count, table.rows, hol.rows, asm_table.rows, formed);
     const int failed = (defects.count != 0u);
     lng_list_free(&form_texts);
     lng_list_free(&form_names);

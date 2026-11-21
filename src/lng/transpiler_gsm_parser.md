@@ -13,7 +13,7 @@
 | the states | `dual`, `lead`, `rite`, `void`, `busy`, `wait`, `blok`, `gray`, each the case it reads: `lead` is `1,0->1` | the `past` and `present` columns of [gnascor_asm_lng.tsv](gnascor_asm_lng.tsv) | none |
 | the mnemonics | every word in the `mnemonic` column | [gnascor_asm_lng.tsv](gnascor_asm_lng.tsv) | gnascor calls them four-character, and `nexus` and `shift` hold five |
 | a word that is both a state and a mnemonic | one word | the high-energy matrix names wait to lead `lead` and wait to rite `rite` | one word read two ways needs a rule between them, and there is none |
-| a pair's bits | `(left, right)`, each 0 or 1 | the `left` and `right` bit columns | the branch pair table writes dual as `(2)` and rite as `(0)` on one side; both matrices write dual `(1,1)` and rite `(0,1)`; the parser can read one of the two |
+| a pair's bits | `(left, right)`, each 0 or 1: lead `(1,0)`, rite `(0,1)`, dual `(1,1)`, void `(0,0)` | the `past left`, `past right`, `present left` and `present right` columns, where every table writes a state as its two bits; a branch pair row gives each of its two sides a state | none |
 | comments | none given | none | gnascor writes `.gsm` with no comment form |
 
 ## Statements
@@ -21,14 +21,14 @@
 | want | form | where its words are | what is open |
 | --- | --- | --- | --- |
 | a case asked of the part | `1,1->2`: the operands, then the answer the relation holds | the cases of the gate, gnascor's query protocol | none |
-| a pair resolved to its state | `[left, right]` | the branch pair table, and gnascor's direct protocol execution | gnascor's direct protocol execution reads `1, 1` as dual, and its branch pair table reads `2, 2` as nexus |
+| a pair resolved to its state | `[left, right]`: `[1, 1]` is dual, the bits of two sides, and `[dual, dual]` is nexus, a pair of states one level up | the branch pair table, and gnascor's direct protocol execution | none |
 | a cross: a transition where both sides flip | `x>`: `lead x> rite`, `1,0 x> 0,1` | the rows of [gnascor_asm_lng.tsv](gnascor_asm_lng.tsv) whose `arrow` is `x>` | none |
 | a straight line: a transition where the sides do not cross | `->`: `lead -> void`, `1,0 -> 0,0` | the rows of [gnascor_asm_lng.tsv](gnascor_asm_lng.tsv) whose `arrow` is `->` | none |
 | the unknown or a superstate: a transition where a side holds no pair bit | `*>`: `busy *> dual` | the rows of [gnascor_asm_lng.tsv](gnascor_asm_lng.tsv) whose `arrow` is `*>` | none |
 | a halt | `\|` | gnascor's environmental base states | what a program does after one is gnascor's Open 3 |
 | a transition read off as its mnemonic | the row whose `past` and `present` match | [gnascor_asm_lng.tsv](gnascor_asm_lng.tsv) | dual to lead is drop in the state-transition matrix and tilt in the high-energy one, and dual to void is drop and fuse; which matrix a transition is read in is open |
 | a mnemonic written, checked against its pair | `mnemonic` where a transition is | the `left` and `right` operations of each row | drop, join, tilt and wake each cover transitions that do different things to the pair, and the mnemonic alone does not give the pair back |
-| a sequence of states, read as one movement | `[lead, rite]` gives pass | the shift mnemonics | `[ ]` is the same bracket as a pair; a pair is two branches at once and a sequence is one state over two cycles, and one syntax for both is open |
+| a sequence of states, read as one movement | `<lead, rite>` gives pass: one state over two cycles, where `[ ]` is two branches at once | the shift mnemonics | none |
 | sync | one word | 22 transitions of the state-transition matrix | a parser that reads sync alone has lost which of the 22 it was; the pair retained beside it is the answer gnascor gives |
 | the transitions with no recovery path | `jamm`, `halt`, `fuse` | [gnascor_asm_lng.tsv](gnascor_asm_lng.tsv) | gnascor, Open 3: what a program does when a branch yields one is not defined |
 | the operators of gnascor's gray line | `->`, `<->`, `x>`, `\|` | gnascor's environmental base states | `-` is a straight line, `x` a cross, `*` the unknown or a superstate, and `\|` a halt; `->` also reads a case; `<->` has no meaning written |
@@ -40,5 +40,6 @@
 | the text of a `__gsm__(...)__gsm__` block | everything up to `)__gsm__` | [transpiler_g_parser.md](transpiler_g_parser.md) | none |
 | a `.gsm` file brought into `.g` | `use bigmul.gsm`, wrapped by the preprocessor as `__gsm__(bigmul.gsm)__gsm__`, and the file read whole | [transpiler_g_parser.md](transpiler_g_parser.md) | none |
 | a function a `.gsm` file defines, ready for `.g` to call | stored as a lambda in an op block, a primitive `.g` calls as the file defines it; its body is the arrangement the part's answers settled, as a `.kdm` row holds one | [transpiler_g_parser.md](transpiler_g_parser.md) | gnascor does not yet write how a `.gsm` file defines a function's name and parameters |
-| a `.g` statement and its `.gsm` text bound to one meaning | none | gnascor: the two faces are the same assembly | no row maps a mnemonic to a transpiler form, and the `.gsm` a `.g` statement compiles to is not derivable from the tables yet |
+| a mnemonic read as its transpiler form | each side's operation as a ladder anchor: `=` keeps the bit and is copy, and a change to `0` or `1` is invert; the form is the transpiler word of each side's anchor, as `set` and `not` | the `left` and `right` columns of [gnascor_asm_lng.tsv](gnascor_asm_lng.tsv) and the `anchor` column of [transpiler_lng.tsv](transpiler_lng.tsv), derived by `lng_asm_form` ([lng.c](lng.c)) and proved by `form_law` in [matrix.lean](../../theory/lng/Lng/matrix.lean) | a mnemonic with no transition that gives each side a bit has no form, and [lng_check.c](lng_check.c) reports it as a hole |
+| a `.g` statement and its `.gsm` text bound to one meaning | none | gnascor: the two faces are the same assembly | the `.gsm` a `.g` statement compiles to is not derivable from the tables yet |
 | every word the parser reads listed in a table | none | [lng_check.c](lng_check.c) | the parser is not written, and nothing it reads is checked yet |

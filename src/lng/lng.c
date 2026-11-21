@@ -2147,3 +2147,90 @@ void lng_target_proofs(const LngTable *target, const char *name, const char *pat
         }
     }
 }
+
+const char *lng_side_anchor(const char *operation)
+{
+    if ((operation[0] == '\0') || (strcmp(operation, "-") == 0))
+    {
+        return NULL;
+    }
+    // a side that keeps its bit copies it, and a side that reaches the other bit inverts it
+    return (strcmp(operation, "=") == 0) ? "copy" : "invert";
+}
+
+// the transpiler's own word whose anchor is `anchor`, or NULL where no word or two words have it
+static const char *lng_anchor_word(const LngTable *transpiler, const char *anchor)
+{
+    const char *found = NULL;
+    for (unsigned int row = 0u; row < transpiler->rows; row += 1u)
+    {
+        if (lng_row_targeted(transpiler, row) || (strcmp(lng_cell_or_none(transpiler, row, "anchor"), anchor) != 0))
+        {
+            continue;
+        }
+        if (found != NULL)
+        {
+            return NULL;
+        }
+        found = lng_cell_or_none(transpiler, row, "word");
+    }
+    return found;
+}
+
+int lng_asm_form(const LngTable *transpiler, const LngTable *table, unsigned int row, const char **left,
+                 const char **right)
+{
+    const char *const left_anchor = lng_side_anchor(lng_cell_or_none(table, row, "left"));
+    const char *const right_anchor = lng_side_anchor(lng_cell_or_none(table, row, "right"));
+    if ((left_anchor == NULL) || (right_anchor == NULL))
+    {
+        return 0;
+    }
+    *left = lng_anchor_word(transpiler, left_anchor);
+    *right = lng_anchor_word(transpiler, right_anchor);
+    return (*left != NULL) && (*right != NULL);
+}
+
+unsigned int lng_asm_forms(const LngTable *transpiler, const LngTable *table, LngList *defects, LngList *findings)
+{
+    LngList mnemonics = {NULL, 0u, 0u};
+    for (unsigned int row = 0u; row < table->rows; row += 1u)
+    {
+        lng_set_add(&mnemonics, lng_cell_or_none(table, row, "mnemonic"));
+        const char *const left = lng_side_anchor(lng_cell_or_none(table, row, "left"));
+        const char *const right = lng_side_anchor(lng_cell_or_none(table, row, "right"));
+        const char *const sides[2] = {left, right};
+        for (unsigned int side = 0u; side < 2u; side += 1u)
+        {
+            if ((sides[side] != NULL) && (lng_anchor_word(transpiler, sides[side]) == NULL))
+            {
+                lng_list_printed(defects, "%s to %s in %s takes the anchor %s, and no one transpiler word has it",
+                                 lng_cell_or_none(table, row, "past"), lng_cell_or_none(table, row, "present"),
+                                 lng_cell_or_none(table, row, "table"), sides[side]);
+            }
+        }
+    }
+    unsigned int formed = 0u;
+    for (unsigned int at = 0u; at < mnemonics.count; at += 1u)
+    {
+        unsigned int given = 0u;
+        for (unsigned int row = 0u; row < table->rows; row += 1u)
+        {
+            const char *left = NULL;
+            const char *right = NULL;
+            if ((strcmp(lng_cell_or_none(table, row, "mnemonic"), mnemonics.text[at]) == 0) &&
+                lng_asm_form(transpiler, table, row, &left, &right))
+            {
+                given += 1u;
+            }
+        }
+        if (given == 0u)
+        {
+            lng_list_printed(findings, "%s has no transpiler form: no transition of it gives each side a bit",
+                             mnemonics.text[at]);
+        }
+        formed += (given != 0u) ? 1u : 0u;
+    }
+    lng_list_free(&mnemonics);
+    return formed;
+}

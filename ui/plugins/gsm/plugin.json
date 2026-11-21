@@ -5,7 +5,7 @@
   "type": "language",
   "extensions": ["gsm"],
   "comments": {},
-  "pairs": ["[]"],
+  "pairs": ["[]", "<>"],
   "quotes": [],
   "palette": {
     "delimiter": "#9e9bc4ff",
@@ -25,7 +25,7 @@
         [{"words": "arrows"}, "operator"],
         ["[A-Za-z_]\\w*", {"cases": {"@mnemonics": "keyword", "@states": "type", "@default": "identifier"}}],
         ["\\|", "operator"],
-        ["[[\\],]", "delimiter"],
+        ["[[\\]<>,]", "delimiter"],
         ["\\d+", "number"],
         ["\\s+", ""]
       ]

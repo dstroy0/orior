@@ -439,7 +439,7 @@ int program_main(int argc, char **argv)
             {"pass", s_matrix, "lead", "rite", "1", "0", "0", "1", "0", "1", "x>"},
             {"drop", s_matrix, "lead", "void", "1", "0", "0", "0", "0", "=", "->"},
             {"sync", s_matrix, "busy", "dual", "-", "-", "1", "1", "-", "-", "*>"},
-            {"core", "the branch pair", "lead", "void", "1", "", "", "0", "-", "-", ""},
+            {"core", "the branch pair", "lead", "void", "1", "0", "0", "0", "-", "-", ""},
         };
         asm_head(&lines, 1);
         for (unsigned int row = 0u; row < 4u; row += 1u)
@@ -450,13 +450,55 @@ int program_main(int argc, char **argv)
         lng_asm_check(&matrix, &defects, &findings);
         expect("each arrow its bits give", &defects, NULL, 0u);
         expect("each arrow its bits give", &findings, NULL, 0u);
+
+        // the transpiler forms: a side that keeps its bit is copy, and one that reaches the other bit is invert
+        LngTable words = {{NULL, 0u, 0u}, NULL, 0u, 0u};
+        lng_list_add(&lines, "word\ttype\ttarget\tanchor");
+        lng_list_add(&lines, "set\tdoing\t\tcopy");
+        lng_list_add(&lines, "not\tdoing\t\tinvert");
+        table_of(&lines, &words, &defects);
+        const char *left = NULL;
+        const char *right = NULL;
+        LngList got = {NULL, 0u, 0u};
+        for (unsigned int row = 0u; row < 4u; row += 1u)
+        {
+            const int formed = lng_asm_form(&words, &matrix, row, &left, &right);
+            lng_list_printed(&got, "%s %s %s", s_rows[row][0], formed ? left : "-", formed ? right : "-");
+        }
+        static const char *const s_forms[4] = {"pass not not", "drop not set", "sync - -", "core - -"};
+        expect("each transition's transpiler form", &got, s_forms, 4u);
+        lng_list_free(&got);
+        const unsigned int formed = lng_asm_forms(&words, &matrix, &defects, &findings);
+        static const char *const s_holes[2] = {
+            "core has no transpiler form: no transition of it gives each side a bit",
+            "sync has no transpiler form: no transition of it gives each side a bit",
+        };
+        expect_count("the mnemonics with a transpiler form", formed, 2u);
+        expect("the mnemonics with a transpiler form", &defects, NULL, 0u);
+        expect("the mnemonics with no transpiler form", &findings, s_holes, 2u);
+        lng_list_free(&findings);
+
+        // with no word for invert, each side that reaches the other bit is a defect
+        lng_list_add(&lines, "word\ttype\ttarget\tanchor");
+        lng_list_add(&lines, "set\tdoing\t\tcopy");
+        table_of(&lines, &words, &defects);
+        lng_asm_forms(&words, &matrix, &defects, &findings);
+        static const char *const s_unanchored[3] = {
+            "lead to rite in the state-transition matrix takes the anchor invert, and no one transpiler word has it",
+            "lead to rite in the state-transition matrix takes the anchor invert, and no one transpiler word has it",
+            "lead to void in the state-transition matrix takes the anchor invert, and no one transpiler word has it",
+        };
+        expect("a side anchor no transpiler word has", &defects, s_unanchored, 3u);
+        lng_list_free(&defects);
+        lng_list_free(&findings);
+        lng_table_free(&words);
     }
 
     {
         static const char *const s_rows[3][11] = {
             {"pass", s_matrix, "lead", "rite", "1", "0", "0", "1", "0", "1", "->"},
             {"drop", s_matrix, "lead", "void", "1", "0", "0", "0", "0", "=", "x>"},
-            {"core", "the branch pair", "lead", "void", "1", "", "", "0", "-", "-", "*>"},
+            {"core", "the branch pair", "lead", "void", "1", "0", "0", "0", "-", "-", "*>"},
         };
         asm_head(&lines, 1);
         for (unsigned int row = 0u; row < 3u; row += 1u)

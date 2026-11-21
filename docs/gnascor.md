@@ -30,10 +30,12 @@ Two branches combine into a pair, and each pair has a four-character name:
 
 | left branch | right branch | pair state | mnemonic | meaning                                                     |
 | ----------- | ------------ | ---------- | -------- | ----------------------------------------------------------- |
-| lead (1)    | void (0)     | 1, 0       | core     | The primary intent persists; the secondary path dissolved.  |
-| rite (0)    | lead (1)     | 0, 1       | shift    | Focus has migrated from the left domain to the right.       |
-| dual (2)    | void (0)     | 2, 0       | echo     | An amplified state is sustained without new external input. |
-| dual (2)    | dual (2)     | 2, 2       | nexus    | Max systemic coherence; both major systems are aligned. |
+| lead (1,0)  | void (0,0)   | [lead, void] | core   | The primary intent persists; the secondary path dissolved.  |
+| rite (0,1)  | lead (1,0)   | [rite, lead] | shift  | Focus has migrated from the left domain to the right.       |
+| dual (1,1)  | void (0,0)   | [dual, void] | echo   | An amplified state is sustained without new external input. |
+| dual (1,1)  | dual (1,1)   | [dual, dual] | nexus  | Max systemic coherence; both major systems are aligned.     |
+
+Each branch is a state, and every state is its two bits. A pair `[ ]` holds two branches at once, and a sequence `< >` holds one state over two cycles.
 
 ## The transpiler
 

@@ -1,8 +1,8 @@
 mnemonic	table	past	present	past left	past right	present left	present right	left	right	arrow
-core	the branch pair	lead	void	1			0	-	-	
-shift	the branch pair	rite	lead	0			1	-	-	
-echo	the branch pair	dual	void	2			0	-	-	
-nexus	the branch pair	dual	dual	2			2	-	-	
+core	the branch pair	lead	void	1	0	0	0	-	-	
+shift	the branch pair	rite	lead	0	1	1	0	-	-	
+echo	the branch pair	dual	void	1	1	0	0	-	-	
+nexus	the branch pair	dual	dual	1	1	1	1	-	-	
 nexus	the state-transition matrix	dual	dual	1	1	1	1	=	=	->
 drop	the state-transition matrix	dual	lead	1	1	1	0	=	0	->
 sync	the state-transition matrix	dual	rite	1	1	0	1	0	=	->
