@@ -210,9 +210,11 @@ void cli_view_frame_release(const CliViewAtCfg *args);
 // The minimap's map the views keep. The place puts the lines from `first` to `last` of the view under `key` as bars,
 // as cli_document_map_alloc puts them, in place of the map before. A text that indents by tabs takes a tab's step of
 // cells a unit of the gap that opens a line. The place returns 1, or 0 where no view is open under the key or the
-// cells cannot meet the map. The bars count of `line`, 0 where the map holds no line `line`. The bar `at` of `line`
-// goes into `bar_out`: 1, or 0 where the map holds no such bar. The lines writes the map's first line into `from_out`
-// and its count into `count_out`: 1, or 0 where no map is placed. The release gives the map back
+// cells cannot meet the map.
+//
+// The bars count of `line`, 0 where the map holds no line `line`. The bar `at` of `line` goes into `bar_out`: 1, or 0
+// where the map holds no such bar. The lines writes the map's first line into `from_out` and its count into
+// `count_out`: 1, or 0 where the views hold no map. The release gives the map back
 typedef struct
 {
     const char *key;

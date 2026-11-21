@@ -39,9 +39,10 @@ typedef struct
     int slider_height;
 } GuiMapPosition;
 
-// The minimap: whether the views hold its lines, which the map reads from them a line at a time; the view's top the
-// map last was beside and how many rows above the slider the map began, stored so the map is stationary while the
-// view does; the place it last was at; and the drag, whether one runs, where it began and the view's top then
+// The minimap. It holds whether the views hold its lines, which it reads from them a line at a time. It holds the
+// view's top it last was beside and the rows above the slider where it began, which keep it still while the view
+// moves. It also holds the place it last was at, and the drag: whether one runs, where it began and the view's top
+// then
 typedef struct
 {
     int lines;

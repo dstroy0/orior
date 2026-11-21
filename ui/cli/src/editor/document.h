@@ -281,8 +281,8 @@ typedef struct
 // The walk colors the lines from `first` to `last` of the text under `key` where they save no runs. The lines then go
 // as bars into a movable cell of `owner`, sized to them. Each run with a name is a bar and the empty name a gap. A gap
 // that opens a line is `tab` cells a unit, and every other run one cell a unit. A line with no runs is one bar of the
-// empty name, its units wide, where the text holds its units. Returns the cell, or NULL where no text is stored under
-// the key or the cells cannot meet it
+// empty name, its units wide, where the text holds its units. Returns the cell, or NULL where the key holds no text or
+// the cells cannot meet it
 typedef struct
 {
     const char *key;
