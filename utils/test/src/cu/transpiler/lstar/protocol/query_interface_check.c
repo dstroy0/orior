@@ -12,6 +12,7 @@
 // key here and is never read by the walk: the walk queries every word of the page's head whether it advances, and the
 // check compares what came back against the key.
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/query/query_interface.h"
+#include "../../../../../../../src/platform/platform.h"
 
 #include <stdio.h>
 
@@ -24,7 +25,13 @@ static void check_that(int passed, const char *what)
     if (passed == 0)
     {
         s_failed += 1u;
-        printf("  FAILED: %s\n", what);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -32,7 +39,12 @@ int program_main(int count_of_words, char **words)
 {
     if (count_of_words != 2)
     {
-        printf("  query_interface_check <query_walk>\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  query_interface_check <query_walk>");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     EngineError error = {0};
@@ -96,22 +108,47 @@ int program_main(int count_of_words, char **words)
     counts.limit_microseconds = 60000000ull;
     const unsigned long long counts_children = query_interface_walk(&counts, s_answers, &error);
     check_that(counts_children == 1ull, "querying whether the page's words advance ends no asker");
-    printf("  the shared page's head, words that advance:");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the shared page's head, words that advance:");
+        platform_line_out_ended();
+    }
     for (unsigned int number = 0u; number < 16u; number += 1u)
     {
         if (s_answers[number].bit == 1u)
         {
-            printf(" 0x%llx", s_answers[number].address - page);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, " 0x");
+            mmgr_line_hex(output_line, s_answers[number].address - page, 1u);
+            platform_line_out_ended();
         }
     }
-    printf("\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     check_that(s_answers[2].bit == 1u, "the interrupt time's low word, at 0x8, advances");
     check_that(s_answers[5].bit == 1u, "the system time's low word, at 0x14, advances");
     check_that((s_answers[3].bit == 0u) && (s_answers[6].bit == 0u), "the high words beside them do not");
 #else
-    printf("  no shared page named to this test on this platform: the page checks are skipped\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  no shared page named to this test on this platform: the page checks are skipped");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 #endif
 
-    printf("  query interface: %u checks, %u failed\n", s_checks, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  query interface: ");
+        mmgr_line_decimal(output_line, s_checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, s_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failed == 0u) ? 0 : 1;
 }

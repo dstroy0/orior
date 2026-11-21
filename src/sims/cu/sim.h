@@ -149,9 +149,9 @@ static inline void sim_open(SimResults *results, char *capacity)
 static inline void sim_flush(SimResults *results)
 {
     (void)(mmgr_line_ok(&results->line) &&
-           (fwrite(results->line.out, 1u, mmgr_line_finish(&results->line), stdout) == results->line.at));
+           (platform_line_out_put(results->line.out, mmgr_line_finish(&results->line)) == results->line.at));
     results->line.at = 0ULL;
-    fflush(stdout);
+    platform_line_flushed();
 }
 
 static inline void sim_check(SimResults *results, int passed, const char *what)

@@ -32,6 +32,7 @@
 //   5. the records are written out.
 
 #include "../../../src/cu/engine/analysis/cycle/cycle.h"
+#include "../../../src/platform/platform.h"
 #include "../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../src/cu/engine/analysis/keymath/keymath.h"
 #include "verba_scribo/verba_linea.h"
@@ -103,7 +104,8 @@ static int doubled_read(const char *path, unsigned long long shares[2][2], std::
         at += 1u;
         for (unsigned long long one = 0ull; one < count; one += 1ull, at += 1u)
         {
-            const std::vector<std::string> fields = (at < lines.size()) ? stage_split(lines[at]) : std::vector<std::string>();
+            const std::vector<std::string> fields =
+                (at < lines.size()) ? stage_split(lines[at]) : std::vector<std::string>();
             if (fields.size() != 2u)
             {
                 return 0;
@@ -241,7 +243,8 @@ int program_main(int count, char **arguments)
     unsigned int share_bits = 1u;
     for (size_t at = 0u; at < 2u; at += 1u)
     {
-        share_bits = std::max(share_bits, std::max(stage_bits(stage_whole(shares[at][0])), stage_bits(stage_whole(shares[at][1]))));
+        share_bits = std::max(share_bits,
+                              std::max(stage_bits(stage_whole(shares[at][0])), stage_bits(stage_whole(shares[at][1]))));
     }
     doubled_reading_program(stage_bits(stage_whole(run)) + 1u, share_bits, &reading_stage.program);
     StageRows rows;
@@ -296,17 +299,49 @@ int program_main(int count, char **arguments)
 
     if (ok)
     {
-        printf("%s %-9s %9s %6s %9s %6s  %s\n", stage_displayed("language", 18u, 1).c_str(), "Table 4", "IDENTICAL",
-               "SPLIT", "share", "papers", "reading");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, stage_displayed("language", 18u, 1).c_str());
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_columns(output_line, "Table 4", 9u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_right(output_line, "IDENTICAL", 9u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_right(output_line, "SPLIT", 6u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_right(output_line, "share", 9u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_right(output_line, "papers", 6u);
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, "reading");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         for (size_t at = 0u; at < languages.size(); at += 1u)
         {
             const DoubledLanguage &language = languages[at];
             const int judged = (language.table != "-") && (language.table != "UNCLEAR");
-            printf("%s %-9s %9s %6s %9s %6s  %-9s %s\n", stage_displayed(language.name, 18u, 1).c_str(),
-                   language.table.c_str(), stage_text_of(language.identical).c_str(),
-                   stage_text_of(language.split).c_str(), language.share.c_str(),
-                   stage_text_of(language.papers).c_str(), language.reading.c_str(),
-                   judged ? ((language.reading == language.table) ? "agrees" : "DISAGREES") : "");
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, stage_displayed(language.name, 18u, 1).c_str());
+                mmgr_line_put(output_line, " ");
+                mmgr_line_put_columns(output_line, language.table.c_str(), 9u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_put_right(output_line, stage_text_of(language.identical).c_str(), 9u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_put_right(output_line, stage_text_of(language.split).c_str(), 6u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_put_right(output_line, language.share.c_str(), 9u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_put_right(output_line, stage_text_of(language.papers).c_str(), 6u);
+                mmgr_line_put(output_line, "  ");
+                mmgr_line_put_columns(output_line, language.reading.c_str(), 9u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_put(output_line,
+                              judged ? ((language.reading == language.table) ? "agrees" : "DISAGREES") : "");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
         }
     }
 

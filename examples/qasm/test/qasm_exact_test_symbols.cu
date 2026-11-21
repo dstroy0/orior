@@ -67,8 +67,16 @@ static void qasm_test_mps_qubits(QasmResults *results)
                         qasm_test_amplitude_is(&ghz_hundred, 0u, "1/2*sqrt2 + 0 i", &error) &&
                         qasm_test_amplitude_is(&ghz_hundred, 1u, "1/2*sqrt2 + 0 i", &error),
                     "mps: GHZ-100, widest bond 2, 792 elements, <psi|psi> exactly 1, both ends 1/2*sqrt2 + 0 i");
-    printf("  GHZ-100: %llu field elements, %llu us\n", qasm_chain_elements(&ghz_hundred),
-           engine_clock_microseconds() - hundred_start);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  GHZ-100: ");
+        mmgr_line_decimal(output_line, qasm_chain_elements(&ghz_hundred), 1u);
+        mmgr_line_put(output_line, " field elements, ");
+        mmgr_line_decimal(output_line, engine_clock_microseconds() - hundred_start, 1u);
+        mmgr_line_put(output_line, " us");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     // the scrambler: 10 qubits, depth 6
     const unsigned long long scrambler_start = engine_clock_microseconds();
@@ -81,12 +89,26 @@ static void qasm_test_mps_qubits(QasmResults *results)
                     scrambled_built && qasm_test_bonds_are(&scrambled, scrambled_bonds) &&
                         (qasm_chain_elements(&scrambled) == 552ull) && qasm_test_norm_is_one(&scrambled, &error),
                     "mps: scrambler 10 x 6, bonds [2, 3, 6, 8, 8, 8, 6, 3, 2], 552 elements, <psi|psi> exactly 1");
-    printf("  scrambler: bonds");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  scrambler: bonds");
+        platform_line_out_ended();
+    }
     for (unsigned int site = 0u; (scrambled_built != 0) && ((site + 1u) < 10u); site += 1u)
     {
-        printf(" %u", qasm_chain_bond(&scrambled, site));
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal(output_line, qasm_chain_bond(&scrambled, site), 1u);
+        platform_line_out_ended();
     }
-    printf(", %llu us\n", engine_clock_microseconds() - scrambler_start);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, engine_clock_microseconds() - scrambler_start, 1u);
+        mmgr_line_put(output_line, " us");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     // reversibility on the compact form
     QasmChain round_trip = {NULL, 0u, NULL};
@@ -152,7 +174,14 @@ static void qasm_test_mps_qubits(QasmResults *results)
     qasm_chain_release(&scrambled);
     qasm_chain_release(&round_trip);
     qasm_chain_release(&ground);
-    printf("  mps qubits: %llu us\n", engine_clock_microseconds() - start);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  mps qubits: ");
+        mmgr_line_decimal(output_line, engine_clock_microseconds() - start, 1u);
+        mmgr_line_put(output_line, " us");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
 static long qasm_test_symbol(QasmRationalFunction *function, const QasmNumber *coefficient, int exponent,
@@ -411,7 +440,14 @@ static void qasm_test_symbolic_qubits(QasmResults *results)
     qasm_chain_release(&ghz);
     qasm_chain_release(&product);
     qasm_chain_release(&numeric);
-    printf("  symbolic qubits: %llu us\n", engine_clock_microseconds() - start);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  symbolic qubits: ");
+        mmgr_line_decimal(output_line, engine_clock_microseconds() - start, 1u);
+        mmgr_line_put(output_line, " us");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
 static void qasm_test_boundary_lens(QasmResults *results)
@@ -434,11 +470,29 @@ static void qasm_test_boundary_lens(QasmResults *results)
                        (measurement.root_stable != 0);
         if (ok == 0)
         {
-            printf("  round %u: rank %u, complement %u, lift %u, vanish %u and %u, fibers %llu and %llu, clock %d, "
-                   "root %d\n",
-                   rounds, measurement.raw_rank, measurement.complement, measurement.lift_extra_rank,
-                   measurement.forward_vanish, measurement.backward_vanish, measurement.forward_fiber,
-                   measurement.backward_fiber, measurement.reversible, measurement.root_stable);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  round ");
+            mmgr_line_decimal(output_line, rounds, 1u);
+            mmgr_line_put(output_line, ": rank ");
+            mmgr_line_decimal(output_line, measurement.raw_rank, 1u);
+            mmgr_line_put(output_line, ", complement ");
+            mmgr_line_decimal(output_line, measurement.complement, 1u);
+            mmgr_line_put(output_line, ", lift ");
+            mmgr_line_decimal(output_line, measurement.lift_extra_rank, 1u);
+            mmgr_line_put(output_line, ", vanish ");
+            mmgr_line_decimal(output_line, measurement.forward_vanish, 1u);
+            mmgr_line_put(output_line, " and ");
+            mmgr_line_decimal(output_line, measurement.backward_vanish, 1u);
+            mmgr_line_put(output_line, ", fibers ");
+            mmgr_line_decimal(output_line, measurement.forward_fiber, 1u);
+            mmgr_line_put(output_line, " and ");
+            mmgr_line_decimal(output_line, measurement.backward_fiber, 1u);
+            mmgr_line_put(output_line, ", clock ");
+            mmgr_line_decimal_signed(output_line, measurement.reversible);
+            mmgr_line_put(output_line, ", root ");
+            mmgr_line_decimal_signed(output_line, measurement.root_stable);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
         every = every && ok;
     }
@@ -460,7 +514,14 @@ static void qasm_test_boundary_lens(QasmResults *results)
                     qasm_test_error_here(qasm_lens_read(&too_wide, &measurement, &engine_error), &engine_error),
                     "lens: an aperture past the widest errors, a request error from qasm");
     qasm_test_check(results, qasm_test_clean(&error), "lens: no error was raised on the paths that succeeded");
-    printf("  boundary lens: %llu us\n", engine_clock_microseconds() - start);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  boundary lens: ");
+        mmgr_line_decimal(output_line, engine_clock_microseconds() - start, 1u);
+        mmgr_line_put(output_line, " us");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
 int program_main(int argc, char **argv)
@@ -473,6 +534,15 @@ int program_main(int argc, char **argv)
     qasm_test_mps_qubits(&results);
     qasm_test_symbolic_qubits(&results);
     qasm_test_boundary_lens(&results);
-    printf("  qasm exact test: %u checks, %u failed\n", results.checks, results.failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  qasm exact test: ");
+        mmgr_line_decimal(output_line, results.checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, results.failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (results.failed == 0u) ? 0 : 1;
 }

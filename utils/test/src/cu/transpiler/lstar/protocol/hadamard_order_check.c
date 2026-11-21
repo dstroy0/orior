@@ -16,6 +16,7 @@
 // overhead, pairs of links contending by an amount drawn per pair, and the rate the read finds contention at each
 // amount, the rate at none being its false alarms.
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/order/hadamard_order.h"
+#include "../../../../../../../src/platform/platform.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -32,7 +33,16 @@ static void check_that(int passed, const char *what, unsigned int links)
     if (passed == 0)
     {
         s_failed += 1ull;
-        printf("  FAILED: %s at %u links\n", what, links);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_put(output_line, " at ");
+            mmgr_line_decimal(output_line, links, 1u);
+            mmgr_line_put(output_line, " links");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -276,7 +286,16 @@ int program_main(int argc, char **argv)
         check_sweep(s_sizes[at]);
     }
     check_refusals();
-    printf("  exact claims at 3, 7, 15, 31 and 63 links: %llu checks, %llu failed\n", s_checks, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  exact claims at 3, 7, 15, 31 and 63 links: ");
+        mmgr_line_decimal(output_line, s_checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, s_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     // the noise's spread is 1000, the floor; links cost 500 to 1500, under it, and a pair contends by up to `max`
     const unsigned int links = 15u;
@@ -285,17 +304,49 @@ int program_main(int argc, char **argv)
     const unsigned int trials = 300u;
     static const unsigned int s_max[] = {0u, 80u, 200u};
     unsigned int rate[3];
-    printf("  contention read, %u links, %u passes of the known order, %u sweep queries, %u trials:\n", links, passes,
-           sweeps, trials);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  contention read, ");
+        mmgr_line_decimal(output_line, links, 1u);
+        mmgr_line_put(output_line, " links, ");
+        mmgr_line_decimal(output_line, passes, 1u);
+        mmgr_line_put(output_line, " passes of the known order, ");
+        mmgr_line_decimal(output_line, sweeps, 1u);
+        mmgr_line_put(output_line, " sweep queries, ");
+        mmgr_line_decimal(output_line, trials, 1u);
+        mmgr_line_put(output_line, " trials:");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
         rate[at] = check_contention_rate(links, passes, sweeps, s_max[at], trials, &state);
-        printf("    up to %3u a pair: contention found on %u.%u%%\n", s_max[at], rate[at] / 10u, rate[at] % 10u);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    up to ");
+            mmgr_line_decimal_columns(output_line, s_max[at], 3u);
+            mmgr_line_put(output_line, " a pair: contention found on ");
+            mmgr_line_decimal(output_line, rate[at] / 10u, 1u);
+            mmgr_line_put(output_line, ".");
+            mmgr_line_decimal(output_line, rate[at] % 10u, 1u);
+            mmgr_line_ch(output_line, '%');
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     // the read is required to have a false alarm rate under one in ten and to find the largest contention nine times in
     // ten
     const int read_is = (rate[0] < 100u) && (rate[2] >= 900u);
-    printf("  the read's false alarms stay under 10%% and it finds the largest contention on 90%% or more: %s\n",
-           read_is ? "yes" : "NO");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the read's false alarms stay under 10");
+        mmgr_line_ch(output_line, '%');
+        mmgr_line_put(output_line, " and it finds the largest contention on 90");
+        mmgr_line_ch(output_line, '%');
+        mmgr_line_put(output_line, " or more: ");
+        mmgr_line_put(output_line, read_is ? "yes" : "NO");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return ((s_failed == 0ull) && read_is) ? 0 : 1;
 }

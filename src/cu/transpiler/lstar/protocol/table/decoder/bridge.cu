@@ -20,7 +20,14 @@ int Decoding::bridge_read(const char *klq)
     unsigned long long bridge_size = 0ULL;
     if (!qry_member_file_blob(klq, &bridge_bytes, &bridge_size))
     {
-        printf("orior_klq_decoder: %s could not be read\n", klq);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_decoder: ");
+            mmgr_line_put(output_line, klq);
+            mmgr_line_put(output_line, " could not be read");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     // a file read whole is at max what a size_t counts
@@ -239,7 +246,14 @@ int Decoding::bridge_passed(const char *klq)
     }
     if (!qry_member_filed(klq, bridge_text.data(), bridge_text.size()))
     {
-        printf("orior_klq_decoder: %s could not be written through the run's writer\n", klq);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_decoder: ");
+            mmgr_line_put(output_line, klq);
+            mmgr_line_put(output_line, " could not be written through the run's writer");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     return 0;
@@ -262,8 +276,16 @@ void Decoding::printed(const char *klq)
         {
             lights += set + " ";
         }
-        printf("  %s: %s%s\n", entry.first.c_str(), lights.c_str(),
-               (identities.count(entry.first) != 0u) ? identities[entry.first].c_str() : "-");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, entry.first.c_str());
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_put(output_line, lights.c_str());
+            mmgr_line_put(output_line, (identities.count(entry.first) != 0u) ? identities[entry.first].c_str() : "-");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     unsigned int shared = 0u;
     for (const auto &entry : concepts)
@@ -286,7 +308,11 @@ void Decoding::printed(const char *klq)
     };
     if (!chosen.empty())
     {
-        printf("  choices: %s\n", choices_written(chosen).c_str());
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  choices: ");
+        mmgr_line_put(output_line, choices_written(chosen).c_str());
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     const unsigned long long answered_flags = query_trace_flag(trace, "alike") | query_trace_flag(trace, "apart");
     for (const auto &entry : choices)
@@ -298,7 +324,13 @@ void Decoding::printed(const char *klq)
         }
         if (!entry.first.empty() && (decoded.count(entry.first) == 0u) && !answered)
         {
-            printf("  answered nothing, %s: %s\n", entry.first.c_str(), choices_written(entry.second).c_str());
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  answered nothing, ");
+            mmgr_line_put(output_line, entry.first.c_str());
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_put(output_line, choices_written(entry.second).c_str());
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
     }
     // each set's pairs, those a whole product names, and its signal against its noise in rows of the products
@@ -306,20 +338,61 @@ void Decoding::printed(const char *klq)
     {
         if (counted[set] != 0u)
         {
-            printf("  %s: %u pairs, %u named by a concept, %zu rows of signal, %zu of noise\n", set, counted[set],
-                   named_pairs[set], set_signal[set], set_noise[set]);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, set);
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_decimal(output_line, counted[set], 1u);
+            mmgr_line_put(output_line, " pairs, ");
+            mmgr_line_decimal(output_line, named_pairs[set], 1u);
+            mmgr_line_put(output_line, " named by a concept, ");
+            mmgr_line_decimal(output_line, set_signal[set], 1u);
+            mmgr_line_put(output_line, " rows of signal, ");
+            mmgr_line_decimal(output_line, set_noise[set], 1u);
+            mmgr_line_put(output_line, " of noise");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
     }
-    printf("orior_klq_decoder: %u puts read, %u concepts, %u of more than one pair; metas", (unsigned int)puts.size(),
-           (unsigned int)concepts.size(), shared);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "orior_klq_decoder: ");
+        mmgr_line_decimal(output_line, (unsigned int)puts.size(), 1u);
+        mmgr_line_put(output_line, " puts read, ");
+        mmgr_line_decimal(output_line, (unsigned int)concepts.size(), 1u);
+        mmgr_line_put(output_line, " concepts, ");
+        mmgr_line_decimal(output_line, shared, 1u);
+        mmgr_line_put(output_line, " of more than one pair; metas");
+        platform_line_out_ended();
+    }
     for (const char *const meta : s_metas)
     {
-        printf(" %u %s", counted[meta], meta);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal(output_line, counted[meta], 1u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put(output_line, meta);
+        platform_line_out_ended();
     }
-    printf("; sets");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "; sets");
+        platform_line_out_ended();
+    }
     for (const char *const set : s_sets)
     {
-        printf(" %u %s", counted[set], set);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal(output_line, counted[set], 1u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put(output_line, set);
+        platform_line_out_ended();
     }
-    printf("; written to %s\n", klq);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "; written to ");
+        mmgr_line_put(output_line, klq);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }

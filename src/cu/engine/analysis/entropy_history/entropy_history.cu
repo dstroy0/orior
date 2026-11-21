@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "entropy_history.h"
+#include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 #include "crc.h"
@@ -229,12 +230,25 @@ extern "C" long entropy_history_project(const EntropyHistoryProjectRequest *requ
 static void entropy_history_report_cloud(const EngineHistory *history)
 {
     const unsigned long long windows = history->windows;
-    printf("    the cloud: each floor's quietest partner, the first floor its nulls are drawn from:\n      floor");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(
+            output_line,
+            "    the cloud: each floor's quietest partner, the first floor its nulls are drawn from:\n      floor");
+        platform_line_out_ended();
+    }
     for (unsigned long long floor = 0ULL; floor < windows; floor += 1ULL)
     {
-        printf(" %2llu", floor);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line, floor, 2u);
+        platform_line_out_ended();
     }
-    printf("\n      quiet");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n      quiet");
+        platform_line_out_ended();
+    }
     for (unsigned long long floor = 0ULL; floor < windows; floor += 1ULL)
     {
         unsigned long long quietest = (floor == 0ULL) ? 1ULL : 0ULL;
@@ -244,9 +258,18 @@ static void entropy_history_report_cloud(const EngineHistory *history)
                                                     history->cloud[(size_t)((floor * windows) + quietest)]);
             quietest = better ? other : quietest;
         }
-        printf(" %2llu", quietest);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_columns(output_line, quietest, 2u);
+            platform_line_out_ended();
+        }
     }
-    printf("\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
 extern "C" void entropy_history_report(const EngineHistory *history)
@@ -254,15 +277,31 @@ extern "C" void entropy_history_report(const EngineHistory *history)
     const unsigned long long frames = history->extent[0];
     const unsigned long long voxels = history->extent[1] * history->extent[2] * history->extent[3];
     const unsigned long long windows = history->windows;
-    printf("    flips per thousand transitions, bit by window:\n      bit");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    flips per thousand transitions, bit by window:\n      bit");
+        platform_line_out_ended();
+    }
     for (unsigned long long window = 0ULL; window < windows; window += 1ULL)
     {
-        printf(" %5llu", window);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line, window, 5u);
+        platform_line_out_ended();
     }
-    printf("\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     for (unsigned int bit = ENGINE_HISTORY_BITS; bit > 0u; bit -= 1u)
     {
-        printf("      %3u", bit - 1u);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "      ");
+            mmgr_line_decimal_columns(output_line, bit - 1u, 3u);
+            platform_line_out_ended();
+        }
         for (unsigned long long window = 0ULL; window < windows; window += 1ULL)
         {
             const unsigned long long first = (window * ENGINE_HISTORY_WINDOW) + 1ULL;
@@ -276,9 +315,18 @@ extern "C" void entropy_history_report(const EngineHistory *history)
             {
                 flips += (row[voxel] >> (4u * (bit - 1u))) & 0xFULL;
             }
-            printf(" %5llu", (1000ULL * flips) / (taken * voxels));
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, " ");
+                mmgr_line_decimal_columns(output_line, (1000ULL * flips) / (taken * voxels), 5u);
+                platform_line_out_ended();
+            }
         }
-        printf("\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     entropy_history_report_cloud(history);
 }

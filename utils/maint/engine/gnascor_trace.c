@@ -155,7 +155,7 @@ static void trace_side(FILE *out, const char *spec, unsigned long long clock, un
 }
 #endif
 
-int main(int count_of_words, char **words)
+int program_main(int count_of_words, char **words)
 {
     if (count_of_words != 3)
     {

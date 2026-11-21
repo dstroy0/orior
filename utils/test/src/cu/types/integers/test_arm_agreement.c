@@ -27,6 +27,7 @@
  */
 
 #include "../../../../../../src/cu/engine/nbody/orior/orior.h"
+#include "../../../../../../src/platform/platform.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -90,7 +91,31 @@ static void grade(const char *what, size_t measured, size_t expected)
     // observed. A probe printing two %zu followed by a %s prints all three correctly. Argument
     // consumption does not slip. The widening was a portability choice stated as a repair, and it
     // put a second printf convention into a tree that already had one.
-    printf("  %-34s measured %-12zu expected %-12zu %s\n", what, measured, expected, agrees ? "OK" : "DISAGREES");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, what, 34u);
+        mmgr_line_put(output_line, " measured ");
+        {
+            char linea_piece[24u];
+            VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+            mmgr_line_decimal(&linea_piece_line, (uint64_t)(measured), 1u);
+            (void)mmgr_line_finish(&linea_piece_line);
+            mmgr_line_put_columns(output_line, linea_piece, 12u);
+        }
+        mmgr_line_put(output_line, " expected ");
+        {
+            char linea_piece[24u];
+            VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+            mmgr_line_decimal(&linea_piece_line, (uint64_t)(expected), 1u);
+            (void)mmgr_line_finish(&linea_piece_line);
+            mmgr_line_put_columns(output_line, linea_piece, 12u);
+        }
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put(output_line, agrees ? "OK" : "DISAGREES");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
 int program_main(int argc, char **argv)
@@ -101,12 +126,23 @@ int program_main(int argc, char **argv)
 
     if (corpus == NULL)
     {
-        printf("  no corpus could be allocated. Nothing was graded.\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  no corpus could be allocated. Nothing was graded.");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     fill_corpus(corpus, AGREEMENT_CORPUS_BYTES);
 
-    printf("Every arm against the naive one. A disagreement is a defect, whatever it measures.\n\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line,
+                      "Every arm against the naive one. A disagreement is a defect, whatever it measures.\n");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     for (size_t which = 0u; which < (sizeof AGREEMENT_LENGTHS / sizeof AGREEMENT_LENGTHS[0]); which += 1u)
     {
@@ -115,7 +151,13 @@ int program_main(int argc, char **argv)
         const size_t expected = orior_naive(corpus, AGREEMENT_CORPUS_BYTES, needle, needle_len);
         char label[64];
 
-        printf("needle_len %zu\n", needle_len);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "needle_len ");
+            mmgr_line_decimal(output_line, needle_len, 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
 
         snprintf(label, sizeof label, "orior_inorder");
         grade(label, orior_inorder(corpus, AGREEMENT_CORPUS_BYTES, needle, needle_len), expected);
@@ -134,7 +176,12 @@ int program_main(int argc, char **argv)
         grade(label, orior_run(&plan, corpus, AGREEMENT_CORPUS_BYTES, needle, needle_len), expected);
     }
 
-    printf("\nA null plan, which the header states no precondition against.\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\nA null plan, which the header states no precondition against.");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     grade("orior_choose is naive", (size_t)(orior_choose(NULL) == orior_naive), 1u);
     grade("orior_anchors_for", orior_anchors_for(NULL), (size_t)ORIOR_ANCHORS);
@@ -148,6 +195,13 @@ int program_main(int argc, char **argv)
 
     free(corpus);
 
-    printf("\n  %u disagreement(s)\n", failures);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n  ");
+        mmgr_line_decimal(output_line, failures, 1u);
+        mmgr_line_put(output_line, " disagreement(s)");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (failures == 0u) ? 0 : 1;
 }

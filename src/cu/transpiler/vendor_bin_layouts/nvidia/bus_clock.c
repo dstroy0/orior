@@ -14,6 +14,7 @@
 // clock bus`, in place of the row before it, and the row let go recorded in the .krf beside it. Exit 0 where a clock
 // was found, 1 where none was in the span, 2 where the BAR0 driver was not reached or the words are not these.
 #include "../../../../../includes/file_defs/krf/krf.h"
+#include "../../../../platform/platform.h"
 #include "../../../engine/engine_note.h"
 #include "../../../../../includes/file_defs/ksc/ksc.h"
 #include "../../../../../includes/file_defs/qry/writer/qry_member.h"
@@ -56,7 +57,13 @@ static int bus_clock_recorded(const char *ksc, unsigned int offset)
         krf_path_beside(ksc, krf, sizeof(krf));
         if (!krf_removed_by(krf, "ksc", "replaced", (const char *const *)removed.line, removed.lines, who))
         {
-            printf("  orior_bus_clock: the clock row let go from %s could not be recorded in %s\n", ksc, krf);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  orior_bus_clock: the clock row let go from ");
+            mmgr_line_put(output_line, ksc);
+            mmgr_line_put(output_line, " could not be recorded in ");
+            mmgr_line_put(output_line, krf);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
     }
     kfile_lines_free(&removed);
@@ -96,16 +103,31 @@ int program_main(int count, char **words)
     HANDLE device = mmio_open();
     if (device == INVALID_HANDLE_VALUE)
     {
-        printf("  orior_bus_clock: the BAR0 driver is not reached: its service GpuBar0 is not started "
-               "(install_bar0.ps1)\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  orior_bus_clock: the BAR0 driver is not reached: its service GpuBar0 is not "
+                                       "started (install_bar0.ps1)");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     unsigned long long base = 0ULL;
     unsigned long long size = 0ULL;
     if (!mmio_extent(device, &base, &size) || ((from + (address_given * 4ULL)) > size))
     {
-        printf("  orior_bus_clock: the span 0x%llx to 0x%llx is not inside BAR0 of %llu bytes\n", from,
-               from + (address_given * 4ULL), size);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  orior_bus_clock: the span 0x");
+            mmgr_line_hex(output_line, from, 1u);
+            mmgr_line_put(output_line, " to 0x");
+            mmgr_line_hex(output_line, from + (address_given * 4ULL), 1u);
+            mmgr_line_put(output_line, " is not inside BAR0 of ");
+            mmgr_line_decimal(output_line, size, 1u);
+            mmgr_line_put(output_line, " bytes");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         mmio_close(device);
         return 2;
     }
@@ -116,7 +138,13 @@ int program_main(int count, char **words)
     {
         qry_member_append("plan.txt", plan, (unsigned long long)plan_length, QRY_ORDINARY);
     }
-    printf("  plan: clock %llu\n", address_given);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  plan: clock ");
+        mmgr_line_decimal(output_line, address_given, 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     unsigned long long value_read = 0ULL;
     unsigned int clock = 0u;
     unsigned int step = 0u;
@@ -158,19 +186,43 @@ int program_main(int count, char **words)
     }
     if (!found)
     {
-        printf("  orior_bus_clock: no register of the %llu from 0x%llx advances over %llu reads; the part names no "
-               "clock there\n",
-               address_given, from, turns);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  orior_bus_clock: no register of the ");
+            mmgr_line_decimal(output_line, address_given, 1u);
+            mmgr_line_put(output_line, " from 0x");
+            mmgr_line_hex(output_line, from, 1u);
+            mmgr_line_put(output_line, " advances over ");
+            mmgr_line_decimal(output_line, turns, 1u);
+            mmgr_line_put(output_line, " reads; the part names no clock there");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     if (!bus_clock_recorded(ksc, clock))
     {
-        printf("  orior_bus_clock: the clock could not be written to %s\n", ksc);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  orior_bus_clock: the clock could not be written to ");
+            mmgr_line_put(output_line, ksc);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
-    printf("  clock: the timer register at 0x%x advances, by %u between two reads; stored in %s as the clock the query "
-           "reads\n",
-           clock, step, ksc);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  clock: the timer register at 0x");
+        mmgr_line_hex(output_line, clock, 1u);
+        mmgr_line_put(output_line, " advances, by ");
+        mmgr_line_decimal(output_line, step, 1u);
+        mmgr_line_put(output_line, " between two reads; stored in ");
+        mmgr_line_put(output_line, ksc);
+        mmgr_line_put(output_line, " as the clock the query reads");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 0;
 }
 
@@ -180,7 +232,13 @@ int program_main(int count, char **words)
 {
     (void)count;
     (void)words;
-    printf("  orior_bus_clock: the BAR0 driver is a Windows kernel service, and this host has none\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line,
+                      "  orior_bus_clock: the BAR0 driver is a Windows kernel service, and this host has none");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 2;
 }
 

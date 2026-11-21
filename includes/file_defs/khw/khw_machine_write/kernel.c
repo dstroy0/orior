@@ -20,13 +20,27 @@ int khw_kernel_read(const char *path)
     const unsigned int sections = cubin_code_sections(s_pattern, s_pattern_size, offsets, sizes, KHW_PLACES);
     if (sections == 0u)
     {
-        printf("  orior_khw_machine_write: the container at %s contains no code the kernel is read from\n", path);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  orior_khw_machine_write: the container at ");
+            mmgr_line_put(output_line, path);
+            mmgr_line_put(output_line, " contains no code the kernel is read from");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     if ((sizes[0] == 0ULL) || ((sizes[0] % KHW_INSTRUCTION) != 0ULL) ||
         (sizes[0] > (unsigned long long)sizeof(s_kernel_text)))
     {
-        printf("  orior_khw_machine_write: the kernel is %llu bytes, which is no whole count of places\n", sizes[0]);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  orior_khw_machine_write: the kernel is ");
+            mmgr_line_decimal(output_line, sizes[0], 1u);
+            mmgr_line_put(output_line, " bytes, which is no whole count of places");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     mmgr_bytes_copy(s_kernel_text, &s_pattern[offsets[0]], (size_t)sizes[0]);
@@ -34,7 +48,15 @@ int khw_kernel_read(const char *path)
     s_registers = cubin_registers_read(s_pattern, s_pattern_size, s_kernel);
     if (s_registers == 0u)
     {
-        printf("  orior_khw_machine_write: the container reports how many registers no thread of %s uses\n", s_kernel);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line,
+                          "  orior_khw_machine_write: the container reports how many registers no thread of ");
+            mmgr_line_put(output_line, s_kernel);
+            mmgr_line_put(output_line, " uses");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     return 1;
@@ -163,12 +185,25 @@ unsigned int khw_answers_read(const char *answers, KhwForm *form, unsigned int r
     unsigned long long size = 0ULL;
     if (run == NULL)
     {
-        printf("  orior_khw_machine_write: no run's writer runs to read %s from\n", answers);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  orior_khw_machine_write: no run's writer runs to read ");
+            mmgr_line_put(output_line, answers);
+            mmgr_line_put(output_line, " from");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0u;
     }
     if (!qry_member_blob(answers, &bytes, &size, NULL))
     {
-        printf("  orior_khw_machine_write: the run's buffer contains no %s\n", answers);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  orior_khw_machine_write: the run's buffer contains no ");
+            mmgr_line_put(output_line, answers);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0u;
     }
     char line[2048];

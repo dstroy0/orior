@@ -14,6 +14,7 @@
 //
 //     naming_check <mnemonics>
 #include "../../../../../../../includes/file_defs/khw/khw_machine_write/khw_machine_write_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
@@ -24,7 +25,13 @@ static void check_that(int passed, const char *what)
     if (passed == 0)
     {
         s_failed += 1u;
-        printf("  FAILED: %s\n", what);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -63,7 +70,11 @@ static void check_text(const KhwForm *form, const char *expected, const char *wh
     check_that(strcmp(text, expected) == 0, what);
     if (strcmp(text, expected) != 0)
     {
-        printf("    read %s\n", text);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    read ");
+        mmgr_line_put(output_line, text);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
 }
 
@@ -73,7 +84,12 @@ int program_main(int count, char **words)
 {
     if (count < 2)
     {
-        printf("naming_check <mnemonics>\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "naming_check <mnemonics>");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     check_that(khw_pieces_read(words[1]), "the vendor's table is read");
@@ -184,6 +200,15 @@ int program_main(int count, char **words)
     snprintf(based.text, sizeof(based.text), "%s", "MOV R1, c[0x0][0x160+0x10]");
     check_that(sass_text_placed(&based, placed, sizeof(placed)) && (strcmp(placed, "MOV {1}, c[0x0][0x160+{0}]") == 0),
                "a constant with a base keeps the base and places the immediate after its +");
-    printf("naming_check: %u checks, %u failed\n", s_checks, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "naming_check: ");
+        mmgr_line_decimal(output_line, s_checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, s_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failed == 0u) ? 0 : 1;
 }

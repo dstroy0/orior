@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// The checkers (cell_tracking/src/check) displayed to fire. Under the directory named this writes, by hand, a good set for
-// each checker and one broken copy for each fault the checker names; check_test.sh runs the checkers on every copy and
-// checks each exit and each fault's count against the case's.
+// The checkers (cell_tracking/src/check) displayed to fire. Under the directory named this writes, by hand, a good set
+// for each checker and one broken copy for each fault the checker names; check_test.sh runs the checkers on every copy
+// and checks each exit and each fault's count against the case's.
 //
 // points_check's set: two samples, a and b, of two frames in a 2 x 3 x 4 view (24 voxels), two limbs a level. a's
 // readings are 20 of value 10 and 28 of 11, b's 8 of 10 and 40 of 12: 48 each, one a voxel of each frame, 96 in all.
@@ -33,6 +33,7 @@
 // and no start, 40.
 //   check_test <directory>
 #include <stdio.h>
+#include "../../../../../src/platform/platform.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -1122,11 +1123,16 @@ static int check_test_divide_case(const char *root, DivideCase which)
            check_test_file(path, submission, (size_t)submission_length, 0u);
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     if (count != 2)
     {
-        printf("  usage: check_test <directory>\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  usage: check_test <directory>");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     (void)CHECK_TEST_MKDIR(arguments[1]);
@@ -1135,27 +1141,68 @@ int main(int count, char **arguments)
     {
         const int ok = check_test_points_case(arguments[1], (PointsCase)which);
         written += ok ? 1u : 0u;
-        printf("  %s points_%s\n", ok ? "wrote" : "COULD NOT WRITE", POINTS_CASE_NAMES[which]);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, ok ? "wrote" : "COULD NOT WRITE");
+            mmgr_line_put(output_line, " points_");
+            mmgr_line_put(output_line, POINTS_CASE_NAMES[which]);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     for (unsigned int which = 0u; which < (unsigned int)OUTPUT_CASES; which += 1u)
     {
         const int ok = check_test_output_case(arguments[1], (OutputCase)which);
         written += ok ? 1u : 0u;
-        printf("  %s output_%s\n", ok ? "wrote" : "COULD NOT WRITE", OUTPUT_CASE_NAMES[which]);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, ok ? "wrote" : "COULD NOT WRITE");
+            mmgr_line_put(output_line, " output_");
+            mmgr_line_put(output_line, OUTPUT_CASE_NAMES[which]);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     for (unsigned int which = 0u; which < (unsigned int)DIVIDE_CASES; which += 1u)
     {
         const int ok = check_test_divide_case(arguments[1], (DivideCase)which);
         written += ok ? 1u : 0u;
-        printf("  %s divide_%s\n", ok ? "wrote" : "COULD NOT WRITE", DIVIDE_CASE_NAMES[which]);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, ok ? "wrote" : "COULD NOT WRITE");
+            mmgr_line_put(output_line, " divide_");
+            mmgr_line_put(output_line, DIVIDE_CASE_NAMES[which]);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     for (unsigned int which = 0u; which < (unsigned int)FACES_CASES; which += 1u)
     {
         const int ok = check_test_faces_case(arguments[1], (FacesCase)which);
         written += ok ? 1u : 0u;
-        printf("  %s faces_%s\n", ok ? "wrote" : "COULD NOT WRITE", FACES_CASE_NAMES[which]);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, ok ? "wrote" : "COULD NOT WRITE");
+            mmgr_line_put(output_line, " faces_");
+            mmgr_line_put(output_line, FACES_CASE_NAMES[which]);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     const unsigned int cases = (unsigned int)(POINTS_CASES + OUTPUT_CASES + DIVIDE_CASES + FACES_CASES);
-    printf("  wrote %u of %u cases\n", written, cases);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  wrote ");
+        mmgr_line_decimal(output_line, written, 1u);
+        mmgr_line_put(output_line, " of ");
+        mmgr_line_decimal(output_line, cases, 1u);
+        mmgr_line_put(output_line, " cases");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (written == cases) ? 0 : 1;
 }

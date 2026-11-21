@@ -20,6 +20,7 @@
 // Each record prints "case <n> mode <read|draw> status <s>", the measurement's lines when the status is 0, and "end".
 
 #include "../../../../../../../src/cu/engine/runtime/device_pool/device_pool.h"
+#include "../../../../../../../src/platform/platform.h"
 #include "../../../../../../../src/cu/engine/analysis/period/period.h"
 #include "sim.h"
 
@@ -134,39 +135,107 @@ static unsigned long long probe_declared(FILE *file)
 
 static void probe_margin(const char *name, const PeriodMargin *margin)
 {
-    printf(" %s %llu/%llu", name, margin->numerator, margin->denominator);
+    VerbaLinea *const output_line = platform_line_out();
+    mmgr_line_put(output_line, " ");
+    mmgr_line_put(output_line, name);
+    mmgr_line_put(output_line, " ");
+    mmgr_line_decimal(output_line, margin->numerator, 1u);
+    mmgr_line_put(output_line, "/");
+    mmgr_line_decimal(output_line, margin->denominator, 1u);
+    platform_line_out_ended();
 }
 
 static void probe_measurement(const PeriodMeasurement *measurement, const unsigned long long *agreement,
                               unsigned long long entries, const PeriodMargin *band, unsigned long long band_entries)
 {
-    printf("measurement rank %u voxels %llu collisions %llu draws %llu\n", measurement->rank, measurement->voxels,
-           measurement->collisions, measurement->draws);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "measurement rank ");
+        mmgr_line_decimal(output_line, measurement->rank, 1u);
+        mmgr_line_put(output_line, " voxels ");
+        mmgr_line_decimal(output_line, measurement->voxels, 1u);
+        mmgr_line_put(output_line, " collisions ");
+        mmgr_line_decimal(output_line, measurement->collisions, 1u);
+        mmgr_line_put(output_line, " draws ");
+        mmgr_line_decimal(output_line, measurement->draws, 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     for (unsigned int axis = 0u; axis < measurement->rank; axis += 1u)
     {
         const PeriodAxis *const measured = &measurement->axis[axis];
-        printf("axis %u extent %llu period %llu candidate %llu lags %llu pairs %llu at %llu beside %llu doubled %llu "
-               "beside_double %llu",
-               axis, measured->extent, measured->period, measured->candidate, measured->lags, measured->pairs_per_lag,
-               measured->agreement_at_candidate, measured->agreement_beside_candidate, measured->agreement_at_double,
-               measured->agreement_beside_double);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "axis ");
+            mmgr_line_decimal(output_line, axis, 1u);
+            mmgr_line_put(output_line, " extent ");
+            mmgr_line_decimal(output_line, measured->extent, 1u);
+            mmgr_line_put(output_line, " period ");
+            mmgr_line_decimal(output_line, measured->period, 1u);
+            mmgr_line_put(output_line, " candidate ");
+            mmgr_line_decimal(output_line, measured->candidate, 1u);
+            mmgr_line_put(output_line, " lags ");
+            mmgr_line_decimal(output_line, measured->lags, 1u);
+            mmgr_line_put(output_line, " pairs ");
+            mmgr_line_decimal(output_line, measured->pairs_per_lag, 1u);
+            mmgr_line_put(output_line, " at ");
+            mmgr_line_decimal(output_line, measured->agreement_at_candidate, 1u);
+            mmgr_line_put(output_line, " beside ");
+            mmgr_line_decimal(output_line, measured->agreement_beside_candidate, 1u);
+            mmgr_line_put(output_line, " doubled ");
+            mmgr_line_decimal(output_line, measured->agreement_at_double, 1u);
+            mmgr_line_put(output_line, " beside_double ");
+            mmgr_line_decimal(output_line, measured->agreement_beside_double, 1u);
+            platform_line_out_ended();
+        }
         probe_margin("margin", &measured->margin);
-        printf(" band_count %llu", measured->band_count);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, " band_count ");
+            mmgr_line_decimal(output_line, measured->band_count, 1u);
+            platform_line_out_ended();
+        }
         probe_margin("bottom", &measured->band_bottom);
         probe_margin("top", &measured->band_top);
-        printf("\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
-    printf("agreement %llu", entries);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "agreement ");
+        mmgr_line_decimal(output_line, entries, 1u);
+        platform_line_out_ended();
+    }
     for (unsigned long long entry = 0ull; entry < entries; entry += 1ull)
     {
-        printf(" %llu", agreement[entry]);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal(output_line, agreement[entry], 1u);
+        platform_line_out_ended();
     }
-    printf("\nband %llu", band_entries);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\nband ");
+        mmgr_line_decimal(output_line, band_entries, 1u);
+        platform_line_out_ended();
+    }
     for (unsigned long long entry = 0ull; entry < band_entries; entry += 1ull)
     {
-        printf(" %llu/%llu", band[entry].numerator, band[entry].denominator);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal(output_line, band[entry].numerator, 1u);
+        mmgr_line_put(output_line, "/");
+        mmgr_line_decimal(output_line, band[entry].denominator, 1u);
+        platform_line_out_ended();
     }
-    printf("\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
 static int probe_run(const ProbeRecord *record, const unsigned short *lanes, unsigned long long number)
@@ -175,7 +244,14 @@ static int probe_run(const ProbeRecord *record, const unsigned short *lanes, uns
     unsigned short *device_lanes = NULL;
     if (cudaMalloc((void **)&device_lanes, (size_t)device_lane_count * sizeof(unsigned short)) != cudaSuccess)
     {
-        printf("case %llu device lanes not allocated\n", number);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "case ");
+            mmgr_line_decimal(output_line, number, 1u);
+            mmgr_line_put(output_line, " device lanes not allocated");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     int ok = cudaMemset(device_lanes, 0, (size_t)device_lane_count * sizeof(unsigned short)) == cudaSuccess;
@@ -218,50 +294,107 @@ static int probe_run(const ProbeRecord *record, const unsigned short *lanes, uns
     {
         status = (record->mode == 0u) ? period_read(&request) : period_draw(&request, record->draws, heights);
     }
-    printf("case %llu mode %s status %ld\n", number, (record->mode == 0u) ? "read" : "draw", status);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "case ");
+        mmgr_line_decimal(output_line, number, 1u);
+        mmgr_line_put(output_line, " mode ");
+        mmgr_line_put(output_line, (record->mode == 0u) ? "read" : "draw");
+        mmgr_line_put(output_line, " status ");
+        mmgr_line_decimal_signed(output_line, status);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     if ((status == 0L) && (record->mode == 0u))
     {
         probe_measurement(&measurement, agreement, entries, band, (band != NULL) ? band_entries : 0ull);
     }
     else if (status == 0L)
     {
-        printf("heights %u", bounded_rank);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "heights ");
+            mmgr_line_decimal(output_line, bounded_rank, 1u);
+            platform_line_out_ended();
+        }
         for (unsigned int axis = 0u; axis < bounded_rank; axis += 1u)
         {
-            printf(" %llu/%llu", heights[axis].numerator, heights[axis].denominator);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal(output_line, heights[axis].numerator, 1u);
+            mmgr_line_put(output_line, "/");
+            mmgr_line_decimal(output_line, heights[axis].denominator, 1u);
+            platform_line_out_ended();
         }
-        printf("\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     else
     {
-        printf("error type %d module %d site %u status %d\n", (int)error.type, (int)error.module, error.site,
-               (int)error.status);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "error type ");
+        mmgr_line_decimal_signed(output_line, (int)error.type);
+        mmgr_line_put(output_line, " module ");
+        mmgr_line_decimal_signed(output_line, (int)error.module);
+        mmgr_line_put(output_line, " site ");
+        mmgr_line_decimal(output_line, error.site, 1u);
+        mmgr_line_put(output_line, " status ");
+        mmgr_line_decimal_signed(output_line, (int)error.status);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
-    printf("end\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "end");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     free(agreement);
     free(band);
     cudaFree(device_lanes);
     return 1;
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     if (count != 2)
     {
-        printf("usage: period_probe <requests file>\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "usage: period_probe <requests file>");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     FILE *const file = fopen(arguments[1], "rb");
     if (file == NULL)
     {
-        printf("period_probe: %s not opened\n", arguments[1]);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "period_probe: ");
+            mmgr_line_put(output_line, arguments[1]);
+            mmgr_line_put(output_line, " not opened");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     const unsigned long long declared = probe_declared(file);
     rewind(file);
     if (declared == 0ull)
     {
-        printf("period_probe: a record in %s is malformed\n", arguments[1]);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "period_probe: a record in ");
+            mmgr_line_put(output_line, arguments[1]);
+            mmgr_line_put(output_line, " is malformed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         fclose(file);
         return 2;
     }
@@ -288,7 +421,14 @@ int main(int count, char **arguments)
         if ((read < 0) || (lanes == NULL) ||
             !probe_take(file, lanes, (size_t)record.lane_count * sizeof(unsigned short)))
         {
-            printf("period_probe: record %llu is malformed\n", number);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "period_probe: record ");
+                mmgr_line_decimal(output_line, number, 1u);
+                mmgr_line_put(output_line, " is malformed");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             free(lanes);
             ok = 0;
             break;
@@ -296,10 +436,16 @@ int main(int count, char **arguments)
         ok = probe_run(&record, lanes, number) && ok;
         free(lanes);
         number += 1ull;
-        fflush(stdout);
+        platform_line_flushed();
     }
     fclose(file);
-    printf("records %llu\n", number);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "records ");
+        mmgr_line_decimal(output_line, number, 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     const int closed = sim_close(&results, "period probe");
     return (ok && (closed == 0)) ? 0 : 1;
 }

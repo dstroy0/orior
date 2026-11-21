@@ -9,6 +9,7 @@
 // reads the image from and writes its records to. It compiles as C++
 
 #include "record_programs.h"
+#include "../../../../../../../src/platform/platform.h"
 #include "target.h"
 
 #include <stddef.h>
@@ -193,7 +194,13 @@ static void record_image_programs(void *context, RecordImageRun run)
         index[(2u * lane) + 1u] = host_random() % HOST_TEST_SECOND_BODIES;
     }
     run(context, &program, 0, atoms, bodies, index, 0);
-    printf("  index %016llx\n", host_digest(index, (unsigned long long)HOST_TEST_LANES * 2u));
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  index ");
+        mmgr_line_hex(output_line, host_digest(index, (unsigned long long)HOST_TEST_LANES * 2u), 16u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     free(index);
     free(atoms[0]);
     free(atoms[1]);

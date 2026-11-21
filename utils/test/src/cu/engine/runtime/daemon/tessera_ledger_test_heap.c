@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_ledger_test_heap.c: requests, headroom, heap order and budget
 #include "tessera_ledger_test_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 static unsigned long long test_state = 0x9E3779B97F4A7C15ull;
 
@@ -26,7 +27,16 @@ void test_check(TestResults *results, int passed)
 
 void test_report(const TestResults *results)
 {
-    printf("  %-30s %9llu cases, %llu failed\n", results->name, results->cases, results->failed);
+    VerbaLinea *const output_line = platform_line_out();
+    mmgr_line_put(output_line, "  ");
+    mmgr_line_put_columns(output_line, results->name, 30u);
+    mmgr_line_put(output_line, " ");
+    mmgr_line_decimal_columns(output_line, results->cases, 9u);
+    mmgr_line_put(output_line, " cases, ");
+    mmgr_line_decimal(output_line, results->failed, 1u);
+    mmgr_line_put(output_line, " failed");
+    mmgr_line_ch(output_line, '\n');
+    platform_line_out_ended();
 }
 
 EngineSignum test_signum(unsigned long long seed)

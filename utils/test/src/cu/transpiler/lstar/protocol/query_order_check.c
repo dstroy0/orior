@@ -18,6 +18,7 @@
 // The run size and the count of passes are steered by the part, as query_descent.h states. The claim is read on the
 // record of the size chosen: every pair has to lean dearer on one same pass, over every pass put at that size.
 #include "query_descent.h"
+#include "../../../../../../../src/platform/platform.h"
 
 #include <stdio.h>
 
@@ -30,7 +31,13 @@ static void check_that(int descent, const char *what)
     if (descent == 0)
     {
         s_failed += 1u;
-        printf("  FAILED: %s\n", what);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -53,7 +60,13 @@ int program_main(int argc, char **argv)
         clock = (query_put(&counts) == 1u) ? counts.address : 0ull;
     }
     check_that(clock != 0ull, "a word of the shared page advances, and it is the clock");
-    printf("  the clock, found by probing: 0x%llx\n", clock);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the clock, found by probing: 0x");
+        mmgr_line_hex(output_line, clock, 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     // a word for each link, a cache line apart
     static volatile unsigned int s_owned[QUERY_DESCENT_LINKS * 16u];
@@ -80,23 +93,58 @@ int program_main(int argc, char **argv)
     query_descent_size(&order, &descent, &solved);
     check_that(solved == 1u, "every pass solves exactly inside the exact width");
     unsigned int ordered = 0u;
-    printf("  at %llu puts a run, each pass solved exactly, %u passes put, the link reading 64 more times:\n",
-           order.repeat, descent.passes);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  at ");
+        mmgr_line_decimal(output_line, order.repeat, 1u);
+        mmgr_line_put(output_line, " puts a run, each pass solved exactly, ");
+        mmgr_line_decimal(output_line, descent.passes, 1u);
+        mmgr_line_put(output_line, " passes put, the link reading 64 more times:");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     for (unsigned int number = 1u; number < QUERY_DESCENT_LINKS; number += 1u)
     {
         ordered += (descent.decided[number] == QUERY_DESCENT_DEARER) ? 1u : 0u;
         const char *leans = (descent.decided[number] == QUERY_DESCENT_DEARER)    ? ""
                             : (descent.decided[number] == QUERY_DESCENT_CHEAPER) ? ", leaning cheaper"
                                                                                  : ", not past twice the spread";
-        printf("    link %u over link %u: dearer in %u of %u passes%s\n", number, number - 1u, descent.dearer[number],
-               descent.passes, leans);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    link ");
+            mmgr_line_decimal(output_line, number, 1u);
+            mmgr_line_put(output_line, " over link ");
+            mmgr_line_decimal(output_line, number - 1u, 1u);
+            mmgr_line_put(output_line, ": dearer in ");
+            mmgr_line_decimal(output_line, descent.dearer[number], 1u);
+            mmgr_line_put(output_line, " of ");
+            mmgr_line_decimal(output_line, descent.passes, 1u);
+            mmgr_line_put(output_line, " passes");
+            mmgr_line_put(output_line, leans);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     check_that(ordered == (QUERY_DESCENT_LINKS - 1u),
                "every link is decided dearer than the one before it past the spread");
 #else
-    printf("  no shared page named to this test on this platform: the order is not put\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  no shared page named to this test on this platform: the order is not put");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 #endif
 
-    printf("  query order: %u checks, %u failed\n", s_checks, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  query order: ");
+        mmgr_line_decimal(output_line, s_checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, s_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failed == 0u) ? 0 : 1;
 }

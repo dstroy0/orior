@@ -184,7 +184,7 @@ if [ "${TESSERA_DEVICE:-1}" = "1" ]; then
     build_device "${RUN_OBJECTS[@]}" "${CLIENT_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${PLATFORM_LINK[@]}" \
         "${LONG_PATHS[@]}" \
         -o "$OUT/tessera_run$SUFFIX"
-    build_host "$TEST/tessera_burn.c" -o "$OUT/tessera_burn$SUFFIX"
+    build_host "$TEST/tessera_burn.c" "${PLATFORM_LINK[@]}" -o "$OUT/tessera_burn$SUFFIX"
     if [ -f "$OUT/tessera_run$SUFFIX" ] && [ -f "$OUT/tessera_burn$SUFFIX" ]; then
         # the host test runs in a state of its own, which the host daemon it starts inherits
         HOST_STATE="$OUT/tessera_host_state"

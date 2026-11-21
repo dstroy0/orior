@@ -9,6 +9,7 @@
 //                order counts
 //   no worse     the descent's price is no more than the price of the cases in the order the ladder lists them
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/counterexample/ladder.h"
+#include "../../../../../../../src/platform/platform.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/gate/survivors.h"
 
 #include <stdio.h>
@@ -23,7 +24,13 @@ static void check_that(int passed, const char *what)
     if (passed == 0)
     {
         s_failed += 1u;
-        printf("  FAILED: %s\n", what);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -33,8 +40,10 @@ static unsigned char s_fails[GATE_CANDIDATES][GATE_CASES];
 static const char *const s_anchor_text[] = {LADDER_ANCHORS(LADDER_TEXT)};
 #undef LADDER_TEXT
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     unsigned int queried = 0u;
     unsigned int prices_no_worse = 0u;
     for (unsigned int relation = 0u; relation < (unsigned int)LADDER_ANCHOR_COUNT; relation += 1u)
@@ -115,13 +124,36 @@ int main(void)
         }
         prices_no_worse += (price <= gate_price(s_fails, candidates, cases, stored_order)) ? 1u : 0u;
         queried += 1u;
-        printf("  %-8s %u cases, %u candidates, %u surviving, the descent's price %llu against %llu in the ladder's "
-               "order\n",
-               s_anchor_text[relation], cases, candidates, count, price,
-               gate_price(s_fails, candidates, cases, stored_order));
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_columns(output_line, s_anchor_text[relation], 8u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal(output_line, cases, 1u);
+            mmgr_line_put(output_line, " cases, ");
+            mmgr_line_decimal(output_line, candidates, 1u);
+            mmgr_line_put(output_line, " candidates, ");
+            mmgr_line_decimal(output_line, count, 1u);
+            mmgr_line_put(output_line, " surviving, the descent's price ");
+            mmgr_line_decimal(output_line, price, 1u);
+            mmgr_line_put(output_line, " against ");
+            mmgr_line_decimal(output_line, gate_price(s_fails, candidates, cases, stored_order), 1u);
+            mmgr_line_put(output_line, " in the ladder's order");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     check_that(prices_no_worse == queried,
                "the descent's price is no more than the ladder's order's on every relation");
-    printf("survivors_check: %u checks, %u failed\n", s_checks, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "survivors_check: ");
+        mmgr_line_decimal(output_line, s_checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, s_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failed == 0u) ? 0 : 1;
 }

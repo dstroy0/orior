@@ -3,6 +3,7 @@
 // broken.cu: the broken: ours checked against the answer question by question, each place they part traced to the forms
 // that wrote it
 #include "identity_internal.h"
+#include "../../../../../../platform/platform.h"
 
 // The answer and ours, question by question. nvcc's chain for a question of the stick is the answer. Ours is the
 // disassembly of what the transpiler wrote for it, derived from the rulesets alone, and the rulesets are what the L*
@@ -18,7 +19,7 @@
 // steps of each, then each form whose links are alone in a question nvcc makes in fewer steps, with its count of
 // questions and of links, the max questions first
 int identity_broken(const char *listing, const char *manifest, const std::string &folder,
-                           const std::vector<std::string> &ours_paths, int count, char **files)
+                    const std::vector<std::string> &ours_paths, int count, char **files)
 {
     std::vector<Question> questions;
     if (!questions_read(listing, manifest, &questions))
@@ -184,8 +185,7 @@ int identity_broken(const char *listing, const char *manifest, const std::string
     }
     std::vector<std::pair<std::string, FormFolded>> ranked(folded.begin(), folded.end());
     std::sort(ranked.begin(), ranked.end(),
-              [](const std::pair<std::string, FormFolded> &one, const std::pair<std::string, FormFolded> &other)
-              {
+              [](const std::pair<std::string, FormFolded> &one, const std::pair<std::string, FormFolded> &other) {
                   return (one.second.questions.size() != other.second.questions.size())
                              ? (one.second.questions.size() > other.second.questions.size())
                              : (one.first < other.first);
@@ -197,16 +197,50 @@ int identity_broken(const char *listing, const char *manifest, const std::string
     }
     if (!run_closed(&file))
     {
-        printf("  %s could not be written\n", path.c_str());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, path.c_str());
+            mmgr_line_put(output_line, " could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
-    printf("  %s: %u of ours, %u alike link for link, %u in as many steps, %u nvcc makes in fewer (%u steps to "
-           "learn), %u ours makes in fewer, %u with no answer\n",
-           path.c_str(), (unsigned int)ours.size(), alike, same, theirs_fewer, steps_to_learn, ours_fewer, unanswered);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, path.c_str());
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_decimal(output_line, (unsigned int)ours.size(), 1u);
+        mmgr_line_put(output_line, " of ours, ");
+        mmgr_line_decimal(output_line, alike, 1u);
+        mmgr_line_put(output_line, " alike link for link, ");
+        mmgr_line_decimal(output_line, same, 1u);
+        mmgr_line_put(output_line, " in as many steps, ");
+        mmgr_line_decimal(output_line, theirs_fewer, 1u);
+        mmgr_line_put(output_line, " nvcc makes in fewer (");
+        mmgr_line_decimal(output_line, steps_to_learn, 1u);
+        mmgr_line_put(output_line, " steps to learn), ");
+        mmgr_line_decimal(output_line, ours_fewer, 1u);
+        mmgr_line_put(output_line, " ours makes in fewer, ");
+        mmgr_line_decimal(output_line, unanswered, 1u);
+        mmgr_line_put(output_line, " with no answer");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     for (size_t at = 0u; (at < ranked.size()) && (at < 8u); at += 1u)
     {
-        printf("    %s: %u questions, %u links alone\n", ranked[at].first.c_str(),
-               (unsigned int)ranked[at].second.questions.size(), ranked[at].second.alone);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    ");
+        mmgr_line_put(output_line, ranked[at].first.c_str());
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_decimal(output_line, (unsigned int)ranked[at].second.questions.size(), 1u);
+        mmgr_line_put(output_line, " questions, ");
+        mmgr_line_decimal(output_line, ranked[at].second.alone, 1u);
+        mmgr_line_put(output_line, " links alone");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     return 0;
 }

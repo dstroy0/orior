@@ -100,7 +100,14 @@ static void lane_decide(const HostProgram *program, int reuse, unsigned int *que
     HostLoaded loaded;
     if (host_load(program, reuse, &loaded) == 0)
     {
-        printf("  %s: not arranged\n", program->name);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, program->name);
+            mmgr_line_put(output_line, ": not arranged");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return;
     }
     *positioned += 1u;
@@ -108,7 +115,16 @@ static void lane_decide(const HostProgram *program, int reuse, unsigned int *que
     unsigned int places = 0u;
     if (sass_target().decided(&loaded.layout, &places, &items) == 0)
     {
-        printf("  %s: %u steps, the core decides no lane for it\n", program->name, loaded.layout.steps);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, program->name);
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_decimal(output_line, loaded.layout.steps, 1u);
+            mmgr_line_put(output_line, " steps, the core decides no lane for it");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         host_free(&loaded);
         return;
     }
@@ -133,9 +149,28 @@ static void lane_decide(const HostProgram *program, int reuse, unsigned int *que
     unsigned int refused = 0u;
     std::string first;
     const unsigned int instructions = (s_machine_read != 0) ? lane_assembles(lane, &refused, &first) : 0u;
-    printf("  %-16s %4u steps, %5zu items, lane %s, %u lines, %u instructions, %u the assembler refuses%s%s\n",
-           program->name, loaded.layout.steps, items.size(), lane.empty() ? "REFUSED" : "written", lines, instructions,
-           refused, first.empty() ? "" : ", first: ", first.c_str());
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, program->name, 16u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line, loaded.layout.steps, 4u);
+        mmgr_line_put(output_line, " steps, ");
+        mmgr_line_decimal_columns(output_line, items.size(), 5u);
+        mmgr_line_put(output_line, " items, lane ");
+        mmgr_line_put(output_line, lane.empty() ? "REFUSED" : "written");
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, lines, 1u);
+        mmgr_line_put(output_line, " lines, ");
+        mmgr_line_decimal(output_line, instructions, 1u);
+        mmgr_line_put(output_line, " instructions, ");
+        mmgr_line_decimal(output_line, refused, 1u);
+        mmgr_line_put(output_line, " the assembler refuses");
+        mmgr_line_put(output_line, first.empty() ? "" : ", first: ");
+        mmgr_line_put(output_line, first.c_str());
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     // the first lane written out whole: what a form that writes nothing leaves behind can be read
     static int dumped;
     if ((dumped == 0) && !lane.empty())
@@ -161,7 +196,16 @@ int program_main(int argc, char **argv)
         return 1;
     }
     s_machine_read = sass_machine_read(&s_machine, "src/cu/transpiler/lstar/protocol/table/sm_86.khw");
-    printf("machine %s: %u forms\n", s_machine.part, s_machine.forms);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "machine ");
+        mmgr_line_put(output_line, s_machine.part);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_decimal(output_line, s_machine.forms, 1u);
+        mmgr_line_put(output_line, " forms");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     static unsigned int queried[OPCODE_COUNT];
     unsigned int positioned = 0u;
     HostProgram program;
@@ -195,13 +239,25 @@ int program_main(int argc, char **argv)
     }
     unsigned int decided = 0u;
     unsigned int blocking = 0u;
-    printf("%u layouts decided for SASS\n", positioned);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_decimal(output_line, positioned, 1u);
+        mmgr_line_put(output_line, " layouts decided for SASS");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     // A form the code generator leaves out is never requested from the ruleset, whatever the lane's items contain. SASS
     // answers 0 to program_unit_written: its resident reaches it already built in the part's own compiler's cubin,
     // and the lane is written into that. Counting such a form as blocking reads the lane's item list where the
     // question is what program() puts to the ruleset
     const int writes_unit = sass_target().program_unit_written();
-    printf("forms the lane requests for that sass.krs gives as an error, which is what refuses it:\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line,
+                      "forms the lane requests for that sass.krs gives as an error, which is what refuses it:");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     for (unsigned int place = 0u; place < OPCODE_COUNT; place += 1u)
     {
         const int queried_of_ruleset = (place != (unsigned int)OPCODE_PROGRAM_UNIT) || (writes_unit != 0);
@@ -209,24 +265,56 @@ int program_main(int argc, char **argv)
         if ((queried[place] != 0u) && queried_of_ruleset && (lane_form_errors(rules, place) != 0))
         {
             blocking += 1u;
-            printf("  %-24s requested %u times\n", s_forms[place].text, queried[place]);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  ");
+                mmgr_line_put_columns(output_line, s_forms[place].text, 24u);
+                mmgr_line_put(output_line, " requested ");
+                mmgr_line_decimal(output_line, queried[place], 1u);
+                mmgr_line_put(output_line, " times");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
         }
     }
     if (writes_unit == 0)
     {
-        printf("  (program_unit is requested %u times by the lane's items and never of the ruleset: SASS takes its\n"
-               "   resident from the part's own compiler and writes the lane into that cubin)\n",
-               queried[OPCODE_PROGRAM_UNIT]);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  (program_unit is requested ");
+        mmgr_line_decimal(output_line, queried[OPCODE_PROGRAM_UNIT], 1u);
+        mmgr_line_put(output_line, " times by the lane's items and never of the ruleset: SASS takes its\n   resident "
+                                   "from the part's own compiler and writes the lane into that cubin)");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
-    printf("forms sass.krs gives as an error that no lane here requests for:\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "forms sass.krs gives as an error that no lane here requests for:");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     for (unsigned int place = 0u; place < OPCODE_COUNT; place += 1u)
     {
         if ((queried[place] == 0u) && (lane_form_errors(rules, place) != 0))
         {
-            printf("  %-24s never requested\n", s_forms[place].text);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_columns(output_line, s_forms[place].text, 24u);
+            mmgr_line_put(output_line, " never requested");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
     }
-    printf("%u of the schema's %u forms are requested for; %u of those sass.krs gives as an error\n", decided,
-           OPCODE_COUNT, blocking);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_decimal(output_line, decided, 1u);
+        mmgr_line_put(output_line, " of the schema's ");
+        mmgr_line_decimal(output_line, OPCODE_COUNT, 1u);
+        mmgr_line_put(output_line, " forms are requested for; ");
+        mmgr_line_decimal(output_line, blocking, 1u);
+        mmgr_line_put(output_line, " of those sass.krs gives as an error");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 0;
 }

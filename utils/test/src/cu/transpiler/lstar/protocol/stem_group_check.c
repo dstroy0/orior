@@ -10,6 +10,7 @@
 //   drawn sets    members drawn around a few centers, with drawn floors and drawn refusals. Every member agrees
 //                 with its anchor, no two anchors agree, and the grouping is the same under every shuffle tried
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/order/stem_group.h"
+#include "../../../../../../../src/platform/platform.h"
 
 #include <stdio.h>
 
@@ -26,7 +27,13 @@ static void check_that(int passed, const char *what)
     if (passed == 0)
     {
         s_failed += 1u;
-        printf("  FAILED: %s\n", what);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -204,17 +211,39 @@ static void check_drawn(void)
         }
         shuffles_alike += alike;
     }
-    printf("  %u drawn sets, %llu members in %llu groups\n", CHECK_SETS, members_seen, groups_seen);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_decimal(output_line, CHECK_SETS, 1u);
+        mmgr_line_put(output_line, " drawn sets, ");
+        mmgr_line_decimal(output_line, members_seen, 1u);
+        mmgr_line_put(output_line, " members in ");
+        mmgr_line_decimal(output_line, groups_seen, 1u);
+        mmgr_line_put(output_line, " groups");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     check_that(to_anchor == CHECK_SETS, "every member agrees with the member its group is anchored on");
     check_that(anchors_apart == CHECK_SETS, "no two anchors agree");
     check_that(shuffles_alike == CHECK_SETS, "every set groups alike under every shuffle tried");
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     check_three();
     check_refused();
     check_drawn();
-    printf("  stem group: %u checks, %u failed\n", s_checks, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  stem group: ");
+        mmgr_line_decimal(output_line, s_checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, s_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failed == 0u) ? 0 : 1;
 }

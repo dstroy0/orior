@@ -171,20 +171,87 @@ int program_main(int count, char **words)
     {
         return identity_read(words[2], words[3], count - 4, words + 4);
     }
-    printf("orior_klq_identity slice <nvcc listing> <manifest> <stick .cu> <folder> [<ours folder>]\n");
-    printf("orior_klq_identity read <folder> <Lstar.klq> <ruleset>...\n");
-    printf("orior_klq_identity known <nvcc listing> <manifest> <folder> <candidate>...\n");
-    printf("orior_klq_identity permute <nvcc listing> <manifest> <folder>\n");
-    printf("orior_klq_identity broken <nvcc listing> <manifest> <folder> <ours>... -- <ruleset>...\n");
-    printf("orior_klq_identity stall <ours folder> <host answers> <ksc> <folder> <machine> -- <carrier>...\n");
-    printf("orior_klq_identity register <ours folder> <host answers> <ksc> <folder> -- <carrier>...\n");
-    printf("orior_klq_identity queue <ours folder> <host answers> <ksc> <folder> <manifest> -- <carrier>...\n");
-    printf(
-        "orior_klq_identity pair <ours folder> <host answers> <ksc> <folder> <Lstar.klq> <machine> -- <carrier>...\n");
-    printf("orior_klq_identity text_identity <ours folder> <host answers> <ksc> <folder> <Lstar.klq> <manifest> -- "
-           "<carrier>...\n");
-    printf("orior_klq_identity curve <ours folder> <host answers> <ksc> <folder> <task>... -- <carrier>...\n");
-    printf("orior_klq_identity cost <ours folder> <host answers> <ksc> <folder> <kdm> <machine> [<placed forms>] -- "
-           "<carrier>...\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line,
+                      "orior_klq_identity slice <nvcc listing> <manifest> <stick .cu> <folder> [<ours folder>]");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "orior_klq_identity read <folder> <Lstar.klq> <ruleset>...");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "orior_klq_identity known <nvcc listing> <manifest> <folder> <candidate>...");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "orior_klq_identity permute <nvcc listing> <manifest> <folder>");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line,
+                      "orior_klq_identity broken <nvcc listing> <manifest> <folder> <ours>... -- <ruleset>...");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line,
+                      "orior_klq_identity stall <ours folder> <host answers> <ksc> <folder> <machine> -- <carrier>...");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line,
+                      "orior_klq_identity register <ours folder> <host answers> <ksc> <folder> -- <carrier>...");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(
+            output_line,
+            "orior_klq_identity queue <ours folder> <host answers> <ksc> <folder> <manifest> -- <carrier>...");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "orior_klq_identity pair <ours folder> <host answers> <ksc> <folder> <Lstar.klq> "
+                                   "<machine> -- <carrier>...");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "orior_klq_identity text_identity <ours folder> <host answers> <ksc> <folder> "
+                                   "<Lstar.klq> <manifest> -- <carrier>...");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line,
+                      "orior_klq_identity curve <ours folder> <host answers> <ksc> <folder> <task>... -- <carrier>...");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "orior_klq_identity cost <ours folder> <host answers> <ksc> <folder> <kdm> "
+                                   "<machine> [<placed forms>] -- <carrier>...");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 1;
 }

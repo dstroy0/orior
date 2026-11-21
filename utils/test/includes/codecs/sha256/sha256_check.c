@@ -11,6 +11,7 @@
 // One line a file with its counts, and a last line with the total. Exit 0 where every vector passes, 1 where any does
 // not, 2 where a file did not read.
 #include "../../../../../includes/codecs/sha256/sha256.h"
+#include "../../../../../src/platform/platform.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -104,7 +105,16 @@ static int check_messages(const char *path, unsigned int *passed, unsigned int *
             else
             {
                 *failed += 1u;
-                printf("  %s: Len = %llu does not pass\n", path, bits);
+                {
+                    VerbaLinea *const output_line = platform_line_out();
+                    mmgr_line_put(output_line, "  ");
+                    mmgr_line_put(output_line, path);
+                    mmgr_line_put(output_line, ": Len = ");
+                    mmgr_line_decimal(output_line, bits, 1u);
+                    mmgr_line_put(output_line, " does not pass");
+                    mmgr_line_ch(output_line, '\n');
+                    platform_line_out_ended();
+                }
             }
             have_length = 0;
             have_message = 0;
@@ -161,7 +171,16 @@ static int check_monte(const char *path, unsigned int *passed, unsigned int *fai
         else
         {
             *failed += 1u;
-            printf("  %s: COUNT = %u does not pass\n", path, point);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  ");
+                mmgr_line_put(output_line, path);
+                mmgr_line_put(output_line, ": COUNT = ");
+                mmgr_line_decimal(output_line, point, 1u);
+                mmgr_line_put(output_line, " does not pass");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
         }
         memcpy(seed, next, SHA256_BYTES);
         point += 1u;
@@ -170,7 +189,7 @@ static int check_monte(const char *path, unsigned int *passed, unsigned int *fai
     return 1;
 }
 
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
     unsigned int passed_total = 0u;
     unsigned int failed_total = 0u;
@@ -190,11 +209,31 @@ int main(int count, char **words)
             fprintf(stderr, "  %s did not read\n", words[at]);
             return 2;
         }
-        printf("  %s: %u passed, %u failed\n", words[at], passed, failed);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, words[at]);
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_decimal(output_line, passed, 1u);
+            mmgr_line_put(output_line, " passed, ");
+            mmgr_line_decimal(output_line, failed, 1u);
+            mmgr_line_put(output_line, " failed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         passed_total += passed;
         failed_total += failed;
         monte = 0;
     }
-    printf("sha256 check: %u checks, %u failed\n", passed_total + failed_total, failed_total);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "sha256 check: ");
+        mmgr_line_decimal(output_line, passed_total + failed_total, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, failed_total, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return ((failed_total == 0u) && (passed_total != 0u)) ? 0 : 1;
 }

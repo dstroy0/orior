@@ -39,12 +39,30 @@ int sass_list(SassProbe *probe, const char *name, SassListing *listing)
     const int status = sass_run(command, output);
     if (status != 0)
     {
-        printf("  %s: nvdisasm exited %d\n%s", name, status, (status > 0) ? sass_output() : "");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, name);
+            mmgr_line_put(output_line, ": nvdisasm exited ");
+            mmgr_line_decimal_signed(output_line, status);
+            mmgr_line_put(output_line, "\n");
+            mmgr_line_put(output_line, (status > 0) ? sass_output() : "");
+            platform_line_out_ended();
+        }
         return 0;
     }
     if (!sass_listing_read(sass_output(), listing))
     {
-        printf("  %s: more than %u instructions\n", name, SASS_LISTING_LIMIT);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, name);
+            mmgr_line_put(output_line, ": more than ");
+            mmgr_line_decimal(output_line, SASS_LISTING_LIMIT, 1u);
+            mmgr_line_put(output_line, " instructions");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     // the rest of the cubin as cuobjdump reads it: its sections, symbols, segments and the kernel's attributes
@@ -60,7 +78,16 @@ int sass_list(SassProbe *probe, const char *name, SassListing *listing)
     const int elf_status = sass_run(elf, output);
     if (elf_status != 0)
     {
-        printf("  %s: cuobjdump exited %d\n%s", name, elf_status, (elf_status > 0) ? sass_output() : "");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, name);
+            mmgr_line_put(output_line, ": cuobjdump exited ");
+            mmgr_line_decimal_signed(output_line, elf_status);
+            mmgr_line_put(output_line, "\n");
+            mmgr_line_put(output_line, (elf_status > 0) ? sass_output() : "");
+            platform_line_out_ended();
+        }
         return 0;
     }
     return 1;
@@ -105,12 +132,22 @@ static unsigned int sass_operation_count(const SassListing *listing, const char 
 // contains fewer of
 void sass_form_print(const char *name, const SassListing *form, const SassListing *kernel_listing)
 {
-    printf("form %s:", name);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "form ");
+        mmgr_line_put(output_line, name);
+        mmgr_line_put(output_line, ":");
+        platform_line_out_ended();
+    }
     for (int more = 1; more >= 0; more -= 1)
     {
         const SassListing *const counted = more ? form : kernel_listing;
         const SassListing *const against = more ? kernel_listing : form;
-        printf("%s", more ? "" : " |");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, more ? "" : " |");
+            platform_line_out_ended();
+        }
         for (unsigned int number = 0u; number < counted->count; number += 1u)
         {
             SassParts parts;
@@ -127,11 +164,21 @@ void sass_form_print(const char *name, const SassListing *form, const SassListin
             // NOP fills the code to its alignment and is none of a form's
             if (!earlier && (here > there) && (!mmgr_text_equal(parts.operation, "NOP", PLATFORM_TEXT_TO_TERMINATOR)))
             {
-                printf(" %s%s x%u", more ? "" : "-", parts.operation, here - there);
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, " ");
+                mmgr_line_put(output_line, more ? "" : "-");
+                mmgr_line_put(output_line, parts.operation);
+                mmgr_line_put(output_line, " x");
+                mmgr_line_decimal(output_line, here - there, 1u);
+                platform_line_out_ended();
             }
         }
     }
-    printf("\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
 // what turning one bit over did to the base's text: its category and an example of the change
@@ -255,10 +302,28 @@ int sass_fields(SassProbe *probe, const SassOperation *operation)
         mmgr_line_hex(&buffer_line, operation->key, 3u);
         (void)mmgr_line_finish(&buffer_line);
     }
-    printf("operation %03x: %s (0x%016llx 0x%016llx)\n", operation->key, operation->first.text, low[0], high[0]);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "operation ");
+        mmgr_line_hex(output_line, operation->key, 3u);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_put(output_line, operation->first.text);
+        mmgr_line_put(output_line, " (0x");
+        mmgr_line_hex(output_line, low[0], 16u);
+        mmgr_line_put(output_line, " 0x");
+        mmgr_line_hex(output_line, high[0], 16u);
+        mmgr_line_put(output_line, ")");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     if (!sass_decode(probe->architecture, path, low, high, SASS_ENCODINGS, s_sass_texts))
     {
-        printf("  not decoded\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  not decoded");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     SassParts base;
@@ -297,7 +362,17 @@ int sass_fields(SassProbe *probe, const SassOperation *operation)
                            (!mmgr_text_equal(category, "modifier", PLATFORM_TEXT_TO_TERMINATOR)) && (bit != 64u);
         if (!joined && (bit != 0u))
         {
-            printf("  bits %3u-%3u %s: %s\n", run_start, bit - 1u, run_category, run_example);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  bits ");
+            mmgr_line_decimal_columns(output_line, run_start, 3u);
+            mmgr_line_put(output_line, "-");
+            mmgr_line_decimal_columns(output_line, bit - 1u, 3u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put(output_line, run_category);
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_put(output_line, run_example);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
         if (!joined)
         {

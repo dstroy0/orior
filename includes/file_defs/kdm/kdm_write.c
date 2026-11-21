@@ -184,11 +184,16 @@ static void section_number(unsigned long long value)
         &(VerbaNumerusCfg){.out = s_section_bytes, .cap = sizeof(s_section_bytes), .at = s_section_at, .val = value});
 }
 
-int main(int count, char **word)
+int program_main(int count, char **word)
 {
     if (count < 3)
     {
-        printf("kdm_write <part> <path>\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "kdm_write <part> <path>");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     const char *const part = word[1];
@@ -220,8 +225,25 @@ int main(int count, char **word)
         }
         const unsigned int chains = chain_build(&set, cases, found);
         chain_shuffle(&set, seed + anchor);
-        printf("  %-8s %2u cases  %5u chains  %8u tried", s_anchor_text[anchor], found, chains, set.tried);
-        printf("%s\n", (set.over != 0u) ? "  and more than the set contains" : "");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_columns(output_line, s_anchor_text[anchor], 8u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_columns(output_line, found, 2u);
+            mmgr_line_put(output_line, " cases  ");
+            mmgr_line_decimal_columns(output_line, chains, 5u);
+            mmgr_line_put(output_line, " chains  ");
+            mmgr_line_decimal_columns(output_line, set.tried, 8u);
+            mmgr_line_put(output_line, " tried");
+            platform_line_out_ended();
+        }
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, (set.over != 0u) ? "  and more than the set contains" : "");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         // the text of an arrangement names it. Two chains of the set that write one text are one row: the first
         unsigned int distinct = 0u;
         for (unsigned int at = 0u; at < chains; at += 1u)
@@ -281,9 +303,27 @@ int main(int count, char **word)
     kdm_free(&s_file);
     if (!put)
     {
-        printf("  kdm_write: %s could not be written\n", word[2]);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  kdm_write: ");
+            mmgr_line_put(output_line, word[2]);
+            mmgr_line_put(output_line, " could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
-    printf("  kdm_write: %u chains into %s, %u of them timed\n", written, word[2], timed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  kdm_write: ");
+        mmgr_line_decimal(output_line, written, 1u);
+        mmgr_line_put(output_line, " chains into ");
+        mmgr_line_put(output_line, word[2]);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, timed, 1u);
+        mmgr_line_put(output_line, " of them timed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 0;
 }

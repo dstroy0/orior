@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // descent.c: the descent: the gate's descent read, the fill and the flat form, and the ruleset read
 #include "writings_internal.h"
+#include "../../../../../../platform/platform.h"
 #include "../../../../../engine/engine_note.h"
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
@@ -147,13 +148,38 @@ int writings_descent_read(const char *record, unsigned int pairs, char **folders
         }
         fprintf(out, "| %s | %u | %u | %u | %u | %u | %u |\n", relation, placed_count, count, ran, located_part,
                 located_host, differ);
-        printf("  %-8s %u cases placed, %u arrangements, %u run, %u located on the part and %u on the host, %u "
-               "verdicts differ\n",
-               relation, placed_count, count, ran, located_part, located_host, differ);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_columns(output_line, relation, 8u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal(output_line, placed_count, 1u);
+            mmgr_line_put(output_line, " cases placed, ");
+            mmgr_line_decimal(output_line, count, 1u);
+            mmgr_line_put(output_line, " arrangements, ");
+            mmgr_line_decimal(output_line, ran, 1u);
+            mmgr_line_put(output_line, " run, ");
+            mmgr_line_decimal(output_line, located_part, 1u);
+            mmgr_line_put(output_line, " located on the part and ");
+            mmgr_line_decimal(output_line, located_host, 1u);
+            mmgr_line_put(output_line, " on the host, ");
+            mmgr_line_decimal(output_line, differ, 1u);
+            mmgr_line_put(output_line, " verdicts differ");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         differ_total += differ;
     }
     fclose(out);
-    printf("interface sass descent: %u verdicts differ, the record written to %s\n", differ_total, record);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "interface sass descent: ");
+        mmgr_line_decimal(output_line, differ_total, 1u);
+        mmgr_line_put(output_line, " verdicts differ, the record written to ");
+        mmgr_line_put(output_line, record);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (differ_total == 0u) ? 0 : 1;
 }
 
@@ -347,9 +373,31 @@ int writings_krs_read(const char *folder, const char *ruleset, const char *recor
             differ += agreed ? 0u : 1u;
         }
         fprintf(out, "| `%s` | %s | `%s` | %s |\n", one->name, s_precept_text[precept], flat, verdict);
-        printf("  %-18s %-4s %-44s %s\n", one->name, s_precept_text[precept], flat, verdict);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_columns(output_line, one->name, 18u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_columns(output_line, s_precept_text[precept], 4u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_columns(output_line, flat, 44u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put(output_line, verdict);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     fclose(out);
-    printf("interface sass krs: %u forms match, %u do not, the record written to %s\n", found_count, differ, record);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "interface sass krs: ");
+        mmgr_line_decimal(output_line, found_count, 1u);
+        mmgr_line_put(output_line, " forms match, ");
+        mmgr_line_decimal(output_line, differ, 1u);
+        mmgr_line_put(output_line, " do not, the record written to ");
+        mmgr_line_put(output_line, record);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (differ == 0u) ? 0 : 1;
 }

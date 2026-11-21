@@ -130,7 +130,14 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
     const Ruleset *const sass = identity_ruleset();
     if (sass == NULL)
     {
-        printf("orior_klq_identity cost: the ruleset %s names is not read\n", IDENTITY_RULESET);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity cost: the ruleset ");
+            mmgr_line_put(output_line, IDENTITY_RULESET);
+            mmgr_line_put(output_line, " names is not read");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     Carriers carriers;
@@ -376,8 +383,21 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
     {
         qry_member_append("plan.txt", plan, (unsigned long long)plan_length, QRY_ORDINARY);
     }
-    printf("  plan: cost %zu\n", round.size());
-    printf("  %zu questions written, put in one round\n", round.size());
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  plan: cost ");
+        mmgr_line_decimal(output_line, round.size(), 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_decimal(output_line, round.size(), 1u);
+        mmgr_line_put(output_line, " questions written, put in one round");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     std::vector<RunQuestion> questions;
     cuts_queried(round, std::vector<int>(round.size(), 0), std::vector<unsigned int>(round.size(), RUN_PLACE_NONE),
                  question.get(), &queries, mark, &questions);
@@ -496,11 +516,22 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
     }
     if (!cost_rows.empty() && !ksc_answers_write(ksc, "cost", cost_rows))
     {
-        printf("orior_klq_identity cost: the forms' costs could not be written to %s\n", ksc);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "orior_klq_identity cost: the forms' costs could not be written to ");
+        mmgr_line_put(output_line, ksc);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     if (!run_closed(&table))
     {
-        printf("orior_klq_identity cost: %s/cost.txt could not be written\n", folder.c_str());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity cost: ");
+            mmgr_line_put(output_line, folder.c_str());
+            mmgr_line_put(output_line, "/cost.txt could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         run_channel_close();
         return 1;
     }
@@ -530,18 +561,48 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
     kdm_free(&written);
     if (!written_ok)
     {
-        printf("orior_klq_identity cost: %s could not be written\n", kdm);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity cost: ");
+            mmgr_line_put(output_line, kdm);
+            mmgr_line_put(output_line, " could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
-    printf("orior_klq_identity cost: %zu arrangements, %u costed over %llu queries and written to %s; %zu forms, %u "
-           "costed in "
-           "the part's clock and written to %s",
-           rows.size(), costed, queries, kdm, costed_forms.size(), forms_costed, ksc);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "orior_klq_identity cost: ");
+        mmgr_line_decimal(output_line, rows.size(), 1u);
+        mmgr_line_put(output_line, " arrangements, ");
+        mmgr_line_decimal(output_line, costed, 1u);
+        mmgr_line_put(output_line, " costed over ");
+        mmgr_line_decimal(output_line, queries, 1u);
+        mmgr_line_put(output_line, " queries and written to ");
+        mmgr_line_put(output_line, kdm);
+        mmgr_line_put(output_line, "; ");
+        mmgr_line_decimal(output_line, costed_forms.size(), 1u);
+        mmgr_line_put(output_line, " forms, ");
+        mmgr_line_decimal(output_line, forms_costed, 1u);
+        mmgr_line_put(output_line, " costed in the part's clock and written to ");
+        mmgr_line_put(output_line, ksc);
+        platform_line_out_ended();
+    }
     for (const auto &each : left)
     {
-        printf(", %u %s", each.second, each.first.c_str());
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, each.second, 1u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put(output_line, each.first.c_str());
+        platform_line_out_ended();
     }
-    printf("\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 0;
 }
 

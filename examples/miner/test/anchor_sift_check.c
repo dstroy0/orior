@@ -14,6 +14,7 @@
  *       The ratio is a measurement on this machine, and the test does not assert it.
  */
 #include "anchor_sift.h"
+#include "../../../src/platform/platform.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -114,7 +115,15 @@ static AnchorSiftPlan plan_for(const uint8_t *corpus, size_t length, size_t need
  */
 static void report(const char *name, int passed)
 {
-    printf("  [%s] %s\n", passed ? "PASS" : "FAIL", name);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  [");
+        mmgr_line_put(output_line, passed ? "PASS" : "FAIL");
+        mmgr_line_put(output_line, "] ");
+        mmgr_line_put(output_line, name);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     if (!passed)
     {
         s_failures += 1u;
@@ -178,14 +187,21 @@ static double time_arm(AnchorSiftArm arm, const uint8_t *corpus, const uint8_t *
     return (double)(clock() - start) / (double)CLOCKS_PER_SEC;
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     static uint8_t uniform[CORPUS_BYTES];
     static uint8_t skewed[CORPUS_BYTES];
     fill_uniform(uniform, CORPUS_BYTES);
     fill_skewed(skewed, CORPUS_BYTES);
 
-    printf("anchor_sift checks\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "anchor_sift checks");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     check_agreement("uniform", uniform, 11u);
     check_agreement("skewed", skewed, 29u);
 
@@ -194,9 +210,20 @@ int main(void)
     const AnchorSiftPlan skewed_long = plan_for(skewed, CORPUS_BYTES, 32u);
     const AnchorSiftPlan empty_needle = plan_for(skewed, CORPUS_BYTES, 0u);
     // MinGW printf has no %zu. The cast widens a symbol count of at most 256 and loses nothing.
-    printf("  uniform H2 %.3f over %llu symbols, skewed H2 %.3f over %llu symbols\n", uniform_short.collision_entropy,
-           (unsigned long long)uniform_short.distinct_symbols, skewed_short.collision_entropy,
-           (unsigned long long)skewed_short.distinct_symbols);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  uniform H2 ");
+        mmgr_line_fixed(output_line, (double)(uniform_short.collision_entropy), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " over ");
+        mmgr_line_decimal(output_line, (unsigned long long)uniform_short.distinct_symbols, 1u);
+        mmgr_line_put(output_line, " symbols, skewed H2 ");
+        mmgr_line_fixed(output_line, (double)(skewed_short.collision_entropy), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " over ");
+        mmgr_line_decimal(output_line, (unsigned long long)skewed_short.distinct_symbols, 1u);
+        mmgr_line_put(output_line, " symbols");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     report("uniform corpus, needle 8: the in order arm", anchor_sift_choose(&uniform_short) == anchor_sift_inorder);
     report("skewed corpus, needle 8: the free arm", anchor_sift_choose(&skewed_short) == anchor_sift_free);
@@ -208,9 +235,29 @@ int main(void)
                                  time_arm(anchor_sift_inorder, uniform, uniform + 1000u, 8u);
     const double skewed_ratio = time_arm(anchor_sift_inorder, skewed, skewed + 1000u, 8u) /
                                 time_arm(anchor_sift_free, skewed, skewed + 1000u, 8u);
-    printf("  measured: on the uniform corpus the free arm takes %.2f times the in order arm\n", uniform_ratio);
-    printf("  measured: on the skewed corpus the in order arm takes %.2f times the free arm\n", skewed_ratio);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  measured: on the uniform corpus the free arm takes ");
+        mmgr_line_fixed(output_line, (double)(uniform_ratio), 2u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " times the in order arm");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  measured: on the skewed corpus the in order arm takes ");
+        mmgr_line_fixed(output_line, (double)(skewed_ratio), 2u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " times the free arm");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
-    printf("%u failed\n", s_failures);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_decimal(output_line, s_failures, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failures == 0u) ? 0 : 1;
 }

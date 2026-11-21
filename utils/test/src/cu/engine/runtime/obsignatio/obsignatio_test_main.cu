@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // obsignatio_test_main.cu: device errors, staging, the report and main
 #include "obsignatio_test_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 #if !(defined(__CUDACC__))
 // with no device, a request for device memory errors as a resource the part lacks, and one with no error errors
@@ -74,12 +75,12 @@ static int test_report(const TestResults *tallies, unsigned int count, const cha
         }
         mmgr_line_ch(&line, '\n');
     }
-    const int written = (mmgr_line_ok(&line) && (fwrite(line.out, 1u, mmgr_line_finish(&line), stdout) == line.at));
+    const int written = (mmgr_line_ok(&line) && (platform_line_out_put(line.out, mmgr_line_finish(&line)) == line.at));
     free(line.out);
     return written;
 }
 
-int main(int argc, char **argv)
+int program_main(int argc, char **argv)
 {
     if (argc != 2)
     {

@@ -11,6 +11,7 @@
 //
 //     monolith_run <cubin> [runs] [turns] [cost runs]
 #include "../../../../engine/rmc/precept_value.h"
+#include "../../../../../platform/platform.h"
 #include "../../../../engine/engine_note.h"
 #include "../monolith.h"
 
@@ -46,7 +47,19 @@ static void check_that(int passed, const char *what, unsigned int precept, unsig
     if (passed == 0)
     {
         s_failed += 1u;
-        printf("  FAILED: %s, precept %u, left %08x, right %08x\n", what, precept, left, right);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_put(output_line, ", precept ");
+            mmgr_line_decimal(output_line, precept, 1u);
+            mmgr_line_put(output_line, ", left ");
+            mmgr_line_hex(output_line, left, 8u);
+            mmgr_line_put(output_line, ", right ");
+            mmgr_line_hex(output_line, right, 8u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -142,8 +155,22 @@ static int monolith_answers(CUfunction entry, CUdeviceptr in, CUdeviceptr out, u
                        "the part's answer is the host's", precept, given[0], given[1]);
         }
     }
-    printf("  monolith %s: %u cases, %u runs a case, the program %llu cycles at least, %llu at max\n", cubin,
-           case_count, runs, least, max);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  monolith ");
+        mmgr_line_put(output_line, cubin);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_decimal(output_line, case_count, 1u);
+        mmgr_line_put(output_line, " cases, ");
+        mmgr_line_decimal(output_line, runs, 1u);
+        mmgr_line_put(output_line, " runs a case, the program ");
+        mmgr_line_decimal(output_line, least, 1u);
+        mmgr_line_put(output_line, " cycles at least, ");
+        mmgr_line_decimal(output_line, max, 1u);
+        mmgr_line_put(output_line, " at max");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 1;
 }
 
@@ -241,19 +268,59 @@ static int monolith_costs(CUfunction entry, unsigned int turns, unsigned int cos
         s_m[section] = ((double)s_least[section] / chain) - bare_least;
         s_s[section] = (double)(s_max[section] - s_least[section]) / chain;
     }
-    printf("  monolith costs: %u turns of %u steps a section, %llu steps a chain, %u runs\n", turns, MONOLITH_BLOCK,
-           steps, cost_runs);
-    printf("  NOP's turns cost %.4f cycles a step with nothing in them, and every figure below is past that\n",
-           bare_mean);
-    printf("  alone, cycles a step     mean   least m  spread s\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  monolith costs: ");
+        mmgr_line_decimal(output_line, turns, 1u);
+        mmgr_line_put(output_line, " turns of ");
+        mmgr_line_decimal(output_line, MONOLITH_BLOCK, 1u);
+        mmgr_line_put(output_line, " steps a section, ");
+        mmgr_line_decimal(output_line, steps, 1u);
+        mmgr_line_put(output_line, " steps a chain, ");
+        mmgr_line_decimal(output_line, cost_runs, 1u);
+        mmgr_line_put(output_line, " runs");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  NOP's turns cost ");
+        mmgr_line_fixed(output_line, (double)(bare_mean), 4u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " cycles a step with nothing in them, and every figure below is past that");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  alone, cycles a step     mean   least m  spread s");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     double spread_alone = 0.0;
     for (unsigned int place = 0u; place < MONOLITH_COSTED_COUNT; place += 1u)
     {
-        printf("    %-5s           %8.4f  %8.4f  %8.4f\n", s_names[MONOLITH_COSTED(place)], s_mean[place], s_m[place],
-               s_s[place]);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    ");
+            mmgr_line_put_columns(output_line, s_names[MONOLITH_COSTED(place)], 5u);
+            mmgr_line_put(output_line, "           ");
+            mmgr_line_fixed(output_line, (double)(s_mean[place]), 4u, 8u, EMBED_FALSE);
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_fixed(output_line, (double)(s_m[place]), 4u, 8u, EMBED_FALSE);
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_fixed(output_line, (double)(s_s[place]), 4u, 8u, EMBED_FALSE);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         spread_alone = (s_s[place] > spread_alone) ? s_s[place] : spread_alone;
     }
-    printf("  s alone, the largest spread of the singles: %.4f\n", spread_alone);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  s alone, the largest spread of the singles: ");
+        mmgr_line_fixed(output_line, (double)(spread_alone), 4u, 0u, EMBED_FALSE);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     // The singles ranked by their least, each delta to the next read as a state of gnascor's branch pair. Inside s the
     // two are one cost, a slice inside the floor, dual or gray (which of the two is gnascor's Open 4). Past s the row's
@@ -269,47 +336,102 @@ static int monolith_costs(CUfunction entry, unsigned int turns, unsigned int cos
         }
         order[at] = place;
     }
-    printf("  alone, ranked by least m, each delta to the next read against s: dual/gray inside it, lead past it\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(
+            output_line,
+            "  alone, ranked by least m, each delta to the next read against s: dual/gray inside it, lead past it");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     for (unsigned int rank = 0u; rank < MONOLITH_COSTED_COUNT; rank += 1u)
     {
         const unsigned int place = order[rank];
         if ((rank + 1u) == MONOLITH_COSTED_COUNT)
         {
-            printf("    %-5s %8.4f\n", s_names[MONOLITH_COSTED(place)], s_m[place]);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "    ");
+                mmgr_line_put_columns(output_line, s_names[MONOLITH_COSTED(place)], 5u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_fixed(output_line, (double)(s_m[place]), 4u, 8u, EMBED_FALSE);
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             continue;
         }
         const unsigned int next = order[rank + 1u];
         const double delta = s_m[next] - s_m[place];
-        printf("    %-5s %8.4f  +%.4f to %-5s %s\n", s_names[MONOLITH_COSTED(place)], s_m[place], delta,
-               s_names[MONOLITH_COSTED(next)], (delta > spread_alone) ? "lead" : "dual/gray");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    ");
+            mmgr_line_put_columns(output_line, s_names[MONOLITH_COSTED(place)], 5u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_fixed(output_line, (double)(s_m[place]), 4u, 8u, EMBED_FALSE);
+            mmgr_line_put(output_line, "  +");
+            mmgr_line_fixed(output_line, (double)(delta), 4u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, " to ");
+            mmgr_line_put_columns(output_line, s_names[MONOLITH_COSTED(next)], 5u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put(output_line, (delta > spread_alone) ? "lead" : "dual/gray");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 
     // the pairs by their least, against the singles' least
     const double *const alone = s_m;
     double spread_pairs = 0.0;
-    printf("  interleaved, least m a step of each, the row's precept with the column's:\n       ");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line,
+                      "  interleaved, least m a step of each, the row's precept with the column's:\n       ");
+        platform_line_out_ended();
+    }
     for (unsigned int second = 0u; second < MONOLITH_COSTED_COUNT; second += 1u)
     {
-        printf(" %6s", s_names[MONOLITH_COSTED(second)]);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, s_names[MONOLITH_COSTED(second)], 6u);
+        platform_line_out_ended();
     }
-    printf("\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     unsigned int side_by_side = 0u;
     unsigned int one_after = 0u;
     unsigned int between = 0u;
     for (unsigned int first = 0u; first < MONOLITH_COSTED_COUNT; first += 1u)
     {
-        printf("    %-5s", s_names[MONOLITH_COSTED(first)]);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    ");
+            mmgr_line_put_columns(output_line, s_names[MONOLITH_COSTED(first)], 5u);
+            platform_line_out_ended();
+        }
         for (unsigned int second = 0u; second < MONOLITH_COSTED_COUNT; second += 1u)
         {
             if (second < first)
             {
-                printf(" %6s", "");
+                {
+                    VerbaLinea *const output_line = platform_line_out();
+                    mmgr_line_put(output_line, " ");
+                    mmgr_line_put_right(output_line, "", 6u);
+                    platform_line_out_ended();
+                }
                 continue;
             }
             const unsigned int section = MONOLITH_PAIR_SECTION(first, second);
             const double paired = s_m[section];
             spread_pairs = (s_s[section] > spread_pairs) ? s_s[section] : spread_pairs;
-            printf(" %6.2f", paired);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, " ");
+                mmgr_line_fixed(output_line, (double)(paired), 2u, 6u, EMBED_FALSE);
+                platform_line_out_ended();
+            }
             const double dearer = (alone[first] > alone[second]) ? alone[first] : alone[second];
             const double cheaper = (alone[first] > alone[second]) ? alone[second] : alone[first];
             // a pair is read only where both its precepts cost a cycle a step or more alone
@@ -321,13 +443,31 @@ static int monolith_costs(CUfunction entry, unsigned int turns, unsigned int cos
                 between += ((share >= MONOLITH_SIDE_BY_SIDE) && (share <= MONOLITH_ONE_AFTER)) ? 1u : 0u;
             }
         }
-        printf("\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
-    printf(
-        "  of the pairs whose precepts each cost a cycle a step or more: %u run side by side, %u one after the other, "
-        "%u between\n",
-        side_by_side, one_after, between);
-    printf("  s interleaved, the largest spread of the pairs: %.4f\n", spread_pairs);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  of the pairs whose precepts each cost a cycle a step or more: ");
+        mmgr_line_decimal(output_line, side_by_side, 1u);
+        mmgr_line_put(output_line, " run side by side, ");
+        mmgr_line_decimal(output_line, one_after, 1u);
+        mmgr_line_put(output_line, " one after the other, ");
+        mmgr_line_decimal(output_line, between, 1u);
+        mmgr_line_put(output_line, " between");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  s interleaved, the largest spread of the pairs: ");
+        mmgr_line_fixed(output_line, (double)(spread_pairs), 4u, 0u, EMBED_FALSE);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 1;
 }
 
@@ -378,7 +518,16 @@ int program_main(int count_of_words, char **words)
     }
     const int answered = monolith_answers(answers, in, out, runs, words[1]);
     const int costed = (answered != 0) && monolith_costs(costs, turns, cost_runs);
-    printf("  monolith: %u checks, %u failed\n", s_checks, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  monolith: ");
+        mmgr_line_decimal(output_line, s_checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, s_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     cuMemFree(in);
     cuMemFree(out);
     cuModuleUnload(module);

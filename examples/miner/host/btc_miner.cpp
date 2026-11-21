@@ -21,6 +21,7 @@
 #include <ws2tcpip.h>
 
 #include "cuda_miner.h"
+#include "../../../src/platform/platform.h"
 #include "json_value.h"
 #include "sha256_core.h"
 
@@ -211,8 +212,7 @@ void write_header_field(uint8_t *field, uint32_t value)
  */
 uint32_t schedule_word_from_header(const uint8_t *bytes)
 {
-    return ((uint32_t)bytes[0] << 24) | ((uint32_t)bytes[1] << 16) | ((uint32_t)bytes[2] << 8) |
-           (uint32_t)bytes[3];
+    return ((uint32_t)bytes[0] << 24) | ((uint32_t)bytes[1] << 16) | ((uint32_t)bytes[2] << 8) | (uint32_t)bytes[3];
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -284,8 +284,8 @@ std::vector<FoundShare> g_pending_shares;
  * @note Every hash here stays in internal order. The branch entries concatenate as sent, and the
  *       root drops into the header as computed. Thus nothing in this function reverses anything.
  */
-void merkle_root_from_coinbase(const std::vector<uint8_t> &coinbase,
-                               const std::vector<std::string> &branch_hex, uint8_t *merkle_root)
+void merkle_root_from_coinbase(const std::vector<uint8_t> &coinbase, const std::vector<std::string> &branch_hex,
+                               uint8_t *merkle_root)
 {
     sha256_double_hash(coinbase.data(), coinbase.size(), merkle_root);
 
@@ -316,8 +316,8 @@ void merkle_root_from_coinbase(const std::vector<uint8_t> &coinbase,
  *       reversal of each word recovers the header field. A reversal of the whole field yields a hash
  *       three zero characters short of the current target. A live job confirms this.
  */
-bool build_header(const MiningJob &job, const std::string &extranonce1_hex,
-                  const std::string &extranonce2_hex, uint8_t *header)
+bool build_header(const MiningJob &job, const std::string &extranonce1_hex, const std::string &extranonce2_hex,
+                  uint8_t *header)
 {
     const std::vector<uint8_t> prevhash = bytes_from_hex(job.prevhash_hex);
     const std::vector<uint8_t> coinbase_head = bytes_from_hex(job.coinbase_head_hex);
@@ -335,8 +335,7 @@ bool build_header(const MiningJob &job, const std::string &extranonce1_hex,
     }
 
     std::vector<uint8_t> coinbase;
-    coinbase.reserve(coinbase_head.size() + extranonce1.size() + extranonce2.size() +
-                     coinbase_tail.size());
+    coinbase.reserve(coinbase_head.size() + extranonce1.size() + extranonce2.size() + coinbase_tail.size());
     coinbase.insert(coinbase.end(), coinbase_head.begin(), coinbase_head.end());
     coinbase.insert(coinbase.end(), extranonce1.begin(), extranonce1.end());
     coinbase.insert(coinbase.end(), extranonce2.begin(), extranonce2.end());
@@ -429,10 +428,9 @@ LifetimeTotals load_totals()
     {
         return held;
     }
-    if (std::fscanf(handle, "%llu %llu %llu %llu %llu %lf %llu",
-                    (unsigned long long *)&held.hashes, (unsigned long long *)&held.anchors,
-                    (unsigned long long *)&held.submitted, (unsigned long long *)&held.accepted,
-                    (unsigned long long *)&held.rejected, &held.seconds,
+    if (std::fscanf(handle, "%llu %llu %llu %llu %llu %lf %llu", (unsigned long long *)&held.hashes,
+                    (unsigned long long *)&held.anchors, (unsigned long long *)&held.submitted,
+                    (unsigned long long *)&held.accepted, (unsigned long long *)&held.rejected, &held.seconds,
                     (unsigned long long *)&held.runs) != 7)
     {
         // A truncated file, or a file with a bad form, starts over. It does not carry half a total forward.
@@ -450,10 +448,9 @@ void save_totals(const LifetimeTotals &held)
     {
         return;
     }
-    std::fprintf(handle, "%llu %llu %llu %llu %llu %.3f %llu\n",
-                 (unsigned long long)held.hashes, (unsigned long long)held.anchors,
-                 (unsigned long long)held.submitted, (unsigned long long)held.accepted,
-                 (unsigned long long)held.rejected, held.seconds,
+    std::fprintf(handle, "%llu %llu %llu %llu %llu %.3f %llu\n", (unsigned long long)held.hashes,
+                 (unsigned long long)held.anchors, (unsigned long long)held.submitted,
+                 (unsigned long long)held.accepted, (unsigned long long)held.rejected, held.seconds,
                  (unsigned long long)held.runs);
     std::fclose(handle);
 }
@@ -482,7 +479,10 @@ void mining_worker(int worker_index)
         device = cuda_miner_create(DEVICE_FOUND_LIMIT);
         if (device == nullptr)
         {
-            std::printf("device refused a context; worker 0 falls back to the eight-lane arm\n");
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "device refused a context; worker 0 falls back to the eight-lane arm");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
     }
 
@@ -516,8 +516,7 @@ void mining_worker(int worker_index)
                 sha256_share_target_from_difficulty(share_target, g_state.difficulty);
             }
 
-            const uint64_t counter =
-                g_state.extranonce2_counter.load(std::memory_order_relaxed);
+            const uint64_t counter = g_state.extranonce2_counter.load(std::memory_order_relaxed);
             std::string counter_hex = hex_from_word((uint32_t)counter);
             size_t needed = 0u;
             {
@@ -542,8 +541,7 @@ void mining_worker(int worker_index)
             request.nbits = schedule_word_from_header(header + 72u);
             request.abandon = &g_state.abandon;
             std::memcpy(request.share_target, share_target, sizeof(share_target));
-            sha256_target_from_nbits(block_target,
-                                     (uint32_t)std::stoul(job.nbits_hex, nullptr, 16));
+            sha256_target_from_nbits(block_target, (uint32_t)std::stoul(job.nbits_hex, nullptr, 16));
             header_ready = true;
         }
 
@@ -557,8 +555,7 @@ void mining_worker(int worker_index)
         // Two million nonces is a millisecond of work at 2 GH/s, and the round trip costs more than
         // that. All workers share the cursor. A device worker simply claims more of it per turn.
         const uint64_t chunk = (device != nullptr) ? DEVICE_NONCE_CHUNK : NONCE_CHUNK;
-        const uint64_t claimed =
-            g_state.nonce_cursor.fetch_add(chunk, std::memory_order_relaxed);
+        const uint64_t claimed = g_state.nonce_cursor.fetch_add(chunk, std::memory_order_relaxed);
         if (claimed >= 0x100000000ULL)
         {
             // This extranonce2 has no nonce space left. Roll it and let every worker rebuild.
@@ -573,8 +570,7 @@ void mining_worker(int worker_index)
         }
 
         request.nonce_start = (uint32_t)claimed;
-        request.nonce_count =
-            (uint32_t)((claimed + chunk > 0x100000000ULL) ? (0x100000000ULL - claimed) : chunk);
+        request.nonce_count = (uint32_t)((claimed + chunk > 0x100000000ULL) ? (0x100000000ULL - claimed) : chunk);
 
         Sha256ScanResult result;
 
@@ -589,14 +585,13 @@ void mining_worker(int worker_index)
             parameters.merkle_root_tail = request.merkle_root_tail;
             parameters.ntime = request.ntime;
             parameters.nbits = request.nbits;
-            std::memcpy(parameters.share_target, request.share_target,
-                        sizeof(parameters.share_target));
+            std::memcpy(parameters.share_target, request.share_target, sizeof(parameters.share_target));
             parameters.anchor_is_sound = (request.share_target[0] == 0u) ? 1u : 0u;
 
             uint32_t found_nonces[DEVICE_FOUND_LIMIT];
             uint32_t found_count = 0u;
-            const int launched = cuda_miner_scan(device, &parameters, request.nonce_start,
-                                                 request.nonce_count, found_nonces, &found_count);
+            const int launched = cuda_miner_scan(device, &parameters, request.nonce_start, request.nonce_count,
+                                                 found_nonces, &found_count);
             if (launched == 0)
             {
                 // A failed launch is not a scanned range. A count of it would inflate the rate and
@@ -643,9 +638,14 @@ void mining_worker(int worker_index)
         {
             // The scan claimed a share, and the plain double hash does not agree. Report it and
             // send nothing. A disagreement between the two is a defect, and not a share.
-            std::printf("\n[DEFECT] scan reported nonce %u which independent verification "
-                        "rejects. Not submitting.\n",
-                        result.winning_nonce);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "\n[DEFECT] scan reported nonce ");
+                mmgr_line_decimal(output_line, result.winning_nonce, 1u);
+                mmgr_line_put(output_line, " which independent verification rejects. Not submitting.");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             continue;
         }
 
@@ -686,8 +686,7 @@ bool send_payload(SOCKET connection, const std::string &payload)
 
     while (sent_total < payload.size())
     {
-        const int sent = send(connection, payload.data() + sent_total,
-                              (int)(payload.size() - sent_total), 0);
+        const int sent = send(connection, payload.data() + sent_total, (int)(payload.size() - sent_total), 0);
         if (sent == SOCKET_ERROR)
         {
             return false;
@@ -771,12 +770,36 @@ void report_job(const MiningJob &job)
         leading_zeros += 1u;
     }
 
-    std::printf("\n[JOB] %s  branch %zu  ntime %s  nbits %s\n", job.job_id.c_str(),
-                job.merkle_branch_hex.size(), job.ntime_hex.c_str(), job.nbits_hex.c_str());
-    std::printf("      previous block %s\n", previous_block.c_str());
-    std::printf("      leading zeros %zu %s\n", leading_zeros,
-                (leading_zeros >= 15u) ? "(consistent with a real chain tip)"
-                                       : "(TOO FEW: prevhash byte order is wrong)");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n[JOB] ");
+        mmgr_line_put(output_line, job.job_id.c_str());
+        mmgr_line_put(output_line, "  branch ");
+        mmgr_line_decimal(output_line, job.merkle_branch_hex.size(), 1u);
+        mmgr_line_put(output_line, "  ntime ");
+        mmgr_line_put(output_line, job.ntime_hex.c_str());
+        mmgr_line_put(output_line, "  nbits ");
+        mmgr_line_put(output_line, job.nbits_hex.c_str());
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "      previous block ");
+        mmgr_line_put(output_line, previous_block.c_str());
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "      leading zeros ");
+        mmgr_line_decimal(output_line, leading_zeros, 1u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put(output_line, (leading_zeros >= 15u) ? "(consistent with a real chain tip)"
+                                                          : "(TOO FEW: prevhash byte order is wrong)");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
 /**
@@ -791,8 +814,7 @@ void report_job(const MiningJob &job)
  *       difficulty the same job declares. A header assembled wrongly still hashes; it just hashes
  *       to noise, and noise does not sit near a target.
  */
-bool dry_run_check_job(const MiningJob &job, const std::string &extranonce1_hex,
-                       size_t extranonce2_size)
+bool dry_run_check_job(const MiningJob &job, const std::string &extranonce1_hex, size_t extranonce2_size)
 {
     uint8_t header[BITCOIN_HEADER_BYTES];
     const std::string extranonce2_hex(extranonce2_size * 2u, '0');
@@ -800,11 +822,22 @@ bool dry_run_check_job(const MiningJob &job, const std::string &extranonce1_hex,
 
     if (!build_header(job, extranonce1_hex, extranonce2_hex, header))
     {
-        std::printf("      [FAIL] header could not be assembled\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "      [FAIL] header could not be assembled");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return false;
     }
 
-    std::printf("      header      %s\n", hex_from_bytes(header, BITCOIN_HEADER_BYTES).c_str());
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "      header      ");
+        mmgr_line_put(output_line, hex_from_bytes(header, BITCOIN_HEADER_BYTES).c_str());
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     // The merkle root must not be all zeros or the literal the old client used.
     bool merkle_is_zero = true;
@@ -815,34 +848,72 @@ bool dry_run_check_job(const MiningJob &job, const std::string &extranonce1_hex,
             merkle_is_zero = false;
         }
     }
-    std::printf("      merkle root %s  %s\n", hex_from_bytes(header + 36u, 32u).c_str(),
-                merkle_is_zero ? "[FAIL] all zero" : "[ok]");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "      merkle root ");
+        mmgr_line_put(output_line, hex_from_bytes(header + 36u, 32u).c_str());
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, merkle_is_zero ? "[FAIL] all zero" : "[ok]");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     all_held = all_held && !merkle_is_zero;
 
     // The version, ntime and nbits must round-trip back to what the pool sent.
-    const uint32_t version_back = (uint32_t)header[0] | ((uint32_t)header[1] << 8) |
-                                  ((uint32_t)header[2] << 16) | ((uint32_t)header[3] << 24);
-    const uint32_t nbits_back = (uint32_t)header[72] | ((uint32_t)header[73] << 8) |
-                                ((uint32_t)header[74] << 16) | ((uint32_t)header[75] << 24);
+    const uint32_t version_back =
+        (uint32_t)header[0] | ((uint32_t)header[1] << 8) | ((uint32_t)header[2] << 16) | ((uint32_t)header[3] << 24);
+    const uint32_t nbits_back = (uint32_t)header[72] | ((uint32_t)header[73] << 8) | ((uint32_t)header[74] << 16) |
+                                ((uint32_t)header[75] << 24);
     const bool version_ok = (version_back == (uint32_t)std::stoul(job.version_hex, nullptr, 16));
     const bool nbits_ok = (nbits_back == (uint32_t)std::stoul(job.nbits_hex, nullptr, 16));
-    std::printf("      version     %08x  %s\n", version_back, version_ok ? "[ok]" : "[FAIL]");
-    std::printf("      nbits       %08x  %s\n", nbits_back, nbits_ok ? "[ok]" : "[FAIL]");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "      version     ");
+        mmgr_line_hex(output_line, version_back, 8u);
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, version_ok ? "[ok]" : "[FAIL]");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "      nbits       ");
+        mmgr_line_hex(output_line, nbits_back, 8u);
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, nbits_ok ? "[ok]" : "[FAIL]");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     all_held = all_held && version_ok && nbits_ok;
 
     // The declared difficulty has to be a sane network number. A misread nbits gives an absurd one.
     uint32_t block_target[SHA256_STATE_WORDS];
     sha256_target_from_nbits(block_target, nbits_back);
     const bool target_ok = (block_target[0] == 0u) && (block_target[1] != 0u || block_target[2] != 0u);
-    std::printf("      net target  %08x%08x%08x...  %s\n", block_target[0], block_target[1],
-                block_target[2], target_ok ? "[ok]" : "[FAIL] nbits did not expand sanely");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "      net target  ");
+        mmgr_line_hex(output_line, block_target[0], 8u);
+        mmgr_line_hex(output_line, block_target[1], 8u);
+        mmgr_line_hex(output_line, block_target[2], 8u);
+        mmgr_line_put(output_line, "...  ");
+        mmgr_line_put(output_line, target_ok ? "[ok]" : "[FAIL] nbits did not expand sanely");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     all_held = all_held && target_ok;
 
     // Hash the header once. A single nonce should not meet the target. But the digest must have a
     // good form, and the scan path must agree with the plain double hash on the same input.
     uint8_t digest[32];
     sha256_double_hash(header, BITCOIN_HEADER_BYTES, digest);
-    std::printf("      hash@nonce0 %s\n", block_hash_from_digest(digest).c_str());
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "      hash@nonce0 ");
+        mmgr_line_put(output_line, block_hash_from_digest(digest).c_str());
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     Sha256ScanRequest request;
     std::memset(&request, 0, sizeof(request));
@@ -859,8 +930,13 @@ bool dry_run_check_job(const MiningJob &job, const std::string &extranonce1_hex,
     Sha256ScanResult result;
     sha256_scan_scalar(&request, &result);
     const bool scan_agrees = (result.found != 0) && (result.winning_nonce == 0u);
-    std::printf("      scan path agrees with plain double hash: %s\n",
-                scan_agrees ? "[ok]" : "[FAIL]");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "      scan path agrees with plain double hash: ");
+        mmgr_line_put(output_line, scan_agrees ? "[ok]" : "[FAIL]");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     all_held = all_held && scan_agrees;
 
     return all_held;
@@ -868,7 +944,7 @@ bool dry_run_check_job(const MiningJob &job, const std::string &extranonce1_hex,
 
 } // namespace
 
-int main(int argument_count, char **arguments)
+int program_main(int argument_count, char **arguments)
 {
     std::string pool_hostname = DEFAULT_POOL_HOSTNAME;
     std::string pool_port = DEFAULT_POOL_PORT;
@@ -935,11 +1011,27 @@ int main(int argument_count, char **arguments)
         }
     }
 
-    std::printf("BTC\n");
-    std::printf("AVX2: %s\n", (sha256_has_avx2() != 0) ? "yes" : "no");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "BTC");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "AVX2: ");
+        mmgr_line_put(output_line, (sha256_has_avx2() != 0) ? "yes" : "no");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     if (sha256_has_avx2() == 0)
     {
-        std::printf("This build needs AVX2. Refusing to run a scalar miner.\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "This build needs AVX2. Refusing to run a scalar miner.");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
 
@@ -951,34 +1043,89 @@ int main(int argument_count, char **arguments)
     // refuse a correct configuration. An address pool still needs the address.
     if (g_payout_address.empty() && g_stratum_user.empty() && !g_dry_run)
     {
-        std::printf("\nNo identity given. Pass --address <your bitcoin address> for a pool that\n");
-        std::printf("pays an address, such as ckpool or Ocean, or --user <account.worker> for one\n");
-        std::printf("that pays an account, such as Braiins.\n");
-        std::printf("Refusing to mine without one. Pass --dry-run to exercise the job path\n");
-        std::printf("without authorizing, mining or submitting.\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "\nNo identity given. Pass --address <your bitcoin address> for a pool that");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "pays an address, such as ckpool or Ocean, or --user <account.worker> for one");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "that pays an account, such as Braiins.");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "Refusing to mine without one. Pass --dry-run to exercise the job path");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "without authorizing, mining or submitting.");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     if (g_payout_address == KNOWN_EXAMPLE_ADDRESS)
     {
-        std::printf("\nThat is the BIP-173 example address, not a wallet you control.\n");
-        std::printf("It was hardcoded in the previous version. Refusing to mine to it.\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "\nThat is the BIP-173 example address, not a wallet you control.");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "It was hardcoded in the previous version. Refusing to mine to it.");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
 
     if (!g_stratum_user.empty())
     {
-        std::printf("worker: %s\n", g_stratum_user.c_str());
-        std::printf("payout: set in the pool account, not by this client\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "worker: ");
+            mmgr_line_put(output_line, g_stratum_user.c_str());
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "payout: set in the pool account, not by this client");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         if (!g_payout_address.empty())
         {
             // Say so, and do not silently prefer one. An operator who passes both probably believes
             // that the address has an effect here. On an account pool, it has none.
-            std::printf("note:   --address is ignored on an account pool; the account decides\n");
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "note:   --address is ignored on an account pool; the account decides");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
         }
     }
     else
     {
-        std::printf("paying: %s\n", g_payout_address.c_str());
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "paying: ");
+        mmgr_line_put(output_line, g_payout_address.c_str());
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
 
     if (background_priority)
@@ -988,14 +1135,22 @@ int main(int argument_count, char **arguments)
         // much for a process with an open socket.
         if (SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS) != 0)
         {
-            std::printf("priority: below normal, so the desktop stays responsive\n");
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "priority: below normal, so the desktop stays responsive");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
     }
 
     WSADATA winsock;
     if (WSAStartup(MAKEWORD(2, 2), &winsock) != 0)
     {
-        std::printf("WSAStartup failed\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "WSAStartup failed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
 
@@ -1008,13 +1163,18 @@ int main(int argument_count, char **arguments)
 
     if (getaddrinfo(pool_hostname.c_str(), pool_port.c_str(), &hints, &resolved) != 0)
     {
-        std::printf("cannot resolve %s\n", pool_hostname.c_str());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "cannot resolve ");
+            mmgr_line_put(output_line, pool_hostname.c_str());
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         WSACleanup();
         return 1;
     }
 
-    const SOCKET connection =
-        socket(resolved->ai_family, resolved->ai_socktype, resolved->ai_protocol);
+    const SOCKET connection = socket(resolved->ai_family, resolved->ai_socktype, resolved->ai_protocol);
     if (connection == INVALID_SOCKET)
     {
         freeaddrinfo(resolved);
@@ -1025,13 +1185,25 @@ int main(int argument_count, char **arguments)
     BOOL nodelay = TRUE;
     setsockopt(connection, IPPROTO_TCP, TCP_NODELAY, (const char *)&nodelay, sizeof(nodelay));
     DWORD receive_timeout = 200;
-    setsockopt(connection, SOL_SOCKET, SO_RCVTIMEO, (const char *)&receive_timeout,
-               sizeof(receive_timeout));
+    setsockopt(connection, SOL_SOCKET, SO_RCVTIMEO, (const char *)&receive_timeout, sizeof(receive_timeout));
 
-    std::printf("connecting to %s:%s\n", pool_hostname.c_str(), pool_port.c_str());
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "connecting to ");
+        mmgr_line_put(output_line, pool_hostname.c_str());
+        mmgr_line_put(output_line, ":");
+        mmgr_line_put(output_line, pool_port.c_str());
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     if (connect(connection, resolved->ai_addr, (int)resolved->ai_addrlen) == SOCKET_ERROR)
     {
-        std::printf("connect failed\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "connect failed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         closesocket(connection);
         freeaddrinfo(resolved);
         WSACleanup();
@@ -1039,13 +1211,11 @@ int main(int argument_count, char **arguments)
     }
     freeaddrinfo(resolved);
 
-    send_payload(connection,
-                 "{\"id\":1,\"method\":\"mining.subscribe\",\"params\":[\"btc/0.1\"]}\r\n");
+    send_payload(connection, "{\"id\":1,\"method\":\"mining.subscribe\",\"params\":[\"btc/0.1\"]}\r\n");
     if (!g_dry_run)
     {
-        send_payload(connection,
-                     std::string("{\"id\":2,\"method\":\"mining.authorize\",\"params\":[\"") +
-                         stratum_identity() + "\",\"x\"]}\r\n");
+        send_payload(connection, std::string("{\"id\":2,\"method\":\"mining.authorize\",\"params\":[\"") +
+                                     stratum_identity() + "\",\"x\"]}\r\n");
 
         // Ask for a difficulty this hash rate actually produces shares at. Vardiff aims at roughly
         // one share every ten to thirty seconds; the pool is free to ignore this and its own
@@ -1058,23 +1228,29 @@ int main(int argument_count, char **arguments)
                           "\r\n",
                           suggested_difficulty);
             send_payload(connection, request);
-            std::printf("suggested difficulty: %.4f\n", suggested_difficulty);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "suggested difficulty: ");
+                mmgr_line_fixed(output_line, (double)(suggested_difficulty), 4u, 0u, EMBED_FALSE);
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
         }
     }
 
     // Leave one thread for the person at the machine. A miner that takes every core makes the
     // desktop unusable. The last core is worth less than the ability to type. Override with
     // --threads on a dedicated box.
-    const unsigned available = (std::thread::hardware_concurrency() > 0u)
-                                   ? std::thread::hardware_concurrency()
-                                   : 8u;
+    const unsigned available = (std::thread::hardware_concurrency() > 0u) ? std::thread::hardware_concurrency() : 8u;
     const unsigned worker_count =
         (requested_threads > 0u) ? requested_threads : ((available > 1u) ? (available - 1u) : 1u);
     std::vector<std::thread> workers;
     if (g_dry_run)
     {
-        std::printf("DRY RUN: subscribing and parsing only. Not authorizing, mining or "
-                    "submitting.\n");
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "DRY RUN: subscribing and parsing only. Not authorizing, mining or submitting.");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     else
     {
@@ -1083,7 +1259,13 @@ int main(int argument_count, char **arguments)
         {
             workers.emplace_back(mining_worker, (int)index);
         }
-        std::printf("workers: %u\n", worker_count);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "workers: ");
+            mmgr_line_decimal(output_line, worker_count, 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 
     std::string inbound;
@@ -1100,10 +1282,22 @@ int main(int argument_count, char **arguments)
     uint64_t last_hashes = 0u;
     if (lifetime.runs > 0u)
     {
-        std::printf("lifetime: %.1f hours, %.2f TH, %llu anchors, %llu/%llu shares over %llu runs\n",
-                    lifetime.seconds / 3600.0, (double)lifetime.hashes / 1.0e12,
-                    (unsigned long long)lifetime.anchors, (unsigned long long)lifetime.accepted,
-                    (unsigned long long)lifetime.submitted, (unsigned long long)lifetime.runs);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "lifetime: ");
+        mmgr_line_fixed(output_line, (double)(lifetime.seconds / 3600.0), 1u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " hours, ");
+        mmgr_line_fixed(output_line, (double)((double)lifetime.hashes / 1.0e12), 2u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " TH, ");
+        mmgr_line_decimal(output_line, (unsigned long long)lifetime.anchors, 1u);
+        mmgr_line_put(output_line, " anchors, ");
+        mmgr_line_decimal(output_line, (unsigned long long)lifetime.accepted, 1u);
+        mmgr_line_put(output_line, "/");
+        mmgr_line_decimal(output_line, (unsigned long long)lifetime.submitted, 1u);
+        mmgr_line_put(output_line, " shares over ");
+        mmgr_line_decimal(output_line, (unsigned long long)lifetime.runs, 1u);
+        mmgr_line_put(output_line, " runs");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     // The count goes here, and every periodic save carries it forward. An increment of a copy
     // would let the next report write back the old value, and the run count would never rise.
@@ -1167,10 +1361,14 @@ int main(int argument_count, char **arguments)
                                 extranonce1_hex = g_state.extranonce1_hex;
                                 extranonce2_size = g_state.extranonce2_size;
                             }
-                            const bool held_up =
-                                dry_run_check_job(job, extranonce1_hex, extranonce2_size);
-                            std::printf("\n  DRY RUN RESULT: %s\n",
-                                        held_up ? "every check held" : "CHECKS FAILED");
+                            const bool held_up = dry_run_check_job(job, extranonce1_hex, extranonce2_size);
+                            {
+                                VerbaLinea *const output_line = platform_line_out();
+                                mmgr_line_put(output_line, "\n  DRY RUN RESULT: ");
+                                mmgr_line_put(output_line, held_up ? "every check held" : "CHECKS FAILED");
+                                mmgr_line_ch(output_line, '\n');
+                                platform_line_out_ended();
+                            }
                             g_state.running.store(false, std::memory_order_relaxed);
                             closesocket(connection);
                             WSACleanup();
@@ -1189,7 +1387,13 @@ int main(int argument_count, char **arguments)
                             g_state.difficulty = params.at(0).number;
                         }
                         g_state.generation.fetch_add(1u, std::memory_order_release);
-                        std::printf("\n[DIFF] share difficulty %.4f\n", params.at(0).number);
+                        {
+                            VerbaLinea *const output_line = platform_line_out();
+                            mmgr_line_put(output_line, "\n[DIFF] share difficulty ");
+                            mmgr_line_fixed(output_line, (double)(params.at(0).number), 4u, 0u, EMBED_FALSE);
+                            mmgr_line_ch(output_line, '\n');
+                            platform_line_out_ended();
+                        }
                     }
                     continue;
                 }
@@ -1209,8 +1413,16 @@ int main(int argument_count, char **arguments)
                         {
                             g_state.extranonce2_size = (size_t)outcome.at(2).number;
                         }
-                        std::printf("[SUBSCRIBE] extranonce1 %s, extranonce2 %zu bytes\n",
-                                    g_state.extranonce1_hex.c_str(), g_state.extranonce2_size);
+                        {
+                            VerbaLinea *const output_line = platform_line_out();
+                            mmgr_line_put(output_line, "[SUBSCRIBE] extranonce1 ");
+                            mmgr_line_put(output_line, g_state.extranonce1_hex.c_str());
+                            mmgr_line_put(output_line, ", extranonce2 ");
+                            mmgr_line_decimal(output_line, g_state.extranonce2_size, 1u);
+                            mmgr_line_put(output_line, " bytes");
+                            mmgr_line_ch(output_line, '\n');
+                            platform_line_out_ended();
+                        }
                     }
                     continue;
                 }
@@ -1220,8 +1432,16 @@ int main(int argument_count, char **arguments)
                     if ((outcome.kind == JsonKind::Boolean) && outcome.boolean)
                     {
                         accepted += 1u;
-                        std::printf("\n[SHARE] accepted (%llu of %llu)\n",
-                                    (unsigned long long)accepted, (unsigned long long)submitted);
+                        {
+                            VerbaLinea *const output_line = platform_line_out();
+                            mmgr_line_put(output_line, "\n[SHARE] accepted (");
+                            mmgr_line_decimal(output_line, (unsigned long long)accepted, 1u);
+                            mmgr_line_put(output_line, " of ");
+                            mmgr_line_decimal(output_line, (unsigned long long)submitted, 1u);
+                            mmgr_line_put(output_line, ")");
+                            mmgr_line_ch(output_line, '\n');
+                            platform_line_out_ended();
+                        }
                     }
                     else
                     {
@@ -1238,7 +1458,13 @@ int main(int argument_count, char **arguments)
                                 }
                             }
                         }
-                        std::printf("\n[SHARE] REJECTED: %s\n", reason.c_str());
+                        {
+                            VerbaLinea *const output_line = platform_line_out();
+                            mmgr_line_put(output_line, "\n[SHARE] REJECTED: ");
+                            mmgr_line_put(output_line, reason.c_str());
+                            mmgr_line_ch(output_line, '\n');
+                            platform_line_out_ended();
+                        }
                     }
                     continue;
                 }
@@ -1246,7 +1472,12 @@ int main(int argument_count, char **arguments)
         }
         else if (received == 0)
         {
-            std::printf("\npool closed the connection\n");
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "\npool closed the connection");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             break;
         }
         else
@@ -1254,7 +1485,14 @@ int main(int argument_count, char **arguments)
             const int failure = WSAGetLastError();
             if ((failure != WSAETIMEDOUT) && (failure != WSAEWOULDBLOCK))
             {
-                std::printf("\nreceive failed (%d)\n", failure);
+                {
+                    VerbaLinea *const output_line = platform_line_out();
+                    mmgr_line_put(output_line, "\nreceive failed (");
+                    mmgr_line_decimal_signed(output_line, failure);
+                    mmgr_line_put(output_line, ")");
+                    mmgr_line_ch(output_line, '\n');
+                    platform_line_out_ended();
+                }
                 break;
             }
         }
@@ -1266,19 +1504,28 @@ int main(int argument_count, char **arguments)
         }
         for (const FoundShare &share : outgoing)
         {
-            const std::string payload =
-                "{\"id\":" + std::to_string(next_submit_id) +
-                ",\"method\":\"mining.submit\",\"params\":[\"" + stratum_identity() + "\",\"" +
-                share.job_id + "\",\"" + share.extranonce2_hex + "\",\"" + share.ntime_hex +
-                "\",\"" + hex_from_word(share.nonce) + "\"]}\r\n";
+            const std::string payload = "{\"id\":" + std::to_string(next_submit_id) +
+                                        ",\"method\":\"mining.submit\",\"params\":[\"" + stratum_identity() + "\",\"" +
+                                        share.job_id + "\",\"" + share.extranonce2_hex + "\",\"" + share.ntime_hex +
+                                        "\",\"" + hex_from_word(share.nonce) + "\"]}\r\n";
             next_submit_id += 1u;
             submitted += 1u;
 
-            std::printf("\n[SUBMIT] nonce %s  hash %s\n", hex_from_word(share.nonce).c_str(),
-                        share.block_hash.c_str());
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "\n[SUBMIT] nonce ");
+                mmgr_line_put(output_line, hex_from_word(share.nonce).c_str());
+                mmgr_line_put(output_line, "  hash ");
+                mmgr_line_put(output_line, share.block_hash.c_str());
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             if (share.meets_block_target)
             {
-                std::printf("[BLOCK] this hash meets the network target.\n");
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "[BLOCK] this hash meets the network target.");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
             }
             send_payload(connection, payload);
         }
@@ -1294,10 +1541,8 @@ int main(int argument_count, char **arguments)
             // The window rate. It says whether the device is healthy *now*. A lifetime average takes
             // many minutes to recover after another program shares the device for a few minutes.
             // Thus it reports a fault long after the fault ends, and hides a fault that just began.
-            const double window_seconds =
-                std::chrono::duration<double>(now - last_report).count();
-            const double window_rate =
-                (window_seconds > 0.0) ? ((double)(hashes - last_hashes) / window_seconds) : 0.0;
+            const double window_seconds = std::chrono::duration<double>(now - last_report).count();
+            const double window_rate = (window_seconds > 0.0) ? ((double)(hashes - last_hashes) / window_seconds) : 0.0;
 
             // The anchor count is a live correctness check, worth a display against its expected
             // value. A survivor is a one in 2^32 event. Thus the ratio of seen to expected stays
@@ -1307,18 +1552,41 @@ int main(int argument_count, char **arguments)
             const double anchor_ratio =
                 (anchors_due > 0.0) ? ((double)(lifetime.anchors + anchors) / anchors_due) : 0.0;
 
-            std::printf("\r[%.0fs] now %.0f  run %.0f MH/s  h %llu  anc %llu (%.2fx due)  "
-                        "sh %llu/%llu  | life %.1fh  %.2f TH  anc %llu  sh %llu/%llu -%llu   ",
-                        elapsed, window_rate / 1.0e6, rate / 1.0e6, (unsigned long long)hashes,
-                        (unsigned long long)anchors, anchor_ratio,
-                        (unsigned long long)accepted, (unsigned long long)submitted,
-                        (lifetime.seconds + elapsed) / 3600.0,
-                        (double)(lifetime.hashes + hashes) / 1.0e12,
-                        (unsigned long long)(lifetime.anchors + anchors),
-                        (unsigned long long)(lifetime.accepted + accepted),
-                        (unsigned long long)(lifetime.submitted + submitted),
-                        (unsigned long long)(lifetime.rejected + rejected));
-            std::fflush(stdout);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "\r[");
+                mmgr_line_fixed(output_line, (double)(elapsed), 0u, 0u, EMBED_FALSE);
+                mmgr_line_put(output_line, "s] now ");
+                mmgr_line_fixed(output_line, (double)(window_rate / 1.0e6), 0u, 0u, EMBED_FALSE);
+                mmgr_line_put(output_line, "  run ");
+                mmgr_line_fixed(output_line, (double)(rate / 1.0e6), 0u, 0u, EMBED_FALSE);
+                mmgr_line_put(output_line, " MH/s  h ");
+                mmgr_line_decimal(output_line, (unsigned long long)hashes, 1u);
+                mmgr_line_put(output_line, "  anc ");
+                mmgr_line_decimal(output_line, (unsigned long long)anchors, 1u);
+                mmgr_line_put(output_line, " (");
+                mmgr_line_fixed(output_line, (double)(anchor_ratio), 2u, 0u, EMBED_FALSE);
+                mmgr_line_put(output_line, "x due)  sh ");
+                mmgr_line_decimal(output_line, (unsigned long long)accepted, 1u);
+                mmgr_line_put(output_line, "/");
+                mmgr_line_decimal(output_line, (unsigned long long)submitted, 1u);
+                mmgr_line_put(output_line, "  | life ");
+                mmgr_line_fixed(output_line, (double)((lifetime.seconds + elapsed) / 3600.0), 1u, 0u, EMBED_FALSE);
+                mmgr_line_put(output_line, "h  ");
+                mmgr_line_fixed(output_line, (double)((double)(lifetime.hashes + hashes) / 1.0e12), 2u, 0u,
+                                EMBED_FALSE);
+                mmgr_line_put(output_line, " TH  anc ");
+                mmgr_line_decimal(output_line, (unsigned long long)(lifetime.anchors + anchors), 1u);
+                mmgr_line_put(output_line, "  sh ");
+                mmgr_line_decimal(output_line, (unsigned long long)(lifetime.accepted + accepted), 1u);
+                mmgr_line_put(output_line, "/");
+                mmgr_line_decimal(output_line, (unsigned long long)(lifetime.submitted + submitted), 1u);
+                mmgr_line_put(output_line, " -");
+                mmgr_line_decimal(output_line, (unsigned long long)(lifetime.rejected + rejected), 1u);
+                mmgr_line_put(output_line, "   ");
+                platform_line_out_ended();
+            }
+            platform_line_flushed();
 
             // Saved at every report, and not at exit. A kill ends a miner far more often than a
             // request to stop. Totals that survive only a clean shutdown do not survive.

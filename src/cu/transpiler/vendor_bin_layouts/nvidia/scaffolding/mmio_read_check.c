@@ -10,6 +10,7 @@
 // registers from that offset and prints each. Exit 0 where the read looks live, 1 where it does not, 2 where the
 // driver was not reached.
 #include "mmio_read.h"
+#include "../../../../../platform/platform.h"
 #include "../../../../engine/engine_note.h"
 
 #include <stdio.h>
@@ -18,7 +19,7 @@
 // the register at offset 0 of BAR0: the part's chip name, read to prove the aperture is live
 #define MMIO_CHECK_BOOT_0 0x0u
 
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
     const unsigned int offset = (count >= 2) ? (unsigned int)strtoul(words[1], NULL, 16) : MMIO_CHECK_BOOT_0;
     const unsigned int wanted = (count >= 3) ? (unsigned int)strtoul(words[2], NULL, 10) : 1u;
@@ -39,7 +40,14 @@ int main(int count, char **words)
     unsigned long long size = 0ULL;
     if (mmio_extent(device, &base, &size))
     {
-        printf("BAR0 mapped at 0x%llx, %llu bytes\n", base, size);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "BAR0 mapped at 0x");
+        mmgr_line_hex(output_line, base, 1u);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, size, 1u);
+        mmgr_line_put(output_line, " bytes");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     static unsigned int s_read[1024];
     const unsigned int capped = (wanted == 0u) ? 1u : ((wanted > 1024u) ? 1024u : wanted);
@@ -61,7 +69,13 @@ int main(int count, char **words)
     }
     for (unsigned int word = 0u; word < capped; word += 1u)
     {
-        printf("  0x%06x  %08x\n", offset + (word * 4u), s_read[word]);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  0x");
+        mmgr_line_hex(output_line, offset + (word * 4u), 6u);
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_hex(output_line, s_read[word], 8u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     const unsigned int boot = s_read[0];
     const int live = (boot != 0u) && (boot != 0xffffffffu);
@@ -74,8 +88,48 @@ int main(int count, char **words)
         const unsigned int implementation = (boot >> 20u) & 0xfu;
         const unsigned int major = (boot >> 4u) & 0xfu;
         const unsigned int minor = boot & 0xfu;
-        printf("PMC_BOOT_0 = %08x: architecture 0x%02x, implementation 0x%x, revision %X%X: the aperture is %s\n", boot,
-               architecture, implementation, major, minor, live ? "live" : "not reading the part");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "PMC_BOOT_0 = ");
+            mmgr_line_hex(output_line, boot, 8u);
+            mmgr_line_put(output_line, ": architecture 0x");
+            mmgr_line_hex(output_line, architecture, 2u);
+            mmgr_line_put(output_line, ", implementation 0x");
+            mmgr_line_hex(output_line, implementation, 1u);
+            mmgr_line_put(output_line, ", revision ");
+            {
+                char linea_piece[24u];
+                VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                mmgr_line_hex(&linea_piece_line, (uint64_t)(major), 1u);
+                const size_t linea_length = mmgr_line_finish(&linea_piece_line);
+                for (size_t linea_at = 0u; linea_at < linea_length; linea_at += 1u)
+                {
+                    if (linea_piece[linea_at] >= 'a')
+                    {
+                        linea_piece[linea_at] = (char)(linea_piece[linea_at] - ('a' - 'A'));
+                    }
+                }
+                (void)mmgr_line_put_n(output_line, linea_piece, linea_length);
+            }
+            {
+                char linea_piece[24u];
+                VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                mmgr_line_hex(&linea_piece_line, (uint64_t)(minor), 1u);
+                const size_t linea_length = mmgr_line_finish(&linea_piece_line);
+                for (size_t linea_at = 0u; linea_at < linea_length; linea_at += 1u)
+                {
+                    if (linea_piece[linea_at] >= 'a')
+                    {
+                        linea_piece[linea_at] = (char)(linea_piece[linea_at] - ('a' - 'A'));
+                    }
+                }
+                (void)mmgr_line_put_n(output_line, linea_piece, linea_length);
+            }
+            mmgr_line_put(output_line, ": the aperture is ");
+            mmgr_line_put(output_line, live ? "live" : "not reading the part");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     mmio_close(device);
     return live ? 0 : 1;

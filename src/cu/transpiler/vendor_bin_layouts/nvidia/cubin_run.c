@@ -95,6 +95,7 @@
 // vendor. Exit 0 where a line went out. Exit 2 where no writer of the run runs, or where the inputs, the machine or the
 // driver were out of reach.
 #include "cubin_run/cubin_run_internal.h"
+#include "../../../../platform/platform.h"
 #include "../../../engine/engine_note.h"
 #include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../../includes/parsers/line_read.h"
@@ -307,11 +308,27 @@ int program_main(int count, char **words)
     }
     cubin_run_lines_close(&list);
     // the carrier's account of where its time went over the list, a stage a clock, summed over every question
-    printf("carrier: %u questions; input %.3f s, gate %.3f s, load %.3f s, memory %.3f s, launch %.3f s, telemetry "
-           "%.3f s, passed %.3f s\n",
-           questions, (double)s_clocks.input / 1000000000.0, (double)s_clocks.gate / 1000000000.0,
-           (double)s_clocks.load / 1000000000.0, (double)s_clocks.memory / 1000000000.0,
-           (double)s_clocks.launch / 1000000000.0, (double)s_clocks.telemetry / 1000000000.0,
-           (double)s_clocks.passed / 1000000000.0);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "carrier: ");
+        mmgr_line_decimal(output_line, questions, 1u);
+        mmgr_line_put(output_line, " questions; input ");
+        mmgr_line_fixed(output_line, (double)((double)s_clocks.input / 1000000000.0), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " s, gate ");
+        mmgr_line_fixed(output_line, (double)((double)s_clocks.gate / 1000000000.0), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " s, load ");
+        mmgr_line_fixed(output_line, (double)((double)s_clocks.load / 1000000000.0), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " s, memory ");
+        mmgr_line_fixed(output_line, (double)((double)s_clocks.memory / 1000000000.0), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " s, launch ");
+        mmgr_line_fixed(output_line, (double)((double)s_clocks.launch / 1000000000.0), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " s, telemetry ");
+        mmgr_line_fixed(output_line, (double)((double)s_clocks.telemetry / 1000000000.0), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " s, passed ");
+        mmgr_line_fixed(output_line, (double)((double)s_clocks.passed / 1000000000.0), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " s");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (carried == 2) ? 2 : 0;
 }

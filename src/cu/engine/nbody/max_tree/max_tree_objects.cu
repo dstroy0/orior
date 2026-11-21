@@ -420,6 +420,13 @@ extern "C" void max_tree_profile_report(void)
 {
     for (unsigned int stage = 0u; (g_max_tree_profile > 0) && (stage < MAX_TREE_STAGES); stage += 1u)
     {
-        printf("    %-10s %8llu ms\n", MAX_TREE_STAGE_NAMES[stage], s_max_tree_stage_us[stage] / 1000ULL);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    ");
+        mmgr_line_put_columns(output_line, MAX_TREE_STAGE_NAMES[stage], 10u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line, s_max_tree_stage_us[stage] / 1000ULL, 8u);
+        mmgr_line_put(output_line, " ms");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
 }

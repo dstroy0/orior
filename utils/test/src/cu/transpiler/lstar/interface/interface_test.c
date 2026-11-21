@@ -6,6 +6,7 @@
 // interface retries from a fresh process. The first argument is interface_probe's path, the second a folder for the
 // probes' output
 #include "../../../../../../../src/cu/transpiler/lstar/interface/interface.h"
+#include "../../../../../../../src/platform/platform.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -61,7 +62,15 @@ static void interface_test_check(InterfaceTest *test, int passed, const char *wh
 {
     test->checks += 1u;
     test->failed += passed ? 0u : 1u;
-    printf("  %s %s\n", passed ? "ok  " : "FAIL", what);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, passed ? "ok  " : "FAIL");
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put(output_line, what);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
 // one probe run to its end, its answer printed whole; 0 where the interface itself failed
@@ -79,13 +88,43 @@ static int interface_test_probe(InterfaceTest *test, const char *name, char *con
     const long result = interface_probe_run(&probe, answer, &error);
     if (result != 0L)
     {
-        printf("  %s: the interface failed, module %d site %u status %d\n", name, (int)error.module, error.site,
-               error.status);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, name);
+            mmgr_line_put(output_line, ": the interface failed, module ");
+            mmgr_line_decimal_signed(output_line, (int)error.module);
+            mmgr_line_put(output_line, " site ");
+            mmgr_line_decimal(output_line, error.site, 1u);
+            mmgr_line_put(output_line, " status ");
+            mmgr_line_decimal_signed(output_line, error.status);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
-    printf("  %s: %s, code %llu (0x%llx), fault %s, %llu bytes of output, %llu.%06llu s\n", name,
-           interface_ending_name(answer->ending), answer->code, answer->code, interface_fault_name(answer->fault),
-           answer->output_bytes, answer->microseconds / 1000000ull, answer->microseconds % 1000000ull);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, name);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_put(output_line, interface_ending_name(answer->ending));
+        mmgr_line_put(output_line, ", code ");
+        mmgr_line_decimal(output_line, answer->code, 1u);
+        mmgr_line_put(output_line, " (0x");
+        mmgr_line_hex(output_line, answer->code, 1u);
+        mmgr_line_put(output_line, "), fault ");
+        mmgr_line_put(output_line, interface_fault_name(answer->fault));
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, answer->output_bytes, 1u);
+        mmgr_line_put(output_line, " bytes of output, ");
+        mmgr_line_decimal(output_line, answer->microseconds / 1000000ull, 1u);
+        mmgr_line_put(output_line, ".");
+        mmgr_line_decimal(output_line, answer->microseconds % 1000000ull, 6u);
+        mmgr_line_put(output_line, " s");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 1;
 }
 
@@ -147,7 +186,7 @@ static void interface_test_fresh(InterfaceTest *test, const char *after)
     interface_test_check(test, result && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ull), what);
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     if (count < 3)
     {
@@ -272,6 +311,15 @@ int main(int count, char **arguments)
     interface_test_check(&test, result && (answer.ending == INTERFACE_ENDING_NOT_STARTED),
                          "through a pipe, a program that is not there is not started");
 
-    printf("  interface test: %u checks, %u failed\n", test.checks, test.failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  interface test: ");
+        mmgr_line_decimal(output_line, test.checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, test.failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (test.failed == 0u) ? 0 : 1;
 }

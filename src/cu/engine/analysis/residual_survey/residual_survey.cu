@@ -92,21 +92,71 @@ void survey_report(void)
     {
         return;
     }
-    printf("\n  RESIDUAL SURVEY over %llu frames, %llu voxels:\n", s_survey_frames, s_survey_voxels);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n  RESIDUAL SURVEY over ");
+        mmgr_line_decimal(output_line, s_survey_frames, 1u);
+        mmgr_line_put(output_line, " frames, ");
+        mmgr_line_decimal(output_line, s_survey_voxels, 1u);
+        mmgr_line_put(output_line, " voxels:");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     const unsigned long long positive_tenths = (1000ULL * s_survey_positive) / s_survey_voxels;
-    printf("    positive voxels               %llu  (%llu.%llu%% of all)\n", s_survey_positive, positive_tenths / 10ULL,
-           positive_tenths % 10ULL);
-    printf("    limbs the residual reaches    %u of %u  (%u bits of 288)\n", s_survey_reached, ENGINE_RESIDUAL_LIMBS,
-           s_survey_reached * 32u);
-    printf("    distinct levels a frame contains least %llu, max %llu, mean %llu\n", s_survey_distinct_least,
-           s_survey_distinct_max, s_survey_distinct_sum / s_survey_frames);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    positive voxels               ");
+        mmgr_line_decimal(output_line, s_survey_positive, 1u);
+        mmgr_line_put(output_line, "  (");
+        mmgr_line_decimal(output_line, positive_tenths / 10ULL, 1u);
+        mmgr_line_put(output_line, ".");
+        mmgr_line_decimal(output_line, positive_tenths % 10ULL, 1u);
+        mmgr_line_ch(output_line, '%');
+        mmgr_line_put(output_line, " of all)");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    limbs the residual reaches    ");
+        mmgr_line_decimal(output_line, s_survey_reached, 1u);
+        mmgr_line_put(output_line, " of ");
+        mmgr_line_decimal(output_line, ENGINE_RESIDUAL_LIMBS, 1u);
+        mmgr_line_put(output_line, "  (");
+        mmgr_line_decimal(output_line, s_survey_reached * 32u, 1u);
+        mmgr_line_put(output_line, " bits of 288)");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    distinct levels a frame contains least ");
+        mmgr_line_decimal(output_line, s_survey_distinct_least, 1u);
+        mmgr_line_put(output_line, ", max ");
+        mmgr_line_decimal(output_line, s_survey_distinct_max, 1u);
+        mmgr_line_put(output_line, ", mean ");
+        mmgr_line_decimal(output_line, s_survey_distinct_sum / s_survey_frames, 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     unsigned int occupied = 0u;
     for (unsigned int band = 0u; band < DAMP_BANDS; band += 1u)
     {
         occupied += (unsigned int)(s_survey_rungs[band] != 0ULL);
     }
-    printf("    golden rungs occupied         %u\n", occupied);
-    printf("    voxels by rung, where a count banded flood would step:\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    golden rungs occupied         ");
+        mmgr_line_decimal(output_line, occupied, 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    voxels by rung, where a count banded flood would step:");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     for (unsigned int band = 0u; band < DAMP_BANDS; band += 1u)
     {
         if (s_survey_rungs[band] == 0ULL)
@@ -114,7 +164,33 @@ void survey_report(void)
             continue;
         }
         const unsigned long long hundredths = (10000ULL * s_survey_rungs[band]) / s_survey_positive;
-        printf("      rung %-3u from %-12llu %12llu voxels  %3llu.%02llu%%\n", band, band_floor(band),
-               s_survey_rungs[band], hundredths / 100ULL, hundredths % 100ULL);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "      rung ");
+            {
+                char linea_piece[24u];
+                VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                mmgr_line_decimal(&linea_piece_line, (uint64_t)(band), 1u);
+                (void)mmgr_line_finish(&linea_piece_line);
+                mmgr_line_put_columns(output_line, linea_piece, 3u);
+            }
+            mmgr_line_put(output_line, " from ");
+            {
+                char linea_piece[24u];
+                VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                mmgr_line_decimal(&linea_piece_line, (uint64_t)(band_floor(band)), 1u);
+                (void)mmgr_line_finish(&linea_piece_line);
+                mmgr_line_put_columns(output_line, linea_piece, 12u);
+            }
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_columns(output_line, s_survey_rungs[band], 12u);
+            mmgr_line_put(output_line, " voxels  ");
+            mmgr_line_decimal_columns(output_line, hundredths / 100ULL, 3u);
+            mmgr_line_put(output_line, ".");
+            mmgr_line_decimal(output_line, hundredths % 100ULL, 2u);
+            mmgr_line_ch(output_line, '%');
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }

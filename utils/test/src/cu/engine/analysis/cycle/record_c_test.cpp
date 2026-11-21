@@ -4,14 +4,14 @@
 // The record machine's lane as C source checked against the host oracle word for word, off the device (engine_table.md
 // item 11(f), C a language of the register lane). record_test's programs, drawn from the same stream in the same
 // order (record_image.h), are encoded, arranged and run by cycle_record_run_host; each is written as C by
-// code_generator("c.krs") (lstar/protocol/table/c.krs) into one translation unit with a host shim ahead of it, which writes
-// what NVRTC gives a device's C (__device__, __shared__, threadIdx, blockDim, atomicAdd) for one thread, and a bench
-// after it, which reads the memory image, turns its byte offsets into the host's addresses, runs every lane and writes the errors and
-// the records. The host's C++ compiler builds it and it runs in a work folder, and its records are compared with the
-// host's word for word. Its lines give the same input digests as the host test's. Each lane of at max
-// RECORD_C_TEXT_BYTES_MAX bytes is written again as the device writes it, on the host: the core's forms arranged as the
-// assembly printer's records and written by the host oracle (asm_printer.h), checked against the code generator's text
-// byte for byte.
+// code_generator("c.krs") (lstar/protocol/table/c.krs) into one translation unit with a host shim ahead of it, which
+// writes what NVRTC gives a device's C (__device__, __shared__, threadIdx, blockDim, atomicAdd) for one thread, and a
+// bench after it, which reads the memory image, turns its byte offsets into the host's addresses, runs every lane and
+// writes the errors and the records. The host's C++ compiler builds it and it runs in a work folder, and its records
+// are compared with the host's word for word. Its lines give the same input digests as the host test's. Each lane of at
+// max RECORD_C_TEXT_BYTES_MAX bytes is written again as the device writes it, on the host: the core's forms arranged as
+// the assembly printer's records and written by the host oracle (asm_printer.h), checked against the code generator's
+// text byte for byte.
 #include "asm_printer.h"
 #include "code_generator.h"
 #include "record_image.h"
@@ -44,11 +44,19 @@ static void c_check(CResults *results, int passed, const std::string &what)
 {
     results->checks += 1u;
     results->failed += passed ? 0u : 1u;
-    printf("  %s %s\n", passed ? "ok  " : "FAIL", what.c_str());
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, passed ? "ok  " : "FAIL");
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put(output_line, what.c_str());
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
-// what NVRTC gives a device's C, written for one thread on the host, and the launch as the prelude positions it out. The
-// program's resident kernel (c.krs, program_unit) compiles against it and is not run: the bench runs the lanes
+// what NVRTC gives a device's C, written for one thread on the host, and the launch as the prelude positions it out.
+// The program's resident kernel (c.krs, program_unit) compiles against it and is not run: the bench runs the lanes
 static const char s_c_shim[] = "#include <stdio.h>\n"
                                "#include <stdlib.h>\n"
                                "\n"
@@ -209,8 +217,17 @@ static void c_run(void *context, const HostProgram *program, int reuse, unsigned
                                  : std::string();
     if (lane.empty())
     {
-        printf("  %s: %u steps, not supported in C (a step the lane does not support, or its ruleset errored)\n",
-               name.c_str(), layout->steps);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, name.c_str());
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_decimal(output_line, layout->steps, 1u);
+            mmgr_line_put(output_line,
+                          " steps, not supported in C (a step the lane does not support, or its ruleset errored)");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         results->unsupported += 1u;
         host_free(&loaded);
         return;
@@ -234,8 +251,14 @@ static void c_run(void *context, const HostProgram *program, int reuse, unsigned
         }
         if (ran == 0)
         {
-            printf("  %s: the assembly printer did not write the lane (%s)\n", name.c_str(),
-                   decided ? error.c_str() : "the core's forms were not decided");
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, name.c_str());
+            mmgr_line_put(output_line, ": the assembly printer did not write the lane (");
+            mmgr_line_put(output_line, decided ? error.c_str() : "the core's forms were not decided");
+            mmgr_line_put(output_line, ")");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
         c_check(results, ran && (from_items == lane) && (item_places == places),
                 name + " written from the core's forms by the assembly printer is the code generator's text");
@@ -256,18 +279,53 @@ static void c_run(void *context, const HostProgram *program, int reuse, unsigned
     const int read = (status == 0) && record_image_read(records_path, &image, &error, records, &clocks);
     if (read == 0)
     {
-        printf("  %s: the lane as C did not build or run (status %d); its logs begin:\n", name.c_str(), status);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, name.c_str());
+            mmgr_line_put(output_line, ": the lane as C did not build or run (status ");
+            mmgr_line_decimal_signed(output_line, status);
+            mmgr_line_put(output_line, "); its logs begin:");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         const std::string show = "head -30 '" + results->work + "/build.log' '" + results->work + "/run.log'";
-        fflush(stdout);
+        platform_line_flushed();
         const int displayed = system(show.c_str());
-        printf("  (the logs' head exited %d)\n", displayed);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  (the logs' head exited ");
+            mmgr_line_decimal_signed(output_line, displayed);
+            mmgr_line_put(output_line, ")");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     const int host_ran = ran == (long)HOST_TEST_LANES;
-    printf("  %s: %u steps, %u out limbs, %zu lines of C, %u places, inputs %016llx, records %016llx as C, %016llx on "
-           "the host, %u lanes errored as C\n",
-           name.c_str(), layout->steps, layout->out_limbs, (size_t)std::count(lane.begin(), lane.end(), '\n'), places,
-           inputs, read ? host_digest(records.data(), record_words) : 0ull,
-           host_ran ? host_digest(host_records.data(), record_words) : 0ull, error);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, name.c_str());
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_decimal(output_line, layout->steps, 1u);
+        mmgr_line_put(output_line, " steps, ");
+        mmgr_line_decimal(output_line, layout->out_limbs, 1u);
+        mmgr_line_put(output_line, " out limbs, ");
+        mmgr_line_decimal(output_line, (size_t)std::count(lane.begin(), lane.end(), '\n'), 1u);
+        mmgr_line_put(output_line, " lines of C, ");
+        mmgr_line_decimal(output_line, places, 1u);
+        mmgr_line_put(output_line, " places, inputs ");
+        mmgr_line_hex(output_line, inputs, 16u);
+        mmgr_line_put(output_line, ", records ");
+        mmgr_line_hex(output_line, read ? host_digest(records.data(), record_words) : 0ull, 16u);
+        mmgr_line_put(output_line, " as C, ");
+        mmgr_line_hex(output_line, host_ran ? host_digest(host_records.data(), record_words) : 0ull, 16u);
+        mmgr_line_put(output_line, " on the host, ");
+        mmgr_line_decimal(output_line, error, 1u);
+        mmgr_line_put(output_line, " lanes errored as C");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     if (errors != 0)
     {
         c_check(results, read && !host_ran && (error != 0u),
@@ -289,10 +347,29 @@ int program_main(int argc, char **argv)
         return 2;
     }
     CResults results = {0u, 0u, 0u, std::string(argv[1]), std::string(argv[2])};
-    printf("  record c test: %u lanes a program, ORIOR_EXACT_LIMBS %u, built by %s\n", HOST_TEST_LANES,
-           (unsigned int)ORIOR_EXACT_LIMBS, argv[2]);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  record c test: ");
+        mmgr_line_decimal(output_line, HOST_TEST_LANES, 1u);
+        mmgr_line_put(output_line, " lanes a program, ORIOR_EXACT_LIMBS ");
+        mmgr_line_decimal(output_line, (unsigned int)ORIOR_EXACT_LIMBS, 1u);
+        mmgr_line_put(output_line, ", built by ");
+        mmgr_line_put(output_line, argv[2]);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     record_image_programs(&results, c_run);
-    printf("  record c test: %u checks, %u failed, %u programs not supported in C\n", results.checks, results.failed,
-           results.unsupported);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  record c test: ");
+        mmgr_line_decimal(output_line, results.checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, results.failed, 1u);
+        mmgr_line_put(output_line, " failed, ");
+        mmgr_line_decimal(output_line, results.unsupported, 1u);
+        mmgr_line_put(output_line, " programs not supported in C");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (results.failed == 0u) ? 0 : 1;
 }

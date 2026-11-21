@@ -17,6 +17,7 @@
 // The listing is what cuobjdump -sass or nvdisasm prints. The architecture is named as the disassembler names it,
 // SM86; the folder contains the encodings the disassembler is given.
 #include "interface_sass_probe.h"
+#include "../../../../../platform/platform.h"
 #include "../../../../engine/engine_note.h"
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
@@ -72,7 +73,14 @@ static void take_runs_print(const SassForm *form)
 {
     for (unsigned int at = 0u; at < form->runs; at += 1u)
     {
-        printf("%s%u:%u-%u", (at == 0u) ? "" : ";", form->run[at].operand, form->run[at].first, form->run[at].last);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, (at == 0u) ? "" : ";");
+        mmgr_line_decimal(output_line, form->run[at].operand, 1u);
+        mmgr_line_put(output_line, ":");
+        mmgr_line_decimal(output_line, form->run[at].first, 1u);
+        mmgr_line_put(output_line, "-");
+        mmgr_line_decimal(output_line, form->run[at].last, 1u);
+        platform_line_out_ended();
     }
 }
 
@@ -113,13 +121,36 @@ static int take_fields(const char *path, const char *architecture, const char *f
             continue;
         }
         changed += 1u;
-        printf("  %s\n    was ", s_machine.form[number].text);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, s_machine.form[number].text);
+            mmgr_line_put(output_line, "\n    was ");
+            platform_line_out_ended();
+        }
         take_runs_print(&s_was.form[number]);
-        printf("\n    now ");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "\n    now ");
+            platform_line_out_ended();
+        }
         take_runs_print(&s_machine.form[number]);
-        printf("\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
-    printf("interface sass take: %u of %u forms given other fields\n", changed, s_machine.forms);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "interface sass take: ");
+        mmgr_line_decimal(output_line, changed, 1u);
+        mmgr_line_put(output_line, " of ");
+        mmgr_line_decimal(output_line, s_machine.forms, 1u);
+        mmgr_line_put(output_line, " forms given other fields");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     if (!sass_machine_write(&s_machine, path))
     {
         {
@@ -200,8 +231,18 @@ int program_main(int count, char **words)
         SassForm *found_form = NULL;
         sass_machine_take(&s_taken, instruction->text, instruction->low, instruction->high, &found_form);
     }
-    printf("interface sass take: %u instructions read, %u forms the machine file of %u forms lacks\n", s_listing.count,
-           s_taken.forms, forms_before);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "interface sass take: ");
+        mmgr_line_decimal(output_line, s_listing.count, 1u);
+        mmgr_line_put(output_line, " instructions read, ");
+        mmgr_line_decimal(output_line, s_taken.forms, 1u);
+        mmgr_line_put(output_line, " forms the machine file of ");
+        mmgr_line_decimal(output_line, forms_before, 1u);
+        mmgr_line_put(output_line, " forms lacks");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     if (s_taken.forms == 0u)
     {
         return 0;
@@ -225,12 +266,27 @@ int program_main(int count, char **words)
         if (!sass_machine_take(&s_machine, form->text, form->low, form->high, &found_form) || (found_form == NULL) ||
             (s_machine.forms == before))
         {
-            printf("  not taken: %s\n", form->text);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  not taken: ");
+                mmgr_line_put(output_line, form->text);
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             continue;
         }
         found_form->runs = form->runs;
         mmgr_bytes_copy(found_form->run, form->run, sizeof(form->run));
-        printf("  taken: %s, %u runs of bits\n", form->text, form->runs);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  taken: ");
+            mmgr_line_put(output_line, form->text);
+            mmgr_line_put(output_line, ", ");
+            mmgr_line_decimal(output_line, form->runs, 1u);
+            mmgr_line_put(output_line, " runs of bits");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     if (!sass_machine_write(&s_machine, words[2]))
     {
@@ -245,6 +301,15 @@ int program_main(int count, char **words)
         }
         return 1;
     }
-    printf("interface sass take: the machine file %s contains %u forms\n", words[2], s_machine.forms);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "interface sass take: the machine file ");
+        mmgr_line_put(output_line, words[2]);
+        mmgr_line_put(output_line, " contains ");
+        mmgr_line_decimal(output_line, s_machine.forms, 1u);
+        mmgr_line_put(output_line, " forms");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 0;
 }

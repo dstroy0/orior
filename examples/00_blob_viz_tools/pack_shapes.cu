@@ -24,6 +24,7 @@
  */
 
 #include <cstdio>
+#include "../../src/platform/platform.h"
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
@@ -234,7 +235,7 @@ static float apart(const float *one, const float *two, int dims)
     return total;
 }
 
-int main(int argc, char **argv)
+int program_main(int argc, char **argv)
 {
     int shape = SPHERE;
     int dims = 3;
@@ -360,8 +361,8 @@ int main(int argc, char **argv)
     for (int round = 0; round < rounds; round++)
     {
         int wide = batch;
-        make_points<<<(wide + block - 1) / block, block>>>(
-            scratch, wide, dims, shape, stir(seed + 0x9E3779B9ULL * (uint64_t)(round + 1)));
+        make_points<<<(wide + block - 1) / block, block>>>(scratch, wide, dims, shape,
+                                                           stir(seed + 0x9E3779B9ULL * (uint64_t)(round + 1)));
 
         if (wide_math)
         {
@@ -373,8 +374,7 @@ int main(int argc, char **argv)
             clear_of_placed<<<(wide + block - 1) / block, block>>>(placed, count, scratch, wide, dims, limit, flags);
         }
         cudaMemcpy(clear.data(), flags, (size_t)wide * sizeof(int), cudaMemcpyDeviceToHost);
-        cudaMemcpy(here.data(), scratch, (size_t)wide * dims * sizeof(float),
-                   cudaMemcpyDeviceToHost);
+        cudaMemcpy(here.data(), scratch, (size_t)wide * dims * sizeof(float), cudaMemcpyDeviceToHost);
         tried += wide;
 
         /* The device reported which candidates clear everything accepted before this batch began. What it
@@ -439,8 +439,26 @@ int main(int argc, char **argv)
      * candidate count cannot help, because the wall is compiled in at `capacity`. */
     const char *name = shape == SPHERE ? "sphere" : (shape == CUBE ? "cube" : "orthoplex");
     const char *state = capped ? "capped" : (quiet >= 12 ? "saturated" : "ranout");
-    printf("%s %d %.8f %.8f %d %d %s %s\n", name, dims, gap, typical, count, tried,
-           state, wide_math ? "double" : "single");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, name);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_signed(output_line, dims);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_fixed(output_line, (double)(gap), 8u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_fixed(output_line, (double)(typical), 8u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_signed(output_line, count);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_signed(output_line, tried);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put(output_line, state);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put(output_line, wide_math ? "double" : "single");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     cudaFree(scratch);
     cudaFree(placed);

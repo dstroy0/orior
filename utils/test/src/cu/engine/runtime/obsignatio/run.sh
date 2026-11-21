@@ -8,6 +8,7 @@ MODULE="$(cd "$TEST/../../../../../../../src/cu/engine/runtime/obsignatio" && pw
 MODULE_CU="$(cd "$TEST/../../../../../../../src/cu/engine/runtime/obsignatio" && pwd)"
 TOP="$(cd "$MODULE/../../../.." && pwd)"
 source "$TOP/../includes/file_defs/file_defs.sh"
+source "$TOP/../includes/exact_types/exact_types.sh"
 # utils/maint/ is at the repository's root, one above src/
 source "$(cd "$TOP/.." && pwd)/utils/maint/engine/build_stamp.sh"
 build_stamp obsignatio_test
@@ -40,7 +41,7 @@ INCLUDES=(-I "$TOP/c/engine" -I "$TOP/cu/engine" -I "$MODULE" -I "$MODULE_CU" "$
 if ! command -v nvcc > /dev/null 2>&1; then
     rm -f "$BINARY"
     OBJECTS=()
-    for source in "${FILE_DEFS_LINEA[@]}"; do
+    for source in "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}"; do
         object="$OUT/$(basename "$source" .c)_test.$EXTENSION"
         rm -f "$object"
         cc -std=c11 -O2 -Wall -Wextra "${INCLUDES[@]}" -c "$source" -o "$object"
@@ -49,7 +50,7 @@ if ! command -v nvcc > /dev/null 2>&1; then
     done
     "$FILE_DEFS_CXX" -std=c++17 -O2 -Wall -Wextra "${INCLUDES[@]}" -o "$BINARY" \
         -x c++ "$TEST"/obsignatio_test_{vectors,properties,streams,main}.cu "$MODULE_CU"/obsignatio_{hash,seal}.cu \
-        -x none "${OBJECTS[@]}"
+        -x none "${OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}"
     [ -f "$BINARY" ] || { echo "  build failed: c++ could not build the test"; exit 1; }
     "$BINARY" "$TEST/test_vectors.json"
     STATUS=$?
@@ -69,12 +70,13 @@ done
 
 rm -f "$BINARY"
 OBJECTS=()
-for source in "${FILE_DEFS_LINEA[@]}"; do
+# the test is a program of the platform: it links MMgr's line, the platform and the carcer
+for source in "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}"; do
     object="$OUT/$(basename "$source" .c)_test.$EXTENSION"
     rm -f "$object"
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
+            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
         *)
             cc -std=c11 -O2 -fPIC "${INCLUDES[@]}" -c "$source" -o "$object" ;;
     esac
@@ -82,7 +84,8 @@ for source in "${FILE_DEFS_LINEA[@]}"; do
     OBJECTS+=("$object")
 done
 nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${GENCODE[@]}" "${INCLUDES[@]}" -o "$BINARY" \
-    "$TEST"/obsignatio_test_{vectors,properties,streams,main}.cu "$MODULE_CU"/obsignatio_{hash,seal}.cu "${OBJECTS[@]}"
+    "$TEST"/obsignatio_test_{vectors,properties,streams,main}.cu "$MODULE_CU"/obsignatio_{hash,seal}.cu "${OBJECTS[@]}" \
+    "${EXACT_TYPES_LIBRARIES[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build the test"; exit 1; }
 
 "$BINARY" "$TEST/test_vectors.json"

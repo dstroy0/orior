@@ -15,6 +15,7 @@
  *       winner, and seconds. Put FILE under build/miner.
  */
 #include "sha256_core.h"
+#include "../../../src/platform/platform.h"
 
 #include <atomic>
 #include <chrono>
@@ -135,7 +136,7 @@ void write_telemetry(const std::string &path, const Telemetry &telemetry, double
 
 } // namespace
 
-int main(int argument_count, char **arguments)
+int program_main(int argument_count, char **arguments)
 {
     unsigned threads = std::thread::hardware_concurrency();
     uint32_t span = 1u << 26u;
@@ -167,7 +168,13 @@ int main(int argument_count, char **arguments)
         }
         else
         {
-            std::printf("usage: harness [--threads N] [--span NONCES] [--header 0|1] [--telemetry FILE]\n");
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line,
+                              "usage: harness [--threads N] [--span NONCES] [--header 0|1] [--telemetry FILE]");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             return 2;
         }
     }
@@ -177,7 +184,12 @@ int main(int argument_count, char **arguments)
     }
     if (which >= (sizeof(PUBLISHED_HEADERS) / sizeof(PUBLISHED_HEADERS[0])))
     {
-        std::printf("--header must be 0 or 1\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "--header must be 0 or 1");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     const PublishedHeader &published = PUBLISHED_HEADERS[which];
@@ -209,9 +221,26 @@ int main(int argument_count, char **arguments)
     const uint32_t range_start = published.recorded_nonce - (span / 2u);
     const uint32_t slice = span / threads;
 
-    std::printf("harness: %s\n", published.source);
-    std::printf("  arm: %s, threads: %u, nonces: %u from 0x%08x\n", vector_arm ? "eight-lane AVX2" : "scalar anchor",
-                threads, slice * threads, range_start);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "harness: ");
+        mmgr_line_put(output_line, published.source);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  arm: ");
+        mmgr_line_put(output_line, vector_arm ? "eight-lane AVX2" : "scalar anchor");
+        mmgr_line_put(output_line, ", threads: ");
+        mmgr_line_decimal(output_line, threads, 1u);
+        mmgr_line_put(output_line, ", nonces: ");
+        mmgr_line_decimal(output_line, slice * threads, 1u);
+        mmgr_line_put(output_line, " from 0x");
+        mmgr_line_hex(output_line, range_start, 8u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     std::vector<SliceResult> results(threads);
     std::vector<std::thread> workers;
@@ -287,14 +316,45 @@ int main(int argument_count, char **arguments)
         }
     }
 
-    std::printf("  evaluated: %llu nonces in %.3f s\n", (unsigned long long)evaluated, seconds);
-    std::printf("  rate: %.2f MH/s\n", ((double)evaluated / seconds) / 1.0e6);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  evaluated: ");
+        mmgr_line_decimal(output_line, (unsigned long long)evaluated, 1u);
+        mmgr_line_put(output_line, " nonces in ");
+        mmgr_line_fixed(output_line, (double)(seconds), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " s");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  rate: ");
+        mmgr_line_fixed(output_line, (double)(((double)evaluated / seconds) / 1.0e6), 2u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " MH/s");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     if (!found)
     {
-        std::printf("  FAIL: no nonce in a range that holds 0x%08x\n", published.recorded_nonce);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAIL: no nonce in a range that holds 0x");
+            mmgr_line_hex(output_line, published.recorded_nonce, 8u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
-    std::printf("  found 0x%08x, recorded 0x%08x: %s\n", lowest, published.recorded_nonce,
-                (lowest == published.recorded_nonce) ? "PASS" : "FAIL");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  found 0x");
+        mmgr_line_hex(output_line, lowest, 8u);
+        mmgr_line_put(output_line, ", recorded 0x");
+        mmgr_line_hex(output_line, published.recorded_nonce, 8u);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_put(output_line, (lowest == published.recorded_nonce) ? "PASS" : "FAIL");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (lowest == published.recorded_nonce) ? 0 : 1;
 }

@@ -33,7 +33,14 @@ int container_layout_read(ContainerLayout *layout, const char *path)
     FILE *const file = fopen(path, "rb");
     if (file == NULL)
     {
-        printf("  container_layout: %s could not be read\n", path);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  container_layout: ");
+            mmgr_line_put(output_line, path);
+            mmgr_line_put(output_line, " could not be read");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     mmgr_bytes_set(layout, 0, sizeof(*layout));
@@ -108,7 +115,14 @@ int container_layout_read(ContainerLayout *layout, const char *path)
     fclose(file);
     if (refused != 0u)
     {
-        printf("  container_layout: %s contains %u rows this does not read\n", path, refused);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  container_layout: ");
+        mmgr_line_put(output_line, path);
+        mmgr_line_put(output_line, " contains ");
+        mmgr_line_decimal(output_line, refused, 1u);
+        mmgr_line_put(output_line, " rows this does not read");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     return (layout->rows != 0u);
 }
@@ -131,7 +145,15 @@ int layout_field(const ContainerLayout *layout, const char *name, unsigned long 
     const LayoutRow *const row = layout_row(layout, name, LAYOUT_FIELD);
     if (row == NULL)
     {
-        printf("  container_layout: %s specifies nothing about %s\n", layout->from, name);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  container_layout: ");
+            mmgr_line_put(output_line, layout->from);
+            mmgr_line_put(output_line, " specifies nothing about ");
+            mmgr_line_put(output_line, name);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     *offset = row->offset;
@@ -151,7 +173,15 @@ int layout_text(const ContainerLayout *layout, const char *name, const char *par
     const LayoutRow *const row = layout_row(layout, name, LAYOUT_NAME);
     if (row == NULL)
     {
-        printf("  container_layout: %s specifies nothing about %s\n", layout->from, name);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  container_layout: ");
+            mmgr_line_put(output_line, layout->from);
+            mmgr_line_put(output_line, " specifies nothing about ");
+            mmgr_line_put(output_line, name);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     // {part} is all a name is in for. What a part is called belongs to the program and not to the format

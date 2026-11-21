@@ -10,6 +10,7 @@
 // where one does not, 2 where the machine file did not read. A cubin's verdict is reported and is no check: a cubin
 // blocked from the part is the gate doing its work.
 #include "../cubin_safe.h"
+#include "../../../../../platform/platform.h"
 #include "../../../../engine/engine_note.h"
 #include "cellularum_laboro/cellularum_linea.h"
 #include "../sass_assemble.h"
@@ -71,8 +72,22 @@ static void check_verdict_allot(const char *name, unsigned int instructions, uns
     {
         s_failed += 1u;
     }
-    printf("  %s %s: %s at %llu, where %s was wanted\n", (verdict == wanted) ? "passed" : "FAILED", name,
-           cubin_safe_name(verdict), at, cubin_safe_name(wanted));
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, (verdict == wanted) ? "passed" : "FAILED");
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put(output_line, name);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_put(output_line, cubin_safe_name(verdict));
+        mmgr_line_put(output_line, " at ");
+        mmgr_line_decimal(output_line, at, 1u);
+        mmgr_line_put(output_line, ", where ");
+        mmgr_line_put(output_line, cubin_safe_name(wanted));
+        mmgr_line_put(output_line, " was wanted");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
 static void check_verdict(const char *name, unsigned int instructions, unsigned int wanted)
@@ -151,7 +166,13 @@ static void check_cases(void)
     {
         s_checks += 1u;
         s_failed += 1u;
-        printf("  FAILED: the machine file contains no EXIT, BRA or IADD3 to make the cases from\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line,
+                          "  FAILED: the machine file contains no EXIT, BRA or IADD3 to make the cases from");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return;
     }
     // the machine file saw EXIT under a guard; every case's EXIT is given PT, which every thread takes
@@ -221,10 +242,28 @@ static void check_launch(const char *name, int status, unsigned long long waited
     if (verdict != wanted)
     {
         s_failed += 1u;
-        printf("  FAILED: %s: %s, where %s\n", name, cubin_safe_name(verdict), cubin_safe_name(wanted));
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, name);
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_put(output_line, cubin_safe_name(verdict));
+            mmgr_line_put(output_line, ", where ");
+            mmgr_line_put(output_line, cubin_safe_name(wanted));
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return;
     }
-    printf("  %s: %s\n", name, cubin_safe_name(verdict));
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, name);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_put(output_line, cubin_safe_name(verdict));
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
 // rule 8 checked against what it reports of one launch: the part's fault stamp and the driver's status on the stop
@@ -236,10 +275,28 @@ static void check_fault(const char *name, int part_faulted, int status, unsigned
     if (verdict != wanted)
     {
         s_failed += 1u;
-        printf("  FAILED: %s: %s, where %s\n", name, cubin_safe_name(verdict), cubin_safe_name(wanted));
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, name);
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_put(output_line, cubin_safe_name(verdict));
+            mmgr_line_put(output_line, ", where ");
+            mmgr_line_put(output_line, cubin_safe_name(wanted));
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return;
     }
-    printf("  %s: %s\n", name, cubin_safe_name(verdict));
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, name);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_put(output_line, cubin_safe_name(verdict));
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
 // the launch cases, which need no machine file
@@ -293,7 +350,13 @@ static void check_registers(void)
     if (form == NULL)
     {
         s_checks += 1u;
-        printf("  the machine contains no register operand in a known field: rule 6 unread here\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line,
+                          "  the machine contains no register operand in a known field: rule 6 unread here");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return;
     }
     unsigned long long low = form->low;
@@ -322,8 +385,19 @@ static void check_constant(const char *text, int wanted, unsigned long long word
     const int right = wanted ? (assembled && (written == words)) : !assembled;
     s_checks += 1u;
     s_failed += right ? 0u : 1u;
-    printf("  %s %s: %s, offset field 0x%llx\n", right ? "passed" : "FAILED", text, assembled ? "assembled" : "refused",
-           written);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, right ? "passed" : "FAILED");
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put(output_line, text);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_put(output_line, assembled ? "assembled" : "refused");
+        mmgr_line_put(output_line, ", offset field 0x");
+        mmgr_line_hex(output_line, written, 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
 // A constant's offset is written whole, base and place summed, in its field, whatever bits of it the form's run saw
@@ -368,12 +442,38 @@ int program_main(int count, char **words)
         unsigned long long where = 0ULL;
         const unsigned int verdict = cubin_safe_image(&s_machine, s_image, size, 0u, &where);
         safe += (verdict == CUBIN_SAFE) ? 1u : 0u;
-        printf("  %s: %s at byte %llu\n", words[at], cubin_safe_name(verdict), where);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, words[at]);
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_put(output_line, cubin_safe_name(verdict));
+            mmgr_line_put(output_line, " at byte ");
+            mmgr_line_decimal(output_line, where, 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     if (count > 2)
     {
-        printf("  %u of %d cubins safe to put to the part\n", safe, count - 2);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_decimal(output_line, safe, 1u);
+        mmgr_line_put(output_line, " of ");
+        mmgr_line_decimal_signed(output_line, count - 2);
+        mmgr_line_put(output_line, " cubins safe to put to the part");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
-    printf("cubin safe check: %u checks, %u failed\n", s_checks, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "cubin safe check: ");
+        mmgr_line_decimal(output_line, s_checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, s_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failed == 0u) ? 0 : 1;
 }

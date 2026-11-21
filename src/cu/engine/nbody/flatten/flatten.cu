@@ -270,9 +270,31 @@ int flatten_set(const FlattenSetRequest *request)
     }
     MaxTreeLayout layout;
     max_tree_layout(largest[0], largest[1], largest[2], max_frames, count, &layout);
-    printf("  flatten: %u samples, %llu frames, largest view %ux%ux%u\n", count, all_frames, largest[0], largest[1],
-           largest[2]);
-    printf("  one vector magnitude per body: %u bits, %u limbs\n", layout.total_bits, layout.limbs);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  flatten: ");
+        mmgr_line_decimal(output_line, count, 1u);
+        mmgr_line_put(output_line, " samples, ");
+        mmgr_line_decimal(output_line, all_frames, 1u);
+        mmgr_line_put(output_line, " frames, largest view ");
+        mmgr_line_decimal(output_line, largest[0], 1u);
+        mmgr_line_put(output_line, "x");
+        mmgr_line_decimal(output_line, largest[1], 1u);
+        mmgr_line_put(output_line, "x");
+        mmgr_line_decimal(output_line, largest[2], 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  one vector magnitude per body: ");
+        mmgr_line_decimal(output_line, layout.total_bits, 1u);
+        mmgr_line_put(output_line, " bits, ");
+        mmgr_line_decimal(output_line, layout.limbs, 1u);
+        mmgr_line_put(output_line, " limbs");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     const size_t max_voxels = (size_t)largest[0] * largest[1] * largest[2];
     // one frame's packed bodies on the device, its capacity grown to the max any frame finds, and the set's gathered
@@ -283,8 +305,14 @@ int flatten_set(const FlattenSetRequest *request)
     size_t gathered_capacity = 0u;
     ok = FLATTEN_CHECK(engine_object_reserve(&gathered, &gathered_capacity, 1u, layout.limbs), &gathered, error,
                        ENGINE_ERROR_RESOURCE);
-    printf("  one frame at a time: the residual by the unit sweeps, stored in %u limbs a lane\n",
-           ENGINE_RESIDUAL_LIMBS);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  one frame at a time: the residual by the unit sweeps, stored in ");
+        mmgr_line_decimal(output_line, ENGINE_RESIDUAL_LIMBS, 1u);
+        mmgr_line_put(output_line, " limbs a lane");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     unsigned long long bodies = 0ULL;
     unsigned long long lost_bits = 0ULL;
     unsigned long long frames_done = 0ULL;
@@ -388,23 +416,82 @@ int flatten_set(const FlattenSetRequest *request)
             frames_done += ok ? 1ULL : 0ULL;
         }
         free(volume);
-        printf("  %-24s %4u frames, %8llu bodies so far\n", names[sample], ok ? header[0] : 0u, bodies);
-        fflush(stdout);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_columns(output_line, names[sample], 24u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_columns(output_line, ok ? header[0] : 0u, 4u);
+            mmgr_line_put(output_line, " frames, ");
+            mmgr_line_decimal_columns(output_line, bodies, 8u);
+            mmgr_line_put(output_line, " bodies so far");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        platform_line_flushed();
     }
     const unsigned long long wall = engine_clock_microseconds() - began;
     const unsigned long long bytes = bodies * (unsigned long long)layout.limbs * 4ULL;
-    printf("\n  flattened %llu frames into %llu bodies, %llu per frame\n", frames_done, bodies,
-           (frames_done != 0ULL) ? (bodies / frames_done) : 0ULL);
-    printf(
-        "  gathered on the host: %llu bytes, %llu MiB, for the whole set; the device stored one frame's bodies, %llu "
-        "at max\n",
-        bytes, bytes >> 20u, (device_capacity != 0u) ? (unsigned long long)(device_capacity - 1u) : 0ULL);
-    printf("  component counts proved on %llu of %llu frames; round trip lost %llu bits\n", proofs, frames_done,
-           lost_bits);
-    printf("  codebook graded on %llu frames against the full exact key: %llu faces chosen differently\n", graded,
-           graded_differ);
-    printf("  %llu ms: loading and proving the .iapx %llu ms, the device %llu ms, of which the residual %llu ms\n",
-           wall / 1000ULL, read_us / 1000ULL, device_us / 1000ULL, residual_us / 1000ULL);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n  flattened ");
+        mmgr_line_decimal(output_line, frames_done, 1u);
+        mmgr_line_put(output_line, " frames into ");
+        mmgr_line_decimal(output_line, bodies, 1u);
+        mmgr_line_put(output_line, " bodies, ");
+        mmgr_line_decimal(output_line, (frames_done != 0ULL) ? (bodies / frames_done) : 0ULL, 1u);
+        mmgr_line_put(output_line, " per frame");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  gathered on the host: ");
+        mmgr_line_decimal(output_line, bytes, 1u);
+        mmgr_line_put(output_line, " bytes, ");
+        mmgr_line_decimal(output_line, bytes >> 20u, 1u);
+        mmgr_line_put(output_line, " MiB, for the whole set; the device stored one frame's bodies, ");
+        mmgr_line_decimal(output_line, (device_capacity != 0u) ? (unsigned long long)(device_capacity - 1u) : 0ULL, 1u);
+        mmgr_line_put(output_line, " at max");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  component counts proved on ");
+        mmgr_line_decimal(output_line, proofs, 1u);
+        mmgr_line_put(output_line, " of ");
+        mmgr_line_decimal(output_line, frames_done, 1u);
+        mmgr_line_put(output_line, " frames; round trip lost ");
+        mmgr_line_decimal(output_line, lost_bits, 1u);
+        mmgr_line_put(output_line, " bits");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  codebook graded on ");
+        mmgr_line_decimal(output_line, graded, 1u);
+        mmgr_line_put(output_line, " frames against the full exact key: ");
+        mmgr_line_decimal(output_line, graded_differ, 1u);
+        mmgr_line_put(output_line, " faces chosen differently");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_decimal(output_line, wall / 1000ULL, 1u);
+        mmgr_line_put(output_line, " ms: loading and proving the .iapx ");
+        mmgr_line_decimal(output_line, read_us / 1000ULL, 1u);
+        mmgr_line_put(output_line, " ms, the device ");
+        mmgr_line_decimal(output_line, device_us / 1000ULL, 1u);
+        mmgr_line_put(output_line, " ms, of which the residual ");
+        mmgr_line_decimal(output_line, residual_us / 1000ULL, 1u);
+        mmgr_line_put(output_line, " ms");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     max_tree_profile_report();
     char iapx_path[ENGINE_PATH_CAPACITY];
     const int named = snprintf(iapx_path, sizeof(iapx_path), "%s/flattened.iapx", set);
@@ -414,8 +501,14 @@ int flatten_set(const FlattenSetRequest *request)
     const int written = proved && flatten_write_iapx(iapx_path, &layout, names, orders, count, gathered, bodies, error);
     if (written)
     {
-        printf("  the vector magnitudes are on disk: %s, %llu bodies, read back equal limb for limb\n", iapx_path,
-               bodies);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the vector magnitudes are on disk: ");
+        mmgr_line_put(output_line, iapx_path);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, bodies, 1u);
+        mmgr_line_put(output_line, " bodies, read back equal limb for limb");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     cudaFree(magnitudes);
     free(gathered);

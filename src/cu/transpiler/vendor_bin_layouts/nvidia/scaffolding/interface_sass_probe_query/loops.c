@@ -172,14 +172,30 @@ unsigned int sass_cubin_loops(SassProbe *probe, const SassMachine *machine, unsi
         {
             if (missed != s_loop_counts[0])
             {
-                printf("  loop %-52s comes back at %u and not at %u, answering %08x\n", candidate, s_loop_counts[0],
-                       missed, word);
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  loop ");
+                mmgr_line_put_columns(output_line, candidate, 52u);
+                mmgr_line_put(output_line, " comes back at ");
+                mmgr_line_decimal(output_line, s_loop_counts[0], 1u);
+                mmgr_line_put(output_line, " and not at ");
+                mmgr_line_decimal(output_line, missed, 1u);
+                mmgr_line_put(output_line, ", answering ");
+                mmgr_line_hex(output_line, word, 8u);
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
             }
             sass_class_count(SASS_CHANNEL_RUN, SASS_CLASS_NOTHING);
             continue;
         }
         // it came back to the label on the flag at every count, and fell through once the flag was clear
-        printf("  loop %-52s comes back on every count\n", candidate);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  loop ");
+            mmgr_line_put_columns(output_line, candidate, 52u);
+            mmgr_line_put(output_line, " comes back on every count");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         sass_class_take(SASS_CHANNEL_RUN, SASS_CLASS_ANSWERS, candidate, 0u);
         if (retained < SASS_LOOPS_MAX)
         {
@@ -191,8 +207,20 @@ unsigned int sass_cubin_loops(SassProbe *probe, const SassMachine *machine, unsi
             retained += 1u;
         }
     }
-    printf("interface sass loop: %u forms queried, %u written, %u fell through, %u came back on every count\n",
-           *queried, written, through, retained);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "interface sass loop: ");
+        mmgr_line_decimal(output_line, *queried, 1u);
+        mmgr_line_put(output_line, " forms queried, ");
+        mmgr_line_decimal(output_line, written, 1u);
+        mmgr_line_put(output_line, " written, ");
+        mmgr_line_decimal(output_line, through, 1u);
+        mmgr_line_put(output_line, " fell through, ");
+        mmgr_line_decimal(output_line, retained, 1u);
+        mmgr_line_put(output_line, " came back on every count");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     // The forms that came back, each timed over a long count and read at its least, since a run can only be lengthened
     // by what else the host is doing; and each walked as the instruction that takes a loop back, which the part's
     // answer checks. The cheapest is the part's loop_back_if
@@ -230,9 +258,21 @@ unsigned int sass_cubin_loops(SassProbe *probe, const SassMachine *machine, unsi
         const int walked =
             sass_assemble(machine, s_retained[index], SASS_LOOP_AT, SASS_LOOP_TARGET, SASS_CONTROL_BASE, &low, &high) &&
             sass_loop_walk(machine, &walk, low, high, &step);
-        printf("  loop back %-52s %.4f ns a turn over a spread of %.4f, the walk %s at step %u\n", s_retained[index],
-               least / (double)SASS_LOOP_TIMED, (max - least) / (double)SASS_LOOP_TIMED, walked ? "agrees" : "differs",
-               step);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  loop back ");
+            mmgr_line_put_columns(output_line, s_retained[index], 52u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_fixed(output_line, (double)(least / (double)SASS_LOOP_TIMED), 4u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, " ns a turn over a spread of ");
+            mmgr_line_fixed(output_line, (double)((max - least) / (double)SASS_LOOP_TIMED), 4u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, ", the walk ");
+            mmgr_line_put(output_line, walked ? "agrees" : "differs");
+            mmgr_line_put(output_line, " at step ");
+            mmgr_line_decimal(output_line, step, 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         if (least == 0.0)
         {
             continue;
@@ -250,14 +290,26 @@ unsigned int sass_cubin_loops(SassProbe *probe, const SassMachine *machine, unsi
     // was apart from each other. A difference under that spread is no reading, and the forms are then one cost
     if ((chosen != SASS_LOOPS_MAX) && ((second == 0.0) || ((second - cheapest) > spread)))
     {
-        printf("interface sass loop back: %s, %.4f ns a turn\n", s_retained[chosen],
-               cheapest / (double)SASS_LOOP_TIMED);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "interface sass loop back: ");
+        mmgr_line_put(output_line, s_retained[chosen]);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_fixed(output_line, (double)(cheapest / (double)SASS_LOOP_TIMED), 4u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " ns a turn");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     if ((chosen != SASS_LOOPS_MAX) && (second != 0.0) && ((second - cheapest) <= spread))
     {
-        printf("interface sass loop back: no form cheaper above the floor, the next %.4f ns a turn above %s against a "
-               "spread of %.4f\n",
-               (second - cheapest) / (double)SASS_LOOP_TIMED, s_retained[chosen], spread / (double)SASS_LOOP_TIMED);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "interface sass loop back: no form cheaper above the floor, the next ");
+        mmgr_line_fixed(output_line, (double)((second - cheapest) / (double)SASS_LOOP_TIMED), 4u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " ns a turn above ");
+        mmgr_line_put(output_line, s_retained[chosen]);
+        mmgr_line_put(output_line, " against a spread of ");
+        mmgr_line_fixed(output_line, (double)(spread / (double)SASS_LOOP_TIMED), 4u, 0u, EMBED_FALSE);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     return retained;
 }

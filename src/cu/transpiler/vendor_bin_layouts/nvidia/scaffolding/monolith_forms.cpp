@@ -477,14 +477,28 @@ static void gather_lane(const Krs &c, const HostProgram *program, int reuse, Gat
     HostLoaded loaded;
     if (host_load(program, reuse, &loaded) == 0)
     {
-        printf("  %s: not arranged\n", program->name);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, program->name);
+            mmgr_line_put(output_line, ": not arranged");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return;
     }
     std::vector<MachineInstr> items;
     unsigned int places = 0u;
     if (c_target().decided(&loaded.layout, &places, &items) == 0)
     {
-        printf("  %s: the core decides no lane for it\n", program->name);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, program->name);
+            mmgr_line_put(output_line, ": the core decides no lane for it");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         host_free(&loaded);
         return;
     }
@@ -1363,8 +1377,22 @@ static int forms_write(const char *c_path, const char *ptx_path, const char *mon
     }
     fclose(out);
     fclose(rows);
-    printf("monolith_forms: %zu questions, %u blocks in c.krs's text and %u in ptx.krs's, %u words in and %u out\n",
-           gathered.questions.size(), writer.tag, writer.ptx_tag, writer.in_words, writer.out_words);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "monolith_forms: ");
+        mmgr_line_decimal(output_line, gathered.questions.size(), 1u);
+        mmgr_line_put(output_line, " questions, ");
+        mmgr_line_decimal(output_line, writer.tag, 1u);
+        mmgr_line_put(output_line, " blocks in c.krs's text and ");
+        mmgr_line_decimal(output_line, writer.ptx_tag, 1u);
+        mmgr_line_put(output_line, " in ptx.krs's, ");
+        mmgr_line_decimal(output_line, writer.in_words, 1u);
+        mmgr_line_put(output_line, " words in and ");
+        mmgr_line_decimal(output_line, writer.out_words, 1u);
+        mmgr_line_put(output_line, " out");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 0;
 }
 
@@ -3021,10 +3049,25 @@ static int forms_read(const char *questions_path, const char *listing, const cha
             "otherwise; ptx.krs gives %u as read and %zu are read otherwise.\n",
             questions.size(), sass_verdicts.size(), sass_same, sass_adopted.size(), ptx_same, ptx_adopted.size());
     fclose(out);
-    printf("monolith_forms: %zu questions over %zu forms; sass.krs: %u same, %zu read otherwise; ptx.krs: %u same, %zu "
-           "read otherwise; the record written to %s\n",
-           questions.size(), sass_verdicts.size(), sass_same, sass_adopted.size(), ptx_same, ptx_adopted.size(),
-           record);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "monolith_forms: ");
+        mmgr_line_decimal(output_line, questions.size(), 1u);
+        mmgr_line_put(output_line, " questions over ");
+        mmgr_line_decimal(output_line, sass_verdicts.size(), 1u);
+        mmgr_line_put(output_line, " forms; sass.krs: ");
+        mmgr_line_decimal(output_line, sass_same, 1u);
+        mmgr_line_put(output_line, " same, ");
+        mmgr_line_decimal(output_line, sass_adopted.size(), 1u);
+        mmgr_line_put(output_line, " read otherwise; ptx.krs: ");
+        mmgr_line_decimal(output_line, ptx_same, 1u);
+        mmgr_line_put(output_line, " same, ");
+        mmgr_line_decimal(output_line, ptx_adopted.size(), 1u);
+        mmgr_line_put(output_line, " read otherwise; the record written to ");
+        mmgr_line_put(output_line, record);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     // The folds that the system does are its own, and belong in the classification of what the generator emits. That is
     // the .ksc beside sass.krs that the code generator reads with it. Read it, and drop what it contains of each number
     // and register that this pass put for a role of a form that it tested. Add the compile-channel folds of this pass
@@ -3062,8 +3105,19 @@ static int forms_read(const char *questions_path, const char *listing, const cha
     {
         const int sass_written = krs_apply(sass_krs, sass_adopted);
         const int ptx_written = krs_apply(ptx_krs, ptx_adopted);
-        printf("monolith_forms: %d forms written into %s and %d into %s\n", sass_written, sass_krs, ptx_written,
-               ptx_krs);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "monolith_forms: ");
+            mmgr_line_decimal_signed(output_line, sass_written);
+            mmgr_line_put(output_line, " forms written into ");
+            mmgr_line_put(output_line, sass_krs);
+            mmgr_line_put(output_line, " and ");
+            mmgr_line_decimal_signed(output_line, ptx_written);
+            mmgr_line_put(output_line, " into ");
+            mmgr_line_put(output_line, ptx_krs);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         if ((sass_written < 0) || (ptx_written < 0))
         {
             return 2;

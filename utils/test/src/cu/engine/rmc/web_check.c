@@ -5,6 +5,7 @@
 // children must be as many as its precept takes; and a leaf must be an operand the word actually reads. None of this
 // needs a device or a target: the webs are the compiler's own and are the same on every part
 #include "../../../../../../src/cu/engine/rmc/precept_value.h"
+#include "../../../../../../src/platform/platform.h"
 #include "../../../../../../src/cu/engine/rmc/tree_number.h"
 #include "../../../../../../src/cu/engine/rmc/word_web.h"
 
@@ -39,29 +40,84 @@ static int checked(const char *what, const char *name, unsigned int reads, const
             {
                 if (one != PRECEPT_NONE)
                 {
-                    printf("  %s %s node %u: %s takes %u, and the other child is not none\n", what, name, at,
-                           s_precept_names[node[at].precept], arity);
+                    {
+                        VerbaLinea *const output_line = platform_line_out();
+                        mmgr_line_put(output_line, "  ");
+                        mmgr_line_put(output_line, what);
+                        mmgr_line_put(output_line, " ");
+                        mmgr_line_put(output_line, name);
+                        mmgr_line_put(output_line, " node ");
+                        mmgr_line_decimal(output_line, at, 1u);
+                        mmgr_line_put(output_line, ": ");
+                        mmgr_line_put(output_line, s_precept_names[node[at].precept]);
+                        mmgr_line_put(output_line, " takes ");
+                        mmgr_line_decimal(output_line, arity, 1u);
+                        mmgr_line_put(output_line, ", and the other child is not none");
+                        mmgr_line_ch(output_line, '\n');
+                        platform_line_out_ended();
+                    }
                     broken = 1;
                 }
                 continue;
             }
             if (one == PRECEPT_NONE)
             {
-                printf("  %s %s node %u: %s takes %u and one child is none\n", what, name, at,
-                       s_precept_names[node[at].precept], arity);
+                {
+                    VerbaLinea *const output_line = platform_line_out();
+                    mmgr_line_put(output_line, "  ");
+                    mmgr_line_put(output_line, what);
+                    mmgr_line_put(output_line, " ");
+                    mmgr_line_put(output_line, name);
+                    mmgr_line_put(output_line, " node ");
+                    mmgr_line_decimal(output_line, at, 1u);
+                    mmgr_line_put(output_line, ": ");
+                    mmgr_line_put(output_line, s_precept_names[node[at].precept]);
+                    mmgr_line_put(output_line, " takes ");
+                    mmgr_line_decimal(output_line, arity, 1u);
+                    mmgr_line_put(output_line, " and one child is none");
+                    mmgr_line_ch(output_line, '\n');
+                    platform_line_out_ended();
+                }
                 broken = 1;
             }
             else if (one < PRECEPT_ARG)
             {
                 if (one >= at)
                 {
-                    printf("  %s %s node %u reaches node %u, which is not below it\n", what, name, at, one);
+                    {
+                        VerbaLinea *const output_line = platform_line_out();
+                        mmgr_line_put(output_line, "  ");
+                        mmgr_line_put(output_line, what);
+                        mmgr_line_put(output_line, " ");
+                        mmgr_line_put(output_line, name);
+                        mmgr_line_put(output_line, " node ");
+                        mmgr_line_decimal(output_line, at, 1u);
+                        mmgr_line_put(output_line, " reaches node ");
+                        mmgr_line_decimal(output_line, one, 1u);
+                        mmgr_line_put(output_line, ", which is not below it");
+                        mmgr_line_ch(output_line, '\n');
+                        platform_line_out_ended();
+                    }
                     broken = 1;
                 }
             }
             else if ((one != PRECEPT_ZERO) && (one != PRECEPT_ONES) && ((one - PRECEPT_ARG) >= reads))
             {
-                printf("  %s %s node %u reads operand %u of %u\n", what, name, at, one - PRECEPT_ARG, reads);
+                {
+                    VerbaLinea *const output_line = platform_line_out();
+                    mmgr_line_put(output_line, "  ");
+                    mmgr_line_put(output_line, what);
+                    mmgr_line_put(output_line, " ");
+                    mmgr_line_put(output_line, name);
+                    mmgr_line_put(output_line, " node ");
+                    mmgr_line_decimal(output_line, at, 1u);
+                    mmgr_line_put(output_line, " reads operand ");
+                    mmgr_line_decimal(output_line, one - PRECEPT_ARG, 1u);
+                    mmgr_line_put(output_line, " of ");
+                    mmgr_line_decimal(output_line, reads, 1u);
+                    mmgr_line_ch(output_line, '\n');
+                    platform_line_out_ended();
+                }
                 broken = 1;
             }
         }
@@ -164,7 +220,20 @@ static int numbered(const char *what, const char *name, const PreceptNode *node,
     tree_number_write(node, nodes - 1u, arity_of, &number, &place);
     if (place > TREE_PLACES)
     {
-        printf("  %s %s takes %u places, past the %u a number represents\n", what, name, place, TREE_PLACES);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put(output_line, name);
+            mmgr_line_put(output_line, " takes ");
+            mmgr_line_decimal(output_line, place, 1u);
+            mmgr_line_put(output_line, " places, past the ");
+            mmgr_line_decimal(output_line, TREE_PLACES, 1u);
+            mmgr_line_put(output_line, " a number represents");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     PreceptNode again[16];
@@ -173,7 +242,19 @@ static int numbered(const char *what, const char *name, const PreceptNode *node,
     const unsigned char root = tree_number_read(number, arity_of, again, &read_place, &made);
     if (made != nodes)
     {
-        printf("  %s %s went out as %u nodes and came back as %u\n", what, name, nodes, made);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put(output_line, name);
+            mmgr_line_put(output_line, " went out as ");
+            mmgr_line_decimal(output_line, nodes, 1u);
+            mmgr_line_put(output_line, " nodes and came back as ");
+            mmgr_line_decimal(output_line, made, 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     // the two walked together from their roots. Comparing the lists place by place would be wrong: which number a
@@ -181,14 +262,25 @@ static int numbered(const char *what, const char *name, const PreceptNode *node,
     // its subtrees finish. That the lists differ and the trees do not is the redundancy the number does without
     if (!tree_same(node, nodes - 1u, again, root, arity_of))
     {
-        printf("  %s %s came back a different tree\n", what, name);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put(output_line, name);
+            mmgr_line_put(output_line, " came back a different tree");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     return 0;
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     unsigned int broken = 0u;
     for (unsigned int at = 0u; at < PRECEPT_WEB_COUNT; at += 1u)
     {
@@ -221,12 +313,36 @@ int main(void)
         listed += one->nodes;
         numbers += 1u;
     }
-    printf("%u precepts, %u of them written as a tree over the others, %u words: %u broken\n",
-           (unsigned int)PRECEPT_COUNT, (unsigned int)PRECEPT_WEB_COUNT, (unsigned int)WORD_WEB_COUNT, broken);
-    printf("%u trees through a number and back, %u nodes between them, %u symbols a digit, %u places to an unsigned "
-           "long long: %u bytes of node list carry what %u bytes of number do\n",
-           numbers, listed, TREE_SYMBOLS, TREE_PLACES, (unsigned int)(listed * sizeof(PreceptNode)),
-           (unsigned int)(numbers * sizeof(unsigned long long)));
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_decimal(output_line, (unsigned int)PRECEPT_COUNT, 1u);
+        mmgr_line_put(output_line, " precepts, ");
+        mmgr_line_decimal(output_line, (unsigned int)PRECEPT_WEB_COUNT, 1u);
+        mmgr_line_put(output_line, " of them written as a tree over the others, ");
+        mmgr_line_decimal(output_line, (unsigned int)WORD_WEB_COUNT, 1u);
+        mmgr_line_put(output_line, " words: ");
+        mmgr_line_decimal(output_line, broken, 1u);
+        mmgr_line_put(output_line, " broken");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_decimal(output_line, numbers, 1u);
+        mmgr_line_put(output_line, " trees through a number and back, ");
+        mmgr_line_decimal(output_line, listed, 1u);
+        mmgr_line_put(output_line, " nodes between them, ");
+        mmgr_line_decimal(output_line, TREE_SYMBOLS, 1u);
+        mmgr_line_put(output_line, " symbols a digit, ");
+        mmgr_line_decimal(output_line, TREE_PLACES, 1u);
+        mmgr_line_put(output_line, " places to an unsigned long long: ");
+        mmgr_line_decimal(output_line, (unsigned int)(listed * sizeof(PreceptNode)), 1u);
+        mmgr_line_put(output_line, " bytes of node list carry what ");
+        mmgr_line_decimal(output_line, (unsigned int)(numbers * sizeof(unsigned long long)), 1u);
+        mmgr_line_put(output_line, " bytes of number do");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     // the multiply is a word of one precept, and its tree answers the product's cases as the ladder puts them
     const Word *multiply = NULL;
     for (unsigned int at = 0u; at < WORD_WEB_COUNT; at += 1u)
@@ -250,11 +366,26 @@ int main(void)
                            (multiply->node[0].precept == PRECEPT_MUL) && (answered == 3u);
     if (!multiplies)
     {
-        printf(
-            "  FAILED: word_mul is a word of the one precept MUL, answering 9, 42 and 143 for the product's cases\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(
+                output_line,
+                "  FAILED: word_mul is a word of the one precept MUL, answering 9, 42 and 143 for the product's cases");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         broken += 1u;
     }
     // each tree is checked once as a tree and once through a number, and the multiply once for its answers
-    printf("web check: %u checks, %u failed\n", (2u * numbers) + 1u, broken);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "web check: ");
+        mmgr_line_decimal(output_line, (2u * numbers) + 1u, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, broken, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (broken == 0u) ? 0 : 1;
 }

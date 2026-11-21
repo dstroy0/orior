@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "schedule.h"
+#include "../../../../platform/platform.h"
 #include "../../engine_note.h"
 #include "memoria_operor/memoria_linea.h"
 
@@ -43,8 +44,18 @@ int schedule_program(const char *set, char *const *names, unsigned int count)
         }
         return 0;
     }
-    printf("  tower: %llu MiB free of %llu, scheduling against %llu MiB\n", (unsigned long long)free_bytes >> 20u,
-           (unsigned long long)total_bytes >> 20u, cap >> 20u);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  tower: ");
+        mmgr_line_decimal(output_line, (unsigned long long)free_bytes >> 20u, 1u);
+        mmgr_line_put(output_line, " MiB free of ");
+        mmgr_line_decimal(output_line, (unsigned long long)total_bytes >> 20u, 1u);
+        mmgr_line_put(output_line, ", scheduling against ");
+        mmgr_line_decimal(output_line, cap >> 20u, 1u);
+        mmgr_line_put(output_line, " MiB");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     fprintf(out, "{\n  \"scheme\": \"cell_tracking.program\",\n  \"version\": 1,\n");
     fprintf(out, "  \"tower\": {\"free\": %llu, \"total\": %llu, \"cap\": %llu},\n", (unsigned long long)free_bytes,
             (unsigned long long)total_bytes, cap);
@@ -80,8 +91,24 @@ int schedule_program(const char *set, char *const *names, unsigned int count)
         chunk_frames = (chunk_frames > frames) ? frames : chunk_frames;
         const unsigned long long steps = (chunk_frames > 1ULL) ? (chunk_frames - 1ULL) : 1ULL;
         const unsigned long long chunks = ((frames > 1ULL) ? (frames - 2ULL + steps) : 0ULL) / steps;
-        printf("    %-24s %llu frames of %llu voxels, %llu MiB each, %llu per chunk, %llu chunks\n", names[at], frames,
-               voxels, each >> 20u, chunk_frames, chunks);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    ");
+            mmgr_line_put_columns(output_line, names[at], 24u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal(output_line, frames, 1u);
+            mmgr_line_put(output_line, " frames of ");
+            mmgr_line_decimal(output_line, voxels, 1u);
+            mmgr_line_put(output_line, " voxels, ");
+            mmgr_line_decimal(output_line, each >> 20u, 1u);
+            mmgr_line_put(output_line, " MiB each, ");
+            mmgr_line_decimal(output_line, chunk_frames, 1u);
+            mmgr_line_put(output_line, " per chunk, ");
+            mmgr_line_decimal(output_line, chunks, 1u);
+            mmgr_line_put(output_line, " chunks");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         for (unsigned long long chunk = 0u; chunk < chunks; chunk += 1u)
         {
             const unsigned long long first = chunk * steps;
@@ -94,6 +121,14 @@ int schedule_program(const char *set, char *const *names, unsigned int count)
     }
     fprintf(out, "\n  ]\n}\n");
     fclose(out);
-    printf("  %u stages written to %s\n", written, g_schedule_path);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_decimal(output_line, written, 1u);
+        mmgr_line_put(output_line, " stages written to ");
+        mmgr_line_put(output_line, g_schedule_path);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 1;
 }

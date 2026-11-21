@@ -14,6 +14,7 @@
 // A request whose sums cannot represent the run's total, whose count is not a whole number of runs, or whose run passes
 // 2^32 records errors on both routes before a record is read. The test is one job on the device's tessera daemon.
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
+#include "../../../../../../../src/platform/platform.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
 #include "verba_scribo/verba_linea.h"
@@ -214,14 +215,14 @@ static int sum_load(SumLoaded *loaded)
     const unsigned int field_bits[1] = {32u};
     const unsigned int field_offset[1] = {0u};
     unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {1u, 0u, 0u};
-    const KeymathRecordRequest encode = {steps,   count,           field_bits, 1u,   1u, outputs, SUM_TEST_OUTPUTS,
-                                         NULL,    0u,              &loaded->key, &loaded->error};
+    const KeymathRecordRequest encode = {steps, count,        field_bits,    1u, 1u, outputs, SUM_TEST_OUTPUTS, NULL,
+                                         0u,    &loaded->key, &loaded->error};
     if (keymath_record_encode(&encode) == KEYMATH_ERROR)
     {
         return 0;
     }
-    const KeyScheduleRecordRequest layout = {&loaded->key, field_offset, 1u, in_limbs, 1, &loaded->layout,
-                                             &loaded->error};
+    const KeyScheduleRecordRequest layout = {&loaded->key,    field_offset,  1u, in_limbs, 1,
+                                             &loaded->layout, &loaded->error};
     if (key_schedule_record_layout(&layout) == KEY_SCHEDULE_ERROR)
     {
         keymath_record_release(&loaded->key);
@@ -288,11 +289,10 @@ static void sum_program(SumResults *results)
             const unsigned long long cut_runs = SUM_TEST_LANES / group;
             EngineError error;
             memset(&error, 0, sizeof(error));
-            const int both =
-                (sum_run(1, device_out, SUM_TEST_LANES, group, out_limbs, step->out_offset, step->out_bits,
-                         SUM_TEST_SUM_LIMBS, device_sums, &error) != CYCLE_ERROR) &&
-                (sum_run(0, out, SUM_TEST_LANES, group, out_limbs, step->out_offset, step->out_bits,
-                         SUM_TEST_SUM_LIMBS, host_sums, &error) != CYCLE_ERROR);
+            const int both = (sum_run(1, device_out, SUM_TEST_LANES, group, out_limbs, step->out_offset, step->out_bits,
+                                      SUM_TEST_SUM_LIMBS, device_sums, &error) != CYCLE_ERROR) &&
+                             (sum_run(0, out, SUM_TEST_LANES, group, out_limbs, step->out_offset, step->out_bits,
+                                      SUM_TEST_SUM_LIMBS, host_sums, &error) != CYCLE_ERROR);
             int same = both;
             int closed = both;
             for (unsigned long long r = 0ull; (both != 0) && (r < cut_runs); r += 1ull)
@@ -368,12 +368,11 @@ static void sum_records(SumResults *results)
                 EngineError error;
                 memset(&error, 0, sizeof(error));
                 const unsigned long long runs = SUM_TEST_RECORDS / groups[g];
-                const int both = (sum_run(1, device_records, SUM_TEST_RECORDS, groups[g], SUM_TEST_RECORD_LIMBS,
-                                          offsets[field], bits[field], SUM_TEST_SUM_LIMBS, device_sums,
-                                          &error) != CYCLE_ERROR) &&
-                                 (sum_run(0, records, SUM_TEST_RECORDS, groups[g], SUM_TEST_RECORD_LIMBS,
-                                          offsets[field], bits[field], SUM_TEST_SUM_LIMBS, host_sums,
-                                          &error) != CYCLE_ERROR);
+                const int both =
+                    (sum_run(1, device_records, SUM_TEST_RECORDS, groups[g], SUM_TEST_RECORD_LIMBS, offsets[field],
+                             bits[field], SUM_TEST_SUM_LIMBS, device_sums, &error) != CYCLE_ERROR) &&
+                    (sum_run(0, records, SUM_TEST_RECORDS, groups[g], SUM_TEST_RECORD_LIMBS, offsets[field],
+                             bits[field], SUM_TEST_SUM_LIMBS, host_sums, &error) != CYCLE_ERROR);
                 const int same = both && (memcmp(device_sums, host_sums,
                                                  (size_t)runs * SUM_TEST_SUM_LIMBS * sizeof(unsigned int)) == 0);
                 char what[200];
@@ -443,7 +442,8 @@ int program_main(int count, char **arguments)
     mmgr_line_put(&results.line, " checks, ");
     mmgr_line_decimal(&results.line, results.failures, 1u);
     mmgr_line_put(&results.line, " failed\n");
-    (void)(mmgr_line_ok(&results.line) && (fwrite(results.line.out, 1u, mmgr_line_finish(&results.line), stdout) == results.line.at));
+    (void)(mmgr_line_ok(&results.line) &&
+           (platform_line_out_put(results.line.out, mmgr_line_finish(&results.line)) == results.line.at));
     free(results.line.out);
     return (results.failures == 0ull) ? 0 : 1;
 }

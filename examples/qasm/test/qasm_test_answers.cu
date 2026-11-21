@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_test_answers.cu: text, runs, known answers, errors, ties and bounds
 #include "qasm_test_internal.h"
+#include "../../../src/platform/platform.h"
 
 unsigned int g_passed = 0u;
 unsigned int g_failed = 0u;
@@ -16,12 +17,24 @@ void check(int passed, const char *format, ...)
     if (passed != 0)
     {
         g_passed += 1u;
-        printf("  ok   %s\n", what);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ok   ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     else
     {
         g_failed += 1u;
-        printf("  FAIL %s\n", what);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAIL ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -53,8 +66,21 @@ int run(const QasmCircuit *circuit, int on_host, QasmOutcome *outcome, unsigned 
     const QasmRunRequest request = {circuit, on_host, state, &error};
     if (qasm_run(&request, outcome) == QASM_ERROR)
     {
-        printf("  run errored on the %s: error type %d, module %d, site %u, status %d\n", on_host ? "host" : "device",
-               (int)error.type, (int)error.module, error.site, error.status);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  run errored on the ");
+            mmgr_line_put(output_line, on_host ? "host" : "device");
+            mmgr_line_put(output_line, ": error type ");
+            mmgr_line_decimal_signed(output_line, (int)error.type);
+            mmgr_line_put(output_line, ", module ");
+            mmgr_line_decimal_signed(output_line, (int)error.module);
+            mmgr_line_put(output_line, ", site ");
+            mmgr_line_decimal(output_line, error.site, 1u);
+            mmgr_line_put(output_line, ", status ");
+            mmgr_line_decimal_signed(output_line, error.status);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     return 1;

@@ -9,6 +9,7 @@
 //   gray       a case the host gives no bracket, whatever the part did there, and a query the gate blocked
 //   truthy     alike alone
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/query/answer_read.h"
+#include "../../../../../../../src/platform/platform.h"
 
 #include <stdio.h>
 
@@ -21,12 +22,20 @@ static void check_that(int gated, const char *what)
     if (gated == 0)
     {
         s_failed += 1u;
-        printf("  FAILED: %s\n", what);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     const AnswerBracket word = {1, 2ull, 2ull};
     const AnswerBracket ends = {1, 0x3f800000ull, 0x3f800001ull};
     const AnswerBracket none = {0, 0ull, 0ull};
@@ -77,6 +86,15 @@ int main(void)
     check_that(answer_tally_read(unbracketed, 2u, RUN_ILLEGAL, words, NULL).read == ANSWER_GRAY,
                "and stays gray where the part ended it");
 
-    printf("answer_read_check: %u checks, %u failed\n", s_checks, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "answer_read_check: ");
+        mmgr_line_decimal(output_line, s_checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, s_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failed == 0u) ? 0 : 1;
 }

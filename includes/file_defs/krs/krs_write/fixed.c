@@ -349,7 +349,13 @@ unsigned int krs_fixed_written(char *out, size_t cap, size_t *at, const char *ks
         krf_path_beside(ksc_path, krf, sizeof(krf));
         if (!krf_removed(krf, "krs", "replaced", removed, removals))
         {
-            printf("  orior_krs_write: %u fixed lines a row replaced could not be stored in %s\n", removals, krf);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  orior_krs_write: ");
+            mmgr_line_decimal(output_line, removals, 1u);
+            mmgr_line_put(output_line, " fixed lines a row replaced could not be stored in ");
+            mmgr_line_put(output_line, krf);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
     }
     return written;

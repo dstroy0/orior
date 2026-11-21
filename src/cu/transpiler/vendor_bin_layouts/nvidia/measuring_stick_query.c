@@ -52,6 +52,7 @@
 // question is blocked, 2 where a blob, a tool or the run was not reached, or a frame was read at no stop it
 // named: the round is then not carried
 #include "measuring_stick_query/msq_internal.h"
+#include "../../../../platform/platform.h"
 #include "../../../engine/engine_note.h"
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
@@ -536,18 +537,57 @@ int program_main(int count, char **words)
     {
         qry_member_append(read_name, verdicts.read, verdicts.read_size, QRY_ORDINARY);
     }
-    printf("  questions read: %zu in %llu readings; the vendor blocks %zu from the part\n", question_count,
-           readings_count, gated_count);
-    printf("  the readings: %zu distinct probe encodings, %zu frames and %zu tails in one accumulated run read at %llu "
-           "starts, %zu set aside and read alone; their streams %.2f s and the vendor %.2f s, each summed over the "
-           "readers\n",
-           place_words.count, frame_count, tails.count, accumulated_calls, aside_count,
-           (double)atomic_load(&s_streamed_nanoseconds) / 1000000000.0,
-           (double)atomic_load(&s_vendor_nanoseconds) / 1000000000.0);
-    printf("  the gated list is %s and the report %s, blobs of %s\n", gated_name, report_name, qry_member_path());
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  questions read: ");
+        mmgr_line_decimal(output_line, question_count, 1u);
+        mmgr_line_put(output_line, " in ");
+        mmgr_line_decimal(output_line, readings_count, 1u);
+        mmgr_line_put(output_line, " readings; the vendor blocks ");
+        mmgr_line_decimal(output_line, gated_count, 1u);
+        mmgr_line_put(output_line, " from the part");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the readings: ");
+        mmgr_line_decimal(output_line, place_words.count, 1u);
+        mmgr_line_put(output_line, " distinct probe encodings, ");
+        mmgr_line_decimal(output_line, frame_count, 1u);
+        mmgr_line_put(output_line, " frames and ");
+        mmgr_line_decimal(output_line, tails.count, 1u);
+        mmgr_line_put(output_line, " tails in one accumulated run read at ");
+        mmgr_line_decimal(output_line, accumulated_calls, 1u);
+        mmgr_line_put(output_line, " starts, ");
+        mmgr_line_decimal(output_line, aside_count, 1u);
+        mmgr_line_put(output_line, " set aside and read alone; their streams ");
+        mmgr_line_fixed(output_line, (double)((double)atomic_load(&s_streamed_nanoseconds) / 1000000000.0), 2u, 0u,
+                        EMBED_FALSE);
+        mmgr_line_put(output_line, " s and the vendor ");
+        mmgr_line_fixed(output_line, (double)((double)atomic_load(&s_vendor_nanoseconds) / 1000000000.0), 2u, 0u,
+                        EMBED_FALSE);
+        mmgr_line_put(output_line, " s, each summed over the readers");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the gated list is ");
+        mmgr_line_put(output_line, gated_name);
+        mmgr_line_put(output_line, " and the report ");
+        mmgr_line_put(output_line, report_name);
+        mmgr_line_put(output_line, ", blobs of ");
+        mmgr_line_put(output_line, qry_member_path());
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     if (verdicts.report_size != 0u)
     {
-        fwrite(verdicts.report, 1u, verdicts.report_size, stdout);
+        VerbaLinea *const output_line = platform_line_out();
+        (void)mmgr_line_put_n(output_line, (const char *)(verdicts.report),
+                              (size_t)(1u) * (size_t)(verdicts.report_size));
+        platform_line_out_ended();
     }
     for (size_t code = 0u; code < whole_codes.count; code += 1u)
     {

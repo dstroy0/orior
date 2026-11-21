@@ -53,7 +53,15 @@ static int frame_matches(unsigned long long dropped, void *context)
     const int alike = question_alike(variant, *query->reference, *query->places, query->question, query->queries);
     run_print(query->table, "opening %llu %s%s%s\n", dropped, alike ? "truthy" : "falsy", alike ? "" : ": ",
               alike ? "" : query->question->refused);
-    printf("  opening from %llu: %s\n", dropped, alike ? "truthy" : "falsy");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  opening from ");
+        mmgr_line_decimal(output_line, dropped, 1u);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_put(output_line, alike ? "truthy" : "falsy");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return alike;
 }
 
@@ -99,17 +107,37 @@ int identity_frame(const char *engine, const char *answers, const char *ksc, con
     {
         run_closed(&table);
         run_channel_close();
-        printf("orior_klq_identity frame: %s\n", dry ? "the run is dry, and nothing is written"
-                                                     : "the container was not returned from, and nothing is written");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity frame: ");
+            mmgr_line_put(output_line, dry ? "the run is dry, and nothing is written"
+                                           : "the container was not returned from, and nothing is written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return dry ? 0 : 1;
     }
     if (!ksc_answers_write(ksc, "container", std::vector<std::string>{"run answers 00000001 container returned"}))
     {
-        printf("orior_klq_identity frame: %s could not be written\n", ksc);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity frame: ");
+            mmgr_line_put(output_line, ksc);
+            mmgr_line_put(output_line, " could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         run_channel_close();
         return 1;
     }
-    printf("  the container returned, over %u cases\n", s_question.cases);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the container returned, over ");
+        mmgr_line_decimal(output_line, s_question.cases, 1u);
+        mmgr_line_put(output_line, " cases");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     // the whole kernel's own answers, case by case, are what every variant is checked against
     std::vector<std::string> reference(IDENTITY_CASES, "-");
     for (unsigned int place = 0u; place < s_question.cases; place += 1u)
@@ -126,7 +154,14 @@ int identity_frame(const char *engine, const char *answers, const char *ksc, con
     const unsigned long long from = frame_greatest(frame_matches, &query, 0ULL, (unsigned long long)places);
     if (!run_closed(&table))
     {
-        printf("orior_klq_identity frame: %s/frame.txt could not be written\n", folder.c_str());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity frame: ");
+            mmgr_line_put(output_line, folder.c_str());
+            mmgr_line_put(output_line, "/frame.txt could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         run_channel_close();
         return 1;
     }
@@ -141,10 +176,28 @@ int identity_frame(const char *engine, const char *answers, const char *ksc, con
     }
     if (!ksc_answers_write(ksc, "opening", std::vector<std::string>{row}))
     {
-        printf("orior_klq_identity frame: %s could not be written\n", ksc);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity frame: ");
+            mmgr_line_put(output_line, ksc);
+            mmgr_line_put(output_line, " could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
-    printf("orior_klq_identity frame: the least opening begins at place %llu of %u, over %llu queries, written to %s\n",
-           from, places, queries, ksc);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "orior_klq_identity frame: the least opening begins at place ");
+        mmgr_line_decimal(output_line, from, 1u);
+        mmgr_line_put(output_line, " of ");
+        mmgr_line_decimal(output_line, places, 1u);
+        mmgr_line_put(output_line, ", over ");
+        mmgr_line_decimal(output_line, queries, 1u);
+        mmgr_line_put(output_line, " queries, written to ");
+        mmgr_line_put(output_line, ksc);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 0;
 }

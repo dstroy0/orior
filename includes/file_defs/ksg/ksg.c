@@ -47,7 +47,11 @@ static size_t s_output_at;
 
 void ksg_print_flush(void)
 {
-    (void)fwrite(s_output, 1u, s_output_at, stdout);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        (void)mmgr_line_put_n(output_line, (const char *)(s_output), (size_t)(1u) * (size_t)(s_output_at));
+        platform_line_out_ended();
+    }
     s_output_at = 0u;
 }
 
@@ -307,7 +311,7 @@ static int ksg_usage(void)
     return 2;
 }
 
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
     if ((count == 5) && (mmgr_text_equal(words[1], "keys", PLATFORM_TEXT_TO_TERMINATOR)))
     {

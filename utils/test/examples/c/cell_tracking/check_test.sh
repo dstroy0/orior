@@ -33,14 +33,18 @@ case "$(uname -s)" in
         ;;
 esac
 
+# each checker is a program of the platform, and links MMgr's line with the platform (exact_types_platform_link)
+source "$TOP/../includes/exact_types/exact_types.sh"
+exact_types_platform_link check || exit 1
 for source in "$TEST/check_test.c" "$CHECK/points_check.c" "$CHECK/output_check.c"; do
     binary="$OUT/$(basename "$source" .c)$SUFFIX"
     rm -f "$binary"
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2 /W4 /D_CRT_SECURE_NO_WARNINGS" -o "$binary" "$source" ;;
+            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2 /W4 /D_CRT_SECURE_NO_WARNINGS" "${FILE_DEFS_MMGR_FLAGS[@]}" -o "$binary" "$source" \
+                "${PLATFORM_LINK[@]}" ;;
         *)
-            cc -std=c11 -O2 -Wall -Wextra -o "$binary" "$source" ;;
+            cc -std=c11 -O2 -Wall -Wextra "${FILE_DEFS_MMGR_FLAGS[@]}" -o "$binary" "$source" "${PLATFORM_LINK[@]}" ;;
     esac
     [ -f "$binary" ] || { echo "  build failed: $(basename "$source") did not build"; exit 1; }
 done

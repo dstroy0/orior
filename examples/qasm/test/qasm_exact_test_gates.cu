@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_exact_test_gates.cu: numbers, functions, gates, GHZ, scramblers, bonds, amplitudes
 #include "qasm_exact_test_internal.h"
+#include "../../../src/platform/platform.h"
 
 void qasm_test_check(QasmResults *results, int passed, const char *claim)
 {
@@ -9,7 +10,13 @@ void qasm_test_check(QasmResults *results, int passed, const char *claim)
     if (passed == 0)
     {
         results->failed += 1u;
-        printf("  FAIL %s\n", claim);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAIL ");
+            mmgr_line_put(output_line, claim);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -292,7 +299,14 @@ void qasm_test_exact_qubits(QasmResults *results)
     qasm_dense_release(&phased);
     qasm_dense_release(&round_trip);
     qasm_dense_release(&ground);
-    printf("  exact qubits: %llu us\n", engine_clock_microseconds() - start);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  exact qubits: ");
+        mmgr_line_decimal(output_line, engine_clock_microseconds() - start, 1u);
+        mmgr_line_put(output_line, " us");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
 // compact against dense on six qubits, all 64 amplitudes

@@ -129,14 +129,44 @@ int identity_known(const char *listing, const char *manifest, const std::string 
     }
     if (!run_closed(&file))
     {
-        printf("  %s could not be written\n", path.c_str());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, path.c_str());
+            mmgr_line_put(output_line, " could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
-    printf("  %s: %u candidates, %u known whole, %u not known whole but every link and every two side by side known, "
-           "%u with a part nvcc never writes\n",
-           path.c_str(), (unsigned int)candidates.size(), wholes, permutations, strangers);
-    printf("  parts unknown: %u links, %u of them blocked from the part by rule 2, %u pairs side by side\n",
-           unknown_primitives, flagged, unknown_pairs);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, path.c_str());
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_decimal(output_line, (unsigned int)candidates.size(), 1u);
+        mmgr_line_put(output_line, " candidates, ");
+        mmgr_line_decimal(output_line, wholes, 1u);
+        mmgr_line_put(output_line, " known whole, ");
+        mmgr_line_decimal(output_line, permutations, 1u);
+        mmgr_line_put(output_line, " not known whole but every link and every two side by side known, ");
+        mmgr_line_decimal(output_line, strangers, 1u);
+        mmgr_line_put(output_line, " with a part nvcc never writes");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  parts unknown: ");
+        mmgr_line_decimal(output_line, unknown_primitives, 1u);
+        mmgr_line_put(output_line, " links, ");
+        mmgr_line_decimal(output_line, flagged, 1u);
+        mmgr_line_put(output_line, " of them blocked from the part by rule 2, ");
+        mmgr_line_decimal(output_line, unknown_pairs, 1u);
+        mmgr_line_put(output_line, " pairs side by side");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 0;
 }
 
@@ -303,12 +333,35 @@ int identity_permute(const char *listing, const char *manifest, const std::strin
     }
     if (!run_closed(&file))
     {
-        printf("  %s could not be written\n", path.c_str());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, path.c_str());
+            mmgr_line_put(output_line, " could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
-    printf("  %s: %u types of link in %u categories of more than one, %llu windows put, %llu of them nvcc writes, "
-           "%u questions, %u of them blocked from the part by rule 2\n",
-           path.c_str(), (unsigned int)first_type.size(), joined, put, known, (unsigned int)permuted_order.size(),
-           flagged);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, path.c_str());
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_decimal(output_line, (unsigned int)first_type.size(), 1u);
+        mmgr_line_put(output_line, " types of link in ");
+        mmgr_line_decimal(output_line, joined, 1u);
+        mmgr_line_put(output_line, " categories of more than one, ");
+        mmgr_line_decimal(output_line, put, 1u);
+        mmgr_line_put(output_line, " windows put, ");
+        mmgr_line_decimal(output_line, known, 1u);
+        mmgr_line_put(output_line, " of them nvcc writes, ");
+        mmgr_line_decimal(output_line, (unsigned int)permuted_order.size(), 1u);
+        mmgr_line_put(output_line, " questions, ");
+        mmgr_line_decimal(output_line, flagged, 1u);
+        mmgr_line_put(output_line, " of them blocked from the part by rule 2");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 0;
 }

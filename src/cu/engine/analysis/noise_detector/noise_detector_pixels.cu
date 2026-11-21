@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_detector_pixels.cu: the noise table and pixel noise
 #include "noise_detector_internal.h"
+#include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 // opens <set>/<file> for writing and writes its header
@@ -38,10 +39,20 @@ extern "C" long noise_clips_set(const NoiseSetRequest *request)
     {
         ok = noise_table_open(request->set, files[type], headers[type], paths[type], &tables[type], error);
     }
-    printf("  clips: every value counted; the voxel-frames at 0 and at the lane's top, 65535; the voxels whose every"
-           " frame is one value, and the box they sit in\n");
-    printf("  and each frame against the frames beside it: a spike clears both from above by 16, 32, 64 or 128, a dip"
-           " from below (symmetric noise gives them equal)\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  clips: every value counted; the voxel-frames at 0 and at the lane's top, 65535; "
+                                   "the voxels whose every frame is one value, and the box they sit in");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  and each frame against the frames beside it: a spike clears both from above by "
+                                   "16, 32, 64 or 128, a dip from below (symmetric noise gives them equal)");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     NoiseClips *const clips = (NoiseClips *)malloc(sizeof(NoiseClips));
     ok = ok && NOISE_DETECTOR_CHECK(clips != NULL, &clips, error, ENGINE_ERROR_RESOURCE);
     const unsigned long long began = engine_clock_microseconds();
@@ -70,9 +81,19 @@ extern "C" long noise_clips_set(const NoiseSetRequest *request)
     }
     if (ok != 0)
     {
-        printf("  clips: %u samples in %llu ms; the counts are in %s, %s and %s\n", request->count,
-               (engine_clock_microseconds() - began) / 1000ULL, paths[NOISE_TABLE_CLIPS], paths[NOISE_TABLE_VALUES],
-               paths[NOISE_TABLE_SPIKES]);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  clips: ");
+        mmgr_line_decimal(output_line, request->count, 1u);
+        mmgr_line_put(output_line, " samples in ");
+        mmgr_line_decimal(output_line, (engine_clock_microseconds() - began) / 1000ULL, 1u);
+        mmgr_line_put(output_line, " ms; the counts are in ");
+        mmgr_line_put(output_line, paths[NOISE_TABLE_CLIPS]);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_put(output_line, paths[NOISE_TABLE_VALUES]);
+        mmgr_line_put(output_line, " and ");
+        mmgr_line_put(output_line, paths[NOISE_TABLE_SPIKES]);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     return (ok != 0) ? 0L : NOISE_DETECTOR_ERROR;
 }
@@ -188,9 +209,15 @@ extern "C" long noise_pixels_set(const NoiseSetRequest *request)
                               "sample\ty\tx\tlower_voxels\tlower_values\tlower_squares\tupper_voxels\tupper_values"
                               "\tupper_squares\n",
                               path, &table, error);
-    printf("  pixels: every camera pixel's static voxels (the dimmest quarter by mean of those that change and never"
-           " touch either end of the lane), counted, their values summed and their frame differences squared, in the"
-           " z planes below the middle and from it up\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line,
+                      "  pixels: every camera pixel's static voxels (the dimmest quarter by mean of those that change "
+                      "and never touch either end of the lane), counted, their values summed and their frame "
+                      "differences squared, in the z planes below the middle and from it up");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     const unsigned long long began = engine_clock_microseconds();
     unsigned long long *maps = NULL;
     unsigned long long max_cells = 0ULL;
@@ -216,8 +243,16 @@ extern "C" long noise_pixels_set(const NoiseSetRequest *request)
         ok = ok && NOISE_DETECTOR_IO(noise_pixels_rows(table, name, extent, maps) != 0, table, error);
         if (ok != 0)
         {
-            printf("  %-24s static means up to %llu\n", name, ceiling);
-            fflush(stdout);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  ");
+                mmgr_line_put_columns(output_line, name, 24u);
+                mmgr_line_put(output_line, " static means up to ");
+                mmgr_line_decimal(output_line, ceiling, 1u);
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
+            platform_line_flushed();
         }
     }
     free(maps);
@@ -227,8 +262,15 @@ extern "C" long noise_pixels_set(const NoiseSetRequest *request)
     }
     if (ok != 0)
     {
-        printf("  pixels: %u samples in %llu ms; every pixel's sums are in %s\n", request->count,
-               (engine_clock_microseconds() - began) / 1000ULL, path);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  pixels: ");
+        mmgr_line_decimal(output_line, request->count, 1u);
+        mmgr_line_put(output_line, " samples in ");
+        mmgr_line_decimal(output_line, (engine_clock_microseconds() - began) / 1000ULL, 1u);
+        mmgr_line_put(output_line, " ms; every pixel's sums are in ");
+        mmgr_line_put(output_line, path);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     return (ok != 0) ? 0L : NOISE_DETECTOR_ERROR;
 }

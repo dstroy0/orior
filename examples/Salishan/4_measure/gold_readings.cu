@@ -51,6 +51,7 @@
 //   6. the records are written out.
 
 #include "../../../src/cu/engine/analysis/cycle/cycle.h"
+#include "../../../src/platform/platform.h"
 #include "../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../src/cu/engine/analysis/keymath/keymath.h"
 #include "verba_scribo/verba_linea.h"
@@ -75,7 +76,6 @@
 // the widest total a field stores, so that 2 A B fits 64 bits
 #define GOLD_TOTAL_BITS_MAX 31u
 
-
 typedef struct
 {
     std::string name;
@@ -99,7 +99,6 @@ typedef struct
     StageRational distance;
 } GoldComparison;
 
-
 // a paper's reading
 typedef struct
 {
@@ -113,7 +112,6 @@ typedef struct
     StageRational gap;
     int reads;
 } GoldPaper;
-
 
 // |a B - b A| and 2 A B for one cell of one comparison
 static void gold_distance_program(unsigned int count_bits, unsigned int total_bits, StageProgram *program)
@@ -131,7 +129,6 @@ static void gold_distance_program(unsigned int count_bits, unsigned int total_bi
     stage_output(program, stage_step(program, ENGINE_RECORD_PRODUCT, both, stage_constant(program, 2ull)));
 }
 
-
 // the pairs of the lines `pick` lists, each line's bytes read alone
 static GoldTable gold_squash(const std::vector<std::string> &lines, const std::vector<size_t> &pick)
 {
@@ -143,15 +140,14 @@ static GoldTable gold_squash(const std::vector<std::string> &lines, const std::v
         const std::string &line = lines[pick[at]];
         for (size_t place = 0u; (place + 1u) < line.size(); place += 1u)
         {
-            const unsigned int cell = ((unsigned int)(unsigned char)line[place] << 8u) |
-                                      (unsigned int)(unsigned char)line[place + 1u];
+            const unsigned int cell =
+                ((unsigned int)(unsigned char)line[place] << 8u) | (unsigned int)(unsigned char)line[place + 1u];
             table.counts[cell] += 1u;
             table.total += 1ull;
         }
     }
     return table;
 }
-
 
 static int gold_block(const std::vector<std::string> &lines, size_t *at, const char *type, int with_language,
                       GoldText *text)
@@ -251,7 +247,6 @@ static int gold_read(const char *path, std::vector<GoldText> *corpora, std::vect
     return corpora->size() >= 2u;
 }
 
-
 int program_main(int count, char **arguments)
 {
     SimResults job;
@@ -337,8 +332,8 @@ int program_main(int count, char **arguments)
             for (size_t one = 0u; one < anchors.size(); one += 1u)
             {
                 paper.against.push_back(comparisons.size());
-                comparisons.push_back({texts[at].name + " to " + corpora[anchors[one]].name, paper.whole,
-                                       anchors[one], {}});
+                comparisons.push_back(
+                    {texts[at].name + " to " + corpora[anchors[one]].name, paper.whole, anchors[one], {}});
             }
             const size_t first = tables.size();
             tables.push_back(gold_squash(texts[at].lines, stage_run(0u, lines / 2u, 1u)));
@@ -429,10 +424,12 @@ int program_main(int count, char **arguments)
     if (ok)
     {
         const unsigned int out_limbs = distance_stage.layout.out_limbs;
-        const CycleRecordSumRequest on_device = {device_out, lanes, run, out_limbs, apart->out_offset, apart->out_bits,
-                                                 sum_limbs, device_sums.data(), &error};
-        const CycleRecordSumRequest on_host = {distance_out.data(), lanes, run, out_limbs, apart->out_offset,
-                                               apart->out_bits, sum_limbs, host_sums.data(), &error};
+        const CycleRecordSumRequest on_device = {
+            device_out,         lanes, run, out_limbs, apart->out_offset, apart->out_bits, sum_limbs,
+            device_sums.data(), &error};
+        const CycleRecordSumRequest on_host = {
+            distance_out.data(), lanes, run, out_limbs, apart->out_offset, apart->out_bits, sum_limbs,
+            host_sums.data(),    &error};
         ok = (cycle_record_sum(&on_device) != CYCLE_ERROR) && (cycle_record_sum_host(&on_host) != CYCLE_ERROR);
         ok = ok && (memcmp(device_sums.data(), host_sums.data(), device_sums.size() * sizeof(unsigned int)) == 0);
     }
@@ -447,7 +444,8 @@ int program_main(int count, char **arguments)
     {
         comparisons[at].distance.num.assign(device_sums.begin() + (long long)(at * sum_limbs),
                                             device_sums.begin() + (long long)((at + 1u) * sum_limbs));
-        const unsigned int *first = &distance_out[(size_t)((unsigned long long)at * run * distance_stage.layout.out_limbs)];
+        const unsigned int *first =
+            &distance_out[(size_t)((unsigned long long)at * run * distance_stage.layout.out_limbs)];
         comparisons[at].distance.den = stage_take(first, twice->out_offset, twice->out_bits);
         bounded = bounded && (stage_sign(comparisons[at].distance.num, 32u * sum_limbs) >= 0) &&
                   (stage_order_of(comparisons[at].distance.num, comparisons[at].distance.den) <= 0);
@@ -595,7 +593,7 @@ int program_main(int count, char **arguments)
     memset(&second_stage, 0, sizeof(second_stage));
     std::vector<int> second_signs;
     ok = ok && stage_compare(&job, &second_stage, "second compare", gap_xs, gap_ys, std::vector<int>(gap_xs.size(), 1),
-                            margin, &second_signs, &error);
+                             margin, &second_signs, &error);
     for (size_t at = 0u; ok && (at < gapped.size()); at += 1u)
     {
         papers[gapped[at]].reads = second_signs[at] == 1;
@@ -620,7 +618,7 @@ int program_main(int count, char **arguments)
     memset(&third_stage, 0, sizeof(third_stage));
     std::vector<int> third_signs;
     ok = ok && stage_compare(&job, &third_stage, "third compare", third_xs, third_ys,
-                            std::vector<int>(third_xs.size(), 0), unit_margin, &third_signs, &error);
+                             std::vector<int>(third_xs.size(), 0), unit_margin, &third_signs, &error);
     if (ok)
     {
         stage_order_read(&gap_order, third_signs);
@@ -729,8 +727,8 @@ int program_main(int count, char **arguments)
     {
         for (size_t type = 0u; type < 2u; type += 1u)
         {
-            const int reads = (first_signs[(at * 4u) + (type * 2u)] == 1) &&
-                              (first_signs[(at * 4u) + (type * 2u) + 1u] == 1);
+            const int reads =
+                (first_signs[(at * 4u) + (type * 2u)] == 1) && (first_signs[(at * 4u) + (type * 2u) + 1u] == 1);
             pair_reads[(at * 2u) + type] = reads;
             pairs_read[type] += (unsigned int)reads;
         }
@@ -803,8 +801,8 @@ int program_main(int count, char **arguments)
         {
             if (median_qualified[at])
             {
-                fprintf(out, "median %s = %s / %s\n", (at == 0u) ? "gap" : "split", stage_text_of(medians[at].num).c_str(),
-                        stage_text_of(medians[at].den).c_str());
+                fprintf(out, "median %s = %s / %s\n", (at == 0u) ? "gap" : "split",
+                        stage_text_of(medians[at].num).c_str(), stage_text_of(medians[at].den).c_str());
             }
         }
         fclose(out);
@@ -813,31 +811,117 @@ int program_main(int count, char **arguments)
 
     if (ok)
     {
-        printf("  %-16s %8s %10s  %-12s %-12s %-10s\n", "corpus", "lines", "pairs", "midpoint", "alternating", "ratio");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_columns(output_line, "corpus", 16u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_right(output_line, "lines", 8u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_right(output_line, "pairs", 10u);
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_columns(output_line, "midpoint", 12u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_columns(output_line, "alternating", 12u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_columns(output_line, "ratio", 10u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         for (size_t at = 0u; at < named; at += 1u)
         {
-            printf("  %-16s %8zu %10llu  %-12s %-12s %-10s\n", corpora[at].name.c_str(), corpora[at].lines.size(),
-                   tables[at].total, decimal[pairs + at].c_str(), decimal[pairs + named + at].c_str(),
-                   decimal[ratio_at + at].c_str());
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_columns(output_line, corpora[at].name.c_str(), 16u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_columns(output_line, corpora[at].lines.size(), 8u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_columns(output_line, tables[at].total, 10u);
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_columns(output_line, decimal[pairs + at].c_str(), 12u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_columns(output_line, decimal[pairs + named + at].c_str(), 12u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_columns(output_line, decimal[ratio_at + at].c_str(), 10u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
-        printf("\n  %-34s %-10s %-9s %-9s\n", "pair", "distance", "midpoint", "alternating");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "\n  ");
+            mmgr_line_put_columns(output_line, "pair", 34u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_columns(output_line, "distance", 10u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_columns(output_line, "midpoint", 9u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_columns(output_line, "alternating", 9u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         for (size_t at = 0u; at < pairs; at += 1u)
         {
-            printf("  %-34s %-10s %-9s %-9s\n", comparisons[at].name.c_str(), decimal[at].c_str(),
-                   pair_reads[at * 2u] ? "reads" : "does not", pair_reads[(at * 2u) + 1u] ? "reads" : "does not");
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_columns(output_line, comparisons[at].name.c_str(), 34u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_columns(output_line, decimal[at].c_str(), 10u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_columns(output_line, pair_reads[at * 2u] ? "reads" : "does not", 9u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_columns(output_line, pair_reads[(at * 2u) + 1u] ? "reads" : "does not", 9u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
-        printf("\n  %u of %zu pairs read against the midpoint split-half distances, %u against the alternating\n",
-               pairs_read[0], pairs, pairs_read[1]);
-        printf(
-            "  %zu papers name a language the corpora cover: %u contain fewer than %llu pairs, %u read and agree with"
-            " their prose on %u, %u do not read\n",
-            papers.size(), small, least, read, agreed, unread);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "\n  ");
+            mmgr_line_decimal(output_line, pairs_read[0], 1u);
+            mmgr_line_put(output_line, " of ");
+            mmgr_line_decimal(output_line, pairs, 1u);
+            mmgr_line_put(output_line, " pairs read against the midpoint split-half distances, ");
+            mmgr_line_decimal(output_line, pairs_read[1], 1u);
+            mmgr_line_put(output_line, " against the alternating");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_decimal(output_line, papers.size(), 1u);
+            mmgr_line_put(output_line, " papers name a language the corpora cover: ");
+            mmgr_line_decimal(output_line, small, 1u);
+            mmgr_line_put(output_line, " contain fewer than ");
+            mmgr_line_decimal(output_line, least, 1u);
+            mmgr_line_put(output_line, " pairs, ");
+            mmgr_line_decimal(output_line, read, 1u);
+            mmgr_line_put(output_line, " read and agree with their prose on ");
+            mmgr_line_decimal(output_line, agreed, 1u);
+            mmgr_line_put(output_line, ", ");
+            mmgr_line_decimal(output_line, unread, 1u);
+            mmgr_line_put(output_line, " do not read");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         if (median_qualified[0])
         {
-            printf("  over the %u that do not read, the median gap is %s and the median split-half distance %s\n",
-                   unread, decimal[median_at].c_str(), decimal[median_at + 1u].c_str());
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  over the ");
+            mmgr_line_decimal(output_line, unread, 1u);
+            mmgr_line_put(output_line, " that do not read, the median gap is ");
+            mmgr_line_put(output_line, decimal[median_at].c_str());
+            mmgr_line_put(output_line, " and the median split-half distance ");
+            mmgr_line_put(output_line, decimal[median_at + 1u].c_str());
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
-        printf("  each decimal is the whole part and first six digits of the exact rational in the records\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line,
+                          "  each decimal is the whole part and first six digits of the exact rational in the records");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 
     if (ok && (count == 4))
@@ -862,8 +946,10 @@ int program_main(int count, char **arguments)
                     decimal[pairs + named + alternating_order.sorted.front()].c_str());
             fprintf(figures, "\\newcommand{\\GoldAlternatingMost}{%.5s}\n",
                     decimal[pairs + named + alternating_order.sorted.back()].c_str());
-            fprintf(figures, "\\newcommand{\\GoldRatioLeast}{%.4s}\n", decimal[ratio_at + ratio_order.sorted.front()].c_str());
-            fprintf(figures, "\\newcommand{\\GoldRatioMost}{%.4s}\n", decimal[ratio_at + ratio_order.sorted.back()].c_str());
+            fprintf(figures, "\\newcommand{\\GoldRatioLeast}{%.4s}\n",
+                    decimal[ratio_at + ratio_order.sorted.front()].c_str());
+            fprintf(figures, "\\newcommand{\\GoldRatioMost}{%.4s}\n",
+                    decimal[ratio_at + ratio_order.sorted.back()].c_str());
             unsigned int unread_pairs = 0u;
             for (size_t at = 0u; at < pairs; at += 1u)
             {
@@ -881,7 +967,8 @@ int program_main(int count, char **arguments)
                 fprintf(figures, "\\newcommand{\\GoldUnreadWider}{%s}\n", corpora[wider].name.c_str());
                 fprintf(figures, "\\newcommand{\\GoldUnreadWiderLines}{%zu}\n", corpora[wider].lines.size());
                 fprintf(figures, "\\newcommand{\\GoldUnreadSplit}{%.5s}\n", decimal[pairs + wider].c_str());
-                fprintf(figures, "\\newcommand{\\GoldUnreadAlternating}{%.5s}\n", decimal[pairs + named + wider].c_str());
+                fprintf(figures, "\\newcommand{\\GoldUnreadAlternating}{%.5s}\n",
+                        decimal[pairs + named + wider].c_str());
             }
             fprintf(figures, "\\newcommand{\\GoldPairsUnread}{%u}\n", unread_pairs);
             fprintf(figures, "\\newcommand{\\GoldPapers}{%zu}\n", papers.size());

@@ -33,10 +33,14 @@ case "$(uname -s)" in
         ;;
 esac
 
-INCLUDES=(-I "$ENGINE" -I "$ENGINE/../../cu/engine" -I "$OUTPUT" -I "$SORT" -I "$SCAN" -I "$DIVIDE" -I "$FACES")
+INCLUDES=(-I "$ENGINE" -I "$ENGINE/../../cu/engine" -I "$OUTPUT" -I "$SORT" -I "$SCAN" -I "$DIVIDE" -I "$FACES" -I "$TOP/../includes/codecs/crc")
 rm -f "$BINARY"
 # the test is host work: the output reads and writes files and asks nothing of the device. It is no job
-nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 -DOUTPUT_TEST_FAULTS "${INCLUDES[@]}" -o "$BINARY" "$TEST/output_test.cu" "$OUTPUT/output_graph.cu"
+# the test is a program of the platform, and links MMgr's line with the platform (exact_types_platform_link)
+source "$TOP/../includes/exact_types/exact_types.sh"
+exact_types_platform_link output || exit 1
+nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 -DOUTPUT_TEST_FAULTS "${INCLUDES[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" -o "$BINARY" \
+    "$TEST/output_test.cu" "$OUTPUT/output_graph.cu" "${PLATFORM_LINK[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build the test"; exit 1; }
 if [ "${BUILD_ONLY:-0}" = "1" ]; then
     echo "  built $BINARY"

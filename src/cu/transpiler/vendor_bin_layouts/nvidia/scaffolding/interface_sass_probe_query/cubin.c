@@ -35,7 +35,17 @@ int sass_cubin_safe(const SassProbe *probe, const char *path)
                                      : cubin_safe_image(probe->machine, s_safe_image, size, 0u, &at);
     if (verdict != CUBIN_SAFE)
     {
-        printf("  cubin: %s blocked from the part: %s at byte %llu\n", path, cubin_safe_name(verdict), at);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  cubin: ");
+            mmgr_line_put(output_line, path);
+            mmgr_line_put(output_line, " blocked from the part: ");
+            mmgr_line_put(output_line, cubin_safe_name(verdict));
+            mmgr_line_put(output_line, " at byte ");
+            mmgr_line_decimal(output_line, at, 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     return 1;
@@ -68,7 +78,16 @@ static int sass_cubin_run(SassProbe *probe, const char *path, unsigned int first
         (status == 0) ? mmgr_text_find(sass_output(), "answered ", PLATFORM_TEXT_TO_TERMINATOR) : NULL;
     if (line == NULL)
     {
-        printf("  cubin: %s did not run (exit %d)\n%s", path, status, (status > 0) ? sass_output() : "");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  cubin: ");
+            mmgr_line_put(output_line, path);
+            mmgr_line_put(output_line, " did not run (exit ");
+            mmgr_line_decimal_signed(output_line, status);
+            mmgr_line_put(output_line, ")\n");
+            mmgr_line_put(output_line, (status > 0) ? sass_output() : "");
+            platform_line_out_ended();
+        }
         return 0;
     }
     {
@@ -269,9 +288,18 @@ unsigned int sass_cubin_prefers(SassProbe *probe, const SassMachine *machine, un
                 if ((taken == 0.0) || (!mmgr_text_starts(answer, "answered ", PLATFORM_TEXT_TO_TERMINATOR)) ||
                     (word != prefer->answer))
                 {
-                    printf("  prefer %-24s no reading: the %s coding %s\n", prefer->what,
-                           (side == 0u) ? "first" : "second",
-                           (taken == 0.0) ? "did not assemble" : "answers what the question does not specify");
+                    {
+                        VerbaLinea *const output_line = platform_line_out();
+                        mmgr_line_put(output_line, "  prefer ");
+                        mmgr_line_put_columns(output_line, prefer->what, 24u);
+                        mmgr_line_put(output_line, " no reading: the ");
+                        mmgr_line_put(output_line, (side == 0u) ? "first" : "second");
+                        mmgr_line_put(output_line, " coding ");
+                        mmgr_line_put(output_line, (taken == 0.0) ? "did not assemble"
+                                                                  : "answers what the question does not specify");
+                        mmgr_line_ch(output_line, '\n');
+                        platform_line_out_ended();
+                    }
                     written_ok = 0;
                     continue;
                 }
@@ -299,13 +327,34 @@ unsigned int sass_cubin_prefers(SassProbe *probe, const SassMachine *machine, un
         // differ from the tree's copy for no reason the part could name
         sass_class_take(SASS_CHANNEL_CLOCK, (apart <= spread) ? SASS_CLASS_NOTHING : SASS_CLASS_ANSWERS, prefer->what,
                         0u);
-        printf("  prefer %-24s first %9.0f ns, second %9.0f ns, %.0f ns apart against a spread of %.0f: %s\n",
-               prefer->what, least[0], least[1], apart, spread,
-               (apart <= spread) ? "no preference above the floor"
-                                 : ((least[0] < least[1]) ? "the first" : "the second"));
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  prefer ");
+            mmgr_line_put_columns(output_line, prefer->what, 24u);
+            mmgr_line_put(output_line, " first ");
+            mmgr_line_fixed(output_line, (double)(least[0]), 0u, 9u, EMBED_FALSE);
+            mmgr_line_put(output_line, " ns, second ");
+            mmgr_line_fixed(output_line, (double)(least[1]), 0u, 9u, EMBED_FALSE);
+            mmgr_line_put(output_line, " ns, ");
+            mmgr_line_fixed(output_line, (double)(apart), 0u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, " ns apart against a spread of ");
+            mmgr_line_fixed(output_line, (double)(spread), 0u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_put(output_line, (apart <= spread) ? "no preference above the floor"
+                                                         : ((least[0] < least[1]) ? "the first" : "the second"));
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         if (apart > spread)
         {
-            printf("    %.4f ns a turn, %.2f of the part's ticks\n", each, each / SASS_PREFER_TICK);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    ");
+            mmgr_line_fixed(output_line, (double)(each), 4u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, " ns a turn, ");
+            mmgr_line_fixed(output_line, (double)(each / SASS_PREFER_TICK), 2u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, " of the part's ticks");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
     }
     return read;

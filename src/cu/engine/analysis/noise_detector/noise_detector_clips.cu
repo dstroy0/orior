@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_detector_clips.cu: spikes and clipping
 #include "noise_detector_internal.h"
+#include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 __device__ static void noise_spikes_flush(unsigned long long *cells, unsigned int level_bin,
@@ -265,27 +266,80 @@ void noise_clips_summary(const char *name, const NoiseClips *clips)
     unsigned int max = 0u;
     unsigned long long empty = 0ULL;
     noise_clips_range(clips, &least, &max, &empty);
-    printf("  %-24s values %u to %u, %llu never present between; at 0: %llu, at the top: %llu; constant voxels: %llu"
-           " (at 0: %llu, at the top: %llu)",
-           name, least, max, empty, clips->counts[NOISE_CLIPS_AT_ZERO], clips->counts[NOISE_CLIPS_AT_TOP],
-           clips->counts[NOISE_CLIPS_CONSTANT], clips->counts[NOISE_CLIPS_CONSTANT_ZERO],
-           clips->counts[NOISE_CLIPS_CONSTANT_TOP]);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, name, 24u);
+        mmgr_line_put(output_line, " values ");
+        mmgr_line_decimal(output_line, least, 1u);
+        mmgr_line_put(output_line, " to ");
+        mmgr_line_decimal(output_line, max, 1u);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, empty, 1u);
+        mmgr_line_put(output_line, " never present between; at 0: ");
+        mmgr_line_decimal(output_line, clips->counts[NOISE_CLIPS_AT_ZERO], 1u);
+        mmgr_line_put(output_line, ", at the top: ");
+        mmgr_line_decimal(output_line, clips->counts[NOISE_CLIPS_AT_TOP], 1u);
+        mmgr_line_put(output_line, "; constant voxels: ");
+        mmgr_line_decimal(output_line, clips->counts[NOISE_CLIPS_CONSTANT], 1u);
+        mmgr_line_put(output_line, " (at 0: ");
+        mmgr_line_decimal(output_line, clips->counts[NOISE_CLIPS_CONSTANT_ZERO], 1u);
+        mmgr_line_put(output_line, ", at the top: ");
+        mmgr_line_decimal(output_line, clips->counts[NOISE_CLIPS_CONSTANT_TOP], 1u);
+        mmgr_line_put(output_line, ")");
+        platform_line_out_ended();
+    }
     if (clips->counts[NOISE_CLIPS_CONSTANT] != 0ULL)
     {
-        printf(", within z %u to %u, y %u to %u, x %u to %u", clips->box[0], clips->box[1], clips->box[2],
-               clips->box[3], clips->box[4], clips->box[5]);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, ", within z ");
+        mmgr_line_decimal(output_line, clips->box[0], 1u);
+        mmgr_line_put(output_line, " to ");
+        mmgr_line_decimal(output_line, clips->box[1], 1u);
+        mmgr_line_put(output_line, ", y ");
+        mmgr_line_decimal(output_line, clips->box[2], 1u);
+        mmgr_line_put(output_line, " to ");
+        mmgr_line_decimal(output_line, clips->box[3], 1u);
+        mmgr_line_put(output_line, ", x ");
+        mmgr_line_decimal(output_line, clips->box[4], 1u);
+        mmgr_line_put(output_line, " to ");
+        mmgr_line_decimal(output_line, clips->box[5], 1u);
+        platform_line_out_ended();
     }
-    printf("\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     unsigned long long pooled[NOISE_SPIKE_SUMS];
     noise_spikes_pooled(clips, pooled);
-    printf("  %-24s %llu triples at means 40 to 199; spikes against dips at", "", pooled[NOISE_SPIKE_TRIPLES]);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, "", 24u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal(output_line, pooled[NOISE_SPIKE_TRIPLES], 1u);
+        mmgr_line_put(output_line, " triples at means 40 to 199; spikes against dips at");
+        platform_line_out_ended();
+    }
     for (unsigned int threshold = 0u; threshold < NOISE_SPIKE_THRESHOLDS; threshold += 1u)
     {
-        printf(" %u: %llu, %llu;", NOISE_SPIKE_LEAST << threshold, pooled[1u + (2u * threshold)],
-               pooled[2u + (2u * threshold)]);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal(output_line, NOISE_SPIKE_LEAST << threshold, 1u);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_decimal(output_line, pooled[1u + (2u * threshold)], 1u);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, pooled[2u + (2u * threshold)], 1u);
+        mmgr_line_put(output_line, ";");
+        platform_line_out_ended();
     }
-    printf("\n");
-    fflush(stdout);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    platform_line_flushed();
 }
 
 int noise_clips_rows(FILE *const tables[NOISE_CLIPS_TABLES], const char *name, const NoiseClips *clips)

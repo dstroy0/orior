@@ -294,7 +294,15 @@ int ksc_answers_written(const char *ksc, const std::string &queried, const std::
         krf_path_beside(ksc, krf, sizeof(krf));
         if (!krf_removed_by(krf, "ksc", "replaced", removed.line, removed.lines, who))
         {
-            printf("  %u rows let go from %s could not be recorded in %s\n", removed.lines, ksc, krf);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_decimal(output_line, removed.lines, 1u);
+            mmgr_line_put(output_line, " rows let go from ");
+            mmgr_line_put(output_line, ksc);
+            mmgr_line_put(output_line, " could not be recorded in ");
+            mmgr_line_put(output_line, krf);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
     }
     kfile_lines_free(&removed);
@@ -406,9 +414,25 @@ int host_questions_write(const std::string &path, const std::string &stick, cons
     run_print(&file, "        printf(\"\\n\");\n    }\n    return 0;\n}\n");
     if (!run_closed(&file))
     {
-        printf("  %s could not be written\n", path.c_str());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, path.c_str());
+            mmgr_line_put(output_line, " could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
-    printf("  %s: %u questions the host computes\n", path.c_str(), (unsigned int)written.size());
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, path.c_str());
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_decimal(output_line, (unsigned int)written.size(), 1u);
+        mmgr_line_put(output_line, " questions the host computes");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 1;
 }

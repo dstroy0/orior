@@ -1,6 +1,7 @@
 
 // test_adversarial_projection.c: the joint projection and main
 #include "test_adversarial_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 /**
  * @brief Case 13. A corpus and needle projected apart lose true occurrences; projected together
@@ -49,7 +50,12 @@ static int adversarial_case_joint_projection(void)
     if ((corpus == NULL) || (corpus_ranks == NULL) || (buffers.class_of_position == NULL) ||
         (buffers.members_in_class == NULL) || (buffers.rarity_place_of_class == NULL))
     {
-        printf("    allocation failed\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    allocation failed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         free(corpus);
         free(corpus_ranks);
         free(buffers.class_of_position);
@@ -91,24 +97,71 @@ static int adversarial_case_joint_projection(void)
         adversarial_count_together(corpus, reported_length, needle, reported_needle_length, corpus_ranks, needle_ranks,
                                    &buffers, &reported_together, &reported_distinct);
 
-    printf("  %34s %8s %8s %8s %8s\n", "reported counterexample", "truth", "apart", "together", "classes");
-    printf("  %34s %8zu %8zu %8zu %8zu\n", "C C B A once, at 98", reported_truth, reported_apart, reported_together,
-           reported_distinct);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_right(output_line, "reported counterexample", 34u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "truth", 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "apart", 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "together", 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "classes", 8u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_right(output_line, "C C B A once, at 98", 34u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line, reported_truth, 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line, reported_apart, 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line, reported_together, 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line, reported_distinct, 8u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     if (reported_truth != 1u)
     {
-        printf("    FAIL premise: the hand built field contains %zu occurrences, not 1\n", reported_truth);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL premise: the hand built field contains ");
+            mmgr_line_decimal(output_line, reported_truth, 1u);
+            mmgr_line_put(output_line, " occurrences, not 1");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
     if ((reported_apart_ran == 0) || (reported_apart != 0u))
     {
-        printf("    FAIL negative control: the separate route did not lose the occurrence. This"
-               " case no longer reaches the defect\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL negative control: the separate route did not lose the occurrence. "
+                                       "This case no longer reaches the defect");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
     if ((reported_together_ran == 0) || (reported_together != reported_truth))
     {
-        printf("    FAIL the joint route returned %zu against truth %zu\n", reported_together, reported_truth);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL the joint route returned ");
+            mmgr_line_decimal(output_line, reported_together, 1u);
+            mmgr_line_put(output_line, " against truth ");
+            mmgr_line_decimal(output_line, reported_truth, 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
 
@@ -159,7 +212,14 @@ static int adversarial_case_joint_projection(void)
 
         if ((apart_ran == 0) || (together_ran == 0))
         {
-            printf("    FAIL seed %zu: a projection errored on a valid field\n", seed);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "    FAIL seed ");
+                mmgr_line_decimal(output_line, seed, 1u);
+                mmgr_line_put(output_line, ": a projection errored on a valid field");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             failed = 1;
             continue;
         }
@@ -175,8 +235,19 @@ static int adversarial_case_joint_projection(void)
             exact_regime += 1u;
             if (together != truth)
             {
-                printf("    FAIL seed %zu: %zu classes, joint route %zu against truth %zu\n", seed, distinct, together,
-                       truth);
+                {
+                    VerbaLinea *const output_line = platform_line_out();
+                    mmgr_line_put(output_line, "    FAIL seed ");
+                    mmgr_line_decimal(output_line, seed, 1u);
+                    mmgr_line_put(output_line, ": ");
+                    mmgr_line_decimal(output_line, distinct, 1u);
+                    mmgr_line_put(output_line, " classes, joint route ");
+                    mmgr_line_decimal(output_line, together, 1u);
+                    mmgr_line_put(output_line, " against truth ");
+                    mmgr_line_decimal(output_line, truth, 1u);
+                    mmgr_line_ch(output_line, '\n');
+                    platform_line_out_ended();
+                }
                 failed = 1;
             }
         }
@@ -185,25 +256,70 @@ static int adversarial_case_joint_projection(void)
             clamped_regime += 1u;
             if (together < truth)
             {
-                printf("    FAIL seed %zu: %zu classes, joint route %zu BELOW truth %zu\n", seed, distinct, together,
-                       truth);
+                {
+                    VerbaLinea *const output_line = platform_line_out();
+                    mmgr_line_put(output_line, "    FAIL seed ");
+                    mmgr_line_decimal(output_line, seed, 1u);
+                    mmgr_line_put(output_line, ": ");
+                    mmgr_line_decimal(output_line, distinct, 1u);
+                    mmgr_line_put(output_line, " classes, joint route ");
+                    mmgr_line_decimal(output_line, together, 1u);
+                    mmgr_line_put(output_line, " BELOW truth ");
+                    mmgr_line_decimal(output_line, truth, 1u);
+                    mmgr_line_ch(output_line, '\n');
+                    platform_line_out_ended();
+                }
                 failed = 1;
             }
         }
     }
 
-    printf("  %34s %8s %8s %8s\n", "seeded sweep", "exact", "clamped", "lost");
-    printf("  %34s %8zu %8zu %8zu\n", "seeds by regime, apart losses", exact_regime, clamped_regime, apart_losses);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_right(output_line, "seeded sweep", 34u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "exact", 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "clamped", 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "lost", 8u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_right(output_line, "seeds by regime, apart losses", 34u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line, exact_regime, 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line, clamped_regime, 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line, apart_losses, 8u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     if ((exact_regime == 0u) || (clamped_regime == 0u))
     {
-        printf("    FAIL premise: the sweep did not reach both regimes\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL premise: the sweep did not reach both regimes");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
     if (apart_losses == 0u)
     {
-        printf("    FAIL negative control: the separate route never lost an occurrence across the"
-               " sweep\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line,
+                          "    FAIL negative control: the separate route never lost an occurrence across the sweep");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
 
@@ -226,27 +342,72 @@ static int adversarial_case_joint_projection(void)
     const int clamp_ran = adversarial_count_together(corpus, singleton_length, needle, 2u, corpus_ranks, needle_ranks,
                                                      &buffers, &clamp_together, &clamp_distinct);
 
-    printf("  %34s %8s %8s %8s\n", "clamp merges the needle", "truth", "together", "classes");
-    printf("  %34s %8zu %8zu %8zu\n", "upper bound, never below", clamp_truth, clamp_together, clamp_distinct);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_right(output_line, "clamp merges the needle", 34u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "truth", 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "together", 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "classes", 8u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_right(output_line, "upper bound, never below", 34u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line, clamp_truth, 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line, clamp_together, 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line, clamp_distinct, 8u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     if ((clamp_ran == 0) || (clamp_distinct <= 256u))
     {
-        printf("    FAIL premise: the field did not pass 256 classes\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL premise: the field did not pass 256 classes");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
     if (clamp_together < clamp_truth)
     {
-        printf("    FAIL the joint route fell below the truth past the clamp\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL the joint route fell below the truth past the clamp");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
     if (clamp_together <= clamp_truth)
     {
-        printf("    FAIL premise: the clamp merged nothing the needle uses. The upper bound is"
-               " unmeasured\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line,
+                          "    FAIL premise: the clamp merged nothing the needle uses. The upper bound is unmeasured");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
 
-    printf("  joint projection retains every true occurrence, verdict %s\n", (failed == 0) ? "ok" : "FAILS");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  joint projection retains every true occurrence, verdict ");
+        mmgr_line_put(output_line, (failed == 0) ? "ok" : "FAILS");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     free(corpus);
     free(corpus_ranks);
@@ -262,7 +423,12 @@ int program_main(int argc, char **argv)
     (void)argv;
     int failed = 0;
 
-    printf("\n  ADVERSARIAL SUITE, written to break the guarantees and not show them.\n\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n  ADVERSARIAL SUITE, written to break the guarantees and not show them.\n");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     failed += adversarial_case_differential_net();
     failed += adversarial_case_overlapping();
@@ -278,6 +444,13 @@ int program_main(int argc, char **argv)
     failed += adversarial_case_trichotomy();
     failed += adversarial_case_joint_projection();
 
-    printf("\n  %d case(s) failed\n\n", failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n  ");
+        mmgr_line_decimal_signed(output_line, failed);
+        mmgr_line_put(output_line, " case(s) failed\n");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (failed == 0) ? 0 : 1;
 }

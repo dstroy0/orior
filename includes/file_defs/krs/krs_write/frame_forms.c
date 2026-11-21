@@ -399,8 +399,14 @@ unsigned int krs_frame_written(char *out, size_t cap, size_t *at, const KrsFrame
             *at = verba_textus.put(&(VerbaTextusCfg){.out = out, .cap = cap, .at = *at, .text = kept});
             *at = verba_littera.ch(&(VerbaLitteraCfg){.out = out, .cap = cap, .at = *at, .ch = '\n'});
             written += 1u;
-            printf("  orior_krs_write: no form answered for in this run writes %s; the ruleset retains its form\n",
-                   row->form);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  orior_krs_write: no form answered for in this run writes ");
+                mmgr_line_put(output_line, row->form);
+                mmgr_line_put(output_line, "; the ruleset retains its form");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
         }
     }
     if (removals != 0u)
@@ -409,8 +415,13 @@ unsigned int krs_frame_written(char *out, size_t cap, size_t *at, const KrsFrame
         krf_path_beside(ksc_path, krf, sizeof(krf));
         if (!krf_removed(krf, "krs", "replaced", removed, removals))
         {
-            printf("  orior_krs_write: %u frame lines a written one replaced could not be stored in %s\n", removals,
-                   krf);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  orior_krs_write: ");
+            mmgr_line_decimal(output_line, removals, 1u);
+            mmgr_line_put(output_line, " frame lines a written one replaced could not be stored in ");
+            mmgr_line_put(output_line, krf);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
     }
     return written;

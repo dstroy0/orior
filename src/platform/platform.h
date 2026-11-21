@@ -71,6 +71,10 @@ void platform_line_flushed(void);
 // process ends
 void platform_line_out_ended(void);
 
+// `length` bytes of `bytes` written to the line of the output stream as one write, which platform_line_out_ended
+// ends. The answer is the count of bytes the line took, `length` where every byte went
+unsigned long long platform_line_out_put(const char *bytes, unsigned long long length);
+
 // ---- cells ----
 
 // A cell of `bytes` from the pool, counted to the owner at `place`. An ephemeral cell is on the temporary tier and goes

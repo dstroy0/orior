@@ -15,6 +15,7 @@
  */
 
 #include "cuda_miner.h"
+#include "../../../src/platform/platform.h"
 
 #include <cstdio>
 #include <vector>
@@ -33,16 +34,14 @@
  *       a second copy of the table. Such a copy gets one edit and then disagrees forever.
  */
 static const uint32_t s_round_constant[64] = {
-    0x428a2f98u, 0x71374491u, 0xb5c0fbcfu, 0xe9b5dba5u, 0x3956c25bu, 0x59f111f1u, 0x923f82a4u,
-    0xab1c5ed5u, 0xd807aa98u, 0x12835b01u, 0x243185beu, 0x550c7dc3u, 0x72be5d74u, 0x80deb1feu,
-    0x9bdc06a7u, 0xc19bf174u, 0xe49b69c1u, 0xefbe4786u, 0x0fc19dc6u, 0x240ca1ccu, 0x2de92c6fu,
-    0x4a7484aau, 0x5cb0a9dcu, 0x76f988dau, 0x983e5152u, 0xa831c66du, 0xb00327c8u, 0xbf597fc7u,
-    0xc6e00bf3u, 0xd5a79147u, 0x06ca6351u, 0x14292967u, 0x27b70a85u, 0x2e1b2138u, 0x4d2c6dfcu,
-    0x53380d13u, 0x650a7354u, 0x766a0abbu, 0x81c2c92eu, 0x92722c85u, 0xa2bfe8a1u, 0xa81a664bu,
-    0xc24b8b70u, 0xc76c51a3u, 0xd192e819u, 0xd6990624u, 0xf40e3585u, 0x106aa070u, 0x19a4c116u,
-    0x1e376c08u, 0x2748774cu, 0x34b0bcb5u, 0x391c0cb3u, 0x4ed8aa4au, 0x5b9cca4fu, 0x682e6ff3u,
-    0x748f82eeu, 0x78a5636fu, 0x84c87814u, 0x8cc70208u, 0x90befffau, 0xa4506cebu, 0xbef9a3f7u,
-    0xc67178f2u};
+    0x428a2f98u, 0x71374491u, 0xb5c0fbcfu, 0xe9b5dba5u, 0x3956c25bu, 0x59f111f1u, 0x923f82a4u, 0xab1c5ed5u,
+    0xd807aa98u, 0x12835b01u, 0x243185beu, 0x550c7dc3u, 0x72be5d74u, 0x80deb1feu, 0x9bdc06a7u, 0xc19bf174u,
+    0xe49b69c1u, 0xefbe4786u, 0x0fc19dc6u, 0x240ca1ccu, 0x2de92c6fu, 0x4a7484aau, 0x5cb0a9dcu, 0x76f988dau,
+    0x983e5152u, 0xa831c66du, 0xb00327c8u, 0xbf597fc7u, 0xc6e00bf3u, 0xd5a79147u, 0x06ca6351u, 0x14292967u,
+    0x27b70a85u, 0x2e1b2138u, 0x4d2c6dfcu, 0x53380d13u, 0x650a7354u, 0x766a0abbu, 0x81c2c92eu, 0x92722c85u,
+    0xa2bfe8a1u, 0xa81a664bu, 0xc24b8b70u, 0xc76c51a3u, 0xd192e819u, 0xd6990624u, 0xf40e3585u, 0x106aa070u,
+    0x19a4c116u, 0x1e376c08u, 0x2748774cu, 0x34b0bcb5u, 0x391c0cb3u, 0x4ed8aa4au, 0x5b9cca4fu, 0x682e6ff3u,
+    0x748f82eeu, 0x78a5636fu, 0x84c87814u, 0x8cc70208u, 0x90befffau, 0xa4506cebu, 0xbef9a3f7u, 0xc67178f2u};
 
 /** @brief The same constants on the device, filled from the host table at creation. */
 __constant__ uint32_t d_round_constant[64];
@@ -70,26 +69,25 @@ __device__ __forceinline__ uint32_t spread_high(uint32_t value)
 }
 
 /** @brief One round of the compression function. */
-#define DEVICE_ROUND(state_a_, state_b_, state_c_, state_d_, state_e_, state_f_, state_g_,       \
-                     state_h_, round_, schedule_word_)                                           \
-    do                                                                                           \
-    {                                                                                            \
-        const uint32_t mix_high = rotate_right(state_e_, 6u) ^ rotate_right(state_e_, 11u) ^     \
-                                  rotate_right(state_e_, 25u);                                   \
-        const uint32_t choose = state_g_ ^ (state_e_ & (state_f_ ^ state_g_));                   \
-        const uint32_t carry_one =                                                               \
-            state_h_ + mix_high + choose + d_round_constant[round_] + (schedule_word_);          \
-        const uint32_t mix_low = rotate_right(state_a_, 2u) ^ rotate_right(state_a_, 13u) ^      \
-                                 rotate_right(state_a_, 22u);                                    \
-        const uint32_t majority = (state_a_ & state_b_) | (state_c_ & (state_a_ ^ state_b_));    \
-        state_h_ = state_g_;                                                                     \
-        state_g_ = state_f_;                                                                     \
-        state_f_ = state_e_;                                                                     \
-        state_e_ = state_d_ + carry_one;                                                         \
-        state_d_ = state_c_;                                                                     \
-        state_c_ = state_b_;                                                                     \
-        state_b_ = state_a_;                                                                     \
-        state_a_ = carry_one + mix_low + majority;                                               \
+#define DEVICE_ROUND(state_a_, state_b_, state_c_, state_d_, state_e_, state_f_, state_g_, state_h_, round_,           \
+                     schedule_word_)                                                                                   \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        const uint32_t mix_high =                                                                                      \
+            rotate_right(state_e_, 6u) ^ rotate_right(state_e_, 11u) ^ rotate_right(state_e_, 25u);                    \
+        const uint32_t choose = state_g_ ^ (state_e_ & (state_f_ ^ state_g_));                                         \
+        const uint32_t carry_one = state_h_ + mix_high + choose + d_round_constant[round_] + (schedule_word_);         \
+        const uint32_t mix_low =                                                                                       \
+            rotate_right(state_a_, 2u) ^ rotate_right(state_a_, 13u) ^ rotate_right(state_a_, 22u);                    \
+        const uint32_t majority = (state_a_ & state_b_) | (state_c_ & (state_a_ ^ state_b_));                          \
+        state_h_ = state_g_;                                                                                           \
+        state_g_ = state_f_;                                                                                           \
+        state_f_ = state_e_;                                                                                           \
+        state_e_ = state_d_ + carry_one;                                                                               \
+        state_d_ = state_c_;                                                                                           \
+        state_c_ = state_b_;                                                                                           \
+        state_b_ = state_a_;                                                                                           \
+        state_a_ = carry_one + mix_low + majority;                                                                     \
     } while (0)
 
 /**
@@ -114,8 +112,8 @@ __device__ __forceinline__ void compress_block(uint32_t *state, uint32_t *schedu
 #pragma unroll
     for (int slot = 16; slot < 64; slot += 1)
     {
-        schedule[slot] = spread_high(schedule[slot - 2]) + schedule[slot - 7] +
-                         spread_low(schedule[slot - 15]) + schedule[slot - 16];
+        schedule[slot] = spread_high(schedule[slot - 2]) + schedule[slot - 7] + spread_low(schedule[slot - 15]) +
+                         schedule[slot - 16];
     }
 
     uint32_t state_a = state[0];
@@ -130,8 +128,7 @@ __device__ __forceinline__ void compress_block(uint32_t *state, uint32_t *schedu
 #pragma unroll
     for (int round = 0; round < 64; round += 1)
     {
-        DEVICE_ROUND(state_a, state_b, state_c, state_d, state_e, state_f, state_g, state_h, round,
-                     schedule[round]);
+        DEVICE_ROUND(state_a, state_b, state_c, state_d, state_e, state_f, state_g, state_h, round, schedule[round]);
     }
 
     state[0] += state_a;
@@ -165,9 +162,8 @@ __device__ __forceinline__ void compress_block(uint32_t *state, uint32_t *schedu
  * @param[in]     found_limit  How many winners the buffer holds.
  */
 template <bool Salted>
-__global__ void scan_nonces(CudaScanParameters parameters, uint32_t nonce_base,
-                            uint32_t nonce_count, uint32_t salt, uint32_t *found_count,
-                            uint32_t *found_nonces, uint32_t found_limit,
+__global__ void scan_nonces(CudaScanParameters parameters, uint32_t nonce_base, uint32_t nonce_count, uint32_t salt,
+                            uint32_t *found_count, uint32_t *found_nonces, uint32_t found_limit,
                             unsigned long long *anchor_survivors)
 {
     const uint32_t index = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -177,8 +173,7 @@ __global__ void scan_nonces(CudaScanParameters parameters, uint32_t nonce_base,
         return;
     }
     // Unsigned arithmetic wraps mod 2^32: the space that the spiral walks.
-    const uint32_t nonce =
-        Salted ? (salt + ((nonce_base + index) * GOLDEN_STEP)) : (nonce_base + index);
+    const uint32_t nonce = Salted ? (salt + ((nonce_base + index) * GOLDEN_STEP)) : (nonce_base + index);
 
     uint32_t schedule[64];
     uint32_t state[8];
@@ -205,8 +200,8 @@ __global__ void scan_nonces(CudaScanParameters parameters, uint32_t nonce_base,
 #pragma unroll
     for (int slot = SHARED_SCHEDULE; slot < 64; slot += 1)
     {
-        schedule[slot] = spread_high(schedule[slot - 2]) + schedule[slot - 7] +
-                         spread_low(schedule[slot - 15]) + schedule[slot - 16];
+        schedule[slot] = spread_high(schedule[slot - 2]) + schedule[slot - 7] + spread_low(schedule[slot - 15]) +
+                         schedule[slot - 16];
     }
 
     uint32_t first_a = parameters.shared_state[0];
@@ -221,8 +216,7 @@ __global__ void scan_nonces(CudaScanParameters parameters, uint32_t nonce_base,
 #pragma unroll
     for (int round = SHARED_ROUNDS; round < 64; round += 1)
     {
-        DEVICE_ROUND(first_a, first_b, first_c, first_d, first_e, first_f, first_g, first_h, round,
-                     schedule[round]);
+        DEVICE_ROUND(first_a, first_b, first_c, first_d, first_e, first_f, first_g, first_h, round, schedule[round]);
     }
 
     // Davies-Meyer adds the value that the block started from: the midstate, and not the state
@@ -261,8 +255,8 @@ __global__ void scan_nonces(CudaScanParameters parameters, uint32_t nonce_base,
 #pragma unroll
     for (int slot = 16; slot < ANCHOR_ROUNDS; slot += 1)
     {
-        schedule[slot] = spread_high(schedule[slot - 2]) + schedule[slot - 7] +
-                         spread_low(schedule[slot - 15]) + schedule[slot - 16];
+        schedule[slot] = spread_high(schedule[slot - 2]) + schedule[slot - 7] + spread_low(schedule[slot - 15]) +
+                         schedule[slot - 16];
     }
 
     uint32_t pass_a = state[0];
@@ -277,8 +271,7 @@ __global__ void scan_nonces(CudaScanParameters parameters, uint32_t nonce_base,
 #pragma unroll
     for (int round = 0; round < ANCHOR_ROUNDS; round += 1)
     {
-        DEVICE_ROUND(pass_a, pass_b, pass_c, pass_d, pass_e, pass_f, pass_g, pass_h, round,
-                     schedule[round]);
+        DEVICE_ROUND(pass_a, pass_b, pass_c, pass_d, pass_e, pass_f, pass_g, pass_h, round, schedule[round]);
     }
 
     // The anchor. This refusal is exact and final. A warp whose thirty-two lanes all refuse skips
@@ -305,14 +298,13 @@ __global__ void scan_nonces(CudaScanParameters parameters, uint32_t nonce_base,
 #pragma unroll
     for (int slot = ANCHOR_ROUNDS; slot < 64; slot += 1)
     {
-        schedule[slot] = spread_high(schedule[slot - 2]) + schedule[slot - 7] +
-                         spread_low(schedule[slot - 15]) + schedule[slot - 16];
+        schedule[slot] = spread_high(schedule[slot - 2]) + schedule[slot - 7] + spread_low(schedule[slot - 15]) +
+                         schedule[slot - 16];
     }
 #pragma unroll
     for (int round = ANCHOR_ROUNDS; round < 64; round += 1)
     {
-        DEVICE_ROUND(pass_a, pass_b, pass_c, pass_d, pass_e, pass_f, pass_g, pass_h, round,
-                     schedule[round]);
+        DEVICE_ROUND(pass_a, pass_b, pass_c, pass_d, pass_e, pass_f, pass_g, pass_h, round, schedule[round]);
     }
 
     state[0] += pass_a;
@@ -360,8 +352,8 @@ __global__ void scan_nonces(CudaScanParameters parameters, uint32_t nonce_base,
  * @param[in]  nonce      The nonce to hash.
  * @param[out] ordered    Eight words, most significant first [BORROWS].
  */
-__device__ __forceinline__ void digest_for_nonce(const CudaScanParameters &parameters,
-                                                 uint32_t nonce, uint32_t *ordered)
+__device__ __forceinline__ void digest_for_nonce(const CudaScanParameters &parameters, uint32_t nonce,
+                                                 uint32_t *ordered)
 {
     uint32_t schedule[64];
     uint32_t state[8];
@@ -426,9 +418,8 @@ __device__ __forceinline__ void digest_for_nonce(const CudaScanParameters &param
  *       anything early. scan_nonces must return exactly the winners that this returns. The bench
  *       checks both against the same published blocks before it times either.
  */
-__global__ void scan_nonces_raw(CudaScanParameters parameters, uint32_t nonce_base,
-                                uint32_t nonce_count, uint32_t *found_count,
-                                uint32_t *found_nonces, uint32_t found_limit,
+__global__ void scan_nonces_raw(CudaScanParameters parameters, uint32_t nonce_base, uint32_t nonce_count,
+                                uint32_t *found_count, uint32_t *found_nonces, uint32_t found_limit,
                                 unsigned long long *anchor_survivors)
 {
     (void)anchor_survivors;
@@ -475,9 +466,8 @@ __global__ void scan_nonces_raw(CudaScanParameters parameters, uint32_t nonce_ba
  *       all 32 lanes at once. A digest costs eight ballots per thread, and not 256 atomic adds.
  *       Each warp owns a counter row. Thus nothing inside the block contends.
  */
-__global__ void survey_nonces(CudaScanParameters parameters, uint32_t nonce_base,
-                              uint32_t nonce_count, unsigned long long *bit_counts,
-                              unsigned long long *zero_counts)
+__global__ void survey_nonces(CudaScanParameters parameters, uint32_t nonce_base, uint32_t nonce_count,
+                              unsigned long long *bit_counts, unsigned long long *zero_counts)
 {
     __shared__ uint32_t warp_bits[SURVEY_WARPS][256];
     __shared__ uint32_t warp_zeros[SURVEY_WARPS][33];
@@ -602,8 +592,7 @@ __global__ void survey_nonces(CudaScanParameters parameters, uint32_t nonce_base
  * @note A keyhole is an output position whose difference bit is not a fair coin under a fixed input
  *       salt. This counts exactly that, for one salt, over a whole range.
  */
-__global__ void keyhole_scan(CudaScanParameters parameters, uint32_t nonce_base,
-                             uint32_t nonce_count, uint32_t salt,
+__global__ void keyhole_scan(CudaScanParameters parameters, uint32_t nonce_base, uint32_t nonce_count, uint32_t salt,
                              unsigned long long *bit_counts)
 {
     __shared__ uint32_t warp_bits[SURVEY_WARPS][256];
@@ -723,7 +712,7 @@ static void fill_shared_front(CudaScanParameters *parameters)
     schedule[0] = parameters->merkle_root_tail;
     schedule[1] = parameters->ntime;
     schedule[2] = parameters->nbits;
-    schedule[3] = 0u;   // The nonce, which no shared quantity depends on.
+    schedule[3] = 0u; // The nonce, which no shared quantity depends on.
     schedule[4] = 0x80000000u;
     for (unsigned slot = 5u; slot < 15u; slot += 1u)
     {
@@ -735,10 +724,9 @@ static void fill_shared_front(CudaScanParameters *parameters)
     {
         const uint32_t back_fifteen = schedule[slot - 15u];
         const uint32_t back_two = schedule[slot - 2u];
-        const uint32_t low = host_rotate_right(back_fifteen, 7u) ^
-                             host_rotate_right(back_fifteen, 18u) ^ (back_fifteen >> 3u);
-        const uint32_t high = host_rotate_right(back_two, 17u) ^
-                              host_rotate_right(back_two, 19u) ^ (back_two >> 10u);
+        const uint32_t low =
+            host_rotate_right(back_fifteen, 7u) ^ host_rotate_right(back_fifteen, 18u) ^ (back_fifteen >> 3u);
+        const uint32_t high = host_rotate_right(back_two, 17u) ^ host_rotate_right(back_two, 19u) ^ (back_two >> 10u);
         schedule[slot] = high + schedule[slot - 7u] + low + schedule[slot - 16u];
     }
     parameters->shared_schedule[0] = schedule[16];
@@ -755,15 +743,12 @@ static void fill_shared_front(CudaScanParameters *parameters)
 
     for (unsigned round = 0u; round < SHARED_ROUNDS; round += 1u)
     {
-        const uint32_t mix_high = host_rotate_right(state_e, 6u) ^
-                                  host_rotate_right(state_e, 11u) ^
-                                  host_rotate_right(state_e, 25u);
+        const uint32_t mix_high =
+            host_rotate_right(state_e, 6u) ^ host_rotate_right(state_e, 11u) ^ host_rotate_right(state_e, 25u);
         const uint32_t choose = state_g ^ (state_e & (state_f ^ state_g));
-        const uint32_t carry_one =
-            state_h + mix_high + choose + s_round_constant[round] + schedule[round];
-        const uint32_t mix_low = host_rotate_right(state_a, 2u) ^
-                                 host_rotate_right(state_a, 13u) ^
-                                 host_rotate_right(state_a, 22u);
+        const uint32_t carry_one = state_h + mix_high + choose + s_round_constant[round] + schedule[round];
+        const uint32_t mix_low =
+            host_rotate_right(state_a, 2u) ^ host_rotate_right(state_a, 13u) ^ host_rotate_right(state_a, 22u);
         const uint32_t majority = (state_a & state_b) | (state_c & (state_a ^ state_b));
 
         state_h = state_g;
@@ -792,8 +777,7 @@ CudaMinerContext *cuda_miner_create(uint32_t found_limit)
 
     // One definition of the table, uploaded here. The host arm needs to read it too, and the host
     // cannot read a __constant__ array.
-    if (cudaMemcpyToSymbol(d_round_constant, s_round_constant, sizeof(s_round_constant)) !=
-        cudaSuccess)
+    if (cudaMemcpyToSymbol(d_round_constant, s_round_constant, sizeof(s_round_constant)) != cudaSuccess)
     {
         delete context;
         return nullptr;
@@ -865,9 +849,9 @@ unsigned long long cuda_miner_anchor_survivors(const CudaMinerContext *context)
  * @note ONE LAUNCH PATH FOR EVERY KERNEL. Thus the stream, the resets and the copies back are the
  *       same code. The kernel is the only difference that a timed comparison of them can see.
  */
-static int scan_range(CudaMinerContext *context, const CudaScanParameters *parameters,
-                      uint32_t nonce_base, uint32_t nonce_count, uint32_t *found_nonces,
-                      uint32_t *found_count, int raw, int salted, uint32_t salt)
+static int scan_range(CudaMinerContext *context, const CudaScanParameters *parameters, uint32_t nonce_base,
+                      uint32_t nonce_count, uint32_t *found_nonces, uint32_t *found_count, int raw, int salted,
+                      uint32_t salt)
 {
     if ((context == nullptr) || (parameters == nullptr))
     {
@@ -882,8 +866,7 @@ static int scan_range(CudaMinerContext *context, const CudaScanParameters *param
         return 0;
     }
 
-    if (cudaMemsetAsync(context->anchor_survivors, 0, sizeof(unsigned long long),
-                        context->stream) != cudaSuccess)
+    if (cudaMemsetAsync(context->anchor_survivors, 0, sizeof(unsigned long long), context->stream) != cudaSuccess)
     {
         return 0;
     }
@@ -894,34 +877,33 @@ static int scan_range(CudaMinerContext *context, const CudaScanParameters *param
     if (raw != 0)
     {
         scan_nonces_raw<<<blocks, threads_per_block, 0, context->stream>>>(
-            launched, nonce_base, nonce_count, context->found_count, context->found_nonces,
-            context->found_limit, context->anchor_survivors);
+            launched, nonce_base, nonce_count, context->found_count, context->found_nonces, context->found_limit,
+            context->anchor_survivors);
     }
     else if (salted != 0)
     {
         fill_shared_front(&launched);
         scan_nonces<true><<<blocks, threads_per_block, 0, context->stream>>>(
-            launched, nonce_base, nonce_count, salt, context->found_count, context->found_nonces,
-            context->found_limit, context->anchor_survivors);
+            launched, nonce_base, nonce_count, salt, context->found_count, context->found_nonces, context->found_limit,
+            context->anchor_survivors);
     }
     else
     {
         fill_shared_front(&launched);
         scan_nonces<false><<<blocks, threads_per_block, 0, context->stream>>>(
-            launched, nonce_base, nonce_count, 0u, context->found_count, context->found_nonces,
-            context->found_limit, context->anchor_survivors);
+            launched, nonce_base, nonce_count, 0u, context->found_count, context->found_nonces, context->found_limit,
+            context->anchor_survivors);
     }
 
     uint32_t host_count = 0u;
-    if (cudaMemcpyAsync(&host_count, context->found_count, sizeof(uint32_t),
-                        cudaMemcpyDeviceToHost, context->stream) != cudaSuccess)
+    if (cudaMemcpyAsync(&host_count, context->found_count, sizeof(uint32_t), cudaMemcpyDeviceToHost, context->stream) !=
+        cudaSuccess)
     {
         return 0;
     }
     context->last_anchor_survivors = 0u;
-    if (cudaMemcpyAsync(&context->last_anchor_survivors, context->anchor_survivors,
-                        sizeof(unsigned long long), cudaMemcpyDeviceToHost,
-                        context->stream) != cudaSuccess)
+    if (cudaMemcpyAsync(&context->last_anchor_survivors, context->anchor_survivors, sizeof(unsigned long long),
+                        cudaMemcpyDeviceToHost, context->stream) != cudaSuccess)
     {
         return 0;
     }
@@ -933,15 +915,21 @@ static int scan_range(CudaMinerContext *context, const CudaScanParameters *param
     const cudaError_t status = cudaGetLastError();
     if (status != cudaSuccess)
     {
-        std::printf("[cuda] kernel failed: %s\n", cudaGetErrorString(status));
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "[cuda] kernel failed: ");
+            mmgr_line_put(output_line, cudaGetErrorString(status));
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
 
     const uint32_t copied = (host_count < context->found_limit) ? host_count : context->found_limit;
     if (copied > 0u)
     {
-        if (cudaMemcpy(found_nonces, context->found_nonces, copied * sizeof(uint32_t),
-                       cudaMemcpyDeviceToHost) != cudaSuccess)
+        if (cudaMemcpy(found_nonces, context->found_nonces, copied * sizeof(uint32_t), cudaMemcpyDeviceToHost) !=
+            cudaSuccess)
         {
             return 0;
         }
@@ -950,28 +938,23 @@ static int scan_range(CudaMinerContext *context, const CudaScanParameters *param
     return 1;
 }
 
-int cuda_miner_scan(CudaMinerContext *context, const CudaScanParameters *parameters,
-                    uint32_t nonce_base, uint32_t nonce_count, uint32_t *found_nonces,
-                    uint32_t *found_count)
+int cuda_miner_scan(CudaMinerContext *context, const CudaScanParameters *parameters, uint32_t nonce_base,
+                    uint32_t nonce_count, uint32_t *found_nonces, uint32_t *found_count)
 {
-    return scan_range(context, parameters, nonce_base, nonce_count, found_nonces, found_count, 0, 0,
-                      0u);
+    return scan_range(context, parameters, nonce_base, nonce_count, found_nonces, found_count, 0, 0, 0u);
 }
 
-int cuda_miner_scan_salted(CudaMinerContext *context, const CudaScanParameters *parameters,
-                           uint32_t salt, uint32_t position_base, uint32_t position_count,
-                           uint32_t *found_nonces, uint32_t *found_count)
+int cuda_miner_scan_salted(CudaMinerContext *context, const CudaScanParameters *parameters, uint32_t salt,
+                           uint32_t position_base, uint32_t position_count, uint32_t *found_nonces,
+                           uint32_t *found_count)
 {
-    return scan_range(context, parameters, position_base, position_count, found_nonces, found_count,
-                      0, 1, salt);
+    return scan_range(context, parameters, position_base, position_count, found_nonces, found_count, 0, 1, salt);
 }
 
-int cuda_miner_scan_raw(CudaMinerContext *context, const CudaScanParameters *parameters,
-                        uint32_t nonce_base, uint32_t nonce_count, uint32_t *found_nonces,
-                        uint32_t *found_count)
+int cuda_miner_scan_raw(CudaMinerContext *context, const CudaScanParameters *parameters, uint32_t nonce_base,
+                        uint32_t nonce_count, uint32_t *found_nonces, uint32_t *found_count)
 {
-    return scan_range(context, parameters, nonce_base, nonce_count, found_nonces, found_count, 1, 0,
-                      0u);
+    return scan_range(context, parameters, nonce_base, nonce_count, found_nonces, found_count, 1, 0, 0u);
 }
 
 /**
@@ -1012,8 +995,7 @@ static cudaStream_t survey_stream()
  * @return                      Nonzero on success.
  */
 template <typename Launch>
-static int accumulate_counters(unsigned counter_count, unsigned long long *destination,
-                               Launch launch)
+static int accumulate_counters(unsigned counter_count, unsigned long long *destination, Launch launch)
 {
     unsigned long long *device_counters = nullptr;
     const cudaStream_t stream = survey_stream();
@@ -1024,8 +1006,7 @@ static int accumulate_counters(unsigned counter_count, unsigned long long *desti
     }
     // Async on the stream of the survey. The synchronous cudaMemset synchronizes the device on some
     // drivers: the same stall that this stream removes.
-    if (cudaMemsetAsync(device_counters, 0, counter_count * sizeof(unsigned long long),
-                        stream) != cudaSuccess)
+    if (cudaMemsetAsync(device_counters, 0, counter_count * sizeof(unsigned long long), stream) != cudaSuccess)
     {
         cudaFree(device_counters);
         return 0;
@@ -1045,14 +1026,19 @@ static int accumulate_counters(unsigned counter_count, unsigned long long *desti
     const cudaError_t status = cudaGetLastError();
     if (status != cudaSuccess)
     {
-        std::printf("[cuda] kernel failed: %s\n", cudaGetErrorString(status));
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "[cuda] kernel failed: ");
+            mmgr_line_put(output_line, cudaGetErrorString(status));
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         cudaFree(device_counters);
         return 0;
     }
 
     std::vector<unsigned long long> host_counters(counter_count, 0u);
-    if (cudaMemcpy(host_counters.data(), device_counters,
-                   counter_count * sizeof(unsigned long long),
+    if (cudaMemcpy(host_counters.data(), device_counters, counter_count * sizeof(unsigned long long),
                    cudaMemcpyDeviceToHost) != cudaSuccess)
     {
         cudaFree(device_counters);
@@ -1081,8 +1067,8 @@ static unsigned survey_block_count()
     return (unsigned)properties.multiProcessorCount * 8u;
 }
 
-int cuda_miner_survey(CudaMinerContext *context, const CudaScanParameters *parameters,
-                      uint32_t nonce_base, uint32_t nonce_count, CudaSurvey *survey)
+int cuda_miner_survey(CudaMinerContext *context, const CudaScanParameters *parameters, uint32_t nonce_base,
+                      uint32_t nonce_count, CudaSurvey *survey)
 {
     (void)context;
     if ((parameters == nullptr) || (survey == nullptr))
@@ -1094,16 +1080,14 @@ int cuda_miner_survey(CudaMinerContext *context, const CudaScanParameters *param
     unsigned long long bit_counts[256] = {0u};
     unsigned long long zero_counts[33] = {0u};
 
-    if (accumulate_counters(256u, bit_counts,
-                            [&](unsigned long long *device_bits, cudaStream_t stream) {
+    if (accumulate_counters(256u, bit_counts, [&](unsigned long long *device_bits, cudaStream_t stream) {
             unsigned long long *device_zeros = nullptr;
             cudaMalloc(&device_zeros, 33u * sizeof(unsigned long long));
             cudaMemsetAsync(device_zeros, 0, 33u * sizeof(unsigned long long), stream);
-            survey_nonces<<<blocks, SURVEY_THREADS, 0, stream>>>(*parameters, nonce_base,
-                                                                 nonce_count, device_bits,
+            survey_nonces<<<blocks, SURVEY_THREADS, 0, stream>>>(*parameters, nonce_base, nonce_count, device_bits,
                                                                  device_zeros);
-            cudaMemcpyAsync(zero_counts, device_zeros, 33u * sizeof(unsigned long long),
-                            cudaMemcpyDeviceToHost, stream);
+            cudaMemcpyAsync(zero_counts, device_zeros, 33u * sizeof(unsigned long long), cudaMemcpyDeviceToHost,
+                            stream);
             // This lambda frees device_zeros. Thus it must wait for its own work first.
             // Stream scoped: a wait on the device here would defeat the purpose of the stream.
             cudaStreamSynchronize(stream);
@@ -1125,9 +1109,8 @@ int cuda_miner_survey(CudaMinerContext *context, const CudaScanParameters *param
     return 1;
 }
 
-int cuda_miner_keyhole(CudaMinerContext *context, const CudaScanParameters *parameters,
-                       uint32_t nonce_base, uint32_t nonce_count, uint32_t salt,
-                       unsigned long long *difference_one_count)
+int cuda_miner_keyhole(CudaMinerContext *context, const CudaScanParameters *parameters, uint32_t nonce_base,
+                       uint32_t nonce_count, uint32_t salt, unsigned long long *difference_one_count)
 {
     (void)context;
     if ((parameters == nullptr) || (difference_one_count == nullptr))
@@ -1136,10 +1119,8 @@ int cuda_miner_keyhole(CudaMinerContext *context, const CudaScanParameters *para
     }
 
     const unsigned blocks = survey_block_count();
-    return accumulate_counters(256u, difference_one_count,
-                               [&](unsigned long long *device_bits, cudaStream_t stream) {
-        keyhole_scan<<<blocks, SURVEY_THREADS, 0, stream>>>(*parameters, nonce_base, nonce_count,
-                                                            salt, device_bits);
+    return accumulate_counters(256u, difference_one_count, [&](unsigned long long *device_bits, cudaStream_t stream) {
+        keyhole_scan<<<blocks, SURVEY_THREADS, 0, stream>>>(*parameters, nonce_base, nonce_count, salt, device_bits);
     });
 }
 
@@ -1159,8 +1140,7 @@ int cuda_miner_device_report(char *text, size_t text_size)
     int clock_khz = 0;
     cudaDeviceGetAttribute(&clock_khz, cudaDevAttrClockRate, 0);
 
-    std::snprintf(text, text_size, "%s, compute %d.%d, %d SMs, %.2f GHz", properties.name,
-                  properties.major, properties.minor, properties.multiProcessorCount,
-                  clock_khz / 1.0e6);
+    std::snprintf(text, text_size, "%s, compute %d.%d, %d SMs, %.2f GHz", properties.name, properties.major,
+                  properties.minor, properties.multiProcessorCount, clock_khz / 1.0e6);
     return properties.multiProcessorCount;
 }

@@ -8,6 +8,8 @@
 // system. Built with no optimization: each question reaches the part as written. The operands are volatile: no compiler
 // folds a division it can see is undefined, and the part itself answers
 #include <limits.h>
+#include "../../../../../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -58,7 +60,7 @@ static void probe_pause_second(void)
 #endif
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     const char *const question = (count > 1) ? arguments[1] : "";
     if ((strcmp(question, "exit") == 0) && (count > 2))
@@ -67,10 +69,19 @@ int main(int count, char **arguments)
     }
     if ((strcmp(question, "write") == 0) && (count > 2))
     {
-        fprintf(stdout, "out: %s\n", arguments[2]);
-        fflush(stdout);
-        fprintf(stderr, "err: %s\n", arguments[2]);
-        fflush(stderr);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "out: ");
+            mmgr_line_put(output_line, arguments[2]);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        platform_line_flushed();
+        // the errors go out after the output, through the platform as the output did, and so each line ends in one byte
+        platform_terminal_write(1, "err: ", 5ULL);
+        platform_terminal_write(1, arguments[2],
+                                (unsigned long long)mmgr_text_length(arguments[2], PLATFORM_TEXT_TO_TERMINATOR));
+        platform_terminal_write(1, "\n", 1ULL);
         return 0;
     }
     if ((strcmp(question, "flood") == 0) && (count > 2))
@@ -83,27 +94,46 @@ int main(int count, char **arguments)
         while (left != 0ul)
         {
             const size_t now = (left < sizeof(piece)) ? (size_t)left : sizeof(piece);
-            fwrite(piece, 1u, now, stdout);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                (void)mmgr_line_put_n(output_line, (const char *)(piece), (size_t)(1u) * (size_t)(now));
+                platform_line_out_ended();
+            }
             left -= (unsigned long)now;
         }
-        fflush(stdout);
+        platform_line_flushed();
         return 0;
     }
     if (strcmp(question, "divide_by_zero") == 0)
     {
-        printf("%d\n", s_probe_numerator / s_probe_zero);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_decimal_signed(output_line, s_probe_numerator / s_probe_zero);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     if (strcmp(question, "divide_overflow") == 0)
     {
-        printf("%d\n", s_probe_least / s_probe_minus_one);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_decimal_signed(output_line, s_probe_least / s_probe_minus_one);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     if (strcmp(question, "read_address") == 0)
     {
         // the sixteenth byte of the address space, in the first page, which no process maps
         volatile const int *const address = (volatile const int *)(uintptr_t)16u;
-        printf("%d\n", *address);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_decimal_signed(output_line, *address);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     if (strcmp(question, "illegal_instruction") == 0)

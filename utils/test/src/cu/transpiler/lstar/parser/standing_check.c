@@ -12,6 +12,7 @@
 //
 //     standing_check
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/khw_learn/khw_learn_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
@@ -22,7 +23,13 @@ static void check_that(int passed, const char *what)
     if (passed == 0)
     {
         s_failed += 1u;
-        printf("  FAILED: %s\n", what);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -65,8 +72,10 @@ static KhwAnswered add_found(unsigned long long low, unsigned long long high)
     return form;
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     const KhwAnswered add = add_form(0x0000000700077210ull, 0x004fca0007ffe0ffull);
     KhwAnswered other = add;
     check_that(khw_answers_alike(&add, &other), "alike: a form answers alike with itself");
@@ -102,8 +111,7 @@ int main(void)
     KhwAnswered turned_take = turned_outside;
     turned_take.anchor = (unsigned int)LADDER_TAKE;
     check_that(!khw_form_is_for(&add, &turned_take), "turned: an encoding answering another relation is alone");
-    check_that(!khw_form_is_for(&turned_outside, &turned_twice),
-               "turned: a form carrying no runs is for nothing");
+    check_that(!khw_form_is_for(&turned_outside, &turned_twice), "turned: a form carrying no runs is for nothing");
 
     const KhwAnswered add_again = add_form(add.low ^ (1ull << 40u), add.high);
     check_that(khw_form_is_for(&add, &add_again), "runs: the same runs answering alike are one form");
@@ -135,6 +143,15 @@ int main(void)
     take.anchor = (unsigned int)LADDER_TAKE;
     check_that(!khw_form_was_for(set, folded, &take), "folded: the set is for no take");
 
-    printf("standing_check: %u checks, %u failed\n", s_checks, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "standing_check: ");
+        mmgr_line_decimal(output_line, s_checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, s_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failed == 0u) ? 0 : 1;
 }

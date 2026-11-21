@@ -13,6 +13,7 @@
 //
 // It runs in a query run (qry_run.sh): every file it writes is passed to the run's writer.
 #include "../../../../../../../includes/file_defs/krf/krf.h"
+#include "../../../../../../../src/platform/platform.h"
 
 #include "../../../../../../../includes/parsers/who.h"
 #include "verba_scribo/verba_scribo.h"
@@ -29,7 +30,13 @@ static void check_that(int passed, const char *what)
     if (passed == 0)
     {
         s_failed += 1u;
-        printf("  FAILED: %s\n", what);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -61,7 +68,12 @@ int program_main(int count, char **words)
 {
     if (count < 2)
     {
-        printf("krf_check <folder>\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "krf_check <folder>");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     char query[KRF_QUERY];
@@ -126,6 +138,15 @@ int program_main(int count, char **words)
                    (strcmp(s_row.reason, "refused") == 0) && (strncmp(s_row.row, "form word_add", 13u) == 0),
                "and a form's line is read back whole");
     krf_free(&s_file);
-    printf("krf_check: %u checks, %u failed\n", s_checks, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "krf_check: ");
+        mmgr_line_decimal(output_line, s_checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, s_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failed == 0u) ? 0 : 1;
 }

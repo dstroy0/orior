@@ -64,13 +64,16 @@ source "$TOP/includes/file_defs/file_defs.sh"
 source "$TOP/includes/exact_types/exact_types.sh"
 OUT="$TOP/build/engine"
 mkdir -p "$OUT"
-# the checks link the sources of MMgr, compiled once with the cc that compiles the checks
+# the checks are programs of the platform. They link MMgr's line, the platform and the carcer, which the cc of the
+# checks compiles once. The libraries of the system come after them. The list goes last in each command, as the
+# libraries come after every source
 CHAIN_LINEA=()
-for source in "${FILE_DEFS_LINEA[@]}"; do
+for source in "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}"; do
     object="$OUT/$(basename "$source" .c)_chain.o"
     cc -std=c11 -O2 "${FILE_DEFS_MMGR_FLAGS[@]}" -c "$source" -o "$object" || exit 1
     CHAIN_LINEA+=("$object")
 done
+CHAIN_LINEA+=("${EXACT_TYPES_LIBRARIES[@]}")
 
 for one in "$TOP/includes/file_defs/kdm/kdm_write.c" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/chain_check.c"; do
     name="$(basename "$one" .c)"
@@ -94,7 +97,7 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/query_put_check" "$TOP/utils/test/src/cu/
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/answer_read_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/answer_read_check.c" \
     "$TOP/src/cu/transpiler/lstar/protocol/query/answer_read.c" "${FILE_DEFS_MMGR_FLAGS[@]}" "${CHAIN_LINEA[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/frame_relation_check" "$TOP/utils/test/src/cu/transpiler/lstar/parser/frame_relation_check.c" \
-    "${FILE_DEFS_MMGR_FLAGS[@]}" "${FILE_DEFS_LINEA[@]}" || exit 1
+    "${FILE_DEFS_MMGR_FLAGS[@]}" "${CHAIN_LINEA[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/turning_check" "$TOP/utils/test/src/cu/transpiler/lstar/parser/turning_check.c" \
     "$TOP/src/cu/transpiler/lstar/protocol/khw_learn/turning.c" "${FILE_DEFS_MMGR_FLAGS[@]}" "${CHAIN_LINEA[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/standing_check" "$TOP/utils/test/src/cu/transpiler/lstar/parser/standing_check.c" \

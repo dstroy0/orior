@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // max_tree_levels_test_draw.c: draws, fills, floods and stored nodes
 #include "max_tree_levels_test_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 void levels_check(LevelsResults *results, int passed, const char *what, unsigned int volume, unsigned int level)
 {
@@ -11,7 +12,16 @@ void levels_check(LevelsResults *results, int passed, const char *what, unsigned
         results->failed += 1u;
         if (results->failed <= 20u)
         {
-            printf("  FAIL %s (volume %u, level %u)\n", what, volume, level);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAIL ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_put(output_line, " (volume ");
+            mmgr_line_decimal(output_line, volume, 1u);
+            mmgr_line_put(output_line, ", level ");
+            mmgr_line_decimal(output_line, level, 1u);
+            mmgr_line_put(output_line, ")");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
     }
 }

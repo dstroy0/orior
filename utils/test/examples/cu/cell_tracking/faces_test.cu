@@ -27,6 +27,8 @@
 // .faces carries is taken a bit at a time here, apart from cu/includes/codecs/crc/crc.h's table, which faces_find.cu
 // takes it by.
 #include "faces.h"
+#include "../../../../../src/platform/platform.h"
+#include "hessian.h"
 #include "scan.h"
 #include "sort.h"
 
@@ -71,7 +73,13 @@ static void faces_test_check(FacesTestResults *results, int passed, const char *
     if (passed == 0)
     {
         results->failures += 1u;
-        printf("  FAILED: %s\n", what);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -425,8 +433,8 @@ static int faces_test_sample(const char *set, const char *sample, const FacesTes
            faces_test_links(set, sample, walk, flaw);
 }
 
-// CRC-64/XZ a bit at a time from its reflected polynomial, restated apart from cu/includes/codecs/crc/crc.h's table, over
-// the whole file; 0 when it does not read
+// CRC-64/XZ a bit at a time from its reflected polynomial, restated apart from cu/includes/codecs/crc/crc.h's table,
+// over the whole file; 0 when it does not read
 static int faces_test_crc(const char *path, unsigned long long *crc)
 {
     FILE *const file = fopen(path, "rb");
@@ -497,13 +505,56 @@ static int faces_test_matches(const char *set, const char *sample, const FacesTe
         same = read.words[at] == want.words[at];
         if (same == 0)
         {
-            printf("  %s's .faces word %u reads %08X, and the hand's is %08X\n", sample, at, read.words[at],
-                   want.words[at]);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, sample);
+            mmgr_line_put(output_line, "'s .faces word ");
+            mmgr_line_decimal(output_line, at, 1u);
+            mmgr_line_put(output_line, " reads ");
+            {
+                char linea_piece[24u];
+                VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                mmgr_line_hex(&linea_piece_line, (uint64_t)(read.words[at]), 8u);
+                const size_t linea_length = mmgr_line_finish(&linea_piece_line);
+                for (size_t linea_at = 0u; linea_at < linea_length; linea_at += 1u)
+                {
+                    if (linea_piece[linea_at] >= 'a')
+                    {
+                        linea_piece[linea_at] = (char)(linea_piece[linea_at] - ('a' - 'A'));
+                    }
+                }
+                (void)mmgr_line_put_n(output_line, linea_piece, linea_length);
+            }
+            mmgr_line_put(output_line, ", and the hand's is ");
+            {
+                char linea_piece[24u];
+                VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                mmgr_line_hex(&linea_piece_line, (uint64_t)(want.words[at]), 8u);
+                const size_t linea_length = mmgr_line_finish(&linea_piece_line);
+                for (size_t linea_at = 0u; linea_at < linea_length; linea_at += 1u)
+                {
+                    if (linea_piece[linea_at] >= 'a')
+                    {
+                        linea_piece[linea_at] = (char)(linea_piece[linea_at] - ('a' - 'A'));
+                    }
+                }
+                (void)mmgr_line_put_n(output_line, linea_piece, linea_length);
+            }
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
     }
     if ((file != NULL) && (read.count != want.count))
     {
-        printf("  %s's .faces contains %u words, and the hand's %u\n", sample, read.count, want.count);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, sample);
+        mmgr_line_put(output_line, "'s .faces contains ");
+        mmgr_line_decimal(output_line, read.count, 1u);
+        mmgr_line_put(output_line, " words, and the hand's ");
+        mmgr_line_decimal(output_line, want.count, 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     return same;
 }
@@ -588,7 +639,13 @@ static void faces_test_ok(FacesTestResults *results, const char *root)
     FacesRequest request = {set, samples, 3u, report};
     const long result = (report != NULL) ? faces_find_set(&request) : FACES_ERROR;
     const int closed = (report != NULL) && (fclose(report) == 0);
-    printf("  the good set: faces_find_set returned %ld\n", result);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the good set: faces_find_set returned ");
+        mmgr_line_decimal_signed(output_line, result);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     faces_test_check(results, (result == 0L) && closed, "the good set writes");
     faces_test_check(results, faces_test_matches(set, "walk", &walk, FACES_TEST_WALK), "walk's .faces is the hand's");
     faces_test_check(results, faces_test_matches(set, "still", &still, FACES_TEST_STILL),
@@ -620,10 +677,19 @@ static void faces_test_ok(FacesTestResults *results, const char *root)
     const int same = faces_test_text(report_path, text, sizeof(text)) && (strcmp(text, want) == 0);
     if (same == 0)
     {
-        printf("  the report reads:\n%s  and the hand's is:\n%s", text, want);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the report reads:\n");
+        mmgr_line_put(output_line, text);
+        mmgr_line_put(output_line, "  and the hand's is:\n");
+        mmgr_line_put(output_line, want);
+        platform_line_out_ended();
     }
     faces_test_check(results, same, "the report is the hand's");
-    printf("%s", text);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, text);
+        platform_line_out_ended();
+    }
 }
 
 // each broken copy of walk alone in its set, a stale .faces beside it: the set errors and no .faces is left
@@ -658,8 +724,15 @@ static void faces_test_errors(FacesTestResults *results, const char *root)
         char *const samples[1] = {walk_name};
         FILE *const report = fopen(report_path, "wb");
         FacesRequest request = {set, samples, 1u, report};
-        printf("  %s:\n", name);
-        fflush(stdout);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, name);
+            mmgr_line_put(output_line, ":");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        platform_line_flushed();
         const long result = (report != NULL) ? faces_find_set(&request) : 0L;
         if (report != NULL)
         {
@@ -696,8 +769,13 @@ static void faces_test_mixed(FacesTestResults *results, const char *root)
     char *const samples[2] = {walk_name, still_name};
     FILE *const report = fopen(report_path, "wb");
     FacesRequest request = {set, samples, 2u, report};
-    printf("  mixed:\n");
-    fflush(stdout);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  mixed:");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    platform_line_flushed();
     const long result = (report != NULL) ? faces_find_set(&request) : 0L;
     if (report != NULL)
     {
@@ -713,7 +791,11 @@ static void faces_test_mixed(FacesTestResults *results, const char *root)
                      faces_test_text(report_path, text, sizeof(text)) &&
                          (strstr(text, "  faces on 1 of 2 samples: 1 frames, 2 points;") != NULL),
                      "the mixed set's report counts 1 of 2 samples");
-    printf("%s", text);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, text);
+        platform_line_out_ended();
+    }
 }
 
 static void faces_test_requests(FacesTestResults *results, const char *root)
@@ -731,11 +813,16 @@ static void faces_test_requests(FacesTestResults *results, const char *root)
     faces_test_check(results, faces_find_set(&no_report) == FACES_ERROR, "a request with no report errors");
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     if (count != 2)
     {
-        printf("  usage: faces_test <directory>\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  usage: faces_test <directory>");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     (void)FACES_TEST_MKDIR(arguments[1]);
@@ -744,6 +831,15 @@ int main(int count, char **arguments)
     faces_test_errors(&results, arguments[1]);
     faces_test_mixed(&results, arguments[1]);
     faces_test_requests(&results, arguments[1]);
-    printf("  faces test: %u checks, %u failed\n", results.checks, results.failures);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  faces test: ");
+        mmgr_line_decimal(output_line, results.checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, results.failures, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (results.failures == 0u) ? 0 : 1;
 }

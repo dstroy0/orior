@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "../../../../src/cu/engine/nbody/max_tree/max_tree.h"
+#include "../../../../src/platform/platform.h"
 
 typedef struct
 {
@@ -118,17 +119,48 @@ static int score_slide_frame(const AnswerKey *key, unsigned int time, const Engi
     }
     if (steps_succeeded)
     {
-        printf(
-            "    slide t=%u: %u key cells; the threshold at level %u of %u captures %u, %u alone; alone at some level "
-            "%u, at"
-            " the best single level %u; level:components:present:alone",
-            time, keys, threshold, top, present_at_threshold, alone_at_threshold, separable, best_alone);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    slide t=");
+            mmgr_line_decimal(output_line, time, 1u);
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_decimal(output_line, keys, 1u);
+            mmgr_line_put(output_line, " key cells; the threshold at level ");
+            mmgr_line_decimal(output_line, threshold, 1u);
+            mmgr_line_put(output_line, " of ");
+            mmgr_line_decimal(output_line, top, 1u);
+            mmgr_line_put(output_line, " captures ");
+            mmgr_line_decimal(output_line, present_at_threshold, 1u);
+            mmgr_line_put(output_line, ", ");
+            mmgr_line_decimal(output_line, alone_at_threshold, 1u);
+            mmgr_line_put(output_line, " alone; alone at some level ");
+            mmgr_line_decimal(output_line, separable, 1u);
+            mmgr_line_put(output_line, ", at the best single level ");
+            mmgr_line_decimal(output_line, best_alone, 1u);
+            mmgr_line_put(output_line, "; level:components:present:alone");
+            platform_line_out_ended();
+        }
         for (unsigned int step = 0u; step < step_count; step += 1u)
         {
             const ScoreSlidePresence presence = score_slide_results(&partitions[(size_t)step * keys], keys, NULL);
-            printf(" %u:%u:%u:%u", steps[step].level, steps[step].components, presence.present, presence.alone);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, " ");
+                mmgr_line_decimal(output_line, steps[step].level, 1u);
+                mmgr_line_put(output_line, ":");
+                mmgr_line_decimal(output_line, steps[step].components, 1u);
+                mmgr_line_put(output_line, ":");
+                mmgr_line_decimal(output_line, presence.present, 1u);
+                mmgr_line_put(output_line, ":");
+                mmgr_line_decimal(output_line, presence.alone, 1u);
+                platform_line_out_ended();
+            }
         }
-        printf("\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         results->frames += 1u;
         results->keys += keys;
         results->present_at_threshold += present_at_threshold;
@@ -418,22 +450,75 @@ static int score_overlap_pair(const TreeFrame *earlier, const TreeFrame *later, 
     }
     if (steps_succeeded && every_step)
     {
-        printf(
-            "    overlap t=%u->%u at the drift %d,%d,%d, %u key divisions; origin:level:earlier code:later code:earlier"
-            " components:later components:earlier one:later one:mutual:disappear:appear:divisions:merges:key"
-            " present:key apart:key parted:key caught",
-            earlier->time, later->time, request.lag[0], request.lag[1], request.lag[2], key_divisions);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    overlap t=");
+            mmgr_line_decimal(output_line, earlier->time, 1u);
+            mmgr_line_put(output_line, "->");
+            mmgr_line_decimal(output_line, later->time, 1u);
+            mmgr_line_put(output_line, " at the drift ");
+            mmgr_line_decimal_signed(output_line, request.lag[0]);
+            mmgr_line_put(output_line, ",");
+            mmgr_line_decimal_signed(output_line, request.lag[1]);
+            mmgr_line_put(output_line, ",");
+            mmgr_line_decimal_signed(output_line, request.lag[2]);
+            mmgr_line_put(output_line, ", ");
+            mmgr_line_decimal(output_line, key_divisions, 1u);
+            mmgr_line_put(
+                output_line,
+                " key divisions; origin:level:earlier code:later code:earlier components:later components:earlier "
+                "one:later one:mutual:disappear:appear:divisions:merges:key present:key apart:key parted:key caught");
+            platform_line_out_ended();
+        }
         for (unsigned int step = 0u; step < step_count; step += 1u)
         {
             const MaxTreeOverlapStep *const at = &steps[step];
             const ScoreOverlapGrade grade = score_overlap_grade(
                 &probes[step * probes_a_step], &links_present[(size_t)step * link_count], key_divisions, key_cells);
-            printf(" %u:%u:%u:%u:%u:%u:%u:%u:%u:%u:%u:%u:%u:%u:%u:%u:%u", at->origin, at->level, at->earlier_code,
-                   at->later_code, at->earlier_components, at->later_components, at->earlier_one, at->later_one,
-                   at->earlier_mutual, at->earlier_unpaired, at->later_unpaired, at->earlier_forked, at->later_forked,
-                   grade.key_present, grade.key_apart, grade.key_parted, grade.key_caught);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, " ");
+                mmgr_line_decimal(output_line, at->origin, 1u);
+                mmgr_line_put(output_line, ":");
+                mmgr_line_decimal(output_line, at->level, 1u);
+                mmgr_line_put(output_line, ":");
+                mmgr_line_decimal(output_line, at->earlier_code, 1u);
+                mmgr_line_put(output_line, ":");
+                mmgr_line_decimal(output_line, at->later_code, 1u);
+                mmgr_line_put(output_line, ":");
+                mmgr_line_decimal(output_line, at->earlier_components, 1u);
+                mmgr_line_put(output_line, ":");
+                mmgr_line_decimal(output_line, at->later_components, 1u);
+                mmgr_line_put(output_line, ":");
+                mmgr_line_decimal(output_line, at->earlier_one, 1u);
+                mmgr_line_put(output_line, ":");
+                mmgr_line_decimal(output_line, at->later_one, 1u);
+                mmgr_line_put(output_line, ":");
+                mmgr_line_decimal(output_line, at->earlier_mutual, 1u);
+                mmgr_line_put(output_line, ":");
+                mmgr_line_decimal(output_line, at->earlier_unpaired, 1u);
+                mmgr_line_put(output_line, ":");
+                mmgr_line_decimal(output_line, at->later_unpaired, 1u);
+                mmgr_line_put(output_line, ":");
+                mmgr_line_decimal(output_line, at->earlier_forked, 1u);
+                mmgr_line_put(output_line, ":");
+                mmgr_line_decimal(output_line, at->later_forked, 1u);
+                mmgr_line_put(output_line, ":");
+                mmgr_line_decimal(output_line, grade.key_present, 1u);
+                mmgr_line_put(output_line, ":");
+                mmgr_line_decimal(output_line, grade.key_apart, 1u);
+                mmgr_line_put(output_line, ":");
+                mmgr_line_decimal(output_line, grade.key_parted, 1u);
+                mmgr_line_put(output_line, ":");
+                mmgr_line_decimal(output_line, grade.key_caught, 1u);
+                platform_line_out_ended();
+            }
         }
-        printf("\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     if (steps_succeeded)
     {
@@ -459,12 +544,42 @@ static int score_overlap_pair(const TreeFrame *earlier, const TreeFrame *later, 
         const MaxTreeOverlapStep *const pick = &steps[chosen];
         const ScoreOverlapGrade picked = score_overlap_grade(
             &probes[chosen * probes_a_step], &links_present[(size_t)chosen * link_count], key_divisions, key_cells);
-        printf(
-            "    max mutual t=%u->%u: origin %u level %u, codes %u/%u, %u/%u components, %u mutual, %u of %u key cells"
-            " present and %u alone, %u of %u key divisions parted and %u caught\n",
-            earlier->time, later->time, pick->origin, pick->level, pick->earlier_code, pick->later_code,
-            pick->earlier_components, pick->later_components, pick->earlier_mutual, picked.key_cells_present, key_cells,
-            picked.key_cells_alone, picked.key_parted, key_divisions, picked.key_caught);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    max mutual t=");
+            mmgr_line_decimal(output_line, earlier->time, 1u);
+            mmgr_line_put(output_line, "->");
+            mmgr_line_decimal(output_line, later->time, 1u);
+            mmgr_line_put(output_line, ": origin ");
+            mmgr_line_decimal(output_line, pick->origin, 1u);
+            mmgr_line_put(output_line, " level ");
+            mmgr_line_decimal(output_line, pick->level, 1u);
+            mmgr_line_put(output_line, ", codes ");
+            mmgr_line_decimal(output_line, pick->earlier_code, 1u);
+            mmgr_line_put(output_line, "/");
+            mmgr_line_decimal(output_line, pick->later_code, 1u);
+            mmgr_line_put(output_line, ", ");
+            mmgr_line_decimal(output_line, pick->earlier_components, 1u);
+            mmgr_line_put(output_line, "/");
+            mmgr_line_decimal(output_line, pick->later_components, 1u);
+            mmgr_line_put(output_line, " components, ");
+            mmgr_line_decimal(output_line, pick->earlier_mutual, 1u);
+            mmgr_line_put(output_line, " mutual, ");
+            mmgr_line_decimal(output_line, picked.key_cells_present, 1u);
+            mmgr_line_put(output_line, " of ");
+            mmgr_line_decimal(output_line, key_cells, 1u);
+            mmgr_line_put(output_line, " key cells present and ");
+            mmgr_line_decimal(output_line, picked.key_cells_alone, 1u);
+            mmgr_line_put(output_line, " alone, ");
+            mmgr_line_decimal(output_line, picked.key_parted, 1u);
+            mmgr_line_put(output_line, " of ");
+            mmgr_line_decimal(output_line, key_divisions, 1u);
+            mmgr_line_put(output_line, " key divisions parted and ");
+            mmgr_line_decimal(output_line, picked.key_caught, 1u);
+            mmgr_line_put(output_line, " caught");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         results->chosen_components += pick->earlier_components;
         results->chosen_later_components += pick->later_components;
         results->chosen_mutual += pick->earlier_mutual;
@@ -541,39 +656,115 @@ slide_levels[1].count = 0u;
 
 if ((ok != 0) && (rules->slide != 0))
 {
-    printf(
-        "  %s: the slide, %u frames with key cells, %u key cells: the threshold captures %u, %u of them alone; alone at"
-        " some level %u; at each frame's best single level %u; %llu labelings, each proved against the tree's"
-        " count\n",
-        sample, slide.frames, slide.keys, slide.present_at_threshold, slide.alone_at_threshold, slide.separable,
-        slide.best_alone, slide.labelings);
+    VerbaLinea *const output_line = platform_line_out();
+    mmgr_line_put(output_line, "  ");
+    mmgr_line_put(output_line, sample);
+    mmgr_line_put(output_line, ": the slide, ");
+    mmgr_line_decimal(output_line, slide.frames, 1u);
+    mmgr_line_put(output_line, " frames with key cells, ");
+    mmgr_line_decimal(output_line, slide.keys, 1u);
+    mmgr_line_put(output_line, " key cells: the threshold captures ");
+    mmgr_line_decimal(output_line, slide.present_at_threshold, 1u);
+    mmgr_line_put(output_line, ", ");
+    mmgr_line_decimal(output_line, slide.alone_at_threshold, 1u);
+    mmgr_line_put(output_line, " of them alone; alone at some level ");
+    mmgr_line_decimal(output_line, slide.separable, 1u);
+    mmgr_line_put(output_line, "; at each frame's best single level ");
+    mmgr_line_decimal(output_line, slide.best_alone, 1u);
+    mmgr_line_put(output_line, "; ");
+    mmgr_line_decimal(output_line, slide.labelings, 1u);
+    mmgr_line_put(output_line, " labelings, each proved against the tree's count");
+    mmgr_line_ch(output_line, '\n');
+    platform_line_out_ended();
 }
 if ((ok != 0) && (rules->overlap != 0))
 {
-    printf(
-        "  %s: the overlap at the same residual, %u frame pairs, %llu thresholds: at the earlier frame's threshold %llu"
-        " components, %llu of them overlap exactly one, %llu mutual; the best mutual over each pair's thresholds %llu;"
-        " %u thresholds where mutual counted from the later side differs\n",
-        sample, overlap.pairs, overlap.evaluations, overlap.components_at_threshold, overlap.one_at_threshold,
-        overlap.mutual_at_threshold, overlap.best_mutual, overlap.mutual_differ);
-    printf(
-        "  %s: the event census at the earlier frame's threshold: %llu moves (1->1), %llu divisions (1->2), %llu merges"
-        " (2->1), %llu disappear (1->0), %llu appear (0->1); the key contains %llu divisions over these pairs: at the"
-        " threshold %llu parted (the parent's component overlaps the two daughters' distinct components), %llu caught"
-        " (and it is 1->2); at each pair's best sampled threshold %llu present (parent and both daughters above the"
-        " threshold), %llu apart (the daughters in two components), %llu parted, %llu caught\n",
-        sample, overlap.mutual_at_threshold, overlap.divisions_at_threshold, overlap.merges_at_threshold,
-        overlap.disappear_at_threshold, overlap.appear_at_threshold, overlap.key_divisions, overlap.parted_at_threshold,
-        overlap.caught_at_threshold, overlap.best_present, overlap.best_apart, overlap.best_parted,
-        overlap.best_caught);
-    printf(
-        "  %s: at each pair's max-mutual threshold (the first sampled threshold with the max mutual): %llu earlier "
-        "and %llu"
-        " later components, %llu mutual; %llu of %llu key cells present, %llu alone (at max-components threshold:"
-        " %llu present, %llu alone); %llu of %llu key divisions parted, %llu caught\n",
-        sample, overlap.chosen_components, overlap.chosen_later_components, overlap.chosen_mutual,
-        overlap.chosen_cells_present, overlap.key_cells, overlap.chosen_cells_alone, overlap.threshold_cells_present,
-        overlap.threshold_cells_alone, overlap.chosen_parted, overlap.key_divisions, overlap.chosen_caught);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, sample);
+        mmgr_line_put(output_line, ": the overlap at the same residual, ");
+        mmgr_line_decimal(output_line, overlap.pairs, 1u);
+        mmgr_line_put(output_line, " frame pairs, ");
+        mmgr_line_decimal(output_line, overlap.evaluations, 1u);
+        mmgr_line_put(output_line, " thresholds: at the earlier frame's threshold ");
+        mmgr_line_decimal(output_line, overlap.components_at_threshold, 1u);
+        mmgr_line_put(output_line, " components, ");
+        mmgr_line_decimal(output_line, overlap.one_at_threshold, 1u);
+        mmgr_line_put(output_line, " of them overlap exactly one, ");
+        mmgr_line_decimal(output_line, overlap.mutual_at_threshold, 1u);
+        mmgr_line_put(output_line, " mutual; the best mutual over each pair's thresholds ");
+        mmgr_line_decimal(output_line, overlap.best_mutual, 1u);
+        mmgr_line_put(output_line, "; ");
+        mmgr_line_decimal(output_line, overlap.mutual_differ, 1u);
+        mmgr_line_put(output_line, " thresholds where mutual counted from the later side differs");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, sample);
+        mmgr_line_put(output_line, ": the event census at the earlier frame's threshold: ");
+        mmgr_line_decimal(output_line, overlap.mutual_at_threshold, 1u);
+        mmgr_line_put(output_line, " moves (1->1), ");
+        mmgr_line_decimal(output_line, overlap.divisions_at_threshold, 1u);
+        mmgr_line_put(output_line, " divisions (1->2), ");
+        mmgr_line_decimal(output_line, overlap.merges_at_threshold, 1u);
+        mmgr_line_put(output_line, " merges (2->1), ");
+        mmgr_line_decimal(output_line, overlap.disappear_at_threshold, 1u);
+        mmgr_line_put(output_line, " disappear (1->0), ");
+        mmgr_line_decimal(output_line, overlap.appear_at_threshold, 1u);
+        mmgr_line_put(output_line, " appear (0->1); the key contains ");
+        mmgr_line_decimal(output_line, overlap.key_divisions, 1u);
+        mmgr_line_put(output_line, " divisions over these pairs: at the threshold ");
+        mmgr_line_decimal(output_line, overlap.parted_at_threshold, 1u);
+        mmgr_line_put(output_line,
+                      " parted (the parent's component overlaps the two daughters' distinct components), ");
+        mmgr_line_decimal(output_line, overlap.caught_at_threshold, 1u);
+        mmgr_line_put(output_line, " caught (and it is 1->2); at each pair's best sampled threshold ");
+        mmgr_line_decimal(output_line, overlap.best_present, 1u);
+        mmgr_line_put(output_line, " present (parent and both daughters above the threshold), ");
+        mmgr_line_decimal(output_line, overlap.best_apart, 1u);
+        mmgr_line_put(output_line, " apart (the daughters in two components), ");
+        mmgr_line_decimal(output_line, overlap.best_parted, 1u);
+        mmgr_line_put(output_line, " parted, ");
+        mmgr_line_decimal(output_line, overlap.best_caught, 1u);
+        mmgr_line_put(output_line, " caught");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, sample);
+        mmgr_line_put(output_line,
+                      ": at each pair's max-mutual threshold (the first sampled threshold with the max mutual): ");
+        mmgr_line_decimal(output_line, overlap.chosen_components, 1u);
+        mmgr_line_put(output_line, " earlier and ");
+        mmgr_line_decimal(output_line, overlap.chosen_later_components, 1u);
+        mmgr_line_put(output_line, " later components, ");
+        mmgr_line_decimal(output_line, overlap.chosen_mutual, 1u);
+        mmgr_line_put(output_line, " mutual; ");
+        mmgr_line_decimal(output_line, overlap.chosen_cells_present, 1u);
+        mmgr_line_put(output_line, " of ");
+        mmgr_line_decimal(output_line, overlap.key_cells, 1u);
+        mmgr_line_put(output_line, " key cells present, ");
+        mmgr_line_decimal(output_line, overlap.chosen_cells_alone, 1u);
+        mmgr_line_put(output_line, " alone (at max-components threshold: ");
+        mmgr_line_decimal(output_line, overlap.threshold_cells_present, 1u);
+        mmgr_line_put(output_line, " present, ");
+        mmgr_line_decimal(output_line, overlap.threshold_cells_alone, 1u);
+        mmgr_line_put(output_line, " alone); ");
+        mmgr_line_decimal(output_line, overlap.chosen_parted, 1u);
+        mmgr_line_put(output_line, " of ");
+        mmgr_line_decimal(output_line, overlap.key_divisions, 1u);
+        mmgr_line_put(output_line, " key divisions parted, ");
+        mmgr_line_decimal(output_line, overlap.chosen_caught, 1u);
+        mmgr_line_put(output_line, " caught");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 free(slide_levels[0].levels);
 free(slide_levels[1].levels);

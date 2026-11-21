@@ -155,7 +155,14 @@ unsigned int sass_cubin_queries(SassProbe *probe, const SassMachine *machine, un
         {
             // the question could not be written as the part's own code, which is a refusal before the part sees it
             sass_class_take(SASS_CHANNEL_RUN, SASS_CLASS_ILLEGAL, s_queries[number].instruction, 0u);
-            printf("  query %s: not written\n", s_queries[number].instruction);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  query ");
+                mmgr_line_put(output_line, s_queries[number].instruction);
+                mmgr_line_put(output_line, ": not written");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             continue;
         }
         {
@@ -181,8 +188,18 @@ unsigned int sass_cubin_queries(SassProbe *probe, const SassMachine *machine, un
                         word);
         char named[SASS_TEXT];
         sass_query_named(s_queries[number].instruction, named, sizeof(named));
-        printf("  query %-52s the part answers %08x, the question specifies %08x%s\n", named, word,
-               s_queries[number].answer, same ? "" : " <- differs");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  query ");
+            mmgr_line_put_columns(output_line, named, 52u);
+            mmgr_line_put(output_line, " the part answers ");
+            mmgr_line_hex(output_line, word, 8u);
+            mmgr_line_put(output_line, ", the question specifies ");
+            mmgr_line_hex(output_line, s_queries[number].answer, 8u);
+            mmgr_line_put(output_line, same ? "" : " <- differs");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     return right;
 }

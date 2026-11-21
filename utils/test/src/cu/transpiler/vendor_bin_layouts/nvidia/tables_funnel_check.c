@@ -13,6 +13,7 @@
 //
 //     tables_funnel_check
 #include "../../../../../../../src/cu/transpiler/vendor_bin_layouts/nvidia/tables/funnel.h"
+#include "../../../../../../../src/platform/platform.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -26,7 +27,13 @@ static void check_that(int passed, const char *what)
     if (passed == 0)
     {
         s_failed += 1u;
-        printf("  FAILED: %s\n", what);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -100,8 +107,10 @@ static size_t record_put(unsigned char *capture, size_t at, unsigned long long t
     return at + size;
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     static unsigned char s_archive[TABLES_BLOCK + 256u];
     static unsigned char s_capture[2u * TABLES_BLOCK + 2048u];
     static unsigned char s_expected[TABLES_BLOCK + 64u];
@@ -167,6 +176,15 @@ int main(void)
     tables_text_freed(&instructions);
     tables_text_freed(&latencies);
 
-    printf("tables_funnel_check: %u checks, %u failed\n", s_checks, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "tables_funnel_check: ");
+        mmgr_line_decimal(output_line, s_checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, s_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failed == 0u) ? 0 : 1;
 }

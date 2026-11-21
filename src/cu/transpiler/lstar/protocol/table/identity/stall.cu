@@ -28,7 +28,14 @@ int identity_stall(const char *engine, const char *answers, const char *ksc, con
     std::map<std::string, StallField> fields = stall_fields(ksc);
     if ((fields.count("stall") == 0u) || (fields.count("write_barrier") == 0u))
     {
-        printf("orior_klq_identity stall: %s gives no stall field or no write barrier field\n", ksc);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity stall: ");
+            mmgr_line_put(output_line, ksc);
+            mmgr_line_put(output_line, " gives no stall field or no write barrier field");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     const StallField stall = fields["stall"];
@@ -105,7 +112,14 @@ int identity_stall(const char *engine, const char *answers, const char *ksc, con
         if (chain_marks[chain] != '=')
         {
             unanswered += 1u;
-            printf("  %s: not alike at the longest stalls, and no probe\n", chain_numbers[chain].c_str());
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  ");
+                mmgr_line_put(output_line, chain_numbers[chain].c_str());
+                mmgr_line_put(output_line, ": not alike at the longest stalls, and no probe");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             continue;
         }
         const std::vector<unsigned char> &code = chain_codes[chain];
@@ -131,8 +145,19 @@ int identity_stall(const char *engine, const char *answers, const char *ksc, con
             pairs[pair].push_back(StallProbe{chain_numbers[chain], code, place});
         }
     }
-    printf("orior_klq_identity stall: %zu chains, %u not alike at the longest stalls, %zu pairs, carried by %s\n",
-           chain_codes.size(), unanswered, pairs.size(), run_channel_carrier());
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "orior_klq_identity stall: ");
+        mmgr_line_decimal(output_line, chain_codes.size(), 1u);
+        mmgr_line_put(output_line, " chains, ");
+        mmgr_line_decimal(output_line, unanswered, 1u);
+        mmgr_line_put(output_line, " not alike at the longest stalls, ");
+        mmgr_line_decimal(output_line, pairs.size(), 1u);
+        mmgr_line_put(output_line, " pairs, carried by ");
+        mmgr_line_put(output_line, run_channel_carrier());
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     // the probes a pair is walked over at max, each from a chain of its own
     const size_t max = 3u;
     std::vector<std::string> rows;
@@ -280,8 +305,14 @@ int identity_stall(const char *engine, const char *answers, const char *ksc, con
     {
         stall_numbers.push_back(each.number);
     }
-    printf("orior_klq_identity stall: %zu questions, every stall of every pair, put in one round\n",
-           stall_codes.size());
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "orior_klq_identity stall: ");
+        mmgr_line_decimal(output_line, stall_codes.size(), 1u);
+        mmgr_line_put(output_line, " questions, every stall of every pair, put in one round");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     const std::string marks = marks_put(stall_codes, stall_numbers);
     std::map<std::pair<std::string, std::string>, std::string> came_back;
     std::map<std::pair<std::string, std::string>, std::set<std::string>> queried_over;
@@ -309,8 +340,21 @@ int identity_stall(const char *engine, const char *answers, const char *ksc, con
         }
         run_print(&table, "%s %s soonest %llu, stalls 0 to %llu: %s, over%s\n", each.first.first.c_str(),
                   each.first.second.c_str(), soonest, longest, each.second.c_str(), over.c_str());
-        printf("  %s then %s: soonest %llu, stalls 0 to %llu %s\n", each.first.first.c_str(), each.first.second.c_str(),
-               soonest, longest, each.second.c_str());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, each.first.first.c_str());
+            mmgr_line_put(output_line, " then ");
+            mmgr_line_put(output_line, each.first.second.c_str());
+            mmgr_line_put(output_line, ": soonest ");
+            mmgr_line_decimal(output_line, soonest, 1u);
+            mmgr_line_put(output_line, ", stalls 0 to ");
+            mmgr_line_decimal(output_line, longest, 1u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put(output_line, each.second.c_str());
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         if (soonest <= longest)
         {
             char row[256];
@@ -355,16 +399,40 @@ int identity_stall(const char *engine, const char *answers, const char *ksc, con
     });
     if (!run_closed(&table))
     {
-        printf("orior_klq_identity stall: %s/stall.txt could not be written\n", folder.c_str());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity stall: ");
+            mmgr_line_put(output_line, folder.c_str());
+            mmgr_line_put(output_line, "/stall.txt could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         run_channel_close();
         return 1;
     }
     run_channel_close();
     if (!ksc_answers_write(ksc, "stall", rows))
     {
-        printf("orior_klq_identity stall: %s could not be written\n", ksc);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity stall: ");
+            mmgr_line_put(output_line, ksc);
+            mmgr_line_put(output_line, " could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
-    printf("orior_klq_identity stall: %zu pairs over %llu queries, written to %s\n", pairs.size(), queries, ksc);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "orior_klq_identity stall: ");
+        mmgr_line_decimal(output_line, pairs.size(), 1u);
+        mmgr_line_put(output_line, " pairs over ");
+        mmgr_line_decimal(output_line, queries, 1u);
+        mmgr_line_put(output_line, " queries, written to ");
+        mmgr_line_put(output_line, ksc);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 0;
 }

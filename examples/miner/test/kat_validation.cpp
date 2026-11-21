@@ -14,6 +14,7 @@
  */
 
 #include "sha256_core.h"
+#include "../../../src/platform/platform.h"
 
 #include <chrono>
 #include <cstdint>
@@ -96,15 +97,29 @@ void report(const std::string &name, bool passed, const std::string &detail = ""
     g_tests_run += 1;
     if (passed)
     {
-        std::printf("  [PASS] %s\n", name.c_str());
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  [PASS] ");
+        mmgr_line_put(output_line, name.c_str());
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     else
     {
         g_tests_failed += 1;
-        std::printf("  [FAIL] %s\n", name.c_str());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  [FAIL] ");
+            mmgr_line_put(output_line, name.c_str());
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         if (!detail.empty())
         {
-            std::printf("         %s\n", detail.c_str());
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "         ");
+            mmgr_line_put(output_line, detail.c_str());
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
     }
 }
@@ -130,7 +145,12 @@ const DigestVector DIGEST_VECTORS[] = {
  */
 void test_published_digests()
 {
-    std::printf("\n[1] SHA-256 against published digests\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n[1] SHA-256 against published digests");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     for (const DigestVector &vector : DIGEST_VECTORS)
     {
@@ -149,8 +169,7 @@ void test_published_digests()
     sha256_hash((const uint8_t *)boundary.data(), boundary.size(), digest);
     const std::string produced = hex_from_bytes(digest, sizeof(digest));
     report("sha256 fifty-six byte padding boundary",
-           produced == "b35439a4ac6f0948b6d6f9e3c6af0f5f590ce20f1bde7090ef7970686ec6738a",
-           "got " + produced);
+           produced == "b35439a4ac6f0948b6d6f9e3c6af0f5f590ce20f1bde7090ef7970686ec6738a", "got " + produced);
 }
 
 /** @brief A block whose header, hash and nonce the chain already recorded. */
@@ -166,8 +185,7 @@ struct HeaderVector
 const HeaderVector HEADER_VECTORS[] = {
     {"0100000000000000000000000000000000000000000000000000000000000000000000003ba3edfd7a7b12b27ac7"
      "2c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a29ab5f49ffff001d1dac2b7c",
-     "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f", 0x7c2bac1du,
-     "genesis block, height 0"},
+     "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f", 0x7c2bac1du, "genesis block, height 0"},
     {"0100000081cd02ab7e569e8bcd9317e2fe99f2de44d49ab2b8851ba4a308000000000000e320b6c2fffc8d750423"
      "db8b1eb942ae710e951ed797f7affc8892b0f1fc122bc7f5d74df2b9441a42a14695",
      "00000000000000001e8d6829a8a21adc5d38d0a473b144b6765798e61f98bd1d", 0x9546a142u,
@@ -179,7 +197,12 @@ const HeaderVector HEADER_VECTORS[] = {
  */
 void test_published_headers()
 {
-    std::printf("\n[2] Bitcoin headers against the chain's own record\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n[2] Bitcoin headers against the chain's own record");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     for (const HeaderVector &vector : HEADER_VECTORS)
     {
@@ -206,13 +229,12 @@ void test_published_headers()
 
         // The block's own hash must satisfy the block's own nbits. If it does not, either the target
         // expansion or the ordering is wrong, and both feed the share check.
-        const uint32_t nbits = (uint32_t)header[72] | ((uint32_t)header[73] << 8) |
-                               ((uint32_t)header[74] << 16) | ((uint32_t)header[75] << 24);
+        const uint32_t nbits = (uint32_t)header[72] | ((uint32_t)header[73] << 8) | ((uint32_t)header[74] << 16) |
+                               ((uint32_t)header[75] << 24);
         uint32_t block_target[SHA256_STATE_WORDS];
         sha256_target_from_nbits(block_target, nbits);
         report(std::string("nbits ordering for ") + vector.source,
-               sha256_digest_within_target(digest, block_target) != 0,
-               "block hash did not satisfy its own nbits");
+               sha256_digest_within_target(digest, block_target) != 0, "block hash did not satisfy its own nbits");
     }
 }
 
@@ -229,8 +251,8 @@ void test_published_headers()
  */
 uint32_t header_field_value(const uint8_t *header, size_t offset)
 {
-    return (uint32_t)header[offset] | ((uint32_t)header[offset + 1u] << 8) |
-           ((uint32_t)header[offset + 2u] << 16) | ((uint32_t)header[offset + 3u] << 24);
+    return (uint32_t)header[offset] | ((uint32_t)header[offset + 1u] << 8) | ((uint32_t)header[offset + 2u] << 16) |
+           ((uint32_t)header[offset + 3u] << 24);
 }
 
 /**
@@ -246,10 +268,10 @@ void scan_request_from_header(Sha256ScanRequest *request, const uint8_t *header)
 
     request->merkle_root_tail = ((uint32_t)header[64] << 24) | ((uint32_t)header[65] << 16) |
                                 ((uint32_t)header[66] << 8) | (uint32_t)header[67];
-    request->ntime = ((uint32_t)header[68] << 24) | ((uint32_t)header[69] << 16) |
-                     ((uint32_t)header[70] << 8) | (uint32_t)header[71];
-    request->nbits = ((uint32_t)header[72] << 24) | ((uint32_t)header[73] << 16) |
-                     ((uint32_t)header[74] << 8) | (uint32_t)header[75];
+    request->ntime = ((uint32_t)header[68] << 24) | ((uint32_t)header[69] << 16) | ((uint32_t)header[70] << 8) |
+                     (uint32_t)header[71];
+    request->nbits = ((uint32_t)header[72] << 24) | ((uint32_t)header[73] << 16) | ((uint32_t)header[74] << 8) |
+                     (uint32_t)header[75];
 }
 
 /**
@@ -257,7 +279,12 @@ void scan_request_from_header(Sha256ScanRequest *request, const uint8_t *header)
  */
 void test_scan_recovers_real_nonce()
 {
-    std::printf("\n[3] Scan arms recovering a nonce the chain recorded\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n[3] Scan arms recovering a nonce the chain recorded");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     for (const HeaderVector &vector : HEADER_VECTORS)
     {
@@ -296,7 +323,12 @@ void test_scan_recovers_real_nonce()
  */
 void test_arms_agree()
 {
-    std::printf("\n[4] Arms agreeing where no answer exists\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n[4] Arms agreeing where no answer exists");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     const std::vector<uint8_t> header = bytes_from_hex(HEADER_VECTORS[1].header_hex);
     Sha256ScanRequest request;
@@ -313,8 +345,8 @@ void test_arms_agree()
     sha256_scan_avx2(&request, &vector_result);
 
     report("neither arm invents a winner", (scalar_result.found == 0) && (vector_result.found == 0),
-           "scalar found=" + std::to_string(scalar_result.found) + " vector found=" +
-               std::to_string(vector_result.found));
+           "scalar found=" + std::to_string(scalar_result.found) +
+               " vector found=" + std::to_string(vector_result.found));
     report("both arms evaluated every nonce",
            (scalar_result.nonces_evaluated == request.nonce_count) &&
                (vector_result.nonces_evaluated == request.nonce_count),
@@ -324,8 +356,7 @@ void test_arms_agree()
     // The anchor passes at a rate of two to the minus thirty-two. A nonce window of sixty-five
     // thousand should almost never produce a survivor. The test checks that the arms agree, and
     // only reports the count.
-    report("arms agree on anchor survivors",
-           scalar_result.anchors_survived == vector_result.anchors_survived,
+    report("arms agree on anchor survivors", scalar_result.anchors_survived == vector_result.anchors_survived,
            "scalar " + std::to_string(scalar_result.anchors_survived) + " vector " +
                std::to_string(vector_result.anchors_survived));
 }
@@ -338,7 +369,12 @@ void test_arms_agree()
  */
 void test_arms_agree_on_easy_target()
 {
-    std::printf("\n[5] Arms agreeing on a target loose enough to hit\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n[5] Arms agreeing on a target loose enough to hit");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     const std::vector<uint8_t> header = bytes_from_hex(HEADER_VECTORS[1].header_hex);
     Sha256ScanRequest request;
@@ -361,12 +397,10 @@ void test_arms_agree_on_easy_target()
     sha256_scan_scalar(&request, &scalar_result);
     sha256_scan_avx2(&request, &vector_result);
 
-    report("both arms find a winner at an easy target",
-           (scalar_result.found != 0) && (vector_result.found != 0),
-           "scalar found=" + std::to_string(scalar_result.found) + " vector found=" +
-               std::to_string(vector_result.found));
-    report("both arms report the same lowest nonce",
-           scalar_result.winning_nonce == vector_result.winning_nonce,
+    report("both arms find a winner at an easy target", (scalar_result.found != 0) && (vector_result.found != 0),
+           "scalar found=" + std::to_string(scalar_result.found) +
+               " vector found=" + std::to_string(vector_result.found));
+    report("both arms report the same lowest nonce", scalar_result.winning_nonce == vector_result.winning_nonce,
            "scalar " + std::to_string(scalar_result.winning_nonce) + " vector " +
                std::to_string(vector_result.winning_nonce));
 
@@ -393,7 +427,12 @@ void test_arms_agree_on_easy_target()
  */
 void test_difficulty_conversion()
 {
-    std::printf("\n[6] Difficulty to target conversion\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n[6] Difficulty to target conversion");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     uint32_t target[SHA256_STATE_WORDS];
 
@@ -401,13 +440,11 @@ void test_difficulty_conversion()
     // through 223: the upper half of word one. Thus word one reads 0xFFFF0000, and not 0x0000FFFF.
     sha256_share_target_from_difficulty(target, 1.0);
     report("difficulty one is 0x00000000FFFF0000...",
-           (target[0] == 0x00000000u) && (target[1] == 0xFFFF0000u) && (target[2] == 0u) &&
-               (target[7] == 0u),
+           (target[0] == 0x00000000u) && (target[1] == 0xFFFF0000u) && (target[2] == 0u) && (target[7] == 0u),
            "word zero " + std::to_string(target[0]) + " word one " + std::to_string(target[1]));
 
     sha256_share_target_from_difficulty(target, 2.0);
-    report("difficulty two halves the threshold",
-           (target[0] == 0x00000000u) && (target[1] == 0x7FFF8000u),
+    report("difficulty two halves the threshold", (target[0] == 0x00000000u) && (target[1] == 0x7FFF8000u),
            "word one is " + std::to_string(target[1]));
 
     // nbits 0x1d00ffff is difficulty one in the form that a header uses. Thus the two paths must
@@ -415,15 +452,13 @@ void test_difficulty_conversion()
     uint32_t from_nbits[SHA256_STATE_WORDS];
     sha256_target_from_nbits(from_nbits, 0x1d00ffffu);
     sha256_share_target_from_difficulty(target, 1.0);
-    report("nbits 0x1d00ffff agrees with difficulty one",
-           std::memcmp(from_nbits, target, sizeof(target)) == 0,
+    report("nbits 0x1d00ffff agrees with difficulty one", std::memcmp(from_nbits, target, sizeof(target)) == 0,
            "nbits path word one is " + std::to_string(from_nbits[1]));
 
     // Every target the pool can set must leave the anchor sound. Section 2.2 is only satisfied where
     // the most significant word is zero, and the engine falls back where it is not.
     sha256_share_target_from_difficulty(target, 1.0);
-    report("difficulty one leaves the anchor sound", target[0] == 0u,
-           "top word is " + std::to_string(target[0]));
+    report("difficulty one leaves the anchor sound", target[0] == 0u, "top word is " + std::to_string(target[0]));
 }
 
 /**
@@ -431,7 +466,12 @@ void test_difficulty_conversion()
  */
 void measure_scan_rate()
 {
-    std::printf("\n[7] Measured rate of the eight-lane arm, single thread\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n[7] Measured rate of the eight-lane arm, single thread");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     const std::vector<uint8_t> header = bytes_from_hex(HEADER_VECTORS[1].header_hex);
     Sha256ScanRequest request;
@@ -449,22 +489,81 @@ void measure_scan_rate()
     const double seconds = std::chrono::duration<double>(finished - started).count();
     const double rate = (seconds > 0.0) ? ((double)result.nonces_evaluated / seconds) : 0.0;
 
-    std::printf("  nonces hashed   : %llu\n", (unsigned long long)result.nonces_evaluated);
-    std::printf("  anchor survivors: %llu\n", (unsigned long long)result.anchors_survived);
-    std::printf("  elapsed         : %.3f s\n", seconds);
-    std::printf("  rate            : %.2f MH/s (one thread)\n", rate / 1.0e6);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  nonces hashed   : ");
+        mmgr_line_decimal(output_line, (unsigned long long)result.nonces_evaluated, 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  anchor survivors: ");
+        mmgr_line_decimal(output_line, (unsigned long long)result.anchors_survived, 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  elapsed         : ");
+        mmgr_line_fixed(output_line, (double)(seconds), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " s");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  rate            : ");
+        mmgr_line_fixed(output_line, (double)(rate / 1.0e6), 2u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " MH/s (one thread)");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
 } // namespace
 
-int main()
+int program_main(int argc, char **argv)
 {
-    std::printf("========================================================\n");
-    std::printf("  BTC known answer tests\n");
-    std::printf("  Every expected value below was published before this\n");
-    std::printf("  code existed. None of them come from the engine.\n");
-    std::printf("========================================================\n");
-    std::printf("\nAVX2 available: %s\n", (sha256_has_avx2() != 0) ? "yes" : "no");
+    (void)argc;
+    (void)argv;
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "========================================================");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  BTC known answer tests");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  Every expected value below was published before this");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  code existed. None of them come from the engine.");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "========================================================");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\nAVX2 available: ");
+        mmgr_line_put(output_line, (sha256_has_avx2() != 0) ? "yes" : "no");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     test_published_digests();
     test_published_headers();
@@ -474,9 +573,34 @@ int main()
     test_difficulty_conversion();
     measure_scan_rate();
 
-    std::printf("\n========================================================\n");
-    std::printf("  %d run, %d failed\n", g_tests_run, g_tests_failed);
-    std::printf("  %s\n", (g_tests_failed == 0) ? "ALL TESTS PASS" : "FAILURES PRESENT");
-    std::printf("========================================================\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n========================================================");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_decimal_signed(output_line, g_tests_run);
+        mmgr_line_put(output_line, " run, ");
+        mmgr_line_decimal_signed(output_line, g_tests_failed);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, (g_tests_failed == 0) ? "ALL TESTS PASS" : "FAILURES PRESENT");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "========================================================");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (g_tests_failed == 0) ? 0 : 1;
 }

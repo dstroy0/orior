@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // chains.c: the chains: a chain read, a form put at a link, the chains written for each relation and read back
 #include "writings_internal.h"
+#include "../../../../../../platform/platform.h"
 #include "../../../../../engine/engine_note.h"
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
@@ -205,7 +206,13 @@ int writings_chains_write(const char *pattern, const char *kernel_text, const ch
         const unsigned int writing = writings_for(precept);
         if (writing < s_form_count)
         {
-            printf("  %-4s %s\n", s_precept_text[precept], s_forms[writing]);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_columns(output_line, s_precept_text[precept], 4u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put(output_line, s_forms[writing]);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
     }
     unsigned int read = 0u;
@@ -272,8 +279,18 @@ int writings_chains_write(const char *pattern, const char *kernel_text, const ch
     kdm_free(&s_rows);
     fclose(list);
     fclose(chains);
-    printf("interface sass chains: %u chains of the .kdm read, %u written and checked by cubin_safe, %u not written\n",
-           read, written, unwritten);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "interface sass chains: ");
+        mmgr_line_decimal(output_line, read, 1u);
+        mmgr_line_put(output_line, " chains of the .kdm read, ");
+        mmgr_line_decimal(output_line, written, 1u);
+        mmgr_line_put(output_line, " written and checked by cubin_safe, ");
+        mmgr_line_decimal(output_line, unwritten, 1u);
+        mmgr_line_put(output_line, " not written");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 0;
 }
 
@@ -386,14 +403,33 @@ int writings_chains_read(const char *folder, const char *record)
         if (put[anchor] != 0u)
         {
             fprintf(out, "| %s | %u | %u |\n", s_anchor_text[anchor], put[anchor], anchor_counts[anchor]);
-            printf("  %-8s %u chains run, %u answering every case\n", s_anchor_text[anchor], put[anchor],
-                   anchor_counts[anchor]);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  ");
+                mmgr_line_put_columns(output_line, s_anchor_text[anchor], 8u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_decimal(output_line, put[anchor], 1u);
+                mmgr_line_put(output_line, " chains run, ");
+                mmgr_line_decimal(output_line, anchor_counts[anchor], 1u);
+                mmgr_line_put(output_line, " answering every case");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
         }
     }
     fclose(out);
-    printf(
-        "interface sass chains: %u ran, %u refused, %u answered otherwise than their relation, the record written to "
-        "%s\n",
-        ran, refused, differed, record);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "interface sass chains: ");
+        mmgr_line_decimal(output_line, ran, 1u);
+        mmgr_line_put(output_line, " ran, ");
+        mmgr_line_decimal(output_line, refused, 1u);
+        mmgr_line_put(output_line, " refused, ");
+        mmgr_line_decimal(output_line, differed, 1u);
+        mmgr_line_put(output_line, " answered otherwise than their relation, the record written to ");
+        mmgr_line_put(output_line, record);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 0;
 }

@@ -116,7 +116,12 @@ static int probe_assemble(const std::string &text, int major, int minor, std::ve
     nvJitLinkHandle handle = NULL;
     if (nvJitLinkCreate(&handle, 1u, options) != NVJITLINK_SUCCESS)
     {
-        printf("errored: nvJitLink could not be made\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "errored: nvJitLink could not be made");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     size_t size = 0u;
@@ -135,7 +140,13 @@ static int probe_assemble(const std::string &text, int major, int minor, std::ve
             log.assign(log_size, '\0');
             nvJitLinkGetErrorLog(handle, log.data());
         }
-        printf("errored: nvJitLink did not assemble the kernel\n%s\n", log.data());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "errored: nvJitLink did not assemble the kernel\n");
+            mmgr_line_put(output_line, log.data());
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     nvJitLinkDestroy(&handle);
     return taken;
@@ -163,7 +174,12 @@ static int probe_write(const std::string &text, int major, int minor, const std:
     const int closed = (file != NULL) && (fclose(file) == 0);
     if (!written || !closed)
     {
-        printf("errored: %s could not be written\n", path.c_str());
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "errored: ");
+        mmgr_line_put(output_line, path.c_str());
+        mmgr_line_put(output_line, " could not be written");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     return written && closed;
 }
@@ -197,13 +213,23 @@ int probe_cubins(ProbeWriter *writer, const std::string &header, int major, int 
     const std::string kernel_text = probe_kernel(writer, header, std::string());
     if (writer->broken || !probe_write(kernel_text, major, minor, std::string(folder) + "/kernel.cubin"))
     {
-        printf("kernel: not written\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "kernel: not written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     const std::string resident = probe_resident(writer, header);
     if (writer->broken || !probe_write(resident, major, minor, std::string(folder) + "/resident.cubin"))
     {
-        printf("resident: not written\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "resident: not written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     for (size_t number = 0u; number < questions.size(); number += 1u)
@@ -212,12 +238,33 @@ int probe_cubins(ProbeWriter *writer, const std::string &header, int major, int 
         const std::string path = std::string(folder) + "/form_" + std::to_string(number) + ".cubin";
         if (writer->broken || !probe_write(text, major, minor, path))
         {
-            printf("%s: not written\n", questions[number].name.c_str());
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, questions[number].name.c_str());
+                mmgr_line_put(output_line, ": not written");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             return 2;
         }
-        printf("cubin %zu %s\n", number, questions[number].name.c_str());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "cubin ");
+            mmgr_line_decimal(output_line, number, 1u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put(output_line, questions[number].name.c_str());
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
-    printf("cubins: %zu questions\n", questions.size());
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "cubins: ");
+        mmgr_line_decimal(output_line, questions.size(), 1u);
+        mmgr_line_put(output_line, " questions");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 0;
 }
 
@@ -247,10 +294,26 @@ static cudaError_t probe_run(cudaKernel_t kernel, const unsigned int *in, unsign
 // survived the error
 static int probe_error(cudaError_t status)
 {
-    printf("error %d %s\n", (int)status, cudaGetErrorName(status));
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "error ");
+        mmgr_line_decimal_signed(output_line, (int)status);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put(output_line, cudaGetErrorName(status));
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     void *after = NULL;
     const cudaError_t next = cudaMalloc(&after, 4u);
-    printf("after %d %s\n", (int)next, cudaGetErrorName(next));
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "after ");
+        mmgr_line_decimal_signed(output_line, (int)next);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put(output_line, cudaGetErrorName(next));
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 3;
 }
 
@@ -275,14 +338,25 @@ int probe_membership(ProbeWriter *writer, const std::string &header, int major, 
         cudaKernel_t kernel = NULL;
         if (writer->broken || !probe_build(text, major, minor, &library, &kernel))
         {
-            printf("%s: not built\n", question.name.c_str());
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, question.name.c_str());
+                mmgr_line_put(output_line, ": not built");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             return 2;
         }
         const cudaError_t status = probe_run(kernel, in.data(), out.data(), PROBE_CASES);
         cudaLibraryUnload(library);
         if (status != cudaSuccess)
         {
-            printf("%s: ", question.name.c_str());
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, question.name.c_str());
+                mmgr_line_put(output_line, ": ");
+                platform_line_out_ended();
+            }
             return probe_error(status);
         }
         unsigned int agree = 0u;
@@ -320,27 +394,91 @@ int probe_membership(ProbeWriter *writer, const std::string &header, int major, 
             agree += agrees ? 1u : 0u;
             if (!agrees && (differ < 3u))
             {
-                printf("  %s differs on case %u: in %08x %08x %08x %08x %08x %08x, device %08x %08x %08x %08x, host "
-                       "%08x %08x %08x %08x\n",
-                       question.name.c_str(), number, case_in[0], case_in[1], case_in[2], case_in[3], case_in[4],
-                       case_in[5], case_out[0], case_out[1], case_out[2], case_out[3], wanted[0], wanted[1], wanted[2],
-                       wanted[3]);
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  ");
+                mmgr_line_put(output_line, question.name.c_str());
+                mmgr_line_put(output_line, " differs on case ");
+                mmgr_line_decimal(output_line, number, 1u);
+                mmgr_line_put(output_line, ": in ");
+                mmgr_line_hex(output_line, case_in[0], 8u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_hex(output_line, case_in[1], 8u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_hex(output_line, case_in[2], 8u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_hex(output_line, case_in[3], 8u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_hex(output_line, case_in[4], 8u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_hex(output_line, case_in[5], 8u);
+                mmgr_line_put(output_line, ", device ");
+                mmgr_line_hex(output_line, case_out[0], 8u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_hex(output_line, case_out[1], 8u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_hex(output_line, case_out[2], 8u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_hex(output_line, case_out[3], 8u);
+                mmgr_line_put(output_line, ", host ");
+                mmgr_line_hex(output_line, wanted[0], 8u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_hex(output_line, wanted[1], 8u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_hex(output_line, wanted[2], 8u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_hex(output_line, wanted[3], 8u);
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
             }
             differ += agrees ? 0u : 1u;
         }
         disagreed += (differ != 0u) ? 1u : 0u;
-        printf("form %s: %u cases, %u agree, %u differ", question.name.c_str(), agree + differ, agree, differ);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "form ");
+            mmgr_line_put(output_line, question.name.c_str());
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_decimal(output_line, agree + differ, 1u);
+            mmgr_line_put(output_line, " cases, ");
+            mmgr_line_decimal(output_line, agree, 1u);
+            mmgr_line_put(output_line, " agree, ");
+            mmgr_line_decimal(output_line, differ, 1u);
+            mmgr_line_put(output_line, " differ");
+            platform_line_out_ended();
+        }
         if (undefined != 0u)
         {
-            printf(", %u undefined, the device answering", undefined);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, ", ");
+                mmgr_line_decimal(output_line, undefined, 1u);
+                mmgr_line_put(output_line, " undefined, the device answering");
+                platform_line_out_ended();
+            }
             for (const unsigned int word : seen)
             {
-                printf(" %08x", word);
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, " ");
+                mmgr_line_hex(output_line, word, 8u);
+                platform_line_out_ended();
             }
         }
-        printf("\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
-    printf("membership: %zu questions, %u with a case that differs\n", questions.size(), disagreed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "membership: ");
+        mmgr_line_decimal(output_line, questions.size(), 1u);
+        mmgr_line_put(output_line, " questions, ");
+        mmgr_line_decimal(output_line, disagreed, 1u);
+        mmgr_line_put(output_line, " with a case that differs");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (disagreed == 0u) ? 0 : 1;
 }
 
@@ -366,7 +504,19 @@ int probe_single(ProbeWriter *writer, const std::string &header, const std::stri
     {
         return probe_error(status);
     }
-    printf("answered %08x %08x %08x %08x\n", out[0], out[1], out[2], out[3]);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "answered ");
+        mmgr_line_hex(output_line, out[0], 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_hex(output_line, out[1], 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_hex(output_line, out[2], 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_hex(output_line, out[3], 8u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     cudaLibraryUnload(library);
     return 0;
 }
@@ -401,10 +551,22 @@ int probe_clocks(int device)
     {
         int value = 0;
         const cudaError_t got = cudaDeviceGetAttribute(&value, clocks_queried[at].attribute, device);
-        printf("  %-28s %s", clocks_queried[at].name, (got == cudaSuccess) ? "" : "the part does not report\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_columns(output_line, clocks_queried[at].name, 28u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put(output_line, (got == cudaSuccess) ? "" : "the part does not report\n");
+            platform_line_out_ended();
+        }
         if (got == cudaSuccess)
         {
-            printf("%d %s\n", value, clocks_queried[at].unit);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_decimal_signed(output_line, value);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put(output_line, clocks_queried[at].unit);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
     }
     return 0;
@@ -429,13 +591,29 @@ int probe_cubin_run(const char *path, int count, char **arguments)
     cudaKernel_t kernel = NULL;
     if (cubin.empty())
     {
-        printf("the cubin at %s was not read\n", path);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "the cubin at ");
+            mmgr_line_put(output_line, path);
+            mmgr_line_put(output_line, " was not read");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 4;
     }
     const cudaError_t loaded = cudaLibraryLoadData(&library, cubin.data(), NULL, NULL, 0u, NULL, NULL, 0u);
     if ((loaded != cudaSuccess) || (cudaLibraryGetKernel(&kernel, library, "interface_probe") != cudaSuccess))
     {
-        printf("the cubin at %s did not load (%s)\n", path, cudaGetErrorName(loaded));
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "the cubin at ");
+            mmgr_line_put(output_line, path);
+            mmgr_line_put(output_line, " did not load (");
+            mmgr_line_put(output_line, cudaGetErrorName(loaded));
+            mmgr_line_put(output_line, ")");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 4;
     }
     unsigned int in[PROBE_IN_WORDS] = {0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u};
@@ -450,7 +628,19 @@ int probe_cubin_run(const char *path, int count, char **arguments)
     {
         return probe_error(status);
     }
-    printf("answered %08x %08x %08x %08x\n", out[0], out[1], out[2], out[3]);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "answered ");
+        mmgr_line_hex(output_line, out[0], 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_hex(output_line, out[1], 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_hex(output_line, out[2], 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_hex(output_line, out[3], 8u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     // The run timed by our own clock, which is all a cost needs: the part's clock register is not in the machine,
     // and a run measured from outside shows what a kernel costs whatever the part will name. The run above is not
     // counted, since it carries the library load and the first launch
@@ -465,7 +655,16 @@ int probe_cubin_run(const char *path, int count, char **arguments)
         }
         const std::chrono::steady_clock::time_point closed = std::chrono::steady_clock::now();
         const double taken = std::chrono::duration<double, std::nano>(closed - opened).count();
-        printf("timed %lu runs, %.1f ns a run\n", runs, taken / (double)runs);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "timed ");
+            mmgr_line_decimal(output_line, runs, 1u);
+            mmgr_line_put(output_line, " runs, ");
+            mmgr_line_fixed(output_line, (double)(taken / (double)runs), 1u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, " ns a run");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     cudaLibraryUnload(library);
     return 0;

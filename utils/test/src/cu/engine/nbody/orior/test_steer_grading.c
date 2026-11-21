@@ -1,6 +1,7 @@
 
 // test_steer_grading.c: counting with probes and grading a field
 #include "test_steer_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 /**
  * @brief Counts occurrences by evaluating a probe list in order, verifying every survivor.
@@ -113,7 +114,14 @@ int grade_field(const char *label, const uint8_t *corpus, size_t corpus_len)
     const size_t needle_len = 24u;
     if (corpus_len < (needle_len * 4u))
     {
-        printf("  %s: too short to grade\n", label);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, label);
+            mmgr_line_put(output_line, ": too short to grade");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
 
@@ -124,7 +132,14 @@ int grade_field(const char *label, const uint8_t *corpus, size_t corpus_len)
     uint8_t *survivors = (uint8_t *)malloc(alignments);
     if (survivors == NULL)
     {
-        printf("  %s: allocation failed\n", label);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, label);
+            mmgr_line_put(output_line, ": allocation failed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
 
@@ -135,8 +150,37 @@ int grade_field(const char *label, const uint8_t *corpus, size_t corpus_len)
      * per alignment. Printing the raw reads alone hides how close a route is to that floor; the
      * normalized figure shows whether there is anything left to win. Carried in thousandths by exact
      * integer division, with the numerator and denominator both printed beside it. */
-    printf("\n  FIELD %s, %zu bytes, %zu alignments, reference count %zu\n\n", label, corpus_len, alignments, want);
-    printf("  %26s %8s %10s %14s %12s %10s\n", "route", "probes", "count", "reads", "per align", "verdict");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n  FIELD ");
+        mmgr_line_put(output_line, label);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, corpus_len, 1u);
+        mmgr_line_put(output_line, " bytes, ");
+        mmgr_line_decimal(output_line, alignments, 1u);
+        mmgr_line_put(output_line, " alignments, reference count ");
+        mmgr_line_decimal(output_line, want, 1u);
+        mmgr_line_put(output_line, "\n");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_right(output_line, "route", 26u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "probes", 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "count", 10u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "reads", 14u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "per align", 12u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "verdict", 10u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     /* Spatial placement, unsteered, as the engine did before any of this. */
     OriorProbe spatial[ORIOR_STEER_ANCHORS];
@@ -149,8 +193,8 @@ int grade_field(const char *label, const uint8_t *corpus, size_t corpus_len)
     }
     uint64_t spatial_reads = 0u;
     uint64_t spatial_verifications = 0u;
-    const size_t spatial_count = count_with_probes(corpus, corpus_len, needle, needle_len, spatial,
-                                                   ORIOR_STEER_ANCHORS, &spatial_reads, &spatial_verifications);
+    const size_t spatial_count = count_with_probes(corpus, corpus_len, needle, needle_len, spatial, ORIOR_STEER_ANCHORS,
+                                                   &spatial_reads, &spatial_verifications);
     print_route_row("spatial, unsteered", ORIOR_STEER_ANCHORS, spatial_count, spatial_reads, alignments,
                     spatial_count == want);
     failed += (spatial_count == want) ? 0 : 1;
@@ -162,9 +206,9 @@ int grade_field(const char *label, const uint8_t *corpus, size_t corpus_len)
         reordered[at] = spatial[at].origin;
     }
     const size_t depth = ORIOR_STEER_CALL(orior_steer_plan_recursive, OriorSteerDescent, .offsets = reordered,
-                                           .count = ORIOR_STEER_ANCHORS, .corpus = corpus, .corpus_len = corpus_len,
-                                           .needle = needle, .needle_len = needle_len, .survivors = survivors,
-                                           .survivors_length = alignments, .sample_stride = 1u);
+                                          .count = ORIOR_STEER_ANCHORS, .corpus = corpus, .corpus_len = corpus_len,
+                                          .needle = needle, .needle_len = needle_len, .survivors = survivors,
+                                          .survivors_length = alignments, .sample_stride = 1u);
     OriorProbe recursive[ORIOR_STEER_ANCHORS];
     for (size_t at = 0u; at < depth; at += 1u)
     {
@@ -181,10 +225,10 @@ int grade_field(const char *label, const uint8_t *corpus, size_t corpus_len)
 
     /* Coarms spawned wherever the field specifies, and not where a spread rule put them. */
     size_t spawned[ORIOR_STEER_ANCHORS];
-    const size_t coarms = ORIOR_STEER_CALL(orior_steer_spawn_coarms, OriorSteerDescent, .offsets = spawned,
-                                            .count = ORIOR_STEER_ANCHORS, .corpus = corpus, .corpus_len = corpus_len,
-                                            .needle = needle, .needle_len = needle_len, .survivors = survivors,
-                                            .survivors_length = alignments, .sample_stride = 1u);
+    const size_t coarms =
+        ORIOR_STEER_CALL(orior_steer_spawn_coarms, OriorSteerDescent, .offsets = spawned, .count = ORIOR_STEER_ANCHORS,
+                         .corpus = corpus, .corpus_len = corpus_len, .needle = needle, .needle_len = needle_len,
+                         .survivors = survivors, .survivors_length = alignments, .sample_stride = 1u);
     OriorProbe coarm_probes[ORIOR_STEER_ANCHORS];
     for (size_t at = 0u; at < coarms; at += 1u)
     {
@@ -201,10 +245,10 @@ int grade_field(const char *label, const uint8_t *corpus, size_t corpus_len)
 
     /* Eyes allowed. A line probe reads more per alignment and has to prune harder to earn it. */
     OriorProbe swept[ORIOR_STEER_ANCHORS];
-    const size_t eyes = ORIOR_STEER_CALL(orior_steer_sweep_probes, OriorSteerSweep, .probes = swept,
-                                          .count = ORIOR_STEER_ANCHORS, .corpus = corpus, .corpus_len = corpus_len,
-                                          .needle = needle, .needle_len = needle_len, .max_length = 3u,
-                                          .survivors = survivors, .survivors_length = alignments, .sample_stride = 1u);
+    const size_t eyes =
+        ORIOR_STEER_CALL(orior_steer_sweep_probes, OriorSteerSweep, .probes = swept, .count = ORIOR_STEER_ANCHORS,
+                         .corpus = corpus, .corpus_len = corpus_len, .needle = needle, .needle_len = needle_len,
+                         .max_length = 3u, .survivors = survivors, .survivors_length = alignments, .sample_stride = 1u);
     uint64_t eye_reads = 0u;
     uint64_t eye_verifications = 0u;
     const size_t eye_count =
@@ -212,18 +256,40 @@ int grade_field(const char *label, const uint8_t *corpus, size_t corpus_len)
     print_route_row("eyes and arms swept", eyes, eye_count, eye_reads, alignments, eye_count == want);
     failed += (eye_count == want) ? 0 : 1;
 
-    printf("    shapes spawned:");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    shapes spawned:");
+        platform_line_out_ended();
+    }
     for (size_t at = 0u; at < eyes; at += 1u)
     {
-        printf(" %s(origin %zu, step %zu, length %zu)", (swept[at].length == 1u) ? "arm" : "eye", swept[at].origin,
-               swept[at].step, swept[at].length);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put(output_line, (swept[at].length == 1u) ? "arm" : "eye");
+        mmgr_line_put(output_line, "(origin ");
+        mmgr_line_decimal(output_line, swept[at].origin, 1u);
+        mmgr_line_put(output_line, ", step ");
+        mmgr_line_decimal(output_line, swept[at].step, 1u);
+        mmgr_line_put(output_line, ", length ");
+        mmgr_line_decimal(output_line, swept[at].length, 1u);
+        mmgr_line_put(output_line, ")");
+        platform_line_out_ended();
     }
-    printf("\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     /* THE DEPTH IS A COMPILE TIME FACT AND THIS ASSERTS IT. */
     if ((depth > ORIOR_STEER_ANCHORS) || (coarms > ORIOR_STEER_ANCHORS) || (eyes > ORIOR_STEER_ANCHORS))
     {
-        printf("    a descent exceeded its compile time bound: FAILS\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    a descent exceeded its compile time bound: FAILS");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed += 1;
     }
 
@@ -252,13 +318,27 @@ int grade_field(const char *label, const uint8_t *corpus, size_t corpus_len)
     // cost. The empty probe set takes zero probe reads and one compare per alignment. In floor
     // units it sits exactly on the floor. In real bytes it is the max expensive route there is,
     // since every alignment takes a full compare of up to needle_len bytes.
-    printf("    read floor: %zu alignments, empty probe set takes %llu probe reads and %llu"
-           " compares\n",
-           alignments, (unsigned long long)bare_reads, (unsigned long long)bare_verifications);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    read floor: ");
+        mmgr_line_decimal(output_line, alignments, 1u);
+        mmgr_line_put(output_line, " alignments, empty probe set takes ");
+        mmgr_line_decimal(output_line, (unsigned long long)bare_reads, 1u);
+        mmgr_line_put(output_line, " probe reads and ");
+        mmgr_line_decimal(output_line, (unsigned long long)bare_verifications, 1u);
+        mmgr_line_put(output_line, " compares");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     if ((bare_reads != 0u) || (bare_verifications != (uint64_t)alignments))
     {
-        printf("    the empty probe set did not read exactly once per alignment: FAILS\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    the empty probe set did not read exactly once per alignment: FAILS");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed += 1;
     }
 
@@ -269,8 +349,18 @@ int grade_field(const char *label, const uint8_t *corpus, size_t corpus_len)
     {
         if (floor_total[route] < (uint64_t)alignments)
         {
-            printf("    route %zu broke the read floor, %llu reads over %zu alignments: FAILS\n", route,
-                   (unsigned long long)floor_total[route], alignments);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "    route ");
+                mmgr_line_decimal(output_line, route, 1u);
+                mmgr_line_put(output_line, " broke the read floor, ");
+                mmgr_line_decimal(output_line, (unsigned long long)floor_total[route], 1u);
+                mmgr_line_put(output_line, " reads over ");
+                mmgr_line_decimal(output_line, alignments, 1u);
+                mmgr_line_put(output_line, " alignments: FAILS");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             failed += 1;
         }
     }
@@ -303,23 +393,47 @@ int check_arm_is_wired(const uint8_t *corpus, size_t corpus_len, const uint8_t *
     uint8_t *survivors = (uint8_t *)malloc(alignments);
     if (survivors == NULL)
     {
-        printf("  allocation failed in the wiring check\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  allocation failed in the wiring check");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
 
     const OriorSteerEngine *best = orior_steer_best_engine();
     const int wide_present = (strcmp(best->name, "portable") != 0) ? 1 : 0;
 
-    printf("\n  THE ARM IS WIRED, not merely compiled.\n\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n  THE ARM IS WIRED, not merely compiled.\n");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     orior_steer_scan_counters_reset();
     size_t spawned[ORIOR_STEER_ANCHORS];
     (void)ORIOR_STEER_CALL(orior_steer_spawn_coarms, OriorSteerDescent, .offsets = spawned,
-                            .count = ORIOR_STEER_ANCHORS, .corpus = corpus, .corpus_len = corpus_len, .needle = needle,
-                            .needle_len = needle_len, .survivors = survivors, .survivors_length = alignments,
-                            .sample_stride = 1u);
+                           .count = ORIOR_STEER_ANCHORS, .corpus = corpus, .corpus_len = corpus_len, .needle = needle,
+                           .needle_len = needle_len, .survivors = survivors, .survivors_length = alignments,
+                           .sample_stride = 1u);
 
-    printf("  %18s %14s %14s %10s %10s\n", "widest arm", "scans", "wide scans", "share", "verdict");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_right(output_line, "widest arm", 18u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "scans", 14u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "wide scans", 14u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "share", 10u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "verdict", 10u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     /* A COUNT SHOWS THE ARM RAN. A SHARE SHOWS IT RAN ON THE WORK IT WAS GIVEN. The distinction
      * matters because they fail differently: a count above zero is satisfied by a single dispatch,
@@ -331,28 +445,66 @@ int check_arm_is_wired(const uint8_t *corpus, size_t corpus_len, const uint8_t *
         (orior_steer_scan_calls > 0u) ? ((orior_steer_wide_calls * 100u) / orior_steer_scan_calls) : 0u;
 
     const int ok = (orior_steer_scan_calls > 0u) && ((wide_present == 0) || (share == 100u));
-    printf("  %18s %14llu %14llu %9llu%% %10s\n", best->name, (unsigned long long)orior_steer_scan_calls,
-           (unsigned long long)orior_steer_wide_calls, (unsigned long long)share, ok ? "ok" : "FAILS");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_right(output_line, best->name, 18u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line, (unsigned long long)orior_steer_scan_calls, 14u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line, (unsigned long long)orior_steer_wide_calls, 14u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line, (unsigned long long)share, 9u);
+        mmgr_line_ch(output_line, '%');
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, ok ? "ok" : "FAILS", 10u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     if (orior_steer_scan_calls == 0u)
     {
-        printf("    the planner served no scan through an arm at all\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    the planner served no scan through an arm at all");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed += 1;
     }
     else if ((wide_present != 0) && (orior_steer_wide_calls == 0u))
     {
-        printf("    %s reports present and the planner never called it\n", best->name);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    ");
+            mmgr_line_put(output_line, best->name);
+            mmgr_line_put(output_line, " reports present and the planner never called it");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed += 1;
     }
     else if ((wide_present != 0) && (share != 100u))
     {
-        printf("    %s ran on %llu%% of the scans at stride one. The rest fell through\n", best->name,
-               (unsigned long long)share);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    ");
+            mmgr_line_put(output_line, best->name);
+            mmgr_line_put(output_line, " ran on ");
+            mmgr_line_decimal(output_line, (unsigned long long)share, 1u);
+            mmgr_line_ch(output_line, '%');
+            mmgr_line_put(output_line, " of the scans at stride one. The rest fell through");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed += 1;
     }
     else if (wide_present == 0)
     {
-        printf("    no wide arm on this machine. The portable count is the whole claim\n");
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    no wide arm on this machine. The portable count is the whole claim");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
 
     free(survivors);

@@ -3,6 +3,7 @@
 // write.c: the writings written to the part and read back: each relation's forms written and answered, the answers
 // read, the writings loaded and read
 #include "writings_internal.h"
+#include "../../../../../../platform/platform.h"
 #include "../../../../../engine/engine_note.h"
 #include "cellularum_laboro/cellularum_linea.h"
 
@@ -141,8 +142,20 @@ int writings_write(const char *pattern, const char *kernel_text, const char *mac
     fclose(cases);
     fclose(list);
     fclose(forms);
-    printf("interface sass writings: %u forms of %u fit, %u written and checked by cubin_safe, %u cases\n", fitting,
-           s_machine.forms, written, s_cases);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "interface sass writings: ");
+        mmgr_line_decimal(output_line, fitting, 1u);
+        mmgr_line_put(output_line, " forms of ");
+        mmgr_line_decimal(output_line, s_machine.forms, 1u);
+        mmgr_line_put(output_line, " fit, ");
+        mmgr_line_decimal(output_line, written, 1u);
+        mmgr_line_put(output_line, " written and checked by cubin_safe, ");
+        mmgr_line_decimal(output_line, s_cases, 1u);
+        mmgr_line_put(output_line, " cases");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 0;
 }
 
@@ -313,11 +326,32 @@ int writings_read(const char *folder, const char *record)
         }
         fprintf(out, "\n");
         found_total += found;
-        printf("  %-8s %-8s %u forms give every case its word\n", s_relation[relation].precept ? "precept" : "relation",
-               s_relation[relation].name, found);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_columns(output_line, s_relation[relation].precept ? "precept" : "relation", 8u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_columns(output_line, s_relation[relation].name, 8u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal(output_line, found, 1u);
+            mmgr_line_put(output_line, " forms give every case its word");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     fclose(out);
-    printf("interface sass writings: %u forms ran, %u refused, %u writings found, the record written to %s\n", ran,
-           refused, found_total, record);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "interface sass writings: ");
+        mmgr_line_decimal(output_line, ran, 1u);
+        mmgr_line_put(output_line, " forms ran, ");
+        mmgr_line_decimal(output_line, refused, 1u);
+        mmgr_line_put(output_line, " refused, ");
+        mmgr_line_decimal(output_line, found_total, 1u);
+        mmgr_line_put(output_line, " writings found, the record written to ");
+        mmgr_line_put(output_line, record);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 0;
 }

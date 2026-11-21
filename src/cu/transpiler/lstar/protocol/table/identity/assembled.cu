@@ -3,6 +3,7 @@
 // assembled.cu: texts of the vendor's language put into code by the vendor's writer, a member of the run started
 // through the interface; the identity contains no machine file and assembles nothing itself
 #include "identity_internal.h"
+#include "../../../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 // the blob the texts are passed in and the blob the vendor's writer passes their code back in
@@ -61,7 +62,13 @@ std::vector<std::vector<unsigned char>> vendor_assembled(const char *machine, co
     qry_member_rings_settled();
     if ((ran != 0L) || (answer.ending != INTERFACE_ENDING_EXITED) || (answer.code != 0ULL))
     {
-        printf("orior_klq_identity: the vendor's writer did not assemble: %s\n", s_writer_output);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity: the vendor's writer did not assemble: ");
+            mmgr_line_put(output_line, s_writer_output);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return codes;
     }
     const unsigned char *bytes = NULL;
@@ -76,8 +83,19 @@ std::vector<std::vector<unsigned char>> vendor_assembled(const char *machine, co
     mmgr_bytes_copy(&count, bytes + sizeof(call), sizeof(count));
     if ((call != s_call) || (count != texts.size()))
     {
-        printf("orior_klq_identity: the vendor's writer passed call %llu of %u texts for call %llu of %zu\n", call,
-               count, s_call, texts.size());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity: the vendor's writer passed call ");
+            mmgr_line_decimal(output_line, call, 1u);
+            mmgr_line_put(output_line, " of ");
+            mmgr_line_decimal(output_line, count, 1u);
+            mmgr_line_put(output_line, " texts for call ");
+            mmgr_line_decimal(output_line, s_call, 1u);
+            mmgr_line_put(output_line, " of ");
+            mmgr_line_decimal(output_line, texts.size(), 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return codes;
     }
     unsigned long long at = sizeof(call) + sizeof(count);

@@ -6,6 +6,7 @@
 // rounds is an add two threads made at once, and a slot claimed twice is a swap that did not compare. The host pass of
 // the same unit runs the same operations once, so the host arm compiles as C++ beside the device arm
 #include "embed_atomic.h"
+#include "../../../../src/platform/platform.h"
 
 #include <cstdio>
 
@@ -24,7 +25,15 @@ static void atomic_check(bool passed, const char *what)
 {
     s_checks += 1u;
     s_failed += passed ? 0u : 1u;
-    std::printf("  %s %s\n", passed ? "ok  " : "FAIL", what);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, passed ? "ok  " : "FAIL");
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put(output_line, what);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
 // every thread of the grid adds one to the 32-bit counter and three to the 64-bit counter ATOMIC_ROUNDS times
@@ -82,7 +91,8 @@ static bool atomic_global(void)
     embed_atomic_u64 *wide = nullptr;
     bool ran = (cudaMalloc((void **)&count, sizeof(*count)) == cudaSuccess) &&
                (cudaMalloc((void **)&wide, sizeof(*wide)) == cudaSuccess) &&
-               (cudaMemset(count, 0, sizeof(*count)) == cudaSuccess) && (cudaMemset(wide, 0, sizeof(*wide)) == cudaSuccess);
+               (cudaMemset(count, 0, sizeof(*count)) == cudaSuccess) &&
+               (cudaMemset(wide, 0, sizeof(*wide)) == cudaSuccess);
     if (ran)
     {
         atomic_global_kernel<<<ATOMIC_BLOCKS, ATOMIC_BLOCK_THREADS>>>(count, wide);
@@ -95,7 +105,8 @@ static bool atomic_global(void)
     atomic_check(ran, "the grid adding to two counters in global memory runs to its end");
     atomic_check(embed_atomic_u32_load(&counted) == (ATOMIC_BLOCKS * ATOMIC_BLOCK_THREADS * ATOMIC_ROUNDS),
                  "every add the grid made to the 32-bit counter is counted");
-    atomic_check(embed_atomic_u64_load(&counted_wide) == ((embed_u64)ATOMIC_BLOCKS * ATOMIC_BLOCK_THREADS * ATOMIC_ROUNDS * 3u),
+    atomic_check(embed_atomic_u64_load(&counted_wide) ==
+                     ((embed_u64)ATOMIC_BLOCKS * ATOMIC_BLOCK_THREADS * ATOMIC_ROUNDS * 3u),
                  "every add the grid made to the 64-bit counter is counted");
     (void)cudaFree(count);
     (void)cudaFree(wide);
@@ -162,8 +173,10 @@ static bool atomic_claim(void)
     return ran;
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     // the host arm of this C++ unit: the same operations once
     embed_atomic_u32 host = EMBED_ATOMIC_INIT(5u);
     embed_u32 expected = 5u;
@@ -176,7 +189,21 @@ int main(void)
     (void)atomic_global();
     (void)atomic_shared();
     (void)atomic_claim();
-    std::printf("%u checks, %u failed\n", s_checks, s_failed);
-    std::printf("test exit %d\n", (s_failed == 0u) ? 0 : 1);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_decimal(output_line, s_checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, s_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "test exit ");
+        mmgr_line_decimal_signed(output_line, (s_failed == 0u) ? 0 : 1);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failed == 0u) ? 0 : 1;
 }

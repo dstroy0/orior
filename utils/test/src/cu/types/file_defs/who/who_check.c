@@ -11,6 +11,7 @@
 //
 // It runs in a query run (qry_run.sh), the folder within the top of the tree.
 #include "../../../../../../../includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../../../../src/platform/platform.h"
 
 #include "../../../../../../../includes/parsers/who.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/table_text.h"
@@ -26,7 +27,13 @@ static void check_that(int passed, const char *what)
     if (passed == 0)
     {
         s_failed += 1u;
-        printf("  FAILED: %s\n", what);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -34,7 +41,12 @@ int program_main(int count, char **words)
 {
     if (count < 2)
     {
-        printf("who_check <folder>\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "who_check <folder>");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     const unsigned int line = (unsigned int)__LINE__ + 1u;
@@ -60,7 +72,15 @@ int program_main(int count, char **words)
     char program[160];
     snprintf(program, sizeof(program), " utils/test/src/cu/types/file_defs/who/who_check.c %llu", here.time);
     check_that(strstr(named, program) != NULL, "and the program's source, and the time");
-    printf("  %s: %s\n", code, named);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, code);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_put(output_line, named);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     char path[1024];
     snprintf(path, sizeof(path), "%s/who_check.txt", words[1]);
@@ -71,6 +91,15 @@ int program_main(int count, char **words)
     check_that(qry_member_file_blob(path, &bytes, &size) && (size == 4u) && (memcmp(bytes, "who\n", 4u) == 0),
                "and is the run's, read back as the run stores it");
 
-    printf("who_check: %u checks, %u failed\n", s_checks, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "who_check: ");
+        mmgr_line_decimal(output_line, s_checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, s_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failed == 0u) ? 0 : 1;
 }

@@ -8,6 +8,7 @@
 // The region finder is put runs of types a walk would have read. Given the classify_walk program the walk runs too,
 // over low addresses nothing maps, where every address ends its probe and the region is none.
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/query/bus_enum_walk.h"
+#include "../../../../../../../src/platform/platform.h"
 
 #include <stdio.h>
 
@@ -20,7 +21,13 @@ static void check_that(int passed, const char *what)
     if (passed == 0)
     {
         s_failed += 1u;
-        printf("  FAILED: %s\n", what);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -135,6 +142,15 @@ int program_main(int count_of_words, char **words)
         check_that(all_nothing == 1, "each address a probe queried there ended it and reads as nothing");
     }
 
-    printf("  bus enum: %u checks, %u failed\n", s_checks, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  bus enum: ");
+        mmgr_line_decimal(output_line, s_checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, s_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failed == 0u) ? 0 : 1;
 }

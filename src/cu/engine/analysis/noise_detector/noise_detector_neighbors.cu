@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_detector_neighbors.cu: neighbor correlation
 #include "noise_detector_internal.h"
+#include "../../../../platform/platform.h"
 
 static const char *const NOISE_RANGE_NAMES[NOISE_NEIGHBOR_RADII] = {"z", "y", "x", "z2", "z4", "z8", "z16", "z32"};
 
@@ -164,11 +165,21 @@ static void noise_neighbors_summary(const char *name, const unsigned long long s
     {
         if (radius == 0u)
         {
-            printf("  %-24s %-3s", name, NOISE_RANGE_NAMES[radius]);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_columns(output_line, name, 24u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_columns(output_line, NOISE_RANGE_NAMES[radius], 3u);
+            platform_line_out_ended();
         }
         else
         {
-            printf("  %-24s %-3s", "", NOISE_RANGE_NAMES[radius]);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_columns(output_line, "", 24u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_columns(output_line, NOISE_RANGE_NAMES[radius], 3u);
+            platform_line_out_ended();
         }
         for (unsigned int displayed = 0u; displayed < NOISE_NEIGHBORS_DISPLAYED; displayed += 1u)
         {
@@ -177,16 +188,33 @@ static void noise_neighbors_summary(const char *name, const unsigned long long s
             if (noise_neighbors_per_mille(&sums[((radius * NOISE_LEVEL_BINS) + level_bin) * NOISE_NEIGHBORS_SUMS],
                                           &per_mille))
             {
-                printf(" %7lld", per_mille);
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, " ");
+                {
+                    char linea_piece[24u];
+                    VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                    const int64_t linea_value = (int64_t)(per_mille);
+                    mmgr_line_decimal_signed(&linea_piece_line, linea_value);
+                    (void)mmgr_line_finish(&linea_piece_line);
+                    mmgr_line_put_right(output_line, linea_piece, 7u);
+                }
+                platform_line_out_ended();
             }
             else
             {
-                printf(" %7s", "-");
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, " ");
+                mmgr_line_put_right(output_line, "-", 7u);
+                platform_line_out_ended();
             }
         }
-        printf("\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
-    fflush(stdout);
+    platform_line_flushed();
 }
 
 static int noise_neighbors_rows(FILE *table, const char *name, const unsigned long long sums[NOISE_NEIGHBORS_CELLS])
@@ -229,15 +257,42 @@ extern "C" long noise_neighbors_set(const NoiseSetRequest *request)
              NOISE_DETECTOR_IO(fprintf(table, "sample\taxis\tlowest_mean\tpairs\tsquares\tnext_squares\traised"
                                               "\tlowered\n") > 0,
                                table, error);
-    printf("  neighbors: each frame difference times the next voxel's along z, y and x, and the voxel's 2 to 32 planes"
-           " on along z (z2 to z32), in bins of 8 by the pair's mean\n");
-    printf("  2000 (raised - lowered) / (squares + next squares), signed per mille (independent noise gives 0):\n");
-    printf("  %-24s  ", "mean");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line,
+                      "  neighbors: each frame difference times the next voxel's along z, y and x, and the voxel's 2 "
+                      "to 32 planes on along z (z2 to z32), in bins of 8 by the pair's mean");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(
+            output_line,
+            "  2000 (raised - lowered) / (squares + next squares), signed per mille (independent noise gives 0):");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, "mean", 24u);
+        mmgr_line_put(output_line, "  ");
+        platform_line_out_ended();
+    }
     for (unsigned int displayed = 0u; displayed < NOISE_NEIGHBORS_DISPLAYED; displayed += 1u)
     {
-        printf(" %7u", NOISE_NEIGHBORS_DISPLAYED_BINS[displayed] << (NOISE_LEVEL_BIN_SHIFT - 1u));
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line,
+                                  NOISE_NEIGHBORS_DISPLAYED_BINS[displayed] << (NOISE_LEVEL_BIN_SHIFT - 1u), 7u);
+        platform_line_out_ended();
     }
-    printf("\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     unsigned long long *const sums =
         (unsigned long long *)malloc((size_t)NOISE_NEIGHBORS_CELLS * sizeof(unsigned long long));
     ok = ok && NOISE_DETECTOR_CHECK(sums != NULL, &sums, error, ENGINE_ERROR_RESOURCE);
@@ -264,8 +319,15 @@ extern "C" long noise_neighbors_set(const NoiseSetRequest *request)
     }
     if (ok != 0)
     {
-        printf("  neighbors: %u samples in %llu ms; every sum is in %s\n", request->count,
-               (engine_clock_microseconds() - began) / 1000ULL, path);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  neighbors: ");
+        mmgr_line_decimal(output_line, request->count, 1u);
+        mmgr_line_put(output_line, " samples in ");
+        mmgr_line_decimal(output_line, (engine_clock_microseconds() - began) / 1000ULL, 1u);
+        mmgr_line_put(output_line, " ms; every sum is in ");
+        mmgr_line_put(output_line, path);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     return (ok != 0) ? 0L : NOISE_DETECTOR_ERROR;
 }

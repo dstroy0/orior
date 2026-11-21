@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "score_sample.h"
+#include "../../../../src/platform/platform.h"
 
 #include "answer_key.h"
 #include "bodies.h"
@@ -169,9 +170,22 @@ static int score_print_match(const char *sample, TreeFrame *frames, unsigned int
     }
     if (ok)
     {
-        printf("  %s: the print match swept %u pairs at once in %llu us; %u of %u leaves matched one to one, %u "
-               "forwards changed\n",
-               sample, made, sweep, matched, queried, changed);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, sample);
+        mmgr_line_put(output_line, ": the print match swept ");
+        mmgr_line_decimal(output_line, made, 1u);
+        mmgr_line_put(output_line, " pairs at once in ");
+        mmgr_line_decimal(output_line, sweep, 1u);
+        mmgr_line_put(output_line, " us; ");
+        mmgr_line_decimal(output_line, matched, 1u);
+        mmgr_line_put(output_line, " of ");
+        mmgr_line_decimal(output_line, queried, 1u);
+        mmgr_line_put(output_line, " leaves matched one to one, ");
+        mmgr_line_decimal(output_line, changed, 1u);
+        mmgr_line_put(output_line, " forwards changed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     else
     {
@@ -244,9 +258,28 @@ static int score_velocity_sweep(const char *sample, const char *pass, const Tree
     }
     if (ok)
     {
-        printf("  %s: velocity %s, %u lanes in %llu us: the climbed lag is beside the dipole's change on %u (z %u,"
-               " y %u, x %u); %u differ from the host\n",
-               sample, pass, lanes, sweep, agree[ENGINE_AXES], agree[0], agree[1], agree[2], differ);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, sample);
+        mmgr_line_put(output_line, ": velocity ");
+        mmgr_line_put(output_line, pass);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, lanes, 1u);
+        mmgr_line_put(output_line, " lanes in ");
+        mmgr_line_decimal(output_line, sweep, 1u);
+        mmgr_line_put(output_line, " us: the climbed lag is beside the dipole's change on ");
+        mmgr_line_decimal(output_line, agree[ENGINE_AXES], 1u);
+        mmgr_line_put(output_line, " (z ");
+        mmgr_line_decimal(output_line, agree[0], 1u);
+        mmgr_line_put(output_line, ", y ");
+        mmgr_line_decimal(output_line, agree[1], 1u);
+        mmgr_line_put(output_line, ", x ");
+        mmgr_line_decimal(output_line, agree[2], 1u);
+        mmgr_line_put(output_line, "); ");
+        mmgr_line_decimal(output_line, differ, 1u);
+        mmgr_line_put(output_line, " differ from the host");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     else
     {
@@ -540,19 +573,63 @@ static int score_division(const char *sample, const TreeFrame *frames, unsigned 
     }
     if (ok)
     {
-        printf("  %s: division, %u triples (a parent and two pieces whose climbs land back on it) in %llu us: mass"
-               " conserved on %u, split along the parent's long axis on %u, both on %u; %u differ from the host\n",
-               sample, lanes, sweep, output_true[DIVISION_BY_MASS], output_true[DIVISION_BY_AXIS],
-               output_true[DIVISION_BY_BOTH], differ);
-        printf(
-            "  %s: the key contains %u divisions, %u on three separate leaves, %u among the triples: mass on %u, axis"
-            " on %u, both on %u\n",
-            sample, truths, resolved, among, truth_true[DIVISION_BY_MASS], truth_true[DIVISION_BY_AXIS],
-            truth_true[DIVISION_BY_BOTH]);
-        printf("  %s: of the key's divisions, %u fall outside consecutive tracked frames, %u have a node on no leaf,"
-               " %u have both children on one leaf; on three separate leaves, %u of the %u children climb back to"
-               " their parent\n",
-               sample, lost_time, lost_off_leaf, lost_one_leaf, back_to_parent, 2u * resolved);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, sample);
+            mmgr_line_put(output_line, ": division, ");
+            mmgr_line_decimal(output_line, lanes, 1u);
+            mmgr_line_put(output_line, " triples (a parent and two pieces whose climbs land back on it) in ");
+            mmgr_line_decimal(output_line, sweep, 1u);
+            mmgr_line_put(output_line, " us: mass conserved on ");
+            mmgr_line_decimal(output_line, output_true[DIVISION_BY_MASS], 1u);
+            mmgr_line_put(output_line, ", split along the parent's long axis on ");
+            mmgr_line_decimal(output_line, output_true[DIVISION_BY_AXIS], 1u);
+            mmgr_line_put(output_line, ", both on ");
+            mmgr_line_decimal(output_line, output_true[DIVISION_BY_BOTH], 1u);
+            mmgr_line_put(output_line, "; ");
+            mmgr_line_decimal(output_line, differ, 1u);
+            mmgr_line_put(output_line, " differ from the host");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, sample);
+            mmgr_line_put(output_line, ": the key contains ");
+            mmgr_line_decimal(output_line, truths, 1u);
+            mmgr_line_put(output_line, " divisions, ");
+            mmgr_line_decimal(output_line, resolved, 1u);
+            mmgr_line_put(output_line, " on three separate leaves, ");
+            mmgr_line_decimal(output_line, among, 1u);
+            mmgr_line_put(output_line, " among the triples: mass on ");
+            mmgr_line_decimal(output_line, truth_true[DIVISION_BY_MASS], 1u);
+            mmgr_line_put(output_line, ", axis on ");
+            mmgr_line_decimal(output_line, truth_true[DIVISION_BY_AXIS], 1u);
+            mmgr_line_put(output_line, ", both on ");
+            mmgr_line_decimal(output_line, truth_true[DIVISION_BY_BOTH], 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, sample);
+            mmgr_line_put(output_line, ": of the key's divisions, ");
+            mmgr_line_decimal(output_line, lost_time, 1u);
+            mmgr_line_put(output_line, " fall outside consecutive tracked frames, ");
+            mmgr_line_decimal(output_line, lost_off_leaf, 1u);
+            mmgr_line_put(output_line, " have a node on no leaf, ");
+            mmgr_line_decimal(output_line, lost_one_leaf, 1u);
+            mmgr_line_put(output_line, " have both children on one leaf; on three separate leaves, ");
+            mmgr_line_decimal(output_line, back_to_parent, 1u);
+            mmgr_line_put(output_line, " of the ");
+            mmgr_line_decimal(output_line, 2u * resolved, 1u);
+            mmgr_line_put(output_line, " children climb back to their parent");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     else
     {
@@ -866,15 +943,44 @@ static int score_box(const char *sample, const TreeFrame *frames, unsigned int f
     free(frame_offset);
     if (ok)
     {
-        printf("  %s: the box C, %u climbers (every forward and null pair), %u cells (the 27 shifts around each climbed"
-               " lag and the drift), %u entries (%u cells met more bodies than the fast table and were merged exactly),"
-               " in %llu us\n",
-               sample, box.climbers, box.cells, box.entries, box.crowded, box.microseconds);
-        printf(
-            "  %s: at the climbed lag C sums to the climb's retained count on all but %u; the climbed lag is highest in"
-            " its neighborhood on all but %u; at the drift C equals the overlap triples on all but %u of %u bodies;"
-            " T* arranged for %u bodies, %u options\n",
-            sample, box.final_score_differ, box.not_highest, drift_differ, drift_queried, starred, placed);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, sample);
+            mmgr_line_put(output_line, ": the box C, ");
+            mmgr_line_decimal(output_line, box.climbers, 1u);
+            mmgr_line_put(output_line, " climbers (every forward and null pair), ");
+            mmgr_line_decimal(output_line, box.cells, 1u);
+            mmgr_line_put(output_line, " cells (the 27 shifts around each climbed lag and the drift), ");
+            mmgr_line_decimal(output_line, box.entries, 1u);
+            mmgr_line_put(output_line, " entries (");
+            mmgr_line_decimal(output_line, box.crowded, 1u);
+            mmgr_line_put(output_line, " cells met more bodies than the fast table and were merged exactly), in ");
+            mmgr_line_decimal(output_line, box.microseconds, 1u);
+            mmgr_line_put(output_line, " us");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, sample);
+            mmgr_line_put(output_line, ": at the climbed lag C sums to the climb's retained count on all but ");
+            mmgr_line_decimal(output_line, box.final_score_differ, 1u);
+            mmgr_line_put(output_line, "; the climbed lag is highest in its neighborhood on all but ");
+            mmgr_line_decimal(output_line, box.not_highest, 1u);
+            mmgr_line_put(output_line, "; at the drift C equals the overlap triples on all but ");
+            mmgr_line_decimal(output_line, drift_differ, 1u);
+            mmgr_line_put(output_line, " of ");
+            mmgr_line_decimal(output_line, drift_queried, 1u);
+            mmgr_line_put(output_line, " bodies; T* arranged for ");
+            mmgr_line_decimal(output_line, starred, 1u);
+            mmgr_line_put(output_line, " bodies, ");
+            mmgr_line_decimal(output_line, placed, 1u);
+            mmgr_line_put(output_line, " options");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     else
     {
@@ -893,8 +999,29 @@ static void score_box_history_series(const char *role, const TreeFrame *tree, un
 {
     // leaf widens from unsigned int to size_t before the multiply; leaf * 6 cannot wrap in 32 bits
     const unsigned int *const extent = &tree->extents[(size_t)leaf * BOX_HISTORY_EXTENT_FIELDS];
-    printf(" %s leaf %u (%u voxels, box %u..%u %u..%u %u..%u):", role, leaf, tree->sizes[leaf], extent[0], extent[3],
-           extent[1], extent[4], extent[2], extent[5]);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put(output_line, role);
+        mmgr_line_put(output_line, " leaf ");
+        mmgr_line_decimal(output_line, leaf, 1u);
+        mmgr_line_put(output_line, " (");
+        mmgr_line_decimal(output_line, tree->sizes[leaf], 1u);
+        mmgr_line_put(output_line, " voxels, box ");
+        mmgr_line_decimal(output_line, extent[0], 1u);
+        mmgr_line_put(output_line, "..");
+        mmgr_line_decimal(output_line, extent[3], 1u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal(output_line, extent[1], 1u);
+        mmgr_line_put(output_line, "..");
+        mmgr_line_decimal(output_line, extent[4], 1u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal(output_line, extent[2], 1u);
+        mmgr_line_put(output_line, "..");
+        mmgr_line_decimal(output_line, extent[5], 1u);
+        mmgr_line_put(output_line, "):");
+        platform_line_out_ended();
+    }
     for (unsigned int window = 0u; window < windows; window += 1u)
     {
         unsigned long long density = 0ull;
@@ -904,9 +1031,18 @@ static void score_box_history_series(const char *role, const TreeFrame *tree, un
             // bits
             density += (unsigned long long)counts[(window * ENGINE_HISTORY_BITS) + bit] << bit;
         }
-        printf(" %llu", density);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal(output_line, density, 1u);
+            platform_line_out_ended();
+        }
     }
-    printf(";");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, ";");
+        platform_line_out_ended();
+    }
 }
 
 static int score_box_history(const char *set, const char *sample, const TreeFrame *frames, unsigned int frame_count,
@@ -962,11 +1098,26 @@ static int score_box_history(const char *set, const char *sample, const TreeFram
     steps_succeeded = steps_succeeded && (box_history_gather(&request) == 0L);
     if (steps_succeeded)
     {
-        printf(
-            "  %s: the box history, %u bodies' boxes gathered from %u windows of %u transitions, %u bits, by 8 corners"
-            " of each window's running-sum key, in %llu us; %llu of %llu differ from walking every box\n",
-            sample, bodies, windows, ENGINE_HISTORY_WINDOW, ENGINE_HISTORY_BITS, microseconds, disagreements,
-            (unsigned long long)bodies * windows * ENGINE_HISTORY_BITS);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, sample);
+        mmgr_line_put(output_line, ": the box history, ");
+        mmgr_line_decimal(output_line, bodies, 1u);
+        mmgr_line_put(output_line, " bodies' boxes gathered from ");
+        mmgr_line_decimal(output_line, windows, 1u);
+        mmgr_line_put(output_line, " windows of ");
+        mmgr_line_decimal(output_line, ENGINE_HISTORY_WINDOW, 1u);
+        mmgr_line_put(output_line, " transitions, ");
+        mmgr_line_decimal(output_line, ENGINE_HISTORY_BITS, 1u);
+        mmgr_line_put(output_line, " bits, by 8 corners of each window's running-sum key, in ");
+        mmgr_line_decimal(output_line, microseconds, 1u);
+        mmgr_line_put(output_line, " us; ");
+        mmgr_line_decimal(output_line, disagreements, 1u);
+        mmgr_line_put(output_line, " of ");
+        mmgr_line_decimal(output_line, (unsigned long long)bodies * windows * ENGINE_HISTORY_BITS, 1u);
+        mmgr_line_put(output_line, " differ from walking every box");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     unsigned int *const successors = steps_succeeded ? score_key_successors(key) : NULL;
     steps_succeeded = steps_succeeded && (successors != NULL);
@@ -980,9 +1131,17 @@ static int score_box_history(const char *set, const char *sample, const TreeFram
             continue;
         }
         const unsigned int frame = (unsigned int)tree_index_of_time[time];
-        printf("    division at frame %d, the transition to %d in window %u (density, the flips times 2^bit, a window "
-               "each):",
-               time, time + 1, (unsigned int)time / ENGINE_HISTORY_WINDOW);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    division at frame ");
+            mmgr_line_decimal_signed(output_line, time);
+            mmgr_line_put(output_line, ", the transition to ");
+            mmgr_line_decimal_signed(output_line, time + 1);
+            mmgr_line_put(output_line, " in window ");
+            mmgr_line_decimal(output_line, (unsigned int)time / ENGINE_HISTORY_WINDOW, 1u);
+            mmgr_line_put(output_line, " (density, the flips times 2^bit, a window each):");
+            platform_line_out_ended();
+        }
         score_box_history_series(
             "parent", &frames[frame], (unsigned int)node_leaf[node],
             &counts[(size_t)(frame_first[frame] + (unsigned int)node_leaf[node]) * windows * ENGINE_HISTORY_BITS],
@@ -995,7 +1154,11 @@ static int score_box_history(const char *set, const char *sample, const TreeFram
                 ((child_time >= 0) && ((unsigned int)child_time < volume_frames)) ? tree_index_of_time[child_time] : -1;
             if ((child_leaf < 0) || (child_frame < 0))
             {
-                printf(" child on no leaf;");
+                {
+                    VerbaLinea *const output_line = platform_line_out();
+                    mmgr_line_put(output_line, " child on no leaf;");
+                    platform_line_out_ended();
+                }
                 continue;
             }
             score_box_history_series(
@@ -1003,7 +1166,11 @@ static int score_box_history(const char *set, const char *sample, const TreeFram
                 &counts[(size_t)(frame_first[child_frame] + (unsigned int)child_leaf) * windows * ENGINE_HISTORY_BITS],
                 windows);
         }
-        printf("\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     unsigned int *const leaf_node_count =
         steps_succeeded ? (unsigned int *)calloc((size_t)bodies + 1u, sizeof(unsigned int)) : NULL;
@@ -1038,9 +1205,22 @@ static int score_box_history(const char *set, const char *sample, const TreeFram
     }
     if (steps_succeeded)
     {
-        printf("  %s: of %u key nodes on a leaf, %u share their leaf with another key node, on %u leaves; the max on"
-               " one leaf is %u, a leaf of %u voxels\n",
-               sample, placed_nodes, shared_nodes, shared_leaves, max_nodes_on_leaf, max_nodes_leaf_voxels);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, sample);
+        mmgr_line_put(output_line, ": of ");
+        mmgr_line_decimal(output_line, placed_nodes, 1u);
+        mmgr_line_put(output_line, " key nodes on a leaf, ");
+        mmgr_line_decimal(output_line, shared_nodes, 1u);
+        mmgr_line_put(output_line, " share their leaf with another key node, on ");
+        mmgr_line_decimal(output_line, shared_leaves, 1u);
+        mmgr_line_put(output_line, " leaves; the max on one leaf is ");
+        mmgr_line_decimal(output_line, max_nodes_on_leaf, 1u);
+        mmgr_line_put(output_line, ", a leaf of ");
+        mmgr_line_decimal(output_line, max_nodes_leaf_voxels, 1u);
+        mmgr_line_put(output_line, " voxels");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     free(leaf_node_count);
     if (steps_succeeded == 0)
@@ -1177,15 +1357,42 @@ static int score_core(const char *sample, ClimbMachine *machine, const ClimbMach
             within_half_voxel_at[width] += within_half_voxel;
         }
     }
-    printf("  %s: the core, %u climbers on adjacent frames (both sides), %u widths retained, in %llu us; the width-0 "
-           "core mass"
-           " equals C at the climbed lag on all but %u of %u forward climbers (%u not in a box)\n",
-           sample, core.climbers, core.widths, core.microseconds, differing_climbers, proved, unboxed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, sample);
+        mmgr_line_put(output_line, ": the core, ");
+        mmgr_line_decimal(output_line, core.climbers, 1u);
+        mmgr_line_put(output_line, " climbers on adjacent frames (both sides), ");
+        mmgr_line_decimal(output_line, core.widths, 1u);
+        mmgr_line_put(output_line, " widths retained, in ");
+        mmgr_line_decimal(output_line, core.microseconds, 1u);
+        mmgr_line_put(output_line, " us; the width-0 core mass equals C at the climbed lag on all but ");
+        mmgr_line_decimal(output_line, differing_climbers, 1u);
+        mmgr_line_put(output_line, " of ");
+        mmgr_line_decimal(output_line, proved, 1u);
+        mmgr_line_put(output_line, " forward climbers (");
+        mmgr_line_decimal(output_line, unboxed, 1u);
+        mmgr_line_put(output_line, " not in a box)");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     for (unsigned int width = 0u; width < max_widths; width += 1u)
     {
-        printf("    width %u: %llu climbers reach it, core mass %llu; %llu mutual pairs contain both cores, the core"
-               " displacement within half a voxel of the climbed lag on every axis for %llu\n",
-               width, climbers_at[width], mass_at[width], pairs_at[width], within_half_voxel_at[width]);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    width ");
+        mmgr_line_decimal(output_line, width, 1u);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_decimal(output_line, climbers_at[width], 1u);
+        mmgr_line_put(output_line, " climbers reach it, core mass ");
+        mmgr_line_decimal(output_line, mass_at[width], 1u);
+        mmgr_line_put(output_line, "; ");
+        mmgr_line_decimal(output_line, pairs_at[width], 1u);
+        mmgr_line_put(output_line, " mutual pairs contain both cores, the core displacement within half a voxel of the "
+                                   "climbed lag on every axis for ");
+        mmgr_line_decimal(output_line, within_half_voxel_at[width], 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     free(climbers_at);
     free(mass_at);
@@ -1360,14 +1567,45 @@ static int score_marginal(const char *sample, const TreeFrame *frames, unsigned 
     }
     if (ok)
     {
-        printf("  %s: marginal, %u bodies queried (%u in their context, %u alone, %u too wide to query), %u options, "
-               "in %llu"
-               " us; device %s the host\n",
-               sample, set.question_count, in_context, alone, error, set.option_count, swept,
-               same ? "equals" : "DIFFERS FROM");
-        printf("  %s: of %u key edges queried, the max probable in context lands on the truth for %u (no link is the"
-               " max probable for %u), the heaviest candidate alone for %u, the climb's forward for %u\n",
-               sample, edges, by_context, by_absent, by_weight, by_climb);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, sample);
+            mmgr_line_put(output_line, ": marginal, ");
+            mmgr_line_decimal(output_line, set.question_count, 1u);
+            mmgr_line_put(output_line, " bodies queried (");
+            mmgr_line_decimal(output_line, in_context, 1u);
+            mmgr_line_put(output_line, " in their context, ");
+            mmgr_line_decimal(output_line, alone, 1u);
+            mmgr_line_put(output_line, " alone, ");
+            mmgr_line_decimal(output_line, error, 1u);
+            mmgr_line_put(output_line, " too wide to query), ");
+            mmgr_line_decimal(output_line, set.option_count, 1u);
+            mmgr_line_put(output_line, " options, in ");
+            mmgr_line_decimal(output_line, swept, 1u);
+            mmgr_line_put(output_line, " us; device ");
+            mmgr_line_put(output_line, same ? "equals" : "DIFFERS FROM");
+            mmgr_line_put(output_line, " the host");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, sample);
+            mmgr_line_put(output_line, ": of ");
+            mmgr_line_decimal(output_line, edges, 1u);
+            mmgr_line_put(output_line, " key edges queried, the max probable in context lands on the truth for ");
+            mmgr_line_decimal(output_line, by_context, 1u);
+            mmgr_line_put(output_line, " (no link is the max probable for ");
+            mmgr_line_decimal(output_line, by_absent, 1u);
+            mmgr_line_put(output_line, "), the heaviest candidate alone for ");
+            mmgr_line_decimal(output_line, by_weight, 1u);
+            mmgr_line_put(output_line, ", the climb's forward for ");
+            mmgr_line_decimal(output_line, by_climb, 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     else
     {
@@ -1508,12 +1746,32 @@ static int score_contact_side(const char *sample, const TreeFrame *frames, unsig
     }
     if (ok)
     {
-        printf(
-            "  %s: contact side, %u touching pairs whose bodies both climb onward (%u differences in %llu us, the"
-            " verdicts in %llu us): the centroid difference retains its side on %u, crosses on %u, meets on %u (%u of"
-            " them landed on one body); the differences %s the host, %u verdicts differ from it\n",
-            sample, contacts, differences, apart_sweep, retained_sweep, retained, crossed,
-            contacts - retained - crossed, landed_together, (differ == 0u) ? "equal" : "DIFFER FROM", retained_differ);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, sample);
+        mmgr_line_put(output_line, ": contact side, ");
+        mmgr_line_decimal(output_line, contacts, 1u);
+        mmgr_line_put(output_line, " touching pairs whose bodies both climb onward (");
+        mmgr_line_decimal(output_line, differences, 1u);
+        mmgr_line_put(output_line, " differences in ");
+        mmgr_line_decimal(output_line, apart_sweep, 1u);
+        mmgr_line_put(output_line, " us, the verdicts in ");
+        mmgr_line_decimal(output_line, retained_sweep, 1u);
+        mmgr_line_put(output_line, " us): the centroid difference retains its side on ");
+        mmgr_line_decimal(output_line, retained, 1u);
+        mmgr_line_put(output_line, ", crosses on ");
+        mmgr_line_decimal(output_line, crossed, 1u);
+        mmgr_line_put(output_line, ", meets on ");
+        mmgr_line_decimal(output_line, contacts - retained - crossed, 1u);
+        mmgr_line_put(output_line, " (");
+        mmgr_line_decimal(output_line, landed_together, 1u);
+        mmgr_line_put(output_line, " of them landed on one body); the differences ");
+        mmgr_line_put(output_line, (differ == 0u) ? "equal" : "DIFFER FROM");
+        mmgr_line_put(output_line, " the host, ");
+        mmgr_line_decimal(output_line, retained_differ, 1u);
+        mmgr_line_put(output_line, " verdicts differ from it");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     else
     {
@@ -1549,7 +1807,16 @@ static int score_truth_load(const char *source, const char *sample, AnswerKey *k
     memset(&geff, 0, sizeof(geff));
     if (engine_geff_read(path, &geff) != 0L)
     {
-        printf("  %s: no answer key at %s; run unscored\n", sample, path);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, sample);
+            mmgr_line_put(output_line, ": no answer key at ");
+            mmgr_line_put(output_line, path);
+            mmgr_line_put(output_line, "; run unscored");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     AnswerKeyTruth truth;
@@ -2308,14 +2575,24 @@ int score_sample(const char *set, const char *source, const char *sample, const 
     free(was_count);
     if ((rules->tower != 0) && (rules->edges != NULL))
     {
-        printf("    tower: %u rounds, %s\n", turned,
-               (moving == 0u) ? "settled" : "still moving when the rounds ran out");
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    tower: ");
+        mmgr_line_decimal(output_line, turned, 1u);
+        mmgr_line_put(output_line, " rounds, ");
+        mmgr_line_put(output_line, (moving == 0u) ? "settled" : "still moving when the rounds ran out");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     const unsigned int refocused =
         ((ok != 0) && (rules->focus != 0)) ? focus_links(frames, frame_count, (unsigned int)rules->mass_band) : 0u;
     if ((rules->focus != 0) && (rules->edges != NULL))
     {
-        printf("    focus moved %u links\n", refocused);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    focus moved ");
+        mmgr_line_decimal(output_line, refocused, 1u);
+        mmgr_line_put(output_line, " links");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
 
     NodeIndex index;
@@ -2882,16 +3159,69 @@ int score_sample(const char *set, const char *source, const char *sample, const 
     {
         const unsigned long long scored =
             results->correct + results->branched + results->wrong + results->unlinked + results->missed;
-        printf("  %-24.24s %-6llu %llu/%llu/%llu/%llu/%llu   %u frames, %u objects of %u leaves, largest %u,"
-               " rejoined %u, engines %llu ms"
-               " (read %llu, bodies %llu, store %llu, ties %llu, motion %llu, landing %llu, overlap %llu,"
-               " climb %llu), tree %llu ms\n",
-               sample, scored, results->correct, results->branched, results->wrong, results->unlinked, results->missed,
-               frame_count, object_total, leaf_total, largest_object, rejoined, engines_done - started,
-               clocks.read / 1000ULL, clocks.bodies / 1000ULL, clocks.store / 1000ULL, clocks.ties / 1000ULL,
-               clocks.motion / 1000ULL, clocks.landing / 1000ULL, clocks.overlap / 1000ULL, clocks.climb / 1000ULL,
-               finished - engines_done);
-        fflush(stdout);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            {
+                char linea_piece[24u + 1u];
+                VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                (void)mmgr_line_put_max(&linea_piece_line, sample, 24u);
+                (void)mmgr_line_finish(&linea_piece_line);
+                mmgr_line_put_columns(output_line, linea_piece, 24u);
+            }
+            mmgr_line_put(output_line, " ");
+            {
+                char linea_piece[24u];
+                VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                mmgr_line_decimal(&linea_piece_line, (uint64_t)(scored), 1u);
+                (void)mmgr_line_finish(&linea_piece_line);
+                mmgr_line_put_columns(output_line, linea_piece, 6u);
+            }
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal(output_line, results->correct, 1u);
+            mmgr_line_put(output_line, "/");
+            mmgr_line_decimal(output_line, results->branched, 1u);
+            mmgr_line_put(output_line, "/");
+            mmgr_line_decimal(output_line, results->wrong, 1u);
+            mmgr_line_put(output_line, "/");
+            mmgr_line_decimal(output_line, results->unlinked, 1u);
+            mmgr_line_put(output_line, "/");
+            mmgr_line_decimal(output_line, results->missed, 1u);
+            mmgr_line_put(output_line, "   ");
+            mmgr_line_decimal(output_line, frame_count, 1u);
+            mmgr_line_put(output_line, " frames, ");
+            mmgr_line_decimal(output_line, object_total, 1u);
+            mmgr_line_put(output_line, " objects of ");
+            mmgr_line_decimal(output_line, leaf_total, 1u);
+            mmgr_line_put(output_line, " leaves, largest ");
+            mmgr_line_decimal(output_line, largest_object, 1u);
+            mmgr_line_put(output_line, ", rejoined ");
+            mmgr_line_decimal(output_line, rejoined, 1u);
+            mmgr_line_put(output_line, ", engines ");
+            mmgr_line_decimal(output_line, engines_done - started, 1u);
+            mmgr_line_put(output_line, " ms (read ");
+            mmgr_line_decimal(output_line, clocks.read / 1000ULL, 1u);
+            mmgr_line_put(output_line, ", bodies ");
+            mmgr_line_decimal(output_line, clocks.bodies / 1000ULL, 1u);
+            mmgr_line_put(output_line, ", store ");
+            mmgr_line_decimal(output_line, clocks.store / 1000ULL, 1u);
+            mmgr_line_put(output_line, ", ties ");
+            mmgr_line_decimal(output_line, clocks.ties / 1000ULL, 1u);
+            mmgr_line_put(output_line, ", motion ");
+            mmgr_line_decimal(output_line, clocks.motion / 1000ULL, 1u);
+            mmgr_line_put(output_line, ", landing ");
+            mmgr_line_decimal(output_line, clocks.landing / 1000ULL, 1u);
+            mmgr_line_put(output_line, ", overlap ");
+            mmgr_line_decimal(output_line, clocks.overlap / 1000ULL, 1u);
+            mmgr_line_put(output_line, ", climb ");
+            mmgr_line_decimal(output_line, clocks.climb / 1000ULL, 1u);
+            mmgr_line_put(output_line, "), tree ");
+            mmgr_line_decimal(output_line, finished - engines_done, 1u);
+            mmgr_line_put(output_line, " ms");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        platform_line_flushed();
         FILE *const log = log_open();
         if (log != NULL)
         {

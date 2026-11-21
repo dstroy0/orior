@@ -1,14 +1,15 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// questions.cu: the values a case is made of, a run's blobs read as text, and the links and questions the stick's manifest lists
+// questions.cu: the values a case is made of, a run's blobs read as text, and the links and questions the stick's
+// manifest lists
 #include "identity_internal.h"
+#include "../../../../../../platform/platform.h"
 
 // the operations that transfer control or wait, which cubin_safe.h's rule 2 blocks from the part: a question containing
 // one is not put to the part as written
-static const char *const s_control_or_wait[] = {"BRA",   "BRX",  "JMP",      "JMX",   "CALL", "RET",
-                                                "EXIT",  "BSSY", "BSYNC",    "BREAK", "BMOV", "WARPSYNC",
-                                                "YIELD", "BAR",  "DEPBAR",   "NANOSLEEP", "BPT", "RTT",
-                                                "KILL",  "RPCMOV", "RETIRE", "PMTRIG"};
+static const char *const s_control_or_wait[] = {
+    "BRA",      "BRX",   "JMP", "JMX",    "CALL",      "RET", "EXIT", "BSSY", "BSYNC",  "BREAK",  "BMOV",
+    "WARPSYNC", "YIELD", "BAR", "DEPBAR", "NANOSLEEP", "BPT", "RTT",  "KILL", "RPCMOV", "RETIRE", "PMTRIG"};
 
 // the latest blob of `name` in the run (qry_member.h) as text, empty where no run's writer runs or the run
 // contains none
@@ -65,8 +66,16 @@ int run_closed(const RunWritten *written)
     QryShared *const run = qry_member_run();
     if (run == NULL)
     {
-        printf("orior_klq_identity: no query writer runs to write %s: %s names no .qry a writer has open\n",
-               written->path.c_str(), QRY_ENVIRONMENT);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity: no query writer runs to write ");
+            mmgr_line_put(output_line, written->path.c_str());
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_put(output_line, QRY_ENVIRONMENT);
+            mmgr_line_put(output_line, " names no .qry a writer has open");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     if (written->filed)
@@ -198,9 +207,9 @@ int link_read(const std::string &line, Link *link)
     }
     text = written;
     // the link with each register a mark and each literal operand another, the registers and the literals in the order
-    // written, its spaces one and its numbers decimal. The target of an operation that aims at an address of the code is
-    // a position in the chain and is written as its distance in links from the link itself: a barrier's number, a mask
-    // or a count is a literal
+    // written, its spaces one and its numbers decimal. The target of an operation that aims at an address of the code
+    // is a position in the chain and is written as its distance in links from the link itself: a barrier's number, a
+    // mask or a count is a literal
     static const std::regex s_reuse("\\.reuse");
     static const std::regex s_spaces("\\s+");
     static const std::regex s_named("\\b(UR[0-9]+|R[0-9]+|P[0-6])\\b");
@@ -214,10 +223,11 @@ int link_read(const std::string &line, Link *link)
     link->distances.clear();
     const size_t operation_first = (plain[0] == '@') ? plain.find(' ') + 1u : 0u;
     const size_t operation_last = plain.find(' ', operation_first);
-    const std::string operation_name = plain.substr(operation_first, plain.find_first_of(". ", operation_first) - operation_first);
+    const std::string operation_name =
+        plain.substr(operation_first, plain.find_first_of(". ", operation_first) - operation_first);
     static const char *const s_aimed[] = {"BRA", "JMP", "CALL", "BSSY"};
-    const int transfers = std::any_of(std::begin(s_aimed), std::end(s_aimed),
-                                      [&](const char *aimed) { return operation_name == aimed; });
+    const int transfers =
+        std::any_of(std::begin(s_aimed), std::end(s_aimed), [&](const char *aimed) { return operation_name == aimed; });
     std::vector<std::string> pieces;
     if (operation_last != std::string::npos)
     {
@@ -236,7 +246,8 @@ int link_read(const std::string &line, Link *link)
         if (transfers && addressed && std::regex_match(piece, s_target))
         {
             const long long distance =
-                ((long long)std::stoull(piece, nullptr, 16) - (long long)std::stoull(address[1].str(), nullptr, 16)) / 16;
+                ((long long)std::stoull(piece, nullptr, 16) - (long long)std::stoull(address[1].str(), nullptr, 16)) /
+                16;
             link->targets.push_back(piece);
             link->distances.push_back("." + std::string((distance < 0) ? "" : "+") + std::to_string(distance));
             piece = "\x03";
@@ -281,7 +292,16 @@ int questions_read(const char *listing, const char *manifest, std::vector<Questi
     std::ifstream file(listing);
     if (!file || named.empty())
     {
-        printf("  %s or %s could not be read\n", listing, manifest);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, listing);
+            mmgr_line_put(output_line, " or ");
+            mmgr_line_put(output_line, manifest);
+            mmgr_line_put(output_line, " could not be read");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     static const std::regex s_function("Function : measuring_stick_([0-9]+)");
@@ -385,8 +405,8 @@ std::vector<std::string> links_past(const Question &one, const Question &other)
 // 1 where the question's operands and result are integers, which the host computes as every system does
 int question_integer(const Question &question)
 {
-    static const std::set<std::string> s_categories = {"operator", "compound", "unary", "conversion", "conditional",
-                                                       "statement", "test", "pressure", "text_identity"};
+    static const std::set<std::string> s_categories = {
+        "operator", "compound", "unary", "conversion", "conditional", "statement", "test", "pressure", "text_identity"};
     return s_categories.count(question.category) && (question.text.find("float") == std::string::npos) &&
            (question.text.find("double") == std::string::npos) && (question.text.find("__") == std::string::npos);
 }

@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "../../../includes/exact_types/integers/arm.h"
+#include "../../../src/platform/platform.h"
 #include "../../../includes/exact_types/integers/exact_integer.h"
 
 #define SHIFT_TEXT 64u
@@ -137,9 +138,29 @@ int program_main(int argc, char **argv)
     }
 #endif
 
-    (void)printf("  %zu positions from two frames, engine %s, sweeping to %ld voxels\n\n", total, engine->name,
-                 max_step);
-    (void)printf("  %-10s %-14s %s\n", "dz", "lag", "agreement");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_decimal(output_line, total, 1u);
+        mmgr_line_put(output_line, " positions from two frames, engine ");
+        mmgr_line_put(output_line, engine->name);
+        mmgr_line_put(output_line, ", sweeping to ");
+        mmgr_line_decimal_signed(output_line, max_step);
+        mmgr_line_put(output_line, " voxels\n");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, "dz", 10u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_columns(output_line, "lag", 14u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put(output_line, "agreement");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     size_t best = 0u;
     long best_dz = 0;
@@ -157,7 +178,30 @@ int program_main(int argc, char **argv)
             (void)fprintf(stderr, "  the engine errored on the work at dz %ld\n", dz);
             break;
         }
-        (void)printf("  %-10ld %-14llu %zu\n", dz, step, agreed);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            {
+                char linea_piece[24u];
+                VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                const int64_t linea_value = (int64_t)(dz);
+                mmgr_line_decimal_signed(&linea_piece_line, linea_value);
+                (void)mmgr_line_finish(&linea_piece_line);
+                mmgr_line_put_columns(output_line, linea_piece, 10u);
+            }
+            mmgr_line_put(output_line, " ");
+            {
+                char linea_piece[24u];
+                VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                mmgr_line_decimal(&linea_piece_line, (uint64_t)(step), 1u);
+                (void)mmgr_line_finish(&linea_piece_line);
+                mmgr_line_put_columns(output_line, linea_piece, 14u);
+            }
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal(output_line, agreed, 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         if ((dz > 0) && (agreed > best))
         {
             best = agreed;
@@ -165,7 +209,21 @@ int program_main(int argc, char **argv)
         }
     }
 
-    (void)printf("\n  peak away from zero: dz %ld at %zu agreements.\n", best_dz, best);
-    (void)printf("  Lag zero counts every position against itself and is not a displacement.\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n  peak away from zero: dz ");
+        mmgr_line_decimal_signed(output_line, best_dz);
+        mmgr_line_put(output_line, " at ");
+        mmgr_line_decimal(output_line, best, 1u);
+        mmgr_line_put(output_line, " agreements.");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  Lag zero counts every position against itself and is not a displacement.");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 0;
 }

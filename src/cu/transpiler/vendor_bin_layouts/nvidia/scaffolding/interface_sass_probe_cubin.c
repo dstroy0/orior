@@ -31,7 +31,14 @@ static unsigned long long sass_file_read(const char *path, unsigned char *bytes,
     FILE *const file = fopen(path, "rb");
     if (file == NULL)
     {
-        printf("  cubin: %s could not be read\n", path);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  cubin: ");
+            mmgr_line_put(output_line, path);
+            mmgr_line_put(output_line, " could not be read");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0ULL;
     }
     const unsigned long long read = (unsigned long long)fread(bytes, 1u, (size_t)room, file);
@@ -46,7 +53,12 @@ static int sass_file_write(const char *path, const unsigned char *bytes, unsigne
     const int closed = (file != NULL) && (fclose(file) == 0);
     if (!written || !closed)
     {
-        printf("  cubin: %s could not be written\n", path);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  cubin: ");
+        mmgr_line_put(output_line, path);
+        mmgr_line_put(output_line, " could not be written");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     return written && closed;
 }
@@ -103,7 +115,14 @@ int sass_cubin_kernel(const SassMachine *machine, const char *folder, const char
     const unsigned int instructions = sass_assemble_lines(machine, text, SASS_CONTROL_SAFE, s_code, sizeof(s_code));
     if (instructions == 0u)
     {
-        printf("  cubin: %s assembled nothing\n", into);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  cubin: ");
+            mmgr_line_put(output_line, into);
+            mmgr_line_put(output_line, " assembled nothing");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     const unsigned long long code_size = 16ULL * instructions;

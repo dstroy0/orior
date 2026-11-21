@@ -3,6 +3,7 @@
 // vendor_writer_run.c: the vendor's writer run through the interface by a format's writer, its output printed and
 // passed to the run
 #include "vendor_writer_run.h"
+#include "../../src/platform/platform.h"
 
 #include "../../src/cu/transpiler/lstar/interface/interface.h"
 #include "qry/writer/qry_member.h"
@@ -23,15 +24,32 @@ int vendor_writer_run(char *const *command, const char *machine_name, const char
     qry_member_rings_settled();
     if (answer.output_bytes != 0ULL)
     {
-        printf("%s", s_output);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, s_output);
+            platform_line_out_ended();
+        }
         const unsigned long long output_len =
             (answer.output_bytes < (sizeof(s_output) - 1u)) ? answer.output_bytes : (sizeof(s_output) - 1u);
         qry_member_append(machine_name, s_output, output_len, QRY_ORDINARY);
     }
     if ((ran != 0L) || (answer.ending != INTERFACE_ENDING_EXITED) || (answer.code != 0ULL))
     {
-        printf("  %s: the vendor's writer%s%s did not end clean (%s, code %llx)\n", program, (mode != NULL) ? " " : "",
-               (mode != NULL) ? mode : "", interface_ending_name(answer.ending), answer.code);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, program);
+            mmgr_line_put(output_line, ": the vendor's writer");
+            mmgr_line_put(output_line, (mode != NULL) ? " " : "");
+            mmgr_line_put(output_line, (mode != NULL) ? mode : "");
+            mmgr_line_put(output_line, " did not end clean (");
+            mmgr_line_put(output_line, interface_ending_name(answer.ending));
+            mmgr_line_put(output_line, ", code ");
+            mmgr_line_hex(output_line, answer.code, 1u);
+            mmgr_line_put(output_line, ")");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     return 1;

@@ -24,6 +24,7 @@
 // it, against arithmetic that every system that computes agrees about. The target gets questions only on the cases
 // that the descent placed.
 #include "../../../../../../../includes/file_defs/kdm/kdm.h"
+#include "../../../../../../../src/platform/platform.h"
 #include "../../../../../../../src/cu/engine/nbody/orior/orior.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/gate/chain_build.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/teacher/run_channel.h"
@@ -178,9 +179,28 @@ static void gate_queries_put(unsigned int anchor, unsigned int alignments, const
         s_checks[with] = swapped;
     }
     const unsigned long long drawn = gate_split_queries(s_checks, 0u, checks);
-    printf("  %-8s %4u checks, %u failing: %4u queries at one a check, %u at one bit a check (%u bits an answer), %llu "
-           "at one bit a set halved on a 0, %llu with the checks in a drawn order\n",
-           s_anchor_text[anchor], checks, failing, checks, (checks + bits - 1u) / bits, bits, halved, drawn);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, s_anchor_text[anchor], 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line, checks, 4u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, failing, 1u);
+        mmgr_line_put(output_line, " failing: ");
+        mmgr_line_decimal_columns(output_line, checks, 4u);
+        mmgr_line_put(output_line, " queries at one a check, ");
+        mmgr_line_decimal(output_line, (checks + bits - 1u) / bits, 1u);
+        mmgr_line_put(output_line, " at one bit a check (");
+        mmgr_line_decimal(output_line, bits, 1u);
+        mmgr_line_put(output_line, " bits an answer), ");
+        mmgr_line_decimal(output_line, halved, 1u);
+        mmgr_line_put(output_line, " at one bit a set halved on a 0, ");
+        mmgr_line_decimal(output_line, drawn, 1u);
+        mmgr_line_put(output_line, " with the checks in a drawn order");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
 // the folder that gets a target's half, or NULL where the command line names none
@@ -249,11 +269,27 @@ static void gate_put(unsigned int anchor, unsigned int alignments, const size_t 
                                          : 0ull;
     if (!put || (filed == 0ull))
     {
-        printf("  %-8s the target's half was not written to %s\n", s_anchor_text[anchor], s_put_folder);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_columns(output_line, s_anchor_text[anchor], 8u);
+            mmgr_line_put(output_line, " the target's half was not written to ");
+            mmgr_line_put(output_line, s_put_folder);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return;
     }
     // printed for the script that runs the descent, which reads the half from the run while the run runs
-    printf("  %-8s the target's half written to %s\n", s_anchor_text[anchor], s_put_folder);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, s_anchor_text[anchor], 8u);
+        mmgr_line_put(output_line, " the target's half written to ");
+        mmgr_line_put(output_line, s_put_folder);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
 // one relation measured; 1 where every reading agrees with its ground truth
@@ -265,7 +301,14 @@ static unsigned int gate_relation(unsigned int anchor, const LadderQuestion *cas
     const unsigned int alignments = s_fitted.chains;
     if (alignments == 0u)
     {
-        printf("  %-8s no arrangement fits the ladder's cases, nothing to descend over\n", s_anchor_text[anchor]);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_columns(output_line, s_anchor_text[anchor], 8u);
+            mmgr_line_put(output_line, " no arrangement fits the ladder's cases, nothing to descend over");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1u;
     }
 
@@ -291,9 +334,23 @@ static unsigned int gate_relation(unsigned int anchor, const LadderQuestion *cas
         {
             const size_t at = offsets[index];
             chosen[placed + index] = at;
-            printf("  %-8s places case %3zu, %s: 0x%08x 0x%08x -> 0x%08x\n", s_anchor_text[anchor], at,
-                   (at < s_gate.ladder_cases) ? "a ladder case" : "a sweep word ", s_gate.given[at].operand[0],
-                   s_gate.given[at].operand[1], s_gate.expected[at]);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  ");
+                mmgr_line_put_columns(output_line, s_anchor_text[anchor], 8u);
+                mmgr_line_put(output_line, " places case ");
+                mmgr_line_decimal_columns(output_line, at, 3u);
+                mmgr_line_put(output_line, ", ");
+                mmgr_line_put(output_line, (at < s_gate.ladder_cases) ? "a ladder case" : "a sweep word ");
+                mmgr_line_put(output_line, ": 0x");
+                mmgr_line_hex(output_line, s_gate.given[at].operand[0], 8u);
+                mmgr_line_put(output_line, " 0x");
+                mmgr_line_hex(output_line, s_gate.given[at].operand[1], 8u);
+                mmgr_line_put(output_line, " -> 0x");
+                mmgr_line_hex(output_line, s_gate.expected[at], 8u);
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
         }
         placed += (unsigned int)depth;
         resume = 1;
@@ -339,11 +396,35 @@ static unsigned int gate_relation(unsigned int anchor, const LadderQuestion *cas
     const unsigned int agreed =
         ((lost == 0u) && (verified == truth) && (retained != 0u) && (stopped == continued)) ? 1u : 0u;
     gate_put(anchor, alignments, chosen, placed);
-    printf("  %-8s %4u fit the ladder, %4u satisfy every case, %4u retained by the sweep; %u case(s) placed, %4u "
-           "located, "
-           "%4u verified, %u lost; stopped %u and full depth %u; %llu questions planned on this host; %s\n",
-           s_anchor_text[anchor], alignments, truth, built, placed, gate_located(s_survivors, alignments), verified,
-           lost, stopped, continued, planned, (agreed != 0u) ? "agrees" : "DISAGREES");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, s_anchor_text[anchor], 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line, alignments, 4u);
+        mmgr_line_put(output_line, " fit the ladder, ");
+        mmgr_line_decimal_columns(output_line, truth, 4u);
+        mmgr_line_put(output_line, " satisfy every case, ");
+        mmgr_line_decimal_columns(output_line, built, 4u);
+        mmgr_line_put(output_line, " retained by the sweep; ");
+        mmgr_line_decimal(output_line, placed, 1u);
+        mmgr_line_put(output_line, " case(s) placed, ");
+        mmgr_line_decimal_columns(output_line, gate_located(s_survivors, alignments), 4u);
+        mmgr_line_put(output_line, " located, ");
+        mmgr_line_decimal_columns(output_line, verified, 4u);
+        mmgr_line_put(output_line, " verified, ");
+        mmgr_line_decimal(output_line, lost, 1u);
+        mmgr_line_put(output_line, " lost; stopped ");
+        mmgr_line_decimal(output_line, stopped, 1u);
+        mmgr_line_put(output_line, " and full depth ");
+        mmgr_line_decimal(output_line, continued, 1u);
+        mmgr_line_put(output_line, "; ");
+        mmgr_line_decimal(output_line, planned, 1u);
+        mmgr_line_put(output_line, " questions planned on this host; ");
+        mmgr_line_put(output_line, (agreed != 0u) ? "agrees" : "DISAGREES");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     gate_queries_put(anchor, alignments, chosen, placed);
     return agreed;
 }
@@ -372,7 +453,14 @@ int program_main(int count, char **words)
         }
         agreed = gate_relation(anchor, cases, found) & agreed;
     }
-    printf("\n  every relation: the descent's survivors are the ground truth, and stopping gives up nothing: %s\n",
-           (agreed != 0u) ? "yes" : "NO");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(
+            output_line,
+            "\n  every relation: the descent's survivors are the ground truth, and stopping gives up nothing: ");
+        mmgr_line_put(output_line, (agreed != 0u) ? "yes" : "NO");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (agreed != 0u) ? 0 : 1;
 }

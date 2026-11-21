@@ -19,6 +19,7 @@
 //              words), then a frame after another: its count, each point's voxel, each point's levels (limbs words,
 //              the lowest first)
 #include <stdint.h>
+#include "../../../../src/platform/platform.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -184,7 +185,13 @@ static int points_check_set_read(const char *root, PointsCheckSet *set)
     }
     if (ok == 0)
     {
-        printf("  %s does not read: readings, bits, samples and one name a line, and nothing after them\n", path);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, path);
+        mmgr_line_put(output_line,
+                      " does not read: readings, bits, samples and one name a line, and nothing after them");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     return ok;
 }
@@ -197,7 +204,12 @@ static int points_check_rebuild(const char *root, PointsCheckSet *set, unsigned 
     unsigned long long *const one = (unsigned long long *)malloc(POINTS_CHECK_READINGS * sizeof(unsigned long long));
     if ((set->counts == NULL) || (set->contrast == NULL) || (one == NULL))
     {
-        printf("  the counts' memory could not be reserved\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  the counts' memory could not be reserved");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         free(one);
         return 0;
     }
@@ -224,8 +236,16 @@ static int points_check_rebuild(const char *root, PointsCheckSet *set, unsigned 
         }
         if (read == 0)
         {
-            printf("  %s: its .readings does not read whole: 65536 counts and a footing of 5 words, nothing after\n",
-                   set->names[at]);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  ");
+                mmgr_line_put(output_line, set->names[at]);
+                mmgr_line_put(
+                    output_line,
+                    ": its .readings does not read whole: 65536 counts and a footing of 5 words, nothing after");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             faults[POINTS_CHECK_READINGS_UNREAD] += 1ull;
             complete = 0;
             continue;
@@ -265,15 +285,48 @@ static int points_check_rebuild(const char *root, PointsCheckSet *set, unsigned 
     }
     const int agrees = complete && (set->rebuilt_readings == set->readings) && (set->rebuilt_bits == set->bits);
     faults[POINTS_CHECK_SET_NOT_REBUILT] += agrees ? 0ull : 1ull;
-    printf("  rebuilt from the %u samples' .readings: %llu readings, so the contrast is %u bits; scan.set reads %llu"
-           " readings and %u bits: %s\n",
-           set->count, set->rebuilt_readings, set->rebuilt_bits, set->readings, set->bits,
-           agrees ? "the same" : "NOT the same");
-    printf(
-        "  the footings as stored: found on %llu of %u; lo %llu to %llu, hi %llu to %llu, lo's steps %llu to %llu, hi's"
-        " steps %llu to %llu\n",
-        found_count, set->count, least[1], max[1], least[2], max[2], least[3], max[3], least[4],
-        max[4]);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  rebuilt from the ");
+        mmgr_line_decimal(output_line, set->count, 1u);
+        mmgr_line_put(output_line, " samples' .readings: ");
+        mmgr_line_decimal(output_line, set->rebuilt_readings, 1u);
+        mmgr_line_put(output_line, " readings, so the contrast is ");
+        mmgr_line_decimal(output_line, set->rebuilt_bits, 1u);
+        mmgr_line_put(output_line, " bits; scan.set reads ");
+        mmgr_line_decimal(output_line, set->readings, 1u);
+        mmgr_line_put(output_line, " readings and ");
+        mmgr_line_decimal(output_line, set->bits, 1u);
+        mmgr_line_put(output_line, " bits: ");
+        mmgr_line_put(output_line, agrees ? "the same" : "NOT the same");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the footings as stored: found on ");
+        mmgr_line_decimal(output_line, found_count, 1u);
+        mmgr_line_put(output_line, " of ");
+        mmgr_line_decimal(output_line, set->count, 1u);
+        mmgr_line_put(output_line, "; lo ");
+        mmgr_line_decimal(output_line, least[1], 1u);
+        mmgr_line_put(output_line, " to ");
+        mmgr_line_decimal(output_line, max[1], 1u);
+        mmgr_line_put(output_line, ", hi ");
+        mmgr_line_decimal(output_line, least[2], 1u);
+        mmgr_line_put(output_line, " to ");
+        mmgr_line_decimal(output_line, max[2], 1u);
+        mmgr_line_put(output_line, ", lo's steps ");
+        mmgr_line_decimal(output_line, least[3], 1u);
+        mmgr_line_put(output_line, " to ");
+        mmgr_line_decimal(output_line, max[3], 1u);
+        mmgr_line_put(output_line, ", hi's steps ");
+        mmgr_line_decimal(output_line, least[4], 1u);
+        mmgr_line_put(output_line, " to ");
+        mmgr_line_decimal(output_line, max[4], 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return complete;
 }
 
@@ -318,7 +371,14 @@ static int points_check_sample(const char *root, const char *sample, const Point
              points_check_read(file, contrast, POINTS_CHECK_READINGS * sizeof(unsigned long long));
     if (ok == 0)
     {
-        printf("  %s: its .points does not open, or its head does not read\n", sample);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, sample);
+            mmgr_line_put(output_line, ": its .points does not open, or its head does not read");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         faults[POINTS_CHECK_POINTS_UNREAD] += 1ull;
         faults[POINTS_CHECK_NOT_LISTED] += mine[POINTS_CHECK_NOT_LISTED];
         if (file != NULL)
@@ -411,30 +471,83 @@ static int points_check_sample(const char *root, const char *sample, const Point
         fault_count += mine[fault];
     }
     *points_seen += points;
-    printf("  %-16s %4u of %4u frames of %u x %u x %u, %9llu points, %u to %u a frame; limbs %u, bits %u; not positive"
-           " %llu, out of order %llu, outside %llu; C %s; readings %llu %s frames x view; %llu faults\n",
-           sample, frame, head[0], head[1], head[2], head[3], points, (points != 0ull) ? least : 0u, max, limbs,
-           head[5], mine[POINTS_CHECK_NOT_POSITIVE], mine[POINTS_CHECK_OUT_OF_ORDER], mine[POINTS_CHECK_OUTSIDE],
-           (contrast_differs == POINTS_CHECK_READINGS) ? "is the rebuilt" : "differs from the rebuilt", total,
-           counted ? "=" : "!=", fault_count);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, sample, 16u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line, frame, 4u);
+        mmgr_line_put(output_line, " of ");
+        mmgr_line_decimal_columns(output_line, head[0], 4u);
+        mmgr_line_put(output_line, " frames of ");
+        mmgr_line_decimal(output_line, head[1], 1u);
+        mmgr_line_put(output_line, " x ");
+        mmgr_line_decimal(output_line, head[2], 1u);
+        mmgr_line_put(output_line, " x ");
+        mmgr_line_decimal(output_line, head[3], 1u);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal_columns(output_line, points, 9u);
+        mmgr_line_put(output_line, " points, ");
+        mmgr_line_decimal(output_line, (points != 0ull) ? least : 0u, 1u);
+        mmgr_line_put(output_line, " to ");
+        mmgr_line_decimal(output_line, max, 1u);
+        mmgr_line_put(output_line, " a frame; limbs ");
+        mmgr_line_decimal(output_line, limbs, 1u);
+        mmgr_line_put(output_line, ", bits ");
+        mmgr_line_decimal(output_line, head[5], 1u);
+        mmgr_line_put(output_line, "; not positive ");
+        mmgr_line_decimal(output_line, mine[POINTS_CHECK_NOT_POSITIVE], 1u);
+        mmgr_line_put(output_line, ", out of order ");
+        mmgr_line_decimal(output_line, mine[POINTS_CHECK_OUT_OF_ORDER], 1u);
+        mmgr_line_put(output_line, ", outside ");
+        mmgr_line_decimal(output_line, mine[POINTS_CHECK_OUTSIDE], 1u);
+        mmgr_line_put(output_line, "; C ");
+        mmgr_line_put(output_line,
+                      (contrast_differs == POINTS_CHECK_READINGS) ? "is the rebuilt" : "differs from the rebuilt");
+        mmgr_line_put(output_line, "; readings ");
+        mmgr_line_decimal(output_line, total, 1u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put(output_line, counted ? "=" : "!=");
+        mmgr_line_put(output_line, " frames x view; ");
+        mmgr_line_decimal(output_line, fault_count, 1u);
+        mmgr_line_put(output_line, " faults");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     if (contrast_differs != POINTS_CHECK_READINGS)
     {
-        printf("  %-16s C first differs at value %u\n", sample, contrast_differs);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, sample, 16u);
+        mmgr_line_put(output_line, " C first differs at value ");
+        mmgr_line_decimal(output_line, contrast_differs, 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     return fault_count == 0ull;
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     const uint32_t probe = 1u;
     if (*(const unsigned char *)&probe != 1u)
     {
-        printf("  this host is not little-endian, and the files are\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  this host is not little-endian, and the files are");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     if (count < 3)
     {
-        printf("  usage: points_check <set> <sample> [<sample> ...]\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  usage: points_check <set> <sample> [<sample> ...]");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     const char *const root = arguments[1];
@@ -445,7 +558,14 @@ int main(int count, char **arguments)
     if (points_check_set_read(root, &set) == 0)
     {
         faults[POINTS_CHECK_SET_UNREAD] += 1ull;
-        printf("  faults: %s 1\n", POINTS_CHECK_FAULT_NAMES[POINTS_CHECK_SET_UNREAD]);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  faults: ");
+            mmgr_line_put(output_line, POINTS_CHECK_FAULT_NAMES[POINTS_CHECK_SET_UNREAD]);
+            mmgr_line_put(output_line, " 1");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         points_check_set_free(&set);
         return 1;
     }
@@ -457,7 +577,12 @@ int main(int count, char **arguments)
     memset(&workspace, 0, sizeof(workspace));
     if (first.contrast == NULL)
     {
-        printf("  the first head's memory could not be reserved\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  the first head's memory could not be reserved");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         points_check_set_free(&set);
         return 1;
     }
@@ -468,13 +593,38 @@ int main(int count, char **arguments)
         clean += points_check_sample(root, arguments[at], &set, &first, &workspace, faults, &points) ? 1u : 0u;
     }
     unsigned long long total = 0ull;
-    printf("  checked %d samples, %u with no fault, %llu points; faults:", count - 2, clean, points);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  checked ");
+        mmgr_line_decimal_signed(output_line, count - 2);
+        mmgr_line_put(output_line, " samples, ");
+        mmgr_line_decimal(output_line, clean, 1u);
+        mmgr_line_put(output_line, " with no fault, ");
+        mmgr_line_decimal(output_line, points, 1u);
+        mmgr_line_put(output_line, " points; faults:");
+        platform_line_out_ended();
+    }
     for (unsigned int fault = 0u; fault < POINTS_CHECK_FAULTS; fault += 1u)
     {
-        printf("%s %s %llu", (fault == 0u) ? "" : ",", POINTS_CHECK_FAULT_NAMES[fault], faults[fault]);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, (fault == 0u) ? "" : ",");
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put(output_line, POINTS_CHECK_FAULT_NAMES[fault]);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal(output_line, faults[fault], 1u);
+            platform_line_out_ended();
+        }
         total += faults[fault];
     }
-    printf("\n  %llu faults\n", total);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n  ");
+        mmgr_line_decimal(output_line, total, 1u);
+        mmgr_line_put(output_line, " faults");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     free(first.contrast);
     free(workspace.voxels);
     free(workspace.levels);

@@ -115,9 +115,20 @@ static unsigned int krs_structure_written(const char *named_ruleset)
         const unsigned int parameters = krs_parameters_named(named_ruleset, s_schema[at].name, parameter);
         if (parameters != s_schema[at].parameters)
         {
-            printf("  orior_krs_write: %s names %s with %u parameters, where the schema gives it %u, and it is not "
-                   "written\n",
-                   named_ruleset, s_schema[at].name, parameters, s_schema[at].parameters);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  orior_krs_write: ");
+                mmgr_line_put(output_line, named_ruleset);
+                mmgr_line_put(output_line, " names ");
+                mmgr_line_put(output_line, s_schema[at].name);
+                mmgr_line_put(output_line, " with ");
+                mmgr_line_decimal(output_line, parameters, 1u);
+                mmgr_line_put(output_line, " parameters, where the schema gives it ");
+                mmgr_line_decimal(output_line, s_schema[at].parameters, 1u);
+                mmgr_line_put(output_line, ", and it is not written");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             continue;
         }
         forms_text("nop ");
@@ -137,7 +148,14 @@ int program_main(int count, char **word)
 {
     if (count != 8)
     {
-        printf("orior_krs_write <language> <part> <path.khw> <layout> <mnemonics> <machine writer> <named ruleset>\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(
+                output_line,
+                "orior_krs_write <language> <part> <path.khw> <layout> <mnemonics> <machine writer> <named ruleset>");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     const char *const language = word[1];
@@ -147,7 +165,14 @@ int program_main(int count, char **word)
     QryShared *const run = qry_member_run();
     if (run == NULL)
     {
-        printf("  orior_krs_write: no query writer runs: %s names no .qry a writer has open\n", QRY_ENVIRONMENT);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  orior_krs_write: no query writer runs: ");
+            mmgr_line_put(output_line, QRY_ENVIRONMENT);
+            mmgr_line_put(output_line, " names no .qry a writer has open");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     // Read the forms where the vendor's writer appends them: the latest record of their name. The writer took it
@@ -227,8 +252,14 @@ int program_main(int count, char **word)
             {
                 forms_given(given_text);
                 given += 1u;
-                printf("  orior_krs_write: no form answered for in this run writes %s; the ruleset retains its form\n",
-                       each->name);
+                {
+                    VerbaLinea *const output_line = platform_line_out();
+                    mmgr_line_put(output_line, "  orior_krs_write: no form answered for in this run writes ");
+                    mmgr_line_put(output_line, each->name);
+                    mmgr_line_put(output_line, "; the ruleset retains its form");
+                    mmgr_line_ch(output_line, '\n');
+                    platform_line_out_ended();
+                }
             }
             continue;
         }
@@ -243,16 +274,30 @@ int program_main(int count, char **word)
             {
                 forms_given(given_text);
                 given += 1u;
-                printf("  orior_krs_write: %u forms write %s, one cost or a cost not read (P6); the ruleset retains "
-                       "its form\n",
-                       writers, each->name);
+                {
+                    VerbaLinea *const output_line = platform_line_out();
+                    mmgr_line_put(output_line, "  orior_krs_write: ");
+                    mmgr_line_decimal(output_line, writers, 1u);
+                    mmgr_line_put(output_line, " forms write ");
+                    mmgr_line_put(output_line, each->name);
+                    mmgr_line_put(output_line, ", one cost or a cost not read (P6); the ruleset retains its form");
+                    mmgr_line_ch(output_line, '\n');
+                    platform_line_out_ended();
+                }
                 continue;
             }
             ranked = krs_fewest_operands(s_writer, writers);
-            printf("  orior_krs_write: %u forms write %s, one cost or a cost not read (P6); the ruleset gave it none, "
-                   "and the "
-                   "one of the fewest operands is written\n",
-                   writers, each->name);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  orior_krs_write: ");
+                mmgr_line_decimal(output_line, writers, 1u);
+                mmgr_line_put(output_line, " forms write ");
+                mmgr_line_put(output_line, each->name);
+                mmgr_line_put(output_line, ", one cost or a cost not read (P6); the ruleset gave it none, and the one "
+                                           "of the fewest operands is written");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
         }
         const unsigned int first = s_writer[ranked];
         const unsigned int *const first_order = s_order[ranked];
@@ -260,17 +305,34 @@ int program_main(int count, char **word)
         const unsigned int parameters = krs_parameters_named(named_ruleset, each->name, parameter);
         if (parameters != ((unsigned int)each->reads + 1u))
         {
-            printf("  orior_krs_write: %s names %s with %u parameters, where the word takes a destination and %u, and "
-                   "it is "
-                   "not written\n",
-                   named_ruleset, each->name, parameters, (unsigned int)each->reads);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  orior_krs_write: ");
+                mmgr_line_put(output_line, named_ruleset);
+                mmgr_line_put(output_line, " names ");
+                mmgr_line_put(output_line, each->name);
+                mmgr_line_put(output_line, " with ");
+                mmgr_line_decimal(output_line, parameters, 1u);
+                mmgr_line_put(output_line, " parameters, where the word takes a destination and ");
+                mmgr_line_decimal(output_line, (unsigned int)each->reads, 1u);
+                mmgr_line_put(output_line, ", and it is not written");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             continue;
         }
         char text[KRS_LINE * 2u];
         if (!krs_text_named(&s_form[first], first_order, parameter, parameters, text, sizeof(text)) ||
             !krs_fixed_placed(text, sizeof(text)))
         {
-            printf("  orior_krs_write: %s is written by a form whose operands do not carry its words\n", each->name);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  orior_krs_write: ");
+                mmgr_line_put(output_line, each->name);
+                mmgr_line_put(output_line, " is written by a form whose operands do not carry its words");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             continue;
         }
         forms_text("form ");
@@ -289,16 +351,34 @@ int program_main(int count, char **word)
     // A row the run passes no form for keeps the line the ruleset gave its form before.
     if (krs_frame_read(NULL) == 0u)
     {
-        printf("  orior_krs_write: the table of frame forms could not be read, and no frame form is written\n");
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line,
+                      "  orior_krs_write: the table of frame forms could not be read, and no frame form is written");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     given += krs_frame_written(s_forms_bytes, sizeof(s_forms_bytes), &s_forms_at, s_frame_form, s_frame_forms,
                                named_ruleset, path, ksc);
     const unsigned int structure = krs_structure_written(named_ruleset);
-    printf("  orior_krs_write: the lane's structure, %u forms, written nop\n", structure);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  orior_krs_write: the lane's structure, ");
+        mmgr_line_decimal(output_line, structure, 1u);
+        mmgr_line_put(output_line, " forms, written nop");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     if (!verba_finis.ok(&(VerbaFinisCfg){.cap = sizeof(s_forms_bytes), .at = s_forms_at}) ||
         !qry_member_filed(path, s_forms_bytes, s_forms_at))
     {
-        printf("  orior_krs_write: %s could not be written\n", path);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  orior_krs_write: ");
+            mmgr_line_put(output_line, path);
+            mmgr_line_put(output_line, " could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     {
@@ -322,10 +402,14 @@ int program_main(int count, char **word)
         krs_head_written(s_head_bytes, sizeof(s_head_bytes), &s_head_at, ksc, missing, sizeof(missing));
         if (missing[0] != '\0')
         {
-            printf(
-                "  orior_krs_write: the part has not answered for its %s; the line is left out, and the reader refuses "
-                "%s.krs without it\n",
-                missing, language);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  orior_krs_write: the part has not answered for its ");
+            mmgr_line_put(output_line, missing);
+            mmgr_line_put(output_line, "; the line is left out, and the reader refuses ");
+            mmgr_line_put(output_line, language);
+            mmgr_line_put(output_line, ".krs without it");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
     }
     head_text("part ");
@@ -359,21 +443,48 @@ int program_main(int count, char **word)
         krs_fixed_written(s_head_bytes, sizeof(s_head_bytes), &s_head_at, ksc, path, unanswered, sizeof(unanswered));
         if (unanswered[0] != '\0')
         {
-            printf(
-                "  orior_krs_write: the part has not answered for its fixed %s, and the ruleset gave no line; each is "
-                "left out, and the reader refuses %s.krs without it\n",
-                unanswered, language);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  orior_krs_write: the part has not answered for its fixed ");
+            mmgr_line_put(output_line, unanswered);
+            mmgr_line_put(output_line, ", and the ruleset gave no line; each is left out, and the reader refuses ");
+            mmgr_line_put(output_line, language);
+            mmgr_line_put(output_line, ".krs without it");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
     }
     if (!verba_finis.ok(&(VerbaFinisCfg){.cap = sizeof(s_head_bytes), .at = s_head_at}) ||
         !qry_member_filed(path, s_head_bytes, s_head_at))
     {
-        printf("  orior_krs_write: %s could not be written\n", path);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  orior_krs_write: ");
+            mmgr_line_put(output_line, path);
+            mmgr_line_put(output_line, " could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
-    printf(
-        "  orior_krs_write: %u form lines, the web's %u words' and the frame's, written from the %u forms and %u frame "
-        "forms the part answered for, in %s/%s.krs beside %s.krs\n",
-        given, KRS_WORDS, s_forms, s_frame_forms, rulesets, part, language);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  orior_krs_write: ");
+        mmgr_line_decimal(output_line, given, 1u);
+        mmgr_line_put(output_line, " form lines, the web's ");
+        mmgr_line_decimal(output_line, KRS_WORDS, 1u);
+        mmgr_line_put(output_line, " words' and the frame's, written from the ");
+        mmgr_line_decimal(output_line, s_forms, 1u);
+        mmgr_line_put(output_line, " forms and ");
+        mmgr_line_decimal(output_line, s_frame_forms, 1u);
+        mmgr_line_put(output_line, " frame forms the part answered for, in ");
+        mmgr_line_put(output_line, rulesets);
+        mmgr_line_put(output_line, "/");
+        mmgr_line_put(output_line, part);
+        mmgr_line_put(output_line, ".krs beside ");
+        mmgr_line_put(output_line, language);
+        mmgr_line_put(output_line, ".krs");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 0;
 }

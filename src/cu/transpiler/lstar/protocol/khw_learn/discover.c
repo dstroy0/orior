@@ -94,8 +94,22 @@ int khw_form_queried(unsigned long long low, unsigned long long high)
     s_named[s_names] = form;
     s_names += 1u;
     char relation[64];
-    printf("    %-14s %016llx %016llx  %u runs, %u surviving\n",
-           khw_relation_named(&form, 1, relation, sizeof(relation)), low, high, form.runs, form.survivors);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    ");
+        mmgr_line_put_columns(output_line, khw_relation_named(&form, 1, relation, sizeof(relation)), 14u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_hex(output_line, low, 16u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_hex(output_line, high, 16u);
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_decimal(output_line, form.runs, 1u);
+        mmgr_line_put(output_line, " runs, ");
+        mmgr_line_decimal(output_line, form.survivors, 1u);
+        mmgr_line_put(output_line, " surviving");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 1;
 }
 
@@ -186,8 +200,19 @@ static unsigned int khw_round_related(const unsigned long long *lows, const unsi
             again += 1u;
         }
     }
-    printf("  round: %u answered a relation, %u answered none, %u of those left the second word located%s\n", found,
-           count - found, again, (again != 0u) ? " and are put again with the store guarded by P0" : "");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  round: ");
+        mmgr_line_decimal(output_line, found, 1u);
+        mmgr_line_put(output_line, " answered a relation, ");
+        mmgr_line_decimal(output_line, count - found, 1u);
+        mmgr_line_put(output_line, " answered none, ");
+        mmgr_line_decimal(output_line, again, 1u);
+        mmgr_line_put(output_line, " of those left the second word located");
+        mmgr_line_put(output_line, (again != 0u) ? " and are put again with the store guarded by P0" : "");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     if (again == 0u)
     {
         return found;
@@ -214,7 +239,16 @@ static unsigned int khw_round_related(const unsigned long long *lows, const unsi
             predicates += 1u;
         }
     }
-    printf("  round: %u of the %u put again answered a predicate relation\n", predicates, again);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  round: ");
+        mmgr_line_decimal(output_line, predicates, 1u);
+        mmgr_line_put(output_line, " of the ");
+        mmgr_line_decimal(output_line, again, 1u);
+        mmgr_line_put(output_line, " put again answered a predicate relation");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return found;
 }
 
@@ -224,7 +258,13 @@ unsigned int khw_seeds_queried(const char *name)
     unsigned long long size = 0ULL;
     if (!qry_member_blob(name, &bytes, &size, NULL))
     {
-        printf("  khw_write: the run contains no seeds %s\n", name);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  khw_write: the run contains no seeds ");
+            mmgr_line_put(output_line, name);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0u;
     }
     // the kernel's own form, the position's encoding as classified, else the first classified form with operand runs
@@ -253,7 +293,14 @@ unsigned int khw_seeds_queried(const char *name)
     }
     if (kernel == NULL)
     {
-        printf("  khw_write: no classified form contains the probe place's registers, and no seed is queried\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(
+                output_line,
+                "  khw_write: no classified form contains the probe place's registers, and no seed is queried");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0u;
     }
     // The seeds queried: each of the listing's as it is, the position's registers in the register fields the
@@ -353,12 +400,31 @@ unsigned int khw_seeds_queried(const char *name)
             s_names += 1u;
             entered += 1u;
             char relation[64];
-            printf("    seed %-14s %016llx %016llx  discovered, its turns retained for a cross-check\n",
-                   khw_relation_named(&form, 1, relation, sizeof(relation)), form.low, form.high);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "    seed ");
+                mmgr_line_put_columns(output_line, khw_relation_named(&form, 1, relation, sizeof(relation)), 14u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_hex(output_line, form.low, 16u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_hex(output_line, form.high, 16u);
+                mmgr_line_put(output_line, "  discovered, its turns retained for a cross-check");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
         }
         s_pooled = 0u;
     }
-    printf("  seeds: %u queried their relation, %u answered one and entered the working set\n", seeds, entered);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  seeds: ");
+        mmgr_line_decimal(output_line, seeds, 1u);
+        mmgr_line_put(output_line, " queried their relation, ");
+        mmgr_line_decimal(output_line, entered, 1u);
+        mmgr_line_put(output_line, " answered one and entered the working set");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return entered;
 }
 
@@ -460,13 +526,33 @@ unsigned int khw_widened(unsigned int from, int discover)
             khw_relation_named(&form, 1, relation, sizeof(relation));
             if (discover != 0)
             {
-                printf("    %-14s %016llx %016llx  discovered, its turns retained for a cross-check\n", relation,
-                       form.low, form.high);
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "    ");
+                mmgr_line_put_columns(output_line, relation, 14u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_hex(output_line, form.low, 16u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_hex(output_line, form.high, 16u);
+                mmgr_line_put(output_line, "  discovered, its turns retained for a cross-check");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
             }
             else
             {
-                printf("    %-14s %016llx %016llx  %u runs, %u surviving\n", relation, form.low, form.high, form.runs,
-                       form.survivors);
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "    ");
+                mmgr_line_put_columns(output_line, relation, 14u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_hex(output_line, form.low, 16u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_hex(output_line, form.high, 16u);
+                mmgr_line_put(output_line, "  ");
+                mmgr_line_decimal(output_line, form.runs, 1u);
+                mmgr_line_put(output_line, " runs, ");
+                mmgr_line_decimal(output_line, form.survivors, 1u);
+                mmgr_line_put(output_line, " surviving");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
             }
         }
     }

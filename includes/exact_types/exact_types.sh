@@ -27,7 +27,7 @@ EXACT_TYPES_PLATFORM=("$EXACT_TYPES_REPO/src/platform/platform_process.c" "${EXA
 
 # the cellblock of MMgr, which the platform places. It calls the hooks that the platform defines. A build keeps it out
 # of the objects that the tessera daemon links
-EXACT_TYPES_CARCER=("$FILE_DEFS_MMGR_TOP/src/locus_carcerum/locus_carcerum.c")
+EXACT_TYPES_CARCER=("$EXACT_TYPES_REPO/src/platform/platform_carcer.c")
 
 # the modules of MMgr: the line and the modules that it reaches, and the cellblock
 EXACT_TYPES_MMGR=("${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_CARCER[@]}")

@@ -13,11 +13,12 @@ TOP="$(cd "$HERE/../../../../.." && pwd)"
 OUT="$TOP/build/ksg"
 mkdir -p "$OUT"
 source "$TOP/includes/file_defs/file_defs.sh"
+source "$TOP/includes/exact_types/exact_types.sh"
 # a program built before under the other name, with or without .exe, would be run in place of the one built here
 rm -f "$OUT/ksg_check" "$OUT/ksg_check.exe" "$OUT/ksg" "$OUT/ksg.exe"
 
 "${CC:-cc}" -std=c11 -O2 -Wall -Wextra -o "$OUT/ksg_check" "$HERE/ksg_check.c" \
-    "$TOP/includes/file_defs/ksg/ksg_seal.c" "${FILE_DEFS_MMGR[@]}" || exit 1
+    "$TOP/includes/file_defs/ksg/ksg_seal.c" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || exit 1
 "$OUT/ksg_check" || exit 1
 
 # the ksg program on the tree's sm_86.gsm: sealed, checked, a relation on line 5 changed and named, and checked once more as
@@ -30,7 +31,7 @@ esac
     "$TOP/includes/file_defs/ksg/ksg_approvals.c" "$TOP/includes/file_defs/ksg/ksa.c" \
     "$TOP/includes/file_defs/ksg/ksg_seal.c" "$TOP/includes/codecs/ed25519/ed25519.c" \
     "$TOP/includes/codecs/sha512/sha512.c" "$TOP"/includes/file_defs/qry/writer/platform/*.c \
-    "${FILE_DEFS_MMGR[@]}" "${RANDOMNESS[@]}" || exit 1
+    "${RANDOMNESS[@]}" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || exit 1
 TRIAL="$OUT/trial"
 rm -rf "$TRIAL"
 mkdir -p "$TRIAL"

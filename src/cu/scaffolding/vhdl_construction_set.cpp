@@ -331,7 +331,15 @@ int program_main(int argc, char **argv)
             unmeasured += 1u;
             continue;
         }
-        printf("  %-24s %llu\n", form.name.c_str(), cost);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_columns(output_line, form.name.c_str(), 24u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal(output_line, cost, 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         costs.push_back(cost);
         names += form.name;
         names.push_back('\0');
@@ -362,10 +370,28 @@ int program_main(int argc, char **argv)
     {
         remove(argv[3]);
     }
-    printf("  vhdl construction set: %zu forms measured, %u not measured, %s %s\n", costs.size(), unmeasured,
-           same ? "written and read back whole to" : "NOT written to", argv[3]);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  vhdl construction set: ");
+        mmgr_line_decimal(output_line, costs.size(), 1u);
+        mmgr_line_put(output_line, " forms measured, ");
+        mmgr_line_decimal(output_line, unmeasured, 1u);
+        mmgr_line_put(output_line, " not measured, ");
+        mmgr_line_put(output_line, same ? "written and read back whole to" : "NOT written to");
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put(output_line, argv[3]);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     // two checks: some form measured, and the table read back whole
     const unsigned int failed = (costs.empty() ? 1u : 0u) + (same ? 0u : 1u);
-    printf("  vhdl construction set: 2 checks, %u failed\n", failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  vhdl construction set: 2 checks, ");
+        mmgr_line_decimal(output_line, failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (failed == 0u) ? 0 : 1;
 }

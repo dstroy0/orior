@@ -22,7 +22,13 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
     const SassForm *const form = sass_machine_form(machine, &parts);
     if (form == NULL)
     {
-        printf("  sass_assemble: no form for %s\n", text);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  sass_assemble: no form for ");
+            mmgr_line_put(output_line, text);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     // a register past the last the part answers a question's code can name is refused, the high half of a pair
@@ -40,8 +46,16 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
         }
         if (sass_register_value(named) > machine->register_last)
         {
-            printf("  sass_assemble: %s names a register past R%u, the last the part answers code can name\n", text,
-                   machine->register_last);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  sass_assemble: ");
+                mmgr_line_put(output_line, text);
+                mmgr_line_put(output_line, " names a register past R");
+                mmgr_line_decimal(output_line, machine->register_last, 1u);
+                mmgr_line_put(output_line, ", the last the part answers code can name");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             return 0;
         }
     }
@@ -49,7 +63,16 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
     unsigned int unplaced = 0u;
     if (!sass_places_find(form, places, &unplaced))
     {
-        printf("  sass_assemble: operand %u of %s does not place in its own encoding\n", unplaced, form->text);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  sass_assemble: operand ");
+            mmgr_line_decimal(output_line, unplaced, 1u);
+            mmgr_line_put(output_line, " of ");
+            mmgr_line_put(output_line, form->text);
+            mmgr_line_put(output_line, " does not place in its own encoding");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     // two operands a form prints from one field, as BAR.SYNC R0, R0 prints its one register, name one value
@@ -64,8 +87,18 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
             if (shared && sass_operand_value(&parts, place, address, target, &one, &offset) &&
                 sass_operand_value(&parts, other, address, target, &two, &offset) && (one != two))
             {
-                printf("  sass_assemble: %s names two values for the one field operands %u and %u share\n", text, place,
-                       other);
+                {
+                    VerbaLinea *const output_line = platform_line_out();
+                    mmgr_line_put(output_line, "  sass_assemble: ");
+                    mmgr_line_put(output_line, text);
+                    mmgr_line_put(output_line, " names two values for the one field operands ");
+                    mmgr_line_decimal(output_line, place, 1u);
+                    mmgr_line_put(output_line, " and ");
+                    mmgr_line_decimal(output_line, other, 1u);
+                    mmgr_line_put(output_line, " share");
+                    mmgr_line_ch(output_line, '\n');
+                    platform_line_out_ended();
+                }
                 return 0;
             }
         }
@@ -83,8 +116,17 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
         {
             if (!mmgr_text_equal(parts.operand[place], base.operand[place], PLATFORM_TEXT_TO_TERMINATOR))
             {
-                printf("  sass_assemble: %s takes %s where its form carries %s\n", text, parts.operand[place],
-                       base.operand[place]);
+                {
+                    VerbaLinea *const output_line = platform_line_out();
+                    mmgr_line_put(output_line, "  sass_assemble: ");
+                    mmgr_line_put(output_line, text);
+                    mmgr_line_put(output_line, " takes ");
+                    mmgr_line_put(output_line, parts.operand[place]);
+                    mmgr_line_put(output_line, " where its form carries ");
+                    mmgr_line_put(output_line, base.operand[place]);
+                    mmgr_line_ch(output_line, '\n');
+                    platform_line_out_ended();
+                }
                 return 0;
             }
             continue;
@@ -123,13 +165,33 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
             sass_constant_value(base.operand[place], &base_bank);
             if (bank != base_bank)
             {
-                printf("  sass_assemble: %s reads bank %llu where its form reads %llu\n", text, bank, base_bank);
+                {
+                    VerbaLinea *const output_line = platform_line_out();
+                    mmgr_line_put(output_line, "  sass_assemble: ");
+                    mmgr_line_put(output_line, text);
+                    mmgr_line_put(output_line, " reads bank ");
+                    mmgr_line_decimal(output_line, bank, 1u);
+                    mmgr_line_put(output_line, " where its form reads ");
+                    mmgr_line_decimal(output_line, base_bank, 1u);
+                    mmgr_line_ch(output_line, '\n');
+                    platform_line_out_ended();
+                }
                 return 0;
             }
             if (((value % places[place].value.scale) != 0ULL) || ((counted >> places[place].value.bits) != 0ULL))
             {
-                printf("  sass_assemble: %s reads offset 0x%llx, which is no word its %u-bit field holds\n", text,
-                       value, places[place].value.bits);
+                {
+                    VerbaLinea *const output_line = platform_line_out();
+                    mmgr_line_put(output_line, "  sass_assemble: ");
+                    mmgr_line_put(output_line, text);
+                    mmgr_line_put(output_line, " reads offset 0x");
+                    mmgr_line_hex(output_line, value, 1u);
+                    mmgr_line_put(output_line, ", which is no word its ");
+                    mmgr_line_decimal(output_line, places[place].value.bits, 1u);
+                    mmgr_line_put(output_line, "-bit field holds");
+                    mmgr_line_ch(output_line, '\n');
+                    platform_line_out_ended();
+                }
                 return 0;
             }
         }
@@ -219,9 +281,18 @@ unsigned int sass_assemble_lines(const SassMachine *machine, const char *text, u
             if ((s_labels.count == SASS_LABELS) ||
                 (mmgr_text_length(line, PLATFORM_TEXT_TO_TERMINATOR) > SASS_LABEL_TOKEN))
             {
-                printf("  sass_assemble: %s is past the %u labels a text names or the %u characters a name is limited "
-                       "to\n",
-                       line, SASS_LABELS, SASS_LABEL_TOKEN - 1u);
+                {
+                    VerbaLinea *const output_line = platform_line_out();
+                    mmgr_line_put(output_line, "  sass_assemble: ");
+                    mmgr_line_put(output_line, line);
+                    mmgr_line_put(output_line, " is past the ");
+                    mmgr_line_decimal(output_line, SASS_LABELS, 1u);
+                    mmgr_line_put(output_line, " labels a text names or the ");
+                    mmgr_line_decimal(output_line, SASS_LABEL_TOKEN - 1u, 1u);
+                    mmgr_line_put(output_line, " characters a name is limited to");
+                    mmgr_line_ch(output_line, '\n');
+                    platform_line_out_ended();
+                }
                 return 0u;
             }
             {
@@ -238,7 +309,15 @@ unsigned int sass_assemble_lines(const SassMachine *machine, const char *text, u
     const unsigned long long bytes = address;
     if (bytes > room)
     {
-        printf("  sass_assemble: %llu bytes of code where the room is %llu\n", bytes, room);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  sass_assemble: ");
+            mmgr_line_decimal(output_line, bytes, 1u);
+            mmgr_line_put(output_line, " bytes of code where the room is ");
+            mmgr_line_decimal(output_line, room, 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0u;
     }
     address = 0ULL;
@@ -265,7 +344,14 @@ unsigned int sass_assemble_lines(const SassMachine *machine, const char *text, u
         }
         if (known == 0)
         {
-            printf("  sass_assemble: %s names a label the text does not\n", line);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  sass_assemble: ");
+                mmgr_line_put(output_line, line);
+                mmgr_line_put(output_line, " names a label the text does not");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             return 0u;
         }
         unsigned long long low = 0ULL;

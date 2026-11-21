@@ -1,7 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// read.cu: the read: the forms of the rulesets, the members and carriers of the stick, and the candidate paths read against them
+// read.cu: the read: the forms of the rulesets, the members and carriers of the stick, and the candidate paths read
+// against them
 #include "identity_internal.h"
+#include "../../../../../../platform/platform.h"
 
 // a form's text as the links it writes, each parameter a pattern any operand matches
 static std::vector<std::regex> form_links(const std::string &text)
@@ -53,7 +55,14 @@ int forms_read(int count, char **files, std::vector<std::pair<std::string, std::
         std::string error;
         if (ruleset_relations_read(paths, paths_count, &flat.schema, &set.memory, &set.relations, &error) == 0)
         {
-            printf("  %s could not be opened\n", error.c_str());
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  ");
+                mmgr_line_put(output_line, error.c_str());
+                mmgr_line_put(output_line, " could not be opened");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             return 0;
         }
         for (unsigned int at = 0u; at < set.relations.entry_count; at += 1u)
@@ -87,8 +96,9 @@ int forms_read(int count, char **files, std::vector<std::pair<std::string, std::
                     static const std::regex s_special("[.^$|()\\[\\]*+?\\\\]");
                     const std::string either = std::regex_replace(operation, s_special, "\\$&") + "|" +
                                                std::regex_replace(writing, s_special, "\\$&");
-                    forms->push_back(std::make_pair("pipe:" + operation + ":" + writing,
-                                                    std::vector<std::regex>{std::regex("^(@!?P )?(" + either + ")( .*)?$")}));
+                    forms->push_back(
+                        std::make_pair("pipe:" + operation + ":" + writing,
+                                       std::vector<std::regex>{std::regex("^(@!?P )?(" + either + ")( .*)?$")}));
                 }
             }
         }
@@ -98,7 +108,7 @@ int forms_read(int count, char **files, std::vector<std::pair<std::string, std::
 
 // the names of the forms whose texts write `type`, joined by spaces, or - where none does
 std::string forms_writing(const std::vector<std::pair<std::string, std::vector<std::regex>>> &forms,
-                                 const std::string &type)
+                          const std::string &type)
 {
     std::string names;
     for (const auto &form : forms)
@@ -235,7 +245,14 @@ int identity_read(const std::string &folder, const std::string &klq, int count, 
     }
     if (carried.empty())
     {
-        printf("  %s/slices.txt contains no slice\n", folder.c_str());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, folder.c_str());
+            mmgr_line_put(output_line, "/slices.txt contains no slice");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     std::vector<std::pair<std::string, std::vector<Carrier>>> addressed;
@@ -259,8 +276,9 @@ int identity_read(const std::string &folder, const std::string &klq, int count, 
     }
     std::sort(addressed.begin(), addressed.end(),
               [](const std::pair<std::string, std::vector<Carrier>> &one,
-                 const std::pair<std::string, std::vector<Carrier>> &other)
-              { return carrier_before(one.second[0], other.second[0]); });
+                 const std::pair<std::string, std::vector<Carrier>> &other) {
+                  return carrier_before(one.second[0], other.second[0]);
+              });
     std::vector<std::pair<std::string, std::vector<std::regex>>> forms;
     if (!forms_read(count, files, &forms))
     {
@@ -318,9 +336,9 @@ int identity_read(const std::string &folder, const std::string &klq, int count, 
         for (const Carrier &slice : identity.second)
         {
             const std::string key = slice.first_context + "\t" + slice.second_context;
-            auto found = std::find_if(placed.begin(), placed.end(),
-                                      [&](const std::pair<std::string, std::vector<const Carrier *>> &one)
-                                      { return one.first == key; });
+            auto found = std::find_if(
+                placed.begin(), placed.end(),
+                [&](const std::pair<std::string, std::vector<const Carrier *>> &one) { return one.first == key; });
             if (found == placed.end())
             {
                 placed.push_back(std::make_pair(key, std::vector<const Carrier *>()));
@@ -370,16 +388,48 @@ int identity_read(const std::string &folder, const std::string &klq, int count, 
     }
     if (!run_closed(&file))
     {
-        printf("  %s could not be written\n", klq.c_str());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, klq.c_str());
+            mmgr_line_put(output_line, " could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
-    printf("  %s: %u identities in %u contexts, %u identities in more than one, %u closed in one context and open in "
-           "another\n",
-           klq.c_str(), number, contexts, many, split);
-    printf("  contexts: %u closed, %u open over the cases queried, %u queried of nothing; %u links a rule blocks from "
-           "the part, "
-           "%u forms written beside them\n",
-           closed, open, unqueried, flagged, formed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, klq.c_str());
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_decimal(output_line, number, 1u);
+        mmgr_line_put(output_line, " identities in ");
+        mmgr_line_decimal(output_line, contexts, 1u);
+        mmgr_line_put(output_line, " contexts, ");
+        mmgr_line_decimal(output_line, many, 1u);
+        mmgr_line_put(output_line, " identities in more than one, ");
+        mmgr_line_decimal(output_line, split, 1u);
+        mmgr_line_put(output_line, " closed in one context and open in another");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  contexts: ");
+        mmgr_line_decimal(output_line, closed, 1u);
+        mmgr_line_put(output_line, " closed, ");
+        mmgr_line_decimal(output_line, open, 1u);
+        mmgr_line_put(output_line, " open over the cases queried, ");
+        mmgr_line_decimal(output_line, unqueried, 1u);
+        mmgr_line_put(output_line, " queried of nothing; ");
+        mmgr_line_decimal(output_line, flagged, 1u);
+        mmgr_line_put(output_line, " links a rule blocks from the part, ");
+        mmgr_line_decimal(output_line, formed, 1u);
+        mmgr_line_put(output_line, " forms written beside them");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 0;
 }
 

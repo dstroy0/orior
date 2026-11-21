@@ -16,6 +16,7 @@
 #define QUERY_DESCENT_H
 
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/order/query_order.h"
+#include "../../../../../../../src/platform/platform.h"
 
 #include <stdio.h>
 
@@ -108,8 +109,7 @@ static void query_descent_put(QueryOrder *order, unsigned long long spend_max, Q
         for (unsigned int number = 1u; number < QUERY_DESCENT_LINKS; number += 1u)
         {
             // one pass's links share one denominator, and its sign is positive: the numerators order them
-            descent->dearer[number] +=
-                (orior_exact_compare(&numerator[number], &numerator[number - 1u]) > 0) ? 1u : 0u;
+            descent->dearer[number] += (orior_exact_compare(&numerator[number], &numerator[number - 1u]) > 0) ? 1u : 0u;
             descent->decided[number] = QUERY_DESCENT_STANDING;
             if (query_descent_leans(descent->dearer[number], descent->passes) != 0)
             {
@@ -156,8 +156,20 @@ static unsigned long long query_descent_size(QueryOrder *order, QueryDescent *be
             ((best_repeat != 0ull) && (best->located == 0u)) ? ((unsigned long long)best->passes * best_repeat) : 0ull;
         query_descent_put(order, spend_max, &next);
         *solved = (next.solved == 1u) ? *solved : 0u;
-        printf("  2^%u puts a run: %u pairs located after %u passes, %llu puts spent\n", power, next.located,
-               next.passes, (unsigned long long)next.passes * order->repeat);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  2^");
+            mmgr_line_decimal(output_line, power, 1u);
+            mmgr_line_put(output_line, " puts a run: ");
+            mmgr_line_decimal(output_line, next.located, 1u);
+            mmgr_line_put(output_line, " pairs located after ");
+            mmgr_line_decimal(output_line, next.passes, 1u);
+            mmgr_line_put(output_line, " passes, ");
+            mmgr_line_decimal(output_line, (unsigned long long)next.passes * order->repeat, 1u);
+            mmgr_line_put(output_line, " puts spent");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         if ((best_repeat == 0ull) || (query_descent_better(&next, order->repeat, best, best_repeat) != 0))
         {
             *best = next;
@@ -165,7 +177,14 @@ static unsigned long long query_descent_size(QueryOrder *order, QueryDescent *be
         }
     }
     order->repeat = best_repeat;
-    printf("  the descent chooses %llu puts a run\n", best_repeat);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the descent chooses ");
+        mmgr_line_decimal(output_line, best_repeat, 1u);
+        mmgr_line_put(output_line, " puts a run");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return best_repeat;
 }
 

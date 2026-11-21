@@ -5,6 +5,7 @@
 // endpoint tessera_path_endpoint names ($TESSERA_RUNTIME in a container), with no daemon path: only a daemon
 // already listening there, or a socket systemd owns, can answer. It prints what came back.
 #include "../../../../../../../src/cu/engine/runtime/daemon/tessera.h"
+#include "../../../../../../../src/platform/platform.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -28,7 +29,7 @@ static int probe_hex(const char *text, unsigned char *bytes, unsigned int count)
     return 1;
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     EngineError error;
     memset(&error, 0, sizeof(error));
@@ -36,12 +37,24 @@ int main(int count, char **arguments)
     memset(&submit, 0, sizeof(submit));
     if ((count < 2) || !probe_hex(arguments[1], submit.device, TESSERA_DEVICE_BYTES))
     {
-        printf("  tessera socket probe: the device's UUID as 32 lowercase hex digits is the one argument\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line,
+                          "  tessera socket probe: the device's UUID as 32 lowercase hex digits is the one argument");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     char endpoint[ENGINE_PATH_CAPACITY];
     const int named = tessera_path_endpoint(submit.device, endpoint, ENGINE_PATH_CAPACITY);
-    printf("  endpoint %s\n", named ? endpoint : "(none)");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  endpoint ");
+        mmgr_line_put(output_line, named ? endpoint : "(none)");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     submit.signum.bytes[0] = 0x50u;
     submit.declared = 1ull;
     submit.grace_microseconds = 1000000ull;
@@ -52,8 +65,22 @@ int main(int count, char **arguments)
     TesseraClient *client = NULL;
     TesseraTicket ticket;
     const long answer = tessera_job_submit(&submit, &client, &ticket);
-    printf("  submit %s (error type %d, module %d, site %u, status %d)\n", (answer == 0L) ? "admitted" : "errored",
-           (int)error.type, (int)error.module, error.site, error.status);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  submit ");
+        mmgr_line_put(output_line, (answer == 0L) ? "admitted" : "errored");
+        mmgr_line_put(output_line, " (error type ");
+        mmgr_line_decimal_signed(output_line, (int)error.type);
+        mmgr_line_put(output_line, ", module ");
+        mmgr_line_decimal_signed(output_line, (int)error.module);
+        mmgr_line_put(output_line, ", site ");
+        mmgr_line_decimal(output_line, error.site, 1u);
+        mmgr_line_put(output_line, ", status ");
+        mmgr_line_decimal_signed(output_line, error.status);
+        mmgr_line_put(output_line, ")");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     if (answer == 0L)
     {
         tessera_job_release(client, &ticket, &error);

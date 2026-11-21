@@ -3,6 +3,7 @@
 // container_write.c: one container written from another, with new code in it for one part or many, driven by a layout
 // file
 #include "container_write_internal.h"
+#include "../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 #include <stdlib.h>
@@ -40,7 +41,15 @@ static unsigned long long attributes_written(const Places *places, const unsigne
         }
         if (size > room)
         {
-            printf("  container_write: the attributes take %llu bytes where the room is %llu\n", size, room);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  container_write: the attributes take ");
+                mmgr_line_decimal(output_line, size, 1u);
+                mmgr_line_put(output_line, " bytes where the room is ");
+                mmgr_line_decimal(output_line, room, 1u);
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             return 0ULL;
         }
         mmgr_bytes_copy(written, bytes, size);
@@ -51,7 +60,15 @@ static unsigned long long attributes_written(const Places *places, const unsigne
     const unsigned long long whole = before + places->attribute_header + (4ULL * exit_count) + (size - after);
     if (whole > room)
     {
-        printf("  container_write: the attributes take %llu bytes where the room is %llu\n", whole, room);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  container_write: the attributes take ");
+            mmgr_line_decimal(output_line, whole, 1u);
+            mmgr_line_put(output_line, " bytes where the room is ");
+            mmgr_line_decimal(output_line, room, 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0ULL;
     }
     mmgr_bytes_copy(written, bytes, before);
@@ -100,8 +117,14 @@ int container_parts_write(const ContainerParts *args, unsigned char *written, un
     const unsigned char *const pattern = args->pattern;
     if (!container_pattern_matches(&places, pattern, args->pattern_size))
     {
-        printf("  container_write: a table, a section or a name of the pattern lies past its %llu bytes\n",
-               args->pattern_size);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  container_write: a table, a section or a name of the pattern lies past its ");
+            mmgr_line_decimal(output_line, args->pattern_size, 1u);
+            mmgr_line_put(output_line, " bytes");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     unsigned int sections = 0u;
@@ -146,14 +169,27 @@ int container_parts_write(const ContainerParts *args, unsigned char *written, un
     }
     if ((all_info == sections) || (symbols == sections))
     {
-        printf("  container_write: the pattern contains no program attributes or no symbol table\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line,
+                          "  container_write: the pattern contains no program attributes or no symbol table");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     // every part's place, and the room its rewritten attributes take: what they took, and four bytes an exit more
     PartPlace *const place = (PartPlace *)calloc((size_t)args->part_count + 1u, sizeof(PartPlace));
     if (place == NULL)
     {
-        printf("  container_write: no memory for the places of %u parts\n", args->part_count);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  container_write: no memory for the places of ");
+            mmgr_line_decimal(output_line, args->part_count, 1u);
+            mmgr_line_put(output_line, " parts");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     unsigned long long attribute_room = 0ULL;
@@ -174,7 +210,13 @@ int container_parts_write(const ContainerParts *args, unsigned char *written, un
         found = (place[part].code_index != sections) && (place[part].part_info != sections);
         if (!found)
         {
-            printf("  container_write: the pattern contains no part named %s\n", one->part);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  container_write: the pattern contains no part named ");
+                mmgr_line_put(output_line, one->part);
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             break;
         }
         place[part].symbol =
@@ -187,8 +229,18 @@ int container_parts_write(const ContainerParts *args, unsigned char *written, un
                  places.symbol_size_width) <= section_list[symbols].size;
         if (!found)
         {
-            printf("  container_write: the symbol %u of %s lies past the %llu bytes of its symbol table\n",
-                   place[part].symbol, one->part, section_list[symbols].size);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  container_write: the symbol ");
+                mmgr_line_decimal(output_line, place[part].symbol, 1u);
+                mmgr_line_put(output_line, " of ");
+                mmgr_line_put(output_line, one->part);
+                mmgr_line_put(output_line, " lies past the ");
+                mmgr_line_decimal(output_line, section_list[symbols].size, 1u);
+                mmgr_line_put(output_line, " bytes of its symbol table");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             break;
         }
         attribute_room += section_list[place[part].part_info].size + (4ULL * one->exit_count);
@@ -198,7 +250,14 @@ int container_parts_write(const ContainerParts *args, unsigned char *written, un
         found ? (unsigned char *)malloc((size_t)(section_list[all_info].size + attribute_room + 1ULL)) : NULL;
     if (block == NULL)
     {
-        printf("  container_write: no room was had for the attributes of %u parts\n", args->part_count);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  container_write: no room was had for the attributes of ");
+            mmgr_line_decimal(output_line, args->part_count, 1u);
+            mmgr_line_put(output_line, " parts");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         free(place);
         return 0;
     }
@@ -216,7 +275,14 @@ int container_parts_write(const ContainerParts *args, unsigned char *written, un
         found = (part_size != 0ULL);
         if (!found)
         {
-            printf("  container_write: %s contains no endings to write\n", one->part);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  container_write: ");
+                mmgr_line_put(output_line, one->part);
+                mmgr_line_put(output_line, " contains no endings to write");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             break;
         }
         if (one->registers != 0u)
@@ -247,7 +313,15 @@ int container_parts_write(const ContainerParts *args, unsigned char *written, un
     const unsigned long long whole = new_segments + ((unsigned long long)segments * segment_entry);
     if (whole > room)
     {
-        printf("  container_write: the container takes %llu bytes where the room is %llu\n", whole, room);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  container_write: the container takes ");
+            mmgr_line_decimal(output_line, whole, 1u);
+            mmgr_line_put(output_line, " bytes where the room is ");
+            mmgr_line_decimal(output_line, room, 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         free(block);
         free(place);
         return 0;

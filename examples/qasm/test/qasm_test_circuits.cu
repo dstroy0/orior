@@ -92,7 +92,11 @@ static void inverse_fourier(void)
           k, bitstring, read ? circuit.gate_count : 0u, read ? circuit.rounded_gates : 0u);
     if (!read)
     {
-        printf("  %s\n", reason);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, reason);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     if (read)
     {
@@ -138,7 +142,11 @@ static void measurement(void)
               "%s: %s (wanted %s), p = 1 within the slack, proved", CASES[at].what, bitstring, CASES[at].expected);
         if (!read)
         {
-            printf("  %s\n", reason);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, reason);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
         if (read)
         {
@@ -179,7 +187,11 @@ static void fixtures(const char *directory)
               "fixture %s: %s, %s", FIXTURES[at].file, bitstring, (ran && outcome.proved) ? "proved" : "not proved");
         if (!read)
         {
-            printf("  %s\n", reason);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, reason);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
         if (read)
         {
@@ -293,7 +305,11 @@ static void device_against_host(void)
           read ? circuit.gate_count : 0u, read ? circuit.rounded_gates : 0u);
     if (!read)
     {
-        printf("  %s\n", reason);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, reason);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     if (read)
     {
@@ -317,8 +333,18 @@ int program_main(int count, char **arguments)
     static const unsigned char named[] = "qasm_test";
     if (qasm_job_submit(named, sizeof(named) - 1u, qasm_device_bytes(&widest), &job, &error) == QASM_ERROR)
     {
-        printf("  FAIL the device's tessera daemon did not admit the test (error type %d, module %d, site %u)\n",
-               (int)error.type, (int)error.module, error.site);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAIL the device's tessera daemon did not admit the test (error type ");
+            mmgr_line_decimal_signed(output_line, (int)error.type);
+            mmgr_line_put(output_line, ", module ");
+            mmgr_line_decimal_signed(output_line, (int)error.module);
+            mmgr_line_put(output_line, ", site ");
+            mmgr_line_decimal(output_line, error.site, 1u);
+            mmgr_line_put(output_line, ")");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     errors();
@@ -334,6 +360,15 @@ int program_main(int count, char **arguments)
     EngineError released;
     memset(&released, 0, sizeof(released));
     qasm_job_release(job, &released);
-    printf("qasm_test: %u passed, %u failed\n", g_passed, g_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "qasm_test: ");
+        mmgr_line_decimal(output_line, g_passed, 1u);
+        mmgr_line_put(output_line, " passed, ");
+        mmgr_line_decimal(output_line, g_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (g_failed == 0u) ? 0 : 1;
 }

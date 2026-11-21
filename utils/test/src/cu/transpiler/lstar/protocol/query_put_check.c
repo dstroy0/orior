@@ -17,6 +17,7 @@
 // and the protocol's answer is checked against the fact that the word counts. A platform that names no such address
 // to the test skips the clock checks and reports it.
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/query/query_put.h"
+#include "../../../../../../../src/platform/platform.h"
 
 #include <stdio.h>
 
@@ -29,7 +30,13 @@ static void check_that(int passed, const char *what)
     if (passed == 0)
     {
         s_failed += 1u;
-        printf("  FAILED: %s\n", what);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -40,8 +47,10 @@ static unsigned long long check_address(volatile unsigned int *word)
     return (unsigned long long)word;
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     static volatile unsigned int s_owned[4] = {0x1234u, 0x5678u, 0u, 0u};
 
     Query query = {0};
@@ -124,11 +133,36 @@ int main(void)
         failed_tight = ((query_put(&tight) == 0u) && (tight.type == QUERY_PAST_BOUND)) ? 1u : 0u;
     }
     check_that(failed_tight == 1u, "a bound of one count fails on the query a step of the counter lands inside");
-    printf("  the clock at 0x%llx: one step is %llu counts, read after %u queries\n", clock, step, put);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the clock at 0x");
+        mmgr_line_hex(output_line, clock, 1u);
+        mmgr_line_put(output_line, ": one step is ");
+        mmgr_line_decimal(output_line, step, 1u);
+        mmgr_line_put(output_line, " counts, read after ");
+        mmgr_line_decimal(output_line, put, 1u);
+        mmgr_line_put(output_line, " queries");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 #else
-    printf("  no counter named to this test on this platform: the clock checks are skipped\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  no counter named to this test on this platform: the clock checks are skipped");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 #endif
 
-    printf("  query put: %u checks, %u failed\n", s_checks, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  query put: ");
+        mmgr_line_decimal(output_line, s_checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, s_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failed == 0u) ? 0 : 1;
 }

@@ -12,7 +12,12 @@ int program_main(int count, char **arguments)
     cudaDeviceProp properties;
     if ((cudaGetDevice(&device) != cudaSuccess) || (cudaGetDeviceProperties(&properties, device) != cudaSuccess))
     {
-        printf("no device\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "no device");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     const int major = properties.major;
@@ -21,10 +26,23 @@ int program_main(int count, char **arguments)
     ProbeWriter writer = {ptx_target().ruleset(1), 0, PROBE_TEMPORARIES, PROBE_WIDES, PROBE_PREDICATES};
     if ((writer.rules == NULL) || header.empty())
     {
-        printf("the ruleset errored, or NVRTC gave no header\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "the ruleset errored, or NVRTC gave no header");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
-    printf("sm_%d%d, %s", major, minor, header.c_str());
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "sm_");
+        mmgr_line_decimal_signed(output_line, major);
+        mmgr_line_decimal_signed(output_line, minor);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_put(output_line, header.c_str());
+        platform_line_out_ended();
+    }
     const std::string t8 = probe_temporary(&writer, 8u);
     const std::string t0 = probe_temporary(&writer, 0u);
     const std::string w0 = probe_wide(&writer, 0u);
@@ -77,6 +95,13 @@ int program_main(int count, char **arguments)
                             "\telect.sync \t%interface_leader|%interface_elected, 0xffffffff;\n\t}\n",
                             major, minor);
     }
-    printf("no question \"%s\"\n", question);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "no question \"");
+        mmgr_line_put(output_line, question);
+        mmgr_line_put(output_line, "\"");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 2;
 }

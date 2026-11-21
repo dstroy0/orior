@@ -39,6 +39,7 @@
  *       nothing. It reads which curves of the zeros their gaps alone draw, and which only their order draws.
  */
 #include "zeta_machine.h"
+#include "../../../src/platform/platform.h"
 #include "zeta_shuffle.h"
 
 #include <stdlib.h>
@@ -391,9 +392,19 @@ static size_t zero_records(const char *binary, const TuringConstants *constants,
         free(js);
     }
     free(dips);
-    printf("  zeros at a change of certified sign %llu, dips listed again %lld, zeros found in them %llu, host checks "
-           "failed %lld\n",
-           (unsigned long long)crossings, (long long)listed, (unsigned long long)added, (long long)*failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  zeros at a change of certified sign ");
+        mmgr_line_decimal(output_line, (unsigned long long)crossings, 1u);
+        mmgr_line_put(output_line, ", dips listed again ");
+        mmgr_line_decimal_signed(output_line, (long long)listed);
+        mmgr_line_put(output_line, ", zeros found in them ");
+        mmgr_line_decimal(output_line, (unsigned long long)added, 1u);
+        mmgr_line_put(output_line, ", host checks failed ");
+        mmgr_line_decimal_signed(output_line, (long long)*failed);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     qsort(*records, count, sizeof(ZeroRecord), record_order);
     return count;
 }
@@ -975,8 +986,22 @@ static void report(const Curves *real, const Arm arms[2], const OriorExactIntege
                    const int64_t *decided, const int64_t *across)
 {
     const int64_t n = real->n;
-    printf("  the arms: a, %s; b, %s. Each column: the draws' mean, the reach, the side\n", arms[0].name, arms[1].name);
-    printf("  S's correlation over k zeros: k, the real, then each arm:\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the arms: a, ");
+        mmgr_line_put(output_line, arms[0].name);
+        mmgr_line_put(output_line, "; b, ");
+        mmgr_line_put(output_line, arms[1].name);
+        mmgr_line_put(output_line, ". Each column: the draws' mean, the reach, the side");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  S's correlation over k zeros: k, the real, then each arm:");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     static char outside[2][LAGS * 8];
     outside[0][0] = '\0';
     outside[1][0] = '\0';
@@ -990,7 +1015,22 @@ static void report(const Curves *real, const Arm arms[2], const OriorExactIntege
         rational_mul(&ratio, &value, &rho);
         char rho_text[64];
         show(&rho.top, &rho.under, 4, rho_text, sizeof(rho_text));
-        printf("    k %2d: %8s   ", lag, rho_text);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    k ");
+            {
+                char linea_piece[24u];
+                VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                const int64_t linea_value = (int64_t)(lag);
+                mmgr_line_decimal_signed(&linea_piece_line, linea_value);
+                (void)mmgr_line_finish(&linea_piece_line);
+                mmgr_line_put_right(output_line, linea_piece, 2u);
+            }
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_put_right(output_line, rho_text, 8u);
+            mmgr_line_put(output_line, "   ");
+            platform_line_out_ended();
+        }
         for (int arm = 0; arm < 2; arm += 1)
         {
             ZetaRational values[DRAWS];
@@ -1012,17 +1052,49 @@ static void report(const Curves *real, const Arm arms[2], const OriorExactIntege
             }
             char mean_text[64];
             show(&num, &den, 4, mean_text, sizeof(mean_text));
-            printf("%s%8s %2d %c", (arm > 0) ? "   " : "", mean_text, reach, side);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, (arm > 0) ? "   " : "");
+                mmgr_line_put_right(output_line, mean_text, 8u);
+                mmgr_line_put(output_line, " ");
+                {
+                    char linea_piece[24u];
+                    VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                    const int64_t linea_value = (int64_t)(reach);
+                    mmgr_line_decimal_signed(&linea_piece_line, linea_value);
+                    (void)mmgr_line_finish(&linea_piece_line);
+                    mmgr_line_put_right(output_line, linea_piece, 2u);
+                }
+                mmgr_line_put(output_line, " ");
+                mmgr_line_ch(output_line, (char)(side));
+                platform_line_out_ended();
+            }
         }
-        printf("\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     for (int arm = 0; arm < 2; arm += 1)
     {
-        printf("  lags no draw of %c reaches, with their side: %s\n", 'a' + arm, outside[arm]);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  lags no draw of ");
+        mmgr_line_ch(output_line, (char)('a' + arm));
+        mmgr_line_put(output_line, " reaches, with their side: ");
+        mmgr_line_put(output_line, outside[arm]);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     char text[128];
     show(&real->pull[0], &real->pull[1], 4, text, sizeof(text));
-    printf("  S's pull back each zero %s;   ", text);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  S's pull back each zero ");
+        mmgr_line_put(output_line, text);
+        mmgr_line_put(output_line, ";   ");
+        platform_line_out_ended();
+    }
     for (int arm = 0; arm < 2; arm += 1)
     {
         ZetaRational values[DRAWS];
@@ -1036,9 +1108,22 @@ static void report(const Curves *real, const Arm arms[2], const OriorExactIntege
         char side = '-';
         const int reach = reach_of(real, arms[arm].draws, above_pull, 0, &side);
         show(&num, &den, 4, text, sizeof(text));
-        printf("%s%s %d %c", (arm > 0) ? "   " : "", text, reach, side);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, (arm > 0) ? "   " : "");
+            mmgr_line_put(output_line, text);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_signed(output_line, reach);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_ch(output_line, (char)(side));
+            platform_line_out_ended();
+        }
     }
-    printf("\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     OriorExactInteger square;
     orior_exact_zero(&square);
     OriorExactInteger span;
@@ -1056,7 +1141,13 @@ static void report(const Curves *real, const Arm arms[2], const OriorExactIntege
     OriorExactInteger value;
     z_mul_small(&real->neighbors, n, &value);
     show(&value, &square, 4, text, sizeof(text));
-    printf("  the gaps' neighbors' correlation %s;   ", text);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the gaps' neighbors' correlation ");
+        mmgr_line_put(output_line, text);
+        mmgr_line_put(output_line, ";   ");
+        platform_line_out_ended();
+    }
     for (int arm = 0; arm < 2; arm += 1)
     {
         OriorExactInteger total;
@@ -1071,18 +1162,52 @@ static void report(const Curves *real, const Arm arms[2], const OriorExactIntege
         char side = '-';
         const int reach = reach_of(real, arms[arm].draws, above_neighbors, 0, &side);
         show(&total, &under, 4, text, sizeof(text));
-        printf("%s%s %d %c", (arm > 0) ? "   " : "", text, reach, side);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, (arm > 0) ? "   " : "");
+            mmgr_line_put(output_line, text);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_signed(output_line, reach);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_ch(output_line, (char)(side));
+            platform_line_out_ended();
+        }
     }
-    printf("\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     const int64_t windows = real->windows;
-    printf("  number variance over windows of L on u, %lld windows a length: L, the real, then each arm:\n",
-           (long long)windows);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  number variance over windows of L on u, ");
+        mmgr_line_decimal_signed(output_line, (long long)windows);
+        mmgr_line_put(output_line, " windows a length: L, the real, then each arm:");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     for (int at = 0; at < LENGTH_COUNT; at += 1)
     {
         OriorExactInteger under;
         z_set(&under, windows * windows);
         show(&real->variances[at], &under, 4, text, sizeof(text));
-        printf("    L %3lld: %9s   ", (long long)LENGTHS[at], text);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    L ");
+            {
+                char linea_piece[24u];
+                VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                const int64_t linea_value = (int64_t)((long long)LENGTHS[at]);
+                mmgr_line_decimal_signed(&linea_piece_line, linea_value);
+                (void)mmgr_line_finish(&linea_piece_line);
+                mmgr_line_put_right(output_line, linea_piece, 3u);
+            }
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_put_right(output_line, text, 9u);
+            mmgr_line_put(output_line, "   ");
+            platform_line_out_ended();
+        }
         for (int arm = 0; arm < 2; arm += 1)
         {
             OriorExactInteger total;
@@ -1095,19 +1220,44 @@ static void report(const Curves *real, const Arm arms[2], const OriorExactIntege
             char side = '-';
             const int reach = reach_of(real, arms[arm].draws, above_variance, at, &side);
             show(&total, &under, 4, text, sizeof(text));
-            printf("%s%9s %2d %c", (arm > 0) ? "   " : "", text, reach, side);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, (arm > 0) ? "   " : "");
+                mmgr_line_put_right(output_line, text, 9u);
+                mmgr_line_put(output_line, " ");
+                {
+                    char linea_piece[24u];
+                    VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                    const int64_t linea_value = (int64_t)(reach);
+                    mmgr_line_decimal_signed(&linea_piece_line, linea_value);
+                    (void)mmgr_line_finish(&linea_piece_line);
+                    mmgr_line_put_right(output_line, linea_piece, 2u);
+                }
+                mmgr_line_put(output_line, " ");
+                mmgr_line_ch(output_line, (char)(side));
+                platform_line_out_ended();
+            }
         }
-        printf("\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     int held = 1;
     for (int b = 0; b < (REACH * BINS); b += 1)
     {
         held = held && (decided[b] <= real->bins[b]) && (real->bins[b] <= (decided[b] + across[b]));
     }
-    printf("  pair counts a zero over differences of u by eighths: the bin, the real, the pairs whose difference's "
-           "interval lies in the bin and those meeting it and another, then each arm. Every real count between the "
-           "two: %s\n",
-           held ? "True" : "False");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  pair counts a zero over differences of u by eighths: the bin, the real, the "
+                                   "pairs whose difference's interval lies in the bin and those meeting it and "
+                                   "another, then each arm. Every real count between the two: ");
+        mmgr_line_put(output_line, held ? "True" : "False");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     static char marks[2][REACH * BINS][4];
     for (int b = 0; b < (REACH * BINS); b += 1)
     {
@@ -1139,23 +1289,61 @@ static void report(const Curves *real, const Arm arms[2], const OriorExactIntege
             show_small(real->bins[b], n, 4, texts[2], sizeof(texts[2]));
             show_small(decided[b], n, 4, texts[3], sizeof(texts[3]));
             show_small(across[b], n, 4, texts[4], sizeof(texts[4]));
-            printf("    [%s, %s): %s  %s  %s   %s   %s\n", texts[0], texts[1], texts[2], texts[3], texts[4], columns[0],
-                   columns[1]);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "    [");
+                mmgr_line_put(output_line, texts[0]);
+                mmgr_line_put(output_line, ", ");
+                mmgr_line_put(output_line, texts[1]);
+                mmgr_line_put(output_line, "): ");
+                mmgr_line_put(output_line, texts[2]);
+                mmgr_line_put(output_line, "  ");
+                mmgr_line_put(output_line, texts[3]);
+                mmgr_line_put(output_line, "  ");
+                mmgr_line_put(output_line, texts[4]);
+                mmgr_line_put(output_line, "   ");
+                mmgr_line_put(output_line, columns[0]);
+                mmgr_line_put(output_line, "   ");
+                mmgr_line_put(output_line, columns[1]);
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
         }
     }
     for (int arm = 0; arm < 2; arm += 1)
     {
-        printf("  every eighth against %c, its side, '*' where no draw reaches the real and '#' where none reaches any "
-               "count the intervals allow:\n",
-               'a' + arm);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  every eighth against ");
+            mmgr_line_ch(output_line, (char)('a' + arm));
+            mmgr_line_put(output_line, ", its side, '*' where no draw reaches the real and '#' where none reaches any "
+                                       "count the intervals allow:");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         for (int row = 0; row < REACH; row += 1)
         {
-            printf("    %d to %d:", row, row + 1);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "    ");
+                mmgr_line_decimal_signed(output_line, row);
+                mmgr_line_put(output_line, " to ");
+                mmgr_line_decimal_signed(output_line, row + 1);
+                mmgr_line_put(output_line, ":");
+                platform_line_out_ended();
+            }
             for (int b = row * BINS; b < ((row + 1) * BINS); b += 1)
             {
-                printf(" %s", marks[arm][b]);
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, " ");
+                mmgr_line_put(output_line, marks[arm][b]);
+                platform_line_out_ended();
             }
-            printf("\n");
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
         }
     }
 }
@@ -1269,10 +1457,20 @@ int program_main(int argument_count, char **arguments)
         {
             decided_total += decided[b];
         }
-        printf(
-            "  round %d: pairs within %d whose difference lies in one eighth %lld; zeros in a pair meeting two %llu\n",
-            turn, REACH, (long long)decided_total, (unsigned long long)open_count);
-        fflush(stdout);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  round ");
+            mmgr_line_decimal_signed(output_line, turn);
+            mmgr_line_put(output_line, ": pairs within ");
+            mmgr_line_decimal_signed(output_line, REACH);
+            mmgr_line_put(output_line, " whose difference lies in one eighth ");
+            mmgr_line_decimal_signed(output_line, (long long)decided_total);
+            mmgr_line_put(output_line, "; zeros in a pair meeting two ");
+            mmgr_line_decimal(output_line, (unsigned long long)open_count, 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        platform_line_flushed();
         if ((turn == ROUNDS) || (open_count == 0u))
         {
             break;
@@ -1289,9 +1487,20 @@ int program_main(int argument_count, char **arguments)
         int64_t bad = 0;
         const int64_t retained = narrowed(binary, &constants, records, which, which_count, &bad);
         failed += bad;
-        printf("    listed again %d times finer: %llu zeros, %lld retained their interval, host checks failed %lld\n",
-               1 << NARROW, (unsigned long long)open_count, (long long)retained, (long long)bad);
-        fflush(stdout);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    listed again ");
+            mmgr_line_decimal_signed(output_line, 1 << NARROW);
+            mmgr_line_put(output_line, " times finer: ");
+            mmgr_line_decimal(output_line, (unsigned long long)open_count, 1u);
+            mmgr_line_put(output_line, " zeros, ");
+            mmgr_line_decimal_signed(output_line, (long long)retained);
+            mmgr_line_put(output_line, " retained their interval, host checks failed ");
+            mmgr_line_decimal_signed(output_line, (long long)bad);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        platform_line_flushed();
     }
     OriorExactInteger one;
     z_two_to(TURING_SCALE_BITS, &one);
@@ -1311,11 +1520,25 @@ int program_main(int argument_count, char **arguments)
     }
     char widest_text[64];
     show(&widest, &one, 6, widest_text, sizeof(widest_text));
-    printf(
-        "  from cell %lld's F, N = %lld, to cell %lld's, N = %lld: %llu zeros, each an interval of u, the widest %s, "
-        "both ends rising from each to the next: %s\n",
-        (long long)start_nu, (long long)n_start, (long long)end_nu, (long long)n_end, (unsigned long long)count,
-        widest_text, ordered ? "True" : "False");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  from cell ");
+        mmgr_line_decimal_signed(output_line, (long long)start_nu);
+        mmgr_line_put(output_line, "'s F, N = ");
+        mmgr_line_decimal_signed(output_line, (long long)n_start);
+        mmgr_line_put(output_line, ", to cell ");
+        mmgr_line_decimal_signed(output_line, (long long)end_nu);
+        mmgr_line_put(output_line, "'s, N = ");
+        mmgr_line_decimal_signed(output_line, (long long)n_end);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_decimal(output_line, (unsigned long long)count, 1u);
+        mmgr_line_put(output_line, " zeros, each an interval of u, the widest ");
+        mmgr_line_put(output_line, widest_text);
+        mmgr_line_put(output_line, ", both ends rising from each to the next: ");
+        mmgr_line_put(output_line, ordered ? "True" : "False");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     OriorExactInteger *const positions = (OriorExactInteger *)demon_memory(malloc(count * sizeof(OriorExactInteger)));
     for (size_t at = 0u; at < count; at += 1u)
     {
@@ -1346,11 +1569,26 @@ int program_main(int argument_count, char **arguments)
             curves_of(drawn, count, n_start, &arms[arm].draws[d]);
         }
     }
-    printf("  the identity permutation gives back every real value: %s; every draw retains each run's gaps: %s; %d "
-           "draws an arm\n",
-           identity ? "True" : "False", retained ? "True" : "False", DRAWS);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the identity permutation gives back every real value: ");
+        mmgr_line_put(output_line, identity ? "True" : "False");
+        mmgr_line_put(output_line, "; every draw retains each run's gaps: ");
+        mmgr_line_put(output_line, retained ? "True" : "False");
+        mmgr_line_put(output_line, "; ");
+        mmgr_line_decimal_signed(output_line, DRAWS);
+        mmgr_line_put(output_line, " draws an arm");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     report(&real, arms, positions, count, decided, across);
-    printf("  host checks failed: %lld\n", (long long)failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  host checks failed: ");
+        mmgr_line_decimal_signed(output_line, (long long)failed);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     free(arms[0].draws);
     free(arms[1].draws);
     free(positions);

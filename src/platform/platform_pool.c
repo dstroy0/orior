@@ -217,6 +217,14 @@ void platform_line_out_ended(void)
     }
 }
 
+unsigned long long platform_line_out_put(const char *bytes, unsigned long long length)
+{
+    // Explicit cast takes a length of bytes in memory, which a size_t counts
+    const size_t taken = mmgr_line_put_n(&s_line_out, bytes, (size_t)length);
+    platform_line_out_ended();
+    return (unsigned long long)taken;
+}
+
 // a note on the error stream that the pool did not meet a cell. It names the bytes of the cell, its tier, and the bytes
 // of the pool. A program that needs more defines g_program_pool_bytes
 static void platform_cell_refused(unsigned long long bytes, int ephemeral)

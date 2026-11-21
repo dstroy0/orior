@@ -59,10 +59,12 @@ int cubin_run_clock_open(const char *machine_path)
     s_clock_read = (s_bus != INVALID_HANDLE_VALUE);
     if (!s_clock_read)
     {
-        printf("  clock: the part names the timer register at 0x%x and the BAR0 driver is not reached; the driver's "
-               "clock times "
-               "the launches\n",
-               s_clock_offset);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  clock: the part names the timer register at 0x");
+        mmgr_line_hex(output_line, s_clock_offset, 1u);
+        mmgr_line_put(output_line, " and the BAR0 driver is not reached; the driver's clock times the launches");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     return s_clock_read;
 }

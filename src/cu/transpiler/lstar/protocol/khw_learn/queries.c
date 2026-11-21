@@ -3,6 +3,7 @@
 // queries.c: the queries: a question's words and runs read and written, the kernel and the code put, a question queried
 // and pooled, the round carried, the anchor cases and a candidate's answer
 #include "khw_learn_internal.h"
+#include "../../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 // how many registers a thread of the kernel uses, read with the kernel
@@ -230,11 +231,24 @@ void khw_round_printed(unsigned int count, const unsigned long long before[4])
 {
     unsigned long long now[4] = {0ULL, 0ULL, 0ULL, 0ULL};
     run_channel_clocks(&now[0], &now[1], &now[2], &now[3]);
-    printf("  round: %u question(s), airlock %.2f s (pop %.2f s, cross %.2f s), carrier %.2f s\n", count,
-           (double)(now[0] - before[0]) / 1e9, (double)(now[1] - before[1]) / 1e9, (double)(now[2] - before[2]) / 1e9,
-           (double)(now[3] - before[3]) / 1e9);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  round: ");
+        mmgr_line_decimal(output_line, count, 1u);
+        mmgr_line_put(output_line, " question(s), airlock ");
+        mmgr_line_fixed(output_line, (double)((double)(now[0] - before[0]) / 1e9), 2u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " s (pop ");
+        mmgr_line_fixed(output_line, (double)((double)(now[1] - before[1]) / 1e9), 2u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " s, cross ");
+        mmgr_line_fixed(output_line, (double)((double)(now[2] - before[2]) / 1e9), 2u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " s), carrier ");
+        mmgr_line_fixed(output_line, (double)((double)(now[3] - before[3]) / 1e9), 2u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " s");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     // the line reaches the console as the round ends, not when a pipe's block fills
-    fflush(stdout);
+    platform_line_flushed();
 }
 
 // The plan of a pass passed to the run as the pass starts, the blob `plan.txt`, one line `<pass> <questions>`: the
@@ -249,7 +263,15 @@ void khw_plan_passed(const char *pass, unsigned long long questions)
         qry_member_append("plan.txt", line, (unsigned long long)length, QRY_ORDINARY);
     }
     // the plan on the console as well, for a reader of the console that has no hand on the run
-    printf("  plan: %s %llu\n", pass, questions);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  plan: ");
+        mmgr_line_put(output_line, pass);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal(output_line, questions, 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
 // The round written carried as one (scheduler.h), its questions read after from s_pool, and the next round written
@@ -261,8 +283,13 @@ void khw_round_carried(void)
     if (run_channel_panic_ruled() && !s_stop_traced)
     {
         s_stop_traced = 1;
-        printf("  the run stopped on a panic: no round after it reaches the part, and the pass ends with what the "
-               "rounds before it left\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  the run stopped on a panic: no round after it reaches the part, and the pass "
+                                       "ends with what the rounds before it left");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     unsigned long long before[4] = {0ULL, 0ULL, 0ULL, 0ULL};
     run_channel_clocks(&before[0], &before[1], &before[2], &before[3]);

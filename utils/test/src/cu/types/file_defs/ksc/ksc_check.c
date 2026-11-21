@@ -17,6 +17,7 @@
 //
 // It runs in a query run (qry_run.sh): every file it writes is passed to the run's writer.
 #include "../../../../../../../includes/file_defs/ksc/ksc.h"
+#include "../../../../../../../src/platform/platform.h"
 
 #include "../../../../../../../includes/parsers/who.h"
 #include "verba_scribo/verba_scribo.h"
@@ -33,7 +34,13 @@ static void check_that(int passed, const char *what)
     if (passed == 0)
     {
         s_failed += 1u;
-        printf("  FAILED: %s\n", what);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -122,14 +129,26 @@ int program_main(int count, char **words)
 {
     if (count < 2)
     {
-        printf("ksc_check <folder> [<a part's .ksc>]\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "ksc_check <folder> [<a part's .ksc>]");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     char path[1024];
     snprintf(path, sizeof(path), "%s/ksc_check.ksc", words[1]);
     if (qry_member_filed(path, s_written, strlen(s_written)) == 0ull)
     {
-        printf("  %s could not be written: no run's writer runs, or it is outside the tree\n", path);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, path);
+            mmgr_line_put(output_line, " could not be written: no run's writer runs, or it is outside the tree");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     check_that(ksc_read(&s_file, path) && (s_file.lines == 7u), "a .ksc is read, a line each");
@@ -242,13 +261,33 @@ int program_main(int count, char **words)
         const char *const after_rows = without_who(after, s_text_rows_bytes, sizeof(s_text_rows_bytes));
         const int same = (before_rows != NULL) && (after_rows != NULL) && (strcmp(before_rows, after_rows) == 0);
         const int under = (after != NULL) && cost_rows_under(&s_file, code);
-        printf("  %s: %u lines, %u cost rows put again in their places, %s\n", words[2], lines, replaced,
-               (same && under) ? "as it was under one who line" : "DIFFERING");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, words[2]);
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_decimal(output_line, lines, 1u);
+            mmgr_line_put(output_line, " lines, ");
+            mmgr_line_decimal(output_line, replaced, 1u);
+            mmgr_line_put(output_line, " cost rows put again in their places, ");
+            mmgr_line_put(output_line, (same && under) ? "as it was under one who line" : "DIFFERING");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         check_that((rows != 0u) && (replaced == rows) && same && under,
                    "a part's cost rows put again in the order it lists them leave it as it was under one who line");
         ksc_free(&s_file);
     }
 
-    printf("ksc_check: %u checks, %u failed\n", s_checks, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "ksc_check: ");
+        mmgr_line_decimal(output_line, s_checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, s_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failed == 0u) ? 0 : 1;
 }

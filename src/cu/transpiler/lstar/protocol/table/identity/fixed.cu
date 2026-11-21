@@ -87,7 +87,15 @@ static int fixed_alike(FixedQuery *query, const std::vector<unsigned char> &vari
     query->dry = query->dry || (mmgr_text_starts(query->question->refused, "skipped dry", PLATFORM_TEXT_TO_TERMINATOR));
     const char *const why = (query->question->outcome == RUN_ANSWERED) ? "apart" : query->question->refused;
     run_print(&query->table, "%s %s%s%s\n", what, alike ? "truthy" : "falsy", alike ? "" : ": ", alike ? "" : why);
-    printf("  %s: %s\n", what, alike ? "truthy" : "falsy");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, what);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_put(output_line, alike ? "truthy" : "falsy");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return alike;
 }
 
@@ -96,7 +104,12 @@ static void fixed_closed(FixedQuery *query)
 {
     if (!run_closed(&query->table))
     {
-        printf("orior_klq_identity fixed: %s could not be written\n", query->table.path.c_str());
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "orior_klq_identity fixed: ");
+        mmgr_line_put(output_line, query->table.path.c_str());
+        mmgr_line_put(output_line, " could not be written");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     run_channel_close();
 }
@@ -133,7 +146,14 @@ int identity_fixed(const char *engine, const char *answers, const char *ksc, con
     if ((fields.count("stall") == 0u) || (fields.count("rd") == 0u) || (fields.count("ra") == 0u) ||
         (fields.count("rb") == 0u))
     {
-        printf("orior_klq_identity fixed: %s gives no stall field or not every register field\n", ksc);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity fixed: ");
+            mmgr_line_put(output_line, ksc);
+            mmgr_line_put(output_line, " gives no stall field or not every register field");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     const StallField stall = fields["stall"];
@@ -194,13 +214,24 @@ int identity_fixed(const char *engine, const char *answers, const char *ksc, con
     if (query.dry)
     {
         fixed_closed(&query);
-        printf("orior_klq_identity fixed: the run is dry, and nothing is written\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity fixed: the run is dry, and nothing is written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     if (probe_place == places)
     {
         fixed_closed(&query);
-        printf("orior_klq_identity fixed: no place answers the case's second word, and nothing is written\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line,
+                          "orior_klq_identity fixed: no place answers the case's second word, and nothing is written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     char row[64];
@@ -214,10 +245,25 @@ int identity_fixed(const char *engine, const char *answers, const char *ksc, con
     if (!ksc_answers_write(ksc, "probe", std::vector<std::string>{row}))
     {
         fixed_closed(&query);
-        printf("orior_klq_identity fixed: %s could not be written\n", ksc);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity fixed: ");
+            mmgr_line_put(output_line, ksc);
+            mmgr_line_put(output_line, " could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
-    printf("  the probe place is place %u of %u\n", probe_place, places);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the probe place is place ");
+        mmgr_line_decimal(output_line, probe_place, 1u);
+        mmgr_line_put(output_line, " of ");
+        mmgr_line_decimal(output_line, places, 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     // zero: the probe place's own instruction put writing the top of the register field, the one change, and the
     // kernel's own closing stores, reading that register, read it back in the record's second word. The register the
     // kernel stores is then left as the probe place found it, the case's second word, and the top reads 0 where the
@@ -235,10 +281,15 @@ int identity_fixed(const char *engine, const char *answers, const char *ksc, con
     if (!fixed_alike(&query, zero_variant, second, what))
     {
         fixed_closed(&query);
-        printf(
-            "orior_klq_identity fixed: register %llu, the field's top, does not read 0 whatever is written to it, and "
-            "nothing more is written\n",
-            top);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity fixed: register ");
+            mmgr_line_decimal(output_line, top, 1u);
+            mmgr_line_put(output_line,
+                          ", the field's top, does not read 0 whatever is written to it, and nothing more is written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     const unsigned long long zero = top;
@@ -251,7 +302,13 @@ int identity_fixed(const char *engine, const char *answers, const char *ksc, con
     }
     std::vector<std::string> fixed_rows = {row};
     std::vector<std::string> case_rows;
-    printf("  zero is register %llu\n", zero);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  zero is register ");
+        mmgr_line_decimal(output_line, zero, 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     // what each register contains at the probe place, each type's row the lowest register containing it
     std::vector<unsigned int> word_0(s_question.cases);
     std::vector<unsigned int> word_1(s_question.cases);
@@ -270,14 +327,29 @@ int identity_fixed(const char *engine, const char *answers, const char *ksc, con
         if (!question_read(variant, &s_question, &query.queries))
         {
             run_print(&query.table, "register %u refused: %s\n", number, s_question.refused);
-            printf("  register %u: refused\n", number);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  register ");
+                mmgr_line_decimal(output_line, number, 1u);
+                mmgr_line_put(output_line, ": refused");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             continue;
         }
         const FixedKind type = fixed_type(s_question.answered, word_0.data(), word_1.data(), s_question.cases);
         const char *const question = fixed_type_question(type);
         run_print(&query.table, "register %u contains %s\n", number,
                   (type == FIXED_NOTHING) ? "nothing fixed" : question);
-        printf("  register %u: %s\n", number, (type == FIXED_NOTHING) ? "nothing fixed" : question);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  register ");
+            mmgr_line_decimal(output_line, number, 1u);
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_put(output_line, (type == FIXED_NOTHING) ? "nothing fixed" : question);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         if ((type == FIXED_NOTHING) || (given.count(type) != 0u))
         {
             continue;
@@ -296,12 +368,32 @@ int identity_fixed(const char *engine, const char *answers, const char *ksc, con
     fixed_closed(&query);
     if (!ksc_answers_write(ksc, "fixed", fixed_rows) || !ksc_answers_write(ksc, "case word", case_rows))
     {
-        printf("orior_klq_identity fixed: %s could not be written\n", ksc);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity fixed: ");
+            mmgr_line_put(output_line, ksc);
+            mmgr_line_put(output_line, " could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
-    printf("orior_klq_identity fixed: the probe place at place %u of %u, zero register %llu, %zu readings fixed at the "
-           "probe place, over "
-           "%llu queries, written to %s\n",
-           probe_place, places, zero, given.size(), query.queries, ksc);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "orior_klq_identity fixed: the probe place at place ");
+        mmgr_line_decimal(output_line, probe_place, 1u);
+        mmgr_line_put(output_line, " of ");
+        mmgr_line_decimal(output_line, places, 1u);
+        mmgr_line_put(output_line, ", zero register ");
+        mmgr_line_decimal(output_line, zero, 1u);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, given.size(), 1u);
+        mmgr_line_put(output_line, " readings fixed at the probe place, over ");
+        mmgr_line_decimal(output_line, query.queries, 1u);
+        mmgr_line_put(output_line, " queries, written to ");
+        mmgr_line_put(output_line, ksc);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 0;
 }

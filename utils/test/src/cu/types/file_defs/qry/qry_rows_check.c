@@ -12,6 +12,7 @@
 //
 // It runs in a query run (qry_run.sh).
 #include "../../../../../../../includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../../../../src/platform/platform.h"
 
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/table_text.h"
 #include <stdio.h>
@@ -27,7 +28,13 @@ static void check_that(int passed, const char *what)
     if (passed == 0)
     {
         s_failed += 1u;
-        printf("  FAILED: %s\n", what);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -48,7 +55,12 @@ int program_main(int argc, char **argv)
     (void)argv;
     if (qry_member_run() == NULL)
     {
-        printf("qry_rows_check: no run's writer runs\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "qry_rows_check: no run's writer runs");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
 
@@ -99,6 +111,15 @@ int program_main(int argc, char **argv)
     check_that(qry_member_append("check_rows", row, sizeof(row), QRY_ORDINARY) != 0ull,
                "bare: a row of a table with no oracle and no head is passed to the run");
 
-    printf("qry_rows_check: %u checks, %u failed\n", s_checks, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "qry_rows_check: ");
+        mmgr_line_decimal(output_line, s_checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, s_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failed == 0u) ? 0 : 1;
 }

@@ -48,6 +48,7 @@
  */
 
 #include "../../../../../../../src/cu/engine/nbody/orior/orior.h"
+#include "../../../../../../../src/platform/platform.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -114,9 +115,9 @@ static size_t o2_compose(const uint8_t *const corpus, const uint8_t *const needl
         const size_t located = alive;
         size_t offset = 0u;
         const size_t placed = ORIOR_STEER_CALL(orior_steer_spawn_coarms, OriorSteerDescent, .offsets = &offset,
-                                                .count = 1u, .corpus = corpus, .corpus_len = O2_CORPUS,
-                                                .needle = needle, .needle_len = O2_NEEDLE, .survivors = survivors,
-                                                .survivors_length = alignments, .sample_stride = 1u, .resume = resume);
+                                               .count = 1u, .corpus = corpus, .corpus_len = O2_CORPUS, .needle = needle,
+                                               .needle_len = O2_NEEDLE, .survivors = survivors,
+                                               .survivors_length = alignments, .sample_stride = 1u, .resume = resume);
         resume = 1;
         alive = o2_alive(survivors, alignments);
         if (placed == 0u)
@@ -162,7 +163,12 @@ static int o2_case_found_past_cap(void)
 
     if ((corpus == NULL) || (survivors == NULL))
     {
-        printf("    allocation failed\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    allocation failed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         free(corpus);
         free(survivors);
         return 1;
@@ -187,7 +193,12 @@ static int o2_case_found_past_cap(void)
 
     if (origin == alignments)
     {
-        printf("    FAIL premise: no unique target in the field, cannot test isolation\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL premise: no unique target in the field, cannot test isolation");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         free(corpus);
         free(survivors);
         return 1;
@@ -201,12 +212,27 @@ static int o2_case_found_past_cap(void)
 
     if (left != 1u)
     {
-        printf("    FAIL the composition left %zu located, not the single target\n", left);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL the composition left ");
+            mmgr_line_decimal(output_line, left, 1u);
+            mmgr_line_put(output_line, " located, not the single target");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
     if (depth <= ORIOR_STEER_ANCHORS)
     {
-        printf("    FAIL depth %zu did not exceed one descent's cap of %u\n", depth, ORIOR_STEER_ANCHORS);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL depth ");
+            mmgr_line_decimal(output_line, depth, 1u);
+            mmgr_line_put(output_line, " did not exceed one descent's cap of ");
+            mmgr_line_decimal(output_line, ORIOR_STEER_ANCHORS, 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
 
@@ -222,12 +248,26 @@ static int o2_case_found_past_cap(void)
     }
     if ((survivor == alignments) || (memcmp(corpus + survivor, needle, O2_NEEDLE) != 0))
     {
-        printf("    FAIL the sole survivor did not verify against the needle\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL the sole survivor did not verify against the needle");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
 
-    printf("  found past the cap: %zu alignments isolated to 1 in %zu probes, verdict %s\n", alignments, depth,
-           (failed == 0) ? "ok" : "FAILS");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  found past the cap: ");
+        mmgr_line_decimal(output_line, alignments, 1u);
+        mmgr_line_put(output_line, " alignments isolated to 1 in ");
+        mmgr_line_decimal(output_line, depth, 1u);
+        mmgr_line_put(output_line, " probes, verdict ");
+        mmgr_line_put(output_line, (failed == 0) ? "ok" : "FAILS");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     free(corpus);
     free(survivors);
     return failed;
@@ -247,7 +287,12 @@ static int o2_case_flat_errors(void)
 
     if ((corpus == NULL) || (survivors == NULL))
     {
-        printf("    allocation failed\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    allocation failed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         free(corpus);
         free(survivors);
         return 1;
@@ -265,16 +310,41 @@ static int o2_case_flat_errors(void)
 
     if (depth != 0u)
     {
-        printf("    FAIL a probe was placed on a flat field, depth %zu\n", depth);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL a probe was placed on a flat field, depth ");
+            mmgr_line_decimal(output_line, depth, 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
     if (left != alignments)
     {
-        printf("    FAIL the flat field pruned %zu of %zu alignments\n", alignments - left, alignments);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL the flat field pruned ");
+            mmgr_line_decimal(output_line, alignments - left, 1u);
+            mmgr_line_put(output_line, " of ");
+            mmgr_line_decimal(output_line, alignments, 1u);
+            mmgr_line_put(output_line, " alignments");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
 
-    printf("  flat field errors: %zu located at depth %zu, verdict %s\n", left, depth, (failed == 0) ? "ok" : "FAILS");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  flat field errors: ");
+        mmgr_line_decimal(output_line, left, 1u);
+        mmgr_line_put(output_line, " located at depth ");
+        mmgr_line_decimal(output_line, depth, 1u);
+        mmgr_line_put(output_line, ", verdict ");
+        mmgr_line_put(output_line, (failed == 0) ? "ok" : "FAILS");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     free(corpus);
     free(survivors);
     return failed;
@@ -294,7 +364,12 @@ static int o2_case_anytime_superset(void)
 
     if ((corpus == NULL) || (survivors == NULL))
     {
-        printf("    allocation failed\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    allocation failed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         free(corpus);
         free(survivors);
         return 1;
@@ -314,7 +389,12 @@ static int o2_case_anytime_superset(void)
     }
     if (origin == alignments)
     {
-        printf("    FAIL premise: no unique target in the field\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL premise: no unique target in the field");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         free(corpus);
         free(survivors);
         return 1;
@@ -328,17 +408,38 @@ static int o2_case_anytime_superset(void)
 
     if (left <= 1u)
     {
-        printf("    FAIL premise: the shallow stop already isolated the target, superset is trivial\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line,
+                          "    FAIL premise: the shallow stop already isolated the target, superset is trivial");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
     if (survivors[origin] == 0u)
     {
-        printf("    FAIL the target was dropped from the superset by an incomplete composition\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line,
+                          "    FAIL the target was dropped from the superset by an incomplete composition");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
 
-    printf("  anytime superset: target still located among %zu after %zu probes, verdict %s\n", left, depth,
-           (failed == 0) ? "ok" : "FAILS");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  anytime superset: target still located among ");
+        mmgr_line_decimal(output_line, left, 1u);
+        mmgr_line_put(output_line, " after ");
+        mmgr_line_decimal(output_line, depth, 1u);
+        mmgr_line_put(output_line, " probes, verdict ");
+        mmgr_line_put(output_line, (failed == 0) ? "ok" : "FAILS");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     free(corpus);
     free(survivors);
     return failed;
@@ -361,7 +462,12 @@ static int o2_case_cost_boundary(void)
 
     if ((corpus == NULL) || (survivors == NULL))
     {
-        printf("    allocation failed\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    allocation failed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         free(corpus);
         free(survivors);
         return 1;
@@ -406,11 +512,36 @@ static int o2_case_cost_boundary(void)
     const uint64_t rescan_prune = (uint64_t)alignments * (uint64_t)prune_depth;
     const uint64_t rescan_skew = (uint64_t)alignments * (uint64_t)skew_depth;
 
-    printf("  cost, %zu alignments:\n", alignments);
-    printf("    pruning field:       %llu reads over %zu levels, a re-scan would read %llu\n",
-           (unsigned long long)prune_sum, prune_depth, (unsigned long long)rescan_prune);
-    printf("    barely-pruning field: %llu reads over %zu levels, a re-scan would read %llu\n",
-           (unsigned long long)skew_sum, skew_depth, (unsigned long long)rescan_skew);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  cost, ");
+        mmgr_line_decimal(output_line, alignments, 1u);
+        mmgr_line_put(output_line, " alignments:");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    pruning field:       ");
+        mmgr_line_decimal(output_line, (unsigned long long)prune_sum, 1u);
+        mmgr_line_put(output_line, " reads over ");
+        mmgr_line_decimal(output_line, prune_depth, 1u);
+        mmgr_line_put(output_line, " levels, a re-scan would read ");
+        mmgr_line_decimal(output_line, (unsigned long long)rescan_prune, 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    barely-pruning field: ");
+        mmgr_line_decimal(output_line, (unsigned long long)skew_sum, 1u);
+        mmgr_line_put(output_line, " reads over ");
+        mmgr_line_decimal(output_line, skew_depth, 1u);
+        mmgr_line_put(output_line, " levels, a re-scan would read ");
+        mmgr_line_decimal(output_line, (unsigned long long)rescan_skew, 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     free(corpus);
     free(survivors);
@@ -423,13 +554,25 @@ int program_main(int argc, char **argv)
     (void)argv;
     int failed = 0;
 
-    printf("\n  O2 COMPOSITION, a descent resuming from another descent's survivors.\n\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n  O2 COMPOSITION, a descent resuming from another descent's survivors.\n");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     failed += o2_case_found_past_cap();
     failed += o2_case_flat_errors();
     failed += o2_case_anytime_superset();
     failed += o2_case_cost_boundary();
 
-    printf("\n  %d case(s) failed\n\n", failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n  ");
+        mmgr_line_decimal_signed(output_line, failed);
+        mmgr_line_put(output_line, " case(s) failed\n");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (failed == 0) ? 0 : 1;
 }

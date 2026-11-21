@@ -31,6 +31,7 @@
  *       nothing. It reads whether w holds to a carrier set on the own clock of theta.
  */
 #include "zeta_machine.h"
+#include "../../../src/platform/platform.h"
 #include "zeta_shuffle.h"
 
 #include <math.h>
@@ -659,19 +660,45 @@ int program_main(int argument_count, char **arguments)
             free(characters);
             free(carrier.characters);
         }
-        printf("  cell %lld: %llu points listed, ", (long long)nu, (unsigned long long)listing.count);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  cell ");
+            mmgr_line_decimal_signed(output_line, (long long)nu);
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_decimal(output_line, (unsigned long long)listing.count, 1u);
+            mmgr_line_put(output_line, " points listed, ");
+            platform_line_out_ended();
+        }
         for (int which = 0; which < CARRIER_COUNT; which += 1)
         {
-            printf("%s%s %lld", (which > 0) ? ", " : "", CARRIERS[which], (long long)counts[which]);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, (which > 0) ? ", " : "");
+            mmgr_line_put(output_line, CARRIERS[which]);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_signed(output_line, (long long)counts[which]);
+            platform_line_out_ended();
         }
-        printf(" read\n");
-        fflush(stdout);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, " read");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        platform_line_flushed();
         free(listing.ws);
         free(listing.lows);
     }
-    printf(
-        "  rate %s marks a unit of theta / pi; the uniform comb's arm a gives it back: %s; host checks failed %lld\n",
-        rate_text, given_back ? "True" : "False", (long long)failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  rate ");
+        mmgr_line_put(output_line, rate_text);
+        mmgr_line_put(output_line, " marks a unit of theta / pi; the uniform comb's arm a gives it back: ");
+        mmgr_line_put(output_line, given_back ? "True" : "False");
+        mmgr_line_put(output_line, "; host checks failed ");
+        mmgr_line_decimal_signed(output_line, (long long)failed);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     static ZetaRational values[CARRIER_COUNT][MOMENT_COUNT];
     static ZetaRational drawn_values[2][CARRIER_COUNT][DRAWS][MOMENT_COUNT];
     for (int which = 0; which < CARRIER_COUNT; which += 1)
@@ -685,16 +712,35 @@ int program_main(int argument_count, char **arguments)
             }
         }
     }
-    printf("  each moment over its count, for each carrier: the real; arm a's mean, reach, side; arm b's mean, reach, "
-           "side\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  each moment over its count, for each carrier: the real; arm a's mean, reach, "
+                                   "side; arm b's mean, reach, side");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     for (int at = 0; at < MOMENT_COUNT; at += 1)
     {
-        printf("  %s\n", MOMENTS[at]);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, MOMENTS[at]);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         for (int which = 0; which < CARRIER_COUNT; which += 1)
         {
             char real_text[128];
             show(&values[which][at], real_text, sizeof(real_text));
-            printf("    %-11s %12s   ", CARRIERS[which], real_text);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "    ");
+                mmgr_line_put_columns(output_line, CARRIERS[which], 11u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_put_right(output_line, real_text, 12u);
+                mmgr_line_put(output_line, "   ");
+                platform_line_out_ended();
+            }
             for (int arm = 0; arm < 2; arm += 1)
             {
                 ZetaRational draws[DRAWS];
@@ -706,16 +752,47 @@ int program_main(int argument_count, char **arguments)
                 const int reach = reach_of(&values[which][at], draws, &side);
                 char mean_text[128];
                 show_mean(draws, mean_text, sizeof(mean_text));
-                printf("%s%12s %2d %c", (arm > 0) ? "   " : "", mean_text, reach, side);
+                {
+                    VerbaLinea *const output_line = platform_line_out();
+                    mmgr_line_put(output_line, (arm > 0) ? "   " : "");
+                    mmgr_line_put_right(output_line, mean_text, 12u);
+                    mmgr_line_put(output_line, " ");
+                    {
+                        char linea_piece[24u];
+                        VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                        const int64_t linea_value = (int64_t)(reach);
+                        mmgr_line_decimal_signed(&linea_piece_line, linea_value);
+                        (void)mmgr_line_finish(&linea_piece_line);
+                        mmgr_line_put_right(output_line, linea_piece, 2u);
+                    }
+                    mmgr_line_put(output_line, " ");
+                    mmgr_line_ch(output_line, (char)(side));
+                    platform_line_out_ended();
+                }
             }
-            printf("\n");
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
         }
     }
-    printf("  the beats, golden less each other carrier, against the same draws' beats:\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the beats, golden less each other carrier, against the same draws' beats:");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     static const int OTHERS[3] = {0, 1, 3};
     for (int at = 0; at < MOMENT_COUNT; at += 1)
     {
-        printf("    %-17s ", MOMENTS[at]);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    ");
+            mmgr_line_put_columns(output_line, MOMENTS[at], 17u);
+            mmgr_line_put(output_line, " ");
+            platform_line_out_ended();
+        }
         for (int which = 0; which < 3; which += 1)
         {
             const int other = OTHERS[which];
@@ -723,7 +800,14 @@ int program_main(int argument_count, char **arguments)
             rational_sub(&values[2][at], &values[other][at], &beat);
             char beat_text[128];
             show(&beat, beat_text, sizeof(beat_text));
-            printf("%s%s %12s", (which > 0) ? "   " : "", CARRIERS[other], beat_text);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, (which > 0) ? "   " : "");
+                mmgr_line_put(output_line, CARRIERS[other]);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_put_right(output_line, beat_text, 12u);
+                platform_line_out_ended();
+            }
             for (int arm = 0; arm < 2; arm += 1)
             {
                 ZetaRational draws[DRAWS];
@@ -733,10 +817,21 @@ int program_main(int argument_count, char **arguments)
                 }
                 char side = '-';
                 const int reach = reach_of(&beat, draws, &side);
-                printf(" %c%d%c", (arm == 0) ? 'a' : 'b', reach, side);
+                {
+                    VerbaLinea *const output_line = platform_line_out();
+                    mmgr_line_put(output_line, " ");
+                    mmgr_line_ch(output_line, (char)((arm == 0) ? 'a' : 'b'));
+                    mmgr_line_decimal_signed(output_line, reach);
+                    mmgr_line_ch(output_line, (char)(side));
+                    platform_line_out_ended();
+                }
             }
         }
-        printf("\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     return ((failed != 0) || !given_back) ? 1 : 0;
 }

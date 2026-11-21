@@ -3,6 +3,7 @@
 // frame_round.c: the frame round: each place of the kernel put at the probe place in its variants over cases that reach
 // a second block, and the places that answered retained as forms
 #include "khw_learn_internal.h"
+#include "../../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 // one variant of a place: the encoding and the place it came from
@@ -194,8 +195,19 @@ unsigned int khw_frame_round(const KhwAnswered *probed_form, int discover)
         const unsigned long long high = khw_word_read(&s_opening_text[place * KHW_INSTRUCTION], 8u);
         khw_place_varied(probed_form, &fields, low, high, s_kernel_places + place, 1, s_variants, &variants);
     }
-    printf("  the frame round: %u variants of %u retained places and %u opening ones, the probe place at %u\n",
-           variants, s_kernel_places, s_opening_places, s_probe_place);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the frame round: ");
+        mmgr_line_decimal(output_line, variants, 1u);
+        mmgr_line_put(output_line, " variants of ");
+        mmgr_line_decimal(output_line, s_kernel_places, 1u);
+        mmgr_line_put(output_line, " retained places and ");
+        mmgr_line_decimal(output_line, s_opening_places, 1u);
+        mmgr_line_put(output_line, " opening ones, the probe place at ");
+        mmgr_line_decimal(output_line, s_probe_place, 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     s_pooled = 0u;
     const unsigned int nothing_at = khw_frame_pooled(s_unreached_low, s_unreached_high, s_frame_word, FRAME_CASES);
     for (unsigned int at = 0u; at < variants; at += 1u)
@@ -240,9 +252,23 @@ unsigned int khw_frame_round(const KhwAnswered *probed_form, int discover)
         retained += 1u;
         retained_place = s_variants[at].place;
         char relation[64];
-        printf("    %-14s %016llx %016llx  place %u, %u surviving%s\n",
-               khw_relation_named(&form, 1, relation, sizeof(relation)), form.low, form.high, s_variants[at].place,
-               form.survivors, (discover != 0) ? ", its turns await a cross-check" : "");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    ");
+            mmgr_line_put_columns(output_line, khw_relation_named(&form, 1, relation, sizeof(relation)), 14u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_hex(output_line, form.low, 16u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_hex(output_line, form.high, 16u);
+            mmgr_line_put(output_line, "  place ");
+            mmgr_line_decimal(output_line, s_variants[at].place, 1u);
+            mmgr_line_put(output_line, ", ");
+            mmgr_line_decimal(output_line, form.survivors, 1u);
+            mmgr_line_put(output_line, " surviving");
+            mmgr_line_put(output_line, (discover != 0) ? ", its turns await a cross-check" : "");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     s_pooled = 0u;
     return retained;

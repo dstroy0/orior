@@ -293,9 +293,10 @@ static void lane_edges(LaneResults *results)
         lane_print(results, expected);
         mmgr_line_ch(&results->line, '\n');
     }
-    lane_check(results, passed && (matched == 6u),
-               "the latch returns the positioned-out lane on the device and the host at every edge, and none where only bits "
-               "outside the field are set");
+    lane_check(
+        results, passed && (matched == 6u),
+        "the latch returns the positioned-out lane on the device and the host at every edge, and none where only bits "
+        "outside the field are set");
     // a field past the record, and no lanes, error
     unsigned long long error_first = 0ull;
     const CycleRecordLatchRequest over_limit = {device_records, lanes, LANE_TEST_EDGE_LIMBS, 60u, 5u,
@@ -433,7 +434,8 @@ int program_main(int count, char **arguments)
     mmgr_line_put(&results.line, " checks, ");
     mmgr_line_decimal(&results.line, results.failures, 1u);
     mmgr_line_put(&results.line, " failed\n");
-    (void)(mmgr_line_ok(&results.line) && (fwrite(results.line.out, 1u, mmgr_line_finish(&results.line), stdout) == results.line.at));
+    (void)(mmgr_line_ok(&results.line) &&
+           (platform_line_out_put(results.line.out, mmgr_line_finish(&results.line)) == results.line.at));
     free(results.line.out);
     return (results.failures == 0ull) ? 0 : 1;
 }

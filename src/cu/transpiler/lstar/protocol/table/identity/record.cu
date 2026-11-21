@@ -247,12 +247,21 @@ void record_close(void)
     }
     if (!ksc_answers_write(s_record_ksc.c_str(), "query", rows))
     {
-        printf("  the record could not be written to %s\n", s_record_ksc.c_str());
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the record could not be written to ");
+        mmgr_line_put(output_line, s_record_ksc.c_str());
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     s_record_ksc.clear();
     if (!s_query_record_path.empty() && !kqr_write(&s_query_record, s_query_record_path.c_str()))
     {
-        printf("  %s could not be written through the run's writer\n", s_query_record_path.c_str());
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, s_query_record_path.c_str());
+        mmgr_line_put(output_line, " could not be written through the run's writer");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     s_query_record_path.clear();
 }
@@ -266,8 +275,13 @@ void record_open(const char *ksc, const char *mode)
     // how far a container's code reaches, for a register refusal the cross gives the channel (run_channel.h)
     if (!run_channel_registers_past(ksc))
     {
-        printf("  %s contains no answer of how far a container's code reaches: a register refusal stays refused\n",
-               ksc);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, ksc);
+        mmgr_line_put(output_line,
+                      " contains no answer of how far a container's code reaches: a register refusal stays refused");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     KscFile ksc_file = {};
     static KscRow s_row;
@@ -303,7 +317,14 @@ void record_open(const char *ksc, const char *mode)
     if (!kqr_read(&s_query_record, s_query_record_path.c_str(), classified.substr(stem_at, suffix_at - stem_at).c_str(),
                   error, sizeof(error)))
     {
-        printf("  %s: the query record is not read, and nothing is written to it\n", error);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, error);
+            mmgr_line_put(output_line, ": the query record is not read, and nothing is written to it");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         s_query_record_path.clear();
     }
     else

@@ -31,8 +31,15 @@ static void kdecode_displayed_given(int failure)
         }
         else
         {
-            // the line's length is within its room, which a size_t counts
-            fwrite(s_displayed.out, 1u, (size_t)s_displayed.at, (failure != 0) ? stderr : stdout);
+            // a failure goes to the error stream, and the rows go to the line of the output stream
+            if (failure != 0)
+            {
+                platform_terminal_write(1, s_displayed.out, (unsigned long long)s_displayed.at);
+            }
+            else
+            {
+                (void)platform_line_out_put(s_displayed.out, (unsigned long long)s_displayed.at);
+            }
         }
     }
     s_displayed.at = 0ULL;

@@ -22,11 +22,21 @@ static void qasm_test_check(QasmResults *results, int passed, const char *claim)
     if (passed == 0)
     {
         results->failed += 1u;
-        printf("  FAIL %s\n", claim);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAIL ");
+            mmgr_line_put(output_line, claim);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     else
     {
-        printf("  ok   %s\n", claim);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ok   ");
+        mmgr_line_put(output_line, claim);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
 }
 
@@ -216,8 +226,23 @@ static int qasm_test_run(const QasmTestCircuit *circuit, const QasmNumber *input
         capacity,        &error};
     if (qasm_self_run(&request, measurement) == QASM_ERROR)
     {
-        printf("  %s errored on the %s: error type %d, module %d, site %u, status %d\n", circuit->name,
-               (on_host != 0) ? "host" : "device", (int)error.type, (int)error.module, error.site, error.status);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, circuit->name);
+            mmgr_line_put(output_line, " errored on the ");
+            mmgr_line_put(output_line, (on_host != 0) ? "host" : "device");
+            mmgr_line_put(output_line, ": error type ");
+            mmgr_line_decimal_signed(output_line, (int)error.type);
+            mmgr_line_put(output_line, ", module ");
+            mmgr_line_decimal_signed(output_line, (int)error.module);
+            mmgr_line_put(output_line, ", site ");
+            mmgr_line_decimal(output_line, error.site, 1u);
+            mmgr_line_put(output_line, ", status ");
+            mmgr_line_decimal_signed(output_line, error.status);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     return 1;
@@ -249,9 +274,24 @@ static unsigned long long qasm_test_host(QasmResults *results)
         qasm_test_check(results, basis, claim);
         if (basis)
         {
-            printf("         %u steps, %u file limbs, %u in limbs, %u out limbs, %llu device bytes, %llu us\n",
-                   measurement.steps, measurement.file_limbs, measurement.in_limbs, measurement.out_limbs,
-                   measurement.device_bytes, measurement.microseconds);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "         ");
+                mmgr_line_decimal(output_line, measurement.steps, 1u);
+                mmgr_line_put(output_line, " steps, ");
+                mmgr_line_decimal(output_line, measurement.file_limbs, 1u);
+                mmgr_line_put(output_line, " file limbs, ");
+                mmgr_line_decimal(output_line, measurement.in_limbs, 1u);
+                mmgr_line_put(output_line, " in limbs, ");
+                mmgr_line_decimal(output_line, measurement.out_limbs, 1u);
+                mmgr_line_put(output_line, " out limbs, ");
+                mmgr_line_decimal(output_line, measurement.device_bytes, 1u);
+                mmgr_line_put(output_line, " device bytes, ");
+                mmgr_line_decimal(output_line, measurement.microseconds, 1u);
+                mmgr_line_put(output_line, " us");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             widest = (measurement.device_bytes > widest) ? measurement.device_bytes : widest;
         }
         const int moved =
@@ -304,7 +344,14 @@ static void qasm_test_agree(QasmResults *results, const QasmTestCircuit *circuit
     qasm_test_check(results, agree, claim);
     if (agree)
     {
-        printf("         device %llu us, host %llu us\n", device.microseconds, host.microseconds);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "         device ");
+        mmgr_line_decimal(output_line, device.microseconds, 1u);
+        mmgr_line_put(output_line, " us, host ");
+        mmgr_line_decimal(output_line, host.microseconds, 1u);
+        mmgr_line_put(output_line, " us");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     free(host_outputs);
     free(device_outputs);
@@ -415,8 +462,18 @@ int program_main(int argc, char **argv)
     static const unsigned char named[] = "qasm_self_test";
     if (qasm_job_submit(named, sizeof(named) - 1u, (widest != 0ull) ? widest : 1ull, &job, &error) == QASM_ERROR)
     {
-        printf("  FAIL the device's tessera daemon did not admit the test (error type %d, module %d, site %u)\n",
-               (int)error.type, (int)error.module, error.site);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAIL the device's tessera daemon did not admit the test (error type ");
+            mmgr_line_decimal_signed(output_line, (int)error.type);
+            mmgr_line_put(output_line, ", module ");
+            mmgr_line_decimal_signed(output_line, (int)error.module);
+            mmgr_line_put(output_line, ", site ");
+            mmgr_line_decimal(output_line, error.site, 1u);
+            mmgr_line_put(output_line, ")");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         results.failed += 1u;
     }
     else
@@ -426,6 +483,15 @@ int program_main(int argc, char **argv)
         memset(&released, 0, sizeof(released));
         qasm_job_release(job, &released);
     }
-    printf("  qasm self test: %u checks, %u failed\n", results.checks, results.failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  qasm self test: ");
+        mmgr_line_decimal(output_line, results.checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, results.failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (results.failed == 0u) ? 0 : 1;
 }

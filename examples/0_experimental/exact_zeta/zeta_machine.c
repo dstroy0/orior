@@ -10,6 +10,7 @@
 #endif
 
 #include "zeta_machine.h"
+#include "../../../src/platform/platform.h"
 #include "zeta_riemann_siegel.h"
 
 #include <math.h>
@@ -1373,11 +1374,31 @@ static void device(const char *binary, const char *given, const char *taken, con
         }
         printed[printed_count] = '\0';
         const size_t start = (printed_count > 2000u) ? (printed_count - 2000u) : 0u;
-        printf("%s\n", printed + start);
-        printf("  %s: the device run failed, attempt %d\n", what, attempt + 1);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, printed + start);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_put(output_line, ": the device run failed, attempt ");
+            mmgr_line_decimal_signed(output_line, attempt + 1);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         served_stop();
     }
-    printf("  %s: the device run failed\n", what);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, what);
+        mmgr_line_put(output_line, ": the device run failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     exit(1);
 }
 

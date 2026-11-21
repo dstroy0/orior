@@ -8,6 +8,7 @@
 // decoded and checked against the arithmetic done directly. The test is one job on the device's tessera daemon,
 // submitted before the program is loaded onto the device.
 #include "codegen_device.h"
+#include "../../../../../../../src/platform/platform.h"
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../../../../../../includes/exact_types/integers/exact_integer.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
@@ -259,7 +260,8 @@ int program_main(int count, char **arguments)
     mmgr_line_put(&results.line, " checks, ");
     mmgr_line_decimal(&results.line, results.failures, 1u);
     mmgr_line_put(&results.line, " failed\n");
-    (void)(mmgr_line_ok(&results.line) && (fwrite(results.line.out, 1u, mmgr_line_finish(&results.line), stdout) == results.line.at));
+    (void)(mmgr_line_ok(&results.line) &&
+           (platform_line_out_put(results.line.out, mmgr_line_finish(&results.line)) == results.line.at));
     free(results.line.out);
     return (results.failures == 0ull) ? 0 : 1;
 }

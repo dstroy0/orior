@@ -25,6 +25,7 @@
 // branches doing the same work give a count that leans by chance at some trial more often than the spread predicts. It
 // is read on the whole record, at CHECK_TRIALS_MAX. The run size is steered by the part, as query_descent.h states.
 #include "query_descent.h"
+#include "../../../../../../../src/platform/platform.h"
 
 #include <stdio.h>
 
@@ -41,7 +42,13 @@ static void check_that(int passed, const char *what)
     if (passed == 0)
     {
         s_failed += 1u;
-        printf("  FAILED: %s\n", what);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -153,13 +160,29 @@ int program_main(int argc, char **argv)
         }
     }
     unsigned int followed = 0u;
-    printf("  branches 512 reads apart at every link, the cheaper read cheaper, link by link:");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  branches 512 reads apart at every link, the cheaper read cheaper, link by link:");
+        platform_line_out_ended();
+    }
     for (unsigned int number = 0u; number < CHECK_LINKS; number += 1u)
     {
-        printf(" %u", cheaper[number]);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal(output_line, cheaper[number], 1u);
+            platform_line_out_ended();
+        }
         followed += (query_descent_leans(cheaper[number], trials) != 0) ? 1u : 0u;
     }
-    printf(" of %u trials, from both sides alike\n", trials);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, " of ");
+        mmgr_line_decimal(output_line, trials, 1u);
+        mmgr_line_put(output_line, " trials, from both sides alike");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     check_that(followed == CHECK_LINKS, "the cheaper branch reads cheaper at every link past twice the spread");
 
     // the experiment: two branches doing the same work, read on its whole record
@@ -183,22 +206,69 @@ int program_main(int argc, char **argv)
     }
     const int marked = (query_descent_leans(first_dearer, CHECK_TRIALS_MAX) != 0) ||
                        (query_descent_leans(CHECK_TRIALS_MAX - first_dearer, CHECK_TRIALS_MAX) != 0);
-    printf("  branches doing the same work, %u trials, the side queried first changing every trial:\n",
-           CHECK_TRIALS_MAX);
-    printf("    the branch queried first reads dearer in %u, the other in %u\n", first_dearer,
-           CHECK_TRIALS_MAX - first_dearer);
-    printf("    the branch queried first reads dearer, link by link:");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  branches doing the same work, ");
+        mmgr_line_decimal(output_line, CHECK_TRIALS_MAX, 1u);
+        mmgr_line_put(output_line, " trials, the side queried first changing every trial:");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    the branch queried first reads dearer in ");
+        mmgr_line_decimal(output_line, first_dearer, 1u);
+        mmgr_line_put(output_line, ", the other in ");
+        mmgr_line_decimal(output_line, CHECK_TRIALS_MAX - first_dearer, 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    the branch queried first reads dearer, link by link:");
+        platform_line_out_ended();
+    }
     for (unsigned int number = 0u; number < CHECK_LINKS; number += 1u)
     {
-        printf(" %u", link_first_dearer[number]);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal(output_line, link_first_dearer[number], 1u);
+        platform_line_out_ended();
     }
-    printf(" of %u\n", CHECK_TRIALS_MAX);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, " of ");
+        mmgr_line_decimal(output_line, CHECK_TRIALS_MAX, 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     const char *const verdict = (marked != 0) ? "leaves a mark" : "leaves no mark";
-    printf("    the side queried from %s past twice the spread\n", verdict);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    the side queried from ");
+        mmgr_line_put(output_line, verdict);
+        mmgr_line_put(output_line, " past twice the spread");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 #else
-    printf("  no shared page named to this test on this platform: the branches are not put\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  no shared page named to this test on this platform: the branches are not put");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 #endif
 
-    printf("  branch side: %u checks, %u failed\n", s_checks, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  branch side: ");
+        mmgr_line_decimal(output_line, s_checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, s_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failed == 0u) ? 0 : 1;
 }

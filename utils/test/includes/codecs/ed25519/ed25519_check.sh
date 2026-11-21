@@ -12,10 +12,11 @@ TOP="$(cd "$HERE/../../../../.." && pwd)"
 OUT="$TOP/build/ed25519"
 mkdir -p "$OUT"
 source "$TOP/includes/file_defs/file_defs.sh"
+source "$TOP/includes/exact_types/exact_types.sh"
 # a program built before under the other name, with or without .exe, would be run in place of the one built here
 rm -f "$OUT/ed25519_check" "$OUT/ed25519_check.exe"
 
 "${CC:-cc}" -std=c11 -O2 -Wall -Wextra -o "$OUT/ed25519_check" "$HERE/ed25519_check.c" \
     "$TOP/includes/codecs/ed25519/ed25519.c" "$TOP/includes/codecs/sha512/sha512.c" \
-    "${FILE_DEFS_MMGR_FLAGS[@]}" "${FILE_DEFS_LINEA[@]}" || exit 1
+    "${FILE_DEFS_MMGR_FLAGS[@]}" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || exit 1
 "$OUT/ed25519_check"

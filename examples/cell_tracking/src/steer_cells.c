@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "../../../src/cu/engine/nbody/orior/orior.h"
+#include "../../../src/platform/platform.h"
 
 typedef struct
 {
@@ -28,7 +29,7 @@ static int steer_order(const void *left, const void *right)
     return (a->occurrences > b->occurrences) ? 1 : 0;
 }
 
-int main(int argc, char **argv)
+int program_main(int argc, char **argv)
 {
     if (argc < 3)
     {
@@ -107,9 +108,26 @@ int main(int argc, char **argv)
     const unsigned long share = strtoul(argv[2], NULL, 10);
     const uint64_t budget = (census.total * (uint64_t)share) / 1000u;
 
-    (void)printf("  field %llu voxels, %u distinct levels, admitting %llu voxels (%lu per mille)\n",
-                 (unsigned long long)census.total, census.distinct, (unsigned long long)budget, share);
-    (void)printf("\n  rank  level  occurrences  magnitude\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  field ");
+        mmgr_line_decimal(output_line, (unsigned long long)census.total, 1u);
+        mmgr_line_put(output_line, " voxels, ");
+        mmgr_line_decimal(output_line, census.distinct, 1u);
+        mmgr_line_put(output_line, " distinct levels, admitting ");
+        mmgr_line_decimal(output_line, (unsigned long long)budget, 1u);
+        mmgr_line_put(output_line, " voxels (");
+        mmgr_line_decimal(output_line, share, 1u);
+        mmgr_line_put(output_line, " per mille)");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n  rank  level  occurrences  magnitude");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     uint64_t spent = 0u;
     unsigned char admitted[ORIOR_STEER_SYMBOLS];
@@ -129,14 +147,52 @@ int main(int argc, char **argv)
         spent += ranked[at].occurrences;
         if (taken < 8u)
         {
-            (void)printf("  %-5u %-6u %-12llu %llu\n", taken, ranked[at].level,
-                         (unsigned long long)ranked[at].occurrences, (unsigned long long)ranked[at].magnitude);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            {
+                char linea_piece[24u];
+                VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                mmgr_line_decimal(&linea_piece_line, (uint64_t)(taken), 1u);
+                (void)mmgr_line_finish(&linea_piece_line);
+                mmgr_line_put_columns(output_line, linea_piece, 5u);
+            }
+            mmgr_line_put(output_line, " ");
+            {
+                char linea_piece[24u];
+                VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                mmgr_line_decimal(&linea_piece_line, (uint64_t)(ranked[at].level), 1u);
+                (void)mmgr_line_finish(&linea_piece_line);
+                mmgr_line_put_columns(output_line, linea_piece, 6u);
+            }
+            mmgr_line_put(output_line, " ");
+            {
+                char linea_piece[24u];
+                VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                mmgr_line_decimal(&linea_piece_line, (uint64_t)((unsigned long long)ranked[at].occurrences), 1u);
+                (void)mmgr_line_finish(&linea_piece_line);
+                mmgr_line_put_columns(output_line, linea_piece, 12u);
+            }
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal(output_line, (unsigned long long)ranked[at].magnitude, 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
         taken++;
     }
 
-    (void)printf("\n  %u levels admitted, %llu voxels, %.3f per mille of the field\n", taken, (unsigned long long)spent,
-                 census.total ? (1000.0 * (double)spent / (double)census.total) : 0.0);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n  ");
+        mmgr_line_decimal(output_line, taken, 1u);
+        mmgr_line_put(output_line, " levels admitted, ");
+        mmgr_line_decimal(output_line, (unsigned long long)spent, 1u);
+        mmgr_line_put(output_line, " voxels, ");
+        mmgr_line_fixed(output_line, (double)(census.total ? (1000.0 * (double)spent / (double)census.total) : 0.0), 3u,
+                        0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " per mille of the field");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     FILE *out = fopen("steered.txt", "w");
     if (out != NULL)
@@ -149,7 +205,12 @@ int main(int argc, char **argv)
             }
         }
         fclose(out);
-        (void)printf("  wrote steered.txt\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  wrote steered.txt");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     return 0;
 }

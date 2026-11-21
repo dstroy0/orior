@@ -82,8 +82,14 @@ void query_logs_opened(void)
     s_query_run = qry_member_run();
     if (s_query_run == NULL)
     {
-        printf("orior_klq_identity: no query writer runs to take the trace: %s names no .qry a writer has open\n",
-               QRY_ENVIRONMENT);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity: no query writer runs to take the trace: ");
+            mmgr_line_put(output_line, QRY_ENVIRONMENT);
+            mmgr_line_put(output_line, " names no .qry a writer has open");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return;
     }
     s_trace_log = &s_trace_whole;

@@ -163,9 +163,20 @@ unsigned int sass_machine_widen(SassMachine *machine, const char *architecture, 
         done = reach;
         rounds += 1u;
     }
-    printf("interface sass widen: %u forms listed, %u a bit at a time from them over %u rounds, %u forms the "
-           "disassembler failed\n",
-           listed, machine->forms - listed, rounds, failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "interface sass widen: ");
+        mmgr_line_decimal(output_line, listed, 1u);
+        mmgr_line_put(output_line, " forms listed, ");
+        mmgr_line_decimal(output_line, machine->forms - listed, 1u);
+        mmgr_line_put(output_line, " a bit at a time from them over ");
+        mmgr_line_decimal(output_line, rounds, 1u);
+        mmgr_line_put(output_line, " rounds, ");
+        mmgr_line_decimal(output_line, failed, 1u);
+        mmgr_line_put(output_line, " forms the disassembler failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return machine->forms - listed;
 }
 
@@ -204,11 +215,24 @@ int sass_machine_fields(SassMachine *machine, const char *architecture, const ch
                         ? 1u
                         : 0u;
     }
-    printf("interface sass machine: %u forms of the %u it contains, %u without fields, %s, %u differing when read "
-           "back, %u "
-           "forms it had no room for\n",
-           machine->forms, (unsigned int)SASS_MACHINE_FORMS, failed, written ? "written" : "not written", differed,
-           machine->refused);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "interface sass machine: ");
+        mmgr_line_decimal(output_line, machine->forms, 1u);
+        mmgr_line_put(output_line, " forms of the ");
+        mmgr_line_decimal(output_line, (unsigned int)SASS_MACHINE_FORMS, 1u);
+        mmgr_line_put(output_line, " it contains, ");
+        mmgr_line_decimal(output_line, failed, 1u);
+        mmgr_line_put(output_line, " without fields, ");
+        mmgr_line_put(output_line, written ? "written" : "not written");
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, differed, 1u);
+        mmgr_line_put(output_line, " differing when read back, ");
+        mmgr_line_decimal(output_line, machine->refused, 1u);
+        mmgr_line_put(output_line, " forms it had no room for");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     // a machine that filled up is a machine missing forms nobody named: a truncation, not a reading
     return (written != 0) && (failed == 0u) && (differed == 0u) && (machine->refused == 0u);
 }
@@ -307,10 +331,24 @@ unsigned int sass_machine_sweep(SassMachine *machine, const char *architecture, 
             }
         }
     }
-    printf("interface sass sweep: %u keys put to the disassembler from each of %u carriers, %u named, %u forms it had "
-           "not already, %u batches the disassembler failed, %u forms past what the machine contains\n",
-           (unsigned int)(SASS_OPERATION_MASK + 1ULL), carriers, named, machine->forms - forms_before, failed,
-           machine->refused);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "interface sass sweep: ");
+        mmgr_line_decimal(output_line, (unsigned int)(SASS_OPERATION_MASK + 1ULL), 1u);
+        mmgr_line_put(output_line, " keys put to the disassembler from each of ");
+        mmgr_line_decimal(output_line, carriers, 1u);
+        mmgr_line_put(output_line, " carriers, ");
+        mmgr_line_decimal(output_line, named, 1u);
+        mmgr_line_put(output_line, " named, ");
+        mmgr_line_decimal(output_line, machine->forms - forms_before, 1u);
+        mmgr_line_put(output_line, " forms it had not already, ");
+        mmgr_line_decimal(output_line, failed, 1u);
+        mmgr_line_put(output_line, " batches the disassembler failed, ");
+        mmgr_line_decimal(output_line, machine->refused, 1u);
+        mmgr_line_put(output_line, " forms past what the machine contains");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return machine->forms - forms_before;
 }
 
@@ -328,7 +366,14 @@ int sass_machine_same(const SassMachine *machine, const char *machines)
     static SassMachine s_tree;
     if (!sass_machine_read(&s_tree, path))
     {
-        printf("interface sass machine: the tree contains no %s, so this part's is the probe's alone\n", machine->part);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "interface sass machine: the tree contains no ");
+            mmgr_line_put(output_line, machine->part);
+            mmgr_line_put(output_line, ", so this part's is the probe's alone");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     unsigned int differed = (s_tree.forms == machine->forms) ? 0u : 1u;
@@ -342,11 +387,25 @@ int sass_machine_same(const SassMachine *machine, const char *machines)
                         ? 1u
                         : 0u;
     }
-    printf("interface sass machine: the tree's %s contains %u forms, %u of them differing from this run's\n",
-           machine->part, s_tree.forms, differed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "interface sass machine: the tree's ");
+        mmgr_line_put(output_line, machine->part);
+        mmgr_line_put(output_line, " contains ");
+        mmgr_line_decimal(output_line, s_tree.forms, 1u);
+        mmgr_line_put(output_line, " forms, ");
+        mmgr_line_decimal(output_line, differed, 1u);
+        mmgr_line_put(output_line, " of them differing from this run's");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     if (differed != 0u)
     {
-        printf("  the part or its toolchain has moved: copy the run's machine over %s\n", path);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the part or its toolchain has moved: copy the run's machine over ");
+        mmgr_line_put(output_line, path);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     return (differed == 0u) ? 1 : 0;
 }

@@ -30,6 +30,7 @@
  *       2 artanh(l / D).
  */
 #include "zeta_riemann_siegel.h"
+#include "../../../src/platform/platform.h"
 
 #include <dirent.h>
 #include <stdlib.h>
@@ -267,7 +268,12 @@ static void lobes_build(char binary[512])
     }
     if ((pclose(made) != 0) || (binary[0] == '\0'))
     {
-        printf("  the build failed\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  the build failed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         exit(1);
     }
 }
@@ -607,22 +613,59 @@ int program_main(int argument_count, char **arguments)
             const size_t length = fread(text, 1u, sizeof(text) - 1u, log);
             fclose(log);
             text[length] = '\0';
-            printf("%s\n", text);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, text);
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
         }
-        printf("  the device run failed\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  the device run failed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     Stage curves;
     Stage logs;
     parse(taken, &curves, &logs);
-    printf("  cell: nu = %d, b = %d, %d points; curves C_0 .. C_%d at 2^-%d; the logarithm by %d terms\n", NU, B, LANES,
-           CURVES, SCALE_BITS, LOG_TERMS);
-    printf("  coefficients a curve: ");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  cell: nu = ");
+        mmgr_line_decimal_signed(output_line, NU);
+        mmgr_line_put(output_line, ", b = ");
+        mmgr_line_decimal_signed(output_line, B);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal_signed(output_line, LANES);
+        mmgr_line_put(output_line, " points; curves C_0 .. C_");
+        mmgr_line_decimal_signed(output_line, CURVES);
+        mmgr_line_put(output_line, " at 2^-");
+        mmgr_line_decimal_signed(output_line, SCALE_BITS);
+        mmgr_line_put(output_line, "; the logarithm by ");
+        mmgr_line_decimal_signed(output_line, LOG_TERMS);
+        mmgr_line_put(output_line, " terms");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  coefficients a curve: ");
+        platform_line_out_ended();
+    }
     for (int n = 0; n <= CURVES; n += 1)
     {
-        printf("%s%llu", (n > 0) ? ", " : "", (unsigned long long)gammas[n].count);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, (n > 0) ? ", " : "");
+        mmgr_line_decimal(output_line, (unsigned long long)gammas[n].count, 1u);
+        platform_line_out_ended();
     }
-    printf("\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     const int host = (curves.host == 1) && (logs.host == 1);
     const ZetaRational worst = check_curves(&curves, gammas);
     OriorExactInteger tolerance_under;
@@ -634,14 +677,41 @@ int program_main(int argument_count, char **arguments)
     const int curves_ok = rational_cmp(&worst, &tolerance) <= 0;
     ZetaRational widest;
     const int logs_ok = check_logs(&logs, &lambda, &widest);
-    printf("  the curves: C_n read back from the device meets c_at's exact rational to %.3e across the cell, the "
-           "residual the 160-term truncation at z = +-1, inside %.3e: %s\n",
-           rational_to_double(&worst), rational_to_double(&tolerance), truth(curves_ok));
-    printf("  the logarithm: every bracket holds zz's exact 2 artanh(l / D), the widest %.3e wide: %s\n",
-           rational_to_double(&widest), truth(logs_ok));
-    printf("  the host's records %s the device's word for word\n", host ? "equal" : "differ from");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the curves: C_n read back from the device meets c_at's exact rational to ");
+        mmgr_line_exponent(output_line, (double)(rational_to_double(&worst)), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " across the cell, the residual the 160-term truncation at z = +-1, inside ");
+        mmgr_line_exponent(output_line, (double)(rational_to_double(&tolerance)), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_put(output_line, truth(curves_ok));
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the logarithm: every bracket holds zz's exact 2 artanh(l / D), the widest ");
+        mmgr_line_exponent(output_line, (double)(rational_to_double(&widest)), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " wide: ");
+        mmgr_line_put(output_line, truth(logs_ok));
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the host's records ");
+        mmgr_line_put(output_line, host ? "equal" : "differ from");
+        mmgr_line_put(output_line, " the device's word for word");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     const int good = host && curves_ok && logs_ok;
-    printf("%s\n", good ? "  both stages check out" : "  a stage does not check out");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, good ? "  both stages check out" : "  a stage does not check out");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     for (int n = 0; n <= CURVES; n += 1)
     {
         row_free(&gammas[n]);

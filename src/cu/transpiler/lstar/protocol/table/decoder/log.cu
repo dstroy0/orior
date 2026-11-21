@@ -3,6 +3,7 @@
 // log.cu: the log read off the run into the puts, case sets, metas, categories and choices, and each pair's set,
 // product and identity decoded off its puts
 #include "decoder_internal.h"
+#include "../../../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 #include "../../../../../../../includes/file_defs/qry/qry_read.h"
@@ -59,7 +60,12 @@ int Decoding::log_read(const char *qry)
     const unsigned long long joined_size = log_joined(qry);
     if (joined_size == QRY_MEMBER_UNREAD)
     {
-        printf("orior_klq_decoder: the log could not be read whole\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_decoder: the log could not be read whole");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     std::istringstream log(std::string((const char *)s_log, (size_t)joined_size));
@@ -70,7 +76,13 @@ int Decoding::log_read(const char *qry)
     std::string trace_error;
     if (!query_trace_read(query_trace_path(), &trace, &trace_error))
     {
-        printf("orior_klq_decoder: %s\n", trace_error.c_str());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_decoder: ");
+            mmgr_line_put(output_line, trace_error.c_str());
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     std::string choosing;

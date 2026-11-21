@@ -23,6 +23,7 @@
 //
 // It runs in a query run (qry_run.sh): every file it writes is passed to the run's writer.
 #include "../../../../../../../includes/file_defs/kdm/kdm.h"
+#include "../../../../../../../src/platform/platform.h"
 #include "../../../../../../../includes/file_defs/klang/klang.h"
 
 #include "../../../../../../../includes/parsers/who.h"
@@ -40,7 +41,13 @@ static void check_that(int passed, const char *what)
     if (passed == 0)
     {
         s_failed += 1u;
-        printf("  FAILED: %s\n", what);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -101,14 +108,26 @@ int program_main(int count, char **words)
 {
     if (count < 2)
     {
-        printf("kdm_check <folder> [<a part's .kdm>]\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "kdm_check <folder> [<a part's .kdm>]");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     char path[1024];
     snprintf(path, sizeof(path), "%s/kdm_check.kdm", words[1]);
     if (qry_member_filed(path, s_written, strlen(s_written)) == 0ull)
     {
-        printf("  %s could not be written: no run's writer runs, or it is outside the tree\n", path);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, path);
+            mmgr_line_put(output_line, " could not be written: no run's writer runs, or it is outside the tree");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     check_that(kdm_read(&s_file, path) && (s_file.lines == 15u), "a .kdm is read, a line each");
@@ -306,8 +325,19 @@ int program_main(int count, char **words)
         const int same = written && (after != NULL) && (before != NULL) && (strncmp(after, before, first_line) == 0) &&
                          (strncmp(after + first_line, head, strlen(head)) == 0) &&
                          (strcmp(after + first_line + strlen(head), before + first_line) == 0);
-        printf("  %s: %u lines, a section of %u written again, %s\n", words[2], lines, section_lines,
-               same ? "as it was with a who line after its first" : "DIFFERING");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, words[2]);
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_decimal(output_line, lines, 1u);
+            mmgr_line_put(output_line, " lines, a section of ");
+            mmgr_line_decimal(output_line, section_lines, 1u);
+            mmgr_line_put(output_line, " written again, ");
+            mmgr_line_put(output_line, same ? "as it was with a who line after its first" : "DIFFERING");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         check_that(same, "a part's section written again as it contains it leaves it as it was, a who line after its "
                          "first");
         free(cut);
@@ -315,6 +345,15 @@ int program_main(int count, char **words)
         kdm_free(&s_file);
     }
 
-    printf("kdm_check: %u checks, %u failed\n", s_checks, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "kdm_check: ");
+        mmgr_line_decimal(output_line, s_checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, s_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failed == 0u) ? 0 : 1;
 }

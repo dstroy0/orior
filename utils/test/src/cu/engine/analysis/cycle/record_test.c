@@ -6,10 +6,11 @@
 // library's own steps, with no device and no CUDA toolchain. Each program's inputs come from one xorshift stream:
 // every host draws the same atoms, and the test prints a digest of the inputs and of every output word: two parts
 // whose lines match run the record machine word for word alike. The device's record tests check the device against this
-// same oracle on the x86 host. A part that matches x86 here matches the device too. It also checks that a positioned-out
-// program with its registers reused writes the records the unreused one does, and that a zero divisor and an inexact
-// division error on the run.
+// same oracle on the x86 host. A part that matches x86 here matches the device too. It also checks that a
+// positioned-out program with its registers reused writes the records the unreused one does, and that a zero divisor
+// and an inexact division error on the run.
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
+#include "../../../../../../../src/platform/platform.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
 #include "../../../../../../../includes/exact_types/integers/exact_integer.h"
@@ -30,7 +31,15 @@ static void host_check(HostResults *results, int passed, const char *what)
 {
     results->checks += 1u;
     results->failed += passed ? 0u : 1u;
-    printf("  %s %s\n", passed ? "ok  " : "FAIL", what);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, passed ? "ok  " : "FAIL");
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put(output_line, what);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
 // the program arranged and run over its members' atoms, with the index where one is given; its records' digest printed.
@@ -42,7 +51,17 @@ static int host_run(HostResults *results, const HostProgram *program, int reuse,
     HostLoaded loaded;
     if (host_load(program, reuse, &loaded) == 0)
     {
-        printf("  %s: not arranged, module %d site %u\n", program->name, (int)loaded.error.module, loaded.error.site);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, program->name);
+            mmgr_line_put(output_line, ": not arranged, module ");
+            mmgr_line_decimal_signed(output_line, (int)loaded.error.module);
+            mmgr_line_put(output_line, " site ");
+            mmgr_line_decimal(output_line, loaded.error.site, 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         host_check(results, 0, program->name);
         return 0;
     }
@@ -66,9 +85,25 @@ static int host_run(HostResults *results, const HostProgram *program, int reuse,
     {
         inputs ^= host_digest(atoms[member], bodies[member] * loaded.layout.in_limbs[member]);
     }
-    printf("  %s%s: %u steps, %u out limbs, inputs %016llx, records %016llx\n", program->name,
-           reuse ? " (registers reused)" : "", program->count, out_limbs, inputs,
-           (ran == (long)HOST_TEST_LANES) ? host_digest(out, (unsigned long long)HOST_TEST_LANES * out_limbs) : 0ull);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, program->name);
+        mmgr_line_put(output_line, reuse ? " (registers reused)" : "");
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_decimal(output_line, program->count, 1u);
+        mmgr_line_put(output_line, " steps, ");
+        mmgr_line_decimal(output_line, out_limbs, 1u);
+        mmgr_line_put(output_line, " out limbs, inputs ");
+        mmgr_line_hex(output_line, inputs, 16u);
+        mmgr_line_put(output_line, ", records ");
+        mmgr_line_hex(output_line,
+                      (ran == (long)HOST_TEST_LANES) ? host_digest(out, (unsigned long long)HOST_TEST_LANES * out_limbs)
+                                                     : 0ull,
+                      16u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     char what[160];
     snprintf(what, sizeof(what), "%s%s runs its %u lanes on the host", program->name,
              reuse ? " (registers reused)" : "", HOST_TEST_LANES);
@@ -108,8 +143,15 @@ int program_main(int argc, char **argv)
     (void)argc;
     (void)argv;
     HostResults results = {0u, 0u};
-    printf("  record host test: %u lanes a program, ORIOR_EXACT_LIMBS %u\n", HOST_TEST_LANES,
-           (unsigned int)ORIOR_EXACT_LIMBS);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  record host test: ");
+        mmgr_line_decimal(output_line, HOST_TEST_LANES, 1u);
+        mmgr_line_put(output_line, " lanes a program, ORIOR_EXACT_LIMBS ");
+        mmgr_line_decimal(output_line, (unsigned int)ORIOR_EXACT_LIMBS, 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     HostProgram program;
     const unsigned long long one_body[1] = {HOST_TEST_LANES};
     unsigned int *records = NULL;
@@ -168,7 +210,14 @@ int program_main(int argc, char **argv)
         index[(2u * lane) + 1u] = host_random() % HOST_TEST_SECOND_BODIES;
     }
     ran = (index != NULL) && host_run(&results, &program, 0, atoms, bodies, index, &records);
-    printf("  index %016llx\n", (index != NULL) ? host_digest(index, (unsigned long long)HOST_TEST_LANES * 2u) : 0ull);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  index ");
+        mmgr_line_hex(output_line,
+                      (index != NULL) ? host_digest(index, (unsigned long long)HOST_TEST_LANES * 2u) : 0ull, 16u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     (void)ran;
     free(records);
     free(index);
@@ -185,7 +234,15 @@ int program_main(int argc, char **argv)
     {
         host_free(&limit);
     }
-    printf("  form limit: 2^64 takes %u bits, 3 . 2^63 takes %u\n", doubled_bits, tripled_bits);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  form limit: 2^64 takes ");
+        mmgr_line_decimal(output_line, doubled_bits, 1u);
+        mmgr_line_put(output_line, " bits, 3 . 2^63 takes ");
+        mmgr_line_decimal(output_line, tripled_bits, 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     host_check(&results, (doubled_bits >= 65u) && (tripled_bits >= 66u),
                "a sum past the linear forms' limit takes the bits its value needs");
     atoms[0] = (unsigned int *)calloc(HOST_TEST_LANES, sizeof(unsigned int));
@@ -193,6 +250,15 @@ int program_main(int argc, char **argv)
     free(records);
     free(atoms[0]);
 
-    printf("  record host test: %u checks, %u failed\n", results.checks, results.failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  record host test: ");
+        mmgr_line_decimal(output_line, results.checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, results.failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (results.failed == 0u) ? 0 : 1;
 }

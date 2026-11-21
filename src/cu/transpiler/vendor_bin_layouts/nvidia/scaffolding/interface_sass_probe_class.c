@@ -535,10 +535,26 @@ int sass_class_write_by(const char *machines, const char *part, Who who)
     ksc_free(&s_file);
     if (!written)
     {
-        printf("interface sass class: %s could not be written\n", path);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "interface sass class: ");
+            mmgr_line_put(output_line, path);
+            mmgr_line_put(output_line, " could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
-    printf("interface sass class: %s written, %u questions stored whole\n", path, s_classed_count);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "interface sass class: ");
+        mmgr_line_put(output_line, path);
+        mmgr_line_put(output_line, " written, ");
+        mmgr_line_decimal(output_line, s_classed_count, 1u);
+        mmgr_line_put(output_line, " questions stored whole");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 1;
 }
 
@@ -621,9 +637,25 @@ int sass_pipe_write_by(const char *machines, const char *part, Who who)
     kdm_free(&s_file);
     if (!written)
     {
-        printf("interface sass class: %s could not be written\n", path);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "interface sass class: ");
+            mmgr_line_put(output_line, path);
+            mmgr_line_put(output_line, " could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
-    printf("interface sass class: %s written, %u pipes\n", path, s_pipe_count);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "interface sass class: ");
+        mmgr_line_put(output_line, path);
+        mmgr_line_put(output_line, " written, ");
+        mmgr_line_decimal(output_line, s_pipe_count, 1u);
+        mmgr_line_put(output_line, " pipes");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 1;
 }

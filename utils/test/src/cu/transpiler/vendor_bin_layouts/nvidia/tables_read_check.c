@@ -13,6 +13,7 @@
 //
 //     tables_read_check
 #include "../../../../../../../src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.h"
+#include "../../../../../../../src/platform/platform.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -26,7 +27,13 @@ static void check_that(int passed, const char *what)
     if (passed == 0)
     {
         s_failed += 1u;
-        printf("  FAILED: %s\n", what);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -91,8 +98,10 @@ static const char s_text[] =
     "BITS_3_75_73_sz=sz;\n"
     "\n";
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     TablesSet set = {NULL, 0u, 0u};
     check_that(tables_set_read(&set, (const unsigned char *)s_text, sizeof(s_text) - 1u), "classes: the text reads");
     check_that(set.count == 2u, "classes: two classes read");
@@ -205,6 +214,15 @@ int main(void)
     tables_set_freed(&set);
     check_that((set.class_ == NULL) && (set.count == 0u), "classes: the set freed contains nothing");
 
-    printf("tables_read_check: %u checks, %u failed\n", s_checks, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "tables_read_check: ");
+        mmgr_line_decimal(output_line, s_checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, s_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failed == 0u) ? 0 : 1;
 }

@@ -14,6 +14,7 @@
 //
 //     cubin_listing_check
 #include "../../../../../../../src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_listing.h"
+#include "../../../../../../../src/platform/platform.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -27,7 +28,13 @@ static void check_that(int passed, const char *what)
     if (passed == 0)
     {
         s_failed += 1u;
-        printf("  FAILED: %s\n", what);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -84,8 +91,10 @@ static int cut_reads(const CubinListingCut *cut, unsigned int at, const char *ex
            (memcmp(cut->text + cut->start[at], expected, cut->size[at]) == 0);
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     const char *const names[3] = {"k_two", "k_absent", "k_one"};
     CubinListingCut cut;
     check_that(cubin_listing_cut(s_listing, sizeof(s_listing) - 1u, names, 3u, &cut), "the listing is cut");
@@ -107,6 +116,15 @@ int main(void)
                "end: a label after the last instruction is at the end of the code, and a listing with no last "
                "newline ends its section");
     cubin_listing_cut_freed(&cut);
-    printf("cubin_listing_check: %u checks, %u failed\n", s_checks, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "cubin_listing_check: ");
+        mmgr_line_decimal(output_line, s_checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, s_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failed == 0u) ? 0 : 1;
 }

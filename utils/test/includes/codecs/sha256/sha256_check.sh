@@ -15,8 +15,9 @@ mkdir -p "$OUT"
 # the codec copies and fills through MMgr, whose sources the check compiles beside it
 source "$TOP/includes/file_defs/file_defs.sh"
 
+source "$TOP/includes/exact_types/exact_types.sh"
 cc -std=c11 -O2 -Wall -Wextra "${FILE_DEFS_MMGR_FLAGS[@]}" -o "$OUT/sha256_check" "$HERE/sha256_check.c" \
-    "$TOP/includes/codecs/sha256/sha256.c" "${FILE_DEFS_LINEA[@]}" || exit 1
+    "$TOP/includes/codecs/sha256/sha256.c" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || exit 1
 "$OUT/sha256_check" "$VECTORS/nist_cavp_sha256shortmsg.rsp" "$VECTORS/nist_cavp_sha256longmsg.rsp" \
     "$VECTORS/nist_cavp_bit_sha256shortmsg.rsp" "$VECTORS/nist_cavp_bit_sha256longmsg.rsp" \
     --monte "$VECTORS/nist_cavp_sha256monte.rsp"

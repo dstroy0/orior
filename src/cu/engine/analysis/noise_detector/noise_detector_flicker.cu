@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_detector_flicker.cu: flicker
 #include "noise_detector_internal.h"
+#include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 __device__ static void noise_flicker_flush(unsigned long long *cells, unsigned int lag, unsigned int level_bin,
@@ -177,30 +178,61 @@ static void noise_flicker_summary(const char *name, const unsigned long long ext
 {
     unsigned long long pooled[NOISE_FLICKER_LAGS][NOISE_FLICKER_SUMS];
     noise_flicker_pooled(sums, pooled);
-    printf("  %-24s %llu frames of %llux%llux%llu; means 40 to 199, %llu pairs at lag 1\n", name, extent[0], extent[1],
-           extent[2], extent[3], pooled[0][NOISE_FLICKER_PAIRS]);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, name, 24u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal(output_line, extent[0], 1u);
+        mmgr_line_put(output_line, " frames of ");
+        mmgr_line_decimal(output_line, extent[1], 1u);
+        mmgr_line_put(output_line, "x");
+        mmgr_line_decimal(output_line, extent[2], 1u);
+        mmgr_line_put(output_line, "x");
+        mmgr_line_decimal(output_line, extent[3], 1u);
+        mmgr_line_put(output_line, "; means 40 to 199, ");
+        mmgr_line_decimal(output_line, pooled[0][NOISE_FLICKER_PAIRS], 1u);
+        mmgr_line_put(output_line, " pairs at lag 1");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     const unsigned int types[2][2] = {{NOISE_FLICKER_SQUARES, NOISE_FLICKER_PAIRS},
                                       {NOISE_FLICKER_NEIGHBOR_SQUARES, NOISE_FLICKER_NEIGHBOR_PAIRS}};
     const char *const labels[2] = {"the frame difference         ", "less its x neighbor's       "};
     for (unsigned int type = 0u; type < 2u; type += 1u)
     {
-        printf("    %s", labels[type]);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    ");
+            mmgr_line_put(output_line, labels[type]);
+            platform_line_out_ended();
+        }
         for (unsigned int lag = 0u; lag < NOISE_FLICKER_LAGS; lag += 1u)
         {
             unsigned long long per_mille = 0ULL;
             if (noise_per_mille(pooled[lag][types[type][0]], pooled[lag][types[type][1]], pooled[0][types[type][0]],
                                 pooled[0][types[type][1]], &per_mille))
             {
-                printf(" %6llu", per_mille);
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, " ");
+                mmgr_line_decimal_columns(output_line, per_mille, 6u);
+                platform_line_out_ended();
             }
             else
             {
-                printf(" %6s", "-");
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, " ");
+                mmgr_line_put_right(output_line, "-", 6u);
+                platform_line_out_ended();
             }
         }
-        printf("\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
-    fflush(stdout);
+    platform_line_flushed();
 }
 
 static int noise_flicker_rows(FILE *table, const char *name, const unsigned long long sums[NOISE_FLICKER_CELLS])
@@ -242,15 +274,38 @@ extern "C" long noise_flicker_set(const NoiseSetRequest *request)
              NOISE_DETECTOR_IO(fprintf(table, "sample\tlag\tlowest_mean\tpairs\tsquares\tneighbor_pairs"
                                               "\tneighbor_squares\n") > 0,
                                table, error);
-    printf("  flicker: the structure function D(k), the mean square of I(t + k) - I(t), at lags 1 to 64, in bins of 8"
-           " by the pair's mean\n");
-    printf("  each lag's mean square against lag 1's, per mille (white noise gives 1000 at every lag):\n");
-    printf("    %-29s", "lag");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  flicker: the structure function D(k), the mean square of I(t + k) - I(t), at "
+                                   "lags 1 to 64, in bins of 8 by the pair's mean");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line,
+                      "  each lag's mean square against lag 1's, per mille (white noise gives 1000 at every lag):");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    ");
+        mmgr_line_put_columns(output_line, "lag", 29u);
+        platform_line_out_ended();
+    }
     for (unsigned int lag = 0u; lag < NOISE_FLICKER_LAGS; lag += 1u)
     {
-        printf(" %6u", 1u << lag);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line, 1u << lag, 6u);
+        platform_line_out_ended();
     }
-    printf("\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     unsigned long long *const sums =
         (unsigned long long *)malloc((size_t)NOISE_FLICKER_CELLS * sizeof(unsigned long long));
     ok = ok && NOISE_DETECTOR_CHECK(sums != NULL, &sums, error, ENGINE_ERROR_RESOURCE);
@@ -277,8 +332,15 @@ extern "C" long noise_flicker_set(const NoiseSetRequest *request)
     }
     if (ok != 0)
     {
-        printf("  flicker: %u samples in %llu ms; every sum is in %s\n", request->count,
-               (engine_clock_microseconds() - began) / 1000ULL, path);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  flicker: ");
+        mmgr_line_decimal(output_line, request->count, 1u);
+        mmgr_line_put(output_line, " samples in ");
+        mmgr_line_decimal(output_line, (engine_clock_microseconds() - began) / 1000ULL, 1u);
+        mmgr_line_put(output_line, " ms; every sum is in ");
+        mmgr_line_put(output_line, path);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     return (ok != 0) ? 0L : NOISE_DETECTOR_ERROR;
 }

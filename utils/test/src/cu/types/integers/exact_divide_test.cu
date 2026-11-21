@@ -26,11 +26,21 @@ static void check(const char *name, int ok)
     if (ok == 0)
     {
         s_failed += 1;
-        printf("  FAIL %s\n", name);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAIL ");
+            mmgr_line_put(output_line, name);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     else
     {
-        printf("  ok   %s\n", name);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ok   ");
+        mmgr_line_put(output_line, name);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
 }
 
@@ -114,7 +124,12 @@ int program_main(int argc, char **argv)
 {
     (void)argc;
     (void)argv;
-    printf("  exact integer division\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  exact integer division");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     unsigned int passed_trials = 0u;
     for (unsigned int trial = 0u; trial < DIVIDE_TRIALS; trial++)
@@ -306,9 +321,8 @@ int program_main(int argc, char **argv)
             smaller = remainder;
         }
         passed_trials +=
-            ((orior_exact_gcd(&left, &right, &common) == ORIOR_EXACT_OK) && orior_exact_equal(&common, &larger))
-                ? 1u
-                : 0u;
+            ((orior_exact_gcd(&left, &right, &common) == ORIOR_EXACT_OK) && orior_exact_equal(&common, &larger)) ? 1u
+                                                                                                                 : 0u;
     }
     check("the gcd equals Euclid's on the long division", passed_trials == GCD_TRIALS);
 
@@ -326,6 +340,15 @@ int program_main(int argc, char **argv)
         check("gcd(0, x) = |x| and gcd(0, 0) = 0", with_zero && (common.sign == 0));
     }
 
-    printf("  exact divide test: %d checks, %d failed\n", s_checks, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  exact divide test: ");
+        mmgr_line_decimal_signed(output_line, s_checks);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal_signed(output_line, s_failed);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failed == 0) ? 0 : 1;
 }

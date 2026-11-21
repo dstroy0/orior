@@ -5,6 +5,7 @@
  * @brief The certified zeros, each placed, as zeta_tension.h states them.
  */
 #include "zeta_tension.h"
+#include "../../../src/platform/platform.h"
 
 #include <math.h>
 #include <stdlib.h>
@@ -309,8 +310,17 @@ static size_t place_zeros(const char *binary, const TuringConstants *constants, 
         free(js);
     }
     free(dips);
-    printf("  zeros at a change of sign %llu, dips listed again %lld, zeros found in them %llu\n",
-           (unsigned long long)crossings, (long long)listed, (unsigned long long)added);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  zeros at a change of sign ");
+        mmgr_line_decimal(output_line, (unsigned long long)crossings, 1u);
+        mmgr_line_put(output_line, ", dips listed again ");
+        mmgr_line_decimal_signed(output_line, (long long)listed);
+        mmgr_line_put(output_line, ", zeros found in them ");
+        mmgr_line_decimal(output_line, (unsigned long long)added, 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     qsort(*zeros, count, sizeof(double), double_order);
     return count;
 }
@@ -331,8 +341,18 @@ void tension_certified_zeros(const char *binary, int64_t first, int64_t last, in
     {
         n_start = given[0];
         n_end = given[1];
-        printf("  cells %lld to %lld, %llu points; N at the two F's as given\n", (long long)first, (long long)last,
-               (unsigned long long)count);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  cells ");
+            mmgr_line_decimal_signed(output_line, (long long)first);
+            mmgr_line_put(output_line, " to ");
+            mmgr_line_decimal_signed(output_line, (long long)last);
+            mmgr_line_put(output_line, ", ");
+            mmgr_line_decimal(output_line, (unsigned long long)count, 1u);
+            mmgr_line_put(output_line, " points; N at the two F's as given");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     else
     {
@@ -367,9 +387,22 @@ void tension_certified_zeros(const char *binary, int64_t first, int64_t last, in
         end_nu = tight[tight_count - 1u];
         n_start = lows[0];
         n_end = lows[tight_count - 1u];
-        printf("  cells %lld to %lld, %llu points; N certified to one value at %llu of %lld F's\n", (long long)first,
-               (long long)last, (unsigned long long)count, (unsigned long long)tight_count,
-               (long long)(last - first - 1));
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  cells ");
+            mmgr_line_decimal_signed(output_line, (long long)first);
+            mmgr_line_put(output_line, " to ");
+            mmgr_line_decimal_signed(output_line, (long long)last);
+            mmgr_line_put(output_line, ", ");
+            mmgr_line_decimal(output_line, (unsigned long long)count, 1u);
+            mmgr_line_put(output_line, " points; N certified to one value at ");
+            mmgr_line_decimal(output_line, (unsigned long long)tight_count, 1u);
+            mmgr_line_put(output_line, " of ");
+            mmgr_line_decimal_signed(output_line, (long long)(last - first - 1));
+            mmgr_line_put(output_line, " F's");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     size_t start = 0u;
     size_t end = 0u;

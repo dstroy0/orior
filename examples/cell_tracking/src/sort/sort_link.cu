@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "../../../../src/cu/engine/runtime/device_pool/device_pool.h"
+#include "../../../../src/platform/platform.h"
 #include "drift.h"
 #include "../../../../src/cu/engine/nbody/heaviest_matching/heaviest_matching.h"
 #include "scan.h"
@@ -1651,26 +1652,63 @@ extern "C" long sort_link_set(const SortRequest *request)
     }
     const unsigned int terms =
         SORT_TERMS | ((request->still != 0u) ? SORT_TERM_STILL : 0u) | ((request->first != 0u) ? SORT_TERM_FIRST : 0u);
-    printf("  the sort's weights: %u, %u, %u, each the square of voxel_pm %llu, %llu, %llu over their greatest common"
-           " divisor; the cost's terms %u: the weighted squared distance, %s%sand no shape term\n",
-           weights[0], weights[1], weights[2], request->voxel_pm[0], request->voxel_pm[1], request->voxel_pm[2], terms,
-           (request->still != 0u) ? "the still term, " : "", (request->first != 0u) ? "O7's first term, " : "");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the sort's weights: ");
+        mmgr_line_decimal(output_line, weights[0], 1u);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, weights[1], 1u);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, weights[2], 1u);
+        mmgr_line_put(output_line, ", each the square of voxel_pm ");
+        mmgr_line_decimal(output_line, request->voxel_pm[0], 1u);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, request->voxel_pm[1], 1u);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, request->voxel_pm[2], 1u);
+        mmgr_line_put(output_line, " over their greatest common divisor; the cost's terms ");
+        mmgr_line_decimal(output_line, terms, 1u);
+        mmgr_line_put(output_line, ": the weighted squared distance, ");
+        mmgr_line_put(output_line, (request->still != 0u) ? "the still term, " : "");
+        mmgr_line_put(output_line, (request->first != 0u) ? "O7's first term, " : "");
+        mmgr_line_put(output_line, "and no shape term");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     if (request->still != 0u)
     {
-        printf("  the still term: the gate also takes each source's still place, its place carried by the lag alone,"
-               " forward to its nearest targets, and a pair's cost is the lesser of its distances from the prediction"
-               " and from the still place\n");
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the still term: the gate also takes each source's still place, its place carried "
+                                   "by the lag alone, forward to its nearest targets, and a pair's cost is the lesser "
+                                   "of its distances from the prediction and from the still place");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     if (request->first != 0u)
     {
-        printf("  O7's first term: once a sample's first pass is written, each gate pair's cost is its distance's level"
-               " in the sample's share of first-rank pairs at that distance, pooled by pool-adjacent-violators until it"
-               " never rises with the distance, the max first; each frame pair is weighed and matched again on those"
-               " costs, its predictions the first pass's\n");
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line,
+                      "  O7's first term: once a sample's first pass is written, each gate pair's cost is its "
+                      "distance's level in the sample's share of first-rank pairs at that distance, pooled by "
+                      "pool-adjacent-violators until it never rises with the distance, the max first; each frame pair "
+                      "is weighed and matched again on those costs, its predictions the first pass's");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
-    printf("  %-24s %6s %10s %s\n", "sample", "frames", "chosen",
-           "gate pairs, components, sources; retained, level,"
-           " crossed; outside, carried; gate us, match us");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, "sample", 24u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "frames", 6u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "chosen", 10u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put(output_line, "gate pairs, components, sources; retained, level,"
+                                   " crossed; outside, carried; gate us, match us");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     SortWalk walk;
     memset(&walk, 0, sizeof(walk));
     SortResults totals;
@@ -1686,15 +1724,53 @@ extern "C" long sort_link_set(const SortRequest *request)
             failed += 1u;
             continue;
         }
-        printf("  %-24s %6llu %10llu %llu, %llu, %llu; %llu, %llu, %llu; %llu, %llu; %llu, %llu\n", sample,
-               results.frames, results.chosen, results.gate, results.components, results.sources, results.retained,
-               results.level, results.crossed, results.outside, results.carried, results.gate_microseconds,
-               results.match_microseconds);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_columns(output_line, sample, 24u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_columns(output_line, results.frames, 6u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_columns(output_line, results.chosen, 10u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal(output_line, results.gate, 1u);
+            mmgr_line_put(output_line, ", ");
+            mmgr_line_decimal(output_line, results.components, 1u);
+            mmgr_line_put(output_line, ", ");
+            mmgr_line_decimal(output_line, results.sources, 1u);
+            mmgr_line_put(output_line, "; ");
+            mmgr_line_decimal(output_line, results.retained, 1u);
+            mmgr_line_put(output_line, ", ");
+            mmgr_line_decimal(output_line, results.level, 1u);
+            mmgr_line_put(output_line, ", ");
+            mmgr_line_decimal(output_line, results.crossed, 1u);
+            mmgr_line_put(output_line, "; ");
+            mmgr_line_decimal(output_line, results.outside, 1u);
+            mmgr_line_put(output_line, ", ");
+            mmgr_line_decimal(output_line, results.carried, 1u);
+            mmgr_line_put(output_line, "; ");
+            mmgr_line_decimal(output_line, results.gate_microseconds, 1u);
+            mmgr_line_put(output_line, ", ");
+            mmgr_line_decimal(output_line, results.match_microseconds, 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         if (request->first != 0u)
         {
-            printf("  %-24s O7: %llu distinct distances pooled into %llu blocks at %llu levels; %llu chosen flags"
-                   " changed from the first pass\n",
-                   sample, results.distinct, results.blocks, results.levels, results.changed);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_columns(output_line, sample, 24u);
+            mmgr_line_put(output_line, " O7: ");
+            mmgr_line_decimal(output_line, results.distinct, 1u);
+            mmgr_line_put(output_line, " distinct distances pooled into ");
+            mmgr_line_decimal(output_line, results.blocks, 1u);
+            mmgr_line_put(output_line, " blocks at ");
+            mmgr_line_decimal(output_line, results.levels, 1u);
+            mmgr_line_put(output_line, " levels; ");
+            mmgr_line_decimal(output_line, results.changed, 1u);
+            mmgr_line_put(output_line, " chosen flags changed from the first pass");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
         totals.changed += results.changed;
         totals.frames += results.frames;
@@ -1711,15 +1787,50 @@ extern "C" long sort_link_set(const SortRequest *request)
         totals.gate_microseconds += results.gate_microseconds;
         totals.match_microseconds += results.match_microseconds;
     }
-    printf("  sorted %u of %u samples: %llu frames, %llu frame pairs; %llu sources, %llu gate pairs, %llu components,"
-           " %llu chosen; %llu retained, %llu level, %llu crossed; %llu outside, %llu carried; gate %llu us, match "
-           "%llu us\n",
-           request->count - failed, request->count, totals.frames, totals.pairs, totals.sources, totals.gate,
-           totals.components, totals.chosen, totals.retained, totals.level, totals.crossed, totals.outside,
-           totals.carried, totals.gate_microseconds, totals.match_microseconds);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  sorted ");
+        mmgr_line_decimal(output_line, request->count - failed, 1u);
+        mmgr_line_put(output_line, " of ");
+        mmgr_line_decimal(output_line, request->count, 1u);
+        mmgr_line_put(output_line, " samples: ");
+        mmgr_line_decimal(output_line, totals.frames, 1u);
+        mmgr_line_put(output_line, " frames, ");
+        mmgr_line_decimal(output_line, totals.pairs, 1u);
+        mmgr_line_put(output_line, " frame pairs; ");
+        mmgr_line_decimal(output_line, totals.sources, 1u);
+        mmgr_line_put(output_line, " sources, ");
+        mmgr_line_decimal(output_line, totals.gate, 1u);
+        mmgr_line_put(output_line, " gate pairs, ");
+        mmgr_line_decimal(output_line, totals.components, 1u);
+        mmgr_line_put(output_line, " components, ");
+        mmgr_line_decimal(output_line, totals.chosen, 1u);
+        mmgr_line_put(output_line, " chosen; ");
+        mmgr_line_decimal(output_line, totals.retained, 1u);
+        mmgr_line_put(output_line, " retained, ");
+        mmgr_line_decimal(output_line, totals.level, 1u);
+        mmgr_line_put(output_line, " level, ");
+        mmgr_line_decimal(output_line, totals.crossed, 1u);
+        mmgr_line_put(output_line, " crossed; ");
+        mmgr_line_decimal(output_line, totals.outside, 1u);
+        mmgr_line_put(output_line, " outside, ");
+        mmgr_line_decimal(output_line, totals.carried, 1u);
+        mmgr_line_put(output_line, " carried; gate ");
+        mmgr_line_decimal(output_line, totals.gate_microseconds, 1u);
+        mmgr_line_put(output_line, " us, match ");
+        mmgr_line_decimal(output_line, totals.match_microseconds, 1u);
+        mmgr_line_put(output_line, " us");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     if (request->first != 0u)
     {
-        printf("  O7 over the samples sorted: %llu chosen flags changed from the first pass\n", totals.changed);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  O7 over the samples sorted: ");
+        mmgr_line_decimal(output_line, totals.changed, 1u);
+        mmgr_line_put(output_line, " chosen flags changed from the first pass");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     sort_frame_free(&walk.frames[0]);
     sort_frame_free(&walk.frames[1]);

@@ -266,8 +266,16 @@ static int knee_job_release(const char *type, KneeJob *job)
     job->client = NULL;
     if (job->ticket.last_peak > job->whole)
     {
-        printf("  tessera: %s peaked at %llu bytes, over the %llu it allocated and declared\n", type,
-               job->ticket.last_peak, job->whole);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  tessera: ");
+        mmgr_line_put(output_line, type);
+        mmgr_line_put(output_line, " peaked at ");
+        mmgr_line_decimal(output_line, job->ticket.last_peak, 1u);
+        mmgr_line_put(output_line, " bytes, over the ");
+        mmgr_line_decimal(output_line, job->whole, 1u);
+        mmgr_line_put(output_line, " it allocated and declared");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     return 1;
 }
@@ -386,9 +394,9 @@ static int knee_period_call(const KneeSeries *series, const unsigned short *volu
     EngineError error;
     memset(&error, 0, sizeof(error));
     unsigned short *device_lanes = NULL;
-    int good = (cudaMalloc((void **)&device_lanes, (size_t)voxels * sizeof(unsigned short)) == cudaSuccess)
-            && (cudaMemcpy(device_lanes, volume, (size_t)voxels * sizeof(unsigned short), cudaMemcpyHostToDevice)
-                == cudaSuccess);
+    int good = (cudaMalloc((void **)&device_lanes, (size_t)voxels * sizeof(unsigned short)) == cudaSuccess) &&
+               (cudaMemcpy(device_lanes, volume, (size_t)voxels * sizeof(unsigned short), cudaMemcpyHostToDevice) ==
+                cudaSuccess);
     PeriodRequest request;
     memset(&request, 0, sizeof(request));
     request.device_lanes = device_lanes;
@@ -477,8 +485,8 @@ static KneeSeries *knee_find(const KneeRun *run, const char *name)
     KneeSeries key;
     key.name = (char *)name;
     KneeSeries *const wanted = &key;
-    KneeSeries **const found = (KneeSeries **)bsearch(&wanted, run->by_name, (size_t)run->count, sizeof(KneeSeries *),
-                                                      knee_name_order);
+    KneeSeries **const found =
+        (KneeSeries **)bsearch(&wanted, run->by_name, (size_t)run->count, sizeof(KneeSeries *), knee_name_order);
     return (found != NULL) ? *found : NULL;
 }
 
@@ -718,8 +726,17 @@ static int knee_ingest(int argc, char **argv)
         if (read && !good)
         {
             failed += 1ull;
-            printf("  ingest %llu  %s  did not ingest: the device's daemon took no job, and the ingest stops here\n",
-                   count, sample);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  ingest ");
+                mmgr_line_decimal(output_line, count, 1u);
+                mmgr_line_put(output_line, "  ");
+                mmgr_line_put(output_line, sample);
+                mmgr_line_put(output_line,
+                              "  did not ingest: the device's daemon took no job, and the ingest stops here");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             break;
         }
         const unsigned long long started = knee_now_microseconds();
@@ -740,15 +757,40 @@ static int knee_ingest(int argc, char **argv)
         if (good)
         {
             sealed += 1ull;
-            printf("  ingest %llu  %s  %llu lanes  %llu us  (read %llu us, job requested %llu us)\n", count, sample,
-                   lanes, spent, started_at - reading, started - started_at);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  ingest ");
+                mmgr_line_decimal(output_line, count, 1u);
+                mmgr_line_put(output_line, "  ");
+                mmgr_line_put(output_line, sample);
+                mmgr_line_put(output_line, "  ");
+                mmgr_line_decimal(output_line, lanes, 1u);
+                mmgr_line_put(output_line, " lanes  ");
+                mmgr_line_decimal(output_line, spent, 1u);
+                mmgr_line_put(output_line, " us  (read ");
+                mmgr_line_decimal(output_line, started_at - reading, 1u);
+                mmgr_line_put(output_line, " us, job requested ");
+                mmgr_line_decimal(output_line, started - started_at, 1u);
+                mmgr_line_put(output_line, " us)");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
         }
         else
         {
             failed += 1ull;
             fprintf(stderr, "  %s did not ingest (type %u, module %u, site %u)\n", sample, error.type, error.module,
                     error.site);
-            printf("  ingest %llu  %s  did not ingest\n", count, sample);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  ingest ");
+                mmgr_line_decimal(output_line, count, 1u);
+                mmgr_line_put(output_line, "  ");
+                mmgr_line_put(output_line, sample);
+                mmgr_line_put(output_line, "  did not ingest");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
         }
     }
     for (unsigned long long at = 0ull; at < listed.count; at += 1ull)
@@ -756,8 +798,20 @@ static int knee_ingest(int argc, char **argv)
         free(listed.names[at]);
     }
     free(listed.names);
-    printf("  the ingest is done: %llu series named, %llu retained, %llu sealed, %llu did not ingest\n", count,
-           retained, sealed, failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the ingest is done: ");
+        mmgr_line_decimal(output_line, count, 1u);
+        mmgr_line_put(output_line, " series named, ");
+        mmgr_line_decimal(output_line, retained, 1u);
+        mmgr_line_put(output_line, " retained, ");
+        mmgr_line_decimal(output_line, sealed, 1u);
+        mmgr_line_put(output_line, " sealed, ");
+        mmgr_line_decimal(output_line, failed, 1u);
+        mmgr_line_put(output_line, " did not ingest");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (failed == 0ull) ? 0 : 1;
 }
 
@@ -908,8 +962,8 @@ static int knee_flatten(int argc, char **argv)
         char *line = NULL;
         while ((named != NULL) && ((line = knee_line(named)) != NULL))
         {
-            char **const grown = (line[0] != '\0') ? (char **)realloc(names, ((size_t)count + 1u) * sizeof(char *))
-                                                   : NULL;
+            char **const grown =
+                (line[0] != '\0') ? (char **)realloc(names, ((size_t)count + 1u) * sizeof(char *)) : NULL;
             if (grown == NULL)
             {
                 free(line);
@@ -1006,9 +1060,26 @@ static int knee_flatten(int argc, char **argv)
         else
         {
             left += 1u;
-            printf("  left out  %s  P %u %u %u  (type %u, module %u, site %u)\n", names[at], orders[at].smooth[0],
-                   orders[at].smooth[1], orders[at].smooth[2], refusals[at].type, refusals[at].module,
-                   refusals[at].site);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  left out  ");
+                mmgr_line_put(output_line, names[at]);
+                mmgr_line_put(output_line, "  P ");
+                mmgr_line_decimal(output_line, orders[at].smooth[0], 1u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_decimal(output_line, orders[at].smooth[1], 1u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_decimal(output_line, orders[at].smooth[2], 1u);
+                mmgr_line_put(output_line, "  (type ");
+                mmgr_line_decimal(output_line, refusals[at].type, 1u);
+                mmgr_line_put(output_line, ", module ");
+                mmgr_line_decimal(output_line, refusals[at].module, 1u);
+                mmgr_line_put(output_line, ", site ");
+                mmgr_line_decimal(output_line, refusals[at].site, 1u);
+                mmgr_line_put(output_line, ")");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
         }
     }
     free(fits);
@@ -1025,8 +1096,20 @@ static int knee_flatten(int argc, char **argv)
     const unsigned long long started = knee_now_microseconds();
     const int flattened = (flattened_count != 0u) && (flatten_set(&flatten) != 0);
     const int released = knee_job_release("knee flatten", &job);
-    printf("  the flatten is done: %u series named, %u flattened, %u left out, %llu us\n", count,
-           flattened ? flattened_count : 0u, left, knee_now_microseconds() - started);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the flatten is done: ");
+        mmgr_line_decimal(output_line, count, 1u);
+        mmgr_line_put(output_line, " series named, ");
+        mmgr_line_decimal(output_line, flattened ? flattened_count : 0u, 1u);
+        mmgr_line_put(output_line, " flattened, ");
+        mmgr_line_decimal(output_line, left, 1u);
+        mmgr_line_put(output_line, " left out, ");
+        mmgr_line_decimal(output_line, knee_now_microseconds() - started, 1u);
+        mmgr_line_put(output_line, " us");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     if (!flattened)
     {
         fprintf(stderr, "  the flatten did not finish (type %u, module %u, site %u)\n", error.type, error.module,
@@ -1295,8 +1378,7 @@ static int knee_spacing(int argc, char **argv)
                 for (unsigned int place = 0u; good && same && (place < want); place += 1u)
                 {
                     int order = 0;
-                    good = knee_decimal_order(&read_values[(leaf * KNEE_RANK) + place], &largest[axis + place],
-                                              &order);
+                    good = knee_decimal_order(&read_values[(leaf * KNEE_RANK) + place], &largest[axis + place], &order);
                     same = (order == 0);
                 }
                 apart[element] += (good && !same) ? 1ull : 0ull;
@@ -1353,7 +1435,16 @@ static int knee_spacing(int argc, char **argv)
             fwrite(line.bytes, 1u, line.used, file);
             fflush(file);
             read += 1u;
-            printf("  spacing %u/%u  %s", at + 1u, count, line.bytes);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  spacing ");
+                mmgr_line_decimal(output_line, at + 1u, 1u);
+                mmgr_line_put(output_line, "/");
+                mmgr_line_decimal(output_line, count, 1u);
+                mmgr_line_put(output_line, "  ");
+                mmgr_line_put(output_line, line.bytes);
+                platform_line_out_ended();
+            }
         }
         else
         {
@@ -1364,7 +1455,18 @@ static int knee_spacing(int argc, char **argv)
         free(line.bytes);
     }
     fclose(file);
-    printf("  the spacing is done: %u series, %u read, %u did not read\n", count, read, failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the spacing is done: ");
+        mmgr_line_decimal(output_line, count, 1u);
+        mmgr_line_put(output_line, " series, ");
+        mmgr_line_decimal(output_line, read, 1u);
+        mmgr_line_put(output_line, " read, ");
+        mmgr_line_decimal(output_line, failed, 1u);
+        mmgr_line_put(output_line, " did not read");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (failed == 0u) ? 0 : 1;
 }
 
@@ -2054,9 +2156,9 @@ static int knee_rung_verdicts(const KneeRung *own, const KneeRung *before, const
     const int same = (proved == (long)lanes) && (memcmp(device, host, lanes * out_limbs * sizeof(unsigned int)) == 0);
     if (ok && !same)
     {
-        fprintf(stderr, "  the verdicts over %zu lanes: device %ld, host %ld, %s (type %u, module %u, site %u)\n", lanes,
-                swept, proved, (proved == (long)lanes) ? "they differ" : "not both ran", error->type, error->module,
-                error->site);
+        fprintf(stderr, "  the verdicts over %zu lanes: device %ld, host %ld, %s (type %u, module %u, site %u)\n",
+                lanes, swept, proved, (proved == (long)lanes) ? "they differ" : "not both ran", error->type,
+                error->module, error->site);
     }
     ok = ok && same;
     for (size_t lane = 0u; ok && (lane < lanes); lane += 1u)
@@ -2105,8 +2207,8 @@ static unsigned long long knee_rung_window(const KneeOrders *orders, unsigned in
     unsigned long long taps = 1ull;
     for (unsigned int spacing = 0u; spacing < ENGINE_SPACINGS; spacing += 1u)
     {
-        taps += (2ull << spacing) * ((unsigned long long)orders->smooth_spaced[axis][spacing] +
-                                     orders->background_spaced[axis][spacing]);
+        taps += (2ull << spacing) *
+                ((unsigned long long)orders->smooth_spaced[axis][spacing] + orders->background_spaced[axis][spacing]);
     }
     return taps;
 }
@@ -2251,8 +2353,8 @@ static int knee_ladder_release(unsigned long long declared, KneeJob *job)
 // The series' job declares every device byte that the ladder occupies at its widest rung (knee_ladder_bytes). The
 // series gives the device back before it returns. Where its ladder would declare more than s_device_cap, the ladder
 // leaves the series whole for the slabs, and returns KNEE_LADDER_WHOLE
-static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spacing,
-                              const unsigned int comb[KNEE_RANK], const char *bodies, KneeText *text)
+static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spacing, const unsigned int comb[KNEE_RANK],
+                              const char *bodies, KneeText *text)
 {
     const unsigned int extent[KNEE_RANK] = {(unsigned int)series->extent[1], (unsigned int)series->extent[2],
                                             (unsigned int)series->extent[3]};
@@ -2430,10 +2532,10 @@ static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spaci
         rung_words[(step * 5u) + 4u] = (unsigned int)(here->gain >> 32u);
         made = step + 1u;
         open = own_counted[KNEE_LADDER_ROSE];
-        ok = knee_text_add(text, "%s\t%u\t%u\t%u\t%u\t%u\t%llu\t%llu\t%llu\n", series->name, step,
-                           here->orders.order[0], here->orders.order[1], here->orders.order[2], here->count,
-                           own_counted[KNEE_LADDER_ROSE], before_counted[KNEE_LADDER_PEAKED],
-                           knee_now_microseconds() - mark);
+        ok =
+            knee_text_add(text, "%s\t%u\t%u\t%u\t%u\t%u\t%llu\t%llu\t%llu\n", series->name, step, here->orders.order[0],
+                          here->orders.order[1], here->orders.order[2], here->count, own_counted[KNEE_LADDER_ROSE],
+                          before_counted[KNEE_LADDER_PEAKED], knee_now_microseconds() - mark);
         if (open == 0ull)
         {
             break;
@@ -2537,9 +2639,20 @@ static int knee_ladder(int argc, char **argv)
     }
     s_confirming = 1;
     s_waiting = ((waiting != NULL) ? strtoull(waiting, NULL, 10) : KNEE_LADDER_WAITING_SECONDS) * 1000000ull;
-    s_device_cap = (device_bytes != NULL) ? strtoull(device_bytes, NULL, 10) : ((unsigned long long)device_total / 2ull);
-    printf("  a series' ladder may declare %llu device bytes of the device's %llu, and a job waits %llu s for room\n",
-           s_device_cap, (unsigned long long)device_total, s_waiting / 1000000ull);
+    s_device_cap =
+        (device_bytes != NULL) ? strtoull(device_bytes, NULL, 10) : ((unsigned long long)device_total / 2ull);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  a series' ladder may declare ");
+        mmgr_line_decimal(output_line, s_device_cap, 1u);
+        mmgr_line_put(output_line, " device bytes of the device's ");
+        mmgr_line_decimal(output_line, (unsigned long long)device_total, 1u);
+        mmgr_line_put(output_line, ", and a job waits ");
+        mmgr_line_decimal(output_line, s_waiting / 1000000ull, 1u);
+        mmgr_line_put(output_line, " s for room");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     unsigned long long period_count = 0ull;
     KneePeriod *const periods = knee_periods_read(readings, &period_count);
     unsigned long long spacing_count = 0ull;
@@ -2572,8 +2685,8 @@ static int knee_ladder(int argc, char **argv)
         char *line = NULL;
         while ((named != NULL) && ((line = knee_line(named)) != NULL))
         {
-            char **const grown = (line[0] != '\0') ? (char **)realloc(names, ((size_t)count + 1u) * sizeof(char *))
-                                                   : NULL;
+            char **const grown =
+                (line[0] != '\0') ? (char **)realloc(names, ((size_t)count + 1u) * sizeof(char *)) : NULL;
             if (grown == NULL)
             {
                 free(line);
@@ -2606,14 +2719,12 @@ static int knee_ladder(int argc, char **argv)
         }
         KneePeriod period_key;
         period_key.name = names[at];
-        const KneePeriod *const period =
-            (const KneePeriod *)bsearch(&period_key, periods, (size_t)period_count, sizeof(KneePeriod),
-                                        knee_period_order);
+        const KneePeriod *const period = (const KneePeriod *)bsearch(&period_key, periods, (size_t)period_count,
+                                                                     sizeof(KneePeriod), knee_period_order);
         KneeSpacing spacing_key;
         spacing_key.name = names[at];
-        const KneeSpacing *const spacing =
-            (const KneeSpacing *)bsearch(&spacing_key, spacings, (size_t)spacing_count, sizeof(KneeSpacing),
-                                         knee_spacing_order);
+        const KneeSpacing *const spacing = (const KneeSpacing *)bsearch(&spacing_key, spacings, (size_t)spacing_count,
+                                                                        sizeof(KneeSpacing), knee_spacing_order);
         KneeSeries series;
         memset(&series, 0, sizeof(series));
         series.set = set;
@@ -2626,8 +2737,18 @@ static int knee_ladder(int argc, char **argv)
             (series.extent[0] != 1ull))
         {
             left += 1u;
-            printf("  left out  %s  (%s)\n", names[at],
-                   (period == NULL) ? "no reading" : (!whole ? "a spacing not bounded" : "the head did not read"));
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  left out  ");
+                mmgr_line_put(output_line, names[at]);
+                mmgr_line_put(output_line, "  (");
+                mmgr_line_put(output_line, (period == NULL)
+                                               ? "no reading"
+                                               : (!whole ? "a spacing not bounded" : "the head did not read"));
+                mmgr_line_put(output_line, ")");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             continue;
         }
         KneeText text = {NULL, 0u, 0u};
@@ -2641,7 +2762,11 @@ static int knee_ladder(int argc, char **argv)
             fwrite(text.bytes, 1u, text.used, file);
             fflush(file);
             ran += 1u;
-            printf("%s", text.bytes);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, text.bytes);
+                platform_line_out_ended();
+            }
         }
         else
         {
@@ -2651,13 +2776,28 @@ static int knee_ladder(int argc, char **argv)
         if (s_refused != 0)
         {
             stopped = 1;
-            fprintf(stderr, "  the ladder stops at %s and gives the device up: its job was not taken\n",
-                    names[at]);
+            fprintf(stderr, "  the ladder stops at %s and gives the device up: its job was not taken\n", names[at]);
         }
     }
     fclose(file);
-    printf("  the ladder is %s: %u series, %u run, %u left out, %u left for the slabs, %u did not run\n",
-           (stopped != 0) ? "stopped" : "done", count, ran, left, left_whole, failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the ladder is ");
+        mmgr_line_put(output_line, (stopped != 0) ? "stopped" : "done");
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_decimal(output_line, count, 1u);
+        mmgr_line_put(output_line, " series, ");
+        mmgr_line_decimal(output_line, ran, 1u);
+        mmgr_line_put(output_line, " run, ");
+        mmgr_line_decimal(output_line, left, 1u);
+        mmgr_line_put(output_line, " left out, ");
+        mmgr_line_decimal(output_line, left_whole, 1u);
+        mmgr_line_put(output_line, " left for the slabs, ");
+        mmgr_line_decimal(output_line, failed, 1u);
+        mmgr_line_put(output_line, " did not run");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return ((failed == 0u) && (stopped == 0)) ? 0 : 1;
 }
 
@@ -2671,8 +2811,8 @@ int program_main(int argc, char **argv)
 #endif
         setvbuf(stdout, NULL, _IONBF, 0u);
         int device = 0;
-        if ((cudaGetDevice(&device) != cudaSuccess) || (cudaSetDevice(device) != cudaSuccess)
-            || (cudaFree(0) != cudaSuccess))
+        if ((cudaGetDevice(&device) != cudaSuccess) || (cudaSetDevice(device) != cudaSuccess) ||
+            (cudaFree(0) != cudaSuccess))
         {
             fprintf(stderr, "  the device's context was not made\n");
             return 1;
@@ -2686,8 +2826,8 @@ int program_main(int argc, char **argv)
 #endif
         setvbuf(stdout, NULL, _IONBF, 0u);
         int device = 0;
-        if ((cudaGetDevice(&device) != cudaSuccess) || (cudaSetDevice(device) != cudaSuccess)
-            || (cudaFree(0) != cudaSuccess))
+        if ((cudaGetDevice(&device) != cudaSuccess) || (cudaSetDevice(device) != cudaSuccess) ||
+            (cudaFree(0) != cudaSuccess))
         {
             fprintf(stderr, "  the device's context was not made\n");
             return 1;
@@ -2701,8 +2841,8 @@ int program_main(int argc, char **argv)
 #endif
         setvbuf(stdout, NULL, _IONBF, 0u);
         int device = 0;
-        if ((cudaGetDevice(&device) != cudaSuccess) || (cudaSetDevice(device) != cudaSuccess)
-            || (cudaFree(0) != cudaSuccess))
+        if ((cudaGetDevice(&device) != cudaSuccess) || (cudaSetDevice(device) != cudaSuccess) ||
+            (cudaFree(0) != cudaSuccess))
         {
             fprintf(stderr, "  the device's context was not made\n");
             return 1;
@@ -2716,8 +2856,8 @@ int program_main(int argc, char **argv)
 #endif
         setvbuf(stdout, NULL, _IONBF, 0u);
         int device = 0;
-        if ((cudaGetDevice(&device) != cudaSuccess) || (cudaSetDevice(device) != cudaSuccess)
-            || (cudaFree(0) != cudaSuccess))
+        if ((cudaGetDevice(&device) != cudaSuccess) || (cudaSetDevice(device) != cudaSuccess) ||
+            (cudaFree(0) != cudaSuccess))
         {
             fprintf(stderr, "  the device's context was not made\n");
             return 1;
@@ -2756,8 +2896,8 @@ int program_main(int argc, char **argv)
     // the run makes the device's context before it requests the first job. Its bytes are in what submit measures, and
     // no job's peak carries them
     int device = 0;
-    if ((cudaGetDevice(&device) != cudaSuccess) || (cudaSetDevice(device) != cudaSuccess)
-        || (cudaFree(0) != cudaSuccess))
+    if ((cudaGetDevice(&device) != cudaSuccess) || (cudaSetDevice(device) != cudaSuccess) ||
+        (cudaFree(0) != cudaSuccess))
     {
         fprintf(stderr, "  the device's context was not made\n");
         return 1;
@@ -2797,7 +2937,16 @@ int program_main(int argc, char **argv)
             }
             run.count += 1ull;
         }
-        printf("  %s: %u series\n", argv[set], count);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, argv[set]);
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_decimal(output_line, count, 1u);
+            mmgr_line_put(output_line, " series");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     run.by_name = (KneeSeries **)malloc((size_t)run.count * sizeof(KneeSeries *));
     run.groups = (KneeGroup *)calloc((size_t)run.count, sizeof(KneeGroup));
@@ -2851,13 +3000,17 @@ int program_main(int argc, char **argv)
     {
         return 1;
     }
-    printf("%s", header.bytes);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, header.bytes);
+        platform_line_out_ended();
+    }
 
     // the draws: series-major, each crystal loaded once for its rank turns k = place + turn * N
     char *draws_path = NULL;
     int draws_existed = 0;
-    if (!knee_path(&draws_path, out, "draws.tsv")
-        || !knee_resume(draws_path, &header, knee_take_draw, &run, &draws_existed))
+    if (!knee_path(&draws_path, out, "draws.tsv") ||
+        !knee_resume(draws_path, &header, knee_take_draw, &run, &draws_existed))
     {
         return 1;
     }
@@ -2866,10 +3019,18 @@ int program_main(int argc, char **argv)
     {
         drawn += run.groups[group].drawn;
     }
-    printf("  draws: %llu of %llu already written\n", drawn, all_draws);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  draws: ");
+        mmgr_line_decimal(output_line, drawn, 1u);
+        mmgr_line_put(output_line, " of ");
+        mmgr_line_decimal(output_line, all_draws, 1u);
+        mmgr_line_put(output_line, " already written");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     FILE *const draws_file = fopen(draws_path, "ab");
-    if ((draws_file == NULL)
-        || (!draws_existed && (fwrite(header.bytes, 1u, header.used, draws_file) != header.used)))
+    if ((draws_file == NULL) || (!draws_existed && (fwrite(header.bytes, 1u, header.used, draws_file) != header.used)))
     {
         fprintf(stderr, "  %s did not open for writing\n", draws_path);
         return 1;
@@ -2904,8 +3065,8 @@ int program_main(int argc, char **argv)
             const unsigned long long draw = series->place + (turn * group->count);
             KneeCall call;
             memset(&call, 0, sizeof(call));
-            if (!knee_period_call(series, volume, &root, "knee period draw", draw, NULL, &call)
-                || !knee_fold(group, call.heights))
+            if (!knee_period_call(series, volume, &root, "knee period draw", draw, NULL, &call) ||
+                !knee_fold(group, call.heights))
             {
                 free(volume);
                 return 1;
@@ -2923,8 +3084,22 @@ int program_main(int argc, char **argv)
             calls += 1ull;
         }
         free(volume);
-        printf("  draws %llu/%llu  group %u  %s  %llu us a call so far\n", drawn, all_draws, series->group,
-               series->name, spent / calls);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  draws ");
+            mmgr_line_decimal(output_line, drawn, 1u);
+            mmgr_line_put(output_line, "/");
+            mmgr_line_decimal(output_line, all_draws, 1u);
+            mmgr_line_put(output_line, "  group ");
+            mmgr_line_decimal(output_line, series->group, 1u);
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, series->name);
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_decimal(output_line, spent / calls, 1u);
+            mmgr_line_put(output_line, " us a call so far");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     fclose(draws_file);
 
@@ -2953,17 +3128,23 @@ int program_main(int argc, char **argv)
         return 1;
     }
     fclose(tops_file);
-    printf("%s", tops.bytes);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, tops.bytes);
+        platform_line_out_ended();
+    }
 
     // the readings: every series against its group's tops, with no draws of its own
     memset(run.done, 0, (size_t)run.count * KNEE_RANK);
     KneeText readings_header = {NULL, 0u, 0u};
     char *readings_path = NULL;
     int readings_existed = 0;
-    if (!knee_text_add(&readings_header, "%s# series\tgroup\t(per axis: period\tcandidate\tmargin\tlags\tat\tbeside"
-                                         "\tdouble\tbeside double)\tmicroseconds\n", tops.bytes)
-        || !knee_path(&readings_path, out, "periods.tsv")
-        || !knee_resume(readings_path, &readings_header, knee_take_reading, &run, &readings_existed))
+    if (!knee_text_add(&readings_header,
+                       "%s# series\tgroup\t(per axis: period\tcandidate\tmargin\tlags\tat\tbeside"
+                       "\tdouble\tbeside double)\tmicroseconds\n",
+                       tops.bytes) ||
+        !knee_path(&readings_path, out, "periods.tsv") ||
+        !knee_resume(readings_path, &readings_header, knee_take_reading, &run, &readings_existed))
     {
         return 1;
     }
@@ -2973,9 +3154,8 @@ int program_main(int argc, char **argv)
         read_count += run.done[at];
     }
     FILE *const readings_file = fopen(readings_path, "ab");
-    if ((readings_file == NULL)
-        || (!readings_existed
-            && (fwrite(readings_header.bytes, 1u, readings_header.used, readings_file) != readings_header.used)))
+    if ((readings_file == NULL) || (!readings_existed && (fwrite(readings_header.bytes, 1u, readings_header.used,
+                                                                 readings_file) != readings_header.used)))
     {
         fprintf(stderr, "  %s did not open for writing\n", readings_path);
         return 1;
@@ -2991,8 +3171,8 @@ int program_main(int argc, char **argv)
         unsigned short *const volume = knee_load(series, &root, NULL);
         KneeCall call;
         memset(&call, 0, sizeof(call));
-        if ((volume == NULL)
-            || !knee_period_call(series, volume, &root, "knee period read", 0ull, run.groups[series->group].top, &call))
+        if ((volume == NULL) ||
+            !knee_period_call(series, volume, &root, "knee period read", 0ull, run.groups[series->group].top, &call))
         {
             free(volume);
             return 1;
@@ -3010,10 +3190,34 @@ int program_main(int argc, char **argv)
         fprintf(readings_file, "\t%llu\n", call.microseconds);
         fflush(readings_file);
         read_count += 1ull;
-        printf("  read %llu/%llu  %s  P %llu %llu %llu\n", read_count, run.count, series->name,
-               call.reading.axis[0].period, call.reading.axis[1].period, call.reading.axis[2].period);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  read ");
+            mmgr_line_decimal(output_line, read_count, 1u);
+            mmgr_line_put(output_line, "/");
+            mmgr_line_decimal(output_line, run.count, 1u);
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, series->name);
+            mmgr_line_put(output_line, "  P ");
+            mmgr_line_decimal(output_line, call.reading.axis[0].period, 1u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal(output_line, call.reading.axis[1].period, 1u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal(output_line, call.reading.axis[2].period, 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     fclose(readings_file);
-    printf("  the period pass is done: %llu draws, %llu readings\n", drawn, read_count);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the period pass is done: ");
+        mmgr_line_decimal(output_line, drawn, 1u);
+        mmgr_line_put(output_line, " draws, ");
+        mmgr_line_decimal(output_line, read_count, 1u);
+        mmgr_line_put(output_line, " readings");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 0;
 }

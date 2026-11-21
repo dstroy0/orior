@@ -13,6 +13,7 @@
 // printer, must be the code generator's. The test is one job on the device's tessera daemon, submitted before its first
 // device work.
 #include "../../engine/analysis/cycle/record_image.h"
+#include "../../../../../../src/platform/platform.h"
 #include "code_generator.h"
 #include "codegen_device.h"
 #include "../../../../../../includes/file_defs/krs/ruleset_reader.h"
@@ -51,7 +52,15 @@ static void device_check(DeviceResults *results, int passed, const std::string &
 {
     results->checks += 1u;
     results->failed += passed ? 0u : 1u;
-    printf("  %s %s\n", passed ? "ok  " : "FAIL", what.c_str());
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, passed ? "ok  " : "FAIL");
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put(output_line, what.c_str());
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
 // 1 where every line of a lane's ledger reads `<register> <holder> claimed <n> <form> released <n> <form>`, the claim
@@ -115,8 +124,17 @@ static void device_language(DeviceResults *results, const std::string &name, Cod
     std::string error;
     if (generator->decided(layout, &places, &host_items) == 0)
     {
-        printf("  %s: %u steps, not supported (a step the lane does not support, or a form breaks the lane)\n",
-               lane.c_str(), layout->steps);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, lane.c_str());
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_decimal(output_line, layout->steps, 1u);
+            mmgr_line_put(output_line,
+                          " steps, not supported (a step the lane does not support, or a form breaks the lane)");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         results->unsupported += 1u;
         return;
     }
@@ -145,14 +163,19 @@ static void device_language(DeviceResults *results, const std::string &name, Cod
             codegen_device_instrs(layout, scratch, scheduled_places, &costs, &device_report, &device_items, &error);
         device_check(results,
                      scheduled_decided && device_items_same(host_items, device_items) &&
-                         (device_report.states == host_report.states) &&
-                         (device_report.max == host_report.max) && (device_report.over == host_report.over),
+                         (device_report.states == host_report.states) && (device_report.max == host_report.max) &&
+                         (device_report.over == host_report.over),
                      lane + " split into " + std::to_string(host_report.states) +
                          " states: the device splits it as the host does" + device_why(scheduled_decided, error));
     }
     else
     {
-        printf("  %s: the host does not split the lane by the test's schedule model\n", lane.c_str());
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, lane.c_str());
+        mmgr_line_put(output_line, ": the host does not split the lane by the test's schedule model");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     // the text, where the assembly printer takes the language's ruleset
     const TargetInfo target = {0ull, 0, 0, 0, 0, ""};
@@ -161,7 +184,16 @@ static void device_language(DeviceResults *results, const std::string &name, Cod
     AsmPrinterRuleset text_rules{};
     if (asm_printer_ruleset_build(rules, &target, std::string(s_device_header), &text_rules, &error) == 0)
     {
-        printf("  %s: the assembly printer does not take the ruleset (%s)\n", lane.c_str(), error.c_str());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, lane.c_str());
+            mmgr_line_put(output_line, ": the assembly printer does not take the ruleset (");
+            mmgr_line_put(output_line, error.c_str());
+            mmgr_line_put(output_line, ")");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return;
     }
     Ruleset device_read{};
@@ -278,8 +310,16 @@ static void device_bootstrap(DeviceResults *results, CodeGenerator *generator, c
     if ((rules == NULL) ||
         (asm_printer_ruleset_build(rules, &target, std::string(s_device_header), &text_rules, &error) == 0))
     {
-        printf("  %s: the assembly printer does not take the ruleset (%s)\n", lane.c_str(),
-               (rules == NULL) ? "it is not read" : error.c_str());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, lane.c_str());
+            mmgr_line_put(output_line, ": the assembly printer does not take the ruleset (");
+            mmgr_line_put(output_line, (rules == NULL) ? "it is not read" : error.c_str());
+            mmgr_line_put(output_line, ")");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return;
     }
     const AsmPrinterProgram &program = text_rules.program;
@@ -335,7 +375,17 @@ int program_main(int count, char **arguments)
     sim_flush(&job);
     device_check(&results, (admitted != 0) && (job.failures == 0ull),
                  "tessera: the device's daemon admits the test's job and it releases");
-    printf("  codegen device test: %u checks, %u failed, %u lanes not supported\n", results.checks, results.failed,
-           results.unsupported);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  codegen device test: ");
+        mmgr_line_decimal(output_line, results.checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, results.failed, 1u);
+        mmgr_line_put(output_line, " failed, ");
+        mmgr_line_decimal(output_line, results.unsupported, 1u);
+        mmgr_line_put(output_line, " lanes not supported");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (results.failed == 0u) ? 0 : 1;
 }

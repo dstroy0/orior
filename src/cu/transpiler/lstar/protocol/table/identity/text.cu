@@ -54,7 +54,14 @@ int identity_queue(const char *engine, const char *answers, const char *ksc, con
     }
     if (entries.empty())
     {
-        printf("orior_klq_identity queue: %s lists no question\n", manifest);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity queue: ");
+            mmgr_line_put(output_line, manifest);
+            mmgr_line_put(output_line, " lists no question");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     if (!run_channel_open(carrier, 60000000ULL))
@@ -111,27 +118,89 @@ int identity_queue(const char *engine, const char *answers, const char *ksc, con
     }
     if (!run_closed(&table))
     {
-        printf("orior_klq_identity queue: %s/queue.txt could not be written\n", folder.c_str());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity queue: ");
+            mmgr_line_put(output_line, folder.c_str());
+            mmgr_line_put(output_line, "/queue.txt could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         run_channel_close();
         return 1;
     }
     run_channel_close();
-    printf("| category | questions | written | gated | alike | 1 | 0 | gray |\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "| category | questions | written | gated | alike | 1 | 0 | gray |");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     std::map<std::string, unsigned int> all;
     for (const std::string &category : categories)
     {
         std::map<std::string, unsigned int> &row = counted[category];
-        printf("| %s | %u | %u | %u | %u | %u | %u | %u |\n", category.c_str(), row["questions"], row["written"],
-               row["gated"], row["alike"], row["1"], row["0"], row["gray"]);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "| ");
+            mmgr_line_put(output_line, category.c_str());
+            mmgr_line_put(output_line, " | ");
+            mmgr_line_decimal(output_line, row["questions"], 1u);
+            mmgr_line_put(output_line, " | ");
+            mmgr_line_decimal(output_line, row["written"], 1u);
+            mmgr_line_put(output_line, " | ");
+            mmgr_line_decimal(output_line, row["gated"], 1u);
+            mmgr_line_put(output_line, " | ");
+            mmgr_line_decimal(output_line, row["alike"], 1u);
+            mmgr_line_put(output_line, " | ");
+            mmgr_line_decimal(output_line, row["1"], 1u);
+            mmgr_line_put(output_line, " | ");
+            mmgr_line_decimal(output_line, row["0"], 1u);
+            mmgr_line_put(output_line, " | ");
+            mmgr_line_decimal(output_line, row["gray"], 1u);
+            mmgr_line_put(output_line, " |");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         for (const char *const column : {"questions", "written", "gated", "alike", "1", "0", "gray"})
         {
             all[column] += row[column];
         }
     }
-    printf("| all | %u | %u | %u | %u | %u | %u | %u |\n", all["questions"], all["written"], all["gated"], all["alike"],
-           all["1"], all["0"], all["gray"]);
-    printf("orior_klq_identity queue: %llu queries, %u read 1, %u read 0, %u gray\n", queries, all["1"], all["0"],
-           all["gray"]);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "| all | ");
+        mmgr_line_decimal(output_line, all["questions"], 1u);
+        mmgr_line_put(output_line, " | ");
+        mmgr_line_decimal(output_line, all["written"], 1u);
+        mmgr_line_put(output_line, " | ");
+        mmgr_line_decimal(output_line, all["gated"], 1u);
+        mmgr_line_put(output_line, " | ");
+        mmgr_line_decimal(output_line, all["alike"], 1u);
+        mmgr_line_put(output_line, " | ");
+        mmgr_line_decimal(output_line, all["1"], 1u);
+        mmgr_line_put(output_line, " | ");
+        mmgr_line_decimal(output_line, all["0"], 1u);
+        mmgr_line_put(output_line, " | ");
+        mmgr_line_decimal(output_line, all["gray"], 1u);
+        mmgr_line_put(output_line, " |");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "orior_klq_identity queue: ");
+        mmgr_line_decimal(output_line, queries, 1u);
+        mmgr_line_put(output_line, " queries, ");
+        mmgr_line_decimal(output_line, all["1"], 1u);
+        mmgr_line_put(output_line, " read 1, ");
+        mmgr_line_decimal(output_line, all["0"], 1u);
+        mmgr_line_put(output_line, " read 0, ");
+        mmgr_line_decimal(output_line, all["gray"], 1u);
+        mmgr_line_put(output_line, " gray");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (all["0"] == 0u) ? 0 : 1;
 }
 
@@ -294,10 +363,30 @@ int identity_text(const char *engine, const char *answers, const char *ksc, cons
     }
     if (!run_closed(&file))
     {
-        printf("orior_klq_identity text_identity: %s could not be written\n", klq);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity text_identity: ");
+            mmgr_line_put(output_line, klq);
+            mmgr_line_put(output_line, " could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
-    printf("orior_klq_identity text_identity: %llu queries, %u open, %u closed, %u not queried, written to %s\n",
-           queries, open, closed, unqueried, klq);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "orior_klq_identity text_identity: ");
+        mmgr_line_decimal(output_line, queries, 1u);
+        mmgr_line_put(output_line, " queries, ");
+        mmgr_line_decimal(output_line, open, 1u);
+        mmgr_line_put(output_line, " open, ");
+        mmgr_line_decimal(output_line, closed, 1u);
+        mmgr_line_put(output_line, " closed, ");
+        mmgr_line_decimal(output_line, unqueried, 1u);
+        mmgr_line_put(output_line, " not queried, written to ");
+        mmgr_line_put(output_line, klq);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 0;
 }

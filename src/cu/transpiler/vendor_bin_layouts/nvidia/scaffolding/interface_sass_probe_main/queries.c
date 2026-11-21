@@ -56,7 +56,17 @@ int sass_cubin_same(SassProbe *probe, const SassMachine *machine, const char *na
     }
     if (!mmgr_text_equal(was, now, PLATFORM_TEXT_TO_TERMINATOR))
     {
-        printf("  cubin %s: the toolchain's %s, the one written %s\n", name, was, now);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  cubin ");
+            mmgr_line_put(output_line, name);
+            mmgr_line_put(output_line, ": the toolchain's ");
+            mmgr_line_put(output_line, was);
+            mmgr_line_put(output_line, ", the one written ");
+            mmgr_line_put(output_line, now);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     return 1;
@@ -75,14 +85,24 @@ int sass_lane_written(SassProbe *probe)
                                  "\tRET.ABS.NODEC R20 0x0;\n";
     if (!sass_cubin_lane_into(&s_sass_machine, probe->folder, s_lane, "program"))
     {
-        printf("interface sass lane: the lane did not go into the resident's cubin\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "interface sass lane: the lane did not go into the resident's cubin");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     static SassListing s_before;
     static SassListing s_after;
     if (!sass_list(probe, "resident", &s_before) || !sass_list(probe, "program", &s_after))
     {
-        printf("interface sass lane: the cubin did not list\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "interface sass lane: the cubin did not list");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     // every instruction the resident's cubin contained, looked for in the one the lane went into. cycle_program is the
@@ -101,9 +121,18 @@ int sass_lane_written(SassProbe *probe)
         }
         same_count += (unsigned int)found;
     }
-    printf(
-        "interface sass lane: %u instructions in the cubin the lane went into, %u of the resident's %u still in it\n",
-        s_after.count, same_count, s_before.count);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "interface sass lane: ");
+        mmgr_line_decimal(output_line, s_after.count, 1u);
+        mmgr_line_put(output_line, " instructions in the cubin the lane went into, ");
+        mmgr_line_decimal(output_line, same_count, 1u);
+        mmgr_line_put(output_line, " of the resident's ");
+        mmgr_line_decimal(output_line, s_before.count, 1u);
+        mmgr_line_put(output_line, " still in it");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     // the resident's own instructions all survive; what the empty lane contained is what the new lane replaced
     return (s_before.count - same_count) <= 2u;
 }
@@ -200,10 +229,25 @@ int sass_questions_compile(SassProbe *probe)
     sass_compiles_count(sass_output());
     if ((status != 0) || !sass_questions_read(probe, sass_output()))
     {
-        printf("  interface_ptx_probe cubins exited %d\n%s", status, (status >= 0) ? sass_output() : "");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  interface_ptx_probe cubins exited ");
+            mmgr_line_decimal_signed(output_line, status);
+            mmgr_line_put(output_line, "\n");
+            mmgr_line_put(output_line, (status >= 0) ? sass_output() : "");
+            platform_line_out_ended();
+        }
         return 0;
     }
-    printf("%s: %u questions\n", probe->architecture, probe->questions);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, probe->architecture);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_decimal(output_line, probe->questions, 1u);
+        mmgr_line_put(output_line, " questions");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 1;
 }
 
@@ -243,21 +287,55 @@ int sass_queries_main(SassProbe *probe, const char *path)
         checks += (same_count == was_same) ? 1u : 0u;
         failed += (same || (same_count != was_same)) ? 0u : 1u;
     }
-    printf("interface sass cubin: %u kernels written again, %u answering as the toolchain's did, %u blocked from the "
-           "part\n",
-           probe->questions + 1u, checks - failed, same_count);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "interface sass cubin: ");
+        mmgr_line_decimal(output_line, probe->questions + 1u, 1u);
+        mmgr_line_put(output_line, " kernels written again, ");
+        mmgr_line_decimal(output_line, checks - failed, 1u);
+        mmgr_line_put(output_line, " answering as the toolchain's did, ");
+        mmgr_line_decimal(output_line, same_count, 1u);
+        mmgr_line_put(output_line, " blocked from the part");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     unsigned int queried = 0u;
     const unsigned int answered = sass_cubin_queries(probe, &s_sass_machine, &queried);
-    printf("interface sass query: %u questions queried in the part's own code, %u answered as the question specifies\n",
-           queried, answered);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "interface sass query: ");
+        mmgr_line_decimal(output_line, queried, 1u);
+        mmgr_line_put(output_line, " questions queried in the part's own code, ");
+        mmgr_line_decimal(output_line, answered, 1u);
+        mmgr_line_put(output_line, " answered as the question specifies");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     checks += queried;
     failed += queried - answered;
     unsigned int weighed = 0u;
     const unsigned int read = sass_cubin_prefers(probe, &s_sass_machine, &weighed);
-    printf("interface sass prefer: %u codings weighed against each other, %u read in the part's own clock\n", weighed,
-           read);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "interface sass prefer: ");
+        mmgr_line_decimal(output_line, weighed, 1u);
+        mmgr_line_put(output_line, " codings weighed against each other, ");
+        mmgr_line_decimal(output_line, read, 1u);
+        mmgr_line_put(output_line, " read in the part's own clock");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     failed += sass_class_write(probe->folder, s_sass_machine.part) ? 0u : 1u;
     checks += 1u;
-    printf("interface sass queries: %u checks, %u failed\n", checks, failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "interface sass queries: ");
+        mmgr_line_decimal(output_line, checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (failed == 0u) ? 0 : 1;
 }

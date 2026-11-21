@@ -107,7 +107,14 @@ static int language_read(const char *file, LanguageSet *set)
     std::string error;
     if (ruleset_relations_read(paths, count, &flat.schema, &set->memory, &set->relations, &error) == 0)
     {
-        printf("  %s could not be opened\n", error.c_str());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, error.c_str());
+            mmgr_line_put(output_line, " could not be opened");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     return 1;
@@ -161,10 +168,28 @@ static int map_write(const std::string &path, const std::string &stem, const Lan
     }
     if (!text_fits(sizeof(s_map_bytes), s_map_at) || !qry_member_filed(path.c_str(), s_map_bytes, s_map_at))
     {
-        printf("  %s could not be written\n", path.c_str());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, path.c_str());
+            mmgr_line_put(output_line, " could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
-    printf("  %s: %u keys, %u relations of the map witnessed\n", path.c_str(), keys, relations);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, path.c_str());
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_decimal(output_line, keys, 1u);
+        mmgr_line_put(output_line, " keys, ");
+        mmgr_line_decimal(output_line, relations, 1u);
+        mmgr_line_put(output_line, " relations of the map witnessed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 1;
 }
 
@@ -186,7 +211,12 @@ int program_main(int argc, char **argv)
 {
     if (argc < 3)
     {
-        printf("orior_klq_write <folder> <ruleset>...\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_write <folder> <ruleset>...");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     const std::string folder = argv[1];
@@ -343,11 +373,31 @@ int program_main(int argc, char **argv)
     }
     if (!text_fits(sizeof(s_bridge_bytes), s_bridge_at) || !qry_member_filed(path.c_str(), s_bridge_bytes, s_bridge_at))
     {
-        printf("  %s could not be written\n", path.c_str());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, path.c_str());
+            mmgr_line_put(output_line, " could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
-    printf("  %s: %u keys, %u pairs open, %u pairs of names the schema does not name, %u lines no ruleset writes "
-           "retained\n",
-           path.c_str(), written, (unsigned int)pairs.size(), unkeyed, (unsigned int)identities.size());
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, path.c_str());
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_decimal(output_line, written, 1u);
+        mmgr_line_put(output_line, " keys, ");
+        mmgr_line_decimal(output_line, (unsigned int)pairs.size(), 1u);
+        mmgr_line_put(output_line, " pairs open, ");
+        mmgr_line_decimal(output_line, unkeyed, 1u);
+        mmgr_line_put(output_line, " pairs of names the schema does not name, ");
+        mmgr_line_decimal(output_line, (unsigned int)identities.size(), 1u);
+        mmgr_line_put(output_line, " lines no ruleset writes retained");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return failed;
 }

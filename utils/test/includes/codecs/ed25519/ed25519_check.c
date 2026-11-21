@@ -4,6 +4,7 @@
 // (section 7.1): each seed's public key, each signature made byte for byte, and each verified; a message changed, a
 // signature changed, and a signature with the group's order added to its S each refused. Exit 0 where every one passed
 #include "verba_scribo/verba_linea.h"
+#include "../../../../../src/platform/platform.h"
 #include <stdio.h>
 #include <string.h>
 #include "../../../../../includes/codecs/ed25519/ed25519.h"
@@ -49,7 +50,7 @@ static void ed25519_check(int passed, const char *what)
     mmgr_line_put(&line, passed ? "  ok   " : "  FAIL ");
     mmgr_line_put(&line, what);
     mmgr_line_ch(&line, '\n');
-    (void)(mmgr_line_ok(&line) && (fwrite(line.out, 1u, mmgr_line_finish(&line), stdout) == line.at));
+    (void)(mmgr_line_ok(&line) && (platform_line_out_put(line.out, mmgr_line_finish(&line)) == line.at));
     s_passed += passed ? 1u : 0u;
     s_failed += passed ? 0u : 1u;
 }
@@ -82,8 +83,10 @@ static int ed25519_sha_matches(const char *text, const char *wanted)
     return memcmp(digest, expected, SHA512_BYTES) == 0;
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     ed25519_check(ed25519_sha_matches("",
                                       "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0"
                                       "ff8318d2877eec2f63b931bd47417a81a538327af927da3e"),
@@ -145,6 +148,6 @@ int main(void)
     mmgr_line_put(&line, " checks, ");
     mmgr_line_decimal(&line, s_failed, 1u);
     mmgr_line_put(&line, " failed\n");
-    (void)(mmgr_line_ok(&line) && (fwrite(line.out, 1u, mmgr_line_finish(&line), stdout) == line.at));
+    (void)(mmgr_line_ok(&line) && (platform_line_out_put(line.out, mmgr_line_finish(&line)) == line.at));
     return (s_failed == 0u) ? 0 : 1;
 }

@@ -247,7 +247,14 @@ int program_main(int count, char **arguments)
     static SassMachine machine;
     if (!sass_machine_read(&machine, path))
     {
-        printf("the machine file %s did not read\n", path);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "the machine file ");
+            mmgr_line_put(output_line, path);
+            mmgr_line_put(output_line, " did not read");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     const Ruleset *const rules = sass_target().ruleset(1);
@@ -257,7 +264,20 @@ int program_main(int count, char **arguments)
     }
     const std::vector<KrsForm> forms = krs_forms(rules, ruleset);
     const std::string labels = krs_labels(rules, forms);
-    printf("machine %s: %u forms; %s: %zu forms\n", machine.part, machine.forms, ruleset, forms.size());
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "machine ");
+        mmgr_line_put(output_line, machine.part);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_decimal(output_line, machine.forms, 1u);
+        mmgr_line_put(output_line, " forms; ");
+        mmgr_line_put(output_line, ruleset);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_decimal(output_line, forms.size(), 1u);
+        mmgr_line_put(output_line, " forms");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     unsigned int assembled = 0u;
     unsigned int empty = 0u;
     unsigned int refused = 0u;
@@ -287,12 +307,32 @@ int program_main(int count, char **arguments)
         else
         {
             refused += 1u;
-            printf("  %s refused, its last writing %s:\n%s", form.name.c_str(),
-                   (outcome == KRS_NOT_WRITTEN) ? "not written" : "", wrote.c_str());
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  ");
+                mmgr_line_put(output_line, form.name.c_str());
+                mmgr_line_put(output_line, " refused, its last writing ");
+                mmgr_line_put(output_line, (outcome == KRS_NOT_WRITTEN) ? "not written" : "");
+                mmgr_line_put(output_line, ":\n");
+                mmgr_line_put(output_line, wrote.c_str());
+                platform_line_out_ended();
+            }
         }
     }
-    printf("sass.krs: %u forms assembled, %u refused, %u carry no instruction, %u left empty\n", assembled, refused,
-           quiet, empty);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "sass.krs: ");
+        mmgr_line_decimal(output_line, assembled, 1u);
+        mmgr_line_put(output_line, " forms assembled, ");
+        mmgr_line_decimal(output_line, refused, 1u);
+        mmgr_line_put(output_line, " refused, ");
+        mmgr_line_decimal(output_line, quiet, 1u);
+        mmgr_line_put(output_line, " carry no instruction, ");
+        mmgr_line_decimal(output_line, empty, 1u);
+        mmgr_line_put(output_line, " left empty");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     if (output_file != NULL)
     {
         fclose(output_file);

@@ -61,7 +61,14 @@ int khw_pieces_read(const char *path)
     FILE *const file = fopen(path, "rb");
     if (file == NULL)
     {
-        printf("  orior_khw_machine_write: %s could not be read\n", path);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  orior_khw_machine_write: ");
+            mmgr_line_put(output_line, path);
+            mmgr_line_put(output_line, " could not be read");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     char line[1024];
@@ -105,7 +112,14 @@ int khw_pieces_read(const char *path)
     fclose(file);
     if (s_pieces == 0u)
     {
-        printf("  orior_khw_machine_write: %s contains no piece of a name\n", path);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  orior_khw_machine_write: ");
+            mmgr_line_put(output_line, path);
+            mmgr_line_put(output_line, " contains no piece of a name");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     return 1;

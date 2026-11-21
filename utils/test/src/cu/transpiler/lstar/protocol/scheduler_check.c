@@ -19,6 +19,7 @@
 // The dry channel appends every question to the run (qry_member.h). The check runs in a run of its own, QRY naming
 // it, and reads the round back from it. The halted round is checked where the check's carrier is given
 #include "../../../../../../../includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../../../../src/platform/platform.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/order/scheduler.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/teacher/run_channel/run_channel_internal.h"
 
@@ -35,7 +36,13 @@ static void check_that(int passed, const char *what)
     if (passed == 0)
     {
         s_failed += 1u;
-        printf("  FAILED: %s\n", what);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -58,7 +65,12 @@ int program_main(int count, char **words)
 {
     if ((count != 2) && (count != 3))
     {
-        printf("scheduler_check <folder> [<overseer_carrier>]\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "scheduler_check <folder> [<overseer_carrier>]");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     // the run the check runs in
@@ -71,7 +83,12 @@ int program_main(int count, char **words)
     RunQuestion *const pool = (RunQuestion *)calloc(CHECK_QUESTIONS, sizeof(RunQuestion));
     if (pool == NULL)
     {
-        printf("  no room for the questions\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  no room for the questions");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     static unsigned char s_code[CHECK_QUESTIONS][16];
@@ -217,6 +234,15 @@ int program_main(int count, char **words)
     check_that((after == 0u) && (stopped == CHECK_QUESTIONS),
                "every question after the stop is refused with the stop's reason");
     free(pool);
-    printf("scheduler_check: %u checks, %u failed\n", s_checks, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "scheduler_check: ");
+        mmgr_line_decimal(output_line, s_checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, s_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failed == 0u) ? 0 : 1;
 }

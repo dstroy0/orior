@@ -31,13 +31,37 @@ static void max_tree_part(const unsigned int *residual, const MaxTree *theirs, c
     {
         const unsigned int their_parent = theirs->parent[first];
         const unsigned int my_parent = mine->parent[first];
-        printf("    part: %u of %u voxels differ; first voxel %u at %u, reference parent %u at %u, queried parent %u "
-               "at %u; voxel level equals reference parent %d, queried parent %d; parents equal %d; reference "
-               "parent's parent %u, queried parent's parent %u\n",
-               differing, theirs->admitted, first, place[first], their_parent, place[their_parent], my_parent,
-               place[my_parent], max_tree_same(residual, first, their_parent),
-               max_tree_same(residual, first, my_parent), max_tree_same(residual, their_parent, my_parent),
-               theirs->parent[their_parent], mine->parent[my_parent]);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    part: ");
+            mmgr_line_decimal(output_line, differing, 1u);
+            mmgr_line_put(output_line, " of ");
+            mmgr_line_decimal(output_line, theirs->admitted, 1u);
+            mmgr_line_put(output_line, " voxels differ; first voxel ");
+            mmgr_line_decimal(output_line, first, 1u);
+            mmgr_line_put(output_line, " at ");
+            mmgr_line_decimal(output_line, place[first], 1u);
+            mmgr_line_put(output_line, ", reference parent ");
+            mmgr_line_decimal(output_line, their_parent, 1u);
+            mmgr_line_put(output_line, " at ");
+            mmgr_line_decimal(output_line, place[their_parent], 1u);
+            mmgr_line_put(output_line, ", queried parent ");
+            mmgr_line_decimal(output_line, my_parent, 1u);
+            mmgr_line_put(output_line, " at ");
+            mmgr_line_decimal(output_line, place[my_parent], 1u);
+            mmgr_line_put(output_line, "; voxel level equals reference parent ");
+            mmgr_line_decimal_signed(output_line, max_tree_same(residual, first, their_parent));
+            mmgr_line_put(output_line, ", queried parent ");
+            mmgr_line_decimal_signed(output_line, max_tree_same(residual, first, my_parent));
+            mmgr_line_put(output_line, "; parents equal ");
+            mmgr_line_decimal_signed(output_line, max_tree_same(residual, their_parent, my_parent));
+            mmgr_line_put(output_line, "; reference parent's parent ");
+            mmgr_line_decimal(output_line, theirs->parent[their_parent], 1u);
+            mmgr_line_put(output_line, ", queried parent's parent ");
+            mmgr_line_decimal(output_line, mine->parent[my_parent], 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     platform_cell_released(place, (unsigned int)platform_place_g_engine_owner);
 }
@@ -404,16 +428,11 @@ long max_tree_nodes(const MaxTreeNodesRequest *request)
     }
     if (ok != 0)
     {
-        nodes->voxel =
-            (unsigned int *)malloc(((size_t)count + 1u) * sizeof(unsigned int));
-        nodes->parent =
-            (unsigned int *)malloc(((size_t)count + 1u) * sizeof(unsigned int));
-        nodes->level =
-            (unsigned int *)malloc(((size_t)count + 1u) * sizeof(unsigned int));
-        nodes->subtree_end =
-            (unsigned int *)malloc(((size_t)count + 1u) * sizeof(unsigned int));
-        nodes->root =
-            (unsigned int *)malloc(((size_t)count + 1u) * sizeof(unsigned int));
+        nodes->voxel = (unsigned int *)malloc(((size_t)count + 1u) * sizeof(unsigned int));
+        nodes->parent = (unsigned int *)malloc(((size_t)count + 1u) * sizeof(unsigned int));
+        nodes->level = (unsigned int *)malloc(((size_t)count + 1u) * sizeof(unsigned int));
+        nodes->subtree_end = (unsigned int *)malloc(((size_t)count + 1u) * sizeof(unsigned int));
+        nodes->root = (unsigned int *)malloc(((size_t)count + 1u) * sizeof(unsigned int));
         nodes->own = (unsigned int *)malloc((voxels + 1u) * sizeof(unsigned int));
         ok = MAX_TREE_HOST_CHECK((nodes->voxel != NULL) && (nodes->parent != NULL) && (nodes->level != NULL) &&
                                      (nodes->subtree_end != NULL) && (nodes->root != NULL) && (nodes->own != NULL),

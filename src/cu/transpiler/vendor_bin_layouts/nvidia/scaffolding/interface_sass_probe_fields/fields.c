@@ -3,6 +3,7 @@
 // fields.c: the fields: each field read off the part, what writes first, a mark, a swap and an address swap, a
 // redirect, and the fields named
 #include "fields_internal.h"
+#include "../../../../../../platform/platform.h"
 #include "../../../../../engine/engine_note.h"
 #include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../../../../includes/parsers/line_read.h"
@@ -172,7 +173,23 @@ int fields_read(const char *machine_path, const char *instructions, const char *
     fclose(out);
     // a tab-delimited line the gathering script turns into one row: the form, its counts, and the bits it reads that
     // the machine file records for no operand
-    printf("FORMFIELDS\t%s\t%u\t%u\t%u\t%u\t%s\n", instruction, refused, inside, hidden, unread, hidden_bits);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "FORMFIELDS\t");
+        mmgr_line_put(output_line, instruction);
+        mmgr_line_put(output_line, "\t");
+        mmgr_line_decimal(output_line, refused, 1u);
+        mmgr_line_put(output_line, "\t");
+        mmgr_line_decimal(output_line, inside, 1u);
+        mmgr_line_put(output_line, "\t");
+        mmgr_line_decimal(output_line, hidden, 1u);
+        mmgr_line_put(output_line, "\t");
+        mmgr_line_decimal(output_line, unread, 1u);
+        mmgr_line_put(output_line, "\t");
+        mmgr_line_put(output_line, hidden_bits);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 0;
 }
 
@@ -381,22 +398,58 @@ int fields_names(const char *machine_path, const char *instructions)
         return 2;
     }
     sass_instruction_read(base_text, &base);
-    printf("NAMES\t%s\tbase\t%s\n", instruction, base_text);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "NAMES\t");
+        mmgr_line_put(output_line, instruction);
+        mmgr_line_put(output_line, "\tbase\t");
+        mmgr_line_put(output_line, base_text);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     for (unsigned int bit = 0u; bit < FIELDS_OPERATION_BITS; bit += 1u)
     {
         const unsigned long long turned_low = (bit < 64u) ? (low ^ (1ULL << bit)) : low;
         const unsigned long long turned_high = (bit < 64u) ? high : (high ^ (1ULL << (bit - 64u)));
         if (!sass_encoding_read(&s_machine, turned_low, turned_high, 0ULL, text, sizeof(text)))
         {
-            printf("NAMES\t%s\t%u\tno form\n", instruction, bit);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "NAMES\t");
+                mmgr_line_put(output_line, instruction);
+                mmgr_line_put(output_line, "\t");
+                mmgr_line_decimal(output_line, bit, 1u);
+                mmgr_line_put(output_line, "\tno form");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             continue;
         }
         if (mmgr_text_equal(text, base_text, PLATFORM_TEXT_TO_TERMINATOR))
         {
-            printf("NAMES\t%s\t%u\tsame text\n", instruction, bit);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "NAMES\t");
+                mmgr_line_put(output_line, instruction);
+                mmgr_line_put(output_line, "\t");
+                mmgr_line_decimal(output_line, bit, 1u);
+                mmgr_line_put(output_line, "\tsame text");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             continue;
         }
-        printf("NAMES\t%s\t%u\t%s\n", instruction, bit, text);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "NAMES\t");
+            mmgr_line_put(output_line, instruction);
+            mmgr_line_put(output_line, "\t");
+            mmgr_line_decimal(output_line, bit, 1u);
+            mmgr_line_put(output_line, "\t");
+            mmgr_line_put(output_line, text);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     return 0;
 }

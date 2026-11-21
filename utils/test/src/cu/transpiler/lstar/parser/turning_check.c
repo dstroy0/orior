@@ -16,6 +16,7 @@
 //
 //     turning_check
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/khw_learn/khw_learn_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
@@ -26,12 +27,20 @@ static void check_that(int passed, const char *what)
     if (passed == 0)
     {
         s_failed += 1u;
-        printf("  FAILED: %s\n", what);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     for (unsigned int anchor = 0u; anchor < (unsigned int)LADDER_ANCHOR_COUNT; anchor += 1u)
     {
         unsigned int word[2] = {0u, 0u};
@@ -153,6 +162,15 @@ int main(void)
     check_that((khw_runs_gathered(turned, 2u, nested_first, nested_bits, &nested) == 2u) && (nested.first[0] == 36u) &&
                    (nested.last[0] == 39u) && (nested.first[1] == 40u) && (nested.last[1] == 42u),
                "cut: where fields nest, the narrowest containing a bit is the bit's field");
-    printf("turning_check: %u checks, %u failed\n", s_checks, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "turning_check: ");
+        mmgr_line_decimal(output_line, s_checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, s_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failed == 0u) ? 0 : 1;
 }

@@ -10,6 +10,7 @@
 // That gap is the reading this exists for. It is how many answers a target can give before an answer means
 // anything, and a case added to the ladder is worth adding exactly insofar as it closes it.
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/gate/chain_build.h"
+#include "../../../../../../../src/platform/platform.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -32,8 +33,10 @@ static unsigned int anchor_cases(unsigned int anchor, LadderQuestion *cases_out)
     return found;
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     static ChainSet fitted;
     static ChainSet swept;
     static LadderQuestion cases[LADDER_CASE_COUNT];
@@ -50,8 +53,20 @@ int main(void)
         const unsigned int built = chain_build_cases(&swept, cases, found, 1);
         chain_build_cases(&fitted, cases, found, 0);
         const unsigned int let_through = fitted.chains - built;
-        printf("  %-8s %2u cases  %5u are the relation  %5u more fit the cases and are not it\n", s_anchor_text[anchor],
-               found, built, let_through);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_columns(output_line, s_anchor_text[anchor], 8u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_columns(output_line, found, 2u);
+            mmgr_line_put(output_line, " cases  ");
+            mmgr_line_decimal_columns(output_line, built, 5u);
+            mmgr_line_put(output_line, " are the relation  ");
+            mmgr_line_decimal_columns(output_line, let_through, 5u);
+            mmgr_line_put(output_line, " more fit the cases and are not it");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         // the shortest arrangement the cases alone would have taken for the relation, the one a ladder
         // that stopped at its own cases would have written down
         for (unsigned int at = 0u; (at < fitted.chains) && (let_through != 0u); at += 1u)
@@ -66,13 +81,27 @@ int main(void)
                 continue;
             }
             chain_text(&fitted.chain[at], text, sizeof(text));
-            printf("      shortest one that is not: %s\n", text);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "      shortest one that is not: ");
+                mmgr_line_put(output_line, text);
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             break;
         }
         let_through_whole += let_through;
         chains_whole += built;
     }
-    printf("  chain check: %u chains are the relation, %u more fit the ladder's cases and are not\n", chains_whole,
-           let_through_whole);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  chain check: ");
+        mmgr_line_decimal(output_line, chains_whole, 1u);
+        mmgr_line_put(output_line, " chains are the relation, ");
+        mmgr_line_decimal(output_line, let_through_whole, 1u);
+        mmgr_line_put(output_line, " more fit the ladder's cases and are not");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 0;
 }

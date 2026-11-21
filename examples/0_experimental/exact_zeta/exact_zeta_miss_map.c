@@ -58,6 +58,7 @@
  *       repr, its compensated sum, its hypot and its round to even.
  */
 #include "zeta_machine.h"
+#include "../../../src/platform/platform.h"
 #include "zeta_shuffle.h"
 
 #include <math.h>
@@ -803,7 +804,7 @@ static void read_listing(const char *path, int listing, Listing *out)
 static int64_t run_listed(const char *binary, const TuringConstants *constants, int64_t nu, int64_t bits, int listing,
                           Listing *out)
 {
-    fflush(stdout);
+    platform_line_flushed();
     TuringCell *const cell = (TuringCell *)map_memory(malloc(sizeof(TuringCell)));
     OriorExactInteger bound;
     turing_run_cell(binary, constants, nu, bits, TURING_TRANSFORM, 0, listing, cell, &bound);
@@ -1497,7 +1498,16 @@ static void summary(const Placements *misses, const Doubles *radii)
 {
     const size_t count = radii->count;
     double *const ordered = sorted_copy(radii->values, count);
-    printf("  %llu misses over %llu coarse points\n", (unsigned long long)misses->count, (unsigned long long)count);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_decimal(output_line, (unsigned long long)misses->count, 1u);
+        mmgr_line_put(output_line, " misses over ");
+        mmgr_line_decimal(output_line, (unsigned long long)count, 1u);
+        mmgr_line_put(output_line, " coarse points");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     if (misses->count == 0u)
     {
         free(ordered);
@@ -1508,16 +1518,35 @@ static void summary(const Placements *misses, const Doubles *radii)
     Doubles taken = {NULL, 0u, 0u};
     field_values(misses, FIELD_RADIUS, &taken);
     doubles_sort(&taken);
-    printf(
-        "  the ball's radius: median %.4f over every coarse point, %.4f at the misses' centers, %.4f at their dips\n",
-        middle, taken.values[taken.count / 2u], field_median(misses, FIELD_DIP_RADIUS));
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the ball's radius: median ");
+        mmgr_line_fixed(output_line, (double)(middle), 4u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " over every coarse point, ");
+        mmgr_line_fixed(output_line, (double)(taken.values[taken.count / 2u]), 4u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " at the misses' centers, ");
+        mmgr_line_fixed(output_line, (double)(field_median(misses, FIELD_DIP_RADIUS)), 4u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " at their dips");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     size_t small_count = 0u;
     for (size_t at = 0u; at < taken.count; at += 1u)
     {
         small_count += (taken.values[at] <= tenth) ? 1u : 0u;
     }
-    printf("  misses whose center lies in the smallest tenth of radii: %.1f%%, against 10%% were the radius no field\n",
-           (100.0 * (double)small_count) / (double)taken.count);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  misses whose center lies in the smallest tenth of radii: ");
+        mmgr_line_fixed(output_line, (double)((100.0 * (double)small_count) / (double)taken.count), 1u, 0u,
+                        EMBED_FALSE);
+        mmgr_line_ch(output_line, '%');
+        mmgr_line_put(output_line, ", against 10");
+        mmgr_line_ch(output_line, '%');
+        mmgr_line_put(output_line, " were the radius no field");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     static const char *const NAMES[2] = {"from the heading", "from the dead-reckoned track"};
     const PlacedField fields[2] = {FIELD_ANGLE, FIELD_RESIDUAL_ANGLE};
     for (int which = 0; which < 2; which += 1)
@@ -1529,17 +1558,43 @@ static void summary(const Placements *misses, const Doubles *radii)
             const int64_t sector = (int64_t)py_floordiv(placed_field(&misses->values[at], fields[which]), 45.0);
             sectors[((sector % 8) + 8) % 8] += 1;
         }
-        printf("  direction %s, by 45 degrees from 0: [", NAMES[which]);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  direction ");
+            mmgr_line_put(output_line, NAMES[which]);
+            mmgr_line_put(output_line, ", by 45 degrees from 0: [");
+            platform_line_out_ended();
+        }
         for (int at = 0; at < 8; at += 1)
         {
-            printf("%s%lld", (at > 0) ? ", " : "", (long long)sectors[at]);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, (at > 0) ? ", " : "");
+            mmgr_line_decimal_signed(output_line, (long long)sectors[at]);
+            platform_line_out_ended();
         }
-        printf("]\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "]");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
-    printf("  distance from the dead-reckoned track in radii: median %.3f\n",
-           field_median(misses, FIELD_RESIDUAL_RADII));
-    printf("  distance in radii: median %.3f; in units: median %.4f\n", field_median(misses, FIELD_RADII),
-           field_median(misses, FIELD_UNITS));
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  distance from the dead-reckoned track in radii: median ");
+        mmgr_line_fixed(output_line, (double)(field_median(misses, FIELD_RESIDUAL_RADII)), 3u, 0u, EMBED_FALSE);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  distance in radii: median ");
+        mmgr_line_fixed(output_line, (double)(field_median(misses, FIELD_RADII)), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, "; in units: median ");
+        mmgr_line_fixed(output_line, (double)(field_median(misses, FIELD_UNITS)), 4u, 0u, EMBED_FALSE);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     free(taken.values);
     free(ordered);
 }
@@ -2060,8 +2115,20 @@ static int main_map(const char *binary, int64_t first, int64_t last, int64_t coa
             place(nu, coarse.points, fine.points, &found.values[at], lift, &placed);
             placements_push(&misses, &placed);
         }
-        printf("  cell %lld: 2^%lld against 2^%lld points, %llu misses\n", (long long)nu, (long long)coarse_bits,
-               (long long)fine_p, (unsigned long long)found.count);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  cell ");
+            mmgr_line_decimal_signed(output_line, (long long)nu);
+            mmgr_line_put(output_line, ": 2^");
+            mmgr_line_decimal_signed(output_line, (long long)coarse_bits);
+            mmgr_line_put(output_line, " against 2^");
+            mmgr_line_decimal_signed(output_line, (long long)fine_p);
+            mmgr_line_put(output_line, " points, ");
+            mmgr_line_decimal(output_line, (unsigned long long)found.count, 1u);
+            mmgr_line_put(output_line, " misses");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         free(found.values);
         free(coarse.points);
         free(fine.points);
@@ -2079,10 +2146,20 @@ static int main_map(const char *binary, int64_t first, int64_t last, int64_t coa
         {
             in_top += (misses.values[at].spin >= top) ? 1u : 0u;
         }
-        printf("  the turn over a step: median %.3f radians at every coarse point, %.3f at the misses' centers; misses "
-               "in the largest tenth of turns: %.1f%%\n",
-               ordered[spins.count / 2u], sorted_at(miss_spins.values, miss_spins.count, misses.count / 2u),
-               (100.0 * (double)in_top) / (double)misses.count);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  the turn over a step: median ");
+            mmgr_line_fixed(output_line, (double)(ordered[spins.count / 2u]), 3u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, " radians at every coarse point, ");
+            mmgr_line_fixed(output_line, (double)(sorted_at(miss_spins.values, miss_spins.count, misses.count / 2u)),
+                            3u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, " at the misses' centers; misses in the largest tenth of turns: ");
+            mmgr_line_fixed(output_line, (double)((100.0 * (double)in_top) / (double)misses.count), 1u, 0u,
+                            EMBED_FALSE);
+            mmgr_line_ch(output_line, '%');
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         free(miss_spins.values);
         const double sixth = PI_DOUBLE / 3.0;
         size_t steps_past = 0u;
@@ -2097,10 +2174,24 @@ static int main_map(const char *binary, int64_t first, int64_t last, int64_t coa
             seen_past += (fabs(misses.values[at].seen_turn) > sixth) ? 1u : 0u;
             true_past += (fabs(misses.values[at].true_turn) > sixth) ? 1u : 0u;
         }
-        printf("  turns past a sixth of a turn: %.1f%% of every coarse step's; at the misses, %.1f%% of the steps' as "
-               "the coarse chords see them and %.1f%% of the tip's own\n",
-               (100.0 * (double)steps_past) / (double)spins.count, (100.0 * (double)seen_past) / (double)misses.count,
-               (100.0 * (double)true_past) / (double)misses.count);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  turns past a sixth of a turn: ");
+            mmgr_line_fixed(output_line, (double)((100.0 * (double)steps_past) / (double)spins.count), 1u, 0u,
+                            EMBED_FALSE);
+            mmgr_line_ch(output_line, '%');
+            mmgr_line_put(output_line, " of every coarse step's; at the misses, ");
+            mmgr_line_fixed(output_line, (double)((100.0 * (double)seen_past) / (double)misses.count), 1u, 0u,
+                            EMBED_FALSE);
+            mmgr_line_ch(output_line, '%');
+            mmgr_line_put(output_line, " of the steps' as the coarse chords see them and ");
+            mmgr_line_fixed(output_line, (double)((100.0 * (double)true_past) / (double)misses.count), 1u, 0u,
+                            EMBED_FALSE);
+            mmgr_line_ch(output_line, '%');
+            mmgr_line_put(output_line, " of the tip's own");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         double *const own = (double *)map_memory(malloc((misses.count + 1u) * sizeof(double)));
         for (size_t at = 0u; at < misses.count; at += 1u)
         {
@@ -2109,12 +2200,26 @@ static int main_map(const char *binary, int64_t first, int64_t last, int64_t coa
         qsort(own, misses.count, sizeof(double), double_order);
         const size_t tenth = misses.count / 10u;
         const size_t stride = (tenth > 1u) ? tenth : 1u;
-        printf("  the tip's own turn across a miss's step: deciles [");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  the tip's own turn across a miss's step: deciles [");
+            platform_line_out_ended();
+        }
         for (size_t at = tenth; at < misses.count; at += stride)
         {
-            printf("%s'%.0f'", (at > tenth) ? ", " : "", degrees(own[at]));
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, (at > tenth) ? ", " : "");
+            mmgr_line_put(output_line, "'");
+            mmgr_line_fixed(output_line, (double)(degrees(own[at])), 0u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, "'");
+            platform_line_out_ended();
         }
-        printf("] degrees\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "] degrees");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         free(own);
         free(ordered);
         join_path(path, folder, "spins.tsv");
@@ -2125,10 +2230,25 @@ static int main_map(const char *binary, int64_t first, int64_t last, int64_t coa
     char radii_path[PATH_BYTES];
     join_path(radii_path, folder, "radii.tsv");
     write_column(&radii, radii_path);
-    printf("  the misses: %s\n", path);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the misses: ");
+        mmgr_line_put(output_line, path);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     char map_path[PATH_BYTES];
     draw(&misses, &radii, folder, map_path);
-    printf("  the map: %s; %lld host checks failed\n", map_path, (long long)failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the map: ");
+        mmgr_line_put(output_line, map_path);
+        mmgr_line_put(output_line, "; ");
+        mmgr_line_decimal_signed(output_line, (long long)failed);
+        mmgr_line_put(output_line, " host checks failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     placements_free(&misses);
     free(radii.values);
     free(spins.values);
@@ -2537,9 +2657,22 @@ static int main_folds(const char *binary, int64_t base, int64_t count, int64_t f
         char path[PATH_BYTES];
         join_path(path, folder, name);
         write_misses(&found[height].misses, path);
-        printf("  cells %lld to %lld, t from %.4g: %llu misses, %lld host checks failed\n", (long long)nu,
-               (long long)(nu + count - 1), found[height].time, (unsigned long long)found[height].misses.count,
-               (long long)found[height].failed);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  cells ");
+            mmgr_line_decimal_signed(output_line, (long long)nu);
+            mmgr_line_put(output_line, " to ");
+            mmgr_line_decimal_signed(output_line, (long long)(nu + count - 1));
+            mmgr_line_put(output_line, ", t from ");
+            mmgr_line_general(output_line, (double)(found[height].time), 4u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_decimal(output_line, (unsigned long long)found[height].misses.count, 1u);
+            mmgr_line_put(output_line, " misses, ");
+            mmgr_line_decimal_signed(output_line, (long long)found[height].failed);
+            mmgr_line_put(output_line, " host checks failed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed += found[height].failed;
     }
     char (*const rows)[FOLD_ROWS][64] =
@@ -2548,26 +2681,61 @@ static int main_folds(const char *binary, int64_t base, int64_t count, int64_t f
     {
         fold_row(&found[height], rows[height]);
     }
-    printf("  %-40s ", "");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, "", 40u);
+        mmgr_line_put(output_line, " ");
+        platform_line_out_ended();
+    }
     for (size_t height = 0u; height < height_count; height += 1u)
     {
         char label[32];
         snprintf(label, sizeof(label), "e^%llu", (unsigned long long)height);
-        printf("%18s", label);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put_right(output_line, label, 18u);
+            platform_line_out_ended();
+        }
     }
-    printf("\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     for (int row = 0; row < FOLD_ROWS; row += 1)
     {
-        printf("  %-40s ", FOLD_LABELS[row]);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_columns(output_line, FOLD_LABELS[row], 40u);
+            mmgr_line_put(output_line, " ");
+            platform_line_out_ended();
+        }
         for (size_t height = 0u; height < height_count; height += 1u)
         {
-            printf("%18s", rows[height][row]);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put_right(output_line, rows[height][row], 18u);
+            platform_line_out_ended();
         }
-        printf("\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     char path[PATH_BYTES];
     draw_folds(found, height_count, folder, path);
-    printf("  the heights: %s; %lld host checks failed\n", path, (long long)failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the heights: ");
+        mmgr_line_put(output_line, path);
+        mmgr_line_put(output_line, "; ");
+        mmgr_line_decimal_signed(output_line, (long long)failed);
+        mmgr_line_put(output_line, " host checks failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     for (size_t height = 0u; height < height_count; height += 1u)
     {
         placements_free(&found[height].misses);
@@ -2978,25 +3146,87 @@ static int main_carrier(const char *binary, int64_t base, int64_t count, double 
             }
             free(schemes[scheme].values);
         }
-        printf("  cell %lld done, %llu fine points, step %lld\n", (long long)at, (unsigned long long)fine.count,
-               (long long)step);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  cell ");
+            mmgr_line_decimal_signed(output_line, (long long)at);
+            mmgr_line_put(output_line, " done, ");
+            mmgr_line_decimal(output_line, (unsigned long long)fine.count, 1u);
+            mmgr_line_put(output_line, " fine points, step ");
+            mmgr_line_decimal_signed(output_line, (long long)step);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         free(fine.points);
     }
-    printf("  %-22s %8s %9s %12s %12s %9s %9s\n", "scheme", "points", "a zero", "miss/1k zero", "floor/1k", "width",
-           "under%");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, "scheme", 22u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "points", 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "a zero", 9u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "miss/1k zero", 12u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "floor/1k", 12u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "width", 9u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "under%", 9u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     const double zeros = (double)((zeros_total > 1) ? zeros_total : 1);
     for (int scheme = 0; scheme < CARRIER_COUNT; scheme += 1)
     {
         const Pickle pickle = pickle_of(&tally[scheme]);
         const double permille = ((1000.0 * 2.0) * (double)pickle.count) / zeros;
-        printf("  %-22s %8lld %9.4f %12.3f %12.3f %9.4f %8.2f%%\n", CARRIER_NAMES[scheme], (long long)points[scheme],
-               (double)points[scheme] / zeros, permille, (1000.0 * (double)floor_count[scheme]) / zeros, pickle.cross,
-               pickle.under);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_columns(output_line, CARRIER_NAMES[scheme], 22u);
+            mmgr_line_put(output_line, " ");
+            {
+                char linea_piece[24u];
+                VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                const int64_t linea_value = (int64_t)((long long)points[scheme]);
+                mmgr_line_decimal_signed(&linea_piece_line, linea_value);
+                (void)mmgr_line_finish(&linea_piece_line);
+                mmgr_line_put_right(output_line, linea_piece, 8u);
+            }
+            mmgr_line_put(output_line, " ");
+            mmgr_line_fixed(output_line, (double)((double)points[scheme] / zeros), 4u, 9u, EMBED_FALSE);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_fixed(output_line, (double)(permille), 3u, 12u, EMBED_FALSE);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_fixed(output_line, (double)((1000.0 * (double)floor_count[scheme]) / zeros), 3u, 12u,
+                            EMBED_FALSE);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_fixed(output_line, (double)(pickle.cross), 4u, 9u, EMBED_FALSE);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_fixed(output_line, (double)(pickle.under), 2u, 8u, EMBED_FALSE);
+            mmgr_line_ch(output_line, '%');
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         placements_free(&tally[scheme]);
     }
-    printf("  zeros %lld; turning points on the wrong side of zero %lld (%.3f a thousand zeros); %lld host checks "
-           "failed\n",
-           (long long)zeros_total, (long long)wiggles, (1000.0 * (double)wiggles) / zeros, (long long)failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  zeros ");
+        mmgr_line_decimal_signed(output_line, (long long)zeros_total);
+        mmgr_line_put(output_line, "; turning points on the wrong side of zero ");
+        mmgr_line_decimal_signed(output_line, (long long)wiggles);
+        mmgr_line_put(output_line, " (");
+        mmgr_line_fixed(output_line, (double)((1000.0 * (double)wiggles) / zeros), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " a thousand zeros); ");
+        mmgr_line_decimal_signed(output_line, (long long)failed);
+        mmgr_line_put(output_line, " host checks failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (failed == 0) ? 0 : 1;
 }
 
@@ -3090,7 +3320,21 @@ static Lock rayleigh(const Doubles *times, double omega)
 /** @brief The lock of the times on each beat and each null, one row each. */
 static void lock_rows(const Doubles *times)
 {
-    printf("  %-14s %10s %9s %10s %9s\n", "beat", "omega", "R", "direction", "z");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, "beat", 14u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "omega", 10u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "R", 9u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "direction", 10u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "z", 9u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     for (int pair = 0; pair < RIPPLE_PAIR_COUNT; pair += 1)
     {
         const double omega = log((double)RIPPLE_PAIRS[pair][1] / (double)RIPPLE_PAIRS[pair][0]);
@@ -3098,12 +3342,40 @@ static void lock_rows(const Doubles *times)
         char label[32];
         snprintf(label, sizeof(label), "ln(%lld/%lld)", (long long)RIPPLE_PAIRS[pair][1],
                  (long long)RIPPLE_PAIRS[pair][0]);
-        printf("  %-14s %10.5f %9.4f %10.1f %9.2f\n", label, omega, lock.length, lock.direction, lock.z);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_columns(output_line, label, 14u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_fixed(output_line, (double)(omega), 5u, 10u, EMBED_FALSE);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_fixed(output_line, (double)(lock.length), 4u, 9u, EMBED_FALSE);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_fixed(output_line, (double)(lock.direction), 1u, 10u, EMBED_FALSE);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_fixed(output_line, (double)(lock.z), 2u, 9u, EMBED_FALSE);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     for (int null = 0; null < RIPPLE_NULL_COUNT; null += 1)
     {
         const Lock lock = rayleigh(times, RIPPLE_NULLS[null]);
-        printf("  %-14s %10.5f %9.4f %10.1f %9.2f\n", "null", RIPPLE_NULLS[null], lock.length, lock.direction, lock.z);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_columns(output_line, "null", 14u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_fixed(output_line, (double)(RIPPLE_NULLS[null]), 5u, 10u, EMBED_FALSE);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_fixed(output_line, (double)(lock.length), 4u, 9u, EMBED_FALSE);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_fixed(output_line, (double)(lock.direction), 1u, 10u, EMBED_FALSE);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_fixed(output_line, (double)(lock.z), 2u, 9u, EMBED_FALSE);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -3179,23 +3451,69 @@ static int main_ripple(const char *binary, int64_t base, int64_t count, double r
             doubles_push(&dip_drags, ripple.drag);
             doubles_push(&dip_swells, fabs(ripple.swell));
         }
-        printf("  cell %lld done, %llu misses so far\n", (long long)at, (unsigned long long)times.count);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  cell ");
+            mmgr_line_decimal_signed(output_line, (long long)at);
+            mmgr_line_put(output_line, " done, ");
+            mmgr_line_decimal(output_line, (unsigned long long)times.count, 1u);
+            mmgr_line_put(output_line, " misses so far");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         free(found.values);
         free(idx.values);
         free(squares);
         free(fine.points);
     }
-    printf("  misses %llu; the lock of their times on each beat of |F|^2\n", (unsigned long long)times.count);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  misses ");
+        mmgr_line_decimal(output_line, (unsigned long long)times.count, 1u);
+        mmgr_line_put(output_line, "; the lock of their times on each beat of |F|^2");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     lock_rows(&times);
-    printf("  %-34s %28s %28s\n", "reading", "every point 10/50/90", "the misses' dips 10/50/90");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, "reading", 34u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "every point 10/50/90", 28u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "the misses' dips 10/50/90", 28u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     char every_text[128];
     char dip_text[128];
     deciles_text(&every_drags, "%9.3f", every_text, sizeof(every_text));
     deciles_text(&dip_drags, "%9.3f", dip_text, sizeof(dip_text));
-    printf("  %-34s %28s %28s\n", "drag phi' / theta'", every_text, dip_text);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, "drag phi' / theta'", 34u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, every_text, 28u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, dip_text, 28u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     deciles_text(&every_swells, "%9.3f", every_text, sizeof(every_text));
     deciles_text(&dip_swells, "%9.3f", dip_text, sizeof(dip_text));
-    printf("  %-34s %28s %28s\n", "|swell| (ln |F|)' / theta'", every_text, dip_text);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, "|swell| (ln |F|)' / theta'", 34u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, every_text, 28u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, dip_text, 28u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     size_t back_every = 0u;
     for (size_t at = 0u; at < every_drags.count; at += 1u)
     {
@@ -3208,9 +3526,25 @@ static int main_ripple(const char *binary, int64_t base, int64_t count, double r
     }
     const double every_count = (double)((every_drags.count > 0u) ? every_drags.count : 1u);
     const double dip_count = (double)((dip_drags.count > 0u) ? dip_drags.count : 1u);
-    printf("  clock running back, phi' < 0: every point %.2f%%, the misses' dips %.2f%%\n",
-           (100.0 * (double)back_every) / every_count, (100.0 * (double)back_dips) / dip_count);
-    printf("  %lld host checks failed\n", (long long)failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  clock running back, phi' < 0: every point ");
+        mmgr_line_fixed(output_line, (double)((100.0 * (double)back_every) / every_count), 2u, 0u, EMBED_FALSE);
+        mmgr_line_ch(output_line, '%');
+        mmgr_line_put(output_line, ", the misses' dips ");
+        mmgr_line_fixed(output_line, (double)((100.0 * (double)back_dips) / dip_count), 2u, 0u, EMBED_FALSE);
+        mmgr_line_ch(output_line, '%');
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_decimal_signed(output_line, (long long)failed);
+        mmgr_line_put(output_line, " host checks failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     free(times.values);
     free(dip_drags.values);
     free(dip_swells.values);
@@ -3460,7 +3794,16 @@ static int main_pulse(const char *binary, int64_t base, int64_t count, double ra
                 neither_max = (high_drag > neither_max) ? high_drag : neither_max;
             }
         }
-        printf("  cell %lld done, %llu pulses so far\n", (long long)at, (unsigned long long)pulses.count);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  cell ");
+            mmgr_line_decimal_signed(output_line, (long long)at);
+            mmgr_line_put(output_line, " done, ");
+            mmgr_line_decimal(output_line, (unsigned long long)pulses.count, 1u);
+            mmgr_line_put(output_line, " pulses so far");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         free(found.values);
         free(idx.values);
         free(marks);
@@ -3472,9 +3815,27 @@ static int main_pulse(const char *binary, int64_t base, int64_t count, double ra
     {
         against += (pulses.values[pulse].sign < 0.0) ? 1 : 0;
     }
-    printf("  pulses past the clock, delta theta' under 1: %llu, %lld turning against theta and %lld with it\n",
-           (unsigned long long)pulses.count, (long long)against, (long long)pulses.count - (long long)against);
-    printf("  %-40s %26s\n", "against the single pole", "10/50/90");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  pulses past the clock, delta theta' under 1: ");
+        mmgr_line_decimal(output_line, (unsigned long long)pulses.count, 1u);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal_signed(output_line, (long long)against);
+        mmgr_line_put(output_line, " turning against theta and ");
+        mmgr_line_decimal_signed(output_line, (long long)pulses.count - (long long)against);
+        mmgr_line_put(output_line, " with it");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, "against the single pole", 40u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "10/50/90", 26u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     static const char *const LABELS[6] = {
         "delta theta', under 1 past the clock",   "peak twist times delta, pole 1",
         "loop diameter low over 1/delta, pole 1", "loop diameter high over 1/delta, pole 1",
@@ -3497,18 +3858,59 @@ static int main_pulse(const char *binary, int64_t base, int64_t count, double ra
         {
             snprintf(text, sizeof(text), "-");
         }
-        printf("  %-40s %26s\n", LABELS[label], text);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_columns(output_line, LABELS[label], 40u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_right(output_line, text, 26u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         free(values.values);
     }
     const double miss_count = (double)((misses > 1) ? misses : 1);
     const double point_count = (double)((total > 1) ? total : 1);
-    printf("  misses %lld, inside a pulse %lld (%.1f%%); the pulses cover %.2f%% of the fine points\n",
-           (long long)misses, (long long)inside, (100.0 * (double)inside) / miss_count,
-           (100.0 * (double)covered) / point_count);
-    printf("  each miss across its two zeros: the clock runs back %lld, spins past %.2f theta' %lld, neither %lld (the "
-           "max drag among them %.3f theta')\n",
-           (long long)back, rate, (long long)spin, (long long)neither, neither_max);
-    printf("  %lld host checks failed\n", (long long)failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  misses ");
+        mmgr_line_decimal_signed(output_line, (long long)misses);
+        mmgr_line_put(output_line, ", inside a pulse ");
+        mmgr_line_decimal_signed(output_line, (long long)inside);
+        mmgr_line_put(output_line, " (");
+        mmgr_line_fixed(output_line, (double)((100.0 * (double)inside) / miss_count), 1u, 0u, EMBED_FALSE);
+        mmgr_line_ch(output_line, '%');
+        mmgr_line_put(output_line, "); the pulses cover ");
+        mmgr_line_fixed(output_line, (double)((100.0 * (double)covered) / point_count), 2u, 0u, EMBED_FALSE);
+        mmgr_line_ch(output_line, '%');
+        mmgr_line_put(output_line, " of the fine points");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  each miss across its two zeros: the clock runs back ");
+        mmgr_line_decimal_signed(output_line, (long long)back);
+        mmgr_line_put(output_line, ", spins past ");
+        mmgr_line_fixed(output_line, (double)(rate), 2u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " theta' ");
+        mmgr_line_decimal_signed(output_line, (long long)spin);
+        mmgr_line_put(output_line, ", neither ");
+        mmgr_line_decimal_signed(output_line, (long long)neither);
+        mmgr_line_put(output_line, " (the max drag among them ");
+        mmgr_line_fixed(output_line, (double)(neither_max), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " theta')");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_decimal_signed(output_line, (long long)failed);
+        mmgr_line_put(output_line, " host checks failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     free(pulses.values);
     return (failed == 0) ? 0 : 1;
 }
@@ -3628,8 +4030,47 @@ static void fifth_rows(const Doubles *sample, const Doubles *dips, const Doubles
         }
         const double dip_count = (double)((dips->count > 0u) ? dips->count : 1u);
         const double near_count = (double)((near->count > 0u) ? near->count : 1u);
-        printf("  %-10lld %16.4f %14lld (%5.1f%%) %16lld (%5.1f%%)\n", (long long)harmonics, cut, (long long)hit_dips,
-               (100.0 * (double)hit_dips) / dip_count, (long long)hit_near, (100.0 * (double)hit_near) / near_count);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            {
+                char linea_piece[24u];
+                VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                const int64_t linea_value = (int64_t)((long long)harmonics);
+                mmgr_line_decimal_signed(&linea_piece_line, linea_value);
+                (void)mmgr_line_finish(&linea_piece_line);
+                mmgr_line_put_columns(output_line, linea_piece, 10u);
+            }
+            mmgr_line_put(output_line, " ");
+            mmgr_line_fixed(output_line, (double)(cut), 4u, 16u, EMBED_FALSE);
+            mmgr_line_put(output_line, " ");
+            {
+                char linea_piece[24u];
+                VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                const int64_t linea_value = (int64_t)((long long)hit_dips);
+                mmgr_line_decimal_signed(&linea_piece_line, linea_value);
+                (void)mmgr_line_finish(&linea_piece_line);
+                mmgr_line_put_right(output_line, linea_piece, 14u);
+            }
+            mmgr_line_put(output_line, " (");
+            mmgr_line_fixed(output_line, (double)((100.0 * (double)hit_dips) / dip_count), 1u, 5u, EMBED_FALSE);
+            mmgr_line_ch(output_line, '%');
+            mmgr_line_put(output_line, ") ");
+            {
+                char linea_piece[24u];
+                VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                const int64_t linea_value = (int64_t)((long long)hit_near);
+                mmgr_line_decimal_signed(&linea_piece_line, linea_value);
+                (void)mmgr_line_finish(&linea_piece_line);
+                mmgr_line_put_right(output_line, linea_piece, 16u);
+            }
+            mmgr_line_put(output_line, " (");
+            mmgr_line_fixed(output_line, (double)((100.0 * (double)hit_near) / near_count), 1u, 5u, EMBED_FALSE);
+            mmgr_line_ch(output_line, '%');
+            mmgr_line_put(output_line, ")");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -3707,17 +4148,47 @@ static int main_source(const char *binary, int64_t base, int64_t count, double r
         {
             doubles_push(&dips, TWO_PI * squares[dip_of(fine.points, &found.values[miss])]);
         }
-        printf("  cell %lld done, %llu sources so far\n", (long long)at, (unsigned long long)source_count);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  cell ");
+            mmgr_line_decimal_signed(output_line, (long long)at);
+            mmgr_line_put(output_line, " done, ");
+            mmgr_line_decimal(output_line, (unsigned long long)source_count, 1u);
+            mmgr_line_put(output_line, " sources so far");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         free(found.values);
         free(idx.values);
         free(squares);
         free(fine.points);
     }
     const double zeros = (double)((zeros_total > 1) ? zeros_total : 1);
-    printf(
-        "  zeros of Z %lld, sources %llu, %.4f a zero; Langer's count for a sum to ln N, one source each two zeros\n",
-        (long long)zeros_total, (unsigned long long)source_count, (double)source_count / zeros);
-    printf("  %-26s %10s %10s %10s\n", "delta theta' under", "sources", "a zero", "back share");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  zeros of Z ");
+        mmgr_line_decimal_signed(output_line, (long long)zeros_total);
+        mmgr_line_put(output_line, ", sources ");
+        mmgr_line_decimal(output_line, (unsigned long long)source_count, 1u);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_fixed(output_line, (double)((double)source_count / zeros), 4u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " a zero; Langer's count for a sum to ln N, one source each two zeros");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, "delta theta' under", 26u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "sources", 10u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "a zero", 10u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "back share", 10u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     for (int band = 0; band < SOURCE_BAND_COUNT; band += 1)
     {
         size_t inside = 0u;
@@ -3733,8 +4204,20 @@ static int main_source(const char *binary, int64_t base, int64_t count, double r
         char label[32];
         py_repr(SOURCE_BANDS[band], 1, label, sizeof(label));
         const double inside_count = (double)((inside > 0u) ? inside : 1u);
-        printf("  %-26s %10llu %10.4f %9.1f%%\n", label, (unsigned long long)inside, (double)inside / zeros,
-               (100.0 * (double)back) / inside_count);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_columns(output_line, label, 26u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_columns(output_line, (unsigned long long)inside, 10u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_fixed(output_line, (double)((double)inside / zeros), 4u, 10u, EMBED_FALSE);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_fixed(output_line, (double)((100.0 * (double)back) / inside_count), 1u, 9u, EMBED_FALSE);
+            mmgr_line_ch(output_line, '%');
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     Doubles near = {NULL, 0u, 0u};
     for (size_t at = 0u; at < source_count; at += 1u)
@@ -3744,13 +4227,51 @@ static int main_source(const char *binary, int64_t base, int64_t count, double r
             doubles_push(&near, sources[at].time);
         }
     }
-    printf("  the lock of the sources past the clock, %llu, on each beat of |F|^2\n", (unsigned long long)near.count);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the lock of the sources past the clock, ");
+        mmgr_line_decimal(output_line, (unsigned long long)near.count, 1u);
+        mmgr_line_put(output_line, ", on each beat of |F|^2");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     lock_rows(&near);
-    printf("  %-10s %16s %22s %24s\n", "harmonics", "lowest fifth at", "misses in it", "sources past the clock");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, "harmonics", 10u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "lowest fifth at", 16u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "misses in it", 22u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "sources past the clock", 24u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     fifth_rows(&sample, &dips, &near, 1);
-    printf("  %-10s %16s %22s %24s\n", "lines to", "highest fifth at", "misses in it", "sources past the clock");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, "lines to", 10u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "highest fifth at", 16u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "misses in it", 22u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "sources past the clock", 24u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     fifth_rows(&sample, &dips, &near, 0);
-    printf("  %lld host checks failed\n", (long long)failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_decimal_signed(output_line, (long long)failed);
+        mmgr_line_put(output_line, " host checks failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     free(sources);
     free(dips.values);
     free(sample.values);
@@ -3961,14 +4482,31 @@ static int main_primes(const char *binary, int64_t base, int64_t count, double r
         }
         zeros_located(fine.points, fine.count, squares, &gammas);
         top_n = (at > top_n) ? at : top_n;
-        printf("  cell %lld done, %llu sources and %llu zeros so far\n", (long long)at,
-               (unsigned long long)sources.count, (unsigned long long)gammas.count);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  cell ");
+            mmgr_line_decimal_signed(output_line, (long long)at);
+            mmgr_line_put(output_line, " done, ");
+            mmgr_line_decimal(output_line, (unsigned long long)sources.count, 1u);
+            mmgr_line_put(output_line, " sources and ");
+            mmgr_line_decimal(output_line, (unsigned long long)gammas.count, 1u);
+            mmgr_line_put(output_line, " zeros so far");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         free(squares);
         free(fine.points);
     }
     double *const lam_n = sieve_mangoldt(top_n);
-    printf("  the wave origins: %llu sources, locked on ln n for n from 2 to N = %lld\n",
-           (unsigned long long)sources.count, (long long)top_n);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the wave origins: ");
+        mmgr_line_decimal(output_line, (unsigned long long)sources.count, 1u);
+        mmgr_line_put(output_line, " sources, locked on ln n for n from 2 to N = ");
+        mmgr_line_decimal_signed(output_line, (long long)top_n);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     Doubles power_z = {NULL, 0u, 0u};
     Doubles other_z = {NULL, 0u, 0u};
     Doubles ratio = {NULL, 0u, 0u};
@@ -4005,13 +4543,46 @@ static int main_primes(const char *binary, int64_t base, int64_t count, double r
     const size_t other_count = other_z.count;
     const double power_middle = sorted_place(&power_z, power_count / 2u);
     const double other_middle = sorted_place(&other_z, other_count / 2u);
-    printf("  prime powers %llu: z least %.1f, median %.1f; others %llu: z max %.1f, median %.2f\n",
-           (unsigned long long)power_count, least, power_middle, (unsigned long long)other_count, cut, other_middle);
-    printf("  prime powers locked past every other n: %lld of %llu; at 180 +- 30 degrees: %lld\n", (long long)locked,
-           (unsigned long long)power_count, (long long)opposed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  prime powers ");
+        mmgr_line_decimal(output_line, (unsigned long long)power_count, 1u);
+        mmgr_line_put(output_line, ": z least ");
+        mmgr_line_fixed(output_line, (double)(least), 1u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, ", median ");
+        mmgr_line_fixed(output_line, (double)(power_middle), 1u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, "; others ");
+        mmgr_line_decimal(output_line, (unsigned long long)other_count, 1u);
+        mmgr_line_put(output_line, ": z max ");
+        mmgr_line_fixed(output_line, (double)(cut), 1u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, ", median ");
+        mmgr_line_fixed(output_line, (double)(other_middle), 2u, 0u, EMBED_FALSE);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  prime powers locked past every other n: ");
+        mmgr_line_decimal_signed(output_line, (long long)locked);
+        mmgr_line_put(output_line, " of ");
+        mmgr_line_decimal(output_line, (unsigned long long)power_count, 1u);
+        mmgr_line_put(output_line, "; at 180 +- 30 degrees: ");
+        mmgr_line_decimal_signed(output_line, (long long)opposed);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     doubles_sort(&ratio);
-    printf("  R over Lambda(n) n^(-1/2) across the prime powers, 10/50/90: %.4f %.4f %.4f\n",
-           ratio.values[ratio.count / 10u], ratio.values[ratio.count / 2u], ratio.values[(9u * ratio.count) / 10u]);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  R over Lambda(n) n^(-1/2) across the prime powers, 10/50/90: ");
+        mmgr_line_fixed(output_line, (double)(ratio.values[ratio.count / 10u]), 4u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_fixed(output_line, (double)(ratio.values[ratio.count / 2u]), 4u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_fixed(output_line, (double)(ratio.values[(9u * ratio.count) / 10u]), 4u, 0u, EMBED_FALSE);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     double t_low = gammas.values[0];
     double t_high = gammas.values[0];
     for (size_t at = 1u; at < gammas.count; at += 1u)
@@ -4029,8 +4600,19 @@ static int main_primes(const char *binary, int64_t base, int64_t count, double r
         weights[at] = pow(sin((PI_DOUBLE * (gammas.values[at] - t_low)) / span), 2.0);
     }
     const double scale = (4.0 * PI_DOUBLE) / span;
-    printf("  the primes past N: %llu zeros in [%.3f, %.3f], each integer apart to %lld\n",
-           (unsigned long long)gammas.count, t_low, t_high, (long long)reach);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the primes past N: ");
+        mmgr_line_decimal(output_line, (unsigned long long)gammas.count, 1u);
+        mmgr_line_put(output_line, " zeros in [");
+        mmgr_line_fixed(output_line, (double)(t_low), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_fixed(output_line, (double)(t_high), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, "], each integer apart to ");
+        mmgr_line_decimal_signed(output_line, (long long)reach);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     // The reach is a small positive count.
     double *const reading = (double *)map_memory(calloc((size_t)((reach > 0) ? reach : 0) + 2u, sizeof(double)));
     for (int64_t integer = 2; integer <= reach; integer += 1)
@@ -4044,11 +4626,33 @@ static int main_primes(const char *binary, int64_t base, int64_t count, double r
         reading[integer] = ((-scale) * sqrt((double)integer)) * total;
         if ((integer % 500) == 0)
         {
-            printf("    read to %lld\n", (long long)integer);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    read to ");
+            mmgr_line_decimal_signed(output_line, (long long)integer);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
     }
     const double threshold = log(2.0) / 2.0;
-    printf("  %-14s %8s %8s %8s %8s %8s %12s\n", "x", "truth", "called", "right", "false", "missed", "D / Lambda");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, "x", 14u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "truth", 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "called", 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "right", 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "false", 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "missed", 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "D / Lambda", 12u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     const int64_t bands[4][2] = {
         {2, top_n}, {top_n + 1, (reach < 1000) ? reach : 1000}, {1001, (reach < 2000) ? reach : 2000}, {2001, reach}};
     for (int band = 0; band < 4; band += 1)
@@ -4078,22 +4682,91 @@ static int main_primes(const char *binary, int64_t base, int64_t count, double r
         char label[48];
         snprintf(label, sizeof(label), "%lld to %lld", (long long)low, (long long)high);
         const double middle = (ratios.count > 0u) ? sorted_place(&ratios, ratios.count / 2u) : 0.0;
-        printf("  %-14s %8lld %8lld %8lld %8lld %8lld %12.3f\n", label, (long long)truth, (long long)called,
-               (long long)right, (long long)(called - right), (long long)(truth - right), middle);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_columns(output_line, label, 14u);
+            mmgr_line_put(output_line, " ");
+            {
+                char linea_piece[24u];
+                VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                const int64_t linea_value = (int64_t)((long long)truth);
+                mmgr_line_decimal_signed(&linea_piece_line, linea_value);
+                (void)mmgr_line_finish(&linea_piece_line);
+                mmgr_line_put_right(output_line, linea_piece, 8u);
+            }
+            mmgr_line_put(output_line, " ");
+            {
+                char linea_piece[24u];
+                VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                const int64_t linea_value = (int64_t)((long long)called);
+                mmgr_line_decimal_signed(&linea_piece_line, linea_value);
+                (void)mmgr_line_finish(&linea_piece_line);
+                mmgr_line_put_right(output_line, linea_piece, 8u);
+            }
+            mmgr_line_put(output_line, " ");
+            {
+                char linea_piece[24u];
+                VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                const int64_t linea_value = (int64_t)((long long)right);
+                mmgr_line_decimal_signed(&linea_piece_line, linea_value);
+                (void)mmgr_line_finish(&linea_piece_line);
+                mmgr_line_put_right(output_line, linea_piece, 8u);
+            }
+            mmgr_line_put(output_line, " ");
+            {
+                char linea_piece[24u];
+                VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                const int64_t linea_value = (int64_t)((long long)(called - right));
+                mmgr_line_decimal_signed(&linea_piece_line, linea_value);
+                (void)mmgr_line_finish(&linea_piece_line);
+                mmgr_line_put_right(output_line, linea_piece, 8u);
+            }
+            mmgr_line_put(output_line, " ");
+            {
+                char linea_piece[24u];
+                VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                const int64_t linea_value = (int64_t)((long long)(truth - right));
+                mmgr_line_decimal_signed(&linea_piece_line, linea_value);
+                (void)mmgr_line_finish(&linea_piece_line);
+                mmgr_line_put_right(output_line, linea_piece, 8u);
+            }
+            mmgr_line_put(output_line, " ");
+            mmgr_line_fixed(output_line, (double)(middle), 3u, 12u, EMBED_FALSE);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         free(ratios.values);
     }
-    printf("  every wrong call: ");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  every wrong call: ");
+        platform_line_out_ended();
+    }
     int first_wrong = 1;
     for (int64_t integer = 2; integer <= reach; integer += 1)
     {
         if ((reading[integer] > threshold) != (lam[integer] > 0.0))
         {
-            printf("%s%lld (D %.3f, Lambda %.3f)", first_wrong ? "" : ", ", (long long)integer, reading[integer],
-                   lam[integer]);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, first_wrong ? "" : ", ");
+                mmgr_line_decimal_signed(output_line, (long long)integer);
+                mmgr_line_put(output_line, " (D ");
+                mmgr_line_fixed(output_line, (double)(reading[integer]), 3u, 0u, EMBED_FALSE);
+                mmgr_line_put(output_line, ", Lambda ");
+                mmgr_line_fixed(output_line, (double)(lam[integer]), 3u, 0u, EMBED_FALSE);
+                mmgr_line_put(output_line, ")");
+                platform_line_out_ended();
+            }
             first_wrong = 0;
         }
     }
-    printf("\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     Doubles all_ratio = {NULL, 0u, 0u};
     Doubles rest = {NULL, 0u, 0u};
     for (int64_t integer = 2; integer <= reach; integer += 1)
@@ -4109,19 +4782,39 @@ static int main_primes(const char *binary, int64_t base, int64_t count, double r
     }
     doubles_sort(&all_ratio);
     doubles_sort(&rest);
-    printf("  D / Lambda at the prime powers, 1/10/50/90/99: ");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  D / Lambda at the prime powers, 1/10/50/90/99: ");
+        platform_line_out_ended();
+    }
     static const double RATIO_PLACES[5] = {0.01, 0.1, 0.5, 0.9, 0.99};
     for (int at = 0; at < 5; at += 1)
     {
-        printf("%s%.3f", (at > 0) ? " " : "", all_ratio.values[quantile_at(RATIO_PLACES[at], all_ratio.count)]);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, (at > 0) ? " " : "");
+        mmgr_line_fixed(output_line, (double)(all_ratio.values[quantile_at(RATIO_PLACES[at], all_ratio.count)]), 3u, 0u,
+                        EMBED_FALSE);
+        platform_line_out_ended();
     }
-    printf("; |D| elsewhere, 50/90/99/max: ");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "; |D| elsewhere, 50/90/99/max: ");
+        platform_line_out_ended();
+    }
     static const double REST_PLACES[4] = {0.5, 0.9, 0.99, 1.0};
     for (int at = 0; at < 4; at += 1)
     {
-        printf("%s%.3f", (at > 0) ? " " : "", rest.values[quantile_at(REST_PLACES[at], rest.count)]);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, (at > 0) ? " " : "");
+        mmgr_line_fixed(output_line, (double)(rest.values[quantile_at(REST_PLACES[at], rest.count)]), 3u, 0u,
+                        EMBED_FALSE);
+        platform_line_out_ended();
     }
-    printf("\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     int64_t proved_prime = 0;
     int64_t proved_composite = 0;
     int64_t proved_other = 0;
@@ -4153,10 +4846,33 @@ static int main_primes(const char *binary, int64_t base, int64_t count, double r
             disagree += 1;
         }
     }
-    printf("  calls past N that Proth reaches: %lld proved prime, %lld proved composite, %lld otherwise; %lld against "
-           "the sieve\n",
-           (long long)proved_prime, (long long)proved_composite, (long long)proved_other, (long long)disagree);
-    printf("  %-8s %12s %12s %12s\n", "x", "psi(x)", "sum of D", "x");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  calls past N that Proth reaches: ");
+        mmgr_line_decimal_signed(output_line, (long long)proved_prime);
+        mmgr_line_put(output_line, " proved prime, ");
+        mmgr_line_decimal_signed(output_line, (long long)proved_composite);
+        mmgr_line_put(output_line, " proved composite, ");
+        mmgr_line_decimal_signed(output_line, (long long)proved_other);
+        mmgr_line_put(output_line, " otherwise; ");
+        mmgr_line_decimal_signed(output_line, (long long)disagree);
+        mmgr_line_put(output_line, " against the sieve");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, "x", 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "psi(x)", 12u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "sum of D", 12u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "x", 12u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     static const int64_t PSI_AT[8] = {100, 300, 500, 1000, 1500, 2000, 2500, 3000};
     for (int at = 0; at < 8; at += 1)
     {
@@ -4175,10 +4891,42 @@ static int main_primes(const char *binary, int64_t base, int64_t count, double r
         {
             sum_add(&read, reading[term]);
         }
-        printf("  %-8lld %12.2f %12.2f %12lld\n", (long long)integer, sum_value(&psi), sum_value(&read),
-               (long long)integer);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            {
+                char linea_piece[24u];
+                VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                const int64_t linea_value = (int64_t)((long long)integer);
+                mmgr_line_decimal_signed(&linea_piece_line, linea_value);
+                (void)mmgr_line_finish(&linea_piece_line);
+                mmgr_line_put_columns(output_line, linea_piece, 8u);
+            }
+            mmgr_line_put(output_line, " ");
+            mmgr_line_fixed(output_line, (double)(sum_value(&psi)), 2u, 12u, EMBED_FALSE);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_fixed(output_line, (double)(sum_value(&read)), 2u, 12u, EMBED_FALSE);
+            mmgr_line_put(output_line, " ");
+            {
+                char linea_piece[24u];
+                VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                const int64_t linea_value = (int64_t)((long long)integer);
+                mmgr_line_decimal_signed(&linea_piece_line, linea_value);
+                (void)mmgr_line_finish(&linea_piece_line);
+                mmgr_line_put_right(output_line, linea_piece, 12u);
+            }
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
-    printf("  %lld host checks failed\n", (long long)failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_decimal_signed(output_line, (long long)failed);
+        mmgr_line_put(output_line, " host checks failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     free(lam_n);
     free(lam);
     free(weights);
@@ -4568,10 +5316,24 @@ static void shape_rows(const char *label, const Shapes *rows)
         }
         tallies[key] += 1;
     }
-    printf("  the figure, %s (%llu): the track crosses itself, in w %.1f%%, in F %.1f%%, in (Z, Z' / theta') %.1f%%; "
-           "L's signs, the usual: ",
-           label, (unsigned long long)rows->count, (100.0 * (double)in_w) / count, (100.0 * (double)in_f) / count,
-           (100.0 * (double)in_portrait) / count);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the figure, ");
+        mmgr_line_put(output_line, label);
+        mmgr_line_put(output_line, " (");
+        mmgr_line_decimal(output_line, (unsigned long long)rows->count, 1u);
+        mmgr_line_put(output_line, "): the track crosses itself, in w ");
+        mmgr_line_fixed(output_line, (double)((100.0 * (double)in_w) / count), 1u, 0u, EMBED_FALSE);
+        mmgr_line_ch(output_line, '%');
+        mmgr_line_put(output_line, ", in F ");
+        mmgr_line_fixed(output_line, (double)((100.0 * (double)in_f) / count), 1u, 0u, EMBED_FALSE);
+        mmgr_line_ch(output_line, '%');
+        mmgr_line_put(output_line, ", in (Z, Z' / theta') ");
+        mmgr_line_fixed(output_line, (double)((100.0 * (double)in_portrait) / count), 1u, 0u, EMBED_FALSE);
+        mmgr_line_ch(output_line, '%');
+        mmgr_line_put(output_line, "; L's signs, the usual: ");
+        platform_line_out_ended();
+    }
     // The usual: the four largest tallies, ties in the order of first sight, as the stable sort of Python leaves them.
     unsigned char *const shown = (unsigned char *)map_memory(calloc(key_count + 1u, 1u));
     for (size_t rank = 0u; (rank < 4u) && (rank < key_count); rank += 1u)
@@ -4585,9 +5347,21 @@ static void shape_rows(const char *label, const Shapes *rows)
             }
         }
         shown[best] = 1u;
-        printf("%s%s %.1f%%", (rank > 0u) ? ", " : "", keys[best], (100.0 * (double)tallies[best]) / count);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, (rank > 0u) ? ", " : "");
+            mmgr_line_put(output_line, keys[best]);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_fixed(output_line, (double)((100.0 * (double)tallies[best]) / count), 1u, 0u, EMBED_FALSE);
+            mmgr_line_ch(output_line, '%');
+            platform_line_out_ended();
+        }
     }
-    printf("\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     free(shown);
     free(keys);
     free(tallies);
@@ -4646,9 +5420,19 @@ static void hermite_left(const MapPoint *fine, size_t count, const double *squar
     // The places are below 2^53.
     const int64_t width = (int64_t)idx->values[miss->finish] - (int64_t)idx->values[miss->start];
     const int64_t apart = (int64_t)miss->second.before - (int64_t)miss->first.after;
-    printf("    Hermite leaves: steps %lld, zeros apart %.3f of a step, zeta from %s to %s\n",
-           (long long)(miss->finish - miss->start), (double)apart / (double)((width > 1) ? width : 1), least_text,
-           farthest_text);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    Hermite leaves: steps ");
+        mmgr_line_decimal_signed(output_line, (long long)(miss->finish - miss->start));
+        mmgr_line_put(output_line, ", zeros apart ");
+        mmgr_line_fixed(output_line, (double)((double)apart / (double)((width > 1) ? width : 1)), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " of a step, zeta from ");
+        mmgr_line_put(output_line, least_text);
+        mmgr_line_put(output_line, " to ");
+        mmgr_line_put(output_line, farthest_text);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     Range sizes = {0.0, 0.0};
     Range levels = {0.0, 0.0};
     Range cosines = {0.0, 0.0};
@@ -4665,10 +5449,35 @@ static void hermite_left(const MapPoint *fine, size_t count, const double *squar
         range_take(&drags, ripple.drag, first);
         range_take(&swells, ripple.swell, first);
     }
-    printf("    left: t %.4f to %.4f, |F| %.4f to %.4f, R / (2 |F|) %.4f to %.4f, cos phi %.4f to %.4f, drag %.3f to "
-           "%.3f, swell %.3f to %.3f\n",
-           TWO_PI * squares[low], TWO_PI * squares[high], sizes.least, sizes.most, levels.least, levels.most,
-           cosines.least, cosines.most, drags.least, drags.most, swells.least, swells.most);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    left: t ");
+        mmgr_line_fixed(output_line, (double)(TWO_PI * squares[low]), 4u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " to ");
+        mmgr_line_fixed(output_line, (double)(TWO_PI * squares[high]), 4u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, ", |F| ");
+        mmgr_line_fixed(output_line, (double)(sizes.least), 4u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " to ");
+        mmgr_line_fixed(output_line, (double)(sizes.most), 4u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, ", R / (2 |F|) ");
+        mmgr_line_fixed(output_line, (double)(levels.least), 4u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " to ");
+        mmgr_line_fixed(output_line, (double)(levels.most), 4u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, ", cos phi ");
+        mmgr_line_fixed(output_line, (double)(cosines.least), 4u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " to ");
+        mmgr_line_fixed(output_line, (double)(cosines.most), 4u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, ", drag ");
+        mmgr_line_fixed(output_line, (double)(drags.least), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " to ");
+        mmgr_line_fixed(output_line, (double)(drags.most), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, ", swell ");
+        mmgr_line_fixed(output_line, (double)(swells.least), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " to ");
+        mmgr_line_fixed(output_line, (double)(swells.most), 3u, 0u, EMBED_FALSE);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
 /**
@@ -4695,10 +5504,26 @@ static void coupling_row(const char *label, const Complexes *values, double rate
     char text[128];
     deciles_text(&far, "%.3f", text, sizeof(text));
     const double count = (double)((values->count > 0u) ? values->count : 1u);
-    printf("  the coupling zeta, %s: |zeta - 1| 10/50/90 %s; Re zeta < 0 %.1f%%, |zeta| past %.2f %.1f%%, |arg zeta| "
-           "past 60 degrees %.1f%%\n",
-           label, text, (100.0 * (double)negative) / count, rate, (100.0 * (double)large) / count,
-           (100.0 * (double)turned) / count);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the coupling zeta, ");
+        mmgr_line_put(output_line, label);
+        mmgr_line_put(output_line, ": |zeta - 1| 10/50/90 ");
+        mmgr_line_put(output_line, text);
+        mmgr_line_put(output_line, "; Re zeta < 0 ");
+        mmgr_line_fixed(output_line, (double)((100.0 * (double)negative) / count), 1u, 0u, EMBED_FALSE);
+        mmgr_line_ch(output_line, '%');
+        mmgr_line_put(output_line, ", |zeta| past ");
+        mmgr_line_fixed(output_line, (double)(rate), 2u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_fixed(output_line, (double)((100.0 * (double)large) / count), 1u, 0u, EMBED_FALSE);
+        mmgr_line_ch(output_line, '%');
+        mmgr_line_put(output_line, ", |arg zeta| past 60 degrees ");
+        mmgr_line_fixed(output_line, (double)((100.0 * (double)turned) / count), 1u, 0u, EMBED_FALSE);
+        mmgr_line_ch(output_line, '%');
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     free(far.values);
 }
 
@@ -5003,8 +5828,18 @@ static int64_t twist_cell(const char *binary, const TuringConstants *constants, 
             hermite_left(fine, count, squares, &idx, &found.values[miss]);
         }
     }
-    printf("  cell %lld done, shift %lld, %lld misses so far\n", (long long)nu, (long long)listed.shift,
-           (long long)tally->misses);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  cell ");
+        mmgr_line_decimal_signed(output_line, (long long)nu);
+        mmgr_line_put(output_line, " done, shift ");
+        mmgr_line_decimal_signed(output_line, (long long)listed.shift);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal_signed(output_line, (long long)tally->misses);
+        mmgr_line_put(output_line, " misses so far");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     free(marked);
     free(found.values);
     free(idx.values);
@@ -5026,19 +5861,46 @@ static void slip_rows(TwistTally *tally)
     {
         qsort(slips, slip_count, sizeof(Slip), slip_order);
     }
-    printf("  the slip at each miss's dip, |Z| / (2 |F|), 10/50/90: ");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the slip at each miss's dip, |Z| / (2 |F|), 10/50/90: ");
+        platform_line_out_ended();
+    }
     static const double SLIP_PLACES[3] = {0.1, 0.5, 0.9};
     for (int at = 0; at < 3; at += 1)
     {
-        printf("%s%.4f", (at > 0) ? " " : "", slips[quantile_at(SLIP_PLACES[at], slip_count)].depth);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, (at > 0) ? " " : "");
+        mmgr_line_fixed(output_line, (double)(slips[quantile_at(SLIP_PLACES[at], slip_count)].depth), 4u, 0u,
+                        EMBED_FALSE);
+        platform_line_out_ended();
     }
-    printf("\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     for (size_t at = 0u; (at < 8u) && (at < slip_count); at += 1u)
     {
         const Slip *const slip = &slips[at];
-        printf("    shallowest: t %.4f, slip %.5f, level %.4f, cos(phi) %.4f, drag %.3f, the zeros %lld fine steps "
-               "apart\n",
-               slip->time, slip->depth, slip->level, slip->cosine, slip->drag, (long long)slip->apart);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    shallowest: t ");
+            mmgr_line_fixed(output_line, (double)(slip->time), 4u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, ", slip ");
+            mmgr_line_fixed(output_line, (double)(slip->depth), 5u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, ", level ");
+            mmgr_line_fixed(output_line, (double)(slip->level), 4u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, ", cos(phi) ");
+            mmgr_line_fixed(output_line, (double)(slip->cosine), 4u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, ", drag ");
+            mmgr_line_fixed(output_line, (double)(slip->drag), 3u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, ", the zeros ");
+            mmgr_line_decimal_signed(output_line, (long long)slip->apart);
+            mmgr_line_put(output_line, " fine steps apart");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     // A quarter of no slips takes every slip as the deep quarter, as slips[-0:] of Python does.
     const size_t quarter = slip_count / 4u;
@@ -5072,9 +5934,23 @@ static void slip_rows(TwistTally *tally)
         const long long apart_middle = (long long)sorted_place(&apart, middle);
         const double level_middle = sorted_place(&level, middle);
         const double over_middle = sorted_place(&over, middle);
-        printf("  %s: |cos(phi)| median %.4f, |drag| median %.3f, the zeros apart median %lld fine steps, the level "
-               "|R| / (2 |F|) median %.4f, the slip over the level median %.4f\n",
-               QUARTER_LABELS[which], cosine_middle, drag_middle, apart_middle, level_middle, over_middle);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, QUARTER_LABELS[which]);
+            mmgr_line_put(output_line, ": |cos(phi)| median ");
+            mmgr_line_fixed(output_line, (double)(cosine_middle), 4u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, ", |drag| median ");
+            mmgr_line_fixed(output_line, (double)(drag_middle), 3u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, ", the zeros apart median ");
+            mmgr_line_decimal_signed(output_line, apart_middle);
+            mmgr_line_put(output_line, " fine steps, the level |R| / (2 |F|) median ");
+            mmgr_line_fixed(output_line, (double)(level_middle), 4u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, ", the slip over the level median ");
+            mmgr_line_fixed(output_line, (double)(over_middle), 4u, 0u, EMBED_FALSE);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         free(cosine.values);
         free(drag.values);
         free(apart.values);
@@ -5107,11 +5983,23 @@ static void half_rows(const TwistTally *tally)
             {
                 positive += (rows.values[at] > 0.0) ? 1u : 0u;
             }
-            printf(
-                "  the half twist, |delta| theta' in [%.2f, %.2f): %llu passes, the turn over 2 atan(3) sign(delta), "
-                "10/50/90: %s; the sign of delta's %.1f%%\n",
-                HALF_BANDS[band][0], HALF_BANDS[band][1], (unsigned long long)rows.count, text,
-                (100.0 * (double)positive) / (double)rows.count);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  the half twist, |delta| theta' in [");
+                mmgr_line_fixed(output_line, (double)(HALF_BANDS[band][0]), 2u, 0u, EMBED_FALSE);
+                mmgr_line_put(output_line, ", ");
+                mmgr_line_fixed(output_line, (double)(HALF_BANDS[band][1]), 2u, 0u, EMBED_FALSE);
+                mmgr_line_put(output_line, "): ");
+                mmgr_line_decimal(output_line, (unsigned long long)rows.count, 1u);
+                mmgr_line_put(output_line, " passes, the turn over 2 atan(3) sign(delta), 10/50/90: ");
+                mmgr_line_put(output_line, text);
+                mmgr_line_put(output_line, "; the sign of delta's ");
+                mmgr_line_fixed(output_line, (double)((100.0 * (double)positive) / (double)rows.count), 1u, 0u,
+                                EMBED_FALSE);
+                mmgr_line_ch(output_line, '%');
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
         }
         free(rows.values);
     }
@@ -5147,21 +6035,64 @@ static int main_twist(const char *binary, int64_t base, int64_t count, double ra
         failed += twist_cell(binary, &constants, nu, rate, &lot, &tally);
     }
     doubles_sort(&tally.diffs);
-    printf("  the device's F'/F against the fine lattice's differences, |difference| / theta', 50/90/99/max: ");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(
+            output_line,
+            "  the device's F'/F against the fine lattice's differences, |difference| / theta', 50/90/99/max: ");
+        platform_line_out_ended();
+    }
     static const double DIFF_PLACES[4] = {0.5, 0.9, 0.99, 1.0};
     for (int at = 0; at < 4; at += 1)
     {
-        printf("%s%.5f", (at > 0) ? " " : "", tally.diffs.values[quantile_at(DIFF_PLACES[at], tally.diffs.count)]);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, (at > 0) ? " " : "");
+        mmgr_line_fixed(output_line, (double)(tally.diffs.values[quantile_at(DIFF_PLACES[at], tally.diffs.count)]), 5u,
+                        0u, EMBED_FALSE);
+        platform_line_out_ended();
     }
-    printf("\n");
-    printf("  %-16s %14s %16s\n", "flag", "steps flagged", "misses caught");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, "flag", 16u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "steps flagged", 14u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "misses caught", 16u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     const double step_total = (double)((tally.steps > 1) ? tally.steps : 1);
     const double miss_total = (double)((tally.misses > 1) ? tally.misses : 1);
     for (int rule = 0; rule < TWIST_RULE_COUNT; rule += 1)
     {
-        printf("  %-16s %13.2f%% %9lld (%5.1f%%)\n", TWIST_RULES[rule],
-               (100.0 * (double)tally.flagged[rule]) / step_total, (long long)tally.caught[rule],
-               (100.0 * (double)tally.caught[rule]) / miss_total);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, TWIST_RULES[rule], 16u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_fixed(output_line, (double)((100.0 * (double)tally.flagged[rule]) / step_total), 2u, 13u,
+                        EMBED_FALSE);
+        mmgr_line_ch(output_line, '%');
+        mmgr_line_put(output_line, " ");
+        {
+            char linea_piece[24u];
+            VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+            const int64_t linea_value = (int64_t)((long long)tally.caught[rule]);
+            mmgr_line_decimal_signed(&linea_piece_line, linea_value);
+            (void)mmgr_line_finish(&linea_piece_line);
+            mmgr_line_put_right(output_line, linea_piece, 9u);
+        }
+        mmgr_line_put(output_line, " (");
+        mmgr_line_fixed(output_line, (double)((100.0 * (double)tally.caught[rule]) / miss_total), 1u, 5u, EMBED_FALSE);
+        mmgr_line_ch(output_line, '%');
+        mmgr_line_put(output_line, ")");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     static const char *const COURSE_LABELS[2] = {"every point", "the misses' dips"};
     Doubles *const course_sets[2] = {&tally.courses, &tally.miss_courses};
@@ -5176,23 +6107,58 @@ static int main_twist(const char *binary, int64_t base, int64_t count, double ra
         {
             past += (values->values[at] > 60.0) ? 1u : 0u;
         }
-        printf("  the course off the tangent, |atan(swell / drag)| in degrees, %s, 10/50/90: %s; past 60: %.1f%%\n",
-               COURSE_LABELS[set], text, (100.0 * (double)past) / (double)((values->count > 0u) ? values->count : 1u));
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  the course off the tangent, |atan(swell / drag)| in degrees, ");
+            mmgr_line_put(output_line, COURSE_LABELS[set]);
+            mmgr_line_put(output_line, ", 10/50/90: ");
+            mmgr_line_put(output_line, text);
+            mmgr_line_put(output_line, "; past 60: ");
+            mmgr_line_fixed(output_line,
+                            (double)((100.0 * (double)past) / (double)((values->count > 0u) ? values->count : 1u)), 1u,
+                            0u, EMBED_FALSE);
+            mmgr_line_ch(output_line, '%');
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
-    printf("  the flagged steps by count: ");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the flagged steps by count: ");
+        platform_line_out_ended();
+    }
     for (int rule = 0; rule < TWIST_RULE_COUNT; rule += 1)
     {
-        printf("%s%s %lld", (rule > 0) ? ", " : "", TWIST_RULES[rule], (long long)tally.flagged[rule]);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, (rule > 0) ? ", " : "");
+        mmgr_line_put(output_line, TWIST_RULES[rule]);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_signed(output_line, (long long)tally.flagged[rule]);
+        platform_line_out_ended();
     }
-    printf("\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     coupling_row("every point", &tally.coupling, rate);
     coupling_row("the misses, farthest from 1", &tally.miss_coupling, rate);
     shape_rows("the misses", &tally.figures);
     shape_rows("windows by lot", &tally.lots);
     slip_rows(&tally);
     half_rows(&tally);
-    printf("  misses %lld over %lld coarse steps; %lld host checks failed\n", (long long)tally.misses,
-           (long long)tally.steps, (long long)failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  misses ");
+        mmgr_line_decimal_signed(output_line, (long long)tally.misses);
+        mmgr_line_put(output_line, " over ");
+        mmgr_line_decimal_signed(output_line, (long long)tally.steps);
+        mmgr_line_put(output_line, " coarse steps; ");
+        mmgr_line_decimal_signed(output_line, (long long)failed);
+        mmgr_line_put(output_line, " host checks failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     free(tally.diffs.values);
     free(tally.courses.values);
     free(tally.miss_courses.values);

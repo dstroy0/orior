@@ -42,7 +42,13 @@ static void job_check(int passed, const char *what)
     if (!passed)
     {
         s_job_failed += 1ull;
-        printf("  FAILED: %s\n", what);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -186,13 +192,23 @@ int program_main(int count, char **arguments)
 {
     if (count < 2)
     {
-        printf("  tessera job test: the daemon's path is the one argument\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  tessera job test: the daemon's path is the one argument");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     cudaDeviceProp properties;
     if (cudaGetDeviceProperties(&properties, 0) != cudaSuccess)
     {
-        printf("  tessera job test: no device\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  tessera job test: no device");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     EngineError error;
@@ -225,7 +241,14 @@ int program_main(int count, char **arguments)
     job_check((answer == 0L) && (ticket.over_budget == 0u) && (ticket.lost == 0u) &&
                   (ticket.granted == (ticket.located + JOB_TEST_DECLARED)),
               "a job never seen is admitted on its declaration over what its process occupied");
-    printf("  its process occupied %llu bytes as it requested\n", ticket.located);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  its process occupied ");
+        mmgr_line_decimal(output_line, ticket.located, 1u);
+        mmgr_line_put(output_line, " bytes as it requested");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     void *device_memory = NULL;
     job_check(cudaMalloc(&device_memory, JOB_TEST_BYTES) == cudaSuccess, "the job takes device memory");
     job_check(cudaMemset(device_memory, 1, JOB_TEST_BYTES) == cudaSuccess, "the job touches it");
@@ -236,7 +259,17 @@ int program_main(int count, char **arguments)
     job_check(ticket.grown_to >= JOB_TEST_BYTES, "a job occupying more than it declared is informed it grew");
     job_check(ticket.last_peak >= JOB_TEST_BYTES, "its release reports the peak measured by its pid");
     const unsigned long long peak = ticket.last_peak;
-    printf("  declared %llu, grew to %llu, peak %llu\n", JOB_TEST_DECLARED, ticket.grown_to, peak);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  declared ");
+        mmgr_line_decimal(output_line, JOB_TEST_DECLARED, 1u);
+        mmgr_line_put(output_line, ", grew to ");
+        mmgr_line_decimal(output_line, ticket.grown_to, 1u);
+        mmgr_line_put(output_line, ", peak ");
+        mmgr_line_decimal(output_line, peak, 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     // 2: over its signum's peak it is prompted, and the override admits it
     submit.declared = 4ull * peak;
@@ -248,7 +281,14 @@ int program_main(int count, char **arguments)
               "the override admits it on its declaration over what its process occupied");
     job_check((answer == 0L) && (ticket.located >= JOB_TEST_BYTES),
               "the memory its process retained from the first job is measured as located");
-    printf("  located on the first job's memory: %llu bytes\n", ticket.located);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  located on the first job's memory: ");
+        mmgr_line_decimal(output_line, ticket.located, 1u);
+        mmgr_line_put(output_line, " bytes");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     answer = (answer == 0L) ? tessera_job_release(client, &ticket, &error) : -1L;
     job_check(answer == 0L, "the overridden job releases");
 
@@ -267,7 +307,13 @@ int program_main(int count, char **arguments)
     answer = (answer == 0L) ? tessera_job_wait(client, &ticket, &error) : -1L;
     job_check((answer == 0L) && (ticket.lost != 0u) && (ticket.lost_path[0] != '\0'),
               "unanswered past its grace time, it is lost and its ticket names the lost and found place");
-    printf("  lost and found: %s\n", ticket.lost_path);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  lost and found: ");
+        mmgr_line_put(output_line, ticket.lost_path);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     answer = (answer == 0L) ? tessera_job_precalc_saved(client, &error) : -1L;
     job_check(answer == 0L, "the precalc saved in lost and found releases the job");
     job_check((answer == 0L) && job_ticket_sealed(ticket.lost_path),
@@ -318,8 +364,19 @@ int program_main(int count, char **arguments)
                   "restored, the daemon starts on it and prompts over the peak it recorded");
         if ((answer != 0L) || (ticket.last_peak != peak))
         {
-            printf("  restored submit: answer %ld, prompted %u, last peak %llu, error site %u status %d\n", answer,
-                   ticket.over_budget, ticket.last_peak, error.site, error.status);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  restored submit: answer ");
+            mmgr_line_decimal_signed(output_line, answer);
+            mmgr_line_put(output_line, ", prompted ");
+            mmgr_line_decimal(output_line, ticket.over_budget, 1u);
+            mmgr_line_put(output_line, ", last peak ");
+            mmgr_line_decimal(output_line, ticket.last_peak, 1u);
+            mmgr_line_put(output_line, ", error site ");
+            mmgr_line_decimal(output_line, error.site, 1u);
+            mmgr_line_put(output_line, " status ");
+            mmgr_line_decimal_signed(output_line, error.status);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
         answer = (answer == 0L) ? tessera_job_override(client, &ticket, &error) : -1L;
         answer = (answer == 0L) ? tessera_job_release(client, &ticket, &error) : -1L;
@@ -328,6 +385,15 @@ int program_main(int count, char **arguments)
     }
 
     cudaFree(device_memory);
-    printf("  tessera job test: %llu checks, %llu failed\n", s_job_checks, s_job_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  tessera job test: ");
+        mmgr_line_decimal(output_line, s_job_checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, s_job_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_job_failed == 0ull) ? 0 : 1;
 }

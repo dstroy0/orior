@@ -1,6 +1,7 @@
 
 // test_adversarial_plans.c: family guard, sampling cost, permutations and plans
 #include "test_adversarial_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 /**
  * @brief Case 6. Shapes outside the necessary-condition family, errored in the guard.
@@ -20,7 +21,12 @@ int adversarial_case_family_guard(void)
     const OriorProbe past_end = {needle_len, 1u, 1u};
     if (orior_steer_probe_fits(&past_end, needle_len) != 0)
     {
-        printf("    FAIL origin at needle_len admitted\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL origin at needle_len admitted");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
 
@@ -28,7 +34,12 @@ int adversarial_case_family_guard(void)
     const OriorProbe overruns = {needle_len - 2u, 4u, 3u};
     if (orior_steer_probe_fits(&overruns, needle_len) != 0)
     {
-        printf("    FAIL line overrunning the needle admitted\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL line overrunning the needle admitted");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
 
@@ -36,7 +47,12 @@ int adversarial_case_family_guard(void)
     const OriorProbe stalled = {0u, 0u, 4u};
     if (orior_steer_probe_fits(&stalled, needle_len) != 0)
     {
-        printf("    FAIL zero step above length one admitted\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL zero step above length one admitted");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
 
@@ -44,7 +60,12 @@ int adversarial_case_family_guard(void)
     const OriorProbe empty = {0u, 1u, 0u};
     if (orior_steer_probe_fits(&empty, needle_len) != 0)
     {
-        printf("    FAIL zero length probe admitted\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL zero length probe admitted");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
 
@@ -52,11 +73,22 @@ int adversarial_case_family_guard(void)
     const OriorProbe widest = {0u, needle_len - 1u, 2u};
     if (orior_steer_probe_fits(&widest, needle_len) == 0)
     {
-        printf("    FAIL widest fitting line errored\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL widest fitting line errored");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
 
-    printf("  family guard, verdict %s\n", (failed == 0) ? "ok" : "FAILS");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  family guard, verdict ");
+        mmgr_line_put(output_line, (failed == 0) ? "ok" : "FAILS");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return failed;
 }
 
@@ -77,7 +109,12 @@ int adversarial_case_sampling_cost(void)
 
     if (corpus == NULL)
     {
-        printf("    allocation failed\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    allocation failed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
 
@@ -106,13 +143,33 @@ int adversarial_case_sampling_cost(void)
 
     if (baseline_count != expected)
     {
-        printf("    FAIL periodic field count: %zu against %zu\n", baseline_count, expected);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL periodic field count: ");
+            mmgr_line_decimal(output_line, baseline_count, 1u);
+            mmgr_line_put(output_line, " against ");
+            mmgr_line_decimal(output_line, expected, 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
 
-    printf("  sampling on a period-16 field, %llu reads at the planner's own stride\n",
-           (unsigned long long)baseline_reads);
-    printf("  sampling cost, verdict %s\n", (failed == 0) ? "ok" : "FAILS");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  sampling on a period-16 field, ");
+        mmgr_line_decimal(output_line, (unsigned long long)baseline_reads, 1u);
+        mmgr_line_put(output_line, " reads at the planner's own stride");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  sampling cost, verdict ");
+        mmgr_line_put(output_line, (failed == 0) ? "ok" : "FAILS");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     free(corpus);
     return failed;
 }
@@ -137,7 +194,12 @@ int adversarial_case_permutation_null(void)
 
     if (corpus == NULL)
     {
-        printf("    allocation failed\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    allocation failed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
 
@@ -159,12 +221,28 @@ int adversarial_case_permutation_null(void)
             orior_steer_count_with_probes(corpus, ADVERSARIAL_CORPUS, needle, sizeof(needle), orders[which], 3u);
         if (counted != reference)
         {
-            printf("    FAIL order %zu returned %zu against reference %zu\n", which, counted, reference);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "    FAIL order ");
+                mmgr_line_decimal(output_line, which, 1u);
+                mmgr_line_put(output_line, " returned ");
+                mmgr_line_decimal(output_line, counted, 1u);
+                mmgr_line_put(output_line, " against reference ");
+                mmgr_line_decimal(output_line, reference, 1u);
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             failed = 1;
         }
     }
 
-    printf("  probe order as a permutation null, verdict %s\n", (failed == 0) ? "ok" : "FAILS");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  probe order as a permutation null, verdict ");
+        mmgr_line_put(output_line, (failed == 0) ? "ok" : "FAILS");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     free(corpus);
     return failed;
 }
@@ -189,7 +267,12 @@ int adversarial_case_empty_plan(void)
 
     if (corpus == NULL)
     {
-        printf("    allocation failed\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    allocation failed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
 
@@ -205,17 +288,41 @@ int adversarial_case_empty_plan(void)
 
     if (counted != reference)
     {
-        printf("    FAIL empty plan counted %zu against reference %zu\n", counted, reference);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL empty plan counted ");
+            mmgr_line_decimal(output_line, counted, 1u);
+            mmgr_line_put(output_line, " against reference ");
+            mmgr_line_decimal(output_line, reference, 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
     if (reads != 0u)
     {
-        printf("    FAIL premise: %llu probe reads with no probes supplied\n", (unsigned long long)reads);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL premise: ");
+            mmgr_line_decimal(output_line, (unsigned long long)reads, 1u);
+            mmgr_line_put(output_line, " probe reads with no probes supplied");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
 
-    printf("  the empty plan, %zu occurrences at %llu probe reads, verdict %s\n", counted, (unsigned long long)reads,
-           (failed == 0) ? "ok" : "FAILS");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the empty plan, ");
+        mmgr_line_decimal(output_line, counted, 1u);
+        mmgr_line_put(output_line, " occurrences at ");
+        mmgr_line_decimal(output_line, (unsigned long long)reads, 1u);
+        mmgr_line_put(output_line, " probe reads, verdict ");
+        mmgr_line_put(output_line, (failed == 0) ? "ok" : "FAILS");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     free(corpus);
     return failed;
 }
@@ -239,7 +346,12 @@ int adversarial_case_growing_plan(void)
 
     if (corpus == NULL)
     {
-        printf("    allocation failed\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    allocation failed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
 
@@ -262,7 +374,17 @@ int adversarial_case_growing_plan(void)
             orior_steer_count_with_probes(corpus, ADVERSARIAL_CORPUS, needle, sizeof(needle), probes, used);
         if (counted != reference)
         {
-            printf("    FAIL %zu probe(s) counted %zu against reference %zu\n", used, counted, reference);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "    FAIL ");
+                mmgr_line_decimal(output_line, used, 1u);
+                mmgr_line_put(output_line, " probe(s) counted ");
+                mmgr_line_decimal(output_line, counted, 1u);
+                mmgr_line_put(output_line, " against reference ");
+                mmgr_line_decimal(output_line, reference, 1u);
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             failed = 1;
         }
     }
@@ -277,7 +399,15 @@ int adversarial_case_growing_plan(void)
         const size_t empty_counted = orior_steer_count_with_probes(corpus, ADVERSARIAL_CORPUS, needle, 0u, NULL, 0u);
         if (empty_counted != empty_reference)
         {
-            printf("    FAIL empty needle counted %zu against reference %zu\n", empty_counted, empty_reference);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "    FAIL empty needle counted ");
+                mmgr_line_decimal(output_line, empty_counted, 1u);
+                mmgr_line_put(output_line, " against reference ");
+                mmgr_line_decimal(output_line, empty_reference, 1u);
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             failed = 1;
         }
     }
@@ -292,12 +422,27 @@ int adversarial_case_growing_plan(void)
             orior_steer_count_with_probes(corpus, ADVERSARIAL_CORPUS, needle, sizeof(needle), &overruns, 1u);
         if (error != 0u)
         {
-            printf("    FAIL a probe past the needle counted %zu, expected the error 0\n", error);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "    FAIL a probe past the needle counted ");
+                mmgr_line_decimal(output_line, error, 1u);
+                mmgr_line_put(output_line, ", expected the error 0");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             failed = 1;
         }
     }
 
-    printf("  growing the plan over %zu occurrences, verdict %s\n", reference, (failed == 0) ? "ok" : "FAILS");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  growing the plan over ");
+        mmgr_line_decimal(output_line, reference, 1u);
+        mmgr_line_put(output_line, " occurrences, verdict ");
+        mmgr_line_put(output_line, (failed == 0) ? "ok" : "FAILS");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     free(corpus);
     return failed;
 }
@@ -326,7 +471,12 @@ int adversarial_case_stop_equals_continue(void)
 
     if (corpus == NULL)
     {
-        printf("    allocation failed\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    allocation failed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
 
@@ -339,7 +489,12 @@ int adversarial_case_stop_equals_continue(void)
 
     if (survivors == NULL)
     {
-        printf("    allocation failed\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    allocation failed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         free(corpus);
         return 1;
     }
@@ -348,9 +503,9 @@ int adversarial_case_stop_equals_continue(void)
     // force_full_depth is omitted on the first, and an omitted member is zero, the destroy
     // rule honored. Naming it on the second forces every level.
     const size_t stopped = ORIOR_STEER_CALL(
-        orior_steer_spawn_coarms, OriorSteerDescent, .offsets = shallow, .count = ORIOR_STEER_ANCHORS,
-        .corpus = corpus, .corpus_len = ADVERSARIAL_CORPUS, .needle = needle, .needle_len = sizeof(needle),
-        .survivors = survivors, .survivors_length = alignments, .sample_stride = 1u);
+        orior_steer_spawn_coarms, OriorSteerDescent, .offsets = shallow, .count = ORIOR_STEER_ANCHORS, .corpus = corpus,
+        .corpus_len = ADVERSARIAL_CORPUS, .needle = needle, .needle_len = sizeof(needle), .survivors = survivors,
+        .survivors_length = alignments, .sample_stride = 1u);
     const size_t forced = ORIOR_STEER_CALL(
         orior_steer_spawn_coarms, OriorSteerDescent, .offsets = deep, .count = ORIOR_STEER_ANCHORS, .corpus = corpus,
         .corpus_len = ADVERSARIAL_CORPUS, .needle = needle, .needle_len = sizeof(needle), .survivors = survivors,
@@ -361,25 +516,61 @@ int adversarial_case_stop_equals_continue(void)
 
     if (shallow_count != reference)
     {
-        printf("    FAIL descent count %zu against reference %zu\n", shallow_count, reference);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL descent count ");
+            mmgr_line_decimal(output_line, shallow_count, 1u);
+            mmgr_line_put(output_line, " against reference ");
+            mmgr_line_decimal(output_line, reference, 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
     for (size_t at = 0u; at < stopped; at += 1u)
     {
         if (shallow[at] != deep[at])
         {
-            printf("    FAIL induction: probe %zu is offset %zu stopped and %zu forced\n", at, shallow[at], deep[at]);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "    FAIL induction: probe ");
+                mmgr_line_decimal(output_line, at, 1u);
+                mmgr_line_put(output_line, " is offset ");
+                mmgr_line_decimal(output_line, shallow[at], 1u);
+                mmgr_line_put(output_line, " stopped and ");
+                mmgr_line_decimal(output_line, deep[at], 1u);
+                mmgr_line_put(output_line, " forced");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             failed = 1;
         }
     }
     if (forced < stopped)
     {
-        printf("    FAIL forced depth %zu below stopped depth %zu\n", forced, stopped);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL forced depth ");
+            mmgr_line_decimal(output_line, forced, 1u);
+            mmgr_line_put(output_line, " below stopped depth ");
+            mmgr_line_decimal(output_line, stopped, 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
 
-    printf("  stopping equals continuing, %zu probes stopped against %zu forced, verdict %s\n", stopped, forced,
-           (failed == 0) ? "ok" : "FAILS");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  stopping equals continuing, ");
+        mmgr_line_decimal(output_line, stopped, 1u);
+        mmgr_line_put(output_line, " probes stopped against ");
+        mmgr_line_decimal(output_line, forced, 1u);
+        mmgr_line_put(output_line, " forced, verdict ");
+        mmgr_line_put(output_line, (failed == 0) ? "ok" : "FAILS");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     free(survivors);
     free(corpus);
     return failed;

@@ -65,6 +65,7 @@
 // A voxel v of a view depth x height x width lies at z = v / (height width), y = (v mod height width) / width,
 // x = v mod width.
 #include <stdint.h>
+#include "../../../../src/platform/platform.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -251,7 +252,14 @@ static int output_check_next(OutputCheckText *text)
             char *const grown = (char *)realloc(text->line, capacity);
             if (grown == NULL)
             {
-                printf("  %s: a line's memory could not be reserved\n", text->name);
+                {
+                    VerbaLinea *const output_line = platform_line_out();
+                    mmgr_line_put(output_line, "  ");
+                    mmgr_line_put(output_line, text->name);
+                    mmgr_line_put(output_line, ": a line's memory could not be reserved");
+                    mmgr_line_ch(output_line, '\n');
+                    platform_line_out_ended();
+                }
                 return 0;
             }
             text->line = grown;
@@ -309,8 +317,17 @@ static void output_check_row(OutputCheckText *text, const char *expected, size_t
         text->differing += 1ull;
         if (text->differing <= OUTPUT_CHECK_DISPLAYED)
         {
-            printf("  %s line %llu reads:\n    %s\n  and was rebuilt as:\n    %s\n", text->name, text->lines,
-                   text->line, expected);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, text->name);
+            mmgr_line_put(output_line, " line ");
+            mmgr_line_decimal(output_line, text->lines, 1u);
+            mmgr_line_put(output_line, " reads:\n    ");
+            mmgr_line_put(output_line, text->line);
+            mmgr_line_put(output_line, "\n  and was rebuilt as:\n    ");
+            mmgr_line_put(output_line, expected);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
     }
 }
@@ -360,7 +377,17 @@ static int output_check_reserve(OutputCheckGraph *graph, unsigned long long poin
 static void output_check_fault(OutputCheckGraph *graph, const char *sample, const char *what, unsigned int frame)
 {
     graph->faults += 1ull;
-    printf("  %s: frame %u: %s\n", sample, frame, what);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, sample);
+        mmgr_line_put(output_line, ": frame ");
+        mmgr_line_decimal(output_line, frame, 1u);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_put(output_line, what);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
 // the faces `place` crosses on `axis` (z 0, y 1, x 2) of `extent`: below 0 the low face, bit 1 << 2 axis, and at or
@@ -431,7 +458,14 @@ static int output_check_points(const char *set, const char *sample, OutputCheckG
     free(levels);
     if (ok == 0)
     {
-        printf("  %s: its .points does not open, stops short, or goes on past its last frame\n", sample);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, sample);
+            mmgr_line_put(output_line, ": its .points does not open, stops short, or goes on past its last frame");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         graph->faults += 1ull;
     }
     return ok;
@@ -513,9 +547,16 @@ static int output_check_links(const char *set, const char *sample, OutputCheckGr
     }
     if (ok == 0)
     {
-        printf("  %s: its .links does not open, stops short, disagrees with its .points, or goes on past its last"
-               " frame\n",
-               sample);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, sample);
+            mmgr_line_put(
+                output_line,
+                ": its .links does not open, stops short, disagrees with its .points, or goes on past its last frame");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         graph->faults += 1ull;
     }
     return ok;
@@ -614,9 +655,14 @@ static int output_check_drift(const char *set, const char *sample, OutputCheckGr
     }
     if (ok == 0)
     {
-        printf("  %s: its .drift does not open, stops short, disagrees with its .points, or goes on past its last"
-               " frame\n",
-               sample);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, sample);
+        mmgr_line_put(
+            output_line,
+            ": its .drift does not open, stops short, disagrees with its .points, or goes on past its last frame");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     return ok;
 }
@@ -668,9 +714,14 @@ static int output_check_hessian(const char *set, const char *sample, OutputCheck
     }
     if (ok == 0)
     {
-        printf("  %s: its .shape does not open, stops short, disagrees with its .points, or goes on past its last"
-               " frame\n",
-               sample);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, sample);
+        mmgr_line_put(
+            output_line,
+            ": its .shape does not open, stops short, disagrees with its .points, or goes on past its last frame");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     return ok;
 }
@@ -797,10 +848,59 @@ static int output_check_faces(const char *set, const char *sample, OutputCheckGr
             const unsigned int *const expected = &rebuilt[OUTPUT_CHECK_FACES_WORDS * point];
             if (ok && (memcmp(words, expected, sizeof(words)) != 0))
             {
-                printf("  %s: frame %u: point %llu of its .faces reads (%d, %d, %d) %08X, and was rebuilt as (%d, %d,"
-                       " %d) %08X\n",
-                       sample, frame, point - now, (int)words[0], (int)words[1], (int)words[2], words[3],
-                       (int)expected[0], (int)expected[1], (int)expected[2], expected[3]);
+                {
+                    VerbaLinea *const output_line = platform_line_out();
+                    mmgr_line_put(output_line, "  ");
+                    mmgr_line_put(output_line, sample);
+                    mmgr_line_put(output_line, ": frame ");
+                    mmgr_line_decimal(output_line, frame, 1u);
+                    mmgr_line_put(output_line, ": point ");
+                    mmgr_line_decimal(output_line, point - now, 1u);
+                    mmgr_line_put(output_line, " of its .faces reads (");
+                    mmgr_line_decimal_signed(output_line, (int)words[0]);
+                    mmgr_line_put(output_line, ", ");
+                    mmgr_line_decimal_signed(output_line, (int)words[1]);
+                    mmgr_line_put(output_line, ", ");
+                    mmgr_line_decimal_signed(output_line, (int)words[2]);
+                    mmgr_line_put(output_line, ") ");
+                    {
+                        char linea_piece[24u];
+                        VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                        mmgr_line_hex(&linea_piece_line, (uint64_t)(words[3]), 8u);
+                        const size_t linea_length = mmgr_line_finish(&linea_piece_line);
+                        for (size_t linea_at = 0u; linea_at < linea_length; linea_at += 1u)
+                        {
+                            if (linea_piece[linea_at] >= 'a')
+                            {
+                                linea_piece[linea_at] = (char)(linea_piece[linea_at] - ('a' - 'A'));
+                            }
+                        }
+                        (void)mmgr_line_put_n(output_line, linea_piece, linea_length);
+                    }
+                    mmgr_line_put(output_line, ", and was rebuilt as (");
+                    mmgr_line_decimal_signed(output_line, (int)expected[0]);
+                    mmgr_line_put(output_line, ", ");
+                    mmgr_line_decimal_signed(output_line, (int)expected[1]);
+                    mmgr_line_put(output_line, ", ");
+                    mmgr_line_decimal_signed(output_line, (int)expected[2]);
+                    mmgr_line_put(output_line, ") ");
+                    {
+                        char linea_piece[24u];
+                        VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                        mmgr_line_hex(&linea_piece_line, (uint64_t)(expected[3]), 8u);
+                        const size_t linea_length = mmgr_line_finish(&linea_piece_line);
+                        for (size_t linea_at = 0u; linea_at < linea_length; linea_at += 1u)
+                        {
+                            if (linea_piece[linea_at] >= 'a')
+                            {
+                                linea_piece[linea_at] = (char)(linea_piece[linea_at] - ('a' - 'A'));
+                            }
+                        }
+                        (void)mmgr_line_put_n(output_line, linea_piece, linea_length);
+                    }
+                    mmgr_line_ch(output_line, '\n');
+                    platform_line_out_ended();
+                }
                 output_check_fault(graph, sample,
                                    (memcmp(words, expected, 3u * sizeof(unsigned int)) != 0)
                                        ? "a point's back-prediction is not the one rebuilt"
@@ -817,7 +917,14 @@ static int output_check_faces(const char *set, const char *sample, OutputCheckGr
     free(rebuilt);
     if (ok == 0)
     {
-        printf("  %s: its .faces stops short, breaks a rule above, or goes on past its last frame\n", sample);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, sample);
+            mmgr_line_put(output_line, ": its .faces stops short, breaks a rule above, or goes on past its last frame");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         graph->faults += 1ull;
     }
     return ok;
@@ -912,7 +1019,15 @@ static int output_check_divide(const char *set, const char *sample, OutputCheckG
     fclose(file);
     if (ok == 0)
     {
-        printf("  %s: its .divide stops short, breaks a rule above, or goes on past its last frame pair\n", sample);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, sample);
+            mmgr_line_put(output_line,
+                          ": its .divide stops short, breaks a rule above, or goes on past its last frame pair");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         graph->faults += 1ull;
     }
     return ok;
@@ -994,24 +1109,55 @@ static void output_check_report(OutputCheckText *text)
     {
         extra += 1ull;
     }
-    printf("  %s: %llu bytes, %llu LF, %llu CR, %llu lines; %llu rows checked against the rebuilt, %llu differ, %llu"
-           " missing, %llu past the rebuilt\n",
-           text->name, text->bytes, text->feeds, text->returns, text->lines, text->compared, text->differing,
-           text->missing, extra);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, text->name);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_decimal(output_line, text->bytes, 1u);
+        mmgr_line_put(output_line, " bytes, ");
+        mmgr_line_decimal(output_line, text->feeds, 1u);
+        mmgr_line_put(output_line, " LF, ");
+        mmgr_line_decimal(output_line, text->returns, 1u);
+        mmgr_line_put(output_line, " CR, ");
+        mmgr_line_decimal(output_line, text->lines, 1u);
+        mmgr_line_put(output_line, " lines; ");
+        mmgr_line_decimal(output_line, text->compared, 1u);
+        mmgr_line_put(output_line, " rows checked against the rebuilt, ");
+        mmgr_line_decimal(output_line, text->differing, 1u);
+        mmgr_line_put(output_line, " differ, ");
+        mmgr_line_decimal(output_line, text->missing, 1u);
+        mmgr_line_put(output_line, " missing, ");
+        mmgr_line_decimal(output_line, extra, 1u);
+        mmgr_line_put(output_line, " past the rebuilt");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     text->missing += extra;
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     const uint32_t probe = 1u;
     if (*(const unsigned char *)&probe != 1u)
     {
-        printf("  this host is not little-endian, and the files are\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  this host is not little-endian, and the files are");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     if (count < 5)
     {
-        printf("  usage: output_check <set> <nodes.tsv> <submission.csv> <sample> [<sample> ...]\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line,
+                          "  usage: output_check <set> <nodes.tsv> <submission.csv> <sample> [<sample> ...]");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     const char *const set = arguments[1];
@@ -1023,7 +1169,12 @@ int main(int count, char **arguments)
     const int opened = nodes_opened && submission_opened;
     if (opened == 0)
     {
-        printf("  the nodes or the submission does not open\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  the nodes or the submission does not open");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         output_check_close(&nodes);
         output_check_close(&submission);
         return 1;
@@ -1043,8 +1194,21 @@ int main(int count, char **arguments)
     // the samples with a .faces, and on the graphs as they are their starts and ends and those crossing a face
     unsigned int faced = 0u;
     unsigned long long totals[4] = {0ull, 0ull, 0ull, 0ull};
-    printf("  %-16s %6s %10s %10s %s\n", "sample", "frames", "nodes", "edges",
-           "faults in its graph; divisions (moving a link)");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, "sample", 16u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "frames", 6u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "nodes", 10u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "edges", 10u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put(output_line, "faults in its graph; divisions (moving a link)");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     for (int at = 4; at < count; at += 1)
     {
         const char *const sample = arguments[at];
@@ -1076,8 +1240,26 @@ int main(int count, char **arguments)
                     (((graph.faces[point] >> OUTPUT_CHECK_AHEAD_SHIFT) & OUTPUT_CHECK_SIX) != 0u) ? end : 0ull;
             }
         }
-        printf("  %-16s %6u %10llu %10llu %llu; %llu (%llu)\n", sample, graph.head[0], graph.points, linked,
-               graph.faults, graph.divisions, graph.moved);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_columns(output_line, sample, 16u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_columns(output_line, graph.head[0], 6u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_columns(output_line, graph.points, 10u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_columns(output_line, linked, 10u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal(output_line, graph.faults, 1u);
+            mmgr_line_put(output_line, "; ");
+            mmgr_line_decimal(output_line, graph.divisions, 1u);
+            mmgr_line_put(output_line, " (");
+            mmgr_line_decimal(output_line, graph.moved, 1u);
+            mmgr_line_put(output_line, ")");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         faults += graph.faults;
         if (complete == 0)
         {
@@ -1085,8 +1267,22 @@ int main(int count, char **arguments)
         }
         if (graph.faced)
         {
-            printf("  %-16s its .faces: %llu of its %llu starts enter the view, %llu of its %llu ends leave it\n",
-                   sample, crossed[1], crossed[0], crossed[3], crossed[2]);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  ");
+                mmgr_line_put_columns(output_line, sample, 16u);
+                mmgr_line_put(output_line, " its .faces: ");
+                mmgr_line_decimal(output_line, crossed[1], 1u);
+                mmgr_line_put(output_line, " of its ");
+                mmgr_line_decimal(output_line, crossed[0], 1u);
+                mmgr_line_put(output_line, " starts enter the view, ");
+                mmgr_line_decimal(output_line, crossed[3], 1u);
+                mmgr_line_put(output_line, " of its ");
+                mmgr_line_decimal(output_line, crossed[2], 1u);
+                mmgr_line_put(output_line, " ends leave it");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             faced += 1u;
             for (unsigned int type = 0u; type < 4u; type += 1u)
             {
@@ -1101,21 +1297,61 @@ int main(int count, char **arguments)
         moved += graph.moved;
         output_check_rows(sample, &graph, &nodes, &submission, &row);
     }
-    printf("  rebuilt %u of %d samples: %llu frames, %llu nodes, %llu edges, %llu divisions (%llu moving a link); %llu"
-           " faults in the graphs; the nodes should contain %llu rows after the header, the submission %llu\n",
-           read, count - 4, frames, points, edges, divisions, moved, faults, points, row);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  rebuilt ");
+        mmgr_line_decimal(output_line, read, 1u);
+        mmgr_line_put(output_line, " of ");
+        mmgr_line_decimal_signed(output_line, count - 4);
+        mmgr_line_put(output_line, " samples: ");
+        mmgr_line_decimal(output_line, frames, 1u);
+        mmgr_line_put(output_line, " frames, ");
+        mmgr_line_decimal(output_line, points, 1u);
+        mmgr_line_put(output_line, " nodes, ");
+        mmgr_line_decimal(output_line, edges, 1u);
+        mmgr_line_put(output_line, " edges, ");
+        mmgr_line_decimal(output_line, divisions, 1u);
+        mmgr_line_put(output_line, " divisions (");
+        mmgr_line_decimal(output_line, moved, 1u);
+        mmgr_line_put(output_line, " moving a link); ");
+        mmgr_line_decimal(output_line, faults, 1u);
+        mmgr_line_put(output_line, " faults in the graphs; the nodes should contain ");
+        mmgr_line_decimal(output_line, points, 1u);
+        mmgr_line_put(output_line, " rows after the header, the submission ");
+        mmgr_line_decimal(output_line, row, 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     if (faced != 0u)
     {
-        printf("  %u of them with a .faces: %llu of their %llu starts enter the view, %llu of their %llu ends leave"
-               " it\n",
-               faced, totals[1], totals[0], totals[3], totals[2]);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_decimal(output_line, faced, 1u);
+        mmgr_line_put(output_line, " of them with a .faces: ");
+        mmgr_line_decimal(output_line, totals[1], 1u);
+        mmgr_line_put(output_line, " of their ");
+        mmgr_line_decimal(output_line, totals[0], 1u);
+        mmgr_line_put(output_line, " starts enter the view, ");
+        mmgr_line_decimal(output_line, totals[3], 1u);
+        mmgr_line_put(output_line, " of their ");
+        mmgr_line_decimal(output_line, totals[2], 1u);
+        mmgr_line_put(output_line, " ends leave it");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     output_check_report(&nodes);
     output_check_report(&submission);
     const unsigned long long problems = faults + nodes.differing + nodes.missing + submission.differing +
                                         submission.missing + nodes.returns + submission.returns +
                                         (unsigned long long)(count - 4 - (int)read);
-    printf("  %llu problems\n", problems);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_decimal(output_line, problems, 1u);
+        mmgr_line_put(output_line, " problems");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     output_check_close(&nodes);
     output_check_close(&submission);
     free(graph.first);

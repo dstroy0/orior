@@ -50,6 +50,7 @@
 //   5. the records are written out.
 
 #include "../../../src/cu/engine/analysis/cycle/cycle.h"
+#include "../../../src/platform/platform.h"
 #include "../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../src/cu/engine/analysis/keymath/keymath.h"
 #include "verba_scribo/verba_linea.h"
@@ -428,8 +429,8 @@ int program_main(int count, char **arguments)
             {
                 for (size_t place = n - 1u; place > 0u; place -= 1u)
                 {
-                    const size_t other =
-                        (size_t)sim_draw_below(key, (run * (unsigned long long)n) + place, (unsigned long long)place + 1ull);
+                    const size_t other = (size_t)sim_draw_below(key, (run * (unsigned long long)n) + place,
+                                                                (unsigned long long)place + 1ull);
                     std::swap(order[place], order[other]);
                 }
             }
@@ -449,8 +450,8 @@ int program_main(int count, char **arguments)
         count_lanes * (1ull + (ok ? count_stage.layout.out_limbs : 1u)) * sizeof(unsigned int);
     ok = ok && sim_job_submit(&job, "subgrouping", count, arguments, declared);
     std::vector<std::vector<StageWhole>> counted;
-    ok = ok && stage_summed(&job, &count_stage, records, count_lanes, words, std::vector<unsigned int>(1, 0u),
-                            &counted, &error);
+    ok = ok && stage_summed(&job, &count_stage, records, count_lanes, words, std::vector<unsigned int>(1, 0u), &counted,
+                            &error);
     records.clear();
     records.shrink_to_fit();
 
@@ -469,10 +470,12 @@ int program_main(int count, char **arguments)
         pairs[at].matched = counted[0][at * runs];
         for (unsigned long long shuffle = 0ull; shuffle < shuffles; shuffle += 1ull)
         {
-            unsigned int *record = &above_records[(size_t)(((unsigned long long)at * shuffles + shuffle) * above_limbs)];
+            unsigned int *record =
+                &above_records[(size_t)(((unsigned long long)at * shuffles + shuffle) * above_limbs)];
             stage_put(record, above_stage.program.field_offset[0], above_stage.program.field_bits[0],
                       counted[0][at * runs + 1ull + shuffle]);
-            stage_put(record, above_stage.program.field_offset[1], above_stage.program.field_bits[1], pairs[at].matched);
+            stage_put(record, above_stage.program.field_offset[1], above_stage.program.field_bits[1],
+                      pairs[at].matched);
         }
     }
     std::vector<std::vector<StageWhole>> aboves;
@@ -691,7 +694,8 @@ int program_main(int count, char **arguments)
         for (size_t at = 0u; at < pairs.size(); at += 1u)
         {
             const GroupPair &pair = pairs[at];
-            fprintf(out, "pair %s | %s shared %zu matched %s shuffled_sum %s above %s excess+1 %s/%s p %s/%s excess %s\n",
+            fprintf(out,
+                    "pair %s | %s shared %zu matched %s shuffled_sum %s above %s excess+1 %s/%s p %s/%s excess %s\n",
                     languages[pair.left].name.c_str(), languages[pair.right].name.c_str(), pair.shared,
                     stage_text_of(pair.matched).c_str(), stage_text_of(pair.shuffled_sum).c_str(),
                     stage_text_of(pair.above).c_str(), stage_text_of(pair.lifted.num).c_str(),
@@ -704,8 +708,8 @@ int program_main(int count, char **arguments)
         }
         fprintf(out, "(c) %s\n", means_agree ? "pass" : "FAIL");
         fprintf(out, "(d) %s\n", failures.empty() ? "pass" : "FAIL");
-        const char *types[6] = {"interior", "central", "interior-central", "nuxalk-interior", "nuxalk-central",
-                                "nuxalk-tsamosan"};
+        const char *types[6] = {"interior",        "central",        "interior-central",
+                                "nuxalk-interior", "nuxalk-central", "nuxalk-tsamosan"};
         for (size_t group = 0u; group < groups.size(); group += 1u)
         {
             if (!groups[group].empty())
@@ -721,13 +725,33 @@ int program_main(int count, char **arguments)
 
     if (ok)
     {
-        printf("languages with %llu or more meanings:\n", settings.least_meanings);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "languages with ");
+            mmgr_line_decimal(output_line, settings.least_meanings, 1u);
+            mmgr_line_put(output_line, " or more meanings:");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         for (size_t at = 0u; at < languages.size(); at += 1u)
         {
-            printf("   %-5s %s %5zu meanings\n", languages[at].branch.c_str(),
-                   stage_displayed(languages[at].name, 18u, 1).c_str(), languages[at].meanings.size());
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "   ");
+            mmgr_line_put_columns(output_line, languages[at].branch.c_str(), 5u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put(output_line, stage_displayed(languages[at].name, 18u, 1).c_str());
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_columns(output_line, languages[at].meanings.size(), 5u);
+            mmgr_line_put(output_line, " meanings");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
-        printf("\nexcess match rate (observed minus shuffled), shared meanings in brackets\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "\nexcess match rate (observed minus shuffled), shared meanings in brackets");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         for (size_t left = 0u; left < languages.size(); left += 1u)
         {
             std::vector<std::pair<size_t, size_t>> ranked;
@@ -736,44 +760,111 @@ int program_main(int count, char **arguments)
                 const size_t right = partner_of[left][partner_orders[left].sorted[place - 1u]];
                 ranked.push_back({right, table[{left, right}]});
             }
-            printf("%-5s %s", languages[left].branch.c_str(), stage_displayed(languages[left].name, 18u, 1).c_str());
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put_columns(output_line, languages[left].branch.c_str(), 5u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_put(output_line, stage_displayed(languages[left].name, 18u, 1).c_str());
+                platform_line_out_ended();
+            }
             for (size_t at = 0u; (at < ranked.size()) && (at < 5u); at += 1u)
             {
-                printf("  %s %.6s[%zu]", stage_displayed(languages[ranked[at].first].name, 10u, 0).c_str(),
-                       pairs[ranked[at].second].excess_text.c_str(), pairs[ranked[at].second].shared);
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  ");
+                mmgr_line_put(output_line, stage_displayed(languages[ranked[at].first].name, 10u, 0).c_str());
+                mmgr_line_put(output_line, " ");
+                mmgr_line_put_max(output_line, pairs[ranked[at].second].excess_text.c_str(), 6u);
+                mmgr_line_put(output_line, "[");
+                mmgr_line_decimal(output_line, pairs[ranked[at].second].shared, 1u);
+                mmgr_line_put(output_line, "]");
+                platform_line_out_ended();
             }
-            printf("\n");
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
         }
         for (size_t at = 0u; at < lines.size(); at += 1u)
         {
-            printf("%s\n", lines[at].c_str());
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, lines[at].c_str());
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
-        printf("(c) mean excess: Interior pairs %s (%zu), Central pairs %s (%zu), Interior-Central %s (%zu): %s\n",
-               displayed[means_at].c_str(), groups[0].size(), displayed[means_at + 1u].c_str(), groups[1].size(),
-               displayed[means_at + 2u].c_str(), groups[2].size(), means_agree ? "pass" : "FAIL");
-        printf("(d) outside-Salish pairs with shuffle p below %llu/%llu: ", settings.p_below[0], settings.p_below[1]);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "(c) mean excess: Interior pairs ");
+            mmgr_line_put(output_line, displayed[means_at].c_str());
+            mmgr_line_put(output_line, " (");
+            mmgr_line_decimal(output_line, groups[0].size(), 1u);
+            mmgr_line_put(output_line, "), Central pairs ");
+            mmgr_line_put(output_line, displayed[means_at + 1u].c_str());
+            mmgr_line_put(output_line, " (");
+            mmgr_line_decimal(output_line, groups[1].size(), 1u);
+            mmgr_line_put(output_line, "), Interior-Central ");
+            mmgr_line_put(output_line, displayed[means_at + 2u].c_str());
+            mmgr_line_put(output_line, " (");
+            mmgr_line_decimal(output_line, groups[2].size(), 1u);
+            mmgr_line_put(output_line, "): ");
+            mmgr_line_put(output_line, means_agree ? "pass" : "FAIL");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "(d) outside-Salish pairs with shuffle p below ");
+            mmgr_line_decimal(output_line, settings.p_below[0], 1u);
+            mmgr_line_put(output_line, "/");
+            mmgr_line_decimal(output_line, settings.p_below[1], 1u);
+            mmgr_line_put(output_line, ": ");
+            platform_line_out_ended();
+        }
         if (failures.empty())
         {
-            printf("none, pass\n");
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "none, pass");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
         for (size_t at = 0u; at < failures.size(); at += 1u)
         {
-            printf("%s%s", (at == 0u) ? "" : "; ", failures[at].c_str());
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, (at == 0u) ? "" : "; ");
+            mmgr_line_put(output_line, failures[at].c_str());
+            platform_line_out_ended();
         }
         if (!failures.empty())
         {
-            printf("\n");
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
         const char *names[3] = {"Interior", "Central", "Tsamosan"};
         for (size_t branch = 0u; branch < 3u; branch += 1u)
         {
             if (!groups[3u + branch].empty())
             {
-                printf("Nuxalk mean excess with %-9s %s over %zu languages\n", names[branch],
-                       displayed[means_at + 3u + branch].c_str(), groups[3u + branch].size());
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "Nuxalk mean excess with ");
+                mmgr_line_put_columns(output_line, names[branch], 9u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_put(output_line, displayed[means_at + 3u + branch].c_str());
+                mmgr_line_put(output_line, " over ");
+                mmgr_line_decimal(output_line, groups[3u + branch].size(), 1u);
+                mmgr_line_put(output_line, " languages");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
             }
         }
-        printf("each excess is the sign, whole part and first six digits of the exact rational in the records\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(
+                output_line,
+                "each excess is the sign, whole part and first six digits of the exact rational in the records");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 
     stage_release(&count_stage);

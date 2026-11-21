@@ -83,6 +83,7 @@
 // for word. The same holds for each sum that the device takes, against that of the host over the same records.
 
 #include "../../src/cu/engine/analysis/cycle/cycle.h"
+#include "../../src/platform/platform.h"
 #include "../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../src/cu/engine/analysis/keymath/keymath.h"
 #include "verba_scribo/verba_linea.h"
@@ -384,7 +385,8 @@ static void scaled_log_build(ScaledStage *stage, unsigned int b, unsigned int y,
     const unsigned int big_d = scaled_step(program, ENGINE_RECORD_SUM, big_u, scaled_read(program, first_field), 0u);
     const unsigned int u = scaled_step(program, ENGINE_RECORD_PRODUCT, lane, lane, 0u);
     const unsigned int v = scaled_step(program, ENGINE_RECORD_PRODUCT, big_d, big_d, 0u);
-    // Horner's rule from c_(L-1) down: the step that adds c_(k-1) turns the sum by l^2 and positions c_(k-1) at D^(2(L - k))
+    // Horner's rule from c_(L-1) down: the step that adds c_(k-1) turns the sum by l^2 and positions c_(k-1) at D^(2(L
+    // - k))
     unsigned int acc = scaled_read(program, c[terms - 1u]);
     unsigned int v_power = v;
     for (unsigned int k = terms - 1u; k > 0u; k -= 1u)
@@ -636,7 +638,8 @@ static void scaled_cos_build(ScaledStage *stage, const std::vector<unsigned int>
     const unsigned int zero = scaled_constant(program, 0ull);
     // the coefficient of y^j at 2^-X, its sign (-1)^j
     auto coefficient = [&](unsigned int j) -> unsigned int {
-        const unsigned int positioned = scaled_step(program, ENGINE_RECORD_PRODUCT, scaled_read(program, k[j]), lift, 0u);
+        const unsigned int positioned =
+            scaled_step(program, ENGINE_RECORD_PRODUCT, scaled_read(program, k[j]), lift, 0u);
         return (j % 2u == 0u) ? positioned : scaled_step(program, ENGINE_RECORD_DIFFERENCE, zero, positioned, 0u);
     };
     // every partial sum is at max cosh(pi / 2) < 4 in magnitude, and its reads with it below 2^(X + 3)
@@ -3288,7 +3291,8 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
         stage->summed = {0u};
     }
 
-    // the verdict at every point, its sums record positioned by the host from the term sums, each sign-extended to the wider
+    // the verdict at every point, its sums record positioned by the host from the term sums, each sign-extended to the
+    // wider
     unsigned int sum_limbs = 0u;
     unsigned int sum_bits = 0u;
     const unsigned int nu_bits = scaled_bits_of(heads);
@@ -3533,13 +3537,38 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
         count->before = 0;
         count->after = 0;
         count->between = changes;
-        printf("  cell %llu by Euler-Maclaurin to %u terms: N = %lld, U from %lld, %llu lanes at 2^-%u; the host's "
-               "records "
-               "%s the device's word for word\n",
-               nu, SCALED_EM_TERMS, scaled_wide_word(cell.n), scaled_wide_word(cell.first), lanes, b,
-               same ? "equal" : "differ from");
-        printf("  Z's sign decided at %llu of %llu points, %lld sign changes between neighbors\n", decided, lanes,
-               changes);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  cell ");
+            mmgr_line_decimal(output_line, nu, 1u);
+            mmgr_line_put(output_line, " by Euler-Maclaurin to ");
+            mmgr_line_decimal(output_line, SCALED_EM_TERMS, 1u);
+            mmgr_line_put(output_line, " terms: N = ");
+            mmgr_line_decimal_signed(output_line, scaled_wide_word(cell.n));
+            mmgr_line_put(output_line, ", U from ");
+            mmgr_line_decimal_signed(output_line, scaled_wide_word(cell.first));
+            mmgr_line_put(output_line, ", ");
+            mmgr_line_decimal(output_line, lanes, 1u);
+            mmgr_line_put(output_line, " lanes at 2^-");
+            mmgr_line_decimal(output_line, b, 1u);
+            mmgr_line_put(output_line, "; the host's records ");
+            mmgr_line_put(output_line, same ? "equal" : "differ from");
+            mmgr_line_put(output_line, " the device's word for word");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  Z's sign decided at ");
+            mmgr_line_decimal(output_line, decided, 1u);
+            mmgr_line_put(output_line, " of ");
+            mmgr_line_decimal(output_line, lanes, 1u);
+            mmgr_line_put(output_line, " points, ");
+            mmgr_line_decimal_signed(output_line, changes);
+            mmgr_line_put(output_line, " sign changes between neighbors");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     else
     {
@@ -3552,17 +3581,57 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
         count->after = ok ? scaled_wide_word(scaled_wide_sum(&turing_stage, 5u, 0ull)) : 0;
         count->between = ok ? scaled_wide_word(scaled_wide_sum(&turing_stage, 6u, 0ull)) : 0;
         const int closed = count->checked && (count->between == count->high - count->low);
-        printf(
-            "  cell %llu: U from %lld, %llu lanes at 2^-%u; ln u by %u terms; the host's records %s the device's word "
-            "for word\n",
-            nu, scaled_wide_word(cell.first), lanes, b, log_terms, same ? "equal" : "differ from");
-        printf("  Z's sign decided at %llu of %llu points, %lld sign changes between neighbors; Turing's method: N at "
-               "point %llu at least %lld, at point %llu at max %lld\n",
-               decided, lanes, changes, count->a, count->low, count->e, count->high);
-        printf("  %lld sign changes between them, %lld zeros there: %s\n", count->between, count->high - count->low,
-               closed ? "every zero between is on the line and simple" : "the count does not close");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  cell ");
+            mmgr_line_decimal(output_line, nu, 1u);
+            mmgr_line_put(output_line, ": U from ");
+            mmgr_line_decimal_signed(output_line, scaled_wide_word(cell.first));
+            mmgr_line_put(output_line, ", ");
+            mmgr_line_decimal(output_line, lanes, 1u);
+            mmgr_line_put(output_line, " lanes at 2^-");
+            mmgr_line_decimal(output_line, b, 1u);
+            mmgr_line_put(output_line, "; ln u by ");
+            mmgr_line_decimal(output_line, log_terms, 1u);
+            mmgr_line_put(output_line, " terms; the host's records ");
+            mmgr_line_put(output_line, same ? "equal" : "differ from");
+            mmgr_line_put(output_line, " the device's word for word");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  Z's sign decided at ");
+            mmgr_line_decimal(output_line, decided, 1u);
+            mmgr_line_put(output_line, " of ");
+            mmgr_line_decimal(output_line, lanes, 1u);
+            mmgr_line_put(output_line, " points, ");
+            mmgr_line_decimal_signed(output_line, changes);
+            mmgr_line_put(output_line, " sign changes between neighbors; Turing's method: N at point ");
+            mmgr_line_decimal(output_line, count->a, 1u);
+            mmgr_line_put(output_line, " at least ");
+            mmgr_line_decimal_signed(output_line, count->low);
+            mmgr_line_put(output_line, ", at point ");
+            mmgr_line_decimal(output_line, count->e, 1u);
+            mmgr_line_put(output_line, " at max ");
+            mmgr_line_decimal_signed(output_line, count->high);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_decimal_signed(output_line, count->between);
+            mmgr_line_put(output_line, " sign changes between them, ");
+            mmgr_line_decimal_signed(output_line, count->high - count->low);
+            mmgr_line_put(output_line, " zeros there: ");
+            mmgr_line_put(output_line,
+                          closed ? "every zero between is on the line and simple" : "the count does not close");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
-    fflush(stdout);
+    platform_line_flushed();
 
     scaled_release(&curve_stage);
     scaled_release(&em_c_stage);
@@ -4076,14 +4145,32 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
                 out->gammas[n].assign(lows[n].begin(), lows[n].begin() + last + 1u);
                 out->spreads.push_back(scaled_wide_sum(&spread, 0u, n));
             }
-            printf("  C_0 to C_%u: Gabcke's coefficients from the Euler numbers at 2^-%u, %u a curve, stored at 2^-%u:",
-                   top, precision, count, big_e);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  C_0 to C_");
+                mmgr_line_decimal(output_line, top, 1u);
+                mmgr_line_put(output_line, ": Gabcke's coefficients from the Euler numbers at 2^-");
+                mmgr_line_decimal(output_line, precision, 1u);
+                mmgr_line_put(output_line, ", ");
+                mmgr_line_decimal(output_line, count, 1u);
+                mmgr_line_put(output_line, " a curve, stored at 2^-");
+                mmgr_line_decimal(output_line, big_e, 1u);
+                mmgr_line_put(output_line, ":");
+                platform_line_out_ended();
+            }
             for (unsigned int n = 0u; n <= top; n += 1u)
             {
-                printf(" %zu", out->gammas[n].size());
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, " ");
+                mmgr_line_decimal(output_line, out->gammas[n].size(), 1u);
+                platform_line_out_ended();
             }
-            printf("\n");
-            fflush(stdout);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
+            platform_line_flushed();
             done = 1;
         }
         scaled_release(&factorials);
@@ -4172,18 +4259,35 @@ static int scaled_constants(SimResults *job, ScaledConstants *k, EngineError *er
     scaled_release(&theta);
     if (ok)
     {
-        printf("  pi at 2^-%u by Machin's formula, ln 2 by artanh, cos by %u terms, theta's constants at 2^-%u\n",
-               k->precision, terms, k->w);
-        fflush(stdout);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  pi at 2^-");
+            mmgr_line_decimal(output_line, k->precision, 1u);
+            mmgr_line_put(output_line, " by Machin's formula, ln 2 by artanh, cos by ");
+            mmgr_line_decimal(output_line, terms, 1u);
+            mmgr_line_put(output_line, " terms, theta's constants at 2^-");
+            mmgr_line_decimal(output_line, k->w, 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        platform_line_flushed();
     }
     if (ok && k->em)
     {
         ok = scaled_bernoulli(job, SCALED_EM_TERMS, &k->bernoulli, error);
         if (ok)
         {
-            printf("  B_2 to B_%u by their recurrence, each whole times (%u)!\n", 2u * SCALED_EM_TERMS,
-                   2u * SCALED_EM_TERMS + 1u);
-            fflush(stdout);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  B_2 to B_");
+                mmgr_line_decimal(output_line, 2u * SCALED_EM_TERMS, 1u);
+                mmgr_line_put(output_line, " by their recurrence, each whole times (");
+                mmgr_line_decimal(output_line, 2u * SCALED_EM_TERMS + 1u, 1u);
+                mmgr_line_put(output_line, ")!");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
+            platform_line_flushed();
         }
     }
     return ok && scaled_curves(job, SCALED_TOP, k->big_e, k, error);
@@ -4533,18 +4637,45 @@ int program_main(int count, char **arguments)
             const int meets = got.em ? (total + across == ahead.low) : (across == ahead.low - got.high);
             if (got.em)
             {
-                printf("  cells %llu to %llu by Euler-Maclaurin and the seam to cell %llu: %lld sign changes from t = "
-                       "2 pi "
-                       "to point %llu, N there %lld: %s\n",
-                       first_cell, first_cell + at, first_cell + at + 1u, total + across, ahead.a, ahead.low,
-                       meets ? "they meet" : "they do not meet");
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  cells ");
+                mmgr_line_decimal(output_line, first_cell, 1u);
+                mmgr_line_put(output_line, " to ");
+                mmgr_line_decimal(output_line, first_cell + at, 1u);
+                mmgr_line_put(output_line, " by Euler-Maclaurin and the seam to cell ");
+                mmgr_line_decimal(output_line, first_cell + at + 1u, 1u);
+                mmgr_line_put(output_line, ": ");
+                mmgr_line_decimal_signed(output_line, total + across);
+                mmgr_line_put(output_line, " sign changes from t = 2 pi to point ");
+                mmgr_line_decimal(output_line, ahead.a, 1u);
+                mmgr_line_put(output_line, ", N there ");
+                mmgr_line_decimal_signed(output_line, ahead.low);
+                mmgr_line_put(output_line, ": ");
+                mmgr_line_put(output_line, meets ? "they meet" : "they do not meet");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
             }
             else
             {
-                printf(
-                    "  seam %llu to %llu: %lld sign changes from point %llu to point %llu, N from %lld to %lld: %s\n",
-                    first_cell + at, first_cell + at + 1u, across, got.e, ahead.a, got.high, ahead.low,
-                    meets ? "they meet" : "they do not meet");
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  seam ");
+                mmgr_line_decimal(output_line, first_cell + at, 1u);
+                mmgr_line_put(output_line, " to ");
+                mmgr_line_decimal(output_line, first_cell + at + 1u, 1u);
+                mmgr_line_put(output_line, ": ");
+                mmgr_line_decimal_signed(output_line, across);
+                mmgr_line_put(output_line, " sign changes from point ");
+                mmgr_line_decimal(output_line, got.e, 1u);
+                mmgr_line_put(output_line, " to point ");
+                mmgr_line_decimal(output_line, ahead.a, 1u);
+                mmgr_line_put(output_line, ", N from ");
+                mmgr_line_decimal_signed(output_line, got.high);
+                mmgr_line_put(output_line, " to ");
+                mmgr_line_decimal_signed(output_line, ahead.low);
+                mmgr_line_put(output_line, ": ");
+                mmgr_line_put(output_line, meets ? "they meet" : "they do not meet");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
             }
             closed = closed && meets;
             total += across;
@@ -4555,10 +4686,27 @@ int program_main(int count, char **arguments)
         const long long low = cells.front().em ? 0 : cells.front().low;
         const long long high = cells.back().high;
         closed = closed && (total == high - low);
-        printf("  cells %llu to %llu, %llu runs again on a finer lattice: %lld sign changes from N = %lld%s to N = "
-               "%lld: %s\n",
-               first_cell, last_cell, refined, total, low, cells.front().em ? " at t = 2 pi" : "", high,
-               closed ? "every zero between is on the line and simple" : "the count does not close");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  cells ");
+            mmgr_line_decimal(output_line, first_cell, 1u);
+            mmgr_line_put(output_line, " to ");
+            mmgr_line_decimal(output_line, last_cell, 1u);
+            mmgr_line_put(output_line, ", ");
+            mmgr_line_decimal(output_line, refined, 1u);
+            mmgr_line_put(output_line, " runs again on a finer lattice: ");
+            mmgr_line_decimal_signed(output_line, total);
+            mmgr_line_put(output_line, " sign changes from N = ");
+            mmgr_line_decimal_signed(output_line, low);
+            mmgr_line_put(output_line, cells.front().em ? " at t = 2 pi" : "");
+            mmgr_line_put(output_line, " to N = ");
+            mmgr_line_decimal_signed(output_line, high);
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_put(output_line,
+                          closed ? "every zero between is on the line and simple" : "the count does not close");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     sim_check(&job, ok && closed, "every cell closes, every seam meets, and the sign changes number N's rise");
     return sim_close(&job, "exact_zeta_scaled");

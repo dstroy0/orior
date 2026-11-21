@@ -59,7 +59,14 @@ int container_places_read(const ContainerLayout *layout, Places *places)
     if ((places->header_bytes == 0ULL) || (places->symbol_bytes == 0ULL) || (places->attribute_header == 0ULL) ||
         (places->instruction == 0ULL))
     {
-        printf("  container_write: %s names no header, symbol, attribute or instruction size\n", layout->from);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  container_write: ");
+            mmgr_line_put(output_line, layout->from);
+            mmgr_line_put(output_line, " names no header, symbol, attribute or instruction size");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     return 1;

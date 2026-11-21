@@ -7,6 +7,7 @@
 // KSG_LINE_MAX of it; and the trailer contains the size, KSG_LINE_MAX, the count of leaves and the root. Exit 0 where
 // every one passed
 #include "../../../../../src/cu/engine/runtime/obsignatio/obsignatio_internal.h"
+#include "../../../../../src/platform/platform.h"
 #include "../../../../../includes/file_defs/ksg/ksg.h"
 #include "verba_scribo/verba_scribo.h"
 
@@ -33,7 +34,13 @@ static unsigned int s_passed;
 // one check reported: passed, or failed, by `what`
 static void ksg_check(int passed, const char *what)
 {
-    printf("%s%s\n", passed ? "  ok   " : "  FAIL ", what);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, passed ? "  ok   " : "  FAIL ");
+        mmgr_line_put(output_line, what);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     s_passed += passed ? 1u : 0u;
     s_failed += passed ? 0u : 1u;
 }
@@ -129,8 +136,10 @@ static unsigned long long ksg_text(unsigned int lines, unsigned int long_line)
     return text;
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     unsigned char root[KSG_SIGNUM_BYTES];
     unsigned char again[KSG_SIGNUM_BYTES];
     unsigned char other[KSG_SIGNUM_BYTES];
@@ -187,6 +196,15 @@ int main(void)
     ksg_check((words[0] == long_size) && (words[1] == KSG_LINE_MAX) && (words[2] == 12u) &&
                   (memcmp(trailer + 24u, root, KSG_SIGNUM_BYTES) == 0),
               "the trailer contains the size, KSG_LINE_MAX, the count of leaves and the root");
-    printf("ksg check: %u checks, %u failed\n", s_passed + s_failed, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "ksg check: ");
+        mmgr_line_decimal(output_line, s_passed + s_failed, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, s_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failed == 0u) ? 0 : 1;
 }

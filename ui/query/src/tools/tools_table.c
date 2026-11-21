@@ -29,7 +29,8 @@ const char *const g_query_mmgr[] = {
     "includes/mmgr/src/cellularum_laboro/*.c", "includes/mmgr/src/clz/*.c",
     "includes/mmgr/src/confinium_exclusivum_infinitas/*.c", "includes/mmgr/src/confinium_externum/*.c",
     "includes/mmgr/src/endian/*.c", "includes/mmgr/src/fractio/*.c",
-    "includes/mmgr/src/impensa_ancorae_acus/impensa_ancorae_acus_generic.c", "includes/mmgr/src/locus_carcerum/*.c",
+    // the cellblock through the platform's unit, which leaves out the weak table of no owners (platform_carcer.c)
+    "includes/mmgr/src/impensa_ancorae_acus/impensa_ancorae_acus_generic.c", "src/platform/platform_carcer.c",
     "includes/mmgr/src/memoria_anularis/*.c", "includes/mmgr/src/memoria_externa/*.c",
     "includes/mmgr/src/memoria_operor/*.c", "includes/mmgr/src/memoriam_praetereo/*.c",
     "includes/mmgr/src/numeros_scribo/*.c", "includes/mmgr/src/octetus_introitus_exitus/*.c",

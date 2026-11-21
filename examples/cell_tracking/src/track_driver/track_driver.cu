@@ -174,15 +174,35 @@ static unsigned long long run_job_declared(const RunInputs *inputs, const char *
     const unsigned long long gated = (gate != 0) ? sort_reserve_bytes(points) : 0ull;
     if (drift != 0)
     {
-        printf("  tessera: %s declares %llu bytes: %llu for its lattice and tower, %llu the drift retains\n", name,
-               lattice_bytes + retained, lattice_bytes, retained);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  tessera: ");
+        mmgr_line_put(output_line, name);
+        mmgr_line_put(output_line, " declares ");
+        mmgr_line_decimal(output_line, lattice_bytes + retained, 1u);
+        mmgr_line_put(output_line, " bytes: ");
+        mmgr_line_decimal(output_line, lattice_bytes, 1u);
+        mmgr_line_put(output_line, " for its lattice and tower, ");
+        mmgr_line_decimal(output_line, retained, 1u);
+        mmgr_line_put(output_line, " the drift retains");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     if (gate != 0)
     {
-        printf(
-            "  tessera: %s declares %llu bytes: %llu for its lattice and tower, %llu the gate allocates for %u points a"
-            " frame\n",
-            name, lattice_bytes + gated, lattice_bytes, gated, points);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  tessera: ");
+        mmgr_line_put(output_line, name);
+        mmgr_line_put(output_line, " declares ");
+        mmgr_line_decimal(output_line, lattice_bytes + gated, 1u);
+        mmgr_line_put(output_line, " bytes: ");
+        mmgr_line_decimal(output_line, lattice_bytes, 1u);
+        mmgr_line_put(output_line, " for its lattice and tower, ");
+        mmgr_line_decimal(output_line, gated, 1u);
+        mmgr_line_put(output_line, " the gate allocates for ");
+        mmgr_line_decimal(output_line, points, 1u);
+        mmgr_line_put(output_line, " points a frame");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     return lattice_bytes + retained + gated;
 }
@@ -247,8 +267,17 @@ static int run_job_submit(const char *name, const CfgText *effective, const RunI
     }
     if (job->ticket.over_budget != 0u)
     {
-        printf("  tessera: %s declares %llu bytes over its tracked peak of %llu\n", name, job->declared,
-               job->ticket.last_peak);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  tessera: ");
+            mmgr_line_put(output_line, name);
+            mmgr_line_put(output_line, " declares ");
+            mmgr_line_decimal(output_line, job->declared, 1u);
+            mmgr_line_put(output_line, " bytes over its tracked peak of ");
+            mmgr_line_decimal(output_line, job->ticket.last_peak, 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         const long answered = (s_override != 0u) ? tessera_job_override(job->client, &job->ticket, &error)
                                                  : tessera_job_wait(job->client, &job->ticket, &error);
         if ((answered != 0L) || (job->ticket.lost != 0u))
@@ -266,9 +295,20 @@ static int run_job_submit(const char *name, const CfgText *effective, const RunI
         }
     }
     job->total = job->declared + job->ticket.located;
-    printf("  tessera: %s admitted, %llu bytes reserved; it declared %llu over the %llu its process allocated as it "
-           "requested\n",
-           name, job->ticket.granted, job->declared, job->ticket.located);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  tessera: ");
+        mmgr_line_put(output_line, name);
+        mmgr_line_put(output_line, " admitted, ");
+        mmgr_line_decimal(output_line, job->ticket.granted, 1u);
+        mmgr_line_put(output_line, " bytes reserved; it declared ");
+        mmgr_line_decimal(output_line, job->declared, 1u);
+        mmgr_line_put(output_line, " over the ");
+        mmgr_line_decimal(output_line, job->ticket.located, 1u);
+        mmgr_line_put(output_line, " its process allocated as it requested");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 1;
 }
 
@@ -282,8 +322,17 @@ static void run_job_release(const char *name, RunJob *job)
         return;
     }
     job->client = NULL;
-    printf("  tessera: %s released, peak %llu bytes%s\n", name, job->ticket.last_peak,
-           (job->ticket.last_peak > job->total) ? ", more than it declared" : "");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  tessera: ");
+        mmgr_line_put(output_line, name);
+        mmgr_line_put(output_line, " released, peak ");
+        mmgr_line_decimal(output_line, job->ticket.last_peak, 1u);
+        mmgr_line_put(output_line, " bytes");
+        mmgr_line_put(output_line, (job->ticket.last_peak > job->total) ? ", more than it declared" : "");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
 static int run_part_named_already(RunPart part)
@@ -428,9 +477,22 @@ static int run_pair_proof(const FlattenResident *flattened, const unsigned int *
     }
     if (ok)
     {
-        printf("  print pairs: every body against itself weighs the ceiling %llu, %llu short of it, in %llu us; against"
-               " the body across from it %llu us, lightest %llu, %llu differ from the host\n",
-               PRINT_PAIR_CEILING, short_of_ceiling, sweep, across_sweep, lightest, differ);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  print pairs: every body against itself weighs the ceiling ");
+        mmgr_line_decimal(output_line, PRINT_PAIR_CEILING, 1u);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, short_of_ceiling, 1u);
+        mmgr_line_put(output_line, " short of it, in ");
+        mmgr_line_decimal(output_line, sweep, 1u);
+        mmgr_line_put(output_line, " us; against the body across from it ");
+        mmgr_line_decimal(output_line, across_sweep, 1u);
+        mmgr_line_put(output_line, " us, lightest ");
+        mmgr_line_decimal(output_line, lightest, 1u);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, differ, 1u);
+        mmgr_line_put(output_line, " differ from the host");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     else
     {
@@ -507,9 +569,20 @@ static int run_steer_proof(const FlattenResident *flattened, const unsigned int 
     }
     if (ok)
     {
-        printf("  the body beside its own print, no index: the mass band read again agrees with the print's on %llu of"
-               " %llu bodies, truthy; the sweep %llu us; %llu differ from the host\n",
-               truthy, flattened->bodies, sweep, differ);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(
+            output_line,
+            "  the body beside its own print, no index: the mass band read again agrees with the print's on ");
+        mmgr_line_decimal(output_line, truthy, 1u);
+        mmgr_line_put(output_line, " of ");
+        mmgr_line_decimal(output_line, flattened->bodies, 1u);
+        mmgr_line_put(output_line, " bodies, truthy; the sweep ");
+        mmgr_line_decimal(output_line, sweep, 1u);
+        mmgr_line_put(output_line, " us; ");
+        mmgr_line_decimal(output_line, differ, 1u);
+        mmgr_line_put(output_line, " differ from the host");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     else
     {
@@ -575,10 +648,26 @@ static int run_vocabulary_proof(const FlattenResident *flattened, const unsigned
     }
     if (ok)
     {
-        printf(
-            "  absolute and compare on K_zy of %llu bodies: %llu below zero, %llu at zero, %llu above; the sweep %llu"
-            " us; %llu break |K| against K, %llu disagree with the print's band, %llu differ from the host\n",
-            flattened->bodies, order[0], order[1], order[2], sweep, broken, against_print, differ);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  absolute and compare on K_zy of ");
+        mmgr_line_decimal(output_line, flattened->bodies, 1u);
+        mmgr_line_put(output_line, " bodies: ");
+        mmgr_line_decimal(output_line, order[0], 1u);
+        mmgr_line_put(output_line, " below zero, ");
+        mmgr_line_decimal(output_line, order[1], 1u);
+        mmgr_line_put(output_line, " at zero, ");
+        mmgr_line_decimal(output_line, order[2], 1u);
+        mmgr_line_put(output_line, " above; the sweep ");
+        mmgr_line_decimal(output_line, sweep, 1u);
+        mmgr_line_put(output_line, " us; ");
+        mmgr_line_decimal(output_line, broken, 1u);
+        mmgr_line_put(output_line, " break |K| against K, ");
+        mmgr_line_decimal(output_line, against_print, 1u);
+        mmgr_line_put(output_line, " disagree with the print's band, ");
+        mmgr_line_decimal(output_line, differ, 1u);
+        mmgr_line_put(output_line, " differ from the host");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     else
     {
@@ -631,12 +720,25 @@ static int run_fingerprint(const RunInputs *inputs)
     }
     const unsigned int out_limbs = cycle_record_out_limbs(record);
     fields.limbs = out_limbs;
-    printf("  the print's record as a vector magnitude, field at offset:bits:");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the print's record as a vector magnitude, field at offset:bits:");
+        platform_line_out_ended();
+    }
     for (unsigned int output = 0u; output < FINGERPRINT_OUTPUTS; output += 1u)
     {
-        printf(" %u:%u", fields.offset[output], fields.bits[output]);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal(output_line, fields.offset[output], 1u);
+        mmgr_line_put(output_line, ":");
+        mmgr_line_decimal(output_line, fields.bits[output], 1u);
+        platform_line_out_ended();
     }
-    printf("\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     unsigned int *const records =
         (unsigned int *)malloc(((size_t)flattened.bodies * out_limbs + 1u) * sizeof(unsigned int));
     unsigned long long sweep = 0ull;
@@ -655,9 +757,23 @@ static int run_fingerprint(const RunInputs *inputs)
     }
     if (ok)
     {
-        printf("  fingerprint: %llu bodies, %u steps, %ld bits a print in %u limbs; the sweep %llu us, with the "
-               "transfers %llu us; CRC-64 of the prints %016llx\n",
-               flattened.bodies, FINGERPRINT_STEPS, out_bits, out_limbs, sweep, elapsed, ~crc);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  fingerprint: ");
+        mmgr_line_decimal(output_line, flattened.bodies, 1u);
+        mmgr_line_put(output_line, " bodies, ");
+        mmgr_line_decimal(output_line, FINGERPRINT_STEPS, 1u);
+        mmgr_line_put(output_line, " steps, ");
+        mmgr_line_decimal_signed(output_line, out_bits);
+        mmgr_line_put(output_line, " bits a print in ");
+        mmgr_line_decimal(output_line, out_limbs, 1u);
+        mmgr_line_put(output_line, " limbs; the sweep ");
+        mmgr_line_decimal(output_line, sweep, 1u);
+        mmgr_line_put(output_line, " us, with the transfers ");
+        mmgr_line_decimal(output_line, elapsed, 1u);
+        mmgr_line_put(output_line, " us; CRC-64 of the prints ");
+        mmgr_line_hex(output_line, ~crc, 16u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     else
     {
@@ -689,9 +805,17 @@ static int run_fingerprint(const RunInputs *inputs)
     }
     if (gather)
     {
-        printf("  fingerprint through the index, every body read by the lane across from it: the sweep %llu us; %llu of"
-               " %llu prints land away from their body\n",
-               gather_sweep, misplaced, flattened.bodies);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line,
+                      "  fingerprint through the index, every body read by the lane across from it: the sweep ");
+        mmgr_line_decimal(output_line, gather_sweep, 1u);
+        mmgr_line_put(output_line, " us; ");
+        mmgr_line_decimal(output_line, misplaced, 1u);
+        mmgr_line_put(output_line, " of ");
+        mmgr_line_decimal(output_line, flattened.bodies, 1u);
+        mmgr_line_put(output_line, " prints land away from their body");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     else if (ok)
     {
@@ -716,9 +840,16 @@ static int run_fingerprint(const RunInputs *inputs)
     }
     if (ported)
     {
-        printf("  fingerprint on the host, orior's exact integer: %llu us; %llu of %llu prints differ from the "
-               "device\n",
-               host_elapsed, differ, flattened.bodies);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  fingerprint on the host, orior's exact integer: ");
+        mmgr_line_decimal(output_line, host_elapsed, 1u);
+        mmgr_line_put(output_line, " us; ");
+        mmgr_line_decimal(output_line, differ, 1u);
+        mmgr_line_put(output_line, " of ");
+        mmgr_line_decimal(output_line, flattened.bodies, 1u);
+        mmgr_line_put(output_line, " prints differ from the device");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     else if (ok)
     {
@@ -833,8 +964,18 @@ static int run_velocity_prepare(const FlattenResident *flattened, RunVelocity *v
     }
     rules->velocity_record = *record;
     rules->velocity_encode_request = encode_request;
-    printf("  velocity: %u steps, a record of %ld bits in %u limbs\n", VELOCITY_STEPS, out_bits,
-           cycle_record_out_limbs(*record));
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  velocity: ");
+        mmgr_line_decimal(output_line, VELOCITY_STEPS, 1u);
+        mmgr_line_put(output_line, " steps, a record of ");
+        mmgr_line_decimal_signed(output_line, out_bits);
+        mmgr_line_put(output_line, " bits in ");
+        mmgr_line_decimal(output_line, cycle_record_out_limbs(*record), 1u);
+        mmgr_line_put(output_line, " limbs");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 1;
 }
 
@@ -892,8 +1033,18 @@ static int run_division_prepare(const RunInputs *inputs, const FlattenResident *
     }
     rules->division_record = *record;
     rules->division_encode_request = encode_request;
-    printf("  division: %u steps, a record of %ld bits in %u limbs\n", DIVISION_STEPS, out_bits,
-           cycle_record_out_limbs(*record));
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  division: ");
+        mmgr_line_decimal(output_line, DIVISION_STEPS, 1u);
+        mmgr_line_put(output_line, " steps, a record of ");
+        mmgr_line_decimal_signed(output_line, out_bits);
+        mmgr_line_put(output_line, " bits in ");
+        mmgr_line_decimal(output_line, cycle_record_out_limbs(*record), 1u);
+        mmgr_line_put(output_line, " limbs");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 1;
 }
 
@@ -985,10 +1136,24 @@ static int run_contact_side_prepare(const RunInputs *inputs, const FlattenReside
     rules->contact_difference_encode_request = apart;
     rules->contact_retained_record = *retained_record;
     rules->contact_retained_encode_request = verdict;
-    printf("  contact side: the difference, %u steps, a record of %ld bits in %u limbs; the verdict, %u steps, %ld bits"
-           " in %u limbs\n",
-           CONTACT_SIDE_DIFFERENCE_STEPS, apart_bits, apart_limbs, CONTACT_SIDE_SIGN_STEPS, retained_bit_count,
-           cycle_record_out_limbs(*retained_record));
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  contact side: the difference, ");
+        mmgr_line_decimal(output_line, CONTACT_SIDE_DIFFERENCE_STEPS, 1u);
+        mmgr_line_put(output_line, " steps, a record of ");
+        mmgr_line_decimal_signed(output_line, apart_bits);
+        mmgr_line_put(output_line, " bits in ");
+        mmgr_line_decimal(output_line, apart_limbs, 1u);
+        mmgr_line_put(output_line, " limbs; the verdict, ");
+        mmgr_line_decimal(output_line, CONTACT_SIDE_SIGN_STEPS, 1u);
+        mmgr_line_put(output_line, " steps, ");
+        mmgr_line_decimal_signed(output_line, retained_bit_count);
+        mmgr_line_put(output_line, " bits in ");
+        mmgr_line_decimal(output_line, cycle_record_out_limbs(*retained_record), 1u);
+        mmgr_line_put(output_line, " limbs");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 1;
 }
 
@@ -1035,8 +1200,18 @@ static int run_print_match_prepare(const RunInputs *inputs, const FlattenResiden
     rules->print_pair = *pair;
     rules->prints = *prints;
     rules->print_limbs = limbs;
-    printf("  print match: %llu bodies of %u samples printed in one sweep of %llu us\n", flattened->bodies,
-           flattened->samples, sweep);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  print match: ");
+        mmgr_line_decimal(output_line, flattened->bodies, 1u);
+        mmgr_line_put(output_line, " bodies of ");
+        mmgr_line_decimal(output_line, flattened->samples, 1u);
+        mmgr_line_put(output_line, " samples printed in one sweep of ");
+        mmgr_line_decimal(output_line, sweep, 1u);
+        mmgr_line_put(output_line, " us");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 1;
 }
 
@@ -1084,8 +1259,24 @@ static int run_track(const TreeRules *rules, const RunInputs *inputs)
         return 1;
     }
     rules_line(rules, g_rules_line, sizeof(g_rules_line));
-    printf("  rules:%s\n", g_rules_line);
-    printf("  %-24s %-6s %s\n", "sample", "edges", "correct/branched/wrong/no link/missed");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  rules:");
+        mmgr_line_put(output_line, g_rules_line);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, "sample", 24u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_columns(output_line, "edges", 6u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put(output_line, "correct/branched/wrong/no link/missed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     EdgeResults pooled;
     memset(&pooled, 0, sizeof(pooled));
     const unsigned long long started = engine_clock_microseconds() / 1000ull;
@@ -1106,7 +1297,14 @@ static int run_track(const TreeRules *rules, const RunInputs *inputs)
         pooled.missed += results.missed;
     }
     const unsigned long long total = pooled.correct + pooled.branched + pooled.wrong + pooled.unlinked + pooled.missed;
-    printf("\n  POOLED over %llu ground truth edges:\n", total);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n  POOLED over ");
+        mmgr_line_decimal(output_line, total, 1u);
+        mmgr_line_put(output_line, " ground truth edges:");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     if (total > 0ULL)
     {
         const char *const names[5] = {"correct link", "target among branches", "wrong link", "no link made",
@@ -1118,40 +1316,102 @@ static int run_track(const TreeRules *rules, const RunInputs *inputs)
             unsigned long long percent = 0ULL;
             unsigned long long tenth = 0ULL;
             engine_percent_of(values[row], total, &percent, &tenth);
-            printf("    %-22s %5llu   %llu.%llu%%\n", names[row], values[row], percent, tenth);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "    ");
+                mmgr_line_put_columns(output_line, names[row], 22u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_decimal_columns(output_line, values[row], 5u);
+                mmgr_line_put(output_line, "   ");
+                mmgr_line_decimal(output_line, percent, 1u);
+                mmgr_line_put(output_line, ".");
+                mmgr_line_decimal(output_line, tenth, 1u);
+                mmgr_line_ch(output_line, '%');
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
         }
     }
     if ((g_web_queried + g_web_capped) > 0ULL)
     {
-        printf("    web: queried %llu objects, moved %llu, capped %llu over %u bodies\n", g_web_queried, g_web_moved,
-               g_web_capped, WEB_MEMBERS);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    web: queried ");
+        mmgr_line_decimal(output_line, g_web_queried, 1u);
+        mmgr_line_put(output_line, " objects, moved ");
+        mmgr_line_decimal(output_line, g_web_moved, 1u);
+        mmgr_line_put(output_line, ", capped ");
+        mmgr_line_decimal(output_line, g_web_capped, 1u);
+        mmgr_line_put(output_line, " over ");
+        mmgr_line_decimal(output_line, WEB_MEMBERS, 1u);
+        mmgr_line_put(output_line, " bodies");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     if ((g_mutual_alone + g_mutual_split + g_mutual_empty) > 0ULL)
     {
-        printf("    mutual: %llu cells, one survivor %llu, several %llu, none %llu, moved %llu\n",
-               g_mutual_alone + g_mutual_split + g_mutual_empty, g_mutual_alone, g_mutual_split, g_mutual_empty,
-               g_mutual_moved);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    mutual: ");
+        mmgr_line_decimal(output_line, g_mutual_alone + g_mutual_split + g_mutual_empty, 1u);
+        mmgr_line_put(output_line, " cells, one survivor ");
+        mmgr_line_decimal(output_line, g_mutual_alone, 1u);
+        mmgr_line_put(output_line, ", several ");
+        mmgr_line_decimal(output_line, g_mutual_split, 1u);
+        mmgr_line_put(output_line, ", none ");
+        mmgr_line_decimal(output_line, g_mutual_empty, 1u);
+        mmgr_line_put(output_line, ", moved ");
+        mmgr_line_decimal(output_line, g_mutual_moved, 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     survey_report();
     EngineBodiesResults results;
     engine_bodies_results(&results);
     if (results.frames != 0ull)
     {
-        printf("    bodies: proved on %llu of %llu frames, %llu bodies, %llu per frame, mean level index %llu\n",
-               results.proven, results.frames, results.bodies, results.bodies / results.frames,
-               results.levels / results.frames);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    bodies: proved on ");
+        mmgr_line_decimal(output_line, results.proven, 1u);
+        mmgr_line_put(output_line, " of ");
+        mmgr_line_decimal(output_line, results.frames, 1u);
+        mmgr_line_put(output_line, " frames, ");
+        mmgr_line_decimal(output_line, results.bodies, 1u);
+        mmgr_line_put(output_line, " bodies, ");
+        mmgr_line_decimal(output_line, results.bodies / results.frames, 1u);
+        mmgr_line_put(output_line, " per frame, mean level index ");
+        mmgr_line_decimal(output_line, results.levels / results.frames, 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     EngineResidualResults residual;
     engine_residual_results(&residual);
     if (residual.frames != 0ull)
     {
-        printf("    residual: %llu frames, the key %llu us, the unit sweeps %llu us; proved on %llu frames, %llu differ"
-               " (%llu lanes)\n",
-               residual.frames, residual.key_microseconds, residual.sweep_microseconds, residual.proved_frames,
-               residual.differing_frames, residual.differing_lanes);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    residual: ");
+        mmgr_line_decimal(output_line, residual.frames, 1u);
+        mmgr_line_put(output_line, " frames, the key ");
+        mmgr_line_decimal(output_line, residual.key_microseconds, 1u);
+        mmgr_line_put(output_line, " us, the unit sweeps ");
+        mmgr_line_decimal(output_line, residual.sweep_microseconds, 1u);
+        mmgr_line_put(output_line, " us; proved on ");
+        mmgr_line_decimal(output_line, residual.proved_frames, 1u);
+        mmgr_line_put(output_line, " frames, ");
+        mmgr_line_decimal(output_line, residual.differing_frames, 1u);
+        mmgr_line_put(output_line, " differ (");
+        mmgr_line_decimal(output_line, residual.differing_lanes, 1u);
+        mmgr_line_put(output_line, " lanes)");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     const unsigned long long wall = (engine_clock_microseconds() / 1000ull) - started;
-    printf("\n  %llu ms\n", wall);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n  ");
+        mmgr_line_decimal(output_line, wall, 1u);
+        mmgr_line_put(output_line, " ms");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     FILE *const log = log_open();
     if (log != NULL)
     {
@@ -1652,7 +1912,11 @@ int program_main(int argc, char **argv)
     }
     else
     {
-        printf("  every part named is a host part: no device job is requested, and no device context is made\n");
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line,
+                      "  every part named is a host part: no device job is requested, and no device context is made");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
 
     if (s_ingest != 0u)
@@ -1667,8 +1931,8 @@ int program_main(int argc, char **argv)
         EngineSetReport report;
         memset(&report, 0, sizeof(report));
         report.samples = (EngineSampleRecord *)calloc((size_t)inputs.count + 1u, sizeof(EngineSampleRecord));
-        const EngineIngestRequest ingest = {inputs.source, inputs.set,    inputs.samples, inputs.count,
-                                            inputs.axes,   inputs.channel, &error,        &report};
+        const EngineIngestRequest ingest = {inputs.source, inputs.set,     inputs.samples, inputs.count,
+                                            inputs.axes,   inputs.channel, &error,         &report};
         const long ingested = engine_ingest_set(&ingest);
         run_job_release("ingest", &job);
         engine_ingest_print(&ingest, stdout);
@@ -1685,7 +1949,13 @@ int program_main(int argc, char **argv)
     for (unsigned int at = 0u; (failures == 0) && (at < s_part_count); at += 1u)
     {
         const RunPart part = s_parts[at];
-        printf("  run %s\n", RUN_PART_NAMES[part]);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  run ");
+            mmgr_line_put(output_line, RUN_PART_NAMES[part]);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         RunJob job;
         memset(&job, 0, sizeof(job));
         // iapx-prove lowers every lattice to prove it and allocates none of its own on the device. Schedule reads only

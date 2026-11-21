@@ -162,16 +162,50 @@ int program_main(int count, char **arguments)
     unsigned long long failed_total = 0ull;
     unsigned long long failed = 0ull;
     unsigned long long cases = frame_test_round_trip(&failed);
-    printf("  round trip, byte for byte       %8llu cases, %llu failed\n", cases, failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  round trip, byte for byte       ");
+        mmgr_line_decimal_columns(output_line, cases, 8u);
+        mmgr_line_put(output_line, " cases, ");
+        mmgr_line_decimal(output_line, failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     failed_total += failed;
     failed = 0ull;
     cases = frame_test_layout(&failed);
-    printf("  little-endian at fixed places   %8llu cases, %llu failed\n", cases, failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  little-endian at fixed places   ");
+        mmgr_line_decimal_columns(output_line, cases, 8u);
+        mmgr_line_put(output_line, " cases, ");
+        mmgr_line_decimal(output_line, failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     failed_total += failed;
     failed = 0ull;
     cases = frame_test_error(&failed);
-    printf("  a broken head errored           %8llu cases, %llu failed\n", cases, failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  a broken head errored           ");
+        mmgr_line_decimal_columns(output_line, cases, 8u);
+        mmgr_line_put(output_line, " cases, ");
+        mmgr_line_decimal(output_line, failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     failed_total += failed;
-    printf("  tessera frame: %llu failed\n", failed_total);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  tessera frame: ");
+        mmgr_line_decimal(output_line, failed_total, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (failed_total == 0ull) ? 0 : 1;
 }

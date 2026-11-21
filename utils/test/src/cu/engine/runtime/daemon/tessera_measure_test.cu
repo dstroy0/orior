@@ -76,7 +76,15 @@ static int measure_test_child_ends(unsigned long long *failed)
     const int ended = (process != NULL) && !tessera_process_lives(process);
     tessera_process_release(process);
 #endif
-    printf("  a child opened: lived %d, then ended %d\n", lived, ended);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  a child opened: lived ");
+        mmgr_line_decimal_signed(output_line, lived);
+        mmgr_line_put(output_line, ", then ended ");
+        mmgr_line_decimal_signed(output_line, ended);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     *failed += lived ? 0ull : 1ull;
     *failed += ended ? 0ull : 1ull;
     return 2;
@@ -91,7 +99,12 @@ int program_main(int count, char **arguments)
     cudaDeviceProp properties;
     if (cudaGetDeviceProperties(&properties, 0) != cudaSuccess)
     {
-        printf("  no device answered; the measure test needs one\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  no device answered; the measure test needs one");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     unsigned char device[TESSERA_DEVICE_BYTES];
@@ -108,7 +121,14 @@ int program_main(int count, char **arguments)
     cases += 1ull;
     if (measure == NULL)
     {
-        printf("  the measure did not open\n  tessera measure: %llu failed\n", failed);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  the measure did not open\n  tessera measure: ");
+            mmgr_line_decimal(output_line, failed, 1u);
+            mmgr_line_put(output_line, " failed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     unsigned long long capacity = 0ull;
@@ -142,10 +162,33 @@ int program_main(int count, char **arguments)
     failed += ((reported ? !read_other : read_other) && (used_other == 0ull)) ? 0ull : 1ull;
     cases += 1ull;
     // the runtime's byte count is a size_t, which fits in an unsigned long long
-    printf("  device %llu bytes (the runtime reports %llu), in use %llu then %llu\n", capacity,
-           (unsigned long long)properties.totalGlobalMem, in_use_before, in_use_after);
-    printf("  this process %llu bytes, then %llu after %llu allocated (%s)\n", used_before, used_after,
-           MEASURE_TEST_BYTES, reported ? "read by itself: WSL reports each process's own bytes" : "read by pid");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  device ");
+        mmgr_line_decimal(output_line, capacity, 1u);
+        mmgr_line_put(output_line, " bytes (the runtime reports ");
+        mmgr_line_decimal(output_line, (unsigned long long)properties.totalGlobalMem, 1u);
+        mmgr_line_put(output_line, "), in use ");
+        mmgr_line_decimal(output_line, in_use_before, 1u);
+        mmgr_line_put(output_line, " then ");
+        mmgr_line_decimal(output_line, in_use_after, 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  this process ");
+        mmgr_line_decimal(output_line, used_before, 1u);
+        mmgr_line_put(output_line, " bytes, then ");
+        mmgr_line_decimal(output_line, used_after, 1u);
+        mmgr_line_put(output_line, " after ");
+        mmgr_line_decimal(output_line, MEASURE_TEST_BYTES, 1u);
+        mmgr_line_put(output_line, " allocated (");
+        mmgr_line_put(output_line, reported ? "read by itself: WSL reports each process's own bytes" : "read by pid");
+        mmgr_line_put(output_line, ")");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     cudaFree(block);
     TesseraProcess *const self = tessera_process_open(measure_test_self());
     failed += ((self != NULL) && tessera_process_lives(self)) ? 0ull : 1ull;
@@ -154,6 +197,15 @@ int program_main(int count, char **arguments)
     // the count of cases is two, widened
     cases += (unsigned long long)measure_test_child_ends(&failed);
     tessera_measure_close(measure);
-    printf("  tessera measure: %llu cases, %llu failed\n", cases, failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  tessera measure: ");
+        mmgr_line_decimal(output_line, cases, 1u);
+        mmgr_line_put(output_line, " cases, ");
+        mmgr_line_decimal(output_line, failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (failed == 0ull) ? 0 : 1;
 }

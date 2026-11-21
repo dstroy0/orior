@@ -36,11 +36,21 @@ static void check(const char *name, int ok)
     if (ok == 0)
     {
         s_failed += 1;
-        printf("  FAIL %s\n", name);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAIL ");
+            mmgr_line_put(output_line, name);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     else
     {
-        printf("  ok   %s\n", name);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ok   ");
+        mmgr_line_put(output_line, name);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
 }
 
@@ -186,7 +196,12 @@ int program_main(int count, char **arguments)
     tower_test_lanes(rig.host, rig.lanes, 0x0123456789ABCDEFull);
     if (cudaMalloc((void **)&rig.device_lanes, (size_t)rig.lanes * sizeof(unsigned short)) != cudaSuccess)
     {
-        printf("  FAIL could not allocate the device lanes\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAIL could not allocate the device lanes");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     cudaMemcpy(rig.device_lanes, rig.host, (size_t)rig.lanes * sizeof(unsigned short), cudaMemcpyHostToDevice);
@@ -366,6 +381,15 @@ int program_main(int count, char **arguments)
 
     cudaFree(rig.device_lanes);
     free(rig.host);
-    printf("  tower edge test: %d checks, %d failed\n", s_checks, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  tower edge test: ");
+        mmgr_line_decimal_signed(output_line, s_checks);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal_signed(output_line, s_failed);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failed == 0) ? 0 : 1;
 }

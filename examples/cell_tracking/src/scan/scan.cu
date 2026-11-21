@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "drift.h"
+#include "../../../../src/platform/platform.h"
 #include "../../../../includes/exact_types/integers/exact_integer.h"
 #include "hessian.h"
 #include "peaks.h"
@@ -367,14 +368,35 @@ static int scan_ingest(const ScanRequest *request, const char *sample, unsigned 
         set_counts[value] += sample_counts[value];
     }
     *readings += counted ? total : 0ull;
-    printf("  ingest %-24s %12llu readings; footing ", sample, total);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ingest ");
+        mmgr_line_put_columns(output_line, sample, 24u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line, total, 12u);
+        mmgr_line_put(output_line, " readings; footing ");
+        platform_line_out_ended();
+    }
     if (footing.found != 0ull)
     {
-        printf("%llu..%llu (%llu, %llu steps)\n", footing.lo, footing.hi, footing.lo_steps, footing.hi_steps);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_decimal(output_line, footing.lo, 1u);
+        mmgr_line_put(output_line, "..");
+        mmgr_line_decimal(output_line, footing.hi, 1u);
+        mmgr_line_put(output_line, " (");
+        mmgr_line_decimal(output_line, footing.lo_steps, 1u);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, footing.hi_steps, 1u);
+        mmgr_line_put(output_line, " steps)");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     else
     {
-        printf("not found (a half contains one value)\n");
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "not found (a half contains one value)");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     return counted;
 }
@@ -602,10 +624,24 @@ extern "C" long scan_set(const ScanRequest *request)
                 request->voxel_pm[0], request->voxel_pm[1], request->voxel_pm[2]);
         return SCAN_ERROR;
     }
-    printf("  the drift's weights: %u, %u, %u, each the square of voxel_pm %llu, %llu, %llu over their greatest common"
-           " divisor\n",
-           contrast.weights[0], contrast.weights[1], contrast.weights[2], request->voxel_pm[0], request->voxel_pm[1],
-           request->voxel_pm[2]);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the drift's weights: ");
+        mmgr_line_decimal(output_line, contrast.weights[0], 1u);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, contrast.weights[1], 1u);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, contrast.weights[2], 1u);
+        mmgr_line_put(output_line, ", each the square of voxel_pm ");
+        mmgr_line_decimal(output_line, request->voxel_pm[0], 1u);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, request->voxel_pm[1], 1u);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, request->voxel_pm[2], 1u);
+        mmgr_line_put(output_line, " over their greatest common divisor");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     unsigned long long *const cumulative = (unsigned long long *)calloc(SCAN_READINGS, sizeof(unsigned long long));
     unsigned long long *const sample_counts = (unsigned long long *)malloc(SCAN_READINGS * sizeof(unsigned long long));
     int ok = (cumulative != NULL) && (sample_counts != NULL);
@@ -634,12 +670,34 @@ extern "C" long scan_set(const ScanRequest *request)
         free(sample_counts);
         return SCAN_ERROR;
     }
-    printf("  the set: %llu readings; the contrast is their cumulative count, %u bits in %u limbs; the residual %u"
-           " limbs\n",
-           contrast.readings, contrast.bits, contrast.input_limbs, contrast.residual_limbs);
-    printf("  %-24s %6s %10s %s\n", "sample", "frames", "points",
-           "a frame least..max, on a face; pairs moved of"
-           " pairs; residual us, peaks us, hessian us, drift us");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the set: ");
+        mmgr_line_decimal(output_line, contrast.readings, 1u);
+        mmgr_line_put(output_line, " readings; the contrast is their cumulative count, ");
+        mmgr_line_decimal(output_line, contrast.bits, 1u);
+        mmgr_line_put(output_line, " bits in ");
+        mmgr_line_decimal(output_line, contrast.input_limbs, 1u);
+        mmgr_line_put(output_line, " limbs; the residual ");
+        mmgr_line_decimal(output_line, contrast.residual_limbs, 1u);
+        mmgr_line_put(output_line, " limbs");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, "sample", 24u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "frames", 6u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "points", 10u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put(output_line, "a frame least..max, on a face; pairs moved of"
+                                   " pairs; residual us, peaks us, hessian us, drift us");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     ScanPoints points;
     memset(&points, 0, sizeof(points));
     ScanResults totals;
@@ -656,10 +714,35 @@ extern "C" long scan_set(const ScanRequest *request)
             failed += 1u;
             continue;
         }
-        printf("  %-24s %6llu %10llu %llu..%llu, %llu; %llu of %llu; %llu, %llu, %llu, %llu\n", sample, results.frames,
-               results.points, results.least, results.max, results.on_face, results.moved, results.pairs,
-               results.residual_microseconds, results.peaks_microseconds, results.hessian_microseconds,
-               results.drift_microseconds);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_columns(output_line, sample, 24u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_columns(output_line, results.frames, 6u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_columns(output_line, results.points, 10u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal(output_line, results.least, 1u);
+            mmgr_line_put(output_line, "..");
+            mmgr_line_decimal(output_line, results.max, 1u);
+            mmgr_line_put(output_line, ", ");
+            mmgr_line_decimal(output_line, results.on_face, 1u);
+            mmgr_line_put(output_line, "; ");
+            mmgr_line_decimal(output_line, results.moved, 1u);
+            mmgr_line_put(output_line, " of ");
+            mmgr_line_decimal(output_line, results.pairs, 1u);
+            mmgr_line_put(output_line, "; ");
+            mmgr_line_decimal(output_line, results.residual_microseconds, 1u);
+            mmgr_line_put(output_line, ", ");
+            mmgr_line_decimal(output_line, results.peaks_microseconds, 1u);
+            mmgr_line_put(output_line, ", ");
+            mmgr_line_decimal(output_line, results.hessian_microseconds, 1u);
+            mmgr_line_put(output_line, ", ");
+            mmgr_line_decimal(output_line, results.drift_microseconds, 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         totals.frames += results.frames;
         totals.points += results.points;
         totals.max = (results.max > totals.max) ? results.max : totals.max;
@@ -672,12 +755,38 @@ extern "C" long scan_set(const ScanRequest *request)
         totals.hessian_microseconds += results.hessian_microseconds;
         totals.drift_microseconds += results.drift_microseconds;
     }
-    printf("  scanned %u of %u samples: %llu frames, %llu points, %llu..%llu a frame, %llu on a face; %llu of %llu"
-           " frame pairs moved; residual %llu us, peaks %llu us, hessian %llu us, drift %llu us\n",
-           request->count - failed, request->count, totals.frames, totals.points,
-           (totals.frames != 0ull) ? totals.least : 0ull, totals.max, totals.on_face, totals.moved, totals.pairs,
-           totals.residual_microseconds, totals.peaks_microseconds, totals.hessian_microseconds,
-           totals.drift_microseconds);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  scanned ");
+        mmgr_line_decimal(output_line, request->count - failed, 1u);
+        mmgr_line_put(output_line, " of ");
+        mmgr_line_decimal(output_line, request->count, 1u);
+        mmgr_line_put(output_line, " samples: ");
+        mmgr_line_decimal(output_line, totals.frames, 1u);
+        mmgr_line_put(output_line, " frames, ");
+        mmgr_line_decimal(output_line, totals.points, 1u);
+        mmgr_line_put(output_line, " points, ");
+        mmgr_line_decimal(output_line, (totals.frames != 0ull) ? totals.least : 0ull, 1u);
+        mmgr_line_put(output_line, "..");
+        mmgr_line_decimal(output_line, totals.max, 1u);
+        mmgr_line_put(output_line, " a frame, ");
+        mmgr_line_decimal(output_line, totals.on_face, 1u);
+        mmgr_line_put(output_line, " on a face; ");
+        mmgr_line_decimal(output_line, totals.moved, 1u);
+        mmgr_line_put(output_line, " of ");
+        mmgr_line_decimal(output_line, totals.pairs, 1u);
+        mmgr_line_put(output_line, " frame pairs moved; residual ");
+        mmgr_line_decimal(output_line, totals.residual_microseconds, 1u);
+        mmgr_line_put(output_line, " us, peaks ");
+        mmgr_line_decimal(output_line, totals.peaks_microseconds, 1u);
+        mmgr_line_put(output_line, " us, hessian ");
+        mmgr_line_decimal(output_line, totals.hessian_microseconds, 1u);
+        mmgr_line_put(output_line, " us, drift ");
+        mmgr_line_decimal(output_line, totals.drift_microseconds, 1u);
+        mmgr_line_put(output_line, " us");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     free(cumulative);
     free(sample_counts);
     free(contrast.planes);

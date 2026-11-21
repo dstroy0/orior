@@ -98,7 +98,14 @@ unsigned int khw_costs_queried(const char *path)
     }
     if (machine == NULL)
     {
-        printf("  khw_write: the run carried no %s in, and no form is timed\n", s_path);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  khw_write: the run carried no ");
+            mmgr_line_put(output_line, s_path);
+            mmgr_line_put(output_line, " in, and no form is timed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         machine_size = 0ULL;
     }
     unsigned int to_time = 0u;
@@ -126,18 +133,35 @@ unsigned int khw_costs_queried(const char *path)
     if ((to_time == 0u) ||
         !khw_cost_timed(0u, 0ULL, 0ULL, s_word, kernel_count, &kernel_least, &kernel_max, &clock_address))
     {
-        printf("  costs: the kernel alone could not be timed, and no form is\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  costs: the kernel alone could not be timed, and no form is");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0u;
     }
     if (clock_address == 0u)
     {
-        printf(
-            "  costs: the launches were timed on the driver's clock, the part having named none; query the clock first "
-            "(learn clock), and no cost is stored\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  costs: the launches were timed on the driver's clock, the part having named "
+                                       "none; query the clock first (learn clock), and no cost is stored");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0u;
     }
-    printf("  costs: the kernel alone, the least launch %llu and the max %llu on the timer register\n", kernel_least,
-           kernel_max);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  costs: the kernel alone, the least launch ");
+        mmgr_line_decimal(output_line, kernel_least, 1u);
+        mmgr_line_put(output_line, " and the max ");
+        mmgr_line_decimal(output_line, kernel_max, 1u);
+        mmgr_line_put(output_line, " on the timer register");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     for (unsigned int each = 0u; each < to_time; each += 1u)
     {
         const KhwAnswered *const form = &s_named[s_to_time[each]];
@@ -157,8 +181,21 @@ unsigned int khw_costs_queried(const char *path)
         s_high[timed] = form->high;
         s_least[timed] = (least > kernel_least) ? (least - kernel_least) : 0ULL;
         s_spread[timed] = max - least;
-        printf("  cost: %016llx %016llx, %llu over %u copies above the kernel alone, the spread %llu\n", form->low,
-               form->high, s_least[timed], KHW_COST_COPIES, s_spread[timed]);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  cost: ");
+            mmgr_line_hex(output_line, form->low, 16u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_hex(output_line, form->high, 16u);
+            mmgr_line_put(output_line, ", ");
+            mmgr_line_decimal(output_line, s_least[timed], 1u);
+            mmgr_line_put(output_line, " over ");
+            mmgr_line_decimal(output_line, KHW_COST_COPIES, 1u);
+            mmgr_line_put(output_line, " copies above the kernel alone, the spread ");
+            mmgr_line_decimal(output_line, s_spread[timed], 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         timed += 1u;
     }
     // the .ksc as the run stores it, every cost row before let go and the rows timed now put, passed to the run's
@@ -178,7 +215,12 @@ unsigned int khw_costs_queried(const char *path)
                         ksc_write_by(&s_file, path, who);
     if ((timed != 0u) && !written)
     {
-        printf("  khw_write: %s could not be written through the run's writer\n", path);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  khw_write: ");
+        mmgr_line_put(output_line, path);
+        mmgr_line_put(output_line, " could not be written through the run's writer");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     else if (s_removed.lines != 0u)
     {
@@ -186,8 +228,15 @@ unsigned int khw_costs_queried(const char *path)
         krf_path_beside(path, krf, sizeof(krf));
         if (!krf_removed_by(krf, "ksc", "replaced", (const char *const *)s_removed.line, s_removed.lines, who))
         {
-            printf("  khw_write: %u cost rows let go from %s could not be recorded in %s\n", s_removed.lines, path,
-                   krf);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  khw_write: ");
+            mmgr_line_decimal(output_line, s_removed.lines, 1u);
+            mmgr_line_put(output_line, " cost rows let go from ");
+            mmgr_line_put(output_line, path);
+            mmgr_line_put(output_line, " could not be recorded in ");
+            mmgr_line_put(output_line, krf);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
     }
     kfile_lines_free(&s_removed);
@@ -205,7 +254,16 @@ void khw_fields_written(const char *path)
     static ContainerLayout s_table;
     if (!container_layout_read(&s_table, s_fields))
     {
-        printf("  khw_write: %s gives no fields, and %s retains those it contains\n", s_fields, path);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  khw_write: ");
+            mmgr_line_put(output_line, s_fields);
+            mmgr_line_put(output_line, " gives no fields, and ");
+            mmgr_line_put(output_line, path);
+            mmgr_line_put(output_line, " retains those it contains");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return;
     }
     static KscFile s_read;
@@ -241,7 +299,11 @@ void khw_fields_written(const char *path)
     }
     if (!ksc_write_by(&s_stored, path, who))
     {
-        printf("  khw_write: the fields could not be written to %s\n", path);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  khw_write: the fields could not be written to ");
+        mmgr_line_put(output_line, path);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     ksc_free(&s_stored);
 }

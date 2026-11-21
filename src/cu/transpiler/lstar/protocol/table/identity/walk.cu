@@ -150,13 +150,30 @@ static int identity_last(const char *engine, const char *answers, const char *ks
         }
         if (probe.renamed != highest)
         {
-            printf("  probe %s: %c%llu renamed\n", entry.first.c_str(), token, probe.renamed);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  probe ");
+                mmgr_line_put(output_line, entry.first.c_str());
+                mmgr_line_put(output_line, ": ");
+                mmgr_line_ch(output_line, (char)(token));
+                mmgr_line_decimal(output_line, probe.renamed, 1u);
+                mmgr_line_put(output_line, " renamed");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             probes.push_back(probe);
         }
     }
     if (probes.empty())
     {
-        printf("orior_klq_identity %s: no chain answers alike with a value renamed, and no probe\n", mode);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity ");
+            mmgr_line_put(output_line, mode);
+            mmgr_line_put(output_line, ": no chain answers alike with a value renamed, and no probe");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         run_channel_close();
         return 1;
     }
@@ -179,20 +196,47 @@ static int identity_last(const char *engine, const char *answers, const char *ks
         }
         run_print(&table, "%c%lld %s%s%s\n", token, number, truthy ? "truthy" : "falsy", truthy ? "" : ": ",
                   truthy ? "" : s_question.refused);
-        printf("  %c%lld: %s\n", token, number, truthy ? "truthy" : "falsy");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_ch(output_line, (char)(token));
+            mmgr_line_decimal_signed(output_line, number);
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_put(output_line, truthy ? "truthy" : "falsy");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return truthy;
     };
     const long long last = walk_step(renamed_alike, (long long)highest, -1, 0);
     if (!run_closed(&table))
     {
-        printf("orior_klq_identity %s: %s/%s could not be written\n", mode, folder.c_str(), blob);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity ");
+            mmgr_line_put(output_line, mode);
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_put(output_line, folder.c_str());
+            mmgr_line_put(output_line, "/");
+            mmgr_line_put(output_line, blob);
+            mmgr_line_put(output_line, " could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         run_channel_close();
         return 1;
     }
     run_channel_close();
     if (last < 0)
     {
-        printf("orior_klq_identity %s: no number answers alike, and no last value\n", mode);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity ");
+            mmgr_line_put(output_line, mode);
+            mmgr_line_put(output_line, ": no number answers alike, and no last value");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     char row[64];
@@ -206,11 +250,32 @@ static int identity_last(const char *engine, const char *answers, const char *ks
     }
     if (!ksc_answers_write(ksc, mode, std::vector<std::string>{row}))
     {
-        printf("orior_klq_identity %s: %s could not be written\n", mode, ksc);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity ");
+            mmgr_line_put(output_line, mode);
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_put(output_line, ksc);
+            mmgr_line_put(output_line, " could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
-    printf("orior_klq_identity %s: the last %c%lld, over %llu queries, written to %s\n", mode, token, last, queries,
-           ksc);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "orior_klq_identity ");
+        mmgr_line_put(output_line, mode);
+        mmgr_line_put(output_line, ": the last ");
+        mmgr_line_ch(output_line, (char)(token));
+        mmgr_line_decimal_signed(output_line, last);
+        mmgr_line_put(output_line, ", over ");
+        mmgr_line_decimal(output_line, queries, 1u);
+        mmgr_line_put(output_line, " queries, written to ");
+        mmgr_line_put(output_line, ksc);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 0;
 }
 
@@ -224,7 +289,14 @@ int identity_register(const char *engine, const char *answers, const char *ksc, 
     if ((fields.count("stall") == 0u) || (fields.count("rd") == 0u) || (fields.count("ra") == 0u) ||
         (fields.count("rb") == 0u))
     {
-        printf("orior_klq_identity register: %s gives no stall field or not every register field\n", ksc);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity register: ");
+            mmgr_line_put(output_line, ksc);
+            mmgr_line_put(output_line, " gives no stall field or not every register field");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     const std::vector<StallField> registers = {fields["rd"], fields["ra"], fields["rb"]};
@@ -243,7 +315,14 @@ int identity_predicate(const char *engine, const char *answers, const char *ksc,
     if ((fields.count("stall") == 0u) || (fields.count("pg") == 0u) || (fields.count("guard") == 0u) ||
         (fields.count("pt") == 0u))
     {
-        printf("orior_klq_identity predicate: %s gives no stall field or not every predicate field\n", ksc);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity predicate: ");
+            mmgr_line_put(output_line, ksc);
+            mmgr_line_put(output_line, " gives no stall field or not every predicate field");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     const std::vector<StallField> predicates = {fields["pg"], fields["guard"], fields["pt"]};
@@ -265,7 +344,14 @@ int identity_past(const char *engine, const char *answers, const char *ksc, cons
     if ((fields.count("stall") == 0u) || (fields.count("rd") == 0u) || (fields.count("ra") == 0u) ||
         (fields.count("rb") == 0u))
     {
-        printf("orior_klq_identity past: %s gives no stall field or not every register field\n", ksc);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity past: ");
+            mmgr_line_put(output_line, ksc);
+            mmgr_line_put(output_line, " gives no stall field or not every register field");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     const StallField stall = fields["stall"];
@@ -327,21 +413,53 @@ int identity_past(const char *engine, const char *answers, const char *ksc, cons
         const long long found = walk_step(declaring_alike, (long long)named + 1, 1, (long long)highest);
         if (found > (long long)highest)
         {
-            printf("  chain %s names R%u, and answers alike declaring no count\n", entry.first.c_str(), named);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  chain ");
+                mmgr_line_put(output_line, entry.first.c_str());
+                mmgr_line_put(output_line, " names R");
+                mmgr_line_decimal(output_line, named, 1u);
+                mmgr_line_put(output_line, ", and answers alike declaring no count");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             continue;
         }
-        printf("  chain %s names R%u and answers alike declaring %lld: %lld past\n", entry.first.c_str(), named, found,
-               found - (long long)named);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  chain ");
+            mmgr_line_put(output_line, entry.first.c_str());
+            mmgr_line_put(output_line, " names R");
+            mmgr_line_decimal(output_line, named, 1u);
+            mmgr_line_put(output_line, " and answers alike declaring ");
+            mmgr_line_decimal_signed(output_line, found);
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_decimal_signed(output_line, found - (long long)named);
+            mmgr_line_put(output_line, " past");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         past = std::max(past, found - (long long)named);
     }
     if (!run_closed(&table))
     {
-        printf("orior_klq_identity past: %s/past.txt could not be written\n", folder.c_str());
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "orior_klq_identity past: ");
+        mmgr_line_put(output_line, folder.c_str());
+        mmgr_line_put(output_line, "/past.txt could not be written");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     run_channel_close();
     if (past < 0)
     {
-        printf("orior_klq_identity past: no chain answers alike declaring any count, and no answer\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line,
+                          "orior_klq_identity past: no chain answers alike declaring any count, and no answer");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     char row[64];
@@ -354,12 +472,26 @@ int identity_past(const char *engine, const char *answers, const char *ksc, cons
     }
     if (!ksc_answers_write(ksc, "past", std::vector<std::string>{row}))
     {
-        printf("orior_klq_identity past: %s could not be written\n", ksc);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity past: ");
+            mmgr_line_put(output_line, ksc);
+            mmgr_line_put(output_line, " could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
-    printf("orior_klq_identity past: a container's code reaches %lld past the highest register it names, over %llu "
-           "queries, "
-           "written to %s\n",
-           past, queries, ksc);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "orior_klq_identity past: a container's code reaches ");
+        mmgr_line_decimal_signed(output_line, past);
+        mmgr_line_put(output_line, " past the highest register it names, over ");
+        mmgr_line_decimal(output_line, queries, 1u);
+        mmgr_line_put(output_line, " queries, written to ");
+        mmgr_line_put(output_line, ksc);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 0;
 }

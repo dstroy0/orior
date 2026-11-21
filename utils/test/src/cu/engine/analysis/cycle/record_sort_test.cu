@@ -14,6 +14,7 @@
 // A request whose count is not a whole number of runs, whose count passes 2^32 records, or whose field passes its
 // record errors on both routes before a record is read. The test is one job on the device's tessera daemon.
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
+#include "../../../../../../../src/platform/platform.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
 #include "verba_scribo/verba_linea.h"
@@ -40,7 +41,8 @@
 
 // the max the test puts on the device at once: the records, the order, the swept records, and room beside for the
 // sort's spare order and counts and the index program's compiled module
-#define SORT_TEST_DECLARED ((SORT_TEST_RECORDS * (SORT_TEST_RECORD_LIMBS + 4ull) * sizeof(unsigned int)) + (96ull << 20u))
+#define SORT_TEST_DECLARED                                                                                             \
+    ((SORT_TEST_RECORDS * (SORT_TEST_RECORD_LIMBS + 4ull) * sizeof(unsigned int)) + (96ull << 20u))
 
 typedef struct
 {
@@ -80,8 +82,8 @@ static long sort_run(int device, const unsigned int *records, unsigned long long
 }
 
 // the order of two records' fields read as magnitudes, bit by bit from the top: -1, 0 or 1
-static int sort_field_order(const unsigned int *records, unsigned int out_limbs, unsigned int offset,
-                            unsigned int bits, unsigned int one, unsigned int other)
+static int sort_field_order(const unsigned int *records, unsigned int out_limbs, unsigned int offset, unsigned int bits,
+                            unsigned int one, unsigned int other)
 {
     const unsigned int *const first = &records[(unsigned long long)one * out_limbs];
     const unsigned int *const second = &records[(unsigned long long)other * out_limbs];
@@ -155,19 +157,22 @@ static void sort_records(SortResults *results, unsigned int *records, unsigned i
                           bits[field], order_on_device, &error) != CYCLE_ERROR) &&
                 (cudaMemcpy(device_order, order_on_device, (size_t)SORT_TEST_RECORDS * sizeof(unsigned int),
                             cudaMemcpyDeviceToHost) == cudaSuccess) &&
-                (sort_run(0, records, SORT_TEST_RECORDS, groups[g], SORT_TEST_RECORD_LIMBS, offsets[field],
-                          bits[field], host_order, &error) != CYCLE_ERROR);
+                (sort_run(0, records, SORT_TEST_RECORDS, groups[g], SORT_TEST_RECORD_LIMBS, offsets[field], bits[field],
+                          host_order, &error) != CYCLE_ERROR);
             const int same =
                 both && (memcmp(device_order, host_order, (size_t)SORT_TEST_RECORDS * sizeof(unsigned int)) == 0);
             char what[200];
-            snprintf(what, sizeof(what), "fields of %u bits at bit %u, runs of %llu: the device equals the host word "
-                                         "for word", bits[field], offsets[field], groups[g]);
+            snprintf(what, sizeof(what),
+                     "fields of %u bits at bit %u, runs of %llu: the device equals the host word "
+                     "for word",
+                     bits[field], offsets[field], groups[g]);
             sort_check(results, same, what);
             const int ordered = both && sort_ordered(records, host_order, SORT_TEST_RECORDS, groups[g],
                                                      SORT_TEST_RECORD_LIMBS, offsets[field], bits[field], seen);
-            snprintf(what, sizeof(what), "fields of %u bits at bit %u, runs of %llu: each run is its own lanes, its "
-                                         "fields rising and its ties in lane order", bits[field], offsets[field],
-                     groups[g]);
+            snprintf(what, sizeof(what),
+                     "fields of %u bits at bit %u, runs of %llu: each run is its own lanes, its "
+                     "fields rising and its ties in lane order",
+                     bits[field], offsets[field], groups[g]);
             sort_check(results, ordered, what);
         }
     }
@@ -184,8 +189,8 @@ static void sort_records(SortResults *results, unsigned int *records, unsigned i
                    (device != 0) ? "the device refuses a count that is not a whole number of runs"
                                  : "the host refuses a count that is not a whole number of runs");
         sort_check(results,
-                   sort_run(device, source, (1ull << 32u) + 1ull, (1ull << 32u) + 1ull, SORT_TEST_RECORD_LIMBS, 0u,
-                            32u, target, &error) == CYCLE_ERROR,
+                   sort_run(device, source, (1ull << 32u) + 1ull, (1ull << 32u) + 1ull, SORT_TEST_RECORD_LIMBS, 0u, 32u,
+                            target, &error) == CYCLE_ERROR,
                    (device != 0) ? "the device refuses a count past 2^32 records"
                                  : "the host refuses a count past 2^32 records");
         sort_check(results,
@@ -336,7 +341,8 @@ int program_main(int count, char **arguments)
     mmgr_line_put(&results.line, " checks, ");
     mmgr_line_decimal(&results.line, results.failures, 1u);
     mmgr_line_put(&results.line, " failed\n");
-    (void)(mmgr_line_ok(&results.line) && (fwrite(results.line.out, 1u, mmgr_line_finish(&results.line), stdout) == results.line.at));
+    (void)(mmgr_line_ok(&results.line) &&
+           (platform_line_out_put(results.line.out, mmgr_line_finish(&results.line)) == results.line.at));
     free(results.line.out);
     return (results.failures == 0ull) ? 0 : 1;
 }

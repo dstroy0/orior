@@ -11,11 +11,14 @@ CODEGEN="$TOP/src/cu/engine/rmc"
 CODEGEN_CU="$TOP/src/cu/engine/rmc"
 CODEGEN_CU_2="$TOP/includes/parsers"
 source "$TOP/utils/maint/engine/build_stamp.sh"
+# the check is a program of the platform, which writes its lines through MMgr's line
+source "$TOP/includes/exact_types/exact_types.sh"
 build_stamp web_check
 
 BINARY="$OUT/web_check"
 rm -f "$BINARY"
-cc -std=c11 -O2 -Wall -Wextra -I "$CODEGEN" -I "$CODEGEN_CU" -I "$CODEGEN_CU_2" -o "$BINARY" "$TEST/web_check.c"
+cc -std=c11 -O2 -Wall -Wextra -I "$CODEGEN" -I "$CODEGEN_CU" -I "$CODEGEN_CU_2" -o "$BINARY" "$TEST/web_check.c" \
+    "${EXACT_TYPES_PLATFORM_PROGRAM[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: web_check.c did not compile"; exit 1; }
 
 "$BINARY"

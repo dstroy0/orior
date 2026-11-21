@@ -136,7 +136,14 @@ int fields_cubin(const unsigned char *code, unsigned int count, unsigned int pla
     unsigned long long size = 0ULL;
     if (!cubin_write(&written, s_cubin, sizeof(s_cubin), &size) || !fields_file_write(path, s_cubin, size))
     {
-        printf("  %s was not written\n", path);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, path);
+            mmgr_line_put(output_line, " was not written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     return 1;
@@ -162,7 +169,16 @@ void fields_keys(void)
             control += 1u;
         }
     }
-    printf("operation keys: %u known, %u containing a control or wait form\n", known, control);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "operation keys: ");
+        mmgr_line_decimal(output_line, known, 1u);
+        mmgr_line_put(output_line, " known, ");
+        mmgr_line_decimal(output_line, control, 1u);
+        mmgr_line_put(output_line, " containing a control or wait form");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
 // 1 where the instruction at `place` in s_code, turned at `bit`, is safe to run on the part. The operation key names

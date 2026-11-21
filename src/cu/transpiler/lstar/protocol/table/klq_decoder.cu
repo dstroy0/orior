@@ -34,7 +34,12 @@ int program_main(int argc, char **argv)
 {
     if (argc != 4)
     {
-        printf("orior_klq_decoder <query .qry> <carrier folder> <Lstar.klq>\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_decoder <query .qry> <carrier folder> <Lstar.klq>");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     Decoding decoding;

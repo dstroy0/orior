@@ -20,7 +20,13 @@ static void agreement_test_check(AgreementTestResults *results, int passed, cons
     if (passed == 0)
     {
         results->failures += 1u;
-        printf("  FAILED: %s\n", what);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -62,6 +68,15 @@ int program_main(int count, char **arguments)
     agreement_test_check(&results, shift_agreement_reserve_bytes(2u, over_limit_total) == 0ull,
                          "a padded total of 2^17 x 2^16, past 2^31 - 1, errors");
 
-    printf("  shift_agreement reserve test: %u checks, %u failed\n", results.checks, results.failures);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  shift_agreement reserve test: ");
+        mmgr_line_decimal(output_line, results.checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, results.failures, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (results.failures == 0u) ? 0 : 1;
 }

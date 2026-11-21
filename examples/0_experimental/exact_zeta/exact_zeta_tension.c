@@ -23,6 +23,7 @@
  *       It reads how the zeros hold to one another.
  */
 #include "zeta_shuffle.h"
+#include "../../../src/platform/platform.h"
 #include "zeta_tension.h"
 
 #include <math.h>
@@ -204,11 +205,29 @@ static int analyse(const TensionZeros *zeros)
     const double s_low = s_values[0];
     const double s_high = s_values[count - 1u];
     const double spacing = (2.0 * PI_DOUBLE * (s_high - s_low)) / (double)(count - 1u);
-    printf("  from cell %lld's F, N = %lld, to cell %lld's, N = %lld: %llu zeros, t from %.1f to %.1f, ln(t / 2 pi) "
-           "%.3f, mean spacing in t %.4f\n",
-           (long long)zeros->start_nu, (long long)zeros->n_start, (long long)zeros->end_nu, (long long)n_end,
-           (unsigned long long)count, 2.0 * PI_DOUBLE * s_low, 2.0 * PI_DOUBLE * s_high, log(0.5 * (s_low + s_high)),
-           spacing);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  from cell ");
+        mmgr_line_decimal_signed(output_line, (long long)zeros->start_nu);
+        mmgr_line_put(output_line, "'s F, N = ");
+        mmgr_line_decimal_signed(output_line, (long long)zeros->n_start);
+        mmgr_line_put(output_line, ", to cell ");
+        mmgr_line_decimal_signed(output_line, (long long)zeros->end_nu);
+        mmgr_line_put(output_line, "'s, N = ");
+        mmgr_line_decimal_signed(output_line, (long long)n_end);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_decimal(output_line, (unsigned long long)count, 1u);
+        mmgr_line_put(output_line, " zeros, t from ");
+        mmgr_line_fixed(output_line, (double)(2.0 * PI_DOUBLE * s_low), 1u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " to ");
+        mmgr_line_fixed(output_line, (double)(2.0 * PI_DOUBLE * s_high), 1u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, ", ln(t / 2 pi) ");
+        mmgr_line_fixed(output_line, (double)(log(0.5 * (s_low + s_high))), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, ", mean spacing in t ");
+        mmgr_line_fixed(output_line, (double)(spacing), 4u, 0u, EMBED_FALSE);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     const size_t s_count = count - 1u;
     double *const s_series = (double *)analysis_memory(malloc(s_count * sizeof(double)));
     double mean = 0.0;
@@ -229,8 +248,22 @@ static int analyse(const TensionZeros *zeros)
         variance += (s_series[k] - mean) * (s_series[k] - mean);
     }
     variance /= (double)s_count;
-    printf("  S between zeros: mean %.4f, variance %.4f, least %.3f, max %.3f; Selberg's leading term %.4f\n", mean,
-           variance, least, most, log(log(0.5 * (s_low + s_high))) / (2.0 * (PI_DOUBLE * PI_DOUBLE)));
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  S between zeros: mean ");
+        mmgr_line_fixed(output_line, (double)(mean), 4u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, ", variance ");
+        mmgr_line_fixed(output_line, (double)(variance), 4u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, ", least ");
+        mmgr_line_fixed(output_line, (double)(least), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, ", max ");
+        mmgr_line_fixed(output_line, (double)(most), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, "; Selberg's leading term ");
+        mmgr_line_fixed(output_line, (double)(log(log(0.5 * (s_low + s_high))) / (2.0 * (PI_DOUBLE * PI_DOUBLE))), 4u,
+                        0u, EMBED_FALSE);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     ZetaTwister twister;
     twister_seed(&twister, TENSION_SEED);
@@ -275,10 +308,26 @@ static int analyse(const TensionZeros *zeros)
         neighbors += (gaps[k] - 1.0) * (gaps[k + 1u] - 1.0);
     }
     neighbors = (neighbors / (double)(s_count - 1u)) / gap_variance;
-    printf("  spacings on theta / pi: mean %.4f, variance %.4f, neighbors' correlation %+.4f\n",
-           gap_sum / (double)s_count, gap_variance, neighbors);
-    printf("  S's pull back each zero %+.4f; with the spacings shuffled %+.4f\n", pull(s_series, s_count),
-           pull(s_shuffled, s_count));
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  spacings on theta / pi: mean ");
+        mmgr_line_fixed(output_line, (double)(gap_sum / (double)s_count), 4u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, ", variance ");
+        mmgr_line_fixed(output_line, (double)(gap_variance), 4u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, ", neighbors' correlation ");
+        mmgr_line_fixed(output_line, (double)(neighbors), 4u, 0u, EMBED_TRUE);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  S's pull back each zero ");
+        mmgr_line_fixed(output_line, (double)(pull(s_series, s_count)), 4u, 0u, EMBED_TRUE);
+        mmgr_line_put(output_line, "; with the spacings shuffled ");
+        mmgr_line_fixed(output_line, (double)(pull(s_shuffled, s_count)), 4u, 0u, EMBED_TRUE);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     double correlations[LAGS + 1];
     for (size_t lag = 0u; lag <= LAGS; lag += 1u)
@@ -290,16 +339,39 @@ static int analyse(const TensionZeros *zeros)
     {
         deepest = (correlations[lag] < correlations[deepest]) ? lag : deepest;
     }
-    printf("  S's correlation over k zeros, k 1 to %d; its least at k = %llu, %+.3f, a lag of %.2f in t:\n", LAGS,
-           (unsigned long long)deepest, correlations[deepest], (double)deepest * spacing);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  S's correlation over k zeros, k 1 to ");
+        mmgr_line_decimal_signed(output_line, LAGS);
+        mmgr_line_put(output_line, "; its least at k = ");
+        mmgr_line_decimal(output_line, (unsigned long long)deepest, 1u);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_fixed(output_line, (double)(correlations[deepest]), 3u, 0u, EMBED_TRUE);
+        mmgr_line_put(output_line, ", a lag of ");
+        mmgr_line_fixed(output_line, (double)((double)deepest * spacing), 2u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " in t:");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     for (size_t row = 0u; row < LAGS; row += 10u)
     {
-        printf("   ");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "   ");
+            platform_line_out_ended();
+        }
         for (size_t at = row + 1u; at <= (row + 10u); at += 1u)
         {
-            printf(" %+.3f", correlations[at]);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, " ");
+            mmgr_line_fixed(output_line, (double)(correlations[at]), 3u, 0u, EMBED_TRUE);
+            platform_line_out_ended();
         }
-        printf("\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     static const int64_t LIMITS[2] = {100, 10000};
     for (int which = 0; which < 2; which += 1)
@@ -347,18 +419,44 @@ static int analyse(const TensionZeros *zeros)
             agree += (correlations[lag] > 0.0) == (model[lag] > 0.0);
         }
         residual = sqrt(residual / LAGS);
-        printf("  the waves of the prime powers to %lld, scaled by %.3f: %d of %d signs the same, rms %.3f\n",
-               (long long)LIMITS[which], scale, agree, LAGS, residual);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  the waves of the prime powers to ");
+            mmgr_line_decimal_signed(output_line, (long long)LIMITS[which]);
+            mmgr_line_put(output_line, ", scaled by ");
+            mmgr_line_fixed(output_line, (double)(scale), 3u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_decimal_signed(output_line, agree);
+            mmgr_line_put(output_line, " of ");
+            mmgr_line_decimal_signed(output_line, LAGS);
+            mmgr_line_put(output_line, " signs the same, rms ");
+            mmgr_line_fixed(output_line, (double)(residual), 3u, 0u, EMBED_FALSE);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         free(sizes);
         free(powers);
     }
     static const size_t FAR[4] = {100u, 200u, 500u, 1000u};
     for (int at = 0; at < 4; at += 1)
     {
-        printf("  S's correlation over %llu zeros %+.4f; the shuffled spacings' %+.4f\n", (unsigned long long)FAR[at],
-               autocorrelation(s_series, s_count, FAR[at]), autocorrelation(s_shuffled, s_count, FAR[at]));
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  S's correlation over ");
+        mmgr_line_decimal(output_line, (unsigned long long)FAR[at], 1u);
+        mmgr_line_put(output_line, " zeros ");
+        mmgr_line_fixed(output_line, (double)(autocorrelation(s_series, s_count, FAR[at])), 4u, 0u, EMBED_TRUE);
+        mmgr_line_put(output_line, "; the shuffled spacings' ");
+        mmgr_line_fixed(output_line, (double)(autocorrelation(s_shuffled, s_count, FAR[at])), 4u, 0u, EMBED_TRUE);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
-    printf("  number variance over L on theta / pi: the zeros, the shuffled spacings, GUE's, Poisson's\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line,
+                      "  number variance over L on theta / pi: the zeros, the shuffled spacings, GUE's, Poisson's");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     static const double LENGTHS[21] = {0.5, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 17, 20, 25, 40, 60, 100, 160, 250, 400};
     for (int at = 0; at < 21; at += 1)
     {
@@ -371,7 +469,21 @@ static int analyse(const TensionZeros *zeros)
         const double v_shuffled = number_variance(&twister, u_shuffled, count, length, 80000u);
         const double gue =
             (log(2.0 * PI_DOUBLE * length) + EULER + 1.0 - ((PI_DOUBLE * PI_DOUBLE) / 8.0)) / (PI_DOUBLE * PI_DOUBLE);
-        printf("    L %6.1f: %.4f  %8.4f  %.4f  %.1f\n", length, v, v_shuffled, gue, length);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    L ");
+            mmgr_line_fixed(output_line, (double)(length), 1u, 6u, EMBED_FALSE);
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_fixed(output_line, (double)(v), 4u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_fixed(output_line, (double)(v_shuffled), 4u, 8u, EMBED_FALSE);
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_fixed(output_line, (double)(gue), 4u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_fixed(output_line, (double)(length), 1u, 0u, EMBED_FALSE);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     free(u);
     free(s_series);

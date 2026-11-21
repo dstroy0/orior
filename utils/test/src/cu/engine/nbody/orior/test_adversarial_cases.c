@@ -1,6 +1,7 @@
 
 // test_adversarial_cases.c: the adversarial cases: nets, overlaps, boundaries, symbols
 #include "test_adversarial_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 /**
  * @brief Next value of the generator, letting a failing case reduce from its printed seed alone.
@@ -69,12 +70,32 @@ static int adversarial_grade_against_reference(const uint8_t *const corpus, cons
 
     if (unsteered != expected)
     {
-        printf("    FAIL %s: unsteered %zu against reference %zu\n", label, unsteered, expected);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL ");
+            mmgr_line_put(output_line, label);
+            mmgr_line_put(output_line, ": unsteered ");
+            mmgr_line_decimal(output_line, unsteered, 1u);
+            mmgr_line_put(output_line, " against reference ");
+            mmgr_line_decimal(output_line, expected, 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
     if (steered != expected)
     {
-        printf("    FAIL %s: steered %zu against reference %zu\n", label, steered, expected);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL ");
+            mmgr_line_put(output_line, label);
+            mmgr_line_put(output_line, ": steered ");
+            mmgr_line_decimal(output_line, steered, 1u);
+            mmgr_line_put(output_line, " against reference ");
+            mmgr_line_decimal(output_line, expected, 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
     return failed;
@@ -96,7 +117,12 @@ int adversarial_case_differential_net(void)
 
     if (corpus == NULL)
     {
-        printf("    allocation failed\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    allocation failed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
 
@@ -128,7 +154,15 @@ int adversarial_case_differential_net(void)
     }
 
     free(corpus);
-    printf("  %u seeds against the reference, verdict %s\n", ADVERSARIAL_SEEDS, (failed == 0) ? "ok" : "FAILS");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_decimal(output_line, ADVERSARIAL_SEEDS, 1u);
+        mmgr_line_put(output_line, " seeds against the reference, verdict ");
+        mmgr_line_put(output_line, (failed == 0) ? "ok" : "FAILS");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (failed == 0) ? 0 : 1;
 }
 
@@ -164,13 +198,32 @@ int adversarial_case_overlapping(void)
 
         if ((reference != rows[row].expected) || (steered != rows[row].expected))
         {
-            printf("    FAIL \"%s\" in \"%s\": derived %zu, reference %zu, steered %zu\n", rows[row].needle,
-                   rows[row].corpus, rows[row].expected, reference, steered);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "    FAIL \"");
+                mmgr_line_put(output_line, rows[row].needle);
+                mmgr_line_put(output_line, "\" in \"");
+                mmgr_line_put(output_line, rows[row].corpus);
+                mmgr_line_put(output_line, "\": derived ");
+                mmgr_line_decimal(output_line, rows[row].expected, 1u);
+                mmgr_line_put(output_line, ", reference ");
+                mmgr_line_decimal(output_line, reference, 1u);
+                mmgr_line_put(output_line, ", steered ");
+                mmgr_line_decimal(output_line, steered, 1u);
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             failed = 1;
         }
     }
 
-    printf("  overlapping occurrences, verdict %s\n", (failed == 0) ? "ok" : "FAILS");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  overlapping occurrences, verdict ");
+        mmgr_line_put(output_line, (failed == 0) ? "ok" : "FAILS");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return failed;
 }
 
@@ -192,7 +245,14 @@ int adversarial_case_boundaries(void)
     const size_t first_count = orior_steer_count(field, field_len, leading, sizeof(leading), 1);
     if (first_count != 2u)
     {
-        printf("    FAIL leading and trailing match: %zu against 2\n", first_count);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL leading and trailing match: ");
+            mmgr_line_decimal(output_line, first_count, 1u);
+            mmgr_line_put(output_line, " against 2");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
 
@@ -200,7 +260,14 @@ int adversarial_case_boundaries(void)
     const size_t self_count = orior_steer_count(field, field_len, field, field_len, 1);
     if (self_count != 1u)
     {
-        printf("    FAIL needle equals corpus: %zu against 1\n", self_count);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL needle equals corpus: ");
+            mmgr_line_decimal(output_line, self_count, 1u);
+            mmgr_line_put(output_line, " against 1");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
 
@@ -209,7 +276,14 @@ int adversarial_case_boundaries(void)
     const size_t none = orior_steer_count(field, field_len, overlong, sizeof(overlong), 1);
     if (none != 0u)
     {
-        printf("    FAIL needle longer than corpus: %zu against 0\n", none);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL needle longer than corpus: ");
+            mmgr_line_decimal(output_line, none, 1u);
+            mmgr_line_put(output_line, " against 0");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
 
@@ -218,11 +292,24 @@ int adversarial_case_boundaries(void)
     const size_t singles = orior_steer_count(field, field_len, single, sizeof(single), 1);
     if (singles != 2u)
     {
-        printf("    FAIL single byte needle: %zu against 2\n", singles);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL single byte needle: ");
+            mmgr_line_decimal(output_line, singles, 1u);
+            mmgr_line_put(output_line, " against 2");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
 
-    printf("  degenerate lengths and boundaries, verdict %s\n", (failed == 0) ? "ok" : "FAILS");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  degenerate lengths and boundaries, verdict ");
+        mmgr_line_put(output_line, (failed == 0) ? "ok" : "FAILS");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return failed;
 }
 
@@ -255,7 +342,12 @@ int adversarial_case_absent_symbol(void)
 
     if (corpus == NULL)
     {
-        printf("    allocation failed\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    allocation failed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
 
@@ -278,25 +370,49 @@ int adversarial_case_absent_symbol(void)
 
     if ((plain_count != 0u) || (steered_count != 0u))
     {
-        printf("    FAIL absent symbol count: unsteered %zu, steered %zu, both should be 0\n", plain_count,
-               steered_count);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL absent symbol count: unsteered ");
+            mmgr_line_decimal(output_line, plain_count, 1u);
+            mmgr_line_put(output_line, ", steered ");
+            mmgr_line_decimal(output_line, steered_count, 1u);
+            mmgr_line_put(output_line, ", both should be 0");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
     if (steered_reads >= plain_reads)
     {
-        printf("    FAIL the ordering did not pay: steered %llu reads against unsteered %llu. "
-               "the absent symbol was not tested first\n",
-               (unsigned long long)steered_reads, (unsigned long long)plain_reads);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL the ordering did not pay: steered ");
+            mmgr_line_decimal(output_line, (unsigned long long)steered_reads, 1u);
+            mmgr_line_put(output_line, " reads against unsteered ");
+            mmgr_line_decimal(output_line, (unsigned long long)plain_reads, 1u);
+            mmgr_line_put(output_line, ". the absent symbol was not tested first");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
 
     // Reported and never asserted. A scalar arm puts the steered figure at one read an alignment,
     // and a reader noticing that number move learns something the pass condition deliberately
     // does not depend on.
-    printf("  absent symbol over %zu alignments, steered %llu reads against unsteered %llu, "
-           "verdict %s\n",
-           alignments, (unsigned long long)steered_reads, (unsigned long long)plain_reads,
-           (failed == 0) ? "ok" : "FAILS");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  absent symbol over ");
+        mmgr_line_decimal(output_line, alignments, 1u);
+        mmgr_line_put(output_line, " alignments, steered ");
+        mmgr_line_decimal(output_line, (unsigned long long)steered_reads, 1u);
+        mmgr_line_put(output_line, " reads against unsteered ");
+        mmgr_line_decimal(output_line, (unsigned long long)plain_reads, 1u);
+        mmgr_line_put(output_line, ", verdict ");
+        mmgr_line_put(output_line, (failed == 0) ? "ok" : "FAILS");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     free(corpus);
     return failed;
 }
@@ -327,7 +443,12 @@ int adversarial_case_all_survivors_false(void)
 
     if (corpus == NULL)
     {
-        printf("    allocation failed\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    allocation failed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
 
@@ -345,19 +466,45 @@ int adversarial_case_all_survivors_false(void)
 
     if ((reference != 0u) || (plain != 0u))
     {
-        printf("    FAIL all survivors false: reference %zu, unsteered %zu, both should be 0\n", reference, plain);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL all survivors false: reference ");
+            mmgr_line_decimal(output_line, reference, 1u);
+            mmgr_line_put(output_line, ", unsteered ");
+            mmgr_line_decimal(output_line, plain, 1u);
+            mmgr_line_put(output_line, ", both should be 0");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
     if (reads != every_probe)
     {
-        printf("    FAIL premise: %llu reads against %llu for every probe at every alignment. "
-               "a probe is refuting and this case proves nothing\n",
-               (unsigned long long)reads, (unsigned long long)every_probe);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    FAIL premise: ");
+            mmgr_line_decimal(output_line, (unsigned long long)reads, 1u);
+            mmgr_line_put(output_line, " reads against ");
+            mmgr_line_decimal(output_line, (unsigned long long)every_probe, 1u);
+            mmgr_line_put(output_line,
+                          " for every probe at every alignment. a probe is refuting and this case proves nothing");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed = 1;
     }
 
-    printf("  every survivor false, %llu reads against %llu expected, verdict %s\n", (unsigned long long)reads,
-           (unsigned long long)every_probe, (failed == 0) ? "ok" : "FAILS");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  every survivor false, ");
+        mmgr_line_decimal(output_line, (unsigned long long)reads, 1u);
+        mmgr_line_put(output_line, " reads against ");
+        mmgr_line_decimal(output_line, (unsigned long long)every_probe, 1u);
+        mmgr_line_put(output_line, " expected, verdict ");
+        mmgr_line_put(output_line, (failed == 0) ? "ok" : "FAILS");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     free(corpus);
     return failed;
 }

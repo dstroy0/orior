@@ -57,6 +57,7 @@
  */
 
 #include <cuda_runtime.h>
+#include "../../src/platform/platform.h"
 
 #include <cmath>
 #include <cstdio>
@@ -480,7 +481,7 @@ static void build_reading(float *coefficients, float *base_gain)
 /**
  * @brief Renders one frame, writes the image, and writes the dump the grader reads.
  */
-int main(int argc, char **argv)
+int program_main(int argc, char **argv)
 {
     const char *image_path = argc > 1 ? argv[1] : "boundary_raster.ppm";
     const char *dump_path = argc > 2 ? argv[2] : "boundary_raster.bin";
@@ -588,14 +589,66 @@ int main(int argc, char **argv)
         }
     }
 
-    printf("  %s  %d by %d\n", image_path, IMAGE_WIDTH, IMAGE_HEIGHT);
-    printf("  degree %d, %d coefficients, %d sources at r/R %.2f, tau %.1e\n", DEGREE_CEILING, COEFFICIENT_COUNT,
-           SOURCE_COUNT, SOURCE_RADIUS_FRACTION, CONDUCTION_TIME);
-    printf("  %ld pixels on the boundary of %d, no mesh and no interpolation\n", hits, IMAGE_WIDTH * IMAGE_HEIGHT);
-    printf("  %.3f ms for the frame, %.1f million field evaluations a second\n", milliseconds,
-           (double)hits * 3.0 / (milliseconds * 1.0e3));
-    printf("  the three per pixel are the value and the two colatitude samples\n");
-    printf("  %s holds the coefficients and a direction and value per pixel\n", dump_path);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, image_path);
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_decimal_signed(output_line, IMAGE_WIDTH);
+        mmgr_line_put(output_line, " by ");
+        mmgr_line_decimal_signed(output_line, IMAGE_HEIGHT);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  degree ");
+        mmgr_line_decimal_signed(output_line, DEGREE_CEILING);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal_signed(output_line, COEFFICIENT_COUNT);
+        mmgr_line_put(output_line, " coefficients, ");
+        mmgr_line_decimal_signed(output_line, SOURCE_COUNT);
+        mmgr_line_put(output_line, " sources at r/R ");
+        mmgr_line_fixed(output_line, (double)(SOURCE_RADIUS_FRACTION), 2u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, ", tau ");
+        mmgr_line_exponent(output_line, (double)(CONDUCTION_TIME), 1u, 0u, EMBED_FALSE);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_decimal_signed(output_line, hits);
+        mmgr_line_put(output_line, " pixels on the boundary of ");
+        mmgr_line_decimal_signed(output_line, IMAGE_WIDTH * IMAGE_HEIGHT);
+        mmgr_line_put(output_line, ", no mesh and no interpolation");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_fixed(output_line, (double)(milliseconds), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " ms for the frame, ");
+        mmgr_line_fixed(output_line, (double)((double)hits * 3.0 / (milliseconds * 1.0e3)), 1u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " million field evaluations a second");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the three per pixel are the value and the two colatitude samples");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, dump_path);
+        mmgr_line_put(output_line, " holds the coefficients and a direction and value per pixel");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     cudaFree(image);
     cudaFree(sampled);

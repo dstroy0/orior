@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // orior_raster_reduce_test.c: the host raster and volume reduce a 0 byte the way the device's identity seed does
 #include "orior_raster.h"
+#include "../../../../../../src/platform/platform.h"
 
 #include <stdio.h>
 
@@ -13,20 +14,42 @@ static void reduce_check(int passed, const char *what, unsigned int first, unsig
     s_checks += 1u;
     if (passed != 0)
     {
-        printf("  passed: %s (%u %u)\n", what, first, second);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  passed: ");
+        mmgr_line_put(output_line, what);
+        mmgr_line_put(output_line, " (");
+        mmgr_line_decimal(output_line, first, 1u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal(output_line, second, 1u);
+        mmgr_line_put(output_line, ")");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     else
     {
-        printf("  FAILED: %s (%u %u)\n", what, first, second);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_put(output_line, " (");
+            mmgr_line_decimal(output_line, first, 1u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal(output_line, second, 1u);
+            mmgr_line_put(output_line, ")");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         s_failed += 1u;
     }
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
-    // Eight alignments of a 2-byte needle over nine bytes. Positioned in rows over two cells, cell 0 takes the bytes 0, 9,
-    // 7, 5 and cell 1 takes 0, 3, 4, 6, a 0 arriving first in each. Positioned in slabs over two voxels, voxel 0 takes 0, 7,
-    // 0, 4 and voxel 1 takes 9, 5, 3, 6
+    (void)argc;
+    (void)argv;
+    // Eight alignments of a 2-byte needle over nine bytes. Positioned in rows over two cells, cell 0 takes the bytes 0,
+    // 9, 7, 5 and cell 1 takes 0, 3, 4, 6, a 0 arriving first in each. Positioned in slabs over two voxels, voxel 0
+    // takes 0, 7, 0, 4 and voxel 1 takes 9, 5, 3, 6
     const uint8_t corpus[9] = {0u, 9u, 7u, 5u, 0u, 3u, 4u, 6u, 1u};
     const uint8_t needle[2] = {1u, 1u};
     OriorRasterConfig config = {2u, 1u, ORIOR_LAYOUT_ROWS, ORIOR_CHANNEL_BYTE, ORIOR_REDUCE_MIN, 1u};
@@ -55,6 +78,15 @@ int main(void)
     // the eight alignments land on cells 0, 2, ..., 14; of those, two contain the byte 0
     reduce_check((rendered != 0) && (empty == 10u) && (wide[2] == 9u), "a raster wider than its alignments", empty,
                  wide[2]);
-    printf("  orior_raster reduce test: %u checks, %u failed\n", s_checks, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  orior_raster reduce test: ");
+        mmgr_line_decimal(output_line, s_checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, s_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failed == 0u) ? 0 : 1;
 }

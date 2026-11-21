@@ -38,9 +38,12 @@ esac
 source "$TOP/includes/file_defs/file_defs.sh"
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$INTERFACE" "${FILE_DEFS_MMGR_FLAGS[@]}")
 rm -f "$BINARY" "$PROBE"
+# the test and its probe are programs of the platform, and link MMgr's line with the platform
+# (exact_types_platform_link)
+source "$TOP/includes/exact_types/exact_types.sh"
+exact_types_platform_link interface || exit 1
 OBJECTS=()
-for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" "$TEST/interface_test.c" \
-    "${FILE_DEFS_LINEA[@]}"; do
+for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" "$TEST/interface_test.c"; do
     object="$OUT/$(basename "$source" .c).$EXTENSION"
     rm -f "$object"
     case "$(uname -s)" in
@@ -54,11 +57,12 @@ for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/int
 done
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
-        nvcc "${HOST_FLAGS[@]}" -o "$BINARY" "${OBJECTS[@]}"
-        nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /Od" -o "$PROBE" "$TEST/interface_probe.c" ;;
+        nvcc "${HOST_FLAGS[@]}" -o "$BINARY" "${OBJECTS[@]}" "${PLATFORM_LINK[@]}"
+        nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /Od" "${INCLUDES[@]}" -o "$PROBE" "$TEST/interface_probe.c" \
+            "${PLATFORM_LINK[@]}" ;;
     *)
-        cc -o "$BINARY" "${OBJECTS[@]}"
-        cc -std=c11 -O0 -o "$PROBE" "$TEST/interface_probe.c" ;;
+        cc -o "$BINARY" "${OBJECTS[@]}" "${PLATFORM_LINK[@]}"
+        cc -std=c11 -O0 "${INCLUDES[@]}" -o "$PROBE" "$TEST/interface_probe.c" "${PLATFORM_LINK[@]}" ;;
 esac
 [ -f "$BINARY" ] || { echo "  build failed: the interface test did not link"; exit 1; }
 [ -f "$PROBE" ] || { echo "  build failed: the probe did not build"; exit 1; }

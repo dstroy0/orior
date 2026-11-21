@@ -22,6 +22,7 @@
 // pause after each launch prevents a run of launches from flooding the part and taking the display down with it. Exit 0
 // where every line ran, 2 where the list or the device was not reached.
 #include "../../../../../../includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../../platform/platform.h"
 #include "../../../../engine/engine_note.h"
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
@@ -260,7 +261,17 @@ int program_main(int count, char **words)
         if (verdict != CUBIN_SAFE)
         {
             fprintf(answers, "%lu skipped cubin_safe_%u\n", number, verdict);
-            printf("  %s blocked from the part: %s at byte %llu\n", path, cubin_safe_name(verdict), at);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  ");
+                mmgr_line_put(output_line, path);
+                mmgr_line_put(output_line, " blocked from the part: ");
+                mmgr_line_put(output_line, cubin_safe_name(verdict));
+                mmgr_line_put(output_line, " at byte ");
+                mmgr_line_decimal(output_line, at, 1u);
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             number += 1UL;
             continue;
         }
@@ -268,7 +279,14 @@ int program_main(int count, char **words)
         if (!cubin_safe_verdict_ready())
         {
             fprintf(answers, "%lu skipped no vendor verdict\n", number);
-            printf("  %s blocked from the part: the cross must read this code before the part\n", path);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  ");
+                mmgr_line_put(output_line, path);
+                mmgr_line_put(output_line, " blocked from the part: the cross must read this code before the part");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             number += 1UL;
             continue;
         }

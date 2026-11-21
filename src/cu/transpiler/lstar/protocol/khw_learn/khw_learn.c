@@ -60,8 +60,13 @@ int program_main(int count, char **word)
     }
     if ((split < 7) || (split >= count) || ((count - split) < 2))
     {
-        printf("orior_khw_learn <part> <path.khw> <layout> <mnemonics> <fields> <machine writer> [<rounds>] -- "
-               "<carrier word>...\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_khw_learn <part> <path.khw> <layout> <mnemonics> <fields> <machine "
+                                       "writer> [<rounds>] -- <carrier word>...");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     s_part = word[1];
@@ -175,8 +180,13 @@ int program_main(int count, char **word)
     khw_fields_written(reach);
     if (!run_channel_registers_past(reach))
     {
-        printf("  %s contains no answer of how far a container's code reaches: a register refusal stays refused\n",
-               reach);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, reach);
+        mmgr_line_put(output_line,
+                      " contains no answer of how far a container's code reaches: a register refusal stays refused");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     {
         VerbaLinea buffer_line = mmgr_line_over(record, sizeof(record));
@@ -192,7 +202,12 @@ int program_main(int count, char **word)
     s_pool = (RunQuestion *)calloc(SCHEDULER_ROUND_MAX, sizeof(RunQuestion));
     if (s_pool == NULL)
     {
-        printf("  khw_write: no room for a round's questions\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  khw_write: no room for a round's questions");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         run_channel_close();
         return 1;
     }
@@ -202,14 +217,33 @@ int program_main(int count, char **word)
     {
         if (enumerate >= s_kernel_places)
         {
-            printf("  khw_write: the probe place %u is past the kernel's %u places\n", enumerate, s_kernel_places);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  khw_write: the probe place ");
+                mmgr_line_decimal(output_line, enumerate, 1u);
+                mmgr_line_put(output_line, " is past the kernel's ");
+                mmgr_line_decimal(output_line, s_kernel_places, 1u);
+                mmgr_line_put(output_line, " places");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             run_channel_close();
             return 1;
         }
         khw_enumerate(enumerate, forms);
         run_channel_close();
-        printf("  enumerated the probe place %u's questions off the part%s, %llu queries\n", enumerate,
-               (forms != NULL) ? " from the forms a prior run learned" : "", s_query_count);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  enumerated the probe place ");
+            mmgr_line_decimal(output_line, enumerate, 1u);
+            mmgr_line_put(output_line, "'s questions off the part");
+            mmgr_line_put(output_line, (forms != NULL) ? " from the forms a prior run learned" : "");
+            mmgr_line_put(output_line, ", ");
+            mmgr_line_decimal(output_line, s_query_count, 1u);
+            mmgr_line_put(output_line, " queries");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     // the split: a discover pass widens the working set a round and retains what it finds unqueried, a turns pass
@@ -225,7 +259,12 @@ int program_main(int count, char **word)
         unsigned int probe_place = 0u;
         if (!khw_first_round(&kernel, &probe_place, &nanoseconds) || (probe_place == s_kernel_places))
         {
-            printf("  khw_write: no probe place was found, and nothing was queried of a form\n");
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  khw_write: no probe place was found, and nothing was queried of a form");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             run_channel_close();
             return 1;
         }
@@ -236,8 +275,14 @@ int program_main(int count, char **word)
         s_names = khw_forms_folded(s_named, read);
         if (read != s_names)
         {
-            printf("  the working set: %u forms read, %u let go, each an encoding of a form the set contains\n", read,
-                   read - s_names);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  the working set: ");
+            mmgr_line_decimal(output_line, read, 1u);
+            mmgr_line_put(output_line, " forms read, ");
+            mmgr_line_decimal(output_line, read - s_names, 1u);
+            mmgr_line_put(output_line, " let go, each an encoding of a form the set contains");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
         if (discover != 0)
         {
@@ -258,9 +303,18 @@ int program_main(int count, char **word)
                     s_names += 1u;
                     seeded = 1u;
                 }
-                printf("  the probe place: place %u of %u, at 0x%x; the kernel's form seeded, its turns await a "
-                       "cross-check\n",
-                       s_probe_place, s_kernel_places, s_probe_place * KHW_INSTRUCTION);
+                {
+                    VerbaLinea *const output_line = platform_line_out();
+                    mmgr_line_put(output_line, "  the probe place: place ");
+                    mmgr_line_decimal(output_line, s_probe_place, 1u);
+                    mmgr_line_put(output_line, " of ");
+                    mmgr_line_decimal(output_line, s_kernel_places, 1u);
+                    mmgr_line_put(output_line, ", at 0x");
+                    mmgr_line_hex(output_line, s_probe_place * KHW_INSTRUCTION, 1u);
+                    mmgr_line_put(output_line, "; the kernel's form seeded, its turns await a cross-check");
+                    mmgr_line_ch(output_line, '\n');
+                    platform_line_out_ended();
+                }
             }
             if (seeds != NULL)
             {
@@ -279,8 +333,16 @@ int program_main(int count, char **word)
                 }
             }
             const unsigned int framed = (probed_form != NULL) ? khw_frame_round(probed_form, 1) : 0u;
-            printf("  the frame round: %s%u place(s) answered a frame relation\n",
-                   (probed_form == NULL) ? "the probe place's form is not yet classified, " : "", framed);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  the frame round: ");
+                mmgr_line_put(output_line,
+                              (probed_form == NULL) ? "the probe place's form is not yet classified, " : "");
+                mmgr_line_decimal(output_line, framed, 1u);
+                mmgr_line_put(output_line, " place(s) answered a frame relation");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             khw_plan_passed("discover", (unsigned long long)KHW_FORMS);
             const unsigned int found = khw_widened(0u, 1);
             run_channel_close();
@@ -288,9 +350,20 @@ int program_main(int count, char **word)
             {
                 return 1;
             }
-            printf("  discover: %u seeded, %u widened, %u in the working set, %llu queries; their turns await a "
-                   "cross-check\n",
-                   seeded, found, s_names, s_query_count);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  discover: ");
+                mmgr_line_decimal(output_line, seeded, 1u);
+                mmgr_line_put(output_line, " seeded, ");
+                mmgr_line_decimal(output_line, found, 1u);
+                mmgr_line_put(output_line, " widened, ");
+                mmgr_line_decimal(output_line, s_names, 1u);
+                mmgr_line_put(output_line, " in the working set, ");
+                mmgr_line_decimal(output_line, s_query_count, 1u);
+                mmgr_line_put(output_line, " queries; their turns await a cross-check");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             return 0;
         }
         if (turns != 0)
@@ -312,8 +385,16 @@ int program_main(int count, char **word)
             {
                 return 1;
             }
-            printf("  turns: %u form(s) turned, %llu queries; their register-runs await a cross-check\n", fields_turned,
-                   s_query_count);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  turns: ");
+                mmgr_line_decimal(output_line, fields_turned, 1u);
+                mmgr_line_put(output_line, " form(s) turned, ");
+                mmgr_line_decimal(output_line, s_query_count, 1u);
+                mmgr_line_put(output_line, " queries; their register-runs await a cross-check");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             return 0;
         }
         if (costs != 0)
@@ -342,9 +423,21 @@ int program_main(int count, char **word)
             {
                 return 1;
             }
-            printf("  costs: %u form(s) timed over %u copies and %u launches each on the timer register, %llu "
-                   "queries; stored in %s\n",
-                   timed, KHW_COST_COPIES, KHW_LAUNCHES, s_query_count, ksc_path);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  costs: ");
+                mmgr_line_decimal(output_line, timed, 1u);
+                mmgr_line_put(output_line, " form(s) timed over ");
+                mmgr_line_decimal(output_line, KHW_COST_COPIES, 1u);
+                mmgr_line_put(output_line, " copies and ");
+                mmgr_line_decimal(output_line, KHW_LAUNCHES, 1u);
+                mmgr_line_put(output_line, " launches each on the timer register, ");
+                mmgr_line_decimal(output_line, s_query_count, 1u);
+                mmgr_line_put(output_line, " queries; stored in ");
+                mmgr_line_put(output_line, ksc_path);
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             return 0;
         }
         // every turned form's register-runs queried at once, in shared rounds, its operand runs recorded and its phase
@@ -355,7 +448,12 @@ int program_main(int count, char **word)
         const unsigned int count = khw_forms_placed_twice(s_forms, turned);
         if (count != turned)
         {
-            printf("  registers: %u classified form(s) with a place present twice queried again\n", count - turned);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  registers: ");
+            mmgr_line_decimal(output_line, count - turned, 1u);
+            mmgr_line_put(output_line, " classified form(s) with a place present twice queried again");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
         unsigned long long settings = 0ULL;
         for (unsigned int at = 0u; at < count; at += 1u)
@@ -369,8 +467,18 @@ int program_main(int count, char **word)
         {
             return 1;
         }
-        printf("  registers: %u form(s) classified, %llu queries; %s names what the part has answered for\n",
-               fields_turned, s_query_count, s_path);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  registers: ");
+            mmgr_line_decimal(output_line, fields_turned, 1u);
+            mmgr_line_put(output_line, " form(s) classified, ");
+            mmgr_line_decimal(output_line, s_query_count, 1u);
+            mmgr_line_put(output_line, " queries; ");
+            mmgr_line_put(output_line, s_path);
+            mmgr_line_put(output_line, " names what the part has answered for");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     KhwAnswered kernel;
@@ -380,65 +488,139 @@ int program_main(int count, char **word)
     const int related = khw_first_round(&kernel, &probe_place, &nanoseconds);
     if (s_kernel_probe_place < s_kernel_places)
     {
-        printf("  the first round: the kernel's relation queried, the probe place the part's answer in its .ksc, place "
-               "%u of the "
-               "retained places, %llu queries\n",
-               probe_place, s_query_count);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(
+            output_line,
+            "  the first round: the kernel's relation queried, the probe place the part's answer in its .ksc, place ");
+        mmgr_line_decimal(output_line, probe_place, 1u);
+        mmgr_line_put(output_line, " of the retained places, ");
+        mmgr_line_decimal(output_line, s_query_count, 1u);
+        mmgr_line_put(output_line, " queries");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     else
     {
-        printf("  the first round: the kernel's relation and %llu places queried for the probe place, %llu queries\n",
-               s_query_count - 1ULL, s_query_count);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the first round: the kernel's relation and ");
+        mmgr_line_decimal(output_line, s_query_count - 1ULL, 1u);
+        mmgr_line_put(output_line, " places queried for the probe place, ");
+        mmgr_line_decimal(output_line, s_query_count, 1u);
+        mmgr_line_put(output_line, " queries");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     // a dry channel carries every question by nothing: the kernel answers no relation, and the pass goes on with the
     // position the .ksc names, every round put through the airlock as on a live channel and nothing launched
     const int dry = !related && (mmgr_text_starts(s_pool[0].refused, "dry:", PLATFORM_TEXT_TO_TERMINATOR));
     if (!related && !dry)
     {
-        printf("  khw_write: the kernel the system accepted answered no relation of the ladder (%s), and "
-               "nothing was queried after it\n",
-               s_pool[0].refused);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line,
+                          "  khw_write: the kernel the system accepted answered no relation of the ladder (");
+            mmgr_line_put(output_line, s_pool[0].refused);
+            mmgr_line_put(output_line, "), and nothing was queried after it");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         run_channel_close();
         return 1;
     }
     if (dry)
     {
-        printf("  the kernel: dry, carried by nothing; the probe place the .ksc names, and every round put through the "
-               "airlock with nothing launched\n");
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the kernel: dry, carried by nothing; the probe place the .ksc names, and every "
+                                   "round put through the airlock with nothing launched");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     else
     {
-        printf("  the kernel: ladder.%s, its words read %s, %u candidates surviving, %llu a launch over %u launches "
-               "on the %s\n",
-               s_anchor_text[kernel.anchor], (kernel.swapped != 0) ? "swapped" : "in order", kernel.survivors,
-               nanoseconds / KHW_LAUNCHES, KHW_LAUNCHES,
-               (s_question.clock_address != 0u) ? "timer register, read through the BAR0 driver"
-                                                : "driver's event timer");
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the kernel: ladder.");
+        mmgr_line_put(output_line, s_anchor_text[kernel.anchor]);
+        mmgr_line_put(output_line, ", its words read ");
+        mmgr_line_put(output_line, (kernel.swapped != 0) ? "swapped" : "in order");
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, kernel.survivors, 1u);
+        mmgr_line_put(output_line, " candidates surviving, ");
+        mmgr_line_decimal(output_line, nanoseconds / KHW_LAUNCHES, 1u);
+        mmgr_line_put(output_line, " a launch over ");
+        mmgr_line_decimal(output_line, KHW_LAUNCHES, 1u);
+        mmgr_line_put(output_line, " launches on the ");
+        mmgr_line_put(output_line, (s_question.clock_address != 0u) ? "timer register, read through the BAR0 driver"
+                                                                    : "driver's event timer");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     s_probe_place = probe_place;
     if (s_probe_place == s_kernel_places)
     {
-        printf("  khw_write: no place of the kernel answered as the probe place, and nothing was queried of a form\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(
+                output_line,
+                "  khw_write: no place of the kernel answered as the probe place, and nothing was queried of a form");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         run_channel_close();
         return 1;
     }
-    printf("  the probe place: place %u of %u, at 0x%x\n", s_probe_place, s_kernel_places,
-           s_probe_place * KHW_INSTRUCTION);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the probe place: place ");
+        mmgr_line_decimal(output_line, s_probe_place, 1u);
+        mmgr_line_put(output_line, " of ");
+        mmgr_line_decimal(output_line, s_kernel_places, 1u);
+        mmgr_line_put(output_line, ", at 0x");
+        mmgr_line_hex(output_line, s_probe_place * KHW_INSTRUCTION, 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     const unsigned long long probe_low = khw_word_read(&s_kernel_text[s_probe_place * KHW_INSTRUCTION], 0u);
     const unsigned long long probe_high = khw_word_read(&s_kernel_text[s_probe_place * KHW_INSTRUCTION], 8u);
-    printf("  the forms the part answers for:\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the forms the part answers for:");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     khw_form_queried(probe_low, probe_high);
     // the frame round on the position's own classified form, each place of the kernel queried what it answers at the
     // position
     const unsigned int framed = (s_names != 0u) ? khw_frame_round(&s_named[0], 0) : 0u;
-    printf("  the frame round: %u place(s) answered a frame relation, %llu queries\n", framed, s_query_count);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the frame round: ");
+        mmgr_line_decimal(output_line, framed, 1u);
+        mmgr_line_put(output_line, " place(s) answered a frame relation, ");
+        mmgr_line_decimal(output_line, s_query_count, 1u);
+        mmgr_line_put(output_line, " queries");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     unsigned int from = 0u;
     for (unsigned int round = 0u; round < rounds; round += 1u)
     {
         const unsigned int until = s_names;
         const unsigned int found = khw_widened(from, 0);
         from = until;
-        printf("  round %u: %u forms found, %u in all, %llu queries\n", round + 1u, found, s_names, s_query_count);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  round ");
+            mmgr_line_decimal(output_line, round + 1u, 1u);
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_decimal(output_line, found, 1u);
+            mmgr_line_put(output_line, " forms found, ");
+            mmgr_line_decimal(output_line, s_names, 1u);
+            mmgr_line_put(output_line, " in all, ");
+            mmgr_line_decimal(output_line, s_query_count, 1u);
+            mmgr_line_put(output_line, " queries");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         if (found == 0u)
         {
             break;
@@ -450,6 +632,13 @@ int program_main(int count, char **word)
     {
         return 1;
     }
-    printf("  khw_write: %llu queries put\n", s_query_count);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  khw_write: ");
+        mmgr_line_decimal(output_line, s_query_count, 1u);
+        mmgr_line_put(output_line, " queries put");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 0;
 }

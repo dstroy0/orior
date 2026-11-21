@@ -14,6 +14,7 @@
 // The lifting runs on the device. Exit 0 where it was done and every sample matched, 1 where it was not, 2 where the
 // words are none of the above
 #include "../../../engine/engine.h"
+#include "../../../../platform/platform.h"
 #include "../../../engine/engine_note.h"
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
@@ -251,8 +252,20 @@ static int qry_crystal_written(const char *qry, const char *set)
         }
         return 0;
     }
-    printf("  qry_crystal: %s, %llu bytes in %u sample(s), stored as %llu bytes, every byte matched\n", qry, total,
-           parts, report.crystal_bytes);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  qry_crystal: ");
+        mmgr_line_put(output_line, qry);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, total, 1u);
+        mmgr_line_put(output_line, " bytes in ");
+        mmgr_line_decimal(output_line, parts, 1u);
+        mmgr_line_put(output_line, " sample(s), stored as ");
+        mmgr_line_decimal(output_line, report.crystal_bytes, 1u);
+        mmgr_line_put(output_line, " bytes, every byte matched");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 1;
 }
 
@@ -333,11 +346,23 @@ static int qry_crystal_read(const char *set, const char *qry)
         remove(qry);
         return 0;
     }
-    printf("  qry_crystal: %s, %llu bytes out of %u sample(s) of %s\n", qry, total, parts, set);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  qry_crystal: ");
+        mmgr_line_put(output_line, qry);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, total, 1u);
+        mmgr_line_put(output_line, " bytes out of ");
+        mmgr_line_decimal(output_line, parts, 1u);
+        mmgr_line_put(output_line, " sample(s) of ");
+        mmgr_line_put(output_line, set);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 1;
 }
 
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
     if ((count == 4) && (mmgr_text_equal(words[1], "write", PLATFORM_TEXT_TO_TERMINATOR)))
     {

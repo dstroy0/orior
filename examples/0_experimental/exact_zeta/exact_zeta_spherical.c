@@ -27,6 +27,7 @@
  *       of 2^-62 at most, as bounds() counts them.
  */
 #include "zeta_exact.h"
+#include "../../../src/platform/platform.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -472,7 +473,12 @@ static void run_device(const char *binary, int r_bits, int u_bits, SphericalRun 
             const size_t length = fread(text, 1u, sizeof(text) - 1u, log);
             fclose(log);
             text[length] = '\0';
-            printf("%s\n", text);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, text);
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
         }
         zeta_stop("the device run failed");
     }
@@ -608,11 +614,25 @@ int program_main(int argument_count, char **arguments)
     SphericalRun run;
     run_device(binary, r_bits, u_bits, &run);
     const RouteBounds *const route = &run.bounds;
-    printf(
-        "  grid: r in [0, %d) by 2^-%d, u in [0, 1/2) by 2^-%d: %llu lanes; %s steps; route one %lld terms, route two "
-        "%lld\n",
-        R_HIGH, r_bits, u_bits, (unsigned long long)run.lanes, run.steps, (long long)route->first,
-        (long long)route->second);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  grid: r in [0, ");
+        mmgr_line_decimal_signed(output_line, R_HIGH);
+        mmgr_line_put(output_line, ") by 2^-");
+        mmgr_line_decimal_signed(output_line, r_bits);
+        mmgr_line_put(output_line, ", u in [0, 1/2) by 2^-");
+        mmgr_line_decimal_signed(output_line, u_bits);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_decimal(output_line, (unsigned long long)run.lanes, 1u);
+        mmgr_line_put(output_line, " lanes; ");
+        mmgr_line_put(output_line, run.steps);
+        mmgr_line_put(output_line, " steps; route one ");
+        mmgr_line_decimal_signed(output_line, (long long)route->first);
+        mmgr_line_put(output_line, " terms, route two ");
+        mmgr_line_decimal_signed(output_line, (long long)route->second);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     ZetaRational unit;
     OriorExactInteger one_unit;
     z_two_to(SCALE_BITS, &one_unit);
@@ -623,8 +643,17 @@ int program_main(int argument_count, char **arguments)
     ZetaRational second_scaled;
     rational_div(&route->first_error, &unit, &first_scaled);
     rational_div(&route->second_error, &unit, &second_scaled);
-    printf("  bounds: route one %.3e, route two %.3e; route one's partial sums below %.3e\n",
-           rational_to_double(&first_scaled), rational_to_double(&second_scaled), rational_to_double(&route->largest));
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  bounds: route one ");
+        mmgr_line_exponent(output_line, (double)(rational_to_double(&first_scaled)), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, ", route two ");
+        mmgr_line_exponent(output_line, (double)(rational_to_double(&second_scaled)), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, "; route one's partial sums below ");
+        mmgr_line_exponent(output_line, (double)(rational_to_double(&route->largest)), 3u, 0u, EMBED_FALSE);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     OriorExactInteger apart;
     OriorExactInteger imaginary;
@@ -662,11 +691,35 @@ int program_main(int argument_count, char **arguments)
     ZetaRational imaginary_rational;
     rational_make(&imaginary, &one, &imaginary_rational);
     const int imaginary_held = rational_cmp(&imaginary_rational, &route->second_error) <= 0;
-    printf("  the routes differ by %.3e at max, within %.3e: %s\n", rational_to_double(&apart_scaled),
-           rational_to_double(&together_scaled), truth(apart_held));
-    printf("  route two's imaginary part is %.3e at max, within %.3e: %s\n", rational_to_double(&imaginary_scaled),
-           rational_to_double(&second_scaled), truth(imaginary_held));
-    printf("  phi_r = 1 at u = 0 for every r: %s\n", truth(origin));
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the routes differ by ");
+        mmgr_line_exponent(output_line, (double)(rational_to_double(&apart_scaled)), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " at max, within ");
+        mmgr_line_exponent(output_line, (double)(rational_to_double(&together_scaled)), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_put(output_line, truth(apart_held));
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  route two's imaginary part is ");
+        mmgr_line_exponent(output_line, (double)(rational_to_double(&imaginary_scaled)), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " at max, within ");
+        mmgr_line_exponent(output_line, (double)(rational_to_double(&second_scaled)), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_put(output_line, truth(imaginary_held));
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  phi_r = 1 at u = 0 for every r: ");
+        mmgr_line_put(output_line, truth(origin));
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     int control = 1;
     const int64_t corners[4][2] = {{0, run.u_count - 1},
@@ -702,14 +755,37 @@ int program_main(int argument_count, char **arguments)
         char u_text[128];
         rational_text(&r, r_text, sizeof(r_text));
         rational_text(&u, u_text, sizeof(u_text));
-        printf("    r = %s, u = %s: device %.15f, exact %.15f, apart %.3e, within the bound: %s\n", r_text, u_text,
-               rational_to_double(&device), rational_to_double(&exact), rational_to_double(&gap), truth(within));
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    r = ");
+            mmgr_line_put(output_line, r_text);
+            mmgr_line_put(output_line, ", u = ");
+            mmgr_line_put(output_line, u_text);
+            mmgr_line_put(output_line, ": device ");
+            mmgr_line_fixed(output_line, (double)(rational_to_double(&device)), 15u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, ", exact ");
+            mmgr_line_fixed(output_line, (double)(rational_to_double(&exact)), 15u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, ", apart ");
+            mmgr_line_exponent(output_line, (double)(rational_to_double(&gap)), 3u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, ", within the bound: ");
+            mmgr_line_put(output_line, truth(within));
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     const int held = run.host && apart_held && imaginary_held && origin && control;
-    printf("  %s; the host's records %s the device's word for word\n",
-           held ? "both routes agree at every lane within their bounds" : "the routes do not hold",
-           run.host ? "equal" : "differ from");
-    fflush(stdout);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line,
+                      held ? "both routes agree at every lane within their bounds" : "the routes do not hold");
+        mmgr_line_put(output_line, "; the host's records ");
+        mmgr_line_put(output_line, run.host ? "equal" : "differ from");
+        mmgr_line_put(output_line, " the device's word for word");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    platform_line_flushed();
     free(run.values);
     return held ? 0 : 1;
 }

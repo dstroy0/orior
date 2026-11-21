@@ -84,6 +84,7 @@
  *       Z of Riemann-Siegel within the two bounds.
  */
 #include "zeta_riemann_siegel.h"
+#include "../../../src/platform/platform.h"
 #include "zeta_machine.h"
 
 #include <math.h>
@@ -217,7 +218,14 @@ static void control_point(const TuringCell *cell, int64_t j, DecimalPair *p)
  */
 static void control(const TuringCell *cell, int64_t curves)
 {
-    printf("  positive control, cell %lld:\n", (long long)cell->nu);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  positive control, cell ");
+        mmgr_line_decimal_signed(output_line, (long long)cell->nu);
+        mmgr_line_put(output_line, ":");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     const int64_t js[2] = {0, cell->points / 3};
     for (int at = 0; at < 2; at += 1)
     {
@@ -237,9 +245,25 @@ static void control(const TuringCell *cell, int64_t curves)
         rational_make(&cell->control[at], &unit, &device_value);
         ZetaRational gap;
         rational_sub(&device_value, &house, &gap);
-        printf("    s = %lld^2 + %lld (2 %lld + 1) / 2^%lld  device Z %.15f  house Z %.15f  apart %.3e\n",
-               (long long)cell->nu, (long long)js[at], (long long)cell->nu, (long long)cell->p,
-               rational_to_double(&device_value), rational_to_double(&house), fabs(rational_to_double(&gap)));
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    s = ");
+            mmgr_line_decimal_signed(output_line, (long long)cell->nu);
+            mmgr_line_put(output_line, "^2 + ");
+            mmgr_line_decimal_signed(output_line, (long long)js[at]);
+            mmgr_line_put(output_line, " (2 ");
+            mmgr_line_decimal_signed(output_line, (long long)cell->nu);
+            mmgr_line_put(output_line, " + 1) / 2^");
+            mmgr_line_decimal_signed(output_line, (long long)cell->p);
+            mmgr_line_put(output_line, "  device Z ");
+            mmgr_line_fixed(output_line, (double)(rational_to_double(&device_value)), 15u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, "  house Z ");
+            mmgr_line_fixed(output_line, (double)(rational_to_double(&house)), 15u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, "  apart ");
+            mmgr_line_exponent(output_line, (double)(fabs(rational_to_double(&gap))), 3u, 0u, EMBED_FALSE);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -253,7 +277,14 @@ static void control(const TuringCell *cell, int64_t curves)
  */
 static void control_em(const TuringCell *cell, const TuringCell *other, const OriorExactInteger *bounds_sum)
 {
-    printf("  positive control, cell %lld by Euler-Maclaurin:\n", (long long)cell->nu);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  positive control, cell ");
+        mmgr_line_decimal_signed(output_line, (long long)cell->nu);
+        mmgr_line_put(output_line, " by Euler-Maclaurin:");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     const int64_t js[2] = {0, cell->points / 3};
     OriorExactInteger unit;
     z_two_to(TURING_SCALE_BITS, &unit);
@@ -271,9 +302,24 @@ static void control_em(const TuringCell *cell, const TuringCell *other, const Or
         rational_make(&cell->control[at], &unit, &device_value);
         ZetaRational gap;
         rational_sub(&device_value, &house, &gap);
-        printf("    s = %lld^2 + %lld (2 %lld + 1) / 2^%lld  device Z %.15f  house Z %.15f  apart %.3e",
-               (long long)cell->nu, (long long)js[at], (long long)cell->nu, (long long)cell->p,
-               rational_to_double(&device_value), rational_to_double(&house), fabs(rational_to_double(&gap)));
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    s = ");
+            mmgr_line_decimal_signed(output_line, (long long)cell->nu);
+            mmgr_line_put(output_line, "^2 + ");
+            mmgr_line_decimal_signed(output_line, (long long)js[at]);
+            mmgr_line_put(output_line, " (2 ");
+            mmgr_line_decimal_signed(output_line, (long long)cell->nu);
+            mmgr_line_put(output_line, " + 1) / 2^");
+            mmgr_line_decimal_signed(output_line, (long long)cell->p);
+            mmgr_line_put(output_line, "  device Z ");
+            mmgr_line_fixed(output_line, (double)(rational_to_double(&device_value)), 15u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, "  house Z ");
+            mmgr_line_fixed(output_line, (double)(rational_to_double(&house)), 15u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, "  apart ");
+            mmgr_line_exponent(output_line, (double)(fabs(rational_to_double(&gap))), 3u, 0u, EMBED_FALSE);
+            platform_line_out_ended();
+        }
         if (other != NULL)
         {
             ZetaRational theirs;
@@ -286,10 +332,22 @@ static void control_em(const TuringCell *cell, const TuringCell *other, const Or
             }
             ZetaRational bar;
             rational_make(bounds_sum, &unit, &bar);
-            printf("  from Riemann-Siegel's %.3e, within %.3e: %s", rational_to_double(&apart),
-                   rational_to_double(&bar), truth(rational_cmp(&apart, &bar) <= 0));
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  from Riemann-Siegel's ");
+                mmgr_line_exponent(output_line, (double)(rational_to_double(&apart)), 3u, 0u, EMBED_FALSE);
+                mmgr_line_put(output_line, ", within ");
+                mmgr_line_exponent(output_line, (double)(rational_to_double(&bar)), 3u, 0u, EMBED_FALSE);
+                mmgr_line_put(output_line, ": ");
+                mmgr_line_put(output_line, truth(rational_cmp(&apart, &bar) <= 0));
+                platform_line_out_ended();
+            }
         }
-        printf("\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -300,12 +358,24 @@ static void control_em(const TuringCell *cell, const TuringCell *other, const Or
  */
 static void print_steps(const TuringCell *cell)
 {
-    printf("[");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "[");
+        platform_line_out_ended();
+    }
     for (size_t at = 0u; at < cell->step_count; at += 1u)
     {
-        printf("%s%lld", (at > 0u) ? ", " : "", (long long)cell->steps[at]);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, (at > 0u) ? ", " : "");
+        mmgr_line_decimal_signed(output_line, (long long)cell->steps[at]);
+        platform_line_out_ended();
     }
-    printf("]\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "]");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
 /* ---------------------------------------------------------------- the refinement of the flagged spans */
@@ -899,24 +969,55 @@ static int main_em(const char *binary, int64_t first, int64_t last, int64_t rate
     const int64_t high = whole(&value, 0);
     OriorExactInteger x2;
     turing_x2(target, AT_FIRST, &x2);
-    printf("  T_a = %.6f, cell %lld's F by Riemann-Siegel: %lld <= N(T_a) <= %lld\n", turing_t_of(&x2),
-           (long long)(last + 1), (long long)low, (long long)high);
-    fflush(stdout);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  T_a = ");
+        mmgr_line_fixed(output_line, (double)(turing_t_of(&x2)), 6u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, ", cell ");
+        mmgr_line_decimal_signed(output_line, (long long)(last + 1));
+        mmgr_line_put(output_line, "'s F by Riemann-Siegel: ");
+        mmgr_line_decimal_signed(output_line, (long long)low);
+        mmgr_line_put(output_line, " <= N(T_a) <= ");
+        mmgr_line_decimal_signed(output_line, (long long)high);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    platform_line_flushed();
     TuringCell *const cells = (TuringCell *)machine_memory(calloc((size_t)last + 2u, sizeof(TuringCell)));
     int64_t *const levels = (int64_t *)machine_memory(calloc((size_t)last + 2u, sizeof(int64_t)));
     for (int64_t nu = first; nu <= last; nu += 1)
     {
         turing_run_cell(binary, &constants, nu, turing_lattice(nu, rate), TURING_EM, 0, 0, &cells[nu], &bound);
         (void)remove(cells[nu].path);
-        printf("  cell %lld at 2^%lld points by Euler-Maclaurin, N = %lld, M = %lld: bound on Z %.3e, %lld zeros past "
-               "F, %lld loose\n",
-               (long long)nu, (long long)cells[nu].p, (long long)turing_em_heads(nu, turing_em_terms(0)),
-               (long long)turing_em_terms(0), over_unit(&bound), (long long)z_small(&cells[nu].sums[SUM_ZEROS_AFTER]),
-               (long long)z_small(&cells[nu].sums[SUM_LOOSE]));
-        fflush(stdout);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  cell ");
+            mmgr_line_decimal_signed(output_line, (long long)nu);
+            mmgr_line_put(output_line, " at 2^");
+            mmgr_line_decimal_signed(output_line, (long long)cells[nu].p);
+            mmgr_line_put(output_line, " points by Euler-Maclaurin, N = ");
+            mmgr_line_decimal_signed(output_line, (long long)turing_em_heads(nu, turing_em_terms(0)));
+            mmgr_line_put(output_line, ", M = ");
+            mmgr_line_decimal_signed(output_line, (long long)turing_em_terms(0));
+            mmgr_line_put(output_line, ": bound on Z ");
+            mmgr_line_exponent(output_line, (double)(over_unit(&bound)), 3u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, ", ");
+            mmgr_line_decimal_signed(output_line, (long long)z_small(&cells[nu].sums[SUM_ZEROS_AFTER]));
+            mmgr_line_put(output_line, " zeros past F, ");
+            mmgr_line_decimal_signed(output_line, (long long)z_small(&cells[nu].sums[SUM_LOOSE]));
+            mmgr_line_put(output_line, " loose");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        platform_line_flushed();
     }
     control_em(&cells[first], NULL, NULL);
-    printf("  steps of the pole, point, pair, verdict and count programs, then Euler-Maclaurin's: ");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line,
+                      "  steps of the pole, point, pair, verdict and count programs, then Euler-Maclaurin's: ");
+        platform_line_out_ended();
+    }
     print_steps(&cells[first]);
     OriorExactInteger rs_bound;
     OriorExactInteger theta_bound;
@@ -926,7 +1027,7 @@ static int main_em(const char *binary, int64_t first, int64_t last, int64_t rate
     OriorExactInteger both;
     z_add(&rs_bound, &em_bound, &both);
     control_em(&cells[last], &above_cells[0], &both);
-    fflush(stdout);
+    platform_line_flushed();
     int64_t count = 0;
     for (int64_t round = 0; round <= TURING_ROUNDS; round += 1)
     {
@@ -938,9 +1039,22 @@ static int main_em(const char *binary, int64_t first, int64_t last, int64_t rate
         count += turing_between(&cells[last], target);
         OriorExactInteger start;
         turing_x2(&cells[first], AT_FIRST, &start);
-        printf("  round %lld: %lld sign changes certified in (%.6f, %.6f], N(T_a) %lld\n", (long long)round,
-               (long long)count, turing_t_of(&start), turing_t_of(&x2), (long long)low);
-        fflush(stdout);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  round ");
+            mmgr_line_decimal_signed(output_line, (long long)round);
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_decimal_signed(output_line, (long long)count);
+            mmgr_line_put(output_line, " sign changes certified in (");
+            mmgr_line_fixed(output_line, (double)(turing_t_of(&start)), 6u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, ", ");
+            mmgr_line_fixed(output_line, (double)(turing_t_of(&x2)), 6u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, "], N(T_a) ");
+            mmgr_line_decimal_signed(output_line, (long long)low);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        platform_line_flushed();
         if ((count >= low) || (round == TURING_ROUNDS))
         {
             break;
@@ -976,12 +1090,25 @@ static int main_em(const char *binary, int64_t first, int64_t last, int64_t rate
     const int proven = (count == high) && (failed == 0);
     if (proven)
     {
-        printf("  every zero in (0, %.6f] is on the line and simple: %lld; %lld host checks failed\n", turing_t_of(&x2),
-               (long long)count, (long long)failed);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  every zero in (0, ");
+        mmgr_line_fixed(output_line, (double)(turing_t_of(&x2)), 6u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, "] is on the line and simple: ");
+        mmgr_line_decimal_signed(output_line, (long long)count);
+        mmgr_line_put(output_line, "; ");
+        mmgr_line_decimal_signed(output_line, (long long)failed);
+        mmgr_line_put(output_line, " host checks failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     else
     {
-        printf("  the count does not close; %lld host checks failed\n", (long long)failed);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the count does not close; ");
+        mmgr_line_decimal_signed(output_line, (long long)failed);
+        mmgr_line_put(output_line, " host checks failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     free(cells);
     free(levels);
@@ -1032,31 +1159,79 @@ static int main_machine(const char *binary, int64_t first, int64_t last, int64_t
         if (nu == first)
         {
             control(cell, constants.curve_count);
-            printf("  steps of the pole, point, pair, verdict and count programs, then the multiple evaluation's: ");
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(
+                    output_line,
+                    "  steps of the pole, point, pair, verdict and count programs, then the multiple evaluation's: ");
+                platform_line_out_ended();
+            }
             print_steps(cell);
         }
-        printf("  cell %lld at 2^%lld points: bound on Z %.3e, F %lld, %lld zeros past F, %lld loose", (long long)nu,
-               (long long)cell->p, over_unit(&machine.bound), (long long)cell->first,
-               (long long)z_small(&cell->sums[SUM_ZEROS_AFTER]), (long long)z_small(&cell->sums[SUM_LOOSE]));
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  cell ");
+            mmgr_line_decimal_signed(output_line, (long long)nu);
+            mmgr_line_put(output_line, " at 2^");
+            mmgr_line_decimal_signed(output_line, (long long)cell->p);
+            mmgr_line_put(output_line, " points: bound on Z ");
+            mmgr_line_exponent(output_line, (double)(over_unit(&machine.bound)), 3u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, ", F ");
+            mmgr_line_decimal_signed(output_line, (long long)cell->first);
+            mmgr_line_put(output_line, ", ");
+            mmgr_line_decimal_signed(output_line, (long long)z_small(&cell->sums[SUM_ZEROS_AFTER]));
+            mmgr_line_put(output_line, " zeros past F, ");
+            mmgr_line_decimal_signed(output_line, (long long)z_small(&cell->sums[SUM_LOOSE]));
+            mmgr_line_put(output_line, " loose");
+            platform_line_out_ended();
+        }
         if (machine.control != NULL)
         {
-            printf("; c %.3f, a run %.2f s at 2^%lld", control_c(machine.control),
-                   machine.control->times[machine.control->timed - 1u], (long long)cell->p);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "; c ");
+            mmgr_line_fixed(output_line, (double)(control_c(machine.control)), 3u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, ", a run ");
+            mmgr_line_fixed(output_line, (double)(machine.control->times[machine.control->timed - 1u]), 2u, 0u,
+                            EMBED_FALSE);
+            mmgr_line_put(output_line, " s at 2^");
+            mmgr_line_decimal_signed(output_line, (long long)cell->p);
+            platform_line_out_ended();
         }
-        printf("\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         if (method < 0)
         {
-            printf("    %lld spans flagged, %lld points listed, %lld zeros found in them, %lld spans still open; %lld "
-                   "crossings proven single on the coarse lattice, of %lld zeros past F\n",
-                   (long long)cell->refined[0], (long long)cell->refined[1], (long long)cell->refined[2],
-                   (long long)cell->refined[3], (long long)cell->refined[4], (long long)cell->refined[5]);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    ");
+            mmgr_line_decimal_signed(output_line, (long long)cell->refined[0]);
+            mmgr_line_put(output_line, " spans flagged, ");
+            mmgr_line_decimal_signed(output_line, (long long)cell->refined[1]);
+            mmgr_line_put(output_line, " points listed, ");
+            mmgr_line_decimal_signed(output_line, (long long)cell->refined[2]);
+            mmgr_line_put(output_line, " zeros found in them, ");
+            mmgr_line_decimal_signed(output_line, (long long)cell->refined[3]);
+            mmgr_line_put(output_line, " spans still open; ");
+            mmgr_line_decimal_signed(output_line, (long long)cell->refined[4]);
+            mmgr_line_put(output_line, " crossings proven single on the coarse lattice, of ");
+            mmgr_line_decimal_signed(output_line, (long long)cell->refined[5]);
+            mmgr_line_put(output_line, " zeros past F");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
         if (cell->has_apart)
         {
-            printf("    the transform's Z and the pairs' differ by %.3e at max, at point %lld\n",
-                   over_unit(&cell->apart), (long long)cell->apart_at);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    the transform's Z and the pairs' differ by ");
+            mmgr_line_exponent(output_line, (double)(over_unit(&cell->apart)), 3u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, " at max, at point ");
+            mmgr_line_decimal_signed(output_line, (long long)cell->apart_at);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
-        fflush(stdout);
+        platform_line_flushed();
     }
     int64_t (*const window)[2] = (int64_t (*)[2])machine_memory(calloc((size_t)last + 3u, sizeof(int64_t[2])));
     int64_t count = 0;
@@ -1084,14 +1259,33 @@ static int main_machine(const char *binary, int64_t first, int64_t last, int64_t
             }
             count += between;
         }
-        printf("  round %lld: %lld zeros certified, %llu cells short [", (long long)round, (long long)count,
-               (unsigned long long)short_count);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  round ");
+            mmgr_line_decimal_signed(output_line, (long long)round);
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_decimal_signed(output_line, (long long)count);
+            mmgr_line_put(output_line, " zeros certified, ");
+            mmgr_line_decimal(output_line, (unsigned long long)short_count, 1u);
+            mmgr_line_put(output_line, " cells short [");
+            platform_line_out_ended();
+        }
         for (size_t at = 0u; (at < short_count) && (at < 12u); at += 1u)
         {
-            printf("%s%lld", (at > 0u) ? ", " : "", (long long)short_list[at]);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, (at > 0u) ? ", " : "");
+            mmgr_line_decimal_signed(output_line, (long long)short_list[at]);
+            platform_line_out_ended();
         }
-        printf("], %lld points where N is not certified to one value\n", (long long)loose_count);
-        fflush(stdout);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "], ");
+            mmgr_line_decimal_signed(output_line, (long long)loose_count);
+            mmgr_line_put(output_line, " points where N is not certified to one value");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        platform_line_flushed();
         if ((short_count == 0u) || (round == TURING_ROUNDS))
         {
             break;
@@ -1140,22 +1334,59 @@ static int main_machine(const char *binary, int64_t first, int64_t last, int64_t
     }
     OriorExactInteger x2;
     turing_x2(&machine.cells[first + 1], AT_FIRST, &x2);
-    printf("  T_a = %.6f: %lld <= N(T_a) <= %lld\n", turing_t_of(&x2), (long long)window[first + 1][0],
-           (long long)window[first + 1][1]);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  T_a = ");
+        mmgr_line_fixed(output_line, (double)(turing_t_of(&x2)), 6u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_decimal_signed(output_line, (long long)window[first + 1][0]);
+        mmgr_line_put(output_line, " <= N(T_a) <= ");
+        mmgr_line_decimal_signed(output_line, (long long)window[first + 1][1]);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     turing_x2(&machine.cells[last], AT_FIRST, &x2);
-    printf("  T_b = %.6f: %lld <= N(T_b) <= %lld\n", turing_t_of(&x2), (long long)window[last][0],
-           (long long)window[last][1]);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  T_b = ");
+        mmgr_line_fixed(output_line, (double)(turing_t_of(&x2)), 6u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_decimal_signed(output_line, (long long)window[last][0]);
+        mmgr_line_put(output_line, " <= N(T_b) <= ");
+        mmgr_line_decimal_signed(output_line, (long long)window[last][1]);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     const int64_t reach = window[last][1] - window[first + 1][0];
-    printf("  zeros certified in (T_a, T_b]: %lld; N(T_b) - N(T_a) <= %lld\n", (long long)count, (long long)reach);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  zeros certified in (T_a, T_b]: ");
+        mmgr_line_decimal_signed(output_line, (long long)count);
+        mmgr_line_put(output_line, "; N(T_b) - N(T_a) <= ");
+        mmgr_line_decimal_signed(output_line, (long long)reach);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     const int proven = (reach <= count) && (failed == 0);
     if (proven)
     {
-        printf("  every zero in (T_a, T_b] is on the line and simple: %lld; %lld host checks failed\n",
-               (long long)count, (long long)failed);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  every zero in (T_a, T_b] is on the line and simple: ");
+        mmgr_line_decimal_signed(output_line, (long long)count);
+        mmgr_line_put(output_line, "; ");
+        mmgr_line_decimal_signed(output_line, (long long)failed);
+        mmgr_line_put(output_line, " host checks failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     else
     {
-        printf("  the count does not close; %lld host checks failed\n", (long long)failed);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the count does not close; ");
+        mmgr_line_decimal_signed(output_line, (long long)failed);
+        mmgr_line_put(output_line, " host checks failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     free(window);
     free(machine.cells);

@@ -1,6 +1,7 @@
 
 // test_steer_projection.c: projection and type agreement, and main
 #include "test_steer_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 /**
  * @brief Grades the projection under a predicate that is not transitive.
@@ -19,7 +20,12 @@
  */
 static int check_projection_closes(void)
 {
-    printf("\n  PROJECTION UNDER A PREDICATE THAT IS NOT TRANSITIVE.\n\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n  PROJECTION UNDER A PREDICATE THAT IS NOT TRANSITIVE.\n");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     int failed = 0;
     const size_t length = 5u;
@@ -35,14 +41,24 @@ static int check_projection_closes(void)
 
     if (orior_field_project(&loose) == 0)
     {
-        printf("  the projection errored on the chain: FAILS\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  the projection errored on the chain: FAILS");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
 
     // The ends disagree, and that makes the predicate non-transitive and not merely coarse.
     if (near_same_in_field(chain, 0u, 4u) != 0)
     {
-        printf("  the chain ends agree. This is not the case under test: FAILS\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  the chain ends agree. This is not the case under test: FAILS");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed += 1;
     }
 
@@ -55,12 +71,34 @@ static int check_projection_closes(void)
         }
     }
 
-    printf("  %38s %8zu %8s %10s\n", "chain of 5, tolerance 2, classes", classes, "1",
-           (classes == 1u) ? "closed" : "SPLIT");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_right(output_line, "chain of 5, tolerance 2, classes", 38u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line, classes, 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "1", 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, (classes == 1u) ? "closed" : "SPLIT", 10u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     failed += (classes == 1u) ? 0 : 1;
 
-    printf("  %38s %8zu %8s %10s\n", "positions carrying a different rank", differing, "0",
-           (differing == 0u) ? "sound" : "UNSOUND");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_right(output_line, "positions carrying a different rank", 38u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line, differing, 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "0", 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, (differing == 0u) ? "sound" : "UNSOUND", 10u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     failed += (differing == 0u) ? 0 : 1;
 
     // A FIELD WITH MORE CLASSES THAN A BYTE RANK CAN NAME MUST BE ERROR AND NOT DEGRADED. The
@@ -79,7 +117,12 @@ static int check_projection_closes(void)
     if ((wide == NULL) || (wide_ranks == NULL) || (wide_class_of == NULL) || (wide_members == NULL) ||
         (wide_place == NULL))
     {
-        printf("  allocation failed\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  allocation failed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed += 1;
     }
     else
@@ -90,13 +133,23 @@ static int check_projection_closes(void)
         }
 
         size_t wide_classes = 0u;
-        const OriorFieldProjection wide_args = {sample_same_in_field, wide,          wide_len,
-                                                 wide_ranks,           wide_class_of, wide_members,
-                                                 wide_place,           wide_len,      &wide_classes};
+        const OriorFieldProjection wide_args = {sample_same_in_field, wide,       wide_len, wide_ranks,   wide_class_of,
+                                                wide_members,         wide_place, wide_len, &wide_classes};
         const int elapsed = orior_field_project(&wide_args);
 
-        printf("  %38s %8zu %8s %10s\n", "400 classes, counted not capped", wide_classes, "400",
-               ((elapsed != 0) && (wide_classes == wide_len)) ? "ok" : "FAILS");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_right(output_line, "400 classes, counted not capped", 38u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_columns(output_line, wide_classes, 8u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_right(output_line, "400", 8u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_right(output_line, ((elapsed != 0) && (wide_classes == wide_len)) ? "ok" : "FAILS", 10u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed += ((elapsed != 0) && (wide_classes == wide_len)) ? 0 : 1;
 
         // THE RAREST 255 RETAIN THEIR OWN RANKS AND THE COMMONEST MERGE. Every class here contains one
@@ -118,8 +171,19 @@ static int check_projection_closes(void)
             }
         }
 
-        printf("  %38s %8zu %8s %10s\n", "ranks used, rarest separated", distinct_ranks, "256",
-               (distinct_ranks == 256u) ? "ok" : "FAILS");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_right(output_line, "ranks used, rarest separated", 38u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_columns(output_line, distinct_ranks, 8u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_right(output_line, "256", 8u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_right(output_line, (distinct_ranks == 256u) ? "ok" : "FAILS", 10u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed += (distinct_ranks == 256u) ? 0 : 1;
     }
 
@@ -138,15 +202,45 @@ static int check_projection_closes(void)
         const size_t sentinel_count = 43981u;
         size_t planted = sentinel_count;
         const OriorFieldProjection undersize = {near_same_in_field, chain,   length, ranks, class_of, members, place,
-                                                 length - 1u,        &planted};
+                                                length - 1u,        &planted};
 
         const int error = orior_field_project(&undersize);
 
-        printf("  %38s %8d %8s %10s\n", "buffers one short, errored", error, "0", (error == 0) ? "errored" : "RAN");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_right(output_line, "buffers one short, errored", 38u);
+            mmgr_line_put(output_line, " ");
+            {
+                char linea_piece[24u];
+                VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                const int64_t linea_value = (int64_t)(error);
+                mmgr_line_decimal_signed(&linea_piece_line, linea_value);
+                (void)mmgr_line_finish(&linea_piece_line);
+                mmgr_line_put_right(output_line, linea_piece, 8u);
+            }
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_right(output_line, "0", 8u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_right(output_line, (error == 0) ? "errored" : "RAN", 10u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed += (error == 0) ? 0 : 1;
 
-        printf("  %38s %8zu %8zu %10s\n", "and distinct left untouched", planted, sentinel_count,
-               (planted == sentinel_count) ? "ok" : "WROTE");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_right(output_line, "and distinct left untouched", 38u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_columns(output_line, planted, 8u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_columns(output_line, sentinel_count, 8u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_right(output_line, (planted == sentinel_count) ? "ok" : "WROTE", 10u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed += (planted == sentinel_count) ? 0 : 1;
     }
 
@@ -154,17 +248,33 @@ static int check_projection_closes(void)
     // the wrong reason: a projection that always returned one class would satisfy it.
     size_t exact_classes = 0u;
     const OriorFieldProjection strict = {sample_same_in_field, chain, length, ranks, class_of, members, place, length,
-                                          &exact_classes};
+                                         &exact_classes};
 
     if (orior_field_project(&strict) == 0)
     {
-        printf("  the projection errored on the exact predicate: FAILS\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  the projection errored on the exact predicate: FAILS");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed += 1;
     }
     else
     {
-        printf("  %38s %8zu %8s %10s\n", "same field, exact predicate, classes", exact_classes, "5",
-               (exact_classes == 5u) ? "distinct" : "FAILS");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_right(output_line, "same field, exact predicate, classes", 38u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_columns(output_line, exact_classes, 8u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_right(output_line, "5", 8u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_right(output_line, (exact_classes == 5u) ? "distinct" : "FAILS", 10u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed += (exact_classes == 5u) ? 0 : 1;
     }
     return failed;
@@ -194,14 +304,24 @@ static int check_projection_closes(void)
  */
 static int check_any_type_agrees(void)
 {
-    printf("\n  ANY SYMBOL TYPE, AGAINST THE BYTE PATH AND AGAINST THE TRUTH.\n\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n  ANY SYMBOL TYPE, AGAINST THE BYTE PATH AND AGAINST THE TRUTH.\n");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     int failed = 0;
     const size_t length = 16384u;
     uint8_t *const corpus = (uint8_t *)malloc(length);
     if (corpus == NULL)
     {
-        printf("  allocation failed\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  allocation failed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     build_skewed_field(corpus, length);
@@ -213,28 +333,42 @@ static int check_any_type_agrees(void)
     uint8_t *const survivors = (uint8_t *)malloc(alignments);
     if (survivors == NULL)
     {
-        printf("  allocation failed\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  allocation failed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         free(corpus);
         return 1;
     }
 
     size_t by_bytes[ORIOR_STEER_ANCHORS];
-    const size_t placed_bytes = ORIOR_STEER_CALL(
-        orior_steer_spawn_coarms, OriorSteerDescent, .offsets = by_bytes, .count = ORIOR_STEER_ANCHORS,
-        .corpus = corpus, .corpus_len = length, .needle = needle, .needle_len = sizeof(needle), .survivors = survivors,
-        .survivors_length = alignments, .sample_stride = 1u);
+    const size_t placed_bytes =
+        ORIOR_STEER_CALL(orior_steer_spawn_coarms, OriorSteerDescent, .offsets = by_bytes, .count = ORIOR_STEER_ANCHORS,
+                         .corpus = corpus, .corpus_len = length, .needle = needle, .needle_len = sizeof(needle),
+                         .survivors = survivors, .survivors_length = alignments, .sample_stride = 1u);
 
     const ByteField byte_field = {corpus, needle};
     const OriorField as_any = {byte_same_at, &byte_field, alignments, sizeof(needle)};
 
     size_t by_oracle[ORIOR_STEER_ANCHORS];
     const size_t placed_oracle = ORIOR_STEER_CALL(orior_steer_spawn_coarms, OriorSteerDescent, .offsets = by_oracle,
-                                                   .count = ORIOR_STEER_ANCHORS, .survivors = survivors,
-                                                   .survivors_length = alignments, .sample_stride = 1u, .any = &as_any);
+                                                  .count = ORIOR_STEER_ANCHORS, .survivors = survivors,
+                                                  .survivors_length = alignments, .sample_stride = 1u, .any = &as_any);
 
     if (placed_bytes != placed_oracle)
     {
-        printf("  the oracle placed %zu where bytes placed %zu: FAILS\n", placed_oracle, placed_bytes);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  the oracle placed ");
+            mmgr_line_decimal(output_line, placed_oracle, 1u);
+            mmgr_line_put(output_line, " where bytes placed ");
+            mmgr_line_decimal(output_line, placed_bytes, 1u);
+            mmgr_line_put(output_line, ": FAILS");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed += 1;
     }
     else
@@ -247,8 +381,19 @@ static int check_any_type_agrees(void)
                 differing += 1u;
             }
         }
-        printf("  %38s %8zu %8zu %10s\n", "offsets placed, bytes against oracle", placed_bytes, placed_oracle,
-               (differing == 0u) ? "identical" : "DIFFER");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_right(output_line, "offsets placed, bytes against oracle", 38u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_columns(output_line, placed_bytes, 8u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_columns(output_line, placed_oracle, 8u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_right(output_line, (differing == 0u) ? "identical" : "DIFFER", 10u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed += (differing == 0u) ? 0 : 1;
     }
 
@@ -257,7 +402,12 @@ static int check_any_type_agrees(void)
     uint32_t *const samples = (uint32_t *)malloc(sample_len * sizeof(uint32_t));
     if (samples == NULL)
     {
-        printf("  allocation failed\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  allocation failed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         free(survivors);
         free(corpus);
         return 1;
@@ -333,7 +483,12 @@ static int check_any_type_agrees(void)
     size_t classes = 0u;
     if ((ranks == NULL) || (class_of == NULL) || (members == NULL) || (place == NULL))
     {
-        printf("  allocation failed\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  allocation failed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         free(ranks);
         free(class_of);
         free(members);
@@ -349,7 +504,12 @@ static int check_any_type_agrees(void)
 
     if (orior_field_project(&sample_projection) == 0)
     {
-        printf("  the projection errored on the sample field: FAILS\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  the projection errored on the sample field: FAILS");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed += 1;
     }
     else
@@ -364,16 +524,38 @@ static int check_any_type_agrees(void)
         // alphabet reaching the same loop bytes use, AVX2 scan included.
         const size_t projected = orior_naive(ranks, sample_len, rank_needle, sample_needle_len);
 
-        printf("  %38s %8zu %8zu %10s\n", "classes found, true count", classes, truth,
-               (classes == 6u) ? "ok" : "CLASSES");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_right(output_line, "classes found, true count", 38u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_columns(output_line, classes, 8u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_columns(output_line, truth, 8u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_right(output_line, (classes == 6u) ? "ok" : "CLASSES", 10u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed += (classes == 6u) ? 0 : 1;
 
         // SOUNDNESS IS THE CLAIM, AND THE CLAIM IS ONE SIDED. The projected engine may return MORE than the
         // truth, because two symbols sharing a rank survive a rank probe. It may never return less,
         // because same symbol implies same rank. Fewer would mean a true occurrence was lost and the
         // necessary condition was not one.
-        printf("  %38s %8zu %8zu %10s\n", "projected survivors, never below truth", projected, truth,
-               (projected >= truth) ? "sound" : "UNSOUND");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_right(output_line, "projected survivors, never below truth", 38u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_columns(output_line, projected, 8u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_columns(output_line, truth, 8u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_right(output_line, (projected >= truth) ? "sound" : "UNSOUND", 10u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed += (projected >= truth) ? 0 : 1;
     }
 
@@ -391,7 +573,12 @@ int program_main(int argc, char **argv)
     uint8_t *corpus = (uint8_t *)malloc(STEER_CORPUS);
     if (corpus == NULL)
     {
-        printf("  allocation failed\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  allocation failed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     build_skewed_field(corpus, STEER_CORPUS);
@@ -404,8 +591,18 @@ int program_main(int argc, char **argv)
 
     OriorFieldCensus census;
     orior_field_census(corpus, STEER_CORPUS, &census);
-    printf("\n  field: %u bytes, %u distinct symbols, prefers %s arm\n", STEER_CORPUS, census.distinct,
-           orior_steer_prefers_free(&census) ? "free order" : "short circuiting");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n  field: ");
+        mmgr_line_decimal(output_line, STEER_CORPUS, 1u);
+        mmgr_line_put(output_line, " bytes, ");
+        mmgr_line_decimal(output_line, census.distinct, 1u);
+        mmgr_line_put(output_line, " distinct symbols, prefers ");
+        mmgr_line_put(output_line, orior_steer_prefers_free(&census) ? "free order" : "short circuiting");
+        mmgr_line_put(output_line, " arm");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     int failed = 0;
     failed += check_counts_agree(corpus, STEER_CORPUS, needle);
@@ -416,7 +613,12 @@ int program_main(int argc, char **argv)
     failed += check_any_type_agrees();
     failed += check_projection_closes();
 
-    printf("\n  ARMS, EYES AND COARMS, spawned and swept against a reference count.\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n  ARMS, EYES AND COARMS, spawned and swept against a reference count.");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     failed += grade_field("synthetic skewed", corpus, STEER_CORPUS);
 
     // THE CORPUS FAMILY AND NOT ONE CORPUS. The ordering was built against the field
@@ -427,7 +629,12 @@ int program_main(int argc, char **argv)
     uint8_t *swept = (uint8_t *)malloc(STEER_CORPUS);
     if (swept == NULL)
     {
-        printf("  allocation failed\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  allocation failed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         free(corpus);
         return 1;
     }
@@ -456,11 +663,25 @@ int program_main(int argc, char **argv)
         // A FAILURE AND NOT A SKIP. The path is compiled in. The file is either there or the
         // repository is not what this binary was built against. Printing a skip and returning zero
         // is how the natural field went ungraded without anybody being informed.
-        printf("\n  natural field absent at %s, FAILS\n", ORIOR_SOURCE_ROOT "/LICENSES/AGPL-3.0-or-later.txt");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "\n  natural field absent at ");
+            mmgr_line_put(output_line, ORIOR_SOURCE_ROOT "/LICENSES/AGPL-3.0-or-later.txt");
+            mmgr_line_put(output_line, ", FAILS");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed += 1;
     }
 
-    printf("\n  %d check(s) failed\n", failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n  ");
+        mmgr_line_decimal_signed(output_line, failed);
+        mmgr_line_put(output_line, " check(s) failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     free(corpus);
     return (failed == 0) ? 0 : 1;
 }

@@ -45,6 +45,7 @@
 //   5. the records are written out.
 
 #include "../../../src/cu/engine/analysis/cycle/cycle.h"
+#include "../../../src/platform/platform.h"
 #include "../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../src/cu/engine/analysis/keymath/keymath.h"
 #include "verba_scribo/verba_linea.h"
@@ -154,7 +155,8 @@ static int suffix_read(const char *path, SuffixSettings *settings, std::vector<S
         at += 1u;
         for (unsigned long long one = 0ull; one < suffixes + nouns; one += 1ull, at += 1u)
         {
-            const std::vector<std::string> fields = (at < lines.size()) ? stage_split(lines[at]) : std::vector<std::string>();
+            const std::vector<std::string> fields =
+                (at < lines.size()) ? stage_split(lines[at]) : std::vector<std::string>();
             const char *type = (one < suffixes) ? "suffix" : "noun";
             if ((fields.size() != 3u) || (fields[0] != type))
             {
@@ -163,7 +165,8 @@ static int suffix_read(const char *path, SuffixSettings *settings, std::vector<S
             if (one < suffixes)
             {
                 const std::vector<std::string> offered = suffix_words(fields[2], ',');
-                language.suffixes.push_back({suffix_words(fields[1], ' '), std::set<std::string>(offered.begin(), offered.end())});
+                language.suffixes.push_back(
+                    {suffix_words(fields[1], ' '), std::set<std::string>(offered.begin(), offered.end())});
             }
             else
             {
@@ -201,8 +204,8 @@ static void suffix_larger_program(unsigned int bits, StageProgram *program)
     const unsigned int x = stage_field(program, bits);
     const unsigned int y = stage_field(program, bits);
     const unsigned int both = stage_step(program, ENGINE_RECORD_SUM, x, y);
-    const unsigned int apart = stage_step(program, ENGINE_RECORD_ABSOLUTE,
-                                          stage_step(program, ENGINE_RECORD_DIFFERENCE, x, y), 0u);
+    const unsigned int apart =
+        stage_step(program, ENGINE_RECORD_ABSOLUTE, stage_step(program, ENGINE_RECORD_DIFFERENCE, x, y), 0u);
     const unsigned int twice = stage_step(program, ENGINE_RECORD_SUM, both, apart);
     stage_output(program, stage_step(program, ENGINE_RECORD_QUOTIENT, twice, stage_constant(program, 2ull)));
 }
@@ -360,8 +363,8 @@ int program_main(int count, char **arguments)
         count_lanes * (2ull + (ok ? count_stage.layout.out_limbs : 1u)) * sizeof(unsigned int);
     ok = ok && sim_job_submit(&job, "lexical_suffix_origins", count, arguments, declared);
     std::vector<std::vector<StageWhole>> counted;
-    ok = ok && stage_summed(&job, &count_stage, records, count_lanes, words, std::vector<unsigned int>(1, 0u),
-                            &counted, &error);
+    ok = ok && stage_summed(&job, &count_stage, records, count_lanes, words, std::vector<unsigned int>(1, 0u), &counted,
+                            &error);
     records.clear();
     records.shrink_to_fit();
     auto counts = [&](unsigned int relation, unsigned long long run, size_t language) -> const StageWhole & {
@@ -550,8 +553,8 @@ int program_main(int count, char **arguments)
                 {
                     suffix_text += language.suffixes[suffix].segments[part];
                 }
-                found.push_back(std::string(kinkade ? "Kinkade" : "tail   ") + "  " + language.name + "  " +
-                                noun_text + " ~ =" + suffix_text + " '" + language.nouns[noun].meaning + "'");
+                found.push_back(std::string(kinkade ? "Kinkade" : "tail   ") + "  " + language.name + "  " + noun_text +
+                                " ~ =" + suffix_text + " '" + language.nouns[noun].meaning + "'");
             }
         }
     }
@@ -565,18 +568,19 @@ int program_main(int count, char **arguments)
         for (size_t at = 0u; at < languages.size(); at += 1u)
         {
             const SuffixLanguage &language = languages[at];
-            fprintf(out,
-                    "language %s suffixes %zu nouns %zu pairs %s identical %s kinkade %s kinkade_sum %s kinkade_above %s "
-                    "tail %s tail_sum %s tail_above %s p %s/%s\n",
-                    language.name.c_str(), language.suffixes.size(), language.nouns.size(),
-                    stage_text_of(language.observed[SUFFIX_PAIRS]).c_str(),
-                    stage_text_of(language.observed[SUFFIX_IDENTICAL]).c_str(),
-                    stage_text_of(language.observed[SUFFIX_KINKADE]).c_str(),
-                    stage_text_of(language.sum[SUFFIX_KINKADE]).c_str(),
-                    stage_text_of(language.above[SUFFIX_KINKADE]).c_str(),
-                    stage_text_of(language.observed[SUFFIX_TAIL]).c_str(),
-                    stage_text_of(language.sum[SUFFIX_TAIL]).c_str(), stage_text_of(language.above[SUFFIX_TAIL]).c_str(),
-                    stage_text_of(values[at][0]).c_str(), stage_text_of(values[at][1]).c_str());
+            fprintf(
+                out,
+                "language %s suffixes %zu nouns %zu pairs %s identical %s kinkade %s kinkade_sum %s kinkade_above %s "
+                "tail %s tail_sum %s tail_above %s p %s/%s\n",
+                language.name.c_str(), language.suffixes.size(), language.nouns.size(),
+                stage_text_of(language.observed[SUFFIX_PAIRS]).c_str(),
+                stage_text_of(language.observed[SUFFIX_IDENTICAL]).c_str(),
+                stage_text_of(language.observed[SUFFIX_KINKADE]).c_str(),
+                stage_text_of(language.sum[SUFFIX_KINKADE]).c_str(),
+                stage_text_of(language.above[SUFFIX_KINKADE]).c_str(),
+                stage_text_of(language.observed[SUFFIX_TAIL]).c_str(), stage_text_of(language.sum[SUFFIX_TAIL]).c_str(),
+                stage_text_of(language.above[SUFFIX_TAIL]).c_str(), stage_text_of(values[at][0]).c_str(),
+                stage_text_of(values[at][1]).c_str());
         }
         for (unsigned int which = 0u; which < 2u; which += 1u)
         {
@@ -597,35 +601,117 @@ int program_main(int count, char **arguments)
 
     if (ok)
     {
-        printf("%s %4s %5s %5s %7s %9s %5s %9s %5s %9s\n", stage_displayed("language", 18u, 1).c_str(), "LS", "nouns",
-               "pairs", "Kinkade", "null mean", "tail", "null mean", "ident", "p (tail)");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, stage_displayed("language", 18u, 1).c_str());
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_right(output_line, "LS", 4u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_right(output_line, "nouns", 5u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_right(output_line, "pairs", 5u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_right(output_line, "Kinkade", 7u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_right(output_line, "null mean", 9u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_right(output_line, "tail", 5u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_right(output_line, "null mean", 9u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_right(output_line, "ident", 5u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_right(output_line, "p (tail)", 9u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         for (size_t at = 0u; at < languages.size(); at += 1u)
         {
             const SuffixLanguage &language = languages[at];
-            printf("%s %4zu %5zu %5s %7s %9.9s %5s %9.9s %5s %9.9s\n", stage_displayed(language.name, 18u, 1).c_str(),
-                   language.suffixes.size(), language.nouns.size(),
-                   stage_text_of(language.observed[SUFFIX_PAIRS]).c_str(),
-                   stage_text_of(language.observed[SUFFIX_KINKADE]).c_str(), displayed[at * 3u].c_str(),
-                   stage_text_of(language.observed[SUFFIX_TAIL]).c_str(), displayed[at * 3u + 1u].c_str(),
-                   stage_text_of(language.observed[SUFFIX_IDENTICAL]).c_str(), displayed[at * 3u + 2u].c_str());
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, stage_displayed(language.name, 18u, 1).c_str());
+                mmgr_line_put(output_line, " ");
+                mmgr_line_decimal_columns(output_line, language.suffixes.size(), 4u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_decimal_columns(output_line, language.nouns.size(), 5u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_put_right(output_line, stage_text_of(language.observed[SUFFIX_PAIRS]).c_str(), 5u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_put_right(output_line, stage_text_of(language.observed[SUFFIX_KINKADE]).c_str(), 7u);
+                mmgr_line_put(output_line, " ");
+                {
+                    char linea_piece[9u + 1u];
+                    VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                    (void)mmgr_line_put_max(&linea_piece_line, displayed[at * 3u].c_str(), 9u);
+                    (void)mmgr_line_finish(&linea_piece_line);
+                    mmgr_line_put_right(output_line, linea_piece, 9u);
+                }
+                mmgr_line_put(output_line, " ");
+                mmgr_line_put_right(output_line, stage_text_of(language.observed[SUFFIX_TAIL]).c_str(), 5u);
+                mmgr_line_put(output_line, " ");
+                {
+                    char linea_piece[9u + 1u];
+                    VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                    (void)mmgr_line_put_max(&linea_piece_line, displayed[at * 3u + 1u].c_str(), 9u);
+                    (void)mmgr_line_finish(&linea_piece_line);
+                    mmgr_line_put_right(output_line, linea_piece, 9u);
+                }
+                mmgr_line_put(output_line, " ");
+                mmgr_line_put_right(output_line, stage_text_of(language.observed[SUFFIX_IDENTICAL]).c_str(), 5u);
+                mmgr_line_put(output_line, " ");
+                {
+                    char linea_piece[9u + 1u];
+                    VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                    (void)mmgr_line_put_max(&linea_piece_line, displayed[at * 3u + 2u].c_str(), 9u);
+                    (void)mmgr_line_finish(&linea_piece_line);
+                    mmgr_line_put_right(output_line, linea_piece, 9u);
+                }
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
         }
         for (unsigned int which = 0u; which < 2u; which += 1u)
         {
-            printf(
-                "pooled %s: observed %s, null mean %s, null max %s, p %s/%s = %s over %llu shuffles, %s same-meaning "
-                "pairs\n",
-                names[which], stage_text_of(pooled[0][which * runs]).c_str(),
-                displayed[language_count * 3u + which * 2u].c_str(), stage_text_of(left[which][0]).c_str(),
-                stage_text_of(values[language_count + which][0]).c_str(),
-                stage_text_of(values[language_count + which][1]).c_str(),
-                displayed[language_count * 3u + which * 2u + 1u].c_str(), shuffles,
-                stage_text_of(pooled[0][2u * runs]).c_str());
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "pooled ");
+            mmgr_line_put(output_line, names[which]);
+            mmgr_line_put(output_line, ": observed ");
+            mmgr_line_put(output_line, stage_text_of(pooled[0][which * runs]).c_str());
+            mmgr_line_put(output_line, ", null mean ");
+            mmgr_line_put(output_line, displayed[language_count * 3u + which * 2u].c_str());
+            mmgr_line_put(output_line, ", null max ");
+            mmgr_line_put(output_line, stage_text_of(left[which][0]).c_str());
+            mmgr_line_put(output_line, ", p ");
+            mmgr_line_put(output_line, stage_text_of(values[language_count + which][0]).c_str());
+            mmgr_line_put(output_line, "/");
+            mmgr_line_put(output_line, stage_text_of(values[language_count + which][1]).c_str());
+            mmgr_line_put(output_line, " = ");
+            mmgr_line_put(output_line, displayed[language_count * 3u + which * 2u + 1u].c_str());
+            mmgr_line_put(output_line, " over ");
+            mmgr_line_decimal(output_line, shuffles, 1u);
+            mmgr_line_put(output_line, " shuffles, ");
+            mmgr_line_put(output_line, stage_text_of(pooled[0][2u * runs]).c_str());
+            mmgr_line_put(output_line, " same-meaning pairs");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
         for (size_t at = 0u; at < found.size(); at += 1u)
         {
-            printf("   %s\n", found[at].c_str());
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "   ");
+            mmgr_line_put(output_line, found[at].c_str());
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
-        printf("each mean and p is the whole part and first six digits of the exact rational in the records\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(
+                output_line,
+                "each mean and p is the whole part and first six digits of the exact rational in the records");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 
     stage_release(&count_stage);

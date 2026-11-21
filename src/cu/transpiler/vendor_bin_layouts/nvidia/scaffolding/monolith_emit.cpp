@@ -215,13 +215,27 @@ static int emit_passage(const std::vector<EmitLine> &passage, std::string *loade
     const int carried = !loaded->empty() && (*loaded == *stored) && (between == 0u);
     if (carried)
     {
-        printf("    NVIDIA's block: the word loaded into %s is stored from %s with nothing between, the passage\n",
-               loaded->c_str(), stored->c_str());
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    NVIDIA's block: the word loaded into ");
+        mmgr_line_put(output_line, loaded->c_str());
+        mmgr_line_put(output_line, " is stored from ");
+        mmgr_line_put(output_line, stored->c_str());
+        mmgr_line_put(output_line, " with nothing between, the passage");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     else
     {
-        printf("    NVIDIA's block: not the passage, loaded into %s, stored from %s, %u instructions between\n",
-               loaded->empty() ? "nothing" : loaded->c_str(), stored->empty() ? "nothing" : stored->c_str(), between);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    NVIDIA's block: not the passage, loaded into ");
+        mmgr_line_put(output_line, loaded->empty() ? "nothing" : loaded->c_str());
+        mmgr_line_put(output_line, ", stored from ");
+        mmgr_line_put(output_line, stored->empty() ? "nothing" : stored->c_str());
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, between, 1u);
+        mmgr_line_put(output_line, " instructions between");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     return carried;
 }
@@ -548,8 +562,21 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
     {
         line.text = emit_our_text(line.text, machine);
     }
-    printf("block %u: precept %s, %zu instructions between tag %u and tag %u\n", block, s_names[precept],
-           passage.size(), block, block + 1u);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "block ");
+        mmgr_line_decimal(output_line, block, 1u);
+        mmgr_line_put(output_line, ": precept ");
+        mmgr_line_put(output_line, s_names[precept]);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, passage.size(), 1u);
+        mmgr_line_put(output_line, " instructions between tag ");
+        mmgr_line_decimal(output_line, block, 1u);
+        mmgr_line_put(output_line, " and tag ");
+        mmgr_line_decimal(output_line, block + 1u, 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     unsigned int read_same = 0u;
     unsigned int assembled_same = 0u;
@@ -557,7 +584,15 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
     for (const EmitLine &line : passage)
     {
         const std::string address = emit_hex(line.address, 5);
-        printf("  %s  %s\n", address.c_str(), line.text.c_str());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, address.c_str());
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, line.text.c_str());
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         char text[256];
         const int read = sass_encoding_read(machine, line.low, line.high, line.address, text, sizeof(text));
         const std::string ours = read ? emit_plain(text) : std::string();
@@ -569,8 +604,13 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
         const std::string unread = text_known ? "a form matches its text and not its bits" : "no form matches its text";
         const std::string reader = !read ? unread : ((ours == line.text) ? "same" : ours);
         read_same += (read && (ours == line.text)) ? 1u : 0u;
-        printf("         our reader: %s\n",
-               !read ? unread.c_str() : ((ours == line.text) ? "the same text" : ours.c_str()));
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "         our reader: ");
+            mmgr_line_put(output_line, !read ? unread.c_str() : ((ours == line.text) ? "the same text" : ours.c_str()));
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         // A branch's target is the address its text names. The listing prints it bare and our assembler reads a bare
         // number as the immediate itself: it is put to the assembler as a label, `(0x...), which it counts from the
         // instruction after the branch, and the address is given as the label's
@@ -584,7 +624,12 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
         unsigned long long high = 0ULL;
         if (!sass_assemble(machine, put.c_str(), line.address, target, SASS_CONTROL_BASE, &low, &high))
         {
-            printf("         our assembler: refused it\n");
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "         our assembler: refused it");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             // where a form matches the text, its own encoding beside NVIDIA's shows where the operand it cannot place
             // lies against the fields it contains
             const SassForm *const form = sass_machine_form(machine, &parts);
@@ -593,7 +638,10 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
                                            : emit_bits_apart(line.low, line.high, form->low, form->high, "the form ");
             if (!sample.empty())
             {
-                printf("           NVIDIA's against the form's own encoding:\n%s", sample.c_str());
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "           NVIDIA's against the form's own encoding:\n");
+                mmgr_line_put(output_line, sample.c_str());
+                platform_line_out_ended();
             }
             emit_row(block, precept, address, line.text, reader, "refused", "-", "",
                      text_known ? "a form matches its text and places none of an operand"
@@ -618,18 +666,37 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
         }
         assembled_same += (operation || unread_only) ? 1u : 0u;
         control_same += control ? 1u : 0u;
-        printf("         our assembler: operation bits %s, scheduler bits %s\n",
-               operation ? "the same" : (unread_only ? "apart only at bits the part does not read" : "apart"),
-               control ? "the same" : "apart");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "         our assembler: operation bits ");
+            mmgr_line_put(output_line, operation
+                                           ? "the same"
+                                           : (unread_only ? "apart only at bits the part does not read" : "apart"));
+            mmgr_line_put(output_line, ", scheduler bits ");
+            mmgr_line_put(output_line, control ? "the same" : "apart");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         const std::string bits =
             (operation || unread_only) ? std::string() : emit_bits_apart(line.low, line.high, low, high);
         if (!operation)
         {
-            printf("           apart at bit %s\n%s", apart.c_str(), bits.c_str());
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "           apart at bit ");
+            mmgr_line_put(output_line, apart.c_str());
+            mmgr_line_put(output_line, "\n");
+            mmgr_line_put(output_line, bits.c_str());
+            platform_line_out_ended();
         }
         if (!control)
         {
-            printf("           scheduler NVIDIA %06llx, ours %06llx\n", line.high >> 41u, high >> 41u);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "           scheduler NVIDIA ");
+            mmgr_line_hex(output_line, line.high >> 41u, 6u);
+            mmgr_line_put(output_line, ", ours ");
+            mmgr_line_hex(output_line, high >> 41u, 6u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
         const std::string scheduler =
             control ? "same" : ("NVIDIA " + emit_hex(line.high >> 41u, 6) + ", ours " + emit_hex(high >> 41u, 6));
@@ -644,16 +711,31 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
                           : ("apart at bit " + apart);
         emit_row(block, precept, address, line.text, reader, assembled, scheduler, "", difference, bits);
     }
-    printf("  of %zu: our reader gave NVIDIA's text for %u, our assembler NVIDIA's operation bits for %u and its "
-           "scheduler bits for %u\n",
-           passage.size(), read_same, assembled_same, control_same);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  of ");
+        mmgr_line_decimal(output_line, passage.size(), 1u);
+        mmgr_line_put(output_line, ": our reader gave NVIDIA's text for ");
+        mmgr_line_decimal(output_line, read_same, 1u);
+        mmgr_line_put(output_line, ", our assembler NVIDIA's operation bits for ");
+        mmgr_line_decimal(output_line, assembled_same, 1u);
+        mmgr_line_put(output_line, " and its scheduler bits for ");
+        mmgr_line_decimal(output_line, control_same, 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     // NOP is gnascor's passage: gray between fuzz and fizz, the word carried in and carried out as it came, written as
     // no instruction
     if (precept == PRECEPT_NOP)
     {
-        printf("  our compiler: NOP is the passage, gray between fuzz and fizz (gnascor): no instruction, the word "
-               "carried out as it came in\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  our compiler: NOP is the passage, gray between fuzz and fizz (gnascor): no "
+                                       "instruction, the word carried out as it came in");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         std::string loaded;
         std::string stored;
         const int carried = emit_passage(passage, &loaded, &stored);
@@ -667,7 +749,14 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
     // (word_copy, word_web.h) written through sass.krs as an instruction
     if (precept == PRECEPT_MOV)
     {
-        printf("  our compiler, candidate 1, the passage: no instruction, the registers the copy joins made one\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(
+                output_line,
+                "  our compiler, candidate 1, the passage: no instruction, the registers the copy joins made one");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         std::string loaded;
         std::string stored;
         const int carried = emit_passage(passage, &loaded, &stored);
@@ -678,7 +767,13 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
         std::string written;
         if (ruleset_opcode(rules, "word_copy", {to, from}, emit_scratch, written) == 0)
         {
-            printf("  our compiler, candidate 2, the copy word: sass.krs writes no word_copy form\n");
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line,
+                              "  our compiler, candidate 2, the copy word: sass.krs writes no word_copy form");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             emit_row(block, precept, "", "", "", "", "", "candidate 2, word_copy", "sass.krs writes no word_copy form");
             return;
         }
@@ -686,9 +781,16 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
         unsigned long long low = 0ULL;
         unsigned long long high = 0ULL;
         const int assembles = sass_assemble(machine, plain.c_str(), 0ULL, 0ULL, SASS_CONTROL_BASE, &low, &high);
-        printf("  our compiler, candidate 2, the copy word: %s, %s\n", plain.c_str(),
-               assembles ? "which assembles, one instruction where NVIDIA's block contains none"
-                         : "which does not assemble");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  our compiler, candidate 2, the copy word: ");
+            mmgr_line_put(output_line, plain.c_str());
+            mmgr_line_put(output_line, ", ");
+            mmgr_line_put(output_line, assembles ? "which assembles, one instruction where NVIDIA's block contains none"
+                                                 : "which does not assemble");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         emit_row(block, precept, "", "", "", "", "", "candidate 2, word_copy: " + plain,
                  assembles ? "one instruction where NVIDIA's block contains none" : "does not assemble");
         return;
@@ -721,7 +823,13 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
             : trap_written    ? "the trap assembles"
             : trap_known      ? "a form matches the trap and places none of its operand, and it cannot be written yet"
                               : "the machine file contains no form for the trap, and it cannot be written yet";
-        printf("  our compiler, candidate 1, a trap in place: %s\n", trap_reading);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  our compiler, candidate 1, a trap in place: ");
+            mmgr_line_put(output_line, trap_reading);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         emit_row(block, precept, "", "", "", "", "", "candidate 1, a trap in place", trap_reading);
         // the predicate the branch is taken on: NVIDIA's guard with its negation dropped, since the handler is gone to
         // where the flag is set and NVIDIA's branch passes the trap where it is clear
@@ -736,8 +844,14 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
         const int label = branch && ruleset_opcode(rules, "label_error", {"1"}, emit_scratch, written);
         if (!label)
         {
-            printf(
-                "  our compiler, candidate 2, a branch to a handler: sass.krs writes no error or label_error form\n");
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(
+                    output_line,
+                    "  our compiler, candidate 2, a branch to a handler: sass.krs writes no error or label_error form");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             emit_row(block, precept, "", "", "", "", "", "candidate 2, a branch to a handler",
                      "sass.krs writes no error or label_error form");
             return;
@@ -757,11 +871,24 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
                                                                                                       : "(unread)";
             reads += (at + 1u < assembled) ? "; " : "";
         }
-        printf("  our compiler, candidate 2, a branch to a handler, error on %s: %s\n", where.c_str(),
-               (assembled == 0u) ? "does not assemble" : reads.c_str());
-        printf("    against NVIDIA's %s: the branch is taken where the flag is set and lands on the handler, where "
-               "NVIDIA's passes the trap where it is clear\n",
-               (guard == nullptr) ? "block, which contains no branch" : guard->text.c_str());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  our compiler, candidate 2, a branch to a handler, error on ");
+            mmgr_line_put(output_line, where.c_str());
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_put(output_line, (assembled == 0u) ? "does not assemble" : reads.c_str());
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    against NVIDIA's ");
+            mmgr_line_put(output_line, (guard == nullptr) ? "block, which contains no branch" : guard->text.c_str());
+            mmgr_line_put(output_line, ": the branch is taken where the flag is set and lands on the handler, where "
+                                       "NVIDIA's passes the trap where it is clear");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         emit_row(block, precept, "", "", "", "", "", "candidate 2, error on " + where + ": " + reads,
                  (assembled == 0u)
                      ? "does not assemble"
@@ -781,7 +908,13 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
         }
         if (guard == nullptr)
         {
-            printf("  our compiler: loop_back_if, and NVIDIA's block contains no guarded branch\n");
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line,
+                              "  our compiler: loop_back_if, and NVIDIA's block contains no guarded branch");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             emit_row(block, precept, "", "", "", "", "", "loop_back_if", "NVIDIA's block contains no guarded branch");
             return;
         }
@@ -808,9 +941,27 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
         const unsigned long long operation_bits = 0xfffULL;
         const int same_guard = (assembled != 0u) && ((low & guard_bits) == (guard->low & guard_bits));
         const int same_operation = (assembled != 0u) && ((low & operation_bits) == (guard->low & operation_bits));
-        printf("  our compiler, loop_back_if on %s: %s\n", where.c_str(), reads.c_str());
-        printf("    against NVIDIA's %s: the guard %s, the operation %s, the target its own label's\n",
-               guard->text.c_str(), same_guard ? "the same" : "apart", same_operation ? "the same" : "apart");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  our compiler, loop_back_if on ");
+            mmgr_line_put(output_line, where.c_str());
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_put(output_line, reads.c_str());
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    against NVIDIA's ");
+            mmgr_line_put(output_line, guard->text.c_str());
+            mmgr_line_put(output_line, ": the guard ");
+            mmgr_line_put(output_line, same_guard ? "the same" : "apart");
+            mmgr_line_put(output_line, ", the operation ");
+            mmgr_line_put(output_line, same_operation ? "the same" : "apart");
+            mmgr_line_put(output_line, ", the target its own label's");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         emit_row(block, precept, emit_hex(guard->address, 5), guard->text, "", "", "",
                  "loop_back_if on " + where + ": " + reads,
                  (assembled == 0u) ? "does not assemble"
@@ -826,7 +977,15 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
         const std::string tree = emit_alphabet(precept);
         const std::string reading =
             tree.empty() ? "the alphabet web contains no tree for it" : ("the alphabet web writes it " + tree);
-        printf("  our compiler: no word is %s alone; %s\n", s_names[precept], reading.c_str());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  our compiler: no word is ");
+            mmgr_line_put(output_line, s_names[precept]);
+            mmgr_line_put(output_line, " alone; ");
+            mmgr_line_put(output_line, reading.c_str());
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         emit_row(block, precept, "", "", "", "", "", "no word; " + reading, "no word");
         return;
     }
@@ -842,8 +1001,14 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
     }
     if (core == nullptr)
     {
-        printf("  our compiler: %s, and NVIDIA's block contains no instruction past its loads and stores\n",
-               word->name);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  our compiler: ");
+            mmgr_line_put(output_line, word->name);
+            mmgr_line_put(output_line, ", and NVIDIA's block contains no instruction past its loads and stores");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         emit_row(block, precept, "", "", "", "", "", word->name, "NVIDIA's block contains no instruction for it");
         return;
     }
@@ -860,8 +1025,16 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
     }
     if (registers.size() < (size_t)(1u + word->reads))
     {
-        printf("  our compiler: %s, and NVIDIA's %s names too few registers to write it with\n", word->name,
-               core->text.c_str());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  our compiler: ");
+            mmgr_line_put(output_line, word->name);
+            mmgr_line_put(output_line, ", and NVIDIA's ");
+            mmgr_line_put(output_line, core->text.c_str());
+            mmgr_line_put(output_line, " names too few registers to write it with");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         emit_row(block, precept, "", "", "", "", "", word->name, "NVIDIA's instruction names too few registers");
         return;
     }
@@ -882,7 +1055,14 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
         std::string written;
         if (ruleset_opcode(rules, word->name, given, emit_scratch, written) == 0)
         {
-            printf("  our compiler: %s is not written by sass.krs\n", word->name);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  our compiler: ");
+                mmgr_line_put(output_line, word->name);
+                mmgr_line_put(output_line, " is not written by sass.krs");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             emit_row(block, precept, "", "", "", "", "", word->name, "sass.krs writes no form for it");
             return;
         }
@@ -893,10 +1073,29 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
             sass_assemble(machine, plain.c_str(), core->address, 0ULL, SASS_CONTROL_BASE, &low, &high);
         const int same =
             assembles && (low == core->low) && ((high & EMIT_OPERATION_HIGH) == (core->high & EMIT_OPERATION_HIGH));
-        printf("  our compiler, %s with its leaves %s: %s\n", word->name,
-               (order == 0u) ? "in NVIDIA's order" : "swapped", plain.c_str());
-        printf("    against NVIDIA's %s at %05llx: %s\n", core->text.c_str(), core->address,
-               !assembles ? "ours does not assemble" : (same ? "the same operation bits" : "operation bits apart"));
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  our compiler, ");
+            mmgr_line_put(output_line, word->name);
+            mmgr_line_put(output_line, " with its leaves ");
+            mmgr_line_put(output_line, (order == 0u) ? "in NVIDIA's order" : "swapped");
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_put(output_line, plain.c_str());
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    against NVIDIA's ");
+            mmgr_line_put(output_line, core->text.c_str());
+            mmgr_line_put(output_line, " at ");
+            mmgr_line_hex(output_line, core->address, 5u);
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_put(output_line, !assembles ? "ours does not assemble"
+                                                  : (same ? "the same operation bits" : "operation bits apart"));
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         const std::string lacking = emit_lacking(core->text, plain);
         const std::string extra = emit_lacking(plain, core->text);
         std::string difference = !assembles ? "ours does not assemble"
@@ -928,7 +1127,10 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
     }
     if (!recorded_bits.empty())
     {
-        printf("    the closest writing against NVIDIA's, bit by bit:\n%s", recorded_bits.c_str());
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    the closest writing against NVIDIA's, bit by bit:\n");
+        mmgr_line_put(output_line, recorded_bits.c_str());
+        platform_line_out_ended();
     }
     emit_row(block, precept, emit_hex(core->address, 5), core->text, "", "", "", recorded_compiler, recorded_difference,
              recorded_bits);
@@ -1025,7 +1227,15 @@ static int emit_record(const char *path, const char *listing)
                 row.compiler.empty() ? ", our assembler" : (", " + row.compiler).c_str(), row.bits.c_str());
     }
     fclose(file);
-    printf("the record of %zu rows written to %s\n", s_rows.size(), path);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "the record of ");
+        mmgr_line_decimal(output_line, s_rows.size(), 1u);
+        mmgr_line_put(output_line, " rows written to ");
+        mmgr_line_put(output_line, path);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 1;
 }
 
@@ -1069,7 +1279,13 @@ int program_main(int count, char **arguments)
     }
     emit_unread_read(EMIT_UNREAD_PATH, &machine);
     emit_unread_forms_read(EMIT_UNREAD_FORMS_PATH, &machine);
-    printf("%zu fields the part does not read\n", s_unread.size());
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_decimal(output_line, s_unread.size(), 1u);
+        mmgr_line_put(output_line, " fields the part does not read");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     const std::vector<EmitLine> lines = emit_listing(arguments[1]);
     // the kernel's descriptor register, from the line that loads c[0x0][0x118] into a uniform register pair
     for (const EmitLine &line : lines)

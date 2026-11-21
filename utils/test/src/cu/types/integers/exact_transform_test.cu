@@ -26,11 +26,21 @@ static void check(const char *name, int ok)
     if (ok == 0)
     {
         s_failed += 1;
-        printf("  FAIL %s\n", name);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAIL ");
+            mmgr_line_put(output_line, name);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     else
     {
-        printf("  ok   %s\n", name);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ok   ");
+        mmgr_line_put(output_line, name);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
 }
 
@@ -58,7 +68,12 @@ static OriorExactInteger *ladder_value(void)
     OriorExactInteger *const value = (OriorExactInteger *)malloc(sizeof(OriorExactInteger));
     if (value == NULL)
     {
-        printf("  no room for a value at this width\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  no room for a value at this width");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         exit(1);
     }
     orior_exact_zero(value);
@@ -123,9 +138,8 @@ static int ladder_matches(const OriorExactInteger *left, const OriorExactInteger
 }
 
 static double ladder_seconds(OriorExactStatus (*multiply)(const OriorExactInteger *, const OriorExactInteger *,
-                                                           OriorExactInteger *),
-                             const OriorExactInteger *left, const OriorExactInteger *right,
-                             OriorExactInteger *product)
+                                                          OriorExactInteger *),
+                             const OriorExactInteger *left, const OriorExactInteger *right, OriorExactInteger *product)
 {
     unsigned int repeats = 1u;
     for (;;)
@@ -145,7 +159,7 @@ static double ladder_seconds(OriorExactStatus (*multiply)(const OriorExactIntege
 }
 
 static double ladder_divide_seconds(OriorExactStatus (*divide)(const OriorExactInteger *, const OriorExactInteger *,
-                                                                OriorExactInteger *, OriorExactInteger *),
+                                                               OriorExactInteger *, OriorExactInteger *),
                                     const OriorExactInteger *numerator, const OriorExactInteger *divisor,
                                     OriorExactInteger *quotient, OriorExactInteger *remainder)
 {
@@ -170,7 +184,7 @@ static double ladder_divide_seconds(OriorExactStatus (*divide)(const OriorExactI
 static OriorExactInteger *s_long_scratch = NULL;
 
 static OriorExactStatus ladder_long(const OriorExactInteger *left, const OriorExactInteger *right,
-                                     OriorExactInteger *result)
+                                    OriorExactInteger *result)
 {
     (void)s_long_scratch;
     const size_t left_used = ladder_used(left);
@@ -204,9 +218,20 @@ int program_main(int argc, char **argv)
     (void)argv;
     // unbuffered: a long run shows where it is
     setvbuf(stdout, NULL, _IONBF, 0);
-    printf("  exact integer multiplication ladder at %llu bits (%llu limbs; Karatsuba from %u, transform from %u)\n",
-           (unsigned long long)ORIOR_EXACT_BITS, (unsigned long long)ORIOR_EXACT_LIMBS,
-           (unsigned int)ORIOR_EXACT_KARATSUBA_LIMBS, (unsigned int)ORIOR_EXACT_TRANSFORM_LIMBS);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  exact integer multiplication ladder at ");
+        mmgr_line_decimal(output_line, (unsigned long long)ORIOR_EXACT_BITS, 1u);
+        mmgr_line_put(output_line, " bits (");
+        mmgr_line_decimal(output_line, (unsigned long long)ORIOR_EXACT_LIMBS, 1u);
+        mmgr_line_put(output_line, " limbs; Karatsuba from ");
+        mmgr_line_decimal(output_line, (unsigned int)ORIOR_EXACT_KARATSUBA_LIMBS, 1u);
+        mmgr_line_put(output_line, ", transform from ");
+        mmgr_line_decimal(output_line, (unsigned int)ORIOR_EXACT_TRANSFORM_LIMBS, 1u);
+        mmgr_line_put(output_line, ")");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     OriorExactInteger *const left = ladder_value();
     OriorExactInteger *const right = ladder_value();
     OriorExactInteger *const product = ladder_value();
@@ -252,10 +277,10 @@ int program_main(int argc, char **argv)
             ladder_fill(left, left_limbs, (int)(trial == 1u));
             ladder_fill(right, right_limbs, (int)(trial == 1u));
             tried++;
-            ladder_ok += ((orior_exact_multiply(left, right, product) == ORIOR_EXACT_OK) &&
-                          ladder_matches(left, right, product))
-                             ? 1u
-                             : 0u;
+            ladder_ok +=
+                ((orior_exact_multiply(left, right, product) == ORIOR_EXACT_OK) && ladder_matches(left, right, product))
+                    ? 1u
+                    : 0u;
             transform_ok += ((orior_exact_multiply_transform(left, right, product) == ORIOR_EXACT_OK) &&
                              ladder_matches(left, right, product))
                                 ? 1u
@@ -266,12 +291,20 @@ int program_main(int argc, char **argv)
             back = back && (orior_exact_divide_exact(product, left, quotient) == ORIOR_EXACT_OK) &&
                    orior_exact_equal(quotient, right);
             back = back && (orior_exact_gcd(product, right, common) == ORIOR_EXACT_OK) &&
-                   (orior_exact_divide(common, right, quotient, remainder) == ORIOR_EXACT_OK) &&
-                   (remainder->sign == 0);
+                   (orior_exact_divide(common, right, quotient, remainder) == ORIOR_EXACT_OK) && (remainder->sign == 0);
             divided += back ? 1u : 0u;
         }
     }
-    printf("  %u products, operands to %llu limbs\n", tried, (unsigned long long)half);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_decimal(output_line, tried, 1u);
+        mmgr_line_put(output_line, " products, operands to ");
+        mmgr_line_decimal(output_line, (unsigned long long)half, 1u);
+        mmgr_line_put(output_line, " limbs");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     check("the ladder equals long multiplication at every size, balanced and not, edge-shaped and keyed",
           ladder_ok == tried);
     check("the transform alone equals long multiplication at every size", transform_ok == tried);
@@ -313,12 +346,27 @@ int program_main(int argc, char **argv)
             division_ok += passed ? 1u : 0u;
         }
     }
-    printf("  %u divisions, divisors to %llu limbs\n", division_tried, (unsigned long long)half);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_decimal(output_line, division_tried, 1u);
+        mmgr_line_put(output_line, " divisions, divisors to ");
+        mmgr_line_decimal(output_line, (unsigned long long)half, 1u);
+        mmgr_line_put(output_line, " limbs");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     check("Newton's division meets numerator = quotient . divisor + remainder, the remainder below the divisor, and "
           "equals the dispatched division",
           division_ok == division_tried);
 
-    printf("  seconds per product, balanced operands:\n  limbs        long         ladder       transform\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line,
+                      "  seconds per product, balanced operands:\n  limbs        long         ladder       transform");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     for (size_t size = 8u; size <= half; size *= 2u)
     {
         ladder_fill(left, size, 0);
@@ -326,18 +374,46 @@ int program_main(int argc, char **argv)
         const double long_seconds = (size <= 8192u) ? ladder_seconds(ladder_long, left, right, product) : 0.0;
         const double ladder_time = ladder_seconds(orior_exact_multiply, left, right, product);
         const double transform_time = ladder_seconds(orior_exact_multiply_transform, left, right, product);
-        printf("  %7llu  %11.3e  %11.3e  %11.3e\n", (unsigned long long)size, long_seconds, ladder_time,
-               transform_time);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_decimal_columns(output_line, (unsigned long long)size, 7u);
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_exponent(output_line, (double)(long_seconds), 3u, 11u, EMBED_FALSE);
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_exponent(output_line, (double)(ladder_time), 3u, 11u, EMBED_FALSE);
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_exponent(output_line, (double)(transform_time), 3u, 11u, EMBED_FALSE);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 
-    printf("  seconds per division, a 2n-limb numerator by an n-limb divisor:\n  limbs        divide       newton\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(
+            output_line,
+            "  seconds per division, a 2n-limb numerator by an n-limb divisor:\n  limbs        divide       newton");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     for (size_t size = 8u; (2u * size) <= (size_t)ORIOR_EXACT_LIMBS; size *= 2u)
     {
         ladder_fill(left, 2u * size, 0);
         ladder_fill(right, size, 0);
         const double divide_time = ladder_divide_seconds(orior_exact_divide, left, right, quotient, remainder);
         const double newton_time = ladder_divide_seconds(orior_exact_divide_newton, left, right, quotient, remainder);
-        printf("  %7llu  %11.3e  %11.3e\n", (unsigned long long)size, divide_time, newton_time);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_decimal_columns(output_line, (unsigned long long)size, 7u);
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_exponent(output_line, (double)(divide_time), 3u, 11u, EMBED_FALSE);
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_exponent(output_line, (double)(newton_time), 3u, 11u, EMBED_FALSE);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 
     free(newton_quotient);
@@ -349,6 +425,15 @@ int program_main(int argc, char **argv)
     free(quotient);
     free(remainder);
     free(common);
-    printf("  exact transform test: %d checks, %d failed\n", s_checks, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  exact transform test: ");
+        mmgr_line_decimal_signed(output_line, s_checks);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal_signed(output_line, s_failed);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failed == 0) ? 0 : 1;
 }

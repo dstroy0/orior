@@ -142,7 +142,7 @@ static void table_compose(TableResults *results)
     if (ok != 0)
     {
         mmgr_line_put(&results->line,
-                       "  composition: g(f(x)) as two tables, one composed table and the ops all agree\n");
+                      "  composition: g(f(x)) as two tables, one composed table and the ops all agree\n");
     }
     free(values_f);
     free(values_g);
@@ -293,7 +293,8 @@ int program_main(int count, char **arguments)
     mmgr_line_put(&results.line, " checks, ");
     mmgr_line_decimal(&results.line, results.failures, 1u);
     mmgr_line_put(&results.line, " failed\n");
-    (void)(mmgr_line_ok(&results.line) && (fwrite(results.line.out, 1u, mmgr_line_finish(&results.line), stdout) == results.line.at));
+    (void)(mmgr_line_ok(&results.line) &&
+           (platform_line_out_put(results.line.out, mmgr_line_finish(&results.line)) == results.line.at));
     free(results.line.out);
     return (results.failures == 0ull) ? 0 : 1;
 }

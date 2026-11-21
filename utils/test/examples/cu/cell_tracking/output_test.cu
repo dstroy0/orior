@@ -96,6 +96,7 @@
 #endif
 
 #include "divide.h"
+#include "../../../../../src/platform/platform.h"
 #include "faces.h"
 #include "output.h"
 #include "scan.h"
@@ -141,7 +142,13 @@ static void output_test_check(OutputTestResults *results, int passed, const char
     if (passed == 0)
     {
         results->failures += 1u;
-        printf("  FAILED: %s\n", what);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -845,7 +852,14 @@ static int output_test_same(const char *path, const char *expected)
     const int same = (text != NULL) && (strcmp(text, expected) == 0);
     if ((text != NULL) && (same == 0))
     {
-        printf("  %s reads:\n%s  and was to read:\n%s", path, text, expected);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, path);
+        mmgr_line_put(output_line, " reads:\n");
+        mmgr_line_put(output_line, text);
+        mmgr_line_put(output_line, "  and was to read:\n");
+        mmgr_line_put(output_line, expected);
+        platform_line_out_ended();
     }
     free(text);
     return same;
@@ -858,7 +872,7 @@ static long output_test_run(const char *set, char *const *samples, unsigned int 
 {
     const int opened = output_test_open(set, stem, files);
     const OutputRequest request = {set, samples, count, files->files[0], files->files[1], files->files[2]};
-    fflush(stdout);
+    platform_line_flushed();
     const long result = opened ? output_graph_set(&request) : OUTPUT_ERROR;
     fflush(stderr);
     const int closed = output_test_close(files);
@@ -1094,7 +1108,7 @@ static void output_test_complete(OutputTestResults *results, const char *set)
         return;
     }
     const OutputRequest request = {set, samples, 3u, files.files[0], files.files[1], files.files[2]};
-    fflush(stdout);
+    platform_line_flushed();
     const long result = output_graph_set(&request);
     fflush(stderr);
     const int closed = output_test_close(&files);
@@ -1110,7 +1124,12 @@ static void output_test_complete(OutputTestResults *results, const char *set)
                           output_test_same(files.report, expected),
                       "the counts are the hand's: frames, nodes, edges, ends and those outside, starts, and H4");
     char *const displayed = output_test_text(files.report);
-    printf("  the counts the set wrote:\n%s", (displayed != NULL) ? displayed : "  (they did not read)\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the counts the set wrote:\n");
+        mmgr_line_put(output_line, (displayed != NULL) ? displayed : "  (they did not read)\n");
+        platform_line_out_ended();
+    }
     free(displayed);
     free(expected);
 
@@ -1170,7 +1189,12 @@ static void output_test_divided(OutputTestResults *results, const char *set)
                       "the divided counts are the hand's: H4 with each parent counted, and the divisions and moves of"
                       " each .divide");
     char *const displayed = closed_all ? output_test_text(files.report) : NULL;
-    printf("  the counts the divided set wrote:\n%s", (displayed != NULL) ? displayed : "  (they did not read)\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the counts the divided set wrote:\n");
+        mmgr_line_put(output_line, (displayed != NULL) ? displayed : "  (they did not read)\n");
+        platform_line_out_ended();
+    }
     free(displayed);
     free(expected);
 
@@ -1214,7 +1238,12 @@ static void output_test_faced(OutputTestResults *results, const char *set)
                       "the faced counts are the hand's: the ends that leave the view, the starts that enter it, and"
                       " the points of the first and last frames");
     char *const displayed = closed_all ? output_test_text(files.report) : NULL;
-    printf("  the counts the faced set wrote:\n%s", (displayed != NULL) ? displayed : "  (they did not read)\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the counts the faced set wrote:\n");
+        mmgr_line_put(output_line, (displayed != NULL) ? displayed : "  (they did not read)\n");
+        platform_line_out_ended();
+    }
     free(displayed);
 
     const int divided = output_test_chain_divide(set) && output_test_second_divide(set, "second", OUTPUT_DIVIDE_OK);
@@ -1233,7 +1262,12 @@ static void output_test_faced(OutputTestResults *results, const char *set)
                       "the faced and divided counts are the hand's: the ends and starts on the output's links, the"
                       " division's daughter no start");
     char *const text = closed_all ? output_test_text(files.report) : NULL;
-    printf("  the counts the faced and divided set wrote:\n%s", (text != NULL) ? text : "  (they did not read)\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the counts the faced and divided set wrote:\n");
+        mmgr_line_put(output_line, (text != NULL) ? text : "  (they did not read)\n");
+        platform_line_out_ended();
+    }
     free(text);
     free(expected);
     for (unsigned int at = 0u; at < 3u; at += 1u)
@@ -1252,7 +1286,7 @@ static void output_test_errors(OutputTestResults *results, const char *set)
         OutputTestFiles files;
         const int written = output_test_chain(set, (OutputFlaw)flaw) && output_test_open(set, "errored", &files);
         const OutputRequest request = {set, error, 2u, files.files[0], files.files[1], files.files[2]};
-        fflush(stdout);
+        platform_line_flushed();
         const long result = written ? output_graph_set(&request) : 0L;
         fflush(stderr);
         const int closed = written && output_test_close(&files);
@@ -1270,7 +1304,7 @@ static void output_test_errors(OutputTestResults *results, const char *set)
     OutputTestFiles files;
     const int opened = output_test_open(set, "errored", &files);
     const OutputRequest request = {set, error, 2u, files.files[0], files.files[1], files.files[2]};
-    fflush(stdout);
+    platform_line_flushed();
     const long result = opened ? output_graph_set(&request) : 0L;
     fflush(stderr);
     const int closed = opened && output_test_close(&files);
@@ -1429,7 +1463,7 @@ static void output_test_changed(OutputTestResults *results, const char *set, Out
     output_test_rewrite = form;
     output_test_rewritten = 0;
     output_test_between = output_test_rewrite_second;
-    fflush(stdout);
+    platform_line_flushed();
     const long result = written ? output_graph_set(&request) : 0L;
     fflush(stderr);
     output_test_between = NULL;
@@ -1565,8 +1599,19 @@ static void output_test_unwritable(OutputTestResults *results, const char *set)
         const int flushed = fflush(measurement);
         const int error = ferror(measurement);
         const int closed = fclose(measurement);
-        printf("  a file opened for reading, written to: fprintf returned %d, fflush %d, ferror %d, then fclose %d\n",
-               printed, flushed, error, closed);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  a file opened for reading, written to: fprintf returned ");
+            mmgr_line_decimal_signed(output_line, printed);
+            mmgr_line_put(output_line, ", fflush ");
+            mmgr_line_decimal_signed(output_line, flushed);
+            mmgr_line_put(output_line, ", ferror ");
+            mmgr_line_decimal_signed(output_line, error);
+            mmgr_line_put(output_line, ", then fclose ");
+            mmgr_line_decimal_signed(output_line, closed);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     output_test_check(results, measurement != NULL,
                       "a file is opened for reading, and what the C library returns is displayed");
@@ -1585,7 +1630,7 @@ static void output_test_unwritable(OutputTestResults *results, const char *set)
         files.files[which] = written ? fopen(paths[which], "rb") : NULL;
         written = written && (files.files[which] != NULL);
         const OutputRequest request = {set, samples, 3u, files.files[0], files.files[1], files.files[2]};
-        fflush(stdout);
+        platform_line_flushed();
         const long result = written ? output_graph_set(&request) : 0L;
         fflush(stderr);
         const int unwritten = written && (ferror(files.files[which]) != 0);
@@ -1666,7 +1711,7 @@ static void output_test_line_ends(OutputTestResults *results, const char *set)
     output_test_check(results, clean, "no file the test wrote contains a carriage return: every line ends in LF alone");
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     OutputTestResults results = {0u, 0u};
     const char *const set = (count > 1) ? arguments[1] : NULL;
@@ -1682,6 +1727,15 @@ int main(int count, char **arguments)
         output_test_faults(&results, set);
         output_test_line_ends(&results, set);
     }
-    printf("  output test: %u checks, %u failed\n", results.checks, results.failures);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  output test: ");
+        mmgr_line_decimal(output_line, results.checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, results.failures, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (results.failures == 0u) ? 0 : 1;
 }

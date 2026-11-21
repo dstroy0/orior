@@ -5,6 +5,7 @@
 // (query_interface_check.c); here the decision over the read-back words and the width over a sizing register's mask are
 // put their own values
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/query/host_entry.h"
+#include "../../../../../../../src/platform/platform.h"
 
 #include <stdio.h>
 
@@ -17,12 +18,20 @@ static void check_that(int passed, const char *what)
     if (passed == 0)
     {
         s_failed += 1u;
-        printf("  FAILED: %s\n", what);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     // the four types, each from the words a register of that type gives back
     check_that(host_address_classify(HOST_PATTERN_FIRST, HOST_PATTERN_THEN) == HOST_RETAINS,
                "a register that gives back each word it was put retains");
@@ -49,6 +58,15 @@ int main(void)
     check_that(host_width(0xfffffffeu) == 1u, "one low zero bit names a width of one");
     check_that(host_width(0x00000000u) == 32u, "all zero decodes every one of the word's bits");
 
-    printf("  host entry: %u checks, %u failed\n", s_checks, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  host entry: ");
+        mmgr_line_decimal(output_line, s_checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, s_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failed == 0u) ? 0 : 1;
 }

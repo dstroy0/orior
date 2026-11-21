@@ -27,20 +27,52 @@ int sass_run(char *const *command, const char *output_path)
     mmgr_bytes_set(&error, 0, sizeof(error));
     if (interface_probe_run(&probe, &answer, &error) != 0L)
     {
-        printf("  %s: the interface failed, module %d site %u status %d\n", command[0], (int)error.module, error.site,
-               error.status);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, command[0]);
+            mmgr_line_put(output_line, ": the interface failed, module ");
+            mmgr_line_decimal_signed(output_line, (int)error.module);
+            mmgr_line_put(output_line, " site ");
+            mmgr_line_decimal(output_line, error.site, 1u);
+            mmgr_line_put(output_line, " status ");
+            mmgr_line_decimal_signed(output_line, error.status);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return -1;
     }
     if (answer.output_bytes >= (unsigned long long)sizeof(s_sass_output))
     {
-        printf("  %s: %llu bytes of output, more than the %u read\n", command[0], answer.output_bytes,
-               SASS_OUTPUT_CAPACITY);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, command[0]);
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_decimal(output_line, answer.output_bytes, 1u);
+            mmgr_line_put(output_line, " bytes of output, more than the ");
+            mmgr_line_decimal(output_line, SASS_OUTPUT_CAPACITY, 1u);
+            mmgr_line_put(output_line, " read");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return -1;
     }
     if (answer.ending != INTERFACE_ENDING_EXITED)
     {
-        printf("  %s: %s, code %llu, fault %s\n", command[0], interface_ending_name(answer.ending), answer.code,
-               interface_fault_name(answer.fault));
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, command[0]);
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_put(output_line, interface_ending_name(answer.ending));
+            mmgr_line_put(output_line, ", code ");
+            mmgr_line_decimal(output_line, answer.code, 1u);
+            mmgr_line_put(output_line, ", fault ");
+            mmgr_line_put(output_line, interface_fault_name(answer.fault));
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return -1;
     }
     // an exit status the interface read as exited is a process's own, which fits an int
@@ -305,7 +337,14 @@ static int sass_decode_pass(const char *architecture, const char *path, const un
     }
     if (!sass_binary_write(binary, low, high, chosen, count))
     {
-        printf("  %s could not be written\n", binary);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, binary);
+            mmgr_line_put(output_line, " could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return -1;
     }
     char *const command[] = {"nvdisasm", "--binary", (char *)architecture, binary, NULL};
@@ -316,7 +355,16 @@ static int sass_decode_pass(const char *architecture, const char *path, const un
     }
     if (!sass_listing_read(sass_output(), &s_sass_decoded))
     {
-        printf("  %s: more than %u instructions\n", output, SASS_LISTING_LIMIT);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, output);
+            mmgr_line_put(output_line, ": more than ");
+            mmgr_line_decimal(output_line, SASS_LISTING_LIMIT, 1u);
+            mmgr_line_put(output_line, " instructions");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return -1;
     }
     for (unsigned int number = 0u; number < count; number += 1u)
@@ -331,7 +379,18 @@ static int sass_decode_pass(const char *architecture, const char *path, const un
         const SassInstruction *const decoded = &s_sass_decoded.instructions[number];
         if (((decoded->address % 16ULL) != 0ULL) || ((decoded->address / 16ULL) >= (unsigned long long)count))
         {
-            printf("  %s: a line at address 0x%llx, past the %u encodings given\n", output, decoded->address, count);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  ");
+                mmgr_line_put(output_line, output);
+                mmgr_line_put(output_line, ": a line at address 0x");
+                mmgr_line_hex(output_line, decoded->address, 1u);
+                mmgr_line_put(output_line, ", past the ");
+                mmgr_line_decimal(output_line, count, 1u);
+                mmgr_line_put(output_line, " encodings given");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             return -1;
         }
         mmgr_bytes_copy(texts[chosen[decoded->address / 16ULL]], decoded->text, SASS_TEXT);
@@ -382,7 +441,14 @@ int sass_decode(const char *architecture, const char *path, const unsigned long 
     }
     if (named == 0u)
     {
-        printf("  nvdisasm exited %d naming no encoding it refused:\n%s", status, sass_output());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  nvdisasm exited ");
+            mmgr_line_decimal_signed(output_line, status);
+            mmgr_line_put(output_line, " naming no encoding it refused:\n");
+            mmgr_line_put(output_line, sass_output());
+            platform_line_out_ended();
+        }
         return 0;
     }
     unsigned int legal = 0u;

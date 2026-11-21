@@ -24,6 +24,7 @@
 //
 // and whether the machine file's form for the operation records the barrier NVIDIA writes.
 #include "monolith_scheduler/scheduler_internal.h"
+#include "../../../../../platform/platform.h"
 #include "../../../../engine/engine_note.h"
 
 int program_main(int count, char **words)
@@ -63,7 +64,19 @@ int program_main(int count, char **words)
         }
         return 2;
     }
-    printf("monolith scheduler: %u cubins, %llu instructions, %llu no form reads, %u operations\n", s_cubins,
-           s_instructions, s_unread, s_operations);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "monolith scheduler: ");
+        mmgr_line_decimal(output_line, s_cubins, 1u);
+        mmgr_line_put(output_line, " cubins, ");
+        mmgr_line_decimal(output_line, s_instructions, 1u);
+        mmgr_line_put(output_line, " instructions, ");
+        mmgr_line_decimal(output_line, s_unread, 1u);
+        mmgr_line_put(output_line, " no form reads, ");
+        mmgr_line_decimal(output_line, s_operations, 1u);
+        mmgr_line_put(output_line, " operations");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 0;
 }

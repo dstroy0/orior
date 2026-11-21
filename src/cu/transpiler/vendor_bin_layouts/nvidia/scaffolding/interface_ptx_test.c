@@ -6,6 +6,7 @@
 // context unusable; and after each, a fresh process whose device answers. The first argument is interface_ptx_probe's
 // path, the second a folder for the probes' output
 #include "../../../lstar/interface/interface.h"
+#include "../../../../../platform/platform.h"
 #include "../../../../engine/engine_note.h"
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
@@ -31,7 +32,15 @@ static void interface_ptx_check(InterfacePtxTest *test, int passed, const char *
 {
     test->checks += 1u;
     test->failed += passed ? 0u : 1u;
-    printf("  %s %s\n", passed ? "ok  " : "FAIL", what);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, passed ? "ok  " : "FAIL");
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put(output_line, what);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
 // one question queried of the probe in a process of its own, its answer and its output printed whole; 0 where the
@@ -56,14 +65,48 @@ static int interface_ptx_probe(InterfacePtxTest *test, const char *question, Int
     mmgr_bytes_set(&error, 0, sizeof(error));
     if (interface_probe_run(&probe, answer, &error) != 0L)
     {
-        printf("  %s: the interface failed, module %d site %u status %d\n", question, (int)error.module, error.site,
-               error.status);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, question);
+            mmgr_line_put(output_line, ": the interface failed, module ");
+            mmgr_line_decimal_signed(output_line, (int)error.module);
+            mmgr_line_put(output_line, " site ");
+            mmgr_line_decimal(output_line, error.site, 1u);
+            mmgr_line_put(output_line, " status ");
+            mmgr_line_decimal_signed(output_line, error.status);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
-    printf("  %s: %s, code %llu (0x%llx), fault %s, %llu bytes of output, %llu.%06llu s\n", question,
-           interface_ending_name(answer->ending), answer->code, answer->code, interface_fault_name(answer->fault),
-           answer->output_bytes, answer->microseconds / 1000000ULL, answer->microseconds % 1000000ULL);
-    printf("%s", s_interface_ptx_output);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, question);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_put(output_line, interface_ending_name(answer->ending));
+        mmgr_line_put(output_line, ", code ");
+        mmgr_line_decimal(output_line, answer->code, 1u);
+        mmgr_line_put(output_line, " (0x");
+        mmgr_line_hex(output_line, answer->code, 1u);
+        mmgr_line_put(output_line, "), fault ");
+        mmgr_line_put(output_line, interface_fault_name(answer->fault));
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, answer->output_bytes, 1u);
+        mmgr_line_put(output_line, " bytes of output, ");
+        mmgr_line_decimal(output_line, answer->microseconds / 1000000ULL, 1u);
+        mmgr_line_put(output_line, ".");
+        mmgr_line_decimal(output_line, answer->microseconds % 1000000ULL, 6u);
+        mmgr_line_put(output_line, " s");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, s_interface_ptx_output);
+        platform_line_out_ended();
+    }
     return 1;
 }
 
@@ -141,6 +184,15 @@ int program_main(int count, char **arguments)
                         "elect.sync, which PTX gives sm_90 and later, errors in the toolchain for this device");
     interface_ptx_alive(&test, "an instruction the part lacks");
 
-    printf("  interface ptx test: %u checks, %u failed\n", test.checks, test.failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  interface ptx test: ");
+        mmgr_line_decimal(output_line, test.checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, test.failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (test.failed == 0u) ? 0 : 1;
 }

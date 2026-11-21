@@ -63,7 +63,12 @@ static int khw_text_passed(const char *name)
                        (qry_member_append(name, s_text_out, s_text_at, QRY_ORDINARY) != 0);
     if (!passed)
     {
-        printf("  khw_write: %s was not passed to the run's buffer\n", name);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  khw_write: ");
+        mmgr_line_put(output_line, name);
+        mmgr_line_put(output_line, " was not passed to the run's buffer");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     return passed;
 }

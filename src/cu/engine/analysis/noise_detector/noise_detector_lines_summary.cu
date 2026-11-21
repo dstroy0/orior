@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_detector_lines_summary.cu: line and plane noise summarized
 #include "noise_detector_internal.h"
+#include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 static const char *const NOISE_LINE_NAMES[NOISE_LINE_KINDS] = {"row", "column", "plane"};
@@ -44,7 +45,12 @@ static int noise_line_per_mille(const NoiseWide *line_squares, unsigned long lon
 
 static void noise_lines_summary(const char *name, const NoiseLineCell cells[NOISE_LINE_CELLS])
 {
-    printf("  %-24s", name);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, name, 24u);
+        platform_line_out_ended();
+    }
     unsigned long long counted[NOISE_LINE_KINDS];
     for (unsigned int type = 0u; type < NOISE_LINE_KINDS; type += 1u)
     {
@@ -61,16 +67,31 @@ static void noise_lines_summary(const char *name, const NoiseLineCell cells[NOIS
         unsigned long long per_mille = 0ULL;
         if (noise_line_per_mille(&pooled.line_squares, pooled.member_squares, &per_mille))
         {
-            printf(" %9llu", per_mille);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_columns(output_line, per_mille, 9u);
+            platform_line_out_ended();
         }
         else
         {
-            printf(" %9s", "-");
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_right(output_line, "-", 9u);
+            platform_line_out_ended();
         }
     }
-    printf("   lines: %llu, %llu, %llu\n", counted[NOISE_LINE_ROWS], counted[NOISE_LINE_COLUMNS],
-           counted[NOISE_LINE_PLANES]);
-    fflush(stdout);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "   lines: ");
+        mmgr_line_decimal(output_line, counted[NOISE_LINE_ROWS], 1u);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, counted[NOISE_LINE_COLUMNS], 1u);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, counted[NOISE_LINE_PLANES], 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    platform_line_flushed();
 }
 
 // scale times numerator over denominator, signed and rounded toward zero; 0 where the denominator is 0 or the
@@ -143,20 +164,38 @@ static void noise_planes_summary(const NoisePlanePool *pool)
     int valid[NOISE_TWO_WAY_READINGS];
     noise_planes_readings(pool, readings, valid);
     const char *const labels[NOISE_TWO_WAY_READINGS] = {"within each plane: rows", "columns", "plane", "independent"};
-    printf("  %-24s", "");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, "", 24u);
+        platform_line_out_ended();
+    }
     for (unsigned int ratio = 0u; ratio < NOISE_TWO_WAY_READINGS; ratio += 1u)
     {
         if (valid[ratio] != 0)
         {
-            printf(" %s %lld", labels[ratio], readings[ratio]);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put(output_line, labels[ratio]);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_signed(output_line, readings[ratio]);
+            platform_line_out_ended();
         }
         else
         {
-            printf(" %s -", labels[ratio]);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put(output_line, labels[ratio]);
+            mmgr_line_put(output_line, " -");
+            platform_line_out_ended();
         }
     }
-    printf("\n");
-    fflush(stdout);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    platform_line_flushed();
 }
 
 // The static layout's three shared variances against the independent part s, per mille and signed (each 0 where
@@ -233,20 +272,43 @@ static void noise_static_summary(const NoiseStaticPool *still)
     int valid[NOISE_STATIC_READINGS];
     noise_static_readings(still, readings, valid);
     const char *const labels[NOISE_STATIC_READINGS] = {"rows", "columns", "plane", "independent"};
-    printf("  %-24s static, means up to %llu, %llu voxel-frame pairs:", "", still->ceiling, still->members);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, "", 24u);
+        mmgr_line_put(output_line, " static, means up to ");
+        mmgr_line_decimal(output_line, still->ceiling, 1u);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, still->members, 1u);
+        mmgr_line_put(output_line, " voxel-frame pairs:");
+        platform_line_out_ended();
+    }
     for (unsigned int measurement = 0u; measurement < NOISE_STATIC_READINGS; measurement += 1u)
     {
         if (valid[measurement] != 0)
         {
-            printf(" %s %lld", labels[measurement], readings[measurement]);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put(output_line, labels[measurement]);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_signed(output_line, readings[measurement]);
+            platform_line_out_ended();
         }
         else
         {
-            printf(" %s -", labels[measurement]);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put(output_line, labels[measurement]);
+            mmgr_line_put(output_line, " -");
+            platform_line_out_ended();
         }
     }
-    printf("\n");
-    fflush(stdout);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    platform_line_flushed();
 }
 
 static int noise_lines_rows(FILE *table, const char *name, const NoiseLineCell cells[NOISE_LINE_CELLS])
@@ -296,18 +358,53 @@ extern "C" long noise_lines_set(const NoiseSetRequest *request)
                                                     "\trow_squares\tcolumn_squares\tstatic_members\tstatic_sum"
                                                     "\tstatic_squares\tstatic_level\n") > 0,
                                plane_table, error);
-    printf("  lines: each frame difference summed along a row (x), a column (y) and a whole z plane, the sum squared,"
-           " in bins of 8 by the line's mean\n");
-    printf("  the lines' squared sums against their members' squares summed, per mille, means 40 to 199 (independent"
-           " noise gives 1000; an offset shared along the line raises it):\n");
-    printf("  then every plane as a two-way layout, rows by columns: rows 1 + W var_row / s, columns 1 + H var_col / s"
-           " and the plane 1 + N var_plane / s, per mille (1000 where nothing is shared), and s, the independent"
-           " variance of a voxel's frame difference, in lane units squared\n");
-    printf("  then the static voxels alone (the dimmest quarter by mean of those that change, never touch either end"
-           " of the lane, and have a mean square frame difference within 4 times their mean plus 32) as an unbalanced"
-           " layout: var_row, var_col and var_plane against s, per mille (0 where nothing is shared), and s in"
-           " thousandths of a lane unit squared\n");
-    printf("  %-24s %9s %9s %9s\n", "", "rows", "columns", "planes");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  lines: each frame difference summed along a row (x), a column (y) and a whole z "
+                                   "plane, the sum squared, in bins of 8 by the line's mean");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line,
+                      "  the lines' squared sums against their members' squares summed, per mille, means 40 to 199 "
+                      "(independent noise gives 1000; an offset shared along the line raises it):");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line,
+                      "  then every plane as a two-way layout, rows by columns: rows 1 + W var_row / s, columns 1 + H "
+                      "var_col / s and the plane 1 + N var_plane / s, per mille (1000 where nothing is shared), and s, "
+                      "the independent variance of a voxel's frame difference, in lane units squared");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line,
+                      "  then the static voxels alone (the dimmest quarter by mean of those that change, never touch "
+                      "either end of the lane, and have a mean square frame difference within 4 times their mean plus "
+                      "32) as an unbalanced layout: var_row, var_col and var_plane against s, per mille (0 where "
+                      "nothing is shared), and s in thousandths of a lane unit squared");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_columns(output_line, "", 24u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "rows", 9u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "columns", 9u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "planes", 9u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     NoiseLineCell *const cells = (NoiseLineCell *)malloc((size_t)NOISE_LINE_CELLS * sizeof(NoiseLineCell));
     ok = ok && NOISE_DETECTOR_CHECK(cells != NULL, &cells, error, ENGINE_ERROR_RESOURCE);
     // four exact integers, stored apart from the stack
@@ -345,8 +442,17 @@ extern "C" long noise_lines_set(const NoiseSetRequest *request)
     }
     if (ok != 0)
     {
-        printf("  lines: %u samples in %llu ms; every sum is in %s, and every plane's in %s\n", request->count,
-               (engine_clock_microseconds() - began) / 1000ULL, path, plane_path);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  lines: ");
+        mmgr_line_decimal(output_line, request->count, 1u);
+        mmgr_line_put(output_line, " samples in ");
+        mmgr_line_decimal(output_line, (engine_clock_microseconds() - began) / 1000ULL, 1u);
+        mmgr_line_put(output_line, " ms; every sum is in ");
+        mmgr_line_put(output_line, path);
+        mmgr_line_put(output_line, ", and every plane's in ");
+        mmgr_line_put(output_line, plane_path);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     return (ok != 0) ? 0L : NOISE_DETECTOR_ERROR;
 }

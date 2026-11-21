@@ -88,7 +88,14 @@ unsigned long long cubin_pattern_read(const char *path, unsigned char *pattern, 
     FILE *const file = fopen(path, "rb");
     if (file == NULL)
     {
-        printf("  cubin_write: %s could not be read\n", path);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  cubin_write: ");
+            mmgr_line_put(output_line, path);
+            mmgr_line_put(output_line, " could not be read");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0ULL;
     }
     unsigned long long size = 0ULL;
@@ -128,7 +135,14 @@ unsigned long long cubin_pattern_read(const char *path, unsigned char *pattern, 
     fclose(file);
     if (!fits || (size == 0ULL) || (kernel[0] == '\0'))
     {
-        printf("  cubin_write: %s contains no container the system accepted that reads and fits\n", path);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  cubin_write: ");
+            mmgr_line_put(output_line, path);
+            mmgr_line_put(output_line, " contains no container the system accepted that reads and fits");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0ULL;
     }
     return size;

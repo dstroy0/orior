@@ -111,7 +111,14 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
     work.machine = machine_path;
     if (work.sass == NULL)
     {
-        printf("orior_klq_identity pair: the ruleset %s names is not read\n", IDENTITY_RULESET);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity pair: the ruleset ");
+            mmgr_line_put(output_line, IDENTITY_RULESET);
+            mmgr_line_put(output_line, " names is not read");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     carriers_read(engine, work.host, &work.carriers);
@@ -132,7 +139,13 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
     std::string trace_error;
     if (!query_trace_read(query_trace_path(), &s_query_trace, &trace_error))
     {
-        printf("orior_klq_identity pair: %s\n", trace_error.c_str());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity pair: ");
+            mmgr_line_put(output_line, trace_error.c_str());
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         run_channel_close();
         return 1;
     }
@@ -319,7 +332,16 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
     // passed are answered together. The rounds loop while a pair is left to put, and end once every pair is put
     unsigned int round = 0u;
     size_t left = pairs.size() - settled;
-    printf("orior_klq_identity pair: %zu pairs settled on the record, %zu gray in the queue\n", settled, left);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "orior_klq_identity pair: ");
+        mmgr_line_decimal(output_line, settled, 1u);
+        mmgr_line_put(output_line, " pairs settled on the record, ");
+        mmgr_line_decimal(output_line, left, 1u);
+        mmgr_line_put(output_line, " gray in the queue");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     while (left != 0u)
     {
         const std::chrono::steady_clock::time_point round_began = std::chrono::steady_clock::now();
@@ -347,12 +369,29 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
         queries_answered(carried);
         left = (size_t)std::count_if(pairs.begin(), pairs.end(), [](const PairPut &pair) { return !pair.put_whole; });
         const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - round_began).count();
-        printf("orior_klq_identity round %u: %u pairs queried, %llu queries passed, %llu answered from what was "
-               "recorded, %llu "
-               "processes, %zu of %zu pairs put, %.1f seconds\n",
-               round, in_flight, s_round_passed - passed_before, s_round_recalled - recalled_before,
-               s_round_processes - processes_before, pairs.size() - left, pairs.size(), seconds);
-        fflush(stdout);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity round ");
+            mmgr_line_decimal(output_line, round, 1u);
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_decimal(output_line, in_flight, 1u);
+            mmgr_line_put(output_line, " pairs queried, ");
+            mmgr_line_decimal(output_line, s_round_passed - passed_before, 1u);
+            mmgr_line_put(output_line, " queries passed, ");
+            mmgr_line_decimal(output_line, s_round_recalled - recalled_before, 1u);
+            mmgr_line_put(output_line, " answered from what was recorded, ");
+            mmgr_line_decimal(output_line, s_round_processes - processes_before, 1u);
+            mmgr_line_put(output_line, " processes, ");
+            mmgr_line_decimal(output_line, pairs.size() - left, 1u);
+            mmgr_line_put(output_line, " of ");
+            mmgr_line_decimal(output_line, pairs.size(), 1u);
+            mmgr_line_put(output_line, " pairs put, ");
+            mmgr_line_fixed(output_line, (double)(seconds), 1u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, " seconds");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        platform_line_flushed();
     }
     for (std::thread &thread : threads)
     {
@@ -378,7 +417,17 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
         open += ((pair.verdict.rfind("open ", 0u) == 0u) && (pair.verdict != "open 0")) ? 1u : 0u;
         closed += (pair.verdict.rfind("closed ", 0u) == 0u) ? 1u : 0u;
         unqueried += (pair.verdict == "open 0") ? 1u : 0u;
-        printf("  %s %s: %s\n", pair.first.c_str(), pair.second.c_str(), pair.verdict.c_str());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, pair.first.c_str());
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put(output_line, pair.second.c_str());
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_put(output_line, pair.verdict.c_str());
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         written.push_back(pair.verdict);
     }
     run_channel_close();
@@ -389,15 +438,45 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
     }
     if (!run_closed(&file))
     {
-        printf("orior_klq_identity pair: %s could not be written\n", klq);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity pair: ");
+            mmgr_line_put(output_line, klq);
+            mmgr_line_put(output_line, " could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
-    printf("orior_klq_identity pair: %llu queries, %u open, %u closed, %u not queried, written to %s\n", work.queries,
-           open, closed, unqueried, klq);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "orior_klq_identity pair: ");
+        mmgr_line_decimal(output_line, work.queries, 1u);
+        mmgr_line_put(output_line, " queries, ");
+        mmgr_line_decimal(output_line, open, 1u);
+        mmgr_line_put(output_line, " open, ");
+        mmgr_line_decimal(output_line, closed, 1u);
+        mmgr_line_put(output_line, " closed, ");
+        mmgr_line_decimal(output_line, unqueried, 1u);
+        mmgr_line_put(output_line, " not queried, written to ");
+        mmgr_line_put(output_line, klq);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     // the lessons stored, those carried in and those taught, passed to the run for the next run to carry
     overseer_lessons_passed(qry_member_run());
-    printf("orior_klq_identity pair: %u conferences called by refusals, %u lessons taught, %u carried in\n",
-           work.conferences, work.lessons_taught, lessons_carried);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "orior_klq_identity pair: ");
+        mmgr_line_decimal(output_line, work.conferences, 1u);
+        mmgr_line_put(output_line, " conferences called by refusals, ");
+        mmgr_line_decimal(output_line, work.lessons_taught, 1u);
+        mmgr_line_put(output_line, " lessons taught, ");
+        mmgr_line_decimal(output_line, lessons_carried, 1u);
+        mmgr_line_put(output_line, " carried in");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     // the path this cycle read off the queries, each pair and its verdict, an open pair the question a further pass
     // takes up, written to the query record with every query it contained and every query this cycle put once R is
     // written back
@@ -425,7 +504,15 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
         kqr_path_add(&s_query_record, &s_path);
         pair_row_passed(pair.first, pair.second, s_path.read, s_path.reads, pair.verdict);
     }
-    printf("orior_klq_identity pair: %u queries stored in the query record, %u of them put this cycle\n",
-           s_query_record.query_count, s_query_record.query_count - recorded_before);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "orior_klq_identity pair: ");
+        mmgr_line_decimal(output_line, s_query_record.query_count, 1u);
+        mmgr_line_put(output_line, " queries stored in the query record, ");
+        mmgr_line_decimal(output_line, s_query_record.query_count - recorded_before, 1u);
+        mmgr_line_put(output_line, " of them put this cycle");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 0;
 }

@@ -29,6 +29,7 @@
 // that fails is a "results" line the test grades, as before the probe was a job.
 
 #include "../../../../../../src/cu/engine/runtime/device_pool/device_pool.h"
+#include "../../../../../../src/platform/platform.h"
 #include "periodic_energy.h"
 
 #include <stdio.h>
@@ -121,7 +122,11 @@ static void probe_exact(const OriorExactInteger *value)
 {
     if (value->sign == 0)
     {
-        printf("0");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "0");
+            platform_line_out_ended();
+        }
         return;
     }
     unsigned int top = ORIOR_EXACT_LIMBS;
@@ -129,26 +134,51 @@ static void probe_exact(const OriorExactInteger *value)
     {
         top -= 1u;
     }
-    printf("%s%x", (value->sign < 0) ? "-" : "", (unsigned int)value->limb[top - 1u]);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, (value->sign < 0) ? "-" : "");
+        mmgr_line_hex(output_line, (unsigned int)value->limb[top - 1u], 1u);
+        platform_line_out_ended();
+    }
     for (unsigned int limb = top - 1u; limb > 0u; limb -= 1u)
     {
-        printf("%08x", (unsigned int)value->limb[limb - 1u]);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_hex(output_line, (unsigned int)value->limb[limb - 1u], 8u);
+        platform_line_out_ended();
     }
 }
 
 static void probe_ratio(const OriorExactInteger *numerator, const OriorExactInteger *denominator)
 {
     probe_exact(numerator);
-    printf("/");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "/");
+        platform_line_out_ended();
+    }
     probe_exact(denominator);
 }
 
 static void probe_measurement(const char *name, int status, const EnergyMeasurement *measurement, unsigned int places)
 {
-    printf("%s status %d found %d", name, status, (status != 0) ? measurement->found : 0);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, name);
+        mmgr_line_put(output_line, " status ");
+        mmgr_line_decimal_signed(output_line, status);
+        mmgr_line_put(output_line, " found ");
+        mmgr_line_decimal_signed(output_line, (status != 0) ? measurement->found : 0);
+        platform_line_out_ended();
+    }
     if ((status != 0) && (measurement->found != 0))
     {
-        printf(" period %llu ratio ", measurement->period);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, " period ");
+            mmgr_line_decimal(output_line, measurement->period, 1u);
+            mmgr_line_put(output_line, " ratio ");
+            platform_line_out_ended();
+        }
         probe_ratio(&measurement->numerator, &measurement->denominator);
         char text[256];
         VerbaLinea line;
@@ -157,13 +187,27 @@ static void probe_measurement(const char *name, int status, const EnergyMeasurem
         line.at = 0ull;
         energy_print(&line, measurement);
         text[line.at] = '\0';
-        printf(" print %s", text);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, " print ");
+            mmgr_line_put(output_line, text);
+            platform_line_out_ended();
+        }
         line.at = 0ull;
         sim_ratio_print(&line, &measurement->numerator, &measurement->denominator, places);
         text[line.at] = '\0';
-        printf(" places %s", text);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, " places ");
+            mmgr_line_put(output_line, text);
+            platform_line_out_ended();
+        }
     }
-    printf("\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
 static void probe_results(SimResults *results)
@@ -178,7 +222,13 @@ static void probe_results(SimResults *results)
         {
             *end = '\0';
         }
-        printf("results %s\n", at);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "results ");
+            mmgr_line_put(output_line, at);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         if (end == NULL)
         {
             break;
@@ -192,8 +242,21 @@ static void probe_run(SimResults *results, const ProbeRecord *record, const long
                       unsigned long long number)
 {
     const unsigned long long length = record->length;
-    printf("case %llu length %llu reach %llu draws %llu period %llu\n", number, length, record->reach, record->draws,
-           record->period);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "case ");
+        mmgr_line_decimal(output_line, number, 1u);
+        mmgr_line_put(output_line, " length ");
+        mmgr_line_decimal(output_line, length, 1u);
+        mmgr_line_put(output_line, " reach ");
+        mmgr_line_decimal(output_line, record->reach, 1u);
+        mmgr_line_put(output_line, " draws ");
+        mmgr_line_decimal(output_line, record->draws, 1u);
+        mmgr_line_put(output_line, " period ");
+        mmgr_line_decimal(output_line, record->period, 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     const unsigned long long top =
         (length >= 1ull) ? ((record->reach < (length - 1ull)) ? record->reach : (length - 1ull)) : 0ull;
     const unsigned long long phase_count = (top >= 2ull) ? energy_phase_base(top + 1ull) : 1ull;
@@ -205,7 +268,12 @@ static void probe_run(SimResults *results, const ProbeRecord *record, const long
         (unsigned long long *)calloc((size_t)phases, sizeof(unsigned long long));
     if ((sums == NULL) || (shuffled == NULL) || (welford_numerator == NULL) || (welford_denominator == NULL))
     {
-        printf("host memory not allocated\nend\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "host memory not allocated\nend");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         free(sums);
         free(shuffled);
         free(welford_numerator);
@@ -225,16 +293,28 @@ static void probe_run(SimResults *results, const ProbeRecord *record, const long
     {
         OriorExactInteger numerator;
         OriorExactInteger denominator;
-        printf("ratio %llu ", period);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "ratio ");
+            mmgr_line_decimal(output_line, period, 1u);
+            mmgr_line_put(output_line, " ");
+            platform_line_out_ended();
+        }
         if (energy_ratio(values, length, sums, period, &numerator, &denominator) != 0)
         {
             probe_ratio(&numerator, &denominator);
         }
         else
         {
-            printf("none");
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "none");
+            platform_line_out_ended();
         }
-        printf("\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 
     if ((record->has_target != 0u) && (recovered != 0) && (record->period >= 2ull) && (record->period <= top))
@@ -243,9 +323,19 @@ static void probe_run(SimResults *results, const ProbeRecord *record, const long
         OriorExactInteger denominator;
         const int reduced = energy_reduction(values, target, length, record->period,
                                              &sums[energy_phase_base(record->period)], &numerator, &denominator);
-        printf("reduction status %d ", reduced);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "reduction status ");
+            mmgr_line_decimal_signed(output_line, reduced);
+            mmgr_line_put(output_line, " ");
+            platform_line_out_ended();
+        }
         probe_ratio(&numerator, &denominator);
-        printf("\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 
     if ((record->period != 0ull) && (length != 0ull))
@@ -253,24 +343,49 @@ static void probe_run(SimResults *results, const ProbeRecord *record, const long
         (void)cudaGetLastError();
         const int averaged =
             energy_welford(results, values, length, record->period, welford_numerator, welford_denominator);
-        printf("welford status %d", averaged);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "welford status ");
+            mmgr_line_decimal_signed(output_line, averaged);
+            platform_line_out_ended();
+        }
         for (unsigned long long phase = 0ull; (averaged != 0) && (phase < record->period); phase += 1ull)
         {
-            printf(" %lld/%llu", welford_numerator[phase], welford_denominator[phase]);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_signed(output_line, welford_numerator[phase]);
+            mmgr_line_put(output_line, "/");
+            mmgr_line_decimal(output_line, welford_denominator[phase], 1u);
+            platform_line_out_ended();
         }
-        printf("\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         probe_results(results);
     }
 
     if (length != 0ull)
     {
         energy_shuffle(values, shuffled, length, record->key);
-        printf("shuffle");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "shuffle");
+            platform_line_out_ended();
+        }
         for (unsigned long long at = 0ull; at < length; at += 1ull)
         {
-            printf(" %lld", shuffled[at]);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_signed(output_line, shuffled[at]);
+            platform_line_out_ended();
         }
-        printf("\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
 
         EnergyMeasurement band;
         memset(&band, 0, sizeof(band));
@@ -278,39 +393,73 @@ static void probe_run(SimResults *results, const ProbeRecord *record, const long
         (void)cudaGetLastError();
         const int banded = energy_band_top(results, values, length, record->reach, record->draws, record->key, shuffled,
                                            sums, &band, &reached);
-        printf("reached %llu\n", (banded != 0) ? reached : 0ull);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "reached ");
+            mmgr_line_decimal(output_line, (banded != 0) ? reached : 0ull, 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         probe_measurement("band", banded, &band, places);
         probe_results(results);
         if ((recovered != 0) && (banded != 0))
         {
-            printf("above %d\n", energy_above(&live, &band));
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "above ");
+            mmgr_line_decimal_signed(output_line, energy_above(&live, &band));
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
     }
-    printf("end\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "end");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     free(sums);
     free(shuffled);
     free(welford_numerator);
     free(welford_denominator);
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     if (count != 2)
     {
-        printf("usage: periodic_energy_probe <requests file>\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "usage: periodic_energy_probe <requests file>");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     FILE *const file = fopen(arguments[1], "rb");
     if (file == NULL)
     {
-        printf("periodic_energy_probe: %s not opened\n", arguments[1]);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "periodic_energy_probe: ");
+            mmgr_line_put(output_line, arguments[1]);
+            mmgr_line_put(output_line, " not opened");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     const unsigned long long declared = probe_declared(file);
     rewind(file);
     if (declared == 0ull)
     {
-        printf("periodic_energy_probe: a record in %s is malformed\n", arguments[1]);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "periodic_energy_probe: a record in ");
+            mmgr_line_put(output_line, arguments[1]);
+            mmgr_line_put(output_line, " is malformed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         fclose(file);
         return 2;
     }
@@ -341,7 +490,14 @@ int main(int count, char **arguments)
                           (fread(target, sizeof(long long), (size_t)record.length, file) == (size_t)record.length));
         if (!body)
         {
-            printf("periodic_energy_probe: record %llu is malformed\n", number);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "periodic_energy_probe: record ");
+                mmgr_line_decimal(output_line, number, 1u);
+                mmgr_line_put(output_line, " is malformed");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             free(values);
             free(target);
             ok = 0;
@@ -351,10 +507,16 @@ int main(int count, char **arguments)
         free(values);
         free(target);
         number += 1ull;
-        fflush(stdout);
+        platform_line_flushed();
     }
     fclose(file);
-    printf("records %llu\n", number);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "records ");
+        mmgr_line_decimal(output_line, number, 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     const unsigned long long failures = results.failures;
     sim_job_release(&results);
     const int released = results.failures == failures;

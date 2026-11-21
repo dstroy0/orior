@@ -29,8 +29,16 @@ struct LanguageSet
 static void entry_print(const LanguageSet *set, unsigned int at)
 {
     const RulesetCoreEntry *const entry = &set->relations.entries[at];
-    printf("%s:%u %.*s", set->memory.labels[entry->file].c_str(), entry->line, (int)entry->name.length,
-           (const char *)&set->relations.text[entry->name.first]);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, set->memory.labels[entry->file].c_str());
+        mmgr_line_put(output_line, ":");
+        mmgr_line_decimal(output_line, entry->line, 1u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_max(output_line, (const char *)&set->relations.text[entry->name.first],
+                          (size_t)((int)entry->name.length));
+        platform_line_out_ended();
+    }
 }
 
 // relation `relation` of `set` written on a line of its own: its entry, what it states, and what it names
@@ -38,40 +46,75 @@ static void relation_print(const LanguageSet *set, const RulesetSchema *names, c
 {
     const RulesetCoreRelations *const relations = &set->relations;
     const unsigned int type = relation->type;
-    printf(RULESET_CORE_RELATION_OPEN(type)      ? "    open: "
-           : RULESET_CORE_RELATION_VERDICT(type) ? "    "
-                                                 : "    retained: ");
+    mmgr_line_put(platform_line_out(), RULESET_CORE_RELATION_OPEN(type)      ? "    open: "
+                                       : RULESET_CORE_RELATION_VERDICT(type) ? "    "
+                                                                             : "    retained: ");
+    platform_line_out_ended();
     if (type == RULESET_CORE_RELATION_SCHEMA_NOT_GIVEN)
     {
         const RulesetName *const list = (relation->other == 0u)   ? names->forms
                                         : (relation->other == 1u) ? names->banks
                                                                   : names->fixed;
-        printf("%s %s\n", list[relation->entry].text, ruleset_relation_text(type));
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, list[relation->entry].text);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put(output_line, ruleset_relation_text(type));
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return;
     }
     entry_print(set, relation->entry);
-    printf(" %s", ruleset_relation_text(type));
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put(output_line, ruleset_relation_text(type));
+        platform_line_out_ended();
+    }
     if (type == RULESET_CORE_RELATION_PARAMETER_UNWRITTEN)
     {
         const RulesetCoreSpan parameter = ruleset_core_relation_part(
             relations->text, relations->entries[relation->entry].head, (unsigned char)' ', relation->other);
-        printf(" %.*s", (int)parameter.length, (const char *)&relations->text[parameter.first]);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_max(output_line, (const char *)&relations->text[parameter.first],
+                              (size_t)((int)parameter.length));
+            platform_line_out_ended();
+        }
     }
     else if ((type == RULESET_CORE_RELATION_PLACE_UNKNOWN) || (type == RULESET_CORE_RELATION_COUNT_DISAGREES))
     {
-        printf(" %u", relation->other);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal(output_line, relation->other, 1u);
+        platform_line_out_ended();
     }
     else if (type == RULESET_CORE_RELATION_SCHEMA_PARAMETERS)
     {
-        printf(" %s, %u", names->forms[relation->other].text, names->forms[relation->other].parameters);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put(output_line, names->forms[relation->other].text);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, names->forms[relation->other].parameters, 1u);
+        platform_line_out_ended();
     }
     else if ((type != RULESET_CORE_RELATION_NO_TEXT) && (type != RULESET_CORE_RELATION_LINE_NOT_GIVEN) &&
              (type != RULESET_CORE_RELATION_CLASS_NOT_NAMED) && (type != RULESET_CORE_RELATION_SCHEMA_NOT_NAMED))
     {
-        printf(" ");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, " ");
+            platform_line_out_ended();
+        }
         entry_print(set, relation->other);
     }
-    printf("\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
 // the files at `paths` read into `set` and checked against each other, and against `schema` where it is not NULL,
@@ -83,7 +126,14 @@ static int relations_check(const char *label, const std::string *paths, unsigned
     std::string error;
     if (ruleset_relations_read(paths, count, schema, &set->memory, &set->relations, &error) == 0)
     {
-        printf("  %s could not be opened\n", error.c_str());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, error.c_str());
+            mmgr_line_put(output_line, " could not be opened");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         s_failed += 1u;
         return 0;
     }
@@ -101,8 +151,24 @@ static int relations_check(const char *label, const std::string *paths, unsigned
     }
     // a relation past the capacity is counted and not stored, and is read as a verdict
     verdicts += relations->relation_count - relation_count;
-    printf("  %s: %u files, %u entries, %u relations witnessed, %u of them verdicts, %u open\n", label, count,
-           relations->entry_count, relations->relation_count - open, verdicts, open);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, label);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_decimal(output_line, count, 1u);
+        mmgr_line_put(output_line, " files, ");
+        mmgr_line_decimal(output_line, relations->entry_count, 1u);
+        mmgr_line_put(output_line, " entries, ");
+        mmgr_line_decimal(output_line, relations->relation_count - open, 1u);
+        mmgr_line_put(output_line, " relations witnessed, ");
+        mmgr_line_decimal(output_line, verdicts, 1u);
+        mmgr_line_put(output_line, " of them verdicts, ");
+        mmgr_line_decimal(output_line, open, 1u);
+        mmgr_line_put(output_line, " open");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     s_failed += (verdicts != 0u) ? 1u : 0u;
     return 1;
 }
@@ -115,7 +181,15 @@ static int target_check(Target &target, LanguageSet *set)
     s_checks += 1u;
     const Ruleset *const rules = target.ruleset(1);
     s_failed += (rules == NULL) ? 1u : 0u;
-    printf("  %s: %s\n", schema->file, (rules != NULL) ? "read" : "errored");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, schema->file);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_put(output_line, (rules != NULL) ? "read" : "errored");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     std::string paths[RULESET_PATHS_MAX];
     const unsigned int count = ruleset_paths(schema, ruleset_folder() + "/" + schema->file, paths);
     RulesetFlat flat;
@@ -137,10 +211,17 @@ static void open_check(Target &target)
     const int given_written =
         (rules != NULL) ? ruleset_opcode(rules, "word_add", {"R1", "R0", "R7"}, scratch, text) : 0;
     const int structure_written = (rules != NULL) ? ruleset_opcode(rules, "program_note", note, scratch, text) : 0;
-    printf("  sass.krs: a lane through word_div, open, is %s; through word_add, given, is %s; through program_note, "
-           "the lane's structure, is %s\n",
-           (open_written != 0) ? "written" : "refused", (given_written != 0) ? "written" : "refused",
-           (structure_written != 0) ? "written" : "refused");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  sass.krs: a lane through word_div, open, is ");
+        mmgr_line_put(output_line, (open_written != 0) ? "written" : "refused");
+        mmgr_line_put(output_line, "; through word_add, given, is ");
+        mmgr_line_put(output_line, (given_written != 0) ? "written" : "refused");
+        mmgr_line_put(output_line, "; through program_note, the lane's structure, is ");
+        mmgr_line_put(output_line, (structure_written != 0) ? "written" : "refused");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     s_failed += ((open_written != 0) || (given_written == 0) || (structure_written == 0)) ? 1u : 0u;
 }
 
@@ -156,27 +237,61 @@ static void map_check(const char *label, const LanguageSet *from, const Language
     {
         const RulesetCoreRelation *const map = &maps[at];
         open += RULESET_CORE_MAP_OPEN(map->type) ? 1u : 0u;
-        printf(RULESET_CORE_MAP_OPEN(map->type) ? "    open: " : "    ");
+        mmgr_line_put(platform_line_out(), RULESET_CORE_MAP_OPEN(map->type) ? "    open: " : "    ");
+        platform_line_out_ended();
         entry_print(from, map->entry);
-        printf(" %s", ruleset_map_text(map->type));
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put(output_line, ruleset_map_text(map->type));
+            platform_line_out_ended();
+        }
         if ((map->type == RULESET_CORE_MAP_BREAKS) || (map->type == RULESET_CORE_MAP_COLLAPSES))
         {
-            printf(" ");
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, " ");
+                platform_line_out_ended();
+            }
             entry_print(from, map->other);
         }
         else if (map->type == RULESET_CORE_MAP_KIND)
         {
-            printf(" ");
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, " ");
+                platform_line_out_ended();
+            }
             entry_print(to, map->other);
         }
-        printf("\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
-    printf("  %s: %u relations of the map witnessed, %u open\n", label, count - open, open);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, label);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_decimal(output_line, count - open, 1u);
+        mmgr_line_put(output_line, " relations of the map witnessed, ");
+        mmgr_line_decimal(output_line, open, 1u);
+        mmgr_line_put(output_line, " open");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
 int program_main(int argc, char **argv)
 {
-    printf("ruleset read test\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "ruleset read test");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     if (argc > 1)
     {
         std::vector<std::string> paths(argv + 1, argv + argc);
@@ -198,6 +313,15 @@ int program_main(int argc, char **argv)
             map_check("sass.krs to cu.krs", &sets[4], &sets[1]);
         }
     }
-    printf("ruleset read test: %u checks, %u failed\n", s_checks, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "ruleset read test: ");
+        mmgr_line_decimal(output_line, s_checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, s_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failed == 0u) ? 0 : 1;
 }

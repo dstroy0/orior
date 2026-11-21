@@ -15,6 +15,7 @@
 // The kernel's text opens with its section's label, `.text.<kernel>:`, which names the kernel the cubin is written
 // into. The kernel loads the case's first two words into R0 and R7 and stores R7 as the first word of the answer.
 #include "interface_sass_probe_unprinted/unprinted_internal.h"
+#include "../../../../../platform/platform.h"
 #include "../../../../engine/engine_note.h"
 #include "cellularum_laboro/cellularum_linea.h"
 
@@ -119,6 +120,16 @@ int program_main(int count, char **words)
         put += (unprinted_query(&s_questions[number], number + 1u, record) >= 0) ? 1u : 0u;
     }
     fclose(record);
-    printf("interface sass unprinted: %u of %u questions put, the record written to %s\n", put, questions, words[6]);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "interface sass unprinted: ");
+        mmgr_line_decimal(output_line, put, 1u);
+        mmgr_line_put(output_line, " of ");
+        mmgr_line_decimal(output_line, questions, 1u);
+        mmgr_line_put(output_line, " questions put, the record written to ");
+        mmgr_line_put(output_line, words[6]);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (put == questions) ? 0 : 1;
 }

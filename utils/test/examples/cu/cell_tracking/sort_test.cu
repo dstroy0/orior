@@ -25,6 +25,7 @@
 // are built by the restatement here: a change to either format must be made in both. The test prints one path it
 // builds.
 #include "../../../../../src/cu/engine/runtime/device_pool/device_pool.h"
+#include "../../../../../src/platform/platform.h"
 #include "scan.h"
 #include "sim.h"
 #include "sort.h"
@@ -1249,16 +1250,16 @@ static void sort_test_walk(SimResults *results, const char *set)
     request.count = 1u;
     memcpy(request.voxel_pm, voxel_pm, sizeof(voxel_pm));
     request.error = &error;
-    fflush(stdout);
+    platform_line_flushed();
     const long alone = ok ? sort_link_set(&request) : SORT_ERROR;
-    fflush(stdout);
+    platform_line_flushed();
     fflush(stderr);
     sim_check(results, alone == 0L, "the chain alone sorts");
     const unsigned int count = (alone == 0L) ? sort_test_read(set, "chain", ".links", read, 4096u) : SORT_TEST_NONE;
     ok = (count != SORT_TEST_NONE) && sort_test_chain_read(results, read, count);
     request.count = 3u;
     const long all = ok ? sort_link_set(&request) : 0L;
-    fflush(stdout);
+    platform_line_flushed();
     fflush(stderr);
     const unsigned int count_again = sort_test_read(set, "chain", ".links", again, 4096u);
     sim_check(results, all == SORT_ERROR, "a set with an erroring sample errors");
@@ -1755,12 +1756,12 @@ static void sort_test_first_walk(SimResults *results, const char *set)
     request.count = 1u;
     memcpy(request.voxel_pm, voxel_pm, sizeof(voxel_pm));
     request.error = &error;
-    fflush(stdout);
+    platform_line_flushed();
     const long first_pass = ok ? sort_link_set(&request) : SORT_ERROR;
     request.samples = pooled_name;
     request.first = 1u;
     const long second_pass = ok ? sort_link_set(&request) : SORT_ERROR;
-    fflush(stdout);
+    platform_line_flushed();
     fflush(stderr);
     sim_check(results, (first_pass == 0L) && (second_pass == 0L), "the drawn sample sorts plain and with O7");
     const unsigned int plain_count =
@@ -1819,7 +1820,7 @@ static void sort_test_first_walk(SimResults *results, const char *set)
     const int stale = (set != NULL) && (words.words != NULL) && sort_test_file(set, "wide", ".links", &words);
     request.samples = wide_name;
     const long wide = stale ? sort_link_set(&request) : 0L;
-    fflush(stdout);
+    platform_line_flushed();
     fflush(stderr);
     sim_check(results, stale && (wide == SORT_ERROR) && (sort_test_exists(set, "wide", ".links") == 0),
               "with O7 on, a component needing K = 10000000001 errors in the first pass and leaves no .links");

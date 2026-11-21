@@ -1,6 +1,7 @@
 
 // test_adversarial_joint.c: trichotomy and joint symbols
 #include "test_adversarial_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 /**
  * @brief Runs every case and returns how many failed.
@@ -31,7 +32,12 @@
  */
 int adversarial_case_trichotomy(void)
 {
-    printf("  a descent stops, recurses, or errors, and never revisits\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  a descent stops, recurses, or errors, and never revisits");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     uint8_t *const corpus = (uint8_t *)malloc(ADVERSARIAL_CORPUS);
     uint8_t needle[16];
@@ -39,7 +45,12 @@ int adversarial_case_trichotomy(void)
 
     if (corpus == NULL)
     {
-        printf("    allocation failed\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    allocation failed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
 
@@ -51,7 +62,12 @@ int adversarial_case_trichotomy(void)
     uint8_t *const survivors = (uint8_t *)malloc(alignments);
     if (survivors == NULL)
     {
-        printf("    allocation failed\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    allocation failed");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         free(corpus);
         return 1;
     }
@@ -69,58 +85,58 @@ int adversarial_case_trichotomy(void)
 
     errors[0].what = "null offsets";
     errors[0].args = (OriorSteerDescent){.offsets = NULL,
-                                            .count = ORIOR_STEER_ANCHORS,
-                                            .corpus = corpus,
-                                            .corpus_len = ADVERSARIAL_CORPUS,
-                                            .needle = needle,
-                                            .needle_len = sizeof(needle),
-                                            .survivors = survivors,
-                                            .survivors_length = alignments};
+                                         .count = ORIOR_STEER_ANCHORS,
+                                         .corpus = corpus,
+                                         .corpus_len = ADVERSARIAL_CORPUS,
+                                         .needle = needle,
+                                         .needle_len = sizeof(needle),
+                                         .survivors = survivors,
+                                         .survivors_length = alignments};
     errors[1].what = "null corpus";
     errors[1].args = (OriorSteerDescent){.offsets = offsets,
-                                            .count = ORIOR_STEER_ANCHORS,
-                                            .corpus = NULL,
-                                            .corpus_len = ADVERSARIAL_CORPUS,
-                                            .needle = needle,
-                                            .needle_len = sizeof(needle),
-                                            .survivors = survivors,
-                                            .survivors_length = alignments};
+                                         .count = ORIOR_STEER_ANCHORS,
+                                         .corpus = NULL,
+                                         .corpus_len = ADVERSARIAL_CORPUS,
+                                         .needle = needle,
+                                         .needle_len = sizeof(needle),
+                                         .survivors = survivors,
+                                         .survivors_length = alignments};
     errors[2].what = "count over the bound";
     errors[2].args = (OriorSteerDescent){.offsets = offsets,
-                                            .count = ORIOR_STEER_ANCHORS + 1u,
-                                            .corpus = corpus,
-                                            .corpus_len = ADVERSARIAL_CORPUS,
-                                            .needle = needle,
-                                            .needle_len = sizeof(needle),
-                                            .survivors = survivors,
-                                            .survivors_length = alignments};
+                                         .count = ORIOR_STEER_ANCHORS + 1u,
+                                         .corpus = corpus,
+                                         .corpus_len = ADVERSARIAL_CORPUS,
+                                         .needle = needle,
+                                         .needle_len = sizeof(needle),
+                                         .survivors = survivors,
+                                         .survivors_length = alignments};
     errors[3].what = "needle length zero";
     errors[3].args = (OriorSteerDescent){.offsets = offsets,
-                                            .count = ORIOR_STEER_ANCHORS,
-                                            .corpus = corpus,
-                                            .corpus_len = ADVERSARIAL_CORPUS,
-                                            .needle = needle,
-                                            .needle_len = 0u,
-                                            .survivors = survivors,
-                                            .survivors_length = alignments};
+                                         .count = ORIOR_STEER_ANCHORS,
+                                         .corpus = corpus,
+                                         .corpus_len = ADVERSARIAL_CORPUS,
+                                         .needle = needle,
+                                         .needle_len = 0u,
+                                         .survivors = survivors,
+                                         .survivors_length = alignments};
     errors[4].what = "needle longer than corpus";
     errors[4].args = (OriorSteerDescent){.offsets = offsets,
-                                            .count = ORIOR_STEER_ANCHORS,
-                                            .corpus = corpus,
-                                            .corpus_len = 8u,
-                                            .needle = needle,
-                                            .needle_len = sizeof(needle),
-                                            .survivors = survivors,
-                                            .survivors_length = alignments};
+                                         .count = ORIOR_STEER_ANCHORS,
+                                         .corpus = corpus,
+                                         .corpus_len = 8u,
+                                         .needle = needle,
+                                         .needle_len = sizeof(needle),
+                                         .survivors = survivors,
+                                         .survivors_length = alignments};
     errors[5].what = "survivor buffer short by one";
     errors[5].args = (OriorSteerDescent){.offsets = offsets,
-                                            .count = ORIOR_STEER_ANCHORS,
-                                            .corpus = corpus,
-                                            .corpus_len = ADVERSARIAL_CORPUS,
-                                            .needle = needle,
-                                            .needle_len = sizeof(needle),
-                                            .survivors = survivors,
-                                            .survivors_length = alignments - 1u};
+                                         .count = ORIOR_STEER_ANCHORS,
+                                         .corpus = corpus,
+                                         .corpus_len = ADVERSARIAL_CORPUS,
+                                         .needle = needle,
+                                         .needle_len = sizeof(needle),
+                                         .survivors = survivors,
+                                         .survivors_length = alignments - 1u};
 
     for (size_t which = 0u; which < 6u; which += 1u)
     {
@@ -132,14 +148,30 @@ int adversarial_case_trichotomy(void)
         const size_t placed = orior_steer_spawn_coarms(&errors[which].args);
         if (placed != 0u)
         {
-            printf("    %s ran and placed %zu: FAILS\n", errors[which].what, placed);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "    ");
+                mmgr_line_put(output_line, errors[which].what);
+                mmgr_line_put(output_line, " ran and placed ");
+                mmgr_line_decimal(output_line, placed, 1u);
+                mmgr_line_put(output_line, ": FAILS");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             failed += 1;
         }
         for (size_t at = 0u; at < ORIOR_STEER_ANCHORS; at += 1u)
         {
             if (offsets[at] != sentinel)
             {
-                printf("    %s wrote to the caller's buffer: FAILS\n", errors[which].what);
+                {
+                    VerbaLinea *const output_line = platform_line_out();
+                    mmgr_line_put(output_line, "    ");
+                    mmgr_line_put(output_line, errors[which].what);
+                    mmgr_line_put(output_line, " wrote to the caller's buffer: FAILS");
+                    mmgr_line_ch(output_line, '\n');
+                    platform_line_out_ended();
+                }
                 failed += 1;
                 break;
             }
@@ -149,16 +181,21 @@ int adversarial_case_trichotomy(void)
     // A null argument pointer is the seventh error and cannot be expressed in the table above.
     if (orior_steer_spawn_coarms(NULL) != 0u)
     {
-        printf("    a null argument pointer ran: FAILS\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    a null argument pointer ran: FAILS");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed += 1;
     }
 
     // RECURSES, and NEVER REVISITS. A well formed call places distinct offsets. Forcing full depth
     // takes the branch that ignores the destroy test, the recursing branch by construction.
     const size_t forced = ORIOR_STEER_CALL(
-        orior_steer_spawn_coarms, OriorSteerDescent, .offsets = offsets, .count = ORIOR_STEER_ANCHORS,
-        .corpus = corpus, .corpus_len = ADVERSARIAL_CORPUS, .needle = needle, .needle_len = sizeof(needle),
-        .survivors = survivors, .survivors_length = alignments, .sample_stride = 1u, .force_full_depth = 1);
+        orior_steer_spawn_coarms, OriorSteerDescent, .offsets = offsets, .count = ORIOR_STEER_ANCHORS, .corpus = corpus,
+        .corpus_len = ADVERSARIAL_CORPUS, .needle = needle, .needle_len = sizeof(needle), .survivors = survivors,
+        .survivors_length = alignments, .sample_stride = 1u, .force_full_depth = 1);
 
     for (size_t at = 0u; at < forced; at += 1u)
     {
@@ -166,37 +203,69 @@ int adversarial_case_trichotomy(void)
         {
             if (offsets[at] == offsets[seen])
             {
-                printf("    offset %zu placed twice, a state was revisited: FAILS\n", offsets[at]);
+                {
+                    VerbaLinea *const output_line = platform_line_out();
+                    mmgr_line_put(output_line, "    offset ");
+                    mmgr_line_decimal(output_line, offsets[at], 1u);
+                    mmgr_line_put(output_line, " placed twice, a state was revisited: FAILS");
+                    mmgr_line_ch(output_line, '\n');
+                    platform_line_out_ended();
+                }
                 failed += 1;
             }
         }
         if (offsets[at] >= sizeof(needle))
         {
-            printf("    offset %zu lies outside the needle: FAILS\n", offsets[at]);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "    offset ");
+                mmgr_line_decimal(output_line, offsets[at], 1u);
+                mmgr_line_put(output_line, " lies outside the needle: FAILS");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             failed += 1;
         }
     }
 
     // STOPS. Honoring the destroy test can only place fewer, never more.
     const size_t stopped = ORIOR_STEER_CALL(
-        orior_steer_spawn_coarms, OriorSteerDescent, .offsets = offsets, .count = ORIOR_STEER_ANCHORS,
-        .corpus = corpus, .corpus_len = ADVERSARIAL_CORPUS, .needle = needle, .needle_len = sizeof(needle),
-        .survivors = survivors, .survivors_length = alignments, .sample_stride = 1u);
+        orior_steer_spawn_coarms, OriorSteerDescent, .offsets = offsets, .count = ORIOR_STEER_ANCHORS, .corpus = corpus,
+        .corpus_len = ADVERSARIAL_CORPUS, .needle = needle, .needle_len = sizeof(needle), .survivors = survivors,
+        .survivors_length = alignments, .sample_stride = 1u);
 
     if (stopped > forced)
     {
-        printf("    stopping placed more than forcing: FAILS\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    stopping placed more than forcing: FAILS");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed += 1;
     }
     if (forced > ORIOR_STEER_ANCHORS)
     {
-        printf("    forcing exceeded the compile time bound: FAILS\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    forcing exceeded the compile time bound: FAILS");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed += 1;
     }
 
-    printf("    errored 7 malformed questions, recursed to %zu distinct offsets, stopped at %zu,"
-           " verdict %s\n",
-           forced, stopped, (failed == 0) ? "ok" : "FAILS");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    errored 7 malformed questions, recursed to ");
+        mmgr_line_decimal(output_line, forced, 1u);
+        mmgr_line_put(output_line, " distinct offsets, stopped at ");
+        mmgr_line_decimal(output_line, stopped, 1u);
+        mmgr_line_put(output_line, ", verdict ");
+        mmgr_line_put(output_line, (failed == 0) ? "ok" : "FAILS");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     free(survivors);
     free(corpus);
@@ -279,21 +348,21 @@ int adversarial_count_apart(const uint32_t *corpus, size_t corpus_length, const 
                             size_t *count)
 {
     const OriorFieldProjection corpus_side = {.same_in_field = adversarial_same_symbol,
-                                               .field = corpus,
-                                               .length = corpus_length,
-                                               .ranks = corpus_ranks,
-                                               .class_of_position = buffers->class_of_position,
-                                               .members_in_class = buffers->members_in_class,
-                                               .rarity_place_of_class = buffers->rarity_place_of_class,
-                                               .classes_length = buffers->classes_length};
+                                              .field = corpus,
+                                              .length = corpus_length,
+                                              .ranks = corpus_ranks,
+                                              .class_of_position = buffers->class_of_position,
+                                              .members_in_class = buffers->members_in_class,
+                                              .rarity_place_of_class = buffers->rarity_place_of_class,
+                                              .classes_length = buffers->classes_length};
     const OriorFieldProjection needle_side = {.same_in_field = adversarial_same_symbol,
-                                               .field = needle,
-                                               .length = needle_length,
-                                               .ranks = needle_ranks,
-                                               .class_of_position = buffers->class_of_position,
-                                               .members_in_class = buffers->members_in_class,
-                                               .rarity_place_of_class = buffers->rarity_place_of_class,
-                                               .classes_length = buffers->classes_length};
+                                              .field = needle,
+                                              .length = needle_length,
+                                              .ranks = needle_ranks,
+                                              .class_of_position = buffers->class_of_position,
+                                              .members_in_class = buffers->members_in_class,
+                                              .rarity_place_of_class = buffers->rarity_place_of_class,
+                                              .classes_length = buffers->classes_length};
 
     const int corpus_projected = orior_field_project(&corpus_side);
     const int needle_projected = orior_field_project(&needle_side);
@@ -317,16 +386,16 @@ int adversarial_count_together(const uint32_t *corpus, size_t corpus_length, con
 {
     const AdversarialJointSymbols joint = {.corpus = corpus, .corpus_length = corpus_length, .needle = needle};
     const OriorFieldPairProjection both = {.same_in_field = adversarial_same_joint,
-                                            .field = &joint,
-                                            .corpus_length = corpus_length,
-                                            .needle_length = needle_length,
-                                            .corpus_ranks = corpus_ranks,
-                                            .needle_ranks = needle_ranks,
-                                            .class_of_position = buffers->class_of_position,
-                                            .members_in_class = buffers->members_in_class,
-                                            .rarity_place_of_class = buffers->rarity_place_of_class,
-                                            .classes_length = buffers->classes_length,
-                                            .distinct = distinct};
+                                           .field = &joint,
+                                           .corpus_length = corpus_length,
+                                           .needle_length = needle_length,
+                                           .corpus_ranks = corpus_ranks,
+                                           .needle_ranks = needle_ranks,
+                                           .class_of_position = buffers->class_of_position,
+                                           .members_in_class = buffers->members_in_class,
+                                           .rarity_place_of_class = buffers->rarity_place_of_class,
+                                           .classes_length = buffers->classes_length,
+                                           .distinct = distinct};
 
     const int projected = orior_field_pair_project(&both);
 

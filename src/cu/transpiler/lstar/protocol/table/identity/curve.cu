@@ -56,7 +56,14 @@ int identity_curve(const char *engine, const char *answers, const char *ksc, con
     if ((fields.count("stall") == 0u) || (fields.count("rd") == 0u) || (fields.count("ra") == 0u) ||
         (fields.count("rb") == 0u))
     {
-        printf("orior_klq_identity curve: %s gives no stall field or not every register field\n", ksc);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity curve: ");
+            mmgr_line_put(output_line, ksc);
+            mmgr_line_put(output_line, " gives no stall field or not every register field");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     const StallField stall = fields["stall"];
@@ -83,7 +90,14 @@ int identity_curve(const char *engine, const char *answers, const char *ksc, con
         std::vector<Link> links;
         if ((host.count(task) == 0u) || !chain_code_read(engine, task, &code, &links))
         {
-            printf("  %s: no chain of ours the host computes\n", task.c_str());
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  ");
+                mmgr_line_put(output_line, task.c_str());
+                mmgr_line_put(output_line, ": no chain of ours the host computes");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             continue;
         }
         unsigned int named = 0u;
@@ -131,7 +145,16 @@ int identity_curve(const char *engine, const char *answers, const char *ksc, con
             const unsigned long long first = times[(long long)fewest];
             if (!answered)
             {
-                printf("  %s: blocks of %u threads answer alike at no count of registers\n", task.c_str(), threads);
+                {
+                    VerbaLinea *const output_line = platform_line_out();
+                    mmgr_line_put(output_line, "  ");
+                    mmgr_line_put(output_line, task.c_str());
+                    mmgr_line_put(output_line, ": blocks of ");
+                    mmgr_line_decimal(output_line, threads, 1u);
+                    mmgr_line_put(output_line, " threads answer alike at no count of registers");
+                    mmgr_line_ch(output_line, '\n');
+                    platform_line_out_ended();
+                }
                 break;
             }
             // the band of the fewest registers' times, queried again until it sustains CURVE_SUSTAIN queries in a row
@@ -181,8 +204,23 @@ int identity_curve(const char *engine, const char *answers, const char *ksc, con
             };
             const unsigned int truthy =
                 (unsigned int)walk_halved(within_band, (long long)fewest, (long long)highest + 1);
-            printf("  %s, blocks of %u threads: %llu to %llu ns a launch at %u registers, the knee at %u\n",
-                   task.c_str(), threads, band.low, band.high, fewest, truthy);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  ");
+                mmgr_line_put(output_line, task.c_str());
+                mmgr_line_put(output_line, ", blocks of ");
+                mmgr_line_decimal(output_line, threads, 1u);
+                mmgr_line_put(output_line, " threads: ");
+                mmgr_line_decimal(output_line, band.low, 1u);
+                mmgr_line_put(output_line, " to ");
+                mmgr_line_decimal(output_line, band.high, 1u);
+                mmgr_line_put(output_line, " ns a launch at ");
+                mmgr_line_decimal(output_line, fewest, 1u);
+                mmgr_line_put(output_line, " registers, the knee at ");
+                mmgr_line_decimal(output_line, truthy, 1u);
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             char row[128];
             {
                 VerbaLinea buffer_line = mmgr_line_over(row, sizeof(row));
@@ -203,7 +241,18 @@ int identity_curve(const char *engine, const char *answers, const char *ksc, con
         }
         if (soonest_threads != 0u)
         {
-            printf("  %s: soonest in blocks of %u threads, %llu ns a launch\n", task.c_str(), soonest_threads, soonest);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  ");
+                mmgr_line_put(output_line, task.c_str());
+                mmgr_line_put(output_line, ": soonest in blocks of ");
+                mmgr_line_decimal(output_line, soonest_threads, 1u);
+                mmgr_line_put(output_line, " threads, ");
+                mmgr_line_decimal(output_line, soonest, 1u);
+                mmgr_line_put(output_line, " ns a launch");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             char row[128];
             {
                 VerbaLinea buffer_line = mmgr_line_over(row, sizeof(row));
@@ -219,7 +268,14 @@ int identity_curve(const char *engine, const char *answers, const char *ksc, con
     }
     if (!run_closed(&table))
     {
-        printf("orior_klq_identity curve: %s/curve.txt could not be written\n", folder.c_str());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_klq_identity curve: ");
+            mmgr_line_put(output_line, folder.c_str());
+            mmgr_line_put(output_line, "/curve.txt could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         run_channel_close();
         return 1;
     }
@@ -233,11 +289,29 @@ int identity_curve(const char *engine, const char *answers, const char *ksc, con
                      [&](const std::string &row) { return row.find(" " + step + " ") != std::string::npos; });
         if (!ksc_answers_write(ksc, step, own))
         {
-            printf("orior_klq_identity curve: %s could not be written\n", ksc);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "orior_klq_identity curve: ");
+                mmgr_line_put(output_line, ksc);
+                mmgr_line_put(output_line, " could not be written");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             return 1;
         }
     }
-    printf("orior_klq_identity curve: %zu tasks over %llu queries, %zu answers written to %s\n", tasks.size(), queries,
-           rows.size(), ksc);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "orior_klq_identity curve: ");
+        mmgr_line_decimal(output_line, tasks.size(), 1u);
+        mmgr_line_put(output_line, " tasks over ");
+        mmgr_line_decimal(output_line, queries, 1u);
+        mmgr_line_put(output_line, " queries, ");
+        mmgr_line_decimal(output_line, rows.size(), 1u);
+        mmgr_line_put(output_line, " answers written to ");
+        mmgr_line_put(output_line, ksc);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 0;
 }

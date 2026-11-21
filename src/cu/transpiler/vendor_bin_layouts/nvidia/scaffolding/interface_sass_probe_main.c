@@ -7,6 +7,7 @@
 // exit 0 where a form came back on every count, 1 where none did, 2 where the machine file was not read. Given
 // `queries` and a machine file, the questions are compiled and only the queries are put (sass_queries_main)
 #include "interface_sass_probe_main/probe_main_internal.h"
+#include "../../../../../platform/platform.h"
 #include "../../../../engine/engine_note.h"
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
@@ -90,8 +91,18 @@ int program_main(int count, char **arguments)
     {
         probe->failed += sass_fields(probe, &probe->operation[number]) ? 0u : 1u;
     }
-    printf("interface sass probe: %u questions, %u operations, %u failed\n", probe->questions, probe->operations,
-           probe->failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "interface sass probe: ");
+        mmgr_line_decimal(output_line, probe->questions, 1u);
+        mmgr_line_put(output_line, " questions, ");
+        mmgr_line_decimal(output_line, probe->operations, 1u);
+        mmgr_line_put(output_line, " operations, ");
+        mmgr_line_decimal(output_line, probe->failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     // every operation one bit from one the listings gave, queried of the disassembler before the fields are found, so
     // that the widened forms get their operand runs in the same pass
     sass_machine_widen(&s_sass_machine, probe->architecture, probe->folder);
@@ -126,9 +137,24 @@ int program_main(int count, char **arguments)
                                            (differed < 4u) ? 4u : 0u);
         }
     }
-    printf("interface sass assemble: %u written back, %u refused, %u the same bytes, %u read back as the same text, %u "
-           "same to their bytes alone, %u failed\n",
-           tally.checked, tally.refused, tally.same_bits, tally.same_text, tally.by_bytes, differed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "interface sass assemble: ");
+        mmgr_line_decimal(output_line, tally.checked, 1u);
+        mmgr_line_put(output_line, " written back, ");
+        mmgr_line_decimal(output_line, tally.refused, 1u);
+        mmgr_line_put(output_line, " refused, ");
+        mmgr_line_decimal(output_line, tally.same_bits, 1u);
+        mmgr_line_put(output_line, " the same bytes, ");
+        mmgr_line_decimal(output_line, tally.same_text, 1u);
+        mmgr_line_put(output_line, " read back as the same text, ");
+        mmgr_line_decimal(output_line, tally.by_bytes, 1u);
+        mmgr_line_put(output_line, " same to their bytes alone, ");
+        mmgr_line_decimal(output_line, differed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     probe->failed += (differed == 0u) ? 0u : 1u;
     // The resident put through the same check, counted apart. Everything above came from a membership question, and
     // an instruction of one that stops assembling is this assembler breaking. The resident is a whole program the
@@ -144,9 +170,24 @@ int program_main(int count, char **arguments)
         resident_differed =
             sass_machine_check(&s_sass_machine, &s_sass_resident, probe->architecture, probe->folder, &reached, 8u);
     }
-    printf("interface sass resident: %u written back, %u refused, %u the same bytes, %u read back as the same text, %u "
-           "same to their bytes alone, %u the assembler does not reach yet\n",
-           reached.checked, reached.refused, reached.same_bits, reached.same_text, reached.by_bytes, resident_differed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "interface sass resident: ");
+        mmgr_line_decimal(output_line, reached.checked, 1u);
+        mmgr_line_put(output_line, " written back, ");
+        mmgr_line_decimal(output_line, reached.refused, 1u);
+        mmgr_line_put(output_line, " refused, ");
+        mmgr_line_decimal(output_line, reached.same_bits, 1u);
+        mmgr_line_put(output_line, " the same bytes, ");
+        mmgr_line_decimal(output_line, reached.same_text, 1u);
+        mmgr_line_put(output_line, " read back as the same text, ");
+        mmgr_line_decimal(output_line, reached.by_bytes, 1u);
+        mmgr_line_put(output_line, " same to their bytes alone, ");
+        mmgr_line_decimal(output_line, resident_differed, 1u);
+        mmgr_line_put(output_line, " the assembler does not reach yet");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     // A lane of our own put into the resident's cubin: how a SASS program is built. The resident retains the
     // code the part's own compiler gave it and only cycle_lane is replaced: what is checked here is that
     // replacing one function of a cubin leaves the other as it was, byte for byte
@@ -169,22 +210,47 @@ int program_main(int count, char **arguments)
         same += sass_cubin_same(probe, &s_sass_machine, name, &same_count) ? 1u : 0u;
         cubins += 1u;
     }
-    printf("interface sass cubin: %u kernels written again, %u answering as the toolchain's did, %u blocked from the "
-           "part\n",
-           cubins, same, same_count);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "interface sass cubin: ");
+        mmgr_line_decimal(output_line, cubins, 1u);
+        mmgr_line_put(output_line, " kernels written again, ");
+        mmgr_line_decimal(output_line, same, 1u);
+        mmgr_line_put(output_line, " answering as the toolchain's did, ");
+        mmgr_line_decimal(output_line, same_count, 1u);
+        mmgr_line_put(output_line, " blocked from the part");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     probe->failed += ((same + same_count) == cubins) ? 0u : 1u;
     // the interface's own questions, in code no toolchain wrote
     unsigned int queried = 0u;
     const unsigned int answered = sass_cubin_queries(probe, &s_sass_machine, &queried);
-    printf("interface sass query: %u questions queried in the part's own code, %u answered as the question specifies\n",
-           queried, answered);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "interface sass query: ");
+        mmgr_line_decimal(output_line, queried, 1u);
+        mmgr_line_put(output_line, " questions queried in the part's own code, ");
+        mmgr_line_decimal(output_line, answered, 1u);
+        mmgr_line_put(output_line, " answered as the question specifies");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     probe->failed += (answered == queried) ? 0u : 1u;
     // and the questions of preference: which of two codings of one thing the part prefers. A reading
     // that does not come back is not a failure, since nothing yet depends on one
     unsigned int weighed = 0u;
     const unsigned int read = sass_cubin_prefers(probe, &s_sass_machine, &weighed);
-    printf("interface sass prefer: %u codings weighed against each other, %u read in the part's own clock\n", weighed,
-           read);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "interface sass prefer: ");
+        mmgr_line_decimal(output_line, weighed, 1u);
+        mmgr_line_put(output_line, " codings weighed against each other, ");
+        mmgr_line_decimal(output_line, read, 1u);
+        mmgr_line_put(output_line, " read in the part's own clock");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     // How this system was queried and what came back. Written beside the machine this run learned, in the run's own
     // folder, and copied into the tree by a hand the same way the machine is: a test writes nothing into the source
     // tree, and a record of what the part reported is worth reading before it replaces the one already there

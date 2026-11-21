@@ -26,6 +26,7 @@
 //
 // It runs in a query run (qry_run.sh): every record it writes is passed to the run's writer.
 #include "../../../../../../../includes/file_defs/kqr/kqr_record.h"
+#include "../../../../../../../src/platform/platform.h"
 #include "../../../../../../../includes/file_defs/qry/writer/qry_member.h"
 
 #include "../../../../../../../includes/parsers/who.h"
@@ -44,7 +45,13 @@ static void check_that(int passed, const char *what)
     if (passed == 0)
     {
         s_failed += 1u;
-        printf("  FAILED: %s\n", what);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -245,10 +252,27 @@ static void part_checked(const char *part, const char *folder, unsigned int numb
     const int same =
         (again_text != NULL) && (text != NULL) && (again_size == size) && (memcmp(again_text, text, size) == 0);
     check_that(same, "a part's record read back from its records is its text form byte for byte");
-    printf("  %s: %u queries, %u found by their identity, %u samples, %u cycles, %zu bytes of text, %zu as records, "
-           "written back %s\n",
-           part, queries, found, s_record.samples, s_record.cycles, size, numbered_size,
-           same ? "the same" : "DIFFERING");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, part);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_decimal(output_line, queries, 1u);
+        mmgr_line_put(output_line, " queries, ");
+        mmgr_line_decimal(output_line, found, 1u);
+        mmgr_line_put(output_line, " found by their identity, ");
+        mmgr_line_decimal(output_line, s_record.samples, 1u);
+        mmgr_line_put(output_line, " samples, ");
+        mmgr_line_decimal(output_line, s_record.cycles, 1u);
+        mmgr_line_put(output_line, " cycles, ");
+        mmgr_line_decimal(output_line, size, 1u);
+        mmgr_line_put(output_line, " bytes of text, ");
+        mmgr_line_decimal(output_line, numbered_size, 1u);
+        mmgr_line_put(output_line, " as records, written back ");
+        mmgr_line_put(output_line, same ? "the same" : "DIFFERING");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     check_that((queries != 0u) && (found == queries), "every query of a part's record is found by its identity");
     kqr_free(&s_record);
 }
@@ -257,7 +281,12 @@ int program_main(int count, char **words)
 {
     if (count < 2)
     {
-        printf("kqr_check <folder> [<a part's .kqr>]...\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "kqr_check <folder> [<a part's .kqr>]...");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     char path[1024];
@@ -265,7 +294,14 @@ int program_main(int count, char **words)
     snprintf(path, sizeof(path), "%s/kqr_check.kqr", words[1]);
     if (qry_member_filed(path, s_written, strlen(s_written)) == 0ull)
     {
-        printf("  %s could not be written: no run's writer runs, or it is outside the tree\n", path);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, path);
+            mmgr_line_put(output_line, " could not be written: no run's writer runs, or it is outside the tree");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
 
@@ -412,7 +448,11 @@ int program_main(int count, char **words)
                         &(VerbaFinisCfg){.out = s_named_bytes, .cap = sizeof(s_named_bytes), .at = named}) != 0u) &&
                    (strstr(s_named_bytes, "utils/test/src/cu/types/file_defs/kqr/kqr_check.c:") != NULL),
                "a who record named through the who table gives this file and the line of the put");
-    printf("%s", (text != NULL) ? text : "");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, (text != NULL) ? text : "");
+        platform_line_out_ended();
+    }
     kqr_free(&s_record);
 
     const char *const unknown = "kqr part\nquery 00000000000000aa 12 0 0 0 3 00000000000000bb answers\nwhat\n";
@@ -427,6 +467,15 @@ int program_main(int count, char **words)
         part_checked(words[given], words[1], (unsigned int)given);
     }
 
-    printf("kqr_check: %u checks, %u failed\n", s_checks, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "kqr_check: ");
+        mmgr_line_decimal(output_line, s_checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, s_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failed == 0u) ? 0 : 1;
 }

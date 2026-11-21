@@ -84,13 +84,25 @@ int program_main(int count, char **word)
     const int modifiers = (count == 3) && (mmgr_text_equal(word[2], "--modifiers", PLATFORM_TEXT_TO_TERMINATOR));
     if ((count < 2) || (count > 3) || ((count == 3) && !modifiers))
     {
-        printf("orior_sass_listing_seeds <listing.sass> [--modifiers]\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_sass_listing_seeds <listing.sass> [--modifiers]");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     FILE *const listing = fopen(word[1], "rb");
     if (listing == NULL)
     {
-        printf("orior_sass_listing_seeds: %s did not open\n", word[1]);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_sass_listing_seeds: ");
+            mmgr_line_put(output_line, word[1]);
+            mmgr_line_put(output_line, " did not open");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     // each instruction's words come as a pair of `/* 0x<16 hex digits> */`, the low word first
@@ -122,12 +134,22 @@ int program_main(int count, char **word)
     fclose(listing);
     if (!accepted)
     {
-        printf("orior_sass_listing_seeds: no memory for the seeds\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_sass_listing_seeds: no memory for the seeds");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     for (unsigned int at = 0u; at < s_seeds; at += 1u)
     {
-        printf("%016llx %016llx\n", s_seed[at].low, s_seed[at].high);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_hex(output_line, s_seed[at].low, 16u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_hex(output_line, s_seed[at].high, 16u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     free(s_seed);
     return 0;

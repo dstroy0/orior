@@ -8,6 +8,7 @@
 // it must pass and a broken one it must catch. A check that catches nothing looks the same as a check that cannot
 // catch.
 #include "../../../../src/lng/lng.h"
+#include "../../../../src/platform/platform.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,17 +32,39 @@ static void expect(const char *label, const LngList *got, const char *const *wan
         return;
     }
     s_failures += 1u;
-    printf("FAIL %s: got", label);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "FAIL ");
+        mmgr_line_put(output_line, label);
+        mmgr_line_put(output_line, ": got");
+        platform_line_out_ended();
+    }
     for (unsigned int at = 0u; at < got->count; at += 1u)
     {
-        printf(" [%s]", got->text[at]);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, " [");
+        mmgr_line_put(output_line, got->text[at]);
+        mmgr_line_put(output_line, "]");
+        platform_line_out_ended();
     }
-    printf(", wanted");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, ", wanted");
+        platform_line_out_ended();
+    }
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        printf(" [%s]", wanted[at]);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, " [");
+        mmgr_line_put(output_line, wanted[at]);
+        mmgr_line_put(output_line, "]");
+        platform_line_out_ended();
     }
-    printf("\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
 // `got` checked against `wanted`, a failure printed under `label` where they differ
@@ -50,7 +73,17 @@ static void expect_count(const char *label, unsigned int got, unsigned int wante
     if (got != wanted)
     {
         s_failures += 1u;
-        printf("FAIL %s: got %u, wanted %u\n", label, got, wanted);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "FAIL ");
+            mmgr_line_put(output_line, label);
+            mmgr_line_put(output_line, ": got ");
+            mmgr_line_decimal(output_line, got, 1u);
+            mmgr_line_put(output_line, ", wanted ");
+            mmgr_line_decimal(output_line, wanted, 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -839,6 +872,12 @@ int program_main(int argc, char **argv)
     lng_table_free(&matrix);
     lng_table_free(&hol);
     lng_table_free(&table);
-    printf("%u failures\n", s_failures);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_decimal(output_line, s_failures, 1u);
+        mmgr_line_put(output_line, " failures");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failures != 0u) ? 1 : 0;
 }

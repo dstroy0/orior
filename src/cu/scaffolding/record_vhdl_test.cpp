@@ -89,7 +89,15 @@ static void vhdl_check(VhdlResults *results, int passed, const std::string &what
 {
     results->checks += 1u;
     results->failed += passed ? 0u : 1u;
-    printf("  %s %s\n", passed ? "ok  " : "FAIL", what.c_str());
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, passed ? "ok  " : "FAIL");
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put(output_line, what.c_str());
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }
 
 static int vhdl_write(const std::string &path, const std::string &text)
@@ -196,9 +204,16 @@ static void vhdl_try(const VhdlPlace *place, const std::string &text, const Reco
         (status == 0) && record_image_read(records_path, image, &trial->error, trial->records, &trial->clocks);
     if (trial->read == 0)
     {
-        printf("  GHDL did not run the lane (status %d); its log begins:\n", status);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  GHDL did not run the lane (status ");
+            mmgr_line_decimal_signed(output_line, status);
+            mmgr_line_put(output_line, "); its log begins:");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         const std::string show = "head -20 '" + place->work + "/ghdl.log'";
-        fflush(stdout);
+        platform_line_flushed();
         (void)system(show.c_str());
     }
     if (place->synthesis && trial->read)
@@ -220,10 +235,27 @@ static int vhdl_report(VhdlResults *results, const VhdlPlace *place, const std::
                               : " as VHDL writes the host's records word for word"));
     if (place->synthesis && trial->read)
     {
-        printf("  %s, synthesized over %u words: %llu memories inferred, %llu read ports registered, %llu cells, the "
-               "longest path %llu cells; %llu clocks, cost %llu\n",
-               what.c_str(), VHDL_TEST_SYNTHESIS_WORDS, trial->memories, trial->registered, trial->cells, trial->path,
-               trial->clocks, trial->cost);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, what.c_str());
+            mmgr_line_put(output_line, ", synthesized over ");
+            mmgr_line_decimal(output_line, VHDL_TEST_SYNTHESIS_WORDS, 1u);
+            mmgr_line_put(output_line, " words: ");
+            mmgr_line_decimal(output_line, trial->memories, 1u);
+            mmgr_line_put(output_line, " memories inferred, ");
+            mmgr_line_decimal(output_line, trial->registered, 1u);
+            mmgr_line_put(output_line, " read ports registered, ");
+            mmgr_line_decimal(output_line, trial->cells, 1u);
+            mmgr_line_put(output_line, " cells, the longest path ");
+            mmgr_line_decimal(output_line, trial->path, 1u);
+            mmgr_line_put(output_line, " cells; ");
+            mmgr_line_decimal(output_line, trial->clocks, 1u);
+            mmgr_line_put(output_line, " clocks, cost ");
+            mmgr_line_decimal(output_line, trial->cost, 1u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         vhdl_check(results, trial->synthesized, what + " is synthesized by GHDL and Yosys");
     }
     return passed;
@@ -280,8 +312,17 @@ static void vhdl_run(void *context, const HostProgram *program, int reuse, unsig
                                  : std::string();
     if (text.empty())
     {
-        printf("  %s: %u steps, not supported in VHDL (a step the lane does not support, or its ruleset errored)\n",
-               name.c_str(), layout->steps);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, name.c_str());
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_decimal(output_line, layout->steps, 1u);
+            mmgr_line_put(output_line,
+                          " steps, not supported in VHDL (a step the lane does not support, or its ruleset errored)");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         results->unsupported += 1u;
         host_free(&loaded);
         return;
@@ -307,11 +348,30 @@ static void vhdl_run(void *context, const HostProgram *program, int reuse, unsig
         }
         VhdlTrial trial;
         vhdl_try(place, scheduled_text, &image, &trial);
-        printf("  %s: %u steps, %u out limbs, %zu lines of VHDL, %u states, inputs %016llx, records %016llx as VHDL, "
-               "%016llx on the host, %u lanes errored as VHDL\n",
-               what.c_str(), layout->steps, layout->out_limbs,
-               (size_t)std::count(scheduled_text.begin(), scheduled_text.end(), '\n'), report.states, inputs,
-               trial.read ? host_digest(trial.records.data(), record_words) : 0ULL, host_records_digest, trial.error);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, what.c_str());
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_decimal(output_line, layout->steps, 1u);
+            mmgr_line_put(output_line, " steps, ");
+            mmgr_line_decimal(output_line, layout->out_limbs, 1u);
+            mmgr_line_put(output_line, " out limbs, ");
+            mmgr_line_decimal(output_line, (size_t)std::count(scheduled_text.begin(), scheduled_text.end(), '\n'), 1u);
+            mmgr_line_put(output_line, " lines of VHDL, ");
+            mmgr_line_decimal(output_line, report.states, 1u);
+            mmgr_line_put(output_line, " states, inputs ");
+            mmgr_line_hex(output_line, inputs, 16u);
+            mmgr_line_put(output_line, ", records ");
+            mmgr_line_hex(output_line, trial.read ? host_digest(trial.records.data(), record_words) : 0ULL, 16u);
+            mmgr_line_put(output_line, " as VHDL, ");
+            mmgr_line_hex(output_line, host_records_digest, 16u);
+            mmgr_line_put(output_line, " on the host, ");
+            mmgr_line_decimal(output_line, trial.error, 1u);
+            mmgr_line_put(output_line, " lanes errored as VHDL");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         end_costs[end] = vhdl_report(results, place, what, &trial, errors, host_ran, host_records) ? trial.cost : 0ULL;
     }
 
@@ -344,10 +404,22 @@ static void vhdl_run(void *context, const HostProgram *program, int reuse, unsig
         const std::string what = name + ", round " + std::to_string(rounds) + " at budget " + std::to_string(budget);
         VhdlTrial trial;
         vhdl_try(place, scheduled_text, &image, &trial);
-        printf("  %s: %u states (the max cost one chains %u, %u forms alone past the budget), records %016llx as "
-               "VHDL\n",
-               what.c_str(), report.states, report.max, report.over,
-               trial.read ? host_digest(trial.records.data(), record_words) : 0ULL);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, what.c_str());
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_decimal(output_line, report.states, 1u);
+            mmgr_line_put(output_line, " states (the max cost one chains ");
+            mmgr_line_decimal(output_line, report.max, 1u);
+            mmgr_line_put(output_line, ", ");
+            mmgr_line_decimal(output_line, report.over, 1u);
+            mmgr_line_put(output_line, " forms alone past the budget), records ");
+            mmgr_line_hex(output_line, trial.read ? host_digest(trial.records.data(), record_words) : 0ULL, 16u);
+            mmgr_line_put(output_line, " as VHDL");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         const int reported = vhdl_report(results, place, what, &trial, errors, host_ran, host_records);
         if (reported && ((best_budget == 0u) || (trial.cost < best_cost)))
         {
@@ -355,10 +427,23 @@ static void vhdl_run(void *context, const HostProgram *program, int reuse, unsig
             best_budget = budget;
         }
     }
-    printf(
-        "  %s: the refinement loop retained budget %u at cost %llu over %u rounds; split where it must be costs %llu, "
-        "every form alone %llu\n",
-        name.c_str(), best_budget, best_cost, rounds, end_costs[0], end_costs[1]);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, name.c_str());
+        mmgr_line_put(output_line, ": the refinement loop retained budget ");
+        mmgr_line_decimal(output_line, best_budget, 1u);
+        mmgr_line_put(output_line, " at cost ");
+        mmgr_line_decimal(output_line, best_cost, 1u);
+        mmgr_line_put(output_line, " over ");
+        mmgr_line_decimal(output_line, rounds, 1u);
+        mmgr_line_put(output_line, " rounds; split where it must be costs ");
+        mmgr_line_decimal(output_line, end_costs[0], 1u);
+        mmgr_line_put(output_line, ", every form alone ");
+        mmgr_line_decimal(output_line, end_costs[1], 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     host_free(&loaded);
 }
 
@@ -393,13 +478,33 @@ int program_main(int argc, char **argv)
     place.work = argv[1];
     place.bench = argv[2];
     VhdlResults results = {0u, 0u, 0u};
-    printf("  record vhdl test: %u lanes a program, ORIOR_EXACT_LIMBS %u, %s\n", HOST_TEST_LANES,
-           (unsigned int)ORIOR_EXACT_LIMBS,
-           place.constructed ? ("a construction set of " + std::to_string(place.costs.size()) + " forms").c_str()
-                             : "no construction set");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  record vhdl test: ");
+        mmgr_line_decimal(output_line, HOST_TEST_LANES, 1u);
+        mmgr_line_put(output_line, " lanes a program, ORIOR_EXACT_LIMBS ");
+        mmgr_line_decimal(output_line, (unsigned int)ORIOR_EXACT_LIMBS, 1u);
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_put(output_line,
+                      place.constructed
+                          ? ("a construction set of " + std::to_string(place.costs.size()) + " forms").c_str()
+                          : "no construction set");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     VhdlRun run = {&results, &place};
     record_image_programs(&run, vhdl_run);
-    printf("  record vhdl test: %u checks, %u failed, %u programs not supported in VHDL\n", results.checks,
-           results.failed, results.unsupported);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  record vhdl test: ");
+        mmgr_line_decimal(output_line, results.checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, results.failed, 1u);
+        mmgr_line_put(output_line, " failed, ");
+        mmgr_line_decimal(output_line, results.unsupported, 1u);
+        mmgr_line_put(output_line, " programs not supported in VHDL");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (results.failed == 0u) ? 0 : 1;
 }

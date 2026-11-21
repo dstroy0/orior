@@ -158,8 +158,19 @@ unsigned int sass_machine_check(const SassMachine *machine, const SassListing *l
                 differed += same_bits ? 0u : 1u;
                 if (!same_bits && (differed <= report))
                 {
-                    printf("  check: %s\n    assembled 0x%016llx 0x%016llx\n    listed    0x%016llx 0x%016llx\n",
-                           instruction->text, low, high, instruction->low, instruction->high);
+                    VerbaLinea *const output_line = platform_line_out();
+                    mmgr_line_put(output_line, "  check: ");
+                    mmgr_line_put(output_line, instruction->text);
+                    mmgr_line_put(output_line, "\n    assembled 0x");
+                    mmgr_line_hex(output_line, low, 16u);
+                    mmgr_line_put(output_line, " 0x");
+                    mmgr_line_hex(output_line, high, 16u);
+                    mmgr_line_put(output_line, "\n    listed    0x");
+                    mmgr_line_hex(output_line, instruction->low, 16u);
+                    mmgr_line_put(output_line, " 0x");
+                    mmgr_line_hex(output_line, instruction->high, 16u);
+                    mmgr_line_ch(output_line, '\n');
+                    platform_line_out_ended();
                 }
                 continue;
             }
@@ -198,7 +209,13 @@ unsigned int sass_machine_check(const SassMachine *machine, const SassListing *l
                 differed += same ? 0u : 1u;
                 if (!same && (differed <= report))
                 {
-                    printf("  check: queried %s\n         read  %s\n", query_text, read);
+                    VerbaLinea *const output_line = platform_line_out();
+                    mmgr_line_put(output_line, "  check: queried ");
+                    mmgr_line_put(output_line, query_text);
+                    mmgr_line_put(output_line, "\n         read  ");
+                    mmgr_line_put(output_line, read);
+                    mmgr_line_ch(output_line, '\n');
+                    platform_line_out_ended();
                 }
             }
             filled = 0u;

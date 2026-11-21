@@ -120,7 +120,12 @@ int program_main(int count, char **word)
 {
     if (count != 6)
     {
-        printf("orior_gsm_write <part> <path.khw> <layout> <mnemonics> <machine writer>\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "orior_gsm_write <part> <path.khw> <layout> <mnemonics> <machine writer>");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     const char *const part = word[1];
@@ -128,7 +133,14 @@ int program_main(int count, char **word)
     QryShared *const run = qry_member_run();
     if (run == NULL)
     {
-        printf("  orior_gsm_write: no query writer runs: %s names no .qry a writer has open\n", QRY_ENVIRONMENT);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  orior_gsm_write: no query writer runs: ");
+            mmgr_line_put(output_line, QRY_ENVIRONMENT);
+            mmgr_line_put(output_line, " names no .qry a writer has open");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     // the forms the vendor's writer passes, distinguished from any passed before them by their sequence
@@ -146,7 +158,13 @@ int program_main(int count, char **word)
     }
     if (!qry_member_blob(GSM_FORMS_NAME, &bytes, &size, &sequence) || (sequence <= before))
     {
-        printf("  orior_gsm_write: the vendor's writer passed the run's buffer no %s\n", GSM_FORMS_NAME);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  orior_gsm_write: the vendor's writer passed the run's buffer no ");
+            mmgr_line_put(output_line, GSM_FORMS_NAME);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     const unsigned int forms = gsm_relations_read(bytes, size);
@@ -200,10 +218,28 @@ int program_main(int count, char **word)
     }
     if (!verba_finis.ok(&(VerbaFinisCfg){.cap = room, .at = out}) || !qry_member_filed(path, s_out_bytes, out))
     {
-        printf("  orior_gsm_write: %s could not be written\n", path);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  orior_gsm_write: ");
+            mmgr_line_put(output_line, path);
+            mmgr_line_put(output_line, " could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
-    printf("  orior_gsm_write: %u relations the %u forms answered, %u cases, written to %s\n", relations, forms, cases,
-           path);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  orior_gsm_write: ");
+        mmgr_line_decimal(output_line, relations, 1u);
+        mmgr_line_put(output_line, " relations the ");
+        mmgr_line_decimal(output_line, forms, 1u);
+        mmgr_line_put(output_line, " forms answered, ");
+        mmgr_line_decimal(output_line, cases, 1u);
+        mmgr_line_put(output_line, " cases, written to ");
+        mmgr_line_put(output_line, path);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 0;
 }

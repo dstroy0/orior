@@ -21,6 +21,7 @@
 // later pass reads back against the form's runs. The kernel opens with its section's label, loads the case into
 // registers and stores the answer's first word from R7.
 #include "interface_sass_probe_fields/fields_internal.h"
+#include "../../../../../platform/platform.h"
 #include "../../../../engine/engine_note.h"
 #include "cellularum_laboro/cellularum_linea.h"
 
@@ -113,7 +114,14 @@ int program_main(int count, char **words)
         char observe[64];
         if (!fields_redirect(walk, redirected, sizeof(redirected), observe, sizeof(observe)))
         {
-            printf("skip %s: could not be redirected\n", walk);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "skip ");
+                mmgr_line_put(output_line, walk);
+                mmgr_line_put(output_line, ": could not be redirected");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             continue;
         }
         char lines[2048];
@@ -129,7 +137,14 @@ int program_main(int count, char **words)
         const unsigned int place = alone ? fields_find(s_code, assembled, low, high) : assembled;
         if (place == assembled)
         {
-            printf("skip %s: did not assemble or was not found once\n", walk);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "skip ");
+                mmgr_line_put(output_line, walk);
+                mmgr_line_put(output_line, ": did not assemble or was not found once");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             continue;
         }
         // the kernel as it will run, each instruction read back through the machine file, for every register and
@@ -142,11 +157,26 @@ int program_main(int count, char **words)
             char text[256];
             if (sass_encoding_read(&s_machine, one, two, 16ULL * number, text, sizeof(text)))
             {
-                printf("CODE\t%u\t%s%s\n", number, text, (number == place) ? "\t<- turned" : "");
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "CODE\t");
+                mmgr_line_decimal(output_line, number, 1u);
+                mmgr_line_put(output_line, "\t");
+                mmgr_line_put(output_line, text);
+                mmgr_line_put(output_line, (number == place) ? "\t<- turned" : "");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
             }
             else
             {
-                printf("CODE\t%u\t0x%016llx 0x%016llx\n", number, one, two);
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "CODE\t");
+                mmgr_line_decimal(output_line, number, 1u);
+                mmgr_line_put(output_line, "\t0x");
+                mmgr_line_hex(output_line, one, 16u);
+                mmgr_line_put(output_line, " 0x");
+                mmgr_line_hex(output_line, two, 16u);
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
             }
         }
         char path[1024];
@@ -190,7 +220,17 @@ int program_main(int count, char **words)
         {
             fclose(made);
         }
-        printf("wrote %u cubins for %s to %s\n", FIELDS_OPERATION_BITS + 1u, walk, path);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "wrote ");
+            mmgr_line_decimal(output_line, FIELDS_OPERATION_BITS + 1u, 1u);
+            mmgr_line_put(output_line, " cubins for ");
+            mmgr_line_put(output_line, walk);
+            mmgr_line_put(output_line, " to ");
+            mmgr_line_put(output_line, path);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         break;
     }
     fclose(instructions);

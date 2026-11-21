@@ -8,6 +8,7 @@
 // and drawn words; a merge's request carries words past every mask: the masking is tested as well. The test is
 // one job on the device's tessera daemon.
 #include "codegen_device.h"
+#include "../../../../../../../src/platform/platform.h"
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../../../../../../includes/exact_types/integerfloats/double_fields/double_fields.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
@@ -78,10 +79,11 @@ static unsigned long long double_fields_test_draw(unsigned long long *state)
     return value;
 }
 
-// double_fields.c's answer for one request, the request arranged as the header positions it: the bits, then the sign, the
-// exponent and the mantissa
+// double_fields.c's answer for one request, the request arranged as the header positions it: the bits, then the sign,
+// the exponent and the mantissa
 static void double_fields_test_reference(unsigned long long bits, unsigned long long sign, unsigned long long exp,
-                                         unsigned long long mant, unsigned long long answer[DOUBLE_FIELDS_RECORD_OUTPUTS])
+                                         unsigned long long mant,
+                                         unsigned long long answer[DOUBLE_FIELDS_RECORD_OUTPUTS])
 {
     unsigned long long positioned[4] = {bits, sign, exp, mant};
     static_assert(sizeof(DoubleFieldsRequest) == sizeof(positioned), "DoubleFieldsRequest is not four words");
@@ -115,22 +117,22 @@ int program_main(int count, char **arguments)
     EngineError error;
     memset(&error, 0, sizeof(error));
     EngineRecordKey math;
-    const KeymathRecordRequest encode_request = {program.steps,   program.count,        program.field_bits,
-                                                 program.fields,  program.members,      program.outputs,
-                                                 program.output_count, program.tables,  program.table_count,
-                                                 &math,           &error};
+    const KeymathRecordRequest encode_request = {
+        program.steps,        program.count,  program.field_bits,  program.fields, program.members, program.outputs,
+        program.output_count, program.tables, program.table_count, &math,          &error};
     int ok = (keymath_record_encode(&encode_request) != KEYMATH_ERROR);
     double_fields_test_check(&results, ok, "the program encodes");
     EngineRecordLayout layout;
     memset(&layout, 0, sizeof(layout));
-    const KeyScheduleRecordRequest layout_request = {&math, program.field_offset, program.fields, program.in_limbs,
-                                                     program.reuse, &layout, &error};
+    const KeyScheduleRecordRequest layout_request = {
+        &math, program.field_offset, program.fields, program.in_limbs, program.reuse, &layout, &error};
     ok = ok && (key_schedule_record_layout(&layout_request) != KEY_SCHEDULE_ERROR);
     keymath_record_release(&math);
     double_fields_test_check(&results, ok, "the program arranges");
-    const LayoutRequest device_request = {program.steps,   program.count,   program.field_bits, program.field_offset,
-                                          program.fields,  program.members, program.in_limbs,   program.outputs,
-                                          program.output_count, program.tables, program.table_count, program.reuse};
+    const LayoutRequest device_request = {program.steps,        program.count,       program.field_bits,
+                                          program.field_offset, program.fields,      program.members,
+                                          program.in_limbs,     program.outputs,     program.output_count,
+                                          program.tables,       program.table_count, program.reuse};
     ok = ok && (layout_device_agrees(&device_request, &layout, 0) != 0);
     double_fields_test_check(&results, ok, "the program arranged on the device is the host's layout, word for word");
     unsigned int out_offset[DOUBLE_FIELDS_RECORD_OUTPUTS] = {0u, 0u, 0u, 0u};
@@ -160,21 +162,21 @@ int program_main(int count, char **arguments)
         (unsigned int *)calloc((size_t)DOUBLE_FIELDS_TEST_LANES * (out_limbs + 1u), sizeof(unsigned int));
     unsigned int *const device_answer =
         (unsigned int *)calloc((size_t)DOUBLE_FIELDS_TEST_LANES * (out_limbs + 1u), sizeof(unsigned int));
-    unsigned long long *const words = (unsigned long long *)calloc((size_t)DOUBLE_FIELDS_TEST_LANES * 4u,
-                                                                   sizeof(unsigned long long));
+    unsigned long long *const words =
+        (unsigned long long *)calloc((size_t)DOUBLE_FIELDS_TEST_LANES * 4u, sizeof(unsigned long long));
     ok = ok && (bits != NULL) && (merges != NULL) && (index != NULL) && (host_out != NULL) && (device_answer != NULL) &&
          (words != NULL);
     unsigned long long state = 0x9E3779B97F4A7C15ull;
     for (unsigned int lane = 0u; ok && (lane < DOUBLE_FIELDS_TEST_LANES); lane += 1u)
     {
-        const unsigned long long value = (lane < DOUBLE_FIELDS_TEST_EDGES) ? s_edges[lane]
-                                                                           : double_fields_test_draw(&state);
-        const unsigned long long sign = (lane < DOUBLE_FIELDS_TEST_EDGES) ? (unsigned long long)lane
-                                                                          : (double_fields_test_draw(&state) >> 32u);
-        const unsigned long long exp = (lane < DOUBLE_FIELDS_TEST_EDGES) ? (0x7FEull + lane)
-                                                                         : (double_fields_test_draw(&state) >> 32u);
-        const unsigned long long mant = (lane < DOUBLE_FIELDS_TEST_EDGES) ? ~s_edges[lane]
-                                                                          : double_fields_test_draw(&state);
+        const unsigned long long value =
+            (lane < DOUBLE_FIELDS_TEST_EDGES) ? s_edges[lane] : double_fields_test_draw(&state);
+        const unsigned long long sign =
+            (lane < DOUBLE_FIELDS_TEST_EDGES) ? (unsigned long long)lane : (double_fields_test_draw(&state) >> 32u);
+        const unsigned long long exp =
+            (lane < DOUBLE_FIELDS_TEST_EDGES) ? (0x7FEull + lane) : (double_fields_test_draw(&state) >> 32u);
+        const unsigned long long mant =
+            (lane < DOUBLE_FIELDS_TEST_EDGES) ? ~s_edges[lane] : double_fields_test_draw(&state);
         words[lane * 4u] = value;
         words[lane * 4u + 1u] = sign;
         words[lane * 4u + 2u] = exp;
@@ -194,8 +196,9 @@ int program_main(int count, char **arguments)
     unsigned int *device_index = NULL;
     unsigned int *device_out = NULL;
     const size_t out_bytes = (size_t)DOUBLE_FIELDS_TEST_LANES * out_limbs * sizeof(unsigned int);
-    ok = ok && (cudaMalloc((void **)&device_bits, (size_t)DOUBLE_FIELDS_TEST_LANES * 2u * sizeof(unsigned int)) ==
-                cudaSuccess) &&
+    ok = ok &&
+         (cudaMalloc((void **)&device_bits, (size_t)DOUBLE_FIELDS_TEST_LANES * 2u * sizeof(unsigned int)) ==
+          cudaSuccess) &&
          (cudaMalloc((void **)&device_merges, (size_t)DOUBLE_FIELDS_TEST_LANES * 4u * sizeof(unsigned int)) ==
           cudaSuccess) &&
          (cudaMalloc((void **)&device_index, (size_t)DOUBLE_FIELDS_TEST_LANES * 2u * sizeof(unsigned int)) ==
@@ -220,13 +223,10 @@ int program_main(int count, char **arguments)
              (cudaMemcpy(device_answer, device_out, out_bytes, cudaMemcpyDeviceToHost) == cudaSuccess);
     }
     double_fields_test_check(&results, ok, "the ribosome sweeps on the device");
-    const CycleRecordHostRequest host = {&layout,
-                                         {bits, merges, NULL},
-                                         {DOUBLE_FIELDS_TEST_LANES, DOUBLE_FIELDS_TEST_LANES, 0ull},
-                                         index,
-                                         DOUBLE_FIELDS_TEST_LANES,
-                                         host_out,
-                                         &error};
+    const CycleRecordHostRequest host = {
+        &layout, {bits, merges, NULL},     {DOUBLE_FIELDS_TEST_LANES, DOUBLE_FIELDS_TEST_LANES, 0ull},
+        index,   DOUBLE_FIELDS_TEST_LANES, host_out,
+        &error};
     const int host_ran = ok && (cycle_record_run_host(&host) == (long)DOUBLE_FIELDS_TEST_LANES);
     double_fields_test_check(&results, host_ran, "the ribosome runs on the host");
     double_fields_test_check(&results, host_ran && (memcmp(host_out, device_answer, out_bytes) == 0),
@@ -283,7 +283,8 @@ int program_main(int count, char **arguments)
     mmgr_line_put(&results.line, " checks, ");
     mmgr_line_decimal(&results.line, results.failures, 1u);
     mmgr_line_put(&results.line, " failed\n");
-    (void)(mmgr_line_ok(&results.line) && (fwrite(results.line.out, 1u, mmgr_line_finish(&results.line), stdout) == results.line.at));
+    (void)(mmgr_line_ok(&results.line) &&
+           (platform_line_out_put(results.line.out, mmgr_line_finish(&results.line)) == results.line.at));
     free(results.line.out);
     return (results.failures == 0ull) ? 0 : 1;
 }

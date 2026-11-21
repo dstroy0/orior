@@ -213,13 +213,36 @@ static int chains_write(const std::vector<Question> &questions, const std::strin
     run_print(&file, "%s%s", primitives.c_str(), chains.c_str());
     if (!run_closed(&file))
     {
-        printf("  %s could not be written\n", path.c_str());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, path.c_str());
+            mmgr_line_put(output_line, " could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
-    printf("  %s: %u chains, %u whole identities, %u chains reaffirming a lower address whole, %u primitives, %u "
-           "constituents read, %u identities among them\n",
-           path.c_str(), (unsigned int)questions.size(), (unsigned int)wholes.size(), reaffirmed, primitive_count,
-           constituent_count, (unsigned int)constituents.size());
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, path.c_str());
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_decimal(output_line, (unsigned int)questions.size(), 1u);
+        mmgr_line_put(output_line, " chains, ");
+        mmgr_line_decimal(output_line, (unsigned int)wholes.size(), 1u);
+        mmgr_line_put(output_line, " whole identities, ");
+        mmgr_line_decimal(output_line, reaffirmed, 1u);
+        mmgr_line_put(output_line, " chains reaffirming a lower address whole, ");
+        mmgr_line_decimal(output_line, primitive_count, 1u);
+        mmgr_line_put(output_line, " primitives, ");
+        mmgr_line_decimal(output_line, constituent_count, 1u);
+        mmgr_line_put(output_line, " constituents read, ");
+        mmgr_line_decimal(output_line, (unsigned int)constituents.size(), 1u);
+        mmgr_line_put(output_line, " identities among them");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 1;
 }
 
@@ -291,7 +314,14 @@ int identity_slice(const char *listing, const char *manifest, const char *stick_
     }
     if (!run_closed(&file))
     {
-        printf("  %s could not be written\n", path.c_str());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, path.c_str());
+            mmgr_line_put(output_line, " could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     // the host computes each integer question the run channel puts to the part, a slice's member or not: a task of
@@ -304,8 +334,20 @@ int identity_slice(const char *listing, const char *manifest, const char *stick_
             queried.insert(question.number);
         }
     }
-    printf("  %s: %u questions, %u slices, %u identities\n", path.c_str(), (unsigned int)questions.size(), slices,
-           (unsigned int)identities.size());
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, path.c_str());
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_decimal(output_line, (unsigned int)questions.size(), 1u);
+        mmgr_line_put(output_line, " questions, ");
+        mmgr_line_decimal(output_line, slices, 1u);
+        mmgr_line_put(output_line, " slices, ");
+        mmgr_line_decimal(output_line, (unsigned int)identities.size(), 1u);
+        mmgr_line_put(output_line, " identities");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     if (!chains_write(questions, folder))
     {
         return 1;

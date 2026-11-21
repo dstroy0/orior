@@ -10,6 +10,7 @@
 //
 //     frame_relation_check
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/khw_learn/frame_relation.h"
+#include "../../../../../../../src/platform/platform.h"
 #include "../../../../../../../src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_run/cubin_run_internal.h"
 
 #include <stdio.h>
@@ -24,12 +25,20 @@ static void check_that(int passed, const char *what)
     if (passed == 0)
     {
         s_failed += 1u;
-        printf("  FAILED: %s\n", what);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     check_that(
         (FRAME_RELATION_COUNT == 8u) && (strcmp(s_frame_text[FRAME_LANE], "lane") == 0) &&
             (strcmp(s_frame_text[FRAME_BLOCK], "block") == 0) && (strcmp(s_frame_text[FRAME_LOAD], "load") == 0) &&
@@ -88,6 +97,15 @@ int main(void)
     check_that((RUN_UNWRITTEN_WORD == CUBIN_RUN_FILL_WORD) && (RUN_THREADS_A_BLOCK == CUBIN_RUN_THREADS) &&
                    (RUN_COUNT_PLACE == CUBIN_RUN_COUNT_PLACE),
                "the channel's fill word, block and count's place are the carrier's own");
-    printf("frame_relation_check: %u checks, %u failed\n", s_checks, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "frame_relation_check: ");
+        mmgr_line_decimal(output_line, s_checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, s_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failed == 0u) ? 0 : 1;
 }

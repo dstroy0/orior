@@ -8,6 +8,7 @@
 // Exit 0 where both tables were written, 1 where the capture could not be read or a table could not be written, 2
 // where the capture contains no instruction archive that unpacks whole, 3 where it contains no copies of the latencies.
 #include "funnel.h"
+#include "../../../../../platform/platform.h"
 #include "../../../../engine/engine_note.h"
 
 #include <stdio.h>
@@ -136,8 +137,14 @@ int program_main(int count, char **words)
     }
     else
     {
-        printf("orior_tables_funnel: %zu bytes of instructions, %zu of latencies\n", instructions.length,
-               latencies.length);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "orior_tables_funnel: ");
+        mmgr_line_decimal(output_line, instructions.length, 1u);
+        mmgr_line_put(output_line, " bytes of instructions, ");
+        mmgr_line_decimal(output_line, latencies.length, 1u);
+        mmgr_line_put(output_line, " of latencies");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     tables_text_freed(&instructions);
     tables_text_freed(&latencies);

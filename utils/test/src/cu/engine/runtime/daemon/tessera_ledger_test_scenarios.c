@@ -266,6 +266,13 @@ int program_main(int count, char **arguments)
     test_report(&finished);
     const unsigned long long failed = headroom.failed + heap.failed + budget.failed + located.failed + idle.failed +
                                       head_results.failed + finished.failed;
-    printf("  tessera ledger: %llu failed\n", failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  tessera ledger: ");
+        mmgr_line_decimal(output_line, failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (failed == 0ull) ? 0 : 1;
 }

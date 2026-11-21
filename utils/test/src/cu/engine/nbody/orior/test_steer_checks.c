@@ -1,6 +1,7 @@
 
 // test_steer_checks.c: skewed fields and the ordering checks
 #include "test_steer_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 /**
  * @brief Fills a field whose symbols vary widely in rarity.
@@ -79,8 +80,27 @@ int check_counts_agree(const uint8_t *corpus, size_t corpus_len, const uint8_t *
     int failed = 0;
     const size_t lengths[] = {0u, 1u, 2u, 3u, 4u, 16u, 64u};
 
-    printf("\n  THE ORDERING COSTS NO CORRECTNESS, steered against the reference arm.\n\n");
-    printf("  %12s %14s %14s %14s %10s\n", "needle_len", "reference", "unsteered", "steered", "verdict");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n  THE ORDERING COSTS NO CORRECTNESS, steered against the reference arm.\n");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_right(output_line, "needle_len", 12u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "reference", 14u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "unsteered", 14u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "steered", 14u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "verdict", 10u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     for (unsigned int which = 0u; which < 7u; which += 1u)
     {
@@ -90,7 +110,21 @@ int check_counts_agree(const uint8_t *corpus, size_t corpus_len, const uint8_t *
         const size_t steered = orior_steer_count(corpus, corpus_len, needle, needle_len, 1);
 
         const int ok = (plain == want) && (steered == want);
-        printf("  %12zu %14zu %14zu %14zu %10s\n", needle_len, want, plain, steered, ok ? "ok" : "FAILS");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_decimal_columns(output_line, needle_len, 12u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_columns(output_line, want, 14u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_columns(output_line, plain, 14u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_columns(output_line, steered, 14u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_right(output_line, ok ? "ok" : "FAILS", 10u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         if (!ok)
         {
             failed += 1;
@@ -103,7 +137,12 @@ int check_ordering_pays(const uint8_t *corpus, size_t corpus_len, const uint8_t 
 {
     int failed = 0;
 
-    printf("\n  THE ORDERING PAYS, corpus bytes read by the probes.\n\n");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n  THE ORDERING PAYS, corpus bytes read by the probes.\n");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     orior_steer_probes_reset();
     (void)orior_steer_count(corpus, corpus_len, needle, needle_len, 0);
@@ -122,20 +161,60 @@ int check_ordering_pays(const uint8_t *corpus, size_t corpus_len, const uint8_t 
      * numerator and the denominator are printed beside it. The reader can check the division. */
     const uint64_t hundredths = (steered_probes > 0u) ? ((plain_probes * 100u) / steered_probes) : 0u;
 
-    printf("  %22s %16s %16s\n", "order", "probe reads", "plain/steered");
-    printf("  %22s %16llu %16s\n", "spatial, unsteered", (unsigned long long)plain_probes, "-");
-    printf("  %22s %16llu %13llu.%02llu\n", "rarest first, steered", (unsigned long long)steered_probes,
-           (unsigned long long)(hundredths / 100u), (unsigned long long)(hundredths % 100u));
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_right(output_line, "order", 22u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "probe reads", 16u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "plain/steered", 16u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_right(output_line, "spatial, unsteered", 22u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line, (unsigned long long)plain_probes, 16u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "-", 16u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_right(output_line, "rarest first, steered", 22u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line, (unsigned long long)steered_probes, 16u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line, (unsigned long long)(hundredths / 100u), 13u);
+        mmgr_line_put(output_line, ".");
+        mmgr_line_decimal(output_line, (unsigned long long)(hundredths % 100u), 2u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     if (steered_probes >= plain_probes)
     {
-        printf("\n  steered order did not reduce reads: FAILS\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "\n  steered order did not reduce reads: FAILS");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed += 1;
     }
     else
     {
-        printf("\n  steered order reduced reads by %llu, verdict ok\n",
-               (unsigned long long)(plain_probes - steered_probes));
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n  steered order reduced reads by ");
+        mmgr_line_decimal(output_line, (unsigned long long)(plain_probes - steered_probes), 1u);
+        mmgr_line_put(output_line, ", verdict ok");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
 
     /* THE MEASUREMENT HAS TO BE ABLE TO FAIL. Ordering commonest first must cost more than the
@@ -164,11 +243,25 @@ int check_ordering_pays(const uint8_t *corpus, size_t corpus_len, const uint8_t 
         }
     }
 
-    printf("  %22s %16llu %12s\n", "commonest first", (unsigned long long)worst_probes,
-           (worst_probes > steered_probes) ? "correctly worse" : "FAILS");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_right(output_line, "commonest first", 22u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line, (unsigned long long)worst_probes, 16u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, (worst_probes > steered_probes) ? "correctly worse" : "FAILS", 12u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     if (worst_probes <= steered_probes)
     {
-        printf("  the counter cannot see the ordering. The reduction above is not evidence\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  the counter cannot see the ordering. The reduction above is not evidence");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed += 1;
     }
     return failed;
@@ -192,8 +285,25 @@ int check_dispatch_exact(void)
     int failed = 0;
     OriorFieldCensus census;
 
-    printf("\n  THE DISPATCH IS EXACT, integer rule against hand-derived answers.\n\n");
-    printf("  %26s %10s %10s %10s\n", "field", "expected", "got", "verdict");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n  THE DISPATCH IS EXACT, integer rule against hand-derived answers.\n");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_right(output_line, "field", 26u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "expected", 10u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "got", 10u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "verdict", 10u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     memset(&census, 0, sizeof(census));
     for (unsigned int symbol = 0u; symbol < 256u; symbol += 1u)
@@ -203,7 +313,33 @@ int check_dispatch_exact(void)
     census.total = 65536u;
     census.distinct = 256u;
     int got = orior_steer_prefers_free(&census);
-    printf("  %26s %10d %10d %10s\n", "uniform over 256", 0, got, (got == 0) ? "ok" : "FAILS");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_right(output_line, "uniform over 256", 26u);
+        mmgr_line_put(output_line, " ");
+        {
+            char linea_piece[24u];
+            VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+            const int64_t linea_value = (int64_t)(0);
+            mmgr_line_decimal_signed(&linea_piece_line, linea_value);
+            (void)mmgr_line_finish(&linea_piece_line);
+            mmgr_line_put_right(output_line, linea_piece, 10u);
+        }
+        mmgr_line_put(output_line, " ");
+        {
+            char linea_piece[24u];
+            VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+            const int64_t linea_value = (int64_t)(got);
+            mmgr_line_decimal_signed(&linea_piece_line, linea_value);
+            (void)mmgr_line_finish(&linea_piece_line);
+            mmgr_line_put_right(output_line, linea_piece, 10u);
+        }
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, (got == 0) ? "ok" : "FAILS", 10u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     failed += (got == 0) ? 0 : 1;
 
     memset(&census, 0, sizeof(census));
@@ -211,7 +347,33 @@ int check_dispatch_exact(void)
     census.total = 65536u;
     census.distinct = 1u;
     got = orior_steer_prefers_free(&census);
-    printf("  %26s %10d %10d %10s\n", "one symbol only", 0, got, (got == 0) ? "ok" : "FAILS");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_right(output_line, "one symbol only", 26u);
+        mmgr_line_put(output_line, " ");
+        {
+            char linea_piece[24u];
+            VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+            const int64_t linea_value = (int64_t)(0);
+            mmgr_line_decimal_signed(&linea_piece_line, linea_value);
+            (void)mmgr_line_finish(&linea_piece_line);
+            mmgr_line_put_right(output_line, linea_piece, 10u);
+        }
+        mmgr_line_put(output_line, " ");
+        {
+            char linea_piece[24u];
+            VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+            const int64_t linea_value = (int64_t)(got);
+            mmgr_line_decimal_signed(&linea_piece_line, linea_value);
+            (void)mmgr_line_finish(&linea_piece_line);
+            mmgr_line_put_right(output_line, linea_piece, 10u);
+        }
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, (got == 0) ? "ok" : "FAILS", 10u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     failed += (got == 0) ? 0 : 1;
 
     memset(&census, 0, sizeof(census));
@@ -220,14 +382,66 @@ int check_dispatch_exact(void)
     census.total = 100u;
     census.distinct = 2u;
     got = orior_steer_prefers_free(&census);
-    printf("  %26s %10d %10d %10s\n", "two symbols, 99 to 1", 1, got, (got == 1) ? "ok" : "FAILS");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_right(output_line, "two symbols, 99 to 1", 26u);
+        mmgr_line_put(output_line, " ");
+        {
+            char linea_piece[24u];
+            VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+            const int64_t linea_value = (int64_t)(1);
+            mmgr_line_decimal_signed(&linea_piece_line, linea_value);
+            (void)mmgr_line_finish(&linea_piece_line);
+            mmgr_line_put_right(output_line, linea_piece, 10u);
+        }
+        mmgr_line_put(output_line, " ");
+        {
+            char linea_piece[24u];
+            VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+            const int64_t linea_value = (int64_t)(got);
+            mmgr_line_decimal_signed(&linea_piece_line, linea_value);
+            (void)mmgr_line_finish(&linea_piece_line);
+            mmgr_line_put_right(output_line, linea_piece, 10u);
+        }
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, (got == 1) ? "ok" : "FAILS", 10u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     failed += (got == 1) ? 0 : 1;
 
     /* An empty field has no structure and takes the short circuiting arm. Stated and not
      * discovered, because a caller with no corpus passes over a census of nothing. */
     memset(&census, 0, sizeof(census));
     got = orior_steer_prefers_free(&census);
-    printf("  %26s %10d %10d %10s\n", "empty field", 0, got, (got == 0) ? "ok" : "FAILS");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_right(output_line, "empty field", 26u);
+        mmgr_line_put(output_line, " ");
+        {
+            char linea_piece[24u];
+            VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+            const int64_t linea_value = (int64_t)(0);
+            mmgr_line_decimal_signed(&linea_piece_line, linea_value);
+            (void)mmgr_line_finish(&linea_piece_line);
+            mmgr_line_put_right(output_line, linea_piece, 10u);
+        }
+        mmgr_line_put(output_line, " ");
+        {
+            char linea_piece[24u];
+            VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+            const int64_t linea_value = (int64_t)(got);
+            mmgr_line_decimal_signed(&linea_piece_line, linea_value);
+            (void)mmgr_line_finish(&linea_piece_line);
+            mmgr_line_put_right(output_line, linea_piece, 10u);
+        }
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, (got == 0) ? "ok" : "FAILS", 10u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     failed += (got == 0) ? 0 : 1;
 
     return failed;
@@ -263,8 +477,27 @@ int check_exact_matches_double(void)
     unsigned int chose_free = 0u;
     unsigned int chose_inorder = 0u;
 
-    printf("\n  TWO ROUTES TO ONE DECISION, exact integer against the double it replaces.\n\n");
-    printf("  %10s %10s %12s %12s %10s\n", "skew", "distinct", "exact", "double", "verdict");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n  TWO ROUTES TO ONE DECISION, exact integer against the double it replaces.\n");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_right(output_line, "skew", 10u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "distinct", 10u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "exact", 12u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "double", 12u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, "verdict", 10u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     for (unsigned int skew = 0u; skew <= 10u; skew += 1u)
     {
@@ -320,11 +553,51 @@ int check_exact_matches_double(void)
             chose_inorder += 1u;
         }
 
-        printf("  %10u %10u %12d %12d %10s\n", skew, census.distinct, exact, by_double, same ? "agree" : "differ");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_decimal_columns(output_line, skew, 10u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal_columns(output_line, census.distinct, 10u);
+            mmgr_line_put(output_line, " ");
+            {
+                char linea_piece[24u];
+                VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                const int64_t linea_value = (int64_t)(exact);
+                mmgr_line_decimal_signed(&linea_piece_line, linea_value);
+                (void)mmgr_line_finish(&linea_piece_line);
+                mmgr_line_put_right(output_line, linea_piece, 12u);
+            }
+            mmgr_line_put(output_line, " ");
+            {
+                char linea_piece[24u];
+                VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
+                const int64_t linea_value = (int64_t)(by_double);
+                mmgr_line_decimal_signed(&linea_piece_line, linea_value);
+                (void)mmgr_line_finish(&linea_piece_line);
+                mmgr_line_put_right(output_line, linea_piece, 12u);
+            }
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put_right(output_line, same ? "agree" : "differ", 10u);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 
-    printf("\n  %u agreed, %u differed, and the sweep chose free %u times and in order %u times\n", agreed, differed,
-           chose_free, chose_inorder);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "\n  ");
+        mmgr_line_decimal(output_line, agreed, 1u);
+        mmgr_line_put(output_line, " agreed, ");
+        mmgr_line_decimal(output_line, differed, 1u);
+        mmgr_line_put(output_line, " differed, and the sweep chose free ");
+        mmgr_line_decimal(output_line, chose_free, 1u);
+        mmgr_line_put(output_line, " times and in order ");
+        mmgr_line_decimal(output_line, chose_inorder, 1u);
+        mmgr_line_put(output_line, " times");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     /* THE SWEEP HAS TO CROSS THE THRESHOLD OR THE AGREEMENT PROVES NOTHING. A run where every field
      * lands on the same side agrees trivially, and would agree just as well against a rule that
@@ -332,7 +605,12 @@ int check_exact_matches_double(void)
      * this tests that BOTH verdicts appear. */
     if ((chose_free == 0u) || (chose_inorder == 0u))
     {
-        printf("  the sweep never crossed the threshold. The agreement is vacuous: FAILS\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  the sweep never crossed the threshold. The agreement is vacuous: FAILS");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         failed += 1;
     }
     return failed;
@@ -348,6 +626,23 @@ void print_route_row(const char *label, size_t probes, size_t count, uint64_t re
 {
     const uint64_t thousandths = (alignments > 0u) ? ((reads * 1000u) / (uint64_t)alignments) : 0u;
 
-    printf("  %26s %8zu %10zu %14llu %8llu.%03llu %10s\n", label, probes, count, (unsigned long long)reads,
-           (unsigned long long)(thousandths / 1000u), (unsigned long long)(thousandths % 1000u), ok ? "ok" : "FAILS");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put_right(output_line, label, 26u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line, probes, 8u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line, count, 10u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line, (unsigned long long)reads, 14u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal_columns(output_line, (unsigned long long)(thousandths / 1000u), 8u);
+        mmgr_line_put(output_line, ".");
+        mmgr_line_decimal(output_line, (unsigned long long)(thousandths % 1000u), 3u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_put_right(output_line, ok ? "ok" : "FAILS", 10u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }

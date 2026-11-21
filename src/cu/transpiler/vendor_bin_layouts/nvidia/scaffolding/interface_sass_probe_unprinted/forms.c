@@ -47,8 +47,15 @@ int unprinted_query(const UnprintedQuestion *question, unsigned int number, FILE
     unsigned int place = 0u;
     if (!alone || (unprinted_find(s_code, count, low, high, &place, 1u) != 1u))
     {
-        printf("  %s: not put, the question did not assemble or its instruction was not found once\n",
-               question->turned);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, question->turned);
+            mmgr_line_put(output_line,
+                          ": not put, the question did not assemble or its instruction was not found once");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         fprintf(record, "| %u | `%s` | %s | not put | | |\n", number, question->turned, span);
         return -1;
     }
@@ -57,7 +64,13 @@ int unprinted_query(const UnprintedQuestion *question, unsigned int number, FILE
     if (!sass_encoding_read(&s_machine, low, high, 0ULL, read, sizeof(read)) ||
         (!mmgr_text_equal(read, question->turned, PLATFORM_TEXT_TO_TERMINATOR)))
     {
-        printf("  %s reads back as %s\n", question->turned, read);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, question->turned);
+        mmgr_line_put(output_line, " reads back as ");
+        mmgr_line_put(output_line, read);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     const unsigned long long code_size = 16ULL * count;
     char value_text[64];
@@ -79,8 +92,20 @@ int unprinted_query(const UnprintedQuestion *question, unsigned int number, FILE
             }
         }
     }
-    printf("  %s, bits %s%s, the form contains %s, as printed %08x\n", question->turned, span, fixed, value_text,
-           question->answer);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, question->turned);
+        mmgr_line_put(output_line, ", bits ");
+        mmgr_line_put(output_line, span);
+        mmgr_line_put(output_line, fixed);
+        mmgr_line_put(output_line, ", the form contains ");
+        mmgr_line_put(output_line, value_text);
+        mmgr_line_put(output_line, ", as printed ");
+        mmgr_line_hex(output_line, question->answer, 8u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     int printed = 0;
     const unsigned long long values = 1ULL << question->bits;
     for (unsigned long long value = 0ULL; value < values; value += 1ULL)
@@ -110,11 +135,28 @@ int unprinted_query(const UnprintedQuestion *question, unsigned int number, FILE
             mmgr_line_put(&buffer_line, ended);
             (void)mmgr_line_finish(&buffer_line);
         }
-        printf("    %s %s\n", digits, reading);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    ");
+            mmgr_line_put(output_line, digits);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put(output_line, reading);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         fprintf(record, "| %u | `%s` | %s%s | %s | %s | %s |\n", number, question->turned, span, fixed, value_text,
                 digits, reading);
     }
-    printf("    %d of %llu values answer as printed\n", printed, values);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    ");
+        mmgr_line_decimal_signed(output_line, printed);
+        mmgr_line_put(output_line, " of ");
+        mmgr_line_decimal(output_line, values, 1u);
+        mmgr_line_put(output_line, " values answer as printed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return printed;
 }
 
@@ -463,8 +505,17 @@ void unprinted_forms(FILE *record)
         }
         if (!steady)
         {
-            printf("  %s: not probed, %s%s%s\n", form->text, why, (found && !ran) ? ": " : "",
-                   (found && !ran) ? ended : "");
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  ");
+                mmgr_line_put(output_line, form->text);
+                mmgr_line_put(output_line, ": not probed, ");
+                mmgr_line_put(output_line, why);
+                mmgr_line_put(output_line, (found && !ran) ? ": " : "");
+                mmgr_line_put(output_line, (found && !ran) ? ended : "");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             fprintf(record, "| `%s` | %s | | | not probed: %s | | |\n", form->text, written ? instruction : "", why);
             continue;
         }
@@ -484,14 +535,40 @@ void unprinted_forms(FILE *record)
             unread += (tally.alike == tally.queried) ? 1u : 0u;
             char digits[64];
             unprinted_binary(field_value, (bits < 63u) ? bits : 63u, digits);
-            printf("  %s, bits %u-%u, %u of %u values alike%s%s\n", instruction, run->first, run->last, tally.alike,
-                   tally.queried, (tally.otherwise[0] != '\0') ? ": " : "", tally.otherwise);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  ");
+                mmgr_line_put(output_line, instruction);
+                mmgr_line_put(output_line, ", bits ");
+                mmgr_line_decimal(output_line, run->first, 1u);
+                mmgr_line_put(output_line, "-");
+                mmgr_line_decimal(output_line, run->last, 1u);
+                mmgr_line_put(output_line, ", ");
+                mmgr_line_decimal(output_line, tally.alike, 1u);
+                mmgr_line_put(output_line, " of ");
+                mmgr_line_decimal(output_line, tally.queried, 1u);
+                mmgr_line_put(output_line, " values alike");
+                mmgr_line_put(output_line, (tally.otherwise[0] != '\0') ? ": " : "");
+                mmgr_line_put(output_line, tally.otherwise);
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             fprintf(record, "| `%s` | `%s` | %u-%u | %s | %08x | %u of %u | %s |\n", form->text, instruction,
                     run->first, run->last, digits, own[0], tally.alike, tally.queried, tally.otherwise);
         }
     }
     fprintf(record, "\n%u forms contain an unprinted run, %u probed, %u runs answering alike at every value probed.\n",
             forms, queried, unread);
-    printf("interface sass unprinted: %u forms contain an unprinted run, %u probed, %u runs answering alike\n", forms,
-           queried, unread);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "interface sass unprinted: ");
+        mmgr_line_decimal(output_line, forms, 1u);
+        mmgr_line_put(output_line, " forms contain an unprinted run, ");
+        mmgr_line_decimal(output_line, queried, 1u);
+        mmgr_line_put(output_line, " probed, ");
+        mmgr_line_decimal(output_line, unread, 1u);
+        mmgr_line_put(output_line, " runs answering alike");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 }

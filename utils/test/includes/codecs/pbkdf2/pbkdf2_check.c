@@ -18,6 +18,7 @@
  * Usage: pbkdf2_check RFC4231 HMAC_JSON PBKDF2_JSON BIP39_JSON
  */
 #include "../../../../../includes/codecs/pbkdf2/pbkdf2.h"
+#include "../../../../../src/platform/platform.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -146,7 +147,15 @@ static void record(Tally *tally, const char *source, const char *label, int pass
     if (!passed)
     {
         tally->failed += 1u;
-        printf("  [FAIL] %s %s\n", source, label);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  [FAIL] ");
+            mmgr_line_put(output_line, source);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put(output_line, label);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -606,11 +615,16 @@ static unsigned trezor_bip39_check(Tally *tally, char *text)
     return found;
 }
 
-int main(int argument_count, char **arguments)
+int program_main(int argument_count, char **arguments)
 {
     if (argument_count != 5)
     {
-        printf("usage: pbkdf2_check RFC4231 HMAC_JSON PBKDF2_JSON BIP39_JSON\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "usage: pbkdf2_check RFC4231 HMAC_JSON PBKDF2_JSON BIP39_JSON");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
 
@@ -620,7 +634,13 @@ int main(int argument_count, char **arguments)
         texts[which] = file_read(arguments[which + 1]);
         if (texts[which] == NULL)
         {
-            printf("  cannot read %s\n", arguments[which + 1]);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  cannot read ");
+                mmgr_line_put(output_line, arguments[which + 1]);
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             return 1;
         }
     }
@@ -631,18 +651,60 @@ int main(int argument_count, char **arguments)
     const unsigned pbkdf2 = wycheproof_pbkdf2_check(&tally, texts[2]);
     const unsigned bip39 = trezor_bip39_check(&tally, texts[3]);
 
-    printf("  RFC 4231 HMAC-SHA-512:            %u cases\n", rfc);
-    printf("  Wycheproof HMAC-SHA512:           %u cases\n", hmac);
-    printf("  Wycheproof PBKDF2-HMAC-SHA512:    %u cases\n", pbkdf2);
-    printf("  Trezor BIP-39, english:           %u cases\n", bip39);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  RFC 4231 HMAC-SHA-512:            ");
+        mmgr_line_decimal(output_line, rfc, 1u);
+        mmgr_line_put(output_line, " cases");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  Wycheproof HMAC-SHA512:           ");
+        mmgr_line_decimal(output_line, hmac, 1u);
+        mmgr_line_put(output_line, " cases");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  Wycheproof PBKDF2-HMAC-SHA512:    ");
+        mmgr_line_decimal(output_line, pbkdf2, 1u);
+        mmgr_line_put(output_line, " cases");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  Trezor BIP-39, english:           ");
+        mmgr_line_decimal(output_line, bip39, 1u);
+        mmgr_line_put(output_line, " cases");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     // A source that yields no case means that its reader failed, and not that the code passed.
     const int complete = (rfc == RFC4231_CASES) && (hmac > 0u) && (pbkdf2 > 0u) && (bip39 > 0u);
     if (!complete)
     {
-        printf("  FAIL: a source yielded too few cases. RFC 4231 must yield %u.\n", RFC4231_CASES);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  FAIL: a source yielded too few cases. RFC 4231 must yield ");
+        mmgr_line_decimal(output_line, RFC4231_CASES, 1u);
+        mmgr_line_put(output_line, ".");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
-    printf("  pbkdf2 check: %lu checks, %lu failed\n", tally.run, tally.failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  pbkdf2 check: ");
+        mmgr_line_decimal(output_line, tally.run, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, tally.failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     for (int which = 0; which < 4; which += 1)
     {

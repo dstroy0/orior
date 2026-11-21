@@ -19,6 +19,7 @@
 //
 // It runs in a query run (qry_run.sh), under the top of the tree QRY_TOP names, the folder within it.
 #include "../../../../../../../includes/file_defs/khw/khw_machine_write/opening.h"
+#include "../../../../../../../src/platform/platform.h"
 #include "../../../../../../../includes/file_defs/krf/krf.h"
 #include "../../../../../../../includes/file_defs/krs/krs_write/fixed.h"
 #include "../../../../../../../includes/file_defs/krs/krs_write/frame_forms.h"
@@ -43,7 +44,13 @@ static void check_that(int passed, const char *what)
     if (passed == 0)
     {
         s_failed += 1u;
-        printf("  FAILED: %s\n", what);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  FAILED: ");
+            mmgr_line_put(output_line, what);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 }
 
@@ -65,7 +72,12 @@ int program_main(int count, char **words)
 {
     if (count < 2)
     {
-        printf("frame_check <folder>\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "frame_check <folder>");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     Counted five = {5ull, 0u};
@@ -369,6 +381,15 @@ int program_main(int count, char **words)
                                     "{right}, PT\\n\nform test_word_ge where left right = ISETP.GE.U32.AND {where}, "
                                     "PT, {left}, {right}, PT\\n\n") == 0),
                "each from its own relation's form");
-    printf("frame_check: %u checks, %u failed\n", s_checks, s_failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "frame_check: ");
+        mmgr_line_decimal(output_line, s_checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, s_failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (s_failed == 0u) ? 0 : 1;
 }

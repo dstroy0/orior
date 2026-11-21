@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // max_tree_levels_test_agree.c: probes, overlaps, cases, errors and main
 #include "max_tree_levels_test_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 // the probe partition at `level` against the flood: absent exactly where the probe's voxel is below the level, and two
 // present probes in one part exactly where they are in one flood component
@@ -267,6 +268,17 @@ int program_main(int argc, char **argv)
     }
     levels_fill(&earlier, &state, 3u, 5u, 6u, -2ll, 5ll, 0);
     levels_errors(&results, &earlier);
-    printf("  max_tree levels test: %u volumes, %u checks, %u failed\n", case_number, results.checks, results.failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  max_tree levels test: ");
+        mmgr_line_decimal(output_line, case_number, 1u);
+        mmgr_line_put(output_line, " volumes, ");
+        mmgr_line_decimal(output_line, results.checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, results.failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (results.failed == 0u) ? 0 : 1;
 }

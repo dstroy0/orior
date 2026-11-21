@@ -19,6 +19,7 @@
 // alone (cubin_listing.h). Exit 0 where every code was read, 2 where the run, the pattern, a code or the disassembler
 // was not reached
 #include "cubin_listing.h"
+#include "../../../../platform/platform.h"
 #include "../../../engine/engine_note.h"
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
@@ -187,8 +188,16 @@ static int listing_raw_cleared(QryShared *run, ListedCode *codes, unsigned int c
                 break;
             }
             codes[stopped].aside = 1;
-            printf("  orior_cubin_listing: %s stops the vendor at byte %llu of it, and is read alone\n",
-                   codes[stopped].number, address - start[stopped]);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  orior_cubin_listing: ");
+                mmgr_line_put(output_line, codes[stopped].number);
+                mmgr_line_put(output_line, " stops the vendor at byte ");
+                mmgr_line_decimal(output_line, address - start[stopped], 1u);
+                mmgr_line_put(output_line, " of it, and is read alone");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
         }
     }
     free(joined);
@@ -443,8 +452,18 @@ int program_main(int count, char **words)
             qry_member_append(name, s_output, s_output_size, QRY_ORDINARY);
         }
     }
-    printf("orior_cubin_listing: %u codes read in %u starts of the vendor, %u of them read alone\n", code_count,
-           s_starts, aside);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "orior_cubin_listing: ");
+        mmgr_line_decimal(output_line, code_count, 1u);
+        mmgr_line_put(output_line, " codes read in ");
+        mmgr_line_decimal(output_line, s_starts, 1u);
+        mmgr_line_put(output_line, " starts of the vendor, ");
+        mmgr_line_decimal(output_line, aside, 1u);
+        mmgr_line_put(output_line, " of them read alone");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     for (unsigned int one = 0u; one < code_count; one += 1u)
     {
         free(codes[one].exits);

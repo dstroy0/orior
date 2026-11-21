@@ -8,6 +8,7 @@
 // The check prints each defect, and the run exits 1 where it finds one. A finding does not fail the run. The run exits
 // 2 where it cannot read a table, the schema or gnascor
 #include "../cu/engine/engine_note.h"
+#include "../platform/platform.h"
 #include "cellularum_laboro/cellularum_linea.h"
 #include "lng.h"
 #include "verba_scribo/verba_scribo.h"
@@ -346,15 +347,39 @@ int program_main(int argc, char **argv)
 
     for (unsigned int at = 0u; at < defects.count; at += 1u)
     {
-        printf("defect: %s\n", defects.text[at]);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "defect: ");
+        mmgr_line_put(output_line, defects.text[at]);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     for (unsigned int at = 0u; at < findings.count; at += 1u)
     {
-        printf("finding: %s\n", findings.text[at]);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "finding: ");
+        mmgr_line_put(output_line, findings.text[at]);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
-    printf("%u defects, %u findings, %u words, %u high order words, %u transitions, %u mnemonics with a transpiler "
-           "form, %u .g operators with gsm\n",
-           defects.count, findings.count, table.rows, hol.rows, asm_table.rows, formed, bound);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_decimal(output_line, defects.count, 1u);
+        mmgr_line_put(output_line, " defects, ");
+        mmgr_line_decimal(output_line, findings.count, 1u);
+        mmgr_line_put(output_line, " findings, ");
+        mmgr_line_decimal(output_line, table.rows, 1u);
+        mmgr_line_put(output_line, " words, ");
+        mmgr_line_decimal(output_line, hol.rows, 1u);
+        mmgr_line_put(output_line, " high order words, ");
+        mmgr_line_decimal(output_line, asm_table.rows, 1u);
+        mmgr_line_put(output_line, " transitions, ");
+        mmgr_line_decimal(output_line, formed, 1u);
+        mmgr_line_put(output_line, " mnemonics with a transpiler form, ");
+        mmgr_line_decimal(output_line, bound, 1u);
+        mmgr_line_put(output_line, " .g operators with gsm");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     const int failed = (defects.count != 0u);
     lng_list_free(&form_texts);
     lng_list_free(&form_names);

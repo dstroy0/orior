@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // engine_history.cu: the history and the public entry points
 #include "engine_internal.h"
+#include "../../platform/platform.h"
 #include "engine_note.h"
 #include "memoria_operor/memoria_linea.h"
 
@@ -58,10 +59,15 @@ extern "C" long engine_entropy_set(const EngineEntropySetRequest *request)
             krep_history_release(&stored_history);
             if (same)
             {
-                printf("  %-24s positioned down already: read back whole, projected from the " ENTRY_CRYSTAL_SUFFIX
-                       " as it is, in %llu ms\n",
-                       name, (engine_clock_microseconds() - began) / 1000ULL);
-                fflush(stdout);
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  ");
+                mmgr_line_put_columns(output_line, name, 24u);
+                mmgr_line_put(output_line,
+                              " positioned down already: read back whole, projected from the " ENTRY_CRYSTAL_SUFFIX
+                              " as it is, in ");
+                mmgr_line_decimal(output_line, (engine_clock_microseconds() - began) / 1000ULL, 1u);
+                mmgr_line_put(output_line, " ms\n");
+                platform_line_flushed();
                 continue;
             }
         }
@@ -126,13 +132,29 @@ extern "C" long engine_entropy_set(const EngineEntropySetRequest *request)
             }
             break;
         }
-        printf("  %-24s %llu frames, %llu windows of %u transitions, entropy conserved at every voxel, %llu MiB, read "
-               "back whole, CRC-64 %016llx, in %llu ms\n",
-               name, extent[0], window_count, ENGINE_HISTORY_WINDOW,
-               (unsigned long long)(payload.size() * sizeof(unsigned long long)) >> 20u, history.payload_crc,
-               (engine_clock_microseconds() - began) / 1000ULL);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put_columns(output_line, name, 24u);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_decimal(output_line, extent[0], 1u);
+            mmgr_line_put(output_line, " frames, ");
+            mmgr_line_decimal(output_line, window_count, 1u);
+            mmgr_line_put(output_line, " windows of ");
+            mmgr_line_decimal(output_line, ENGINE_HISTORY_WINDOW, 1u);
+            mmgr_line_put(output_line, " transitions, entropy conserved at every voxel, ");
+            mmgr_line_decimal(output_line, (unsigned long long)(payload.size() * sizeof(unsigned long long)) >> 20u,
+                              1u);
+            mmgr_line_put(output_line, " MiB, read back whole, CRC-64 ");
+            mmgr_line_hex(output_line, history.payload_crc, 16u);
+            mmgr_line_put(output_line, ", in ");
+            mmgr_line_decimal(output_line, (engine_clock_microseconds() - began) / 1000ULL, 1u);
+            mmgr_line_put(output_line, " ms");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         entropy_history_report(&history);
-        fflush(stdout);
+        platform_line_flushed();
     }
     if (ok == 0)
     {

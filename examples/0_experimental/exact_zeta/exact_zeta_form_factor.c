@@ -28,6 +28,7 @@
  *       It reads how the zeros hold to one another.
  */
 #include "zeta_shuffle.h"
+#include "../../../src/platform/platform.h"
 #include "zeta_tension.h"
 
 #include <math.h>
@@ -371,8 +372,19 @@ static int analyse(const double *zeros, size_t m)
     }
     const double length = log(0.5 * (zeros[0] + zeros[m - 1u]));
     // e^L is the height over 2 pi, far below 2^63.
-    printf("  %llu zeros, ln(t / 2 pi) %.3f; ln 2 / L = %.4f, the prime powers to %lld\n", (unsigned long long)m,
-           length, log(2.0) / length, (long long)exp(length));
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_decimal(output_line, (unsigned long long)m, 1u);
+        mmgr_line_put(output_line, " zeros, ln(t / 2 pi) ");
+        mmgr_line_fixed(output_line, (double)(length), 3u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, "; ln 2 / L = ");
+        mmgr_line_fixed(output_line, (double)(log(2.0) / length), 4u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, ", the prime powers to ");
+        mmgr_line_decimal_signed(output_line, (long long)exp(length));
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     static const double CHECKS[10] = {0.03, 0.0606, 0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.5};
     double worst = 0.0;
     for (int at = 0; at < 10; at += 1)
@@ -384,7 +396,14 @@ static int analyse(const double *zeros, size_t m)
             hypot(zeros_sum.re - clocks.re, zeros_sum.im - clocks.im) / hypot(zeros_sum.re, zeros_sum.im);
         worst = (gap > worst) ? gap : worst;
     }
-    printf("  the zeros' sum against D's, at 10 tau from 0.03 to 2.5: they differ by %.1e of the sum at max\n", worst);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the zeros' sum against D's, at 10 tau from 0.03 to 2.5: they differ by ");
+        mmgr_line_exponent(output_line, (double)(worst), 1u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " of the sum at max");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
 
     ZetaTwister twister;
     twister_seed(&twister, FORM_SEED);
@@ -439,16 +458,35 @@ static int analyse(const double *zeros, size_t m)
         k_gue[at] = gue(NARROW, narrow[at]);
     }
     primes_model(NARROW, narrow, narrow_count, length, k_primes);
-    printf("  K smoothed by sigma %.2f: tau, the zeros, half against half, the primes' spikes, GUE's, the shuffled "
-           "spacings'\n",
-           NARROW);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  K smoothed by sigma ");
+        mmgr_line_fixed(output_line, (double)(NARROW), 2u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line,
+                      ": tau, the zeros, half against half, the primes' spikes, GUE's, the shuffled spacings'");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     for (size_t at = 0u; at < narrow_count; at += 1u)
     {
         const double tau = narrow[at];
         if ((tau <= 0.2) || near_whole(tau * 20.0))
         {
-            printf("    %.3f  %.4f  %+.4f  %.4f  %.4f  %.4f\n", tau, k_all[at], k_first[at] - k_second[at],
-                   k_primes[at], k_gue[at], k_shuffled[at]);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    ");
+            mmgr_line_fixed(output_line, (double)(tau), 3u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_fixed(output_line, (double)(k_all[at]), 4u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_fixed(output_line, (double)(k_first[at] - k_second[at]), 4u, 0u, EMBED_TRUE);
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_fixed(output_line, (double)(k_primes[at]), 4u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_fixed(output_line, (double)(k_gue[at]), 4u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_fixed(output_line, (double)(k_shuffled[at]), 4u, 0u, EMBED_FALSE);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
     }
     const double below = (log(2.0) / length) - (3.0 * NARROW);
@@ -471,11 +509,25 @@ static int analyse(const double *zeros, size_t m)
             sums[4] += (k_first[at] - k_second[at]) * (k_first[at] - k_second[at]);
         }
         const double n = (double)band_count;
-        printf(
-            "    tau in [%.3f, %.3f): the zeros' mean %.4f, GUE's %.4f; rms from the primes %.4f, from GUE %.4f; the "
-            "halves' difference, rms %.4f\n",
-            bands[band][0], bands[band][1], sums[0] / n, sums[1] / n, sqrt(sums[2] / n), sqrt(sums[3] / n),
-            sqrt(sums[4] / n));
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    tau in [");
+            mmgr_line_fixed(output_line, (double)(bands[band][0]), 3u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, ", ");
+            mmgr_line_fixed(output_line, (double)(bands[band][1]), 3u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, "): the zeros' mean ");
+            mmgr_line_fixed(output_line, (double)(sums[0] / n), 4u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, ", GUE's ");
+            mmgr_line_fixed(output_line, (double)(sums[1] / n), 4u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, "; rms from the primes ");
+            mmgr_line_fixed(output_line, (double)(sqrt(sums[2] / n)), 4u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, ", from GUE ");
+            mmgr_line_fixed(output_line, (double)(sqrt(sums[3] / n)), 4u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, "; the halves' difference, rms ");
+            mmgr_line_fixed(output_line, (double)(sqrt(sums[4] / n)), 4u, 0u, EMBED_FALSE);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
 
     double wide[60];
@@ -494,12 +546,29 @@ static int analyse(const double *zeros, size_t m)
     {
         k_wide_gue[at] = gue(WIDE, wide[at]);
     }
-    printf("  K smoothed by sigma %.2f: tau, the zeros, GUE's, the shuffled spacings'\n", WIDE);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  K smoothed by sigma ");
+        mmgr_line_fixed(output_line, (double)(WIDE), 2u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, ": tau, the zeros, GUE's, the shuffled spacings'");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     for (int at = 0; at < 60; at += 1)
     {
         if (near_whole(wide[at] * 10.0))
         {
-            printf("    %.2f  %.4f  %.4f  %.4f\n", wide[at], k_wide[at], k_wide_gue[at], k_wide_shuffled[at]);
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    ");
+            mmgr_line_fixed(output_line, (double)(wide[at]), 2u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_fixed(output_line, (double)(k_wide[at]), 4u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_fixed(output_line, (double)(k_wide_gue[at]), 4u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_fixed(output_line, (double)(k_wide_shuffled[at]), 4u, 0u, EMBED_FALSE);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
         }
     }
     const double wide_bands[3][2] = {{0.2, 0.8}, {0.8, 1.2}, {1.2, 3.01}};
@@ -522,9 +591,21 @@ static int analyse(const double *zeros, size_t m)
             band_count += 1u;
         }
         const double top = (wide_bands[band][1] < 3.0) ? wide_bands[band][1] : 3.0;
-        printf(
-            "    tau in [%.1f, %.1f]: the zeros less GUE's, mean %+.4f, max %.4f; the shuffled spacings', mean %+.4f\n",
-            wide_bands[band][0], top, total / (double)band_count, most, shuffled_total / (double)band_count);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "    tau in [");
+            mmgr_line_fixed(output_line, (double)(wide_bands[band][0]), 1u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, ", ");
+            mmgr_line_fixed(output_line, (double)(top), 1u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, "]: the zeros less GUE's, mean ");
+            mmgr_line_fixed(output_line, (double)(total / (double)band_count), 4u, 0u, EMBED_TRUE);
+            mmgr_line_put(output_line, ", max ");
+            mmgr_line_fixed(output_line, (double)(most), 4u, 0u, EMBED_FALSE);
+            mmgr_line_put(output_line, "; the shuffled spacings', mean ");
+            mmgr_line_fixed(output_line, (double)(shuffled_total / (double)band_count), 4u, 0u, EMBED_TRUE);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     free(whole.bins);
     free(first.bins);

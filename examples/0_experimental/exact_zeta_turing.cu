@@ -136,6 +136,7 @@
 // that change.
 
 #include "../../src/cu/engine/analysis/cycle/cycle.h"
+#include "../../src/platform/platform.h"
 #include "../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../src/cu/engine/analysis/keymath/keymath.h"
 #include "verba_scribo/verba_linea.h"
@@ -246,7 +247,7 @@ typedef struct
     std::vector<unsigned int> params;
     // the shared fields still to fill, each with its constant
     std::vector<unsigned int> put_field;
-    std::vector<std::vector<unsigned int> > put_limbs;
+    std::vector<std::vector<unsigned int>> put_limbs;
     std::vector<long long> put_sign;
     // a shared field TURING_EXP_BITS wide that holds 0, added to each expansion value before its wrap. A field is as
     // wide as its place. That gives the outputs of each expansion one width, whatever bound the imprint finds
@@ -310,8 +311,8 @@ static unsigned int turing_op(TuringProgram *program, EngineRecordOperation oper
 
 static unsigned int turing_constant(TuringProgram *program, unsigned long long value)
 {
-    return turing_step(program, ENGINE_RECORD_CONSTANT, (unsigned int)(value & 0xFFFFFFFFull), (unsigned int)(value >> 32u),
-                       0u);
+    return turing_step(program, ENGINE_RECORD_CONSTANT, (unsigned int)(value & 0xFFFFFFFFull),
+                       (unsigned int)(value >> 32u), 0u);
 }
 
 // 2^bits, for bits up to 126, as one constant or the product of two
@@ -354,8 +355,8 @@ static unsigned int turing_read(TuringProgram *program, unsigned int field, unsi
 static unsigned int turing_scaled(TuringProgram *program, unsigned int left, unsigned int right)
 {
     const unsigned int product = turing_op(program, ENGINE_RECORD_PRODUCT, left, right);
-    const unsigned int half = turing_op(program, ENGINE_RECORD_QUOTIENT, product,
-                                        turing_constant(program, 1ull << TURING_HALF_BITS));
+    const unsigned int half =
+        turing_op(program, ENGINE_RECORD_QUOTIENT, product, turing_constant(program, 1ull << TURING_HALF_BITS));
     const unsigned int whole =
         turing_op(program, ENGINE_RECORD_QUOTIENT, half, turing_constant(program, 1ull << TURING_HALF_BITS));
     return turing_op(program, ENGINE_RECORD_WRAP, whole, turing_scaled_bits);
@@ -441,7 +442,8 @@ typedef struct
     std::vector<TuringConstant> sinc;
 } TuringOsConstants;
 
-static void turing_os_fields(TuringStage *stage, TuringOsFields *fields, unsigned int member, const TuringOsConstants &os)
+static void turing_os_fields(TuringStage *stage, TuringOsFields *fields, unsigned int member,
+                             const TuringOsConstants &os)
 {
     fields->member = member;
     fields->pi = turing_const_field(stage, os.pi);
@@ -456,7 +458,8 @@ static unsigned int turing_horner(TuringProgram *program, unsigned int u, const 
     unsigned int acc = turing_read(program, fields[fields.size() - 1u], member);
     for (size_t k = fields.size() - 1u; k > 0u; k -= 1u)
     {
-        acc = turing_op(program, ENGINE_RECORD_SUM, turing_scaled(program, acc, u), turing_read(program, fields[k - 1u], member));
+        acc = turing_op(program, ENGINE_RECORD_SUM, turing_scaled(program, acc, u),
+                        turing_read(program, fields[k - 1u], member));
     }
     return acc;
 }
@@ -467,7 +470,8 @@ static TuringComplex turing_cis(TuringProgram *program, unsigned int s, const Tu
     TuringComplex out;
     out.re = turing_horner(program, turing_scaled(program, s, s), fields->cosine, fields->member);
     const unsigned int shifted = turing_wrap(
-        program, turing_op(program, ENGINE_RECORD_DIFFERENCE, s, turing_constant(program, 1ull << (TURING_SCALE_BITS - 1u))),
+        program,
+        turing_op(program, ENGINE_RECORD_DIFFERENCE, s, turing_constant(program, 1ull << (TURING_SCALE_BITS - 1u))),
         TURING_SCALE_BITS + 1u);
     out.im = turing_horner(program, turing_scaled(program, shifted, shifted), fields->cosine, fields->member);
     return out;
@@ -482,8 +486,9 @@ static TuringComplex turing_e1i(TuringProgram *program, unsigned int x, const Tu
     acc.im = turing_constant(program, 0ull);
     for (size_t n = terms - 1u; n > 0u; n -= 1u)
     {
-        const unsigned int re = turing_op(program, ENGINE_RECORD_SUM, turing_negate(program, turing_scaled(program, acc.im, x)),
-                                          turing_read(program, fields->fact[n - 1u], fields->member));
+        const unsigned int re =
+            turing_op(program, ENGINE_RECORD_SUM, turing_negate(program, turing_scaled(program, acc.im, x)),
+                      turing_read(program, fields->fact[n - 1u], fields->member));
         acc.im = turing_scaled(program, acc.re, x);
         acc.re = re;
     }
@@ -499,8 +504,10 @@ static unsigned int turing_sinc(TuringProgram *program, unsigned int u, const Tu
 static TuringComplex turing_cmul(TuringProgram *program, TuringComplex a, TuringComplex b)
 {
     TuringComplex out;
-    out.re = turing_op(program, ENGINE_RECORD_DIFFERENCE, turing_scaled(program, a.re, b.re), turing_scaled(program, a.im, b.im));
-    out.im = turing_op(program, ENGINE_RECORD_SUM, turing_scaled(program, a.re, b.im), turing_scaled(program, a.im, b.re));
+    out.re = turing_op(program, ENGINE_RECORD_DIFFERENCE, turing_scaled(program, a.re, b.re),
+                       turing_scaled(program, a.im, b.im));
+    out.im =
+        turing_op(program, ENGINE_RECORD_SUM, turing_scaled(program, a.re, b.im), turing_scaled(program, a.im, b.re));
     out.re = turing_wrap(program, out.re, turing_scaled_bits);
     out.im = turing_wrap(program, out.im, turing_scaled_bits);
     return out;
@@ -508,7 +515,8 @@ static TuringComplex turing_cmul(TuringProgram *program, TuringComplex a, Turing
 
 static TuringComplex turing_cadd(TuringProgram *program, TuringComplex a, TuringComplex b)
 {
-    TuringComplex out = {turing_op(program, ENGINE_RECORD_SUM, a.re, b.re), turing_op(program, ENGINE_RECORD_SUM, a.im, b.im)};
+    TuringComplex out = {turing_op(program, ENGINE_RECORD_SUM, a.re, b.re),
+                         turing_op(program, ENGINE_RECORD_SUM, a.im, b.im)};
     return out;
 }
 
@@ -537,8 +545,9 @@ static TuringComplex turing_chalf(TuringProgram *program, TuringComplex a)
 // precision
 static TuringComplex turing_crecip(TuringProgram *program, TuringComplex a)
 {
-    const unsigned int norm = turing_op(program, ENGINE_RECORD_SUM, turing_op(program, ENGINE_RECORD_PRODUCT, a.re, a.re),
-                                        turing_op(program, ENGINE_RECORD_PRODUCT, a.im, a.im));
+    const unsigned int norm =
+        turing_op(program, ENGINE_RECORD_SUM, turing_op(program, ENGINE_RECORD_PRODUCT, a.re, a.re),
+                  turing_op(program, ENGINE_RECORD_PRODUCT, a.im, a.im));
     const unsigned int unit = turing_power(program, 2u * TURING_SCALE_BITS);
     TuringComplex out;
     out.re = turing_wrap(
@@ -578,25 +587,28 @@ static unsigned int turing_log(TuringProgram *program, unsigned int value, unsig
                           turing_op(program, ENGINE_RECORD_SUM, turing_constant(program, 1ull), past));
     }
     // 2^(b + f) lies in [V / 2, V], below 2^(b + folds + 1), and y in [0, 1/3]
-    const unsigned int base = turing_op(program, ENGINE_RECORD_WRAP,
-                                        turing_op(program, ENGINE_RECORD_PRODUCT, power, turing_power(program, b)),
-                                        b + folds + 3u);
-    const unsigned int over = turing_op(program, ENGINE_RECORD_PRODUCT, turing_op(program, ENGINE_RECORD_DIFFERENCE, value, base),
-                                        turing_constant(program, 1ull << TURING_SCALE_BITS));
-    const unsigned int y = turing_op(program, ENGINE_RECORD_WRAP,
-                                     turing_op(program, ENGINE_RECORD_QUOTIENT, over, turing_op(program, ENGINE_RECORD_SUM, value, base)),
-                                     TURING_SCALE_BITS + 1u);
+    const unsigned int base =
+        turing_op(program, ENGINE_RECORD_WRAP,
+                  turing_op(program, ENGINE_RECORD_PRODUCT, power, turing_power(program, b)), b + folds + 3u);
+    const unsigned int over =
+        turing_op(program, ENGINE_RECORD_PRODUCT, turing_op(program, ENGINE_RECORD_DIFFERENCE, value, base),
+                  turing_constant(program, 1ull << TURING_SCALE_BITS));
+    const unsigned int y =
+        turing_op(program, ENGINE_RECORD_WRAP,
+                  turing_op(program, ENGINE_RECORD_QUOTIENT, over, turing_op(program, ENGINE_RECORD_SUM, value, base)),
+                  TURING_SCALE_BITS + 1u);
     const unsigned int y2 = turing_scaled(program, y, y);
     const size_t terms = fields->artanh.size();
     unsigned int acc = turing_read(program, fields->artanh[terms - 1u], 0u);
     for (size_t k = terms - 1u; k > 0u; k -= 1u)
     {
-        acc = turing_op(program, ENGINE_RECORD_SUM, turing_scaled(program, acc, y2), turing_read(program, fields->artanh[k - 1u], 0u));
+        acc = turing_op(program, ENGINE_RECORD_SUM, turing_scaled(program, acc, y2),
+                        turing_read(program, fields->artanh[k - 1u], 0u));
     }
     const unsigned int half = turing_scaled(program, acc, y);
     const unsigned int twice = turing_op(program, ENGINE_RECORD_SUM, half, half);
-    return turing_op(program, ENGINE_RECORD_SUM, turing_op(program, ENGINE_RECORD_PRODUCT, count, turing_read(program, fields->ln2, 0u)),
-                     twice);
+    return turing_op(program, ENGINE_RECORD_SUM,
+                     turing_op(program, ENGINE_RECORD_PRODUCT, count, turing_read(program, fields->ln2, 0u)), twice);
 }
 
 // w^(-1/2) at the scale, w = `times` / 2^`per`, for w in [1, 4^(folds + 1)), by Newton's rule from 2^(-g - 1) below it
@@ -620,8 +632,10 @@ static unsigned int turing_root(TuringProgram *program, unsigned int times, unsi
         {
             wy2 = turing_op(program, ENGINE_RECORD_QUOTIENT, wy2, turing_power(program, per));
         }
-        const unsigned int three = turing_op(program, ENGINE_RECORD_DIFFERENCE, turing_constant(program, 3ull << TURING_SCALE_BITS), wy2);
-        y = turing_op(program, ENGINE_RECORD_QUOTIENT, turing_scaled(program, y, three), turing_constant(program, 2ull));
+        const unsigned int three =
+            turing_op(program, ENGINE_RECORD_DIFFERENCE, turing_constant(program, 3ull << TURING_SCALE_BITS), wy2);
+        y = turing_op(program, ENGINE_RECORD_QUOTIENT, turing_scaled(program, y, three),
+                      turing_constant(program, 2ull));
     }
     return y;
 }
@@ -646,8 +660,8 @@ static void turing_log_fields(TuringProgram *program, TuringLogFields *fields, c
 // evaluation over these poles then gives `F' / 2^shift`. With 2^shift at least ln nu, each charge is at max that of
 // F, and each width that holds F holds it
 static void turing_pole_build(TuringStage *stage, unsigned int newton, const TuringConstant &ln2,
-                              const std::vector<TuringConstant> &artanh, unsigned int p,
-                              const TuringOsConstants *os, int weighted, unsigned int shift)
+                              const std::vector<TuringConstant> &artanh, unsigned int p, const TuringOsConstants *os,
+                              int weighted, unsigned int shift)
 {
     TuringProgram *const program = &stage->program;
     TuringLogFields fields;
@@ -668,16 +682,21 @@ static void turing_pole_build(TuringStage *stage, unsigned int newton, const Tur
     const unsigned int step_field = turing_param_field(stage, turing_nu_bits + 3u);
     const unsigned int twice_square_field = turing_param_field(stage, 2u * turing_nu_bits + 3u);
     const unsigned int pos = turing_op(program, ENGINE_RECORD_PRODUCT, log, turing_read(program, step_field, 0u));
-    const unsigned int alpha = turing_wrap(program, turing_op(program, ENGINE_RECORD_PRODUCT, log, turing_read(program, twice_square_field, 0u)),
-                                           TURING_SCALE_BITS + 1u);
+    const unsigned int alpha = turing_wrap(
+        program, turing_op(program, ENGINE_RECORD_PRODUCT, log, turing_read(program, twice_square_field, 0u)),
+        TURING_SCALE_BITS + 1u);
     const TuringComplex turn = turing_cis(program, alpha, &of);
-    const TuringComplex a = {turing_scaled(program, root, turn.re), turing_negate(program, turing_scaled(program, root, turn.im))};
-    const unsigned int whole = turing_wrap(program, turing_op(program, ENGINE_RECORD_SUM, pos, pos), TURING_SCALE_BITS + 1u);
+    const TuringComplex a = {turing_scaled(program, root, turn.re),
+                             turing_negate(program, turing_scaled(program, root, turn.im))};
+    const unsigned int whole =
+        turing_wrap(program, turing_op(program, ENGINE_RECORD_SUM, pos, pos), TURING_SCALE_BITS + 1u);
     const TuringComplex back = turing_cis(program, whole, &of);
-    const TuringComplex less = {turing_op(program, ENGINE_RECORD_DIFFERENCE, turing_constant(program, 1ull << TURING_SCALE_BITS), back.re),
-                                back.im};
+    const TuringComplex less = {
+        turing_op(program, ENGINE_RECORD_DIFFERENCE, turing_constant(program, 1ull << TURING_SCALE_BITS), back.re),
+        back.im};
     const TuringComplex c = turing_cmul(program, a, less);
-    const TuringComplex omega = turing_cis(program, turing_op(program, ENGINE_RECORD_QUOTIENT, pos, turing_power(program, p - 1u)), &of);
+    const TuringComplex omega =
+        turing_cis(program, turing_op(program, ENGINE_RECORD_QUOTIENT, pos, turing_power(program, p - 1u)), &of);
     TuringComplex charge = turing_cmul(program, c, omega);
     TuringComplex accumulated = a;
     if (weighted)
@@ -726,42 +745,52 @@ static void turing_point_build(TuringStage *stage, unsigned int p, unsigned int 
     {
         gamma_field.push_back(turing_field(program, gamma[k].bits));
     }
-    const unsigned int lane = listed ? turing_read(program, turing_member_field(program, p + 2u, 0u), 1u)
-                                     : turing_lane(program, p + 1u);
-    const unsigned int big_s = turing_op(program, ENGINE_RECORD_SUM, turing_read(program, floor_field, 0u),
-                                         turing_op(program, ENGINE_RECORD_PRODUCT, lane, turing_read(program, step_field, 0u)));
+    const unsigned int lane =
+        listed ? turing_read(program, turing_member_field(program, p + 2u, 0u), 1u) : turing_lane(program, p + 1u);
+    const unsigned int big_s =
+        turing_op(program, ENGINE_RECORD_SUM, turing_read(program, floor_field, 0u),
+                  turing_op(program, ENGINE_RECORD_PRODUCT, lane, turing_read(program, step_field, 0u)));
 
     // theta / pi = S ln(S / 2^p) / 2^p - S / 2^p - 1/8 + 2^p / (96 pi^2 S) + c3 / s^3 + c5 / s^5
     const unsigned int log = turing_log(program, big_s, p, 2u * turing_nu_bits + 1u, &fields);
-    const unsigned int leading = turing_op(program, ENGINE_RECORD_QUOTIENT,
-                                           turing_op(program, ENGINE_RECORD_PRODUCT, big_s, log), turing_power(program, p));
-    const unsigned int square = turing_op(program, ENGINE_RECORD_PRODUCT, big_s, turing_power(program, TURING_SCALE_BITS - p));
-    const unsigned int small = turing_op(program, ENGINE_RECORD_QUOTIENT,
-                                         turing_op(program, ENGINE_RECORD_PRODUCT, turing_read(program, c96_field, 0u),
-                                                   turing_power(program, p)),
-                                         big_s);
+    const unsigned int leading =
+        turing_op(program, ENGINE_RECORD_QUOTIENT, turing_op(program, ENGINE_RECORD_PRODUCT, big_s, log),
+                  turing_power(program, p));
+    const unsigned int square =
+        turing_op(program, ENGINE_RECORD_PRODUCT, big_s, turing_power(program, TURING_SCALE_BITS - p));
+    const unsigned int small = turing_op(
+        program, ENGINE_RECORD_QUOTIENT,
+        turing_op(program, ENGINE_RECORD_PRODUCT, turing_read(program, c96_field, 0u), turing_power(program, p)),
+        big_s);
     const unsigned int less = turing_op(program, ENGINE_RECORD_DIFFERENCE, leading, square);
-    const unsigned int eighth = turing_op(program, ENGINE_RECORD_DIFFERENCE, less, turing_constant(program, 1ull << (TURING_SCALE_BITS - 3u)));
-    const unsigned int reciprocal = turing_op(program, ENGINE_RECORD_QUOTIENT, turing_power(program, TURING_SCALE_BITS + p), big_s);
+    const unsigned int eighth =
+        turing_op(program, ENGINE_RECORD_DIFFERENCE, less, turing_constant(program, 1ull << (TURING_SCALE_BITS - 3u)));
+    const unsigned int reciprocal =
+        turing_op(program, ENGINE_RECORD_QUOTIENT, turing_power(program, TURING_SCALE_BITS + p), big_s);
     const unsigned int reciprocal2 = turing_scaled(program, reciprocal, reciprocal);
-    const unsigned int odd = turing_op(program, ENGINE_RECORD_SUM, turing_scaled(program, turing_read(program, c5_field, 0u), reciprocal2),
-                                       turing_read(program, c3_field, 0u));
+    const unsigned int odd =
+        turing_op(program, ENGINE_RECORD_SUM, turing_scaled(program, turing_read(program, c5_field, 0u), reciprocal2),
+                  turing_read(program, c3_field, 0u));
     const unsigned int further = turing_scaled(program, turing_scaled(program, odd, reciprocal2), reciprocal);
-    const unsigned int theta = turing_op(program, ENGINE_RECORD_SUM, turing_op(program, ENGINE_RECORD_SUM, eighth, small), further);
+    const unsigned int theta =
+        turing_op(program, ENGINE_RECORD_SUM, turing_op(program, ENGINE_RECORD_SUM, eighth, small), further);
 
     // x = S s^(-1/2) / 2^p, below 2^(62 + 16), and z = 1 - 2 (x - nu) in [-1, 1]
     const unsigned int inverse = turing_root(program, big_s, p, turing_nu_bits, newton);
-    const unsigned int x = turing_op(program, ENGINE_RECORD_QUOTIENT, turing_op(program, ENGINE_RECORD_PRODUCT, big_s, inverse),
-                                     turing_power(program, p));
-    const unsigned int lifted = turing_op(program, ENGINE_RECORD_PRODUCT,
-                                          turing_op(program, ENGINE_RECORD_SUM,
-                                                    turing_op(program, ENGINE_RECORD_SUM, turing_read(program, nu_field, 0u),
-                                                              turing_read(program, nu_field, 0u)),
-                                                    turing_constant(program, 1ull)),
-                                          turing_constant(program, 1ull << TURING_SCALE_BITS));
-    const unsigned int z = turing_op(program, ENGINE_RECORD_WRAP,
-                                     turing_op(program, ENGINE_RECORD_DIFFERENCE, lifted, turing_op(program, ENGINE_RECORD_SUM, x, x)),
-                                     TURING_SCALE_BITS + 2u);
+    const unsigned int x =
+        turing_op(program, ENGINE_RECORD_QUOTIENT, turing_op(program, ENGINE_RECORD_PRODUCT, big_s, inverse),
+                  turing_power(program, p));
+    const unsigned int lifted =
+        turing_op(program, ENGINE_RECORD_PRODUCT,
+                  turing_op(program, ENGINE_RECORD_SUM,
+                            turing_op(program, ENGINE_RECORD_SUM, turing_read(program, nu_field, 0u),
+                                      turing_read(program, nu_field, 0u)),
+                            turing_constant(program, 1ull)),
+                  turing_constant(program, 1ull << TURING_SCALE_BITS));
+    const unsigned int z =
+        turing_op(program, ENGINE_RECORD_WRAP,
+                  turing_op(program, ENGINE_RECORD_DIFFERENCE, lifted, turing_op(program, ENGINE_RECORD_SUM, x, x)),
+                  TURING_SCALE_BITS + 2u);
     // each C_n(z) by Horner's rule over its coefficients, and their sum over x^n by Horner's rule in 1 / x, from C_K
     const unsigned int root = turing_root(program, x, TURING_SCALE_BITS, turing_nu_bits / 2u, newton);
     const unsigned int over_x = turing_scaled(program, root, root);
@@ -773,7 +802,8 @@ static void turing_point_build(TuringStage *stage, unsigned int p, unsigned int 
         unsigned int acc = turing_read(program, gamma_field[base + per - 1u], 0u);
         for (size_t k = per - 1u; k > 0u; k -= 1u)
         {
-            acc = turing_op(program, ENGINE_RECORD_SUM, turing_scaled(program, acc, z), turing_read(program, gamma_field[base + k - 1u], 0u));
+            acc = turing_op(program, ENGINE_RECORD_SUM, turing_scaled(program, acc, z),
+                            turing_read(program, gamma_field[base + k - 1u], 0u));
         }
         total = (n == curves) ? acc : turing_op(program, ENGINE_RECORD_SUM, turing_scaled(program, total, over_x), acc);
     }
@@ -832,36 +862,42 @@ static void turing_pair_build(TuringStage *stage, unsigned int p, const TuringSt
         cos_field.push_back(turing_field(program, cosine[k].bits));
     }
     const unsigned int lane = turing_lane(program, turing_lane_bits + 1u);
-    const unsigned int j = turing_op(program, ENGINE_RECORD_SUM,
-                                     turing_op(program, ENGINE_RECORD_QUOTIENT, lane, turing_read(program, nu_field, 2u)),
-                                     turing_read(program, start_field, 2u));
+    const unsigned int j =
+        turing_op(program, ENGINE_RECORD_SUM,
+                  turing_op(program, ENGINE_RECORD_QUOTIENT, lane, turing_read(program, nu_field, 2u)),
+                  turing_read(program, start_field, 2u));
     const unsigned int big_s =
-        (s_place != NULL) ? turing_read(program, turing_member_field(program, s_place->out_bits, s_place->out_offset), 1u)
-                          : turing_op(program, ENGINE_RECORD_SUM, turing_read(program, floor_field, 2u),
-                                      turing_op(program, ENGINE_RECORD_PRODUCT, j, turing_read(program, step_field, 2u)));
+        (s_place != NULL)
+            ? turing_read(program, turing_member_field(program, s_place->out_bits, s_place->out_offset), 1u)
+            : turing_op(program, ENGINE_RECORD_SUM, turing_read(program, floor_field, 2u),
+                        turing_op(program, ENGINE_RECORD_PRODUCT, j, turing_read(program, step_field, 2u)));
     // 2 s ln k = S ln k / 2^(p - 1)
-    const unsigned int twice = turing_op(program, ENGINE_RECORD_QUOTIENT,
-                                         turing_op(program, ENGINE_RECORD_PRODUCT, big_s, turing_read(program, log_field, 0u)),
-                                         turing_power(program, p - 1u));
+    const unsigned int twice =
+        turing_op(program, ENGINE_RECORD_QUOTIENT,
+                  turing_op(program, ENGINE_RECORD_PRODUCT, big_s, turing_read(program, log_field, 0u)),
+                  turing_power(program, p - 1u));
     const unsigned int q = turing_op(program, ENGINE_RECORD_DIFFERENCE, turing_read(program, theta_field, 1u), twice);
     const unsigned int s = turing_op(program, ENGINE_RECORD_WRAP, q, TURING_SCALE_BITS + 1u);
     const unsigned int u = turing_scaled(program, s, s);
     unsigned int c = turing_read(program, cos_field[cos_field.size() - 1u], 2u);
     for (size_t k = cos_field.size() - 1u; k > 0u; k -= 1u)
     {
-        c = turing_op(program, ENGINE_RECORD_SUM, turing_scaled(program, c, u), turing_read(program, cos_field[k - 1u], 2u));
+        c = turing_op(program, ENGINE_RECORD_SUM, turing_scaled(program, c, u),
+                      turing_read(program, cos_field[k - 1u], 2u));
     }
     stage->outputs.push_back(turing_scaled(program, c, turing_read(program, root_field, 0u)));
     if (sloped)
     {
         const unsigned int shifted = turing_wrap(
-            program, turing_op(program, ENGINE_RECORD_DIFFERENCE, s, turing_constant(program, 1ull << (TURING_SCALE_BITS - 1u))),
+            program,
+            turing_op(program, ENGINE_RECORD_DIFFERENCE, s, turing_constant(program, 1ull << (TURING_SCALE_BITS - 1u))),
             TURING_SCALE_BITS + 1u);
         const unsigned int v = turing_scaled(program, shifted, shifted);
         unsigned int sine = turing_read(program, cos_field[cos_field.size() - 1u], 2u);
         for (size_t k = cos_field.size() - 1u; k > 0u; k -= 1u)
         {
-            sine = turing_op(program, ENGINE_RECORD_SUM, turing_scaled(program, sine, v), turing_read(program, cos_field[k - 1u], 2u));
+            sine = turing_op(program, ENGINE_RECORD_SUM, turing_scaled(program, sine, v),
+                             turing_read(program, cos_field[k - 1u], 2u));
         }
         const unsigned int term = turing_scaled(program, sine, turing_read(program, root_field, 0u));
         stage->outputs.push_back(term);
@@ -901,14 +937,17 @@ static void turing_em_build(TuringStage *stage, unsigned int p, const TuringStag
     const std::vector<unsigned int> ratio_field = turing_const_fields(stage, ratio);
 
     const unsigned int lane = turing_lane(program, p + 1u);
-    const unsigned int big_s = turing_op(program, ENGINE_RECORD_SUM, turing_read(program, floor_field, 2u),
-                                         turing_op(program, ENGINE_RECORD_PRODUCT, lane, turing_read(program, step_field, 2u)));
+    const unsigned int big_s =
+        turing_op(program, ENGINE_RECORD_SUM, turing_read(program, floor_field, 2u),
+                  turing_op(program, ENGINE_RECORD_PRODUCT, lane, turing_read(program, step_field, 2u)));
     // Q = theta / pi - S ln N / 2^(p - 1), taken modulo 2 into [-1, 1), and t = 2 pi S / 2^p
-    const unsigned int twice = turing_op(program, ENGINE_RECORD_QUOTIENT,
-                                         turing_op(program, ENGINE_RECORD_PRODUCT, big_s, turing_read(program, log_field, 0u)),
-                                         turing_power(program, p - 1u));
-    const unsigned int q = turing_wrap(program, turing_op(program, ENGINE_RECORD_DIFFERENCE, turing_read(program, theta_field, 1u), twice),
-                                       TURING_SCALE_BITS + 1u);
+    const unsigned int twice =
+        turing_op(program, ENGINE_RECORD_QUOTIENT,
+                  turing_op(program, ENGINE_RECORD_PRODUCT, big_s, turing_read(program, log_field, 0u)),
+                  turing_power(program, p - 1u));
+    const unsigned int q =
+        turing_wrap(program, turing_op(program, ENGINE_RECORD_DIFFERENCE, turing_read(program, theta_field, 1u), twice),
+                    TURING_SCALE_BITS + 1u);
     const TuringComplex turn = turing_cis(program, q, &of);
     const unsigned int t =
         turing_wrap(program,
@@ -923,11 +962,14 @@ static void turing_em_build(TuringStage *stage, unsigned int p, const TuringStag
     const TuringComplex less = {turing_negate(program, half), t};
     const TuringComplex inverse = turing_crecip(program, less);
     const unsigned int twelve = turing_op(program, ENGINE_RECORD_PRODUCT, turing_constant(program, 12ull), heads);
-    TuringComplex tau = {turing_op(program, ENGINE_RECORD_QUOTIENT, half, twelve), turing_op(program, ENGINE_RECORD_QUOTIENT, t, twelve)};
-    TuringComplex c = {turing_op(program, ENGINE_RECORD_SUM,
-                                 turing_op(program, ENGINE_RECORD_SUM, turing_op(program, ENGINE_RECORD_PRODUCT, inverse.re, heads), half),
-                                 tau.re),
-                       turing_op(program, ENGINE_RECORD_SUM, turing_op(program, ENGINE_RECORD_PRODUCT, inverse.im, heads), tau.im)};
+    TuringComplex tau = {turing_op(program, ENGINE_RECORD_QUOTIENT, half, twelve),
+                         turing_op(program, ENGINE_RECORD_QUOTIENT, t, twelve)};
+    TuringComplex c = {
+        turing_op(
+            program, ENGINE_RECORD_SUM,
+            turing_op(program, ENGINE_RECORD_SUM, turing_op(program, ENGINE_RECORD_PRODUCT, inverse.re, heads), half),
+            tau.re),
+        turing_op(program, ENGINE_RECORD_SUM, turing_op(program, ENGINE_RECORD_PRODUCT, inverse.im, heads), tau.im)};
     c = turing_cwrap(program, c, turing_scaled_bits);
     // tau_k from tau_(k-1): r_k, then 1 / N, s + 2k - 3, 1 / N, s + 2k - 2, which maintains every value below |tau|
     for (size_t at = 0u; at < ratio_field.size(); at += 1u)
@@ -936,11 +978,13 @@ static void turing_em_build(TuringStage *stage, unsigned int p, const TuringStag
         TuringComplex a = turing_cscale(program, tau, turing_read(program, ratio_field[at], 2u));
         a.re = turing_op(program, ENGINE_RECORD_QUOTIENT, a.re, heads);
         a.im = turing_op(program, ENGINE_RECORD_QUOTIENT, a.im, heads);
-        const TuringComplex w = {turing_op(program, ENGINE_RECORD_PRODUCT, turing_constant(program, 2ull * low + 1ull), half), t};
+        const TuringComplex w = {
+            turing_op(program, ENGINE_RECORD_PRODUCT, turing_constant(program, 2ull * low + 1ull), half), t};
         a = turing_cmul(program, a, w);
         a.re = turing_op(program, ENGINE_RECORD_QUOTIENT, a.re, heads);
         a.im = turing_op(program, ENGINE_RECORD_QUOTIENT, a.im, heads);
-        const TuringComplex v = {turing_op(program, ENGINE_RECORD_PRODUCT, turing_constant(program, 2ull * low + 3ull), half), t};
+        const TuringComplex v = {
+            turing_op(program, ENGINE_RECORD_PRODUCT, turing_constant(program, 2ull * low + 3ull), half), t};
         tau = turing_cmul(program, a, v);
         c = turing_cwrap(program, turing_cadd(program, c, tau), turing_scaled_bits);
     }
@@ -997,12 +1041,14 @@ static int turing_same_expansion(const TuringExpansion &a, const TuringExpansion
     const int same = (a.offset == b.offset) && (a.bits == b.bits) && (a.out_limbs == b.out_limbs);
     if (!same)
     {
-        fprintf(stderr, "  layouts differ: %zu %zu values, %u %u limbs\n", a.bits.size(), b.bits.size(), a.out_limbs, b.out_limbs);
+        fprintf(stderr, "  layouts differ: %zu %zu values, %u %u limbs\n", a.bits.size(), b.bits.size(), a.out_limbs,
+                b.out_limbs);
         for (size_t at = 0u; at < a.bits.size() && at < b.bits.size(); at += 1u)
         {
             if ((a.bits[at] != b.bits[at]) || (a.offset[at] != b.offset[at]))
             {
-                fprintf(stderr, "  value %zu: %u at %u, %u at %u\n", at, a.bits[at], a.offset[at], b.bits[at], b.offset[at]);
+                fprintf(stderr, "  value %zu: %u at %u, %u at %u\n", at, a.bits[at], a.offset[at], b.bits[at],
+                        b.offset[at]);
                 break;
             }
         }
@@ -1019,7 +1065,8 @@ typedef struct
     unsigned int member;
 } TuringExpansionFields;
 
-static TuringExpansionFields turing_expansion_fields(TuringProgram *program, const TuringExpansion &layout, unsigned int member)
+static TuringExpansionFields turing_expansion_fields(TuringProgram *program, const TuringExpansion &layout,
+                                                     unsigned int member)
 {
     TuringExpansionFields fields;
     fields.member = member;
@@ -1033,7 +1080,8 @@ static TuringExpansionFields turing_expansion_fields(TuringProgram *program, con
 
 static TuringComplex turing_read_at(TuringProgram *program, const TuringExpansionFields &fields, size_t at)
 {
-    TuringComplex value = {turing_read(program, fields.re[at], fields.member), turing_read(program, fields.im[at], fields.member)};
+    TuringComplex value = {turing_read(program, fields.re[at], fields.member),
+                           turing_read(program, fields.im[at], fields.member)};
     return value;
 }
 
@@ -1051,8 +1099,10 @@ static void turing_put_value(TuringStage *stage, TuringComplex value)
     if (stage->anchored)
     {
         TuringProgram *const program = &stage->program;
-        value.re = turing_op(program, ENGINE_RECORD_SUM, value.re, turing_read(program, stage->anchor_field, stage->anchor_member));
-        value.im = turing_op(program, ENGINE_RECORD_SUM, value.im, turing_read(program, stage->anchor_field, stage->anchor_member));
+        value.re = turing_op(program, ENGINE_RECORD_SUM, value.re,
+                             turing_read(program, stage->anchor_field, stage->anchor_member));
+        value.im = turing_op(program, ENGINE_RECORD_SUM, value.im,
+                             turing_read(program, stage->anchor_field, stage->anchor_member));
     }
     const TuringComplex wrapped = turing_cwrap(&stage->program, value, TURING_EXP_BITS);
     stage->outputs.push_back(wrapped.re);
@@ -1088,8 +1138,9 @@ static unsigned int turing_weight(TuringProgram *program, unsigned long long c, 
 // a + w b for an integer weight w, exact
 static TuringComplex turing_cweigh(TuringProgram *program, TuringComplex a, unsigned int w, TuringComplex b)
 {
-    TuringComplex out = {turing_op(program, ENGINE_RECORD_SUM, a.re, turing_op(program, ENGINE_RECORD_PRODUCT, w, b.re)),
-                         turing_op(program, ENGINE_RECORD_SUM, a.im, turing_op(program, ENGINE_RECORD_PRODUCT, w, b.im))};
+    TuringComplex out = {
+        turing_op(program, ENGINE_RECORD_SUM, a.re, turing_op(program, ENGINE_RECORD_PRODUCT, w, b.re)),
+        turing_op(program, ENGINE_RECORD_SUM, a.im, turing_op(program, ENGINE_RECORD_PRODUCT, w, b.im))};
     return out;
 }
 
@@ -1111,26 +1162,29 @@ static void turing_below_build(TuringStage *stage, unsigned int beta, const Turi
 {
     TuringProgram *const program = &stage->program;
     const DeviceRecordStep *const pos_place = turing_place(pole, 2u);
-    const unsigned int pos = turing_read(program, turing_member_field(program, pos_place->out_bits, pos_place->out_offset), 0u);
+    const unsigned int pos =
+        turing_read(program, turing_member_field(program, pos_place->out_bits, pos_place->out_offset), 0u);
     // member 1 the shared record of nu, the stage's parameter
     const unsigned int nu_field = turing_param_field(stage, turing_nu_bits + 2u);
     const unsigned int lane = turing_lane(program, turing_os_lane_bits);
-    const unsigned int boundary = turing_op(program, ENGINE_RECORD_PRODUCT,
-                                            turing_op(program, ENGINE_RECORD_QUOTIENT, lane, turing_read(program, nu_field, 1u)),
-                                            turing_power(program, beta + TURING_SCALE_BITS));
+    const unsigned int boundary =
+        turing_op(program, ENGINE_RECORD_PRODUCT,
+                  turing_op(program, ENGINE_RECORD_QUOTIENT, lane, turing_read(program, nu_field, 1u)),
+                  turing_power(program, beta + TURING_SCALE_BITS));
     stage->outputs.push_back(turing_above(program, boundary, pos));
 }
 
 // the terms of the leaf multipoles. Lane (leaf, position) reads its pole through the index, and finds its leaf from
 // pos. It gives `(q / sigma) eta^m` for each m < N. The sum over the positions of a leaf is its multipole
-static void turing_p2m_build(TuringStage *stage, unsigned int p, unsigned int beta, unsigned int order, const TuringStage *pole,
-                             const TuringOsConstants &os)
+static void turing_p2m_build(TuringStage *stage, unsigned int p, unsigned int beta, unsigned int order,
+                             const TuringStage *pole, const TuringOsConstants &os)
 {
     TuringProgram *const program = &stage->program;
     const DeviceRecordStep *const pos_place = turing_place(pole, 2u);
     const DeviceRecordStep *const qre_place = turing_place(pole, 5u);
     const DeviceRecordStep *const qim_place = turing_place(pole, 6u);
-    const unsigned int pos = turing_read(program, turing_member_field(program, pos_place->out_bits, pos_place->out_offset), 0u);
+    const unsigned int pos =
+        turing_read(program, turing_member_field(program, pos_place->out_bits, pos_place->out_offset), 0u);
     TuringComplex q;
     q.re = turing_read(program, turing_member_field(program, qre_place->out_bits, qre_place->out_offset), 0u);
     q.im = turing_read(program, turing_member_field(program, qim_place->out_bits, qim_place->out_offset), 0u);
@@ -1139,18 +1193,23 @@ static void turing_p2m_build(TuringStage *stage, unsigned int p, unsigned int be
     turing_anchor(stage, 1u);
     const unsigned int half = turing_power(program, p - 1u + TURING_SCALE_BITS);
     const unsigned int width = turing_power(program, beta + TURING_SCALE_BITS);
-    const unsigned int leaf = turing_op(program, ENGINE_RECORD_QUOTIENT, turing_op(program, ENGINE_RECORD_SUM, pos, half), width);
-    const unsigned int center = turing_op(program, ENGINE_RECORD_SUM,
-                                          turing_op(program, ENGINE_RECORD_DIFFERENCE, turing_op(program, ENGINE_RECORD_PRODUCT, leaf, width), half),
-                                          turing_power(program, beta - 1u + TURING_SCALE_BITS));
+    const unsigned int leaf =
+        turing_op(program, ENGINE_RECORD_QUOTIENT, turing_op(program, ENGINE_RECORD_SUM, pos, half), width);
+    const unsigned int center = turing_op(
+        program, ENGINE_RECORD_SUM,
+        turing_op(program, ENGINE_RECORD_DIFFERENCE, turing_op(program, ENGINE_RECORD_PRODUCT, leaf, width), half),
+        turing_power(program, beta - 1u + TURING_SCALE_BITS));
     // u = 2 (pos - c) / W in [-1, 1], psi = 2 pi (pos - c) / P = u pi W / P, eta = u i E1(i psi)
-    const unsigned int u = turing_op(program, ENGINE_RECORD_QUOTIENT, turing_op(program, ENGINE_RECORD_DIFFERENCE, pos, center),
-                                     turing_power(program, beta - 1u));
-    const unsigned int psi = turing_op(program, ENGINE_RECORD_QUOTIENT, turing_scaled(program, u, turing_read(program, of.pi, 1u)),
-                                       turing_power(program, p - beta));
+    const unsigned int u =
+        turing_op(program, ENGINE_RECORD_QUOTIENT, turing_op(program, ENGINE_RECORD_DIFFERENCE, pos, center),
+                  turing_power(program, beta - 1u));
+    const unsigned int psi =
+        turing_op(program, ENGINE_RECORD_QUOTIENT, turing_scaled(program, u, turing_read(program, of.pi, 1u)),
+                  turing_power(program, p - beta));
     const TuringComplex eta = turing_cscale(program, turing_ctimes_i(program, turing_e1i(program, psi, &of)), u);
-    const unsigned int angle = turing_wrap(program, turing_op(program, ENGINE_RECORD_QUOTIENT, center, turing_power(program, p - 1u)),
-                                           TURING_SCALE_BITS + 1u);
+    const unsigned int angle =
+        turing_wrap(program, turing_op(program, ENGINE_RECORD_QUOTIENT, center, turing_power(program, p - 1u)),
+                    TURING_SCALE_BITS + 1u);
     const TuringComplex sigma = turing_cis(program, angle, &of);
     const TuringComplex conj = {sigma.re, turing_negate(program, sigma.im)};
     TuringComplex term = turing_cmul(program, q, conj);
@@ -1173,8 +1232,10 @@ static void turing_fold_build(TuringStage *stage, const TuringExpansion &layout)
     const TuringExpansionFields c = turing_expansion_fields(program, layout, 2u);
     for (size_t at = 0u; at < a.re.size(); at += 1u)
     {
-        turing_put_value(stage, turing_cadd(program, turing_cadd(program, turing_read_at(program, a, at), turing_read_at(program, b, at)),
-                                            turing_read_at(program, c, at)));
+        turing_put_value(
+            stage,
+            turing_cadd(program, turing_cadd(program, turing_read_at(program, a, at), turing_read_at(program, b, at)),
+                        turing_read_at(program, c, at)));
     }
 }
 
@@ -1225,11 +1286,12 @@ static void turing_m2m_build(TuringStage *stage, const TuringExpansion &layout, 
     turing_anchor(stage, 1u);
     const unsigned int level = turing_read(program, level_field, 1u);
     const unsigned int side = turing_read(program, side_field, 1u);
-    const unsigned int phi = turing_op(program, ENGINE_RECORD_PRODUCT,
-                                       turing_op(program, ENGINE_RECORD_QUOTIENT, turing_read(program, of.pi, 1u), level), side);
-    const unsigned int turn = turing_op(program, ENGINE_RECORD_PRODUCT,
-                                        turing_op(program, ENGINE_RECORD_QUOTIENT, turing_constant(program, 1ull << TURING_SCALE_BITS), level),
-                                        side);
+    const unsigned int phi =
+        turing_op(program, ENGINE_RECORD_PRODUCT,
+                  turing_op(program, ENGINE_RECORD_QUOTIENT, turing_read(program, of.pi, 1u), level), side);
+    const unsigned int turn = turing_op(
+        program, ENGINE_RECORD_PRODUCT,
+        turing_op(program, ENGINE_RECORD_QUOTIENT, turing_constant(program, 1ull << TURING_SCALE_BITS), level), side);
     const TuringShift shift = turing_shift(program, turn, phi, side, &of);
     std::vector<TuringComplex> z(order);
     TuringComplex power = turing_cone(program);
@@ -1290,14 +1352,18 @@ static void turing_m2l_build(TuringStage *stage, const TuringExpansion &layout, 
                   level),
         TURING_SCALE_BITS + 1u);
     const TuringComplex around = turing_cis(program, turn, &of);
-    const TuringComplex d = {turing_op(program, ENGINE_RECORD_DIFFERENCE, around.re, turing_constant(program, 1ull << TURING_SCALE_BITS)),
-                             around.im};
+    const TuringComplex d = {
+        turing_op(program, ENGINE_RECORD_DIFFERENCE, around.re, turing_constant(program, 1ull << TURING_SCALE_BITS)),
+        around.im};
     const TuringComplex inverse_d = turing_crecip(program, d);
     const TuringComplex rd = turing_cscale(program, inverse_d, phi);
-    const TuringComplex ce = {turing_negate(program, turing_op(program, ENGINE_RECORD_SUM, rd.re, phi)), turing_negate(program, rd.im)};
+    const TuringComplex ce = {turing_negate(program, turing_op(program, ENGINE_RECORD_SUM, rd.re, phi)),
+                              turing_negate(program, rd.im)};
     const unsigned int four = turing_constant(program, 4ull);
-    const TuringComplex four_rd = {turing_op(program, ENGINE_RECORD_PRODUCT, rd.re, four), turing_op(program, ENGINE_RECORD_PRODUCT, rd.im, four)};
-    const TuringComplex four_ce = {turing_op(program, ENGINE_RECORD_PRODUCT, ce.re, four), turing_op(program, ENGINE_RECORD_PRODUCT, ce.im, four)};
+    const TuringComplex four_rd = {turing_op(program, ENGINE_RECORD_PRODUCT, rd.re, four),
+                                   turing_op(program, ENGINE_RECORD_PRODUCT, rd.im, four)};
+    const TuringComplex four_ce = {turing_op(program, ENGINE_RECORD_PRODUCT, ce.re, four),
+                                   turing_op(program, ENGINE_RECORD_PRODUCT, ce.im, four)};
     std::vector<TuringComplex> y(order);
     TuringComplex power = turing_cone(program);
     for (unsigned int m = 0u; m < order; m += 1u)
@@ -1315,7 +1381,8 @@ static void turing_m2l_build(TuringStage *stage, const TuringExpansion &layout, 
         TuringComplex sum = {turing_constant(program, 0ull), turing_constant(program, 0ull)};
         for (unsigned int m = 0u; m < order; m += 1u)
         {
-            sum = turing_cweigh(program, sum, turing_weight(program, turing_binomial(m + n, n), 2u * (top - m - n)), y[m]);
+            sum = turing_cweigh(program, sum, turing_weight(program, turing_binomial(m + n, n), 2u * (top - m - n)),
+                                y[m]);
         }
         turing_put_value(stage, turing_cmul(program, scale, turing_cshift_down(program, sum, 2u * top)));
         if (n + 1u < order)
@@ -1344,15 +1411,18 @@ static void turing_l2l_build(TuringStage *stage, const TuringExpansion &layout, 
     turing_os_fields(stage, &of, 2u, os);
     turing_anchor(stage, 2u);
     const unsigned int level = turing_read(program, level_field, 2u);
-    const unsigned int parity = turing_op(program, ENGINE_RECORD_AND, turing_step(program, ENGINE_RECORD_LANE, 0u, 0u, 0u),
-                                          turing_constant(program, 1ull));
-    const unsigned int sign = turing_op(program, ENGINE_RECORD_DIFFERENCE, turing_op(program, ENGINE_RECORD_SUM, parity, parity),
-                                        turing_constant(program, 1ull));
-    const unsigned int phi = turing_op(program, ENGINE_RECORD_PRODUCT,
-                                       turing_op(program, ENGINE_RECORD_QUOTIENT, turing_read(program, of.pi, 2u), level), sign);
-    const unsigned int turn = turing_op(program, ENGINE_RECORD_PRODUCT,
-                                        turing_op(program, ENGINE_RECORD_QUOTIENT, turing_constant(program, 1ull << TURING_SCALE_BITS), level),
-                                        sign);
+    const unsigned int parity =
+        turing_op(program, ENGINE_RECORD_AND, turing_step(program, ENGINE_RECORD_LANE, 0u, 0u, 0u),
+                  turing_constant(program, 1ull));
+    const unsigned int sign =
+        turing_op(program, ENGINE_RECORD_DIFFERENCE, turing_op(program, ENGINE_RECORD_SUM, parity, parity),
+                  turing_constant(program, 1ull));
+    const unsigned int phi =
+        turing_op(program, ENGINE_RECORD_PRODUCT,
+                  turing_op(program, ENGINE_RECORD_QUOTIENT, turing_read(program, of.pi, 2u), level), sign);
+    const unsigned int turn = turing_op(
+        program, ENGINE_RECORD_PRODUCT,
+        turing_op(program, ENGINE_RECORD_QUOTIENT, turing_constant(program, 1ull << TURING_SCALE_BITS), level), sign);
     const TuringShift shift = turing_shift(program, turn, phi, sign, &of);
     const TuringComplex two_s = turing_cadd(program, shift.s, shift.s);
     std::vector<TuringComplex> powers(order);
@@ -1389,7 +1459,8 @@ static void turing_near_build(TuringStage *stage, unsigned int p, const TuringSt
     const DeviceRecordStep *const pos_place = turing_place(pole, 2u);
     const DeviceRecordStep *const are_place = turing_place(pole, 3u);
     const DeviceRecordStep *const aim_place = turing_place(pole, 4u);
-    const unsigned int pos = turing_read(program, turing_member_field(program, pos_place->out_bits, pos_place->out_offset), 0u);
+    const unsigned int pos =
+        turing_read(program, turing_member_field(program, pos_place->out_bits, pos_place->out_offset), 0u);
     TuringComplex a;
     a.re = turing_read(program, turing_member_field(program, are_place->out_bits, are_place->out_offset), 0u);
     a.im = turing_read(program, turing_member_field(program, aim_place->out_bits, aim_place->out_offset), 0u);
@@ -1402,16 +1473,19 @@ static void turing_near_build(TuringStage *stage, unsigned int p, const TuringSt
         turing_op(program, ENGINE_RECORD_SUM, turing_read(program, low_field, 1u),
                   turing_op(program, ENGINE_RECORD_QUOTIENT, turing_lane(program, turing_os_lane_bits),
                             turing_read(program, poles_field, 1u)));
-    const unsigned int d = turing_op(program, ENGINE_RECORD_DIFFERENCE, turing_op(program, ENGINE_RECORD_PRODUCT, h, unit), pos);
+    const unsigned int d =
+        turing_op(program, ENGINE_RECORD_DIFFERENCE, turing_op(program, ENGINE_RECORD_PRODUCT, h, unit), pos);
     const unsigned int r = turing_wrap(program, d, TURING_SCALE_BITS);
-    const unsigned int whole = turing_op(program, ENGINE_RECORD_EXACT_QUOTIENT, turing_op(program, ENGINE_RECORD_DIFFERENCE, d, r), unit);
+    const unsigned int whole =
+        turing_op(program, ENGINE_RECORD_EXACT_QUOTIENT, turing_op(program, ENGINE_RECORD_DIFFERENCE, d, r), unit);
     const unsigned int parity = turing_op(program, ENGINE_RECORD_AND, whole, turing_constant(program, 1ull));
     const unsigned int sign = turing_op(program, ENGINE_RECORD_DIFFERENCE, turing_constant(program, 1ull),
                                         turing_op(program, ENGINE_RECORD_SUM, parity, parity));
     const unsigned int zero = turing_equal(program, d, turing_constant(program, 0ull));
-    const unsigned int r_over_d = turing_op(program, ENGINE_RECORD_QUOTIENT,
-                                            turing_op(program, ENGINE_RECORD_PRODUCT, turing_op(program, ENGINE_RECORD_SUM, r, zero), unit),
-                                            turing_op(program, ENGINE_RECORD_SUM, d, zero));
+    const unsigned int r_over_d =
+        turing_op(program, ENGINE_RECORD_QUOTIENT,
+                  turing_op(program, ENGINE_RECORD_PRODUCT, turing_op(program, ENGINE_RECORD_SUM, r, zero), unit),
+                  turing_op(program, ENGINE_RECORD_SUM, d, zero));
     const unsigned int top = turing_sinc(program, turing_scaled(program, r, r), &of);
     const unsigned int small = turing_op(program, ENGINE_RECORD_QUOTIENT, d, turing_power(program, p));
     const unsigned int bottom = turing_sinc(program, turing_scaled(program, small, small), &of);
@@ -1424,7 +1498,8 @@ static void turing_near_build(TuringStage *stage, unsigned int p, const TuringSt
                                             turing_scaled_bits),
                                 r_over_d),
                   sign);
-    const unsigned int phase = turing_wrap(program, turing_op(program, ENGINE_RECORD_DIFFERENCE, d, small), TURING_SCALE_BITS + 1u);
+    const unsigned int phase =
+        turing_wrap(program, turing_op(program, ENGINE_RECORD_DIFFERENCE, d, small), TURING_SCALE_BITS + 1u);
     const TuringComplex turn = turing_cis(program, phase, &of);
     const TuringComplex value = turing_cmul(program, a, turing_cscale(program, turn, ratio));
     stage->outputs.push_back(value.re);
@@ -1445,12 +1520,15 @@ static void turing_eval_build(TuringStage *stage, unsigned int p, unsigned int b
     TuringOsFields of;
     turing_os_fields(stage, &of, 2u, os);
     const unsigned int lane = turing_lane(program, turing_os_lane_bits);
-    const unsigned int offset = turing_op(program, ENGINE_RECORD_DIFFERENCE,
-                                          turing_op(program, ENGINE_RECORD_AND, lane, turing_constant(program, (1ull << beta) - 1ull)),
-                                          turing_constant(program, 1ull << (beta - 1u)));
-    const unsigned int u = turing_op(program, ENGINE_RECORD_PRODUCT, offset, turing_power(program, TURING_SCALE_BITS + 1u - beta));
-    const unsigned int psi = turing_op(program, ENGINE_RECORD_QUOTIENT, turing_scaled(program, u, turing_read(program, of.pi, 2u)),
-                                       turing_power(program, p - beta));
+    const unsigned int offset =
+        turing_op(program, ENGINE_RECORD_DIFFERENCE,
+                  turing_op(program, ENGINE_RECORD_AND, lane, turing_constant(program, (1ull << beta) - 1ull)),
+                  turing_constant(program, 1ull << (beta - 1u)));
+    const unsigned int u =
+        turing_op(program, ENGINE_RECORD_PRODUCT, offset, turing_power(program, TURING_SCALE_BITS + 1u - beta));
+    const unsigned int psi =
+        turing_op(program, ENGINE_RECORD_QUOTIENT, turing_scaled(program, u, turing_read(program, of.pi, 2u)),
+                  turing_power(program, p - beta));
     const TuringComplex zeta = turing_cscale(program, turing_ctimes_i(program, turing_e1i(program, psi, &of)), u);
     TuringComplex acc = turing_read_at(program, local, local.re.size() - 1u);
     for (size_t n = local.re.size() - 1u; n > 0u; n -= 1u)
@@ -1490,7 +1568,8 @@ static void turing_fft_build(TuringStage *stage, const TuringExpansion &values, 
     TuringComplex w;
     w.re = turing_read(program, turing_member_field(program, re_place->out_bits, re_place->out_offset), 2u);
     w.im = turing_read(program, turing_member_field(program, im_place->out_bits, im_place->out_offset), 2u);
-    const TuringComplex value = turing_cwrap(program, turing_cadd(program, v0, turing_cmul(program, w, v1)), TURING_EXP_BITS);
+    const TuringComplex value =
+        turing_cwrap(program, turing_cadd(program, v0, turing_cmul(program, w, v1)), TURING_EXP_BITS);
     stage->outputs.push_back(value.re);
     stage->outputs.push_back(value.im);
 }
@@ -1498,15 +1577,19 @@ static void turing_fft_build(TuringStage *stage, const TuringExpansion &values, 
 // the verdict stage over the transform. Member 0 is F at each point, member 1 the point records, and member 2 the
 // shared record. `w = exp(i theta) F`. Its real part, `cos theta Re F - sin theta Im F`, is the half of the main sum.
 // Its imaginary part is `sin theta Re F + cos theta Im F`
-static TuringComplex turing_main_from_transform(TuringProgram *program, const TuringExpansion &values, const TuringStage *point)
+static TuringComplex turing_main_from_transform(TuringProgram *program, const TuringExpansion &values,
+                                                const TuringStage *point)
 {
     const TuringComplex f = turing_read_at(program, turing_expansion_fields(program, values, 0u), 0u);
     const DeviceRecordStep *const cos_place = turing_place(point, 2u);
     const DeviceRecordStep *const sin_place = turing_place(point, 3u);
-    const unsigned int c = turing_read(program, turing_member_field(program, cos_place->out_bits, cos_place->out_offset), 1u);
-    const unsigned int s = turing_read(program, turing_member_field(program, sin_place->out_bits, sin_place->out_offset), 1u);
-    const TuringComplex w = {turing_op(program, ENGINE_RECORD_DIFFERENCE, turing_scaled(program, c, f.re), turing_scaled(program, s, f.im)),
-                             turing_op(program, ENGINE_RECORD_SUM, turing_scaled(program, s, f.re), turing_scaled(program, c, f.im))};
+    const unsigned int c =
+        turing_read(program, turing_member_field(program, cos_place->out_bits, cos_place->out_offset), 1u);
+    const unsigned int s =
+        turing_read(program, turing_member_field(program, sin_place->out_bits, sin_place->out_offset), 1u);
+    const TuringComplex w = {
+        turing_op(program, ENGINE_RECORD_DIFFERENCE, turing_scaled(program, c, f.re), turing_scaled(program, s, f.im)),
+        turing_op(program, ENGINE_RECORD_SUM, turing_scaled(program, s, f.re), turing_scaled(program, c, f.im))};
     return w;
 }
 
@@ -1533,11 +1616,16 @@ static void turing_slope_build(TuringStage *stage, const TuringStage *twist, con
     const DeviceRecordStep *const z_place = turing_place(verdict, 6u);
     const DeviceRecordStep *const im_place = turing_place(verdict, 8u);
     const DeviceRecordStep *const log_place = turing_place(point, 4u);
-    const unsigned int turned = turing_read(program, turing_member_field(program, turned_place->out_bits, turned_place->out_offset), 0u);
-    const unsigned int sign = turing_read(program, turing_member_field(program, sign_place->out_bits, sign_place->out_offset), 1u);
-    const unsigned int z = turing_read(program, turing_member_field(program, z_place->out_bits, z_place->out_offset), 1u);
-    const unsigned int im = turing_read(program, turing_member_field(program, im_place->out_bits, im_place->out_offset), 1u);
-    const unsigned int log = turing_read(program, turing_member_field(program, log_place->out_bits, log_place->out_offset), 2u);
+    const unsigned int turned =
+        turing_read(program, turing_member_field(program, turned_place->out_bits, turned_place->out_offset), 0u);
+    const unsigned int sign =
+        turing_read(program, turing_member_field(program, sign_place->out_bits, sign_place->out_offset), 1u);
+    const unsigned int z =
+        turing_read(program, turing_member_field(program, z_place->out_bits, z_place->out_offset), 1u);
+    const unsigned int im =
+        turing_read(program, turing_member_field(program, im_place->out_bits, im_place->out_offset), 1u);
+    const unsigned int log =
+        turing_read(program, turing_member_field(program, log_place->out_bits, log_place->out_offset), 2u);
     const unsigned int clock = turing_op(program, ENGINE_RECORD_QUOTIENT, log, turing_constant(program, 2ull));
     const unsigned int half = turing_op(program, ENGINE_RECORD_DIFFERENCE,
                                         turing_op(program, ENGINE_RECORD_PRODUCT, turned, turing_power(program, shift)),
@@ -1558,12 +1646,17 @@ static void turing_slope_pairs_build(TuringStage *stage, const TuringStage *verd
     const DeviceRecordStep *const z_place = turing_place(verdict, 6u);
     const DeviceRecordStep *const log_place = turing_place(point, log_output);
     const unsigned int sine = turing_read(program, turing_member_field(program, 32u * sum_limbs, 0u), 0u);
-    const unsigned int weighted = turing_read(program, turing_member_field(program, 32u * sum_limbs, 32u * sum_limbs), 0u);
-    const unsigned int sign = turing_read(program, turing_member_field(program, sign_place->out_bits, sign_place->out_offset), 1u);
-    const unsigned int z = turing_read(program, turing_member_field(program, z_place->out_bits, z_place->out_offset), 1u);
-    const unsigned int log = turing_read(program, turing_member_field(program, log_place->out_bits, log_place->out_offset), 2u);
+    const unsigned int weighted =
+        turing_read(program, turing_member_field(program, 32u * sum_limbs, 32u * sum_limbs), 0u);
+    const unsigned int sign =
+        turing_read(program, turing_member_field(program, sign_place->out_bits, sign_place->out_offset), 1u);
+    const unsigned int z =
+        turing_read(program, turing_member_field(program, z_place->out_bits, z_place->out_offset), 1u);
+    const unsigned int log =
+        turing_read(program, turing_member_field(program, log_place->out_bits, log_place->out_offset), 2u);
     const unsigned int clock = turing_op(program, ENGINE_RECORD_QUOTIENT, log, turing_constant(program, 2ull));
-    const unsigned int half = turing_op(program, ENGINE_RECORD_DIFFERENCE, weighted, turing_scaled(program, clock, sine));
+    const unsigned int half =
+        turing_op(program, ENGINE_RECORD_DIFFERENCE, weighted, turing_scaled(program, clock, sine));
     const unsigned int listed[3] = {sign, z, turing_op(program, ENGINE_RECORD_SUM, half, half)};
     stage->outputs.assign(listed, listed + 3);
 }
@@ -1578,11 +1671,12 @@ static void turing_slope_pairs_build(TuringStage *stage, const TuringStage *verd
 // The certified signs of the ends can change. The slope of the cubic is a quadratic. Where its three Bernstein points
 // are past the steepness in the direction that Z crosses, Z' keeps that direction over the step. Z then crosses once,
 // and the step is single. The stage gives clean, the flag, 1 where the step is neither, and single
-static void turing_margin_build(TuringStage *stage, const TuringStage *slope, unsigned int third_bits, unsigned int margin_bits,
-                                unsigned int steep_bits)
+static void turing_margin_build(TuringStage *stage, const TuringStage *slope, unsigned int third_bits,
+                                unsigned int margin_bits, unsigned int steep_bits)
 {
     TuringProgram *const program = &stage->program;
-    const DeviceRecordStep *const places[3] = {turing_place(slope, 0u), turing_place(slope, 1u), turing_place(slope, 2u)};
+    const DeviceRecordStep *const places[3] = {turing_place(slope, 0u), turing_place(slope, 1u),
+                                               turing_place(slope, 2u)};
     unsigned int fields[3];
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
@@ -1606,7 +1700,8 @@ static void turing_margin_build(TuringStage *stage, const TuringStage *slope, un
     const unsigned int same = turing_equal(program, both, turing_constant(program, 1ull));
     const unsigned int changed = turing_equal(program, both, turing_negate(program, turing_constant(program, 1ull)));
     const unsigned int hull[4] = {z0, turing_op(program, ENGINE_RECORD_SUM, z0, turing_scaled(program, third, d0)),
-                                  turing_op(program, ENGINE_RECORD_DIFFERENCE, z1, turing_scaled(program, third, d1)), z1};
+                                  turing_op(program, ENGINE_RECORD_DIFFERENCE, z1, turing_scaled(program, third, d1)),
+                                  z1};
     unsigned int clean = same;
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
@@ -1626,9 +1721,9 @@ static void turing_margin_build(TuringStage *stage, const TuringStage *slope, un
     single = turing_op(program, ENGINE_RECORD_PRODUCT, single,
                        turing_above(program, turing_op(program, ENGINE_RECORD_PRODUCT, s1, middle),
                                     turing_scaled(program, third, steepness)));
-    const unsigned int flag = turing_op(program, ENGINE_RECORD_DIFFERENCE,
-                                        turing_op(program, ENGINE_RECORD_DIFFERENCE, turing_constant(program, 1ull), clean),
-                                        single);
+    const unsigned int flag =
+        turing_op(program, ENGINE_RECORD_DIFFERENCE,
+                  turing_op(program, ENGINE_RECORD_DIFFERENCE, turing_constant(program, 1ull), clean), single);
     const unsigned int listed[3] = {clean, flag, single};
     stage->outputs.assign(listed, listed + 3);
 }
@@ -1658,9 +1753,10 @@ static void turing_verdict_build(TuringStage *stage, unsigned int p, unsigned in
     const unsigned int lane = turing_lane(program, p + 1u);
     const unsigned int step = turing_read(program, step_field, 2u);
     const unsigned int big_s =
-        (s_place != NULL) ? turing_read(program, turing_member_field(program, s_place->out_bits, s_place->out_offset), 1u)
-                          : turing_op(program, ENGINE_RECORD_SUM, turing_read(program, floor_field, 2u),
-                                      turing_op(program, ENGINE_RECORD_PRODUCT, lane, step));
+        (s_place != NULL)
+            ? turing_read(program, turing_member_field(program, s_place->out_bits, s_place->out_offset), 1u)
+            : turing_op(program, ENGINE_RECORD_SUM, turing_read(program, floor_field, 2u),
+                        turing_op(program, ENGINE_RECORD_PRODUCT, lane, step));
     TuringComplex w = {0u, 0u};
     if (transform != NULL)
     {
@@ -1677,8 +1773,8 @@ static void turing_verdict_build(TuringStage *stage, unsigned int p, unsigned in
                   turing_read(program, scaled_field, 1u));
     const unsigned int bound = turing_read(program, bound_field, 2u);
     const unsigned int below = turing_op(program, ENGINE_RECORD_DIFFERENCE, turing_constant(program, 0ull), bound);
-    const unsigned int sign = turing_op(program, ENGINE_RECORD_DIFFERENCE, turing_above(program, z, bound),
-                                        turing_above(program, below, z));
+    const unsigned int sign =
+        turing_op(program, ENGINE_RECORD_DIFFERENCE, turing_above(program, z, bound), turing_above(program, below, z));
     const unsigned int theta = turing_read(program, theta_field, 1u);
     const unsigned int theta_bound = turing_read(program, theta_bound_field, 2u);
     const unsigned int low = turing_op(program, ENGINE_RECORD_DIFFERENCE, theta, theta_bound);
@@ -1709,18 +1805,19 @@ static void turing_count_build(TuringStage *stage, unsigned int p, const TuringS
     const unsigned int gap = turing_op(program, ENGINE_RECORD_DIFFERENCE, turing_constant(program, 1ull),
                                        turing_op(program, ENGINE_RECORD_ABSOLUTE, sign[1], 0u));
     const unsigned int two_back = turing_op(program, ENGINE_RECORD_PRODUCT, gap, turing_equal(program, sign[2], other));
-    const unsigned int zero = turing_op(program, ENGINE_RECORD_PRODUCT, certified,
-                                        turing_op(program, ENGINE_RECORD_SUM, one_back, two_back));
+    const unsigned int zero =
+        turing_op(program, ENGINE_RECORD_PRODUCT, certified, turing_op(program, ENGINE_RECORD_SUM, one_back, two_back));
     const unsigned int at_q = turing_op(program, ENGINE_RECORD_PRODUCT, zero, big_s[0]);
-    const unsigned int at_p = turing_op(program, ENGINE_RECORD_PRODUCT, certified,
-                                        turing_op(program, ENGINE_RECORD_SUM,
-                                                  turing_op(program, ENGINE_RECORD_PRODUCT, one_back, big_s[1]),
-                                                  turing_op(program, ENGINE_RECORD_PRODUCT, two_back, big_s[2])));
+    const unsigned int at_p =
+        turing_op(program, ENGINE_RECORD_PRODUCT, certified,
+                  turing_op(program, ENGINE_RECORD_SUM, turing_op(program, ENGINE_RECORD_PRODUCT, one_back, big_s[1]),
+                            turing_op(program, ENGINE_RECORD_PRODUCT, two_back, big_s[2])));
     const unsigned int grown = turing_above(program, turing_lane(program, p + 1u), turing_constant(program, 1ull));
     const unsigned int second_gap = turing_op(program, ENGINE_RECORD_DIFFERENCE, turing_constant(program, 1ull),
                                               turing_op(program, ENGINE_RECORD_ABSOLUTE, sign[2], 0u));
-    const unsigned int loose = turing_op(program, ENGINE_RECORD_PRODUCT, turing_op(program, ENGINE_RECORD_PRODUCT, grown, certified),
-                                         turing_op(program, ENGINE_RECORD_PRODUCT, gap, second_gap));
+    const unsigned int loose =
+        turing_op(program, ENGINE_RECORD_PRODUCT, turing_op(program, ENGINE_RECORD_PRODUCT, grown, certified),
+                  turing_op(program, ENGINE_RECORD_PRODUCT, gap, second_gap));
     const unsigned int listed[4] = {zero, at_q, at_p, loose};
     stage->outputs.assign(listed, listed + 4);
 }
@@ -1748,8 +1845,8 @@ static int turing_read_constant(FILE *in, TuringConstant *constant)
 }
 
 // `bits` of a two's complement value, its magnitude's limbs given, positioned at `offset` of `record`
-static void turing_put(unsigned int *record, unsigned int offset, unsigned int bits, const std::vector<unsigned int> &limbs,
-                       long long sign)
+static void turing_put(unsigned int *record, unsigned int offset, unsigned int bits,
+                       const std::vector<unsigned int> &limbs, long long sign)
 {
     std::vector<unsigned int> word((bits + 31u) / 32u + 1u, 0u);
     for (size_t at = 0u; at < limbs.size() && at < word.size(); at += 1u)
@@ -1775,7 +1872,8 @@ static void turing_put(unsigned int *record, unsigned int offset, unsigned int b
     }
 }
 
-static void turing_put_field(TuringStage *stage, unsigned int field, const std::vector<unsigned int> &limbs, long long sign)
+static void turing_put_field(TuringStage *stage, unsigned int field, const std::vector<unsigned int> &limbs,
+                             long long sign)
 {
     turing_put(stage->shared.data(), stage->program.field_offset[field], stage->program.field_bits[field], limbs, sign);
 }
@@ -1904,22 +2002,23 @@ static int turing_load_once(SimResults *job, TuringStage *stage, EngineError *er
         const EngineRecordStep *const last = first + program->steps.size();
         const EngineRecordStep *const at = (const EngineRecordStep *)error->evacaddr;
         const long long step = ((at >= first) && (at < last)) ? (long long)(at - first) : -1;
-        fprintf(stderr,
-                "  exact_zeta_turing: the %s imprint errors, site %u, at step %lld of %zu, operation %d left %u right %u\n",
-                stage->name, error->site, step, program->steps.size(), (step >= 0) ? (int)at->operation : -1,
-                (step >= 0) ? at->left : 0u, (step >= 0) ? at->right : 0u);
+        fprintf(
+            stderr,
+            "  exact_zeta_turing: the %s imprint errors, site %u, at step %lld of %zu, operation %d left %u right %u\n",
+            stage->name, error->site, step, program->steps.size(), (step >= 0) ? (int)at->operation : -1,
+            (step >= 0) ? at->left : 0u, (step >= 0) ? at->right : 0u);
     }
     sim_check(job, ok, (std::string("keymath imprints the ") + stage->name + " program").c_str());
-    const KeyScheduleRecordRequest position = {&stage->key, program->field_offset.data(), fields, stage->in_limbs, 1,
-                                          &stage->layout, error};
+    const KeyScheduleRecordRequest position = {
+        &stage->key, program->field_offset.data(), fields, stage->in_limbs, 1, &stage->layout, error};
     const double imprinted = turing_now();
     const int positioned = ok && (key_schedule_record_layout(&position) != KEY_SCHEDULE_ERROR);
     turing_layout_seconds += turing_now() - imprinted;
     if (ok && !positioned)
     {
-        const char *const end = (error->evacaddr == (const void *)&stage->key)       ? "the register file"
+        const char *const end = (error->evacaddr == (const void *)&stage->key)         ? "the register file"
                                 : (error->evacaddr == (const void *)stage->key.output) ? "the outputs"
-                                                                                        : "a step";
+                                                                                       : "a step";
         fprintf(stderr, "  exact_zeta_turing: the %s layout ends at %s\n", stage->name, end);
     }
     ok = positioned;
@@ -1944,8 +2043,13 @@ static int turing_run(TuringStage *stage, unsigned int *const members[3], const 
                       const unsigned int *device_index, unsigned long long lanes, unsigned int *device_out,
                       EngineError *error)
 {
-    const CycleRecordRunRequest run = {stage->record, {members[0], members[1], members[2]}, {bodies[0], bodies[1], bodies[2]},
-                                       device_index, lanes, device_out, error};
+    const CycleRecordRunRequest run = {stage->record,
+                                       {members[0], members[1], members[2]},
+                                       {bodies[0], bodies[1], bodies[2]},
+                                       device_index,
+                                       lanes,
+                                       device_out,
+                                       error};
     return cycle_record_run(&run) == (long)lanes;
 }
 
@@ -1963,7 +2067,8 @@ typedef struct
 } TuringCheck;
 
 // the host's run of lanes [first, end) of a check, each with its own number, against the device's records of them
-static int turing_check_lanes(std::shared_ptr<const TuringCheck> check, unsigned long long first, unsigned long long end)
+static int turing_check_lanes(std::shared_ptr<const TuringCheck> check, unsigned long long first,
+                              unsigned long long end)
 {
     const TuringCheck &check_ref = *check;
     const unsigned long long count = end - first;
@@ -2012,8 +2117,8 @@ static void turing_settle_one(void)
 // the lanes [from, from + tried) of a check run on the host beside the device and beside the other checks. They run in
 // parts of TURING_PART_LANES lanes or more, as many parts at once as half the cores. The other half stays for the
 // driver and the machine
-static void turing_dispatch(const std::shared_ptr<const TuringCheck> &check, unsigned long long from, unsigned long long tried,
-                            int *same)
+static void turing_dispatch(const std::shared_ptr<const TuringCheck> &check, unsigned long long from,
+                            unsigned long long tried, int *same)
 {
     const unsigned int cores = std::thread::hardware_concurrency();
     const size_t threads = (cores > 3u) ? cores / 2u : 1u;
@@ -2066,7 +2171,8 @@ static void turing_settle(SimResults *job)
 static std::vector<unsigned int> turing_copy_back(const unsigned int *device, size_t words)
 {
     std::vector<unsigned int> host(words, 0u);
-    if ((words != 0u) && (cudaMemcpy(host.data(), device, words * sizeof(unsigned int), cudaMemcpyDeviceToHost) != cudaSuccess))
+    if ((words != 0u) &&
+        (cudaMemcpy(host.data(), device, words * sizeof(unsigned int), cudaMemcpyDeviceToHost) != cudaSuccess))
     {
         host.clear();
     }
@@ -2155,8 +2261,8 @@ static void turing_write_output(FILE *out, const TuringStage *stage, const std::
 // the sum of output `output` over lanes [first, first + count) of the records of a stage, on the device and on the
 // host, written after `key`. The result is 1 where the two agree word for word
 static int turing_range(FILE *out, const char *key, const TuringStage *stage, const unsigned int *device_records,
-                        const std::vector<unsigned int> &host_records, unsigned long long first, unsigned long long count,
-                        unsigned int output, EngineError *error)
+                        const std::vector<unsigned int> &host_records, unsigned long long first,
+                        unsigned long long count, unsigned int output, EngineError *error)
 {
     const DeviceRecordStep *const step = turing_place(stage, output);
     const unsigned int limbs = (step->out_bits + 40u + 31u) / 32u + 1u;
@@ -2165,10 +2271,24 @@ static int turing_range(FILE *out, const char *key, const TuringStage *stage, co
     if (count != 0ull)
     {
         const unsigned int out_limbs = stage->layout.out_limbs;
-        const CycleRecordSumRequest device = {device_records + first * out_limbs, count, count, out_limbs,
-                                              step->out_offset, step->out_bits, limbs, sum.data(), error};
-        const CycleRecordSumRequest host = {host_records.data() + first * out_limbs, count, count, out_limbs,
-                                            step->out_offset, step->out_bits, limbs, host_sum.data(), error};
+        const CycleRecordSumRequest device = {device_records + first * out_limbs,
+                                              count,
+                                              count,
+                                              out_limbs,
+                                              step->out_offset,
+                                              step->out_bits,
+                                              limbs,
+                                              sum.data(),
+                                              error};
+        const CycleRecordSumRequest host = {host_records.data() + first * out_limbs,
+                                            count,
+                                            count,
+                                            out_limbs,
+                                            step->out_offset,
+                                            step->out_bits,
+                                            limbs,
+                                            host_sum.data(),
+                                            error};
         same = (cycle_record_sum(&device) != CYCLE_ERROR) && (cycle_record_sum_host(&host) != CYCLE_ERROR) &&
                (memcmp(sum.data(), host_sum.data(), limbs * sizeof(unsigned int)) == 0);
     }
@@ -2192,7 +2312,6 @@ static void turing_release(TuringStage *stage)
     key_schedule_record_release(&stage->layout);
     keymath_record_release(&stage->key);
 }
-
 
 // device memory the run owns, zeroed, freed at its end
 static unsigned int *turing_alloc(std::vector<unsigned int *> *owned, size_t words)
@@ -2223,9 +2342,10 @@ static unsigned int *turing_upload(std::vector<unsigned int *> *owned, const std
 //
 // A record that a lane names past the end of its member stays past the end of the copy. The lane is zero on both.
 // With no index, a lane reads its own record, and the checked lanes start at 0. The result is 1 where the copies match
-static int turing_check_range(const TuringStage *stage, unsigned int *const members[3], const unsigned long long bodies[3],
-                              const std::vector<unsigned int> &index, unsigned long long from, unsigned long long tried,
-                              const unsigned int *device_out, int *same)
+static int turing_check_range(const TuringStage *stage, unsigned int *const members[3],
+                              const unsigned long long bodies[3], const std::vector<unsigned int> &index,
+                              unsigned long long from, unsigned long long tried, const unsigned int *device_out,
+                              int *same)
 {
     std::shared_ptr<TuringCheck> check(new TuringCheck);
     check->layout = stage->layout;
@@ -2239,7 +2359,8 @@ static int turing_check_range(const TuringStage *stage, unsigned int *const memb
         std::vector<unsigned long long> taken;
         if (index.empty())
         {
-            const unsigned long long first = (bodies[member] == 1ull) ? 1ull : ((tried < bodies[member]) ? tried : bodies[member]);
+            const unsigned long long first =
+                (bodies[member] == 1ull) ? 1ull : ((tried < bodies[member]) ? tried : bodies[member]);
             for (unsigned long long body = 0ull; body < first; body += 1ull)
             {
                 taken.push_back(body);
@@ -2260,7 +2381,8 @@ static int turing_check_range(const TuringStage *stage, unsigned int *const memb
             for (unsigned long long lane = from; lane < from + tried; lane += 1ull)
             {
                 const unsigned long long body = index[(size_t)(lane * stage->members + member)];
-                const std::vector<unsigned long long>::const_iterator at = std::lower_bound(taken.begin(), taken.end(), body);
+                const std::vector<unsigned long long>::const_iterator at =
+                    std::lower_bound(taken.begin(), taken.end(), body);
                 host_index[(size_t)(lane * stage->members + member)] =
                     (unsigned int)(((at != taken.end()) && (*at == body)) ? (at - taken.begin()) : taken.size());
             }
@@ -2272,8 +2394,9 @@ static int turing_check_range(const TuringStage *stage, unsigned int *const memb
         ok = turing_gather(members[member], stage->in_limbs[member], taken, &check->members[member]);
         check->bodies[member] = taken.size();
     }
-    check->records = ok ? turing_copy_back(device_out + from * stage->layout.out_limbs, (size_t)(tried * stage->layout.out_limbs))
-                        : std::vector<unsigned int>();
+    check->records =
+        ok ? turing_copy_back(device_out + from * stage->layout.out_limbs, (size_t)(tried * stage->layout.out_limbs))
+           : std::vector<unsigned int>();
     ok = ok && !check->records.empty();
     if (ok)
     {
@@ -2286,10 +2409,9 @@ static int turing_check_range(const TuringStage *stage, unsigned int *const memb
 // runs its first `checked` lanes against the records of the device, beside the next runs of the device. It runs as
 // many again from lane `also` where it is not 0.
 // The result is 1 where the run matches. `same` stays 0 once a check differs, and turing_settle settles it
-static int turing_sweep(TuringStage *stage, unsigned int *const members[3],
-                        const unsigned long long bodies[3], const std::vector<unsigned int> &index, unsigned long long lanes,
-                        unsigned int *device_out, unsigned long long checked, EngineError *error, int *same,
-                        unsigned long long also = 0ull)
+static int turing_sweep(TuringStage *stage, unsigned int *const members[3], const unsigned long long bodies[3],
+                        const std::vector<unsigned int> &index, unsigned long long lanes, unsigned int *device_out,
+                        unsigned long long checked, EngineError *error, int *same, unsigned long long also = 0ull)
 {
     if (lanes == 0ull)
     {
@@ -2322,11 +2444,13 @@ static int turing_sweep(TuringStage *stage, unsigned int *const members[3],
 }
 
 // a stage's shared record on the device, its parameters set first
-static unsigned int *turing_shared(std::vector<unsigned int *> *owned, TuringStage *stage, const std::vector<long long> &params)
+static unsigned int *turing_shared(std::vector<unsigned int *> *owned, TuringStage *stage,
+                                   const std::vector<long long> &params)
 {
     for (size_t at = 0u; (at < params.size()) && (at < stage->params.size()); at += 1u)
     {
-        const unsigned long long magnitude = (params[at] < 0) ? (unsigned long long)(-params[at]) : (unsigned long long)params[at];
+        const unsigned long long magnitude =
+            (params[at] < 0) ? (unsigned long long)(-params[at]) : (unsigned long long)params[at];
         turing_put_small(stage, stage->params[at], magnitude, (params[at] < 0) ? -1 : 1);
     }
     return turing_upload(owned, stage->shared);
@@ -2335,7 +2459,7 @@ static unsigned int *turing_shared(std::vector<unsigned int *> *owned, TuringSta
 // a stage's shared records on the device, one for each list of parameters, in order: a lane reads the one its index
 // names
 static unsigned int *turing_shared_records(std::vector<unsigned int *> *owned, TuringStage *stage,
-                                           const std::vector<std::vector<long long> > &params)
+                                           const std::vector<std::vector<long long>> &params)
 {
     std::vector<unsigned int> records;
     for (size_t record = 0u; record < params.size(); record += 1u)
@@ -2343,7 +2467,8 @@ static unsigned int *turing_shared_records(std::vector<unsigned int *> *owned, T
         for (size_t at = 0u; (at < params[record].size()) && (at < stage->params.size()); at += 1u)
         {
             const long long value = params[record][at];
-            turing_put_small(stage, stage->params[at], (value < 0) ? (unsigned long long)(-value) : (unsigned long long)value,
+            turing_put_small(stage, stage->params[at],
+                             (value < 0) ? (unsigned long long)(-value) : (unsigned long long)value,
                              (value < 0) ? -1 : 1);
         }
         records.insert(records.end(), stage->shared.begin(), stage->shared.end());
@@ -2358,8 +2483,9 @@ static std::vector<long long> turing_group_sums(const TuringStage *stage, const 
 {
     const DeviceRecordStep *const place = turing_place(stage, output);
     std::vector<unsigned int> sums((size_t)((count / group) * sum_limbs), 0u);
-    const CycleRecordSumRequest request = {device_records, count, group, stage->layout.out_limbs, place->out_offset,
-                                           place->out_bits, sum_limbs, sums.data(), error};
+    const CycleRecordSumRequest request = {
+        device_records, count,       group, stage->layout.out_limbs, place->out_offset, place->out_bits,
+        sum_limbs,      sums.data(), error};
     *ok = *ok && (count == 0ull || cycle_record_sum(&request) != CYCLE_ERROR);
     std::vector<long long> values((size_t)(count / group), 0);
     for (size_t at = 0u; at < values.size(); at += 1u)
@@ -2375,8 +2501,8 @@ static std::vector<long long> turing_group_sums(const TuringStage *stage, const 
 // run
 static unsigned int *turing_fold(std::vector<unsigned int *> *owned, TuringStage *fold, unsigned int *records,
                                  unsigned long long zero, std::vector<unsigned int> map, unsigned long long groups,
-                                 unsigned long long group, unsigned long long checked, EngineError *error, int *same, int *ok,
-                                 unsigned int sets = 1u)
+                                 unsigned long long group, unsigned long long checked, EngineError *error, int *same,
+                                 int *ok, unsigned int sets = 1u)
 {
     unsigned int *current = records;
     unsigned long long current_zero = zero;
@@ -2485,8 +2611,8 @@ typedef struct
 // array. Set s is at records s P to (s + 1) P - 1, arranged as `values`.
 // The sets share the tree, its lists and its twiddles, and run in one run a stage, set after set. Each run checks the
 // first lanes of the first set and of the last
-static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *owned, unsigned long long nu, unsigned int p,
-                               unsigned int beta, unsigned int order, unsigned long long checked,
+static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *owned, unsigned long long nu,
+                               unsigned int p, unsigned int beta, unsigned int order, unsigned long long checked,
                                const TuringOsConstants &os, TuringStage *pole, unsigned int *device_pole,
                                TuringExpansion *values, TuringOsReport *report, EngineError *error, int *same,
                                unsigned int sets = 1u)
@@ -2631,7 +2757,8 @@ static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *own
         unsigned int *const shared = turing_shared(owned, &below, std::vector<long long>(1u, (long long)nu));
         unsigned int *const members[3] = {device_pole, shared, NULL};
         const unsigned long long bodies[3] = {poles, 1ull, 0ull};
-        ok = (shared != NULL) && (out != NULL) && turing_sweep(&below, members, bodies, index, lanes, out, checked, error, same);
+        ok = (shared != NULL) && (out != NULL) &&
+             turing_sweep(&below, members, bodies, index, lanes, out, checked, error, same);
         below_count = turing_group_sums(&below, out, lanes, nu, 0u, 2u, error, &ok);
         ok = ok && (below_count.size() == boundaries + 1ull) && (below_count[(size_t)boundaries] == (long long)nu);
         for (unsigned long long b = 1ull; ok && (b < boundaries); b += 1ull)
@@ -2657,7 +2784,7 @@ static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *own
             poles_per_leaf = (in_range > poles_per_leaf) ? in_range : poles_per_leaf;
         }
     }
-    std::vector<std::vector<long long> > multipole_map(top + 1u);
+    std::vector<std::vector<long long>> multipole_map(top + 1u);
     std::vector<unsigned int *> multipole(top + 1u, (unsigned int *)NULL);
     std::vector<unsigned long long> multipole_count(top + 1u, 0ull);
     if (ok)
@@ -2742,15 +2869,16 @@ static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *own
                 }
             }
         }
-        std::vector<std::vector<long long> > params(2u, std::vector<long long>(1u, (long long)(1ull << (level + 1u))));
+        std::vector<std::vector<long long>> params(2u, std::vector<long long>(1u, (long long)(1ull << (level + 1u))));
         params[0].push_back(-1);
         params[1].push_back(1);
         unsigned int *const shared = turing_shared_records(owned, &m2m, params);
         unsigned int *const out = turing_alloc(owned, (size_t)((sets * shifted + 1ull) * limbs));
         unsigned int *const members[3] = {multipole[level + 1u], shared, NULL};
         const unsigned long long bodies[3] = {sets * child_count + 1ull, 2ull, 0ull};
-        ok = (shared != NULL) && (out != NULL) &&
-             turing_sweep(&m2m, members, bodies, index, sets * shifted, out, checked, error, same, TURING_ALSO(shifted));
+        ok =
+            (shared != NULL) && (out != NULL) &&
+            turing_sweep(&m2m, members, bodies, index, sets * shifted, out, checked, error, same, TURING_ALSO(shifted));
         // each parent's lower and upper shifted multipoles, where it has them, folded to one, set after set
         std::vector<unsigned int> map((size_t)(2ull * sets * parents.size()), (unsigned int)(sets * shifted));
         multipole_map[level].assign((size_t)boxes, -1);
@@ -2772,8 +2900,8 @@ static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *own
                 multipole_map[level][(size_t)box] = (long long)at;
             }
         }
-        multipole[level] = ok ? turing_fold(owned, &fold, out, sets * shifted, map, sets * parents.size(), 2ull, checked,
-                                            error, same, &ok, sets)
+        multipole[level] = ok ? turing_fold(owned, &fold, out, sets * shifted, map, sets * parents.size(), 2ull,
+                                            checked, error, same, &ok, sets)
                               : NULL;
         multipole_count[level] = parents.size();
     }
@@ -2782,13 +2910,13 @@ static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *own
     // across: each box's interaction list, the children of its parent's neighbors that are not its own neighbors;
     // then each box's sum by folds
     std::vector<unsigned int *> local_sum(top + 1u, (unsigned int *)NULL);
-    std::vector<std::vector<long long> > local_sum_map(top + 1u);
+    std::vector<std::vector<long long>> local_sum_map(top + 1u);
     std::vector<unsigned long long> local_sum_count(top + 1u, 0ull);
     for (unsigned int level = 3u; ok && (level <= top); level += 1u)
     {
         const unsigned long long boxes = 1ull << level;
-        std::vector<std::vector<unsigned long long> > targets_of(11u);
-        std::vector<std::vector<unsigned long long> > sources_of(11u);
+        std::vector<std::vector<unsigned long long>> targets_of(11u);
+        std::vector<std::vector<unsigned long long>> sources_of(11u);
         for (unsigned long long target = 0ull; target < boxes; target += 1ull)
         {
             std::vector<unsigned long long> list;
@@ -2807,8 +2935,9 @@ static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *own
                 const unsigned long long parents = boxes / 2ull;
                 for (long long shift = -2; shift <= 2; shift += 1)
                 {
-                    const unsigned long long parent = (unsigned long long)(((long long)(target / 2ull) + shift + (long long)parents) %
-                                                                           (long long)parents);
+                    const unsigned long long parent =
+                        (unsigned long long)(((long long)(target / 2ull) + shift + (long long)parents) %
+                                             (long long)parents);
                     for (unsigned long long child = 2ull * parent; child < 2ull * parent + 2ull; child += 1ull)
                     {
                         if (turing_apart(child, target, boxes) >= 3ull)
@@ -2836,8 +2965,8 @@ static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *own
         }
         // one run over every pair of the level, each lane reading the shared record of its Delta
         std::vector<unsigned int> index;
-        std::vector<std::vector<unsigned int> > pair_of(boxes);
-        std::vector<std::vector<long long> > params(11u);
+        std::vector<std::vector<unsigned int>> pair_of(boxes);
+        std::vector<std::vector<long long>> params(11u);
         for (size_t d = 0u; d < 11u; d += 1u)
         {
             params[d].push_back((long long)d - 5);
@@ -2891,8 +3020,8 @@ static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *own
             }
         }
         local_sum[level] = with.empty() ? out
-                                        : turing_fold(owned, &fold, out, sets * pairs, map, sets * with.size(), 5ull, checked,
-                                                      error, same, &ok, sets);
+                                        : turing_fold(owned, &fold, out, sets * pairs, map, sets * with.size(), 5ull,
+                                                      checked, error, same, &ok, sets);
         local_sum_count[level] = with.size();
     }
     sim_check(job, ok, "the multipoles are carried across to local expansions on the device");
@@ -2913,7 +3042,8 @@ static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *own
             for (unsigned long long box = 0ull; box < boxes; box += 1ull)
             {
                 const size_t lane = (size_t)(set * boxes + box);
-                index[3u * lane] = (unsigned int)((level == 3u) ? sets * parent_count : set * parent_count + box / 2ull);
+                index[3u * lane] =
+                    (unsigned int)((level == 3u) ? sets * parent_count : set * parent_count + box / 2ull);
                 const long long own = local_sum_map[level][(size_t)box];
                 index[3u * lane + 1u] =
                     (unsigned int)((own >= 0) ? set * own_count + (unsigned long long)own : sets * own_count);
@@ -2955,7 +3085,8 @@ static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *own
         for (unsigned long long h = 0ull; h < near_points; h += 1ull)
         {
             const long long point = near_low + (long long)h;
-            const long long leaf = (point >= 0) ? point / (long long)width : -((-point + (long long)width - 1) / (long long)width);
+            const long long leaf =
+                (point >= 0) ? point / (long long)width : -((-point + (long long)width - 1) / (long long)width);
             const long long lo = (leaf - 2 < 0) ? 0 : leaf - 2;
             const long long hi = (leaf + 3 > (long long)boundaries) ? (long long)boundaries : leaf + 3;
             const unsigned long long first = (lo < hi) ? (unsigned long long)below_count[(size_t)lo] : 0ull;
@@ -2978,7 +3109,8 @@ static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *own
             unsigned int *const members[3] = {device_pole + set * poles * near.in_limbs[0], shared, NULL};
             const unsigned long long bodies[3] = {poles, 1ull, 0ull};
             near.swept = 0u;
-            ok = turing_sweep(&near, members, bodies, index, per, out + set * per * near.layout.out_limbs, checked, error, same);
+            ok = turing_sweep(&near, members, bodies, index, per, out + set * per * near.layout.out_limbs, checked,
+                              error, same);
         }
         // each point's sum, positioned into a record of two fields of near_limbs limbs, set after set
         near_records.assign((size_t)((sets * near_points + 1ull) * 2ull * near_limbs), 0u);
@@ -3023,7 +3155,8 @@ static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *own
         unsigned int *const members[3] = {local, device_near, shared};
         const unsigned long long bodies[3] = {sets * local_count + 1ull, sets * near_points + 1ull, 1ull};
         ok = (shared != NULL) && (transform != NULL) &&
-             turing_sweep(&eval, members, bodies, index, sets * points, transform, checked, error, same, TURING_ALSO(points));
+             turing_sweep(&eval, members, bodies, index, sets * points, transform, checked, error, same,
+                          TURING_ALSO(points));
     }
     sim_check(job, ok, "every point's sum of its expansion and near field runs on the device");
 
@@ -3036,7 +3169,8 @@ static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *own
         unsigned int *const members[3] = {shared, NULL, NULL};
         const unsigned long long bodies[3] = {1ull, 0ull, 0ull};
         ok = (shared != NULL) && (twiddles != NULL) &&
-             turing_sweep(&twiddle, members, bodies, std::vector<unsigned int>(), points, twiddles, checked, error, same);
+             turing_sweep(&twiddle, members, bodies, std::vector<unsigned int>(), points, twiddles, checked, error,
+                          same);
     }
     // two arrays the stages run between, the evaluation's records left behind after the first
     unsigned int *const passes[2] = {ok ? turing_alloc(owned, (size_t)(sets * points * values->out_limbs)) : NULL,
@@ -3109,14 +3243,13 @@ static int turing_job(const char *input, const char *output)
     const long long terms_header = em_header ? header[14] - 1 : header[2];
     read = read && (header[2] >= (em_header ? 1 : 2)) && (header[3] >= 2) && (header[3] < 63) &&
            (listed_header ? (header[0] >= 1) : (header[0] == (1ll << header[3]))) && (header[1] > 0) &&
-           (header[4] >= 2) && (header[5] >= 2) &&
-           (header[6] >= 2) && (header[7] >= 1) && (header[8] >= 1) && (header[8] <= header[0]) &&
-           ((header[0] % header[8]) == 0) && (header[1] <= header[8]) && (header[9] >= 0) && (header[9] <= 4) &&
-           (header[10] >= 2) && (header[11] >= 2) &&
-           ((header[9] == 0) || em_header || listed_header || (header[11] < header[3])) &&
-           (header[12] >= 2) && (header[13] >= 2) && (!em_header || ((header[14] >= 2) && (header[15] >= 2))) &&
-           (header[16] >= 0) && (header[16] <= 3) &&
-           ((header[16] != 2) || (header[9] == 1) || (header[9] == 2) || (header[9] == 4)) && (header[17] >= 1);
+           (header[4] >= 2) && (header[5] >= 2) && (header[6] >= 2) && (header[7] >= 1) && (header[8] >= 1) &&
+           (header[8] <= header[0]) && ((header[0] % header[8]) == 0) && (header[1] <= header[8]) && (header[9] >= 0) &&
+           (header[9] <= 4) && (header[10] >= 2) && (header[11] >= 2) &&
+           ((header[9] == 0) || em_header || listed_header || (header[11] < header[3])) && (header[12] >= 2) &&
+           (header[13] >= 2) && (!em_header || ((header[14] >= 2) && (header[15] >= 2))) && (header[16] >= 0) &&
+           (header[16] <= 3) && ((header[16] != 2) || (header[9] == 1) || (header[9] == 2) || (header[9] == 4)) &&
+           (header[17] >= 1);
     const unsigned long long points = read ? (unsigned long long)header[0] : 0ull;
     const unsigned long long checked = read ? (unsigned long long)header[1] : 0ull;
     const unsigned long long nu = read ? (unsigned long long)header[2] : 0ull;
@@ -3135,7 +3268,8 @@ static int turing_job(const char *input, const char *output)
     const int twisted = sloped && ((header[9] == 1) || (header[9] == 2));
     // with the listing word 3, each point's theta / pi less and more its bound after its w
     const int bracketed = read && (header[16] == 3);
-    const unsigned int shift = read ? turing_bits_of((unsigned long long)turing_bits_of((unsigned long long)header[2])) : 0u;
+    const unsigned int shift =
+        read ? turing_bits_of((unsigned long long)turing_bits_of((unsigned long long)header[2])) : 0u;
     // the width that each value wraps to: the floor, or 60 + l where the top level `l = p - beta` of the multiple
     // evaluation needs more
     if (read && (header[9] == 1 || header[9] == 2) &&
@@ -3163,8 +3297,8 @@ static int turing_job(const char *input, const char *output)
     TuringConstant ln2, c96, c3, c5, bound, theta_bound;
     TuringOsConstants os;
     const unsigned int curves = read ? (unsigned int)header[17] : 1u;
-    std::vector<TuringConstant> gamma(read ? (size_t)(header[6] * header[17]) : 0u), artanh(read ? (size_t)header[4] : 0u),
-        cosine(read ? (size_t)header[5] : 0u);
+    std::vector<TuringConstant> gamma(read ? (size_t)(header[6] * header[17]) : 0u),
+        artanh(read ? (size_t)header[4] : 0u), cosine(read ? (size_t)header[5] : 0u);
     os.fact.resize(read ? (size_t)header[12] : 0u);
     os.sinc.resize(read ? (size_t)header[13] : 0u);
     read = read && turing_read_constant(in, &ln2);
@@ -3181,9 +3315,8 @@ static int turing_job(const char *input, const char *output)
         read = turing_read_constant(in, &cosine[k]);
     }
     read = read && turing_read_constant(in, &c96) && turing_read_constant(in, &c3) && turing_read_constant(in, &c5) &&
-           turing_read_constant(in, &bound) &&
-           turing_read_constant(in, &theta_bound) && (bound.sign > 0) && (theta_bound.sign >= 0) &&
-           turing_read_constant(in, &os.pi);
+           turing_read_constant(in, &bound) && turing_read_constant(in, &theta_bound) && (bound.sign > 0) &&
+           (theta_bound.sign >= 0) && turing_read_constant(in, &os.pi);
     for (size_t k = 0u; read && (k < os.fact.size()); k += 1u)
     {
         read = turing_read_constant(in, &os.fact[k]);
@@ -3200,9 +3333,9 @@ static int turing_job(const char *input, const char *output)
     // with the listing word 2, the margin that the hull of a step must clear, h / 3. Then the steepness, which must
     // hold at both ends of a step whose ends change sign
     TuringConstant third, margin, steep;
-    read = read && (!sloped || (turing_read_constant(in, &margin) && turing_read_constant(in, &third) &&
-                                turing_read_constant(in, &steep) && (third.sign > 0) && (margin.sign > 0) &&
-                                (steep.sign > 0)));
+    read = read &&
+           (!sloped || (turing_read_constant(in, &margin) && turing_read_constant(in, &third) &&
+                        turing_read_constant(in, &steep) && (third.sign > 0) && (margin.sign > 0) && (steep.sign > 0)));
     // the listed points j, each below 2^p, a record of two limbs a point, least significant first
     const unsigned int j_limbs = read ? ((unsigned int)header[3] + 2u + 31u) / 32u : 1u;
     std::vector<unsigned int> listed_j;
@@ -3318,7 +3451,8 @@ static int turing_job(const char *input, const char *output)
         }
         ok = turing_load(&job, &pair, &error);
     }
-    const unsigned int sum_limbs = (ok && pairs_run) ? (turing_place(&pair, 0u)->out_bits + turing_nu_bits + 31u) / 32u + 1u : 1u;
+    const unsigned int sum_limbs =
+        (ok && pairs_run) ? (turing_place(&pair, 0u)->out_bits + turing_nu_bits + 31u) / 32u + 1u : 1u;
     if (ok && em_run)
     {
         turing_em_build(&em, p, &pole, &point, os, ratio);
@@ -3338,13 +3472,14 @@ static int turing_job(const char *input, const char *output)
     // and near field, a few expansions a pole
     const unsigned long long expansion_limbs = (2ull * order * (TURING_EXP_BITS + 1u) + 31ull) / 32ull + 1ull;
     const unsigned long long transform_words =
-        (transform_run ? points * (2ull * expansion_limbs / (1ull << beta) + 32ull) + 64ull * nu * expansion_limbs : 0ull) *
+        (transform_run ? points * (2ull * expansion_limbs / (1ull << beta) + 32ull) + 64ull * nu * expansion_limbs
+                       : 0ull) *
         (twisted ? 2ull : 1ull);
-    const unsigned long long declared =
-        ((pairs_run ? pair_lanes * ((ok ? pair.layout.out_limbs : 0u) + 3u) : 0ull) + 2ull * points * sum_limbs +
-         points * 8u * (ok ? point.layout.out_limbs : 0u) + (em_run && ok ? points * em.layout.out_limbs : 0ull) +
-         transform_words) * sizeof(unsigned int) +
-        (64ull << 20u);
+    const unsigned long long declared = ((pairs_run ? pair_lanes * ((ok ? pair.layout.out_limbs : 0u) + 3u) : 0ull) +
+                                         2ull * points * sum_limbs + points * 8u * (ok ? point.layout.out_limbs : 0u) +
+                                         (em_run && ok ? points * em.layout.out_limbs : 0ull) + transform_words) *
+                                            sizeof(unsigned int) +
+                                        (64ull << 20u);
     std::string named[3] = {"exact_zeta_turing", input, output};
     char *const arguments[3] = {&named[0][0], &named[1][0], &named[2][0]};
     ok = ok && sim_job_submit(&job, "exact_zeta_turing", 3, arguments, declared);
@@ -3353,11 +3488,13 @@ static int turing_job(const char *input, const char *output)
     int host_pole = 1, host_point = 1, host_pair = 1, host_sums = 1, host_os = 1, host_verdict = 1, host_count = 1;
     const unsigned long long one[3] = {1ull, 0ull, 0ull};
     unsigned int *const device_pole_shared = ok ? turing_upload(&owned, pole.shared) : NULL;
-    unsigned int *const device_pole = ok ? turing_alloc(&owned, (size_t)((poles + 1ull) * pole.layout.out_limbs)) : NULL;
+    unsigned int *const device_pole =
+        ok ? turing_alloc(&owned, (size_t)((poles + 1ull) * pole.layout.out_limbs)) : NULL;
     ok = ok && (device_pole_shared != NULL) && (device_pole != NULL);
     {
         unsigned int *const members[3] = {device_pole_shared, NULL, NULL};
-        ok = ok && turing_sweep(&pole, members, one, std::vector<unsigned int>(), poles, device_pole, poles, &error, &host_pole);
+        ok = ok && turing_sweep(&pole, members, one, std::vector<unsigned int>(), poles, device_pole, poles, &error,
+                                &host_pole);
     }
     turing_defer(ok, &host_pole, "the pole stage runs and the host's records equal the device's");
     unsigned int *const device_point_shared = ok ? turing_upload(&owned, point.shared) : NULL;
@@ -3369,8 +3506,8 @@ static int turing_job(const char *input, const char *output)
         ok = ok && (!listed_run || (device_listed != NULL));
         unsigned int *const members[3] = {device_point_shared, device_listed, NULL};
         const unsigned long long bodies[3] = {1ull, listed_run ? points : 0ull, 0ull};
-        ok = ok && turing_sweep(&point, members, bodies, std::vector<unsigned int>(), points, device_point, checked, &error,
-                                &host_point);
+        ok = ok && turing_sweep(&point, members, bodies, std::vector<unsigned int>(), points, device_point, checked,
+                                &error, &host_point);
     }
     turing_defer(ok, &host_point, "the point stage runs and the host's records equal the device's");
     marks[1] = turing_now();
@@ -3394,25 +3531,40 @@ static int turing_job(const char *input, const char *output)
         }
         unsigned int *const device_index = ok ? turing_upload(&owned, index) : NULL;
         unsigned int *const device_pair_shared = ok ? turing_alloc(&owned, pair.shared.size()) : NULL;
-        unsigned int *const device_pair_out = ok ? turing_alloc(&owned, (size_t)(pair_lanes * pair.layout.out_limbs)) : NULL;
+        unsigned int *const device_pair_out =
+            ok ? turing_alloc(&owned, (size_t)(pair_lanes * pair.layout.out_limbs)) : NULL;
         ok = ok && (device_index != NULL) && (device_pair_shared != NULL) && (device_pair_out != NULL);
         for (unsigned long long start = 0ull; ok && (start < points); start += piece)
         {
             turing_put_small(&pair, 6u, start, 1);
             ok = cudaMemcpy(device_pair_shared, pair.shared.data(), pair.shared.size() * sizeof(unsigned int),
                             cudaMemcpyHostToDevice) == cudaSuccess;
-            unsigned int *const members[3] = {device_pole, device_point + start * point.layout.out_limbs, device_pair_shared};
+            unsigned int *const members[3] = {device_pole, device_point + start * point.layout.out_limbs,
+                                              device_pair_shared};
             const unsigned long long bodies[3] = {poles + 1ull, points - start, 1ull};
             ok = ok && turing_run(&pair, members, bodies, device_index, pair_lanes, device_pair_out, &error);
-            const CycleRecordSumRequest sum = {device_pair_out, pair_lanes, heads, pair.layout.out_limbs, term_place->out_offset,
-                                               term_place->out_bits, sum_limbs, &sums[(size_t)(start * sum_limbs)], &error};
+            const CycleRecordSumRequest sum = {device_pair_out,
+                                               pair_lanes,
+                                               heads,
+                                               pair.layout.out_limbs,
+                                               term_place->out_offset,
+                                               term_place->out_bits,
+                                               sum_limbs,
+                                               &sums[(size_t)(start * sum_limbs)],
+                                               &error};
             ok = ok && (cycle_record_sum(&sum) != CYCLE_ERROR);
             for (unsigned int at = 0u; ok && pairs_sloped && (at < 2u); at += 1u)
             {
                 const DeviceRecordStep *const sine_place = turing_place(&pair, 1u + at);
-                const CycleRecordSumRequest sine = {device_pair_out, pair_lanes, heads, pair.layout.out_limbs,
-                                                    sine_place->out_offset, sine_place->out_bits, sum_limbs,
-                                                    &sine_sums[at][(size_t)(start * sum_limbs)], &error};
+                const CycleRecordSumRequest sine = {device_pair_out,
+                                                    pair_lanes,
+                                                    heads,
+                                                    pair.layout.out_limbs,
+                                                    sine_place->out_offset,
+                                                    sine_place->out_bits,
+                                                    sum_limbs,
+                                                    &sine_sums[at][(size_t)(start * sum_limbs)],
+                                                    &error};
                 ok = (cycle_record_sum(&sine) != CYCLE_ERROR);
             }
             if (ok && (start == 0ull))
@@ -3439,19 +3591,32 @@ static int turing_job(const char *input, const char *output)
                     turing_dispatch(check, 0ull, tried, &host_pair);
                 }
                 std::vector<unsigned int> host_piece((size_t)(piece * sum_limbs), 0u);
-                const CycleRecordSumRequest host_sum = {records.data(), pair_lanes, heads, pair.layout.out_limbs,
-                                                        term_place->out_offset, term_place->out_bits, sum_limbs,
-                                                        host_piece.data(), &error};
+                const CycleRecordSumRequest host_sum = {records.data(),
+                                                        pair_lanes,
+                                                        heads,
+                                                        pair.layout.out_limbs,
+                                                        term_place->out_offset,
+                                                        term_place->out_bits,
+                                                        sum_limbs,
+                                                        host_piece.data(),
+                                                        &error};
                 host_sums = (cycle_record_sum_host(&host_sum) != CYCLE_ERROR) &&
                             (memcmp(host_piece.data(), sums.data(), host_piece.size() * sizeof(unsigned int)) == 0);
                 for (unsigned int at = 0u; pairs_sloped && (at < 2u); at += 1u)
                 {
                     const DeviceRecordStep *const sine_place = turing_place(&pair, 1u + at);
-                    const CycleRecordSumRequest host_sine = {records.data(), pair_lanes, heads, pair.layout.out_limbs,
-                                                             sine_place->out_offset, sine_place->out_bits, sum_limbs,
-                                                             host_piece.data(), &error};
+                    const CycleRecordSumRequest host_sine = {records.data(),
+                                                             pair_lanes,
+                                                             heads,
+                                                             pair.layout.out_limbs,
+                                                             sine_place->out_offset,
+                                                             sine_place->out_bits,
+                                                             sum_limbs,
+                                                             host_piece.data(),
+                                                             &error};
                     host_sums = host_sums && (cycle_record_sum_host(&host_sine) != CYCLE_ERROR) &&
-                                (memcmp(host_piece.data(), sine_sums[at].data(), host_piece.size() * sizeof(unsigned int)) == 0);
+                                (memcmp(host_piece.data(), sine_sums[at].data(),
+                                        host_piece.size() * sizeof(unsigned int)) == 0);
                 }
             }
         }
@@ -3469,8 +3634,8 @@ static int turing_job(const char *input, const char *output)
         device_pole_twist = turing_alloc(&owned, (size_t)((poles + 1ull) * pole_twist.layout.out_limbs));
         ok = (shared != NULL) && (device_pole_twist != NULL);
         unsigned int *const members[3] = {shared, NULL, NULL};
-        ok = ok && turing_sweep(&pole_twist, members, one, std::vector<unsigned int>(), poles, device_pole_twist, poles, &error,
-                                &host_twist);
+        ok = ok && turing_sweep(&pole_twist, members, one, std::vector<unsigned int>(), poles, device_pole_twist, poles,
+                                &error, &host_twist);
     }
 
     // the multiple evaluation. With the twist, it runs over the poles and the weighted poles as two sets of one
@@ -3497,9 +3662,10 @@ static int turing_job(const char *input, const char *output)
                           cudaSuccess) &&
                          (cudaMemcpy(both + pole_words, device_pole_twist, pole_words * sizeof(unsigned int),
                                      cudaMemcpyDeviceToDevice) == cudaSuccess));
-        device_transform = ok ? turing_os(&job, &owned, nu, p, beta, order, checked, os, &pole, joined ? both : device_pole,
-                                          &values, &report, &error, &host_os, joined ? 2u : 1u)
-                              : NULL;
+        device_transform =
+            ok ? turing_os(&job, &owned, nu, p, beta, order, checked, os, &pole, joined ? both : device_pole, &values,
+                           &report, &error, &host_os, joined ? 2u : 1u)
+               : NULL;
         ok = (device_transform != NULL);
         if (ok && joined)
         {
@@ -3518,8 +3684,8 @@ static int turing_job(const char *input, const char *output)
         TuringOsReport report_twist;
         if (device_transform_twist == NULL)
         {
-            device_transform_twist = turing_os(&job, &owned, nu, p, beta, order, checked, os, &pole_twist, device_pole_twist,
-                                               &values_twist, &report_twist, &error, &host_twist);
+            device_transform_twist = turing_os(&job, &owned, nu, p, beta, order, checked, os, &pole_twist,
+                                               device_pole_twist, &values_twist, &report_twist, &error, &host_twist);
         }
         ok = (device_transform_twist != NULL);
         if (ok)
@@ -3534,12 +3700,14 @@ static int turing_job(const char *input, const char *output)
         {
             unsigned int *const twist_members[3] = {device_transform_twist, device_point, NULL};
             const unsigned long long bodies[3] = {points, points, 0ull};
-            ok = ok && turing_sweep(&twist, twist_members, bodies, std::vector<unsigned int>(), points, device_twist, checked,
-                                    &error, &host_twist);
+            ok = ok && turing_sweep(&twist, twist_members, bodies, std::vector<unsigned int>(), points, device_twist,
+                                    checked, &error, &host_twist);
         }
-        twist_records = ok ? turing_copy_back(device_twist, (size_t)(points * twist.layout.out_limbs)) : std::vector<unsigned int>();
+        twist_records = ok ? turing_copy_back(device_twist, (size_t)(points * twist.layout.out_limbs))
+                           : std::vector<unsigned int>();
         ok = ok && !twist_records.empty();
-        turing_defer(ok, &host_twist, "the twist runs over the weighted poles and the host's records equal the device's");
+        turing_defer(ok, &host_twist,
+                     "the twist runs over the weighted poles and the host's records equal the device's");
     }
 
     marks[4] = turing_now();
@@ -3551,9 +3719,11 @@ static int turing_job(const char *input, const char *output)
         unsigned int *const device_em_shared = turing_upload(&owned, em.shared);
         device_em = turing_alloc(&owned, (size_t)(points * em.layout.out_limbs));
         ok = (device_em_shared != NULL) && (device_em != NULL);
-        unsigned int *const members[3] = {device_pole + (poles - 1ull) * pole.layout.out_limbs, device_point, device_em_shared};
+        unsigned int *const members[3] = {device_pole + (poles - 1ull) * pole.layout.out_limbs, device_point,
+                                          device_em_shared};
         const unsigned long long bodies[3] = {1ull, points, 1ull};
-        ok = ok && turing_sweep(&em, members, bodies, std::vector<unsigned int>(), points, device_em, checked, &error, &host_em);
+        ok = ok && turing_sweep(&em, members, bodies, std::vector<unsigned int>(), points, device_em, checked, &error,
+                                &host_em);
         turing_defer(ok, &host_em, "the Euler-Maclaurin stage runs and the host's records equal the device's");
     }
 
@@ -3579,17 +3749,18 @@ static int turing_job(const char *input, const char *output)
     ok = ok && (device_verdict_shared != NULL) && (device_verdict != NULL);
     const unsigned int verdict_limbs = ok ? verdict.layout.out_limbs : 0u;
     {
-        unsigned int *const members[3] = {transform_run ? device_transform : device_sums, em_run ? device_em : device_point,
-                                          device_verdict_shared};
+        unsigned int *const members[3] = {transform_run ? device_transform : device_sums,
+                                          em_run ? device_em : device_point, device_verdict_shared};
         const unsigned long long bodies[3] = {points, points, 1ull};
         ok = ok && turing_sweep(&verdict, members, bodies, std::vector<unsigned int>(), points,
                                 device_verdict + TURING_PADS * verdict_limbs, checked, &error, &host_verdict);
     }
     turing_defer(ok, &host_verdict, "the verdict stage runs and the host's records equal the device's");
     std::vector<unsigned int> verdict_records =
-        ok ? turing_copy_back(device_verdict, (size_t)((points + TURING_PADS) * verdict_limbs)) : std::vector<unsigned int>();
-    const std::vector<unsigned int> verdicts(ok ? verdict_records.begin() + TURING_PADS * verdict_limbs : verdict_records.end(),
-                                             verdict_records.end());
+        ok ? turing_copy_back(device_verdict, (size_t)((points + TURING_PADS) * verdict_limbs))
+           : std::vector<unsigned int>();
+    const std::vector<unsigned int> verdicts(
+        ok ? verdict_records.begin() + TURING_PADS * verdict_limbs : verdict_records.end(), verdict_records.end());
 
     // both ways at once: the pairs' verdict beside the transform's, and the max their Z differ by
     std::vector<unsigned int> apart;
@@ -3633,7 +3804,8 @@ static int turing_job(const char *input, const char *output)
     unsigned int *const device_count = ok ? turing_alloc(&owned, (size_t)(points * counted.layout.out_limbs)) : NULL;
     ok = ok && (device_count != NULL);
     {
-        unsigned int *const members[3] = {device_verdict + 2u * verdict_limbs, device_verdict + verdict_limbs, device_verdict};
+        unsigned int *const members[3] = {device_verdict + 2u * verdict_limbs, device_verdict + verdict_limbs,
+                                          device_verdict};
         const unsigned long long bodies[3] = {points, points, points};
         ok = ok && turing_sweep(&counted, members, bodies, std::vector<unsigned int>(), points, device_count, checked,
                                 &error, &host_count);
@@ -3644,7 +3816,8 @@ static int turing_job(const char *input, const char *output)
 
     marks[5] = turing_now();
     // with the listing word 2: Z' at every point, by the twist or by the pairs' sine sums, then each step's hull
-    // against the margin. The slope records positioned after one empty record, which point 0's step reads as uncertified
+    // against the margin. The slope records positioned after one empty record, which point 0's step reads as
+    // uncertified
     std::vector<unsigned int> margin_records, slope_apart;
     unsigned int *device_margin = NULL;
     if (ok && sloped)
@@ -3683,11 +3856,11 @@ static int turing_job(const char *input, const char *output)
         unsigned int *const device_slope = ok ? turing_alloc(&owned, (size_t)((points + 1ull) * slope_limbs)) : NULL;
         ok = ok && (device_slope != NULL);
         {
-            unsigned int *const members[3] = {twisted ? device_twist : device_sines, device_verdict + TURING_PADS * verdict_limbs,
-                                              device_point};
+            unsigned int *const members[3] = {twisted ? device_twist : device_sines,
+                                              device_verdict + TURING_PADS * verdict_limbs, device_point};
             const unsigned long long bodies[3] = {points, points, points};
-            ok = ok && turing_sweep(&slope, members, bodies, std::vector<unsigned int>(), points, device_slope + slope_limbs,
-                                    checked, &error, &host_twist);
+            ok = ok && turing_sweep(&slope, members, bodies, std::vector<unsigned int>(), points,
+                                    device_slope + slope_limbs, checked, &error, &host_twist);
         }
         // with both methods, Z' by the pairs beside Z' by the twist, and the max the two differ by
         if (ok && twisted && pairs_sloped)
@@ -3704,9 +3877,11 @@ static int turing_job(const char *input, const char *output)
                  turing_sweep(&slope_pairs, members, bodies, std::vector<unsigned int>(), points, out, checked, &error,
                               &host_twist);
             const std::vector<unsigned int> by_twist =
-                ok ? turing_copy_back(device_slope + slope_limbs, (size_t)(points * slope_limbs)) : std::vector<unsigned int>();
+                ok ? turing_copy_back(device_slope + slope_limbs, (size_t)(points * slope_limbs))
+                   : std::vector<unsigned int>();
             const std::vector<unsigned int> by_pairs =
-                ok ? turing_copy_back(out, (size_t)(points * slope_pairs.layout.out_limbs)) : std::vector<unsigned int>();
+                ok ? turing_copy_back(out, (size_t)(points * slope_pairs.layout.out_limbs))
+                   : std::vector<unsigned int>();
             ok = ok && !by_twist.empty() && !by_pairs.empty();
             if (ok)
             {
@@ -3730,8 +3905,8 @@ static int turing_job(const char *input, const char *output)
         {
             unsigned int *const members[3] = {device_slope + slope_limbs, device_slope, device_margin_shared};
             const unsigned long long bodies[3] = {points, points + 1ull, 1ull};
-            ok = ok && turing_sweep(&margined, members, bodies, std::vector<unsigned int>(), points, device_margin, checked,
-                                    &error, &host_twist);
+            ok = ok && turing_sweep(&margined, members, bodies, std::vector<unsigned int>(), points, device_margin,
+                                    checked, &error, &host_twist);
         }
         margin_records = ok ? turing_copy_back(device_margin, (size_t)(points * margined.layout.out_limbs))
                             : std::vector<unsigned int>();
@@ -3780,16 +3955,17 @@ static int turing_job(const char *input, const char *output)
         fprintf(out, "\n");
         const unsigned int *const verdict_device_out = device_verdict + TURING_PADS * verdict_limbs;
         host_ranges &= turing_range(out, "low_before", &verdict, verdict_device_out, verdicts, 0ull, first, 4u, &error);
-        host_ranges &= turing_range(out, "low_after", &verdict, verdict_device_out, verdicts, first, points - first, 4u, &error);
+        host_ranges &=
+            turing_range(out, "low_after", &verdict, verdict_device_out, verdicts, first, points - first, 4u, &error);
         host_ranges &= turing_range(out, "high_upto", &verdict, verdict_device_out, verdicts, 1ull, first, 5u, &error);
         host_ranges &= turing_range(out, "high_after", &verdict, verdict_device_out, verdicts, first + 1ull,
                                     points - first - 1ull, 5u, &error);
-        const char *const zero_keys[3][2] = {{"zeros_upto", "zeros_after"}, {"zeros_q_upto", "zeros_q_after"},
-                                             {"zeros_p_upto", "zeros_p_after"}};
+        const char *const zero_keys[3][2] = {
+            {"zeros_upto", "zeros_after"}, {"zeros_q_upto", "zeros_q_after"}, {"zeros_p_upto", "zeros_p_after"}};
         for (unsigned int output = 0u; output < 3u; output += 1u)
         {
-            host_ranges &= turing_range(out, zero_keys[output][0], &counted, device_count, count_records, 0ull, first + 1ull,
-                                        output, &error);
+            host_ranges &= turing_range(out, zero_keys[output][0], &counted, device_count, count_records, 0ull,
+                                        first + 1ull, output, &error);
             host_ranges &= turing_range(out, zero_keys[output][1], &counted, device_count, count_records, first + 1ull,
                                         points - first - 1ull, output, &error);
         }
@@ -3805,8 +3981,8 @@ static int turing_job(const char *input, const char *output)
             host_ranges &= turing_range(out, "single", &margined, device_margin, margin_records, first + 1ull,
                                         points - first - 1ull, 2u, &error);
         }
-        fprintf(out, "host %d %d %d %d %d %d %d %d %d %d\n", host_pole, host_point, host_pair, host_sums, host_os, host_em,
-                host_verdict, host_count, host_ranges, host_twist);
+        fprintf(out, "host %d %d %d %d %d %d %d %d %d %d\n", host_pole, host_point, host_pair, host_sums, host_os,
+                host_em, host_verdict, host_count, host_ranges, host_twist);
         // the seconds to each mark from the one before, then those of the program loads and of the checks of the host.
         // Then the run in full before the output, and of the load, the imprint and the layout
         fprintf(out, "seconds");
@@ -3930,8 +4106,14 @@ int program_main(int count, char **arguments)
         while (turing_line(stdin, &input) && turing_line(stdin, &output))
         {
             const int done = turing_job(input.c_str(), output.c_str());
-            printf("done %d\n", done);
-            fflush(stdout);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "done ");
+                mmgr_line_decimal_signed(output_line, done);
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
+            platform_line_flushed();
             code = (done != 0) ? done : code;
         }
     }

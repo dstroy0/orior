@@ -115,12 +115,31 @@ int sim_job_submit(SimResults *results, const char *name, int count, char *const
     ok = tessera_job_submit(&submit, &client, &ticket) == 0L;
     if (ok && (ticket.over_budget != 0u))
     {
-        printf("  tessera: %s declares %llu bytes over its recorded peak of %llu; TESSERA_OVERRIDE=1 admits it\n", name,
-               declared, ticket.last_peak);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  tessera: ");
+            mmgr_line_put(output_line, name);
+            mmgr_line_put(output_line, " declares ");
+            mmgr_line_decimal(output_line, declared, 1u);
+            mmgr_line_put(output_line, " bytes over its recorded peak of ");
+            mmgr_line_decimal(output_line, ticket.last_peak, 1u);
+            mmgr_line_put(output_line, "; TESSERA_OVERRIDE=1 admits it");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         ok = (tessera_job_wait(client, &ticket, &error) == 0L) && (ticket.lost == 0u);
         if (!ok && (ticket.lost != 0u))
         {
-            printf("  tessera: %s was reserved past its grace time and lost (ticket in %s)\n", name, ticket.lost_path);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  tessera: ");
+                mmgr_line_put(output_line, name);
+                mmgr_line_put(output_line, " was reserved past its grace time and lost (ticket in ");
+                mmgr_line_put(output_line, ticket.lost_path);
+                mmgr_line_put(output_line, ")");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             tessera_job_precalc_saved(client, &error);
         }
     }
@@ -129,9 +148,20 @@ int sim_job_submit(SimResults *results, const char *name, int count, char *const
     {
         return 0;
     }
-    printf("  tessera: %s admitted, %llu bytes reserved; it declared %llu over the %llu its process occupied as it "
-           "requested\n",
-           name, ticket.granted, declared, ticket.located);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  tessera: ");
+        mmgr_line_put(output_line, name);
+        mmgr_line_put(output_line, " admitted, ");
+        mmgr_line_decimal(output_line, ticket.granted, 1u);
+        mmgr_line_put(output_line, " bytes reserved; it declared ");
+        mmgr_line_decimal(output_line, declared, 1u);
+        mmgr_line_put(output_line, " over the ");
+        mmgr_line_decimal(output_line, ticket.located, 1u);
+        mmgr_line_put(output_line, " its process occupied as it requested");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     results->job = client;
     results->job_declared = declared + ticket.located;
     return 1;
@@ -152,7 +182,12 @@ void sim_job_release(SimResults *results)
     sim_check(results, released, "tessera: the sim's job releases");
     if (released)
     {
-        printf("  tessera: released, peak %llu bytes%s\n", ticket.last_peak,
-               (ticket.last_peak > results->job_declared) ? ", more than it declared" : "");
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  tessera: released, peak ");
+        mmgr_line_decimal(output_line, ticket.last_peak, 1u);
+        mmgr_line_put(output_line, " bytes");
+        mmgr_line_put(output_line, (ticket.last_peak > results->job_declared) ? ", more than it declared" : "");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
 }

@@ -72,7 +72,13 @@ int program_main(int count, char **word)
 {
     if (count != 7)
     {
-        printf("orior_khw_machine_write <part> <path.khw> <layout> <mnemonics> <answers> <mode>\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line,
+                          "orior_khw_machine_write <part> <path.khw> <layout> <mnemonics> <answers> <mode>");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     const char *const part = word[1];
@@ -168,7 +174,14 @@ int program_main(int count, char **word)
     const int costs = mmgr_text_equal(mode, "costs", PLATFORM_TEXT_TO_TERMINATOR);
     if (!gate && !costs && (!mmgr_text_equal(mode, "final", PLATFORM_TEXT_TO_TERMINATOR)))
     {
-        printf("  orior_khw_machine_write: %s is no mode this writes\n", mode);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  orior_khw_machine_write: ");
+            mmgr_line_put(output_line, mode);
+            mmgr_line_put(output_line, " is no mode this writes");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     // the kernel's places, one form a place, where the gate reads questions against them
@@ -199,7 +212,14 @@ int program_main(int count, char **word)
             }
             if (!khw_form_store(&s_machine, &s_form[at], text))
             {
-                printf("  orior_khw_machine_write: %s contains no more forms\n", path);
+                {
+                    VerbaLinea *const output_line = platform_line_out();
+                    mmgr_line_put(output_line, "  orior_khw_machine_write: ");
+                    mmgr_line_put(output_line, path);
+                    mmgr_line_put(output_line, " contains no more forms");
+                    mmgr_line_ch(output_line, '\n');
+                    platform_line_out_ended();
+                }
                 return 1;
             }
             named += 1u;
@@ -207,24 +227,56 @@ int program_main(int count, char **word)
     }
     if (!sass_machine_write(&s_machine, path))
     {
-        printf("  orior_khw_machine_write: %s could not be written\n", path);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  orior_khw_machine_write: ");
+            mmgr_line_put(output_line, path);
+            mmgr_line_put(output_line, " could not be written");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     if (gate)
     {
-        printf("  the kernel's places: %u forms the gate reads a question against\n", kernel_forms);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  the kernel's places: ");
+            mmgr_line_decimal(output_line, kernel_forms, 1u);
+            mmgr_line_put(output_line, " forms the gate reads a question against");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     if (costs)
     {
-        printf("  the kernel's places, %u forms, and %u of the %u forms the part answered for named by the vendor's "
-               "table: what the gate reads a costs question against, written to %s\n",
-               kernel_forms, named, forms, path);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  the kernel's places, ");
+            mmgr_line_decimal(output_line, kernel_forms, 1u);
+            mmgr_line_put(output_line, " forms, and ");
+            mmgr_line_decimal(output_line, named, 1u);
+            mmgr_line_put(output_line, " of the ");
+            mmgr_line_decimal(output_line, forms, 1u);
+            mmgr_line_put(output_line, " forms the part answered for named by the vendor's table: what the gate reads "
+                                       "a costs question against, written to ");
+            mmgr_line_put(output_line, path);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
-    printf("  orior_khw_machine_write: %u of the %u forms the part answered for named by the vendor's table and "
-           "written to "
-           "%s\n",
-           named, forms, path);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  orior_khw_machine_write: ");
+        mmgr_line_decimal(output_line, named, 1u);
+        mmgr_line_put(output_line, " of the ");
+        mmgr_line_decimal(output_line, forms, 1u);
+        mmgr_line_put(output_line, " forms the part answered for named by the vendor's table and written to ");
+        mmgr_line_put(output_line, path);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 0;
 }

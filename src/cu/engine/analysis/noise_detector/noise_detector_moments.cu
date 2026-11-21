@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_detector_moments.cu: moments and cumulants
 #include "noise_detector_internal.h"
+#include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 // A sample's quiet static voxels, each one's frames in blocks of NOISE_MOMENT_BLOCK: a block's values less their mean
@@ -157,10 +158,16 @@ extern "C" long noise_moments_set(const NoiseSetRequest *request)
                               "sample\tlowest_mean\tblock_frames\tblocks\tvalues\ts1\ts1_squared\ts1_cubed\ts1_fourth"
                               "\ts2\ts1_s2\ts1_squared_s2\ts2_squared_high\ts2_squared_low\ts3\ts1_s3\ts4\n",
                               path, &table, error);
-    printf("  moments: every quiet static voxel's frames in blocks of %llu, each block's values less its mean raised to"
-           " the powers 1 to 4 and summed, then binned by the mean in 8s; the second, third and fourth k-statistics"
-           " follow exactly from the table\n",
-           NOISE_MOMENT_BLOCK);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  moments: every quiet static voxel's frames in blocks of ");
+        mmgr_line_decimal(output_line, NOISE_MOMENT_BLOCK, 1u);
+        mmgr_line_put(output_line,
+                      ", each block's values less its mean raised to the powers 1 to 4 and summed, then binned by the "
+                      "mean in 8s; the second, third and fourth k-statistics follow exactly from the table");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     NoiseMomentCell *const cells = (NoiseMomentCell *)malloc((size_t)NOISE_LEVEL_BINS * sizeof(NoiseMomentCell));
     ok = ok && NOISE_DETECTOR_CHECK(cells != NULL, &cells, error, ENGINE_ERROR_RESOURCE);
     const unsigned long long began = engine_clock_microseconds();
@@ -179,9 +186,23 @@ extern "C" long noise_moments_set(const NoiseSetRequest *request)
         ok = ok && NOISE_DETECTOR_IO(noise_moments_rows(table, name, cells) != 0, table, error);
         if (ok != 0)
         {
-            printf("  %-24s static means up to %llu; %llu blocks retained, %llu left out past %llu of their mean\n",
-                   name, ceiling, sampled, left_out, NOISE_MOMENT_RANGE);
-            fflush(stdout);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  ");
+                mmgr_line_put_columns(output_line, name, 24u);
+                mmgr_line_put(output_line, " static means up to ");
+                mmgr_line_decimal(output_line, ceiling, 1u);
+                mmgr_line_put(output_line, "; ");
+                mmgr_line_decimal(output_line, sampled, 1u);
+                mmgr_line_put(output_line, " blocks retained, ");
+                mmgr_line_decimal(output_line, left_out, 1u);
+                mmgr_line_put(output_line, " left out past ");
+                mmgr_line_decimal(output_line, NOISE_MOMENT_RANGE, 1u);
+                mmgr_line_put(output_line, " of their mean");
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
+            platform_line_flushed();
         }
     }
     free(cells);
@@ -191,8 +212,15 @@ extern "C" long noise_moments_set(const NoiseSetRequest *request)
     }
     if (ok != 0)
     {
-        printf("  moments: %u samples in %llu ms; every bin's sums are in %s\n", request->count,
-               (engine_clock_microseconds() - began) / 1000ULL, path);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  moments: ");
+        mmgr_line_decimal(output_line, request->count, 1u);
+        mmgr_line_put(output_line, " samples in ");
+        mmgr_line_decimal(output_line, (engine_clock_microseconds() - began) / 1000ULL, 1u);
+        mmgr_line_put(output_line, " ms; every bin's sums are in ");
+        mmgr_line_put(output_line, path);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     return (ok != 0) ? 0L : NOISE_DETECTOR_ERROR;
 }

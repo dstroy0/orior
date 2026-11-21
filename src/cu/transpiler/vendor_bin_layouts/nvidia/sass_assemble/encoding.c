@@ -242,7 +242,17 @@ static const SassForm *sass_encoding_form(const SassMachine *machine, unsigned l
         // a holder past the max the reader weighs is refused and not dropped: the form it would have been is unknown
         if (found_count == SASS_HOLDERS)
         {
-            printf("  sass_assemble: more than %u forms match the encoding %016llx %016llx\n", SASS_HOLDERS, high, low);
+            {
+                VerbaLinea *const output_line = platform_line_out();
+                mmgr_line_put(output_line, "  sass_assemble: more than ");
+                mmgr_line_decimal(output_line, SASS_HOLDERS, 1u);
+                mmgr_line_put(output_line, " forms match the encoding ");
+                mmgr_line_hex(output_line, high, 16u);
+                mmgr_line_put(output_line, " ");
+                mmgr_line_hex(output_line, low, 16u);
+                mmgr_line_ch(output_line, '\n');
+                platform_line_out_ended();
+            }
             return NULL;
         }
         holders[found_count] = holder;

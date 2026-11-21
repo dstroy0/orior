@@ -10,6 +10,7 @@
 //   two by select.
 // The test is one job on the device's tessera daemon.
 #include "../../../../../../src/cu/engine/analysis/cycle/cycle.h"
+#include "../../../../../../src/platform/platform.h"
 #include "../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../src/cu/engine/analysis/keymath/keymath.h"
 #include "verba_scribo/verba_linea.h"
@@ -161,16 +162,16 @@ static int record_load(ExactRecordProgram *program, const unsigned int *outputs,
 {
     memset(error, 0, sizeof(*error));
     loaded->record = NULL;
-    const KeymathRecordRequest encode = {program->steps, program->count, program->field_bits, program->fields, 1u,
-                                         outputs, output_count, program->tables, program->table_count, &loaded->key,
-                                         error};
+    const KeymathRecordRequest encode = {
+        program->steps, program->count,  program->field_bits,  program->fields, 1u,   outputs,
+        output_count,   program->tables, program->table_count, &loaded->key,    error};
     if ((program->failed != 0) || (keymath_record_encode(&encode) == KEYMATH_ERROR))
     {
         return 0;
     }
     const unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {1u, 0u, 0u};
-    const KeyScheduleRecordRequest layout = {&loaded->key, program->field_offset, program->fields, in_limbs, 1,
-                                             &loaded->layout, error};
+    const KeyScheduleRecordRequest layout = {
+        &loaded->key, program->field_offset, program->fields, in_limbs, 1, &loaded->layout, error};
     if (key_schedule_record_layout(&layout) == KEY_SCHEDULE_ERROR)
     {
         keymath_record_release(&loaded->key);
@@ -219,16 +220,19 @@ static int record_run(RecordResults *results, ExactRecordProgram *program, const
     if (ok != 0)
     {
         const CycleRecordHostRequest request = {&loaded.layout, {atoms, NULL, NULL}, {RECORD_TEST_LANES, 0ull, 0ull},
-                                                NULL, RECORD_TEST_LANES, host, &error};
+                                                NULL,           RECORD_TEST_LANES,   host,
+                                                &error};
         ok = cycle_record_run_host(&request) != CYCLE_ERROR;
     }
     ok = ok && (cudaMalloc((void **)&device_atoms, RECORD_TEST_LANES * sizeof(unsigned int)) == cudaSuccess) &&
          (cudaMalloc((void **)&device_out, words * sizeof(unsigned int)) == cudaSuccess) &&
-         (cudaMemcpy(device_atoms, atoms, RECORD_TEST_LANES * sizeof(unsigned int), cudaMemcpyHostToDevice) == cudaSuccess);
+         (cudaMemcpy(device_atoms, atoms, RECORD_TEST_LANES * sizeof(unsigned int), cudaMemcpyHostToDevice) ==
+          cudaSuccess);
     if (ok != 0)
     {
         const CycleRecordRunRequest run = {loaded.record, {device_atoms, NULL, NULL}, {RECORD_TEST_LANES, 0ull, 0ull},
-                                           NULL, RECORD_TEST_LANES, device_out, &error};
+                                           NULL,          RECORD_TEST_LANES,          device_out,
+                                           &error};
         ok = (cycle_record_run(&run) != CYCLE_ERROR) &&
              (cudaMemcpy(device, device_out, words * sizeof(unsigned int), cudaMemcpyDeviceToHost) == cudaSuccess);
     }
@@ -317,7 +321,7 @@ static void record_power_of_case(RecordResults *results, unsigned int base, unsi
     const unsigned int exponent_field = exact_record_field(&program, bits);
     const unsigned int exponent = exact_record_read_unsigned(&program, exponent_field, 0u);
     const unsigned int outputs[1] = {(base == 0u) ? exact_record_two_to(&program, exponent, bits)
-                                                   : exact_record_power_of(&program, base, exponent, bits)};
+                                                  : exact_record_power_of(&program, base, exponent, bits)};
     for (unsigned int lane = 0u; lane < RECORD_TEST_LANES; lane += 1u)
     {
         // every exponent in turn, then random ones
@@ -365,7 +369,8 @@ static void record_bracket_case(RecordResults *results)
         RecordValue up;
         record_small(&down, (l / r) - 1);
         record_small(&up, (l / r) + 1);
-        matched += (unsigned int)(record_same(&down, &s_read[2u * lane]) && record_same(&up, &s_read[(2u * lane) + 1u]));
+        matched +=
+            (unsigned int)(record_same(&down, &s_read[2u * lane]) && record_same(&up, &s_read[(2u * lane) + 1u]));
     }
     record_check(results, (same != 0) && (matched == RECORD_TEST_LANES),
                  "down and up: l / r toward zero less and more 1, signed l and r, device = host = C's division");
@@ -383,8 +388,10 @@ static void record_compare_case(RecordResults *results)
     const unsigned int w = exact_record_read(&program, w_field, 0u);
     const unsigned int above = exact_record_above(&program, v, w);
     unsigned int outputs[7];
-    outputs[0] = exact_record_wrap(&program, exact_record_product(&program, v, exact_record_constant(&program, 3ull)), 19u);
-    outputs[1] = exact_record_narrow(&program, exact_record_sum(&program, v, exact_record_constant(&program, 32768ull)), 16u);
+    outputs[0] =
+        exact_record_wrap(&program, exact_record_product(&program, v, exact_record_constant(&program, 3ull)), 19u);
+    outputs[1] =
+        exact_record_narrow(&program, exact_record_sum(&program, v, exact_record_constant(&program, 32768ull)), 16u);
     outputs[2] = exact_record_bit(&program, v, 5u);
     outputs[3] = above;
     outputs[4] = exact_record_equal(&program, v, w);
@@ -443,8 +450,10 @@ int program_main(int count, char **arguments)
     if (admitted != 0)
     {
         record_power_case(&results);
-        record_power_of_case(&results, 2u, 8u, "2^e by the nibble table, e below 2^8, device = host = the limbs' power");
-        record_power_of_case(&results, 3u, 6u, "3^e by the nibble table, e below 2^6, device = host = the limbs' power");
+        record_power_of_case(&results, 2u, 8u,
+                             "2^e by the nibble table, e below 2^8, device = host = the limbs' power");
+        record_power_of_case(&results, 3u, 6u,
+                             "3^e by the nibble table, e below 2^6, device = host = the limbs' power");
         record_power_of_case(&results, 0u, 8u, "2^e by its bits, e below 2^8, device = host = the limbs' power");
         record_bracket_case(&results);
         record_compare_case(&results);
@@ -459,7 +468,8 @@ int program_main(int count, char **arguments)
     mmgr_line_put(&results.line, " checks, ");
     mmgr_line_decimal(&results.line, results.failures, 1u);
     mmgr_line_put(&results.line, " failed\n");
-    (void)(mmgr_line_ok(&results.line) && (fwrite(results.line.out, 1u, mmgr_line_finish(&results.line), stdout) == results.line.at));
+    (void)(mmgr_line_ok(&results.line) &&
+           (platform_line_out_put(results.line.out, mmgr_line_finish(&results.line)) == results.line.at));
     free(results.line.out);
     return (results.failures == 0ull) ? 0 : 1;
 }

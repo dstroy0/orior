@@ -8,6 +8,7 @@
 // field, and the ledger each is left with the host's job for job, recorded peak for recorded peak and deadline for
 // deadline. The test is one job on the device's tessera daemon, submitted before its first device work.
 #include "sim.h"
+#include "../../../../../../../src/platform/platform.h"
 #include "../../../../../../../src/cu/engine/runtime/daemon/tessera_device.h"
 #include "../../../../../../../src/cu/engine/runtime/daemon/tessera_ledger.h"
 
@@ -58,7 +59,13 @@ static void device_test_check(DeviceTestResults *results, int passed, const char
     results->failed += passed ? 0u : 1u;
     if (!passed)
     {
-        printf("  FAIL round %u: %s\n", round, what);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  FAIL round ");
+        mmgr_line_decimal(output_line, round, 1u);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_put(output_line, what);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
 }
 
@@ -235,8 +242,21 @@ int program_main(int count, char **arguments)
     sim_flush(&job);
     device_test_check(&results, (admitted != 0) && (job.failures == 0ull),
                       "tessera: the device's daemon admits the test's job and it releases", 0u);
-    printf("  tessera device test: %u rounds of %u calls, %llu grew the device's job array past one; %u checks, "
-           "%u failed\n",
-           (admitted != 0) ? DEVICE_TEST_ROUNDS : 0u, DEVICE_TEST_CALLS, grown, results.checks, results.failed);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  tessera device test: ");
+        mmgr_line_decimal(output_line, (admitted != 0) ? DEVICE_TEST_ROUNDS : 0u, 1u);
+        mmgr_line_put(output_line, " rounds of ");
+        mmgr_line_decimal(output_line, DEVICE_TEST_CALLS, 1u);
+        mmgr_line_put(output_line, " calls, ");
+        mmgr_line_decimal(output_line, grown, 1u);
+        mmgr_line_put(output_line, " grew the device's job array past one; ");
+        mmgr_line_decimal(output_line, results.checks, 1u);
+        mmgr_line_put(output_line, " checks, ");
+        mmgr_line_decimal(output_line, results.failed, 1u);
+        mmgr_line_put(output_line, " failed");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return (results.failed == 0u) ? 0 : 1;
 }

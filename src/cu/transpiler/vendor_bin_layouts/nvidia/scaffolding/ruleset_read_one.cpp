@@ -42,13 +42,23 @@ int program_main(int count, char **arguments)
 {
     if (count < 2)
     {
-        printf("ruleset_read_one <form> <argument> ...\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "ruleset_read_one <form> <argument> ...");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 2;
     }
     const Ruleset *const rules = sass_target().ruleset(1);
     if (rules == NULL)
     {
-        printf("sass.krs did not read\n");
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "sass.krs did not read");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
     std::vector<std::string> given;
@@ -59,9 +69,22 @@ int program_main(int count, char **arguments)
     std::string text;
     if (ruleset_opcode(rules, arguments[1], given, read_one_scratch, text) == 0)
     {
-        printf("sass.krs does not write %s with %zu arguments\n", arguments[1], given.size());
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "sass.krs does not write ");
+            mmgr_line_put(output_line, arguments[1]);
+            mmgr_line_put(output_line, " with ");
+            mmgr_line_decimal(output_line, given.size(), 1u);
+            mmgr_line_put(output_line, " arguments");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 1;
     }
-    printf("%s", text.c_str());
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, text.c_str());
+        platform_line_out_ended();
+    }
     return 0;
 }

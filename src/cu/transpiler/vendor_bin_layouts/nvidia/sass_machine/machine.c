@@ -385,7 +385,14 @@ int sass_machine_write(const SassMachine *machine, const char *path)
     // The whole text goes to the run's writer, which writes it in the file's place (qry_member_filed).
     if (!mmgr_line_ok(&file) || !qry_member_filed(path, file.out, file.at))
     {
-        printf("  sass_machine: %s could not be written: no run's writer runs, or it is outside the tree\n", path);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  sass_machine: ");
+            mmgr_line_put(output_line, path);
+            mmgr_line_put(output_line, " could not be written: no run's writer runs, or it is outside the tree");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     return 1;
@@ -522,7 +529,14 @@ int sass_machine_read(SassMachine *machine, const char *path)
     unsigned long long file_at = 0ULL;
     if (!qry_member_file_blob(path, &file_bytes, &file_size))
     {
-        printf("  sass_machine: %s could not be read\n", path);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  sass_machine: ");
+            mmgr_line_put(output_line, path);
+            mmgr_line_put(output_line, " could not be read");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     mmgr_bytes_set(machine, 0, sizeof(*machine));
@@ -613,8 +627,18 @@ int sass_machine_read(SassMachine *machine, const char *path)
     }
     if (((version != 1u) && (version != 2u)) || broken || (machine->forms == 0u))
     {
-        printf("  sass_machine: %s is not a machine file this reads (forms %u, %u read)\n", path, version,
-               machine->forms);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  sass_machine: ");
+            mmgr_line_put(output_line, path);
+            mmgr_line_put(output_line, " is not a machine file this reads (forms ");
+            mmgr_line_decimal(output_line, version, 1u);
+            mmgr_line_put(output_line, ", ");
+            mmgr_line_decimal(output_line, machine->forms, 1u);
+            mmgr_line_put(output_line, " read)");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
         return 0;
     }
     sass_answers_read(machine, path);

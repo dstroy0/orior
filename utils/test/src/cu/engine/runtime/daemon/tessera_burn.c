@@ -8,6 +8,7 @@
 #endif
 
 #include <stdio.h>
+#include "../../../../../../../src/platform/platform.h"
 #include <stdlib.h>
 
 #if defined(_WIN32)
@@ -55,7 +56,7 @@ static void *burn_spin(void *unused)
 #endif
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     if (count != 4)
     {
@@ -89,8 +90,16 @@ int main(int count, char **arguments)
     }
     below_normal = getpriority(PRIO_PROCESS, 0) > 0;
 #endif
-    printf("  tessera_burn: processors 0x%llx, below normal %d\n", mask, below_normal);
-    fflush(stdout);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  tessera_burn: processors 0x");
+        mmgr_line_hex(output_line, mask, 1u);
+        mmgr_line_put(output_line, ", below normal ");
+        mmgr_line_decimal_signed(output_line, below_normal);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    platform_line_flushed();
     s_burn_until = burn_now() + milliseconds;
 #if defined(_WIN32)
     HANDLE spinning[BURN_THREADS_MAX];

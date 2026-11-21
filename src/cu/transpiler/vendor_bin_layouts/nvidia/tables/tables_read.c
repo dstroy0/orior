@@ -14,6 +14,7 @@
 // constant operand so, `bank <first>..<last> offset <first>..<last> <count>`. Exit 0, 2 where the words are not as
 // above, and 1 where the instruction set could not be read
 #include "../cubin_safe.h"
+#include "../../../../../platform/platform.h"
 #include "../../../../engine/engine_note.h"
 #include "cellularum_laboro/cellularum_linea.h"
 #include "read.h"
@@ -114,8 +115,19 @@ static int spans_printed(const TablesSet *set)
     }
     for (unsigned int each = 0u; each < spans; each += 1u)
     {
-        printf("bank %u..%u offset %u..%u %u\n", bank_first[each], bank_last[each], offset_first[each],
-               offset_last[each], counted[each]);
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "bank ");
+        mmgr_line_decimal(output_line, bank_first[each], 1u);
+        mmgr_line_put(output_line, "..");
+        mmgr_line_decimal(output_line, bank_last[each], 1u);
+        mmgr_line_put(output_line, " offset ");
+        mmgr_line_decimal(output_line, offset_first[each], 1u);
+        mmgr_line_put(output_line, "..");
+        mmgr_line_decimal(output_line, offset_last[each], 1u);
+        mmgr_line_put(output_line, " ");
+        mmgr_line_decimal(output_line, counted[each], 1u);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
     }
     return 0;
 }
@@ -181,7 +193,13 @@ int program_main(int count, char **words)
                       : cubin_constant_out_of_bank(&set, low, high, bank_size) ? " gated"
                                                                                : " passes";
         }
-        printf("%s%s\n", line, verdict);
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, line);
+            mmgr_line_put(output_line, verdict);
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
     }
     tables_set_freed(&set);
     return 0;

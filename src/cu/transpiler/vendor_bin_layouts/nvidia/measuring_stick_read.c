@@ -15,6 +15,7 @@
 //
 //     orior_measuring_stick_read <nvcc listing> <manifest> <sass.krs> <record> [<engine.tsv> <engine directory>]
 #include "measuring_stick_read/stick_internal.h"
+#include "../../../../platform/platform.h"
 #include "../../../engine/engine_note.h"
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
@@ -397,8 +398,19 @@ int program_main(int argc, char **argv)
         }
         return 1;
     }
-    printf("measuring stick: %u kernels, %u instructions in nvcc's listing, %u operations, %u of them written by "
-           "sass.krs\n",
-           sticks, instructions, writings, writing_count);
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "measuring stick: ");
+        mmgr_line_decimal(output_line, sticks, 1u);
+        mmgr_line_put(output_line, " kernels, ");
+        mmgr_line_decimal(output_line, instructions, 1u);
+        mmgr_line_put(output_line, " instructions in nvcc's listing, ");
+        mmgr_line_decimal(output_line, writings, 1u);
+        mmgr_line_put(output_line, " operations, ");
+        mmgr_line_decimal(output_line, writing_count, 1u);
+        mmgr_line_put(output_line, " of them written by sass.krs");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     return 0;
 }

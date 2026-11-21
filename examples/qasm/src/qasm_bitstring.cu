@@ -113,17 +113,88 @@ int program_main(int count, char **arguments)
     qasm_units_decimal(outcome.peak_units, QASM_PLACES, peak, sizeof(peak));
     qasm_units_decimal(outcome.runner_up_units, QASM_PLACES, second, sizeof(second));
     qasm_units_decimal(outcome.slack_units, QASM_PLACES, slack, sizeof(slack));
-    printf("qubits     %u (%u measured%s)\n", circuit.qubits, circuit.measured,
-           (circuit.measured_all_by_default != 0u) ? ", no measure: every qubit into its own clbit" : "");
-    printf("gates      %u (%u rounded, %u exact)\n", circuit.gate_count, circuit.rounded_gates, circuit.exact_gates);
-    printf("bound E    %s\n", bound);
-    printf("bitstring  %s\n", bitstring);
-    printf("p(peak)    %s\n", peak);
-    printf("runner-up  %s  p %s\n", runner_up, second);
-    printf("slack      %s\n", slack);
-    printf("run        %s, %u sweeps over %llu lanes, %llu us\n", (on_host != 0) ? "host" : "device", outcome.sweeps,
-           outcome.lanes, outcome.microseconds);
-    printf("%s\n", (outcome.proved != 0u) ? "PROVED" : "NOT PROVED");
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "qubits     ");
+        mmgr_line_decimal(output_line, circuit.qubits, 1u);
+        mmgr_line_put(output_line, " (");
+        mmgr_line_decimal(output_line, circuit.measured, 1u);
+        mmgr_line_put(output_line, " measured");
+        mmgr_line_put(output_line,
+                      (circuit.measured_all_by_default != 0u) ? ", no measure: every qubit into its own clbit" : "");
+        mmgr_line_put(output_line, ")");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "gates      ");
+        mmgr_line_decimal(output_line, circuit.gate_count, 1u);
+        mmgr_line_put(output_line, " (");
+        mmgr_line_decimal(output_line, circuit.rounded_gates, 1u);
+        mmgr_line_put(output_line, " rounded, ");
+        mmgr_line_decimal(output_line, circuit.exact_gates, 1u);
+        mmgr_line_put(output_line, " exact)");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "bound E    ");
+        mmgr_line_put(output_line, bound);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "bitstring  ");
+        mmgr_line_put(output_line, bitstring);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "p(peak)    ");
+        mmgr_line_put(output_line, peak);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "runner-up  ");
+        mmgr_line_put(output_line, runner_up);
+        mmgr_line_put(output_line, "  p ");
+        mmgr_line_put(output_line, second);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "slack      ");
+        mmgr_line_put(output_line, slack);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "run        ");
+        mmgr_line_put(output_line, (on_host != 0) ? "host" : "device");
+        mmgr_line_put(output_line, ", ");
+        mmgr_line_decimal(output_line, outcome.sweeps, 1u);
+        mmgr_line_put(output_line, " sweeps over ");
+        mmgr_line_decimal(output_line, outcome.lanes, 1u);
+        mmgr_line_put(output_line, " lanes, ");
+        mmgr_line_decimal(output_line, outcome.microseconds, 1u);
+        mmgr_line_put(output_line, " us");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, (outcome.proved != 0u) ? "PROVED" : "NOT PROVED");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     qasm_release(&circuit);
     return (outcome.proved != 0u) ? QASM_EXIT_PROVED : QASM_EXIT_NOT_PROVED;
 }
