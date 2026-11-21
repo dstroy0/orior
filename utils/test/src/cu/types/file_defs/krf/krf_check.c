@@ -57,7 +57,7 @@ static const char *joined(const KrfFile *file)
 
 static KrfFile s_file;
 
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
     if (count < 2)
     {

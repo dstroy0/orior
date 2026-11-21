@@ -53,10 +53,13 @@ done
 
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$INTERFACE" "${FILE_DEFS_MMGR_FLAGS[@]}")
 rm -f "$BINARY" "$PROBE"
+# the test and the probe are programs of the platform, and link MMgr's line with the platform
+# (exact_types_platform_link)
+source "$TOP/includes/exact_types/exact_types.sh"
+exact_types_platform_link probe || exit 1
 OBJECTS=()
-# the interface compares and copies through MMgr, whose sources the test compiles beside it
-for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" "$TEST/interface_ptx_test.c" \
-    "${FILE_DEFS_LINEA[@]}"; do
+# the interface compares and copies through MMgr, whose line comes in PLATFORM_LINK
+for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" "$TEST/interface_ptx_test.c"; do
     object="$OUT/$(basename "$source" .c).$EXTENSION"
     rm -f "$object"
     case "$(uname -s)" in
@@ -68,7 +71,7 @@ for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/int
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
 done
-nvcc "${HOST_FLAGS[@]}" -o "$BINARY" "${OBJECTS[@]}"
+nvcc "${HOST_FLAGS[@]}" -o "$BINARY" "${OBJECTS[@]}" "${PLATFORM_LINK[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: the interface's PTX test did not link"; exit 1; }
 # the probe reads rulesets and writes forms; the code generator's assembly printer (asm_printer_*.cu) and the code
 # generator on the device (codegen*.cu) run on the record machine, which the probe does not link
@@ -79,10 +82,7 @@ for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/../file_de
         *) CODEGEN_SOURCES+=("$source") ;;
     esac
 done
-# the formats, as C: the ruleset reader reads a ruleset's .ksc as the run stores it (qry_member.h). The probe is a
-# program of the platform, and links MMgr's line with the platform (exact_types_platform_link)
-source "$TOP/includes/exact_types/exact_types.sh"
-exact_types_platform_link probe || exit 1
+# the formats, as C: the ruleset reader reads a ruleset's .ksc as the run stores it (qry_member.h)
 FORMAT_OBJECTS=()
 for source in "${FILE_DEFS_FORMATS[@]}"; do
     object="$OUT/$(basename "$source" .c)_probe.$EXTENSION"

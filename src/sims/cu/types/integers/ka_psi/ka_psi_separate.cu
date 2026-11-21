@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // ka_psi_separate.cu: wide arithmetic, the grid and separation
 #include "ka_psi_internal.h"
+#include "../../../../../platform/platform.h"
 
 void psi_all_scales(SimResults *results, const PsiCase *psi_case, const PsiScale *scale, unsigned long long tilt,
                     const OriorExactInteger *measured_widest)
@@ -215,8 +216,12 @@ static int psi_grid(const PsiCase *psi_case, const PsiScale *scale, unsigned int
 {
     const unsigned long long base = psi_case->base;
     const unsigned long long points = psi_integer_power(base, level);
-    OriorExactInteger *below = (OriorExactInteger *)malloc((size_t)(points + 1ULL) * sizeof(OriorExactInteger));
-    OriorExactInteger *table = (OriorExactInteger *)malloc((size_t)(points + 1ULL) * sizeof(OriorExactInteger));
+    OriorExactInteger *below = (OriorExactInteger *)platform_cell_taken(
+        (unsigned long long)((size_t)(points + 1ULL) * sizeof(OriorExactInteger)),
+        (unsigned int)platform_place_g_program_owner, 0);
+    OriorExactInteger *table = (OriorExactInteger *)platform_cell_taken(
+        (unsigned long long)((size_t)(points + 1ULL) * sizeof(OriorExactInteger)),
+        (unsigned int)platform_place_g_program_owner, 0);
     int ok = (below != NULL) && (table != NULL);
     if (ok)
     {
@@ -242,8 +247,8 @@ static int psi_grid(const PsiCase *psi_case, const PsiScale *scale, unsigned int
             grid[index] = ((unsigned long long)table[index].limb[1] << 32u) | (unsigned long long)table[index].limb[0];
         }
     }
-    free(below);
-    free(table);
+    platform_cell_released(below, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(table, (unsigned int)platform_place_g_program_owner);
     return ok;
 }
 
@@ -295,13 +300,16 @@ void psi_separate(SimResults *results, const PsiCase *psi_case, const PsiScale *
         }
         beyond[coordinate] = coordinate * psi_case->weight[term];
     }
-    unsigned long long *grid = (unsigned long long *)malloc((size_t)(side + 1ULL) * sizeof(unsigned long long));
-    PsiImage *images = (PsiImage *)malloc((size_t)count * sizeof(PsiImage));
+    unsigned long long *grid = (unsigned long long *)platform_cell_taken(
+        (unsigned long long)((size_t)(side + 1ULL) * sizeof(unsigned long long)),
+        (unsigned int)platform_place_g_program_owner, 0);
+    PsiImage *images = (PsiImage *)platform_cell_taken((unsigned long long)((size_t)count * sizeof(PsiImage)),
+                                                       (unsigned int)platform_place_g_program_owner, 0);
     if ((grid == NULL) || (images == NULL) || (psi_grid(psi_case, scale, level, grid) == 0))
     {
         sim_check(results, 0, "the grid and its images were allocated");
-        free(grid);
-        free(images);
+        platform_cell_released(grid, (unsigned int)platform_place_g_program_owner);
+        platform_cell_released(images, (unsigned int)platform_place_g_program_owner);
         return;
     }
     for (unsigned long long index = 0ULL; index < count; index += 1ULL)
@@ -420,9 +428,9 @@ void psi_separate(SimResults *results, const PsiCase *psi_case, const PsiScale *
     psi_point_print(line, images[least_at + 1ULL].index, side, level, dimension, base);
     mmgr_line_put(line, margin_ok ? "; Lemma 3.4 passes" : "; Lemma 3.4 FAILS");
     mmgr_line_put(line, supports_apart ? ", the supports are disjoint"
-                                        : (supports_meet ? ", the supports OVERLAP" : ", the supports are undecided"));
+                                       : (supports_meet ? ", the supports OVERLAP" : ", the supports are undecided"));
     mmgr_line_put(line,
-                   narrow_apart ? ", disjoint with the narrow ramp\n" : ", overlapping even with the narrow ramp\n");
+                  narrow_apart ? ", disjoint with the narrow ramp\n" : ", overlapping even with the narrow ramp\n");
     sim_flush(results);
 
     // (3.11): the alphas cut at r <= k, sum_(r<=k) gamma^-(p-1) beta(r), exact over gamma^((n-1) beta(k))
@@ -468,6 +476,6 @@ void psi_separate(SimResults *results, const PsiCase *psi_case, const PsiScale *
     mmgr_line_put(line, " units, at least the margin: ");
     mmgr_line_put(line, truncated_ok ? "yes\n" : "NO\n");
     sim_flush(results);
-    free(grid);
-    free(images);
+    platform_cell_released(grid, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(images, (unsigned int)platform_place_g_program_owner);
 }

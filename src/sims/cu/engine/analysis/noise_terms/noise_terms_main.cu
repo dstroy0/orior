@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_terms_main.cu: the mix and main
 #include "noise_terms_internal.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
 
 static const unsigned long long TERMS_FLAT_LIGHT[TERMS_FLAT_LIGHTS] = {100ULL, 200ULL, 400ULL};
 
@@ -42,20 +44,20 @@ int program_main(int argc, char **argv)
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;
     sim_open(&results, line_buffer);
-    mmgr_line_put(&results.line,
-                   "  the noise terms, each planted in the camera law and read back by the noise detector"
-                   "\n");
+    mmgr_line_put(&results.line, "  the noise terms, each planted in the camera law and read back by the noise detector"
+                                 "\n");
     const unsigned long long count = TERMS_FRAMES * TERMS_DEPTH * TERMS_HEIGHT * TERMS_WIDTH;
     const unsigned long long lane_bytes = count * sizeof(unsigned short);
     // the sim's lanes, the detector's copy of them, and the detector's line sums and mask
     int ok = sim_job_submit(&results, "noise_terms", 0, NULL, (2ULL * lane_bytes) + (64ULL << 20u));
-    unsigned short *const lanes = (unsigned short *)malloc((size_t)lane_bytes);
+    unsigned short *const lanes = (unsigned short *)platform_cell_taken(
+        (unsigned long long)((size_t)lane_bytes), (unsigned int)platform_place_g_program_owner, 0);
     unsigned short *device_lanes = NULL;
     ok = ok && (lanes != NULL) &&
          sim_status_check(&results, cudaMalloc((void **)&device_lanes, (size_t)lane_bytes), "lanes");
     sim_check(&results, ok, "the scene's buffers");
     SimScene scene;
-    memset(&scene, 0, sizeof(scene));
+    mmgr_bytes_set(&scene, 0, sizeof(scene));
     scene.frames = TERMS_FRAMES;
     scene.extent[0] = TERMS_DEPTH;
     scene.extent[1] = TERMS_HEIGHT;
@@ -75,7 +77,7 @@ int program_main(int argc, char **argv)
             terms_spikes(&results, lanes, 0ULL, camera.shot);
             sim_flush(&results);
             mmgr_line_put(&results.line, "  the null mixed along z, 1/8 of the plane before (an interpolation's"
-                                          " weights): (1/8)(7/8) / ((7/8)^2 + (1/8)^2) = 7/50\n");
+                                         " weights): (1/8)(7/8) / ((7/8)^2 + (1/8)^2) = 7/50\n");
             terms_mix(lanes);
             terms_neighbors(&results, lanes, 140LL);
         }
@@ -107,7 +109,7 @@ int program_main(int argc, char **argv)
     if (ok)
     {
         mmgr_line_put(&results.line,
-                       "  flicker: octaves 0 to 5, each of variance 16, sustained 2^o frames at a voxel\n");
+                      "  flicker: octaves 0 to 5, each of variance 16, sustained 2^o frames at a voxel\n");
         terms_camera(&camera);
         camera.flicker_square = TERMS_FLICKER_SQUARE;
         camera.flicker_octaves = TERMS_FLICKER_OCTAVES;
@@ -165,8 +167,8 @@ int program_main(int argc, char **argv)
     if (ok)
     {
         mmgr_line_put(&results.line,
-                       "  the ladder and the tail: a Poisson shot at gain 2 over 1 to 128 electrons along x,"
-                       " offset 20, read variance 4, no fixed pattern\n");
+                      "  the ladder and the tail: a Poisson shot at gain 2 over 1 to 128 electrons along x,"
+                      " offset 20, read variance 4, no fixed pattern\n");
         terms_camera(&camera);
         // the gain is a small positive constant
         camera.gain = (unsigned long long)TERMS_LADDER_GAIN;
@@ -185,35 +187,37 @@ int program_main(int argc, char **argv)
     {
         mmgr_line_put(&results.line, "  crosstalk read in the null\n");
         terms_camera(&camera);
-        unsigned short *const drawn = (unsigned short *)malloc((size_t)lane_bytes);
+        unsigned short *const drawn = (unsigned short *)platform_cell_taken(
+            (unsigned long long)((size_t)lane_bytes), (unsigned int)platform_place_g_program_owner, 0);
         sim_check(&results, drawn != NULL, "the crosstalk copy");
         if ((drawn != NULL) && terms_render(&results, &scene, &camera, device_lanes, lanes, count))
         {
             terms_crosstalk(&results, lanes, 0ULL);
             sim_flush(&results);
             mmgr_line_put(&results.line,
-                           "  the null with each voxel taking 1/8 of each x neighbor's value after the draw"
-                           "\n");
-            memcpy(drawn, lanes, (size_t)lane_bytes);
+                          "  the null with each voxel taking 1/8 of each x neighbor's value after the draw"
+                          "\n");
+            mmgr_bytes_copy(drawn, lanes, (size_t)lane_bytes);
             terms_crosstalk_mix(lanes, drawn);
             terms_crosstalk(&results, lanes, TERMS_CROSSTALK_EIGHTHS);
         }
-        free(drawn);
+        platform_cell_released(drawn, (unsigned int)platform_place_g_program_owner);
         sim_flush(&results);
     }
     if (ok)
     {
         mmgr_line_put(&results.line,
-                       "  charge before the gain: no light, offset 20, gain 2, read variance 4, reset variance"
-                       " 4, a Poisson dark shot; a bias series, then a dark series at 16 and at 32 dark"
-                       " electrons a frame\n");
+                      "  charge before the gain: no light, offset 20, gain 2, read variance 4, reset variance"
+                      " 4, a Poisson dark shot; a bias series, then a dark series at 16 and at 32 dark"
+                      " electrons a frame\n");
         // no fixed pattern. Each series draws on its own key as a second series of one camera would
         terms_camera(&camera);
         camera.gain = TERMS_CHARGE_GAIN;
         camera.pattern_range = 0ULL;
         camera.reset_square = TERMS_RESET_SQUARE;
         scene.background = 0ULL;
-        unsigned short *const bias = (unsigned short *)malloc((size_t)lane_bytes);
+        unsigned short *const bias = (unsigned short *)platform_cell_taken(
+            (unsigned long long)((size_t)lane_bytes), (unsigned int)platform_place_g_program_owner, 0);
         sim_check(&results, bias != NULL, "the bias series");
         if ((bias != NULL) && terms_render(&results, &scene, &camera, device_lanes, bias, count))
         {
@@ -231,8 +235,8 @@ int program_main(int argc, char **argv)
             }
             sim_flush(&results);
             mmgr_line_put(&results.line,
-                           "  thinning: 64 electrons of light against the same bias, each counted electron"
-                           " retained with chance q = a/4; g f' = g (1 + q (f - 1))\n");
+                          "  thinning: 64 electrons of light against the same bias, each counted electron"
+                          " retained with chance q = a/4; g f' = g (1 + q (f - 1))\n");
             camera.dark = 0ULL;
             scene.background = TERMS_THIN_LIGHT;
             const unsigned long long thin_laws[3] = {SIM_SHOT_POISSON, SIM_SHOT_HALF, SIM_SHOT_PAIRED};
@@ -266,7 +270,7 @@ int program_main(int argc, char **argv)
                 sim_flush(&results);
             }
             mmgr_line_put(&results.line,
-                           "    the Poisson count thinned, then the excess, F^2 = 2: g f' = 2 g at every q\n");
+                          "    the Poisson count thinned, then the excess, F^2 = 2: g f' = 2 g at every q\n");
             camera.shot = SIM_SHOT_POISSON;
             camera.excess = 1u;
             for (unsigned long long thin_step = 1ULL; thin_step <= TERMS_THIN_STEPS; thin_step += 3ULL)
@@ -283,15 +287,15 @@ int program_main(int argc, char **argv)
                 }
             }
         }
-        free(bias);
+        platform_cell_released(bias, (unsigned int)platform_place_g_program_owner);
         scene.background = TERMS_BACKGROUND;
         sim_flush(&results);
     }
     if (ok)
     {
         mmgr_line_put(&results.line,
-                       "  optical crosstalk: a plant along x of period 16 and amplitude 64 over 100 electrons,"
-                       " blurred by (1, 2, 1)/4 along x before the draw\n");
+                      "  optical crosstalk: a plant along x of period 16 and amplitude 64 over 100 electrons,"
+                      " blurred by (1, 2, 1)/4 along x before the draw\n");
         terms_camera(&camera);
         camera.blur_eighths = TERMS_BLUR_EIGHTHS;
         scene.plant_axis = 2u;
@@ -311,9 +315,9 @@ int program_main(int argc, char **argv)
     if (ok)
     {
         mmgr_line_put(&results.line,
-                       "  the structure function against the shared scale: a plant along x of 60 to 180"
-                       " electrons, no fixed pattern; the null, then a light scale of 4 octaves of variance"
-                       " 1024 over 2^10, octave o sustained 2^o frames\n");
+                      "  the structure function against the shared scale: a plant along x of 60 to 180"
+                      " electrons, no fixed pattern; the null, then a light scale of 4 octaves of variance"
+                      " 1024 over 2^10, octave o sustained 2^o frames\n");
         terms_camera(&camera);
         camera.pattern_range = 0ULL;
         scene.background = TERMS_STRUCTURE_BACKGROUND;
@@ -340,9 +344,9 @@ int program_main(int argc, char **argv)
     if (ok)
     {
         mmgr_line_put(&results.line,
-                       "  the gain and offset patterns: flat lights of 100, 200 and 400 electrons, the fixed"
-                       " pattern per voxel; the null, each pixel's gain (1024 + p)/1024, p in [-32, 32],"
-                       " each pixel's offset o in [0, 12], and both\n");
+                      "  the gain and offset patterns: flat lights of 100, 200 and 400 electrons, the fixed"
+                      " pattern per voxel; the null, each pixel's gain (1024 + p)/1024, p in [-32, 32],"
+                      " each pixel's offset o in [0, 12], and both\n");
         terms_camera(&camera);
         static const char *const cameras[TERMS_HALVES_CAMERAS] = {"    the null\n", "    the gain pattern\n",
                                                                   "    the offset pattern\n",
@@ -376,6 +380,6 @@ int program_main(int argc, char **argv)
         scene.background = TERMS_BACKGROUND;
     }
     cudaFree(device_lanes);
-    free(lanes);
+    platform_cell_released(lanes, (unsigned int)platform_place_g_program_owner);
     return sim_close(&results, "noise terms");
 }

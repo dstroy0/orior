@@ -50,6 +50,8 @@
 extern "C"
 {
 #include "sass_assemble.h"
+#include "../../../engine/engine_note.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "sass_machine.h"
 #include "interface_sass_probe.h"
 }
@@ -62,6 +64,7 @@ extern "C"
 #include "sass_target.h"
 #include "target.h"
 #include "verba_scribo/verba_linea.h"
+#include "../../../../platform/platform.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -421,8 +424,9 @@ static int stick_reads_name(const std::string &text, const std::string &name)
     {
         return 0;
     }
-    const auto joins = [](char character)
-    { return (isalnum((unsigned char)character) != 0) || (character == '_') || (character == '.'); };
+    const auto joins = [](char character) {
+        return (isalnum((unsigned char)character) != 0) || (character == '_') || (character == '.');
+    };
     for (size_t at = text.find(name); at != std::string::npos; at = text.find(name, at + 1u))
     {
         const size_t end = at + name.size();
@@ -512,8 +516,8 @@ static std::string stick_complement(const std::string &bare)
     {
         inner = inner.substr(1u, inner.size() - 2u);
     }
-    static const char *const s_pairs[][2] = {{"==", "!="}, {"!=", "=="}, {"<=", ">"}, {">=", "<"}, {"<", ">="},
-                                             {">", "<="}};
+    static const char *const s_pairs[][2] = {{"==", "!="}, {"!=", "=="}, {"<=", ">"},
+                                             {">=", "<"},  {"<", ">="},  {">", "<="}};
     int depth = 0;
     for (size_t at = 0u; at < inner.size(); at += 1u)
     {
@@ -528,7 +532,7 @@ static std::string stick_complement(const std::string &bare)
         }
         for (const auto &pair : s_pairs)
         {
-            const size_t size = strlen(pair[0]);
+            const size_t size = mmgr_text_length(pair[0], PLATFORM_TEXT_TO_TERMINATOR);
             if (inner.compare(at, size, pair[0]) == 0)
             {
                 return "(" + inner.substr(0u, at) + pair[1] + inner.substr(at + size) + ")";
@@ -542,21 +546,21 @@ static std::string stick_complement(const std::string &bare)
 // FMA pipe. 0 is any other: a load, a store, a branch, the double pipe or the transcendental unit
 static int stick_pipe_of(const std::string &operation)
 {
-    static const char *const s_fma[] = {"IMAD", "IMUL", "FFMA", "FMUL", "FADD", "HFMA2", "HADD2", "HMUL2", "I2FP",
-                                        "F2FP"};
-    static const char *const s_integer[] = {"IADD3", "LOP3", "SHF", "SEL", "MOV", "ISETP", "FSETP", "PRMT",
-                                            "IMNMX", "LEA", "FSEL", "PLOP3", "IABS", "FMNMX", "P2R", "R2P",
-                                            "CS2R", "SGXT", "BMSK", "IADD"};
+    static const char *const s_fma[] = {"IMAD",  "IMUL",  "FFMA",  "FMUL", "FADD",
+                                        "HFMA2", "HADD2", "HMUL2", "I2FP", "F2FP"};
+    static const char *const s_integer[] = {"IADD3", "LOP3",  "SHF",  "SEL",  "MOV",   "ISETP", "FSETP",
+                                            "PRMT",  "IMNMX", "LEA",  "FSEL", "PLOP3", "IABS",  "FMNMX",
+                                            "P2R",   "R2P",   "CS2R", "SGXT", "BMSK",  "IADD"};
     for (const char *const one : s_fma)
     {
-        if (operation.compare(0u, strlen(one), one) == 0)
+        if (operation.compare(0u, mmgr_text_length(one, PLATFORM_TEXT_TO_TERMINATOR), one) == 0)
         {
             return 2;
         }
     }
     for (const char *const one : s_integer)
     {
-        if (operation.compare(0u, strlen(one), one) == 0)
+        if (operation.compare(0u, mmgr_text_length(one, PLATFORM_TEXT_TO_TERMINATOR), one) == 0)
         {
             return 1;
         }
@@ -646,7 +650,7 @@ static std::regex stick_line_pattern(const std::string &squeezed)
         {
             pattern += "([^,\\[\\]\\s;]+)";
         }
-        else if (strchr(".^$|()[]{}*+?\\", character) != NULL)
+        else if (mmgr_text_char(".^$|()[]{}*+?\\", character, PLATFORM_TEXT_TO_TERMINATOR) != NULL)
         {
             pattern += std::string("\\") + character;
         }
@@ -677,7 +681,12 @@ static unsigned int stick_log2(unsigned int number)
 static std::string stick_hex(unsigned int number)
 {
     char written[16];
-    snprintf(written, sizeof(written), "0x%x", number);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(written, sizeof(written));
+        mmgr_line_put(&buffer_line, "0x");
+        mmgr_line_hex(&buffer_line, number, 1u);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     return written;
 }
 
@@ -703,8 +712,15 @@ static std::string stick_constant(const std::string &text)
         at = (plus == std::string::npos) ? terms.size() : (plus + 1u);
     }
     char written[64];
-    snprintf(written, sizeof(written), "c[0x%llx][0x%llx]", strtoull(std::string(found[1]).c_str(), NULL, 0),
-             offset);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(written, sizeof(written));
+        mmgr_line_put(&buffer_line, "c[0x");
+        mmgr_line_hex(&buffer_line, strtoull(std::string(found[1]).c_str(), NULL, 0), 1u);
+        mmgr_line_put(&buffer_line, "][0x");
+        mmgr_line_hex(&buffer_line, offset, 1u);
+        mmgr_line_put(&buffer_line, "]");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     return written;
 }
 
@@ -750,7 +766,7 @@ static unsigned int stick_own_cast(const std::string &piece)
     static const char *const s_own[] = {"(unsignedint)", "(unsignedlonglong)"};
     for (unsigned int own = 0u; own < 2u; own += 1u)
     {
-        const size_t size = strlen(s_own[own]);
+        const size_t size = mmgr_text_length(s_own[own], PLATFORM_TEXT_TO_TERMINATOR);
         if ((piece.size() >= size) && (piece.compare(piece.size() - size, size, s_own[own]) == 0))
         {
             return (own == 0u) ? STICK_REGISTER_BITS : STICK_PAIR_BITS;
@@ -1214,8 +1230,7 @@ class StickKernel
         }
         // each name's first and last line, a name tied into another's pair counted as that other's
         static const std::regex named("%[rw][0-9]+");
-        const auto root_of = [&](const std::string &name)
-        {
+        const auto root_of = [&](const std::string &name) {
             const auto tie = ties.find(name);
             return (tie != ties.end()) ? tie->second : name;
         };
@@ -1255,8 +1270,9 @@ class StickKernel
                 }
                 const int even = (root[1] == 'w') || (pair_of.find(root) != pair_of.end());
                 unsigned int number = high_water;
-                const auto pair_free = std::find_if(free.begin(), free.end(), [&](unsigned int one)
-                                                    { return ((one % 2u) == 0u) && (free.count(one + 1u) != 0u); });
+                const auto pair_free = std::find_if(free.begin(), free.end(), [&](unsigned int one) {
+                    return ((one % 2u) == 0u) && (free.count(one + 1u) != 0u);
+                });
                 if ((even == 0) && !free.empty())
                 {
                     number = *free.begin();
@@ -1486,8 +1502,8 @@ class StickKernel
                     const std::string earlier = stick_squeeze(lines[before]);
                     std::string written;
                     if (std::regex_match(earlier, loaded, load) && (loaded[1] == from) &&
-                        (ruleset_opcode(sass, std::string("global_load_") + thing,
-                                        {extended[1], loaded[2], loaded[3]}, none, written) != 0))
+                        (ruleset_opcode(sass, std::string("global_load_") + thing, {extended[1], loaded[2], loaded[3]},
+                                        none, written) != 0))
                     {
                         lines[before] = written.substr(0u, written.find('\n'));
                         lines[at].clear();
@@ -1791,8 +1807,8 @@ class StickKernel
         StickTyped whole{"(" + first.text + token + second.text + ")", (stick_compares(token) != 0) ? flag : common};
         // the low bits of a sum, a difference, a product, a bitwise operation and a left shift. They come from the low
         // bits of their operands alone. The count of a shift counts whole
-        const int low_alone = (token == "+") || (token == "-") || (token == "*") || (token == "&") ||
-                              (token == "|") || (token == "^") || (token == "<<");
+        const int low_alone = (token == "+") || (token == "-") || (token == "*") || (token == "&") || (token == "|") ||
+                              (token == "^") || (token == "<<");
         if ((low_alone != 0) && ((first.low_bits != 0u) || ((token != "<<") && (second.low_bits != 0u))))
         {
             const unsigned int width = stick_register_bits(s_types[common].bits);
@@ -2167,8 +2183,8 @@ class StickKernel
                 reading.children.push_back(child);
                 reading.cost += child.cost;
                 // a count is no part of the width of what the form writes
-                bits = ((count == 0) && (child.bits > bits) && (child.bits != STICK_PREDICATE_BITS)) ? child.bits
-                                                                                                       : bits;
+                bits =
+                    ((count == 0) && (child.bits > bits) && (child.bits != STICK_PREDICATE_BITS)) ? child.bits : bits;
             }
             reading.bits = (bits_given != 0u) ? bits_given : bits;
             if ((binding == 0) || (reading.cost >= best->cost))
@@ -2256,9 +2272,8 @@ class StickKernel
             stick_trace("-> no reading of %s", bare.c_str());
             return 0;
         }
-        stick_trace("-> %s%s%s, %u forms, %u bits", s_leaves[best->leaf],
-                    (best->leaf == STICK_FORM) ? " " : "", (best->leaf == STICK_FORM) ? s_form_names[best->form] : "",
-                    best->cost, best->bits);
+        stick_trace("-> %s%s%s, %u forms, %u bits", s_leaves[best->leaf], (best->leaf == STICK_FORM) ? " " : "",
+                    (best->leaf == STICK_FORM) ? s_form_names[best->form] : "", best->cost, best->bits);
         return 1;
     }
 
@@ -2296,7 +2311,7 @@ class StickKernel
         static const char *const s_words[] = {"(unsignedint)", "(int)"};
         for (unsigned int word = 0u; word < 2u; word += 1u)
         {
-            const size_t size = strlen(s_words[word]);
+            const size_t size = mmgr_text_length(s_words[word], PLATFORM_TEXT_TO_TERMINATOR);
             const auto pair = (bare.compare(0u, size, s_words[word]) == 0) ? bound_values.find(bare.substr(size))
                                                                            : bound_values.end();
             const int low = (pair != bound_values.end()) &&
@@ -2712,9 +2727,8 @@ static std::string stick_kernel(const StickSource &source, StickKernel *kernel)
             // A wider value, and a bool, which tests the whole element, read the pair. A wider value that each later
             // statement converts to a word before its read reads as its low word alone
             const int narrowed = stick_narrowed(source.statements, statement_at + 1u, found[2]);
-            const int whole =
-                ((s_types[type].bits > STICK_REGISTER_BITS) && (narrowed == 0)) ||
-                (s_types[type].bits == STICK_PREDICATE_BITS);
+            const int whole = ((s_types[type].bits > STICK_REGISTER_BITS) && (narrowed == 0)) ||
+                              (s_types[type].bits == STICK_PREDICATE_BITS);
             const unsigned int load = stick_form((whole != 0) ? "global_load_wide" : "global_load_word");
             // in[i + k], k a number, is k elements past the address of in[i] where the system folds the offset
             std::string index = stick_bare(found[4]);
@@ -2736,8 +2750,7 @@ static std::string stick_kernel(const StickSource &source, StickKernel *kernel)
             if (kernel->binds(address_of) == 0)
             {
                 const StickValue address = kernel->fresh(64u);
-                if (kernel->form("wide_mul_word_add", {address.name}, {index, kernel->number_text(8u), "in"}) ==
-                    0)
+                if (kernel->form("wide_mul_word_add", {address.name}, {index, kernel->number_text(8u), "in"}) == 0)
                 {
                     return kernel->question;
                 }
@@ -3014,18 +3027,39 @@ static void stick_pipes_write(const std::map<std::string, std::vector<std::strin
             }
         }
         sass_pipe_take(operation.first.c_str(), written_on[operation.first].c_str(), chosen.first, chosen.second);
-        fprintf(stderr, "  pipe: %s written %s from %u on the integer pipe and %u over the FMA pipe, %u of %zu\n",
-                operation.first.c_str(), written_on[operation.first].c_str(), chosen.first, chosen.second, best,
-                operation.second.size());
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  pipe: ");
+            mmgr_line_put(&engine_note.line, operation.first.c_str());
+            mmgr_line_put(&engine_note.line, " written ");
+            mmgr_line_put(&engine_note.line, written_on[operation.first].c_str());
+            mmgr_line_put(&engine_note.line, " from ");
+            mmgr_line_decimal(&engine_note.line, chosen.first, 1u);
+            mmgr_line_put(&engine_note.line, " on the integer pipe and ");
+            mmgr_line_decimal(&engine_note.line, chosen.second, 1u);
+            mmgr_line_put(&engine_note.line, " over the FMA pipe, ");
+            mmgr_line_decimal(&engine_note.line, best, 1u);
+            mmgr_line_put(&engine_note.line, " of ");
+            mmgr_line_decimal(&engine_note.line, operation.second.size(), 1u);
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
     }
     sass_pipe_write(STICK_MACHINES, s_part.c_str());
 }
 
-int main(int argc, char **argv)
+int program_main(int argc, char **argv)
 {
     if (argc != 4)
     {
-        fprintf(stderr, "measuring_stick_engine <stick .cu> <nvcc listing> <out directory>\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "measuring_stick_engine <stick .cu> <nvcc listing> <out directory>");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     // the run that gets each file that the engine leaves, and the trace of each kernel
@@ -3033,10 +3067,15 @@ int main(int argc, char **argv)
     QryShared *const run = qry_member_run();
     if (run == NULL)
     {
-        fprintf(stderr,
-                "measuring_stick_engine: no query writer runs to take its files: %s names no .qry a writer has "
-                "open\n",
-                QRY_ENVIRONMENT);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "measuring_stick_engine: no query writer runs to take its files: ");
+            mmgr_line_put(&engine_note.line, QRY_ENVIRONMENT);
+            mmgr_line_put(&engine_note.line, " names no .qry a writer has open");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     QryShared *const traced = tracing ? run : NULL;
@@ -3050,13 +3089,27 @@ int main(int argc, char **argv)
     s_part = sass->part;
     if (s_part.empty())
     {
-        fprintf(stderr, "sass.krs names no part, and no machine file is read\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "sass.krs names no part, and no machine file is read");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 1;
     }
     const std::string machine_path = std::string(STICK_MACHINES) + "/" + s_part + ".khw";
     if (sass_machine_read(&machine, machine_path.c_str()) == 0)
     {
-        fprintf(stderr, "the machine file %s is not read\n", machine_path.c_str());
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the machine file ");
+            mmgr_line_put(&engine_note.line, machine_path.c_str());
+            mmgr_line_put(&engine_note.line, " is not read");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 1;
     }
     const std::vector<StickPattern> patterns = stick_patterns(cu, sass);
@@ -3106,8 +3159,7 @@ int main(int argc, char **argv)
             continue;
         }
         const std::string chain = out + "/" + source.number;
-        unfiled += !qry_member_filed((chain + ".sass").c_str(), kernel.text.data(), kernel.text.size()) ? 1u
-                                                                                                               : 0u;
+        unfiled += !qry_member_filed((chain + ".sass").c_str(), kernel.text.data(), kernel.text.size()) ? 1u : 0u;
         unsigned int count = 0u;
         for (size_t at = 0u; at < kernel.text.size(); at += 1u)
         {
@@ -3131,8 +3183,7 @@ int main(int argc, char **argv)
         // the count of registers the kernel names, then each register it uses and the lines that claim and release
         // it
         const std::string registers = std::to_string(kernel.register_count) + "\n" + kernel.register_lines;
-        unfiled += !qry_member_filed((chain + ".registers").c_str(), registers.data(), registers.size()) ? 1u
-                                                                                                                : 0u;
+        unfiled += !qry_member_filed((chain + ".registers").c_str(), registers.data(), registers.size()) ? 1u : 0u;
         mmgr_line_put(&table, source.number.c_str());
         mmgr_line_put(&table, "\tanswered\t");
         mmgr_line_decimal(&table, (unsigned long long)(kernel.forms), 0u);
@@ -3141,15 +3192,38 @@ int main(int argc, char **argv)
         mmgr_line_put(&table, "\t\n");
         answered += 1u;
     }
-    if ((!mmgr_line_ok(&table) || !qry_member_filed((out + "/engine.tsv").c_str(), table.out, table.at)) || (unfiled != 0u))
+    if ((!mmgr_line_ok(&table) || !qry_member_filed((out + "/engine.tsv").c_str(), table.out, table.at)) ||
+        (unfiled != 0u))
     {
-        fprintf(stderr, "measuring_stick_engine: engine.tsv or %u of the kernels' files under %s were not written\n",
-                unfiled, out.c_str());
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "measuring_stick_engine: engine.tsv or ");
+            mmgr_line_decimal(&engine_note.line, unfiled, 1u);
+            mmgr_line_put(&engine_note.line, " of the kernels' files under ");
+            mmgr_line_put(&engine_note.line, out.c_str());
+            mmgr_line_put(&engine_note.line, " were not written");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 1;
     }
-    fprintf(stderr,
-            "measuring stick through cu.krs and sass.krs: %zu kernels, %u answered, %zu put a question; %zu folds "
-            "found on the compile channel, %zu stored in sass.ksc\n",
-            sources.size(), answered, sources.size() - answered, found.size(), sass->folds.size());
+    {
+        EngineNote engine_note;
+        engine_note_begun(&engine_note);
+        mmgr_line_put(&engine_note.line, "measuring stick through cu.krs and sass.krs: ");
+        mmgr_line_decimal(&engine_note.line, sources.size(), 1u);
+        mmgr_line_put(&engine_note.line, " kernels, ");
+        mmgr_line_decimal(&engine_note.line, answered, 1u);
+        mmgr_line_put(&engine_note.line, " answered, ");
+        mmgr_line_decimal(&engine_note.line, sources.size() - answered, 1u);
+        mmgr_line_put(&engine_note.line, " put a question; ");
+        mmgr_line_decimal(&engine_note.line, found.size(), 1u);
+        mmgr_line_put(&engine_note.line, " folds found on the compile channel, ");
+        mmgr_line_decimal(&engine_note.line, sass->folds.size(), 1u);
+        mmgr_line_put(&engine_note.line, " stored in sass.ksc");
+        mmgr_line_ch(&engine_note.line, '\n');
+        engine_note_written(&engine_note);
+    }
     return 0;
 }

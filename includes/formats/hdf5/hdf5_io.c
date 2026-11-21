@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // hdf5_io.c: errors, byte order, checksums and file access
 #include "hdf5_internal.h"
+#include "../../../src/cu/engine/engine_note.h"
+#include "memoria_operor/memoria_linea.h"
 
 int hdf5_error(Hdf5File *file, const char *reason)
 {
@@ -29,8 +31,14 @@ Hdf5Walk hdf5_walk_error(Hdf5File *file, const char *reason)
 
 void hdf5_report(const Hdf5File *file)
 {
-    fprintf(stderr, "hdf5: %s: %s\n", (file->path != NULL) ? file->path : "(no path)",
-            (file->reason[0u] != '\0') ? file->reason : "a malformed file");
+    EngineNote engine_note;
+    engine_note_begun(&engine_note);
+    mmgr_line_put(&engine_note.line, "hdf5: ");
+    mmgr_line_put(&engine_note.line, (file->path != NULL) ? file->path : "(no path)");
+    mmgr_line_put(&engine_note.line, ": ");
+    mmgr_line_put(&engine_note.line, (file->reason[0u] != '\0') ? file->reason : "a malformed file");
+    mmgr_line_ch(&engine_note.line, '\n');
+    engine_note_written(&engine_note);
 }
 
 unsigned long long hdf5_little(const unsigned char *bytes, unsigned int width)
@@ -153,8 +161,8 @@ uint32_t hdf5_lookup3(const unsigned char *bytes, size_t length)
         return third;
     }
     unsigned char tail[12u];
-    memset(tail, 0, sizeof(tail));
-    memcpy(tail, &bytes[at], length - at);
+    mmgr_bytes_set(tail, 0, sizeof(tail));
+    mmgr_bytes_copy(tail, &bytes[at], length - at);
     first += (uint32_t)hdf5_little(&tail[0u], 4u);
     second += (uint32_t)hdf5_little(&tail[4u], 4u);
     third += (uint32_t)hdf5_little(&tail[8u], 4u);

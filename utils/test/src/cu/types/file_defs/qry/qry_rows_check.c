@@ -42,8 +42,10 @@ static unsigned long long check_hash(const char *text)
     return hash;
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     if (qry_member_run() == NULL)
     {
         printf("qry_rows_check: no run's writer runs\n");

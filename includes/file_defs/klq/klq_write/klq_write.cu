@@ -31,6 +31,7 @@
 #include "code_generator.h"
 #include "target_internal.h"
 #include "verba_scribo/verba_scribo.h"
+#include "../../../../src/platform/platform.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -181,7 +182,7 @@ static void pair_add(std::vector<std::pair<std::string, std::string>> *pairs, co
     pairs->push_back(std::make_pair(key, other));
 }
 
-int main(int argc, char **argv)
+int program_main(int argc, char **argv)
 {
     if (argc < 3)
     {

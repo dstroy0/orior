@@ -133,7 +133,7 @@ static unsigned int krs_structure_written(const char *named_ruleset)
     return written;
 }
 
-int main(int count, char **word)
+int program_main(int count, char **word)
 {
     if (count != 8)
     {

@@ -19,6 +19,9 @@
 // alone (cubin_listing.h). Exit 0 where every code was read, 2 where the run, the pattern, a code or the disassembler
 // was not reached
 #include "cubin_listing.h"
+#include "../../../engine/engine_note.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "cubin_write.h"
 
 #include "../../../../../includes/file_defs/qry/writer/qry_member.h"
@@ -57,12 +60,12 @@ static int listing_read(const char *nvdisasm, const char *architecture, char *pa
     for (unsigned int tried = 0u; tried < 2u; tried += 1u)
     {
         InterfaceAnswer answer;
-        memset(&answer, 0, sizeof(answer));
+        mmgr_bytes_set(&answer, 0, sizeof(answer));
         answer.output = s_output;
         answer.output_capacity = s_output_room;
         const InterfaceProbe probe = {(architecture != NULL) ? raw : whole, NULL, 0ULL};
         EngineError error;
-        memset(&error, 0, sizeof(error));
+        mmgr_bytes_set(&error, 0, sizeof(error));
         s_starts += 1u;
         if ((interface_probe_run(&probe, &answer, &error) != 0L) || (answer.ending == INTERFACE_ENDING_NOT_STARTED))
         {
@@ -93,7 +96,7 @@ static int listing_stopped_at(unsigned long long *address)
     const size_t marker_length = sizeof(s_address_marker) - 1u;
     for (unsigned long long at = 0ULL; (at + marker_length) < s_output_size; at += 1ULL)
     {
-        if (memcmp(s_output + at, s_address_marker, marker_length) != 0)
+        if (mmgr_bytes_compare(s_output + at, s_address_marker, marker_length) != 0)
         {
             continue;
         }
@@ -147,7 +150,7 @@ static int listing_raw_cleared(QryShared *run, ListedCode *codes, unsigned int c
             start[at] = size;
             if (!codes[at].aside)
             {
-                memcpy(joined + size, codes[at].code, (size_t)codes[at].size);
+                mmgr_bytes_copy(joined + size, codes[at].code, (size_t)codes[at].size);
                 size += codes[at].size;
             }
         }
@@ -184,8 +187,8 @@ static int listing_raw_cleared(QryShared *run, ListedCode *codes, unsigned int c
                 break;
             }
             codes[stopped].aside = 1;
-            printf("  orior_cubin_listing: %s stops the vendor at byte %llu of it, and is read alone\n", codes[stopped].number,
-                   address - start[stopped]);
+            printf("  orior_cubin_listing: %s stops the vendor at byte %llu of it, and is read alone\n",
+                   codes[stopped].number, address - start[stopped]);
         }
     }
     free(joined);
@@ -232,7 +235,7 @@ static int listing_cubin_read(QryShared *run, ListedCode *codes, unsigned int co
                (listing_read(nvdisasm, NULL, path) == 0);
     free(cubin);
     CubinListingCut cut;
-    memset(&cut, 0, sizeof(cut));
+    mmgr_bytes_set(&cut, 0, sizeof(cut));
     read = read && cubin_listing_cut(s_output, (size_t)s_output_size, names, retained, &cut);
     for (unsigned int at = 0u; read && (at < retained); at += 1u)
     {
@@ -241,7 +244,12 @@ static int listing_cubin_read(QryShared *run, ListedCode *codes, unsigned int co
     for (unsigned int at = 0u; read && (at < retained); at += 1u)
     {
         char name[96];
-        snprintf(name, sizeof(name), "%s.dis", codes[of[at]].number);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(name, sizeof(name));
+            mmgr_line_put(&buffer_line, codes[of[at]].number);
+            mmgr_line_put(&buffer_line, ".dis");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         read = qry_member_append(name, cut.text + cut.start[at], cut.size[at], QRY_ORDINARY) != 0;
     }
     cubin_listing_cut_freed(&cut);
@@ -264,16 +272,27 @@ static int listing_line(const unsigned char *list, unsigned long long size, unsi
     size_t length = (end != NULL) ? (size_t)(end - (list + *at)) : (size_t)(size - *at);
     const unsigned long long next = *at + length + 1ULL;
     length = ((length != 0u) && (list[*at + length - 1u] == '\r')) ? (length - 1u) : length;
-    snprintf(line, room, "%.*s", (int)length, (const char *)(list + *at));
+    {
+        VerbaLinea buffer_line = mmgr_line_over(line, room);
+        mmgr_line_put_max(&buffer_line, (const char *)(list + *at), (size_t)((int)length));
+        (void)mmgr_line_finish(&buffer_line);
+    }
     *at = next;
     return 1;
 }
 
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
     if (count != 6)
     {
-        fprintf(stderr, "orior_cubin_listing <pattern> <kernel prefix> <architecture> <nvdisasm> <codes>\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line,
+                          "orior_cubin_listing <pattern> <kernel prefix> <architecture> <nvdisasm> <codes>");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     const char *const pattern_path = words[1];
@@ -288,7 +307,16 @@ int main(int count, char **words)
     if ((run == NULL) || !qry_member_blob(words[5], &list, &list_size, NULL) ||
         !qry_member_file_blob(pattern_path, &pattern, &pattern_size))
     {
-        fprintf(stderr, "orior_cubin_listing: no run, no list %s in it, or no pattern %s\n", words[5], pattern_path);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "orior_cubin_listing: no run, no list ");
+            mmgr_line_put(&engine_note.line, words[5]);
+            mmgr_line_put(&engine_note.line, " in it, or no pattern ");
+            mmgr_line_put(&engine_note.line, pattern_path);
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     unsigned int lines = 0u;
@@ -319,13 +347,30 @@ int main(int count, char **words)
         const char *const slash = ((forward != NULL) && ((back == NULL) || (forward > back))) ? forward : back;
         const char *const base = (slash != NULL) ? (slash + 1) : line;
         const char *const dot = strrchr(base, '.');
-        snprintf(code->number, sizeof(code->number), "%.*s", (int)((dot != NULL) ? (size_t)(dot - base) : strlen(base)),
-                 base);
-        snprintf(code->kernel, sizeof(code->kernel), "%s%s", prefix, code->number);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(code->number, sizeof(code->number));
+            mmgr_line_put_max(&buffer_line, base,
+                              (size_t)((int)((dot != NULL) ? (size_t)(dot - base)
+                                                           : mmgr_text_length(base, PLATFORM_TEXT_TO_TERMINATOR))));
+            (void)mmgr_line_finish(&buffer_line);
+        }
+        {
+            VerbaLinea buffer_line = mmgr_line_over(code->kernel, sizeof(code->kernel));
+            mmgr_line_put(&buffer_line, prefix);
+            mmgr_line_put(&buffer_line, code->number);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         if (!qry_member_file_blob(line, &code->code, &code->size) || ((code->size % 16ULL) != 0ULL))
         {
-            fprintf(stderr, "orior_cubin_listing: the code %s could not be read, or is no whole count of instructions\n",
-                    line);
+            {
+                EngineNote engine_note;
+                engine_note_begun(&engine_note);
+                mmgr_line_put(&engine_note.line, "orior_cubin_listing: the code ");
+                mmgr_line_put(&engine_note.line, line);
+                mmgr_line_put(&engine_note.line, " could not be read, or is no whole count of instructions");
+                mmgr_line_ch(&engine_note.line, '\n');
+                engine_note_written(&engine_note);
+            }
             return 2;
         }
         unsigned long long offset = 0ULL;
@@ -335,7 +380,7 @@ int main(int count, char **words)
             (cubin_exits_read(pattern, pattern_size, code->kernel, first_exit, 1u) == 1u) &&
             ((first_exit[0] + 16ULL) <= size))
         {
-            memcpy(&exit_low, pattern + offset + first_exit[0], 8u);
+            mmgr_bytes_copy(&exit_low, pattern + offset + first_exit[0], 8u);
             exit_known = 1;
         }
         code_count += 1u;
@@ -383,7 +428,12 @@ int main(int count, char **words)
         aside += 1u;
         char path[1400];
         char name[96];
-        snprintf(name, sizeof(name), "%s.dis", codes[one].number);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(name, sizeof(name));
+            mmgr_line_put(&buffer_line, codes[one].number);
+            mmgr_line_put(&buffer_line, ".dis");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         const int streamed =
             qry_member_streamed("cubin_listing_alone", codes[one].code, codes[one].size, path, sizeof(path)) != 0ULL;
         const int status = streamed ? listing_read(nvdisasm, architecture, path) : -1;
@@ -393,8 +443,8 @@ int main(int count, char **words)
             qry_member_append(name, s_output, s_output_size, QRY_ORDINARY);
         }
     }
-    printf("orior_cubin_listing: %u codes read in %u starts of the vendor, %u of them read alone\n", code_count, s_starts,
-           aside);
+    printf("orior_cubin_listing: %u codes read in %u starts of the vendor, %u of them read alone\n", code_count,
+           s_starts, aside);
     for (unsigned int one = 0u; one < code_count; one += 1u)
     {
         free(codes[one].exits);

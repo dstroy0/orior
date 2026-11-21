@@ -51,7 +51,7 @@
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
 
-int main(int count, char **word)
+int program_main(int count, char **word)
 {
     int split = 0;
     while ((split < count) && (!mmgr_text_equal(word[split], "--", PLATFORM_TEXT_TO_TERMINATOR)))

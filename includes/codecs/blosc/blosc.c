@@ -1,6 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "blosc.h"
+#include "../../../src/cu/engine/engine_note.h"
+#include "memoria_operor/memoria_linea.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -77,7 +79,7 @@ static void blosc_byte_unshuffle(const unsigned char *shuffled, unsigned char *o
         }
     }
     const unsigned long long total_bytes = elements * element_bytes;
-    memcpy(out + total_bytes, shuffled + total_bytes, (size_t)(bytes - total_bytes));
+    mmgr_bytes_copy(out + total_bytes, shuffled + total_bytes, (size_t)(bytes - total_bytes));
 }
 
 static void blosc_bit_unshuffle(const unsigned char *shuffled, unsigned char *out, unsigned long long bytes,
@@ -86,7 +88,7 @@ static void blosc_bit_unshuffle(const unsigned char *shuffled, unsigned char *ou
     const unsigned long long elements = bytes / element_bytes;
     if ((elements % BLOSC_BIT_GROUP) != 0ULL)
     {
-        memcpy(out, shuffled, (size_t)bytes);
+        mmgr_bytes_copy(out, shuffled, (size_t)bytes);
         return;
     }
     const unsigned long long row_bytes = elements / BLOSC_BIT_GROUP;
@@ -109,7 +111,7 @@ static void blosc_bit_unshuffle(const unsigned char *shuffled, unsigned char *ou
         }
     }
     const unsigned long long total_bytes = elements * element_bytes;
-    memcpy(out + total_bytes, shuffled + total_bytes, (size_t)(bytes - total_bytes));
+    mmgr_bytes_copy(out + total_bytes, shuffled + total_bytes, (size_t)(bytes - total_bytes));
 }
 
 static int blosc_stream(const BloscChunk *chunk, unsigned long long *at, unsigned char *target,
@@ -128,7 +130,7 @@ static int blosc_stream(const BloscChunk *chunk, unsigned long long *at, unsigne
     *at = packed_from + packed_bytes;
     if (packed_bytes == stream_bytes)
     {
-        memcpy(target, chunk->chunk + packed_from, (size_t)stream_bytes);
+        mmgr_bytes_copy(target, chunk->chunk + packed_from, (size_t)stream_bytes);
         return 1;
     }
     const EngineBytesRequest inner = {chunk->chunk + packed_from, packed_bytes, target, stream_bytes};
@@ -189,10 +191,15 @@ long long blosc_decode(const BloscDecodeRequest *request)
     const unsigned int version = header[0u];
     if ((version >= BLOSC_FORMAT_BLOSC2_FIRST) && (version <= BLOSC_FORMAT_BLOSC2_LAST))
     {
-        fprintf(
-            stderr,
-            "blosc: errored on a Blosc2 chunk (format version %u); only Blosc1 chunks, format version 2, are decoded\n",
-            version);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "blosc: errored on a Blosc2 chunk (format version ");
+            mmgr_line_decimal(&engine_note.line, version, 1u);
+            mmgr_line_put(&engine_note.line, "); only Blosc1 chunks, format version 2, are decoded");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return ENGINE_BYTES_ERROR;
     }
     const unsigned int flags = header[2u];
@@ -222,7 +229,7 @@ long long blosc_decode(const BloscDecodeRequest *request)
         {
             return ENGINE_BYTES_ERROR;
         }
-        memcpy(bytes->out, header + BLOSC_HEADER_BYTES, (size_t)total_bytes);
+        mmgr_bytes_copy(bytes->out, header + BLOSC_HEADER_BYTES, (size_t)total_bytes);
         return (long long)total_bytes;
     }
     const unsigned int codec = flags >> BLOSC_CODEC_SHIFT;
@@ -254,7 +261,7 @@ long long blosc_decode(const BloscDecodeRequest *request)
     free(scratch);
     if (!decoded)
     {
-        memset(bytes->out, 0, (size_t)total_bytes);
+        mmgr_bytes_set(bytes->out, 0, (size_t)total_bytes);
         return ENGINE_BYTES_ERROR;
     }
     return (long long)total_bytes;
@@ -267,7 +274,7 @@ static void blosc_match_copy(unsigned char *out, unsigned long long written, uns
     const unsigned char *const from = to - distance;
     if (distance >= length)
     {
-        memcpy(to, from, (size_t)length);
+        mmgr_bytes_copy(to, from, (size_t)length);
         return;
     }
     for (unsigned long long step = 0ULL; step < length; step += 1ULL)
@@ -298,7 +305,7 @@ long long blosclz_decode(const EngineBytesRequest *request)
             {
                 return ENGINE_BYTES_ERROR;
             }
-            memcpy(out + written, in + at, (size_t)literal);
+            mmgr_bytes_copy(out + written, in + at, (size_t)literal);
             written += literal;
             at += literal;
             if (at >= in_bytes)

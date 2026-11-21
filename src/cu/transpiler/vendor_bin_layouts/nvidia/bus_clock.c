@@ -14,6 +14,7 @@
 // clock bus`, in place of the row before it, and the row let go recorded in the .krf beside it. Exit 0 where a clock
 // was found, 1 where none was in the span, 2 where the BAR0 driver was not reached or the words are not these.
 #include "../../../../../includes/file_defs/krf/krf.h"
+#include "../../../engine/engine_note.h"
 #include "../../../../../includes/file_defs/ksc/ksc.h"
 #include "../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../../../../includes/parsers/who.h"
@@ -34,7 +35,13 @@ static char s_lines[BUS_CLOCK_WORDS_MAX * 32u];
 static int bus_clock_recorded(const char *ksc, unsigned int offset)
 {
     char row[96];
-    snprintf(row, sizeof(row), "run answers %08x clock address", offset);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(row, sizeof(row));
+        mmgr_line_put(&buffer_line, "run answers ");
+        mmgr_line_hex(&buffer_line, offset, 8u);
+        mmgr_line_put(&buffer_line, " clock address");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     KscFile file = {0};
     KfileLines removed = {0};
     const char *const rows[1] = {row};
@@ -56,11 +63,17 @@ static int bus_clock_recorded(const char *ksc, unsigned int offset)
     return written;
 }
 
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
     if (count != 5)
     {
-        fprintf(stderr, "orior_bus_clock <ksc> <from> <words> <turns>, every number hexadecimal\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "orior_bus_clock <ksc> <from> <words> <turns>, every number hexadecimal");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     const char *const ksc = words[1];
@@ -69,13 +82,22 @@ int main(int count, char **words)
     const unsigned long long turns = strtoull(words[4], NULL, 16);
     if ((address_given == 0ULL) || (address_given > BUS_CLOCK_WORDS_MAX) || ((from % 4ULL) != 0ULL))
     {
-        fprintf(stderr, "orior_bus_clock: from 1 to %u words, from a whole word's offset\n", BUS_CLOCK_WORDS_MAX);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "orior_bus_clock: from 1 to ");
+            mmgr_line_decimal(&engine_note.line, BUS_CLOCK_WORDS_MAX, 1u);
+            mmgr_line_put(&engine_note.line, " words, from a whole word's offset");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     HANDLE device = mmio_open();
     if (device == INVALID_HANDLE_VALUE)
     {
-        printf("  orior_bus_clock: the BAR0 driver is not reached: its service GpuBar0 is not started (install_bar0.ps1)\n");
+        printf("  orior_bus_clock: the BAR0 driver is not reached: its service GpuBar0 is not started "
+               "(install_bar0.ps1)\n");
         return 2;
     }
     unsigned long long base = 0ULL;
@@ -154,7 +176,7 @@ int main(int count, char **words)
 
 #else
 
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
     (void)count;
     (void)words;

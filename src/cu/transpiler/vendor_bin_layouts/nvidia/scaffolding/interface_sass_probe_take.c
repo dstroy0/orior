@@ -17,6 +17,9 @@
 // The listing is what cuobjdump -sass or nvdisasm prints. The architecture is named as the disassembler names it,
 // SM86; the folder contains the encodings the disassembler is given.
 #include "interface_sass_probe.h"
+#include "../../../../engine/engine_note.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include "../sass_machine.h"
 
@@ -80,12 +83,26 @@ static int take_fields(const char *path, const char *architecture, const char *f
     static SassMachine s_was;
     if (!sass_machine_read(&s_machine, path) || !sass_machine_read(&s_was, path))
     {
-        fprintf(stderr, "the machine file %s did not read\n", path);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the machine file ");
+            mmgr_line_put(&engine_note.line, path);
+            mmgr_line_put(&engine_note.line, " did not read");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 1;
     }
     if (!sass_machine_fields(&s_machine, architecture, folder))
     {
-        fprintf(stderr, "a form's fields were not found\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "a form's fields were not found");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 1;
     }
     unsigned int changed = 0u;
@@ -105,34 +122,65 @@ static int take_fields(const char *path, const char *architecture, const char *f
     printf("interface sass take: %u of %u forms given other fields\n", changed, s_machine.forms);
     if (!sass_machine_write(&s_machine, path))
     {
-        fprintf(stderr, "the machine file %s was not written\n", path);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the machine file ");
+            mmgr_line_put(&engine_note.line, path);
+            mmgr_line_put(&engine_note.line, " was not written");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 1;
     }
     return 0;
 }
 
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
-    if ((count == 5) && (strcmp(words[1], "--fields") == 0))
+    if ((count == 5) && (mmgr_text_equal(words[1], "--fields", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         return take_fields(words[2], words[3], words[4]);
     }
     if (count != 5)
     {
-        fprintf(stderr, "interface_sass_probe_take <listing> <machine file> <architecture> <folder>\n"
-                        "interface_sass_probe_take --fields <machine file> <architecture> <folder>\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line,
+                          "interface_sass_probe_take <listing> <machine file> <architecture> "
+                          "<folder>\ninterface_sass_probe_take --fields <machine file> <architecture> <folder>");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     char *const output = take_file(words[1]);
     if ((output == NULL) || !sass_listing_read(output, &s_listing))
     {
-        fprintf(stderr, "the listing %s did not read\n", words[1]);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the listing ");
+            mmgr_line_put(&engine_note.line, words[1]);
+            mmgr_line_put(&engine_note.line, " did not read");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 1;
     }
     free(output);
     if (!sass_machine_read(&s_machine, words[2]))
     {
-        fprintf(stderr, "the machine file %s did not read\n", words[2]);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the machine file ");
+            mmgr_line_put(&engine_note.line, words[2]);
+            mmgr_line_put(&engine_note.line, " did not read");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 1;
     }
     const unsigned int forms_before = s_machine.forms;
@@ -160,7 +208,13 @@ int main(int count, char **words)
     }
     if (!sass_machine_fields(&s_taken, words[3], words[4]))
     {
-        fprintf(stderr, "a taken form's fields were not found\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "a taken form's fields were not found");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 1;
     }
     for (unsigned int number = 0u; number < s_taken.forms; number += 1u)
@@ -175,12 +229,20 @@ int main(int count, char **words)
             continue;
         }
         found_form->runs = form->runs;
-        memcpy(found_form->run, form->run, sizeof(form->run));
+        mmgr_bytes_copy(found_form->run, form->run, sizeof(form->run));
         printf("  taken: %s, %u runs of bits\n", form->text, form->runs);
     }
     if (!sass_machine_write(&s_machine, words[2]))
     {
-        fprintf(stderr, "the machine file %s was not written\n", words[2]);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the machine file ");
+            mmgr_line_put(&engine_note.line, words[2]);
+            mmgr_line_put(&engine_note.line, " was not written");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 1;
     }
     printf("interface sass take: the machine file %s contains %u forms\n", words[2], s_machine.forms);

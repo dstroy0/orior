@@ -1,7 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// fields.c: the fields: each field read off the part, what writes first, a mark, a swap and an address swap, a redirect, and the fields named
+// fields.c: the fields: each field read off the part, what writes first, a mark, a swap and an address swap, a
+// redirect, and the fields named
 #include "fields_internal.h"
+#include "../../../../../engine/engine_note.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../../../../includes/parsers/line_read.h"
 
 // the answers interface_sass_run wrote for the write pass's cubins, read against the form the first instruction
@@ -12,13 +15,29 @@ int fields_read(const char *machine_path, const char *instructions, const char *
 {
     if (!sass_machine_read(&s_machine, machine_path))
     {
-        fprintf(stderr, "the machine file %s did not read\n", machine_path);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the machine file ");
+            mmgr_line_put(&engine_note.line, machine_path);
+            mmgr_line_put(&engine_note.line, " did not read");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     char instruction[512];
     if (!fields_first(instructions, instruction, sizeof(instruction)))
     {
-        fprintf(stderr, "the instructions %s contain no form\n", instructions);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the instructions ");
+            mmgr_line_put(&engine_note.line, instructions);
+            mmgr_line_put(&engine_note.line, " contain no form");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     SassInstructionParts parts;
@@ -26,14 +45,31 @@ int fields_read(const char *machine_path, const char *instructions, const char *
     const SassForm *const form = sass_machine_form(&s_machine, &parts);
     if (form == NULL)
     {
-        fprintf(stderr, "the machine file contains no form for %s\n", instruction);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the machine file contains no form for ");
+            mmgr_line_put(&engine_note.line, instruction);
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     FILE *const in = fopen(answers, "rb");
     FILE *const out = fopen(record, "wb");
     if ((in == NULL) || (out == NULL))
     {
-        fprintf(stderr, "the answers %s or the record %s was not reached\n", answers, record);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the answers ");
+            mmgr_line_put(&engine_note.line, answers);
+            mmgr_line_put(&engine_note.line, " or the record ");
+            mmgr_line_put(&engine_note.line, record);
+            mmgr_line_put(&engine_note.line, " was not reached");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     fprintf(out, "# A form's fields, found on the part\n\n");
@@ -70,7 +106,8 @@ int fields_read(const char *machine_path, const char *instructions, const char *
         if (number == 0u)
         {
             const char *base = word;
-            have_baseline = (strcmp(type, "answered") == 0) && line_number(&base, 1, &baseline);
+            have_baseline =
+                (mmgr_text_equal(type, "answered", PLATFORM_TEXT_TO_TERMINATOR)) && line_number(&base, 1, &baseline);
             continue;
         }
         const unsigned int bit = number - 1u;
@@ -79,14 +116,20 @@ int fields_read(const char *machine_path, const char *instructions, const char *
         char place[32];
         if (in_run)
         {
-            snprintf(place, sizeof(place), "%u", operand);
+            VerbaLinea buffer_line = mmgr_line_over(place, sizeof(place));
+            mmgr_line_decimal(&buffer_line, operand, 1u);
+            (void)mmgr_line_finish(&buffer_line);
         }
         else
         {
-            snprintf(place, sizeof(place), "-");
+            VerbaLinea buffer_line = mmgr_line_over(place, sizeof(place));
+            mmgr_line_put(&buffer_line, "-");
+            (void)mmgr_line_finish(&buffer_line);
         }
         const char *part = NULL;
-        if ((strcmp(type, "refused") == 0) || (strcmp(type, "hung") == 0) || (strcmp(type, "skipped") == 0))
+        if ((mmgr_text_equal(type, "refused", PLATFORM_TEXT_TO_TERMINATOR)) ||
+            (mmgr_text_equal(type, "hung", PLATFORM_TEXT_TO_TERMINATOR)) ||
+            (mmgr_text_equal(type, "skipped", PLATFORM_TEXT_TO_TERMINATOR)))
         {
             // a bit the part refused, one it ran too long on, and one blocked from the part as unsafe to run are each
             // no operand field; they share the first column and the row specifies which
@@ -112,8 +155,13 @@ int fields_read(const char *machine_path, const char *instructions, const char *
             {
                 hidden += 1u;
                 part = "read, no recorded run";
-                const size_t at = strlen(hidden_bits);
-                snprintf(&hidden_bits[at], sizeof(hidden_bits) - at, "%s%u", (at == 0u) ? "" : " ", bit);
+                const size_t at = mmgr_text_length(hidden_bits, PLATFORM_TEXT_TO_TERMINATOR);
+                {
+                    VerbaLinea buffer_line = mmgr_line_over(&hidden_bits[at], sizeof(hidden_bits) - at);
+                    mmgr_line_put(&buffer_line, (at == 0u) ? "" : " ");
+                    mmgr_line_decimal(&buffer_line, bit, 1u);
+                    (void)mmgr_line_finish(&buffer_line);
+                }
             }
         }
         fprintf(out, "| %u | %s | %s |\n", bit, place, part);
@@ -136,7 +184,7 @@ static int fields_writes_first(const char *operation)
     static const char *const reads[] = {"RET", "BRX", "JMX", "CALL", "BRA", "JMP", "EXIT", "BAR", "NOP"};
     for (unsigned int at = 0u; at < (sizeof(reads) / sizeof(reads[0])); at += 1u)
     {
-        if (strncmp(operation, reads[at], strlen(reads[at])) == 0)
+        if (strncmp(operation, reads[at], mmgr_text_length(reads[at], PLATFORM_TEXT_TO_TERMINATOR)) == 0)
         {
             return 0;
         }
@@ -174,8 +222,14 @@ static void fields_swap(const char *operand, const char *put, char *out, size_t 
         length = (operand[1] == 'Z') ? 2u : (1u + strspn(operand + 1, "0123456789"));
     }
     const char *const rest = operand + length;
-    const size_t rest_length = strlen(rest) - (sass_high_half(operand) ? 3u : 0u);
-    snprintf(out, room, "%s%.*s", put, (int)rest_length, rest);
+    const size_t rest_length =
+        mmgr_text_length(rest, PLATFORM_TEXT_TO_TERMINATOR) - (sass_high_half(operand) ? 3u : 0u);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(out, room);
+        mmgr_line_put(&buffer_line, put);
+        mmgr_line_put_max(&buffer_line, rest, (size_t)((int)rest_length));
+        (void)mmgr_line_finish(&buffer_line);
+    }
 }
 
 // `operand`, an address, written to `out` with the register its address is read from replaced by `put`: the register
@@ -242,13 +296,16 @@ int fields_redirect(const char *instruction, char *redirected, size_t room, char
         }
         if ((operand == 0u) && writes_predicate)
         {
-            snprintf(text, sizeof(text), "P0");
+            VerbaLinea buffer_line = mmgr_line_over(text, sizeof(text));
+            mmgr_line_put(&buffer_line, "P0");
+            (void)mmgr_line_finish(&buffer_line);
         }
         else if (put != NULL)
         {
             fields_swap(parts.operand[operand], put, text, sizeof(text));
         }
-        else if ((parts.type[operand] == SASS_OPERAND_ADDRESS) && (strncmp(parts.operation, "LDG", 3u) == 0))
+        else if ((parts.type[operand] == SASS_OPERAND_ADDRESS) &&
+                 (mmgr_text_starts(parts.operation, "LDG", PLATFORM_TEXT_TO_TERMINATOR)))
         {
             if (!fields_address_swap(parts.operand[operand], FIELDS_LOAD_ADDRESS, text, sizeof(text)))
             {
@@ -257,7 +314,9 @@ int fields_redirect(const char *instruction, char *redirected, size_t room, char
         }
         else
         {
-            snprintf(text, sizeof(text), "%s", parts.operand[operand]);
+            VerbaLinea buffer_line = mmgr_line_over(text, sizeof(text));
+            mmgr_line_put(&buffer_line, parts.operand[operand]);
+            (void)mmgr_line_finish(&buffer_line);
         }
         at += (size_t)snprintf(&redirected[at], (at < room) ? (room - at) : 0u, "%s%s%s", (operand == 0u) ? " " : ", ",
                                fields_mark(parts.mark[operand]), text);
@@ -275,7 +334,15 @@ int fields_names(const char *machine_path, const char *instructions)
 {
     if (!sass_machine_read(&s_machine, machine_path))
     {
-        fprintf(stderr, "the machine file %s did not read\n", machine_path);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the machine file ");
+            mmgr_line_put(&engine_note.line, machine_path);
+            mmgr_line_put(&engine_note.line, " did not read");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     char instruction[512];
@@ -287,7 +354,15 @@ int fields_names(const char *machine_path, const char *instructions)
         !fields_redirect(instruction, redirected, sizeof(redirected), observe, sizeof(observe)) ||
         !sass_assemble(&s_machine, redirected, 0ULL, 0ULL, SASS_CONTROL_SAFE, &low, &high))
     {
-        fprintf(stderr, "the instructions %s contain no form that assembles\n", instructions);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the instructions ");
+            mmgr_line_put(&engine_note.line, instructions);
+            mmgr_line_put(&engine_note.line, " contain no form that assembles");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     char text[256];
@@ -295,7 +370,14 @@ int fields_names(const char *machine_path, const char *instructions)
     SassInstructionParts base;
     if (!sass_encoding_read(&s_machine, low, high, 0ULL, base_text, sizeof(base_text)))
     {
-        fprintf(stderr, "%s does not read back\n", redirected);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, redirected);
+            mmgr_line_put(&engine_note.line, " does not read back");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     sass_instruction_read(base_text, &base);
@@ -309,7 +391,7 @@ int fields_names(const char *machine_path, const char *instructions)
             printf("NAMES\t%s\t%u\tno form\n", instruction, bit);
             continue;
         }
-        if (strcmp(text, base_text) == 0)
+        if (mmgr_text_equal(text, base_text, PLATFORM_TEXT_TO_TERMINATOR))
         {
             printf("NAMES\t%s\t%u\tsame text\n", instruction, bit);
             continue;

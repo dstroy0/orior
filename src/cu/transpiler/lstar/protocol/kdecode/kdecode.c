@@ -45,7 +45,7 @@
 #include <stdio.h>
 #include <string.h>
 
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
     int raw = 0;
     unsigned long long from = 0ULL;

@@ -79,7 +79,7 @@ static int seed_accepted(unsigned long long low, unsigned long long high, int mo
     return 1;
 }
 
-int main(int count, char **word)
+int program_main(int count, char **word)
 {
     const int modifiers = (count == 3) && (mmgr_text_equal(word[2], "--modifiers", PLATFORM_TEXT_TO_TERMINATOR));
     if ((count < 2) || (count > 3) || ((count == 3) && !modifiers))

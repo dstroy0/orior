@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // zstd_frame.c: sequences, XXH64, blocks, frames and the decoder
 #include "zstd_internal.h"
+#include "../../../src/platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
 
 static const long zstd_literal_length_predefined[ZSTD_LITERAL_LENGTH_SYMBOLS] = {
     4L, 3L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 1L, 1L,  1L,  2L,  2L,
@@ -204,7 +206,7 @@ static int zstd_block(ZstdDecoder *decoder, ZstdSpan *input, int *last)
         {
             return 0;
         }
-        memset(&decoder->out[decoder->written], input->bytes[0u], (size_t)size);
+        mmgr_bytes_set(&decoder->out[decoder->written], input->bytes[0u], (size_t)size);
         decoder->written += size;
         zstd_advance(input, 1ULL);
         return 1;
@@ -221,7 +223,7 @@ static int zstd_block(ZstdDecoder *decoder, ZstdSpan *input, int *last)
         {
             return 0;
         }
-        memmove(&decoder->out[decoder->written], content.bytes, (size_t)size);
+        mmgr_bytes_move(&decoder->out[decoder->written], content.bytes, (size_t)size);
         decoder->written += size;
         return 1;
     }
@@ -299,7 +301,8 @@ long long zstd_decode(const EngineBytesRequest *request)
     {
         return ENGINE_BYTES_ERROR;
     }
-    ZstdDecoder *const decoder = (ZstdDecoder *)malloc(sizeof(ZstdDecoder));
+    ZstdDecoder *const decoder = (ZstdDecoder *)platform_cell_taken((unsigned long long)(sizeof(ZstdDecoder)),
+                                                                    (unsigned int)platform_place_g_program_owner, 0);
     if (decoder == NULL)
     {
         return ENGINE_BYTES_ERROR;
@@ -328,12 +331,12 @@ long long zstd_decode(const EngineBytesRequest *request)
         }
     }
     const unsigned long long written = decoder->written;
-    free(decoder);
+    platform_cell_released(decoder, (unsigned int)platform_place_g_program_owner);
     if (!ok || (written > ZSTD_RESULT_MAXIMUM))
     {
         if (written > 0ULL)
         {
-            memset(request->out, 0, (size_t)written);
+            mmgr_bytes_set(request->out, 0, (size_t)written);
         }
         return ENGINE_BYTES_ERROR;
     }

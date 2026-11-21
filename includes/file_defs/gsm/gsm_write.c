@@ -116,7 +116,7 @@ static void gsm_folder_of(const char *path, char *folder, size_t room)
     }
 }
 
-int main(int count, char **word)
+int program_main(int count, char **word)
 {
     if (count != 6)
     {

@@ -22,6 +22,7 @@ set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$HERE/../../../../../.." && pwd)"
 source "$TOP/includes/file_defs/file_defs.sh"
+source "$TOP/includes/exact_types/exact_types.sh"
 CUB="$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding"
 INT="$TOP/src/cu/transpiler/lstar/interface"
 KRS="$TOP/includes/parsers"
@@ -49,12 +50,12 @@ fi
 
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$CUB" -I "$INT" -I "$KRS")
 cc -std=c11 -O1 -Wall "${INCLUDES[@]}" -o "$OUT/interface_sass_probe_fields" \
-    "$INT/interface.c" "$INT"/platform/*.c "$INT/interface_names.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS[@]}" \
-    "$HERE/interface_sass_probe_fields.c" "$HERE"/interface_sass_probe_fields/*.c || exit 1
+    "$INT/interface.c" "$INT"/platform/*.c "$INT/interface_names.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS_FORMATS[@]}" \
+    "$HERE/interface_sass_probe_fields.c" "$HERE"/interface_sass_probe_fields/*.c "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || exit 1
 # the runner holds every cubin to cubin_safe on the host before the driver is passed it
 cc -std=c11 -O1 -Wall -I "$CUDA/include" -o "$OUT/interface_sass_run" "$HERE/interface_sass_run.c" \
-    "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS[@]}" \
-    -L "$CUDA/lib/x64" -lcuda 2>/dev/null || { echo "  the runner did not link against the CUDA driver"; exit 1; }
+    "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS_FORMATS[@]}" \
+    -L "$CUDA/lib/x64" -lcuda 2>/dev/null "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || { echo "  the runner did not link against the CUDA driver"; exit 1; }
 
 WIN="$(cygpath -m "$TOP")"
 PATTERN="$(cygpath -m "$RUN")/sass/form_0.cubin"

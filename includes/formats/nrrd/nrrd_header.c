@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // nrrd_header.c: the header's fields
 #include "nrrd_internal.h"
+#include "../../../src/cu/engine/engine_note.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 static const NrrdType nrrd_types[] = {{"signed char", 1u, ENGINE_ELEMENT_SIGNED},
                                       {"int8", 1u, ENGINE_ELEMENT_SIGNED},
@@ -128,8 +131,8 @@ NrrdSpan nrrd_trim(NrrdSpan span)
 
 unsigned int nrrd_equals(NrrdSpan span, const char *word)
 {
-    const size_t size = strlen(word);
-    return ((span.length == size) && (memcmp(span.text, word, size) == 0)) ? 1u : 0u;
+    const size_t size = mmgr_text_length(word, PLATFORM_TEXT_TO_TERMINATOR);
+    return ((span.length == size) && (mmgr_bytes_compare(span.text, word, size) == 0)) ? 1u : 0u;
 }
 
 unsigned int nrrd_listed(NrrdSpan span, const char *const *words, size_t count)
@@ -208,7 +211,15 @@ unsigned int nrrd_type(NrrdSpan value, NrrdFields *fields)
             return 1u;
         }
     }
-    fprintf(stderr, "nrrd: type %.*s errors\n", (int)value.length, value.text);
+    {
+        EngineNote engine_note;
+        engine_note_begun(&engine_note);
+        mmgr_line_put(&engine_note.line, "nrrd: type ");
+        mmgr_line_put_max(&engine_note.line, value.text, (size_t)((int)value.length));
+        mmgr_line_put(&engine_note.line, " errors");
+        mmgr_line_ch(&engine_note.line, '\n');
+        engine_note_written(&engine_note);
+    }
     return 0u;
 }
 
@@ -225,7 +236,16 @@ unsigned int nrrd_encoding(NrrdSpan value, NrrdFields *fields)
         return 1u;
     }
     const unsigned int named = nrrd_listed(value, nrrd_error, sizeof nrrd_error / sizeof nrrd_error[0u]);
-    fprintf(stderr, "nrrd: encoding %.*s errors%s\n", (int)value.length, value.text, named ? "" : " as unknown");
+    {
+        EngineNote engine_note;
+        engine_note_begun(&engine_note);
+        mmgr_line_put(&engine_note.line, "nrrd: encoding ");
+        mmgr_line_put_max(&engine_note.line, value.text, (size_t)((int)value.length));
+        mmgr_line_put(&engine_note.line, " errors");
+        mmgr_line_put(&engine_note.line, named ? "" : " as unknown");
+        mmgr_line_ch(&engine_note.line, '\n');
+        engine_note_written(&engine_note);
+    }
     return 0u;
 }
 

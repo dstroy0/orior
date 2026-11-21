@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_terms_sensor.cu: static columns, ladder, crosstalk, charge and blur
 #include "noise_terms_internal.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
 
 // The static voxels the ladder reads, counted by column along x, where the ladder's scene sets the level: the
 // detector's rule (noise_detector_lines.cu:155-234) run again on the host. A voxel that changes, never touches either
@@ -11,20 +13,29 @@ static int terms_static_columns(const unsigned short *lanes, unsigned long long 
                                 unsigned long long *ceiling)
 {
     const unsigned long long voxels = TERMS_DEPTH * TERMS_HEIGHT * TERMS_WIDTH;
-    unsigned long long *const totals = (unsigned long long *)calloc((size_t)voxels, sizeof(unsigned long long));
-    unsigned long long *const squares = (unsigned long long *)calloc((size_t)voxels, sizeof(unsigned long long));
-    unsigned short *const least = (unsigned short *)malloc((size_t)voxels * sizeof(unsigned short));
-    unsigned short *const max = (unsigned short *)calloc((size_t)voxels, sizeof(unsigned short));
-    unsigned char *const mask = (unsigned char *)malloc((size_t)voxels);
-    unsigned long long *const counted =
-        (unsigned long long *)calloc((size_t)TERMS_LANE_VALUES, sizeof(unsigned long long));
+    unsigned long long *const totals = (unsigned long long *)platform_cell_cleared(
+        (unsigned long long)((size_t)voxels), (unsigned long long)(sizeof(unsigned long long)),
+        (unsigned int)platform_place_g_program_owner, 0);
+    unsigned long long *const squares = (unsigned long long *)platform_cell_cleared(
+        (unsigned long long)((size_t)voxels), (unsigned long long)(sizeof(unsigned long long)),
+        (unsigned int)platform_place_g_program_owner, 0);
+    unsigned short *const least = (unsigned short *)platform_cell_taken(
+        (unsigned long long)((size_t)voxels * sizeof(unsigned short)), (unsigned int)platform_place_g_program_owner, 0);
+    unsigned short *const max = (unsigned short *)platform_cell_cleared(
+        (unsigned long long)((size_t)voxels), (unsigned long long)(sizeof(unsigned short)),
+        (unsigned int)platform_place_g_program_owner, 0);
+    unsigned char *const mask = (unsigned char *)platform_cell_taken((unsigned long long)((size_t)voxels),
+                                                                     (unsigned int)platform_place_g_program_owner, 0);
+    unsigned long long *const counted = (unsigned long long *)platform_cell_cleared(
+        (unsigned long long)((size_t)TERMS_LANE_VALUES), (unsigned long long)(sizeof(unsigned long long)),
+        (unsigned int)platform_place_g_program_owner, 0);
     const int ok = (totals != NULL) && (squares != NULL) && (least != NULL) && (max != NULL) && (mask != NULL) &&
                    (counted != NULL);
-    memset(columns, 0, (size_t)TERMS_WIDTH * sizeof(unsigned long long));
+    mmgr_bytes_set(columns, 0, (size_t)TERMS_WIDTH * sizeof(unsigned long long));
     *ceiling = 0ULL;
     if (ok != 0)
     {
-        memset(least, 0xFF, (size_t)voxels * sizeof(unsigned short));
+        mmgr_bytes_set(least, 0xFF, (size_t)voxels * sizeof(unsigned short));
         for (unsigned long long frame = 0ULL; frame < TERMS_FRAMES; frame += 1ULL)
         {
             const unsigned short *const lane = &lanes[frame * voxels];
@@ -47,10 +58,9 @@ static int terms_static_columns(const unsigned short *lanes, unsigned long long 
         {
             const unsigned long long bound = (TERMS_QUIET_SLOPE * totals[voxel]) + (TERMS_QUIET_FLOOR * TERMS_FRAMES);
             const int still = (squares[voxel] * TERMS_FRAMES) <= ((TERMS_FRAMES - 1ULL) * bound);
-            mask[voxel] = ((least[voxel] != 0u) && (max[voxel] != TERMS_LANE_TOP) &&
-                           (least[voxel] != max[voxel]) && still)
-                              ? 1u
-                              : 0u;
+            mask[voxel] =
+                ((least[voxel] != 0u) && (max[voxel] != TERMS_LANE_TOP) && (least[voxel] != max[voxel]) && still) ? 1u
+                                                                                                                  : 0u;
             if (mask[voxel] != 0u)
             {
                 // a mean of values that are each below 2^16 is below 2^16
@@ -73,12 +83,12 @@ static int terms_static_columns(const unsigned short *lanes, unsigned long long 
             }
         }
     }
-    free(totals);
-    free(squares);
-    free(least);
-    free(max);
-    free(mask);
-    free(counted);
+    platform_cell_released(totals, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(squares, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(least, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(max, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(mask, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(counted, (unsigned int)platform_place_g_program_owner);
     return ok;
 }
 
@@ -116,7 +126,7 @@ static int terms_static_columns(const unsigned short *lanes, unsigned long long 
 void terms_ladder(SimResults *results, const unsigned short *lanes)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     NoiseLadderMeasurement measurement;
     const int ok = noise_ladder_volume(lanes, TERMS_EXTENT, &measurement, &error) == 0L;
     sim_check(results, ok, "the ladder read the volume");
@@ -206,7 +216,7 @@ void terms_crosstalk_mix(unsigned short *lanes, const unsigned short *drawn)
 void terms_crosstalk(SimResults *results, const unsigned short *lanes, unsigned long long along_x_eighths)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     NoiseCrosstalkMeasurement measurement;
     const int ok = noise_crosstalk_volume(lanes, TERMS_EXTENT, &measurement, &error) == 0L;
     sim_check(results, ok, "the crosstalk pass read the volume");
@@ -250,7 +260,7 @@ void terms_crosstalk(SimResults *results, const unsigned short *lanes, unsigned 
 void terms_charge(SimResults *results, const unsigned short *bias, const unsigned short *dark, const SimCamera *camera)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     NoiseChargeMeasurement measurement;
     const int ok = noise_charge_series(bias, dark, TERMS_EXTENT, &measurement, &error) == 0L;
     sim_check(results, ok, "the charge pass read the series");
@@ -286,7 +296,7 @@ void terms_thinned(SimResults *results, const unsigned short *bias, const unsign
                    unsigned long long expected_denominator)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     NoiseChargeMeasurement measurement;
     const int ok = noise_charge_series(bias, lit, TERMS_EXTENT, &measurement, &error) == 0L;
     sim_check(results, ok && (measurement.gain_read != 0), "the charge pass read the lit series against the bias");

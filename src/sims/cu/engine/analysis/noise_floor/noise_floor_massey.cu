@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_floor_massey.cu: bits, Massey, the mock and the transfer kernel
 #include "noise_floor_internal.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
 
 static inline __host__ __device__ unsigned int floor_bit(const FloorStream *stream, unsigned int at)
 {
@@ -125,7 +127,7 @@ static int floor_massey(SimResults *results, const FloorStream *streams, unsigne
 static void floor_seeded_stream(FloorStream *stream, unsigned int degree, unsigned long long key,
                                 unsigned long long index)
 {
-    memset(stream, 0, sizeof(*stream));
+    mmgr_bytes_set(stream, 0, sizeof(*stream));
     const unsigned long long range = (degree == 64u) ? 0xFFFFFFFFFFFFFFFFULL : ((1ULL << degree) - 1ULL);
     const unsigned long long taps = (sim_draw(key, (index * 4ULL) + 0ULL) & range) | (1ULL << (degree - 1u));
     unsigned long long state = sim_draw(key, (index * 4ULL) + 1ULL) & range;
@@ -239,9 +241,13 @@ void floor_planes(SimResults *results, const unsigned short *lanes, unsigned lon
     // the lane count over a stream's bits is far below 2^32 here
     const unsigned int per_plane = (unsigned int)(lanes_count / FLOOR_STREAM_BITS);
     const unsigned int count = per_plane * FLOOR_PLANES;
-    FloorStream *const streams = (FloorStream *)calloc(count, sizeof(FloorStream));
-    unsigned int *const lengths = (unsigned int *)malloc(count * sizeof(unsigned int));
-    unsigned int *const regenerated = (unsigned int *)malloc(count * sizeof(unsigned int));
+    FloorStream *const streams =
+        (FloorStream *)platform_cell_cleared((unsigned long long)(count), (unsigned long long)(sizeof(FloorStream)),
+                                             (unsigned int)platform_place_g_program_owner, 0);
+    unsigned int *const lengths = (unsigned int *)platform_cell_taken(
+        (unsigned long long)(count * sizeof(unsigned int)), (unsigned int)platform_place_g_program_owner, 0);
+    unsigned int *const regenerated = (unsigned int *)platform_cell_taken(
+        (unsigned long long)(count * sizeof(unsigned int)), (unsigned int)platform_place_g_program_owner, 0);
     const int ok = (streams != NULL) && (lengths != NULL) && (regenerated != NULL);
     sim_check(results, ok, "plane buffers");
     if (ok)
@@ -269,7 +275,7 @@ void floor_planes(SimResults *results, const unsigned short *lanes, unsigned lon
         mmgr_line_put(line, " streams of ");
         mmgr_line_decimal(line, FLOOR_STREAM_BITS, 1u);
         mmgr_line_put(line, " consecutive lanes a plane\n    plane  mean complexity / n   streams read as random (at "
-                             "least n/2 - 16)\n");
+                            "least n/2 - 16)\n");
         unsigned long long random_low_planes = 0ULL;
         for (unsigned int plane = 0u; plane < FLOOR_PLANES; plane += 1u)
         {
@@ -294,9 +300,9 @@ void floor_planes(SimResults *results, const unsigned short *lanes, unsigned lon
         }
         sim_check(results, random_low_planes == 1ULL, "the lowest bit plane reads as random on every stream");
     }
-    free(regenerated);
-    free(lengths);
-    free(streams);
+    platform_cell_released(regenerated, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(lengths, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(streams, (unsigned int)platform_place_g_program_owner);
 }
 
 __global__ void floor_transfer_kernel(unsigned short *lanes, const unsigned int *signal, unsigned long long frames,

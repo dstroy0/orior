@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // deflate_blocks.c: runs, trees and writing the blocks
 #include "deflate_internal.h"
+#include "../../../src/platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
 
 static const unsigned char deflate_length_extra[DEFLATE_LENGTH_CODES] = {
     0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 1u, 1u, 1u, 1u, 2u, 2u, 2u, 2u, 3u, 3u, 3u, 3u, 4u, 4u, 4u, 4u, 5u, 5u, 5u, 5u, 0u};
@@ -26,8 +28,8 @@ static void deflate_runs(DeflateTrees *trees)
 {
     const unsigned int total = trees->literal_count + trees->distance_count;
     unsigned char joined[DEFLATE_LITERAL_CODES + DEFLATE_DISTANCE_CODES];
-    memcpy(joined, trees->lengths, trees->literal_count);
-    memcpy(joined + trees->literal_count, trees->lengths + DEFLATE_LITERAL_CODES, trees->distance_count);
+    mmgr_bytes_copy(joined, trees->lengths, trees->literal_count);
+    mmgr_bytes_copy(joined + trees->literal_count, trees->lengths + DEFLATE_LITERAL_CODES, trees->distance_count);
     trees->run_count = 0u;
     unsigned int at = 0u;
     while (at < total)
@@ -83,9 +85,9 @@ static int deflate_trees(const DeflateToken *tokens, unsigned long long count, D
     unsigned long long literal_frequency[DEFLATE_LITERAL_CODES];
     unsigned long long distance_frequency[DEFLATE_DISTANCE_CODES];
     unsigned long long code_length_frequency[DEFLATE_CODE_LENGTH_CODES];
-    memset(literal_frequency, 0, sizeof(literal_frequency));
-    memset(distance_frequency, 0, sizeof(distance_frequency));
-    memset(code_length_frequency, 0, sizeof(code_length_frequency));
+    mmgr_bytes_set(literal_frequency, 0, sizeof(literal_frequency));
+    mmgr_bytes_set(distance_frequency, 0, sizeof(distance_frequency));
+    mmgr_bytes_set(code_length_frequency, 0, sizeof(code_length_frequency));
     for (unsigned long long token = 0ULL; token < count; token += 1ULL)
     {
         if (tokens[token].length == 0u)
@@ -167,18 +169,18 @@ static unsigned long long deflate_dynamic_bits(const DeflateToken *tokens, unsig
 
 static void deflate_fixed_trees(DeflateTrees *fixed)
 {
-    memset(fixed, 0, sizeof(*fixed));
-    memset(fixed->lengths, 8, 144u);
-    memset(fixed->lengths + 144u, 9, 112u);
-    memset(fixed->lengths + 256u, 7, 24u);
-    memset(fixed->lengths + 280u, 8, DEFLATE_LITERAL_CODES - 280u);
-    memset(fixed->lengths + DEFLATE_LITERAL_CODES, 5, DEFLATE_DISTANCE_CODES);
+    mmgr_bytes_set(fixed, 0, sizeof(*fixed));
+    mmgr_bytes_set(fixed->lengths, 8, 144u);
+    mmgr_bytes_set(fixed->lengths + 144u, 9, 112u);
+    mmgr_bytes_set(fixed->lengths + 256u, 7, 24u);
+    mmgr_bytes_set(fixed->lengths + 280u, 8, DEFLATE_LITERAL_CODES - 280u);
+    mmgr_bytes_set(fixed->lengths + DEFLATE_LITERAL_CODES, 5, DEFLATE_DISTANCE_CODES);
     unsigned char literal_lengths[DEFLATE_LITERAL_CODES + 2u];
     unsigned int literal_codes[DEFLATE_LITERAL_CODES + 2u];
-    memcpy(literal_lengths, fixed->lengths, DEFLATE_LITERAL_CODES);
-    memset(literal_lengths + DEFLATE_LITERAL_CODES, 8, 2u);
+    mmgr_bytes_copy(literal_lengths, fixed->lengths, DEFLATE_LITERAL_CODES);
+    mmgr_bytes_set(literal_lengths + DEFLATE_LITERAL_CODES, 8, 2u);
     deflate_codes(literal_lengths, DEFLATE_LITERAL_CODES + 2u, literal_codes);
-    memcpy(fixed->codes, literal_codes, sizeof(unsigned int) * DEFLATE_LITERAL_CODES);
+    mmgr_bytes_copy(fixed->codes, literal_codes, sizeof(unsigned int) * DEFLATE_LITERAL_CODES);
     deflate_codes(fixed->lengths + DEFLATE_LITERAL_CODES, DEFLATE_DISTANCE_CODES, fixed->codes + DEFLATE_LITERAL_CODES);
 }
 
@@ -284,7 +286,7 @@ static void deflate_write_stored(DeflateWriter *writer, const unsigned char *in,
         }
         if (take != 0ULL)
         {
-            memcpy(writer->out + writer->written, in + at, (size_t)take);
+            mmgr_bytes_copy(writer->out + writer->written, in + at, (size_t)take);
         }
         writer->written += take;
         at += take;
@@ -318,9 +320,15 @@ long long deflate_raw_encode(const EngineBytesRequest *request)
     matcher.previous = (unsigned long long *)calloc((size_t)in_bytes + 1u, sizeof(unsigned long long));
     matcher.mask = slots - 1ULL;
     matcher.key_bits = (key_bits == 0u) ? 1u : key_bits;
-    DeflateToken *const tokens = (DeflateToken *)malloc(((size_t)in_bytes + 1u) * sizeof(DeflateToken));
-    DeflateTrees *const trees = (DeflateTrees *)calloc(1u, sizeof(DeflateTrees));
-    DeflateTrees *const fixed = (DeflateTrees *)calloc(1u, sizeof(DeflateTrees));
+    DeflateToken *const tokens =
+        (DeflateToken *)platform_cell_taken((unsigned long long)(((size_t)in_bytes + 1u) * sizeof(DeflateToken)),
+                                            (unsigned int)platform_place_g_program_owner, 0);
+    DeflateTrees *const trees =
+        (DeflateTrees *)platform_cell_cleared((unsigned long long)(1u), (unsigned long long)(sizeof(DeflateTrees)),
+                                              (unsigned int)platform_place_g_program_owner, 0);
+    DeflateTrees *const fixed =
+        (DeflateTrees *)platform_cell_cleared((unsigned long long)(1u), (unsigned long long)(sizeof(DeflateTrees)),
+                                              (unsigned int)platform_place_g_program_owner, 0);
     int ok =
         (matcher.heads != NULL) && (matcher.previous != NULL) && (tokens != NULL) && (trees != NULL) && (fixed != NULL);
     const unsigned long long count = ok ? deflate_parse(&matcher, tokens) : 0ULL;
@@ -354,9 +362,9 @@ long long deflate_raw_encode(const EngineBytesRequest *request)
     ok = ok && (writer.overflow == 0) && (writer.written == chosen);
     free(matcher.heads);
     free(matcher.previous);
-    free(tokens);
-    free(trees);
-    free(fixed);
+    platform_cell_released(tokens, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(trees, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(fixed, (unsigned int)platform_place_g_program_owner);
     // the written count is at max the caller's capacity, a size in memory, and fits a long long
     return ok ? (long long)writer.written : ENGINE_BYTES_ERROR;
 }

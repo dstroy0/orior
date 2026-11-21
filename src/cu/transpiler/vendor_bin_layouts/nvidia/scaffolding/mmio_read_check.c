@@ -10,6 +10,7 @@
 // registers from that offset and prints each. Exit 0 where the read looks live, 1 where it does not, 2 where the
 // driver was not reached.
 #include "mmio_read.h"
+#include "../../../../engine/engine_note.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,7 +25,14 @@ int main(int count, char **words)
     HANDLE device = mmio_open();
     if (device == INVALID_HANDLE_VALUE)
     {
-        fprintf(stderr, "the BAR0 driver was not reached: load its service first (install_bar0.ps1)\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line,
+                          "the BAR0 driver was not reached: load its service first (install_bar0.ps1)");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     unsigned long long base = 0ULL;
@@ -37,7 +45,17 @@ int main(int count, char **words)
     const unsigned int capped = (wanted == 0u) ? 1u : ((wanted > 1024u) ? 1024u : wanted);
     if (!mmio_read(device, offset, capped, s_read))
     {
-        fprintf(stderr, "the read of %u words at 0x%x was refused\n", capped, offset);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the read of ");
+            mmgr_line_decimal(&engine_note.line, capped, 1u);
+            mmgr_line_put(&engine_note.line, " words at 0x");
+            mmgr_line_hex(&engine_note.line, offset, 1u);
+            mmgr_line_put(&engine_note.line, " was refused");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         mmio_close(device);
         return 1;
     }

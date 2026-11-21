@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_terms_structure.cu: structure, halves, spikes, boxes and clips
 #include "noise_terms_internal.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
 
 // C17 read back (build plan item 38). The scale moves a pair's d_k - d_{k,x} by (eps_{t+k} - eps_t) g (S - S_x), and
 // L - L_x = g (S - S_x)(1 + mean eps). D_a(k) reads the scale path's mean squared step over (1 + mean eps)^2, from the
@@ -18,22 +20,25 @@
 void terms_structure(SimResults *results, const unsigned short *lanes, const SimScene *scene, const SimCamera *camera)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     // the measurement's 28 exact integers are stored off the stack
-    NoiseStructureMeasurement *const measurement =
-        (NoiseStructureMeasurement *)malloc(sizeof(NoiseStructureMeasurement));
+    NoiseStructureMeasurement *const measurement = (NoiseStructureMeasurement *)platform_cell_taken(
+        (unsigned long long)(sizeof(NoiseStructureMeasurement)), (unsigned int)platform_place_g_program_owner, 0);
     const int ok = (measurement != NULL) && (noise_structure_volume(lanes, TERMS_EXTENT, measurement, &error) == 0L);
     sim_check(results, ok, "the structure pass read the volume");
-    unsigned long long *const light =
-        (unsigned long long *)malloc(TERMS_WIDTH * TERMS_FRAMES * sizeof(unsigned long long));
+    unsigned long long *const light = (unsigned long long *)platform_cell_taken(
+        (unsigned long long)(TERMS_WIDTH * TERMS_FRAMES * sizeof(unsigned long long)),
+        (unsigned int)platform_place_g_program_owner, 0);
     sim_check(results, light != NULL, "the lights' table");
-    long long *const rounding = (long long *)malloc(TERMS_WIDTH * TERMS_FRAMES * sizeof(long long));
+    long long *const rounding =
+        (long long *)platform_cell_taken((unsigned long long)(TERMS_WIDTH * TERMS_FRAMES * sizeof(long long)),
+                                         (unsigned int)platform_place_g_program_owner, 0);
     sim_check(results, rounding != NULL, "the roundings' table");
     if ((ok == 0) || (light == NULL) || (rounding == NULL))
     {
-        free(measurement);
-        free(light);
-        free(rounding);
+        platform_cell_released(measurement, (unsigned int)platform_place_g_program_owner);
+        platform_cell_released(light, (unsigned int)platform_place_g_program_owner);
+        platform_cell_released(rounding, (unsigned int)platform_place_g_program_owner);
         return;
     }
     // the light at every column and frame, exactly as the camera drew it: the scene has no body. Every z and y of a
@@ -160,9 +165,9 @@ void terms_structure(SimResults *results, const unsigned short *lanes, const Sim
                            &measurement->intercept_denominator[lag], (long long)((own * square_unit) + rounded),
                            included * frame_pairs * square_unit, 1ULL, 1ULL);
     }
-    free(measurement);
-    free(light);
-    free(rounding);
+    platform_cell_released(measurement, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(light, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(rounding, (unsigned int)platform_place_g_program_owner);
 }
 
 // Rows 18 and 19 read back. Under a flat light S a pixel reads f = o + p g S / 2^b in both halves, its offset o and
@@ -177,7 +182,7 @@ int terms_halves(SimResults *results, const unsigned short *lanes, const SimCame
                  NoiseHalvesMeasurement *measurement)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     const int ok = noise_halves_volume(lanes, TERMS_EXTENT, measurement, &error) == 0L;
     sim_check(results, ok, "the halves pass read the volume");
     if (ok == 0)
@@ -275,7 +280,7 @@ void terms_spikes(SimResults *results, const unsigned short *lanes, unsigned lon
                   unsigned long long law)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     unsigned long long counts[NOISE_CLIPS_COUNTS];
     unsigned int box[NOISE_CLIPS_BOX];
     unsigned long long spikes[NOISE_SPIKE_SUMS];
@@ -361,7 +366,7 @@ void terms_boxes(unsigned short *lanes)
 void terms_clips(SimResults *results, const unsigned short *lanes)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     unsigned long long counts[NOISE_CLIPS_COUNTS];
     unsigned int box[NOISE_CLIPS_BOX];
     unsigned long long spikes[NOISE_SPIKE_SUMS];

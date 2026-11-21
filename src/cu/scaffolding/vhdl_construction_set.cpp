@@ -10,6 +10,9 @@
 // what the lane's schedule model gives a form it does not name. The set is written as a krep KCS file and read back
 // whole, and the file is removed where the two differ.
 #include "../../../includes/file_defs/krep/krep.h"
+#include "../engine/engine_note.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "crc.h"
 #include "vhdl_target.h"
 #include "yosys_script.h"
@@ -143,9 +146,9 @@ static int construction_after(const std::string &path, const char *label, unsign
     int found = 0;
     while ((found == 0) && (fgets(line, sizeof(line), file) != NULL))
     {
-        const char *const at = strstr(line, label);
+        const char *const at = mmgr_text_find(line, label, PLATFORM_TEXT_TO_TERMINATOR);
         found = at != NULL;
-        *number = found ? strtoull(at + strlen(label), NULL, 10) : *number;
+        *number = found ? strtoull(at + mmgr_text_length(label, PLATFORM_TEXT_TO_TERMINATOR), NULL, 10) : *number;
     }
     fclose(file);
     return found;
@@ -252,7 +255,13 @@ int program_main(int argc, char **argv)
     setvbuf(stdout, NULL, _IOLBF, 0);
     if (argc != 4)
     {
-        fprintf(stderr, "usage: vhdl_construction_set <work folder> <vhdl.krs> <out .kcs>\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "usage: vhdl_construction_set <work folder> <vhdl.krs> <out .kcs>");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     const std::string work(argv[1]);
@@ -266,22 +275,48 @@ int program_main(int argc, char **argv)
     const std::string package_end = "end package body cycle_program;\n";
     if (rules == NULL)
     {
-        fprintf(stderr, "  vhdl construction set: the ruleset could not be read\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  vhdl construction set: the ruleset could not be read");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 1;
     }
     if (forms.empty())
     {
-        fprintf(stderr, "  vhdl construction set: %s contains no form\n", argv[2]);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  vhdl construction set: ");
+            mmgr_line_put(&engine_note.line, argv[2]);
+            mmgr_line_put(&engine_note.line, " contains no form");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 1;
     }
     if (!ruleset_opcode(rules, "lane_open", {}, none, package))
     {
-        fprintf(stderr, "  vhdl construction set: the ruleset wrote no lane_open\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  vhdl construction set: the ruleset wrote no lane_open");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 1;
     }
     if (package.find(package_end) == std::string::npos)
     {
-        fprintf(stderr, "  vhdl construction set: lane_open contains no package body\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  vhdl construction set: lane_open contains no package body");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 1;
     }
     package = package.substr(0u, package.find(package_end) + package_end.size());
@@ -312,13 +347,13 @@ int program_main(int argc, char **argv)
     const KrepFormTable table = {costs.size(), name_words, crc_words(CRC_TABLE, words.data(), words.size()),
                                  words.data()};
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     KrepFormTable back;
     const int written = krep_forms_write(argv[3], &table, &error);
     const int read = written && krep_forms_read(argv[3], &back, &error);
     const int same = read && (back.forms == table.forms) && (back.name_words == table.name_words) &&
                      (back.crc == table.crc) &&
-                     (memcmp(back.words, table.words, words.size() * sizeof(unsigned long long)) == 0);
+                     (mmgr_bytes_compare(back.words, table.words, words.size() * sizeof(unsigned long long)) == 0);
     if (read)
     {
         krep_forms_release(&back);

@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "periodic_energy.h"
+#include "../../../../../platform/platform.h"
 
 #define CLASSIFY_HEIGHT 8ULL
 
@@ -211,7 +212,7 @@ static void classify_fixed_pattern(SimResults *results, ClassifyWork *work, cons
     if ((ok == 0) || (present == 0))
     {
         mmgr_line_put(line,
-                       "                              declined: no fixed pattern above the null; nothing removed\n\n");
+                      "                              declined: no fixed pattern above the null; nothing removed\n\n");
         return;
     }
     EnergyMeasurement phases;
@@ -297,7 +298,9 @@ int program_main(int argc, char **argv)
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;
     sim_open(&results, line_buffer);
-    ClassifyWork *const work = (ClassifyWork *)calloc(1u, sizeof(ClassifyWork));
+    ClassifyWork *const work =
+        (ClassifyWork *)platform_cell_cleared((unsigned long long)(1u), (unsigned long long)(sizeof(ClassifyWork)),
+                                              (unsigned int)platform_place_g_program_owner, 0);
     sim_check(&results, work != NULL, "work buffers");
     if (work == NULL)
     {
@@ -305,11 +308,11 @@ int program_main(int argc, char **argv)
     }
     if (!sim_job_submit(&results, "classify_reject_recover", 0, NULL, sizeof(ClassifyWork)))
     {
-        free(work);
+        platform_cell_released(work, (unsigned int)platform_place_g_program_owner);
         return sim_close(&results, "classify reject recover");
     }
     mmgr_line_put(&results.line, "  classify, reject, return the clean subject with the uncertainty stated exactly "
-                                  "(ART-4-007, ported)\n  declared inputs: frame=8x8 frames=48 key=0x");
+                                 "(ART-4-007, ported)\n  declared inputs: frame=8x8 frames=48 key=0x");
     mmgr_line_hex(&results.line, CLASSIFY_KEY, 1u);
     mmgr_line_put(&results.line, " draws=8\n\n");
     classify_scene(work->scene, CLASSIFY_KEY);
@@ -359,11 +362,11 @@ int program_main(int argc, char **argv)
     classify_repeat(&results, work, "incoherent on a repeat   ", 0);
 
     mmgr_line_put(&results.line,
-                   "  fixed-pattern removes a shared pattern from a varying subject to the bit and declines\n");
+                  "  fixed-pattern removes a shared pattern from a varying subject to the bit and declines\n");
     mmgr_line_put(&results.line,
-                   "  incoherent noise; repeat retains a shared subject and recovers it exactly where a majority\n");
+                  "  incoherent noise; repeat retains a shared subject and recovers it exactly where a majority\n");
     mmgr_line_put(&results.line,
-                   "  survives, flagging the rest. neither mode guesses which the shared component is.\n");
-    free(work);
+                  "  survives, flagging the rest. neither mode guesses which the shared component is.\n");
+    platform_cell_released(work, (unsigned int)platform_place_g_program_owner);
     return sim_close(&results, "classify reject recover");
 }

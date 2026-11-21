@@ -61,7 +61,7 @@ static int counted_matches(unsigned long long number, void *context)
     return number <= counted->bound;
 }
 
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
     if (count < 2)
     {

@@ -75,7 +75,7 @@ done
 for one in "$TOP/includes/file_defs/kdm/kdm_write.c" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/chain_check.c"; do
     name="$(basename "$one" .c)"
     cc -std=c11 -O2 -Wall -Wextra -o "$OUT/$name" "$one" \
-        "$TOP/src/cu/transpiler/lstar/protocol/gate/chain_build.c" "${FILE_DEFS[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" || exit 1
+        "$TOP/src/cu/transpiler/lstar/protocol/gate/chain_build.c" "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || exit 1
 done
 
 # the descent is orior's own, and orior reads exact integers
@@ -113,48 +113,48 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/naming_check" "$TOP/utils/test/src/cu/tra
     "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" \
     "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" \
     "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" \
-    "${FILE_DEFS[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" || exit 1
+    "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/cubin_listing_check" "$TOP/utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_listing_check.c" \
     "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_listing/cut.c" "${FILE_DEFS_MMGR_FLAGS[@]}" "${CHAIN_LINEA[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/kqr_check" "$TOP/utils/test/src/cu/types/file_defs/kqr/kqr_check.c" \
-    "${FILE_DEFS[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" || exit 1
+    "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/who_check" "$TOP/utils/test/src/cu/types/file_defs/who/who_check.c" \
-    "${FILE_DEFS[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" || exit 1
+    "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/qry_rows_check" "$TOP/utils/test/src/cu/types/file_defs/qry/qry_rows_check.c" \
-    "${FILE_DEFS[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" || exit 1
+    "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/ksc_check" "$TOP/utils/test/src/cu/types/file_defs/ksc/ksc_check.c" \
-    "${FILE_DEFS[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" || exit 1
+    "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/krf_check" "$TOP/utils/test/src/cu/types/file_defs/krf/krf_check.c" \
-    "${FILE_DEFS[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" || exit 1
+    "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/frame_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/frame_check.c" \
     "$TOP/includes/file_defs/krs/krs_write/head.c" \
     "$TOP/includes/file_defs/krs/krs_write/fixed.c" \
     "$TOP/includes/file_defs/krs/krs_write/frame_forms.c" \
     "$TOP/includes/file_defs/krs/krs_write/words.c" \
     "$TOP/includes/file_defs/khw/khw_machine_write/opening.c" \
-    "${FILE_DEFS[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" || exit 1
+    "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/kdm_check" "$TOP/utils/test/src/cu/types/file_defs/kdm/kdm_check.c" \
-    "${FILE_DEFS[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" || exit 1
+    "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/survivors_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/survivors_check.c" \
     "$TOP/src/cu/transpiler/lstar/protocol/gate/survivors.c" "${FILE_DEFS_MMGR_FLAGS[@]}" "${CHAIN_LINEA[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/scheduler_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/scheduler_check.c" \
     "$TOP/src/cu/transpiler/lstar/protocol/order/scheduler.c" "$TOP"/src/cu/transpiler/lstar/protocol/teacher/run_channel/*.c \
     "$TOP"/src/cu/transpiler/lstar/protocol/overseer/*.c "$TOP/src/cu/transpiler/lstar/interface/interface.c" "$TOP"/src/cu/transpiler/lstar/interface/platform/*.c \
-    "$TOP/src/cu/transpiler/lstar/interface/interface_names.c" "${FILE_DEFS[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" || exit 1
+    "$TOP/src/cu/transpiler/lstar/interface/interface_names.c" "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/overseer_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/overseer_check.c" \
     "$TOP"/src/cu/transpiler/lstar/protocol/overseer/*.c "$TOP"/src/cu/transpiler/lstar/protocol/teacher/run_channel/*.c \
     "$TOP/src/cu/transpiler/lstar/interface/interface.c" "$TOP"/src/cu/transpiler/lstar/interface/platform/*.c \
-    "$TOP/src/cu/transpiler/lstar/interface/interface_names.c" "${FILE_DEFS[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" || exit 1
+    "$TOP/src/cu/transpiler/lstar/interface/interface_names.c" "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/overseer_carrier" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/overseer_carrier.c" \
-    "${FILE_DEFS[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" || exit 1
+    "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || exit 1
 # the walk runs as its own program, in a child the cell can lose
 BOOT="$TOP/src/cu/transpiler/lstar/protocol"
 INTERFACE="$TOP/src/cu/transpiler/lstar/interface"
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/query_walk" "$BOOT/query/query_walk.c" "$BOOT/query/query_put.c" \
-    "${FILE_DEFS[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" || exit 1
+    "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -I"$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -o "$OUT/query_interface_check" \
     "$TOP/utils/test/src/cu/transpiler/lstar/protocol/query_interface_check.c" "$BOOT/query/query_interface.c" "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c \
-    "$INTERFACE/interface_names.c" "${FILE_DEFS[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" || exit 1
+    "$INTERFACE/interface_names.c" "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -pthread -I"$TOP/src/cu/engine" -o "$OUT/launch_queue_check" \
     "$TOP/utils/test/src/cu/transpiler/lstar/interface/launch_queue_check.c" "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c \
     "$INTERFACE/interface_names.c" "${FILE_DEFS_MMGR_FLAGS[@]}" "${CHAIN_LINEA[@]}" || exit 1
@@ -168,10 +168,10 @@ cc -std=c11 -O2 -Wall -Wextra "${EXACT_TYPES_FLAGS[@]}" -o "$OUT/branch_side_che
     "${EXACT_TYPES_ARITHMETIC[@]}" "${EXACT_TYPES_LIBRARIES[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/gnascor_trace" "$TOP/utils/maint/engine/gnascor_trace.c" "$BOOT/query/query_put.c" "${FILE_DEFS_MMGR_FLAGS[@]}" "${CHAIN_LINEA[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/host_entry_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/host_entry_check.c" "${FILE_DEFS_MMGR_FLAGS[@]}" "${CHAIN_LINEA[@]}" || exit 1
-cc -std=c11 -O2 -Wall -Wextra -o "$OUT/classify_walk" "$BOOT/query/classify_walk.c" "${FILE_DEFS[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" || exit 1
+cc -std=c11 -O2 -Wall -Wextra -o "$OUT/classify_walk" "$BOOT/query/classify_walk.c" "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -I"$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -o "$OUT/bus_enum_check" \
     "$TOP/utils/test/src/cu/transpiler/lstar/protocol/bus_enum_check.c" "$BOOT/query/bus_enum.c" "$BOOT/query/bus_enum_walk.c" "$BOOT/query/query_interface.c" \
-    "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" "${FILE_DEFS[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" || exit 1
+    "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || exit 1
 WALK="$OUT/query_walk"
 if [ -f "$WALK.exe" ]; then
     WALK="$WALK.exe"

@@ -1,6 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "sim.h"
+#include "../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include "../../cu/engine/runtime/obsignatio/obsignatio.h"
 #include "../../cu/engine/runtime/daemon/tessera.h"
@@ -42,11 +45,12 @@ static int sim_job_daemon(char *path, size_t capacity)
     {
         directory_length -= 1u;
     }
-    if ((directory_length == 0u) || ((directory_length + strlen(daemon) + 1u) > capacity))
+    if ((directory_length == 0u) ||
+        ((directory_length + mmgr_text_length(daemon, PLATFORM_TEXT_TO_TERMINATOR) + 1u) > capacity))
     {
         return 0;
     }
-    memcpy(path + directory_length, daemon, strlen(daemon) + 1u);
+    mmgr_bytes_copy(path + directory_length, daemon, mmgr_text_length(daemon, PLATFORM_TEXT_TO_TERMINATOR) + 1u);
     return 1;
 }
 
@@ -54,19 +58,20 @@ int sim_job_submit(SimResults *results, const char *name, int count, char *const
                    unsigned long long declared)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     int device = 0;
     cudaDeviceProp properties;
     char daemon[ENGINE_PATH_CAPACITY];
     TesseraJobSubmit submit;
-    memset(&submit, 0, sizeof(submit));
+    mmgr_bytes_set(&submit, 0, sizeof(submit));
     // the request is the sim's name and every argument, each ended by a zero byte
-    unsigned long long bytes = strlen(name) + 1ULL;
+    unsigned long long bytes = mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR) + 1ULL;
     for (int at = 1; at < count; at += 1)
     {
-        bytes += strlen(arguments[at]) + 1ULL;
+        bytes += mmgr_text_length(arguments[at], PLATFORM_TEXT_TO_TERMINATOR) + 1ULL;
     }
-    unsigned char *const request = (unsigned char *)malloc((size_t)bytes);
+    unsigned char *const request = (unsigned char *)platform_cell_taken(
+        (unsigned long long)((size_t)bytes), (unsigned int)platform_place_g_program_owner, 0);
     // the context is made before the job requests: the daemon measures it with the process and counts it beside the
     // declaration
     int ok = (request != NULL) && (declared != 0ULL) && sim_job_daemon(daemon, sizeof(daemon)) &&
@@ -75,27 +80,28 @@ int sim_job_submit(SimResults *results, const char *name, int count, char *const
     if (ok)
     {
         unsigned long long at_byte = 0ULL;
-        memcpy(request, name, strlen(name) + 1u);
-        at_byte += strlen(name) + 1ULL;
+        mmgr_bytes_copy(request, name, mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR) + 1u);
+        at_byte += mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR) + 1ULL;
         for (int at = 1; at < count; at += 1)
         {
-            memcpy(request + at_byte, arguments[at], strlen(arguments[at]) + 1u);
-            at_byte += strlen(arguments[at]) + 1ULL;
+            mmgr_bytes_copy(request + at_byte, arguments[at],
+                            mmgr_text_length(arguments[at], PLATFORM_TEXT_TO_TERMINATOR) + 1u);
+            at_byte += mmgr_text_length(arguments[at], PLATFORM_TEXT_TO_TERMINATOR) + 1ULL;
         }
         const ObsignatioSignumRequest signum = {
             request, bytes, NULL, OBSIGNATIO_MODE_HASH, submit.signum.bytes, ENGINE_SIGNUM_BYTES, &error};
         ok = obsignatio_signum(&signum) == 0L;
     }
-    free(request);
+    platform_cell_released(request, (unsigned int)platform_place_g_program_owner);
     if (!ok)
     {
         sim_check(results, 0,
                   "tessera: the sim's job is requested (its signum, declaration, device and the daemon's place)");
         return 0;
     }
-    memcpy(submit.device, properties.uuid.bytes, TESSERA_DEVICE_BYTES);
+    mmgr_bytes_copy(submit.device, properties.uuid.bytes, TESSERA_DEVICE_BYTES);
 #if defined(_WIN32)
-    memcpy(&submit.luid, properties.luid, sizeof(submit.luid));
+    mmgr_bytes_copy(&submit.luid, properties.luid, sizeof(submit.luid));
 #endif
     submit.declared = declared;
     submit.grace_microseconds = SIM_JOB_RUNNING_MICROSECONDS;
@@ -138,9 +144,9 @@ void sim_job_release(SimResults *results)
         return;
     }
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     TesseraTicket ticket;
-    memset(&ticket, 0, sizeof(ticket));
+    mmgr_bytes_set(&ticket, 0, sizeof(ticket));
     const int released = tessera_job_release(results->job, &ticket, &error) == 0L;
     results->job = NULL;
     sim_check(results, released, "tessera: the sim's job releases");

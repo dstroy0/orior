@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tiff_metadata.c: rows, chains, ImageJ and OME metadata
 #include "tiff_internal.h"
+#include "../../../src/cu/engine/engine_note.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 int tiff_page_rows(TiffFile *file, const TiffPage *page, TiffScratch *scratch, unsigned long long row_first,
                    unsigned long long row_end, unsigned char *out)
@@ -40,7 +43,7 @@ int tiff_page_rows(TiffFile *file, const TiffPage *page, TiffScratch *scratch, u
             {
                 const unsigned char *const source = &scratch->chunk[(row - top) * page->chunk_width * element_bytes];
                 unsigned char *const target = &out[(((row - row_first) * page->width) + left) * element_bytes];
-                memcpy(target, source, (size_t)(columns * element_bytes));
+                mmgr_bytes_copy(target, source, (size_t)(columns * element_bytes));
             }
         }
     }
@@ -137,8 +140,9 @@ static int tiff_digits(const char *text, size_t length, unsigned long long *valu
 static void tiff_imagej_value(TiffFile *file, const char *text, const char *key, unsigned long long *value,
                               unsigned int *present)
 {
-    const size_t key_length = strlen(key);
-    for (const char *line = text; (line != NULL) && !*present; line = strchr(line, '\n'))
+    const size_t key_length = mmgr_text_length(key, PLATFORM_TEXT_TO_TERMINATOR);
+    for (const char *line = text; (line != NULL) && !*present;
+         line = mmgr_text_char(line, '\n', PLATFORM_TEXT_TO_TERMINATOR))
     {
         line += (*line == '\n') ? 1u : 0u;
         if ((strncmp(line, key, key_length) == 0) && (line[key_length] == '='))
@@ -219,8 +223,9 @@ int tiff_imagej(TiffFile *file, const char *text, unsigned long long pages, unsi
 
 static const char *tiff_xml_element(const char *text, const char *name)
 {
-    const size_t length = strlen(name);
-    for (const char *at = strchr(text, '<'); at != NULL; at = strchr(at + 1u, '<'))
+    const size_t length = mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR);
+    for (const char *at = mmgr_text_char(text, '<', PLATFORM_TEXT_TO_TERMINATOR); at != NULL;
+         at = mmgr_text_char(at + 1u, '<', PLATFORM_TEXT_TO_TERMINATOR))
     {
         if (strncmp(at + 1u, name, length) == 0)
         {
@@ -237,7 +242,7 @@ static const char *tiff_xml_element(const char *text, const char *name)
 
 static const char *tiff_xml_attribute(const char *tag, const char *tag_end, const char *name, size_t *length)
 {
-    const size_t name_length = strlen(name);
+    const size_t name_length = mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR);
     for (const char *at = tag + 1u; (size_t)(tag_end - at) > (name_length + 2u); at += 1u)
     {
         const char before = *(at - 1u);
@@ -282,12 +287,20 @@ static int tiff_xml_unsigned(TiffFile *file, const char *tag, const char *tag_en
 
 static void tiff_ome_candidates(TiffFile *file, const char *text)
 {
-    fprintf(stderr, "tiff: %s contains more than one OME image; each is displayed as ID [SizeT SizeZ SizeC SizeY SizeX]:\n",
-            file->path);
+    {
+        EngineNote engine_note;
+        engine_note_begun(&engine_note);
+        mmgr_line_put(&engine_note.line, "tiff: ");
+        mmgr_line_put(&engine_note.line, file->path);
+        mmgr_line_put(&engine_note.line,
+                      " contains more than one OME image; each is displayed as ID [SizeT SizeZ SizeC SizeY SizeX]:");
+        mmgr_line_ch(&engine_note.line, '\n');
+        engine_note_written(&engine_note);
+    }
     for (const char *pixels = tiff_xml_element(text, "Pixels"); pixels != NULL;
          pixels = tiff_xml_element(pixels + 1u, "Pixels"))
     {
-        const char *const tag_end = strchr(pixels, '>');
+        const char *const tag_end = mmgr_text_char(pixels, '>', PLATFORM_TEXT_TO_TERMINATOR);
         if (tag_end == NULL)
         {
             break;
@@ -307,8 +320,25 @@ static void tiff_ome_candidates(TiffFile *file, const char *text)
         }
         const char *const displayed = (id != NULL) ? id : "?";
         const int displayed_length = (int)((id != NULL) ? id_length : 1u);
-        fprintf(stderr, "tiff:   %.*s [%llu %llu %llu %llu %llu]\n", displayed_length, displayed, sizes[0u], sizes[1u],
-                sizes[2u], sizes[3u], sizes[4u]);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "tiff:   ");
+            mmgr_line_put_max(&engine_note.line, displayed, (size_t)(displayed_length));
+            mmgr_line_put(&engine_note.line, " [");
+            mmgr_line_decimal(&engine_note.line, sizes[0u], 1u);
+            mmgr_line_put(&engine_note.line, " ");
+            mmgr_line_decimal(&engine_note.line, sizes[1u], 1u);
+            mmgr_line_put(&engine_note.line, " ");
+            mmgr_line_decimal(&engine_note.line, sizes[2u], 1u);
+            mmgr_line_put(&engine_note.line, " ");
+            mmgr_line_decimal(&engine_note.line, sizes[3u], 1u);
+            mmgr_line_put(&engine_note.line, " ");
+            mmgr_line_decimal(&engine_note.line, sizes[4u], 1u);
+            mmgr_line_put(&engine_note.line, "]");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
     }
 }
 
@@ -325,7 +355,7 @@ int tiff_ome(TiffFile *file, const TiffPage *page, const char *text, unsigned lo
         tiff_ome_candidates(file, text);
         return tiff_fail(file, "the OME-XML contains more than one image");
     }
-    const char *const pixels_end = strchr(pixels, '>');
+    const char *const pixels_end = mmgr_text_char(pixels, '>', PLATFORM_TEXT_TO_TERMINATOR);
     if (pixels_end == NULL)
     {
         return tiff_fail(file, "OME-XML that ends inside the Pixels element");
@@ -358,7 +388,7 @@ int tiff_ome(TiffFile *file, const TiffPage *page, const char *text, unsigned lo
     {
         return tiff_fail(file, "an OME SizeZ or SizeT of 0");
     }
-    if ((order == NULL) || (order_length != 5u) || (strncmp(order, "XY", 2u) != 0) ||
+    if ((order == NULL) || (order_length != 5u) || (!mmgr_text_starts(order, "XY", PLATFORM_TEXT_TO_TERMINATOR)) ||
         (memchr(order, 'Z', 5u) == NULL) || (memchr(order, 'C', 5u) == NULL) || (memchr(order, 'T', 5u) == NULL))
     {
         return tiff_fail(file, "an OME DimensionOrder that is not XY followed by Z, C and T");
@@ -373,13 +403,14 @@ int tiff_ome(TiffFile *file, const TiffPage *page, const char *text, unsigned lo
     {
         return tiff_fail(file, "the OME SizeZ and SizeT do not multiply to the number of pages");
     }
-    const char *const closing = strstr(pixels_end, "</Pixels");
-    const char *const region_end = (closing != NULL) ? closing : (pixels_end + strlen(pixels_end));
+    const char *const closing = mmgr_text_find(pixels_end, "</Pixels", PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const region_end =
+        (closing != NULL) ? closing : (pixels_end + mmgr_text_length(pixels_end, PLATFORM_TEXT_TO_TERMINATOR));
     for (const char *data = tiff_xml_element(pixels_end, "TiffData");
          (file->reason == NULL) && (data != NULL) && (data < region_end);
          data = tiff_xml_element(data + 1u, "TiffData"))
     {
-        const char *const data_end = strchr(data, '>');
+        const char *const data_end = mmgr_text_char(data, '>', PLATFORM_TEXT_TO_TERMINATOR);
         if (data_end == NULL)
         {
             return tiff_fail(file, "OME-XML that ends inside a TiffData element");

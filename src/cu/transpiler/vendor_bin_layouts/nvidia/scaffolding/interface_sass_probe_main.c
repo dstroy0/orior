@@ -7,25 +7,33 @@
 // exit 0 where a form came back on every count, 1 where none did, 2 where the machine file was not read. Given
 // `queries` and a machine file, the questions are compiled and only the queries are put (sass_queries_main)
 #include "interface_sass_probe_main/probe_main_internal.h"
+#include "../../../../engine/engine_note.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     if (count < 3)
     {
-        fprintf(stderr,
-                "  interface_sass_probe: <interface_ptx_probe> <output folder> [<machines> | loop <machine file> "
-                "| queries <machine file>]\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  interface_sass_probe: <interface_ptx_probe> <output folder> "
+                                             "[<machines> | loop <machine file> | queries <machine file>]");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     SassProbe *const probe = &s_sass_probe;
     probe->folder = arguments[2];
     probe->prober = arguments[1];
     probe->machine = &s_sass_machine;
-    if ((count > 4) && (strcmp(arguments[3], "loop") == 0))
+    if ((count > 4) && (mmgr_text_equal(arguments[3], "loop", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         return sass_loop_main(probe, arguments[4]);
     }
-    if ((count > 4) && (strcmp(arguments[3], "queries") == 0))
+    if ((count > 4) && (mmgr_text_equal(arguments[3], "queries", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         return sass_queries_main(probe, arguments[4]);
     }
@@ -42,7 +50,12 @@ int main(int count, char **arguments)
     for (unsigned int number = 0u; number < probe->questions; number += 1u)
     {
         char name[32];
-        snprintf(name, sizeof(name), "form_%u", number);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(name, sizeof(name));
+            mmgr_line_put(&buffer_line, "form_");
+            mmgr_line_decimal(&buffer_line, number, 1u);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         if (!sass_list(probe, name, &s_sass_form))
         {
             probe->failed += 1u;
@@ -92,7 +105,7 @@ int main(int count, char **arguments)
     }
     // every instruction listed, assembled back from its text alone, then disassembled and same to that text
     SassCheck tally;
-    memset(&tally, 0, sizeof(tally));
+    mmgr_bytes_set(&tally, 0, sizeof(tally));
     unsigned int differed = 0u;
     if (sass_list(probe, "kernel", &s_sass_kernel))
     {
@@ -101,7 +114,12 @@ int main(int count, char **arguments)
     for (unsigned int number = 0u; number < probe->questions; number += 1u)
     {
         char name[32];
-        snprintf(name, sizeof(name), "form_%u", number);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(name, sizeof(name));
+            mmgr_line_put(&buffer_line, "form_");
+            mmgr_line_decimal(&buffer_line, number, 1u);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         if (sass_list(probe, name, &s_sass_form))
         {
             differed += sass_machine_check(&s_sass_machine, &s_sass_form, probe->architecture, probe->folder, &tally,
@@ -119,7 +137,7 @@ int main(int count, char **arguments)
     // learned with. Those are refused and never guessed at: the reader working. Counting them beside the
     // questions would read as a break where it is a frontier: they are counted and named on their own
     SassCheck reached;
-    memset(&reached, 0, sizeof(reached));
+    mmgr_bytes_set(&reached, 0, sizeof(reached));
     unsigned int resident_differed = 0u;
     if (sass_list(probe, "resident", &s_sass_resident))
     {
@@ -128,8 +146,7 @@ int main(int count, char **arguments)
     }
     printf("interface sass resident: %u written back, %u refused, %u the same bytes, %u read back as the same text, %u "
            "same to their bytes alone, %u the assembler does not reach yet\n",
-           reached.checked, reached.refused, reached.same_bits, reached.same_text, reached.by_bytes,
-           resident_differed);
+           reached.checked, reached.refused, reached.same_bits, reached.same_text, reached.by_bytes, resident_differed);
     // A lane of our own put into the resident's cubin: how a SASS program is built. The resident retains the
     // code the part's own compiler gave it and only cycle_lane is replaced: what is checked here is that
     // replacing one function of a cubin leaves the other as it was, byte for byte
@@ -143,7 +160,12 @@ int main(int count, char **arguments)
     for (unsigned int number = 0u; number < probe->questions; number += 1u)
     {
         char name[32];
-        snprintf(name, sizeof(name), "form_%u", number);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(name, sizeof(name));
+            mmgr_line_put(&buffer_line, "form_");
+            mmgr_line_decimal(&buffer_line, number, 1u);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         same += sass_cubin_same(probe, &s_sass_machine, name, &same_count) ? 1u : 0u;
         cubins += 1u;
     }

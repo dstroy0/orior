@@ -8,6 +8,7 @@
 // Exit 0 where both tables were written, 1 where the capture could not be read or a table could not be written, 2
 // where the capture contains no instruction archive that unpacks whole, 3 where it contains no copies of the latencies.
 #include "funnel.h"
+#include "../../../../engine/engine_note.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -59,18 +60,32 @@ static int tables_file_written(const char *path, const TablesText *text)
     return (fclose(file) == 0) && whole;
 }
 
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
     if (count != 4)
     {
-        fprintf(stderr, "orior_tables_funnel <capture> <instructions.txt> <latencies.txt>\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "orior_tables_funnel <capture> <instructions.txt> <latencies.txt>");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 1;
     }
     size_t size = 0u;
     unsigned char *const bytes = tables_file_read(words[1], &size);
     if (bytes == NULL)
     {
-        fprintf(stderr, "orior_tables_funnel: %s could not be read\n", words[1]);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "orior_tables_funnel: ");
+            mmgr_line_put(&engine_note.line, words[1]);
+            mmgr_line_put(&engine_note.line, " could not be read");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 1;
     }
     TablesText instructions = {NULL, 0u, 0u};
@@ -80,22 +95,49 @@ int main(int count, char **words)
     int code = 0;
     if (instructions.length == 0u)
     {
-        fprintf(stderr, "orior_tables_funnel: %s contains no instruction archive that unpacks whole\n", words[1]);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "orior_tables_funnel: ");
+            mmgr_line_put(&engine_note.line, words[1]);
+            mmgr_line_put(&engine_note.line, " contains no instruction archive that unpacks whole");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         code = 2;
     }
     else if (latencies.length == 0u)
     {
-        fprintf(stderr, "orior_tables_funnel: %s contains no copies of the latencies\n", words[1]);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "orior_tables_funnel: ");
+            mmgr_line_put(&engine_note.line, words[1]);
+            mmgr_line_put(&engine_note.line, " contains no copies of the latencies");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         code = 3;
     }
     else if (!tables_file_written(words[2], &instructions) || !tables_file_written(words[3], &latencies))
     {
-        fprintf(stderr, "orior_tables_funnel: %s or %s could not be written\n", words[2], words[3]);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "orior_tables_funnel: ");
+            mmgr_line_put(&engine_note.line, words[2]);
+            mmgr_line_put(&engine_note.line, " or ");
+            mmgr_line_put(&engine_note.line, words[3]);
+            mmgr_line_put(&engine_note.line, " could not be written");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         code = 1;
     }
     else
     {
-        printf("orior_tables_funnel: %zu bytes of instructions, %zu of latencies\n", instructions.length, latencies.length);
+        printf("orior_tables_funnel: %zu bytes of instructions, %zu of latencies\n", instructions.length,
+               latencies.length);
     }
     tables_text_freed(&instructions);
     tables_text_freed(&latencies);

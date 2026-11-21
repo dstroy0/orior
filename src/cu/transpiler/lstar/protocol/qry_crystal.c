@@ -14,6 +14,9 @@
 // The lifting runs on the device. Exit 0 where it was done and every sample matched, 1 where it was not, 2 where the
 // words are none of the above
 #include "../../../engine/engine.h"
+#include "../../../engine/engine_note.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,8 +40,21 @@
 
 static void qry_crystal_error_printed(const char *what, const EngineError *error)
 {
-    fprintf(stderr, "qry_crystal: %s (type %d, module %d, site %u, status %d)\n", what, (int)error->type,
-            (int)error->module, error->site, error->status);
+    EngineNote engine_note;
+    engine_note_begun(&engine_note);
+    mmgr_line_put(&engine_note.line, "qry_crystal: ");
+    mmgr_line_put(&engine_note.line, what);
+    mmgr_line_put(&engine_note.line, " (type ");
+    mmgr_line_decimal_signed(&engine_note.line, (int)error->type);
+    mmgr_line_put(&engine_note.line, ", module ");
+    mmgr_line_decimal_signed(&engine_note.line, (int)error->module);
+    mmgr_line_put(&engine_note.line, ", site ");
+    mmgr_line_decimal(&engine_note.line, error->site, 1u);
+    mmgr_line_put(&engine_note.line, ", status ");
+    mmgr_line_decimal_signed(&engine_note.line, error->status);
+    mmgr_line_put(&engine_note.line, ")");
+    mmgr_line_ch(&engine_note.line, '\n');
+    engine_note_written(&engine_note);
 }
 
 // `count` bytes at `bytes` written as an .npy of unsigned bytes along one axis, at `path`. 1, or 0 where it could not
@@ -46,7 +62,8 @@ static void qry_crystal_error_printed(const char *what, const EngineError *error
 static int qry_crystal_npy_written(const char *path, const unsigned char *bytes, unsigned long long count)
 {
     char header[160];
-    int length = snprintf(header, sizeof(header), "{'descr': '|u1', 'fortran_order': False, 'shape': (%llu,), }", count);
+    int length =
+        snprintf(header, sizeof(header), "{'descr': '|u1', 'fortran_order': False, 'shape': (%llu,), }", count);
     // the header is padded with spaces to a line ending that leaves the data on a 64 byte boundary, as the format
     // requires
     while (((10 + length + 1) % 64) != 0)
@@ -56,8 +73,8 @@ static int qry_crystal_npy_written(const char *path, const unsigned char *bytes,
     }
     header[length] = '\n';
     length += 1;
-    const unsigned char lead[10] = {0x93u, 'N', 'U', 'M', 'P', 'Y', 1u, 0u, (unsigned char)(length & 0xff),
-                                    (unsigned char)((length >> 8) & 0xff)};
+    const unsigned char lead[10] = {
+        0x93u, 'N', 'U', 'M', 'P', 'Y', 1u, 0u, (unsigned char)(length & 0xff), (unsigned char)((length >> 8) & 0xff)};
     FILE *const file = fopen(path, "wb");
     if (file == NULL)
     {
@@ -76,10 +93,26 @@ static int qry_crystal_written(const char *qry, const char *set)
     FILE *const file = fopen(qry, "rb");
     unsigned char *const bytes = (unsigned char *)malloc((size_t)QRY_CRYSTAL_PART);
     char source[1024];
-    snprintf(source, sizeof(source), "%s/%s", set, QRY_CRYSTAL_SOURCE);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(source, sizeof(source));
+        mmgr_line_put(&buffer_line, set);
+        mmgr_line_put(&buffer_line, "/");
+        mmgr_line_put(&buffer_line, QRY_CRYSTAL_SOURCE);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     if ((file == NULL) || (bytes == NULL) || !engine_directories_make(source, 1))
     {
-        fprintf(stderr, "qry_crystal: %s could not be read, or %s made\n", qry, source);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "qry_crystal: ");
+            mmgr_line_put(&engine_note.line, qry);
+            mmgr_line_put(&engine_note.line, " could not be read, or ");
+            mmgr_line_put(&engine_note.line, source);
+            mmgr_line_put(&engine_note.line, " made");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         free(bytes);
         if (file != NULL)
         {
@@ -101,11 +134,23 @@ static int qry_crystal_written(const char *qry, const char *set)
         {
             break;
         }
-        snprintf(s_names[parts], sizeof(s_names[parts]), "part%04u", parts);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(s_names[parts], sizeof(s_names[parts]));
+            mmgr_line_put(&buffer_line, "part");
+            mmgr_line_decimal(&buffer_line, parts, 4u);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         s_named[parts] = s_names[parts];
         s_sizes[parts] = (unsigned long long)read;
         char path[1200];
-        snprintf(path, sizeof(path), "%s/%s.npy", source, s_names[parts]);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+            mmgr_line_put(&buffer_line, source);
+            mmgr_line_put(&buffer_line, "/");
+            mmgr_line_put(&buffer_line, s_names[parts]);
+            mmgr_line_put(&buffer_line, ".npy");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         whole = qry_crystal_npy_written(path, bytes, (unsigned long long)read);
         total += (unsigned long long)read;
         parts += 1u;
@@ -114,17 +159,27 @@ static int qry_crystal_written(const char *qry, const char *set)
     fclose(file);
     if (!whole || !ended || (parts == 0u))
     {
-        fprintf(stderr, "qry_crystal: %s was not written whole as samples (%u parts)\n", qry, parts);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "qry_crystal: ");
+            mmgr_line_put(&engine_note.line, qry);
+            mmgr_line_put(&engine_note.line, " was not written whole as samples (");
+            mmgr_line_decimal(&engine_note.line, parts, 1u);
+            mmgr_line_put(&engine_note.line, " parts)");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         free(bytes);
         return 0;
     }
     // the samples lifted, coded and sealed on the device, each read back and checked against its source by the engine
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     static EngineSampleRecord s_records[QRY_CRYSTAL_PARTS];
-    memset(s_records, 0, sizeof(s_records));
+    mmgr_bytes_set(s_records, 0, sizeof(s_records));
     EngineSetReport report;
-    memset(&report, 0, sizeof(report));
+    mmgr_bytes_set(&report, 0, sizeof(report));
     report.samples = s_records;
     const EngineIngestRequest ingest = {source, set, s_named, parts, "x", 0u, &error, &report};
     whole = (engine_ingest_set(&ingest) != ENGINE_ERROR);
@@ -139,12 +194,12 @@ static int qry_crystal_written(const char *qry, const char *set)
     {
         const EngineSampleRecord *const record = &s_records[part];
         whole = (record->crystal_written != 0ULL) && (record->crystal_read != 0ULL) && (record->sealed != 0ULL) &&
-                (record->voxels_differ == 0ULL) && (record->pixels_differ == 0ULL) &&
-                (record->chunks_differ == 0ULL) && (record->roots_differ == 0ULL) && (record->extent_differ == 0ULL);
+                (record->voxels_differ == 0ULL) && (record->pixels_differ == 0ULL) && (record->chunks_differ == 0ULL) &&
+                (record->roots_differ == 0ULL) && (record->extent_differ == 0ULL);
         unsigned long long extent[4] = {0ULL, 0ULL, 0ULL, 0ULL};
         unsigned short *lanes = NULL;
         EngineSignum root;
-        memset(&error, 0, sizeof(error));
+        mmgr_bytes_set(&error, 0, sizeof(error));
         whole = whole && (again != NULL) &&
                 (engine_iapx_load(set, s_names[part], extent, &lanes, &root, NULL, &error) != ENGINE_ERROR) &&
                 ((extent[0] * extent[1] * extent[2] * extent[3]) == s_sizes[part]) &&
@@ -168,13 +223,32 @@ static int qry_crystal_written(const char *qry, const char *set)
     for (unsigned int part = 0u; part < parts; part += 1u)
     {
         char path[1200];
-        snprintf(path, sizeof(path), "%s/%s.npy", source, s_names[part]);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+            mmgr_line_put(&buffer_line, source);
+            mmgr_line_put(&buffer_line, "/");
+            mmgr_line_put(&buffer_line, s_names[part]);
+            mmgr_line_put(&buffer_line, ".npy");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         remove(path);
     }
     QRY_CRYSTAL_FOLDER_REMOVED(source);
     if (!whole || (differ != 0ULL))
     {
-        fprintf(stderr, "qry_crystal: %s did not match as the set %s: %llu bytes differ\n", qry, set, differ);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "qry_crystal: ");
+            mmgr_line_put(&engine_note.line, qry);
+            mmgr_line_put(&engine_note.line, " did not match as the set ");
+            mmgr_line_put(&engine_note.line, set);
+            mmgr_line_put(&engine_note.line, ": ");
+            mmgr_line_decimal(&engine_note.line, differ, 1u);
+            mmgr_line_put(&engine_note.line, " bytes differ");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 0;
     }
     printf("  qry_crystal: %s, %llu bytes in %u sample(s), stored as %llu bytes, every byte matched\n", qry, total,
@@ -187,7 +261,15 @@ static int qry_crystal_read(const char *set, const char *qry)
     FILE *const file = fopen(qry, "wb");
     if (file == NULL)
     {
-        fprintf(stderr, "qry_crystal: %s could not be written\n", qry);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "qry_crystal: ");
+            mmgr_line_put(&engine_note.line, qry);
+            mmgr_line_put(&engine_note.line, " could not be written");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 0;
     }
     int whole = 1;
@@ -198,7 +280,12 @@ static int qry_crystal_read(const char *set, const char *qry)
     {
         char name[16];
         char path[1200];
-        snprintf(name, sizeof(name), "part%04u", parts);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(name, sizeof(name));
+            mmgr_line_put(&buffer_line, "part");
+            mmgr_line_decimal(&buffer_line, parts, 4u);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         engine_sample_path(path, sizeof(path), set, name, ".kcr");
         FILE *const sample_file = fopen(path, "rb");
         if (sample_file == NULL)
@@ -210,7 +297,7 @@ static int qry_crystal_read(const char *set, const char *qry)
         unsigned short *lanes = NULL;
         EngineSignum root;
         EngineError error;
-        memset(&error, 0, sizeof(error));
+        mmgr_bytes_set(&error, 0, sizeof(error));
         whole = (engine_iapx_load(set, name, extent, &lanes, &root, NULL, &error) != ENGINE_ERROR);
         const unsigned long long count = extent[0] * extent[1] * extent[2] * extent[3];
         unsigned char *const larger = whole ? (unsigned char *)realloc(bytes, (size_t)count + 1u) : NULL;
@@ -233,7 +320,16 @@ static int qry_crystal_read(const char *set, const char *qry)
     whole = (fclose(file) == 0) && whole && (parts != 0u);
     if (!whole)
     {
-        fprintf(stderr, "qry_crystal: %s was not read whole out of %s\n", qry, set);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "qry_crystal: ");
+            mmgr_line_put(&engine_note.line, qry);
+            mmgr_line_put(&engine_note.line, " was not read whole out of ");
+            mmgr_line_put(&engine_note.line, set);
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         remove(qry);
         return 0;
     }
@@ -243,14 +339,20 @@ static int qry_crystal_read(const char *set, const char *qry)
 
 int main(int count, char **words)
 {
-    if ((count == 4) && (strcmp(words[1], "write") == 0))
+    if ((count == 4) && (mmgr_text_equal(words[1], "write", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         return qry_crystal_written(words[2], words[3]) ? 0 : 1;
     }
-    if ((count == 4) && (strcmp(words[1], "read") == 0))
+    if ((count == 4) && (mmgr_text_equal(words[1], "read", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         return qry_crystal_read(words[2], words[3]) ? 0 : 1;
     }
-    fprintf(stderr, "qry_crystal write <run .qry> <set folder> | read <set folder> <run .qry>\n");
+    {
+        EngineNote engine_note;
+        engine_note_begun(&engine_note);
+        mmgr_line_put(&engine_note.line, "qry_crystal write <run .qry> <set folder> | read <set folder> <run .qry>");
+        mmgr_line_ch(&engine_note.line, '\n');
+        engine_note_written(&engine_note);
+    }
     return 2;
 }

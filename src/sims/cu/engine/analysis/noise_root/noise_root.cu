@@ -6,6 +6,8 @@
 // names none; a planted term is the root or there is none, never another term; at the strongest each is the root; and
 // every yank returns the box exactly.
 #include "sim_camera.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
 
 #include "../../../../../cu/engine/analysis/compression/compression.h"
 #include "../../../../../cu/engine/analysis/noise_detector/noise_detector.h"
@@ -70,9 +72,9 @@ static long root_cost(const int *values, const unsigned long long extent[4], uns
     if (ok)
     {
         TowerLiftRequest lift;
-        memset(&lift, 0, sizeof(lift));
+        mmgr_bytes_set(&lift, 0, sizeof(lift));
         lift.device_values = device_values;
-        memcpy(lift.extent, extent, sizeof(lift.extent));
+        mmgr_bytes_copy(lift.extent, extent, sizeof(lift.extent));
         lift.coefficients = &coefficients;
         lift.scratch = &scratch;
         lift.floors = &floors;
@@ -85,7 +87,7 @@ static long root_cost(const int *values, const unsigned long long extent[4], uns
         const unsigned long long *offsets = NULL;
         const unsigned int *stream = NULL;
         CompressionEncodeRequest code;
-        memset(&code, 0, sizeof(code));
+        mmgr_bytes_set(&code, 0, sizeof(code));
         code.device_coefficients = coefficients;
         code.count = lanes;
         code.device_scratch = scratch;
@@ -102,7 +104,7 @@ static long root_cost(const int *values, const unsigned long long extent[4], uns
 
 static void root_camera(SimCamera *camera, unsigned int planted, unsigned long long square)
 {
-    memset(camera, 0, sizeof(*camera));
+    mmgr_bytes_set(camera, 0, sizeof(*camera));
     camera->key = ROOT_KEY;
     camera->offset = ROOT_OFFSET;
     camera->gain = 1ULL;
@@ -200,7 +202,8 @@ int program_main(int argc, char **argv)
         lane_bytes + (voxels * sizeof(int)) + tower_reserve_bytes(voxels) + compression_reserve_bytes(voxels);
     int ok = sim_job_submit(&results, "noise_root", 0, NULL, declared);
     unsigned short *const lanes = (unsigned short *)malloc((size_t)lane_bytes);
-    int *const values = (int *)malloc((size_t)voxels * sizeof(int));
+    int *const values = (int *)platform_cell_taken((unsigned long long)((size_t)voxels * sizeof(int)),
+                                                   (unsigned int)platform_place_g_program_owner, 0);
     int *const residual = (int *)malloc((size_t)voxels * sizeof(int));
     int *const pattern = (int *)malloc((size_t)voxels * sizeof(int));
     int *const returned = (int *)malloc((size_t)voxels * sizeof(int));
@@ -210,7 +213,7 @@ int program_main(int argc, char **argv)
     sim_check(&results, ok, "the scene's buffers");
 
     SimBody body;
-    memset(&body, 0, sizeof(body));
+    mmgr_bytes_set(&body, 0, sizeof(body));
     body.center[0] = 8LL;
     body.center[1] = 32LL;
     body.center[2] = 32LL;
@@ -221,7 +224,7 @@ int program_main(int argc, char **argv)
     body.ended = ROOT_FRAMES;
     body.parent = -1LL;
     SimScene scene;
-    memset(&scene, 0, sizeof(scene));
+    mmgr_bytes_set(&scene, 0, sizeof(scene));
     scene.frames = ROOT_FRAMES;
     scene.extent[0] = ROOT_DEPTH;
     scene.extent[1] = ROOT_HEIGHT;
@@ -231,15 +234,15 @@ int program_main(int argc, char **argv)
     scene.body = &body;
 
     mmgr_line_put(line,
-                   "  the root noise of an object's box: 16 frames x z 2 to 13 x y 16 to 47 x x 16 to 47 around one"
-                   " located body of 300 e, over 100 e at offset 300, read variance 4, a Poisson shot\n");
+                  "  the root noise of an object's box: 16 frames x z 2 to 13 x y 16 to 47 x x 16 to 47 around one"
+                  " located body of 300 e, over 100 e at offset 300, read variance 4, a Poisson shot\n");
     mmgr_line_put(line,
-                   "  each term planted alone at variances 64, 256 and 1024, against a background voxel's independent"
-                   " 104 and a body voxel's 404; a term's saving is the box's coded bits less its residual's and"
-                   " its pattern's, through the tower and compression's coder\n");
+                  "  each term planted alone at variances 64, 256 and 1024, against a background voxel's independent"
+                  " 104 and a body voxel's 404; a term's saving is the box's coded bits less its residual's and"
+                  " its pattern's, through the tower and compression's coder\n");
     mmgr_line_put(line,
-                   "  planted  variance    box bits      rows   columns    planes    pixels    stacks  root     per"
-                   " mille  return\n");
+                  "  planted  variance    box bits      rows   columns    planes    pixels    stacks  root     per"
+                  " mille  return\n");
     sim_flush(&results);
     for (unsigned int run = 0u; ok && (run < ROOT_RUNS); run += 1u)
     {
@@ -263,15 +266,15 @@ int program_main(int argc, char **argv)
         }
         root_box_take(lanes, values);
         EngineError error;
-        memset(&error, 0, sizeof(error));
+        mmgr_bytes_set(&error, 0, sizeof(error));
         NoiseRootMeasurement measurement;
-        memset(&measurement, 0, sizeof(measurement));
+        mmgr_bytes_set(&measurement, 0, sizeof(measurement));
         NoiseRootRequest request;
-        memset(&request, 0, sizeof(request));
+        mmgr_bytes_set(&request, 0, sizeof(request));
         request.volume = lanes;
-        memcpy(request.extent, ROOT_EXTENT, sizeof(request.extent));
-        memcpy(request.low, ROOT_LOW, sizeof(request.low));
-        memcpy(request.high, ROOT_HIGH, sizeof(request.high));
+        mmgr_bytes_copy(request.extent, ROOT_EXTENT, sizeof(request.extent));
+        mmgr_bytes_copy(request.low, ROOT_LOW, sizeof(request.low));
+        mmgr_bytes_copy(request.high, ROOT_HIGH, sizeof(request.high));
         request.cost = root_cost;
         request.measurement = &measurement;
         request.residual = residual;
@@ -287,18 +290,19 @@ int program_main(int argc, char **argv)
         if (measurement.root < NOISE_ROOT_TERMS)
         {
             NoiseReturnRequest back;
-            memset(&back, 0, sizeof(back));
+            mmgr_bytes_set(&back, 0, sizeof(back));
             back.residual = residual;
             back.pattern = pattern;
             back.term = measurement.root;
-            memcpy(back.box, box, sizeof(back.box));
+            mmgr_bytes_copy(back.box, box, sizeof(back.box));
             back.values = returned;
             back.error = &error;
-            exact = (noise_root_return(&back) == 0L) && (memcmp(returned, values, (size_t)voxels * sizeof(int)) == 0);
+            exact = (noise_root_return(&back) == 0L) &&
+                    (mmgr_bytes_compare(returned, values, (size_t)voxels * sizeof(int)) == 0);
         }
         else
         {
-            exact = memcmp(residual, values, (size_t)voxels * sizeof(int)) == 0;
+            exact = mmgr_bytes_compare(residual, values, (size_t)voxels * sizeof(int)) == 0;
         }
         mmgr_line_put(line, "  ");
         mmgr_line_put_columns(line, ROOT_NAMES[planted], 7u);
@@ -338,7 +342,7 @@ int program_main(int argc, char **argv)
     }
     cudaFree(device_lanes);
     free(lanes);
-    free(values);
+    platform_cell_released(values, (unsigned int)platform_place_g_program_owner);
     free(residual);
     free(pattern);
     free(returned);

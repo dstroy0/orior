@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // ka_psi_sprecher.cu: Sprecher's construction and the scales
 #include "ka_psi_internal.h"
+#include "../../../../../platform/platform.h"
 
 void psi_digits(unsigned long long index, unsigned long long base, unsigned int levels, unsigned char *digit)
 {
@@ -175,13 +176,17 @@ void psi_exhaustive(SimResults *results, const PsiCase *psi_case, const PsiScale
     {
         max *= base;
     }
-    OriorExactInteger *below = (OriorExactInteger *)malloc((size_t)(max + 1ULL) * sizeof(OriorExactInteger));
-    OriorExactInteger *table = (OriorExactInteger *)malloc((size_t)(max + 1ULL) * sizeof(OriorExactInteger));
+    OriorExactInteger *below =
+        (OriorExactInteger *)platform_cell_taken((unsigned long long)((size_t)(max + 1ULL) * sizeof(OriorExactInteger)),
+                                                 (unsigned int)platform_place_g_program_owner, 0);
+    OriorExactInteger *table =
+        (OriorExactInteger *)platform_cell_taken((unsigned long long)((size_t)(max + 1ULL) * sizeof(OriorExactInteger)),
+                                                 (unsigned int)platform_place_g_program_owner, 0);
     if ((below == NULL) || (table == NULL))
     {
         sim_check(results, 0, "the level tables were allocated");
-        free(below);
-        free(table);
+        platform_cell_released(below, (unsigned int)platform_place_g_program_owner);
+        platform_cell_released(table, (unsigned int)platform_place_g_program_owner);
         return;
     }
     for (unsigned long long index = 0ULL; index <= base; index += 1ULL)
@@ -257,8 +262,8 @@ void psi_exhaustive(SimResults *results, const PsiCase *psi_case, const PsiScale
         mmgr_line_put(line, widest_predicted ? "                      yes\n" : "                       NO\n");
     }
     sim_flush(results);
-    free(below);
-    free(table);
+    platform_cell_released(below, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(table, (unsigned int)platform_place_g_program_owner);
 }
 
 void psi_pair_symbolic(const PsiCase *psi_case, const unsigned char *digit, unsigned int levels,

@@ -29,6 +29,7 @@ extern "C"
 #include "../../../../../../includes/file_defs/krs/ruleset_flat.h"
 #include "sass_target.h"
 #include "target.h"
+#include "../../../../../platform/platform.h"
 
 #include <cstdio>
 #include <cstring>
@@ -194,8 +195,7 @@ enum KrsOutcome
 static unsigned int krs_form_assembles(const Ruleset *rules, const SassMachine *machine, const KrsForm &form,
                                        const std::string &labels, std::string *wrote, std::string *types)
 {
-    const int wide = (form.name.find("wide") != std::string::npos) ||
-                     (form.name.find("member") != std::string::npos);
+    const int wide = (form.name.find("wide") != std::string::npos) || (form.name.find("member") != std::string::npos);
     const unsigned int parameters = (unsigned int)form.parameters.size();
     unsigned int assignments = 1u;
     for (unsigned int at = 0u; (at < parameters) && (at < KRS_PARAMETERS_SEARCHED); at += 1u)
@@ -238,7 +238,7 @@ static unsigned int krs_form_assembles(const Ruleset *rules, const SassMachine *
     return outcome;
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     const char *const ruleset = (count > 1) ? arguments[1] : "src/cu/transpiler/lstar/protocol/table/sass.krs";
     const char *const path = (count > 2) ? arguments[2] : "src/cu/transpiler/lstar/protocol/table/sm_86.khw";

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // deflate_tokens.c: matching, tokens and Huffman code lengths
 #include "deflate_internal.h"
+#include "../../../src/platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
 
 unsigned int deflate_length_code(unsigned int length)
 {
@@ -142,7 +144,7 @@ static unsigned int deflate_count_leaves(const DeflateNode *nodes, unsigned int 
 
 int deflate_lengths(const unsigned long long *frequency, unsigned int count, unsigned int limit, unsigned char *lengths)
 {
-    memset(lengths, 0, count);
+    mmgr_bytes_set(lengths, 0, count);
     unsigned int used = 0u;
     unsigned int only = 0u;
     for (unsigned int symbol = 0u; symbol < count; symbol += 1u)
@@ -157,16 +159,20 @@ int deflate_lengths(const unsigned long long *frequency, unsigned int count, uns
         return 1;
     }
     const unsigned int capacity = limit * 2u * used;
-    DeflateNode *const nodes = (DeflateNode *)malloc(sizeof(DeflateNode) * capacity);
-    unsigned int *const leaves = (unsigned int *)malloc(sizeof(unsigned int) * used);
-    unsigned int *const list = (unsigned int *)malloc(sizeof(unsigned int) * 2u * used);
-    unsigned int *const next = (unsigned int *)malloc(sizeof(unsigned int) * 2u * used);
+    DeflateNode *const nodes = (DeflateNode *)platform_cell_taken((unsigned long long)(sizeof(DeflateNode) * capacity),
+                                                                  (unsigned int)platform_place_g_program_owner, 0);
+    unsigned int *const leaves = (unsigned int *)platform_cell_taken((unsigned long long)(sizeof(unsigned int) * used),
+                                                                     (unsigned int)platform_place_g_program_owner, 0);
+    unsigned int *const list = (unsigned int *)platform_cell_taken(
+        (unsigned long long)(sizeof(unsigned int) * 2u * used), (unsigned int)platform_place_g_program_owner, 0);
+    unsigned int *const next = (unsigned int *)platform_cell_taken(
+        (unsigned long long)(sizeof(unsigned int) * 2u * used), (unsigned int)platform_place_g_program_owner, 0);
     if ((nodes == NULL) || (leaves == NULL) || (list == NULL) || (next == NULL))
     {
-        free(nodes);
-        free(leaves);
-        free(list);
-        free(next);
+        platform_cell_released(nodes, (unsigned int)platform_place_g_program_owner);
+        platform_cell_released(leaves, (unsigned int)platform_place_g_program_owner);
+        platform_cell_released(list, (unsigned int)platform_place_g_program_owner);
+        platform_cell_released(next, (unsigned int)platform_place_g_program_owner);
         return 0;
     }
     unsigned int made = 0u;
@@ -190,7 +196,7 @@ int deflate_lengths(const unsigned long long *frequency, unsigned int count, uns
         made += 1u;
     }
     unsigned int listed = used;
-    memcpy(list, leaves, sizeof(unsigned int) * used);
+    mmgr_bytes_copy(list, leaves, sizeof(unsigned int) * used);
     for (unsigned int level = 1u; level < limit; level += 1u)
     {
         const unsigned int packages = listed / 2u;
@@ -216,16 +222,16 @@ int deflate_lengths(const unsigned long long *frequency, unsigned int count, uns
             package_at += take_leaf ? 0u : 1u;
             listed += 1u;
         }
-        memcpy(list, next, sizeof(unsigned int) * listed);
+        mmgr_bytes_copy(list, next, sizeof(unsigned int) * listed);
     }
     for (unsigned int item = 0u; item < ((2u * used) - 2u); item += 1u)
     {
         deflate_count_leaves(nodes, list[item], lengths);
     }
-    free(nodes);
-    free(leaves);
-    free(list);
-    free(next);
+    platform_cell_released(nodes, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(leaves, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(list, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(next, (unsigned int)platform_place_g_program_owner);
     return 1;
 }
 
@@ -233,7 +239,7 @@ void deflate_codes(const unsigned char *lengths, unsigned int count, unsigned in
 {
     unsigned int per_length[DEFLATE_CODE_BITS + 1u];
     unsigned int next_code[DEFLATE_CODE_BITS + 1u];
-    memset(per_length, 0, sizeof(per_length));
+    mmgr_bytes_set(per_length, 0, sizeof(per_length));
     for (unsigned int symbol = 0u; symbol < count; symbol += 1u)
     {
         per_length[lengths[symbol]] += 1u;

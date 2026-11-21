@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_floor_fit.cu: fits, bins, spreads and main
 #include "noise_floor_internal.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
 
 // the line over the level through the noise detector's fit (build plan item 38), each level a place and its squares a
 // total, at scale 1 on both
 static int floor_fit(const unsigned long long *count, const unsigned long long *total, FloorLine *fit)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     NoiseLineSums sums;
     noise_line_sums_zero(&sums);
     fit->samples = 0ULL;
@@ -205,10 +207,16 @@ static void floor_transfer(SimResults *results, const SimScene *scene, const Sim
         ok = sim_status_check(results, cudaGetLastError(), "transfer: launch");
         ok = ok && sim_status_check(results, cudaDeviceSynchronize(), "transfer: run");
     }
-    unsigned long long *const count = (unsigned long long *)malloc(FLOOR_LEVELS * sizeof(unsigned long long));
-    unsigned long long *const total = (unsigned long long *)malloc(FLOOR_LEVELS * sizeof(unsigned long long));
+    unsigned long long *const count =
+        (unsigned long long *)platform_cell_taken((unsigned long long)(FLOOR_LEVELS * sizeof(unsigned long long)),
+                                                  (unsigned int)platform_place_g_program_owner, 0);
+    unsigned long long *const total =
+        (unsigned long long *)platform_cell_taken((unsigned long long)(FLOOR_LEVELS * sizeof(unsigned long long)),
+                                                  (unsigned int)platform_place_g_program_owner, 0);
     // the truth route's counts, retained for its spreads after the other routes reuse count
-    unsigned long long *const truth_count = (unsigned long long *)malloc(FLOOR_LEVELS * sizeof(unsigned long long));
+    unsigned long long *const truth_count =
+        (unsigned long long *)platform_cell_taken((unsigned long long)(FLOOR_LEVELS * sizeof(unsigned long long)),
+                                                  (unsigned int)platform_place_g_program_owner, 0);
     ok = ok && (count != NULL) && (total != NULL) && (truth_count != NULL);
     FloorLine fit[FLOOR_ROUTES];
     for (unsigned int route = 0u; ok && (route < FLOOR_ROUTES); route += 1u)
@@ -216,7 +224,7 @@ static void floor_transfer(SimResults *results, const SimScene *scene, const Sim
         ok = floor_bins_fit(results, &bins[route], count, total, &fit[route]);
         if (ok && (route == 0u))
         {
-            memcpy(truth_count, count, FLOOR_LEVELS * sizeof(unsigned long long));
+            mmgr_bytes_copy(truth_count, count, FLOOR_LEVELS * sizeof(unsigned long long));
         }
     }
     FloorCoherence coherence;
@@ -311,9 +319,9 @@ static void floor_transfer(SimResults *results, const SimScene *scene, const Sim
         ok = ok && sim_exact_product(&left, &term, &left) && (orior_exact_compare(&left, &right) <= 0);
         sim_check(results, ok, "static pairs' neighbor correlation lies within 5 / sqrt(N) of 0, about 4.1 sigma");
     }
-    free(truth_count);
-    free(total);
-    free(count);
+    platform_cell_released(truth_count, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(total, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(count, (unsigned int)platform_place_g_program_owner);
     cudaFree(device_coherence);
     for (unsigned int route = 0u; route < FLOOR_ROUTES; route += 1u)
     {
@@ -330,9 +338,12 @@ int program_main(int argc, char **argv)
     sim_open(&results, line_buffer);
     mmgr_line_put(&results.line, "  the noise floor, measured on the camera law with the answer known\n");
 
-    FloorStream *const streams = (FloorStream *)malloc(FLOOR_STREAMS * sizeof(FloorStream));
-    unsigned int *const lengths = (unsigned int *)malloc(FLOOR_STREAMS * sizeof(unsigned int));
-    unsigned int *const regenerated = (unsigned int *)malloc(FLOOR_STREAMS * sizeof(unsigned int));
+    FloorStream *const streams = (FloorStream *)platform_cell_taken(
+        (unsigned long long)(FLOOR_STREAMS * sizeof(FloorStream)), (unsigned int)platform_place_g_program_owner, 0);
+    unsigned int *const lengths = (unsigned int *)platform_cell_taken(
+        (unsigned long long)(FLOOR_STREAMS * sizeof(unsigned int)), (unsigned int)platform_place_g_program_owner, 0);
+    unsigned int *const regenerated = (unsigned int *)platform_cell_taken(
+        (unsigned long long)(FLOOR_STREAMS * sizeof(unsigned int)), (unsigned int)platform_place_g_program_owner, 0);
     int ok = (streams != NULL) && (lengths != NULL) && (regenerated != NULL);
     sim_check(&results, ok, "stream buffers");
     // the streams on the device, and the camera-law scene below: 24 frames of 20 x 96 x 96 lanes
@@ -347,9 +358,9 @@ int program_main(int argc, char **argv)
     sim_flush(&results);
 
     SimBody body[FLOOR_FOUNDERS];
-    memset(body, 0, sizeof(body));
+    mmgr_bytes_set(body, 0, sizeof(body));
     SimScene scene;
-    memset(&scene, 0, sizeof(scene));
+    mmgr_bytes_set(&scene, 0, sizeof(scene));
     scene.frames = 24ULL;
     scene.extent[0] = 20ULL;
     scene.extent[1] = 96ULL;
@@ -363,7 +374,7 @@ int program_main(int argc, char **argv)
     draws.counter = 0ULL;
     sim_founders_draw(&draws, &scene, body, FLOOR_FOUNDERS);
     SimCamera camera;
-    memset(&camera, 0, sizeof(camera));
+    mmgr_bytes_set(&camera, 0, sizeof(camera));
     camera.key = FLOOR_KEY;
     camera.offset = 100ULL;
     camera.gain = 1ULL;
@@ -372,7 +383,9 @@ int program_main(int argc, char **argv)
     camera.shot = 1ULL;
 
     const unsigned long long lanes_count = scene.frames * sim_scene_voxels(&scene);
-    unsigned short *const lanes = (unsigned short *)malloc((size_t)lanes_count * sizeof(unsigned short));
+    unsigned short *const lanes =
+        (unsigned short *)platform_cell_taken((unsigned long long)((size_t)lanes_count * sizeof(unsigned short)),
+                                              (unsigned int)platform_place_g_program_owner, 0);
     unsigned short *device_lanes = NULL;
     unsigned int *device_signal = NULL;
     unsigned long long clipped = 0ULL;
@@ -396,9 +409,9 @@ int program_main(int argc, char **argv)
 
     cudaFree(device_signal);
     cudaFree(device_lanes);
-    free(lanes);
-    free(regenerated);
-    free(lengths);
-    free(streams);
+    platform_cell_released(lanes, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(regenerated, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(lengths, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(streams, (unsigned int)platform_place_g_program_owner);
     return sim_close(&results, "noise floor");
 }

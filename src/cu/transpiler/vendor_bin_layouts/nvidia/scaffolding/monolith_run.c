@@ -11,6 +11,7 @@
 //
 //     monolith_run <cubin> [runs] [turns] [cost runs]
 #include "../../../../engine/rmc/precept_value.h"
+#include "../../../../engine/engine_note.h"
 #include "../monolith.h"
 
 #include <cuda.h>
@@ -79,7 +80,8 @@ static unsigned int monolith_expected(unsigned int precept, unsigned int left, u
 }
 
 // `word` put through `steps` steps of `precept` with `right` the right word, on the host
-static unsigned int monolith_chain(unsigned int precept, unsigned int word, unsigned int right, unsigned long long steps)
+static unsigned int monolith_chain(unsigned int precept, unsigned int word, unsigned int right,
+                                   unsigned long long steps)
 {
     unsigned int current = word;
     for (unsigned long long step = 0ULL; step < steps; step += 1ULL)
@@ -101,8 +103,8 @@ static int monolith_answers(CUfunction entry, CUdeviceptr in, CUdeviceptr out, u
 {
     // small words, a shift of nothing, of one, of the width less one and of past the width, and the sign's end
     static const unsigned int cases[][2] = {
-        {1u, 1u}, {0u, 0u}, {3u, 5u}, {0xdeadbeefu, 0u}, {0xdeadbeefu, 1u}, {0xdeadbeefu, 31u},
-        {0xdeadbeefu, 33u}, {0x80000000u, 4u}, {0x7fffffffu, 1u}, {0xffffffffu, 0x12345678u},
+        {1u, 1u},           {0u, 0u},           {3u, 5u},          {0xdeadbeefu, 0u}, {0xdeadbeefu, 1u},
+        {0xdeadbeefu, 31u}, {0xdeadbeefu, 33u}, {0x80000000u, 4u}, {0x7fffffffu, 1u}, {0xffffffffu, 0x12345678u},
     };
     const unsigned int case_count = (unsigned int)(sizeof(cases) / sizeof(cases[0]));
     unsigned long long least = ~0ULL;
@@ -114,13 +116,19 @@ static int monolith_answers(CUfunction entry, CUdeviceptr in, CUdeviceptr out, u
         for (unsigned int run = 0u; run < runs; run += 1u)
         {
             void *arguments[2] = {&in, &out};
-            const int ran = (cuMemcpyHtoD(in, given, sizeof(given)) == CUDA_SUCCESS) &&
-                            (cuLaunchKernel(entry, 1u, 1u, 1u, 1u, 1u, 1u, 0u, NULL, arguments, NULL) == CUDA_SUCCESS) &&
-                            (cuCtxSynchronize() == CUDA_SUCCESS) &&
-                            (cuMemcpyDtoH(answered, out, sizeof(answered)) == CUDA_SUCCESS);
+            const int ran =
+                (cuMemcpyHtoD(in, given, sizeof(given)) == CUDA_SUCCESS) &&
+                (cuLaunchKernel(entry, 1u, 1u, 1u, 1u, 1u, 1u, 0u, NULL, arguments, NULL) == CUDA_SUCCESS) &&
+                (cuCtxSynchronize() == CUDA_SUCCESS) && (cuMemcpyDtoH(answered, out, sizeof(answered)) == CUDA_SUCCESS);
             if (ran == 0)
             {
-                fprintf(stderr, "  monolith: a run of the answers did not complete on the part\n");
+                {
+                    EngineNote engine_note;
+                    engine_note_begun(&engine_note);
+                    mmgr_line_put(&engine_note.line, "  monolith: a run of the answers did not complete on the part");
+                    mmgr_line_ch(&engine_note.line, '\n');
+                    engine_note_written(&engine_note);
+                }
                 return 0;
             }
             const unsigned long long spent =
@@ -148,7 +156,13 @@ static int monolith_costs(CUfunction entry, unsigned int turns, unsigned int cos
     if ((cuMemAlloc(&cycles, MONOLITH_SECTIONS * sizeof(unsigned long long)) != CUDA_SUCCESS) ||
         (cuMemAlloc(&sink, MONOLITH_SECTIONS * sizeof(unsigned int)) != CUDA_SUCCESS))
     {
-        fprintf(stderr, "  monolith: the costs' words were not allocated on the part\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  monolith: the costs' words were not allocated on the part");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 0;
     }
     // each section's counts over the runs: their sum, the least and the max
@@ -173,7 +187,13 @@ static int monolith_costs(CUfunction entry, unsigned int turns, unsigned int cos
                         (cuMemcpyDtoH(last, sink, sizeof(last)) == CUDA_SUCCESS);
         if (ran == 0)
         {
-            fprintf(stderr, "  monolith: a run of the costs did not complete on the part\n");
+            {
+                EngineNote engine_note;
+                engine_note_begun(&engine_note);
+                mmgr_line_put(&engine_note.line, "  monolith: a run of the costs did not complete on the part");
+                mmgr_line_ch(&engine_note.line, '\n');
+                engine_note_written(&engine_note);
+            }
             return 0;
         }
         for (unsigned int section = 0u; section < MONOLITH_SECTIONS; section += 1u)
@@ -303,18 +323,25 @@ static int monolith_costs(CUfunction entry, unsigned int turns, unsigned int cos
         }
         printf("\n");
     }
-    printf("  of the pairs whose precepts each cost a cycle a step or more: %u run side by side, %u one after the other, "
-           "%u between\n",
-           side_by_side, one_after, between);
+    printf(
+        "  of the pairs whose precepts each cost a cycle a step or more: %u run side by side, %u one after the other, "
+        "%u between\n",
+        side_by_side, one_after, between);
     printf("  s interleaved, the largest spread of the pairs: %.4f\n", spread_pairs);
     return 1;
 }
 
-int main(int count_of_words, char **words)
+int program_main(int count_of_words, char **words)
 {
     if ((count_of_words < 2) || (count_of_words > 5))
     {
-        fprintf(stderr, "monolith_run <cubin> [runs] [turns] [cost runs]\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "monolith_run <cubin> [runs] [turns] [cost runs]");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     const unsigned int runs = monolith_count_given(count_of_words, words, 2, 64L);
@@ -330,14 +357,23 @@ int main(int count_of_words, char **words)
     CUdeviceptr out = 0u;
     const int opened = (image != NULL) && (cuInit(0u) == CUDA_SUCCESS) && (cuDeviceGet(&device, 0) == CUDA_SUCCESS) &&
                        (cuDevicePrimaryCtxRetain(&context, device) == CUDA_SUCCESS) &&
-                       (cuCtxSetCurrent(context) == CUDA_SUCCESS) && (cuModuleLoadData(&module, image) == CUDA_SUCCESS) &&
+                       (cuCtxSetCurrent(context) == CUDA_SUCCESS) &&
+                       (cuModuleLoadData(&module, image) == CUDA_SUCCESS) &&
                        (cuModuleGetFunction(&answers, module, "monolith") == CUDA_SUCCESS) &&
                        (cuModuleGetFunction(&costs, module, "monolith_cost") == CUDA_SUCCESS) &&
                        (cuMemAlloc(&in, MONOLITH_IN_WORDS * sizeof(unsigned int)) == CUDA_SUCCESS) &&
                        (cuMemAlloc(&out, MONOLITH_OUT_WORDS * sizeof(unsigned int)) == CUDA_SUCCESS);
     if (opened == 0)
     {
-        fprintf(stderr, "  monolith: the cubin %s was not loaded on the part\n", words[1]);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  monolith: the cubin ");
+            mmgr_line_put(&engine_note.line, words[1]);
+            mmgr_line_put(&engine_note.line, " was not loaded on the part");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 1;
     }
     const int answered = monolith_answers(answers, in, out, runs, words[1]);

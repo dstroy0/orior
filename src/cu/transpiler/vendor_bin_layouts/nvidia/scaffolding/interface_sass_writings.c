@@ -23,40 +23,53 @@
 // the first writing found for its precept, into <folder>/chains, and the fourth reads the chains' answers back against
 // the relation each is a row of.
 #include "interface_sass_writings/writings_internal.h"
+#include "../../../../engine/engine_note.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../engine/rmc/precept_value.h"
 
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
-    if ((count == 5) && (strcmp(words[1], "krs-read") == 0))
+    if ((count == 5) && (mmgr_text_equal(words[1], "krs-read", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         return writings_krs_read(words[2], words[3], words[4]);
     }
-    if (((count == 7) || (count == 8)) && (strcmp(words[1], "chains") == 0))
+    if (((count == 7) || (count == 8)) && (mmgr_text_equal(words[1], "chains", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         char into[1024];
-        snprintf(into, sizeof(into), "%s/chains", words[5]);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(into, sizeof(into));
+            mmgr_line_put(&buffer_line, words[5]);
+            mmgr_line_put(&buffer_line, "/chains");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         return writings_chains_write(words[2], words[3], words[4], words[5], words[6], (count == 8) ? words[7] : into);
     }
-    if ((count >= 5) && ((count % 2) == 1) && (strcmp(words[1], "descent-read") == 0))
+    if ((count >= 5) && ((count % 2) == 1) && (mmgr_text_equal(words[1], "descent-read", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         return writings_descent_read(words[2], (unsigned int)(count - 3) / 2u, &words[3]);
     }
-    if ((count == 4) && (strcmp(words[1], "chains-read") == 0))
+    if ((count == 4) && (mmgr_text_equal(words[1], "chains-read", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         return writings_chains_read(words[2], words[3]);
     }
-    if ((count == 4) && (strcmp(words[1], "read") == 0))
+    if ((count == 4) && (mmgr_text_equal(words[1], "read", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         return writings_read(words[2], words[3]);
     }
     if (count != 5)
     {
-        fprintf(stderr, "interface_sass_writings <pattern cubin> <kernel text> <machine file> <folder>\n"
-                        "interface_sass_writings read <folder> <record>\n"
-                        "interface_sass_writings chains <pattern cubin> <kernel text> <machine file> <folder> <kdm> "
-                        "[<into>]\n"
-                        "interface_sass_writings chains-read <folder> <record>\n"
-                        "interface_sass_writings descent-read <record> <into> <cases> [<into> <cases>...]\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(
+                &engine_note.line,
+                "interface_sass_writings <pattern cubin> <kernel text> <machine file> "
+                "<folder>\ninterface_sass_writings read <folder> <record>\ninterface_sass_writings chains <pattern "
+                "cubin> <kernel text> <machine file> <folder> <kdm> [<into>]\ninterface_sass_writings chains-read "
+                "<folder> <record>\ninterface_sass_writings descent-read <record> <into> <cases> [<into> <cases>...]");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     return writings_write(words[1], words[2], words[3], words[4]);

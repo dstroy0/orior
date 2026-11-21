@@ -15,6 +15,9 @@
 //
 //     orior_measuring_stick_read <nvcc listing> <manifest> <sass.krs> <record> [<engine.tsv> <engine directory>]
 #include "measuring_stick_read/stick_internal.h"
+#include "../../../engine/engine_note.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "verba_scribo/verba_scribo.h"
 
 // the record, written into s_record_bytes and passed whole to the run's writer, `s_record_at` bytes so far, the room
@@ -44,11 +47,12 @@ typedef struct
     char *function;
 } StickManifest;
 
-int main(int argc, char **argv)
+int program_main(int argc, char **argv)
 {
     if ((argc != 5) && (argc != 7))
     {
-        fputs("orior_measuring_stick_read <nvcc listing> <manifest> <sass.krs> <record> [<engine.tsv> <engine directory>]\n",
+        fputs("orior_measuring_stick_read <nvcc listing> <manifest> <sass.krs> <record> [<engine.tsv> <engine "
+              "directory>]\n",
               stderr);
         return 2;
     }
@@ -64,18 +68,23 @@ int main(int argc, char **argv)
     {
         char *cell[3] = {NULL, NULL, NULL};
         const unsigned int cells = stick_cells(s_file.line[line], cell, 3u);
-        if ((cells == 3u) && (strcmp(cell[0], "number") != 0))
+        if ((cells == 3u) && (!mmgr_text_equal(cell[0], "number", PLATFORM_TEXT_TO_TERMINATOR)))
         {
             char name[256];
-            snprintf(name, sizeof(name), "%s%s", s_prefix, cell[0]);
+            {
+                VerbaLinea buffer_line = mmgr_line_over(name, sizeof(name));
+                mmgr_line_put(&buffer_line, s_prefix);
+                mmgr_line_put(&buffer_line, cell[0]);
+                (void)mmgr_line_finish(&buffer_line);
+            }
             unsigned int at = 0u;
-            while ((at < manifests) && (strcmp(manifest[at].name, name) != 0))
+            while ((at < manifests) && (!mmgr_text_equal(manifest[at].name, name, PLATFORM_TEXT_TO_TERMINATOR)))
             {
                 at += 1u;
             }
             if (at == manifests)
             {
-                manifest[at].name = stick_copy(name, strlen(name));
+                manifest[at].name = stick_copy(name, mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR));
                 manifests += 1u;
             }
             free(manifest[at].category);
@@ -101,7 +110,7 @@ int main(int argc, char **argv)
     {
         for (unsigned int one = 0u; one < manifests; one += 1u)
         {
-            if (strcmp(manifest[one].name, s_kernel[at].name) == 0)
+            if (mmgr_text_equal(manifest[one].name, s_kernel[at].name, PLATFORM_TEXT_TO_TERMINATOR))
             {
                 stick[sticks] = s_kernel[at];
                 stick[sticks].category = manifest[one].category;
@@ -122,7 +131,7 @@ int main(int argc, char **argv)
     if (operations_room < s_names)
     {
         operations = (unsigned char *)stick_allocated(realloc(operations, s_names + 1u));
-        memset(&operations[operations_room], 0, (s_names + 1u) - operations_room);
+        mmgr_bytes_set(&operations[operations_room], 0, (s_names + 1u) - operations_room);
         operations_room = s_names + 1u;
     }
 
@@ -141,7 +150,7 @@ int main(int argc, char **argv)
     for (unsigned int at = 0u; at < sticks; at += 1u)
     {
         unsigned int one = 0u;
-        while ((one < categories) && (strcmp(category[one], stick[at].category) != 0))
+        while ((one < categories) && (!mmgr_text_equal(category[one], stick[at].category, PLATFORM_TEXT_TO_TERMINATOR)))
         {
             one += 1u;
         }
@@ -198,7 +207,7 @@ int main(int argc, char **argv)
         for (unsigned int at = 0u; at < sticks; at += 1u)
         {
             const StickEngine *const entry = stick_engine_of(stick[at].name);
-            if ((entry == NULL) || (strcmp(entry->answer, "answered") != 0))
+            if ((entry == NULL) || (!mmgr_text_equal(entry->answer, "answered", PLATFORM_TEXT_TO_TERMINATOR)))
             {
                 continue;
             }
@@ -208,7 +217,7 @@ int main(int argc, char **argv)
             text += entry->text;
             stick_counted(&entry->operations, count);
             stick_counted(&stick[at].operations, other);
-            parity += (memcmp(count, other, s_names * sizeof(unsigned int)) == 0) ? 1u : 0u;
+            parity += (mmgr_bytes_compare(count, other, s_names * sizeof(unsigned int)) == 0) ? 1u : 0u;
         }
         record_text("- kernels the engine answers: ");
         record_number(answered);
@@ -224,14 +233,16 @@ int main(int argc, char **argv)
         record_number(agree);
         record_text(" of them the operation the text wrote\n\n");
         // a table is written with its rows, and a table with none is one line stating so
-        record_text("## The engine against nvcc\n\nEach kernel the engine answers: its record steps, nvcc's instructions and the engine's as nvdisasm reads them back, and the operations only one of the two writes, each by how many more times it writes it.\n\n");
+        record_text("## The engine against nvcc\n\nEach kernel the engine answers: its record steps, nvcc's "
+                    "instructions and the engine's as nvdisasm reads them back, and the operations only one of the two "
+                    "writes, each by how many more times it writes it.\n\n");
         record_text((answered != 0u) ? "| kernel | function | steps | nvcc | engine | only nvcc | only "
                                        "the engine |\n|---|---|---|---|---|---|---|\n"
                                      : "The engine answers no kernel.\n");
         for (unsigned int at = 0u; at < sticks; at += 1u)
         {
             const StickEngine *const entry = stick_engine_of(stick[at].name);
-            if ((entry == NULL) || (strcmp(entry->answer, "answered") != 0))
+            if ((entry == NULL) || (!mmgr_text_equal(entry->answer, "answered", PLATFORM_TEXT_TO_TERMINATOR)))
             {
                 continue;
             }
@@ -248,9 +259,11 @@ int main(int argc, char **argv)
             record_text(" | ");
             record_number(entry->operations.count);
             record_text(" | ");
-            s_record_at = stick_counts_written(s_record_bytes, sizeof(s_record_bytes), s_record_at, order, other, count);
+            s_record_at =
+                stick_counts_written(s_record_bytes, sizeof(s_record_bytes), s_record_at, order, other, count);
             record_text(" | ");
-            s_record_at = stick_counts_written(s_record_bytes, sizeof(s_record_bytes), s_record_at, order, count, other);
+            s_record_at =
+                stick_counts_written(s_record_bytes, sizeof(s_record_bytes), s_record_at, order, count, other);
             record_text(" |\n");
         }
         // the questions the engine puts: each note, the kernels that put it and the first of them, the max first
@@ -261,12 +274,12 @@ int main(int argc, char **argv)
         for (unsigned int at = 0u; at < sticks; at += 1u)
         {
             const StickEngine *const entry = stick_engine_of(stick[at].name);
-            if ((entry == NULL) || (strcmp(entry->answer, "answered") == 0))
+            if ((entry == NULL) || (mmgr_text_equal(entry->answer, "answered", PLATFORM_TEXT_TO_TERMINATOR)))
             {
                 continue;
             }
             unsigned int one = 0u;
-            while ((one < notes) && (strcmp(note[one], entry->note) != 0))
+            while ((one < notes) && (!mmgr_text_equal(note[one], entry->note, PLATFORM_TEXT_TO_TERMINATOR)))
             {
                 one += 1u;
             }
@@ -275,7 +288,8 @@ int main(int argc, char **argv)
             note[one] = entry->note;
             note_kernels[one] += 1u;
         }
-        record_text("\n## The questions the engine puts\n\nEach kernel the engine does not answer, by the question it puts.\n\n");
+        record_text("\n## The questions the engine puts\n\nEach kernel the engine does not answer, by the question it "
+                    "puts.\n\n");
         record_text((notes != 0u) ? "| question | kernels | first kernel |\n|---|---|---|\n"
                                   : "The engine puts no question.\n");
         for (unsigned int written_notes = 0u; written_notes < notes; written_notes += 1u)
@@ -352,7 +366,8 @@ int main(int argc, char **argv)
         record_text("` |\n");
         missing[best] = 0u;
     }
-    record_text("\n## Every kernel\n\n| kernel | category | function | nvcc | its operations |\n|---|---|---|---|---|\n");
+    record_text(
+        "\n## Every kernel\n\n| kernel | category | function | nvcc | its operations |\n|---|---|---|---|---|\n");
     for (unsigned int at = 0u; at < sticks; at += 1u)
     {
         record_text("| ");
@@ -371,7 +386,15 @@ int main(int argc, char **argv)
     if (!verba_finis.ok(&(VerbaFinisCfg){.cap = sizeof(s_record_bytes), .at = s_record_at}) ||
         !qry_member_filed(argv[4], s_record_bytes, s_record_at))
     {
-        fprintf(stderr, "orior_measuring_stick_read: the record %s was not written\n", argv[4]);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "orior_measuring_stick_read: the record ");
+            mmgr_line_put(&engine_note.line, argv[4]);
+            mmgr_line_put(&engine_note.line, " was not written");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 1;
     }
     printf("measuring stick: %u kernels, %u instructions in nvcc's listing, %u operations, %u of them written by "

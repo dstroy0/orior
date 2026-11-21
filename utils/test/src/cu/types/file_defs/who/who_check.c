@@ -30,7 +30,7 @@ static void check_that(int passed, const char *what)
     }
 }
 
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
     if (count < 2)
     {

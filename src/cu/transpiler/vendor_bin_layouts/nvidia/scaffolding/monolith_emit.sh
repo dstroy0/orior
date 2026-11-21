@@ -13,6 +13,8 @@ set -u
 
 TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../../.." && pwd)"
 source "$TOP/includes/file_defs/file_defs.sh"
+# the program is a program of the platform: it links the process stage, the pool, the system calls and the carcer
+source "$TOP/includes/exact_types/exact_types.sh"
 HERE="$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding"
 CODEGEN="$TOP/src/cu/engine/rmc"
 CODEGEN_CU="$TOP/src/cu/engine/rmc"
@@ -55,20 +57,20 @@ for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/../file_de
     esac
     object="$OUT/$(basename "$source").o"
     if [ ! -f "$object" ] || [ "$source" -nt "$object" ]; then
-        "$FILE_DEFS_CXX" -std=c++17 -O1 -w -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -I "$CODEGEN" -I "$CODEGEN_CU" \
+        "$FILE_DEFS_CXX" -std=c++17 -O1 -w -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" "${FILE_DEFS_MMGR_FLAGS[@]}" -I "$CODEGEN" -I "$CODEGEN_CU" \
             -I "$CODEGEN_CU_2" -I "$HERE" -x c++ -c "$source" -o "$object" || exit 1
     fi
     OBJECTS+=("$object")
 done
-for source in "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c; do
+for source in "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c; do
     object="$OUT/$(printf '%s' "${source#"$TOP"/}" | tr '/' '_').o"
     cc -std=c11 -O1 -w -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -I "$CUBIN" -I "$KRS_C" \
         "${FILE_DEFS_MMGR_FLAGS[@]}" -c "$source" -o "$object" || exit 1
     OBJECTS+=("$object")
 done
-"$FILE_DEFS_CXX" -std=c++17 -O1 -Wall -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -I "$CODEGEN" -I "$CODEGEN_CU" \
+"$FILE_DEFS_CXX" -std=c++17 -O1 -Wall -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" "${FILE_DEFS_MMGR_FLAGS[@]}" -I "$CODEGEN" -I "$CODEGEN_CU" \
     -I "$CODEGEN_CU_2" -I "$CUBIN" -c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_emit.cpp" -o "$OUT/monolith_emit.o" || exit 1
-"$FILE_DEFS_CXX" -o "$OUT/monolith_emit" "$OUT/monolith_emit.o" "${OBJECTS[@]}" || exit 1
+"$FILE_DEFS_CXX" -o "$OUT/monolith_emit" "$OUT/monolith_emit.o" "${OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}" || exit 1
 
 cd "$TOP" || exit 1
 "$OUT/monolith_emit" "build/monolith/emit/monolith_tagged.listing" all \

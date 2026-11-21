@@ -12,6 +12,9 @@
 // refined by it (engine_table M23): split at the budgets the loop proposes, each schedule checked against the host, and
 // the least cost among those that pass retained.
 #include "../../../includes/file_defs/krep/krep.h"
+#include "../engine/engine_note.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../utils/test/src/cu/engine/analysis/cycle/record_image.h"
 #include "vhdl_target.h"
 #include "yosys_script.h"
@@ -53,7 +56,7 @@ static int vhdl_construction(const char *path, VhdlPlace *place)
 {
     KrepFormTable table;
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     if (krep_forms_read(path, &table, &error) == 0)
     {
         return 0;
@@ -112,8 +115,8 @@ static unsigned long long vhdl_after(const std::string &path, const char *label)
     unsigned long long found = 0ULL;
     while ((found == 0ULL) && (fgets(line, sizeof(line), file) != NULL))
     {
-        const char *const at = strstr(line, label);
-        found = (at != NULL) ? strtoull(at + strlen(label), NULL, 10) : 0ULL;
+        const char *const at = mmgr_text_find(line, label, PLATFORM_TEXT_TO_TERMINATOR);
+        found = (at != NULL) ? strtoull(at + mmgr_text_length(label, PLATFORM_TEXT_TO_TERMINATOR), NULL, 10) : 0ULL;
     }
     fclose(file);
     return found;
@@ -131,7 +134,7 @@ static unsigned long long vhdl_lines(const std::string &path, const char *label)
     unsigned long long found = 0ULL;
     while (fgets(line, sizeof(line), file) != NULL)
     {
-        found += (strstr(line, label) != NULL) ? 1ULL : 0ULL;
+        found += (mmgr_text_find(line, label, PLATFORM_TEXT_TO_TERMINATOR) != NULL) ? 1ULL : 0ULL;
     }
     fclose(file);
     return found;
@@ -251,7 +254,7 @@ static void vhdl_run(void *context, const HostProgram *program, int reuse, unsig
     const unsigned long long record_words = (unsigned long long)HOST_TEST_LANES * layout->out_limbs;
     std::vector<unsigned int> host_records((size_t)record_words, 0u);
     CycleRecordHostRequest request;
-    memset(&request, 0, sizeof(request));
+    mmgr_bytes_set(&request, 0, sizeof(request));
     request.layout = layout;
     for (unsigned int member = 0u; member < layout->members; member += 1u)
     {
@@ -367,15 +370,24 @@ int program_main(int argc, char **argv)
     int usable = argc >= 3;
     for (int at = 3; usable && (at < argc); at += 1)
     {
-        const int construction = (strcmp(argv[at], "--construction") == 0) && ((at + 1) < argc);
-        place.synthesis = place.synthesis || (strcmp(argv[at], "--synthesis") == 0);
-        usable = construction ? vhdl_construction(argv[at + 1], &place) : (strcmp(argv[at], "--synthesis") == 0);
+        const int construction =
+            (mmgr_text_equal(argv[at], "--construction", PLATFORM_TEXT_TO_TERMINATOR)) && ((at + 1) < argc);
+        place.synthesis = place.synthesis || (mmgr_text_equal(argv[at], "--synthesis", PLATFORM_TEXT_TO_TERMINATOR));
+        usable = construction ? vhdl_construction(argv[at + 1], &place)
+                              : (mmgr_text_equal(argv[at], "--synthesis", PLATFORM_TEXT_TO_TERMINATOR));
         at += construction ? 1 : 0;
     }
     if (!usable)
     {
-        fprintf(stderr, "usage: record_vhdl_test <work folder> <record_vhdl_bench.vhd> [--synthesis] "
-                        "[--construction <vhdl.kcs>], the construction set read whole\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line,
+                          "usage: record_vhdl_test <work folder> <record_vhdl_bench.vhd> [--synthesis] [--construction "
+                          "<vhdl.kcs>], the construction set read whole");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     place.work = argv[1];

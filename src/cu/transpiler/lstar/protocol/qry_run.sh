@@ -14,8 +14,10 @@
 QRY_SOURCE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 QRY_TOP="$(cd "$QRY_SOURCE/../../../../.." && pwd)"
 export QRY_TOP
-# the writer and the reader copy and compare through MMgr, whose sources the writer compiles beside them
+# the writer and the reader copy and compare through MMgr, whose sources the writer compiles beside them. The writer
+# is a program of the platform
 source "$QRY_TOP/includes/file_defs/file_defs.sh"
+source "$QRY_TOP/includes/exact_types/exact_types.sh"
 
 qry_writer_built() {
     QRY_WRITER="$1/orior_qry_writer"
@@ -31,8 +33,7 @@ qry_writer_built() {
     done
     if [ "$stale" -eq 1 ]; then
         mkdir -p "$1"
-        cc -std=c11 -O2 -Wall -Wextra "${FILE_DEFS_MMGR_FLAGS[@]}" -o "$QRY_WRITER" "${sources[@]}" \
-            "${FILE_DEFS_LINEA[@]}" ||
+        cc -std=c11 -O2 -Wall -Wextra -o "$QRY_WRITER" "${sources[@]}" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" ||
             { echo "  build failed: orior_qry_writer did not compile"; exit 1; }
     fi
 }

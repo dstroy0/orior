@@ -28,7 +28,7 @@ static void check_that(int passed, const char *what)
     }
 }
 
-int main(int count_of_words, char **words)
+int program_main(int count_of_words, char **words)
 {
     if (count_of_words != 2)
     {

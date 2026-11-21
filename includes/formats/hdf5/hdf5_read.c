@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // hdf5_read.c: the chunk grid, gathering and the entry points
 #include "hdf5_internal.h"
+#include "../../../src/cu/engine/engine_note.h"
+#include "memoria_operor/memoria_linea.h"
 
 static int hdf5_chunk_grid(Hdf5Gather *gather)
 {
@@ -15,7 +17,7 @@ static int hdf5_chunk_grid(Hdf5Gather *gather)
         down[axis - 1u] = down[axis] * gather->range[axis];
     }
     Hdf5Fixed fixed;
-    memset(&fixed, 0, sizeof(fixed));
+    mmgr_bytes_set(&fixed, 0, sizeof(fixed));
     fixed.prefix = NULL;
     fixed.page = NULL;
     int ok = (object->chunk_index != HDF5_INDEX_FIXED) || hdf5_fixed_open(file, object, gather, &fixed);
@@ -23,7 +25,7 @@ static int hdf5_chunk_grid(Hdf5Gather *gather)
     const unsigned long long stop =
         (gather->end / object->chunk[0u]) + (((gather->end % object->chunk[0u]) != 0ULL) ? 1ULL : 0ULL);
     unsigned long long scaled[ENGINE_ARRAY_RANK];
-    memset(scaled, 0, sizeof(scaled));
+    mmgr_bytes_set(scaled, 0, sizeof(scaled));
     scaled[0u] = start;
     int more = ok && (start < stop);
     for (unsigned int axis = 1u; axis < rank; axis += 1u)
@@ -162,7 +164,7 @@ static long long hdf5_gather(Hdf5File *file, const Hdf5Object *object, const Eng
         return 0LL;
     }
     Hdf5Gather gather;
-    memset(&gather, 0, sizeof(gather));
+    mmgr_bytes_set(&gather, 0, sizeof(gather));
     gather.file = file;
     gather.object = object;
     gather.first = request->first;
@@ -181,17 +183,17 @@ static long long hdf5_gather(Hdf5File *file, const Hdf5Object *object, const Eng
     const int unallocated = (object->layout_class == 1u) && hdf5_undefined(file, object->data_address);
     if ((object->layout_class == 2u) || unallocated)
     {
-        memset(request->out, 0, length);
+        mmgr_bytes_set(request->out, 0, length);
         for (size_t element = 0u; (fill_bytes == object->element_bytes) && (element < length);
              element += object->element_bytes)
         {
-            memcpy(&request->out[element], fill, object->element_bytes);
+            mmgr_bytes_copy(&request->out[element], fill, object->element_bytes);
         }
     }
     int ok = 1;
     if (object->layout_class == 0u)
     {
-        memcpy(request->out, &object->compact[request->first * row_bytes], length);
+        mmgr_bytes_copy(request->out, &object->compact[request->first * row_bytes], length);
     }
     else if ((object->layout_class == 1u) && !unallocated)
     {
@@ -203,7 +205,7 @@ static long long hdf5_gather(Hdf5File *file, const Hdf5Object *object, const Eng
     }
     if (!ok)
     {
-        memset(request->out, 0, length);
+        mmgr_bytes_set(request->out, 0, length);
         return -1LL;
     }
     if (object->big_endian && (object->element_bytes > 1u))
@@ -217,12 +219,18 @@ long hdf5_describe(const EngineDescribeRequest *request)
 {
     if ((request == NULL) || (request->extent == NULL))
     {
-        fprintf(stderr, "hdf5: a describe request with no extent to fill\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "hdf5: a describe request with no extent to fill");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return -1L;
     }
     Hdf5File file;
     Hdf5Object object;
-    memset(&object, 0, sizeof(object));
+    mmgr_bytes_set(&object, 0, sizeof(object));
     object.compact = NULL;
     unsigned long long address = 0ULL;
     int ok = hdf5_open(&file, request->path, request->tools);
@@ -232,7 +240,7 @@ long hdf5_describe(const EngineDescribeRequest *request)
     if (ok)
     {
         EngineArrayExtent *const extent = request->extent;
-        memset(extent, 0, sizeof(*extent));
+        mmgr_bytes_set(extent, 0, sizeof(*extent));
         extent->rank = object.rank;
         for (unsigned int axis = 0u; axis < object.rank; axis += 1u)
         {
@@ -255,12 +263,18 @@ long long hdf5_read(const EngineArrayRead *request)
 {
     if (request == NULL)
     {
-        fprintf(stderr, "hdf5: a read request that is missing\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "hdf5: a read request that is missing");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return -1LL;
     }
     Hdf5File file;
     Hdf5Object object;
-    memset(&object, 0, sizeof(object));
+    mmgr_bytes_set(&object, 0, sizeof(object));
     object.compact = NULL;
     unsigned long long address = 0ULL;
     unsigned long long bytes = 0ULL;

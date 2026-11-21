@@ -1,6 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "sim_camera.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
 
 #include "../../../../../cu/engine/analysis/period/period.h"
 
@@ -31,9 +33,9 @@ static int power_read(SimResults *results, const unsigned short *lanes, const un
                       PeriodMeasurement *measurement)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     PeriodRequest request;
-    memset(&request, 0, sizeof(request));
+    mmgr_bytes_set(&request, 0, sizeof(request));
     request.device_lanes = device_lanes;
     request.rank = SIM_AXES;
     for (unsigned int axis = 0u; axis < SIM_AXES; axis += 1u)
@@ -63,7 +65,7 @@ int program_main(int argc, char **argv)
     const unsigned long long draw_count[POWER_DRAW_COUNTS] = {8ULL, 19ULL};
 
     SimScene scene;
-    memset(&scene, 0, sizeof(scene));
+    mmgr_bytes_set(&scene, 0, sizeof(scene));
     scene.frames = 1ULL;
     scene.extent[0] = 32ULL;
     scene.extent[1] = 64ULL;
@@ -72,7 +74,7 @@ int program_main(int argc, char **argv)
     scene.plant_axis = 2u;
     scene.plant_period = POWER_PERIOD;
     SimCamera camera;
-    memset(&camera, 0, sizeof(camera));
+    mmgr_bytes_set(&camera, 0, sizeof(camera));
     camera.offset = 100ULL;
     camera.gain = 1ULL;
     camera.read_square = 3ULL;
@@ -80,7 +82,8 @@ int program_main(int argc, char **argv)
     camera.shot = 1ULL;
 
     const unsigned long long voxels = sim_scene_voxels(&scene);
-    unsigned short *const lanes = (unsigned short *)malloc((size_t)voxels * sizeof(unsigned short));
+    unsigned short *const lanes = (unsigned short *)platform_cell_taken(
+        (unsigned long long)((size_t)voxels * sizeof(unsigned short)), (unsigned int)platform_place_g_program_owner, 0);
     PeriodMargin band[19ULL * SIM_AXES];
     unsigned short *device_lanes = NULL;
     int ok = lanes != NULL;
@@ -95,15 +98,14 @@ int program_main(int argc, char **argv)
     mmgr_line_put(line, "  each column over ");
     mmgr_line_decimal(line, POWER_VOLUMES, 1u);
     mmgr_line_put(line, " volumes; the plant adds 0 to the amplitude electrons by phase\n");
-    mmgr_line_put(line,
-                   "  draws  amplitude  x reads 5  x reads 10 or 15  x reads another  z or y reads one (of 64)\n");
+    mmgr_line_put(line, "  draws  amplitude  x reads 5  x reads 10 or 15  x reads another  z or y reads one (of 64)\n");
     for (unsigned int counts = 0u; ok && (counts < POWER_DRAW_COUNTS); counts += 1u)
     {
         const unsigned long long draws = draw_count[counts];
         for (unsigned int level = 0u; ok && (level < POWER_AMPLITUDES); level += 1u)
         {
             PowerResults result;
-            memset(&result, 0, sizeof(result));
+            mmgr_bytes_set(&result, 0, sizeof(result));
             scene.plant_amplitude = amplitude[level];
             for (unsigned int volume = 0u; ok && (volume < POWER_VOLUMES); volume += 1u)
             {
@@ -159,6 +161,6 @@ int program_main(int argc, char **argv)
     }
     sim_check(&results, ok, "every volume rendered and read");
     cudaFree(device_lanes);
-    free(lanes);
+    platform_cell_released(lanes, (unsigned int)platform_place_g_program_owner);
     return sim_close(&results, "period power");
 }

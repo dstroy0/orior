@@ -21,13 +21,15 @@ INTERFACE="$TOP/src/cu/transpiler/lstar/interface"
 OUT="$TOP/build/interface_sass_take"
 mkdir -p "$OUT/decode"
 source "$TOP/src/cu/transpiler/lstar/protocol/qry_run.sh"
+# the program is a program of the platform: it links the process stage, the pool, the system calls and the carcer
+source "$TOP/includes/exact_types/exact_types.sh"
 qry_writer_built "$OUT"
 type -P nvdisasm > /dev/null || { echo "  no nvdisasm on the PATH: the CUDA toolkit's disassembler names the fields"; exit 1; }
 
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$INTERFACE" -I "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding"
           -I "$TOP/includes/parsers" -I "$TEST" "${FILE_DEFS_MMGR_FLAGS[@]}")
 OBJECTS=()
-for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" \
+for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" \
               "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_class.c" \
               "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_machine/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_read.c" \
               "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_take.c"; do
@@ -36,7 +38,7 @@ for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/int
     cc -std=c11 -O2 -w "${INCLUDES[@]}" -c "$source" -o "$object" || exit 1
     OBJECTS+=("$object")
 done
-cc -o "$OUT/interface_sass_probe_take" "${OBJECTS[@]}" || exit 1
+cc -o "$OUT/interface_sass_probe_take" "${OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}" || exit 1
 run_started "$OUT/qry"
 if [ "$LISTING" = "--fields" ]; then
     "$OUT/interface_sass_probe_take" --fields "$MACHINE" "$ARCH" "$OUT/decode"

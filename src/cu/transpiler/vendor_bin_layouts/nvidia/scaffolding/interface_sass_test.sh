@@ -70,7 +70,7 @@ for source in "${FILE_DEFS_FORMATS[@]}"; do
     FORMAT_SOURCE["$source"]=1
 done
 FORMAT_OBJECTS=()
-for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" \
+for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS_FORMATS[@]}" \
               "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" "$TEST/interface_sass_probe_main.c" "$TEST"/interface_sass_probe_main/*.c "$TEST"/interface_sass_probe_machine/*.c \
               "$TEST"/interface_sass_probe_query/*.c "$TEST/interface_sass_probe_class.c" "$TEST/interface_sass_probe_cubin.c" \
               "$TEST/interface_sass_probe_read.c" "$TEST/interface_sass_probe_check.c"; do
@@ -87,7 +87,8 @@ for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/int
     OBJECTS+=("$object")
     [ -n "${FORMAT_SOURCE[$source]:-}" ] && FORMAT_OBJECTS+=("$object")
 done
-nvcc "${HOST_FLAGS[@]}" -o "$BINARY" "${OBJECTS[@]}"
+# the SASS probe is a program of the platform too, and takes MMgr's line with the platform from PLATFORM_LINK
+nvcc "${HOST_FLAGS[@]}" -o "$BINARY" "${OBJECTS[@]}" "${PLATFORM_LINK[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: the interface's SASS probe did not link"; exit 1; }
 # the probe reads rulesets and writes forms; the code generator's assembly printer (asm_printer_*.cu) and the code
 # generator on the device (codegen*.cu) run on the record machine, which the probe does not link

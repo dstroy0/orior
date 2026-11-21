@@ -2,16 +2,19 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tiff_read.c: the layout and the entry points
 #include "tiff_internal.h"
+#include "../../../src/cu/engine/engine_note.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 static int tiff_layout(TiffFile *file, const TiffPage *page, const char *text, unsigned long long pages,
                        unsigned int pages_known, TiffLayout *layout)
 {
-    memset(layout, 0, sizeof(*layout));
+    mmgr_bytes_set(layout, 0, sizeof(*layout));
     if (file->reason != NULL)
     {
         return file->reason == NULL;
     }
-    if ((text != NULL) && (strncmp(text, "ImageJ=", 7u) == 0))
+    if ((text != NULL) && (mmgr_text_starts(text, "ImageJ=", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         tiff_imagej(file, text, pages, pages_known, layout);
     }
@@ -37,7 +40,7 @@ static int tiff_layout(TiffFile *file, const TiffPage *page, const char *text, u
 
 static void tiff_extent(const TiffPage *page, const TiffLayout *layout, EngineArrayExtent *extent)
 {
-    memset(extent, 0, sizeof(*extent));
+    mmgr_bytes_set(extent, 0, sizeof(*extent));
     for (unsigned int axis = 0u; axis < layout->leading; axis += 1u)
     {
         extent->sizes[axis] = layout->extent[axis];
@@ -65,7 +68,14 @@ static int tiff_extent_equal(const EngineArrayExtent *expected, const EngineArra
 
 static void tiff_report(const TiffFile *file)
 {
-    fprintf(stderr, "tiff: %s: %s\n", (file->path != NULL) ? file->path : "(no path)", file->reason);
+    EngineNote engine_note;
+    engine_note_begun(&engine_note);
+    mmgr_line_put(&engine_note.line, "tiff: ");
+    mmgr_line_put(&engine_note.line, (file->path != NULL) ? file->path : "(no path)");
+    mmgr_line_put(&engine_note.line, ": ");
+    mmgr_line_put(&engine_note.line, file->reason);
+    mmgr_line_ch(&engine_note.line, '\n');
+    engine_note_written(&engine_note);
 }
 
 long tiff_describe(const EngineDescribeRequest *request)
@@ -73,7 +83,7 @@ long tiff_describe(const EngineDescribeRequest *request)
     TiffFile file;
     TiffChain chain = {NULL, 0ULL, 0ULL, 0ULL};
     TiffPage first;
-    memset(&first, 0, sizeof(first));
+    mmgr_bytes_set(&first, 0, sizeof(first));
     tiff_open(&file, request->path, request->member, request->tools);
     unsigned long long offset = file.first_ifd;
     while ((file.reason == NULL) && (offset != 0ULL))
@@ -205,7 +215,7 @@ long long tiff_read(const EngineArrayRead *request)
     {
         if (writing && (total > 0ULL))
         {
-            memset(request->out, 0, (size_t)total);
+            mmgr_bytes_set(request->out, 0, (size_t)total);
         }
         tiff_report(&file);
         return -1LL;

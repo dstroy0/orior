@@ -20,12 +20,16 @@
 extern "C"
 {
 #include "../sass_assemble.h"
+#include "../../../../engine/engine_note.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../sass_machine.h"
 }
 
 #include "../../../../engine/rmc/word_web.h"
 #include "sass_target.h"
 #include "target.h"
+#include "../../../../../platform/platform.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -113,8 +117,8 @@ static std::vector<EmitLine> emit_listing(const char *path)
         EmitLine read;
         read.address = strtoull(line.c_str() + open + 2u, nullptr, 16);
         const size_t text_end = line.find(';', close);
-        read.text = emit_plain(line.substr(close + 2u, (text_end == std::string::npos) ? std::string::npos
-                                                                                        : (text_end - close - 2u)));
+        read.text = emit_plain(
+            line.substr(close + 2u, (text_end == std::string::npos) ? std::string::npos : (text_end - close - 2u)));
         std::string next;
         if (!emit_word(line, close, &read.low) || !std::getline(file, next) || !emit_word(next, 0u, &read.high))
         {
@@ -140,8 +144,8 @@ static std::vector<std::string> emit_operands(const std::string &text)
     while (at != std::string::npos)
     {
         const size_t comma = text.find(',', at + 1u);
-        operands.push_back(emit_plain(text.substr(at + 1u, (comma == std::string::npos) ? std::string::npos
-                                                                                         : (comma - at - 1u))));
+        operands.push_back(
+            emit_plain(text.substr(at + 1u, (comma == std::string::npos) ? std::string::npos : (comma - at - 1u))));
         at = comma;
     }
     return operands;
@@ -173,11 +177,11 @@ static std::string emit_alphabet(unsigned int precept)
             {
                 const unsigned char leaf = child[side];
                 tree += (side == 0u) ? "" : " ";
-                tree += (leaf == PRECEPT_NONE)    ? "-"
-                        : (leaf == PRECEPT_ZERO)  ? "0"
-                        : (leaf == PRECEPT_ONES)  ? "ones"
-                        : (leaf >= PRECEPT_ARG)   ? ((leaf == PRECEPT_LEFT) ? "left" : "right")
-                                                  : ("n" + std::to_string(leaf));
+                tree += (leaf == PRECEPT_NONE)   ? "-"
+                        : (leaf == PRECEPT_ZERO) ? "0"
+                        : (leaf == PRECEPT_ONES) ? "ones"
+                        : (leaf >= PRECEPT_ARG)  ? ((leaf == PRECEPT_LEFT) ? "left" : "right")
+                                                 : ("n" + std::to_string(leaf));
             }
             tree += ")";
         }
@@ -288,7 +292,8 @@ static void emit_row(unsigned int block, unsigned int precept, const std::string
                      const std::string &reader, const std::string &operation, const std::string &scheduler,
                      const std::string &compiler, const std::string &difference, const std::string &bits = "")
 {
-    s_rows.push_back({block, s_names[precept], address, nvidia, reader, operation, scheduler, compiler, difference, bits});
+    s_rows.push_back(
+        {block, s_names[precept], address, nvidia, reader, operation, scheduler, compiler, difference, bits});
 }
 
 static std::string emit_hex(unsigned long long value, int width)
@@ -309,7 +314,8 @@ static std::vector<std::string> emit_modifiers(const std::string &text)
     while (dot != std::string::npos)
     {
         const size_t next = operation.find('.', dot + 1u);
-        modifiers.push_back(operation.substr(dot + 1u, (next == std::string::npos) ? std::string::npos : (next - dot - 1u)));
+        modifiers.push_back(
+            operation.substr(dot + 1u, (next == std::string::npos) ? std::string::npos : (next - dot - 1u)));
         dot = next;
     }
     return modifiers;
@@ -404,8 +410,8 @@ static void emit_unread_read(const char *path, const SassMachine *machine)
         const std::string printed = ", as printed";
         const int as_printed = (cells[5].size() > printed.size()) &&
                                (cells[5].compare(cells[5].size() - printed.size(), printed.size(), printed) == 0);
-        question.printed = question.printed && as_printed && (bits.find(',') == std::string::npos) &&
-                           (dash != std::string::npos);
+        question.printed =
+            question.printed && as_printed && (bits.find(',') == std::string::npos) && (dash != std::string::npos);
     }
     for (const Question &question : questions)
     {
@@ -509,11 +515,12 @@ static std::string emit_our_text(const std::string &text, const SassMachine *mac
         for (unsigned int number = 0u; number < form->runs; number += 1u)
         {
             displayed = displayed || ((form->run[number].operand == place) && (form->run[number].first == 101u) &&
-                              (form->run[number].last == 101u));
+                                      (form->run[number].last == 101u));
         }
         const std::string operand = parts.operand[place];
         const size_t at = ours.find(operand);
-        if ((parts.type[place] == SASS_OPERAND_ADDRESS) && displayed && (operand[0] == '[') && (at != std::string::npos))
+        if ((parts.type[place] == SASS_OPERAND_ADDRESS) && displayed && (operand[0] == '[') &&
+            (at != std::string::npos))
         {
             ours.insert(at, "term[" + s_descriptor + "]");
         }
@@ -562,7 +569,8 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
         const std::string unread = text_known ? "a form matches its text and not its bits" : "no form matches its text";
         const std::string reader = !read ? unread : ((ours == line.text) ? "same" : ours);
         read_same += (read && (ours == line.text)) ? 1u : 0u;
-        printf("         our reader: %s\n", !read ? unread.c_str() : ((ours == line.text) ? "the same text" : ours.c_str()));
+        printf("         our reader: %s\n",
+               !read ? unread.c_str() : ((ours == line.text) ? "the same text" : ours.c_str()));
         // A branch's target is the address its text names. The listing prints it bare and our assembler reads a bare
         // number as the immediate itself: it is put to the assembler as a label, `(0x...), which it counts from the
         // instruction after the branch, and the address is given as the label's
@@ -580,9 +588,9 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
             // where a form matches the text, its own encoding beside NVIDIA's shows where the operand it cannot place
             // lies against the fields it contains
             const SassForm *const form = sass_machine_form(machine, &parts);
-            const std::string sample = (form == nullptr) ? std::string()
-                                                         : emit_bits_apart(line.low, line.high, form->low, form->high,
-                                                                           "the form ");
+            const std::string sample = (form == nullptr)
+                                           ? std::string()
+                                           : emit_bits_apart(line.low, line.high, form->low, form->high, "the form ");
             if (!sample.empty())
             {
                 printf("           NVIDIA's against the form's own encoding:\n%s", sample.c_str());
@@ -602,7 +610,8 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
         int unread_only = (operation == 0) && (form != nullptr);
         for (unsigned int bit = 0u; (operation == 0) && (bit < 105u); bit += 1u)
         {
-            const unsigned long long theirs = (bit < 64u) ? ((line.low >> bit) & 1ULL) : ((line.high >> (bit - 64u)) & 1ULL);
+            const unsigned long long theirs =
+                (bit < 64u) ? ((line.low >> bit) & 1ULL) : ((line.high >> (bit - 64u)) & 1ULL);
             const unsigned long long mine = (bit < 64u) ? ((low >> bit) & 1ULL) : ((high >> (bit - 64u)) & 1ULL);
             apart += (theirs != mine) ? ((apart.empty() ? "" : " ") + std::to_string(bit)) : "";
             unread_only = unread_only && ((theirs == mine) || emit_unread(form, bit));
@@ -622,17 +631,17 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
         {
             printf("           scheduler NVIDIA %06llx, ours %06llx\n", line.high >> 41u, high >> 41u);
         }
-        const std::string scheduler = control ? "same" : ("NVIDIA " + emit_hex(line.high >> 41u, 6) + ", ours " +
-                                                          emit_hex(high >> 41u, 6));
+        const std::string scheduler =
+            control ? "same" : ("NVIDIA " + emit_hex(line.high >> 41u, 6) + ", ours " + emit_hex(high >> 41u, 6));
         const std::string difference = (!read && !operation && text_known) ? "a form matches its text, not these bits"
                                        : (!read && !operation)             ? "no form in the machine file"
                                        : (!operation && !unread_only)      ? "operation bits apart"
                                        : !control                          ? "scheduler bits"
                                                                            : "none";
-        const std::string assembled = operation     ? "same"
-                                      : unread_only ? ("same where the part reads; apart at bit " + apart +
-                                                       ", which the part does not read")
-                                                    : ("apart at bit " + apart);
+        const std::string assembled =
+            operation     ? "same"
+            : unread_only ? ("same where the part reads; apart at bit " + apart + ", which the part does not read")
+                          : ("apart at bit " + apart);
         emit_row(block, precept, address, line.text, reader, assembled, scheduler, "", difference, bits);
     }
     printf("  of %zu: our reader gave NVIDIA's text for %u, our assembler NVIDIA's operation bits for %u and its "
@@ -685,8 +694,8 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
         return;
     }
 
-    // ERR has two candidates and the part's clock chooses between them, and this code does not: a trap where it is, the way
-    // NVIDIA writes it, a branch past the trap on the flag; and a branch to a handler, the error word (word_web.h),
+    // ERR has two candidates and the part's clock chooses between them, and this code does not: a trap where it is, the
+    // way NVIDIA writes it, a branch past the trap on the flag; and a branch to a handler, the error word (word_web.h),
     // written through sass.krs on NVIDIA's predicate and landing on the label label_error writes
     if (precept == PRECEPT_ERR)
     {
@@ -727,24 +736,25 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
         const int label = branch && ruleset_opcode(rules, "label_error", {"1"}, emit_scratch, written);
         if (!label)
         {
-            printf("  our compiler, candidate 2, a branch to a handler: sass.krs writes no error or label_error form\n");
+            printf(
+                "  our compiler, candidate 2, a branch to a handler: sass.krs writes no error or label_error form\n");
             emit_row(block, precept, "", "", "", "", "", "candidate 2, a branch to a handler",
                      "sass.krs writes no error or label_error form");
             return;
         }
         static unsigned char code[256];
-        const unsigned int assembled = sass_assemble_lines(machine, written.c_str(), SASS_CONTROL_BASE, code,
-                                                           sizeof(code));
+        const unsigned int assembled =
+            sass_assemble_lines(machine, written.c_str(), SASS_CONTROL_BASE, code, sizeof(code));
         std::string reads;
         for (unsigned int at = 0u; at < assembled; at += 1u)
         {
             unsigned long long word_low = 0ULL;
             unsigned long long word_high = 0ULL;
-            memcpy(&word_low, &code[16u * at], 8u);
-            memcpy(&word_high, &code[(16u * at) + 8u], 8u);
+            mmgr_bytes_copy(&word_low, &code[16u * at], 8u);
+            mmgr_bytes_copy(&word_high, &code[(16u * at) + 8u], 8u);
             char text[256];
             reads += sass_encoding_read(machine, word_low, word_high, 16ULL * at, text, sizeof(text)) ? emit_plain(text)
-                                                                                                       : "(unread)";
+                                                                                                      : "(unread)";
             reads += (at + 1u < assembled) ? "; " : "";
         }
         printf("  our compiler, candidate 2, a branch to a handler, error on %s: %s\n", where.c_str(),
@@ -753,8 +763,9 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
                "NVIDIA's passes the trap where it is clear\n",
                (guard == nullptr) ? "block, which contains no branch" : guard->text.c_str());
         emit_row(block, precept, "", "", "", "", "", "candidate 2, error on " + where + ": " + reads,
-                 (assembled == 0u) ? "does not assemble"
-                                   : "taken where the flag is set, to a handler; NVIDIA's passes a trap where it is clear");
+                 (assembled == 0u)
+                     ? "does not assemble"
+                     : "taken where the flag is set, to a handler; NVIDIA's passes a trap where it is clear");
         return;
     }
 
@@ -784,8 +795,8 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
             label ? sass_assemble_lines(machine, written.c_str(), SASS_CONTROL_BASE, code, sizeof(code)) : 0u;
         unsigned long long low = 0ULL;
         unsigned long long high = 0ULL;
-        memcpy(&low, &code[0], 8u);
-        memcpy(&high, &code[8], 8u);
+        mmgr_bytes_copy(&low, &code[0], 8u);
+        mmgr_bytes_copy(&high, &code[8], 8u);
         char text[256];
         const std::string reads = (assembled == 0u) ? std::string("does not assemble")
                                   : sass_encoding_read(machine, low, high, guard->address, text, sizeof(text))
@@ -824,7 +835,8 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
     const EmitLine *core = nullptr;
     for (const EmitLine &line : passage)
     {
-        const int moves = (line.text.find("LDG") != std::string::npos) || (line.text.find("STG") != std::string::npos) ||
+        const int moves = (line.text.find("LDG") != std::string::npos) ||
+                          (line.text.find("STG") != std::string::npos) ||
                           (line.text.find("c[0x0]") != std::string::npos);
         core = moves ? core : &line;
     }
@@ -879,24 +891,26 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
         unsigned long long high = 0ULL;
         const int assembles =
             sass_assemble(machine, plain.c_str(), core->address, 0ULL, SASS_CONTROL_BASE, &low, &high);
-        const int same = assembles && (low == core->low) &&
-                         ((high & EMIT_OPERATION_HIGH) == (core->high & EMIT_OPERATION_HIGH));
-        printf("  our compiler, %s with its leaves %s: %s\n", word->name, (order == 0u) ? "in NVIDIA's order" : "swapped",
-               plain.c_str());
+        const int same =
+            assembles && (low == core->low) && ((high & EMIT_OPERATION_HIGH) == (core->high & EMIT_OPERATION_HIGH));
+        printf("  our compiler, %s with its leaves %s: %s\n", word->name,
+               (order == 0u) ? "in NVIDIA's order" : "swapped", plain.c_str());
         printf("    against NVIDIA's %s at %05llx: %s\n", core->text.c_str(), core->address,
                !assembles ? "ours does not assemble" : (same ? "the same operation bits" : "operation bits apart"));
         const std::string lacking = emit_lacking(core->text, plain);
         const std::string extra = emit_lacking(plain, core->text);
         std::string difference = !assembles ? "ours does not assemble"
-                                 : same     ? ("none, leaves " + std::string((order == 0u) ? "in NVIDIA's order" : "swapped"))
-                                            : "operation bits apart";
+                                 : same
+                                     ? ("none, leaves " + std::string((order == 0u) ? "in NVIDIA's order" : "swapped"))
+                                     : "operation bits apart";
         difference += lacking.empty() ? "" : ("; NVIDIA's carries " + lacking + " and ours does not");
         difference += extra.empty() ? "" : ("; ours carries " + extra + " and NVIDIA's does not");
         // the places the operation bits are apart at; a writing that does not assemble is apart everywhere
         unsigned int places = assembles ? 0u : 105u;
         for (unsigned int bit = 0u; assembles && (bit < 105u); bit += 1u)
         {
-            const unsigned long long theirs = (bit < 64u) ? ((core->low >> bit) & 1ULL) : ((core->high >> (bit - 64u)) & 1ULL);
+            const unsigned long long theirs =
+                (bit < 64u) ? ((core->low >> bit) & 1ULL) : ((core->high >> (bit - 64u)) & 1ULL);
             const unsigned long long mine = (bit < 64u) ? ((low >> bit) & 1ULL) : ((high >> (bit - 64u)) & 1ULL);
             places += (theirs != mine) ? 1u : 0u;
         }
@@ -936,7 +950,15 @@ static int emit_record(const char *path, const char *listing)
     FILE *const file = fopen(path, "w");
     if (file == nullptr)
     {
-        fprintf(stderr, "the record %s did not open\n", path);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the record ");
+            mmgr_line_put(&engine_note.line, path);
+            mmgr_line_put(&engine_note.line, " did not open");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 0;
     }
     fprintf(file, "# The monolith checked against our compiler\n\n");
@@ -946,8 +968,9 @@ static int emit_record(const char *path, const char *listing)
             "A row with an address is one of NVIDIA's instructions checked against our reader and our assembler; ");
     fprintf(file, "a row with a compiler column is our compiler's writing of the block's precept. ");
     fprintf(file, "Scheduler bits are 105 to 127, apart from the operation's. ");
-    fprintf(file, "NVIDIA's text is written in ours: a memory operand whose descriptor the listing does not print is "
-                  "written term[%s], the uniform register the kernel loads c[0x0][0x118] into. ",
+    fprintf(file,
+            "NVIDIA's text is written in ours: a memory operand whose descriptor the listing does not print is "
+            "written term[%s], the uniform register the kernel loads c[0x0][0x118] into. ",
             s_descriptor.empty() ? "URn" : s_descriptor.c_str());
     fprintf(file, "Operation bits apart only in a field the part does not read, every value of it answering as printed "
                   "in `" EMIT_UNREAD_PATH "` or alike in `" EMIT_UNREAD_FORMS_PATH "`, are read as the same.\n\n");
@@ -974,7 +997,8 @@ static int emit_record(const char *path, const char *listing)
             "operation bits apart, %u apart only at bits the part does not read, %u with scheduler bits "
             "apart.\n\n",
             instructions, formless, unknown, unplaced, operation_apart, unread_apart, scheduler_apart);
-    fprintf(file, "| block | precept | address | NVIDIA | our reader | our assembler | scheduler | our compiler | difference |\n");
+    fprintf(file, "| block | precept | address | NVIDIA | our reader | our assembler | scheduler | our compiler | "
+                  "difference |\n");
     fprintf(file, "|---|---|---|---|---|---|---|---|---|\n");
     for (const EmitRow &row : s_rows)
     {
@@ -988,8 +1012,9 @@ static int emit_record(const char *path, const char *listing)
     }
     // every row whose operation bits are apart, NVIDIA's encoding and ours bit by bit, bit 127 first
     fprintf(file, "\n## Bits apart\n\n");
-    fprintf(file, "Each instruction whose operation bits are apart from NVIDIA's, both encodings bit by bit with bit 127 "
-                  "first under each byte's top bit; `^` marks an operation bit apart and `.` a scheduler bit apart.\n");
+    fprintf(file,
+            "Each instruction whose operation bits are apart from NVIDIA's, both encodings bit by bit with bit 127 "
+            "first under each byte's top bit; `^` marks an operation bit apart and `.` a scheduler bit apart.\n");
     for (const EmitRow &row : s_rows)
     {
         if (row.bits.empty())
@@ -1004,21 +1029,37 @@ static int emit_record(const char *path, const char *listing)
     return 1;
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
-    const int all = (count > 2) && (strcmp(arguments[2], "all") == 0);
+    const int all = (count > 2) && (mmgr_text_equal(arguments[2], "all", PLATFORM_TEXT_TO_TERMINATOR));
     if ((count < 3) || (count > 5) || (all && (count < 4)))
     {
-        fprintf(stderr, "monolith_emit <listing> <block> [machine file]\nmonolith_emit <listing> all <record> [machine "
-                        "file]\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(
+                &engine_note.line,
+                "monolith_emit <listing> <block> [machine file]\nmonolith_emit <listing> all <record> [machine file]");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     const int machine_at = all ? 4 : 3;
-    const char *const path = (count > machine_at) ? arguments[machine_at] : "src/cu/transpiler/lstar/protocol/table/sm_86.khw";
+    const char *const path =
+        (count > machine_at) ? arguments[machine_at] : "src/cu/transpiler/lstar/protocol/table/sm_86.khw";
     static SassMachine machine;
     if (!sass_machine_read(&machine, path))
     {
-        fprintf(stderr, "the machine file %s did not read\n", path);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the machine file ");
+            mmgr_line_put(&engine_note.line, path);
+            mmgr_line_put(&engine_note.line, " did not read");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 1;
     }
     const Ruleset *const rules = sass_target().ruleset(1);
@@ -1051,7 +1092,15 @@ int main(int count, char **arguments)
     const unsigned int block = (unsigned int)strtoul(arguments[2], nullptr, 10);
     if ((block == 0u) || (block > PRECEPT_COUNT))
     {
-        fprintf(stderr, "a block is 1 to %u, the tag before precept block - 1\n", (unsigned int)PRECEPT_COUNT);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "a block is 1 to ");
+            mmgr_line_decimal(&engine_note.line, (unsigned int)PRECEPT_COUNT, 1u);
+            mmgr_line_put(&engine_note.line, ", the tag before precept block - 1");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     emit_block(lines, block, &machine, rules);

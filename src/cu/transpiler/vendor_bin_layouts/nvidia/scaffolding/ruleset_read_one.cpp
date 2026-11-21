@@ -7,6 +7,7 @@
 //     ruleset_read_one predicate_bitxor P0 P1 P2
 #include "sass_target.h"
 #include "target.h"
+#include "../../../../../platform/platform.h"
 
 #include <cstdio>
 #include <string>
@@ -37,7 +38,7 @@ static std::string read_one_scratch(const std::string &bank)
     return std::string();
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     if (count < 2)
     {

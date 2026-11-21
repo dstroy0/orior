@@ -24,12 +24,19 @@
 //
 // and whether the machine file's form for the operation records the barrier NVIDIA writes.
 #include "monolith_scheduler/scheduler_internal.h"
+#include "../../../../engine/engine_note.h"
 
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
     if ((count < 4) || !sass_machine_read(&s_machine, words[1]))
     {
-        fprintf(stderr, "monolith_scheduler <machine file> <record> <cubin>...\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "monolith_scheduler <machine file> <record> <cubin>...");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     for (int at = 3; at < count; at += 1)
@@ -45,7 +52,15 @@ int main(int count, char **words)
     }
     if (!scheduler_record(words[2]))
     {
-        fprintf(stderr, "the record %s was not written\n", words[2]);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the record ");
+            mmgr_line_put(&engine_note.line, words[2]);
+            mmgr_line_put(&engine_note.line, " was not written");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     printf("monolith scheduler: %u cubins, %llu instructions, %llu no form reads, %u operations\n", s_cubins,

@@ -1,7 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// driver.c: the driver opened by name with every entry point taken, and the part's fault telemetry: the management library and the system's event log opened, drained before a launch and read after it for a fault
+// driver.c: the driver opened by name with every entry point taken, and the part's fault telemetry: the management
+// library and the system's event log opened, drained before a launch and read after it for a fault
 #include "cubin_run_internal.h"
+#include "../../../../engine/engine_note.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 // The part's fault telemetry, the driver's management layer (NVML), reached by name and by its own entry points as the
 // driver is, and nothing of its vendor's toolchain compiled against. What cubin_safe's rule 8 reads after each launch:
@@ -80,12 +84,12 @@ int cubin_run_driver(CubinRunDriver *driver)
     *(void **)&driver->release = cubin_run_entry(library, "cuMemFree_v2");
     return (driver->module_unload != NULL) && (driver->release != NULL) && (driver->init != NULL) &&
            (driver->device_get != NULL) && (driver->context_retain != NULL) && (driver->context_set != NULL) &&
-           (driver->module_load != NULL) && (driver->function_get != NULL) &&
-           (driver->function_attribute != NULL) && (driver->allocate != NULL) &&
-           (driver->copy_in != NULL) && (driver->clear != NULL) && (driver->launch != NULL) &&
-           (driver->synchronize != NULL) && (driver->copy_out != NULL) && (driver->error_name != NULL) &&
-           (driver->event_create != NULL) && (driver->event_record != NULL) && (driver->event_synchronize != NULL) &&
-           (driver->event_query != NULL) && (driver->event_elapsed != NULL) && (driver->event_destroy != NULL);
+           (driver->module_load != NULL) && (driver->function_get != NULL) && (driver->function_attribute != NULL) &&
+           (driver->allocate != NULL) && (driver->copy_in != NULL) && (driver->clear != NULL) &&
+           (driver->launch != NULL) && (driver->synchronize != NULL) && (driver->copy_out != NULL) &&
+           (driver->error_name != NULL) && (driver->event_create != NULL) && (driver->event_record != NULL) &&
+           (driver->event_synchronize != NULL) && (driver->event_query != NULL) && (driver->event_elapsed != NULL) &&
+           (driver->event_destroy != NULL);
 }
 
 static CubinRunTelemetry s_telemetry;
@@ -110,9 +114,13 @@ static void cubin_run_xid_stored(unsigned long long xid, const char *text)
     if (s_xid_count < CUBIN_RUN_XID_MAX)
     {
         s_xid_data[s_xid_count] = xid;
-        snprintf(s_xid_text[s_xid_count], sizeof(s_xid_text[s_xid_count]), "%s", text);
-        for (char *semicolon = strchr(s_xid_text[s_xid_count], ';'); semicolon != NULL;
-             semicolon = strchr(semicolon, ';'))
+        {
+            VerbaLinea buffer_line = mmgr_line_over(s_xid_text[s_xid_count], sizeof(s_xid_text[s_xid_count]));
+            mmgr_line_put(&buffer_line, text);
+            (void)mmgr_line_finish(&buffer_line);
+        }
+        for (char *semicolon = mmgr_text_char(s_xid_text[s_xid_count], ';', PLATFORM_TEXT_TO_TERMINATOR);
+             semicolon != NULL; semicolon = mmgr_text_char(semicolon, ';', PLATFORM_TEXT_TO_TERMINATOR))
         {
             *semicolon = ',';
         }
@@ -137,8 +145,8 @@ static int cubin_run_event_xml(void *event, char *xml, size_t room)
 // the number `xml` contains in the tag `tag`, past its attributes, or 0 where it contains no such tag
 static unsigned long long cubin_run_event_number(const char *xml, const char *tag)
 {
-    const char *const opened = strstr(xml, tag);
-    const char *const closed = (opened != NULL) ? strchr(opened, '>') : NULL;
+    const char *const opened = mmgr_text_find(xml, tag, PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const closed = (opened != NULL) ? mmgr_text_char(opened, '>', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
     return (closed != NULL) ? strtoull(closed + 1, NULL, 10) : 0ULL;
 }
 
@@ -146,12 +154,18 @@ static unsigned long long cubin_run_event_number(const char *xml, const char *ta
 // device, or its first where it contains one alone
 static void cubin_run_event_text(const char *xml, char *text, size_t room)
 {
-    const char *datum = strstr(xml, "<Data>");
-    const char *const second = (datum != NULL) ? strstr(datum + 6, "<Data>") : NULL;
+    const char *datum = mmgr_text_find(xml, "<Data>", PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const second =
+        (datum != NULL) ? mmgr_text_find(datum + 6, "<Data>", PLATFORM_TEXT_TO_TERMINATOR) : NULL;
     datum = (second != NULL) ? second : datum;
-    const char *const end = (datum != NULL) ? strstr(datum, "</Data>") : NULL;
+    const char *const end = (datum != NULL) ? mmgr_text_find(datum, "</Data>", PLATFORM_TEXT_TO_TERMINATOR) : NULL;
     // a datum is far below what an int counts
-    snprintf(text, room, "%.*s", (end != NULL) ? (int)(end - datum - 6) : 0, (datum != NULL) ? datum + 6 : "");
+    {
+        VerbaLinea buffer_line = mmgr_line_over(text, room);
+        mmgr_line_put_max(&buffer_line, (datum != NULL) ? datum + 6 : "",
+                          (size_t)((end != NULL) ? (int)(end - datum - 6) : 0));
+        (void)mmgr_line_finish(&buffer_line);
+    }
 }
 
 // The driver's errors written since the last pull, read off the subscription in the order written, each recorded
@@ -263,7 +277,14 @@ int cubin_run_telemetry_open(void)
     const int events = cubin_run_events_open();
     if (!management && !events)
     {
-        fprintf(stderr, "the part's fault telemetry was not reached: rule 8 does not guard this run\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line,
+                          "the part's fault telemetry was not reached: rule 8 does not guard this run");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 0;
     }
     return 1;
@@ -277,7 +298,7 @@ void cubin_run_telemetry_drain(void)
     s_xid_count = 0u;
     while (s_telemetry_ready)
     {
-        memset(&event, 0, sizeof(event));
+        mmgr_bytes_set(&event, 0, sizeof(event));
         if (s_telemetry.set_wait(s_telemetry_set, &event, 0u) != 0)
         {
             break;
@@ -301,7 +322,7 @@ int cubin_run_telemetry_faulted(CubinRunStatus status)
     CubinRunXidEvent event;
     while (s_telemetry_ready)
     {
-        memset(&event, 0, sizeof(event));
+        mmgr_bytes_set(&event, 0, sizeof(event));
         if (s_telemetry.set_wait(s_telemetry_set, &event, 0u) != 0)
         {
             break;

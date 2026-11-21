@@ -97,7 +97,7 @@ static const char *const s_written = "kdm part\n"
 
 static KdmFile s_file;
 
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
     if (count < 2)
     {

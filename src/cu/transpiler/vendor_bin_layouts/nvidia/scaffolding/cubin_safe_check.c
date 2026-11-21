@@ -10,6 +10,8 @@
 // where one does not, 2 where the machine file did not read. A cubin's verdict is reported and is no check: a cubin
 // blocked from the part is the gate doing its work.
 #include "../cubin_safe.h"
+#include "../../../../engine/engine_note.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../sass_assemble.h"
 
 #include <stdio.h>
@@ -83,7 +85,7 @@ static const SassForm *check_form(const char *operation)
 {
     for (unsigned int at = 0u; at < s_machine.forms; at += 1u)
     {
-        if (strcmp(s_machine.form[at].operation, operation) == 0)
+        if (mmgr_text_equal(s_machine.form[at].operation, operation, PLATFORM_TEXT_TO_TERMINATOR))
         {
             return &s_machine.form[at];
         }
@@ -96,7 +98,7 @@ static const SassForm *check_form_seen(const char *text)
 {
     for (unsigned int at = 0u; at < s_machine.forms; at += 1u)
     {
-        if (strcmp(s_machine.form[at].text, text) == 0)
+        if (mmgr_text_equal(s_machine.form[at].text, text, PLATFORM_TEXT_TO_TERMINATOR))
         {
             return &s_machine.form[at];
         }
@@ -182,8 +184,7 @@ static void check_cases(void)
     check_instruction(0u, straight->low, check_stalled(check_safe_high(straight->high), 1u));
     check_verdict("an IADD3 stalled one cycle, then an EXIT", 2u, CUBIN_SAFE);
     // a fixed result's barrier is never released
-    check_instruction(0u, straight->low,
-                      check_safe_high(straight->high) & ~(7ULL << (SASS_WRITE_BARRIER_FIRST - 64u)));
+    check_instruction(0u, straight->low, check_safe_high(straight->high) & ~(7ULL << (SASS_WRITE_BARRIER_FIRST - 64u)));
     check_verdict("an IADD3 setting write barrier 0", 2u, CUBIN_SAFE_BARRIER);
     // the self branch past the last exit is never reached and is not read
     check_instruction(0u, exit_low, exit_high);
@@ -275,8 +276,7 @@ static void check_registers(void)
         {
             const unsigned int operand = s_machine.form[at].run[run].operand;
             const unsigned int first = s_machine.form[at].run[run].first;
-            if ((operand >= s_machine.form[at].operands) ||
-                (s_machine.form[at].type[operand] != SASS_OPERAND_REGISTER))
+            if ((operand >= s_machine.form[at].operands) || (s_machine.form[at].type[operand] != SASS_OPERAND_REGISTER))
             {
                 continue;
             }
@@ -339,11 +339,17 @@ static void check_constants(void)
     check_constant("MOV R1, c[0x0][0x10000]", 0, 0ULL);
 }
 
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
     if ((count < 2) || !sass_machine_read(&s_machine, words[1]))
     {
-        fprintf(stderr, "cubin_safe_check <machine file> [<cubin>...]\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "cubin_safe_check <machine file> [<cubin>...]");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     check_launches();

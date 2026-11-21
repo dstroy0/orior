@@ -253,7 +253,7 @@ static void part_checked(const char *part, const char *folder, unsigned int numb
     kqr_free(&s_record);
 }
 
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
     if (count < 2)
     {

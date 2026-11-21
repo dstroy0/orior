@@ -6,6 +6,9 @@
 // context unusable; and after each, a fresh process whose device answers. The first argument is interface_ptx_probe's
 // path, the second a folder for the probes' output
 #include "../../../lstar/interface/interface.h"
+#include "../../../../engine/engine_note.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -36,14 +39,21 @@ static void interface_ptx_check(InterfacePtxTest *test, int passed, const char *
 static int interface_ptx_probe(InterfacePtxTest *test, const char *question, InterfaceAnswer *answer)
 {
     char path[1024];
-    snprintf(path, sizeof(path), "%s/%s.out", test->folder, question);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+        mmgr_line_put(&buffer_line, test->folder);
+        mmgr_line_put(&buffer_line, "/");
+        mmgr_line_put(&buffer_line, question);
+        mmgr_line_put(&buffer_line, ".out");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     char *const command[] = {(char *)test->probe, (char *)question, NULL};
     const InterfaceProbe probe = {command, path, INTERFACE_PTX_LIMIT};
-    memset(answer, 0, sizeof(*answer));
+    mmgr_bytes_set(answer, 0, sizeof(*answer));
     answer->output = s_interface_ptx_output;
     answer->output_capacity = sizeof(s_interface_ptx_output);
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     if (interface_probe_run(&probe, answer, &error) != 0L)
     {
         printf("  %s: the interface failed, module %d site %u status %d\n", question, (int)error.module, error.site,
@@ -63,11 +73,18 @@ static void interface_ptx_alive(InterfacePtxTest *test, const char *after)
     InterfaceAnswer answer;
     char what[256];
     const int result = interface_ptx_probe(test, "alive", &answer);
-    snprintf(what, sizeof(what), "a fresh probe after %s: the device answers 6 + 7 = 0x0000000d", after);
-    interface_ptx_check(test,
-                        result && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ULL) &&
-                            (strstr(s_interface_ptx_output, "answered 0000000d") != NULL),
-                        what);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(what, sizeof(what));
+        mmgr_line_put(&buffer_line, "a fresh probe after ");
+        mmgr_line_put(&buffer_line, after);
+        mmgr_line_put(&buffer_line, ": the device answers 6 + 7 = 0x0000000d");
+        (void)mmgr_line_finish(&buffer_line);
+    }
+    interface_ptx_check(
+        test,
+        result && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ULL) &&
+            (mmgr_text_find(s_interface_ptx_output, "answered 0000000d", PLATFORM_TEXT_TO_TERMINATOR) != NULL),
+        what);
 }
 
 // an illegal operation the device errors: the probe exits 3 having printed the CUDA error, which `error` names where
@@ -76,17 +93,24 @@ static void interface_ptx_error(InterfacePtxTest *test, const char *question, co
 {
     InterfaceAnswer answer;
     const int result = interface_ptx_probe(test, question, &answer);
-    const int named =
-        (error == NULL) ? (strstr(s_interface_ptx_output, "error ") != NULL) : (strstr(s_interface_ptx_output, error) != NULL);
+    const int named = (error == NULL)
+                          ? (mmgr_text_find(s_interface_ptx_output, "error ", PLATFORM_TEXT_TO_TERMINATOR) != NULL)
+                          : (mmgr_text_find(s_interface_ptx_output, error, PLATFORM_TEXT_TO_TERMINATOR) != NULL);
     interface_ptx_check(test, result && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 3ULL) && named,
                         what);
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     if (count < 3)
     {
-        fprintf(stderr, "  interface_ptx_test: <interface_ptx_probe> <output folder>\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  interface_ptx_test: <interface_ptx_probe> <output folder>");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     InterfacePtxTest test = {arguments[1], arguments[2], 0u, 0u};
@@ -97,14 +121,15 @@ int main(int count, char **arguments)
     int result = interface_ptx_probe(&test, "membership", &answer);
     interface_ptx_check(&test,
                         result && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ULL) &&
-                            (strstr(s_interface_ptx_output, " questions, 0 with a case that differs") != NULL),
+                            (mmgr_text_find(s_interface_ptx_output, " questions, 0 with a case that differs",
+                                            PLATFORM_TEXT_TO_TERMINATOR) != NULL),
                         "membership: every defined answer of every form agrees with the host's integers");
 
     interface_ptx_error(&test, "address", "error 700 cudaErrorIllegalAddress",
-                   "a load from address 16 errors as an illegal address (700)");
+                        "a load from address 16 errors as an illegal address (700)");
     interface_ptx_alive(&test, "an illegal address");
     interface_ptx_error(&test, "misaligned", "error 716 cudaErrorMisalignedAddress",
-                   "a 32-bit load one byte in errors as a misaligned address (716)");
+                        "a 32-bit load one byte in errors as a misaligned address (716)");
     interface_ptx_alive(&test, "a misaligned address");
     interface_ptx_error(&test, "trap", NULL, "trap errors with a CUDA error");
     interface_ptx_alive(&test, "a trap");
@@ -112,7 +137,7 @@ int main(int count, char **arguments)
     result = interface_ptx_probe(&test, "lacking", &answer);
     interface_ptx_check(&test,
                         result && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 4ULL) &&
-                            (strstr(s_interface_ptx_output, "errored") != NULL),
+                            (mmgr_text_find(s_interface_ptx_output, "errored", PLATFORM_TEXT_TO_TERMINATOR) != NULL),
                         "elect.sync, which PTX gives sm_90 and later, errors in the toolchain for this device");
     interface_ptx_alive(&test, "an instruction the part lacks");
 

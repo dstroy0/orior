@@ -15,14 +15,22 @@
 // The kernel's text opens with its section's label, `.text.<kernel>:`, which names the kernel the cubin is written
 // into. The kernel loads the case's first two words into R0 and R7 and stores R7 as the first word of the answer.
 #include "interface_sass_probe_unprinted/unprinted_internal.h"
+#include "../../../../engine/engine_note.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
-    const int forms = (count == 8) && (strcmp(words[7], "forms") == 0);
+    const int forms = (count == 8) && (mmgr_text_equal(words[7], "forms", PLATFORM_TEXT_TO_TERMINATOR));
     if ((count != 7) && !forms)
     {
-        fprintf(stderr, "interface_sass_probe_unprinted <runner> <pattern cubin> <kernel text> <machine file> <folder> "
-                        "<record> [forms]\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "interface_sass_probe_unprinted <runner> <pattern cubin> <kernel text> "
+                                             "<machine file> <folder> <record> [forms]");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     s_runner = words[1];
@@ -31,20 +39,47 @@ int main(int count, char **words)
     const unsigned long long kernel_text_size =
         unprinted_file_read(words[3], (unsigned char *)s_kernel_text, sizeof(s_kernel_text) - 1u);
     s_kernel_text[kernel_text_size] = '\0';
-    if ((s_pattern_size == 0ULL) || (kernel_text_size == 0ULL) || !unprinted_kernel(s_kernel_text, s_kernel, sizeof(s_kernel)))
+    if ((s_pattern_size == 0ULL) || (kernel_text_size == 0ULL) ||
+        !unprinted_kernel(s_kernel_text, s_kernel, sizeof(s_kernel)))
     {
-        fprintf(stderr, "the pattern cubin %s or the kernel %s did not read\n", words[2], words[3]);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the pattern cubin ");
+            mmgr_line_put(&engine_note.line, words[2]);
+            mmgr_line_put(&engine_note.line, " or the kernel ");
+            mmgr_line_put(&engine_note.line, words[3]);
+            mmgr_line_put(&engine_note.line, " did not read");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     if (!sass_machine_read(&s_machine, words[4]))
     {
-        fprintf(stderr, "the machine file %s did not read\n", words[4]);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the machine file ");
+            mmgr_line_put(&engine_note.line, words[4]);
+            mmgr_line_put(&engine_note.line, " did not read");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     FILE *const record = fopen(words[6], "wb");
     if (record == NULL)
     {
-        fprintf(stderr, "the record %s could not be written\n", words[6]);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the record ");
+            mmgr_line_put(&engine_note.line, words[6]);
+            mmgr_line_put(&engine_note.line, " could not be written");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     if (forms)

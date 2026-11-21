@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // interface_ptx_probe_questions.cu: registers, forms and the questions
 #include "interface_ptx_probe_internal.h"
+#include "../../../../engine/engine_note.h"
 
 static const unsigned int s_probe_edges[PROBE_EDGES] = {
     0u, 1u, 2u, 3u, 31u, 32u, 33u, 64u, 0x7FFFFFFFu, 0x80000000u, 0x80000001u, 0xFFFFFFFEu, 0xFFFFFFFFu, 0x10000u};
@@ -49,8 +50,17 @@ void probe_form(ProbeWriter *writer, std::string &text, const char *name, const 
     const auto scratch = [writer](const std::string &bank) { return probe_scratch(writer, bank); };
     if (!ruleset_opcode(writer->rules, name, arguments, scratch, text))
     {
-        fprintf(stderr, "  interface_ptx_probe: the ruleset does not write the form %s with %zu arguments\n", name,
-                arguments.size());
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  interface_ptx_probe: the ruleset does not write the form ");
+            mmgr_line_put(&engine_note.line, name);
+            mmgr_line_put(&engine_note.line, " with ");
+            mmgr_line_decimal(&engine_note.line, arguments.size(), 1u);
+            mmgr_line_put(&engine_note.line, " arguments");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         writer->broken = 1;
     }
 }

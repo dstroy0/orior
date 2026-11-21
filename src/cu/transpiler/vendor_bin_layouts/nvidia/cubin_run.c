@@ -95,9 +95,11 @@
 // vendor. Exit 0 where a line went out. Exit 2 where no writer of the run runs, or where the inputs, the machine or the
 // driver were out of reach.
 #include "cubin_run/cubin_run_internal.h"
+#include "../../../engine/engine_note.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../../includes/parsers/line_read.h"
 
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
     // the run: every input after comes from it, and every answer goes to it. A live run's record of what the part got
     // and of any fault that it gives back is critical, and no setting turns it off. With no writer it has nowhere to
@@ -105,11 +107,19 @@ int main(int count, char **words)
     s_run = qry_member_run();
     if (s_run == NULL)
     {
-        fprintf(stderr, "orior_cubin_run: no query writer runs: %s names no .qry a writer has open\n", QRY_ENVIRONMENT);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "orior_cubin_run: no query writer runs: ");
+            mmgr_line_put(&engine_note.line, QRY_ENVIRONMENT);
+            mmgr_line_put(&engine_note.line, " names no .qry a writer has open");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     // `--dry` before the machine file runs every question as ever up to the driver, and none past it
-    if ((count >= 2) && (strcmp(words[1], "--dry") == 0))
+    if ((count >= 2) && (mmgr_text_equal(words[1], "--dry", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         s_dry = 1;
         words[1] = words[0];
@@ -120,13 +130,22 @@ int main(int count, char **words)
     // pops them all. A dry run with no facet pops out the diff from its first question, as ever. The flag --gated
     // <file> takes the feedback of the vendor, the encodings that its disassembler blocked. On a live run, the carrier
     // blocks a probe instruction that matches one before it reaches the part
-    while ((count >= 2) && (strncmp(words[1], "--", 2u) == 0) && (strcmp(words[1], "--list") != 0))
+    while ((count >= 2) && (mmgr_text_starts(words[1], "--", PLATFORM_TEXT_TO_TERMINATOR)) &&
+           (!mmgr_text_equal(words[1], "--list", PLATFORM_TEXT_TO_TERMINATOR)))
     {
-        if (strcmp(words[1], "--gated") == 0)
+        if (mmgr_text_equal(words[1], "--gated", PLATFORM_TEXT_TO_TERMINATOR))
         {
             if ((count < 3) || !cubin_run_verdict_load(words[2]))
             {
-                fprintf(stderr, "the gated list %s did not read\n", (count < 3) ? "(none)" : words[2]);
+                {
+                    EngineNote engine_note;
+                    engine_note_begun(&engine_note);
+                    mmgr_line_put(&engine_note.line, "the gated list ");
+                    mmgr_line_put(&engine_note.line, (count < 3) ? "(none)" : words[2]);
+                    mmgr_line_put(&engine_note.line, " did not read");
+                    mmgr_line_ch(&engine_note.line, '\n');
+                    engine_note_written(&engine_note);
+                }
                 return 2;
             }
             words[2] = words[0];
@@ -136,19 +155,33 @@ int main(int count, char **words)
         }
         // --lessons <file> takes the lessons that a conference taught, the blob of them in the run. Every encoding that
         // a lesson admits goes past rule 3 (cubin_safe_admitted_read). A run with no such blob admits none
-        if (strcmp(words[1], "--lessons") == 0)
+        if (mmgr_text_equal(words[1], "--lessons", PLATFORM_TEXT_TO_TERMINATOR))
         {
             const unsigned char *lessons = NULL;
             unsigned long long lessons_size = 0ULL;
             if (count < 3)
             {
-                fprintf(stderr, "--lessons names no file\n");
+                {
+                    EngineNote engine_note;
+                    engine_note_begun(&engine_note);
+                    mmgr_line_put(&engine_note.line, "--lessons names no file");
+                    mmgr_line_ch(&engine_note.line, '\n');
+                    engine_note_written(&engine_note);
+                }
                 return 2;
             }
             if (qry_member_blob(words[2], &lessons, &lessons_size, NULL) &&
                 !cubin_safe_admitted_read((const char *)lessons, lessons_size))
             {
-                fprintf(stderr, "the lessons %s did not read\n", words[2]);
+                {
+                    EngineNote engine_note;
+                    engine_note_begun(&engine_note);
+                    mmgr_line_put(&engine_note.line, "the lessons ");
+                    mmgr_line_put(&engine_note.line, words[2]);
+                    mmgr_line_put(&engine_note.line, " did not read");
+                    mmgr_line_ch(&engine_note.line, '\n');
+                    engine_note_written(&engine_note);
+                }
                 return 2;
             }
             words[2] = words[0];
@@ -156,19 +189,19 @@ int main(int count, char **words)
             count -= 2;
             continue;
         }
-        if (strcmp(words[1], "--full") == 0)
+        if (mmgr_text_equal(words[1], "--full", PLATFORM_TEXT_TO_TERMINATOR))
         {
             s_facets = CUBIN_FACET_QUERY | CUBIN_FACET_GATE | CUBIN_FACET_VENDOR;
         }
-        else if (strcmp(words[1], "--query") == 0)
+        else if (mmgr_text_equal(words[1], "--query", PLATFORM_TEXT_TO_TERMINATOR))
         {
             s_facets |= CUBIN_FACET_QUERY;
         }
-        else if (strcmp(words[1], "--gate-check") == 0)
+        else if (mmgr_text_equal(words[1], "--gate-check", PLATFORM_TEXT_TO_TERMINATOR))
         {
             s_facets |= CUBIN_FACET_GATE;
         }
-        else if (strcmp(words[1], "--diff-output-against-vendor") == 0)
+        else if (mmgr_text_equal(words[1], "--diff-output-against-vendor", PLATFORM_TEXT_TO_TERMINATOR))
         {
             s_facets |= CUBIN_FACET_VENDOR;
         }
@@ -180,17 +213,20 @@ int main(int count, char **words)
         words += 1;
         count -= 1;
     }
-    const int listed = (count == 5) && (strcmp(words[3], "--list") == 0);
+    const int listed = (count == 5) && (mmgr_text_equal(words[3], "--list", PLATFORM_TEXT_TO_TERMINATOR));
     if (!listed && (count != 8) && (count != 9) && (count != 11))
     {
-        fprintf(
-            stderr,
-            "orior_cubin_run <machine file> <layout> <code> <registers> <cases> <answers> <probe> [<launches> "
-            "[<threads> "
-            "<blocks>]]\n"
-            "orior_cubin_run <machine file> <layout> --list <list>\n"
-            "orior_cubin_run [--dry [--full|--query|--gate-check|--diff-output-against-vendor]...] [--gated <file>] "
-            "<machine file> ...\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(
+                &engine_note.line,
+                "orior_cubin_run <machine file> <layout> <code> <registers> <cases> <answers> <probe> [<launches> "
+                "[<threads> <blocks>]]\norior_cubin_run <machine file> <layout> --list <list>\norior_cubin_run [--dry "
+                "[--full|--query|--gate-check|--diff-output-against-vendor]...] [--gated <file>] <machine file> ...");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     char kernel[256];
@@ -198,7 +234,13 @@ int main(int count, char **words)
         cubin_pattern_read(words[2], s_pattern, sizeof(s_pattern), kernel, sizeof(kernel));
     if (!sass_machine_read(&s_machine, words[1]))
     {
-        fprintf(stderr, "the machine file did not read\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the machine file did not read");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     // the gate reads every instruction of every question against the forms, and finds the places of the forms once
@@ -228,7 +270,13 @@ int main(int count, char **words)
     CubinRunLines list;
     if (!cubin_run_lines_open(&list, words[4]))
     {
-        fprintf(stderr, "the list did not read\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the list did not read");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     char line[4u * CUBIN_RUN_LINE];

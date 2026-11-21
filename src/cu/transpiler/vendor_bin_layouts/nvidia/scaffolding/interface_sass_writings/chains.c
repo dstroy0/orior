@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // chains.c: the chains: a chain read, a form put at a link, the chains written for each relation and read back
 #include "writings_internal.h"
+#include "../../../../../engine/engine_note.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../../../../includes/parsers/line_read.h"
 
 // one node of a chain: its precept, and the register text of each operand, a leaf's or an earlier node's
@@ -22,15 +25,19 @@ static int writings_chain_read(const char **walk, WritingsNode *nodes, unsigned 
     {
         return 0;
     }
-    snprintf(name, sizeof(name), "%.*s", (int)length, *walk);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(name, sizeof(name));
+        mmgr_line_put_max(&buffer_line, *walk, (size_t)((int)length));
+        (void)mmgr_line_finish(&buffer_line);
+    }
     *walk += length;
     if (**walk != '(')
     {
-        const char *const leaves[4][2] = {{"w0", WRITINGS_LEFT}, {"w1", WRITINGS_RIGHT}, {"zero", "RZ"},
-                                          {"ones", WRITINGS_ONES}};
+        const char *const leaves[4][2] = {
+            {"w0", WRITINGS_LEFT}, {"w1", WRITINGS_RIGHT}, {"zero", "RZ"}, {"ones", WRITINGS_ONES}};
         for (unsigned int at = 0u; at < 4u; at += 1u)
         {
-            if (strcmp(name, leaves[at][0]) == 0)
+            if (mmgr_text_equal(name, leaves[at][0], PLATFORM_TEXT_TO_TERMINATOR))
             {
                 return snprintf(operand, room, "%s", leaves[at][1]) < (int)room;
             }
@@ -40,15 +47,19 @@ static int writings_chain_read(const char **walk, WritingsNode *nodes, unsigned 
     unsigned int precept = PRECEPT_COUNT;
     for (unsigned int at = 0u; at < PRECEPT_COUNT; at += 1u)
     {
-        precept = (strcmp(name, s_precept_text[at]) == 0) ? at : precept;
+        precept = (mmgr_text_equal(name, s_precept_text[at], PLATFORM_TEXT_TO_TERMINATOR)) ? at : precept;
     }
     WritingsNode node;
-    memset(&node, 0, sizeof(node));
-    snprintf(node.operand[1], sizeof(node.operand[1]), "RZ");
+    mmgr_bytes_set(&node, 0, sizeof(node));
+    {
+        VerbaLinea buffer_line = mmgr_line_over(node.operand[1], sizeof(node.operand[1]));
+        mmgr_line_put(&buffer_line, "RZ");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     node.precept = precept;
     *walk += 1;
-    int read = (precept < PRECEPT_COUNT) &&
-               writings_chain_read(walk, nodes, count, node.operand[0], sizeof(node.operand[0]));
+    int read =
+        (precept < PRECEPT_COUNT) && writings_chain_read(walk, nodes, count, node.operand[0], sizeof(node.operand[0]));
     *walk += strspn(*walk, " ");
     if (read && (**walk == ','))
     {
@@ -62,7 +73,12 @@ static int writings_chain_read(const char **walk, WritingsNode *nodes, unsigned 
     }
     *walk += 1;
     nodes[*count] = node;
-    snprintf(operand, room, "R%u", WRITINGS_NODE_FIRST + (2u * *count));
+    {
+        VerbaLinea buffer_line = mmgr_line_over(operand, room);
+        mmgr_line_put(&buffer_line, "R");
+        mmgr_line_decimal(&buffer_line, WRITINGS_NODE_FIRST + (2u * *count), 1u);
+        (void)mmgr_line_finish(&buffer_line);
+    }
     *count += 1u;
     return 1;
 }
@@ -79,11 +95,13 @@ static int writings_put(const char *writing, const char *to, const char *left, c
     const char *walk = writing;
     while ((*walk != '\0') && (at < room))
     {
-        const int starts = (*walk == 'R') && ((walk == writing) || (strchr(" ,[-~!", walk[-1]) != NULL));
+        const int starts =
+            (*walk == 'R') &&
+            ((walk == writing) || (mmgr_text_char(" ,[-~!", walk[-1], PLATFORM_TEXT_TO_TERMINATOR) != NULL));
         unsigned int which = 3u;
         for (unsigned int one = 0u; starts && (one < 3u); one += 1u)
         {
-            const size_t length = strlen(from[one]);
+            const size_t length = mmgr_text_length(from[one], PLATFORM_TEXT_TO_TERMINATOR);
             if ((strncmp(walk, from[one], length) == 0) && ((walk[length] < '0') || (walk[length] > '9')))
             {
                 which = one;
@@ -92,7 +110,7 @@ static int writings_put(const char *writing, const char *to, const char *left, c
         if (which < 3u)
         {
             at += (size_t)snprintf(&out[at], room - at, "%s", into[which]);
-            walk += strlen(from[which]);
+            walk += mmgr_text_length(from[which], PLATFORM_TEXT_TO_TERMINATOR);
             continue;
         }
         out[at] = *walk;
@@ -129,27 +147,57 @@ static unsigned int writings_for(unsigned int precept)
 // `folder` found for its precept, with <into>/list.txt and <into>/chains.txt beside them. A row's sixth column, a
 // verdict a descent gave it, is recorded in chains.txt. 0, or 2 where nothing could be read or written
 int writings_chains_write(const char *pattern, const char *kernel_text, const char *machine, const char *folder,
-                                 const char *kdm, const char *into)
+                          const char *kdm, const char *into)
 {
     s_pattern_size = writings_file_read(pattern, s_pattern, sizeof(s_pattern));
-    const unsigned long long kernel_text_size = writings_file_read(kernel_text, (unsigned char *)s_kernel_text, sizeof(s_kernel_text) - 1u);
+    const unsigned long long kernel_text_size =
+        writings_file_read(kernel_text, (unsigned char *)s_kernel_text, sizeof(s_kernel_text) - 1u);
     s_kernel_text[kernel_text_size] = '\0';
-    if ((s_pattern_size == 0ULL) || (kernel_text_size == 0ULL) || !writings_kernel(s_kernel_text, s_kernel, sizeof(s_kernel)) ||
-        !sass_machine_read(&s_machine, machine) || !writings_load(folder))
+    if ((s_pattern_size == 0ULL) || (kernel_text_size == 0ULL) ||
+        !writings_kernel(s_kernel_text, s_kernel, sizeof(s_kernel)) || !sass_machine_read(&s_machine, machine) ||
+        !writings_load(folder))
     {
-        fprintf(stderr, "the pattern, the kernel, the machine file or the search in %s did not read\n", folder);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the pattern, the kernel, the machine file or the search in ");
+            mmgr_line_put(&engine_note.line, folder);
+            mmgr_line_put(&engine_note.line, " did not read");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     char path[1024];
-    snprintf(path, sizeof(path), "%s/list.txt", into);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+        mmgr_line_put(&buffer_line, into);
+        mmgr_line_put(&buffer_line, "/list.txt");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     FILE *const list = fopen(path, "wb");
-    snprintf(path, sizeof(path), "%s/chains.txt", into);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+        mmgr_line_put(&buffer_line, into);
+        mmgr_line_put(&buffer_line, "/chains.txt");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     FILE *const chains = fopen(path, "wb");
     // the .kdm as the run stores it (kdm.h)
     static KdmFile s_rows;
     if ((list == NULL) || (chains == NULL) || !kdm_read(&s_rows, kdm) || (s_rows.lines == 0u))
     {
-        fprintf(stderr, "the folder %s or the .kdm %s was not reached\n", into, kdm);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the folder ");
+            mmgr_line_put(&engine_note.line, into);
+            mmgr_line_put(&engine_note.line, " or the .kdm ");
+            mmgr_line_put(&engine_note.line, kdm);
+            mmgr_line_put(&engine_note.line, " was not reached");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     for (unsigned int precept = 0u; precept < PRECEPT_COUNT; precept += 1u)
@@ -185,7 +233,12 @@ int writings_chains_write(const char *pattern, const char *kernel_text, const ch
         {
             const unsigned int writing = writings_for(nodes[node].precept);
             char to[8];
-            snprintf(to, sizeof(to), "R%u", WRITINGS_NODE_FIRST + (2u * node));
+            {
+                VerbaLinea buffer_line = mmgr_line_over(to, sizeof(to));
+                mmgr_line_put(&buffer_line, "R");
+                mmgr_line_decimal(&buffer_line, WRITINGS_NODE_FIRST + (2u * node), 1u);
+                (void)mmgr_line_finish(&buffer_line);
+            }
             char put[256];
             fits = (writing < s_form_count) &&
                    writings_put(s_forms[writing], (node + 1u == count) ? WRITINGS_RESULT : to, nodes[node].operand[0],
@@ -198,7 +251,14 @@ int writings_chains_write(const char *pattern, const char *kernel_text, const ch
         const unsigned int instructions =
             fits ? sass_assemble_lines(&s_machine, s_query_text, SASS_CONTROL_SAFE, s_code, sizeof(s_code)) : 0u;
         char cubin[1024];
-        snprintf(cubin, sizeof(cubin), "%s/chain_%05u.cubin", into, written);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(cubin, sizeof(cubin));
+            mmgr_line_put(&buffer_line, into);
+            mmgr_line_put(&buffer_line, "/chain_");
+            mmgr_line_decimal(&buffer_line, written, 5u);
+            mmgr_line_put(&buffer_line, ".cubin");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         if ((instructions == 0u) || !writings_cubin(instructions, cubin))
         {
             unwritten += 1u;
@@ -228,14 +288,34 @@ int writings_chains_read(const char *folder, const char *record)
     static unsigned char s_chain_ran[WRITINGS_CHAINS_MAX];
     char path[1024];
     char line[WRITINGS_LINE];
-    snprintf(path, sizeof(path), "%s/chains/chains.txt", folder);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+        mmgr_line_put(&buffer_line, folder);
+        mmgr_line_put(&buffer_line, "/chains/chains.txt");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     FILE *const chains = fopen(path, "rb");
-    snprintf(path, sizeof(path), "%s/chains/answers.txt", folder);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+        mmgr_line_put(&buffer_line, folder);
+        mmgr_line_put(&buffer_line, "/chains/answers.txt");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     FILE *const answers = fopen(path, "rb");
     FILE *const out = fopen(record, "wb");
     if ((chains == NULL) || (answers == NULL) || (out == NULL))
     {
-        fprintf(stderr, "the chains, their answers in %s or the record %s was not reached\n", folder, record);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the chains, their answers in ");
+            mmgr_line_put(&engine_note.line, folder);
+            mmgr_line_put(&engine_note.line, " or the record ");
+            mmgr_line_put(&engine_note.line, record);
+            mmgr_line_put(&engine_note.line, " was not reached");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     unsigned int count = 0u;
@@ -255,7 +335,9 @@ int writings_chains_read(const char *folder, const char *record)
         s_chain_anchor[count] = LADDER_ANCHOR_COUNT;
         for (unsigned int anchor = 0u; anchor < LADDER_ANCHOR_COUNT; anchor += 1u)
         {
-            s_chain_anchor[count] = (strcmp(operator_name, s_anchor_text[anchor]) == 0) ? anchor : s_chain_anchor[count];
+            s_chain_anchor[count] = (mmgr_text_equal(operator_name, s_anchor_text[anchor], PLATFORM_TEXT_TO_TERMINATOR))
+                                        ? anchor
+                                        : s_chain_anchor[count];
         }
         count += 1u;
     }
@@ -267,10 +349,11 @@ int writings_chains_read(const char *folder, const char *record)
     unsigned int put[LADDER_ANCHOR_COUNT] = {0u};
     unsigned int anchor_counts[LADDER_ANCHOR_COUNT] = {0u};
     fprintf(out, "# Chains run on the part\n\n");
-    fprintf(out, "Written by `interface_sass_writings.sh` whole on every run. Every arrangement of the part's .kdm is "
-                 "written node by node, each node the first writing `interface_sass_writings.md` found for its "
-                 "precept, run on the part over the search's cases, and read back against the relation the "
-                 "arrangement is a row of. %u chains ran and %u were refused by the part.\n\n",
+    fprintf(out,
+            "Written by `interface_sass_writings.sh` whole on every run. Every arrangement of the part's .kdm is "
+            "written node by node, each node the first writing `interface_sass_writings.md` found for its "
+            "precept, run on the part over the search's cases, and read back against the relation the "
+            "arrangement is a row of. %u chains ran and %u were refused by the part.\n\n",
             ran, refused);
     fprintf(out, "## Chains that did not answer as their relation\n\n");
     unsigned int differed = 0u;
@@ -308,8 +391,9 @@ int writings_chains_read(const char *folder, const char *record)
         }
     }
     fclose(out);
-    printf("interface sass chains: %u ran, %u refused, %u answered otherwise than their relation, the record written to "
-           "%s\n",
-           ran, refused, differed, record);
+    printf(
+        "interface sass chains: %u ran, %u refused, %u answered otherwise than their relation, the record written to "
+        "%s\n",
+        ran, refused, differed, record);
     return 0;
 }

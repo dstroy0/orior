@@ -28,8 +28,9 @@
 // there, over every put the part answered (concept_product.h). A concept is its product and cares for nothing that made
 // it, and two pairs of one product are one concept whatever forms name them
 #include "decoder/decoder_internal.h"
+#include "../../../../../platform/platform.h"
 
-int main(int argc, char **argv)
+int program_main(int argc, char **argv)
 {
     if (argc != 4)
     {

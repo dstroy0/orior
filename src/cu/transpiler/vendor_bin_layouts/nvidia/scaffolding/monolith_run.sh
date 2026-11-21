@@ -36,8 +36,13 @@ esac
 "$CUDA/bin/nvcc" "${HOST_FLAGS[@]}" -cubin -arch="$ARCH" -O3 -o "$OUT/monolith.cubin" \
     "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/monolith.cu" || { echo "  the monolith did not build"; exit 1; }
 
-# the runner is host code that loads the cubin and asks the part for its entries; it links the CUDA driver alone
+# the runner is host code that loads the cubin and asks the part for its entries. It is a program of the platform,
+# and links the CUDA driver and the platform
+source "$TOP/includes/exact_types/exact_types.sh"
 cc -std=c11 -O2 -Wall -I "$CUDA/include" -o "$OUT/monolith_run" "$HERE/monolith_run.c" \
-    -L "$CUDA/lib/x64" -lcuda || { echo "  the runner did not link against the CUDA driver"; exit 1; }
+    "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" -L "$CUDA/lib/x64" -lcuda || {
+    echo "  the runner did not link against the CUDA driver"
+    exit 1
+}
 
 "$OUT/monolith_run" "$(cygpath -m "$OUT/monolith.cubin")"

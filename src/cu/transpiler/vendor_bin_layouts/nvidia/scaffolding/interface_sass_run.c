@@ -22,6 +22,9 @@
 // pause after each launch prevents a run of launches from flooding the part and taking the display down with it. Exit 0
 // where every line ran, 2 where the list or the device was not reached.
 #include "../../../../../../includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../engine/engine_note.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../cubin_safe.h"
 #include "../../../../../../includes/parsers/line_read.h"
 
@@ -84,7 +87,7 @@ static int sass_run_cases(const char *path)
         fits = (count < SASS_RUN_THREADS);
         if (fits)
         {
-            memcpy(s_cases[count], words, sizeof(words));
+            mmgr_bytes_copy(s_cases[count], words, sizeof(words));
             count += 1u;
         }
     }
@@ -137,14 +140,22 @@ static CUresult sass_run_one(const char *kernel)
     return status;
 }
 
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
     // the safety airlock: the vendor's verdict read into the gate where it is given, and retained for the part
-    if ((count >= 3) && (strcmp(words[1], "--gated") == 0))
+    if ((count >= 3) && (mmgr_text_equal(words[1], "--gated", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         if (!cubin_safe_verdict_load(words[2]))
         {
-            fprintf(stderr, "the gated list %s did not read\n", words[2]);
+            {
+                EngineNote engine_note;
+                engine_note_begun(&engine_note);
+                mmgr_line_put(&engine_note.line, "the gated list ");
+                mmgr_line_put(&engine_note.line, words[2]);
+                mmgr_line_put(&engine_note.line, " did not read");
+                mmgr_line_ch(&engine_note.line, '\n');
+                engine_note_written(&engine_note);
+            }
             return 2;
         }
         words[2] = words[0];
@@ -153,19 +164,43 @@ int main(int count, char **words)
     }
     if ((count < 5) || (count > 7))
     {
-        fprintf(stderr,
-                "interface_sass_run [--gated <file>] <machine file> <list> <first> <answers> [<cases> [<max>]]\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(
+                &engine_note.line,
+                "interface_sass_run [--gated <file>] <machine file> <list> <first> <answers> [<cases> [<max>]]");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     const unsigned long max = (count == 7) ? strtoul(words[6], NULL, 10) : 0UL;
     if ((count >= 6) && !sass_run_cases(words[5]))
     {
-        fprintf(stderr, "the cases %s did not read, or contain more than %u\n", words[5], SASS_RUN_THREADS);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the cases ");
+            mmgr_line_put(&engine_note.line, words[5]);
+            mmgr_line_put(&engine_note.line, " did not read, or contain more than ");
+            mmgr_line_decimal(&engine_note.line, SASS_RUN_THREADS, 1u);
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     if (!sass_machine_read(&s_machine, words[1]))
     {
-        fprintf(stderr, "the machine file %s did not read, and nothing goes to the part unread\n", words[1]);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the machine file ");
+            mmgr_line_put(&engine_note.line, words[1]);
+            mmgr_line_put(&engine_note.line, " did not read, and nothing goes to the part unread");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     FILE *const list = fopen(words[2], "rb");
@@ -176,7 +211,17 @@ int main(int count, char **words)
         (cuDeviceGet(&device, 0) != CUDA_SUCCESS) || (cuDevicePrimaryCtxRetain(&context, device) != CUDA_SUCCESS) ||
         (cuCtxSetCurrent(context) != CUDA_SUCCESS))
     {
-        fprintf(stderr, "the list %s, the answers %s or the device was not reached\n", words[2], words[4]);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the list ");
+            mmgr_line_put(&engine_note.line, words[2]);
+            mmgr_line_put(&engine_note.line, ", the answers ");
+            mmgr_line_put(&engine_note.line, words[4]);
+            mmgr_line_put(&engine_note.line, " or the device was not reached");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     const unsigned long first = strtoul(words[3], NULL, 10);
@@ -200,7 +245,7 @@ int main(int count, char **words)
         }
         // a line the writer blocked from the part: its turned operation key contains a control transfer, a wait or no
         // form, and running it could loop or stall the part. It is answered without the device
-        if (strcmp(path, "skip") == 0)
+        if (mmgr_text_equal(path, "skip", PLATFORM_TEXT_TO_TERMINATOR))
         {
             fprintf(answers, "%lu skipped %s\n", number, kernel);
             number += 1UL;

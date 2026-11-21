@@ -69,7 +69,7 @@ static void check_text(const KhwForm *form, const char *expected, const char *wh
 
 static SassMachine s_test_machine;
 
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
     if (count < 2)
     {

@@ -103,7 +103,7 @@ static int overseer_carrier_gated(QryShared *run, const char *mode, const char *
     return (length != 0u) ? 1 : 0;
 }
 
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
     if ((count >= 2) && (strcmp(words[1], "pop") == 0))
     {

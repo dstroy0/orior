@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "periodic_energy.h"
+#include "../../../../../platform/platform.h"
 
 #define PATTERN_HEIGHT 8ULL
 
@@ -128,7 +129,9 @@ int program_main(int argc, char **argv)
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;
     sim_open(&results, line_buffer);
-    PatternWork *const work = (PatternWork *)calloc(1u, sizeof(PatternWork));
+    PatternWork *const work =
+        (PatternWork *)platform_cell_cleared((unsigned long long)(1u), (unsigned long long)(sizeof(PatternWork)),
+                                             (unsigned int)platform_place_g_program_owner, 0);
     sim_check(&results, work != NULL, "work buffers");
     if (work == NULL)
     {
@@ -136,7 +139,7 @@ int program_main(int argc, char **argv)
     }
     if (!sim_job_submit(&results, "fixed_pattern", 0, NULL, sizeof(PatternWork)))
     {
-        free(work);
+        platform_cell_released(work, (unsigned int)platform_place_g_program_owner);
         return sim_close(&results, "fixed pattern");
     }
     VerbaLinea *const line = &results.line;
@@ -147,7 +150,7 @@ int program_main(int argc, char **argv)
         work->stack[at] = work->scene[at] + work->pattern[at % PATTERN_FRAME];
     }
     mmgr_line_put(line, "  fixed-pattern video noise removed to the bit (ART-4-005, ported)\n  declared inputs: "
-                         "frame=8x8 frames=48 swing=20 pattern=40 draws=8 key=0x");
+                        "frame=8x8 frames=48 swing=20 pattern=40 draws=8 key=0x");
     mmgr_line_hex(line, PATTERN_KEY, 1u);
     mmgr_line_put(line, "\n\n");
 
@@ -249,7 +252,7 @@ int program_main(int argc, char **argv)
     ok = ok && energy_band_top(&results, work->stack, PATTERN_LENGTH, PATTERN_FRAME, PATTERN_DRAWS,
                                PATTERN_KEY ^ 0x42414E44ULL, work->shuffled, work->sums, &top, &reached);
     mmgr_line_put(line, "  negative controls: the 100% is licensed by the band declining the wrong noise\n  null band "
-                         "over 8 shuffles (");
+                        "over 8 shuffles (");
     mmgr_line_decimal(line, reached, 1u);
     mmgr_line_put(line, " reached a period), top ");
     energy_print(line, &top);
@@ -330,6 +333,6 @@ int program_main(int argc, char **argv)
         last_denominator = floor_denominator;
     }
     sim_check(&results, ok && falling, "the reduction falls with every deeper static feature");
-    free(work);
+    platform_cell_released(work, (unsigned int)platform_place_g_program_owner);
     return sim_close(&results, "fixed pattern");
 }

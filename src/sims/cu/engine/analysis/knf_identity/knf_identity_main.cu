@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // knf_identity_main.cu: departure, controls and main
 #include "knf_identity_internal.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
 
 static OriorExactInteger s_knf_body_departure[KNF_SCALES][KNF_BODIES];
 
@@ -135,7 +137,7 @@ static int knf_departure(SimResults *results, const KnfRecord *record, const uns
         "    each body's box (zmin..zmax, ymin..ymax, xmin..xmax over its life), its own inside curve as a share of\n");
     mmgr_line_put(line, "    its free departure, and that departure as a share of the whole's\n");
     mmgr_line_put(line, "      body parent  born ended  vy vx  box z      y      x           2        4        8      "
-                         " 16       32     share\n");
+                        " 16       32     share\n");
     for (unsigned int index = 0u; index < scene->bodies; index += 1u)
     {
         const SimBody *const body = &scene->body[index];
@@ -187,7 +189,7 @@ static void knf_controls(SimResults *results, unsigned short *device_lanes, unsi
                          unsigned int *map, unsigned int *cells)
 {
     SimScene scene;
-    memset(&scene, 0, sizeof(scene));
+    mmgr_bytes_set(&scene, 0, sizeof(scene));
     scene.frames = KNF_FRAMES;
     for (unsigned int axis = 0u; axis < SIM_AXES; axis += 1u)
     {
@@ -224,8 +226,7 @@ static void knf_controls(SimResults *results, unsigned short *device_lanes, unsi
     VerbaLinea *const line = &results->line;
     mmgr_line_put(line, "  the null's own rate: ");
     mmgr_line_decimal(line, KNF_CONTROLS, 1u);
-    mmgr_line_put(line,
-                   " volumes of 32^3 with every voxel drawn alike (no bodies, no ramp, no fixed pattern), each\n");
+    mmgr_line_put(line, " volumes of 32^3 with every voxel drawn alike (no bodies, no ramp, no fixed pattern), each\n");
     mmgr_line_put(line, "  against ");
     mmgr_line_decimal(line, KNF_DRAWS, 1u);
     mmgr_line_put(line, " free spatial draws: ");
@@ -246,7 +247,7 @@ int program_main(int count, char **arguments)
     SimResults results;
     sim_open(&results, line_buffer);
     SimBody body[KNF_BODIES];
-    memset(body, 0, sizeof(body));
+    mmgr_bytes_set(body, 0, sizeof(body));
     SimScene scene;
     knf_scene(&scene, body, 1);
     SimCamera camera;
@@ -256,11 +257,18 @@ int program_main(int count, char **arguments)
     const unsigned long long history_words = KNF_WINDOWS * voxels;
     const unsigned long long cloud_words = KNF_WINDOWS * KNF_WINDOWS;
 
-    unsigned short *lanes = (unsigned short *)malloc((size_t)lanes_count * sizeof(unsigned short));
-    unsigned short *moved = (unsigned short *)malloc((size_t)lanes_count * sizeof(unsigned short));
-    unsigned int *map = (unsigned int *)malloc((size_t)voxels * sizeof(unsigned int));
-    unsigned int *cells = (unsigned int *)malloc((size_t)voxels * sizeof(unsigned int));
-    unsigned short *boxes = (unsigned short *)malloc((size_t)voxels * sizeof(unsigned short));
+    unsigned short *lanes =
+        (unsigned short *)platform_cell_taken((unsigned long long)((size_t)lanes_count * sizeof(unsigned short)),
+                                              (unsigned int)platform_place_g_program_owner, 0);
+    unsigned short *moved =
+        (unsigned short *)platform_cell_taken((unsigned long long)((size_t)lanes_count * sizeof(unsigned short)),
+                                              (unsigned int)platform_place_g_program_owner, 0);
+    unsigned int *map = (unsigned int *)platform_cell_taken((unsigned long long)((size_t)voxels * sizeof(unsigned int)),
+                                                            (unsigned int)platform_place_g_program_owner, 0);
+    unsigned int *cells = (unsigned int *)platform_cell_taken(
+        (unsigned long long)((size_t)voxels * sizeof(unsigned int)), (unsigned int)platform_place_g_program_owner, 0);
+    unsigned short *boxes = (unsigned short *)platform_cell_taken(
+        (unsigned long long)((size_t)voxels * sizeof(unsigned short)), (unsigned int)platform_place_g_program_owner, 0);
     KnfRecord record;
     KnfRecord moved_record;
     record.side = KNF_SIDE;
@@ -285,7 +293,7 @@ int program_main(int count, char **arguments)
 
     VerbaLinea *const line = &results.line;
     mmgr_line_put(line,
-                   "  the knf's identity by spatial null permutation: the nbody lattice's law in a 64^3 cube over ");
+                  "  the knf's identity by spatial null permutation: the nbody lattice's law in a 64^3 cube over ");
     mmgr_line_decimal(line, KNF_FRAMES, 1u);
     mmgr_line_put(line, " frames,\n  ");
     mmgr_line_decimal(line, KNF_WINDOWS, 1u);
@@ -303,7 +311,7 @@ int program_main(int count, char **arguments)
     ok = ok && (clipped == 0ULL);
     sim_check(&results, ok, "the lattice renders, no lane clipped");
     KnfBox box[KNF_BODIES];
-    memset(box, 0, sizeof(box));
+    mmgr_bytes_set(box, 0, sizeof(box));
     if (ok)
     {
         knf_boxes(&scene, box, boxes);
@@ -342,10 +350,10 @@ int program_main(int count, char **arguments)
     free(record.centerd);
     free(record.cloud);
     free(record.history);
-    free(boxes);
-    free(cells);
-    free(map);
-    free(moved);
-    free(lanes);
+    platform_cell_released(boxes, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(cells, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(map, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(moved, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(lanes, (unsigned int)platform_place_g_program_owner);
     return sim_close(&results, "knf identity");
 }

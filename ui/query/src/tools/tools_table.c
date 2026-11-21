@@ -35,19 +35,22 @@ const char *const g_query_mmgr[] = {
     "includes/mmgr/src/numeros_scribo/*.c", "includes/mmgr/src/octetus_introitus_exitus/*.c",
     "includes/mmgr/src/proximus_operor/*.c", "includes/mmgr/src/spatium/*.c", "includes/mmgr/src/transformo/*.c",
     "includes/mmgr/src/verba_scribo/*.c", "includes/mmgr/src/verbum_scrutor/*.c",
-    // the host's address wait, wake and clock, which LocusCarcerum's turnstiles
-    // sleep, wake and stamp through and the program is to define
-    "includes/mmgr/test/support/host_wait.c", NULL};
+    // the platform: main and the process stage, the pool, and the calls into the system. It defines the host's
+    // address wait, wake and clock, which the turnstiles of LocusCarcerum sleep, wake and stamp through. Every program
+    // defines program_main and no main
+    "src/platform/platform_process.c", "src/platform/platform_pool.c", "src/platform/platform_windows.c",
+    "src/platform/platform_posix.c", NULL};
 
 // MMgr's include folders, from the top of the tree, and the settings it is built with, given every compile
 const char *const g_query_mmgr_includes[] = {"includes/mmgr/include", "includes/mmgr/src",
                                              "includes/embedded_types/include", "includes/mmgr/test/support", NULL};
 
-// the words every program's link ends with: on Windows the library the address wait is in
+// the words every program's link ends with: on Windows the library the address wait is in, and on Linux and macOS
+// the threads and the loader, which the platform calls
 #if defined(_WIN32)
 const char *const g_query_mmgr_link[] = {"-lsynchronization", NULL};
 #else
-const char *const g_query_mmgr_link[] = {NULL};
+const char *const g_query_mmgr_link[] = {"-lpthread", "-ldl", NULL};
 #endif
 
 const char *const g_query_mmgr_settings[] = {"-DMMGR_ENABLE_DMA=0", "-DMMGR_ENABLE_EXTRAM=0", "-DMMGR_ALIGN_BYTES=32",
@@ -181,7 +184,8 @@ static const char *const s_klq_identity_c[] = {"src/cu/transpiler/lstar/protocol
                                                "src/cu/transpiler/lstar/protocol/overseer/*.c", NULL};
 
 static const char *const s_klq_identity_cxx[] = {"src/cu/transpiler/lstar/protocol/table/klq_identity.cu",
-                                                 "src/cu/transpiler/lstar/protocol/table/identity/*.cu", NULL};
+                                                 "src/cu/transpiler/lstar/protocol/table/identity/*.cu",
+                                                 "includes/file_defs/klq/query_trace.cu", NULL};
 
 static const char *const s_klq_identity_includes[] = {"src/cu/engine",
                                                       "src/cu/engine/rmc",

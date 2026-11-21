@@ -1,6 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "sim_camera.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #define LATTICE_KEY 0x4E424F4459ULL
 
@@ -24,7 +27,7 @@
 
 static void lattice_scene(SimScene *scene, SimBody *body)
 {
-    memset(scene, 0, sizeof(*scene));
+    mmgr_bytes_set(scene, 0, sizeof(*scene));
     scene->frames = LATTICE_FRAMES;
     scene->extent[0] = LATTICE_DEPTH;
     scene->extent[1] = LATTICE_ROWS;
@@ -63,7 +66,7 @@ static void lattice_scene(SimScene *scene, SimBody *body)
 
 static void lattice_camera(SimCamera *camera)
 {
-    memset(camera, 0, sizeof(*camera));
+    mmgr_bytes_set(camera, 0, sizeof(*camera));
     camera->key = LATTICE_KEY;
     camera->offset = 100ULL;
     camera->gain = 1ULL;
@@ -272,14 +275,14 @@ int program_main(int count, char **arguments)
     const char *out = NULL;
     for (int argument = 1; argument + 1 < count; argument += 1)
     {
-        if (strcmp(arguments[argument], "--out") == 0)
+        if (mmgr_text_equal(arguments[argument], "--out", PLATFORM_TEXT_TO_TERMINATOR))
         {
             out = arguments[argument + 1];
         }
     }
 
     SimBody body[LATTICE_BODIES];
-    memset(body, 0, sizeof(body));
+    mmgr_bytes_set(body, 0, sizeof(body));
     SimScene scene;
     lattice_scene(&scene, body);
     SimCamera camera;
@@ -288,11 +291,21 @@ int program_main(int count, char **arguments)
     const unsigned long long lanes_count = scene.frames * voxels;
     const unsigned long long truth_words = scene.frames * scene.bodies * SIM_TRUTH_FIELDS;
 
-    unsigned short *lanes = (unsigned short *)malloc((size_t)lanes_count * sizeof(unsigned short));
-    unsigned short *again = (unsigned short *)malloc((size_t)lanes_count * sizeof(unsigned short));
-    unsigned int *signal = (unsigned int *)malloc((size_t)lanes_count * sizeof(unsigned int));
-    unsigned long long *truth = (unsigned long long *)malloc((size_t)truth_words * sizeof(unsigned long long));
-    unsigned long long *reference = (unsigned long long *)malloc((size_t)truth_words * sizeof(unsigned long long));
+    unsigned short *lanes =
+        (unsigned short *)platform_cell_taken((unsigned long long)((size_t)lanes_count * sizeof(unsigned short)),
+                                              (unsigned int)platform_place_g_program_owner, 0);
+    unsigned short *again =
+        (unsigned short *)platform_cell_taken((unsigned long long)((size_t)lanes_count * sizeof(unsigned short)),
+                                              (unsigned int)platform_place_g_program_owner, 0);
+    unsigned int *signal =
+        (unsigned int *)platform_cell_taken((unsigned long long)((size_t)lanes_count * sizeof(unsigned int)),
+                                            (unsigned int)platform_place_g_program_owner, 0);
+    unsigned long long *truth = (unsigned long long *)platform_cell_taken(
+        (unsigned long long)((size_t)truth_words * sizeof(unsigned long long)),
+        (unsigned int)platform_place_g_program_owner, 0);
+    unsigned long long *reference = (unsigned long long *)platform_cell_taken(
+        (unsigned long long)((size_t)truth_words * sizeof(unsigned long long)),
+        (unsigned int)platform_place_g_program_owner, 0);
     unsigned short *device_lanes = NULL;
     unsigned int *device_signal = NULL;
     int ok = (lanes != NULL) && (again != NULL) && (signal != NULL) && (truth != NULL) && (reference != NULL);
@@ -318,7 +331,7 @@ int program_main(int count, char **arguments)
     {
         sim_truth_host(&scene, reference);
         lattice_print_scene(&results, &scene, truth);
-        sim_check(&results, memcmp(truth, reference, (size_t)truth_words * sizeof(unsigned long long)) == 0,
+        sim_check(&results, mmgr_bytes_compare(truth, reference, (size_t)truth_words * sizeof(unsigned long long)) == 0,
                   "every body's device truth equals the host walk of its box");
         unsigned long long signal_differ = 0ULL;
         for (unsigned long long index = 0ULL; index < lanes_count; index += 1ULL)
@@ -346,7 +359,7 @@ int program_main(int count, char **arguments)
     }
 
     SimCamera quiet;
-    memset(&quiet, 0, sizeof(quiet));
+    mmgr_bytes_set(&quiet, 0, sizeof(quiet));
     quiet.gain = 1ULL;
     ok = ok && sim_render(&results, &scene, &quiet, device_lanes, NULL, NULL, &clipped);
     ok = ok &&
@@ -369,7 +382,7 @@ int program_main(int count, char **arguments)
                           "second render read");
     if (ok)
     {
-        sim_check(&results, memcmp(lanes, again, (size_t)lanes_count * sizeof(unsigned short)) == 0,
+        sim_check(&results, mmgr_bytes_compare(lanes, again, (size_t)lanes_count * sizeof(unsigned short)) == 0,
                   "a second render of the same key is identical");
     }
     if (ok && (out != NULL))
@@ -395,10 +408,10 @@ int program_main(int count, char **arguments)
 
     cudaFree(device_signal);
     cudaFree(device_lanes);
-    free(reference);
-    free(truth);
-    free(signal);
-    free(again);
-    free(lanes);
+    platform_cell_released(reference, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(truth, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(signal, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(again, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(lanes, (unsigned int)platform_place_g_program_owner);
     return sim_close(&results, "nbody lattice");
 }

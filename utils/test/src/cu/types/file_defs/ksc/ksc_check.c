@@ -118,7 +118,7 @@ static const char *const s_written = "ksc part\n"
 
 static KscFile s_file;
 
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
     if (count < 2)
     {

@@ -33,7 +33,7 @@ static int find(const unsigned int *types, unsigned long long count, unsigned lo
     return bus_enum_find(types, count, base, stride, records);
 }
 
-int main(int count_of_words, char **words)
+int program_main(int count_of_words, char **words)
 {
     // the classify probe and the width probe over memory the test owns. It retains what the probe puts, is left as it
     // was found, and sized gives width 0, since memory gives back the ones it was put

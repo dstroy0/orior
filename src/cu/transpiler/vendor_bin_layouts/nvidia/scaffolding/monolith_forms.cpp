@@ -29,6 +29,8 @@
 // the tool writes into the ruleset in place each form whose questions all read whole and alike (read_adopted defines
 // what whole is).
 #include "../../../../../../utils/test/src/cu/engine/analysis/cycle/record_programs.h"
+#include "../../../../engine/engine_note.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 // the cubin writer is C and its headers carry no guard of their own: this file names the linkage here
 extern "C"
@@ -342,15 +344,23 @@ static std::string lane_form_key(const LaneForm &lane_form)
         char part[32];
         if (argument.type == OPERAND_REGISTER)
         {
-            snprintf(part, sizeof(part), " r%u", argument.which);
+            VerbaLinea buffer_line = mmgr_line_over(part, sizeof(part));
+            mmgr_line_put(&buffer_line, " r");
+            mmgr_line_decimal(&buffer_line, argument.which, 1u);
+            (void)mmgr_line_finish(&buffer_line);
         }
         else if (argument.type == OPERAND_PHYSREG)
         {
-            snprintf(part, sizeof(part), " f%u", argument.which);
+            VerbaLinea buffer_line = mmgr_line_over(part, sizeof(part));
+            mmgr_line_put(&buffer_line, " f");
+            mmgr_line_decimal(&buffer_line, argument.which, 1u);
+            (void)mmgr_line_finish(&buffer_line);
         }
         else
         {
-            snprintf(part, sizeof(part), " n");
+            VerbaLinea buffer_line = mmgr_line_over(part, sizeof(part));
+            mmgr_line_put(&buffer_line, " n");
+            (void)mmgr_line_finish(&buffer_line);
         }
         key += part;
     }
@@ -627,19 +637,35 @@ static std::string writer_load(const std::string &type, unsigned int at)
     char text[160];
     if (type == "u64")
     {
-        snprintf(text, sizeof(text), "*(volatile const u64 *)&in[%u]", at);
+        VerbaLinea buffer_line = mmgr_line_over(text, sizeof(text));
+        mmgr_line_put(&buffer_line, "*(volatile const u64 *)&in[");
+        mmgr_line_decimal(&buffer_line, at, 1u);
+        mmgr_line_put(&buffer_line, "]");
+        (void)mmgr_line_finish(&buffer_line);
     }
     else if (type == "int")
     {
-        snprintf(text, sizeof(text), "((*(volatile const u32 *)&in[%u] != 0u) ? 1 : 0)", at);
+        VerbaLinea buffer_line = mmgr_line_over(text, sizeof(text));
+        mmgr_line_put(&buffer_line, "((*(volatile const u32 *)&in[");
+        mmgr_line_decimal(&buffer_line, at, 1u);
+        mmgr_line_put(&buffer_line, "] != 0u) ? 1 : 0)");
+        (void)mmgr_line_finish(&buffer_line);
     }
     else if (type == "s8")
     {
-        snprintf(text, sizeof(text), "(s8)*(volatile const u32 *)&in[%u]", at);
+        VerbaLinea buffer_line = mmgr_line_over(text, sizeof(text));
+        mmgr_line_put(&buffer_line, "(s8)*(volatile const u32 *)&in[");
+        mmgr_line_decimal(&buffer_line, at, 1u);
+        mmgr_line_put(&buffer_line, "]");
+        (void)mmgr_line_finish(&buffer_line);
     }
     else
     {
-        snprintf(text, sizeof(text), "*(volatile const u32 *)&in[%u]", at);
+        VerbaLinea buffer_line = mmgr_line_over(text, sizeof(text));
+        mmgr_line_put(&buffer_line, "*(volatile const u32 *)&in[");
+        mmgr_line_decimal(&buffer_line, at, 1u);
+        mmgr_line_put(&buffer_line, "]");
+        (void)mmgr_line_finish(&buffer_line);
     }
     return text;
 }
@@ -649,19 +675,43 @@ static std::string writer_store(const std::string &type, unsigned int at, const 
     char text[200];
     if (type == "u64")
     {
-        snprintf(text, sizeof(text), "        *(volatile u64 *)&out[%u] = %s;\n", at, name.c_str());
+        VerbaLinea buffer_line = mmgr_line_over(text, sizeof(text));
+        mmgr_line_put(&buffer_line, "        *(volatile u64 *)&out[");
+        mmgr_line_decimal(&buffer_line, at, 1u);
+        mmgr_line_put(&buffer_line, "] = ");
+        mmgr_line_put(&buffer_line, name.c_str());
+        mmgr_line_put(&buffer_line, ";\n");
+        (void)mmgr_line_finish(&buffer_line);
     }
     else if (type == "int")
     {
-        snprintf(text, sizeof(text), "        *(volatile u32 *)&out[%u] = (%s != 0) ? 1u : 0u;\n", at, name.c_str());
+        VerbaLinea buffer_line = mmgr_line_over(text, sizeof(text));
+        mmgr_line_put(&buffer_line, "        *(volatile u32 *)&out[");
+        mmgr_line_decimal(&buffer_line, at, 1u);
+        mmgr_line_put(&buffer_line, "] = (");
+        mmgr_line_put(&buffer_line, name.c_str());
+        mmgr_line_put(&buffer_line, " != 0) ? 1u : 0u;\n");
+        (void)mmgr_line_finish(&buffer_line);
     }
     else if (type == "s8")
     {
-        snprintf(text, sizeof(text), "        *(volatile u32 *)&out[%u] = (u32)(int)%s;\n", at, name.c_str());
+        VerbaLinea buffer_line = mmgr_line_over(text, sizeof(text));
+        mmgr_line_put(&buffer_line, "        *(volatile u32 *)&out[");
+        mmgr_line_decimal(&buffer_line, at, 1u);
+        mmgr_line_put(&buffer_line, "] = (u32)(int)");
+        mmgr_line_put(&buffer_line, name.c_str());
+        mmgr_line_put(&buffer_line, ";\n");
+        (void)mmgr_line_finish(&buffer_line);
     }
     else
     {
-        snprintf(text, sizeof(text), "        *(volatile u32 *)&out[%u] = %s;\n", at, name.c_str());
+        VerbaLinea buffer_line = mmgr_line_over(text, sizeof(text));
+        mmgr_line_put(&buffer_line, "        *(volatile u32 *)&out[");
+        mmgr_line_decimal(&buffer_line, at, 1u);
+        mmgr_line_put(&buffer_line, "] = ");
+        mmgr_line_put(&buffer_line, name.c_str());
+        mmgr_line_put(&buffer_line, ";\n");
+        (void)mmgr_line_finish(&buffer_line);
     }
     return text;
 }
@@ -728,7 +778,13 @@ static void writer_question(Writer *writer, const std::vector<LaneForm> &questio
         const KrsForm &form = writer->c->forms.at(name);
         writer->tag += 1u;
         char line[256];
-        snprintf(line, sizeof(line), "\n    MONOLITH_TAG(%u);\n    {\n", MONOLITH_FORMS_LOADS + writer->tag);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(line, sizeof(line));
+            mmgr_line_put(&buffer_line, "\n    MONOLITH_TAG(");
+            mmgr_line_decimal(&buffer_line, MONOLITH_FORMS_LOADS + writer->tag, 1u);
+            mmgr_line_put(&buffer_line, ");\n    {\n");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         writer->body += line;
         std::string row = std::to_string(writer->tag) + "\t" + name + "\t" + lane_form_key(lane_form);
         std::string text = form.text;
@@ -752,7 +808,8 @@ static void writer_question(Writer *writer, const std::vector<LaneForm> &questio
             }
             const std::string local = "a_" + parameter;
             const size_t named = text_count(text, "{" + parameter + "}");
-            const size_t assigned = text_count(text, "{" + parameter + "} =") - text_count(text, "{" + parameter + "} ==");
+            const size_t assigned =
+                text_count(text, "{" + parameter + "} =") - text_count(text, "{" + parameter + "} ==");
             const int output = (assigned != 0u);
             const int input = !output || conditional || (named > assigned);
             if (input)
@@ -783,8 +840,8 @@ static void writer_question(Writer *writer, const std::vector<LaneForm> &questio
                 continue;
             }
             const unsigned int word = writer_take(&writer->in_words, type->second);
-            writer->body += "        const " + type->second + " " + variable + " = " +
-                            writer_load(type->second, word) + ";\n";
+            writer->body +=
+                "        const " + type->second + " " + variable + " = " + writer_load(type->second, word) + ";\n";
             row += "\t!" + fixed.first + "=in:" + std::to_string(word) + ":" + type->second;
         }
         for (const char *const variable : {"launch"})
@@ -793,8 +850,8 @@ static void writer_question(Writer *writer, const std::vector<LaneForm> &questio
             if ((type != writer->declared.end()) && text_names(text, variable))
             {
                 const unsigned int word = writer_take(&writer->in_words, type->second);
-                writer->body += "        const " + type->second + " " + variable + " = " +
-                                writer_load(type->second, word) + ";\n";
+                writer->body +=
+                    "        const " + type->second + " " + variable + " = " + writer_load(type->second, word) + ";\n";
                 row += "\t!" + std::string(variable) + "=in:" + std::to_string(word) + ":" + type->second;
             }
         }
@@ -814,9 +871,21 @@ static void writer_question(Writer *writer, const std::vector<LaneForm> &questio
             stores += writer_store("u32", word, "carry");
             row += "\t!carry=out:" + std::to_string(word) + ":u32";
         }
-        snprintf(line, sizeof(line), "        MONOLITH_TAG(%u);\n", writer->tag);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(line, sizeof(line));
+            mmgr_line_put(&buffer_line, "        MONOLITH_TAG(");
+            mmgr_line_decimal(&buffer_line, writer->tag, 1u);
+            mmgr_line_put(&buffer_line, ");\n");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         writer->body += line + text;
-        snprintf(line, sizeof(line), "        MONOLITH_TAG(%u);\n", MONOLITH_FORMS_STORES + writer->tag);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(line, sizeof(line));
+            mmgr_line_put(&buffer_line, "        MONOLITH_TAG(");
+            mmgr_line_decimal(&buffer_line, MONOLITH_FORMS_STORES + writer->tag, 1u);
+            mmgr_line_put(&buffer_line, ");\n");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         writer->body += line + stores + "    }\n";
         writer->questions.push_back(row);
     }
@@ -873,9 +942,9 @@ static std::string c_string(const std::string &text)
     std::string out;
     for (const char character : text)
     {
-        out += (character == '\n') ? std::string("\\n")
+        out += (character == '\n')   ? std::string("\\n")
                : (character == '\t') ? std::string("\\t")
-               : (character == '"') ? std::string("\\\"")
+               : (character == '"')  ? std::string("\\\"")
                : (character == '\\') ? std::string("\\\\")
                                      : std::string(1u, character);
     }
@@ -895,8 +964,8 @@ static int ptx_written(const std::string &text, const std::string &name)
         const size_t stop = (end == std::string::npos) ? text.size() : end;
         const Instruction instruction = instruction_read(text.substr(at, stop - at));
         at = stop + 1u;
-        const int stores = (instruction.operation.compare(0u, 3u, "st.") == 0) ||
-                           (instruction.operation.compare(0u, 4u, "red.") == 0);
+        const int stores =
+            (instruction.operation.compare(0u, 3u, "st.") == 0) || (instruction.operation.compare(0u, 4u, "red.") == 0);
         if (!stores && !instruction.operands.empty() && (instruction.operands[0].find(name) != std::string::npos))
         {
             written = instruction.guard.empty() ? ((written == 2) ? 2 : 1) : 2;
@@ -948,7 +1017,8 @@ static void writer_ptx_question(Writer *writer, const LaneForm &lane_form, int a
     unsigned int predicate_count = 0u;
     unsigned int opaque = 0u;
     // one register of the form: its operand, loaded, stored or both, `role` its name in the questions' row
-    auto operand = [&](const std::string &role, const std::string &type, int fixed, int read, int write) -> std::string {
+    auto operand = [&](const std::string &role, const std::string &type, int fixed, int read,
+                       int write) -> std::string {
         const std::string prefix = fixed ? "\t!" : "\t";
         const std::string local = "p_" + std::to_string(inputs.size() + outputs.size() + predicate_count);
         const int predicate = (type == "pred");
@@ -1011,8 +1081,8 @@ static void writer_ptx_question(Writer *writer, const LaneForm &lane_form, int a
         else if (argument.type == OPERAND_PHYSREG)
         {
             const auto fixed = writer->ptx->fixed.find(s_fixed_names[argument.which]);
-            const auto declared = (fixed == writer->ptx->fixed.end()) ? writer->ptx_types.end()
-                                                                       : writer->ptx_types.find(fixed->second);
+            const auto declared =
+                (fixed == writer->ptx->fixed.end()) ? writer->ptx_types.end() : writer->ptx_types.find(fixed->second);
             type = (declared == writer->ptx_types.end()) ? std::string() : declared->second;
         }
         if (type.empty())
@@ -1032,15 +1102,15 @@ static void writer_ptx_question(Writer *writer, const LaneForm &lane_form, int a
             const int addressed = (bracket != std::string::npos) && (line_of.find("{" + parameter + "}") > bracket);
             // a shift's count is a 32-bit word whatever the width it shifts
             const std::string operation = line_of.empty() ? std::string() : instruction_read(line_of).operation;
-            const int wide = !addressed && (operation.find("64") != std::string::npos) &&
-                             (operation.compare(0u, 2u, "sh") != 0);
+            const int wide =
+                !addressed && (operation.find("64") != std::string::npos) && (operation.compare(0u, 2u, "sh") != 0);
             // the question submits a 64-bit number whole. Its high word is the alternate of its low, which is never 0
             // and never the low word itself. The compiler folds a high word of 0 to RZ, and the tool does not read the
             // form that it writes for any other
             const unsigned long long whole =
                 wide ? (((unsigned long long)number_alternate(value) << 32u) | value) : value;
-            const std::string number = ((argument.type == OPERAND_SIGNED) && !wide) ? std::to_string((int)value)
-                                                                                    : std::to_string(whole);
+            const std::string number =
+                ((argument.type == OPERAND_SIGNED) && !wide) ? std::to_string((int)value) : std::to_string(whole);
             if ((alternate == 2) && !line_of.empty() && !addressed)
             {
                 text = text_fill(text, parameter, operand(parameter, wide ? "b64" : "b32", 0, 1, 0));
@@ -1123,8 +1193,9 @@ static void writer_ptx_question(Writer *writer, const LaneForm &lane_form, int a
         outputs.push_back("\"=r\"(" + local + ")");
         after += "\taddc.u32 %" + std::to_string(outputs.size() - 1u) + ", 0, 0;\n";
     }
-    std::string statement = "{\n\t.reg .b32 mw;\n" + (predicates.empty() ? std::string() : ("\t.reg .pred " + predicates + ";\n")) +
-                            before + text + after + "}\n";
+    std::string statement = "{\n\t.reg .b32 mw;\n" +
+                            (predicates.empty() ? std::string() : ("\t.reg .pred " + predicates + ";\n")) + before +
+                            text + after + "}\n";
     // the inputs numbered past the outputs, as an inline assembly statement numbers them
     for (size_t one = inputs.size(); one > 0u; one -= 1u)
     {
@@ -1148,12 +1219,30 @@ static void writer_ptx_question(Writer *writer, const LaneForm &lane_form, int a
         joined_inputs += (joined_inputs.empty() ? "" : ", ") + one;
     }
     char line[96];
-    snprintf(line, sizeof(line), "\n    MONOLITH_TAG(%u);\n    {\n", MONOLITH_FORMS_LOADS + tag);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(line, sizeof(line));
+        mmgr_line_put(&buffer_line, "\n    MONOLITH_TAG(");
+        mmgr_line_decimal(&buffer_line, MONOLITH_FORMS_LOADS + tag, 1u);
+        mmgr_line_put(&buffer_line, ");\n    {\n");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     writer->body += line + loads;
-    snprintf(line, sizeof(line), "        MONOLITH_TAG(%u);\n", tag);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(line, sizeof(line));
+        mmgr_line_put(&buffer_line, "        MONOLITH_TAG(");
+        mmgr_line_decimal(&buffer_line, tag, 1u);
+        mmgr_line_put(&buffer_line, ");\n");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     writer->body += line + std::string("        asm volatile(\"") + c_string(statement) + "\" : " + joined_outputs +
                     " : " + joined_inputs + ");\n";
-    snprintf(line, sizeof(line), "        MONOLITH_TAG(%u);\n", MONOLITH_FORMS_STORES + tag);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(line, sizeof(line));
+        mmgr_line_put(&buffer_line, "        MONOLITH_TAG(");
+        mmgr_line_decimal(&buffer_line, MONOLITH_FORMS_STORES + tag, 1u);
+        mmgr_line_put(&buffer_line, ");\n");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     writer->body += line + stores + "    }\n";
     writer->questions.push_back(row);
 }
@@ -1164,7 +1253,17 @@ static int forms_write(const char *c_path, const char *ptx_path, const char *mon
     Krs ptx;
     if ((c_target().ruleset(1) == NULL) || !krs_read(c_path, &c) || !krs_read(ptx_path, &ptx))
     {
-        fprintf(stderr, "the ruleset %s or %s did not read\n", c_path, ptx_path);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the ruleset ");
+            mmgr_line_put(&engine_note.line, c_path);
+            mmgr_line_put(&engine_note.line, " or ");
+            mmgr_line_put(&engine_note.line, ptx_path);
+            mmgr_line_put(&engine_note.line, " did not read");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     Gathered gathered;
@@ -1187,12 +1286,14 @@ static int forms_write(const char *c_path, const char *ptx_path, const char *mon
         host_inexact(&program, &bare);
         gather_lane(c, &program, reuse, &gathered);
         // the two tables the program reads through, sized as the host oracle sizes them
-        unsigned int *const wide = (unsigned int *)malloc(512u * sizeof(unsigned int));
-        unsigned int *const narrow = (unsigned int *)malloc(4096u * sizeof(unsigned int));
+        unsigned int *const wide = (unsigned int *)platform_cell_taken(
+            (unsigned long long)(512u * sizeof(unsigned int)), (unsigned int)platform_place_g_program_owner, 0);
+        unsigned int *const narrow = (unsigned int *)platform_cell_taken(
+            (unsigned long long)(4096u * sizeof(unsigned int)), (unsigned int)platform_place_g_program_owner, 0);
         host_tables(&program, wide, narrow);
         gather_lane(c, &program, reuse, &gathered);
-        free(wide);
-        free(narrow);
+        platform_cell_released(wide, (unsigned int)platform_place_g_program_owner);
+        platform_cell_released(narrow, (unsigned int)platform_place_g_program_owner);
     }
     Writer writer;
     writer.c = &c;
@@ -1236,14 +1337,25 @@ static int forms_write(const char *c_path, const char *ptx_path, const char *mon
     FILE *const rows = fopen(questions_path, "wb");
     if ((out == NULL) || (rows == NULL))
     {
-        fprintf(stderr, "the monolith %s or the questions %s was not written\n", monolith_path, questions_path);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the monolith ");
+            mmgr_line_put(&engine_note.line, monolith_path);
+            mmgr_line_put(&engine_note.line, " or the questions ");
+            mmgr_line_put(&engine_note.line, questions_path);
+            mmgr_line_put(&engine_note.line, " was not written");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
-    fprintf(out, "// written by monolith_forms from c.krs and the lanes of the record programs; not edited by hand\n"
-                 "typedef unsigned int u32;\ntypedef unsigned long long u64;\ntypedef signed char s8;\n\n"
-                 "#define MONOLITH_TAG(tag_) asm volatile(\"pmevent.mask %%0;\" ::\"n\"(tag_) : \"memory\")\n"
-                 "%s\nextern \"C\" __global__ void monolith_forms(const u32 *in, u32 *out)\n{\n"
-                 "    u32 carry = 0u;\n%s\n    MONOLITH_TAG(%u);\n}\n",
+    fprintf(out,
+            "// written by monolith_forms from c.krs and the lanes of the record programs; not edited by hand\n"
+            "typedef unsigned int u32;\ntypedef unsigned long long u64;\ntypedef signed char s8;\n\n"
+            "#define MONOLITH_TAG(tag_) asm volatile(\"pmevent.mask %%0;\" ::\"n\"(tag_) : \"memory\")\n"
+            "%s\nextern \"C\" __global__ void monolith_forms(const u32 *in, u32 *out)\n{\n"
+            "    u32 carry = 0u;\n%s\n    MONOLITH_TAG(%u);\n}\n",
             writer.helpers.c_str(), writer.body.c_str(), writer.tag + 1u);
     for (const std::string &row : writer.questions)
     {
@@ -1452,11 +1564,11 @@ static unsigned int token_number(const std::string &token)
 // for a store, a reduction, a branch and the rest that write nothing of a register's
 static unsigned int sass_written(const Instruction &instruction)
 {
-    static const char *const s_none[] = {"ST", "RED", "BRA", "BSSY", "BSYNC", "EXIT", "WARPSYNC", "BAR", "CALL", "RET",
-                                         "NOP", "ATOM.E.ADD.STRONG.GPU.RZ"};
+    static const char *const s_none[] = {"ST",       "RED", "BRA",  "BSSY", "BSYNC", "EXIT",
+                                         "WARPSYNC", "BAR", "CALL", "RET",  "NOP",   "ATOM.E.ADD.STRONG.GPU.RZ"};
     for (const char *const none : s_none)
     {
-        if (instruction.operation.compare(0u, strlen(none), none) == 0)
+        if (instruction.operation.compare(0u, mmgr_text_length(none, PLATFORM_TEXT_TO_TERMINATOR), none) == 0)
         {
             return 0u;
         }
@@ -1496,11 +1608,17 @@ static std::string hex_number(const std::string &decimal)
     const long long value = strtoll(decimal.c_str(), NULL, 10);
     if (value < 0)
     {
-        snprintf(text, sizeof(text), "-0x%llx", (unsigned long long)(-value));
+        VerbaLinea buffer_line = mmgr_line_over(text, sizeof(text));
+        mmgr_line_put(&buffer_line, "-0x");
+        mmgr_line_hex(&buffer_line, (unsigned long long)(-value), 1u);
+        (void)mmgr_line_finish(&buffer_line);
     }
     else
     {
-        snprintf(text, sizeof(text), "0x%llx", (unsigned long long)value);
+        VerbaLinea buffer_line = mmgr_line_over(text, sizeof(text));
+        mmgr_line_put(&buffer_line, "0x");
+        mmgr_line_hex(&buffer_line, (unsigned long long)value, 1u);
+        (void)mmgr_line_finish(&buffer_line);
     }
     return text;
 }
@@ -1819,8 +1937,8 @@ static Read sass_read(const Question &question, const std::vector<std::string> &
             }
             const std::string token = operands[at].substr(found, length);
             current[token] = id + token;
-            one.names[at] = operands[at].substr(0u, found) + "\x02" + current[token] + "\x02" +
-                            operands[at].substr(found + length);
+            one.names[at] =
+                operands[at].substr(0u, found) + "\x02" + current[token] + "\x02" + operands[at].substr(found + length);
             if ((at == 0u) && (token[0] == 'R') && sass_wide_write(instruction))
             {
                 const std::string next = "R" + std::to_string(token_number(token) + 1u);
@@ -1969,8 +2087,8 @@ static Read sass_read(const Question &question, const std::vector<std::string> &
     {
         const Instruction &instruction = retained[at].instruction;
         size_t length = 0u;
-        const size_t found = instruction.operands.empty() ? std::string::npos
-                                                          : sass_register(instruction.operands[0], 0u, &length);
+        const size_t found =
+            instruction.operands.empty() ? std::string::npos : sass_register(instruction.operands[0], 0u, &length);
         if ((found == std::string::npos) || (sass_written(instruction) == 0u) || !sass_wide_write(instruction) ||
             (instruction.operands[0][found] != 'R'))
         {
@@ -2030,9 +2148,10 @@ static Read sass_read(const Question &question, const std::vector<std::string> &
                     const int predicate = (physical[0] == 'P');
                     unsigned int &taken = predicate ? scratch_predicates : scratch_words;
                     scratch[physical] = (taken == 0u) ? (predicate ? "P6" : "R237") : physical;
-                    read.why += (taken == 1u) ? (std::string("more scratch ") + (predicate ? "predicates" : "words") +
-                                                 " than one; ")
-                                              : std::string();
+                    read.why +=
+                        (taken == 1u)
+                            ? (std::string("more scratch ") + (predicate ? "predicates" : "words") + " than one; ")
+                            : std::string();
                     taken += 1u;
                 }
                 out += scratch[physical];
@@ -2426,8 +2545,10 @@ static std::string read_adopted(const Read &read, const Krs &rules, const Questi
     }
     if (!now.empty() && !read.text.empty() && (text_instructions(read.text) > text_instructions(now)))
     {
-        *why = "the compiler writes " + std::to_string(text_instructions(read.text)) + " instructions where the "
-               "ruleset writes " + std::to_string(text_instructions(now));
+        *why = "the compiler writes " + std::to_string(text_instructions(read.text)) +
+               " instructions where the "
+               "ruleset writes " +
+               std::to_string(text_instructions(now));
         return std::string();
     }
     if (read.text.empty())
@@ -2520,7 +2641,7 @@ static std::string krs_escape(const std::string &text)
     std::string escaped;
     for (const char character : text)
     {
-        escaped += (character == '\t') ? std::string("\\t")
+        escaped += (character == '\t')   ? std::string("\\t")
                    : (character == '\n') ? std::string("\\n")
                    : (character == '\\') ? std::string("\\\\")
                                          : std::string(1u, character);
@@ -2581,7 +2702,13 @@ static int forms_read(const char *questions_path, const char *listing, const cha
     Krs ptx_rules;
     if (questions.empty() || !krs_read(sass_krs, &sass) || !krs_read(ptx_krs, &ptx_rules))
     {
-        fprintf(stderr, "the questions, sass.krs or ptx.krs did not read\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the questions, sass.krs or ptx.krs did not read");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     const std::map<unsigned int, std::vector<std::string>> sass_lines = sass_blocks(listing);
@@ -2589,7 +2716,15 @@ static int forms_read(const char *questions_path, const char *listing, const cha
     FILE *const out = fopen(record, "wb");
     if (out == NULL)
     {
-        fprintf(stderr, "the record %s was not written\n", record);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the record ");
+            mmgr_line_put(&engine_note.line, record);
+            mmgr_line_put(&engine_note.line, " was not written");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     Bases bases = {-1, -1};
@@ -2825,7 +2960,9 @@ static int forms_read(const char *questions_path, const char *listing, const cha
     }
     std::map<std::string, std::string> sass_adopted;
     std::map<std::string, std::string> ptx_adopted;
-    fprintf(out, "\n## By form\n\n| form | sass.krs | SASS read | | ptx.krs | PTX read | |\n|---|---|---|---|---|---|---|\n");
+    fprintf(
+        out,
+        "\n## By form\n\n| form | sass.krs | SASS read | | ptx.krs | PTX read | |\n|---|---|---|---|---|---|---|\n");
     unsigned int sass_same = 0u;
     unsigned int ptx_same = 0u;
     for (const auto &entry : sass_verdicts)
@@ -2879,8 +3016,9 @@ static int forms_read(const char *questions_path, const char *listing, const cha
                 cell(text_flat(sass_verdict.text)).c_str(), cell(sass_state).c_str(), cell(text_flat(ptx_now)).c_str(),
                 cell(text_flat(ptx_verdict.text)).c_str(), cell(ptx_state).c_str());
     }
-    fprintf(out, "\n%zu questions over %zu forms. Of the forms, sass.krs already gives %u as read and %zu are read "
-                 "otherwise; ptx.krs gives %u as read and %zu are read otherwise.\n",
+    fprintf(out,
+            "\n%zu questions over %zu forms. Of the forms, sass.krs already gives %u as read and %zu are read "
+            "otherwise; ptx.krs gives %u as read and %zu are read otherwise.\n",
             questions.size(), sass_verdicts.size(), sass_same, sass_adopted.size(), ptx_same, ptx_adopted.size());
     fclose(out);
     printf("monolith_forms: %zu questions over %zu forms; sass.krs: %u same, %zu read otherwise; ptx.krs: %u same, %zu "
@@ -2936,17 +3074,23 @@ static int forms_read(const char *questions_path, const char *listing, const cha
 
 int program_main(int count, char **words)
 {
-    if ((count == 6) && (strcmp(words[1], "write") == 0))
+    if ((count == 6) && (mmgr_text_equal(words[1], "write", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         return forms_write(words[2], words[3], words[4], words[5]);
     }
-    if (((count == 9) || (count == 10)) && (strcmp(words[1], "read") == 0))
+    if (((count == 9) || (count == 10)) && (mmgr_text_equal(words[1], "read", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         return forms_read(words[2], words[3], words[4], words[5], words[6], words[7], words[8],
-                          (count == 10) && (strcmp(words[9], "apply") == 0));
+                          (count == 10) && (mmgr_text_equal(words[9], "apply", PLATFORM_TEXT_TO_TERMINATOR)));
     }
-    fprintf(stderr, "monolith_forms write <c.krs> <ptx.krs> <monolith.cu> <questions>\n"
-                    "monolith_forms read <questions> <listing> <ptx> <sass.krs> <ptx.krs> <machine> <record> "
-                    "[apply]\n");
+    {
+        EngineNote engine_note;
+        engine_note_begun(&engine_note);
+        mmgr_line_put(&engine_note.line,
+                      "monolith_forms write <c.krs> <ptx.krs> <monolith.cu> <questions>\nmonolith_forms read "
+                      "<questions> <listing> <ptx> <sass.krs> <ptx.krs> <machine> <record> [apply]");
+        mmgr_line_ch(&engine_note.line, '\n');
+        engine_note_written(&engine_note);
+    }
     return 2;
 }

@@ -10,10 +10,11 @@ set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$HERE/../.." && pwd)"
 source "$TOP/includes/file_defs/file_defs.sh"
+source "$TOP/includes/exact_types/exact_types.sh"
 OUT="$TOP/build/lng"
 mkdir -p "$OUT"
 BINARY="$OUT/lng_check"
-SOURCES=("$HERE/lng_check.c" "$HERE/lng.c" "${FILE_DEFS[@]}")
+SOURCES=("$HERE/lng_check.c" "$HERE/lng.c" "${FILE_DEFS_FORMATS[@]}" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}")
 built="$BINARY"
 [ -f "$built.exe" ] && built="$built.exe"
 stale=0

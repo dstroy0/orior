@@ -260,7 +260,7 @@ static int qry_writer_member(const char *qry, const char *path)
     return done ? 0 : 1;
 }
 
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
     if ((count == 3) && (mmgr_text_equal(words[1], "--stop", PLATFORM_TEXT_TO_TERMINATOR)))
     {

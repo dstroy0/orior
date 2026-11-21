@@ -3,6 +3,9 @@
 // question.c: the question: the safety word positioned on the code, a refusal's cause received and reported, the fault
 // recorded, the account given, one question carried, and the verdict loaded
 #include "cubin_run_internal.h"
+#include "../../../../engine/engine_note.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
 #include <string.h>
@@ -95,7 +98,7 @@ static const char *cubin_run_cause_named(const char *name)
 {
     for (size_t at = 0u; (name != NULL) && (at < (sizeof(s_cause_names) / sizeof(s_cause_names[0]))); at += 1u)
     {
-        if (strstr(name, s_cause_names[at].part) != NULL)
+        if (mmgr_text_find(name, s_cause_names[at].part, PLATFORM_TEXT_TO_TERMINATOR) != NULL)
         {
             return s_cause_names[at].cause;
         }
@@ -118,7 +121,7 @@ static const char *cubin_run_listener_cause(void)
     {
         for (unsigned int place = 0u; (place < s_xid_count) && (place < CUBIN_RUN_XID_MAX); place += 1u)
         {
-            if (strstr(s_xid_text[place], s_driver_messages[message]) != NULL)
+            if (mmgr_text_find(s_xid_text[place], s_driver_messages[message], PLATFORM_TEXT_TO_TERMINATOR) != NULL)
             {
                 return s_driver_causes[message];
             }
@@ -163,8 +166,15 @@ static void cubin_run_faulted_stored(unsigned long long low, unsigned long long 
         qry_member_append(CUBIN_RUN_FAULTS, text.out, text.at, QRY_CRITICAL);
     }
     char line[48];
-    snprintf(line, sizeof(line), "%016llx %016llx\n", low, high);
-    cubin_safe_verdict_added(line, strlen(line));
+    {
+        VerbaLinea buffer_line = mmgr_line_over(line, sizeof(line));
+        mmgr_line_hex(&buffer_line, low, 16u);
+        mmgr_line_put(&buffer_line, " ");
+        mmgr_line_hex(&buffer_line, high, 16u);
+        mmgr_line_put(&buffer_line, "\n");
+        (void)mmgr_line_finish(&buffer_line);
+    }
+    cubin_safe_verdict_added(line, mmgr_text_length(line, PLATFORM_TEXT_TO_TERMINATOR));
 }
 
 // The account `call` contains written in the answer `answers` too, and passed as a panic of the call where `panicked`
@@ -305,7 +315,13 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
     s_clocks.input += cubin_run_host_now() - input_began;
     if ((pattern_size == 0ULL) || !cased)
     {
-        fprintf(stderr, "the container, the code or the cases did not read\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the container, the code or the cases did not read");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     // a question that names no shape is given blocks of CUBIN_RUN_THREADS, as many as give every case a thread. A
@@ -328,7 +344,7 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
     const unsigned long long gate_began = cubin_run_host_now();
     cubin_run_safe_word(s_code, code_size, probe_place);
     CubinWrite written;
-    memset(&written, 0, sizeof(written));
+    mmgr_bytes_set(&written, 0, sizeof(written));
     written.pattern = s_pattern;
     written.pattern_size = pattern_size;
     written.kernel = kernel;
@@ -388,10 +404,16 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
     // the verdict is loaded (cubin_safe_verdict_gated): the gate blocks the whole code, not the probe alone
     if (!s_driver_opened)
     {
-        memset(&s_driver, 0, sizeof(s_driver));
+        mmgr_bytes_set(&s_driver, 0, sizeof(s_driver));
         if (!cubin_run_driver(&s_driver))
         {
-            fprintf(stderr, "the driver was not reached\n");
+            {
+                EngineNote engine_note;
+                engine_note_begun(&engine_note);
+                mmgr_line_put(&engine_note.line, "the driver was not reached");
+                mmgr_line_ch(&engine_note.line, '\n');
+                engine_note_written(&engine_note);
+            }
             return 2;
         }
         // the part's fault telemetry opened beside the driver, for rule 8 to read after each launch; a run goes on
@@ -406,8 +428,13 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
         const char *name = NULL;
         s_driver.error_name(status, &name);
         char refused[160];
-        snprintf(refused, sizeof(refused), "refused %s%s", (name != NULL) ? name : "CUDA_ERROR_LAUNCH_FAILED",
-                 s_launch_faulted ? " the part faulted" : "");
+        {
+            VerbaLinea buffer_line = mmgr_line_over(refused, sizeof(refused));
+            mmgr_line_put(&buffer_line, "refused ");
+            mmgr_line_put(&buffer_line, (name != NULL) ? name : "CUDA_ERROR_LAUNCH_FAILED");
+            mmgr_line_put(&buffer_line, s_launch_faulted ? " the part faulted" : "");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         mmgr_line_put(answers, refused);
         mmgr_line_put(answers, "\n");
         const unsigned int outcome = s_launch_timed_out ? CUBIN_RUN_TIMED_OUT

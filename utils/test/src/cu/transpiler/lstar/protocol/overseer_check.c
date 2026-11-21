@@ -226,7 +226,7 @@ static void check_identity(const RunQuestion *question, char *identity)
 static RunQuestion s_question;
 static unsigned char s_code[32];
 
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
     if ((count != 2) && (count != 7))
     {
@@ -292,7 +292,7 @@ int main(int count, char **words)
     // dissent: two causes, no ruling
     static const char *const s_dissent[] = {
         "proctor", "CUDA_ERROR_ILLEGAL_INSTRUCTION (715); cause instruction", "listener", "Xid 31; cause address",
-        "learner", "the pair a c; carrier 12; located IADD3 R0, R1, R2, RZ", NULL};
+        "learner", "the pair a c; carrier 12; located IADD3 R0, R1, R2, RZ",  NULL};
     check_accounts(run, "check-dissent", s_dissent);
     check_that(overseer_convened(run, "check-dissent", 0, &ruling) == 1, "dissent: the conference is convened");
     check_that(!ruling.agreed && (ruling.guidance == OVERSEER_HANDS_OFF) && !ruling.taught,
@@ -303,7 +303,7 @@ int main(int count, char **words)
 
     // exception: an exception agrees with an instruction, and an encoding is blocked at every carrier
     static const char *const s_exception[] = {
-        "proctor", "CUDA_ERROR_LAUNCH_FAILED (719); cause exception",         "listener", "Xid 13; cause instruction",
+        "proctor", "CUDA_ERROR_LAUNCH_FAILED (719); cause exception",        "listener", "Xid 13; cause instruction",
         "learner", "the pair d e; carrier 7; located IMAD.X R1, R2, R3, R4", NULL};
     check_accounts(run, "check-exception", s_exception);
     check_that(overseer_convened(run, "check-exception", 0, &ruling) == 1, "exception: the conference is convened");
@@ -312,7 +312,7 @@ int main(int count, char **words)
 
     // context: an address the stand-in does not reach is the link's context's
     static const char *const s_context[] = {
-        "proctor", "CUDA_ERROR_ILLEGAL_ADDRESS (700); cause address",        "listener", "Xid 31; cause address",
+        "proctor", "CUDA_ERROR_ILLEGAL_ADDRESS (700); cause address",       "listener", "Xid 31; cause address",
         "learner", "the pair f g; carrier 5; located IADD3 R0, R1, R2, RZ", NULL};
     check_accounts(run, "check-context", s_context);
     check_that(overseer_convened(run, "check-context", 0, &ruling) == 1, "context: the conference is convened");

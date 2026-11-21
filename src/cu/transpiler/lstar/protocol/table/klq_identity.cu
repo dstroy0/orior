@@ -48,8 +48,9 @@
 // given rulesets whose texts write its links, and with the rule a link breaks where querying the part as written would
 // end it
 #include "identity/identity_internal.h"
+#include "../../../../../platform/platform.h"
 
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
     if ((count >= 10) && (std::string(words[1]) == "pair") && (std::string(words[8]) == "--"))
     {
@@ -178,7 +179,8 @@ int main(int count, char **words)
     printf("orior_klq_identity stall <ours folder> <host answers> <ksc> <folder> <machine> -- <carrier>...\n");
     printf("orior_klq_identity register <ours folder> <host answers> <ksc> <folder> -- <carrier>...\n");
     printf("orior_klq_identity queue <ours folder> <host answers> <ksc> <folder> <manifest> -- <carrier>...\n");
-    printf("orior_klq_identity pair <ours folder> <host answers> <ksc> <folder> <Lstar.klq> <machine> -- <carrier>...\n");
+    printf(
+        "orior_klq_identity pair <ours folder> <host answers> <ksc> <folder> <Lstar.klq> <machine> -- <carrier>...\n");
     printf("orior_klq_identity text_identity <ours folder> <host answers> <ksc> <folder> <Lstar.klq> <manifest> -- "
            "<carrier>...\n");
     printf("orior_klq_identity curve <ours folder> <host answers> <ksc> <folder> <task>... -- <carrier>...\n");

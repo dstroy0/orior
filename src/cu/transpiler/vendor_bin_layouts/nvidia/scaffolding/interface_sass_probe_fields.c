@@ -21,44 +21,80 @@
 // later pass reads back against the form's runs. The kernel opens with its section's label, loads the case into
 // registers and stores the answer's first word from R7.
 #include "interface_sass_probe_fields/fields_internal.h"
+#include "../../../../engine/engine_note.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
-    if ((count == 6) && (strcmp(words[1], "read") == 0))
+    if ((count == 6) && (mmgr_text_equal(words[1], "read", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         return fields_read(words[2], words[3], words[4], words[5]);
     }
-    if ((count == 4) && (strcmp(words[1], "names") == 0))
+    if ((count == 4) && (mmgr_text_equal(words[1], "names", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         return fields_names(words[2], words[3]);
     }
     if (count != 6)
     {
-        fprintf(stderr,
-                "interface_sass_probe_fields <pattern cubin> <kernel text> <machine file> <folder> <instructions>\n"
-                "interface_sass_probe_fields read <machine file> <instructions> <answers> <record>\n"
-                "interface_sass_probe_fields names <machine file> <instructions>\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line,
+                          "interface_sass_probe_fields <pattern cubin> <kernel text> <machine file> <folder> "
+                          "<instructions>\ninterface_sass_probe_fields read <machine file> <instructions> <answers> "
+                          "<record>\ninterface_sass_probe_fields names <machine file> <instructions>");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     const char *const folder = words[4];
     s_pattern_size = fields_file_read(words[1], s_pattern, sizeof(s_pattern));
-    const unsigned long long kernel_text_size = fields_file_read(words[2], (unsigned char *)s_kernel_text, sizeof(s_kernel_text) - 1u);
+    const unsigned long long kernel_text_size =
+        fields_file_read(words[2], (unsigned char *)s_kernel_text, sizeof(s_kernel_text) - 1u);
     s_kernel_text[kernel_text_size] = '\0';
-    if ((s_pattern_size == 0ULL) || (kernel_text_size == 0ULL) || !fields_kernel(s_kernel_text, s_kernel, sizeof(s_kernel)))
+    if ((s_pattern_size == 0ULL) || (kernel_text_size == 0ULL) ||
+        !fields_kernel(s_kernel_text, s_kernel, sizeof(s_kernel)))
     {
-        fprintf(stderr, "the pattern cubin %s or the kernel %s did not read\n", words[1], words[2]);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the pattern cubin ");
+            mmgr_line_put(&engine_note.line, words[1]);
+            mmgr_line_put(&engine_note.line, " or the kernel ");
+            mmgr_line_put(&engine_note.line, words[2]);
+            mmgr_line_put(&engine_note.line, " did not read");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     if (!sass_machine_read(&s_machine, words[3]))
     {
-        fprintf(stderr, "the machine file %s did not read\n", words[3]);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the machine file ");
+            mmgr_line_put(&engine_note.line, words[3]);
+            mmgr_line_put(&engine_note.line, " did not read");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     fields_keys();
     FILE *const instructions = fopen(words[5], "rb");
     if (instructions == NULL)
     {
-        fprintf(stderr, "the instructions %s did not read\n", words[5]);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the instructions ");
+            mmgr_line_put(&engine_note.line, words[5]);
+            mmgr_line_put(&engine_note.line, " did not read");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     // step one: the first instruction turned bit by bit into cubins and a list, which interface_sass_run runs
@@ -67,7 +103,7 @@ int main(int count, char **words)
     {
         line[strcspn(line, "\r\n")] = '\0';
         const char *walk = line + strspn(line, " \t");
-        if ((*walk == '\0') || (strncmp(walk, "IADD3 R8", 8u) == 0))
+        if ((*walk == '\0') || (mmgr_text_starts(walk, "IADD3 R8", PLATFORM_TEXT_TO_TERMINATOR)))
         {
             continue;
         }
@@ -114,7 +150,12 @@ int main(int count, char **words)
             }
         }
         char path[1024];
-        snprintf(path, sizeof(path), "%s/list.txt", folder);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+            mmgr_line_put(&buffer_line, folder);
+            mmgr_line_put(&buffer_line, "/list.txt");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         FILE *const made = fopen(path, "wb");
         // the baseline first, its bit 128 turning nothing, then one line an operation bit. A bit whose turned operation
         // key contains a control transfer, a wait or no form is blocked from the part with a skip line in its place: a
@@ -124,7 +165,14 @@ int main(int count, char **words)
             const unsigned int turned = (bit == 0u) ? 128u : (bit - 1u);
             char name[64];
             char cubin[1024];
-            snprintf(cubin, sizeof(cubin), "%s/bit_%03u.cubin", folder, bit);
+            {
+                VerbaLinea buffer_line = mmgr_line_over(cubin, sizeof(cubin));
+                mmgr_line_put(&buffer_line, folder);
+                mmgr_line_put(&buffer_line, "/bit_");
+                mmgr_line_decimal(&buffer_line, bit, 3u);
+                mmgr_line_put(&buffer_line, ".cubin");
+                (void)mmgr_line_finish(&buffer_line);
+            }
             const int safe = fields_flip_safe(place, turned, name, sizeof(name));
             if (safe && fields_cubin(s_code, assembled, place, turned, cubin))
             {

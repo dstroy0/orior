@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // npy_read.c: the layout, zip archives and the read
 #include "npy_internal.h"
+#include "../../../src/cu/engine/engine_note.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 static const NpySource npy_empty_source = {NULL, NULL, 0ULL, 0ULL, NULL};
 
@@ -39,7 +42,7 @@ static unsigned int npy_layout(const NpySource *source, NpyLayout *layout)
     unsigned char preamble[12u];
     const unsigned long long preamble_bytes = (source->length < 12ULL) ? source->length : 12ULL;
     if ((preamble_bytes < 10ULL) || !npy_source_fetch(source, 0ULL, preamble_bytes, preamble) ||
-        (memcmp(preamble, npy_magic, sizeof npy_magic) != 0))
+        (mmgr_bytes_compare(preamble, npy_magic, sizeof npy_magic) != 0))
     {
         return 0u;
     }
@@ -122,24 +125,37 @@ static unsigned int npy_zip_candidate(const ZipEntry *entry, const char *member)
     {
         return 1u;
     }
-    const size_t member_length = strlen(member);
-    const int exact = (entry->name_length == member_length) && (memcmp(entry->name, member, member_length) == 0);
+    const size_t member_length = mmgr_text_length(member, PLATFORM_TEXT_TO_TERMINATOR);
+    const int exact =
+        (entry->name_length == member_length) && (mmgr_bytes_compare(entry->name, member, member_length) == 0);
     const int suffixed = (entry->name_length == (member_length + 4u)) &&
-                         (memcmp(entry->name, member, member_length) == 0) &&
-                         (memcmp(entry->name + member_length, ".npy", 4u) == 0);
+                         (mmgr_bytes_compare(entry->name, member, member_length) == 0) &&
+                         (mmgr_bytes_compare(entry->name + member_length, ".npy", 4u) == 0);
     return (exact || suffixed) ? 1u : 0u;
 }
 
 static void npy_zip_list(const EngineIngestTools *tools, const char *path, const char *member,
                          const ZipArchive *archive, unsigned long long matches)
 {
-    fprintf(stderr, "npy: %s contains %llu candidate arrays%s%s; name one as the member\n", path, matches,
-            (member != NULL) ? " named " : "", (member != NULL) ? member : "");
+    {
+        EngineNote engine_note;
+        engine_note_begun(&engine_note);
+        mmgr_line_put(&engine_note.line, "npy: ");
+        mmgr_line_put(&engine_note.line, path);
+        mmgr_line_put(&engine_note.line, " contains ");
+        mmgr_line_decimal(&engine_note.line, matches, 1u);
+        mmgr_line_put(&engine_note.line, " candidate arrays");
+        mmgr_line_put(&engine_note.line, (member != NULL) ? " named " : "");
+        mmgr_line_put(&engine_note.line, (member != NULL) ? member : "");
+        mmgr_line_put(&engine_note.line, "; name one as the member");
+        mmgr_line_ch(&engine_note.line, '\n');
+        engine_note_written(&engine_note);
+    }
     unsigned long long at = 0ULL;
     for (unsigned long long entry_index = 0ULL; entry_index < archive->entries; entry_index += 1ULL)
     {
         EngineError probe;
-        memset(&probe, 0, sizeof(probe));
+        mmgr_bytes_set(&probe, 0, sizeof(probe));
         ZipEntry entry = npy_empty_entry;
         if (!zip_entry_next(archive, &at, &entry, &probe))
         {
@@ -155,18 +171,42 @@ static void npy_zip_list(const EngineIngestTools *tools, const char *path, const
         const int parsed =
             npy_zip_open(tools, path, archive, &entry, &source, &owned, &probe) && npy_layout(&source, &layout);
         free(owned);
-        fprintf(stderr, "npy:   %.*s ", (int)entry.name_length, (const char *)entry.name);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "npy:   ");
+            mmgr_line_put_max(&engine_note.line, (const char *)entry.name, (size_t)((int)entry.name_length));
+            mmgr_line_put(&engine_note.line, " ");
+            engine_note_written(&engine_note);
+        }
         if (!parsed)
         {
-            fprintf(stderr, "unreadable\n");
+            {
+                EngineNote engine_note;
+                engine_note_begun(&engine_note);
+                mmgr_line_put(&engine_note.line, "unreadable");
+                mmgr_line_ch(&engine_note.line, '\n');
+                engine_note_written(&engine_note);
+            }
             continue;
         }
-        fprintf(stderr, "(");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "(");
+            engine_note_written(&engine_note);
+        }
         for (unsigned int axis = 0u; axis < layout.extent.rank; axis += 1u)
         {
             fprintf(stderr, (axis == 0u) ? "%llu" : ", %llu", layout.extent.sizes[axis]);
         }
-        fprintf(stderr, ")\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, ")");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
     }
 }
 
@@ -207,13 +247,14 @@ static unsigned int npy_resolve(const char *path, const char *member, const Engi
     }
     // a size of at least four converts to unsigned long long exactly
     const unsigned long long file_bytes = (unsigned long long)size;
-    if (memcmp(magic, npy_magic, sizeof magic) == 0)
+    if (mmgr_bytes_compare(magic, npy_magic, sizeof magic) == 0)
     {
         const NpySource entire_file = {tools, path, 0ULL, file_bytes, NULL};
         *source = entire_file;
         return NPY_CHECK((member == NULL) && npy_layout(source, layout), path, error, ENGINE_ERROR_REQUEST) ? 1u : 0u;
     }
-    if (!NPY_CHECK((memcmp(magic, npy_zip_local, sizeof magic) == 0) || (memcmp(magic, npy_zip_end, sizeof magic) == 0),
+    if (!NPY_CHECK((mmgr_bytes_compare(magic, npy_zip_local, sizeof magic) == 0) ||
+                       (mmgr_bytes_compare(magic, npy_zip_end, sizeof magic) == 0),
                    magic, error, ENGINE_ERROR_REQUEST))
     {
         return 0u;
@@ -289,7 +330,7 @@ static unsigned int npy_fortran_copy(const NpySource *source, const NpyLayout *l
             const unsigned char *const from = block + (within * column_bytes);
             for (unsigned long long row = 0ULL; row < count; row += 1ULL)
             {
-                memcpy(out + (((row * columns) + place) * element), from + (row * element), (size_t)element);
+                mmgr_bytes_copy(out + (((row * columns) + place) * element), from + (row * element), (size_t)element);
             }
             for (unsigned int axis = 1u; axis < extent->rank; axis += 1u)
             {
@@ -363,7 +404,7 @@ long long npy_read(const EngineArrayRead *request)
     free(owned);
     if (!copied)
     {
-        memset(request->out, 0, (size_t)wanted);
+        mmgr_bytes_set(request->out, 0, (size_t)wanted);
         return -1LL;
     }
     if (layout.big_endian != 0u)

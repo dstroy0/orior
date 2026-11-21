@@ -2,25 +2,51 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // floor_match_main.cu: main
 #include "floor_match_internal.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
 
 int program_main(int count, char **arguments)
 {
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;
     sim_open(&results, line_buffer);
-    unsigned short *const lanes = (unsigned short *)malloc((size_t)MATCH_SAMPLES * sizeof(unsigned short));
-    int *const crystal = (int *)malloc((size_t)MATCH_SAMPLES * sizeof(int));
-    int *const corner = (int *)malloc((size_t)MATCH_FLOOR_VALUES * sizeof(int));
-    unsigned short *const floor_values = (unsigned short *)malloc((size_t)MATCH_FLOOR_VALUES * sizeof(unsigned short));
-    long long *const work = (long long *)malloc((size_t)MATCH_SAMPLES * sizeof(long long));
-    long long *const before = (long long *)malloc((size_t)MATCH_SAMPLES * sizeof(long long));
-    long long *const floor_host = (long long *)malloc((size_t)MATCH_FLOOR_VALUES * sizeof(long long));
-    unsigned int *const planes = (unsigned int *)malloc((size_t)(MATCH_BITS * MATCH_WORDS) * sizeof(unsigned int));
-    unsigned int *const queries = (unsigned int *)malloc((size_t)MATCH_QUERIES * sizeof(unsigned int));
-    unsigned int *const matches = (unsigned int *)malloc((size_t)MATCH_QUERIES * MATCH_WORDS * sizeof(unsigned int));
-    unsigned char *const reads = (unsigned char *)malloc((size_t)MATCH_QUERIES * MATCH_WORDS * sizeof(unsigned char));
-    unsigned char *const present = (unsigned char *)calloc((size_t)MATCH_VALUES_MAX, sizeof(unsigned char));
-    unsigned int *const expected = (unsigned int *)malloc((size_t)MATCH_WORDS * sizeof(unsigned int));
+    unsigned short *const lanes =
+        (unsigned short *)platform_cell_taken((unsigned long long)((size_t)MATCH_SAMPLES * sizeof(unsigned short)),
+                                              (unsigned int)platform_place_g_program_owner, 0);
+    int *const crystal = (int *)platform_cell_taken((unsigned long long)((size_t)MATCH_SAMPLES * sizeof(int)),
+                                                    (unsigned int)platform_place_g_program_owner, 0);
+    int *const corner = (int *)platform_cell_taken((unsigned long long)((size_t)MATCH_FLOOR_VALUES * sizeof(int)),
+                                                   (unsigned int)platform_place_g_program_owner, 0);
+    unsigned short *const floor_values =
+        (unsigned short *)platform_cell_taken((unsigned long long)((size_t)MATCH_FLOOR_VALUES * sizeof(unsigned short)),
+                                              (unsigned int)platform_place_g_program_owner, 0);
+    long long *const work =
+        (long long *)platform_cell_taken((unsigned long long)((size_t)MATCH_SAMPLES * sizeof(long long)),
+                                         (unsigned int)platform_place_g_program_owner, 0);
+    long long *const before =
+        (long long *)platform_cell_taken((unsigned long long)((size_t)MATCH_SAMPLES * sizeof(long long)),
+                                         (unsigned int)platform_place_g_program_owner, 0);
+    long long *const floor_host =
+        (long long *)platform_cell_taken((unsigned long long)((size_t)MATCH_FLOOR_VALUES * sizeof(long long)),
+                                         (unsigned int)platform_place_g_program_owner, 0);
+    unsigned int *const planes = (unsigned int *)platform_cell_taken(
+        (unsigned long long)((size_t)(MATCH_BITS * MATCH_WORDS) * sizeof(unsigned int)),
+        (unsigned int)platform_place_g_program_owner, 0);
+    unsigned int *const queries =
+        (unsigned int *)platform_cell_taken((unsigned long long)((size_t)MATCH_QUERIES * sizeof(unsigned int)),
+                                            (unsigned int)platform_place_g_program_owner, 0);
+    unsigned int *const matches = (unsigned int *)platform_cell_taken(
+        (unsigned long long)((size_t)MATCH_QUERIES * MATCH_WORDS * sizeof(unsigned int)),
+        (unsigned int)platform_place_g_program_owner, 0);
+    unsigned char *const reads = (unsigned char *)platform_cell_taken(
+        (unsigned long long)((size_t)MATCH_QUERIES * MATCH_WORDS * sizeof(unsigned char)),
+        (unsigned int)platform_place_g_program_owner, 0);
+    unsigned char *const present = (unsigned char *)platform_cell_cleared(
+        (unsigned long long)((size_t)MATCH_VALUES_MAX), (unsigned long long)(sizeof(unsigned char)),
+        (unsigned int)platform_place_g_program_owner, 0);
+    unsigned int *const expected =
+        (unsigned int *)platform_cell_taken((unsigned long long)((size_t)MATCH_WORDS * sizeof(unsigned int)),
+                                            (unsigned int)platform_place_g_program_owner, 0);
     int ok = (lanes != NULL) && (crystal != NULL) && (corner != NULL) && (floor_values != NULL) && (work != NULL) &&
              (before != NULL) && (floor_host != NULL) && (planes != NULL) && (queries != NULL) && (matches != NULL) &&
              (reads != NULL) && (present != NULL) && (expected != NULL);
@@ -28,7 +54,7 @@ int program_main(int count, char **arguments)
     ok = ok && sim_job_submit(&results, "floor_match", count, arguments, MATCH_DECLARED);
 
     SimScene scene;
-    memset(&scene, 0, sizeof(scene));
+    mmgr_bytes_set(&scene, 0, sizeof(scene));
     scene.frames = 1ULL;
     scene.extent[0] = MATCH_SIDE;
     scene.extent[1] = MATCH_SIDE;
@@ -38,7 +64,7 @@ int program_main(int count, char **arguments)
     scene.bodies = MATCH_FOUNDERS;
     SimBody body[MATCH_FOUNDERS];
     SimCamera camera;
-    memset(&camera, 0, sizeof(camera));
+    mmgr_bytes_set(&camera, 0, sizeof(camera));
     camera.key = MATCH_KEY;
     camera.offset = 100ULL;
     camera.gain = 1ULL;
@@ -181,12 +207,12 @@ int program_main(int count, char **arguments)
 
     // each query's match set against the host's scan of floor 2, and its reads
     MatchSide sides[2];
-    memset(sides, 0, sizeof(sides));
+    mmgr_bytes_set(sides, 0, sizeof(sides));
     unsigned long long first_query_cell = MATCH_FLOOR_VALUES;
     for (unsigned int query = 0u; ok && (query < MATCH_QUERIES); query += 1u)
     {
         MatchSide *const side = &sides[query / MATCH_QUERIES_EACH];
-        memset(expected, 0, (size_t)MATCH_WORDS * sizeof(unsigned int));
+        mmgr_bytes_set(expected, 0, (size_t)MATCH_WORDS * sizeof(unsigned int));
         for (unsigned long long at = 0ULL; at < MATCH_FLOOR_VALUES; at += 1ULL)
         {
             if ((unsigned int)floor_values[at] == queries[query])
@@ -281,18 +307,18 @@ int program_main(int count, char **arguments)
     cudaFree(device_planes);
     cudaFree(device_floor);
     cudaFree(device_lanes);
-    free(expected);
-    free(present);
-    free(reads);
-    free(matches);
-    free(queries);
-    free(planes);
-    free(floor_host);
-    free(before);
-    free(work);
-    free(floor_values);
-    free(corner);
-    free(crystal);
-    free(lanes);
+    platform_cell_released(expected, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(present, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(reads, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(matches, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(queries, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(planes, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(floor_host, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(before, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(work, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(floor_values, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(corner, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(crystal, (unsigned int)platform_place_g_program_owner);
+    platform_cell_released(lanes, (unsigned int)platform_place_g_program_owner);
     return sim_close(&results, "floor match");
 }

@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // descent.c: the descent: the gate's descent read, the fill and the flat form, and the ruleset read
 #include "writings_internal.h"
+#include "../../../../../engine/engine_note.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../../../../includes/parsers/line_read.h"
 
 // The arrangements a descent ran over, written by `chains` into each `into` with its verdict, read back against the
@@ -18,7 +21,15 @@ int writings_descent_read(const char *record, unsigned int pairs, char **folders
     FILE *const out = fopen(record, "wb");
     if (out == NULL)
     {
-        fprintf(stderr, "the record %s was not written\n", record);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the record ");
+            mmgr_line_put(&engine_note.line, record);
+            mmgr_line_put(&engine_note.line, " was not written");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     fprintf(out, "# The descent's cases put to the part\n\n");
@@ -43,13 +54,33 @@ int writings_descent_read(const char *record, unsigned int pairs, char **folders
         unsigned long long cases_size = 0ULL;
         unsigned long long cases_at = 0ULL;
         const int cases_read = qry_member_file_blob(cases_path, &cases, &cases_size);
-        snprintf(path, sizeof(path), "%s/chains.txt", into);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+            mmgr_line_put(&buffer_line, into);
+            mmgr_line_put(&buffer_line, "/chains.txt");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         FILE *const chains = fopen(path, "rb");
-        snprintf(path, sizeof(path), "%s/answers.txt", into);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
+            mmgr_line_put(&buffer_line, into);
+            mmgr_line_put(&buffer_line, "/answers.txt");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         FILE *const answers = fopen(path, "rb");
         if (!cases_read || (chains == NULL) || (answers == NULL))
         {
-            fprintf(stderr, "the cases %s or the chains in %s did not read\n", cases_path, into);
+            {
+                EngineNote engine_note;
+                engine_note_begun(&engine_note);
+                mmgr_line_put(&engine_note.line, "the cases ");
+                mmgr_line_put(&engine_note.line, cases_path);
+                mmgr_line_put(&engine_note.line, " or the chains in ");
+                mmgr_line_put(&engine_note.line, into);
+                mmgr_line_put(&engine_note.line, " did not read");
+                mmgr_line_ch(&engine_note.line, '\n');
+                engine_note_written(&engine_note);
+            }
             fclose(out);
             return 2;
         }
@@ -89,7 +120,7 @@ int writings_descent_read(const char *record, unsigned int pairs, char **folders
         s_cases = placed_count;
         unsigned int ran = 0u;
         unsigned int refused = 0u;
-        memset(s_chain_ran, 0, sizeof(s_chain_ran));
+        mmgr_bytes_set(s_chain_ran, 0, sizeof(s_chain_ran));
         writings_answers_read(answers, count, s_chain_answered, s_chain_ran, &ran, &refused);
         s_cases = saved;
         fclose(answers);
@@ -104,7 +135,7 @@ int writings_descent_read(const char *record, unsigned int pairs, char **folders
                 agreed += (s_chain_answered[number][at] == placed[at][2]) ? 1u : 0u;
             }
             const int part = s_chain_ran[number] && (agreed == placed_count);
-            const int host = (strcmp(s_verdict[number], "located") == 0);
+            const int host = (mmgr_text_equal(s_verdict[number], "located", PLATFORM_TEXT_TO_TERMINATOR));
             located_part += part ? 1u : 0u;
             located_host += host ? 1u : 0u;
             if (part != host)
@@ -130,15 +161,21 @@ int writings_descent_read(const char *record, unsigned int pairs, char **folders
 static int writings_fill(const char *text, const char *name, const char *put, char *out, size_t room)
 {
     char brace[300];
-    snprintf(brace, sizeof(brace), "{%s}", name);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(brace, sizeof(brace));
+        mmgr_line_put(&buffer_line, "{");
+        mmgr_line_put(&buffer_line, name);
+        mmgr_line_put(&buffer_line, "}");
+        (void)mmgr_line_finish(&buffer_line);
+    }
     size_t at = 0u;
     const char *walk = text;
     while ((*walk != '\0') && (at < room))
     {
-        if (strncmp(walk, brace, strlen(brace)) == 0)
+        if (strncmp(walk, brace, mmgr_text_length(brace, PLATFORM_TEXT_TO_TERMINATOR)) == 0)
         {
             at += (size_t)snprintf(&out[at], room - at, "%s", put);
-            walk += strlen(brace);
+            walk += mmgr_text_length(brace, PLATFORM_TEXT_TO_TERMINATOR);
             continue;
         }
         out[at] = *walk;
@@ -199,19 +236,32 @@ int writings_krs_read(const char *folder, const char *ruleset, const char *recor
     FILE *const out = rules_read ? fopen(record, "wb") : NULL;
     if (out == NULL)
     {
-        fprintf(stderr, "the search in %s, the ruleset %s or the record %s was not reached\n", folder, ruleset, record);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "the search in ");
+            mmgr_line_put(&engine_note.line, folder);
+            mmgr_line_put(&engine_note.line, ", the ruleset ");
+            mmgr_line_put(&engine_note.line, ruleset);
+            mmgr_line_put(&engine_note.line, " or the record ");
+            mmgr_line_put(&engine_note.line, record);
+            mmgr_line_put(&engine_note.line, " was not reached");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     static char s_rule[512][WRITINGS_LINE];
     unsigned int rule_count = 0u;
     while ((rule_count < 512u) && line_read(rules, rules_size, &rules_at, s_rule[rule_count], sizeof(s_rule[0])))
     {
-        rule_count += (strncmp(s_rule[rule_count], "form ", 5u) == 0) ? 1u : 0u;
+        rule_count += (mmgr_text_starts(s_rule[rule_count], "form ", PLATFORM_TEXT_TO_TERMINATOR)) ? 1u : 0u;
     }
     fprintf(out, "# A ruleset's forms checked against the part's writings\n\n");
-    fprintf(out, "Written by `interface_sass_writings.sh` whole on every run. Each word of the word web that is one "
-                 "precept over its operands is looked up in `%s`, its form written with its result and operands where "
-                 "the search puts them, and looked for among the forms `interface_sass_writings.md` ran on the part.\n\n",
+    fprintf(out,
+            "Written by `interface_sass_writings.sh` whole on every run. Each word of the word web that is one "
+            "precept over its operands is looked up in `%s`, its form written with its result and operands where "
+            "the search puts them, and looked for among the forms `interface_sass_writings.md` ran on the part.\n\n",
             ruleset);
     fprintf(out, "| word | precept | form as run | on the part |\n|---|---|---|---|\n");
     unsigned int found_count = 0u;
@@ -230,7 +280,7 @@ int writings_krs_read(const char *folder, const char *ruleset, const char *recor
         {
             continue;
         }
-        const size_t name_length = strlen(one->name);
+        const size_t name_length = mmgr_text_length(one->name, PLATFORM_TEXT_TO_TERMINATOR);
         const char *rule = NULL;
         for (unsigned int at = 0u; (rule == NULL) && (at < rule_count); at += 1u)
         {
@@ -243,7 +293,7 @@ int writings_krs_read(const char *folder, const char *ruleset, const char *recor
             fprintf(out, "| `%s` | %s | no form | - |\n", one->name, s_precept_text[precept]);
             continue;
         }
-        const char *const equals = strstr(rule, " = ");
+        const char *const equals = mmgr_text_find(rule, " = ", PLATFORM_TEXT_TO_TERMINATOR);
         char params[8][32];
         unsigned int param_count = 0u;
         const char *walk = rule + 5u + name_length;
@@ -255,25 +305,38 @@ int writings_krs_read(const char *folder, const char *ruleset, const char *recor
             {
                 break;
             }
-            snprintf(params[param_count], sizeof(params[0]), "%.*s", (int)length, walk);
+            {
+                VerbaLinea buffer_line = mmgr_line_over(params[param_count], sizeof(params[0]));
+                mmgr_line_put_max(&buffer_line, walk, (size_t)((int)length));
+                (void)mmgr_line_finish(&buffer_line);
+            }
             param_count += 1u;
             walk += length;
         }
         char filled[WRITINGS_LINE];
         char next[WRITINGS_LINE];
-        snprintf(filled, sizeof(filled), "%s", (equals != NULL) ? (equals + 3) : "");
+        {
+            VerbaLinea buffer_line = mmgr_line_over(filled, sizeof(filled));
+            mmgr_line_put(&buffer_line, (equals != NULL) ? (equals + 3) : "");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         const char *const places[3] = {WRITINGS_RESULT, WRITINGS_LEFT, WRITINGS_RIGHT};
         for (unsigned int at = 0u; (at < param_count) && (at < 3u); at += 1u)
         {
             writings_fill(filled, params[at], places[at], next, sizeof(next));
-            snprintf(filled, sizeof(filled), "%s", next);
+            {
+                VerbaLinea buffer_line = mmgr_line_over(filled, sizeof(filled));
+                mmgr_line_put(&buffer_line, next);
+                (void)mmgr_line_finish(&buffer_line);
+            }
         }
         char flat[512];
         writings_flat(filled, flat, sizeof(flat));
         unsigned int found = s_form_count;
         for (unsigned int number = 0u; (found == s_form_count) && (number < s_form_count); number += 1u)
         {
-            found = (s_ran[number] && (strcmp(s_forms[number], flat) == 0)) ? number : found;
+            found = (s_ran[number] && (mmgr_text_equal(s_forms[number], flat, PLATFORM_TEXT_TO_TERMINATOR))) ? number
+                                                                                                             : found;
         }
         const char *verdict = "not among the forms run";
         if (found < s_form_count)

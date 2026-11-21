@@ -52,15 +52,23 @@
 // question is blocked, 2 where a blob, a tool or the run was not reached, or a frame was read at no stop it
 // named: the round is then not carried
 #include "measuring_stick_query/msq_internal.h"
+#include "../../../engine/engine_note.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../../includes/parsers/line_read.h"
 
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
     if ((count < 6) || (count > 8))
     {
-        fprintf(stderr,
-                "orior_measuring_stick_query <question list> <nvdisasm> <architecture> <report> <gated> [<refusals>"
-                "[<read>]]\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "orior_measuring_stick_query <question list> <nvdisasm> <architecture> "
+                                             "<report> <gated> [<refusals>[<read>]]");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     const char *const list_name = words[1];
@@ -73,15 +81,29 @@ int main(int count, char **words)
     s_run = qry_member_run();
     if (s_run == NULL)
     {
-        fprintf(stderr, "orior_measuring_stick_query: no query writer runs: %s names no .qry a writer has open\n",
-                QRY_ENVIRONMENT);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "orior_measuring_stick_query: no query writer runs: ");
+            mmgr_line_put(&engine_note.line, QRY_ENVIRONMENT);
+            mmgr_line_put(&engine_note.line, " names no .qry a writer has open");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     const unsigned char *list = NULL;
     unsigned long long list_size = 0ULL;
     if (!qry_member_blob(list_name, &list, &list_size, NULL))
     {
-        fprintf(stderr, "orior_measuring_stick_query: the run's buffer contains no %s\n", list_name);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "orior_measuring_stick_query: the run's buffer contains no ");
+            mmgr_line_put(&engine_note.line, list_name);
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     // a question with a probe is read by its probe instruction, among every other's. One with none, the kernel's own,
@@ -102,7 +124,11 @@ int main(int count, char **words)
         const unsigned char *const end = (const unsigned char *)memchr(list + at, '\n', (size_t)(list_size - at));
         const size_t length = (end != NULL) ? (size_t)(end - (list + at)) : (size_t)(list_size - at);
         char line[1024];
-        snprintf(line, sizeof(line), "%.*s", (int)length, (const char *)(list + at));
+        {
+            VerbaLinea buffer_line = mmgr_line_over(line, sizeof(line));
+            mmgr_line_put_max(&buffer_line, (const char *)(list + at), (size_t)((int)length));
+            (void)mmgr_line_finish(&buffer_line);
+        }
         at += (unsigned long long)length + 1ULL;
         char code_name[256];
         char cases_name[256];
@@ -126,14 +152,18 @@ int main(int count, char **words)
             continue;
         }
         msq_stem(answers_name, question->stem, sizeof(question->stem));
-        snprintf(question->code_name, sizeof(question->code_name), "%s", code_name);
+        {
+            VerbaLinea buffer_line = mmgr_line_over(question->code_name, sizeof(question->code_name));
+            mmgr_line_put(&buffer_line, code_name);
+            (void)mmgr_line_finish(&buffer_line);
+        }
         question->place = probe_place;
         question->registers = registers;
         question->placed =
             (probe_place < (question->code.size / 16ULL)) && (((probe_place * 16ULL) + 16ULL) <= question->code.size);
         if (question->placed)
         {
-            memcpy(question->word, question->code.bytes + (probe_place * 16ULL), 16u);
+            mmgr_bytes_copy(question->word, question->code.bytes + (probe_place * 16ULL), 16u);
         }
         question_count += 1u;
     }
@@ -238,16 +268,15 @@ int main(int count, char **words)
     // stops at: set aside before the run, to be read alone, so that the run is read clean at one start
     for (size_t piece = 0u; whole && msq_tables_read() && (piece < piece_count); piece += 1u)
     {
-        run_pieces[piece].state =
-            msq_vendor_reads(&run_pieces[piece].bytes) ? MSQ_PIECE_READ : MSQ_PIECE_UNREAD;
+        run_pieces[piece].state = msq_vendor_reads(&run_pieces[piece].bytes) ? MSQ_PIECE_READ : MSQ_PIECE_UNREAD;
     }
     MsqReader reader;
-    memset(&reader, 0, sizeof(reader));
+    mmgr_bytes_set(&reader, 0, sizeof(reader));
     reader.output_room = 8ULL << 20u;
     reader.output = whole ? (char *)malloc((size_t)reader.output_room) : NULL;
     // the accumulated run's listing, which every reading and frame of it points into until the cross ends
     MsqListing accumulated;
-    memset(&accumulated, 0, sizeof(accumulated));
+    mmgr_bytes_set(&accumulated, 0, sizeof(accumulated));
     whole = whole && (reader.output != NULL) && msq_accumulated_read(&reader, run_pieces, piece_count, &accumulated);
     if (whole)
     {
@@ -264,7 +293,7 @@ int main(int count, char **words)
     }
     // the pieces set aside, each read alone, on a reader thread for each up to the host's processors
     MsqPool pool;
-    memset(&pool, 0, sizeof(pool));
+    mmgr_bytes_set(&pool, 0, sizeof(pool));
     pool.pieces = run_pieces;
     pool.aside = aside;
     pool.aside_count = aside_count;
@@ -310,8 +339,16 @@ int main(int count, char **words)
     free(frame_read);
     if (!whole)
     {
-        fprintf(stderr, "orior_measuring_stick_query: the vendor's disassembler %s could not be run, or there was no memory: %s\n",
-                s_nvdisasm, (pool.why != NULL) ? pool.why : "the work could not be queued");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "orior_measuring_stick_query: the vendor's disassembler ");
+            mmgr_line_put(&engine_note.line, s_nvdisasm);
+            mmgr_line_put(&engine_note.line, " could not be run, or there was no memory: ");
+            mmgr_line_put(&engine_note.line, (pool.why != NULL) ? pool.why : "the work could not be queued");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     // the questions blocked, each with why, the gated list and the report passed to the run. A question is blocked
@@ -320,7 +357,7 @@ int main(int count, char **words)
     // is blocked, and the gate blocks every code that contains it. A frame the vendor stopped in at no instruction it
     // named blocks its questions by no encoding, and the round they came in is not carried
     MsqVerdicts verdicts;
-    memset(&verdicts, 0, sizeof(verdicts));
+    mmgr_bytes_set(&verdicts, 0, sizeof(verdicts));
     size_t gated_count = 0u;
     size_t unread = 0u;
     for (size_t place = 0u; place < question_count; place += 1u)
@@ -341,8 +378,13 @@ int main(int count, char **words)
         for (size_t at = 0u; at < frame->illegal_count; at += 1u)
         {
             char why[160];
-            snprintf(why, sizeof(why), "the vendor reads an illegal instruction at byte %llu of the code",
-                     frame->illegal[at]);
+            {
+                VerbaLinea buffer_line = mmgr_line_over(why, sizeof(why));
+                mmgr_line_put(&buffer_line, "the vendor reads an illegal instruction at byte ");
+                mmgr_line_decimal(&buffer_line, frame->illegal[at], 1u);
+                mmgr_line_put(&buffer_line, " of the code");
+                (void)mmgr_line_finish(&buffer_line);
+            }
             msq_gate_reported(&verdicts, question, question->code.bytes + frame->illegal[at], why, 0u);
             gated_question = 1;
         }
@@ -354,10 +396,17 @@ int main(int count, char **words)
             if (in_code && msq_register_reached(read_line->body, question->registers, &frame_reached))
             {
                 char why[200];
-                snprintf(why, sizeof(why),
-                         "the vendor reads R%llu at byte %llu of the code, past the %u registers its "
-                         "kernel allots",
-                         frame_reached, read_line->offset, question->registers);
+                {
+                    VerbaLinea buffer_line = mmgr_line_over(why, sizeof(why));
+                    mmgr_line_put(&buffer_line, "the vendor reads R");
+                    mmgr_line_decimal(&buffer_line, frame_reached, 1u);
+                    mmgr_line_put(&buffer_line, " at byte ");
+                    mmgr_line_decimal(&buffer_line, read_line->offset, 1u);
+                    mmgr_line_put(&buffer_line, " of the code, past the ");
+                    mmgr_line_decimal(&buffer_line, question->registers, 1u);
+                    mmgr_line_put(&buffer_line, " registers its kernel allots");
+                    (void)mmgr_line_finish(&buffer_line);
+                }
                 msq_gate_reported(&verdicts, question, question->code.bytes + read_line->offset, why,
                                   msq_clearing(frame_reached));
                 gated_question = 1;
@@ -398,34 +447,50 @@ int main(int count, char **words)
         int control = 0;
         for (size_t at = 0u; (type == MSQ_READ) && (at < (sizeof(s_control) / sizeof(s_control[0]))); at += 1u)
         {
-            control |= (strcmp(reading->operation, s_control[at]) == 0);
+            control |= (mmgr_text_equal(reading->operation, s_control[at], PLATFORM_TEXT_TO_TERMINATOR));
         }
         if (type == MSQ_ILLEGAL)
         {
-            snprintf(why, sizeof(why), "%s", s_illegal_why);
+            VerbaLinea buffer_line = mmgr_line_over(why, sizeof(why));
+            mmgr_line_put(&buffer_line, s_illegal_why);
+            (void)mmgr_line_finish(&buffer_line);
         }
         else if (control)
         {
-            snprintf(why, sizeof(why), "the vendor reads %s at the probe, a control transfer", reading->operation);
+            VerbaLinea buffer_line = mmgr_line_over(why, sizeof(why));
+            mmgr_line_put(&buffer_line, "the vendor reads ");
+            mmgr_line_put(&buffer_line, reading->operation);
+            mmgr_line_put(&buffer_line, " at the probe, a control transfer");
+            (void)mmgr_line_finish(&buffer_line);
         }
         else if (msq_register_reached(body, question->registers, &reached))
         {
-            snprintf(why, sizeof(why), "the vendor reads R%llu at the probe, past the %u registers its kernel allots",
-                     reached, question->registers);
+            {
+                VerbaLinea buffer_line = mmgr_line_over(why, sizeof(why));
+                mmgr_line_put(&buffer_line, "the vendor reads R");
+                mmgr_line_decimal(&buffer_line, reached, 1u);
+                mmgr_line_put(&buffer_line, " at the probe, past the ");
+                mmgr_line_decimal(&buffer_line, question->registers, 1u);
+                mmgr_line_put(&buffer_line, " registers its kernel allots");
+                (void)mmgr_line_finish(&buffer_line);
+            }
             clearing = msq_clearing(reached);
         }
         else if (overwritten >= 0)
         {
-            snprintf(
-                why, sizeof(why),
-                "the vendor reads R%lld written at the probe, a register the code after it addresses memory through",
-                overwritten);
+            VerbaLinea buffer_line = mmgr_line_over(why, sizeof(why));
+            mmgr_line_put(&buffer_line, "the vendor reads R");
+            mmgr_line_decimal_signed(&buffer_line, overwritten);
+            mmgr_line_put(&buffer_line, " written at the probe, a register the code after it addresses memory through");
+            (void)mmgr_line_finish(&buffer_line);
         }
         else if ((body[0] != '\0') && msq_memory(body))
         {
-            snprintf(
-                why, sizeof(why),
+            VerbaLinea buffer_line = mmgr_line_over(why, sizeof(why));
+            mmgr_line_put(
+                &buffer_line,
                 "the vendor reads a memory access at the probe, through registers the question sets no address in");
+            (void)mmgr_line_finish(&buffer_line);
         }
         if ((why[0] == '\0') && (type == MSQ_READ))
         {
@@ -504,9 +569,15 @@ int main(int count, char **words)
     // a frame the vendor named no stop in is no question it read: the round is not carried
     if (unread != 0u)
     {
-        fprintf(stderr,
-                "orior_measuring_stick_query: %zu questions' codes the vendor stopped in at no instruction it named\n",
-                unread);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "orior_measuring_stick_query: ");
+            mmgr_line_decimal(&engine_note.line, unread, 1u);
+            mmgr_line_put(&engine_note.line, " questions' codes the vendor stopped in at no instruction it named");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     return (gated_count != 0u) ? 1 : 0;

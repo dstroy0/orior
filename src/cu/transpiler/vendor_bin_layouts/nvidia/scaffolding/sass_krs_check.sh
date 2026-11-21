@@ -15,6 +15,8 @@ set -u
 
 TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../../.." && pwd)"
 source "$TOP/includes/file_defs/file_defs.sh"
+# the program is a program of the platform: it links the process stage, the pool, the system calls and the carcer
+source "$TOP/includes/exact_types/exact_types.sh"
 CODEGEN="$TOP/src/cu/engine/rmc"
 CODEGEN_CU="$TOP/src/cu/engine/rmc"
 CODEGEN_CU_2="$TOP/includes/parsers"
@@ -28,10 +30,10 @@ for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/../file_de
         asm_printer_*.cu | codegen*.cu) continue ;;
     esac
     object="$OUT/$(basename "$source").o"
-    "$FILE_DEFS_CXX" -std=c++17 -O1 -Wall -Wextra -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -I "$CODEGEN" -I "$CODEGEN_CU" -I "$CODEGEN_CU_2" -I "$CUBIN" -x c++ -c "$source" -o "$object" || exit 1
+    "$FILE_DEFS_CXX" -std=c++17 -O1 -Wall -Wextra -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" "${FILE_DEFS_MMGR_FLAGS[@]}" -I "$CODEGEN" -I "$CODEGEN_CU" -I "$CODEGEN_CU_2" -I "$CUBIN" -x c++ -c "$source" -o "$object" || exit 1
     OBJECTS+=("$object")
 done
-for source in "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c; do
+for source in "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c; do
     object="$OUT/$(printf '%s' "${source#"$TOP"/}" | tr '/' '_').o"
     cc -std=c11 -O1 -Wall -Wextra -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -I "$CUBIN" "${FILE_DEFS_MMGR_FLAGS[@]}" \
         -c "$source" -o "$object" || exit 1
@@ -39,9 +41,9 @@ for source in "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.
 done
 
 for one in sass_krs_assemble ruleset_read_one; do
-    "$FILE_DEFS_CXX" -std=c++17 -O1 -Wall -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -I "$CODEGEN" -I "$CODEGEN_CU" -I "$CODEGEN_CU_2" -I "$CUBIN" -c "$CUBIN/$one.cpp" \
+    "$FILE_DEFS_CXX" -std=c++17 -O1 -Wall -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" "${FILE_DEFS_MMGR_FLAGS[@]}" -I "$CODEGEN" -I "$CODEGEN_CU" -I "$CODEGEN_CU_2" -I "$CUBIN" -c "$CUBIN/$one.cpp" \
         -o "$OUT/$one.o" || exit 1
-    "$FILE_DEFS_CXX" -o "$OUT/$one" "$OUT/$one.o" "${OBJECTS[@]}" || exit 1
+    "$FILE_DEFS_CXX" -o "$OUT/$one" "$OUT/$one.o" "${OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}" || exit 1
 done
 
 # the ruleset is named from the top of the tree, which is where both read it from

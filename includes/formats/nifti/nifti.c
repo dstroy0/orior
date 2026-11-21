@@ -1,6 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "nifti.h"
+#include "../../../src/cu/engine/engine_note.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -104,7 +107,7 @@ static unsigned int nifti_fetch(const NiftiSource *source, unsigned long long of
     }
     if ((source->memory != NULL) && (bytes != 0ULL))
     {
-        memcpy(out, source->memory + offset, (size_t)bytes);
+        mmgr_bytes_copy(out, source->memory + offset, (size_t)bytes);
         return 1u;
     }
     return nifti_file_fetch(source->tools, source->path, offset, bytes, out);
@@ -212,10 +215,10 @@ static unsigned int nifti_header(const unsigned char *bytes, unsigned long long 
         return 0u;
     }
     const int second = (header_bytes == NIFTI_TWO_HEADER);
-    const int single = second ? (memcmp(bytes + 4u, nifti_two_single, sizeof nifti_two_single) == 0)
-                              : (memcmp(bytes + 344u, nifti_one_single, sizeof nifti_one_single) == 0);
-    const int paired = second ? (memcmp(bytes + 4u, nifti_two_paired, sizeof nifti_two_paired) == 0)
-                              : (memcmp(bytes + 344u, nifti_one_paired, sizeof nifti_one_paired) == 0);
+    const int single = second ? (mmgr_bytes_compare(bytes + 4u, nifti_two_single, sizeof nifti_two_single) == 0)
+                              : (mmgr_bytes_compare(bytes + 344u, nifti_one_single, sizeof nifti_one_single) == 0);
+    const int paired = second ? (mmgr_bytes_compare(bytes + 4u, nifti_two_paired, sizeof nifti_two_paired) == 0)
+                              : (mmgr_bytes_compare(bytes + 344u, nifti_one_paired, sizeof nifti_one_paired) == 0);
     if (!single && !paired)
     {
         return 0u;
@@ -248,7 +251,17 @@ static unsigned int nifti_header(const unsigned char *bytes, unsigned long long 
     }
     if ((typed == 0u) || (bitpix != (8ULL * built.extent.element_bytes)))
     {
-        fprintf(stderr, "nifti: datatype %llu with bitpix %llu errors\n", datatype, bitpix);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "nifti: datatype ");
+            mmgr_line_decimal(&engine_note.line, datatype, 1u);
+            mmgr_line_put(&engine_note.line, " with bitpix ");
+            mmgr_line_decimal(&engine_note.line, bitpix, 1u);
+            mmgr_line_put(&engine_note.line, " errors");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 0u;
     }
     unsigned long long data_bytes = built.extent.element_bytes;
@@ -293,7 +306,7 @@ static unsigned int nifti_character_is(char defined, char lower)
 
 static char *nifti_sibling(const char *path, const char *from, const char *to, unsigned int toggle_gzip)
 {
-    const size_t length = strlen(path);
+    const size_t length = mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR);
     const int gzipped = (length >= 3u) && (path[length - 3u] == '.') && nifti_character_is(path[length - 2u], 'g') &&
                         nifti_character_is(path[length - 1u], 'z');
     const size_t stem_end = gzipped ? (length - 3u) : length;
@@ -308,14 +321,14 @@ static char *nifti_sibling(const char *path, const char *from, const char *to, u
     {
         return NULL;
     }
-    memcpy(sibling, path, stem_end);
+    mmgr_bytes_copy(sibling, path, stem_end);
     for (size_t character = 0u; character < 3u; character += 1u)
     {
         const char original = path[stem_end - 3u + character];
         const int upper = (original >= 'A') && (original <= 'Z');
         sibling[stem_end - 3u + character] = upper ? (char)(to[character] - 'a' + 'A') : to[character];
     }
-    memcpy(sibling + stem_end, ends_gzipped ? ".gz" : "", ends_gzipped ? 4u : 1u);
+    mmgr_bytes_copy(sibling + stem_end, ends_gzipped ? ".gz" : "", ends_gzipped ? 4u : 1u);
     return sibling;
 }
 
@@ -339,7 +352,15 @@ static unsigned int nifti_prepare(const char *path, const char *member, const En
     *image_path = NULL;
     if (member != NULL)
     {
-        fprintf(stderr, "nifti: %s contains one image; a member was named\n", path);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "nifti: ");
+            mmgr_line_put(&engine_note.line, path);
+            mmgr_line_put(&engine_note.line, " contains one image; a member was named");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 0u;
     }
     char *const header_owned = nifti_existing_sibling(tools, path, "img", "hdr");
@@ -386,8 +407,13 @@ static unsigned int nifti_prepare(const char *path, const char *member, const En
     }
     if ((noting != 0u) && (built.scaled != 0u))
     {
-        fprintf(stderr, "nifti: %s has a scl_slope that is not 1; the raw stored values are read, unscaled\n",
-                header_path);
+        EngineNote engine_note;
+        engine_note_begun(&engine_note);
+        mmgr_line_put(&engine_note.line, "nifti: ");
+        mmgr_line_put(&engine_note.line, header_path);
+        mmgr_line_put(&engine_note.line, " has a scl_slope that is not 1; the raw stored values are read, unscaled");
+        mmgr_line_ch(&engine_note.line, '\n');
+        engine_note_written(&engine_note);
     }
     free(header_owned);
     *layout = built;
@@ -441,7 +467,7 @@ long long nifti_read(const EngineArrayRead *request)
     {
         if (agrees && (wanted <= request->out_capacity) && nifti_fits_memory(wanted))
         {
-            memset(request->out, 0, (size_t)wanted);
+            mmgr_bytes_set(request->out, 0, (size_t)wanted);
         }
         return -1LL;
     }

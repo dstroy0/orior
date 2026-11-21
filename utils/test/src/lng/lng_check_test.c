@@ -206,8 +206,10 @@ static void asm_row(LngList *lines, const char *const *cells, unsigned int count
     lng_list_free(&row);
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     LngList lines = {NULL, 0u, 0u};
     LngList defects = {NULL, 0u, 0u};
     LngList findings = {NULL, 0u, 0u};

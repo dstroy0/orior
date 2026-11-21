@@ -10,10 +10,12 @@
 // `class` prints one line an encoding, `<low> <high> <class> [bank <n> offset 0x<bytes> reads <bytes> <verdict>]`,
 // the verdict `gated` where rule 13 blocks the read against the bank of `--bank` bytes, `passes` where it does not,
 // and `unknown` where no size is given, the bank alone then checked against (cubin_safe/constant.c). `spans` prints
-// each distinct pair of a bank field's span and an offset field's span with the count of classes positioning their constant
-// operand so, `bank <first>..<last> offset <first>..<last> <count>`. Exit 0, 2 where the words are not as above, and 1
-// where the instruction set could not be read
+// each distinct pair of a bank field's span and an offset field's span with the count of classes positioning their
+// constant operand so, `bank <first>..<last> offset <first>..<last> <count>`. Exit 0, 2 where the words are not as
+// above, and 1 where the instruction set could not be read
 #include "../cubin_safe.h"
+#include "../../../../engine/engine_note.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "read.h"
 
 #include <stdio.h>
@@ -118,12 +120,19 @@ static int spans_printed(const TablesSet *set)
     return 0;
 }
 
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
-    if ((count < 3) || ((strcmp(words[2], "class") != 0) && (strcmp(words[2], "spans") != 0)))
+    if ((count < 3) || ((!mmgr_text_equal(words[2], "class", PLATFORM_TEXT_TO_TERMINATOR)) &&
+                        (!mmgr_text_equal(words[2], "spans", PLATFORM_TEXT_TO_TERMINATOR))))
     {
-        fprintf(stderr, "orior_tables_read <instructions.txt> class [--bank <size>] <low> <high>...\n"
-                        "orior_tables_read <instructions.txt> spans\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "orior_tables_read <instructions.txt> class [--bank <size>] <low> "
+                                             "<high>...\norior_tables_read <instructions.txt> spans");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     size_t size = 0u;
@@ -131,12 +140,20 @@ int main(int count, char **words)
     TablesSet set = {NULL, 0u, 0u};
     if ((text == NULL) || !tables_set_read(&set, text, size) || (set.count == 0u))
     {
-        fprintf(stderr, "orior_tables_read: %s contains no instruction set\n", words[1]);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "orior_tables_read: ");
+            mmgr_line_put(&engine_note.line, words[1]);
+            mmgr_line_put(&engine_note.line, " contains no instruction set");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         free(text);
         return 1;
     }
     free(text);
-    if (strcmp(words[2], "spans") == 0)
+    if (mmgr_text_equal(words[2], "spans", PLATFORM_TEXT_TO_TERMINATOR))
     {
         const int code = spans_printed(&set);
         tables_set_freed(&set);
@@ -144,7 +161,7 @@ int main(int count, char **words)
     }
     int given = 3;
     unsigned long long bank_size = 0ULL;
-    if (((given + 1) < count) && (strcmp(words[given], "--bank") == 0))
+    if (((given + 1) < count) && (mmgr_text_equal(words[given], "--bank", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         bank_size = strtoull(words[given + 1], NULL, 0);
         given += 2;

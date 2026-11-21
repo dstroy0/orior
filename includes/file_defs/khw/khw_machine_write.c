@@ -68,7 +68,7 @@ static int khw_ksc_path(const char *path, char *ksc, size_t room)
     return 1;
 }
 
-int main(int count, char **word)
+int program_main(int count, char **word)
 {
     if (count != 7)
     {

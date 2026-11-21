@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // kdm.c: a part's .kdm read, its rows read, its section and its pipes written by a who, and written back whole (kdm.h)
 #include "kdm.h"
+#include "../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include "../../parsers/who.h"
 #include <stdio.h>
@@ -48,10 +50,22 @@ int kdm_row_read(const char *line, KdmRow *row)
     }
     row->verdict = (fields == 6u) ? (int)strtol(field[5], NULL, 10) : -1;
     // each field is cut to its length, which an int counts for a field that fits its room
-    snprintf(row->operation, sizeof(row->operation), "%.*s", (int)length[0], field[0]);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(row->operation, sizeof(row->operation));
+        mmgr_line_put_max(&buffer_line, field[0], (size_t)((int)length[0]));
+        (void)mmgr_line_finish(&buffer_line);
+    }
     row->nodes = (unsigned int)strtoul(field[1], NULL, 10);
-    snprintf(row->chain, sizeof(row->chain), "%.*s", (int)length[2], field[2]);
-    snprintf(row->cost, sizeof(row->cost), "%.*s", (int)length[3], field[3]);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(row->chain, sizeof(row->chain));
+        mmgr_line_put_max(&buffer_line, field[2], (size_t)((int)length[2]));
+        (void)mmgr_line_finish(&buffer_line);
+    }
+    {
+        VerbaLinea buffer_line = mmgr_line_over(row->cost, sizeof(row->cost));
+        mmgr_line_put_max(&buffer_line, field[3], (size_t)((int)length[3]));
+        (void)mmgr_line_finish(&buffer_line);
+    }
     row->runs = (unsigned int)strtoul(field[4], NULL, 10);
     return 1;
 }
@@ -61,7 +75,7 @@ unsigned int kdm_tail_at(const KdmFile *file)
     unsigned int head = file->lines;
     for (unsigned int at = 0u; (at < file->lines) && (head == file->lines); at += 1u)
     {
-        head = (strcmp(file->line[at], KDM_ROWS_HEAD) == 0) ? at : head;
+        head = (mmgr_text_equal(file->line[at], KDM_ROWS_HEAD, PLATFORM_TEXT_TO_TERMINATOR)) ? at : head;
     }
     if (head == file->lines)
     {
@@ -86,8 +100,13 @@ int kdm_section_written_by(KdmFile *file, const char *part, const char *const *l
     const int tail_own = (tail < file->lines) && kfile_lines_who_line(file->line[tail], &own, &own_has_who);
     KdmFile written = {NULL, 0u, 0u};
     char first[KDM_OPERATOR + 8u];
-    snprintf(first, sizeof(first), "kdm %s", part);
-    const int headed = (file->lines != 0u) && (strncmp(file->line[0], "kdm ", 4u) == 0);
+    {
+        VerbaLinea buffer_line = mmgr_line_over(first, sizeof(first));
+        mmgr_line_put(&buffer_line, "kdm ");
+        mmgr_line_put(&buffer_line, part);
+        (void)mmgr_line_finish(&buffer_line);
+    }
+    const int headed = (file->lines != 0u) && (mmgr_text_starts(file->line[0], "kdm ", PLATFORM_TEXT_TO_TERMINATOR));
     int ok = kfile_lines_line_add(&written, headed ? file->line[0] : first) &&
              ((count == 0u) || (kfile_lines_put_by(&written, written.lines, lines, count, who) != 0u));
     if (ok && (tail < file->lines) && !tail_own &&
@@ -96,7 +115,12 @@ int kdm_section_written_by(KdmFile *file, const char *part, const char *const *l
         char code[WHO_CODE_CHARACTERS + 1u];
         char whose[WHO_CODE_CHARACTERS + 8u];
         who_code(there, code, sizeof(code));
-        snprintf(whose, sizeof(whose), "who %s", there_has_who ? code : "-");
+        {
+            VerbaLinea buffer_line = mmgr_line_over(whose, sizeof(whose));
+            mmgr_line_put(&buffer_line, "who ");
+            mmgr_line_put(&buffer_line, there_has_who ? code : "-");
+            (void)mmgr_line_finish(&buffer_line);
+        }
         ok = kfile_lines_line_add(&written, whose);
     }
     for (unsigned int at = tail; ok && (at < file->lines); at += 1u)
@@ -117,7 +141,9 @@ int kdm_pipes_replaced_by(KdmFile *file, const char *const *comment, unsigned in
                           unsigned int count, Who who)
 {
     // the lines put, made before the file is touched: a blank line, the comment and the pipes
-    const char **const put = (const char **)calloc((size_t)comments + count + 2u, sizeof(char *));
+    const char **const put = (const char **)platform_cell_cleared((unsigned long long)((size_t)comments + count + 2u),
+                                                                  (unsigned long long)(sizeof(char *)),
+                                                                  (unsigned int)platform_place_g_program_owner, 0);
     if (put == NULL)
     {
         return 0;
@@ -140,10 +166,10 @@ int kdm_pipes_replaced_by(KdmFile *file, const char *const *comment, unsigned in
     while (at > tail)
     {
         at -= 1u;
-        int dropped = (strncmp(file->line[at], "pipe ", 5u) == 0);
+        int dropped = (mmgr_text_starts(file->line[at], "pipe ", PLATFORM_TEXT_TO_TERMINATOR));
         for (unsigned int line = 0u; (line < comments) && !dropped; line += 1u)
         {
-            dropped = (strcmp(file->line[at], comment[line]) == 0);
+            dropped = (mmgr_text_equal(file->line[at], comment[line], PLATFORM_TEXT_TO_TERMINATOR));
         }
         if (dropped)
         {
@@ -156,6 +182,6 @@ int kdm_pipes_replaced_by(KdmFile *file, const char *const *comment, unsigned in
         kfile_lines_line_drop(file, file->lines - 1u);
     }
     const int ok = (count == 0u) || (kfile_lines_put_by(file, file->lines, put, putting, who) != 0u);
-    free(put);
+    platform_cell_released(put, (unsigned int)platform_place_g_program_owner);
     return ok;
 }

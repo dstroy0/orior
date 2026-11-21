@@ -25,6 +25,8 @@ fi
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$HERE/../../../../../.." && pwd)"
 source "$TOP/includes/file_defs/file_defs.sh"
+# the program is a program of the platform: it links the process stage, the pool, the system calls and the carcer
+source "$TOP/includes/exact_types/exact_types.sh"
 CUBIN="$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding"
 INTERFACE="$TOP/src/cu/transpiler/lstar/interface"
 KRS_C="$TOP/includes/parsers"
@@ -41,7 +43,7 @@ RUNNER="$(ls "$RUN"/*_ptx_probe.exe "$RUN"/*_ptx_probe 2>/dev/null | head -1)"
 [ -n "$RUNNER" ] || { echo "  no PTX probe in $RUN"; exit 1; }
 
 OBJECTS=()
-for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c \
+for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c \
               "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" "$HERE/interface_sass_probe_unprinted.c" "$HERE"/interface_sass_probe_unprinted/*.c; do
     object="$OUT/$(printf '%s' "${source#"$TOP"/}" | tr '/' '_')"
     object="${object%.c}.o"
@@ -49,7 +51,7 @@ for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/int
         "${FILE_DEFS_MMGR_FLAGS[@]}" -c "$source" -o "$object" || exit 1
     OBJECTS+=("$object")
 done
-cc -o "$OUT/interface_sass_probe_unprinted" "${OBJECTS[@]}" || exit 1
+cc -o "$OUT/interface_sass_probe_unprinted" "${OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}" || exit 1
 
 cd "$TOP" || exit 1
 "$OUT/interface_sass_probe_unprinted" "$RUNNER" "$RUN/sass/form_0.cubin" "$RUN/sass/form_0.text" \

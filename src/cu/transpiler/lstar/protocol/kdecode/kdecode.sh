@@ -12,10 +12,11 @@ set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$HERE/../../../../../.." && pwd)"
 source "$TOP/includes/file_defs/file_defs.sh"
+source "$TOP/includes/exact_types/exact_types.sh"
 OUT="$TOP/build/engine"
 mkdir -p "$OUT"
 BINARY="$OUT/orior_kdecode"
-SOURCES=("$HERE/kdecode.c" "$HERE"/kdecode/*.c "${FILE_DEFS[@]}")
+SOURCES=("$HERE/kdecode.c" "$HERE"/kdecode/*.c "${FILE_DEFS_FORMATS[@]}" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}")
 built="$BINARY"
 [ -f "$built.exe" ] && built="$built.exe"
 stale=0

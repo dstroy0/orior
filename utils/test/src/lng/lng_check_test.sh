@@ -10,8 +10,9 @@ set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$HERE/../../../.." && pwd)"
 source "$TOP/includes/file_defs/file_defs.sh"
+source "$TOP/includes/exact_types/exact_types.sh"
 OUT="$TOP/build/lng"
 mkdir -p "$OUT"
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/lng_check_test" "$HERE/lng_check_test.c" "$TOP/src/lng/lng.c" \
-    "${FILE_DEFS[@]}" || { echo "  build failed: lng_check_test did not compile"; exit 2; }
+    "${FILE_DEFS_FORMATS[@]}" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || { echo "  build failed: lng_check_test did not compile"; exit 2; }
 "$OUT/lng_check_test"

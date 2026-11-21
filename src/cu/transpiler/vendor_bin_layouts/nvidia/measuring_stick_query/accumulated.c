@@ -3,6 +3,8 @@
 // accumulated.c: every piece of the cross's work read as one raw run at one start of the vendor, a piece it stops at
 // set aside, and the listing cut into each piece's reading
 #include "msq_internal.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
 
 // The pieces, `count` of them, every one not set aside read as one raw run, each placed after the one before it: the
 // vendor reads them all at one start. Where it stops, the piece the stop lies in is set aside, STOPPED, and the run
@@ -11,8 +13,9 @@
 // UNREAD, to be read alone. 1, or 0 where the vendor could not be run or the system gave no memory
 int msq_accumulated_read(MsqReader *reader, MsqPiece *pieces, size_t count, MsqListing *listing)
 {
-    memset(listing, 0, sizeof(*listing));
-    MsqBytes *const runs = (MsqBytes *)malloc((count + 1u) * sizeof(MsqBytes));
+    mmgr_bytes_set(listing, 0, sizeof(*listing));
+    MsqBytes *const runs = (MsqBytes *)platform_cell_taken((unsigned long long)((count + 1u) * sizeof(MsqBytes)),
+                                                           (unsigned int)platform_place_g_program_owner, 0);
     if (runs == NULL)
     {
         return 0;
@@ -33,18 +36,18 @@ int msq_accumulated_read(MsqReader *reader, MsqPiece *pieces, size_t count, MsqL
         }
         if (joined == 0u)
         {
-            free(runs);
+            platform_cell_released(runs, (unsigned int)platform_place_g_program_owner);
             return 1;
         }
         const int status = msq_read(reader, runs, joined);
         if (status < 0)
         {
-            free(runs);
+            platform_cell_released(runs, (unsigned int)platform_place_g_program_owner);
             return 0;
         }
         if (status == 0)
         {
-            free(runs);
+            platform_cell_released(runs, (unsigned int)platform_place_g_program_owner);
             return msq_listing_read(reader->output, (size_t)reader->output_size, listing);
         }
         unsigned long long address = 0ULL;
@@ -54,18 +57,17 @@ int msq_accumulated_read(MsqReader *reader, MsqPiece *pieces, size_t count, MsqL
             // the piece the stop lies in, the last read whose start lies at or before it
             for (size_t piece = 0u; piece < count; piece += 1u)
             {
-                stopped = ((pieces[piece].state == MSQ_PIECE_READ) && (pieces[piece].start <= address)) ? piece
-                                                                                                        : stopped;
+                stopped =
+                    ((pieces[piece].state == MSQ_PIECE_READ) && (pieces[piece].start <= address)) ? piece : stopped;
             }
         }
         if (stopped == count)
         {
             for (size_t piece = 0u; piece < count; piece += 1u)
             {
-                pieces[piece].state =
-                    (pieces[piece].state == MSQ_PIECE_READ) ? MSQ_PIECE_UNREAD : pieces[piece].state;
+                pieces[piece].state = (pieces[piece].state == MSQ_PIECE_READ) ? MSQ_PIECE_UNREAD : pieces[piece].state;
             }
-            free(runs);
+            platform_cell_released(runs, (unsigned int)platform_place_g_program_owner);
             return 1;
         }
         pieces[stopped].state = MSQ_PIECE_STOPPED;
@@ -76,8 +78,8 @@ int msq_accumulated_read(MsqReader *reader, MsqPiece *pieces, size_t count, MsqL
 // put as its offset in the piece: the reading of an encoding at a probe point the line at its start, none where the
 // vendor printed none there; a frame's listing a view of its own lines, read whole; a tail's registers that address
 // memory read off its lines
-void msq_pieces_cut(MsqListing *listing, const MsqPiece *pieces, size_t count, MsqReading *readings,
-                    MsqFrame *frames, MsqRegisters *addressed)
+void msq_pieces_cut(MsqListing *listing, const MsqPiece *pieces, size_t count, MsqReading *readings, MsqFrame *frames,
+                    MsqRegisters *addressed)
 {
     size_t line = 0u;
     for (size_t piece = 0u; piece < count; piece += 1u)
@@ -105,7 +107,7 @@ void msq_pieces_cut(MsqListing *listing, const MsqPiece *pieces, size_t count, M
         }
         else if (one->type == MSQ_PIECE_FRAME)
         {
-            memset(&frames[one->index], 0, sizeof(frames[one->index]));
+            mmgr_bytes_set(&frames[one->index], 0, sizeof(frames[one->index]));
             frames[one->index].listing = view;
             frames[one->index].readable = 1;
         }

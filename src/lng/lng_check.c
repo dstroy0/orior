@@ -8,6 +8,8 @@
 // The check prints each defect, and the run exits 1 where it finds one. A finding does not fail the run. The run exits
 // 2 where it cannot read a table, the schema or gnascor
 #include "lng.h"
+#include "../cu/engine/engine_note.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "verba_scribo/verba_scribo.h"
 
 #include <stdio.h>
@@ -26,7 +28,15 @@ static void lng_check_read(const char *path)
 {
     if (!kfile_lines_read(&s_file, path) || (s_file.lines == 0u))
     {
-        fprintf(stderr, "lng_check: %s could not be read\n", path);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "lng_check: ");
+            mmgr_line_put(&engine_note.line, path);
+            mmgr_line_put(&engine_note.line, " could not be read");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         exit(2);
     }
 }
@@ -52,8 +62,10 @@ static void lng_check_file_words(const LngTable *table, const char *path, LngMap
     lng_map_free(file_used);
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     LngList defects = {NULL, 0u, 0u};
     LngList findings = {NULL, 0u, 0u};
     LngTable table = {{NULL, 0u, 0u}, NULL, 0u, 0u};
@@ -66,9 +78,9 @@ int main(void)
     lng_check_read(LNG_LADDER);
     for (unsigned int line = 0u; line < s_file.lines; line += 1u)
     {
-        const char *const opened = strstr(s_file.line[line], "anchor_(");
-        const char *const quote = (opened != NULL) ? strchr(opened, '"') : NULL;
-        const char *const closed = (quote != NULL) ? strchr(quote + 1, '"') : NULL;
+        const char *const opened = mmgr_text_find(s_file.line[line], "anchor_(", PLATFORM_TEXT_TO_TERMINATOR);
+        const char *const quote = (opened != NULL) ? mmgr_text_char(opened, '"', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
+        const char *const closed = (quote != NULL) ? mmgr_text_char(quote + 1, '"', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
         if (closed != NULL)
         {
             LngList text = {NULL, 0u, 0u};
@@ -183,9 +195,11 @@ int main(void)
             for (unsigned int row = 0u; (row < table.rows) && !found; row += 1u)
             {
                 // gnascor lists the transpiler's words, and no target's row answers for one
-                found = (lng_cell(&table, row, "target")[0] == '\0') &&
-                        (strcmp(lng_cell(&table, row, "word"), listed_words.text[at]) == 0) &&
-                        (strcmp(lng_cell(&table, row, "type"), s_listed_type[type]) == 0);
+                found =
+                    (lng_cell(&table, row, "target")[0] == '\0') &&
+                    (mmgr_text_equal(lng_cell(&table, row, "word"), listed_words.text[at],
+                                     PLATFORM_TEXT_TO_TERMINATOR)) &&
+                    (mmgr_text_equal(lng_cell(&table, row, "type"), s_listed_type[type], PLATFORM_TEXT_TO_TERMINATOR));
             }
             if (!found)
             {
@@ -202,7 +216,13 @@ int main(void)
     LngList target_names = {NULL, 0u, 0u};
     if ((targets == NULL) || (checked == NULL))
     {
-        fprintf(stderr, "lng_check: no memory for the target tables\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "lng_check: no memory for the target tables");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 2;
     }
     unsigned int target_count = 0u;
@@ -213,7 +233,7 @@ int main(void)
         int witnessed = 0;
         for (unsigned int column = 0u; column < read->head.count; column += 1u)
         {
-            witnessed = witnessed || (strcmp(read->head.text[column], "witness") == 0);
+            witnessed = witnessed || (mmgr_text_equal(read->head.text[column], "witness", PLATFORM_TEXT_TO_TERMINATOR));
         }
         if (!witnessed)
         {
@@ -222,7 +242,7 @@ int main(void)
         }
         char name[256];
         lng_target_of(tables.text[at], name, sizeof(name));
-        const size_t length = strlen(name);
+        const size_t length = mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR);
         name[(length > 4u) ? (length - 4u) : length] = '\0';
         lng_list_add(&target_names, name);
         lng_target_check(&table, read, name, &defects, &findings);
@@ -270,8 +290,9 @@ int main(void)
     {
         const char *const word = lng_cell(&table, row, "word");
         const char *const type = lng_cell(&table, row, "type");
-        const int naming =
-            (strcmp(type, "thing") == 0) || (strcmp(type, "doing") == 0) || (strcmp(type, "gluing") == 0);
+        const int naming = (mmgr_text_equal(type, "thing", PLATFORM_TEXT_TO_TERMINATOR)) ||
+                           (mmgr_text_equal(type, "doing", PLATFORM_TEXT_TO_TERMINATOR)) ||
+                           (mmgr_text_equal(type, "gluing", PLATFORM_TEXT_TO_TERMINATOR));
         int named = (lng_map_get(&used, word) != NULL);
         if (!naming || named)
         {
@@ -281,7 +302,7 @@ int main(void)
         lng_list_printed(&marked, "_%s_", word);
         for (unsigned int at = 0u; (at < names.count) && !named; at += 1u)
         {
-            named = (strstr(names.text[at], marked.text[0]) != NULL);
+            named = (mmgr_text_find(names.text[at], marked.text[0], PLATFORM_TEXT_TO_TERMINATOR) != NULL);
         }
         lng_list_free(&marked);
         if (!named)
@@ -297,8 +318,8 @@ int main(void)
     for (unsigned int line = 0u; line < s_file.lines; line += 1u)
     {
         const char *const text_line = s_file.line[line];
-        const char *const equals = strchr(text_line, '=');
-        if ((strncmp(text_line, "form ", 5u) != 0) || (equals == NULL))
+        const char *const equals = mmgr_text_char(text_line, '=', PLATFORM_TEXT_TO_TERMINATOR);
+        if ((!mmgr_text_starts(text_line, "form ", PLATFORM_TEXT_TO_TERMINATOR)) || (equals == NULL))
         {
             continue;
         }

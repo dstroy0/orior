@@ -77,8 +77,9 @@ static unsigned int lane_assembles(const std::string &lane, unsigned int *refuse
             character += 1u;
         }
         // a label, a note, a directive and a blank line are not instructions and assemble to nothing
-        const int instruction = (character < (line.size() - 1u)) && (line[character] != '.') && (line[character] != '/') &&
-                                (line.find(':') == std::string::npos) && (line.find('`') == std::string::npos);
+        const int instruction = (character < (line.size() - 1u)) && (line[character] != '.') &&
+                                (line[character] != '/') && (line.find(':') == std::string::npos) &&
+                                (line.find('`') == std::string::npos);
         if (instruction != 0)
         {
             lines += 1u;
@@ -133,8 +134,8 @@ static void lane_decide(const HostProgram *program, int reuse, unsigned int *que
     std::string first;
     const unsigned int instructions = (s_machine_read != 0) ? lane_assembles(lane, &refused, &first) : 0u;
     printf("  %-16s %4u steps, %5zu items, lane %s, %u lines, %u instructions, %u the assembler refuses%s%s\n",
-           program->name, loaded.layout.steps, items.size(), lane.empty() ? "REFUSED" : "written", lines,
-           instructions, refused, first.empty() ? "" : ", first: ", first.c_str());
+           program->name, loaded.layout.steps, items.size(), lane.empty() ? "REFUSED" : "written", lines, instructions,
+           refused, first.empty() ? "" : ", first: ", first.c_str());
     // the first lane written out whole: what a form that writes nothing leaves behind can be read
     static int dumped;
     if ((dumped == 0) && !lane.empty())
@@ -183,12 +184,14 @@ int program_main(int argc, char **argv)
         host_inexact(&program, &bare);
         lane_decide(&program, reuse, queried, &positioned);
         // the two tables the program reads through, sized as the host oracle sizes them
-        unsigned int *const wide = (unsigned int *)malloc(512u * sizeof(unsigned int));
-        unsigned int *const narrow = (unsigned int *)malloc(4096u * sizeof(unsigned int));
+        unsigned int *const wide = (unsigned int *)platform_cell_taken(
+            (unsigned long long)(512u * sizeof(unsigned int)), (unsigned int)platform_place_g_program_owner, 0);
+        unsigned int *const narrow = (unsigned int *)platform_cell_taken(
+            (unsigned long long)(4096u * sizeof(unsigned int)), (unsigned int)platform_place_g_program_owner, 0);
         host_tables(&program, wide, narrow);
         lane_decide(&program, reuse, queried, &positioned);
-        free(wide);
-        free(narrow);
+        platform_cell_released(wide, (unsigned int)platform_place_g_program_owner);
+        platform_cell_released(narrow, (unsigned int)platform_place_g_program_owner);
     }
     unsigned int decided = 0u;
     unsigned int blocking = 0u;

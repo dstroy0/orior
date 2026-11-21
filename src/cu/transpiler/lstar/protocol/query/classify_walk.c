@@ -16,7 +16,7 @@
 
 #include <stdlib.h>
 
-int main(int count_of_words, char **words)
+int program_main(int count_of_words, char **words)
 {
     if (count_of_words != 4)
     {

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // nrrd_read.c: the data file, the layout and the read
 #include "nrrd_internal.h"
+#include "../../../src/cu/engine/engine_note.h"
+#include "memoria_operor/memoria_linea.h"
 
 static const char *const nrrd_ignored[] = {
     "content",     "number",      "block size",   "blocksize",        "min",         "max",       "old min",
@@ -31,7 +33,13 @@ static unsigned int nrrd_data_file(NrrdSpan value, NrrdFields *fields)
     const int formatted = (memchr(value.text, '%', (size_t)value.length) != NULL);
     if ((value.length == 0ULL) || listed || formatted)
     {
-        fprintf(stderr, "nrrd: a multi-file data file errors\n");
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "nrrd: a multi-file data file errors");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 0u;
     }
     fields->data_file = value;
@@ -112,7 +120,15 @@ static unsigned int nrrd_field(NrrdSpan line, NrrdFields *fields)
     {
         return 1u;
     }
-    fprintf(stderr, "nrrd: field %.*s is not known\n", (int)key.length, key.text);
+    {
+        EngineNote engine_note;
+        engine_note_begun(&engine_note);
+        mmgr_line_put(&engine_note.line, "nrrd: field ");
+        mmgr_line_put_max(&engine_note.line, key.text, (size_t)((int)key.length));
+        mmgr_line_put(&engine_note.line, " is not known");
+        mmgr_line_ch(&engine_note.line, '\n');
+        engine_note_written(&engine_note);
+    }
     return 0u;
 }
 
@@ -137,7 +153,7 @@ static unsigned int nrrd_fields(const char *header, unsigned long long length, u
         const NrrdSpan line = {header + at, line_end - at};
         if (line_number == 0ULL)
         {
-            const int magic = (line.length == 8ULL) && (memcmp(line.text, "NRRD000", 7u) == 0) &&
+            const int magic = (line.length == 8ULL) && (mmgr_bytes_compare(line.text, "NRRD000", 7u) == 0) &&
                               (line.text[7u] >= '1') && (line.text[7u] <= '5');
             if (!magic)
             {
@@ -216,8 +232,8 @@ static char *nrrd_join(const char *header_path, NrrdSpan name)
     {
         return NULL;
     }
-    memcpy(joined, header_path, directory_length);
-    memcpy(joined + directory_length, name.text, (size_t)name.length);
+    mmgr_bytes_copy(joined, header_path, directory_length);
+    mmgr_bytes_copy(joined + directory_length, name.text, (size_t)name.length);
     joined[directory_length + (size_t)name.length] = '\0';
     return joined;
 }
@@ -302,7 +318,15 @@ static unsigned int nrrd_layout(const char *path, const char *member, const Engi
 {
     if (member != NULL)
     {
-        fprintf(stderr, "nrrd: %s contains one array; a member was named\n", path);
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "nrrd: ");
+            mmgr_line_put(&engine_note.line, path);
+            mmgr_line_put(&engine_note.line, " contains one array; a member was named");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
         return 0u;
     }
     const long long size = tools->size(path);
@@ -395,7 +419,7 @@ static unsigned int nrrd_inflate(const EngineIngestTools *tools, const char *dat
     free(packed);
     if (ok)
     {
-        memcpy(out, unpacked + layout->byte_skip + offset, (size_t)wanted);
+        mmgr_bytes_copy(out, unpacked + layout->byte_skip + offset, (size_t)wanted);
     }
     free(unpacked);
     return ok ? 1u : 0u;
@@ -439,7 +463,7 @@ long long nrrd_read(const EngineArrayRead *request)
     free(layout.data_path);
     if (!copied)
     {
-        memset(request->out, 0, (size_t)wanted);
+        mmgr_bytes_set(request->out, 0, (size_t)wanted);
         return -1LL;
     }
     if (layout.big_endian != 0u)

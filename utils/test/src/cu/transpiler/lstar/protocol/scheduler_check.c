@@ -54,7 +54,7 @@ static unsigned int check_records_counted(const char *name)
     return counted;
 }
 
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
     if ((count != 2) && (count != 3))
     {
