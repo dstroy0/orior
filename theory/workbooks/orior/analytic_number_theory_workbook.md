@@ -1003,7 +1003,7 @@ that of the bounds it cites, and of the step-by-step bound on the device's arith
 
 ## Entry 16: the misses, mapped from the walker
 
-`examples/0_experimental/exact_zeta_miss_map.py`, over entry 15's device programs with every point listed.
+`examples/0_experimental/exact_zeta/exact_zeta_miss_map.c`, over entry 15's device programs with every point listed.
 
 **The walker.** On the line, `Z = 2 Re w + R` with `w = exp(i theta) F`: the carrier `exp(i theta)` and
 the main sum `F`. A cell's points trace `w` in the plane.
@@ -2078,7 +2078,7 @@ Each value is followed by its reach in each arm.
   silver: the inertia, `Re w`, the coherence and the angular momentum each reach 0 in arm b. Golden
   less the `1, 1, 2` comb: the angular momentum reaches 0 in arm b.
 
-**The lattice even in `theta / pi`.** In `carrier` mode the miss map now places the coarse lattice at
+**The lattice even in `theta / pi`.** In `carrier` mode the miss map places the coarse lattice at
 the first fine points whose `theta / pi` less its bound reaches each step, by integer comparison. Over
 cells 300 to 309 at 4.7 points a zero, against entry 16's schemes on the same fine lattices:
 

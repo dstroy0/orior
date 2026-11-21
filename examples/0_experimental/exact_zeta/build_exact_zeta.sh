@@ -23,7 +23,7 @@ EXACT="$TOP/includes/exact_types/integers"
 OUT="$TOP/build/exact_zeta/$(uname -s | tr "[:upper:]" "[:lower:]")"
 mkdir -p "$OUT"
 
-USAGE="usage: build_exact_zeta.sh zeros|gram|phase|certificate|arrival|spherical|riemann_siegel|turing|lobes|carrier|tension|form_factor|demon [arguments]"
+USAGE="usage: build_exact_zeta.sh zeros|gram|phase|certificate|arrival|spherical|riemann_siegel|turing|lobes|carrier|tension|form_factor|demon|miss_map [arguments]"
 if [ $# -lt 1 ]; then
     echo "$USAGE"
     exit 2
@@ -45,6 +45,7 @@ case "$NAME" in
     tension) PROGRAM=exact_zeta_tension LIMBS=1024u STACK=268435456 ;;
     form_factor) PROGRAM=exact_zeta_form_factor LIMBS=1024u STACK=268435456 ;;
     demon) PROGRAM=exact_zeta_demon LIMBS=1024u STACK=268435456 ;;
+    miss_map) PROGRAM=exact_zeta_miss_map LIMBS=2048u STACK=536870912 ;;
     *) echo "$USAGE"; exit 2 ;;
 esac
 
