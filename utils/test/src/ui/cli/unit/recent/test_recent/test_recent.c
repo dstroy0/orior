@@ -26,8 +26,8 @@ void setUp(void)
 void tearDown(void)
 {
 }
-// The test's copy of the rows the list passes. It holds the text of each row, the rows that point into it, and
-// the count of the calls to the copier
+// The test's copy of the rows the list passes. It holds the text of each row, the rows that point into it
+// and how many calls the copier took
 // the calls to the copier
 typedef struct
 {

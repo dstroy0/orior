@@ -1420,7 +1420,6 @@ utils/test/src/ui/cli/unit/query_words/test_query_words/test_query_words.c	1
 utils/test/src/ui/cli/unit/query_writer/test_query_writer/test_query_writer.c	2
 utils/test/src/ui/cli/unit/raster/test_raster/test_raster.c	1
 utils/test/src/ui/cli/unit/reach/test_reach/test_reach.c	12
-utils/test/src/ui/cli/unit/recent/test_recent/test_recent.c	1
 utils/test/src/ui/cli/unit/regexp/test_regexp/test_regexp.c	1
 utils/test/src/ui/cli/unit/requests/test_requests/test_requests.c	3
 utils/test/src/ui/cli/unit/requests_pane/test_requests_pane/test_requests_pane.c	2
