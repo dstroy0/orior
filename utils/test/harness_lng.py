@@ -310,14 +310,33 @@ def write_g_rows():
     return len(entries), len(files)
 
 
+def write_charts():
+    """Lng/charts.lean: each row of each target table, its target, its symbol, its type, its bridge word and its
+    witness."""
+    lines = ["/-! The rows of each target table, written by harness.py lng prove. -/", "", "namespace Lng.Charts", "",
+             "structure ChartRow where", "  target : String", "  symbol : String", "  type : String",
+             "  bridge : String", "  witness : String", "", "def charts : List ChartRow := ["]
+    entries = []
+    for name, path in tables():
+        _, rows = tsv_rows(path)
+        for row in rows:
+            entries.append("  ⟨%s, %s, %s, %s, %s⟩" % (lean_text(name), lean_text(row["word"]), lean_text(row["type"]),
+                                                    lean_text(row["transpiler"]), lean_text(row["witness"])))
+    lines += [",\n".join(entries), "]", "", "end Lng.Charts", ""]
+    with open(os.path.join(THEORY, "Lng", "charts.lean"), "w", encoding="utf-8", newline="\n") as handle:
+        handle.write("\n".join(lines))
+    return len(entries)
+
+
 def cmd_prove(a):
     """The ladder's cases, the matrix rows and the .g rows written as Lean data, the proofs built, and no proof left
     open."""
     cases = write_ladder_cases()
     rows = write_matrix_rows()
     words, files = write_g_rows()
-    print("lng prove: %d ladder cases, %d matrix rows, %d high order words and %d .gsm files written"
-          % (cases, rows, words, files))
+    charted = write_charts()
+    print("lng prove: %d ladder cases, %d matrix rows, %d high order words, %d .gsm files and %d chart rows written"
+          % (cases, rows, words, files, charted))
     built = subprocess.run(["lake", "build"], cwd=THEORY)
     if built.returncode != 0:
         print("lng prove: lake build failed")

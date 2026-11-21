@@ -1,0 +1,36 @@
+\chapter{Related work}
+\label{ch:related}
+
+Four lines of work bear on the atlas. Each proves or checks a translation in a different place, and the atlas takes
+a fifth place among them.
+
+\section{Verified compilers}
+
+CompCert proves a compiler from a subset of C to assembly correct in the Coq proof assistant \cite{src:compcert}.
+Each pass of the compiler carries a proof that it keeps the meaning of the program. The proof covers one source
+language and a fixed set of targets, and each new target needs new passes and new proofs.
+
+The atlas does not prove a pass. It proves the tables that the passes read: each chart, each anchor, and each
+relation at every width and sign. One theorem then gives every lift between every pair of sound charts. A new
+language adds one chart and one Lean file, and no proof about another language changes.
+
+\section{Translation validation}
+
+Translation validation checks each output of a translator after the fact, and it leaves the translator unproved
+\cite{src:validation}. The witness of the atlas is a finite form of that check. It runs the tool of a language on
+the cases of each anchor and compares each answer. The Lean file of the language then extends the check from the
+cases to every word.
+
+\section{Verified rewrites over bit vectors}
+
+Alive proves peephole rewrites of LLVM correct at every width of a bit vector, through an SMT solver
+\cite{src:alive}. The theorems of \texttt{Lng/relation.lean} and \texttt{Lng/g\_lng.lean} take the same view of a
+word. They hold for every width $n$, and the kernel of Lean checks them in place of a solver.
+
+\section{Learning from queries}
+
+The ladder asks a machine for the cases of each relation, and the machine answers each one. Angluin's L* learns a
+regular language from membership queries and counterexamples in the same way \cite{src:angluin}. The protocol of
+the orior transpiler lives under \texttt{src/cu/transpiler/lstar}, and ladder.h sits in its counterexample stage.
+This research paper proves the meaning of the cases, and it leaves the protocol to the gnascor research paper
+\cite{src:gnascor}.

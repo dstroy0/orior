@@ -10,15 +10,18 @@ transform in one pass.
 \begin{enumerate}
   \item \texttt{harness.py lng witness} runs the probe of each row of each target table and writes its witness.
   \item \texttt{harness.py lng prove} writes the cases of ladder.h, the rows of the gsm matrices, the high order
-        words, the anchors of the transpiler words and the cases of each \texttt{.gsm} file into Lean data.
+        words, the anchors of the transpiler words, the cases of each \texttt{.gsm} file and the rows of each chart
+        into Lean data.
   \item The same command builds the Lean project under \texttt{theory/lng} with Lake. It fails on any proof that
         \texttt{sorry} closes.
   \item \texttt{lng\_check} reads every table against the others and against the theorem names of each Lean file.
 \end{enumerate}
 
 The project uses the core of Lean 4.35 and \texttt{Std.Tactic.BVDecide}, and no other library. At the time of
-writing, the build closes every proof in 13 jobs. The language check reports no defect, 29 operators of
-\texttt{.g} with gsm, and 13 mnemonics with a transpiler form.
+writing, the build closes every proof in 17 jobs. The language check reports no defect, 29 operators of
+\texttt{.g} with gsm, and 13 mnemonics with a transpiler form. Lean reads 76 rows of two charts. It proves three
+charts sound, \texttt{.g} at every width and sign and C and Python on \texttt{uint32\_t}, and the lift between any
+two sound charts.
 
 \section{Limits}
 
@@ -26,9 +29,13 @@ The proofs leave the following open.
 \begin{itemize}
   \item The cases of ladder.h are words of 32 places, read unsigned. The relations hold at every width and sign,
         and no case of ladder.h asks a machine for a signed answer or for another width.
+  \item The charts of C and Python state \texttt{uint32\_t}, the type of their tables. A chart of another width or
+        of a signed type is a new value of \texttt{Chart n s}, and \texttt{lift} holds for it as it stands.
   \item 15 mnemonics of gsm have no transpiler form, since none of their transitions gives each side a pair bit.
   \item The plain $=$ of \texttt{.g} has no gsm, since its word \texttt{equals} is no core op.
   \item The proofs state the semantics of C and Python as Lean models of their standards. They do not prove a
         compiler or an interpreter correct. The witness checks the tool on the cases, and only there.
   \item For C, a shift by 32 or more and a quotient by 0 have no value. The lift carries no meaning on those words.
+  \item Lean proves the lift of each symbol, and it does not prove \texttt{lng\_lift}, the C code that performs a
+        lift. The language check holds that code to the tables, and the tests of \texttt{lng\_check} cover it.
 \end{itemize}

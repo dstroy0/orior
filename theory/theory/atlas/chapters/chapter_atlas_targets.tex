@@ -1,10 +1,10 @@
-\chapter{The bridge to any language}
+\chapter{The atlas of languages}
 \label{ch:targets}
 
-A target language joins the atlas through two files. The table \texttt{src/lng/<target>\_lng.tsv} gives each
-symbol of the language, its bridge word, a probe and a witness. The Lean file
+A target language joins the atlas through two files. The table \texttt{src/lng/<target>\_lng.tsv} is its chart.
+It gives each symbol of the language, its bridge word, a probe and a witness. The Lean file
 \texttt{theory/lng/Lng/<target>\_lng.lean} gives a theorem for each witnessed relation, with the name of its bridge
-word. C and Python are the first two targets. Each table holds 38 rows: 29 core ops, one plain word and 8 types.
+word. C and Python are the first two targets. Each chart holds 38 rows: 29 core ops, one plain word and 8 types.
 
 \section{The witness}
 
@@ -16,6 +16,44 @@ the interpreter. A row with no witness is a hole, and so is a bridge word with n
 
 A witness is evidence on finitely many words, and it is not a proof. The Lean file of the language supplies the
 proof for every word.
+
+\section{The charts in Lean}
+
+\texttt{harness.py lng prove} writes every row of every chart into \texttt{Lng/charts.lean}. Lean then reads the
+charts as data, and \texttt{Lng/atlas.lean} proves facts about them.
+
+\begin{theorem}[\texttt{charted}]
+Each row of each chart is a type, or a witnessed relation whose bridge word has an anchor.
+\end{theorem}
+
+\begin{theorem}[\texttt{lifts}]
+Each relation of each chart has a row with the same bridge word in every other chart.
+\end{theorem}
+
+The first theorem closes the gap between a chart and the anchors. The second shows that no relation of C or of
+Python lacks its partner in the other chart. The kernel decides both on the 76 rows of the two charts.
+
+\section{Fibers and cardinality}
+
+\begin{definition}
+The fiber of an anchor $a$ in the chart of $L$ is the set of symbols that reach $a$:
+\[
+  F_L(a) = \{\, \sigma \in \Sigma_L \;:\; \alpha(\tau_L(\sigma)) = a \,\}.
+\]
+A projection over $a$ from $L$ to $M$ pairs a symbol of $F_L(a)$ with a symbol of $F_M(a)$.
+\end{definition}
+
+The four cardinalities of the matrix projection read off the fibers. A projection is 1:1 where both fibers hold
+one symbol. It is many:many where both hold more than one. It is 1:many where one symbol projects into the fibers
+of many languages, and n:many where the fibers of $n$ languages project into those of many.
+
+\begin{theorem}[\texttt{fibers}]
+For each anchor that a chart reaches, the fiber in each chart has as many symbols as the fiber in every other chart.
+\end{theorem}
+
+\begin{theorem}[\texttt{many\_to\_many}]
+The fiber of add in C holds $+$ and $+{=}$. The fiber of add in Python holds the masked $+$ and the masked $+{=}$.
+\end{theorem}
 
 \section{The semantics of a target}
 
@@ -47,21 +85,72 @@ whose bridge word names no theorem there. A target with no Lean file is a findin
 
 \section{The lift}
 
-\begin{corollary}
-Let $\sigma \in \Sigma_L$ and $\sigma' \in \Sigma_M$ with $\tau_L(\sigma) = \tau_M(\sigma') = \beta$, and let
-$a = \alpha(\beta)$. Suppose each Lean file proves its symbol equal to $R_a$ on a domain $D$. Then
-$\lBrack\sigma\rBrack_L$ and $\lBrack\sigma'\rBrack_M$ agree on $D$.
-\end{corollary}
+\begin{definition}
+A chart at $n$ places and the sign reading $s$ is a set of symbols $\Sigma$, a map $\kappa : \Sigma \to A$ to the
+anchors, a domain $D_\sigma \subseteq W_n$ for each symbol, and a semantics $\lBrack\cdot\rBrack$. It is sound where
+$\lBrack\sigma\rBrack(x, y) = R^{s}_{\kappa(\sigma)}(x, y)$ for each $\sigma \in \Sigma$, each $x \in W_n$ and
+each $y \in D_\sigma$.
+\end{definition}
+
+\texttt{Lng/any.lean} states the definition as the Lean structure \texttt{Chart n s}. Its field \texttt{sound} is
+the proof, and Lean accepts no chart without it.
+
+\begin{theorem}[\texttt{lift}]
+Let $L$ and $M$ be sound charts at $n$ places and the sign reading $s$, for any $n$ and $s$. Let
+$\sigma \in \Sigma_L$ and $\sigma' \in \Sigma_M$ with $\kappa_L(\sigma) = \kappa_M(\sigma')$. Then
+$\lBrack\sigma\rBrack_L(x, y) = \lBrack\sigma'\rBrack_M(x, y)$ for each $x \in W_n$ and each
+$y \in D_\sigma \cap D_{\sigma'}$.
+\end{theorem}
 
 \begin{proof}
-Both sides equal $R_a$ on $D$, and equality is transitive.
+Both sides equal $R^{s}_{\kappa(\sigma)}(x, y)$, and equality is transitive.
 \end{proof}
 
-\texttt{lng\_lift} computes $\sigma'$ from $\sigma$. It refuses a bridge word that the transpiler lacks, a bridge
-word with no anchor, and a side with no witnessed row. The corollary gives the meaning of each lift that it does
-not refuse. The domain $D$ is the meet of the hypotheses of the two theorems: for a C shift, a count below 32.
+The theorem asks for one anchor, and not for one bridge word. Two symbols with different bridge words lift to
+each other where their bridge words reach one anchor. This is the many:many projection of
+Chapter~\ref{ch:introduction}: add and add\_assign are two bridge words of one anchor.
 
-A third language joins with the same two files and no change to the others. Its table maps its symbols to bridge
-words, and its Lean file proves each witnessed symbol against the anchor's relation. Every lift between it and each
-earlier language then follows from the corollary. The number of proofs grows with the number of languages, and the
-number of pairs does not enter.
+\begin{theorem}[\texttt{lift\_all}]
+Let $P$ be a finite list of symbols, each of a sound chart, that reach one anchor. Then each pair of symbols of $P$
+agree on each pair of words of both domains.
+\end{theorem}
+
+The list can hold any number of charts and any number of symbols of each chart. The theorem therefore covers the
+1:1, 1:many, many:many and n:many projections together.
+
+\section{The charts proved sound}
+
+\begin{theorem}[\texttt{g}]
+For each $n$ and each sign reading $s$, the operators of \texttt{.g} form a sound chart at $n$ places, with each
+domain equal to $W_n$.
+\end{theorem}
+
+\begin{theorem}[\texttt{c}, \texttt{python}]
+C and Python form sound charts at 32 places, read unsigned, over their 30 shared bridge words. The domain of a
+shift is a count below 32. Every other domain is $W_{32}$.
+\end{theorem}
+
+The semantics of C here is the semantics of \texttt{uint32\_t} under C11, and the semantics of Python is the
+masked integer of its table. A quotient and a remainder by 0 have no value in either language or in the relation,
+and the two sides agree there too.
+
+\begin{theorem}[\texttt{many\_to\_many}]
+For all $x, y \in W_{32}$, the \texttt{.g} operator $+$, the C symbols $+$ and $+{=}$, and the masked Python symbols
+$+$ and $+{=}$ give one value.
+\end{theorem}
+
+\texttt{Lng/lift.lean} also states the lift from C to Python for each of the 30 shared bridge words, as an
+equation on the two semantics. \texttt{Lng.lift.add} states $a + b = \mathrm{mask}(a + b)$ for all
+$a, b \in W_{32}$.
+
+\texttt{lng\_lift} computes $\sigma'$ from $\sigma$. It refuses a bridge word that the transpiler lacks, a bridge
+word with no anchor, and a side with no witnessed row. The theorem \texttt{lift} gives the meaning of each lift
+that it does not refuse.
+
+\section{A new language}
+
+A new language joins with the same two files and no change to the others. Its chart maps its symbols to bridge
+words, and its Lean file proves each symbol against the relation of its anchor. That proof is the field
+\texttt{sound} of one value of \texttt{Chart n s}. Every lift between the new language and each other language of
+the atlas then follows from \texttt{lift}, at every width and sign that the chart states. The number of proofs grows
+with the number of languages, and the number of pairs does not enter.
