@@ -1,0 +1,34 @@
+\chapter{Integration and limits}
+\label{ch:integration}
+
+The proofs of this research paper hold only together with the tables they read. A proof about a stale copy of a
+table proves nothing about the table. The procedure below writes the tables into Lean and checks the whole
+transform in one pass.
+
+\section{The procedure}
+
+\begin{enumerate}
+  \item \texttt{harness.py lng witness} runs the probe of each row of each target table and writes its witness.
+  \item \texttt{harness.py lng prove} writes the cases of ladder.h, the rows of the gsm matrices, the high order
+        words, the anchors of the transpiler words and the cases of each \texttt{.gsm} file into Lean data.
+  \item The same command builds the Lean project under \texttt{theory/lng} with Lake. It fails on any proof that
+        \texttt{sorry} closes.
+  \item \texttt{lng\_check} reads every table against the others and against the theorem names of each Lean file.
+\end{enumerate}
+
+The project uses the core of Lean 4.35 and \texttt{Std.Tactic.BVDecide}, and no other library. At the time of
+writing, the build closes every proof in 13 jobs. The language check reports no defect, 29 operators of
+\texttt{.g} with gsm, and 13 mnemonics with a transpiler form.
+
+\section{Limits}
+
+The proofs leave the following open.
+\begin{itemize}
+  \item The cases of ladder.h are words of 32 places, read unsigned. The relations hold at every width and sign,
+        and no case of ladder.h asks a machine for a signed answer or for another width.
+  \item 15 mnemonics of gsm have no transpiler form, since none of their transitions gives each side a pair bit.
+  \item The plain $=$ of \texttt{.g} has no gsm, since its word \texttt{equals} is no core op.
+  \item The proofs state the semantics of C and Python as Lean models of their standards. They do not prove a
+        compiler or an interpreter correct. The witness checks the tool on the cases, and only there.
+  \item For C, a shift by 32 or more and a quotient by 0 have no value. The lift carries no meaning on those words.
+\end{itemize}

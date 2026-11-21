@@ -1,0 +1,57 @@
+\chapter{The ladder}
+\label{ch:ladder}
+
+The ladder is the list of relations that the compiler knows before it meets a machine. ladder.h states 21
+anchors and 109 cases. Each case is an anchor, one or two words of 32 places, and the word that the relation
+gives them. Lean reads these cases as data that the tool \texttt{harness.py lng prove} writes into
+\texttt{Lng/ladder\_cases.lean}.
+
+\section{Words and relations}
+
+\begin{definition}
+A word of $n$ places is an element of $W_n = \mathbb{Z}/2^n\mathbb{Z}$, the type \texttt{BitVec n} of Lean. The
+truth of a predicate $p$ on $W_n$ is the word $\mathbf{1}_n$ of ones where $p$ holds, and $0$ where it fails.
+\end{definition}
+
+\begin{definition}
+For a sign reading $s \in \{\mathrm{u}, \mathrm{s}\}$, the relation $R^{s}_{a}$ of an anchor $a$ is the partial
+map on $W_n \times W_n$ that \texttt{relation} defines in \texttt{Lng/relation.lean}. The orderings compare as
+unsigned words under $\mathrm{u}$ and as two's complement words under $\mathrm{s}$. Under $\mathrm{s}$ a
+quotient truncates toward 0, and a remainder takes the sign of the dividend, as C11 states
+\cite{src:c11}. DOWN under $\mathrm{s}$ fills the emptied places with the sign. A quotient or a remainder by 0 has
+no value. UP and DOWN read their count modulo $n$.
+\end{definition}
+
+The signed reading follows \texttt{ladder\_signed\_answer} of ladder.h. Its one edge case is the lowest word over a
+word of ones, where the true quotient $2^{n-1}$ has no place in $W_n$.
+
+\begin{lemma}[\texttt{lowest\_over\_ones}]
+At 32 places under $\mathrm{s}$, the quotient of $\mathtt{0x80000000}$ by $\mathtt{0xffffffff}$ is
+$\mathtt{0x80000000}$, and the remainder is 0.
+\end{lemma}
+
+\section{The cases}
+
+The ladder law of \texttt{Lng/ladder\_law.lean} gives the answer of each anchor on words of 32 places. It is the
+unsigned relation, read on natural numbers.
+
+\begin{theorem}[\texttt{cases\_answered}]
+For each case $(a, w, y)$ of ladder.h, the ladder law gives the anchor $a$ the answer $y$ on the words $w$.
+\end{theorem}
+
+\begin{proof}
+The statement is a conjunction over 109 closed terms. The kernel decides it.
+\end{proof}
+
+\begin{theorem}[\texttt{agrees}]
+For every anchor text $a$ and all $x, y \in W_{32}$, the value of $R^{\mathrm{u}}_a(x, y)$ is the answer of the
+ladder law for $a$ on $x$ and $y$.
+\end{theorem}
+
+\begin{proof}
+Both sides branch on the same anchor texts. Each branch reduces by the definitions of the words and of their
+natural values. The two branches of a quotient and of a remainder split again on a divisor of 0.
+\end{proof}
+
+The two theorems close the gap between the general relation and the cases. A relation at any width reduces, at
+32 places and unsigned, to the law that every case of ladder.h obeys.

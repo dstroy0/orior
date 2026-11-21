@@ -1,0 +1,67 @@
+\chapter{The bridge to any language}
+\label{ch:targets}
+
+A target language joins the bridge through two files. The table \texttt{src/lng/<target>\_lng.tsv} gives each
+symbol of the language, its bridge word, a probe and a witness. The Lean file
+\texttt{theory/lng/Lng/<target>\_lng.lean} gives a theorem for each witnessed relation, with the name of its bridge
+word. C and Python are the first two targets. Each table holds 38 rows: 29 core ops, one plain word and 8 types.
+
+\section{The witness}
+
+\begin{definition}
+A row of $\tau_L$ with the anchor $a = \alpha(\tau_L(\sigma))$ is witnessed where the tool of $L$ runs the row's
+probe on every case of $a$ and prints the answer of each case. For C the tool is a C11 compiler. For Python it is
+the interpreter. A row with no witness is a hole, and so is a bridge word with no anchor.
+\end{definition}
+
+A witness is evidence on finitely many words, and it is not a proof. The Lean file of the language supplies the
+proof for every word.
+
+\section{The semantics of a target}
+
+For C, the operations on \texttt{uint32\_t} are the operations of $W_{32}$, since C11 6.2.5 paragraph 9 makes
+unsigned arithmetic modular. Most theorems of \texttt{Lng/c\_lng.lean} hold by definition. A shift takes a count
+below 32, and a quotient and a remainder take a divisor that is not 0, since C11 6.5.7 and 6.5.5 give no value
+outside those ranges.
+
+For Python, an integer has no width \cite{src:python}. The table bridges each operator through a mask, as
+\texttt{(a + b) \& 0xffffffff}. Lean models the mask as the low 32 places of the two's complement of the integer.
+The quotient of $/\!/$ rounds toward $-\infty$, and Lean models it with \texttt{Int.fdiv}.
+
+\begin{theorem}[\texttt{add} of \texttt{Lng.python}]
+For all $a, b \in W_{32}$, the mask of $a + b$ over the integers is $R_{\mathrm{add}}(a, b)$.
+\end{theorem}
+
+\begin{proposition}[\texttt{add\_leaves}, \texttt{shl\_count\_leaves}]
+Without the mask, $a + b$ leaves $W_{32}$ for some $a$ and $b$. With the mask, $a \ll b$ differs from UP for some
+count of 32 or more.
+\end{proposition}
+
+The two propositions show why each Python symbol carries a mask, and where the Python shift and the ladder part.
+
+\section{The check}
+
+\texttt{lng\_check} reads every target table. It reports a type or a relation that contradicts its bridge word,
+and every hole. It reads the theorem names of the Lean file of each target, and it reports each witnessed relation
+whose bridge word names no theorem there. A target with no Lean file is a finding too.
+
+\section{The lift}
+
+\begin{corollary}
+Let $\sigma \in \Sigma_L$ and $\sigma' \in \Sigma_M$ with $\tau_L(\sigma) = \tau_M(\sigma') = \beta$, and let
+$a = \alpha(\beta)$. Suppose each Lean file proves its symbol equal to $R_a$ on a domain $D$. Then
+$\lBrack\sigma\rBrack_L$ and $\lBrack\sigma'\rBrack_M$ agree on $D$.
+\end{corollary}
+
+\begin{proof}
+Both sides equal $R_a$ on $D$, and equality is transitive.
+\end{proof}
+
+\texttt{lng\_lift} computes $\sigma'$ from $\sigma$. It refuses a bridge word that the transpiler lacks, a bridge
+word with no anchor, and a side with no witnessed row. The corollary gives the meaning of each lift that it does
+not refuse. The domain $D$ is the meet of the hypotheses of the two theorems: for a C shift, a count below 32.
+
+A third language joins with the same two files and no change to the others. Its table maps its symbols to bridge
+words, and its Lean file proves each witnessed symbol against the anchor's relation. Every lift between it and each
+earlier language then follows from the corollary. The number of proofs grows with the number of languages, and the
+number of pairs does not enter.

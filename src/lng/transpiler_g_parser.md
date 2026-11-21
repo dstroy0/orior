@@ -45,7 +45,7 @@
 | a compound literal | §6.5.2.5, `(T){...}` | plain C | none |
 | address and indirection | §6.5.3.2, `&x` and `*p` | plain C | none |
 | sizes and alignments | §6.5.3.4, `sizeof` and `_Alignof` | plain C | the size of `i<n>_t` past 64 bits is the limbs that hold it, and no row says so |
-| negation and complement | §6.5.3.3, `-x`, `~x`, `!x` | `neg`, `not` | Rust's `not` is both `~` and `!`; C retains them apart, and the parser has to tell them by the operand's type |
+| negation and complement | §6.5.3.3, `-x`, `~x`, `!x` | `neg` for `-x`, `not` for `~x`, and `unless` for `!x`, the truth of `x == 0`, as C bridges its `!` | none: the operator tells them apart, and [g_lng.lean](../../theory/lng/Lng/g_lng.lean) proves each at every width |
 | a cast | §6.5.4, `(T)` | written as C writes it | none |
 | multiplicative | §6.5.5, `*`, `/`, `%` | `mul`, `div`, `rem` | no form writes `%` yet |
 | additive | §6.5.6, `+`, `-` | `add`, `sub` | none |

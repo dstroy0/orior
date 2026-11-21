@@ -13,7 +13,8 @@ namespace Lng.LadderLaw
 
 open Lng.Ladder
 
-/-- The answer of the anchor with the text `anchor` on the words `words`, or none where no anchor has that text. -/
+/-- The answer of the anchor with the text `anchor` on the words `words`, or none where no anchor has that text. A
+quotient and a remainder by 0 have no answer, as ladder_answer gives them none. -/
 def answer (anchor : String) (words : List Nat) : Option Nat :=
   let a : Word := BitVec.ofNat 32 (words.getD 0 0)
   let b : Word := BitVec.ofNat 32 (words.getD 1 0)
@@ -30,8 +31,8 @@ def answer (anchor : String) (words : List Nat) : Option Nat :=
   | "more" => some (more a b).toNat
   | "at_least" => some (atLeast a b).toNat
   | "apart" => some (apart a b).toNat
-  | "quotient" => some (quotient a b).toNat
-  | "remainder" => some (remainder a b).toNat
+  | "quotient" => if b = 0 then none else some (quotient a b).toNat
+  | "remainder" => if b = 0 then none else some (remainder a b).toNat
   | "both" => some (both a b).toNat
   | "either" => some (either a b).toNat
   | "differ" => some (differ a b).toNat

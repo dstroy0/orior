@@ -281,14 +281,15 @@ def write_g_rows():
     operators = head[head.index("transpiler") + 1:]
     lines = ["/-! The high order words, the anchors of the transpiler's words and the .gsm files, written by harness.py",
              "lng prove. -/", "", "namespace Lng.GRows", "",
-             "structure HolRow where", "  word : String", "  type : String", "  transpiler : String",
-             "  symbols : List String", "", "def holRows : List HolRow := ["]
+             "structure HolRow where", "  word : String", "  type : String", "  bits : String", "  signed : String",
+             "  transpiler : String", "  symbols : List String", "", "def holRows : List HolRow := ["]
     entries = []
     for row in hol:
         marked = [operator for operator in operators if row[operator] == "1"]
-        entries.append("  ⟨%s, %s, %s, [%s]⟩" % (lean_text(row["word"]), lean_text(row["type"]),
-                                                lean_text(row["transpiler"]),
-                                                ", ".join(lean_text(operator) for operator in marked)))
+        entries.append("  ⟨%s, %s, %s, %s, %s, [%s]⟩" % (lean_text(row["word"]), lean_text(row["type"]),
+                                                        lean_text(row["bits"]), lean_text(row["signed"]),
+                                                        lean_text(row["transpiler"]),
+                                                        ", ".join(lean_text(operator) for operator in marked)))
     lines += [",\n".join(entries), "]", "", "def anchors : List (String × String) := ["]
     _, transpiler = tsv_rows(TRANSPILER)
     pairs = ["  (%s, %s)" % (lean_text(row["word"]), lean_text(row["anchor"])) for row in transpiler

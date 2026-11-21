@@ -20,7 +20,8 @@ mul	core op											1
 div	core op												1																																															
 rem	core op													1																																														
 neg	core op																														1																													
-not	core op																															1	1																											
+not	core op																															1																												
+unless	core op																																1																											
 bitand	core op														1																																													
 bitor	core op															1																																												
 bitxor	core op																1																																											

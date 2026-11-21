@@ -1,0 +1,58 @@
+\chapter{The matrices of gsm}
+\label{ch:gsm}
+
+Gnascor reads two answers side by side as a branch pair \cite{src:gnascor}. The pair is a state of a finite
+machine, and each transition of that machine carries a mnemonic. The table \texttt{gnascor\_asm\_lng.tsv} holds 86
+rows: 4 of the branch pair, 63 of the state-transition matrix, 12 of the high-energy matrix, 2 of the shifts and 5
+of the physics and error mnemonics. They name 28 mnemonics.
+
+\section{States and transitions}
+
+\begin{definition}
+A state with a pair is one of lead, rite, dual and void, with the bits $(1,0)$, $(0,1)$, $(1,1)$ and $(0,0)$. Every
+other state holds no pair bit and writes $-$ for each side. A transition is a row: the state it leaves, the state
+it reaches, the bits of each, an operation for each side, an arrow and a mnemonic.
+\end{definition}
+
+\begin{definition}
+The operation of a side, from its bit $p$ before and $q$ after, is $-$ where $p$ or $q$ is $-$, $=$ where $p = q$,
+and $q$ where $p \neq q$. The arrow is \texttt{*>} where a side is $-$, \texttt{x>} where both sides change, and
+\texttt{->} where a side stays.
+\end{definition}
+
+A branch pair row has two states for its sides and no transition. Each of its sides is a state of the pair below,
+and each state is its two bits. A pair of branches at once is written \texttt{[ ]}, and a state over two cycles
+is written \texttt{< >}.
+
+\section{The laws}
+
+Each law below is a conjunction over the 86 rows, and the kernel decides each one.
+
+\begin{theorem}[\texttt{side\_law}, \texttt{arrow\_law}]
+In every row that is a transition, each side's operation follows from its two bits, and the arrow follows from the
+two operations.
+\end{theorem}
+
+\begin{theorem}[\texttt{state\_law}]
+In every row, the branch pair included, the name of each state fixes its bits.
+\end{theorem}
+
+\begin{theorem}[\texttt{mnemonic\_law}]
+One table gives one transition at most one mnemonic.
+\end{theorem}
+
+\section{The transpiler form of a mnemonic}
+
+A transition that gives each side a bit does one of two things to that side: it keeps the bit or it inverts it.
+The two are ladder anchors, copy and invert. Let $\kappa(=) = \mathrm{copy}$ and $\kappa(0) = \kappa(1) =
+\mathrm{invert}$.
+
+\begin{theorem}[\texttt{form\_law}]
+In every transition, each side with a pair bit reaches the bit $R_{\kappa(o)}(p)$, where $o$ is its operation and
+$p$ its bit before.
+\end{theorem}
+
+The transpiler form of a transition is the bridge word of each side's anchor: \texttt{set} for copy and
+\texttt{not} for invert. \texttt{lng\_asm\_form} of \texttt{lng.c} derives it, and the language check reports each
+mnemonic with no transition that gives each side a bit. 13 of the 28 mnemonics have a form. The other 15 name
+only transitions where a side holds no pair bit, and they remain holes.

@@ -1,0 +1,98 @@
+\chapter{The high order face}
+\label{ch:g}
+
+The high order face of gnascor, \texttt{.g}, takes the syntax style of C and is not C. Its words are the rows of
+\texttt{gnascor\_hol\_lng.tsv}. A core op marks the operator columns that it means, and a type row gives a width
+and a sign. Lean reads the rows, the anchors of the transpiler words and the cases of each \texttt{.gsm} file from
+\texttt{Lng/g\_rows.lean}.
+
+\section{The compile}
+
+\begin{definition}
+For an operator $\sigma$ of \texttt{.g}, let $\mathrm{core}(\sigma)$ be the core op that marks $\sigma$. Let
+$\beta(h)$ be the transpiler word that the row $h$ crosses to: the word its \texttt{transpiler} cell names, or else
+the word of its own name. The anchor of $\sigma$ is
+\[
+  \varphi(\sigma) = \alpha\bigl(\beta(\mathrm{core}(\sigma))\bigr).
+\]
+The compile of $\sigma$ under the sign $s$ is $R^{s}_{\varphi(\sigma)}$, and the gsm of $\sigma$ is the list of
+cases of $\varphi(\sigma)$ in ladder.h.
+\end{definition}
+
+A type of \texttt{.g} fixes the two parameters of the compile. The width of $\texttt{u32\_t}$ is 32 and its
+sign is $\mathrm{u}$. The width of $\texttt{i64\_t}$ is 64 and its sign is $\mathrm{s}$. The meaning of a
+statement $T\ x = a \mathbin{\sigma} b$ is the compile of $\sigma$ at the width and the sign of $T$.
+
+\section{The tables}
+
+\begin{theorem}[\texttt{bound}]
+Each operator that a core op marks has an anchor.
+\end{theorem}
+
+\begin{theorem}[\texttt{answered}]
+For each such operator $\sigma$, the ladder law gives each case of the gsm of $\sigma$ its answer.
+\end{theorem}
+
+\begin{theorem}[\texttt{files}, \texttt{sm\_86}]
+Each case of each \texttt{.gsm} file of the protocol's tables is a case of the gsm of some operator. The file
+\texttt{sm\_86.gsm} holds the two-word cases of the gsm of $+$, in the order of the ladder.
+\end{theorem}
+
+\begin{theorem}[\texttt{types}]
+Each exact integer type that crosses to the transpiler has a width of 8, 16, 32 or 64 places, and a sign of 0 or 1.
+\end{theorem}
+
+\begin{theorem}[\texttt{assign\_law}]
+Each compound assignment $\sigma{=}$ has the anchor of its operator $\sigma$.
+\end{theorem}
+
+Each of these theorems is a statement about closed data, and the kernel decides it.
+
+\section{Every word}
+
+The theorems of this section hold for every width $n$, both signs $s$ and all $a, b \in W_n$. Each has the name
+of the core op whose operator it covers. Table~\ref{tab:g-compile} lists them.
+
+\begin{table}[ht]
+\centering
+\caption{What each operator of \texttt{.g} compiles to on the words $a, b \in W_n$.}\label{tab:g-compile}
+\begin{tabular}{lll}
+\toprule
+theorem & operator & compile \\
+\midrule
+\texttt{add} & $+$ & $a + b$ \\
+\texttt{sub} & $-$ & $a - b$ \\
+\texttt{mul} & $*$ & $a \cdot b$ \\
+\texttt{div} & $/$ & $a \div_s b$, where $b \neq 0$ \\
+\texttt{rem} & $\%$ & $a \bmod_s b$, where $b \neq 0$ \\
+\texttt{neg} & $-x$ & $-a$ \\
+\texttt{not} & $\sim x$ & $\lnot a$, each place inverted \\
+\texttt{unless} & $!x$ & the truth of $a = 0$ \\
+\texttt{bitand}, \texttt{bitor}, \texttt{bitxor} & $\&$, $|$, $\wedge$ & the places of $a$ and $b$ \\
+\texttt{shl} & $\ll$ & $a \ll (b \bmod n)$ \\
+\texttt{shr} & $\gg$ & $a \gg_s (b \bmod n)$ \\
+\texttt{eq}, \texttt{ne} & $=\!=$, $!\!=$ & the truth of $a = b$, of $a \neq b$ \\
+\texttt{lt}, \texttt{le} & $<$, $<=$ & the truth of $a <_s b$, of $a \le_s b$ \\
+\texttt{gt}, \texttt{ge} & $>$, $>=$ & the truth of $b <_s a$, of $b \le_s a$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{proof}
+For each operator, the kernel decides $\varphi(\sigma)$ on the tables. The compile then unfolds to one branch of
+$R^{s}$, and the simplifier closes it.
+\end{proof}
+
+\begin{theorem}[\texttt{ladder}]
+For every operator $\sigma$ and all $a, b \in W_{32}$, the unsigned compile of $\sigma$ has the value that the
+ladder law gives $\varphi(\sigma)$ on $a$ and $b$.
+\end{theorem}
+
+\begin{proof}
+The compile is $R^{\mathrm{u}}_{\varphi(\sigma)}$. The theorem \texttt{agrees} of chapter~\ref{ch:ladder} gives
+the rest.
+\end{proof}
+
+The operator $!x$ compiles to zero, the truth of $a = 0$, and $\sim x$ compiles to invert. C draws the same line:
+its $!$ bridges to \texttt{unless}, and its $\sim$ to \texttt{not}. The one operator of \texttt{.g} with no gsm
+is the plain $=$, whose word \texttt{equals} is no core op.

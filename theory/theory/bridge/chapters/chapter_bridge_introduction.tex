@@ -1,0 +1,43 @@
+\chapter{Introduction}
+\label{ch:introduction}
+
+A transpiler between $k$ languages needs a rule for each ordered pair of them, and so $k(k-1)$ rules. A
+transpiler through one intermediate form needs $2k$ maps: one into the form and one out of it for each language.
+The orior transpiler takes the second design. Its intermediate form is gsm, the relational assembly of gnascor
+\cite{src:gnascor}. A gsm statement does not name an operation. It states the cases of a relation, as
+\texttt{1,1->2}, and a machine either answers those cases or does not.
+
+The claim of this research paper is narrow and exact. Each map into gsm and out of it is a finite table, and each
+entry of each table carries a proof. The proofs are Lean 4 theorems \cite{src:lean4} over the tables as the
+repository stores them. Nothing in the proofs holds a second copy of a table. A tool writes the tables into Lean
+data, and the kernel of Lean checks each theorem against that data.
+
+\section{The transform}
+
+Let $\Sigma_L$ be the symbols of a language $L$, let $B$ be the bridge words of the transpiler, and let $A$ be the
+anchors of the ladder. Three finite partial maps make the transform:
+\begin{align*}
+  \tau_L &: \Sigma_L \rightharpoonup B, &
+  \alpha &: B \rightharpoonup A, &
+  R &: A \to \bigl(W_n \times W_n \rightharpoonup W_n\bigr).
+\end{align*}
+Here $W_n$ is the set of words of $n$ places, $\tau_L$ is the target table of $L$, $\alpha$ is the anchor column
+of the transpiler table, and $R_a$ is the relation of the anchor $a$. The meaning that the bridge gives a symbol
+$\sigma$ is the relation $R_{\alpha(\tau_L(\sigma))}$. The gsm of $\sigma$ is the list of cases of that relation in
+ladder.h.
+
+A lift of $\sigma \in \Sigma_L$ into a second language $M$ is a symbol $\sigma' \in \Sigma_M$ with
+$\tau_M(\sigma') = \tau_L(\sigma)$. Chapter~\ref{ch:targets} shows that a lift keeps the meaning of $\sigma$
+wherever both sides carry a proof.
+
+\section{What the proofs cover}
+
+The proofs fall into four groups, one to a chapter.
+\begin{itemize}
+  \item Chapter~\ref{ch:ladder}: the ladder relations, their cases, and their readings at every width and sign.
+  \item Chapter~\ref{ch:gsm}: the state-transition matrices of gsm, and the transpiler form of each mnemonic.
+  \item Chapter~\ref{ch:g}: the high order face \texttt{.g}, and the compile of each operator to gsm.
+  \item Chapter~\ref{ch:targets}: the target tables of C and Python, and the lift between any two languages.
+\end{itemize}
+Chapter~\ref{ch:integration} gives the procedure that checks the whole transform at once, and the limits that
+remain. Every theorem below has the name that it has in the Lean sources under \texttt{theory/lng}.
