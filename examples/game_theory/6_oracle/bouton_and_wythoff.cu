@@ -642,7 +642,7 @@ int main(int argc, char **argv)
         mmgr_line_put(line, " against phi ");
         wythoff_put(line, &phi, 5u, &unclear);
         mmgr_line_put(line, "\n  that word is Sturmian and has no period. What the period detector does with it is\n"
-                            "  examples/game_theory/6_oracle/sturmian_convergents.py, and it is not nothing.\n");
+                            "  examples/game_theory/6_oracle/sturmian_convergents.cu, and it is not nothing.\n");
         sim_check(&results, others == 0ULL, "the gaps between successive first coordinates are 1 and 2 alone");
     }
     sim_check(&results, ok, "both games were computed and read");
