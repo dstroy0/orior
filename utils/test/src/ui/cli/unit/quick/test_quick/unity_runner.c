@@ -99,7 +99,7 @@ int main(void)
   run_test(test_the_keys_of_a_command_open_the_box_as_it_does, "test_the_keys_of_a_command_open_the_box_as_it_does", 357);
   run_test(test_shift_twice_within_its_time_opens_search_everywhere, "test_shift_twice_within_its_time_opens_search_everywhere", 365);
   run_test(test_a_command_chosen_answers_its_word_and_runs_first_after, "test_a_command_chosen_answers_its_word_and_runs_first_after", 376);
-  run_test(test_the_rows_asked_again_while_the_tree_is_read_retain_the_chosen_row, "test_the_rows_asked_again_while_the_tree_is_read_retain_the_chosen_row", 393);
+  run_test(test_the_rows_asked_again_while_the_tree_is_read_retain_the_chosen_row, "test_the_rows_asked_again_while_the_tree_is_read_retain_the_chosen_row", 392);
 
   return UNITY_END();
 }

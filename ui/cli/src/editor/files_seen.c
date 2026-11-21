@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // files_seen.c: what the tree lists off its trunk, git's where git can read it, every file it tracks or would track,
-// or else every file walked from the top; and the tree's files positioned flat for the length of one call, sorted, in the
-// temporary tier
+// or else every file walked from the top; and the tree's files positioned flat for the length of one call, sorted, in
+// the temporary tier
 #include "../code/symbols.h"
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
@@ -10,8 +10,8 @@
 #include "../text/text.h"
 #include "files_internal.h"
 
-// A walk of the tree's folders: those still to look in, each a cell containing its path, the folder looked in, and
-// where each file found goes
+// A walk of the tree's folders. It holds those still to look in, each a cell that holds its path, and the folder it
+// looks in now. Then where each file it finds goes
 typedef struct
 {
     char **pending;
@@ -40,6 +40,8 @@ typedef struct
     int *whole;
     unsigned long long length;
     unsigned long long *ending;
+    const CliFiles *files_read;
+    void (*view_each)(const CliFilesEachCfg *args);
 } FilesSeenCtx;
 // `path` copied into a cell of its own, put among the folders still to look in
 EMBED_INLINE void walk_pending(const FilesSeenCtx *args)
@@ -121,9 +123,9 @@ void cli_files_walk(const CliFilesRootEachContextCfg *args)
     EMBED_CALL(walked_from, FilesSeenCtx, .root = root, .from = root, .each = each, .context = context);
 }
 
-// git's listing of the tree at `root`, or of the folder `folder` under it where one is named, each path passed to
-// `each`: 1 where git read it, its whole answer into `*whole`, and for the whole tree where it lists a file. A tree in
-// a folder its repository ignores is one git lists nothing of
+// git's listing of the tree at `root`, or of the folder `folder` under it where the call names one. Each path goes to
+// `each`. Returns 1 where git read it, its whole answer into `*whole`, and for the whole tree where it lists a file. A
+// tree in a folder its repository ignores is one git lists nothing of
 static int git_list(const FilesSeenCtx *args)
 {
     const char *folder = args->folder;
@@ -272,7 +274,7 @@ void cli_files_ignored_read(const CliFilesRootPathsCfg *args)
                    .err_msg = &unstarted) &&
         (run_result->code == 0LL))
     {
-        // git answers in the order it was asked, the paths it ignores alone
+        // git answers in the order of the ask, with the paths it ignores alone
         const char *answer = run_result->out;
         const char *const end = run_result->out + run_result->out_size;
         for (unsigned int at = 0u; (at < args->count) && (answer < end); at += 1u)
@@ -318,11 +320,11 @@ const CliFiles *cli_files_view(const CliFilesRootPathsCfg *args)
 
 void cli_files_let(const CliFilesCfg *args)
 {
-    // the cell is given back as it was taken; const is the reader's view of it
+    // the release gives the cell back as the view took it, and const is the reader's view of it
     g_cli_guard->persistent_buf_release(((void *)(embed_word)args->files), g_cli_files_views_owner);
 }
 
-// where the name of the file at `path`, `length` bytes, starts in it, and the bytes of its ending from its last dot
+// Where the name of the file at `path`, `length` bytes, starts in it. The bytes of its ending from its last dot go
 // into `*ending`, 0 where no dot is past the name's first character
 EMBED_INLINE unsigned long long seen_name(const FilesSeenCtx *args)
 {
@@ -342,7 +344,7 @@ EMBED_INLINE unsigned long long seen_name(const FilesSeenCtx *args)
 
 const CliFiles *cli_files_types_view(const CliFilesRootPathsCfg *args)
 {
-    const CliFiles *const files = cli_files_root_paths.view(args);
+    const CliFiles *const files = cli_files_view_internal.view(args);
     if (files == NULL)
     {
         return NULL;
@@ -363,7 +365,7 @@ const CliFiles *cli_files_types_view(const CliFilesRootPathsCfg *args)
                                        .bytes = sizeof(*types) + (count * sizeof(unsigned int)) + bytes);
     if (types == NULL)
     {
-        EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
+        EMBED_CALL(cli_files_let_internal.let, CliFilesCfg, .files = files);
         return NULL;
     }
     unsigned int *const start = (unsigned int *)(void *)(types + 1);
@@ -384,9 +386,41 @@ const CliFiles *cli_files_types_view(const CliFilesRootPathsCfg *args)
                              .path = path + length - ending, .length = ending);
         }
     }
-    EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
+    EMBED_CALL(cli_files_let_internal.let, CliFilesCfg, .files = files);
     (void)EMBED_CALL(cli_files_bytes_internal.sort, CliFilesBytesCtx, .files = types);
     return types;
+}
+
+// The view `files` written into a movable cell of the files module, and its work cell given back. The movable cell
+// goes to `each` with `context`, then goes back. Returns 1, or 0 where the view or the cell is not there
+EMBED_INLINE int seen_view_each(const FilesSeenCtx *args)
+{
+    if (args->files_read == NULL)
+    {
+        return 0;
+    }
+    CliPicked picked = {NULL, 0u, 0ULL};
+    const int put = EMBED_CALL(cli_files_picked_internal.picked_put, CliFilesPickedCtx, .picked = &picked,
+                               .files_read = args->files_read);
+    EMBED_CALL(cli_files_let_internal.let, CliFilesCfg, .files = args->files_read);
+    if (put)
+    {
+        args->view_each(&(CliFilesEachCfg){.context = args->context, .files = &picked});
+    }
+    EMBED_CALL(cli_files_picked_internal.picked_let, CliFilesPickedCtx, .picked = &picked);
+    return put;
+}
+
+int cli_files_each(const CliFilesRootPathsCfg *args)
+{
+    return EMBED_CALL(seen_view_each, FilesSeenCtx, .files_read = cli_files_view_internal.view(args),
+                      .view_each = args->each, .context = args->context);
+}
+
+int cli_files_types_each(const CliFilesRootPathsCfg *args)
+{
+    return EMBED_CALL(seen_view_each, FilesSeenCtx, .files_read = cli_files_view_internal.types_view(args),
+                      .view_each = args->each, .context = args->context);
 }
 
 // the tree listed behind the window, as a tree opens, for the first list or search

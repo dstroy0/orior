@@ -27,8 +27,9 @@ typedef struct
     unsigned long long used;
     unsigned long long bytes;
 } CliChanges;
-// One bundle as it is gathered: its changes, and the folders and files it reports, lists of cells counted to the files
-// made at the bundle's own size and given back once it is taken; a cell the batcher owns while it runs
+// One bundle while the batcher gathers it. It holds its changes, and the folders and files it reports. Those are lists
+// of cells counted to the files, made at the bundle's own size, and they go back once the take ends. The batcher owns
+// the cell while it runs
 typedef struct
 {
     CliChanges changes;
@@ -38,16 +39,17 @@ typedef struct
     CliFiles folders;
     CliFiles written;
 } CliBatch;
-// how long a bundle waits for another change before it goes, the longest it gathers changes for, in milliseconds; the
-// max changes waiting and gathered in one bundle; and the bytes of their paths a list of them is taken with
+// How long a bundle waits for another change before it goes, and the longest it gathers changes for, in milliseconds.
+// Then the max changes in the queue and in one bundle. Last, the bytes of the paths a list of changes takes
 #define CLI_WATCH_QUIET 150ULL
 #define CLI_WATCH_BATCH_MAX 1000ULL
 #define CLI_WATCH_QUEUE 4096u
 #define CLI_WATCH_GATHERED 16384u
 #define CLI_WATCH_TEXT_CAPACITY (256ULL << 10u)
 
-// The watch: the changes waiting, and whether more came than they contain; whether it is stopping, whether it reads the
-// tree itself, how many of its threads have ended; the tree, who takes the bundles, and the threads
+// The watch. It holds the changes in its queue, and whether more came than the queue holds. Then whether the watch
+// stops, whether it reads the tree itself, and how many of its threads ended. Last, the tree, who takes the bundles,
+// and the threads
 typedef struct
 {
     CliChanges waiting;
@@ -75,9 +77,11 @@ typedef struct
     const CliChanges *changes_read;
     unsigned int index;
     CliBatch *batch;
+    CliWatchTake take;
+    void *context;
 } WatchCtx;
-// The lists of changes are fixed outside the pool, where they punch no hole in the persistent tier: the changes
-// waiting and their paths, and the batcher's bundle with its changes and their paths
+// The lists of changes lie outside the pool, where they punch no hole in the persistent tier. They are the changes in
+// the queue with their paths, and the batcher's bundle with its changes and their paths
 static CliChange s_waiting_change[CLI_WATCH_QUEUE];
 static char s_waiting_text[CLI_WATCH_TEXT_CAPACITY];
 static CliBatch s_batch;
@@ -138,7 +142,7 @@ void cli_watch_change(const CliEachPathTypeCfg *args)
     }
 }
 
-// the changes waiting taken into the bundle and their cells given back, the lock acquired
+// the changes in the queue taken into the bundle and their cells given back, with the lock acquired
 EMBED_INLINE void cli_waiting_alloc(const WatchCtx *args)
 {
     for (unsigned int at = 0u; at < s_watching.waiting.count; at += 1u)
@@ -155,7 +159,32 @@ EMBED_INLINE void cli_waiting_alloc(const WatchCtx *args)
     s_watching.overflowed = 0;
 }
 
-// the bundle's changes gathered, less those the watching's patterns hide: 1 where any are left
+// The batch's folders and files put into movable cells of the files module, and its work lists cleared. Then the
+// batch goes to `take` with `context`, and the cells go back before the call returns. A list the cells cannot meet
+// goes empty, and the batch goes as lost
+EMBED_INLINE void watch_batch_take(const WatchCtx *args)
+{
+    CliBatch *const batch = args->batch;
+    CliPicked folders = {NULL, 0u, 0ULL};
+    CliPicked files = {NULL, 0u, 0ULL};
+    const int put = EMBED_CALL(cli_files_picked_internal.picked_put, CliFilesPickedCtx, .picked = &folders,
+                               .files_read = &batch->folders) &&
+                    EMBED_CALL(cli_files_picked_internal.picked_put, CliFilesPickedCtx, .picked = &files,
+                               .files_read = &batch->written);
+    EMBED_CALL(cli_files_bytes_internal.clear, CliFilesBytesCtx, .files = &batch->folders);
+    EMBED_CALL(cli_files_bytes_internal.clear, CliFilesBytesCtx, .files = &batch->written);
+    if (!put)
+    {
+        EMBED_CALL(cli_files_picked_internal.picked_let, CliFilesPickedCtx, .picked = &folders);
+        EMBED_CALL(cli_files_picked_internal.picked_let, CliFilesPickedCtx, .picked = &files);
+    }
+    EMBED_CALL(args->take, CliWatchBatchCfg, .context = args->context, .folders = &folders, .files = &files,
+               .git = batch->git, .lost = batch->lost || !put);
+    EMBED_CALL(cli_files_picked_internal.picked_let, CliFilesPickedCtx, .picked = &folders);
+    EMBED_CALL(cli_files_picked_internal.picked_let, CliFilesPickedCtx, .picked = &files);
+}
+
+// the bundle's changes gathered, less those the watching's patterns hide: 1 where any stay
 static int cli_gather(const WatchCtx *args)
 {
     const char *const root = s_watching.root;
@@ -171,7 +200,7 @@ static int cli_gather(const WatchCtx *args)
     args->batch->lost = args->batch->lost || !made;
     int git = args->batch->lost;
     int relist = args->batch->lost;
-    // the paths that came and went, to be mirrored to their closest parents as the round ends
+    // the paths that came and went, which the round mirrors to their closest parents as it ends
     const char **const moved =
         g_cli_guard->temporary_buf_alloc((unsigned long long)count * sizeof(const char *), g_cli_watch_owner);
     unsigned int moves = 0u;
@@ -221,8 +250,8 @@ static int cli_gather(const WatchCtx *args)
                                       .path = path, .dir = dir);
         if ((path[0] != '\0') && hidden && ((type == CLI_CHANGE_ADDED) || (type == CLI_CHANGE_REMOVED)))
         {
-            // an entry the patterns hide still comes into its folder's listing and goes from it: the folder changed,
-            // and nothing else is reported of the entry
+            // An entry the patterns hide still comes into its folder's listing and goes from it. The batch reports
+            // the folder as changed, and reports no more of the entry
             EMBED_CALL(cli_files_path_length_internal.put, CliFilesPathLengthCtx, .files = &args->batch->folders,
                        .path = path, .length = folder_length);
             continue;
@@ -253,8 +282,8 @@ static int cli_gather(const WatchCtx *args)
                        .path = path, .length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}));
         }
     }
-    // a change joins or leaves the one branch it names; the tree is listed again only where the rules of the listing
-    // changed, or changes were lost
+    // A change joins or leaves the one branch it names. The tree gets a new listing only where the rules of the
+    // listing changed, or the watch lost changes
     if (relist)
     {
         EMBED_CALL(cli_symbols_context.tree_relist, CliSymbolsContextCfg, .root = root, .emit = NULL, .context = NULL);
@@ -326,8 +355,8 @@ static void cli_batch(void *context)
         const int stopping = cli_watch_stopping();
         if (!stopping && any)
         {
-            EMBED_CALL(s_watching.take, CliWatchBatchCfg, .context = s_watching.context, .folders = &batch->folders,
-                       .files = &batch->written, .git = batch->git, .lost = batch->lost);
+            EMBED_CALL(watch_batch_take, WatchCtx, .batch = batch, .take = s_watching.take,
+                       .context = s_watching.context);
         }
         EMBED_CALL(cli_files_bytes_internal.clear, CliFilesBytesCtx, .files = &batch->folders);
         EMBED_CALL(cli_files_bytes_internal.clear, CliFilesBytesCtx, .files = &batch->written);
@@ -430,8 +459,7 @@ int cli_watch_gathered_get(const CliWatchPathsCtx *args)
     const int any = EMBED_CALL(cli_gather, WatchCtx, .batch = batch);
     if (any)
     {
-        EMBED_CALL(args->take, CliWatchBatchCfg, .context = args->context, .folders = &batch->folders,
-                   .files = &batch->written, .git = batch->git, .lost = batch->lost);
+        EMBED_CALL(watch_batch_take, WatchCtx, .batch = batch, .take = args->take, .context = args->context);
     }
     EMBED_CALL(cli_files_bytes_internal.clear, CliFilesBytesCtx, .files = &batch->folders);
     EMBED_CALL(cli_files_bytes_internal.clear, CliFilesBytesCtx, .files = &batch->written);

@@ -15,10 +15,11 @@
 #include "../text/text.h"
 #include "embed_atomic.h"
 
-// the max folders of runs, the bytes their paths take, the max runs listed, the max lessons, the bytes the runs'
-// paths and the lessons' words take, the runs opened at once, the max records an opened run lists, the bytes of the
-// texts of its panics and conferences, the max conferences of one run, the max bytes copied of one record's text,
-// the runs whose first panic was posted, and the folders the watch's ring carries
+// The max folders of runs and the bytes their paths take, and the max runs listed and the max lessons. Then the bytes
+// the runs' paths and the lessons' words take, and the runs open at once. Then the max records an open run lists, and
+// the bytes of the texts of its panics and conferences. Then the max conferences of one run, and the max bytes a copy
+// of one record's text takes. Last, the runs whose first panic is on the notices, and the folders the watch's ring
+// carries
 #define RUNS_FOLDERS 256u
 #define RUNS_FOLDER_TEXT (64u * 1024u)
 #define RUNS_MAX 4096u
@@ -31,7 +32,7 @@
 #define RUNS_TEXT_MAX 65536ULL
 #define RUNS_NOTICED 64u
 #define RUNS_PENDING 32u
-// a record whose text is not copied, a record of no conference, and the ending a run's file takes
+// a record with no copy of its text, a record of no conference, and the ending a run's file takes
 #define RUNS_NO_TEXT RUNS_BLOB_TEXT
 #define RUNS_NO_CONFERENCE RUNS_CONFERENCES
 #define RUNS_ENDING ".qry"
@@ -59,8 +60,8 @@ typedef struct
     unsigned int are_in;
 } RunsLesson;
 
-// A run: its path's place in the text, its name's place, the bytes of the name without the ending, its bytes on the
-// disk, whether its writer runs and the place plus 1 of its panic, and its folder
+// A run. It holds its path's place in the text, its name's place, and the bytes of the name without the ending. It
+// holds its bytes on the disk, whether its writer runs, the place plus 1 of its panic, and its folder
 typedef struct
 {
     unsigned int path;
@@ -72,9 +73,9 @@ typedef struct
     unsigned int folder;
 } RunsRun;
 
-// A record of an opened run: its name's place in the run's text and the name's bytes, its blob's bytes, its priority,
-// its text's place and bytes, RUNS_NO_TEXT where none is copied, how many lines the text has as its rows show them,
-// and the conference it is of, RUNS_NO_CONFERENCE for none
+// A record of an open run. It holds its name's place in the run's text and the name's bytes, its blob's bytes, and
+// its priority. It holds its text's place and bytes, RUNS_NO_TEXT where it has no copy. Then how many lines the text
+// has as its rows show them. Last, the conference it is of, RUNS_NO_CONFERENCE for none
 typedef struct
 {
     unsigned int name;
@@ -87,8 +88,8 @@ typedef struct
     unsigned int conference;
 } RunsBlob;
 
-// A conference of an opened run: its records' name and the question's text, the name after `conference_` with each
-// underscore a space, each a place in the run's text with its bytes
+// A conference of an open run. It holds its records' name and the question's text, and the name after
+// `conference_` with each underscore a space. Each is a place in the run's text with its bytes
 typedef struct
 {
     unsigned int name;
@@ -97,9 +98,9 @@ typedef struct
     unsigned int question_length;
 } RunsConference;
 
-// A run opened in the pane: whether the entry is in use, the run's path from the top of the tree, whether its writer
-// ran as last read, where the next read goes on from, the .qry's bytes after its last whole record, its records, its
-// conferences, and the text each record's name and copied text are in
+// A run open in the pane. It holds whether the entry is in use, the run's path from the tree's top, and whether
+// its writer ran at the last read. Then where the next read goes on from, and the .qry's bytes after its last whole
+// record. Last, its records, its conferences, and the text each record's name and copied text are in
 typedef struct
 {
     int used;
@@ -115,17 +116,17 @@ typedef struct
     unsigned int used_text;
 } RunsOpened;
 
-// A run whose first panic was posted: its path's hash and the panic posted
+// A run whose first panic is on the notices: its path's hash and the panic it posts
 typedef struct
 {
     unsigned long long hash;
     unsigned long long panicked;
 } RunsNoticed;
 
-// The pane's data: the tree listed, whether its files were walked for the folders of runs and whether a listing has
-// gone, when the runs were listed and the opened runs read on the window's clock, the folders and their text, the runs,
-// the lessons and the text their paths and words are in, how many runs are live and how many of those panicked, the
-// runs opened, and the panics posted
+// The pane's data. It holds the tree listed, whether the walk of its files for the folders of runs ran, and whether a
+// listing ran. It holds when the list of runs and the read of the open runs ran, on the window's clock. Then the
+// folders and their text, the runs, the lessons, and the text their paths and words are in. Then how many runs are
+// live and how many of those panicked. Last, the runs open, and the panics on the notices
 typedef struct
 {
     char root[CLI_PATH_MAX_LEN];
@@ -152,16 +153,16 @@ typedef struct
 
 static Runs *s_runs;
 static void (*s_woken)(void);
-// the watch's thread writes the ring at `put` and the window's thread reads it at `took`, each the other's count read
-// through the atomics; a ring with no free place marks the changes lost
+// The watch's thread writes the ring at `put` and the window's thread reads it at `took`. Each reads the other's
+// count through the atomics. A ring with no free place marks the changes lost
 static char s_pending[RUNS_PENDING][CLI_PATH_MAX_LEN];
 static embed_atomic_u32 s_pending_put;
 static embed_atomic_u32 s_pending_took;
 static embed_atomic_u32 s_stale;
 static embed_atomic_u32 s_lost;
 
-// What a row walk is after: the row asked for, the rows passed, where the row goes, NULL to count alone, and whether
-// the row asked for was reached
+// What a row walk is after: the row it asks for, the rows it passes, and where the row goes, NULL to count alone.
+// Last, whether the walk reached the row it asks for
 typedef struct
 {
     unsigned int want;
@@ -202,7 +203,7 @@ EMBED_INLINE unsigned int pool_append(const QryListedCtx *args)
     const unsigned int at = *args->used;
     memor.cpy(&(MemoriaCfg){.dst = args->pool + at, .src = args->text, .bytes = args->length});
     args->pool[at + args->length] = '\0';
-    // a text that fits the bytes is counted by an unsigned int
+    // an unsigned int counts a text that fits the bytes
     *args->used = at + (unsigned int)args->length + 1u;
     return at;
 }
@@ -232,8 +233,8 @@ EMBED_INLINE int runs_path_is_overseer(const QryListedCtx *args)
            (memor.cmp(&(MemoriaCfg){.src = args->path + cut, .other = RUNS_OVERSEER, .bytes = name_length}) == 0);
 }
 
-// `length` bytes of `path`, a folder from the top of the tree, put in its place among the folders of runs where it is
-// not one already; on the window's thread
+// `length` bytes of `path`, a folder from the top of the tree, put in its place among the folders of runs where it
+// is not one already. This runs on the window's thread
 EMBED_INLINE void runs_folder_append(const QryListedCtx *args)
 {
     Runs *const runs = s_runs;
@@ -333,16 +334,15 @@ EMBED_INLINE void runs_pending_take(const QryListedCtx *args)
     }
 }
 
-// the tree's files walked for its folders of runs: the folder of every .qry and every overseer.txt
-EMBED_INLINE void runs_walk(const QryListedCtx *args)
+// each of the tree's files that is a run or an overseer's: its folder put among the runs' folders
+static void runs_files_walked(const CliFilesEachCfg *view)
 {
-    Runs *const runs = s_runs;
-    runs->folders = 0u;
-    runs->folder_used = 0u;
-    const CliFiles *const files = EMBED_CALL(cli_files_root_paths.view, CliFilesRootPathsCfg, .root = args->root);
-    for (unsigned int at = 0u; (files != NULL) && (at < files->count); at += 1u)
+    const CliPicked *const files = view->files;
+    for (unsigned int at = 0u; at < files->count; at += 1u)
     {
-        const char *const path = EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = at);
+        char path_read[CLI_PATH_MAX_LEN];
+        const char *const path =
+            EMBED_CALL(cli_files_view_read.at, CliFilesViewCfg, .view = files, .index = at, .path_out = path_read);
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN});
         if (EMBED_CALL(runs_path_is_run, QryListedCtx, .path = path, .length = length) ||
             EMBED_CALL(runs_path_is_overseer, QryListedCtx, .path = path, .length = length))
@@ -350,10 +350,16 @@ EMBED_INLINE void runs_walk(const QryListedCtx *args)
             EMBED_CALL(runs_folder_of_append, QryListedCtx, .path = path, .length = length);
         }
     }
-    if (files != NULL)
-    {
-        EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
-    }
+}
+
+// the tree's files walked for its folders of runs: the folder of every .qry and every overseer.txt
+EMBED_INLINE void runs_walk(const QryListedCtx *args)
+{
+    Runs *const runs = s_runs;
+    runs->folders = 0u;
+    runs->folder_used = 0u;
+    (void)EMBED_CALL(cli_files_root_paths.each, CliFilesRootPathsCfg, .root = args->root, .each = runs_files_walked,
+                     .context = NULL);
     runs->walked = 1;
 }
 
@@ -395,7 +401,7 @@ EMBED_INLINE unsigned int runs_lessons_read(const QryListedCtx *args)
                 if (word_end > from)
                 {
                     kinds[each] = EMBED_CALL(pool_append, QryListedCtx, .pool = runs->text, .used = &runs->used,
-                                            .capacity = RUNS_TEXT, .text = text + from, .length = word_end - from);
+                                             .capacity = RUNS_TEXT, .text = text + from, .length = word_end - from);
                 }
                 from = word_end;
             }
@@ -424,7 +430,7 @@ EMBED_INLINE unsigned long long runs_hash(const QryListedCtx *args)
     return hash;
 }
 
-// the opened entry of the run at `path`, NULL where it is not opened
+// the entry of the open run at `path`, NULL where the run is not open
 EMBED_INLINE RunsOpened *runs_opened_of(const QryListedCtx *args)
 {
     Runs *const runs = s_runs;
@@ -439,8 +445,8 @@ EMBED_INLINE RunsOpened *runs_opened_of(const QryListedCtx *args)
     return NULL;
 }
 
-// an entry of the folder `folder` of runs read: a .qry a run with its size and whether its writer runs, listed under
-// the folder; an overseer.txt the folder's lessons
+// An entry of the folder `folder` of runs, read. A .qry is a run, listed under the folder with its size and whether
+// its writer runs. An overseer.txt holds the folder's lessons
 static void runs_entry(const CliEachNameIsFolderCfg *args)
 {
     Runs *const runs = s_runs;
@@ -498,7 +504,7 @@ static int runs_order(const void *one, const void *other)
                       .other_pointer = runs->text + ((const RunsRun *)other)->path);
 }
 
-// a live run's panic posted as a failed notice where it was not posted already: `<name> panicked at blob <N>`
+// a live run's panic posted as a failed notice where the notices lack it: `<name> panicked at blob <N>`
 EMBED_INLINE void runs_panic_notice(const QryListedCtx *args)
 {
     Runs *const runs = s_runs;
@@ -535,9 +541,9 @@ EMBED_INLINE void runs_panic_notice(const QryListedCtx *args)
     }
 }
 
-// the runs listed: the folders walked for where none were or the watch lost changes, the watch's folders taken, each
-// folder's entries read for its runs and its lessons, the runs of a folder in the order of their paths, a live run's
-// first panic posted, and the live and panicked counted
+// The runs listed. The walk of the folders runs where none are or the watch lost changes, and the watch's folders go
+// in. Each folder's entries give its runs and its lessons, and a folder's runs come in the order of their paths. A
+// live run's first panic goes on the notices, and the count takes the live and the panicked
 EMBED_INLINE void runs_list(const QryListedCtx *args)
 {
     Runs *const runs = s_runs;
@@ -580,8 +586,8 @@ EMBED_INLINE void runs_list(const QryListedCtx *args)
     runs->listed_ms = args->now_ms;
 }
 
-// how many lines `size` bytes of `text` have as rows show them: every line where `whole`, a trailing newline closing
-// the last and opening none; else the lines that carry more than blanks
+// How many lines `size` bytes of `text` have as rows show them. Where `whole`, it is every line, and a newline at the
+// end closes the last and opens none. Else it is the lines that carry more than blanks
 EMBED_INLINE unsigned int runs_lines(const QryListedCtx *args)
 {
     unsigned int lines = 0u;
@@ -597,8 +603,9 @@ EMBED_INLINE unsigned int runs_lines(const QryListedCtx *args)
     return lines;
 }
 
-// the line `at` of `size` bytes of `text`, counted as runs_lines counts them, trimmed of its return where `whole` and
-// of its blanks at both ends where not: 1 with its start into `row->text` and its bytes into `row->text_length`
+// The line `at` of `size` bytes of `text`, counted as runs_lines counts them. Where `whole` the call trims its
+// return, and where not its blanks at both ends. Returns 1 with its start into `row->text` and its bytes into
+// `row->text_length`
 EMBED_INLINE int runs_line(const QryListedCtx *args)
 {
     CliRunsRow *const row = (CliRunsRow *)args->row;
@@ -632,8 +639,8 @@ EMBED_INLINE int runs_line(const QryListedCtx *args)
     return 0;
 }
 
-// a record of an opened run read: its name copied, and for a panic or a conference its text, up to RUNS_TEXT_MAX
-// bytes, and the conference's question the first time its name is read
+// A record of an open run, read. Its name goes into the copy, and for a panic or a conference its text, up to
+// RUNS_TEXT_MAX bytes. The conference's question goes in the first time the read meets its name
 static void opened_record(const CliEachRecordCfg *args)
 {
     RunsOpened *const opened = (RunsOpened *)args->context;
@@ -698,8 +705,8 @@ static void opened_record(const CliEachRecordCfg *args)
     opened->blobs += 1u;
 }
 
-// an opened run read: whole where `whole`, else on from where the last read stopped; a run whose writer stopped since
-// the last read is read whole again from its .qry
+// An open run read. The read is whole where `whole`, else it goes on from where the last read stopped. A run whose
+// writer stopped since the last read gets a whole read again from its .qry
 EMBED_INLINE void opened_read(const QryListedCtx *args)
 {
     RunsOpened *const opened = args->opened;
@@ -743,11 +750,11 @@ EMBED_INLINE int runs_any_opened_live(const QryListedCtx *args)
     return 0;
 }
 
-// the cell taken where none is, and everything of a tree other than `root` let go: the cell, or NULL where none can be
-// taken
+// The cell taken where none is, and everything of a tree other than `root` let go. Returns the cell, or NULL where
+// the pool has none for it
 EMBED_INLINE Runs *runs_of(const QryListedCtx *args)
 {
-    // the one record of the runs listed is fixed outside the pool, where it punches no hole in the persistent tier
+    // the one record of the runs listed lies outside the pool, where it punches no hole in the persistent tier
     static Runs s_record;
     if (s_runs == NULL)
     {
@@ -794,7 +801,7 @@ int cli_runs_pane_step(const CliRunsPaneCfg *args)
 {
     if (args->root == NULL)
     {
-        // no tree: the rows of the last are let go
+        // no tree: the rows of the last go
         const int listed = (s_runs != NULL) && s_runs->listed;
         if (listed)
         {
@@ -856,7 +863,8 @@ unsigned long long cli_runs_pane_deadline_ms(const CliRunsPaneCfg *args)
     return deadline;
 }
 
-// a row passed to the walk: the walk's row filled where it is the one asked for: 1 once the row asked for was reached
+// A row passed to the walk. The walk's row fills where the row matches the ask. Returns 1 once the walk reaches the
+// row it asks for
 EMBED_INLINE int rows_put(const QryListedCtx *args)
 {
     RowsWalk *const walk = args->walk;
@@ -869,8 +877,8 @@ EMBED_INLINE int rows_put(const QryListedCtx *args)
     return walk->found;
 }
 
-// the rows of an opened run's detail passed to the walk: each panic's head and lines, each conference's question and
-// accounts, the count, and the latest records: 1 once the row asked for was reached
+// The rows of an open run's detail passed to the walk: each panic's head and lines, and each conference's question
+// and accounts. Then the count and the latest records. Returns 1 once the walk reaches the row it asks for
 EMBED_INLINE int rows_detail(const QryListedCtx *args)
 {
     const RunsOpened *const opened = args->opened;
@@ -924,7 +932,7 @@ EMBED_INLINE int rows_detail(const QryListedCtx *args)
                 {
                     (void)EMBED_CALL(runs_line, QryListedCtx, .text = opened->text + blob->text,
                                      .size = blob->text_length, .at = line, .whole = 0, .row = &row);
-                    // the expert before the first colon, the account after it, the ruling the overseer's
+                    // the expert before the first colon, the account after it, and the overseer's verdict
                     const unsigned long long cut =
                         EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = row.text,
                                    .at = 0ULL, .size = row.text_length, .set = ":");
@@ -979,8 +987,8 @@ EMBED_INLINE int rows_detail(const QryListedCtx *args)
     return 0;
 }
 
-// every row passed to the walk in order: no run where none is listed; else each folder's head, its runs each with its
-// detail where opened, and its lessons under a head: 1 once the row asked for was reached
+// Every row passed to the walk in order. With no run listed, a row says so. Else each folder's head, its runs each
+// with its detail where open, and its lessons under a head. Returns 1 once the walk reaches the row it asks for
 EMBED_INLINE int rows_walk(const QryListedCtx *args)
 {
     const Runs *const runs = s_runs;
@@ -1098,7 +1106,7 @@ void cli_runs_pane_toggle(const CliRunsPaneCfg *args)
     }
     if (free_entry == NULL)
     {
-        // every entry in use: the first entry is taken over
+        // every entry in use: the read takes over the first entry
         free_entry = &runs->opened[0];
     }
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = row.path, .cap = RUNS_TEXT});

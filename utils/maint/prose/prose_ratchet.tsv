@@ -1220,7 +1220,6 @@ utils/test/harness_sonarqube.py	7
 utils/test/harness_unity.py	19
 utils/test/harness_webdriver.py	10
 utils/test/harness_win32.py	37
-utils/test/harness_window.py	44
 utils/test/harness_window_host.py	10
 utils/test/harness_window_test.py	6
 utils/test/harness_wsl.py	16
@@ -1355,9 +1354,6 @@ utils/test/src/ui/cli/bench/bench.h	3
 utils/test/src/ui/cli/bench/cli_bench.c	3
 utils/test/src/ui/cli/bench/cli_bench_files.c	2
 utils/test/src/ui/cli/bench/cli_bench_rules.c	4
-utils/test/src/ui/cli/cli_check.c	6
-utils/test/src/ui/cli/cli_check.h	6
-utils/test/src/ui/cli/unit/archive/test_archive/test_archive.c	5
 utils/test/src/ui/cli/unit/at_terminal/test_at_terminal/test_at_terminal.c	2
 utils/test/src/ui/cli/unit/binary/test_binary/test_binary.c	3
 utils/test/src/ui/cli/unit/bridge/test_bridge/test_bridge.c	1
@@ -1380,8 +1376,6 @@ utils/test/src/ui/cli/unit/disasm_verify/test_disasm_verify/test_disasm_verify.c
 utils/test/src/ui/cli/unit/editorconfig/test_editorconfig/test_editorconfig.c	1
 utils/test/src/ui/cli/unit/executables/test_executables/test_executables.c	3
 utils/test/src/ui/cli/unit/file_writing/test_file_writing/test_file_writing.c	1
-utils/test/src/ui/cli/unit/files/test_files/test_files.c	6
-utils/test/src/ui/cli/unit/files_rank/test_files_rank/test_files_rank.c	1
 utils/test/src/ui/cli/unit/git/test_git/test_git.c	2
 utils/test/src/ui/cli/unit/git_history/test_git_history/test_git_history.c	6
 utils/test/src/ui/cli/unit/history/test_history/test_history.c	2
@@ -1412,8 +1406,6 @@ utils/test/src/ui/cli/unit/query_words/test_query_words/test_query_words.c	1
 utils/test/src/ui/cli/unit/query_writer/test_query_writer/test_query_writer.c	2
 utils/test/src/ui/cli/unit/raster/test_raster/test_raster.c	1
 utils/test/src/ui/cli/unit/reach/test_reach/test_reach.c	12
-utils/test/src/ui/cli/unit/recent/test_recent/test_recent.c	1
-utils/test/src/ui/cli/unit/references/test_references/test_references.c	1
 utils/test/src/ui/cli/unit/regexp/test_regexp/test_regexp.c	1
 utils/test/src/ui/cli/unit/requests/test_requests/test_requests.c	3
 utils/test/src/ui/cli/unit/requests_pane/test_requests_pane/test_requests_pane.c	2
@@ -1427,9 +1419,6 @@ utils/test/src/ui/cli/unit/sessions/test_sessions/test_sessions.c	4
 utils/test/src/ui/cli/unit/settings_sync/test_settings_sync/test_settings_sync.c	1
 utils/test/src/ui/cli/unit/sift/test_sift/test_sift.c	3
 utils/test/src/ui/cli/unit/sort/test_sort/test_sort.c	1
-utils/test/src/ui/cli/unit/support/cli_unity.c	1
-utils/test/src/ui/cli/unit/support/cli_unity.h	5
-utils/test/src/ui/cli/unit/terminal/test_terminal/test_terminal.c	15
 utils/test/src/ui/cli/unit/test_runs/test_test_runs/test_test_runs.c	2
 utils/test/src/ui/cli/unit/text_walks/test_text_walks/test_text_walks.c	4
 utils/test/src/ui/cli/unit/toolchains/test_toolchains/test_toolchains.c	3
@@ -1452,7 +1441,6 @@ utils/test/src/ui/gui/glass_test.c	2
 utils/test/src/ui/gui/glyphs_test.c	1
 utils/test/src/ui/gui/ground_bench.c	1
 utils/test/src/ui/gui/gui_test.sh	10
-utils/test/src/ui/gui/gutter_test.c	2
 utils/test/src/ui/gui/icon_file.c	1
 utils/test/src/ui/gui/icons_test.c	1
 utils/test/src/ui/gui/lattice_test.c	1

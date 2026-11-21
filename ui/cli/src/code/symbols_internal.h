@@ -403,6 +403,7 @@ typedef struct
     unsigned long long *sift_length;
     unsigned int sift_names;
     unsigned int sift_capacity;
+    unsigned int scale;
 } CliEffect;
 
 // the text at `at` among the walk's texts; the macro of `name`, `length` bytes, the walk met last, its place, or
@@ -415,12 +416,20 @@ unsigned int cli_effect_append(const CliSymbolsTextLengthCtx *args);
 #define CLI_EFFECT_LIST_MAX (1u << 15u)
 #define CLI_EFFECT_VALUES_MAX (1u << 17u)
 #define CLI_EFFECT_DECLARED_MAX 4096u
-// a walk made for the tree's file at `path` and the name `name`, a slice's walk where `slicing` is 1: the walk, or NULL
-// with why given where the cells cannot meet it; the walk taken from the file's first line to before line `line`; and
-// the walk's cells given back (symbols_effect.c)
+// A walk's lists and texts take a cell sized to its scale. Scale CLI_EFFECT_SCALES - 1 is each list at its max and the
+// texts at 8 MiB. Each scale under it halves them, and scale 0 holds a sixty-fourth
+#define CLI_EFFECT_SCALES 7u
+// A walk made for the tree's file at `path` and the name `name`, a slice's walk where `slicing` is 1, its cell at
+// `scale`. Returns the walk, or NULL with why given where the cells cannot meet it. Then the walk taken from the
+// file's first line to before line `line`, and the walk's cells given back (symbols_effect.c)
 CliEffect *cli_effect_init(const CliSymbolsPathNameCtx *args);
 void cli_effect_alloc(const CliSymbolsPathEffectCtx *args);
 void cli_effect_input_back(const CliSymbolsTextLengthCtx *args);
+// The scale a walk starts at: the least that fit the last walk taken whole. Then, for a walk that ended, whether to
+// take it again a scale up. A walk the cells refused at a scale under the max goes again. A walk taken whole sets the
+// least scale that fit it as the scale the next walk starts at
+unsigned int cli_effect_scale_first(void);
+int cli_effect_scale_again(const CliEffect *effect);
 // the integer the `count` leaves `token` of a condition give, read by the roles their grammar names: a number in the
 // base its leaf names, a prefix passed over; an operator by how tightly it binds, one named `unary` or any before a
 // value taken as one before it, and one named `choice` choosing between the value after it, to the one named
@@ -504,6 +513,7 @@ struct CliSymbolsPathNameCtx
     const char *name;
     int slicing;
     VerbaLinea *err_msg;
+    unsigned int scale;
 };
 
 struct CliSymbolsEffectCtx

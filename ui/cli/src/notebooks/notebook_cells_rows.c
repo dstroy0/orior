@@ -7,15 +7,16 @@
 #include "../command_line/cli_internal.h"
 #include "notebook_cells_internal.h"
 
-// the max bytes a row's sentence takes, a count or a cut line, and the bytes the out of date sentence takes past a
-// cell's name each
+// The max bytes a row's sentence takes, a count or a cut line. Then the bytes the out of date sentence takes past each
+// cell's name
 #define ROWS_SENTENCE 64u
 #define ROWS_STALE_HEAD 160ULL
 #define ROWS_STALE_CELL 24ULL
 
-// A run of rows of one text's consecutive lines, as the frame's take gathers it: the cell and the output whose text
-// it is, CLI_NOTEBOOK_NONE for the source, the first line and the last, the first of its rows, whether its one row
-// shows the text whole, whether its lines read, their bytes, and the last line the read reached
+// A run of rows of one text's consecutive lines, as the frame's take gathers it. It holds the cell and the output whose
+// text it is, CLI_NOTEBOOK_NONE for the source. Then the first line and the last, and the first of its rows. Then
+// whether its one row shows the text whole, and whether its lines read. Last, their bytes, and the last line the read
+// reached
 typedef struct
 {
     unsigned int cell;
@@ -73,7 +74,7 @@ EMBED_INLINE unsigned int first_row_of(const NotebookRowsCtx *args)
                       .model = (CliNotebookModel *)(embed_word)args->model_read, .cell = args->cell);
 }
 
-// the rows the source of the cell `cell` takes: one for a markdown cell not being edited, else a row a line
+// the rows the source of the cell `cell` takes: one for a markdown cell out of the edit, else a row a line
 EMBED_INLINE unsigned int source_rows(const NotebookRowsCtx *args)
 {
     CliNotebookCell cell = {0};
@@ -108,8 +109,9 @@ void cli_notebook_model_rows_settled(const CliNotebookModelCtx *args)
     model->top = (model->top < max) ? model->top : max;
 }
 
-// whether the cell `other`, a cell of the model or a cell gone, run first at `first_run` and last at `last_run` and
-// edited at `edited`, changed, ran again or was deleted since the cell `cell` last ran, after it had run before it
+// Whether the cell `other`, a cell of the model or a cell gone, changed, ran again or went since the cell `cell` last
+// ran. It counts only where it ran before that run. It ran first at `first_run`, last at `last_run`, and changed at
+// `edited`
 EMBED_INLINE int is_on(const NotebookRowsCtx *args)
 {
     CliNotebookCell one = {0};
@@ -487,8 +489,8 @@ void cli_notebook_model_to(const CliNotebookCellsScrollCfg *args)
     EMBED_CALL(cli_notebook_model_internal.rows_settled, CliNotebookModelCtx, .model = model, .cell = model->cells);
 }
 
-// the parts the rows gather into: rows of consecutive lines of one text one part, a markdown row a part of its own
-// with its text whole; their count, and the part of each row into `row_part`
+// The parts the rows gather into. Rows of consecutive lines of one text are one part, and a markdown row is a part of
+// its own with its text whole. Returns their count, and the part of each row goes into `row_part`
 EMBED_INLINE unsigned int parts_gathered(const NotebookRowsCtx *args)
 {
     const CliNotebookModel *const model = args->model_read;
@@ -586,7 +588,7 @@ int cli_notebook_model_frame_alloc(const CliNotebookCellsFrameCfg *args)
                                     model->focused,
                                     (CliNotebookFrameRow *)(void *)(cell + sizeof(CliNotebookFrame)),
                                     (char *)(cell + head),
-                                    NULL};
+                                    0ULL};
     }
     VerbaLinea positioned = {(frame != NULL) ? frame->bytes : NULL, bytes + 1ULL, 0ULL};
     // each row's text, the next line of its part's lines, or its part's lines whole, read into the frame, and its
@@ -632,7 +634,7 @@ int cli_notebook_model_frame_alloc(const CliNotebookCellsFrameCfg *args)
         char key[CLI_PATH_MAX_LEN + CLI_NOTEBOOK_KEY_MORE];
         EMBED_CALL(cli_notebook_model_internal.key, CliNotebookModelCtx, .model = model, .cell = model->focused,
                    .output = CLI_NOTEBOOK_NONE, .out = key);
-        frame->view = cli_view_frame_alloc(&(CliViewAtCfg){.key = key});
+        frame->view_bytes = cli_view_frame_build(&(CliViewAtCfg){.key = key});
     }
     *args->frame_out = frame;
     return 1;
@@ -644,10 +646,6 @@ void cli_notebook_model_frame_release(const CliNotebookCellsFrameCfg *args)
     if (frame == NULL)
     {
         return;
-    }
-    if (frame->view != NULL)
-    {
-        cli_view_frame_release(&(CliViewAtCfg){.frame = frame->view});
     }
     g_cli_guard->persistent_buf_release(frame, g_cli_notebook_open_owner);
     *args->frame_out = NULL;

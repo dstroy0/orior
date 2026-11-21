@@ -40,8 +40,8 @@ typedef struct
     unsigned int capacity;
 } SymbolsFindCtx;
 
-// the declaration's own line, `line` counted from 0 in the file at `path`, written with the whitespace at either end
-// left off, cut to CLI_SYMBOL_LINE_MAX bytes: nothing where the file is not read or has no such line
+// the declaration's own line, `line` counted from 0 in the file at `path`, without the whitespace at either end and
+// cut to CLI_SYMBOL_LINE_MAX bytes. A file without that line, or a file the call cannot read, gives nothing
 EMBED_INLINE void find_line_write(const SymbolsFindCtx *args)
 {
     const char *path = args->path;
@@ -170,7 +170,7 @@ EMBED_INLINE int cli_ranks_before(const SymbolsFindCtx *args)
 }
 
 // `one_scored_pointer` put in rank among the best `capacity` of the `count` in the movable cell `found`, after each
-// that ranks before it: the count after. Each entry is read and written through the cell at its offset
+// that ranks before it: the count after. The call reads and writes each entry through the cell at its offset
 EMBED_INLINE unsigned int cli_rank_in(const SymbolsFindCtx *args)
 {
     unsigned int place = (args->count < args->capacity) ? args->count : args->capacity;
@@ -200,6 +200,34 @@ EMBED_INLINE unsigned int cli_rank_in(const SymbolsFindCtx *args)
                                                              .src = args->one_scored_pointer,
                                                              .bytes = sizeof(CliScored)});
     return args->count + ((args->count < args->capacity) ? 1u : 0u);
+}
+
+int cli_tree_names_each(const CliSymbolsPathEachCfg *args)
+{
+    const unsigned int file = EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = args->path);
+    if (file >= CLI_BRANCHES_MAX)
+    {
+        return 0;
+    }
+    CliTreeBranch branch;
+    EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = file, .branch_out = &branch);
+    // the call copies the branch's cell once into a cell of its own, then reads the declarations and names there
+    char *const scratch = branch.used ? cli_branch_copy_alloc() : NULL;
+    if (scratch == NULL)
+    {
+        return 0;
+    }
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = branch.cell, .dst = scratch, .bytes = branch.bytes});
+    const CliDeclaration *const declared = EMBED_CALL(cli_symbols_tree_branch_scratch.branch_copy_declarations,
+                                                      CliSymbolsTreeBranchScratchCfg, .scratch_read = scratch);
+    for (unsigned int at = 0u; at < branch.count; at += 1u)
+    {
+        EMBED_CALL(args->each, CliEachTextLengthCfg, .context = args->context, .text = scratch + declared[at].name,
+                   .length = declared[at].length);
+    }
+    g_cli_guard->persistent_buf_release(scratch, g_cli_code_owner);
+    return 1;
 }
 
 int cli_tree_declarations_each(const CliSymbolsQueryMaxCfg *args)
@@ -239,8 +267,8 @@ int cli_tree_declarations_each(const CliSymbolsQueryMaxCfg *args)
                                .count = count, .capacity = capacity);
         }
     }
-    // each found's name, type, path and line of text written into this call's own arrays and passed to the caller,
-    // a line of text no longer than its max
+    // each found's name, type, path and line of text, written into this call's own arrays and passed to the caller.
+    // A line of text is no longer than its max
     const int reading = g_cli_tree_walking;
     for (unsigned int at = 0u; (scratch != NULL) && (at < count); at += 1u)
     {

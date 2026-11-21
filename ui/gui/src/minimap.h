@@ -39,12 +39,12 @@ typedef struct
     int slider_height;
 } GuiMapPosition;
 
-// The minimap: the lines as the window last took them of the view, NULL for none, read alone; the view's top the map
-// last was beside and how many rows above the slider the map began, stored so the map is stationary while the view
-// does; the place it last was at; and the drag, whether one runs, where it began and the view's top then
+// The minimap. It holds whether the views hold its lines, which it reads from them a line at a time. It holds the
+// view's top it last was beside and the rows above the slider where it began. These keep it still as the view moves.
+// It also holds the place it last was at, and the drag: whether one runs, where it began and the view's top then
 typedef struct
 {
-    CliDocumentMap *lines;
+    int lines;
     int anchored;
     unsigned long long anchor_top;
     long long anchor_offset;
@@ -68,8 +68,8 @@ int gui_minimap_span(const GuiMinimapFirstCfg *args);
 void gui_minimap_draw(const GuiMinimapPositionCfg *args);
 // a press at x, y within `clip`: on the side_menu, the view's top set to that part of the text; on the map outside the
 // slider, the top set to center the row's line, and the slider's drag begun; on the slider, the top as it is and
-// the drag begun: 1, or 0 where the press is outside the map displayed or the text has no lines; the pointer moved to `y`
-// while the drag runs, the top set by the slider's run: 1, or 0 where no drag runs; and the drag ended
+// the drag begun: 1, or 0 where the press is outside the map displayed or the text has no lines; the pointer moved to
+// `y` while the drag runs, the top set by the slider's run: 1, or 0 where no drag runs; and the drag ended
 int gui_minimap_press(const GuiMinimapPositionScaleCfg *args);
 int gui_minimap_drag(const GuiMinimapPositionScaleCfg *args);
 struct GuiMinimapPositionScaleCfg

@@ -5,25 +5,28 @@
 // at the tree's top folder, and stops when another tree is opened or impero ends. One that cannot be found or does
 // not start is not tried again until the tree changes, and the file opens without it.
 //
-// What the servers return comes back as orior's own shapes: a hover as Markdown, a definition as a path and a place, a
-// usage as a span with its line's text, a completion as the editor's items, a file's diagnostics as spans with a
-// severity, 1 an error, 2 a warning, 3 a note and 4 a hint, and an edit, from a rename, a quick fix or the server's own
-// requesting, as each file's spans and their new text. A quick fix goes to the editor whole, as the server gave it, and
-// comes back to be carried out.
+// What the servers return comes back as orior's own shapes. A hover comes back as Markdown, and a definition as a path
+// and a place. A usage comes back as a span with its line's text, and a completion as the editor's items. A file's
+// diagnostics come back as spans with a severity: 1 an error, 2 a warning, 3 a note and 4 a hint.
 //
-// The tree's check passes every file of the tree the editor does not have open to its language's server, six at a
-// time, as the editor would open it, and lets it go once the server has reported what is wrong in it, the server's
-// clearing of a file it lets go not passed on. A server that checks its projects as a whole, as rust-analyzer does with
-// cargo check, is instructed to check them all in place of that. A file is checked again when it changes on the disk,
-// with the files whose includes or imports name it, and when the editor closes it, as the disk stores it.
+// An edit comes from a rename, a quick fix or the server's own ask. It comes back as each file's spans and their new
+// text. A quick fix goes to the editor whole, as the server gave it, and comes back for the editor to carry out.
 //
-// The checkers the reader names check a file as it opens; one that reads a file's text on its input checks it again as
-// the editor changes it, and every one as it changes on the disk; and, with the tree's check, each that reads a tree
-// whole checks the tree. A file's diagnostics contain each checker's findings, a checker's fixes offered as quick
-// fixes.
+// The tree's check passes each file of the tree that the editor does not have open to its language's server. It passes
+// six at a time, as the editor opens a file. It lets each go once the server reports what is wrong in it. The check
+// does not pass on the server's clear of a file it lets go.
 //
-// Every answer is written as JSON into the line passed for it; a path in it is written as it is in the tree where a
-// tree is given, and whole otherwise (servers_*.c)
+// Some servers check their projects as a whole, as rust-analyzer does with cargo check. Such a server gets the order to
+// check them all in place of that. A file gets a new check when it changes on the disk, with the files whose includes
+// or imports name it. It also gets one when the editor closes it, as the disk keeps it.
+//
+// The checkers the reader names check a file as it opens. A checker that reads a file's text on its input checks it
+// again as the editor changes it. Every checker checks a file again as it changes on the disk. With the tree's check,
+// each checker that reads a tree whole checks the tree. A file's diagnostics contain each checker's findings, and a
+// checker's fixes come as quick fixes.
+//
+// Every answer goes as JSON into the line passed for it. A path in it goes as the tree has it where the call gives a
+// tree, and whole otherwise (servers_*.c)
 #ifndef SERVERS_H
 #define SERVERS_H
 #include "../command_line/callback_cfg.h"
@@ -48,9 +51,8 @@ typedef struct CliServersOutCfg CliServersOutCfg;
 typedef struct CliServersCfg CliServersCfg;
 typedef struct CliServersPathSizeTypeCfg CliServersPathSizeTypeCfg;
 
-// One diagnostic of a file: its span's first place and the place after it, each a line and a column in units, its
-// severity, 1 an error, 2 a warning, 3 and 4 notes, and its message, `message_length` bytes in the texts of the report
-// it is in
+// One diagnostic of a file: its span's first place and the place after it, each a line and a column in units. Its
+// severity: 1 an error, 2 a warning, 3 and 4 notes. Its message, `message_length` bytes in the texts of its report
 typedef struct
 {
     unsigned long long from_line;
@@ -62,10 +64,10 @@ typedef struct
     unsigned long long message_length;
 } CliServerDiagnostic;
 
-// A file's report, decoded once where the servers store it, in one movable cell its holder reaches by the cell's token:
-// its head first, then its diagnostics, each with its message's place in the cell, then its path as the sink's tree
-// writes it, at `path_at` with a 0 after it, then the messages, each with a 0 after it. cli_servers_report_release
-// releases the cell
+// A file's report, decoded once where the servers store it, in one movable cell. Its owner reaches it by the cell's
+// token. Its head comes first, then its diagnostics, each with its message's place in the cell. Then comes its path as
+// the sink's tree writes it, at `path_at` with a 0 after it. Last come the messages, each with a 0 after it.
+// cli_servers_report_release releases the cell
 typedef struct
 {
     unsigned int count;
@@ -87,10 +89,10 @@ typedef struct
 #define CLI_SERVER_REPORT_ITEM_AT(at_)                                                                                 \
     (sizeof(CliServerReportHead) + ((unsigned long long)(at_) * sizeof(CliServerStoredDiagnostic)))
 
-// A file's diagnostics passed to the sink's function, in place of those it was with, on the thread that found
-// them: its path, its diagnostics, which are for the call, and the token of the report cell they are stored in, NULL
-// with none. A sink that reads the report after the call returns sets `*taken` to 1 and releases the report itself; the
-// report of any other sink is released as the call returns
+// A file's diagnostics passed to the sink's function, in place of its last, on the thread that found them. The call
+// gives its path, its diagnostics for the call alone, and the token of their report cell, NULL with none. A sink that
+// reads the report after the call returns sets `*taken` to 1 and releases the report itself. For any other sink, the
+// report goes as the call returns
 typedef struct
 {
     void *context;
@@ -108,7 +110,7 @@ typedef struct
 } CliServersReportCfg;
 void cli_servers_report_release(const CliServersReportCfg *args);
 
-// How far the tree's check has gone, the total 0 where it is over
+// The progress of the tree's check, the total 0 where it is over
 typedef struct
 {
     void *context;
@@ -116,8 +118,8 @@ typedef struct
     unsigned long long total;
 } CliServerCheckCfg;
 
-// Where what the servers send unprompted goes: a function that receives each event, `lsp-diagnostics`, `lsp-edits`,
-// `lsp-hints`, `lsp-parse` or `tree-check`, with its JSON, its context, and the tree its paths are written in
+// Where the events the servers send unasked go: a function that receives each event with its JSON and its context. The
+// events are `lsp-diagnostics`, `lsp-edits`, `lsp-hints`, `lsp-parse` and `tree-check`. Then the tree of their paths
 typedef struct
 {
     void (*emit)(const CliEachEventJsonSizeCfg *args);
@@ -140,8 +142,8 @@ typedef struct
 // the rows of the completion's list displayed at once
 #define CLI_COMPLETION_ROWS 10u
 
-// One row of the completion: its label and how long, its type, its detail and how long, and how many bytes of the label
-// the prefix marks
+// One row of the completion: its label and its length, its type, and its detail and its length. Then the bytes of the
+// label that the prefix marks
 typedef struct
 {
     const char *label;
@@ -152,8 +154,8 @@ typedef struct
     unsigned int marked;
 } CliCompletionRow;
 
-// The completion: the line and the first unit the prefix is at; the prefix; how many items answer it; where the
-// first row displayed is among them; the rows displayed; and where the row chosen is among the items
+// The completion: the line and the first unit of the prefix, and the prefix. The count of items that answer it, and
+// the place of the first row displayed among them. The rows displayed, and the place of the row chosen among the items
 typedef struct
 {
     unsigned long long line;
@@ -165,8 +167,8 @@ typedef struct
     unsigned int chosen;
 } CliCompletionPanel;
 
-// The pointer moved: whether it is on the editor's text, at the row `row` from the view's top and the cell
-// `column`, and whether it is on the hover's box
+// The pointer moved: whether it is on the editor's text, at the row `row` from the view's top and the cell `column`.
+// Then whether it is on the hover's box
 typedef struct
 {
     int in_text;
@@ -175,14 +177,19 @@ typedef struct
     int on_hover;
 } CliServersPanelsPointerCfg;
 
-// the panels over the editor of the tree `root`, on the window's thread (servers_panels.c): begun, watching the views,
-// each view opened on a file passed to its language's server, each about to close let go of it, and each frame of the
-// view displayed followed, and ended; every panel hidden; the pointer moved; text typed, `length` bytes; a key's effect
-// on the panels, 1 where the key was theirs; the completion's row `at` accepted; the completion's rows turned by the
-// wheel; their timers taken, 1 where any came, and the clock's reading of the next, 0 for none; and what they show: the
-// hover, the completion and its row `row` displayed, each 1 where it is, else 0, and the signature, NULL for none
-// the panels: begun for the tree `root`; `length` bytes of `text` typed; the key `name`; the row `at` accepted; the
-// wheel by `rows`; the hover panel into `hover_out`; the completion `panel`; and its row `row` into `out`
+// the panels over the editor of the tree `root`, on the window's thread (servers_panels.c). They begin and watch the
+// views. Each view opened on a file goes to its language's server, and each view about to close lets go of it. The
+// panels follow each frame of the view displayed, and then end.
+//
+// The calls after: every panel hidden, the pointer moved, and text typed, `length` bytes. A key's effect on the
+// panels, 1 where the key was theirs. The completion's row `at` accepted, and the completion's rows turned by the
+// wheel. Their timers taken, 1 where any came, and the clock's reading of the next, 0 for none. Then what they show:
+// the hover, the completion and its row `row` displayed, each 1 where it shows, else 0. Last, the signature, NULL for
+// none.
+//
+// The arguments: the tree `root` they begin for, and `length` bytes of `text` typed. The key `name`, the row `at`
+// accepted, and the wheel's `rows`. The hover panel into `hover_out`, the completion `panel`, and its row `row` into
+// `out`
 typedef struct
 {
     const char *root;
@@ -211,9 +218,10 @@ int cli_servers_panels_completion(const CliServersPanelsCfg *args);
 int cli_servers_panels_completion_row(const CliServersPanelsCfg *args);
 const CliSignaturePanel *cli_servers_panels_signature(void);
 
-// One row of the problems: a file's, with its path, its name and how many bytes of its path its folder takes, its
-// diagnostics' count and whether they are closed; or a diagnostic's, with its severity, its message and the bytes of
-// its first line, and its place. Each text lies in the file's report and is until the reading thread's next step
+// One row of the problems. A file's row has its path, its name, and the bytes of its path that its folder takes. It
+// also has its diagnostics' count, and whether its rows show. A diagnostic's row has its severity, its message,
+// the bytes of its first line, and its place. Each text lies in the file's report and lasts until the reading thread's
+// next step
 typedef struct
 {
     int is_file;
@@ -251,15 +259,19 @@ typedef struct
     unsigned int rows;
 } CliProblemsCounts;
 
-// The problems (servers_problems.c): begun, `woken` called from the thread a report comes on; where the servers report
-// for the tree `root`; and every report released as they end, the check stopped. A report comes in on the thread that
-// read it and is published whole with an atomic swap, and what it replaced is released once no reader reads it. A step
-// ends the calling thread's pass through the problems and begins its next, reading what was published last: 1 where it
-// differs from what its last step read or the check moved. From one step to the next, on that thread: the problems
-// counted; whether the tree's check runs; the row `at` into `row`: 1, or 0 past them; the span `at` of the file
-// `path`'s diagnostics into `span`: 1, or 0 past them; a press on the row `at`, a file's rows closed or opened, or a
-// diagnostic's row into `row`: 1 where it was a diagnostic's, its file to be opened at its place; and the tree's check
-// of `root` started, or stopped where it runs
+// The problems (servers_problems.c). They begin with `woken`, which the thread of each report calls. Then the place the
+// servers report to for the tree `root`. As they end, every report goes and the check stops. A report comes in on the
+// thread that read it, which publishes it whole with an atomic swap. The report it replaced goes once no reader reads
+// it.
+//
+// A step ends the caller thread's pass through the problems and begins its next, from the last report published. 1
+// where that differs from what its last step read, or where the check moved. From one step to the next, on that
+// thread: the count of the problems, and whether the tree's check runs. The row `at` into `row`, 1 or 0 past them. The
+// span `at` of the file `path`'s diagnostics into `span`, 1 or 0 past them.
+//
+// A press on the row `at` closes or opens a file's rows, or puts a diagnostic's row into `row`. 1 where it was a
+// diagnostic's, and then the caller opens its file at its place. Last, the tree's check of `root` starts, or stops
+// where it runs
 void cli_servers_problems_begin(void (*woken)(void));
 // the problems: the sink and the check for the tree `root`; the row `at` into `row`, or pressed; and the span `at` of
 // the file at `path` into `span`
@@ -281,24 +293,28 @@ int cli_servers_problems_span(const CliServersProblemsCfg *args);
 int cli_servers_problems_press(const CliServersProblemsCfg *args);
 void cli_servers_problems_check(const CliServersProblemsCfg *args);
 
-// the file at `path` passed to its language's server, started at `root` where it is not running, and its text to the
-// checkers: `true` or `false` written as a server took it; its new text given; and the file let go
-// as the editor closes it, read again as the disk stores it. Each 1, or 0 with why given (servers_files.c)
+// the file at `path` passed to its language's server, and its text to the checkers. The server starts at `root` where
+// it does not run. The call writes `true` or `false` as a server took it. Then the file's new text, and the file let go
+// as the editor closes it, read again as the disk keeps it. Each 1, or 0 with why (servers_files.c)
 int cli_servers_open(const CliServersRootCfg *args);
 int cli_servers_change(const CliServersRootCfg *args);
 int cli_servers_close(const CliServersPathOutErrMsgFromToCfg *args);
-// the view of `path` the page rests on, its lines `first` to `last` and the lines `opener`, `openers` of them, opening
-// each region its first line is inside, outermost first: where its server is given the tree's slice in place of
-// the file and was given another view's, the slice cut for this view and given as the file's next version, its parse
-// forgotten, `true` written, and `false` where nothing changed. 1, or 0 with why given (servers_slice.c)
+// the view of `path` the page rests on: its lines `first` to `last`, and the lines `opener`, `openers` of them. Those
+// open each region around its first line, outermost first. Some servers get the tree's slice in place of the file.
+//
+// For such a server with another view's slice, the call cuts the slice for this view. It gives that slice as the
+// file's next version, forgets its parse, and writes `true`. It writes `false` where nothing changed. 1, or 0 with why
+// (servers_slice.c)
 int cli_servers_view(const CliServersPathOutErrMsgCfg *args);
 
-// the language server the script plugin `id` brings, as its plugin.json's `server` names it, started at `root` with
-// `length` bytes of JSON `options` as the options it starts with and the `firsts` arguments `first` before those its
-// plugin.json names, what it sends going where `emit` sends it, and passed every file of its languages the editor has
-// open: 1, or 0 with why given; and the plugin's server stopped, where it runs. A request sent to it, its answer waited
-// for up to `wait` milliseconds into `result`; a notification sent to it; and a request it sent, of the id `request`
-// the window was given, answered with `length` bytes of JSON `result`. Each 1, or 0 with why given (servers_plugins.c)
+// the language server the script plugin `id` brings, as its plugin.json's `server` names it. It starts at `root` with
+// `length` bytes of JSON `options` as its first options. The `firsts` arguments `first` come before the arguments its
+// plugin.json names. What it sends goes where `emit` sends it. It gets every file of its languages the editor has
+// open, and returns 1, or 0 with why. Then the plugin's server stopped, where it runs.
+//
+// Then a request sent to it, with a wait of up to `wait` milliseconds for its answer into `result`. Then a
+// notification sent to it. Last, an answer to a request it sent, of the id `request` the window got, with `length`
+// bytes of JSON `result`. Each 1, or 0 with why (servers_plugins.c)
 void cli_servers_plugin_stop(const CliServersRootSinkCfg *args);
 int cli_servers_plugin_request(const CliServersErrMsgCfg *args);
 int cli_servers_plugin_notify(const CliServersErrMsgCfg *args);
@@ -307,15 +323,16 @@ int cli_servers_plugin_notify(const CliServersErrMsgCfg *args);
 int cli_servers_text_get(const CliServersPathOutErrMsgFromToCfg *args);
 int cli_servers_text_measure(const CliServersPathSizeTypeCfg *args);
 
-// what the server of `path` answers at `line`, `col`: a hover as Markdown, `null` for none; the definitions, each
-// `{"path", "line", "col"}`; the completions, orior's own reading's of a build file or JSON first, each an item; every
-// usage, each `{"path", "from", "to", "text"}`, the declaration among them; whether the symbol can be renamed,
-// `{"from", "to", "name"}` or `null`; the edits that rename it to `name`, each file's `{"path", "edits"}`; and the
-// signature of the call the cursor is in, `{"label", "params", "active", "doc", "count"}` or `null`. Each 1, or 0 with
-// why given (servers_request.c, servers_shapes.c)
+// what the server of `path` answers at `line`, `col`. A hover as Markdown, `null` for none. The definitions, each
+// `{"path", "line", "col"}`. The completions, each an item, with orior's own read of a build file or JSON first.
+//
+// Every usage, each `{"path", "from", "to", "text"}`, the declaration among them. Whether a rename of the symbol can
+// go, `{"from", "to", "name"}` or `null`. The edits that rename it to `name`, each file's `{"path", "edits"}`. Last,
+// the signature of the call the cursor is in, `{"label", "params", "active", "doc", "count"}` or `null`. Each 1, or 0
+// with why (servers_request.c, servers_shapes.c)
 int cli_servers_hover(const CliServersPathOutCfg *args);
-// One item a completion answers: what it shows, its type, what it states of itself and what it inserts, each ended by a
-// 0, and whether what it inserts is a snippet
+// One item a completion answers: what it shows, its type, what it states of itself and what it inserts. A 0 ends each.
+// Then whether what it inserts is a snippet
 typedef struct
 {
     const char *label;
@@ -330,10 +347,10 @@ typedef struct
     unsigned int count;
     CliServerItem *item;
 } CliServerItems;
-// the completion items at `line`, `col` of the file at `path`, those of the tree where the file is a slice's, of a
-// build's or a schema's where it is one, and its server's, in a cell of `owner`: the cell, or NULL where none is to be
-// asked or the cells cannot meet it, with why given. And the signature at the place, the server's, written into
-// `store`: 1, or 0 where it gives none
+// the completion items at `line`, `col` of the file at `path`, in a cell of `owner`. The tree gives items where the
+// file is a slice's, and a build or a schema gives items where the file is one. The file's server gives the rest. The
+// cell, or NULL with why where no ask goes or the cells cannot meet it. Then the server's signature at the place,
+// written into `store`: 1, or 0 where it gives none
 typedef struct
 {
     const char *path;
@@ -346,11 +363,13 @@ typedef struct
 CliServerItems *cli_servers_items_alloc(const CliServersAskCfg *args);
 int cli_servers_signature_read(const CliServersAskCfg *args);
 
-// the lines `from` to `to` of the parse of `path`, orior's own or its server's semantic tokens, and its folds,
-// `{"whole", "from", "lines", "folds"}` or `null`; the spans that contain `from` to `to` and are more than it, the
-// least first, the parse's where it reads the file whole, else the tree's read off the branch under `key`, NULL for
-// none, or the text the servers were told; the hints its server writes on the lines `from` to `to`; and the parses
-// that came from servers forgotten, for each to be requested again. Each 1, or 0 with why given (servers_parse.c)
+// the lines `from` to `to` of the parse of `path`, from orior's own read or its server's semantic tokens. Then its
+// folds, `{"whole", "from", "lines", "folds"}` or `null`. Then the spans that contain `from` to `to` and are more than
+// it, the least first.
+//
+// Those come from the parse where it reads the file whole. Else they come from the branch under `key`, NULL for none,
+// or from the text the servers got. Then the hints its server writes on the lines `from` to `to`. Last, the parses from
+// servers forgotten, for a new ask of each. Each 1, or 0 with why (servers_parse.c)
 void cli_servers_forget_tokens(void);
 
 // A server running: its toolchain's id, its program's name, and its process
@@ -361,25 +380,28 @@ typedef struct
     unsigned int pid;
 } CliServerListing;
 
-// every server running into `servers`, sized for `capacity`: their count; the toolchains whose servers serve any of
-// `languages`, `count` of them, into `tools`, sized for `capacity`: their count; the servers of `tools`, `count` of
-// them, stopped without waiting, the files they had open written as an array; every server stopped and waited on, as
-// the app closes; every server let go as another tree opens; and each server notified its settings changed
-// (servers_running.c)
+// every server that runs into `servers`, sized for `capacity`: their count. The toolchains whose servers serve any of
+// `languages`, `count` of them, into `tools`, sized for `capacity`: their count. The servers of `tools`, `count` of
+// them, stopped without a wait, with the files they had open written as an array. Every server stopped with a wait for
+// each, as the app closes. Every server let go as another tree opens, and each server told that its settings changed
+// (`servers_running.c`)
 unsigned int cli_servers_list(const CliServersCfg *args);
 unsigned int cli_servers_tools_for(const CliServersCapacityCfg *args);
 void cli_servers_stop_all(void);
 void cli_servers_let_go(void);
 
-// the tree's check started over `files`, `count` of them, each by its path in the tree at `root`: how many files wait;
-// the check stopped where it is, the files waiting let go and the check reported done, on for the files that change
-// after; whether it has files waiting or being checked; and a batch of `count` files changed on the disk, each by its
-// path in the tree, checked again with the files whose includes or imports name one of them, a file gone losing its
-// diagnostics (servers_check.c, servers_changed.c)
+// the tree's check started over `files`, `count` of them, each by its path in the tree at `root`: the count that
+// waits. Then the check stopped where it is: the files that wait go, and the check reports done. It stays on for the
+// files that change after. Then whether it has files that wait or are in a check.
+//
+// Last, a batch of `count` files changed on the disk, each by its path in the tree. Each gets a new check with the
+// files whose includes or imports name it. A file gone loses its diagnostics (servers_check.c, servers_changed.c)
 unsigned int cli_servers_check_tree(const CliServersRootSinkCountCfg *args);
 void cli_servers_stop_check(void);
-// the jobs ring positioned over its slots, its part of the rings block, as the pool is made (servers_jobs.c)
+// the jobs ring put over its entries, its part of the rings block, as the pool starts (servers_jobs.c)
 void cli_servers_jobs_positioned(void);
+// whether every job a dispatcher queued ran to its end: 1 where no job waits or runs (servers_jobs.c)
+int cli_servers_jobs_idle(void);
 int cli_servers_checking(void);
 void cli_servers_on_change(const CliServersRootSinkCountCfg *args);
 

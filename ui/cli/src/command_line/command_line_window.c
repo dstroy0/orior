@@ -38,7 +38,7 @@ typedef struct
     const VerbaLinea *err_msg;
 } CliCommandLineWindowCtx;
 
-// a line of the errors, `orior: ` before what was written
+// a line of the errors, with `orior: ` before the written text
 EMBED_INLINE void window_err(const CliCommandLineWindowCtx *args)
 {
     char text[CLI_ERR_MSG_MAX_LEN + 8u];
@@ -79,9 +79,9 @@ static int window_path_order(const void *one, const void *other)
                       .other_pointer = *(const char *const *)other);
 }
 
-// on the watch's thread: each file written noted among the tree's runs, a lost batch marked for them; the files in
-// order, each once, those git leaves out passed over, walked into the tree's branches and passed to the servers and
-// the tree's check
+// On the watch's thread. Each file written goes to the tree's runs, and a lost batch marks them. Then the files go in
+// order, each once, without those git leaves out. They go into the tree's branches, and to the servers and the tree's
+// check
 static void window_watch_take(const CliWatchBatchCfg *args)
 {
     const char *const root = s_window.root;
@@ -94,30 +94,42 @@ static void window_watch_take(const CliWatchBatchCfg *args)
     {
         cli_files_explorer_stale();
     }
-    // what the Search pane found is found again, and the Git pane's graph and the Changes read again, as files git
-    // sees change
+    // The Search pane searches again, and the Git pane's graph and the Changes read again, as files git sees change
     if (args->git || args->lost)
     {
         EMBED_CALL(cli_search_pane.stale, CliSearchPaneCfg, .at = 0u);
         EMBED_CALL(cli_git_log.stale, CliGitLogCfg, .at = 0u);
         EMBED_CALL(cli_changes.stale, CliGitChangesCfg, .at = 0u);
     }
+    // Each file written goes to the tree's runs, and its bytes count toward the window's own copy of the paths
     const unsigned int files = args->files->count;
+    unsigned long long text_bytes = 0ULL;
     for (unsigned int at = 0u; at < files; at += 1u)
     {
-        const char *const path = EMBED_CALL(cli_files.at, CliFilesCfg, .files = args->files, .index = at);
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN});
-        EMBED_CALL(cli_qry_path_root.run_write, CliQryPathRootCfg, .root = root, .path = path, .length = length);
+        char written[CLI_PATH_MAX_LEN];
+        (void)EMBED_CALL(cli_files_view_read.at, CliFilesViewCfg, .view = args->files, .index = at,
+                         .path_out = written);
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = written, .cap = CLI_PATH_MAX_LEN});
+        EMBED_CALL(cli_qry_path_root.run_write, CliQryPathRootCfg, .root = root, .path = written, .length = length);
+        text_bytes += length + 1ULL;
     }
-    const char **const path =
-        (files != 0u) ? g_cli_guard->temporary_buf_alloc(files * sizeof(*path), g_cli_command_line_owner) : NULL;
-    if (path == NULL)
+    const unsigned long long list_bytes = (unsigned long long)files * sizeof(const char *);
+    unsigned char *const cell =
+        (files != 0u) ? g_cli_guard->temporary_buf_alloc(list_bytes + text_bytes, g_cli_command_line_owner) : NULL;
+    if (cell == NULL)
     {
         return;
     }
+    // the paths' list lies first in the cell, which keeps it aligned, and the paths after it
+    const char **const path = (const char **)(void *)cell;
+    char *const text = (char *)(cell + list_bytes);
+    unsigned long long used = 0ULL;
     for (unsigned int at = 0u; at < files; at += 1u)
     {
-        path[at] = EMBED_CALL(cli_files.at, CliFilesCfg, .files = args->files, .index = at);
+        (void)EMBED_CALL(cli_files_view_read.at, CliFilesViewCfg, .view = args->files, .index = at,
+                         .path_out = text + used);
+        path[at] = text + used;
+        used += cellul.len(&(CatenaFinitaCfg){.src = text + used, .cap = CLI_PATH_MAX_LEN}) + 1ULL;
     }
     EMBED_CALL(cli_sort, CliSortCfg, .base = path, .count = files, .size = sizeof(path[0]), .order = window_path_order);
     unsigned int unique = 0u;
@@ -139,7 +151,7 @@ static void window_watch_take(const CliWatchBatchCfg *args)
         EMBED_CALL(cli_servers_root_sink_count.change, CliServersRootSinkCountCfg, .root = root, .files = path,
                    .count = unique);
     }
-    g_cli_guard->persistent_buf_release(path, g_cli_command_line_owner);
+    g_cli_guard->persistent_buf_release(cell, g_cli_command_line_owner);
 }
 
 void cli_command_line_tree_begin(void (*woken)(void))

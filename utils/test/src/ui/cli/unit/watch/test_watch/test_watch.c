@@ -188,7 +188,9 @@ static void batch_recorded(const CliWatchBatchCfg *args)
     for (unsigned int at = 0u; at < args->folders->count; at += 1u)
     {
         mmgr_line_put(&line, (at > 0u) ? "|" : "");
-        mmgr_line_put(&line, EMBED_CALL(cli_files.at, CliFilesCfg, .files = args->folders, .index = at));
+        char folder[CLI_PATH_MAX_LEN];
+        mmgr_line_put(&line, EMBED_CALL(cli_files_view_read.at, CliFilesViewCfg, .view = args->folders, .index = at,
+                                        .path_out = folder));
     }
     (void)mmgr_line_finish(&line);
     s_folders_count = args->folders->count;

@@ -26,14 +26,20 @@ void setUp(void)
 void tearDown(void)
 {
 }
+// the list `list`, at max `max` rows, read into `text`, `capacity` bytes, with `rows` pointed into it: how many
+static unsigned int listed_into(unsigned int list, unsigned int max, char *text, unsigned long long capacity,
+                                const char **rows)
+{
+    return EMBED_CALL(cli_recent.read, CliRecentCfg, .list = list, .max = max, .text_out = text, .capacity = capacity,
+                      .rows_out = rows);
+}
 
-// the list `list` into `rows`, sized for CLI_RECENT_MAX: how many; the rows are in one cell let go at the next call
-static char *s_listed_cell;
+// the list `list` into `rows`, sized for CLI_RECENT_MAX: how many. The rows point into the suite's one buffer, and the
+// next call writes over it
+static char s_listed[CLI_RECENT_MAX * CLI_PATH_MAX_LEN];
 static unsigned int listed(unsigned int list, const char **rows)
 {
-    g_cli_guard->persistent_buf_release(s_listed_cell, g_cli_machine_owner);
-    return EMBED_CALL(cli_recent.list, CliRecentCfg, .list = list, .max = CLI_RECENT_MAX, .rows_out = rows,
-                      .cell_out = &s_listed_cell, .owner = g_cli_machine_owner);
+    return listed_into(list, CLI_RECENT_MAX, s_listed, sizeof(s_listed), rows);
 }
 
 void test_a_push_puts_the_newest_first(void)
@@ -88,11 +94,10 @@ void test_the_files_and_the_commands_are_apart(void)
     EMBED_CALL(cli_recent.push, CliRecentCfg, .list = CLI_RECENT_COMMANDS, .entry = "palette");
     const char *commands[CLI_RECENT_MAX];
     const char *files[CLI_RECENT_MAX];
-    // the commands' rows in a cell of this test's own, since the helper's cell goes as the files are listed
-    char *commands_cell = NULL;
+    // the commands' rows in a copy of this test's own: the helper writes over its copy when it lists the files
+    static char s_commands[CLI_RECENT_MAX * CLI_PATH_MAX_LEN];
     const unsigned int command_count =
-        EMBED_CALL(cli_recent.list, CliRecentCfg, .list = CLI_RECENT_COMMANDS, .max = CLI_RECENT_MAX,
-                   .rows_out = commands, .cell_out = &commands_cell, .owner = g_cli_machine_owner);
+        listed_into(CLI_RECENT_COMMANDS, CLI_RECENT_MAX, s_commands, sizeof(s_commands), commands);
     const unsigned int file_count = listed(CLI_RECENT_FILES, files);
     TEST_ASSERT_EQUAL_UINT(2u, command_count);
     TEST_ASSERT_EQUAL_STRING("palette", commands[0]);
@@ -101,7 +106,6 @@ void test_the_files_and_the_commands_are_apart(void)
     {
         TEST_ASSERT_FALSE(cellul.eq(&(CatenaFinitaCfg){.src = files[at], .other = "palette", .cap = CLI_PATH_MAX_LEN}));
     }
-    g_cli_guard->persistent_buf_release(commands_cell, g_cli_machine_owner);
 }
 
 void test_an_empty_entry_or_one_with_a_line_end_changes_nothing(void)
@@ -117,21 +121,17 @@ void test_an_empty_entry_or_one_with_a_line_end_changes_nothing(void)
     EMBED_CALL(cli_recent.push, CliRecentCfg, .list = CLI_RECENT_LISTS, .entry = "no list");
     TEST_ASSERT_EQUAL_UINT(before, listed(CLI_RECENT_COMMANDS, rows));
     TEST_ASSERT_EQUAL_STRING(first, rows[0]);
-    char *none = NULL;
-    TEST_ASSERT_EQUAL_UINT(0u, EMBED_CALL(cli_recent.list, CliRecentCfg, .list = CLI_RECENT_LISTS, .max = 3u,
-                                          .rows_out = rows, .cell_out = &none, .owner = g_cli_machine_owner));
-    TEST_ASSERT_NULL(none);
+    // a list past the lists has no bytes and reads none
+    TEST_ASSERT_EQUAL_UINT64(0ull, EMBED_CALL(cli_recent.bytes, CliRecentCfg, .list = CLI_RECENT_LISTS));
+    TEST_ASSERT_EQUAL_UINT(0u, listed(CLI_RECENT_LISTS, rows));
 }
 
 void test_a_list_asked_for_fewer_answers_its_newest(void)
 {
     EMBED_CALL(cli_recent.push, CliRecentCfg, .list = CLI_RECENT_COMMANDS, .entry = "line");
     const char *rows[2];
-    char *cell = NULL;
-    TEST_ASSERT_EQUAL_UINT(1u, EMBED_CALL(cli_recent.list, CliRecentCfg, .list = CLI_RECENT_COMMANDS, .max = 1u,
-                                          .rows_out = rows, .cell_out = &cell, .owner = g_cli_machine_owner));
+    TEST_ASSERT_EQUAL_UINT(1u, listed_into(CLI_RECENT_COMMANDS, 1u, s_listed, sizeof(s_listed), rows));
     TEST_ASSERT_EQUAL_STRING("line", rows[0]);
-    g_cli_guard->persistent_buf_release(cell, g_cli_machine_owner);
 }
 
 void test_each_list_is_in_orior_folder_a_line_an_entry(void)

@@ -8,11 +8,13 @@
 
 #include <stdlib.h>
 
-// ORIOR_CELLS_OWNERS set: the pool's report and MMgr's owner table written as the process ends, each owner's bytes now and its peak
+// ORIOR_CELLS_OWNERS set: the pool's report and MMgr's owner table written as the process ends, each owner's bytes now
+// and its peak
 static void owners_written(void)
 {
     char requested[8];
-    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_CELLS_OWNERS", .value_out = requested, .capacity = sizeof(requested)))
+    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_CELLS_OWNERS",
+                    .value_out = requested, .capacity = sizeof(requested)))
     {
         return;
     }
@@ -24,7 +26,8 @@ static void owners_written(void)
     mmgr_line_put(&owners, "cells owners ");
     cli_pool_owners_write(&owners);
     mmgr_line_ch(&owners, '\n');
-    EMBED_CALL(query_errors_internal.terminal_write, QueryErrorsCtx, .errors = 0, .text = owners.out, .length = mmgr_line_ok(&owners) ? owners.at : 0ull);
+    EMBED_CALL(query_errors_internal.terminal_write, QueryErrorsCtx, .errors = 0, .text = owners.out,
+               .length = mmgr_line_ok(&owners) ? owners.at : 0ull);
 }
 
 void cli_unity_begun(void)
@@ -40,7 +43,8 @@ void cli_unity_begun(void)
 
 void cli_unity_folder(const char *name, char *full)
 {
-    if (!EMBED_CALL(query_capacity_path_internal.path_full, QueryCapacityPathCtx, .path = name, .full = full, .capacity = CLI_PATH_MAX_LEN))
+    if (!EMBED_CALL(query_capacity_path_internal.path_full, QueryCapacityPathCtx, .path = name, .full = full,
+                    .capacity = CLI_PATH_MAX_LEN))
     {
         memor.cpy(&(MemoriaCfg){.dst = full, .src = name, .bytes = CLI_UNITY_LENGTH(name) + 1ull});
     }
@@ -52,7 +56,9 @@ void cli_unity_file(const char *root, const char *name, const char *text)
 {
     char path[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = name, .joined = path);
-    TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path, .bytes = text, .size = CLI_UNITY_LENGTH(text)), name);
+    TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path,
+                                        .bytes = text, .size = CLI_UNITY_LENGTH(text)),
+                             name);
 }
 
 void cli_unity_git(const char *root, const char *const *words, unsigned int count)
@@ -66,48 +72,66 @@ void cli_unity_git(const char *root, const char *const *words, unsigned int coun
     CliRunResult *const run_result = cli_run_result_alloc();
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const int run_result_well = EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = line, .folder = root, .settings = NULL, .count = 0u, .run_result = run_result, .err_msg = &err_msg) && (run_result->code == 0);
+    const int run_result_well =
+        EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = line, .folder = root, .settings = NULL, .count = 0u,
+                   .run_result = run_result, .err_msg = &err_msg) &&
+        (run_result->code == 0);
     EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
     TEST_ASSERT_TRUE_MESSAGE(run_result_well, words[0]);
 }
 
-// the tree a test's JSON is parsed into, replaced at each parse
+// the tree a parse writes a test's JSON into, anew at each parse
 static CliJson s_json;
 
 const CliJson *cli_unity_parsed(const char *text, unsigned long long size, unsigned int *root)
 {
-    g_cli_guard->persistent_buf_release(s_json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
+    g_cli_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     char why[512];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    *root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &s_json, .text = text, .size = size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = g_checks_owner);
+    *root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &s_json,
+                       .text = text, .size = size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg,
+                       .owner = g_checks_owner);
     return &s_json;
 }
 
 void cli_unity_parsed_released(void)
 {
-    g_cli_guard->persistent_buf_release(s_json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
+    g_cli_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
 
 const char *cli_unity_member_text(unsigned int node, const char *name)
 {
-    const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = node, .name = name), .length_pointer = NULL);
+    const char *const text =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json,
+                                      .object = node, .name = name),
+                   .length_pointer = NULL);
     return (text != NULL) ? text : "";
 }
 
 unsigned int cli_unity_finding(unsigned int found, const char *code, const char *part)
 {
-    for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = &s_json, .array = found, .index = at) != CLI_JSON_NONE; at += 1u)
+    for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                          .json_read = &s_json, .array = found, .index = at) != CLI_JSON_NONE;
+         at += 1u)
     {
-        const unsigned int one = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = &s_json, .array = found, .index = at);
-        const char *const message = cli_unity_member_text(EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = one, .name = "message"), "value");
-        const int code_matches = (code == NULL) || cellul.eq(&(CatenaFinitaCfg){.src = cli_unity_member_text(one, "code"), .other = code, .cap = CLI_POOL_BYTES});
-        const int part_matches = (part == NULL) || (cellul.find(&(CatenaFinitaCfg){.src = message, .cap = CLI_POOL_BYTES, .other = part, .other_cap = CLI_POOL_BYTES}) != NULL);
+        const unsigned int one = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                            .json_read = &s_json, .array = found, .index = at);
+        const char *const message =
+            cli_unity_member_text(EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                             .json_read = &s_json, .object = one, .name = "message"),
+                                  "value");
+        const int code_matches =
+            (code == NULL) || cellul.eq(&(CatenaFinitaCfg){
+                                  .src = cli_unity_member_text(one, "code"), .other = code, .cap = CLI_POOL_BYTES});
+        const int part_matches =
+            (part == NULL) ||
+            (cellul.find(&(CatenaFinitaCfg){
+                 .src = message, .cap = CLI_POOL_BYTES, .other = part, .other_cap = CLI_POOL_BYTES}) != NULL);
         if (code_matches && part_matches)
         {
             return one;
@@ -121,7 +145,9 @@ int cli_unity_completes(const CliCompletions *items, const char *label)
     for (unsigned int at = 0u; at < items->count; at += 1u)
     {
         const CliCompletion *const item = &items->item[at];
-        if ((item->label_size == CLI_UNITY_LENGTH(label)) && (memor.cmp(&(MemoriaCfg){.src = items->text + item->label_at, .other = label, .bytes = item->label_size}) == 0))
+        if ((item->label_size == CLI_UNITY_LENGTH(label)) &&
+            (memor.cmp(&(MemoriaCfg){.src = items->text + item->label_at, .other = label, .bytes = item->label_size}) ==
+             0))
         {
             return 1;
         }
@@ -140,7 +166,8 @@ const CliCompletions *cli_unity_build_completed(const char *root, const char *pa
         col = (at[0] == '\n') ? 0u : col + 1u;
     }
     EMBED_CALL(cli_edits_items.completions_begin, CliEditsItemsCfg, .items = &s_items);
-    EMBED_CALL(cli_builds_path.build_complete, CliBuildsPathCfg, .root = root, .path = path, .text = text, .size = CLI_UNITY_LENGTH(text), .line = line, .col = col, .items = &s_items);
+    EMBED_CALL(cli_builds_path.build_complete, CliBuildsPathCfg, .root = root, .path = path, .text = text,
+               .size = CLI_UNITY_LENGTH(text), .line = line, .col = col, .items = &s_items);
     return &s_items;
 }
 
@@ -155,11 +182,13 @@ void cli_unity_server(const char *name, unsigned int port, char *host, unsigned 
     char named[CLI_NAME_MAX_LEN];
     memor.cpy(&(MemoriaCfg){.dst = host, .src = "127.0.0.1", .bytes = 10u});
     *at = port;
-    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = variable, .value_out = named, .capacity = sizeof(named)))
+    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = variable, .value_out = named,
+                    .capacity = sizeof(named)))
     {
         return;
     }
-    const char *const colon = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = named, .length_value = CLI_UNITY_LENGTH(named), .byte = ':');
+    const char *const colon = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = named,
+                                         .length_value = CLI_UNITY_LENGTH(named), .byte = ':');
     unsigned long long number = 0ull;
     int digits = (colon != NULL) && (colon[1] != '\0');
     for (const char *character = (colon != NULL) ? colon + 1 : ""; digits && (character[0] != '\0'); character += 1)
@@ -174,4 +203,16 @@ void cli_unity_server(const char *name, unsigned int port, char *host, unsigned 
         // a port is below 65536, which an unsigned int represents
         *at = (unsigned int)number;
     }
+}
+
+// the buffer a suite reads a view's frame into, larger than any frame a suite builds
+static _Alignas(16) unsigned char s_unity_frame[1u << 22u];
+
+const CliViewFrame *cli_unity_frame(const char *key)
+{
+    const unsigned long long bytes = cli_view_frame_build(&(CliViewAtCfg){.key = key});
+    TEST_ASSERT_TRUE(bytes <= sizeof(s_unity_frame));
+    return (bytes != 0ULL) ? cli_view_frame_read(&(CliViewAtCfg){
+                                 .key = key, .frame_out = s_unity_frame, .capacity = sizeof(s_unity_frame)})
+                           : NULL;
 }

@@ -16,21 +16,21 @@
 #include "../text/text.h"
 #include "servers_internal.h"
 
-// how long the pointer rests before a hover is asked for and lingers off it before the hover goes; how long the
-// signature waits after a bracket or a comma; and how long the view rests before its server is told where
+// how long the pointer rests before the panels ask for a hover, and stays off it before the hover goes. How long the
+// signature waits after a bracket or a comma; and how long the view rests before the panels tell its server where
 #define CLI_PANELS_HOVER_REST_MS 380ULL
 #define CLI_PANELS_HOVER_LINGER_MS 300ULL
 #define CLI_PANELS_SIGNATURE_WAIT_MS 120ULL
 #define CLI_PANELS_VIEW_REST_MS 250ULL
-// While a worker reads the hover asked for, the view thread comes back each CLI_PANELS_HOVER_TAKE_MS to take the
-// answer. It stops when the answer is taken, or CLI_PANELS_HOVER_ANSWER_MS after the ask
+// While a worker reads the hover the panels ask for, the view thread comes back each CLI_PANELS_HOVER_TAKE_MS to take
+// the answer. It stops when it takes the answer, or CLI_PANELS_HOVER_ANSWER_MS after the ask
 #define CLI_PANELS_HOVER_TAKE_MS 8ULL
 #define CLI_PANELS_HOVER_ANSWER_MS 1000ULL
 // how long Go to Definition waits on the tree's first reading before it answers that it knows no declaration
 #define CLI_PANELS_DEFINITION_WAIT_MS 10000ULL
-// the max declarations the tree is asked for and the max of them a hover shows; the bytes a word takes; the lines
-// above the cursor a signature is read from; the bytes of the state they are entered in; and the regions a view's first
-// line is told as located inside
+// the max declarations the panels ask the tree for, and the max of them a hover shows. The bytes a word takes. The
+// lines above the cursor that a signature reads, and the bytes of the state they start in. The regions around a view's
+// first line that the panels tell the server of
 #define CLI_PANELS_DECLARATIONS 200u
 #define CLI_PANELS_HOVER_DECLARATIONS 6u
 #define CLI_PANELS_WORD 256u
@@ -40,8 +40,8 @@
 // what sets the parts of a hover apart
 #define CLI_PANELS_HOVER_BETWEEN "\n---\n"
 
-// the max items the completion's list holds, the bytes of its texts, and the max bytes of an item's label, type,
-// detail and insert retained, each with its end; and the max bytes of the hover's Markdown with its end
+// the max items of the completion's list, and the bytes of its texts. The max bytes the list keeps of an item's label,
+// type, detail and insert, each with its end. The max bytes of the hover's Markdown with its end
 #define CLI_PANELS_ITEMS_MAX 2048u
 #define CLI_PANELS_TEXT_MAX (256u << 10u)
 #define CLI_PANELS_LABEL_MAX 256u
@@ -52,8 +52,9 @@
 // the max bytes of a declaration's own line as the tree's search writes it, with its end
 #define CLI_PANELS_LINE_MAX 1024u
 
-// One completion item: the places among the list's text of its label, the label in small characters, its type, what it
-// states of itself and what it inserts, the bytes of each but the lowered label, and how it scores against the prefix
+// One completion item: the places in the list's text of its label and of the label in small characters. Then its type,
+// what it states of itself and what it inserts. Then the bytes of each but the lowered label, and its score for the
+// prefix
 typedef struct
 {
     unsigned int label;
@@ -68,8 +69,9 @@ typedef struct
     unsigned int score;
 } PanelsItem;
 
-// The head of the completion's list: the items; those the prefix answers; the row chosen and the first row displayed;
-// the prefix, as typed and in small characters, its bytes and where it is; and the bytes of the list's text in use
+// The head of the completion's list: the items, and the items the prefix answers. The row chosen and the first row
+// displayed. The prefix, as typed and in small characters, with its bytes and its place. The bytes of the list's text
+// in use
 typedef struct
 {
     unsigned int items;
@@ -84,10 +86,10 @@ typedef struct
     unsigned long long text_used;
 } PanelsListHead;
 
-// The completion's list, in a movable cell taken once at its max as the panels begin: its head, the items, those the
-// prefix answers in rank order, and the text every item's bytes are in with their ends. Two such cells are taken: the
-// one displayed and the one a new list is built in, and the two change places as the built list opens. Every read and
-// write goes through a cell's token at the offset of what it reaches
+// The completion's list, in a movable cell the panels take once at its max as they begin. It has its head and the
+// items. It has the items the prefix answers, in rank order, and the text of every item's bytes with their ends. The
+// panels take two such cells: the list displayed, and the cell for the build of a new list. The two change places as
+// the built list opens. Every read and write goes through a cell's token at the offset of what it reaches
 typedef struct
 {
     PanelsListHead head;
@@ -96,14 +98,18 @@ typedef struct
     char text[CLI_PANELS_TEXT_MAX];
 } PanelsCompletion;
 
-// The panels: the pointer's cell over the editor's text; when the hover is asked for and when it goes, 0 for neither;
-// the ask whose answer is; the hover's Markdown in the panels' own bytes, whether it shows, and the word's place;
-// the list's cell and whether a list is open in it; whether a list is wanted as the next frame places the cursor and
-// whether it was forced open; the signature's store and whether it shows, when it is asked for, the place it was asked
-// at and whether it is being asked for; the cursor; whether the text changed since the server last took it; when the
-// server is sent where the view rests, whether it was sent, and the view's top, rows and lines then; when the changed
-// text is read again; the key of the view last opened in its server, and the key of the view last sent; and the tree
-// and the editor's rows
+// The panels: the pointer's cell over the editor's text. The time of the hover's ask and the time it goes, 0 for
+// neither. The ask the answer is for. The hover's Markdown in the panels' own bytes, whether it shows, and the word's
+// place. The list's cell, and whether a list is open in it. Whether the next frame opens a list as it places the
+// cursor, and whether a key forced it open.
+//
+// The signature's store and whether it shows. The time of its ask, the place of the ask, and whether an ask runs. The
+// cursor, and whether the text changed since the server last took it. The time the panels tell the server where the
+// view rests, whether they told it, and the view's top, rows and lines then. The time of the next read of the changed
+// text.
+//
+// The key of the view last opened in its server, and the key of the view last sent. The tree, and the editor's
+// rows
 typedef struct
 {
     int pointer_in_text;
@@ -111,7 +117,7 @@ typedef struct
     unsigned long long pointer_column;
     unsigned long long hover_due_ms;
     unsigned long long hover_hide_ms;
-    // when the view thread next takes the hover's answer, 0 where no answer is to come, and when the hover was asked
+    // when the view thread next takes the hover's answer, 0 where no answer comes, and the time of the hover's ask
     unsigned long long hover_take_ms;
     unsigned long long hover_asked_ms;
     unsigned long long hover_ask;
@@ -146,11 +152,11 @@ typedef struct
 
 static Panels s_panels;
 
-// A hover being asked for: the ask it answers; the word and the tree; the word's place; the asker's line the Markdown
-// is written into, NULL where the asker wants none, and the bytes written; whether the tree's walk was still reading as
-// the ask found no declaration; the view's key and its file's tree path, whose language the answer is held to; and the
-// first declaration found, the one Go to Definition goes to: its file, its line and the word's column on that line, and
-// whether one was found
+// A hover ask: the ask it answers, the word and the tree, and the word's place. The asker's line for the Markdown, NULL
+// where the asker wants none, and the bytes the call writes. Whether the tree's walk still ran as the ask found no
+// declaration. The view's key and its file's tree path, whose language the answer keeps to. The first declaration the
+// ask finds, where Go to Definition goes: its file, its line and the word's column on that line. Whether the ask found
+// one
 typedef struct
 {
     unsigned long long ask;
@@ -170,8 +176,8 @@ typedef struct
     int defined_found;
 } PanelsHoverAsk;
 
-// A hover ask carried to a worker: the ask it answers, the word, the view's key, the file's tree path and the word's
-// place in the text.
+// A hover ask on its way to a worker: the ask it answers, the word, and the view's key. Then the file's tree path and
+// the word's place in the text.
 typedef struct
 {
     unsigned long long ask;
@@ -183,8 +189,8 @@ typedef struct
     unsigned long long to;
 } PanelsHoverJob;
 
-// A hover answer landed for the view thread: the ask it answers, the word's place, the bytes of Markdown after this
-// head, and whether the tree's walk still read as the ask found no declaration.
+// A hover answer for the view thread: the ask it answers, the word's place, and the bytes of Markdown after this head.
+// Then whether the tree's walk still ran as the ask found no declaration.
 typedef struct
 {
     unsigned long long ask;
@@ -195,18 +201,18 @@ typedef struct
     int reading;
 } PanelsHoverLanded;
 
-// The hover answers on their way from the workers to the view thread: a ticket ring of movable cells, each an answer,
-// the workers taking tickets and pushing, the view thread popping in order; its turnstiles, and its slots the hover's
-// part of the rings block. On the view thread only: the next ticket popped. A worker that finds no slot free gives its
-// answer back; nothing waits.
+// The hover answers on their way from the workers to the view thread: a ticket ring of movable cells, each an answer.
+// The workers take tickets and push, and the view thread pops in order. The ring's turnstiles, and its entries in the
+// hover's part of the rings block. On the view thread only: the next ticket to pop. A worker that finds no free entry
+// gives its answer back, and nothing waits.
 static EmbedTurnstiles s_hover_turnstiles;
 static EmbedTicketRing s_hover_ring;
 static embed_atomic_u32 s_hover_ticket;
 static embed_u32 s_hover_taken;
 static int s_hover_ring_positioned;
 
-// On the view thread: the hover answers' ring positioned over its part of the rings block, once, before the first
-// take or the first ask, no answer on it.
+// On the view thread: the hover answers' ring put over its part of the rings block, once. That comes before the first
+// take or the first ask, with no answer on it.
 static void panels_hover_ring_positioned(void)
 {
     if (s_hover_ring_positioned)
@@ -227,7 +233,7 @@ static void panels_hover_ring_positioned(void)
 #define CLI_PANELS_LOCAL_LINES 512ULL
 #define CLI_PANELS_LOCAL_CHUNK 64ULL
 
-// A signature being asked for: the view's key and the file's tree path; the cursor's place; and whether one was written
+// A signature ask: the view's key and the file's tree path, the cursor's place, and whether the ask wrote a signature
 // into the panels' store
 typedef struct
 {
@@ -306,7 +312,7 @@ EMBED_INLINE const char *panels_viewed_key(const PanelsCtx *args)
 {
     (void)args;
     const int displayed = cli_view_displayed();
-    // a view's place is not negative past the test; the key is copied into the panels' own buffer
+    // a view's place is not negative past the test; the call copies the key into the panels' own buffer
     static char s_viewed_key[CLI_NAME_MAX_LEN];
     return ((displayed >= 0) && cli_view_key(&(CliViewAtCfg){.at = (unsigned int)displayed, .key_out = s_viewed_key}))
                ? s_viewed_key
@@ -321,7 +327,7 @@ EMBED_INLINE int panels_word_byte(const PanelsCtx *args)
            ((value >= '0') && (value <= '9')) || (value == '_') || (value == '$') || (value >= 0x80u);
 }
 
-// the hover gone, a timer of its going with it
+// the hover gone, and its timer to go with it
 EMBED_INLINE void panels_hover_hide(const PanelsCtx *args)
 {
     (void)args;
@@ -426,11 +432,13 @@ EMBED_INLINE void panels_declaration_write(const PanelsCtx *args)
     mmgr_line_ch(args->out, '`');
 }
 
-// The hover's word as a parameter or a local of the function the pointer is in, off the runs the walk saved: the
-// lines above the pointer's read upward to the line the grammar marks identifier.declaration.function, that line's
-// own parameters read too, and the topmost run the grammar names identifier.parameter or identifier.local whose text
-// is the word is its declaration, as the walk names every later use of a declared name the same. The declaration's
-// line written as the tree's are, with its type and place: 1, or 0 where none is
+// The hover's word as a parameter or a local of the function the pointer is in, off the runs the walk saved. The call
+// reads the lines above the pointer's upward, to the line the grammar marks identifier.declaration.function. It reads
+// that line's own parameters too. The topmost run named identifier.parameter or identifier.local with the word as its
+// text is the declaration. The walk gives every later use of a declared name the same name.
+//
+// The call writes the declaration's line as the tree writes its lines, with its type and place. 1, or 0 where it finds
+// none
 EMBED_INLINE int panels_hover_local_run(const PanelsCtx *args)
 {
     PanelsHoverAsk *const ask = args->hover_ask;
@@ -550,8 +558,8 @@ EMBED_INLINE int panels_hover_local_run(const PanelsCtx *args)
     return 1;
 }
 
-// A hover's read of the tree's declarations: the ask, the hovered file's language and whether it is known, the line the
-// Markdown goes after, and how many parts it wrote
+// A hover's read of the tree's declarations: the ask, the hovered file's language, and whether the tree knows it. Then
+// the line the Markdown goes after, and how many parts it wrote
 typedef struct
 {
     PanelsHoverAsk *ask;
@@ -561,8 +569,8 @@ typedef struct
     unsigned int parts;
 } PanelsHoverFound;
 
-// one declaration the tree finds: where its name is the word and its file opens in the hovered file's language, its
-// line kept as the definition and written into the asker's line as Markdown
+// one declaration the tree finds, where its name is the word and its file opens in the hovered file's language. The
+// call keeps its line as the definition and writes it into the asker's line as Markdown
 static void panels_hover_found(const CliEachFoundCfg *args)
 {
     PanelsHoverFound *const found = (PanelsHoverFound *)args->context;
@@ -598,8 +606,8 @@ static void panels_hover_found(const CliEachFoundCfg *args)
     found->parts += 1u;
 }
 
-// the tree's declarations of the word positioned as Markdown in a cell sized to them, those of files that open in the
-// hovered file's language plugin alone
+// the tree's declarations of the word as Markdown in a cell sized to them. Only files that open in the hovered file's
+// language plugin give declarations
 static void panels_hover_tree_run(void *context)
 {
     PanelsHoverAsk *const ask = (PanelsHoverAsk *)context;
@@ -629,16 +637,16 @@ static void panels_hover_tree_run(void *context)
     ask->length = out->at - begun;
 }
 
-// A worker reads the hover's declarations from the tree. The answer goes into a movable cell of its own, and the cell's
-// entry is pushed on the answers' ring under a ticket of its own; a cell the ring has no slot for waits for one. The
-// view thread takes it as it next steps.
+// A worker reads the hover's declarations from the tree. The answer goes into a movable cell of its own. The worker
+// pushes the cell's entry on the answers' ring under a ticket of its own. A cell without a free ring entry waits for
+// one. The view thread takes it as it next steps.
 static void panels_hover_job(const CliServersJobCfg *args)
 {
     if (args->size < sizeof(PanelsHoverJob))
     {
         return;
     }
-    // the job's bytes are read where the jobs ring hands them, for as long as this call runs
+    // the call reads the job's bytes where the jobs ring hands them, for as long as it runs
     const PanelsHoverJob *const job = (const PanelsHoverJob *)args->job;
     // the Markdown goes into this call's own array, no larger than the hover the view thread shows
     char text[CLI_PANELS_HOVER_MAX];
@@ -670,8 +678,8 @@ static void panels_hover_job(const CliServersJobCfg *args)
     // Explicit cast carries the cell's address as the pass's entry
     const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)landed;
     embed_u64 seen = 0u;
-    // a ring with no slot free holds answers the view thread has not taken yet: this answer goes back, and the next
-    // ask reads anew
+    // a ring with no free entry has answers the view thread did not take yet: this answer goes back, and the next ask
+    // reads anew
     if (!cli_ticket_room(&s_hover_ring, ticket) ||
         !embed_ticket_ring_pass_grant(&s_hover_turnstiles, address, &s_hover_ring, stamp, &seen))
     {
@@ -683,10 +691,11 @@ static void panels_hover_job(const CliServersJobCfg *args)
                                       &seen);
 }
 
-// On the view thread: every answer pushed popped in the order of its ticket. An answer to the ask still asked for is
-// the hover, its Markdown copied into the hover's own bytes and cut to them. An answer to an ask the pointer left is
-// dropped. A word the tree's walk has not reached yet is asked for again after the rest, while the pointer stays on it.
-// Each cell goes back and its slot is released.
+// On the view thread: the call pops every answer on the ring in the order of its ticket. An answer to the ask that
+// still runs is the hover. The call copies its Markdown into the hover's own bytes and cuts it to them. The call drops
+// an answer to an ask the pointer left. For a word the tree's walk did not reach yet, it asks again after the rest.
+//
+// It does that while the pointer stays on the word. Each cell goes back, and its ring entry comes free.
 EMBED_INLINE void panels_hover_answers_taken(const PanelsCtx *args)
 {
     (void)args;
@@ -745,7 +754,7 @@ int cli_references_definition(const CliReferencesPlaceCfg *args)
     (void)mmgr_line_finish(&path);
     panels_hover_tree_run(&asked);
     // the tree's first reading started by the ask: waited for, no longer than CLI_PANELS_DEFINITION_WAIT_MS, and the
-    // declarations asked for again once it has read them
+    // declarations asked for again once it read them
     if (!asked.defined_found && asked.reading)
     {
         CliWake pause = CLI_WAKE_INIT;
@@ -817,9 +826,9 @@ EMBED_INLINE void panels_hover_ask(const PanelsCtx *args)
     }
 }
 
-// how the item scores against the prefix: 5 its label starts with it, 4 starts with it case aside, 3 holds it case
-// aside, 2 holds its characters in order case aside, 1 for no prefix, 0 for no answer. The caller reads the item's
-// label into `text` and its lowered label into `lowered`
+// the item's score for the prefix. 5 where its label starts with it, and 4 where it starts with it in any case. 3 where
+// it has it inside in any case. 2 where it has its characters in order in any case. 1 for no prefix, 0 for no answer.
+// The caller reads the item's label into `text` and its lowered label into `lowered`
 EMBED_INLINE unsigned int panels_item_score(const PanelsCtx *args)
 {
     const PanelsItem *const item = args->item;
@@ -869,11 +878,11 @@ EMBED_INLINE unsigned int panels_item_score(const PanelsCtx *args)
     return 2u;
 }
 
-// the list's cell whose items are being ranked, read by the order as it compares two
+// the list's cell with the items in rank, which the order reads as it compares two
 static const CarcerMovableEntry *s_ranking;
 
-// two items in rank order: the higher score first, then the shorter label, then the labels' bytes, each item read
-// out of the cell at its place
+// two items in rank order: the higher score first, then the shorter label, then the labels' bytes. The order reads each
+// item out of the cell at its place
 static int panels_item_order(const void *one, const void *other)
 {
     PanelsItem first;
@@ -910,9 +919,9 @@ static int panels_item_order(const void *one, const void *other)
     return (order < 0) ? -1 : 1;
 }
 
-// The items the prefix answers ranked in the list's cell `list`, the row chosen saved on the item it was on where it
-// is still displayed. Each item, its label and its lowered label are read out of the cell, and its score written back.
-// The ranked places are sorted in this call's own array and written back whole
+// The items the prefix answers ranked in the list's cell `list`. The row chosen stays on its item where the list still
+// displays that item. The call reads each item, its label and its lowered label out of the cell, and writes its score
+// back. It sorts the ranked places in its own array and writes them back whole
 EMBED_INLINE void panels_completion_rank(const PanelsCtx *args)
 {
     const CarcerMovableEntry *const list = args->list;
@@ -997,8 +1006,8 @@ EMBED_INLINE void panels_completion_scrolled(const PanelsCtx *args)
 }
 
 // the placeholder of a tab stop, from `from` in `length` bytes of `text`, written to `out` up to the brace that closes
-// the stop, each stop nested in it flattened to its own placeholder and an escaped byte written as itself: the place
-// past that brace, or the text's end
+// the stop. Each stop inside it becomes its own placeholder, and an escaped byte goes as itself. The call gives the
+// place past that brace, or the text's end
 EMBED_INLINE unsigned long long panels_placeholder_write(const PanelsCtx *args)
 {
     const char *const text = args->text;
@@ -1042,9 +1051,9 @@ EMBED_INLINE unsigned long long panels_placeholder_write(const PanelsCtx *args)
     return each;
 }
 
-// the tab stop whose `$` is just before `from` in `length` bytes of `text` written to `out` as the text it
-// inserts: `$n` and `${n}` as nothing, `${n:text}` as its placeholder and `${n|a,b|}` as its first choice: the place
-// past it
+// the tab stop whose `$` is just before `from` in `length` bytes of `text`, written to `out` as the text it inserts.
+// `$n` and `${n}` give nothing, `${n:text}` gives its placeholder, and `${n|a,b|}` gives its first choice. The call
+// gives the place past it
 EMBED_INLINE unsigned long long panels_stop_write(const PanelsCtx *args)
 {
     const char *const text = args->text;
@@ -1076,9 +1085,10 @@ EMBED_INLINE unsigned long long panels_stop_write(const PanelsCtx *args)
     return each + ((each < length) ? 1ULL : 0ULL);
 }
 
-// `length` bytes of a snippet `text` written as the text it inserts: a tab stop with a placeholder, `${n:text}`, as its
-// placeholder, nested stops flattened the same way; one with choices, `${n|a,b|}`, as its first choice; a bare stop,
-// `$n` or `${n}`, as nothing; and an escaped byte as itself
+// `length` bytes of a snippet `text` written as the text it inserts. A tab stop with a placeholder, `${n:text}`, gives
+// its placeholder, and so do the stops inside it. A stop with choices, `${n|a,b|}`, gives its first choice. A bare
+// stop,
+// `$n` or `${n}`, gives nothing, and an escaped byte gives itself
 EMBED_INLINE void panels_snippet_write(const PanelsCtx *args)
 {
     const char *const text = args->text;
@@ -1105,8 +1115,8 @@ EMBED_INLINE void panels_snippet_write(const PanelsCtx *args)
     }
 }
 
-// `length` bytes of `text` copied into the list's text after what it holds, cut to `max` with their end: the copy's
-// place among the text, its bytes retained into `length_out`; CLI_PANELS_TEXT_MAX where the text has no room
+// `length` bytes of `text` copied into the list's text after its bytes in use, cut to `max` with their end. The call
+// gives the copy's place in the text, and its bytes into `length_out`. CLI_PANELS_TEXT_MAX where the text has no room
 static unsigned int panels_text_put(const PanelsCtx *args)
 {
     PanelsListHead *const head = args->head;
@@ -1131,9 +1141,9 @@ static unsigned int panels_text_put(const PanelsCtx *args)
     return at;
 }
 
-// an item put after the list's, its label of `length` bytes at `text`, its type, its detail and its insert of
-// `insert_length` bytes copied into the list's text and the label lowered once: 1, or 0 where the items or the text are
-// full, the text as it was
+// an item put after the list's items. Its label of `length` bytes at `text`, its type, its detail and its insert of
+// `insert_length` bytes go into the list's text. The call lowers the label once. 1, or 0 where the items or the text
+// are full, and then the text stays as it was
 EMBED_INLINE int panels_item_put(const PanelsCtx *args)
 {
     const CarcerMovableEntry *const list = args->list;
@@ -1183,15 +1193,58 @@ EMBED_INLINE int panels_item_put(const PanelsCtx *args)
     return 1;
 }
 
-// The words put into a completion list: the list's cell, its head in the caller's record, the items the server gave
-// before the words, and whether the cell has room for one more
+// The entries of the table of items in a list, a power of two above twice the items at max. Each entry is an item's
+// place plus one, 0 for an empty entry
+#define PANELS_SEEN_ENTRIES 4096u
+
+// The words put into a completion list: the list's cell and its head in the caller's record. Then whether the cell has
+// room for one more, and the table of the items in the list by the hash of their labels
 typedef struct
 {
     const CarcerMovableEntry *list;
     PanelsListHead *head;
-    unsigned int supplied;
     int room;
+    unsigned int seen[PANELS_SEEN_ENTRIES];
 } PanelsWordsPut;
+
+_Static_assert(PANELS_SEEN_ENTRIES >= (2u * CLI_PANELS_ITEMS_MAX), "the table of items holds twice the items at max");
+
+// the FNV-1a hash of `length` bytes of `label`
+static unsigned int panels_label_hash(const char *label, unsigned long long length)
+{
+    unsigned int hash = 2166136261u;
+    for (unsigned long long at = 0ULL; at < length; at += 1ULL)
+    {
+        hash = (hash ^ (unsigned char)label[at]) * 16777619u;
+    }
+    return hash;
+}
+
+// The entry of the table for `length` bytes of `label`: the entry that holds the item of that label, else the empty
+// entry where it goes. Each entry compares its item's label through the list's cell
+static unsigned int panels_seen_entry(const PanelsWordsPut *put, const char *label, unsigned long long length)
+{
+    unsigned int entry = panels_label_hash(label, length) & (PANELS_SEEN_ENTRIES - 1u);
+    while (put->seen[entry] != 0u)
+    {
+        PanelsItem given;
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = put->list,
+            .offset = offsetof(PanelsCompletion, item) + ((unsigned long long)(put->seen[entry] - 1u) * sizeof(given)),
+            .dst = &given,
+            .bytes = sizeof(given)});
+        if ((given.label_length == length) && (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){
+                                                   .cell = put->list,
+                                                   .offset = offsetof(PanelsCompletion, text) + given.label,
+                                                   .src = label,
+                                                   .bytes = length}) == 0))
+        {
+            return entry;
+        }
+        entry = (entry + 1u) & (PANELS_SEEN_ENTRIES - 1u);
+    }
+    return entry;
+}
 
 // one word of the file put after the list's items, where the cell has room and the server gave no item of that label
 static void panels_word_put(const CliEachTextLengthCfg *args)
@@ -1199,34 +1252,56 @@ static void panels_word_put(const CliEachTextLengthCfg *args)
     PanelsWordsPut *const put = (PanelsWordsPut *)args->context;
     const char *const label = args->text;
     const unsigned long long label_length = args->length;
-    int supplied_already = !put->room;
-    for (unsigned int other = 0u; !supplied_already && (other < put->supplied); other += 1u)
+    const unsigned long long kept =
+        (label_length < CLI_PANELS_LABEL_MAX) ? label_length : (CLI_PANELS_LABEL_MAX - 1ULL);
+    // the word typed itself adds nothing to the list
+    const int typed = (kept == put->head->prefix_length) &&
+                      (memor.cmp(&(MemoriaCfg){.src = label, .other = put->head->prefix, .bytes = kept}) == 0);
+    if (!put->room || (kept == 0ULL) || typed)
+    {
+        return;
+    }
+    // a word in the list already, from the server, the tree or the edited line, goes in once
+    const unsigned int entry = panels_seen_entry(put, label, kept);
+    if (put->seen[entry] != 0u)
+    {
+        return;
+    }
+    put->room = EMBED_CALL(panels_item_put, PanelsCtx, .list = put->list, .head = put->head, .text = label,
+                           .length = label_length, .type = "word", .detail = "", .insert = label,
+                           .insert_length = label_length);
+    put->seen[entry] = put->room ? put->head->items : 0u;
+}
+
+// The items the list holds put in the table of items: each label read out of the list's cell into this call's own
+// array
+static void panels_seen_fill(PanelsWordsPut *put)
+{
+    for (unsigned int at = 0u; at < put->head->items; at += 1u)
     {
         PanelsItem given;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = put->list,
-                                                                .offset = offsetof(PanelsCompletion, item) +
-                                                                          ((unsigned long long)other * sizeof(given)),
-                                                                .dst = &given,
-                                                                .bytes = sizeof(given)});
-        supplied_already = (given.label_length == label_length) &&
-                           (g_cli_guard->movable_buf_compare(
-                                &(CarcerMovableCfg){.cell = put->list,
-                                                    .offset = offsetof(PanelsCompletion, text) + given.label,
-                                                    .src = label,
-                                                    .bytes = label_length}) == 0);
-    }
-    if (!supplied_already)
-    {
-        put->room = EMBED_CALL(panels_item_put, PanelsCtx, .list = put->list, .head = put->head, .text = label,
-                               .length = label_length, .type = "word", .detail = "", .insert = label,
-                               .insert_length = label_length);
+        char label[CLI_PANELS_LABEL_MAX];
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = put->list,
+                                .offset = offsetof(PanelsCompletion, item) + ((unsigned long long)at * sizeof(given)),
+                                .dst = &given,
+                                .bytes = sizeof(given)});
+        const unsigned long long length =
+            (given.label_length < CLI_PANELS_LABEL_MAX) ? given.label_length : (CLI_PANELS_LABEL_MAX - 1ULL);
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = put->list,
+                                .offset = offsetof(PanelsCompletion, text) + given.label,
+                                .dst = label,
+                                .bytes = length});
+        const unsigned int entry = panels_seen_entry(put, label, length);
+        put->seen[entry] = (put->seen[entry] == 0u) ? (at + 1u) : put->seen[entry];
     }
 }
 
-// The list positioned in the list's cell `list` from the server's items and the words of the view `key`, a word the
-// server gave left out, the labels lowered once and each snippet flattened once, every text copied into the cell. The
-// items end where the items or the text are full. The head is kept in this call's own record and written into the cell
-// last
+// The list put in the list's cell `list` from the server's items and the words of the view `key`. A word the server
+// gave goes in once. The call lowers each label once, flattens each snippet once, and copies every text into the cell.
+// The items end where the items or the text are full. The call keeps the head in its own record and writes it into the
+// cell last
 EMBED_INLINE void panels_completion_positioned(const PanelsCtx *args)
 {
     const CarcerMovableEntry *const list = args->list;
@@ -1272,7 +1347,18 @@ EMBED_INLINE void panels_completion_positioned(const PanelsCtx *args)
                           .insert = flattened ? flat_text : (one->snippet ? one->label : insert),
                           .insert_length = flattened ? flat.at : (one->snippet ? label_length : inserted));
     }
-    PanelsWordsPut put = {list, head, head->items, room};
+    // The file's own words: first the names of the file's branch in the tree, as its walk or its save joined them. Then
+    // the words of the line under edit. No read of the text goes past that line
+    PanelsWordsPut put = {list, head, room, {0u}};
+    panels_seen_fill(&put);
+    char path[CLI_PATH_MAX_LEN];
+    if ((args->key != NULL) &&
+        EMBED_CALL(cli_view_path_type.path, CliViewPathTypeCfg, .key = args->key, .path_out = path) &&
+        (path[0] != '\0'))
+    {
+        (void)EMBED_CALL(cli_symbols_path_each.names_each, CliSymbolsPathEachCfg, .path = path, .each = panels_word_put,
+                         .context = &put);
+    }
     if (args->key != NULL)
     {
         cli_view_words_each(&(CliViewWordsCfg){.key = args->key, .each = panels_word_put, .context = &put});
@@ -1280,9 +1366,10 @@ EMBED_INLINE void panels_completion_positioned(const PanelsCtx *args)
     (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = list, .src = head, .bytes = sizeof(*head)});
 }
 
-// The built list's cell made the one displayed in place of the one that was, the row chosen saved on its item. It is
-// closed where nothing answers, where the one answer is what is typed and nothing forced it, or where nothing is
-// typed and no list was or forced it open. Else the two cells change places, and the built list is the open list
+// The built list's cell made the cell displayed, in place of the last, the row chosen saved on its item. The list
+// closes where nothing answers. It closes where the one answer is the typed word and no key forced the list. It also
+// closes where the prefix is empty and no list was open or forced open. Else the two cells change places, and the built
+// list is the open list
 EMBED_INLINE void panels_completion_are(const PanelsCtx *args)
 {
     (void)args;
@@ -1417,9 +1504,9 @@ EMBED_INLINE void panels_completion_ask(const PanelsCtx *args)
     EMBED_CALL(panels_completion_are, PanelsCtx, .at = 0u);
 }
 
-// The list, where it is open, followed to the frame's cursor: filtered again in its own cell by the word before the
-// cursor where it changed. It is closed where the cursor has left the line or that word no longer starts where the
-// prefix did
+// The list, where it is open, follows the frame's cursor. Where the word before the cursor changed, the call filters
+// the list again in its own cell by that word. The list closes where the cursor left the line. It also closes where
+// that word no longer starts at the prefix's start
 EMBED_INLINE void panels_completion_follow(const PanelsCtx *args)
 {
     PanelsListHead head = {0};
@@ -1712,8 +1799,8 @@ EMBED_INLINE void panels_signature_ask(const PanelsCtx *args)
     panels_signature_tree_done(&ask);
 }
 
-// the text's lines from as far above as CLI_PANELS_SIGNATURE_LINES reach to the cursor's, a paged text's those the page
-// has read, from the state the first was entered in, and the tree's signature of the call
+// the text's lines from CLI_PANELS_SIGNATURE_LINES above the cursor's to the cursor's. For a paged text, the lines the
+// page read. The read starts in the first line's state, and gives the tree's signature of the call
 static void panels_signature_tree_run(void *context)
 {
     PanelsSignatureAsk *const ask = (PanelsSignatureAsk *)context;
@@ -1731,7 +1818,7 @@ static void panels_signature_tree_run(void *context)
                      .context = &lines);
 }
 
-// the tree's answer is, where one was written into the store
+// the tree's answer is, where the ask wrote one into the store
 static void panels_signature_tree_done(void *context)
 {
     PanelsSignatureAsk *const ask = (PanelsSignatureAsk *)context;
@@ -1746,7 +1833,7 @@ static void panels_signature_tree_done(void *context)
 #define PANELS_SERVE_CHANGE 1u
 #define PANELS_SERVE_VIEW 2u
 
-// A serve job: what it does; the file's whole path and its language; the view's key, whose text the job reads; the
+// A serve job: what it does; the file's whole path and its language; the view's key, whose text the job reads. The
 // view's first and last lines and the lines that open the regions around its first line, outermost first; and the
 // problems' sink
 struct PanelsServeJob
@@ -1808,9 +1895,9 @@ static int panels_serve_later(const PanelsCtx *args)
                       .size = sizeof(*args->job));
 }
 
-// the view under `key` opened in its language's server: the open lined up for a thread of the servers with the view's
-// text, the view marked served, and its view sent at the next step, where the view is on a file of the tree in a
-// language the plugins know
+// the view under `key` opened in its language's server. The open goes in line for a thread of the servers with the
+// view's text. The call marks the view served, and sends its view at the next step. That needs a view on a file of the
+// tree, in a language the plugins know
 static void panels_open_send(const PanelsCtx *args)
 {
     char path[CLI_PATH_MAX_LEN];
@@ -1843,7 +1930,7 @@ static void panels_open_send(const PanelsCtx *args)
     }
 }
 
-// the view under `key`, about to close, let go of its server, the server closed where no view is served at its file
+// the view under `key`, about to close, lets go of its server. The server closes where its file has no view it serves
 static void panels_closing(const char *key)
 {
     char full[CLI_PATH_MAX_LEN];
@@ -1851,7 +1938,8 @@ static void panels_closing(const char *key)
     {
         return;
     }
-    // the view let go of its server first, so a view of the same file still served saves the server's copy
+    // the view lets go of its server first. Then a view of the same file that the server still serves saves the
+    // server's copy
     (void)EMBED_CALL(cli_view_full.served_set, CliViewFullCfg, .key = key, .full = "");
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea ignored = {why, sizeof(why), 0ULL};
@@ -1862,8 +1950,8 @@ static void panels_closing(const char *key)
     }
 }
 
-// the view's text sent to the server on a thread of the servers, where the view is served and its text changed since
-// the server last took it
+// the view's text sent to the server on a thread of the servers. That needs a view the server serves, with a text that
+// changed since the server last took it
 static void panels_sync_post(const PanelsCtx *args)
 {
     (void)args;
@@ -1886,8 +1974,8 @@ static void panels_sync_post(const PanelsCtx *args)
     }
 }
 
-// where the view of the tab displayed rests sent to the server on a thread of the servers, the view opened in its
-// server first where it is not served yet
+// the place where the view of the tab displayed rests, sent to the server on a thread of the servers. A view the server
+// does not serve yet opens in its server first
 EMBED_INLINE void panels_view_send(const PanelsCtx *args)
 {
     (void)args;
@@ -1900,7 +1988,7 @@ EMBED_INLINE void panels_view_send(const PanelsCtx *args)
     PanelsServeJob job = {.does = PANELS_SERVE_VIEW};
     if (!EMBED_CALL(cli_view_full_type.serve, CliViewFullTypeCfg, .key = key, .full_out = job.full))
     {
-        // a view is opened in its server once, the first time it rests
+        // a view opens in its server once, the first time it rests
         if (!cellul.eq(&(CatenaFinitaCfg){.src = key, .other = s_panels.open_key, .cap = CLI_NAME_MAX_LEN}))
         {
             memor.cpy(&(MemoriaCfg){
@@ -1930,8 +2018,8 @@ EMBED_INLINE void panels_view_send(const PanelsCtx *args)
     }
 }
 
-// a frame positioned of a view: where it is the view displayed's, its cursor, its top line of its lines and its rows
-// taken as the panels follow them, the server asked again where the cursor or the view moved
+// a frame of a view put in place. For the view displayed, the panels follow its cursor, its top line, its lines and
+// its rows. Where the cursor or the view moved, the panels ask the server again
 static void panels_drawn(const CliViewDrawn *args)
 {
     const char *const key = EMBED_CALL(panels_viewed_key, PanelsCtx, .at = 0u);
@@ -2006,7 +2094,8 @@ int cli_servers_panels_step(void)
     const PanelsShown before = EMBED_CALL(panels_shown, PanelsCtx, .at = 0u);
     int asked = 0;
     EMBED_CALL(panels_hover_answers_taken, PanelsCtx, .at = 0u);
-    // An answer still to come is taken at the next deadline, until CLI_PANELS_HOVER_ANSWER_MS after the ask
+    // The view thread takes an answer still to come at the next deadline, until CLI_PANELS_HOVER_ANSWER_MS after the
+    // ask
     if ((s_panels.hover_take_ms != 0ULL) && (now_ms >= s_panels.hover_take_ms))
     {
         s_panels.hover_take_ms = ((now_ms - s_panels.hover_asked_ms) < CLI_PANELS_HOVER_ANSWER_MS)
@@ -2038,7 +2127,7 @@ int cli_servers_panels_step(void)
     return asked || (memor.cmp(&(MemoriaCfg){.src = &before, .other = &after, .bytes = sizeof(before)}) != 0);
 }
 
-// the views' moments the panels take: each frame positioned and each view about to close. A view is opened in its
+// the views' moments the panels take: each frame put in place, and each view about to close. A view opens in its
 // server as it first rests, not as it opens
 static const CliViewWatcher s_panels_watcher = {panels_drawn, NULL, panels_closing};
 
@@ -2106,8 +2195,8 @@ int cli_servers_panels_completion(const CliServersPanelsCfg *args)
 
 int cli_servers_panels_completion_row(const CliServersPanelsCfg *args)
 {
-    // a args->row's texts copied args->out of the cell into the rows' own bytes, one set a args->row displayed, which
-    // the caller reads before the list changes
+    // the texts of the row `args->row` copied out of the cell into the rows' own bytes, one set for each row displayed.
+    // The caller reads them before the list changes
     static char s_label[CLI_COMPLETION_ROWS][CLI_PANELS_LABEL_MAX];
     static char s_type[CLI_COMPLETION_ROWS][CLI_PANELS_TYPE_MAX];
     static char s_detail[CLI_COMPLETION_ROWS][CLI_PANELS_DETAIL_MAX];

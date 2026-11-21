@@ -116,6 +116,27 @@ void test_the_menu_of_a_declaration_at_the_top_lists_the_files(void)
     menu_row_is(1u, "solo", "symbol-go", "9");
 }
 
+void test_the_menu_of_a_folder_lists_its_entries_each_running_file_open_with_its_path(void)
+{
+    char tree[CLI_PATH_MAX_LEN];
+    cli_unity_folder("build/harness/crumbs_tree", tree);
+    // a repository of its own, so that git lists its files and not the ignored folder it is in
+    const char *const init[2] = {"init", "-q"};
+    cli_unity_git(tree, init, 2u);
+    char folder[CLI_PATH_MAX_LEN];
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = tree, .relative = "src", .joined = folder);
+    (void)EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = tree, .relative = "src/code", .joined = folder);
+    (void)EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder);
+    cli_unity_file(tree, "src/code/a.py", "x");
+    cli_unity_file(tree, "src/code/b.py", "x");
+    EMBED_CALL(cli_crumbs.read, CliCrumbsCfg, .key = NULL, .path = s_path, .line = 0ULL);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_crumbs.menu, CliCrumbsCfg, .root = tree, .at = 1u));
+    TEST_ASSERT_EQUAL_UINT(2u, cli_menus_own_count());
+    menu_row_is(0u, "a.py", "file-open", "src/code/a.py");
+    menu_row_is(1u, "b.py", "file-open", "src/code/b.py");
+}
+
 void test_go_answers_the_line_a_word_reads_as(void)
 {
     CliPosition place = {0ULL, 0ULL};

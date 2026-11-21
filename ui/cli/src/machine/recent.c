@@ -10,11 +10,11 @@
 #include "../text/text.h"
 #include "state.h"
 
-// the key each list is stored under in orior's folder
+// the key each list has in orior's folder
 static const char *const s_recent_keys[CLI_RECENT_LISTS] = {"recent.files", "recent.commands"};
 
-// A list: its entries in one movable cell, each ended by a 0, NULL where it has none, and the cell's bytes; the
-// offset each starts at; how many; and whether it was read from orior's folder
+// A list. It holds its entries in one movable cell, a 0 after each, NULL where it has none, and the cell's bytes.
+// It also holds the offset where each entry starts, how many, and whether the read from orior's folder ran
 typedef struct
 {
     const CarcerMovableEntry *text;
@@ -34,8 +34,8 @@ typedef struct
     const CellOwner *owner;
 } RecentCtx;
 
-// the list `list`'s entries read out of their cell into a temporary cell of `owner`, which the caller gives back; NULL
-// where the list has none or the cell could not be taken
+// The list `list`'s entries read out of their cell into a temporary cell of `owner`, which the caller in this module
+// gives back. NULL where the list has none or the pool has no cell for it
 EMBED_INLINE char *recent_text_copy(const RecentCtx *args)
 {
     const RecentList *const list = &s_recent[args->list];
@@ -48,8 +48,9 @@ EMBED_INLINE char *recent_text_copy(const RecentCtx *args)
     return copy;
 }
 
-// the list `list` positioned anew from `length` bytes of `text`, its entries a line each, an empty line none, at max
-// CLI_RECENT_MAX of them, in a cell sized to them with their ends; the list as it was where the cells cannot meet it
+// The list `list` positioned anew from `length` bytes of `text`. Each line is an entry and an empty line is none, at
+// max CLI_RECENT_MAX of them, in a cell sized to them with their ends. The list stays as it was where the cells
+// cannot meet it
 EMBED_INLINE void recent_positioned(const RecentCtx *args)
 {
     RecentList *const list = &s_recent[args->list];
@@ -103,7 +104,7 @@ EMBED_INLINE void recent_positioned(const RecentCtx *args)
     list->count = positioned;
 }
 
-// the list `list` read from orior's folder the first time it is asked
+// the list `list` read from orior's folder the first time a caller asks for it
 EMBED_INLINE void recent_read(const RecentCtx *args)
 {
     RecentList *const list = &s_recent[args->list];
@@ -188,22 +189,35 @@ void cli_recent_push(const CliRecentCfg *args)
     g_cli_guard->persistent_buf_release(text, g_cli_machine_owner);
 }
 
-unsigned int cli_recent_list(const CliRecentCfg *args)
+unsigned long long cli_recent_bytes(const CliRecentCfg *args)
 {
-    *args->cell_out = NULL;
     if (args->list >= CLI_RECENT_LISTS)
     {
-        return 0u;
+        return 0ULL;
     }
     EMBED_CALL(recent_read, RecentCtx, .list = args->list);
     const RecentList *const list = &s_recent[args->list];
-    // the entries read out into the caller's cell, the rows located in it
-    char *const text = EMBED_CALL(recent_text_copy, RecentCtx, .list = args->list, .owner = args->owner);
-    *args->cell_out = text;
-    const unsigned int count = (text == NULL) ? 0u : (list->count < args->max) ? list->count : args->max;
+    return (list->text != NULL) ? list->bytes : 0ULL;
+}
+
+unsigned int cli_recent_read(const CliRecentCfg *args)
+{
+    const unsigned long long bytes = cli_recent_bytes(args);
+    if ((bytes == 0ULL) || (bytes > args->capacity))
+    {
+        return 0u;
+    }
+    const RecentList *const list = &s_recent[args->list];
+    // the entries read out of this module's cell into the caller's buffer, the rows located in it
+    if (!g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = list->text, .offset = 0ULL, .dst = args->text_out, .bytes = bytes}))
+    {
+        return 0u;
+    }
+    const unsigned int count = (list->count < args->max) ? list->count : args->max;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        args->rows_out[at] = text + list->start[at];
+        args->rows_out[at] = args->text_out + list->start[at];
     }
     return count;
 }

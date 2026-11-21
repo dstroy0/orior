@@ -5,14 +5,15 @@
 #ifndef CLI_CHECK_H
 #define CLI_CHECK_H
 
-#include "../../../../../ui/cli/src/builds/builds.h"
-#include "../../../../../ui/cli/src/command_line/cli_internal.h"
-#include "../../../../../ui/cli/src/text/json_tree.h"
 #include "../../../../../includes/window/block.h"
 #include "../../../../../includes/window/glyphs.h"
+#include "../../../../../ui/cli/src/builds/builds.h"
+#include "../../../../../ui/cli/src/command_line/cli_internal.h"
+#include "../../../../../ui/cli/src/editor/view.h"
+#include "../../../../../ui/cli/src/text/json_tree.h"
 
-// the system's pages the window's block positions in, the CLI's (ui/gui/src/pages.c), and the faces the window's glyphs
-// read, this system's (ui/gui/src/faces.c)
+// The system's pages the window's block lays out in, the CLI's (ui/gui/src/pages.c). Then the faces the window's
+// glyphs read, this system's (ui/gui/src/faces.c)
 extern const GuiBlockPages g_gui_pages;
 extern const GuiGlyphsFaces g_gui_faces;
 
@@ -26,25 +27,29 @@ void cli_check_begun(void);
 void cli_check(int passed, const char *what);
 // a check that `size` bytes of `text` are `required`, printed with what it checks and, where it failed, what came
 void cli_check_text(const char *text, unsigned long long size, const char *required, const char *what);
-// the folder `name` of the run's folder, removed whole and made anew, its full path into `full`, which is sized for
-// CLI_PATH_MAX_LEN
+// the folder `name` of the run's folder, removed whole and made anew, its full path into `full`, CLI_PATH_MAX_LEN
+// bytes
 void cli_check_folder(const char *name, char *full);
-// `size` bytes of JSON read into the tree the checks share, in place of what it contained: the tree, its root into
+// `size` bytes of JSON read into the tree the checks share, in place of its last text. Returns the tree, its root into
 // `root`, CLI_JSON_NONE where it is no JSON
 const CliJson *cli_check_parsed(const char *text, unsigned long long size, unsigned int *root);
 // a string member of a node of the shared tree, the empty text where it has none
 const char *cli_check_member_text(unsigned int node, const char *name);
-// the first finding of the shared tree's array `found`, a build file's diagnostics, whose code is `code` and whose
-// message contains `part`, each where it is not NULL: its node, CLI_JSON_NONE where none is
+// The first finding of the shared tree's array `found`, a build file's diagnostics. Its code is `code` and its message
+// contains `part`, each where it is not NULL. Returns its node, CLI_JSON_NONE where none is
 unsigned int cli_check_finding(unsigned int found, const char *code, const char *part);
 // whether one of the completion items shows `label`
 int cli_check_completes(const CliCompletions *items, const char *label);
 // what completes the end of `text`, an ASCII text of the build file at `path` of the tree at `root`
 const CliCompletions *cli_check_build_completed(const char *root, const char *path, const char *text);
-// the server the tests of `name` reach, where one runs: its host into `host`, which is sized for CLI_NAME_MAX_LEN, and
-// its port into `at`, from ORIOR_<name>_ADDRESS, `host:port`, else 127.0.0.1 and `port`
+// The server the tests of `name` reach, where one runs. Its host goes into `host`, CLI_NAME_MAX_LEN bytes, and its port
+// into `at`. They come from ORIOR_<name>_ADDRESS, `host:port`, else they are 127.0.0.1 and `port`
 void cli_check_server(const char *name, unsigned int port, char *host, unsigned int *at);
 // the checks' count and their failures printed: the code to exit with, 1 where one failed
 int cli_on_check(void);
+// The frame of the view under `key`, built and read into the checks' own buffer, NULL for none. The next read
+// replaces it. The kept read reads the frame the view built last, and builds none
+const CliViewFrame *cli_check_frame(const char *key);
+const CliViewFrame *cli_check_frame_kept(const char *key);
 
 #endif

@@ -183,7 +183,7 @@ void test_a_rename_writes_the_name_in_every_files_view(void)
                                                                                  .err_msg = &s_err_msg}),
                                   s_why);
     TEST_ASSERT_EQUAL_UINT(3u, files);
-    // the two files with no view are written and closed again; use.c stays the view displayed, changed
+    // the save writes the two files with no view and closes them again; use.c stays the view displayed, changed
     TEST_ASSERT_EQUAL_UINT(1u, cli_view_count());
     TEST_ASSERT_EQUAL_INT(0, cli_view_displayed());
     TEST_ASSERT_EQUAL_UINT(0u, cli_references_rows());
@@ -195,7 +195,7 @@ void test_a_rename_writes_the_name_in_every_files_view(void)
         char key[CLI_NAME_MAX_LEN];
         TEST_ASSERT_TRUE(cli_view_key(&(CliViewAtCfg){.at = at, .key_out = key}) &&
                          cli_view_path_at(&(CliViewAtCfg){.at = at, .path_out = path}));
-        CliViewFrame *const frame = cli_view_frame_alloc(&(CliViewAtCfg){.key = key});
+        const CliViewFrame *const frame = cli_unity_frame(key);
         TEST_ASSERT_NOT_NULL(frame);
         const char *const text = frame->bytes;
         int extent_found = 0;
@@ -209,7 +209,6 @@ void test_a_rename_writes_the_name_in_every_files_view(void)
             }
         }
         TEST_ASSERT_TRUE_MESSAGE(extent_found, path);
-        cli_view_frame_release(&(CliViewAtCfg){.frame = frame});
     }
     views_closed();
 }

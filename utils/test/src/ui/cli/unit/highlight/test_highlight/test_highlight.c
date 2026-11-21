@@ -478,7 +478,8 @@ void test_a_plugins_grammar_is_stored_under_its_key_and_colors(void)
     TEST_ASSERT_TRUE(
         EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = "c", .key = key, .err_msg = &err_msg));
     TEST_ASSERT_EQUAL_STRING("plugin:c", key);
-    TEST_ASSERT_EQUAL_STRING("0 type|3 |4 identifier|5 delimiter.statement", line_colored(key, "int x;", "root"));
+    TEST_ASSERT_EQUAL_STRING("0 type.number|3 |4 identifier.declaration.variable|5 delimiter.statement",
+                             line_colored(key, "int x;", "root"));
     TEST_ASSERT_TRUE(
         EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = "c", .key = key, .err_msg = &err_msg));
 }
@@ -583,6 +584,24 @@ void test_a_c_function_that_returns_a_pointer_is_named_inside_its_brackets(void)
         "type.number|49 |50 operator.memory|51 identifier.parameter|56 "
         "delimiter.bracket.parameter.depth.close|57 delimiter.bracket.depth.close|58 "
         "delimiter.bracket.depth.open|59 number|60 delimiter.bracket.depth.close");
+}
+
+void test_a_c_variable_at_file_scope_is_a_declaration(void)
+{
+    assert_plugin_line("c", "static unsigned int total = 0u;",
+                       "0 keyword|6 |7 type.number|15 |16 type.number|19 |20 identifier.declaration.variable|25 |26 "
+                       "operator.assign|27 |28 number|29 number.suffix|30 delimiter.statement");
+}
+
+void test_a_c_struct_named_ahead_declares_no_variable(void)
+{
+    assert_plugin_line("c", "struct shape;", "0 keyword|6 |7 identifier|12 delimiter.statement");
+}
+
+void test_a_c_variable_of_a_struct_type_is_a_declaration(void)
+{
+    assert_plugin_line("c", "struct shape square;",
+                       "0 keyword|6 |7 type|12 |13 identifier.declaration.variable|19 delimiter.statement");
 }
 
 void test_a_c_local_and_its_type_are_named(void)

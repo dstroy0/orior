@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // files_ranked.c: the quick open's files: the tree listed behind the window, and the files that answer a query, the
 // best first. A file whose name equals what was typed scores over any match, one whose name starts with it half that,
-// and one opened lately over the match itself. The ranking is one pass over the sorted files into a bounded list retained
-// in score order, a file's place in it found by a binary search; the answer is one cell sized to it
+// and one opened lately over the match itself. The ranking is one pass over the sorted files into a bounded list
+// retained in score order, a file's place in it found by a binary search; the answer is one cell sized to it
 #include "../code/symbols.h"
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
@@ -24,10 +24,11 @@ int cli_files_unread(const CliFilesRootPathsCfg *args)
     return !EMBED_CALL(cli_symbols_root.tree_is_list, CliSymbolsRootCfg, .root = root);
 }
 
-// A find's lists, one take sized to the find: the bounded list, each file's place among the files, or among the
-// recent paths while the tree is not listed, with its score, `max` places; the query's characters, the latest place
-// each character of a match may take and the places a match took, each one for each byte of the query; and a path's
-// characters as they are and in lower case, each one for each byte of the longest candidate
+// A find's lists, one take sized to the find. First the bounded list of `max` places, each with its score. A place
+// is a file's place among the files, or among the recent paths while the tree has no listing. Then the query's
+// characters, the latest place each character of a match can take, and the places a match took. Each of those has
+// one entry for each byte of the query. Last, a path's characters as they are and in lower case, one entry for each
+// byte of the longest candidate
 typedef struct
 {
     CliTopPlace *top;
@@ -73,11 +74,11 @@ EMBED_INLINE int ranked_matched(const FilesRankedCtx *args)
     int matched = 0;
     if (find->fuzzy)
     {
-        matched = EMBED_CALL(cli_files_bytes_requested_internal.fuzzy_characters, CliFilesBytesRequestedCtx,
-                             .required = lists->required, .requested_count = args->required,
-                             .displayed = lists->displayed, .lower = lists->lower, .count_u32 = characters,
-                             .from_u32 = name, .bytes_i32 = 0, .latest = lists->latest, .score = &score,
-                             .hits = lists->hit, .hit_count = &hits);
+        matched =
+            EMBED_CALL(cli_files_bytes_requested_internal.fuzzy_characters, CliFilesBytesRequestedCtx,
+                       .required = lists->required, .requested_count = args->required, .displayed = lists->displayed,
+                       .lower = lists->lower, .count_u32 = characters, .from_u32 = name, .bytes_i32 = 0,
+                       .latest = lists->latest, .score = &score, .hits = lists->hit, .hit_count = &hits);
     }
     else
     {
@@ -102,7 +103,7 @@ EMBED_INLINE int ranked_matched(const FilesRankedCtx *args)
     {
         return 0;
     }
-    // the name equal to the query, or starting with it, case aside
+    // the name equal to the query, or the name that starts with it, case aside
     const unsigned int name_characters = characters - name;
     unsigned int prefix = 0u;
     while ((prefix < args->required) && (prefix < name_characters) &&
@@ -126,14 +127,11 @@ EMBED_INLINE int ranked_matched(const FilesRankedCtx *args)
 
 int cli_files_ranked_find(const CliFilesRootRowsCfg *args)
 {
-    CliFilesRanked *const rows = args->rows;
-    g_cli_guard->persistent_buf_release(rows->cell, args->owner);
-    *rows = (CliFilesRanked){NULL, 0u, NULL, NULL, 0};
     const unsigned int max = (args->max < CLI_FILES_RANKED_MAX) ? args->max : CLI_FILES_RANKED_MAX;
     const int unread =
         (args->root == NULL) || EMBED_CALL(cli_files_root_paths.unread, CliFilesRootPathsCfg, .root = args->root);
     const CliFiles *const files =
-        unread ? NULL : EMBED_CALL(cli_files_root_paths.view, CliFilesRootPathsCfg, .root = args->root);
+        unread ? NULL : EMBED_CALL(cli_files_view_internal.view, CliFilesRootPathsCfg, .root = args->root);
     const unsigned int candidates = (files != NULL) ? files->count : (unread ? args->recents : 0u);
     // the longest candidate's bytes bound a path's characters, and the query's bytes bound its characters
     unsigned long long longest = 0ULL;
@@ -146,27 +144,25 @@ int cli_files_ranked_find(const CliFilesRootRowsCfg *args)
     }
     const unsigned long long query_bytes = cellul.len(&(CatenaFinitaCfg){.src = args->query, .cap = CLI_POOL_BYTES});
     const unsigned long long top_bytes = (unsigned long long)max * sizeof(CliTopPlace);
-    const unsigned long long list_bytes = top_bytes + (((3ULL * query_bytes) + (2ULL * longest)) * sizeof(unsigned int));
-    unsigned char *const list_cell = (list_bytes != 0ULL) ? g_cli_guard->temporary_buf_alloc(list_bytes, args->owner) : NULL;
+    const unsigned long long list_bytes =
+        top_bytes + (((3ULL * query_bytes) + (2ULL * longest)) * sizeof(unsigned int));
+    unsigned char *const list_cell =
+        (list_bytes != 0ULL) ? g_cli_guard->temporary_buf_alloc(list_bytes, g_cli_files_views_owner) : NULL;
     if ((list_bytes != 0ULL) && (list_cell == NULL))
     {
         if (files != NULL)
         {
-            EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
+            EMBED_CALL(cli_files_let_internal.let, CliFilesCfg, .files = files);
         }
         return 0;
     }
-    // the bounded list lies first in the take, which its alignment saves aligned, the query's three lists after it
-    // and the path's two last; a text's bytes are below CLI_POOL_BYTES, which an unsigned int stores
+    // The bounded list lies first in the take, which keeps it aligned. The query's three lists come after it, and
+    // the path's two last. A text's bytes are below CLI_POOL_BYTES, which an unsigned int stores
     unsigned int *const query_lists = (unsigned int *)(void *)(list_cell + top_bytes);
-    const FilesRankedLists lists = {(CliTopPlace *)(void *)list_cell,
-                                    query_lists,
-                                    query_lists + query_bytes,
-                                    query_lists + (2ULL * query_bytes),
-                                    query_lists + (3ULL * query_bytes),
-                                    query_lists + (3ULL * query_bytes) + longest,
-                                    (unsigned int)query_bytes,
-                                    (unsigned int)longest};
+    const FilesRankedLists lists = {(CliTopPlace *)(void *)list_cell,   query_lists,
+                                    query_lists + query_bytes,          query_lists + (2ULL * query_bytes),
+                                    query_lists + (3ULL * query_bytes), query_lists + (3ULL * query_bytes) + longest,
+                                    (unsigned int)query_bytes,          (unsigned int)longest};
     const unsigned int required =
         EMBED_CALL(cli_files_query_characters.want, CliFilesQueryLettersCfg, .query = args->query,
                    .characters = lists.required, .capacity = lists.query_bytes);
@@ -201,21 +197,20 @@ int cli_files_ranked_find(const CliFilesRootRowsCfg *args)
     }
     const unsigned long long row_bytes = (unsigned long long)count * sizeof(CliFileRanked);
     const unsigned long long place_bytes = places * sizeof(unsigned int);
-    unsigned char *const cell =
-        (count != 0u) ? g_cli_guard->temporary_buf_alloc(row_bytes + place_bytes + text, args->owner) : NULL;
+    const CarcerMovableEntry *const cell =
+        (count != 0u) ? g_cli_guard->movable_buf_alloc(row_bytes + place_bytes + text, g_cli_files_views_owner) : NULL;
     if ((count != 0u) && (cell == NULL))
     {
-        g_cli_guard->persistent_buf_release(list_cell, args->owner);
+        g_cli_guard->persistent_buf_release(list_cell, g_cli_files_views_owner);
         if (files != NULL)
         {
-            EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
+            EMBED_CALL(cli_files_let_internal.let, CliFilesCfg, .files = files);
         }
         return 0;
     }
-    // the rows lie first in the cell, which its alignment saves aligned, the places after them and the paths last
-    CliFileRanked *const row = (CliFileRanked *)(void *)cell;
-    unsigned int *const hit = (unsigned int *)(void *)(cell + row_bytes);
-    char *const paths = (char *)(cell + row_bytes + place_bytes);
+    // The rows lie first in the cell, the places after them and the paths last. A row keeps its path's place among
+    // the paths, which stays true where the mover moves the cell
+    const unsigned long long paths_at = row_bytes + place_bytes;
     unsigned int put = 0u;
     unsigned long long used = 0ULL;
     for (unsigned int at = 0u; at < count; at += 1u)
@@ -228,20 +223,66 @@ int cli_files_ranked_find(const CliFilesRootRowsCfg *args)
         (void)EMBED_CALL(ranked_matched, FilesRankedCtx, .find = args, .lists = &lists, .path = path,
                          .required = required, .score_out = &score, .hits_out = &hits);
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN});
-        memor.cpy(&(MemoriaCfg){.dst = paths + used, .src = path, .bytes = length + 1ULL});
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = cell, .offset = paths_at + used, .src = path, .bytes = length + 1ULL});
         if (hits != 0u)
         {
-            memor.cpy(&(MemoriaCfg){.dst = hit + put, .src = lists.hit, .bytes = hits * sizeof(unsigned int)});
+            (void)g_cli_guard->movable_buf_write(
+                &(CarcerMovableCfg){.cell = cell,
+                                    .offset = row_bytes + ((unsigned long long)put * sizeof(unsigned int)),
+                                    .src = lists.hit,
+                                    .bytes = hits * sizeof(unsigned int)});
         }
-        row[at] = (CliFileRanked){paths + used, lists.top[at].score, put, hits};
+        const CliFileRanked one = {used, lists.top[at].score, put, hits};
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            .cell = cell, .offset = (unsigned long long)at * sizeof(one), .src = &one, .bytes = sizeof(one)});
         put += hits;
         used += length + 1ULL;
     }
-    g_cli_guard->persistent_buf_release(list_cell, args->owner);
+    // the module lets its work go before the answer goes to the caller
+    g_cli_guard->persistent_buf_release(list_cell, g_cli_files_views_owner);
     if (files != NULL)
     {
-        EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
+        EMBED_CALL(cli_files_let_internal.let, CliFilesCfg, .files = files);
     }
-    *rows = (CliFilesRanked){cell, count, row, hit, unread && (args->root != NULL)};
+    const CliFilesRanked ranked = {cell, count, row_bytes, paths_at, unread && (args->root != NULL)};
+    args->each(&(CliFilesRankedEachCfg){.context = args->context, .ranked = &ranked});
+    if (cell != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(cell, g_cli_files_views_owner);
+    }
+    return 1;
+}
+
+int cli_files_ranked_at(const CliFilesRankedAtCfg *args)
+{
+    const CliFilesRanked *const ranked = args->ranked;
+    char *const out = args->path_out;
+    out[0] = '\0';
+    if ((ranked->cell == NULL) || (args->index >= ranked->count))
+    {
+        return 0;
+    }
+    CliFileRanked *const row = args->row_out;
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = ranked->cell,
+                                                            .offset = (unsigned long long)args->index * sizeof(*row),
+                                                            .dst = row,
+                                                            .bytes = sizeof(*row)});
+    const unsigned long long path_at = ranked->text_at + row->path_at;
+    const unsigned long long length =
+        g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = ranked->cell, .offset = path_at});
+    const unsigned long long bytes = (length < CLI_PATH_MAX_LEN - 1ULL) ? length : CLI_PATH_MAX_LEN - 1ULL;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = ranked->cell, .offset = path_at, .dst = out, .bytes = bytes});
+    out[bytes] = '\0';
+    row->hit_count = (row->hit_count < args->hits_max) ? row->hit_count : args->hits_max;
+    if (row->hit_count != 0u)
+    {
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = ranked->cell,
+                                .offset = ranked->hit_at + ((unsigned long long)row->hit_first * sizeof(unsigned int)),
+                                .dst = args->hits_out,
+                                .bytes = (unsigned long long)row->hit_count * sizeof(unsigned int)});
+    }
     return 1;
 }

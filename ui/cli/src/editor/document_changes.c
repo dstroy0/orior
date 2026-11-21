@@ -7,8 +7,8 @@
 
 #include "../command_line/pool.h"
 
-// A reader of one pass: the line sought and whether a line is sought, the place sought, the change found and its
-// place, how many changes have passed, the last change passed, and the run of lines marked
+// A reader of one pass. It holds the line it looks for and whether it looks for a line, and the place it looks for.
+// Then the change found and its place, how many changes passed, the last change passed, and the run of lines marked
 typedef struct
 {
     unsigned long long line;
@@ -33,8 +33,8 @@ typedef struct
     ChangesPass *pass;
 } ChangesCtx;
 
-// the first line the gutter marks a change on: its first newer line, or for lines taken out alone the line above them,
-// the first where none is above
+// The first line the gutter marks a change on: its first newer line. For lines taken out alone it is the line above
+// them, and the first line where none is above
 EMBED_INLINE unsigned int changes_marked_from(const ChangesCtx *args)
 {
     if (args->change->now_to > args->change->now_from)
@@ -66,7 +66,7 @@ EMBED_INLINE int changes_holds(const ChangesCtx *args)
            (args->line < (unsigned long long)changes_marked_to(args));
 }
 
-// a change passed by the store: counted, retained where it is the one sought, and its marks written over the run
+// a change passed by the store: counted, kept where the pass looks for it, and its marks written over the run
 static void changes_passed(const CliEachHunkCfg *args)
 {
     ChangesPass *const pass = args->context;
@@ -129,8 +129,8 @@ int cli_document_change_find(const CliChangeCfg *args)
     return 1;
 }
 
-// A reader of the change that starts nearest a line: the first that starts at or below it and the last that starts
-// above it, each with its place, and how many changes passed
+// A reader of the change that starts nearest a line. It holds the first that starts at or below it, and the last that
+// starts above it, each with its place. Last, how many changes passed
 typedef struct
 {
     unsigned long long line;
@@ -177,8 +177,8 @@ int cli_document_change_step(const CliChangeCfg *args)
         return EMBED_CALL(cli_document_change.find, CliChangeCfg, .key = args->key, .at = at,
                           .change_out = args->change_out, .at_out = args->at_out);
     }
-    // from a line: going down the first change that starts at or below it, the first of all where none does; going up
-    // the last that starts above it, the last of all where none does
+    // From a line, a step down goes to the first change that starts at or below it, or the first of all where none
+    // does. A step up goes to the last that starts above it, or the last of all where none does
     ChangesNearest nearest = {args->line, 0, {0u, 0u, 0u, 0u}, 0u, 0, {0u, 0u, 0u, 0u}, 0u, 0u};
     if (!EMBED_CALL(cli_document_out_key_head_input.changes, CliDocumentOutKeyHeadInputCfg, .key = args->key,
                     .each = changes_nearest_passed, .context = &nearest) ||
@@ -228,8 +228,8 @@ int cli_document_change_revert(const CliChangeCfg *args)
     CliShape shape = {0ULL, 0ULL};
     (void)EMBED_CALL(cli_document_text.shape, CliDocumentTextCfg, .key = args->key, .shape = &shape);
     const unsigned long long lines = shape.lines;
-    // the older lines' bytes at max: three a unit and a line end each, with the line end before them at the text's
-    // end and the end after them
+    // The older lines' bytes at max: three a unit and a line end each. Add the line end before them at the text's end,
+    // and the end after them
     unsigned long long bytes = 2ULL;
     for (unsigned int line = change.then_from; line < change.then_to; line += 1u)
     {
@@ -244,9 +244,9 @@ int cli_document_change_revert(const CliChangeCfg *args)
         mmgr_line_put(args->err_msg, "the revert's cell could not be taken");
         return 0;
     }
-    // the newer lines from their first line's start to the next line's start replaced by the older lines, each ended
-    // by a line end; where the change reaches the text's last line, from the end of the line above it to the text's
-    // end, the line end before the older lines in place of after the last
+    // The older lines, each with a line end after it, replace the newer lines from their first line's start to the
+    // next line's start. Where the change reaches the text's last line, they replace the text from the end of the line
+    // above it to the text's end. Then the line end comes before the older lines, and not after the last
     const int at_end = (unsigned long long)change.now_to >= lines;
     const int above = at_end && (change.now_from > 0u);
     VerbaLinea out = {text, bytes, 0ULL};
@@ -296,12 +296,18 @@ int cli_document_change_revert(const CliChangeCfg *args)
             from = (CliPosition){change.now_from - 1u, before};
         }
     }
-    *args->edit_out = (CliEdit){from, to, text, length};
+    // The text goes into a movable cell of this module with its 0, and the work cell goes back before the callback
+    const CarcerMovableEntry *const cell = g_cli_guard->movable_buf_alloc(length + 1ULL, g_cli_editor_owner);
+    if (cell == NULL)
+    {
+        g_cli_guard->persistent_buf_release(text, g_cli_editor_owner);
+        mmgr_line_put(args->err_msg, "the revert's cell could not be taken");
+        return 0;
+    }
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .src = text, .bytes = length + 1ULL});
+    g_cli_guard->persistent_buf_release(text, g_cli_editor_owner);
+    args->each(&(CliChangeRevertCfg){.context = args->context, .from = from, .to = to, .cell = cell, .length = length});
+    (void)g_cli_guard->movable_buf_release(cell, g_cli_editor_owner);
     return 1;
-}
-
-void cli_document_change_revert_end(const CliChangeCfg *args)
-{
-    // the edit's text is this module's temporary take, passed out read-only
-    g_cli_guard->persistent_buf_release((void *)(embed_word)args->edit_out->text, g_cli_editor_owner);
 }

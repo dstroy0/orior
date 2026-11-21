@@ -145,23 +145,59 @@ EMBED_INLINE void stored_cells_release(const DocumentStoreCtx *args)
     memor.set(&(MemoriaCfg){.dst = stored, .val = 0, .bytes = sizeof(*stored)});
 }
 
-// `lines` stored in movable cells sized to them, in place of what `stored` held, its units left out where the work
-// holds none: 1, or 0 with `stored` empty where the cells cannot meet them
+// The units' cell of `stored` made ready for `units_max` units. The cell stays where it holds them. Else it goes back,
+// and a new cell takes its place with half the units again as room. No units give the cell back
+EMBED_INLINE void stored_units_room(const DocumentStoreCtx *args)
+{
+    CliStoredLines *stored = args->stored;
+    const unsigned long long units = args->units_max;
+    if ((stored->units != NULL) && (units != 0ULL) && (stored->units_room >= units))
+    {
+        return;
+    }
+    (void)g_cli_guard->movable_buf_release(stored->units, g_cli_editor_owner);
+    const unsigned long long room = units + (units / 2ULL);
+    stored->units =
+        (units != 0ULL) ? g_cli_guard->movable_buf_alloc(room * sizeof(unsigned short), g_cli_editor_owner) : NULL;
+    stored->units_room = (stored->units != NULL) ? room : 0ULL;
+}
+
+// The lines' three cells of `stored` made ready for `count` lines. The cells stay where they hold them. Else they go
+// back, and new cells take their place with half the lines again as room. No lines give the cells back
+EMBED_INLINE void stored_lines_room(const DocumentStoreCtx *args)
+{
+    CliStoredLines *stored = args->stored;
+    const unsigned long long count = args->count;
+    if ((stored->starts != NULL) && (count != 0ULL) && (stored->lines_room >= count))
+    {
+        return;
+    }
+    (void)g_cli_guard->movable_buf_release(stored->starts, g_cli_editor_owner);
+    (void)g_cli_guard->movable_buf_release(stored->lengths, g_cli_editor_owner);
+    (void)g_cli_guard->movable_buf_release(stored->words, g_cli_editor_owner);
+    const unsigned long long room = count + (count / 2ULL);
+    const unsigned long long place_bytes = room * sizeof(unsigned long long);
+    stored->starts = (count != 0ULL) ? g_cli_guard->movable_buf_alloc(place_bytes, g_cli_editor_owner) : NULL;
+    stored->lengths = (count != 0ULL) ? g_cli_guard->movable_buf_alloc(place_bytes, g_cli_editor_owner) : NULL;
+    stored->words = (count != 0ULL) ? g_cli_guard->movable_buf_alloc(CLI_DOC_WORDS * room * sizeof(unsigned int),
+                                                                     g_cli_editor_owner)
+                                    : NULL;
+    stored->lines_room = room;
+}
+
+// `lines` stored in the movable cells of `stored` in place of their bytes before, its units left out where the work
+// has none. Returns 1, or 0 with `stored` empty where the cells cannot meet them. The four word arrays lie at the
+// offsets the line count gives, and the room past them stays unread
 EMBED_INLINE int stored_cells_take(const DocumentStoreCtx *args)
 {
     CliStoredLines *stored = args->stored;
     const CliLines *lines = args->lines_read;
-    stored_cells_release(args);
     const unsigned long long count = lines->lines;
     const unsigned long long unit_bytes = lines->used * sizeof(unsigned short);
     const unsigned long long place_bytes = count * sizeof(unsigned long long);
-    const unsigned long long word_bytes = CLI_DOC_WORDS * count * sizeof(unsigned int);
-    stored->units = ((lines->unit != NULL) && (unit_bytes != 0ULL))
-                        ? g_cli_guard->movable_buf_alloc(unit_bytes, g_cli_editor_owner)
-                        : NULL;
-    stored->starts = (count != 0ULL) ? g_cli_guard->movable_buf_alloc(place_bytes, g_cli_editor_owner) : NULL;
-    stored->lengths = (count != 0ULL) ? g_cli_guard->movable_buf_alloc(place_bytes, g_cli_editor_owner) : NULL;
-    stored->words = (count != 0ULL) ? g_cli_guard->movable_buf_alloc(word_bytes, g_cli_editor_owner) : NULL;
+    EMBED_CALL(stored_units_room, DocumentStoreCtx, .stored = stored,
+               .units_max = (lines->unit != NULL) ? lines->used : 0ULL);
+    EMBED_CALL(stored_lines_room, DocumentStoreCtx, .stored = stored, .count = count);
     const int units_met = (stored->units != NULL) || (lines->unit == NULL) || (unit_bytes == 0ULL);
     const int lines_met =
         (count == 0ULL) || ((stored->starts != NULL) && (stored->lengths != NULL) && (stored->words != NULL));

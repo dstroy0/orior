@@ -27,32 +27,27 @@ typedef struct CliFilesCtx CliFilesCtx;
 typedef struct CliFilesLetterCtx CliFilesLetterCtx;
 typedef struct CliFilesTopCtx CliFilesTopCtx;
 
-// A place in a bounded list ranked by score: its score and its place among what it was found in
+// A place in a bounded list ranked by score: its score and its place in the list the search found it in
 typedef struct
 {
     double score;
     unsigned int at;
 } CliTopPlace;
 
-// The files a reader picks off the tree, sorted, in one movable cell the reader owns and gives back: each path's
-// place from `text_at` first, as many as `count`, the paths zero-ended after them
-typedef struct
-{
-    const CarcerMovableEntry *cell;
-    unsigned int count;
-    unsigned long long text_at;
-} CliPicked;
-
-// a cell of `bytes` for work given back within its call, from the temporary tier, or NULL where the cellblock cannot
-// meet it, the files' report reported where their mark rose a step past the one last reported; it is given back with
-// g_cli_guard->persistent_buf_release, NULL given back as nothing. A list made for work for `count` paths of `bytes`
-// together, each bounded by the list's limits, none made for no paths: 1, or 0 where the cellblock cannot meet its
-// cells, the list left empty; a path put after the files: 1, or 0 where they are full; the paths sorted by their
-// bytes, each listed once, the sort's spare a cell taken and given back: 1, or 0 where it could not be taken; and a
-// list's cells given back and the list emptied. The files of the tree at `root` that `filter` admits picked, sorted,
-// into a movable cell of the picked: 1, or 0 where the cellblock cannot meet them; the path of the one picked at
-// `index` copied into `path_out`, sized CLI_PATH_MAX_LEN: `path_out`; the place of `path` among the picked, their count
-// where it is none of them; and their cell given back (files_cells.c)
+// A cell of `bytes` for work given back within its call, from the temporary tier, or NULL where the cellblock cannot
+// meet it. The files' report goes out where their mark rose a step past the last report. The caller gives the cell
+// back with g_cli_guard->persistent_buf_release, and NULL gives back nothing.
+//
+// A list made for work for `count` paths of `bytes` together, each bounded by the list's limits, and none for no
+// paths. Returns 1, or 0 where the cellblock cannot meet its cells and the list stays empty. A path put after the files
+// returns 1, or 0 where they are full. The sort puts the paths in the order of their bytes, each once, with a spare
+// cell it takes and gives back. It returns 1, or 0 where the pool has no spare cell. Last, a list's cells given back
+// and the list emptied.
+//
+// The files of the tree at `root` that `filter` admits, picked and sorted into a movable cell of the picked. Returns 1,
+// or 0 where the cellblock cannot meet them. The path of the file picked at `index` goes into `path_out`, sized
+// CLI_PATH_MAX_LEN, and the call returns `path_out`. The place of `path` among the picked comes next, their count where
+// it is none of them. Last, their cell given back (files_cells.c)
 void *cli_files_work_alloc(const CliFilesBytesCtx *args);
 int cli_files_work_init(const CliFilesBytesCtx *args);
 int cli_files_append(const CliFilesPathLengthCtx *args);
@@ -62,14 +57,17 @@ int cli_files_pick(const CliFilesPickedCtx *args);
 const char *cli_picked_at(const CliFilesPickedIndexCtx *args);
 unsigned int cli_picked_index(const CliFilesPickedIndexCtx *args);
 void cli_picked_let(const CliFilesPickedCtx *args);
+// the sorted list `files_read` written whole into a movable cell of the files module, set in `picked`: 1, or 0
+// where the cellblock cannot meet it (files_cells.c)
+int cli_files_picked_put(const CliFilesPickedCtx *args);
 
 // the max lines a search returns, the max characters of a found line retained, and the max bytes they take
 #define CLI_HITS_MAX 2000u
 #define CLI_HIT_TEXT 240u
 #define CLI_HIT_BYTES (CLI_HIT_TEXT * 4u)
 
-// What a search looks for: the query and its bytes, whether it is all ASCII, its characters in lower case, and how it is
-// read
+// What a search looks for: the query and its bytes, and whether it is all ASCII. Then its characters in lower case,
+// and the way the search reads it
 typedef struct
 {
     const char *query;
@@ -83,58 +81,63 @@ typedef struct
 // a line a search found passed on: its line and column counted from 1, and the bytes of its text a hit retains
 typedef void (*CliHitAppend)(const CliHitAppendCfg *args);
 
-// of `size` bytes of a line, the bytes a hit retains: those before its trailing whitespace, at max CLI_HIT_TEXT
-// characters of them; whether a character joins a word, for a search of whole words; and each line of a file's `size` bytes
-// that contains the query, the first place on it the query is, at max CLI_HITS_MAX of them, passed to `put`. Text
-// in ASCII without case, and any text with case, is found by the sift over the bytes; text outside ASCII without case
-// is found line by line in its lower case (files_hits.c)
+// Of `size` bytes of a line, the bytes a hit keeps: those before its whitespace at the end, at max CLI_HIT_TEXT
+// characters of them. Then whether a character joins a word, for a search of whole words. Each line of a file's `size`
+// bytes that contains the query goes to `put`, at max CLI_HITS_MAX of them. Each goes with the first place of the
+// query on it. The sift over the bytes finds text in ASCII without case, and any text with case. A search line by line
+// in lower case finds text outside ASCII without case (files_hits.c)
 unsigned long long cli_hit_cut(const CliFilesPathCtx *args);
 int cli_hit_wordy(const CliFilesLetterCtx *args);
 void cli_files_hits_in(const CliFilesContextCtx *args);
 
-// what a search by git came to: git cannot search the tree, which is then searched for the query as text; the lines it
-// found written; or why it could not read the expression given
+// What a search by git came to. Where git cannot search the tree, the search runs over it for the query as text.
+// Else it writes the lines it found, or why it could not read the expression
 #define CLI_GIT_SEARCH_NONE 0
 #define CLI_GIT_SEARCH_FOUND 1
 #define CLI_GIT_SEARCH_FAILED 2
 
-// a found line written as the window reads it, `{"path", "line", "col", "text"}`, a comma before it where it is not the
-// first, or passed to `each` with `context` where `each` is not NULL, its text cut as a hit retains it; and a regular
-// expression searched by git over the files `specs` name, less those `patterns` or `set` hide, at max CLI_HITS_MAX
-// lines written as a JSON array, or each passed to `each` (files_find.c)
+// A found line written as the window reads it, `{"path", "line", "col", "text"}`, with a comma before it where it is
+// not the first. Where `each` is not NULL, the line goes to `each` with `context`, its text cut where a hit cuts it.
+// Then a regular expression git searches for over the files `specs` name, less those `patterns` or `set` hide. At max
+// CLI_HITS_MAX lines go out as a JSON array, or each goes to `each` (files_find.c)
 void cli_hit_write(const CliFilesPathCtx *args);
 int cli_search_by_git(const CliFilesRootCtx *args);
 
-// a file or folder of a paste's walk passed on: where it is, where it goes, and whether it is a folder: 1, or 0 with
-// why given
+// A file or folder of a paste's walk passed on: where it is, where it goes, and whether it is a folder. Returns 1, or
+// 0 with why given
 typedef int (*CliPasteEach)(const CliPasteEachCfg *args);
 
-// the last part of `path`, its trailing slashes left off, into `name`, sized for CLI_PATH_MAX_LEN: 1, or 0 where it
-// has none; whether `path` is `folder` or inside it, a slash either way; the path for `name` in `folder`, numbered
-// where the folder contains that name already, `notes (2).txt` and on, into `path`, sized for CLI_PATH_MAX_LEN;
-// `source` and all it contains walked, each passed to `each` with where it goes under `target`, a folder before what it
-// contains and its entries in the order the system lists them: 1, or 0 with why given where `each` gave 0 or a folder
-// could not be read; and a pair pasted written as `{"from", "to"}`, `from` null where it is not given (files_paste.c)
+// The last part of `path`, without its slashes at the end, into `name`, sized for CLI_PATH_MAX_LEN. Returns 1, or 0
+// where it has none. Then whether `path` is `folder` or inside it, a slash either way. Then the path for `name` in
+// `folder`, with a number where the folder holds that name already, `notes (2).txt` and on. It goes into `path`, sized
+// for CLI_PATH_MAX_LEN.
+//
+// `source` and all it contains walked, each passed to `each` with where it goes under `target`. A folder comes before
+// what it contains, and its entries come in the order the system lists them. Returns 1, or 0 with why given where
+// `each` gave 0 or the read of a folder failed. Last, a pair pasted written as `{"from", "to"}`, `from` null where the
+// call gives none (files_paste.c)
 int cli_paste_name(const CliFilesPathNameCtx *args);
 int cli_paste_under(const CliFilesPathFolderCtx *args);
-// a paste or a bring begun: `into` inside the tree as `folder`, sized for CLI_PATH_MAX_LEN, a folder on the disk,
-// and the answer's list opened on `out`: 1, or 0 with why given; and a source's name into `name`: 1, or 0 with the
-// source given to have none
+// A paste or a bring begun: `into` inside the tree as `folder`, sized for CLI_PATH_MAX_LEN, a folder on the disk.
+// The answer's list opens on `out`. Returns 1, or 0 with why given. Then a source's name into `name`: 1, or 0 where
+// the source has none
 int cli_paste_begin(const CliFilesRootOutCtx *args);
 int cli_paste_by_name(const CliFilesErrMsgCtx *args);
 void cli_paste_free(const CliFilesFolderCtx *args);
 int cli_paste_walk(const CliFilesContextErrMsgCtx *args);
 
-// whether a character is whitespace, as Unicode reads it; whether a word starts at `at` of `text`: the text's start, after
-// a space, a slash, a separator in a name, a dot, a colon or an at, or an upper case character after one that is not, a
-// text with `bytes` 1 being the bytes of a path all ASCII, whose only spaces are a space and a tab; and the match of
-// `required`, lower case, in `displayed` and its lower case `lower`, `count` characters, character for character, a character past
-// `from` scoring more, `latest` sized for CLI_FUZZY_CHARACTERS for its own use: 1 with its score and its places, or 0
-// where it does not match (files_fuzzy.c)
+// Whether a character is whitespace, as Unicode reads it. Then whether a word starts at `at` of `text`. A word starts
+// at the text's start, and after a space, a slash, a separator in a name, a dot, a colon or an at. It also starts at
+// an upper case character after one that is not. A text with `bytes` 1 is the bytes of a path all in ASCII, whose only
+// spaces are a space and a tab.
+//
+// Last, the match of `required`, lower case, in `displayed` and its lower case `lower`, `count` characters, character
+// for character. A character past `from` scores more, and `latest`, sized for CLI_FUZZY_CHARACTERS, is for its own
+// use. Returns 1 with its score and its places, or 0 where it does not match (files_fuzzy.c)
 int cli_fuzzy_white(const CliFilesLetterCtx *args);
-// the place `at` with `score` put in the bounded list `top` of `count` places, at max `max`, after every place
-// scoring as much or more, its place found by a binary search, the last let go where the list is full: the list's
-// count (files_fuzzy.c)
+// The place `at` with `score` put in the bounded list `top` of `count` places, at max `max`. It goes after every
+// place that scores as much or more, at a place a binary search finds. The last goes where the list is full. Returns
+// the list's count (files_fuzzy.c)
 unsigned int cli_top_put(const CliFilesTopCtx *args);
 int cli_fuzzy_starts_word(const CliFilesTextU32sCtx *args);
 int cli_fuzzy_characters(const CliFilesBytesRequestedCtx *args);
@@ -211,6 +214,7 @@ struct CliFilesContextErrMsgCtx
 struct CliFilesPickedCtx
 {
     CliPicked *picked;
+    const CliFiles *files_read;
     const char *root;
     int (*filter)(const CliEachPathCfg *args);
     void *context;
@@ -326,11 +330,13 @@ typedef struct
 {
     int (*pick)(const CliFilesPickedCtx *args);
     void (*picked_let)(const CliFilesPickedCtx *args);
+    int (*picked_put)(const CliFilesPickedCtx *args);
 } CliFilesPickedNs;
-EMBED_TABLE_LAYOUT(CliFilesPickedNs, pick, picked_let);
+EMBED_TABLE_LAYOUT(CliFilesPickedNs, pick, picked_let, picked_put);
 EMBED_TABLE_STORAGE CliFilesPickedNs cli_files_picked_internal EMBED_UNUSED = {
     .pick = cli_files_pick,
     .picked_let = cli_picked_let,
+    .picked_put = cli_files_picked_put,
 };
 
 typedef struct
@@ -463,6 +469,34 @@ typedef struct
 EMBED_TABLE_LAYOUT(CliFilesBytesRequestedNs, fuzzy_characters);
 EMBED_TABLE_STORAGE CliFilesBytesRequestedNs cli_files_bytes_requested_internal EMBED_UNUSED = {
     .fuzzy_characters = cli_fuzzy_characters,
+};
+
+// The views the files sources take for their own work. A view is every file of the tree at `root`, at max
+// CLI_FILES_MAX, sorted, positioned flat in a temporary cell. The types view is each name and each ending once, sorted.
+// Each returns NULL where the cellblock cannot meet it. The source that takes a view gives it back with the let before
+// it returns (files_seen.c)
+const CliFiles *cli_files_view(const CliFilesRootPathsCfg *args);
+const CliFiles *cli_files_types_view(const CliFilesRootPathsCfg *args);
+void cli_files_let(const CliFilesCfg *args);
+
+typedef struct
+{
+    const CliFiles *(*view)(const CliFilesRootPathsCfg *args);
+    const CliFiles *(*types_view)(const CliFilesRootPathsCfg *args);
+} CliFilesViewNs;
+EMBED_TABLE_LAYOUT(CliFilesViewNs, view, types_view);
+EMBED_TABLE_STORAGE CliFilesViewNs cli_files_view_internal EMBED_UNUSED = {
+    .view = cli_files_view,
+    .types_view = cli_files_types_view,
+};
+
+typedef struct
+{
+    void (*let)(const CliFilesCfg *args);
+} CliFilesLetNs;
+EMBED_TABLE_LAYOUT(CliFilesLetNs, let);
+EMBED_TABLE_STORAGE CliFilesLetNs cli_files_let_internal EMBED_UNUSED = {
+    .let = cli_files_let,
 };
 
 #endif

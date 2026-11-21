@@ -3,13 +3,13 @@
 // watch.h: changes to the tree's files from outside the window, gathered in batches for the window's tree to take: the
 // folders whose entries changed, the files whose text did, and whether git's view did.
 //
-// On Windows the system reports each change as it is made, through ReadDirectoryChangesW over the whole tree.
-// Elsewhere, and where the system cannot watch the tree, the files git tracks or would track, and the folders
-// containing them, are read every two seconds and set against the last reading. A batch goes once 150 ms pass with no
-// change, or once a second passes from its first.
+// On Windows the system reports each change as it occurs, through ReadDirectoryChangesW over the whole tree.
+// Elsewhere, and where the system cannot watch the tree, the watch reads the files git tracks or would track every two
+// seconds. It also reads the folders that hold them, and sets each reading against the last. A batch goes once 150 ms
+// pass with no change, or once a second passes from its first.
 //
-// Of git's own folder only its index, HEAD and refs count, and a change to them means git's view changed. A change the
-// watching's patterns hide is left out (watch.c, watch_read.c)
+// Of git's own folder only its index, HEAD and refs count, and a change to them means git's view changed. The batch
+// leaves out a change the watching's patterns hide (watch.c, watch_read.c)
 #ifndef WATCH_H
 #define WATCH_H
 #include "../command_line/callback_cfg.h"
@@ -20,12 +20,13 @@
 typedef struct CliWatchCfg CliWatchCfg;
 typedef struct CliWatchBatchCfg CliWatchBatchCfg;
 
-// a batch taken: the folders whose entries changed and the files whose text did, each from the tree's top and valid
-// while the call runs; whether git's view changed, and whether changes were lost
+// A batch taken. It holds the folders whose entries changed and the files whose text did, each from the tree's top.
+// Each list is in a movable cell of the files module, valid for the call alone. A reader reads a path into a buffer
+// of its own call. Last, whether git's view changed, and whether the watch lost changes
 typedef void (*CliWatchTake)(const CliWatchBatchCfg *args);
 
-// the tree at `root` watched, each batch of changes passed to `take` on a thread of the watch's own, any watch before
-// it stopped first; and the watch stopped, its threads waited for
+// The tree at `root` watched, each batch of changes passed to `take` on a thread of the watch's own. Any watch before
+// it stops first. Then the watch stopped, and its threads waited for
 void cli_watch_start(const CliWatchCfg *args);
 void cli_watch_stop(void);
 
@@ -39,8 +40,8 @@ struct CliWatchCfg
 struct CliWatchBatchCfg
 {
     void *context;
-    const CliFiles *folders;
-    const CliFiles *files;
+    const CliPicked *folders;
+    const CliPicked *files;
     int git;
     int lost;
 };

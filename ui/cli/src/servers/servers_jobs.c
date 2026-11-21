@@ -25,20 +25,22 @@ typedef struct
     unsigned long long size;
 } JobsCell;
 
-// the ring over its slots, the jobs' part of the rings block, positioned as the process starts; its turnstiles, zeros at
-// rest; the next ticket a dispatcher takes and the next a worker takes; how many workers have started; the wake the
-// waiters sleep on; and the threads with their places
+// the ring over its entries, the jobs' part of the rings block, put in place as the process starts. Its turnstiles,
+// zeros at rest. The next ticket a dispatcher takes, and the next a worker takes. The count of workers that started.
+// The wake the waiters sleep on, and the threads with their places
 static EmbedTicketRing s_ring = {.mask = (1u << CLI_SERVERS_JOBS_RING_SHIFT) - 1u};
 static EmbedTurnstiles s_turnstiles;
 static embed_atomic_u32 s_ticket;
 static embed_atomic_u32 s_taken;
 static embed_atomic_u32 s_started;
+// the jobs that ran to their end. The queue is idle where this count meets the tickets the dispatchers took
+static embed_atomic_u32 s_done;
 static CliWake s_wake = CLI_WAKE_INIT;
 static CliThread s_thread[CLI_SERVERS_WORKERS];
 static unsigned int s_worker_index[CLI_SERVERS_WORKERS];
 
-// a thread of the servers': a ticket taken, its push waited for, its cell's token popped, the job read into a cell of
-// this call and run, both cells given back and the slot released, then the next ticket
+// a thread of the servers'. It takes a ticket, waits for its push, and pops its cell's token. It reads the job into a
+// cell of this call and runs it. It gives both cells back, frees the ring entry, and takes the next ticket
 static void jobs_worker(void *context)
 {
     const unsigned int worker = *(const unsigned int *)context;
@@ -77,12 +79,13 @@ static void jobs_worker(void *context)
         g_cli_guard->persistent_buf_release(bytes, g_cli_servers_owner);
         (void)g_cli_guard->movable_buf_release(cell, g_cli_servers_owner);
         (void)embed_ticket_ring_drain_release(&s_turnstiles, &s_ring, stamp, &seen_word);
+        (void)EMBED_ATOMIC_ADD_32(&s_done, 1u);
         EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
     }
 }
 
-// a worker started where one of the eight has not: its place claimed by one compare-and-swap on the count, so each
-// place starts once; a thread that could not start leaves its place empty, and the others serve
+// a worker started where one of the eight did not start yet. One compare-and-swap on the count claims its place, and
+// each place starts once. A thread that could not start leaves its place empty, and the others serve
 static void jobs_worker_started(void)
 {
     for (;;)
@@ -130,8 +133,8 @@ int cli_servers_later_dispatch(const CliServersRunSizeCtx *args)
         return 0;
     }
     const embed_u32 ticket = EMBED_ATOMIC_ADD_32(&s_ticket, 1u);
-    // the slot of the ticket a lap back released first, which retains every live ticket within one lap of the ring, as
-    // the ring's proofs need; a worker's release wakes the wait
+    // the ring entry of the ticket a lap back comes free first. That keeps every live ticket within one lap of the
+    // ring, as the ring's proofs need. A worker's release wakes the wait
     for (;;)
     {
         const unsigned int seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_wake);
@@ -142,7 +145,7 @@ int cli_servers_later_dispatch(const CliServersRunSizeCtx *args)
         EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_wake, .seen = seen);
     }
     const embed_u64 stamp = embed_ticket_stamp(cli_ticket_epoch(), ticket);
-    // Explicit cast carries the cell's token as the pass's entry, and as the word the slot holds
+    // Explicit cast carries the cell's token as the pass's entry, and as the word in the ring entry
     const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)cell;
     embed_u64 seen_word = 0u;
     (void)embed_ticket_ring_pass_grant(&s_turnstiles, address, &s_ring, stamp, &seen_word);
@@ -150,6 +153,13 @@ int cli_servers_later_dispatch(const CliServersRunSizeCtx *args)
     jobs_worker_started();
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
     return 1;
+}
+
+int cli_servers_jobs_idle(void)
+{
+    // the count of ends first: a dispatch between the two loads reads as a job still to run
+    const embed_u32 done = EMBED_ATOMIC_LOAD(&s_done);
+    return done == EMBED_ATOMIC_LOAD(&s_ticket);
 }
 
 void cli_servers_jobs_positioned(void)

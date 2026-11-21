@@ -2,45 +2,43 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 """harness.py window: the released window started, ended, watched, pictured and measured, on Windows.
 
-    harness.py window start [--display \\\\.\\DISPLAY1] [--id N]   one window alone, placed on the display
-    harness.py window ended                                      every window running from the release program ended
-    harness.py window watch [--seconds 25]                       started alone with its output retained, ended after
-    harness.py window shot [--id N] [--width 480] [--height 320] its top-left pictured to build/harness/window_shot.png
-    harness.py window zoom [--x --y --width --height --scale]    a part drawn larger to build/harness/window_zoom.png
-    harness.py window record [--for 3000] [--start]              recorded as a video at the display's rate, lossless, into
-                                                                 build/harness/recordings, or started and recorded from
-                                                                 before its first frame
-    harness.py window slide [REC] [--from S] [--to S] [--crop]   a recording slid through a frame at a time, each against
-                                                                 the one before, into build/harness/slide (harness_record.py)
-    harness.py window frames [VIDEO] [--thumb X] [--rate R]      each frame's text blank, plain or colored, and where it
-                                                                 was still as the scrollbar's thumb moved, to
-                                                                 build/harness/frames.tsv (harness_record.py)
-    harness.py window dump [--path FILE]                         the newest crash dump read under cdb, the faulting stack
-    harness.py window regions [--id N] [--count 12]              committed bytes by type and the largest allocations
-    harness.py window debug [--seconds 45]                       run under cdb, the stack where it faults
-    harness.py window memory [--id N]                            its process tree's working set, private working set and
-                                                                 commit
-    harness.py window luminance [--floor 78] [--plugins P...]    the palette's colors and the plugins' tokens by lightness,
-                                                                 the chrome off the ladder marked
-    harness.py window cpu [--minutes 2] [--step 5] [--spike 150] its processor time each step, its busiest threads, a
-                                                                 stack of the busiest past the spike, to window_cpu.txt
-    harness.py window gpu [--seconds 50] [--id N]                its process tree's GPU 3D engine share each second and
-                                                                 its processor time, to window_gpu.txt
-    harness.py window poll [--minutes 2] [--step 2] [--id N]     system and window processor share, threads, handles,
-                                                                 working set, commit, reserve and MMgr's telemetry
-                                                                 each step, to build/harness/window_poll.tsv
-    harness.py window wiggle [--rounds 40] [--seed 1]            the system's cursor over the edges with a wobble:
-                                                                 activations, almost, near misses, passes, leaves
-    harness.py window in-job --id N                           whether a process sits in a job
-    harness.py window check [NAME...] [--on HOST | --docker]     the window's C checked here, or on a Linux host over ssh
-                                                                 or in the harness's Linux image (harness_window_host.py)
-    harness.py window test [arg...]                              the command line's commands swept over a window of its
-                                                                 own (harness_window_test.py)
+- `harness.py window start [--display \\\\.\\DISPLAY1] [--id N]`: one window alone, placed on the display.
+- `harness.py window ended`: every window of the release program ended.
+- `harness.py window watch [--seconds 25]`: started alone with its output kept, ended after.
+- `harness.py window shot [--id N] [--width 480] [--height 320]`: its top-left pictured to
+  build/harness/window_shot.png.
+- `harness.py window zoom [--x --y --width --height --scale]`: a part drawn larger to build/harness/window_zoom.png.
+- `harness.py window record [--for 3000] [--start]`: recorded as a video at the display's rate, lossless, into
+  build/harness/recordings. With --start, started and recorded from before its first frame.
+- `harness.py window slide [REC] [--from S] [--to S] [--crop]`: a video slid through a frame at a time, each against
+  the one before, into build/harness/slide (harness_record.py).
+- `harness.py window frames [VIDEO] [--thumb X] [--rate R]`: each frame's text blank, plain or colored, and where it
+  was still as the scrollbar's thumb moved, to build/harness/frames.tsv (harness_record.py).
+- `harness.py window scroll X Y [--wheel] [--moves N]`: a drag or a wheel at a pace, and the frame times over it.
+- `harness.py window typing [--count N] [--spacing MS]`: characters typed at a pace, and the frame times over them.
+- `harness.py window dump [--path FILE]`: the newest crash dump read under cdb, the faulting stack.
+- `harness.py window regions [--id N] [--count 12]`: committed bytes by type and the largest allocations.
+- `harness.py window debug [--seconds 45]`: run under cdb, the stack where it faults.
+- `harness.py window memory [--id N]`: its process tree's working set, private working set and commit.
+- `harness.py window luminance [--floor 78] [--plugins P...]`: the palette's colors and the plugins' tokens by
+  lightness, the chrome off the ladder marked.
+- `harness.py window cpu [--minutes 2] [--step 5] [--spike 150]`: its processor time each step, its busiest threads,
+  and a stack of the busiest past the spike, to window_cpu.txt.
+- `harness.py window gpu [--seconds 50] [--id N]`: its process tree's GPU 3D engine share each second and its
+  processor time, to window_gpu.txt.
+- `harness.py window poll [--minutes 2] [--step 2] [--id N]`: system and window processor share, threads, handles,
+  working set, commit, reserve and MMgr's telemetry each step, to build/harness/window_poll.tsv.
+- `harness.py window wiggle [--rounds 40] [--seed 1]`: the system's cursor over the edges with a wobble. It counts
+  activations, almost, near misses, passes and leaves.
+- `harness.py window in-job --id N`: whether a process sits in a job.
+- `harness.py window check [NAME...] [--on HOST | --docker]`: the window's C checked here, or on a Linux host over ssh
+  or in the harness's Linux image (harness_window_host.py).
+- `harness.py window test [arg...]`: the command line's commands swept over a window of its own
+  (harness_window_test.py).
 
 The window's program is build/cli/<target>/<gui>.exe as ui/cli/build.sh window writes it, gui as bin_names.tsv
-names it. Every start ends the windows
-running from that program first. One window therefore runs at a time, and its process id is retained in build/harness/window.pid
-for the commands that read it back."""
+names it. Every start ends the windows of that program first. One window therefore runs at a time. Its process id
+goes into build/harness/window.pid for the commands that read it back."""
 
 import os
 import re
@@ -155,8 +153,8 @@ WINDOW_ERRORS = os.path.join(HARNESS_BUILD, "window_errors.txt")
 
 
 def window_started(stdout=None, stderr=None):
-    """The release window started alone, from the repository's top, its id retained. Its error stream, where the
-    cells' log is written, goes to build/harness/window_errors.txt where the caller names none."""
+    """The release window started alone, from the repository's top, its id retained. Its error stream, which carries
+    the cells' log, goes to build/harness/window_errors.txt where the caller names none."""
     windows_ended()
     env = dict(os.environ)
     errors = stderr or open(WINDOW_ERRORS, "wb")
@@ -184,8 +182,8 @@ def cmd_start(a):
 
 
 def telemetry_on():
-    """The running window's telemetry lines turned on through the interface: the cells' log each memory tick, the
-    frames' line, the walk's and the frame take's, to its error stream. A window writes none until asked."""
+    """The running window's telemetry lines turned on through the interface. The cells' log each memory tick, the
+    frames' line, the walk's and the frame take's go to its error stream. A window writes none until asked."""
     subprocess.run([program(), "help", "telemetry", "on"], cwd=ROOT, stdin=subprocess.DEVNULL, capture_output=True)
 
 
@@ -259,11 +257,10 @@ FRAMES_LINE = re.compile(r"^frames (\d+) draw (\d+) (\d+) displayed (\d+) (\d+) 
 
 
 def cmd_scroll(a):
-    """A scroll driven at the window's pace and its frames read back: a press on x, y dragged --moves times by --step
-    pixels down, or across with --across, a --spacing of milliseconds between moves; or with --wheel the wheel turned
-    --moves times by --units of 120 a notch. Then the frames' telemetry lines the window wrote over the run, each with
-    the frames, the draw's mean and max, the events' mean and max and the longest gap between frames displayed, in
-    microseconds."""
+    """A scroll driven at the window's pace and its frames read back. A press on x, y drags --moves times by --step
+    pixels down, or across with --across, a --spacing of milliseconds between moves. With --wheel, the wheel turns
+    --moves times by --units of 120 a notch instead. Then the frames' telemetry lines the window wrote over the run,
+    as frames_lines_print gives them."""
     if not windows_only():
         return 1
     import time
@@ -293,15 +290,52 @@ def cmd_scroll(a):
             time.sleep(pause)
         win.pointer_sent(handle, moved[-1][0], moved[-1][1], False, True)
     time.sleep(2.5)
+    print("window %d %s %d moves, %d ms apart" % (process_id, "wheel" if a.wheel else "drag", a.moves, a.spacing))
+    frames_lines_print(offset)
+    return 0
+
+
+def frames_lines_print(offset):
+    """The frames' telemetry lines the window wrote past `offset` of its error stream, one row each. A row holds the
+    frames, the draw's mean and max, and the time from a frame's order to its display, mean and max. Then the events'
+    mean and max and the longest gap between frames on display, all in microseconds."""
     with open(WINDOW_ERRORS, "rb") as retained:
         retained.seek(offset)
         text = retained.read().decode("utf-8", errors="replace")
     lines = [found.groups() for found in map(FRAMES_LINE.match, text.splitlines()) if found]
-    print("window %d %s %d moves, %d ms apart" % (process_id, "wheel" if a.wheel else "drag", a.moves, a.spacing))
-    print("frames  draw_us mean max  events_us mean max  gap_max_us")
+    print("frames  draw_us mean max  shown_us mean max  events_us mean max  gap_max_us")
     for fields in lines:
-        frames, draw, draw_max, _, _, _, events, events_max, gap = (int(field) for field in fields)
-        print("%6d  %9d %6d  %11d %6d  %11d" % (frames, draw, draw_max, events, events_max, gap))
+        frames, draw, draw_max, shown, shown_max, _, events, events_max, gap = (int(field) for field in fields)
+        print("%6d  %9d %6d  %8d %6d  %11d %6d  %11d" % (frames, draw, draw_max, shown, shown_max, events, events_max,
+                                                          gap))
+
+
+def cmd_typing(a):
+    """Characters typed into the window at a pace, and its frame times over the run. The run types --count characters
+    of --text in turn, --spacing milliseconds apart, each posted as the character typed. Then the frames' telemetry
+    lines the window wrote over the run."""
+    if not windows_only():
+        return 1
+    import time
+
+    import harness_win32 as win
+
+    found = window_of(a.id, None)
+    if not found:
+        return 1
+    process_id, handle, _ = found
+    telemetry_on()
+    try:
+        offset = os.path.getsize(WINDOW_ERRORS)
+    except OSError:
+        offset = 0
+    pause = a.spacing / 1000.0
+    for at in range(a.count):
+        win.user32.PostMessageW(handle, win.WM_CHAR, ord(a.text[at % len(a.text)]), 1)
+        time.sleep(pause)
+    time.sleep(2.5)
+    print("window %d typed %d characters, %d ms apart" % (process_id, a.count, a.spacing))
+    frames_lines_print(offset)
     return 0
 
 
@@ -319,8 +353,8 @@ def cmd_keymap(a):
 
 
 def cmd_click(a):
-    """A press of --button at x, y of the window's client posted to its queue, dragged to --to where one is given, and
-    released."""
+    """A press of --button at x, y of the window's client posted to its queue, dragged to --to where the caller names
+    one, and released."""
     if not windows_only():
         return 1
     import harness_win32 as win
@@ -338,8 +372,8 @@ def cmd_click(a):
 
 
 def cmd_move(a):
-    """The pointer moved to x, y of the window's client with no button down, through the places --via on its way, a
-    --pause between the moves; a move that ends in an edge's band and rests there reveals the edge's part."""
+    """The pointer moved to x, y of the window's client with no button down, through the places --via on its way. A
+    --pause lies between the moves. A move that ends in an edge's band and rests there reveals the edge's part."""
     if not windows_only():
         return 1
     import harness_win32 as win
@@ -350,7 +384,7 @@ def cmd_move(a):
     process_id, handle, _ = found
     window_joined(process_id)
     via = [(a.via[at], a.via[at + 1]) for at in range(0, len(a.via or []), 2)]
-    # the window's own pointer, moved through the interface: the system's cursor stays where the person has it, and
+    # the window's own pointer, moved through the interface. The system's cursor stays where the person has it, and
     # the window reads no leave while its own pointer is on
     import time
 
@@ -395,8 +429,10 @@ def pointer_place_write(x, y):
 class WindowPipe:
     """The harness's own end of a window's comms interface, joined once and kept open, as reach.c joins it. The window's
     file in orior's home names its pipe and the key that grants the channel `command`. A frame is its length in four
-    bytes, least first, then its bytes. A request is a type byte and its fields, each ended by a 0. The join is 'J' and
-    the key, a listen 'L' and a channel, and a send 'S', the channel and 'B' and the body. A command's body is its id,
+    bytes, least first, then its bytes. A request is a type byte and its fields, each ended by a 0.
+
+    The join is 'J' and the key, a listen 'L' and a channel, and a send 'S', the channel and 'B' and the body. A
+    command's body is its id,
     menu, command and words, each ended by a 0. The window answers it as a message 'M' on answer/ and the id. The
     message's body is '1' where the command ran and '0' where it did not, then its text."""
 
@@ -471,8 +507,8 @@ def pointer_said(words):
 
 
 def cmd_raw(a):
-    """The window's raw input through the interface's raw command: `on` reads the mouse's own motion, `off` reads it no
-    longer, `lock` holds the pointer in the window's middle, `free` lets it go, and `read` prints the motion added up
+    """The window's raw input through the interface's raw command. `on` reads the mouse's own motion, and `off` reads it
+    no longer. `lock` holds the pointer in the window's middle, and `free` lets it go. `read` prints the motion added up
     since the last read, across then down. `nudge dx dy [count]` moves the system's mouse by dx, dy of its counts,
     count times, as the device sends them, on Windows."""
     import time
@@ -503,7 +539,9 @@ def cmd_raw(a):
 def human_path(start, end, rng):
     """The places and the pauses of a person's move from `start` to `end`, each (x, y, seconds before it). The time
     the move takes rises with the log of its length, as Fitts' law gives it, and varies from move to move. The path
-    is a curve bent to one side of the straight line. The speed rises and falls over it on the minimum-jerk curve.
+    is a curve bent to one side of the straight line.
+
+    The speed rises and falls over it on the minimum-jerk curve.
     Each place shakes by a pixel or so, more while the hand is fast. A long move can pass its end and come back to
     it slowly. The last place is the end exactly."""
     import math
@@ -555,7 +593,7 @@ def human_moved(places, rng):
 
 
 def human_click(words, rng):
-    """A press, a release or a click as a hand makes it: a click holds its button for 60 to 140 ms, and the pointer
+    """A press, a release or a click as a hand makes it. A click holds its button for 60 to 140 ms, and the pointer
     can drift a pixel while it is down."""
     import time
 
@@ -571,9 +609,9 @@ def human_click(words, rng):
 
 
 def cmd_pointer(a):
-    """The window's own pointer driven through the interface's pointer command: the window draws the pointer and
-    takes each input as the system's own, the system's cursor left where it is. The words go as they are given. With
-    --human a move and a drag go along a person's path and a click holds as a hand does."""
+    """The window's own pointer driven through the interface's pointer command. The window draws the pointer and takes
+    each input as the system's own, the system's cursor left where it is. The words go as the caller gives them. With
+    --human a move and a drag go along a person's path, and a click holds as a hand does."""
     import random
 
     found = window_of(a.id)
@@ -638,8 +676,8 @@ def cmd_check(a):
 
 
 def cmd_icon(a):
-    """The program's icon file: utils/test/src/ui/gui/icon_file.c built as a check is and run, its orior.ico copied to
-    ui/gui/src beside orior.rc, which the window's build on Windows compiles into the program."""
+    """The program's icon file. The run builds utils/test/src/ui/gui/icon_file.c as it builds a check, and runs it. Its
+    orior.ico goes to ui/gui/src beside orior.rc, which the window's build on Windows compiles into the program."""
     import harness_cli
     import shutil
 
@@ -654,8 +692,8 @@ def cmd_icon(a):
 
 
 def orior_home():
-    """orior's own folder, where it retains its state: ORIOR_HOME where set, else the user's roaming folder on Windows and
-    ~/.orior elsewhere."""
+    """orior's own folder, where it retains its state: ORIOR_HOME where set, else the user's APPDATA folder on Windows
+    and ~/.orior elsewhere."""
     if os.environ.get("ORIOR_HOME"):
         return os.environ["ORIOR_HOME"]
     if os.name == "nt":
@@ -664,10 +702,10 @@ def orior_home():
 
 
 def cmd_session(a):
-    """The tree's retained session in orior's state written as given: the tabs in order and the one displayed, under the key
-    the window retains it by, the rest of the state left as it is; or read and printed where no tabs are given. The
-    window retains a session as text: the path of the tab displayed on the first line, then each tab's path on a line of
-    its own, each from the tree's top."""
+    """The tree's retained session in orior's state, written as the caller gives it. The tabs go in order with the one
+    on display, under the key the window retains it by. The rest of the state stays as it is. Where the caller gives
+    no tabs, the command reads the session and prints it. The window retains a session as text. The first line holds
+    the tab on display, then each tab on a line of its own, each a path from the tree's top."""
     import json
 
     path = os.path.join(orior_home(), "state.json")
@@ -711,8 +749,8 @@ def cmd_watch(a):
 
 
 def window_of(process_id, title=""):
-    """(id, handle, rect) of the window of a process, the one window.pid names where none is given. The process's
-    window of that title where a title is given, as Preferences."""
+    """(id, handle, rect) of the window of a process, the one window.pid names where the caller names none. With a
+    title, the process's window of that title, as Preferences."""
     import harness_win32 as win
 
     process_id = process_id or pid_read()
@@ -754,8 +792,8 @@ def cmd_shot(a):
 
 
 def frames_window_started():
-    """The suite's build of the window started on a copy of the fixture tree with a home of its own under
-    build/harness/frames_run, placed on the harness's display, for frames from its first moment. Returns the process."""
+    """The suite's build of the window started on a copy of the fixture tree, with a home of its own under
+    build/harness/frames_run. It goes on the harness's display, for frames from its first moment. Returns the process."""
     import shutil
 
     import harness_win32 as win
@@ -795,7 +833,7 @@ def cmd_zoom(a):
 
 def cmd_dump(a):
     """The newest crash dump under build/harness/dumps, or the one --path names, read under cdb with the suite build's
-    symbols: the faulting stack with its lines, to build/harness/window_dump.txt and the screen."""
+    symbols. The faulting stack with its lines goes to build/harness/window_dump.txt and the screen."""
     if not windows_only():
         return 1
     folder = os.path.join(HARNESS_BUILD, "dumps")
@@ -836,9 +874,9 @@ def cmd_debug(a):
 
 
 def cmd_regions(a):
-    """The window's own process's committed bytes by type, private, mapped and image, and its largest committed
-    allocations of each type, every region of one allocation summed: where the process grows outside the cellblock
-    and the Rust allocator, this says whether it grew in private heaps or in mapped files."""
+    """The window's own process's committed bytes by type: private, mapped and image. Then its largest committed
+    allocations of each type, every region of one allocation summed. Where the process grows outside the cellblock
+    and the Rust allocator, this tells private heaps from mapped files."""
     if not windows_only():
         return 1
     import harness_win32 as win
@@ -870,8 +908,8 @@ REGION_WORD = re.compile(r"-DMMGR_CARCER_(REGIONS|REGION_BYTES|LARGE_REGION_BYTE
 
 
 def pool_record(process_id):
-    """(base, size) of the window's cellblock, read off its record through the debugger without stopping the
-    process; None where the record cannot be read."""
+    """(base, size) of the window's cellblock, read off its record through the debugger while the process runs on.
+    Returns None where the debugger cannot read the record."""
     words = [CDB, "-pv", "-p", str(process_id), "-y", os.path.dirname(program()), "-c",
              ".reload /f %s; dq %s!cli_pool_site_cli_pool_ctx L2; q" % (gui_name() + ".exe", gui_name())]
     answered = subprocess.run(words, cwd=ROOT, stdin=subprocess.DEVNULL, capture_output=True, text=True)
@@ -889,9 +927,9 @@ def region_knobs():
 
 
 def cmd_pool(a):
-    """The pages of the window's cellblock the process has resident, by area: the persistent tier and the gap under
-    the regions, each thread's region and the large region. A region's resident pages are what its takes have
-    touched since the window started: the pages stay resident after the cells go back."""
+    """The pages of the window's cellblock the process has resident, by area. The areas are the persistent tier and
+    the gap under the regions, each thread's region and the large region. A region's resident pages are those its
+    takes touched since the window started. The pages stay resident after the cells go back."""
     if not windows_only():
         return 1
     import harness_win32 as win
@@ -971,8 +1009,8 @@ OWNER_LINE = re.compile(r"^cells owner (\S+) (\d+) (\d+)\s*$")
 
 
 def telemetry_read(offset):
-    """MMgr's telemetry the window's main thread wrote to build/harness/window_errors.txt past `offset`: the last
-    telemetry line's fields or None, each owner's last (in use, peak), and the offset read to."""
+    """MMgr's telemetry the window's main thread wrote to build/harness/window_errors.txt past `offset`. Returns the
+    last telemetry line's fields or None, each owner's last (in use, peak), and the offset read to."""
     try:
         with open(WINDOW_ERRORS, "rb") as retained:
             retained.seek(offset)
@@ -1000,10 +1038,10 @@ def reserved_bytes(process_id):
 
 
 def cmd_poll(a):
-    """The released window polled each --step seconds for --minutes: the system's processor share and the window's,
-    its threads and handles, its working set, private working set, commit and reserve, and the telemetry MMgr's main
-    thread writes on its memory tick: the pool, the bytes in use, the two peaks, the turnstiles' queue and the lane
-    passes. A row each step to build/harness/window_poll.tsv, and each owner whose in-use count moved."""
+    """The released window polled each --step seconds for --minutes. Each step reads the system's processor share and
+    the window's, its threads and handles, its working set, private working set, commit and reserve. Then MMgr's
+    telemetry from its memory tick: the pool, the bytes in use, the two peaks, the turnstiles' queue and the lane
+    passes. A row each step goes to build/harness/window_poll.tsv, and each owner whose in-use count moved."""
     if not windows_only():
         return 1
     import harness_win32 as win
@@ -1070,8 +1108,8 @@ WIGGLE_EDGES = ("top", "left", "bottom", "controls")
 
 
 def wiggle_path(start, end, steps, wobble, chance):
-    """The points from `start` to `end` in `steps`, each pushed aside by up to `wobble` pixels across the way and eased
-    in and out along it, as a hand moves a mouse."""
+    """The points from `start` to `end` in `steps`, as a hand moves a mouse. Each point goes aside by up to `wobble`
+    pixels across the way, and eases in and out along it."""
     (x0, y0), (x1, y1) = start, end
     length = max(1.0, ((x1 - x0) ** 2 + (y1 - y0) ** 2) ** 0.5)
     across = (-(y1 - y0) / length, (x1 - x0) / length)
@@ -1104,8 +1142,8 @@ def wiggle_target(edge, round_type, rect, chance):
 
 def cmd_wiggle(a):
     """The system's own cursor moved over the window for --rounds rounds, seeded by --seed. Each round goes at an edge
-    with a wobble, and does one of: rests there long enough to bring its part in, rests just under the delay, stops
-    short, passes through fast, or leaves the window and comes back. Every round is written to
+    with a wobble and does one of five things. It rests there long enough to bring its part in, or rests just under the
+    delay. Else it stops short, passes through fast, or leaves the window and comes back. Every round goes to
     build/harness/wiggle.tsv with its times, beside the frames' lines in window_errors.txt."""
     if not windows_only():
         return 1
@@ -1137,7 +1175,7 @@ def cmd_wiggle(a):
                 win.cursor_set(*point)
                 time.sleep(pause)
             if round_type == "pass":
-                # through the edge and on out of the band without slowing
+                # through the edge and on out of the band, its speed kept
                 for point in wiggle_path((x, y), inside, steps, 4.0, chance):
                     win.cursor_set(*point)
                     time.sleep(pause)
@@ -1149,7 +1187,7 @@ def cmd_wiggle(a):
                     time.sleep(0.01)
                 time.sleep(chance.uniform(0.3, 0.8))
             else:
-                # a resting hand still trembles a pixel or so
+                # a hand at rest still trembles a pixel or so
                 rested = 0.0
                 while rested < rest_ms / 1000.0:
                     win.cursor_set(x + chance.randint(-1, 1), y + chance.randint(-1, 1))
@@ -1169,9 +1207,9 @@ def cmd_wiggle(a):
 
 
 def cmd_gpu(a):
-    """The released window's process tree over --seconds: the processor time its processes used, and each second the
-    share of the GPU's 3D engine they retained busy as the system counts it (typeperf over the GPU Engine counters), their
-    mean and their max, to build/harness/window_gpu.txt."""
+    """The released window's process tree over --seconds: the processor time its processes used. Each second, the
+    share of the GPU's 3D engine they kept busy, as typeperf reads the GPU Engine counters. Then their mean and their
+    max, to build/harness/window_gpu.txt."""
     if not windows_only():
         return 1
     import csv
@@ -1262,8 +1300,8 @@ def palette_fields():
 
 
 def palette_colors():
-    """The dark palette's colors from palette.c in the fields' order: {field or field[at]: (r, g, b, alpha)}, the
-    alpha 255 where the color is opaque."""
+    """The dark palette's colors from palette.c in the fields' order: {field or field[at]: (r, g, b, alpha)}. The
+    alpha is 255 where the color is opaque."""
     with open(PALETTE_SOURCE, encoding="utf-8") as retained:
         source = retained.read()
     dark = source[source.index("s_dark = {") : source.index("};", source.index("s_dark = {"))]
@@ -1316,17 +1354,17 @@ def plugin_tokens():
 
 
 def cmd_luminance(a):
-    """The window's colors on the luminance ladder: every color of the dark palette and every token of the grammar
-    plugins' palettes ranked by CIE lightness from --floor down, with the field and the name Colors shows. The two
-    rungs the ladder holds the chrome under are printed first, the operators' and the editor text's: a color of the
-    chrome at or above the operators' rung, or above the text's, is listed as off the ladder."""
+    """The window's colors on the luminance ladder. Every color of the dark palette and every token of the grammar
+    plugins' palettes goes in, ranked by CIE lightness from --floor down. Each carries the field and the name Colors
+    shows. The two rungs the ladder holds the chrome under come first, the operators' and the editor text's. A color of
+    the chrome at or above the operators' rung, or above the text's, goes in the list as off the ladder."""
     colors = palette_colors()
     names = palette_names()
     text_light = lightness(*colors["editor_text"][:3])
     operators = [token for token in plugin_tokens() if token[1] == "operator"]
     operator_light = max((lightness(*token[2][:3]) for token in operators), default=100.0)
     print("rungs: operators %.1f, editor text %.1f" % (operator_light, text_light))
-    # a translucent color is seen over the chrome's surface: its lightness is the composite's
+    # a translucent color shows over the chrome's surface: its lightness is the composite's
     surface = colors["surface"][:3]
 
     def seen(color):
@@ -1407,6 +1445,12 @@ def register(sub):
     p.add_argument("--spacing", type=float, default=4.0, help="the milliseconds between moves or turns")
     p.add_argument("--id", type=int, default=0, help="the window's process, the started one where 0")
     p.set_defaults(fn=cmd_scroll)
+    p = window.add_parser("typing", help="characters typed at a pace and the window's frame times over them")
+    p.add_argument("--text", default="abc def ", help="the characters typed in turn")
+    p.add_argument("--count", type=int, default=200, help="the characters typed")
+    p.add_argument("--spacing", type=float, default=60.0, help="the milliseconds between characters")
+    p.add_argument("--id", type=int, default=0, help="the window's process, the started one where 0")
+    p.set_defaults(fn=cmd_typing)
     p = window.add_parser("keymap", help="every key the keys command presses by name, with its virtual key")
     p.set_defaults(fn=cmd_keymap)
     p = window.add_parser("click", help="a press of the pointer posted to the window at a pixel of its client, dragged and released")

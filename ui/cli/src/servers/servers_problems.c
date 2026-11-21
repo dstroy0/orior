@@ -20,8 +20,8 @@
 // the severity that counts as an error
 #define CLI_PROBLEMS_ERROR 1u
 
-// One file's problems, a record of the table's cell: the token of its report's cell, the place its name starts in its
-// path, how many of its diagnostics are errors, and whether its rows are closed, which a press sets
+// One file's problems, a record of the table's cell. It holds the token of its report's cell, the place its name
+// starts in its path, and how many of its diagnostics are errors. Last, whether a press closed its rows
 typedef struct
 {
     const CarcerMovableEntry *report;
@@ -36,8 +36,8 @@ typedef struct
 // the place in the table's cell of the file `at_`
 #define CLI_PROBLEMS_FILE_AT(at_) ((unsigned long long)(at_) * sizeof(ServersProblemFile))
 
-// A report on its way to the view's thread, in a movable cell whose token rides the ring: the file's path, and its
-// head where it has diagnostics, `has_file` 0 where the file is taken out
+// A report on its way to the view's thread, in a movable cell whose token rides the ring. It holds the file's path,
+// and its head where it has diagnostics. `has_file` is 0 where the report takes the file out
 typedef struct
 {
     char path[CLI_PATH_MAX_LEN];
@@ -45,11 +45,14 @@ typedef struct
     int has_file;
 } ServersProblemsReport;
 
-// The problems: the reports' ticket ring, its turnstiles, its slots the problems' part of the rings block, the next
-// ticket a reporting thread takes, the wake a reporting thread sleeps on while every slot is in flight, whether the
-// problems are open to reports, the check's progress as it was last reported, and what wakes the view's thread as a
-// report comes; then, the view's thread's alone: the next ticket it pops, the table's cell, NULL for none, the files in
-// it in the order their reports last came and their errors, and the check's progress as its last step read it
+// The problems. They hold the reports' ticket ring, its turnstiles, and its entries, the problems' part of the rings
+// block. They hold the next ticket a reporting thread takes, and the wake a reporting thread sleeps on while every
+// entry is in flight. Then whether the problems are open to reports, and the check's progress as its last report gave
+// it. Then what wakes the view's thread as a report comes.
+//
+// The rest is the view's thread's alone. It holds the next ticket it pops, and the table's cell, NULL for none. It
+// holds the files in it, in the order their reports last came, and their errors. Last, the check's progress as its
+// last step read it
 typedef struct
 {
     EmbedTurnstiles turnstiles;
@@ -141,9 +144,9 @@ static unsigned long long problems_message(const ProblemsCtx *args)
     return length;
 }
 
-// the head of a file whose report has diagnostics: each message cut to its first line where it lies, the diagnostics
-// in the order displayed, written back into the report's cell, the errors counted and the name found from the path's
-// end
+// The head of a file whose report has diagnostics. The build cuts each message to its first line where it lies. It
+// writes the diagnostics back into the report's cell in the order on the screen. It counts the errors and finds the
+// name from the path's end
 static void problems_file_built(const ProblemsCtx *args)
 {
     args->file->report = args->report;
@@ -200,9 +203,9 @@ static int problems_report_is(const ProblemsCtx *args)
                .cell = args->report, .offset = head.path_at, .src = args->path, .bytes = length + 1ULL}) == 0;
 }
 
-// The table with the file of `path` taken out and `file` put at the end where `has_file`, the place the file of
-// `path` was in into `found`, the count where none did, the new table's files and errors into `count` and `errors`:
-// the new table's cell, or NULL where nothing changes or its cell could not be taken
+// The table with the file of `path` taken out, and `file` put at the end where `has_file`. The place of the file of
+// `path` goes into `found`, the count where none did. The new table's files and errors go into `count` and `errors`.
+// Returns the new table's cell, or NULL where nothing changes or the pool has no cell for it
 static const CarcerMovableEntry *problems_table_built(const ProblemsCtx *args)
 {
     const unsigned int had = s_problems.count;
@@ -262,9 +265,9 @@ static void problems_woken(void)
     }
 }
 
-// From any thread: a file's report taken and its head built where it has diagnostics, the report pushed on the ring
-// under a ticket of its own, this thread asleep while every slot is in flight; a report that comes once the problems
-// are closed is let go
+// From any thread: a file's report taken, and its head built where it has diagnostics. The report goes on the ring
+// under a ticket of its own, and this thread sleeps while every entry is in flight. A report that comes after the
+// problems close goes back
 static void problems_reported(const CliServerDiagnosticsCfg *args)
 {
     ServersProblemsReport report = {{0}, {NULL, 0ULL, 0u, 0}, 0};
@@ -293,7 +296,7 @@ static void problems_reported(const CliServerDiagnosticsCfg *args)
         &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .src = &report, .bytes = sizeof(report)});
     const embed_u32 ticket = EMBED_ATOMIC_ADD_32(&s_problems.ticket, 1u);
     const embed_u64 stamp = embed_ticket_stamp(cli_ticket_epoch(), ticket);
-    // Explicit cast carries the cell's token as the pass's entry, and as the word the slot holds
+    // Explicit cast carries the cell's token as the pass's entry, and as the word the ring's entry keeps
     const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)cell;
     embed_u64 seen = 0u;
     for (;;)
@@ -320,7 +323,7 @@ static void problems_reported(const CliServerDiagnosticsCfg *args)
     problems_woken();
 }
 
-// from any thread: how far the tree's check has gone
+// from any thread: how far the tree's check is
 static void problems_check_moved(const CliServerCheckCfg *args)
 {
     embed_atomic_u64_store(&s_problems.check_done, args->done);
@@ -362,9 +365,9 @@ void cli_servers_problems_begin(void (*woken)(void))
     embed_atomic_u32_store(&s_problems.open, 1u);
 }
 
-// On the view's thread: every report pushed popped in the order of its ticket and the table built over it, the
-// table's cell and the report each replaces released, each slot released and a reporting thread waiting for room
-// woken: whether a report came
+// On the view's thread: every report pushed popped in the order of its ticket, and the table built over it. The
+// table's cell and the report each replaces go back. Each entry goes back, and a reporting thread that waits for room
+// wakes. Returns whether a report came
 static int problems_taken(void)
 {
     int moved = 0;
@@ -472,8 +475,8 @@ int cli_servers_problems_checking(void)
 
 int cli_servers_problems_row(const CliServersProblemsCfg *args)
 {
-    // a args->row's texts are read out of the report's cell into the view's thread's own buffers, which are until its
-    // next args->row
+    // the row reads its texts out of the report's cell into the view's thread's own buffers, which last until its
+    // next row
     static char s_path[CLI_PATH_MAX_LEN];
     static char s_message[CLI_PROBLEMS_MESSAGE];
     unsigned int first = 0u;
@@ -566,6 +569,41 @@ int cli_servers_problems_press(const CliServersProblemsCfg *args)
     return cli_servers_problems_row(&(CliServersProblemsCfg){.at = args->at, .row = args->row}) && !args->row->is_file;
 }
 
+// the tree's check run over every file of the tree, the problems pane its sink, with the check's args the context
+static void problems_files_checked(const CliFilesEachCfg *view)
+{
+    const CliServersProblemsCfg *const args = view->context;
+    const CliPicked *const files = view->files;
+    // The paths read out of the view into one cell of this call, with the list of them first. A first pass counts the
+    // paths' bytes and their ends
+    unsigned long long text_bytes = 0ULL;
+    for (unsigned int at = 0u; at < files->count; at += 1u)
+    {
+        char path[CLI_PATH_MAX_LEN];
+        (void)EMBED_CALL(cli_files_view_read.at, CliFilesViewCfg, .view = files, .index = at, .path_out = path);
+        text_bytes += cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN}) + 1ULL;
+    }
+    const unsigned long long list_bytes = ((unsigned long long)files->count + 1ULL) * sizeof(const char *);
+    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(list_bytes + text_bytes, g_cli_servers_owner);
+    if (cell == NULL)
+    {
+        return;
+    }
+    const char **const paths = (const char **)(void *)cell;
+    char *const text = (char *)(cell + list_bytes);
+    unsigned long long used = 0ULL;
+    for (unsigned int at = 0u; at < files->count; at += 1u)
+    {
+        (void)EMBED_CALL(cli_files_view_read.at, CliFilesViewCfg, .view = files, .index = at, .path_out = text + used);
+        paths[at] = text + used;
+        used += cellul.len(&(CatenaFinitaCfg){.src = text + used, .cap = CLI_PATH_MAX_LEN}) + 1ULL;
+    }
+    const CliServersSink sink = cli_servers_problems_sink(&(CliServersProblemsCfg){.root = args->root});
+    (void)EMBED_CALL(cli_servers_root_sink_count.check_tree, CliServersRootSinkCountCfg, .root = args->root,
+                     .files = paths, .count = files->count, .sink = &sink);
+    g_cli_guard->persistent_buf_release(cell, g_cli_servers_owner);
+}
+
 void cli_servers_problems_check(const CliServersProblemsCfg *args)
 {
     if (cli_servers_problems_checking())
@@ -573,24 +611,11 @@ void cli_servers_problems_check(const CliServersProblemsCfg *args)
         cli_servers_stop_check();
         return;
     }
-    const CliFiles *const files =
-        (args->root != NULL) ? EMBED_CALL(cli_files_root_paths.view, CliFilesRootPathsCfg, .root = args->root) : NULL;
-    if (files == NULL)
+    if (args->root == NULL)
     {
         return;
     }
-    const char **const paths = g_cli_guard->temporary_buf_alloc(
-        ((unsigned long long)files->count + 1ULL) * sizeof(*paths), g_cli_servers_owner);
-    if (paths != NULL)
-    {
-        for (unsigned int at = 0u; at < files->count; at += 1u)
-        {
-            paths[at] = EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = at);
-        }
-        const CliServersSink sink = cli_servers_problems_sink(&(CliServersProblemsCfg){.root = args->root});
-        (void)EMBED_CALL(cli_servers_root_sink_count.check_tree, CliServersRootSinkCountCfg, .root = args->root,
-                         .files = paths, .count = files->count, .sink = &sink);
-        g_cli_guard->persistent_buf_release(paths, g_cli_servers_owner);
-    }
-    EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
+    CliServersProblemsCfg checked = *args;
+    (void)EMBED_CALL(cli_files_root_paths.each, CliFilesRootPathsCfg, .root = args->root,
+                     .each = problems_files_checked, .context = &checked);
 }

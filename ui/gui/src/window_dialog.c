@@ -41,8 +41,8 @@ void gui_window_dialog_want(const GuiWindowDialogWantCfg *args)
                .width_pointer = args->width_pointer, .height_pointer = args->height_pointer);
 }
 
-// The dialog's answer taken: the held command answered with the pressed button's label, or refused for a close. Else
-// the answer stays for the caller. The lattice stops while no dialog shows
+// The dialog's answer taken: the command that waits answered with the pressed button's label, or refused for a close.
+// Else the answer stays for the caller. The lattice stops while no dialog shows
 EMBED_INLINE void window_dialog_answered(const WindowDialogCtx *args)
 {
     GuiWindow *const window = args->window;
@@ -75,6 +75,11 @@ EMBED_INLINE void window_dialog_changed(const WindowDialogCtx *args)
     args->window->dialog_pending = 1;
     if ((type == GUI_DIALOG_ANSWERED) || (type == GUI_DIALOG_CLOSED))
     {
+        // the dialog's window closed sends no leave: its pointer goes off with the window, and the main window's
+        // pointer follows the next move
+        GuiPointer *const pointer = &args->window->dialog_pointer;
+        (void)EMBED_CALL(gui_pointer_place_table.place, GuiPointerPlaceCfg, .pointer = pointer, .x = pointer->x,
+                         .y = pointer->y, .shape = pointer->shape, .shown = 0);
         EMBED_CALL(window_dialog_answered, WindowDialogCtx, .window = args->window, .change = args->change);
     }
 }
@@ -122,7 +127,7 @@ void gui_window_dialog_hits(const GuiWindowHitsCfg *args)
     CliViewHits *const hits = args->hits;
     hits->width = dialog->width;
     hits->height = dialog->height;
-    // the dialog retains the size it opened at, so it has no border to drag
+    // the dialog keeps the size it opened at, and it has no border to drag
     hits->border = 0;
     hits->minimize = (GuiRect){0, 0, 0, 0};
     hits->maximize = (GuiRect){0, 0, 0, 0};
@@ -253,6 +258,6 @@ void gui_window_dialog_input(const GuiWindowInputTypeCfg *args)
     // the pointer is on a surface of its own: its move draws nothing on the dialog's frame
     (void)EMBED_CALL(gui_window_pointer_table.surface, GuiWindowPointerCfg, .pointer = &args->window->dialog_pointer,
                      .input = args->input,
-                     .hit = EMBED_CALL(gui_window_dialog_input_hit.hit, GuiWindowInputCfg,
-                                       .window_read = args->window, .input = args->input));
+                     .hit = EMBED_CALL(gui_window_dialog_input_hit.hit, GuiWindowInputCfg, .window_read = args->window,
+                                       .input = args->input));
 }

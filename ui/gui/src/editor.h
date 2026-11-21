@@ -21,15 +21,15 @@ typedef struct GuiEditorPositionCfg GuiEditorPositionCfg;
 typedef struct GuiEditorPaletteCfg GuiEditorPaletteCfg;
 typedef struct GuiEditorCfg GuiEditorCfg;
 
-// the pixels saved under the caret at max: a caret two of the page's pixels wide over a row at any scale the
-// window takes fits
+// The pixels kept under the caret at max. A caret two of the page's pixels wide over a row fits, at any scale the
+// window takes
 #define GUI_CARET_UNDER_MAX 1024u
 // the token names whose colors the editor retains
 #define GUI_EDITOR_NAME_COLORS 256u
 
-// the code's size and its line's height in the page's pixels, --code-size and --code-line; a tab's stop every so many
-// columns where a frame sets no indentation size; and the gutter's padding, after the numbers as --ed-num pads them
-// and before them
+// The code's size and its line's height in the page's pixels, --code-size and --code-line. Then a tab's stop every so
+// many columns where a frame sets no indentation size. Last, the gutter's padding, after the numbers as --ed-num pads
+// them, and before them
 #define GUI_CODE_SIZE 13u
 #define GUI_CODE_LINE 20
 #define GUI_TAB_COLUMNS 4u
@@ -49,19 +49,23 @@ typedef struct GuiEditorCfg GuiEditorCfg;
 #define GUI_FIND_TOGGLE 26
 #define GUI_FIND_COUNT 88
 
-// The editor: the displayed view's frame as the window last took it of the view (editor/view.h), NULL for none, and the
-// key of the text whose token names it colors, empty for none, with the count and the serial of its names table as the
-// window last read them (editor/document.h); the caret's ink, 0 to 255 of its color, which the window sets before
-// drawing where its breath
-// is, the caret's rectangle as last drawn, whether the pixels under it are saved and those pixels, row after row.
-// Last, the part of a line the view has scrolled past its first line and first cell column. `scroll_y` is the pixels
-// of the frame's first row above the editor's top, 0 to a line's height less 1. `scroll_x` is the pixels of the first
-// cell column left of the text's edge, 0 to a cell less a part of a pixel. Then the color of each token name, retained
-// for the names table's serial `colored_serial`, its count `name_colors` and the palette they were read for
-// `colored_palette`. A name at GUI_EDITOR_NAME_COLORS or past it is read from the palette each time
+// The editor. It holds the displayed view's frame, read for the window's call alone (editor/view.h), NULL for none.
+// Then the key of the text whose token names it colors, empty for none. Then the count and the serial of its names
+// table as the window last read them (editor/document.h).
+//
+// Then the caret's ink, 0 to 255 of its color, which the window sets before a draw where its breath is. Then the
+// caret's rectangle as last drawn, and whether the window kept the pixels under it, with those pixels, row after row.
+//
+// Then the part of a line the view scrolled past its first line and first cell column. `scroll_y` is the pixels of the
+// frame's first row above the editor's top, 0 to a line's height less 1. `scroll_x` is the pixels of the first cell
+// column left of the text's edge, 0 to a cell less a part of a pixel.
+//
+// Last, the color of each token name, kept for the names table's serial `colored_serial`, its count `name_colors` and
+// the palette of the last read, `colored_palette`. The window reads a name at GUI_EDITOR_NAME_COLORS or past it from
+// the palette each time
 typedef struct
 {
-    CliViewFrame *frame;
+    const CliViewFrame *frame;
     char names_key[CLI_NAME_MAX_LEN];
     unsigned int names_count;
     unsigned int names_serial;
@@ -75,50 +79,53 @@ typedef struct
     unsigned int name_colors;
     unsigned int colored_serial;
     const GuiPalette *colored_palette;
-    // whether a space is drawn as a middle dot and a tab as an arrow, in the quietest text color
+    // whether a space draws as a middle dot and a tab as an arrow, in the quietest text color
     int whitespace;
 } GuiEditor;
 
-// an editor showing nothing
+// an editor that shows nothing
 void gui_editor_init(const GuiEditorCfg *args);
-// the row and the cell column of the pixel at x, y of the editor drawn in `place` at `scale` with the code cell `cell`,
-// the column counted from the text's left edge: 1, or 0 where the pixel is outside the text; and the row of the pixel
-// where it is in the gutter: 1, or 0 where it does not
+// The row and the cell column of the pixel at x, y of the editor drawn in `place` at `scale` with the code cell `cell`.
+// The column counts from the text's left edge. Returns 1, or 0 where the pixel is outside the text. Then the row of the
+// pixel where it is in the gutter: 1, or 0 where it is not
 int gui_editor_cell_at(const GuiEditorPositionCellScaleCfg *args);
 int gui_editor_row_at(const GuiEditorPositionCellScaleCfg *args);
-// the line of the sticky row the pixel at x, y is on, the rows pinned over the editor's top, into `row`: 1, or 0
-// where it is on none
+// The line of the sticky row the pixel at x, y is on, into `row`. The sticky rows are the rows pinned over the
+// editor's top. Returns 1, or 0 where it is on none
 int gui_editor_sticky_at(const GuiEditorPositionCellScaleCfg *args);
-// the index, counted from one, of the table column line within GUI_EDITOR_GRIP scaled pixels of the pixel at x, y in
-// the editor drawn in `place` with the code cell `cell`: 0 where the frame is no table or the pixel is on no line
+// The index, counted from one, of the table column line within GUI_EDITOR_GRIP scaled pixels of the pixel at x, y. The
+// editor draws in `place` with the code cell `cell`. Returns 0 where the frame is no table or the pixel is on no line
 unsigned int gui_editor_column_edge(const GuiEditorPositionCellScaleCfg *args);
-// the pixels the unit at `col` of `line` takes in the editor drawn in `place` at `scale` with the code cell `cell`,
-// one cell wide and a row tall, into `rect`: 1, or 0 where the line is not among the rows drawn. A unit the view has
-// slid past, left of the text or past the editor's right edge, also gives 0. Where `clamped` is 1, such a unit gives
-// 1, and its rect is at the edge it is past
+// The pixels the unit at `col` of `line` takes in the editor drawn in `place` at `scale` with the code cell `cell`.
+// They are one cell wide and a row tall, into `rect`. Returns 1, or 0 where the line is not among the rows drawn. A
+// unit the view slid past, left of the text or past the editor's right edge, also gives 0. Where `clamped` is 1, such
+// a unit gives 1, and its rect is at the edge it is past
 int gui_editor_position_rect(const GuiEditorPositionCellCfg *args);
 // the gutter's width for the file's line count, at the code cell `cell` and `scale`
 int gui_editor_gutter(const GuiEditorPositionCellCfg *args);
-// the caret's rectangle in the editor drawn at `place` and `scale`, two of the page's pixels wide on the cursor's
-// cell, cut to the text's columns: empty where no cursor is, find holds the keys or the cursor's row is out of
+// The caret's rectangle in the editor drawn at `place` and `scale`, two of the page's pixels wide on the cursor's
+// cell, cut to the text's columns. It is empty where no cursor is, find has the keys, or the cursor's row is out of
 // view
 GuiRect gui_editor_caret_rect(const GuiEditorPositionCfg *args);
-// the caret drawn over the frame at `caret` at the ink the editor holds, the pixels under it saved where its
-// rectangle's pixels fit the capacity saved for them; and the caret drawn again at the ink the editor holds now, the
-// pixels saved put back first: each answers the caret's rectangle, the latter empty where none was saved
+// The caret drawn over the frame at `caret` at the ink the editor has. The pixels under it stay kept where its
+// rectangle's pixels fit the capacity for them. Then the caret drawn again at the ink the editor has now, the pixels
+// kept put back first. Each answers the caret's rectangle, the second empty where it kept none
 GuiRect gui_editor_caret_draw(const GuiEditorRasterCfg *args);
 GuiRect gui_editor_caret_redrawn(const GuiEditorRasterCfg *args);
 // the color of the token named by the index `name` among the grammar's names, the editor's text color where no name
 // has the index
 GuiColor gui_editor_color(const GuiEditorPaletteCfg *args);
-// The color of each token name retained in the editor for its names and `palette`. The colors are read from the palette
-// again only where the names table, its count or the palette has changed since they were last read
+// The color of each token name kept in the editor for its names and `palette`. The editor reads the colors from the
+// palette again only where the names table, its count or the palette changed since the last read
 void gui_editor_colors_retain(const GuiEditorPaletteCfg *args);
-// the editor drawn in `place` on `raster` at `scale`: the ground, then each row from the view's top a line stored, the
-// current line's ground or the selection's, the matches' grounds, its number in the gutter with a mark where it opens
-// a fold closed, its runs in their colors, the folded mark and the closer's text after a line that opens a fold
-// closed, a box around each bracket of the pair and around the current match, the caret, and find's bar at the top
-// right where it is open: its field with the query, the caret where the keys are its own, its toggles and its count
+// The editor drawn in `place` on `raster` at `scale`. First the ground, then each row from the view's top a line of the
+// store. Each row gets the current line's ground or the selection's, and the matches' grounds. Its number goes in the
+// gutter, with a mark where it opens a fold closed, and its runs go in their colors. After a line that opens a fold
+// closed come the folded mark and the closer's text. Then a box goes around each bracket of the pair and around the
+// current match, and the caret goes on.
+//
+// Last, find's bar at the top right where it is open. It has its field with the query, the caret where the keys are
+// its own, its toggles and its count
 void gui_editor_draw(const GuiEditorPositionScaleCfg *args);
 struct GuiEditorPositionCellScaleCfg
 {
@@ -145,7 +152,7 @@ struct GuiEditorPositionCellCfg
 };
 
 // `notch` is the pane down over the editor's top corner, empty where none is, and `radius` the bend the work's border
-// makes round it: the sticky rows stop short of the notch by the radius
+// makes round it. The sticky rows stop short of the notch by the radius
 struct GuiEditorPositionScaleCfg
 {
     GuiEditor *editor;

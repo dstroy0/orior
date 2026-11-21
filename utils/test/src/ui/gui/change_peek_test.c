@@ -47,12 +47,11 @@ static void head_stored_each(const CliEachHunkCfg *args)
     (void)args;
 }
 
-// `now` stored with a view open on it, sized, the head text stored beside it, and the editor's frame taken
+// `now` stored with a view open on it, sized, the head text stored beside it, and the editor's frame built
 static void opened(const char *now, GuiEditor *editor)
 {
     CliShape shape;
     EMBED_CALL(gui_change_peek.close, GuiChangePeekCfg, .key = s_key);
-    cli_view_frame_release(&(CliViewAtCfg){.frame = (CliViewFrame *)editor->frame});
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key);
     cli_check(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = s_key, .text = now,
@@ -66,7 +65,7 @@ static void opened(const char *now, GuiEditor *editor)
     (void)EMBED_CALL(cli_document_out_key_head_input.changes, CliDocumentOutKeyHeadInputCfg, .key = s_key,
                      .head_given = 1, .head = s_head, .head_size = sizeof(s_head) - 1u, .each = head_stored_each,
                      .context = NULL);
-    editor->frame = cli_view_frame_alloc(&(CliViewAtCfg){.key = s_key});
+    editor->frame = cli_check_frame(s_key);
 }
 
 // The text a check holds the document's text to: the text required and whether the two are the same
@@ -167,17 +166,10 @@ int main(void)
               "a press under the box lands on none of it");
 
     // the revert puts the last commit's text back as one step
-    CliEdit edit;
     char edit_why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea edit_err = {edit_why, sizeof(edit_why), 0ULL};
-    const int reverted = EMBED_CALL(gui_change_peek.revert, GuiChangePeekCfg, .edit_out = &edit, .err_msg = &edit_err);
-    cli_check(reverted && EMBED_CALL(cli_view_edits.apply, CliViewEditsCfg, .key = s_key, .edit = &edit, .count = 1u,
-                                     .err_msg = &edit_err),
+    cli_check(EMBED_CALL(gui_change_peek.revert, GuiChangePeekCfg, .key = s_key, .err_msg = &edit_err),
               "the revert's edit is written into the view");
-    if (reverted)
-    {
-        EMBED_CALL(gui_change_peek.revert_end, GuiChangePeekCfg, .edit_out = &edit);
-    }
     cli_check(text_is(s_head), "the view's text is the last commit's again");
     const CliViewInput undo = {.type = CLI_VIEW_KEY, .name = "Mod+Z"};
     (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = s_key, .input = &undo, .err_msg = &edit_err);
@@ -210,7 +202,6 @@ int main(void)
     cli_check(EMBED_CALL(gui_change_peek.settled, GuiChangePeekCfg, .key = s_key),
               "with no change displayed a scroll moves the view");
 
-    cli_view_frame_release(&(CliViewAtCfg){.frame = (CliViewFrame *)editor.frame});
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key);
     EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);

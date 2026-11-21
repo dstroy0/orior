@@ -240,18 +240,18 @@ void gui_minimap_draw(const GuiMinimapPositionCfg *args)
         }
     }
     // each line's bars, a line the map does not hold left as ground
-    const CliDocumentMap *const held = args->map->lines;
-    for (unsigned long long line = first; (held != NULL) && (line < end); line += 1ULL)
+    for (unsigned long long line = first; args->map->lines && (line < end); line += 1ULL)
     {
-        if ((line < held->from) || (line >= held->from + (unsigned long long)held->count))
-        {
-            continue;
-        }
-        const unsigned int line_index = (unsigned int)(line - held->from);
+        const unsigned int bars = cli_view_map_bars(&(CliViewMapCfg){.line = line});
         const int y = args->place.y + ((int)(line - first) * row_height);
-        for (unsigned int bar = held->line_at[line_index]; bar < held->line_at[line_index + 1u]; bar += 1u)
+        for (unsigned int bar = 0u; bar < bars; bar += 1u)
         {
-            const CliDocumentMapBar *const one = &held->bar[bar];
+            CliDocumentMapBar read = {0u, 0u, 0u};
+            if (!cli_view_map_bar(&(CliViewMapCfg){.line = line, .at = bar, .bar_out = &read}))
+            {
+                break;
+            }
+            const CliDocumentMapBar *const one = &read;
             if (one->start >= GUI_MAP_WIDEST)
             {
                 continue;

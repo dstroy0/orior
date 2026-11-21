@@ -15,6 +15,7 @@ extern void test_a_line_before_the_first_declaration_lists_none(void);
 extern void test_no_key_lists_the_folders_and_the_file_alone(void);
 extern void test_the_menu_of_a_declaration_lists_those_at_its_depth_under_the_same_one(void);
 extern void test_the_menu_of_a_declaration_at_the_top_lists_the_files(void);
+extern void test_the_menu_of_a_folder_lists_its_entries_each_running_file_open_with_its_path(void);
 extern void test_go_answers_the_line_a_word_reads_as(void);
 extern void test_the_setting_off_lists_none_and_is_across_the_save_and_read(void);
 
@@ -84,8 +85,9 @@ int main(void)
   run_test(test_no_key_lists_the_folders_and_the_file_alone, "test_no_key_lists_the_folders_and_the_file_alone", 94);
   run_test(test_the_menu_of_a_declaration_lists_those_at_its_depth_under_the_same_one, "test_the_menu_of_a_declaration_lists_those_at_its_depth_under_the_same_one", 101);
   run_test(test_the_menu_of_a_declaration_at_the_top_lists_the_files, "test_the_menu_of_a_declaration_at_the_top_lists_the_files", 110);
-  run_test(test_go_answers_the_line_a_word_reads_as, "test_go_answers_the_line_a_word_reads_as", 119);
-  run_test(test_the_setting_off_lists_none_and_is_across_the_save_and_read, "test_the_setting_off_lists_none_and_is_across_the_save_and_read", 128);
+  run_test(test_the_menu_of_a_folder_lists_its_entries_each_running_file_open_with_its_path, "test_the_menu_of_a_folder_lists_its_entries_each_running_file_open_with_its_path", 119);
+  run_test(test_go_answers_the_line_a_word_reads_as, "test_go_answers_the_line_a_word_reads_as", 140);
+  run_test(test_the_setting_off_lists_none_and_is_across_the_save_and_read, "test_the_setting_off_lists_none_and_is_across_the_save_and_read", 149);
 
   return UNITY_END();
 }

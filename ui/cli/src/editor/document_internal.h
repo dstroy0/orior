@@ -21,6 +21,8 @@ typedef struct CliDocumentKeyCtx CliDocumentKeyCtx;
 #define CLI_DOC_WORD_REGIONS 2u
 #define CLI_DOC_WORD_RUNS 3u
 #define CLI_DOC_WORDS 4u
+// The units' cell has room for `units_room` units, and the lines' three cells for `lines_room` lines. A store again
+// writes into the cells while they hold the lines. Thus an edit takes no cell
 typedef struct
 {
     const CarcerMovableEntry *units;
@@ -30,6 +32,8 @@ typedef struct
     const CarcerMovableEntry *words;
     unsigned int lines;
     int crlf;
+    unsigned long long units_room;
+    unsigned long long lines_room;
 } CliStoredLines;
 
 // the line past the last of a text read whole whose runs are passed on: every line's

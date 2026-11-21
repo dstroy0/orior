@@ -45,8 +45,8 @@ typedef struct
     unsigned long long line;
     unsigned long long lines;
 } FilesReadCtx;
-// whether a character the end of `size` bytes cuts short starts at them: a lead byte and as many of the bytes after it as
-// there are, each as UTF-8 takes it, too few
+// whether a character the end of `size` bytes cuts short starts at them: a lead byte and as many of the bytes after it
+// as there are, each as UTF-8 takes it, too few
 EMBED_INLINE int cli_cut_short(const FilesReadCtx *args)
 {
     const unsigned char lead = args->rest[0];
@@ -170,6 +170,42 @@ EMBED_INLINE const unsigned char *cli_piece(const FilesReadCtx *args)
     return bytes;
 }
 
+// What a file's bytes leave once read: the key the text goes under, whether the bytes are text, and whether the text
+// is stored
+typedef struct
+{
+    const char *key;
+    int text;
+    int stored;
+} FilesStored;
+
+// the bytes passed checked for text, and the text stored under the context's key where they are
+static void files_bytes_stored(const CliEachBytesSizeCfg *args)
+{
+    FilesStored *const kept = args->context;
+    const unsigned char *const bytes = (const unsigned char *)args->bytes;
+    kept->text = !EMBED_CALL(cli_probe_zero, FilesReadCtx, .bytes = bytes, .size = args->size) &&
+                 EMBED_CALL(cli_utf8, FilesReadCtx, .bytes = bytes, .size = args->size, .cut = 0);
+    CliShape shape;
+    kept->stored = kept->text && EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = kept->key,
+                                            .text = args->bytes, .size = args->size, .shape = &shape);
+}
+
+// The bytes in the archive's cell read into a buffer of this call, checked and stored as the bytes of a file on disk
+// are. The buffer goes back before the call returns
+static void files_archived_stored(const CliArchiveEachCfg *args)
+{
+    char *const bytes = g_cli_guard->temporary_buf_alloc(args->size + 1ULL, g_cli_editor_owner);
+    if ((bytes == NULL) || !g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                               .cell = args->cell, .offset = 0ULL, .dst = bytes, .bytes = args->size + 1ULL}))
+    {
+        g_cli_guard->persistent_buf_release(bytes, g_cli_editor_owner);
+        return;
+    }
+    files_bytes_stored(&(CliEachBytesSizeCfg){.context = args->context, .bytes = bytes, .size = args->size});
+    g_cli_guard->persistent_buf_release(bytes, g_cli_editor_owner);
+}
+
 unsigned int cli_files_open(const CliFilesOpenCfg *args)
 {
     char archive[CLI_PATH_MAX_LEN];
@@ -216,31 +252,29 @@ unsigned int cli_files_open(const CliFilesOpenCfg *args)
                        : CLI_FILES_OPEN_REFUSED;
         }
     }
-    char *const joined =
-        archived ? EMBED_CALL(cli_archive_err_msg.take, CliArchiveErrMsgCfg, .root = args->root, .path = args->file,
-                              .size_pointer = &size, .owner = g_cli_editor_owner, .err_msg = args->err_msg)
-                 : NULL;
-    const unsigned char *const bytes = archived
-                                           ? (const unsigned char *)joined
-                                           : EMBED_CALL(cli_map, FilesReadCtx, .root = args->root, .file = args->file,
-                                                        .path = path, .size_pointer = &size, .err_msg = args->err_msg);
-    if (bytes == NULL)
-    {
-        return CLI_FILES_OPEN_REFUSED;
-    }
-    const int text = !EMBED_CALL(cli_probe_zero, FilesReadCtx, .bytes = bytes, .size = size) &&
-                     EMBED_CALL(cli_utf8, FilesReadCtx, .bytes = bytes, .size = size, .cut = 0);
-    CliShape shape;
-    const int stored = text && EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = args->key,
-                                          .text = (const char *)bytes, .size = size, .shape = &shape);
+    FilesStored kept = {args->key, 0, 0};
     if (archived)
     {
-        g_cli_guard->persistent_buf_release(joined, g_cli_editor_owner);
+        // the archive passes a movable cell of its own with the file's bytes, which it gives back as the call returns
+        if (!EMBED_CALL(cli_archive_err_msg.each, CliArchiveErrMsgCfg, .root = args->root, .path = args->file,
+                        .each = files_archived_stored, .context = &kept, .err_msg = args->err_msg))
+        {
+            return CLI_FILES_OPEN_REFUSED;
+        }
     }
     else
     {
+        const unsigned char *const bytes = EMBED_CALL(cli_map, FilesReadCtx, .root = args->root, .file = args->file,
+                                                      .path = path, .size_pointer = &size, .err_msg = args->err_msg);
+        if (bytes == NULL)
+        {
+            return CLI_FILES_OPEN_REFUSED;
+        }
+        files_bytes_stored(&(CliEachBytesSizeCfg){.context = &kept, .bytes = (const char *)bytes, .size = size});
         g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_editor_owner);
     }
+    const int text = kept.text;
+    const int stored = kept.stored;
     if (text && !stored)
     {
         mmgr_line_put(args->err_msg, args->file);

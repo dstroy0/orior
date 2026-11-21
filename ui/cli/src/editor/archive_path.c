@@ -499,22 +499,21 @@ int cli_archive_list(const CliArchiveErrMsgRootCfg *args)
     return done;
 }
 
-char *cli_archive_alloc(const CliArchiveErrMsgCfg *args)
+int cli_archive_each(const CliArchiveErrMsgCfg *args)
 {
-    unsigned long long *size = args->size_pointer;
     static CliParts s_parts;
     CliDescent descent;
     char file[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(cli_archive_err_msg_parts_internal.lock, CliArchiveErrMsgPartsCtx, .err_msg = args->err_msg))
     {
-        return NULL;
+        return 0;
     }
     if (!EMBED_CALL(cli_archive_err_msg_internal.open, CliArchiveErrMsgCtx, .root = args->root, .path = args->path,
                     .missing = " is in no archive", .descent = &descent, .parts = &s_parts, .file = file,
                     .err_msg = args->err_msg))
     {
         cli_archive_release();
-        return NULL;
+        return 0;
     }
     const unsigned char *const mapped = descent.bytes;
     int done = EMBED_CALL(cli_archive_err_msg_parts_internal.descend, CliArchiveErrMsgPartsCtx, .descent = &descent,
@@ -549,20 +548,27 @@ char *cli_archive_alloc(const CliArchiveErrMsgCfg *args)
                               .unpacked_size_value = unpacked, .members_read = &g_cli_archive_levels->members[0],
                               .member = member, .out_buffer_pointer = &g_cli_archive_levels->written[0],
                               .out_size = &data_size, .err_msg = args->err_msg);
-    char *const cell = done ? g_cli_guard->temporary_buf_alloc(data_size + 1ULL, args->owner) : NULL;
-    if (cell != NULL)
-    {
-        // a member unpacked whole, which a embed_word counts
-        memor.cpy(
-            &(MemoriaCfg){.dst = cell, .src = g_cli_archive_levels->written[0].bytes, .bytes = (embed_word)data_size});
-        cell[data_size] = '\0';
-        *size = data_size;
-    }
-    else if (done)
+    // The member's bytes and a 0 go into a movable cell of this module. The copy lets the archive's lock go before the
+    // cell goes to `each`
+    const CarcerMovableEntry *const cell =
+        done ? g_cli_guard->movable_buf_alloc(data_size + 1ULL, g_cli_editor_owner) : NULL;
+    static const char s_end = '\0';
+    const int written =
+        (cell != NULL) &&
+        g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            .cell = cell, .offset = 0ULL, .src = g_cli_archive_levels->written[0].bytes, .bytes = data_size}) &&
+        g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = cell, .offset = data_size, .src = &s_end, .bytes = sizeof(s_end)});
+    if (done && !written)
     {
         mmgr_line_put(args->err_msg, "the file read out of the archive could not be stored");
     }
     g_cli_guard->persistent_buf_release((void *)(embed_word)mapped, g_cli_editor_owner);
     cli_archive_release();
-    return cell;
+    if (written)
+    {
+        args->each(&(CliArchiveEachCfg){.context = args->context, .cell = cell, .size = data_size});
+    }
+    (void)g_cli_guard->movable_buf_release(cell, g_cli_editor_owner);
+    return written;
 }

@@ -29,6 +29,8 @@ typedef struct
     CliKeyed *keyed_out;
     unsigned int at;
     const CliKeyedEntry *entry;
+    unsigned long long needed;
+    unsigned long long *capacity_out;
 } KeyedCtx;
 
 // the entry stored under `key`, whose hash is `hash`, `entries` where none is: an entry's key is the same where its
@@ -120,13 +122,50 @@ EMBED_INLINE void keyed_compact(const KeyedCtx *args)
     EMBED_CALL(keyed_pages_release, KeyedCtx, .keyed_out = keyed, .at = (count + CLI_KEYED_PAGE - 1u) / CLI_KEYED_PAGE);
 }
 
+// The cell of the key's entry before, where that cell holds `needed` bytes. The entry's place goes empty and the cell
+// stays for the new entry. Else the entry before goes, and its cell goes back. Returns the cell kept, or NULL for none
+EMBED_INLINE const CarcerMovableEntry *keyed_cell_kept(const KeyedCtx *args)
+{
+    CliKeyed *const keyed = args->keyed_out;
+    const unsigned int at = EMBED_CALL(keyed_find, KeyedCtx, .keyed = keyed, .key = args->key, .hash = args->hash);
+    if (at >= keyed->entries)
+    {
+        return NULL;
+    }
+    CliKeyedEntry one = {0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = keyed->page[at / CLI_KEYED_PAGE],
+                                                            .offset = (embed_word)(at % CLI_KEYED_PAGE) * sizeof(one),
+                                                            .dst = &one,
+                                                            .bytes = sizeof(one)});
+    if (!one.used || (one.cell == NULL) || (one.size < args->needed))
+    {
+        EMBED_CALL(cli_keyed_table.remove_at, CliKeyedCfg, .keyed_out = keyed, .at = at);
+        return NULL;
+    }
+    const CarcerMovableEntry *const kept = one.cell;
+    one.used = 0;
+    one.cell = NULL;
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = keyed->page[at / CLI_KEYED_PAGE],
+                            .offset = (embed_word)(at % CLI_KEYED_PAGE) * sizeof(CliKeyedEntry),
+                            .src = &one,
+                            .bytes = sizeof(CliKeyedEntry)});
+    *args->capacity_out = one.size;
+    return kept;
+}
+
 int cli_keyed_append(const CliKeyedKeyAdjacentCfg *args)
 {
-    cli_keyed_key_adjacent.remove(args);
     const embed_word key_size = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_POOL_BYTES});
     const embed_word adjacent_size = cellul.len(&(CatenaFinitaCfg){.src = args->adjacent_value, .cap = CLI_POOL_BYTES});
     const unsigned long long text_at = key_size + 1u + adjacent_size + 1u;
     const unsigned long long needed = text_at + args->size_value + 1u;
+    // a key put again keeps its cell where the cell holds the new texts. A new cell has half its bytes again as room,
+    // and a text that grows a little goes into the same cell
+    unsigned long long capacity = needed + (needed / 2ULL);
+    const CarcerMovableEntry *const kept =
+        EMBED_CALL(keyed_cell_kept, KeyedCtx, .keyed_out = args->keyed_out, .key = args->key,
+                   .hash = cli_keyed_key_adjacent.hash(args), .needed = needed, .capacity_out = &capacity);
     if (args->keyed_out->entries == args->keyed_out->entries_max)
     {
         EMBED_CALL(keyed_compact, KeyedCtx, .keyed_out = args->keyed_out);
@@ -139,10 +178,12 @@ int cli_keyed_append(const CliKeyedKeyAdjacentCfg *args)
     }
     if ((args->keyed_out->entries == args->keyed_out->entries_max) || (args->keyed_out->page[page] == NULL))
     {
+        (void)g_cli_guard->movable_buf_release(kept, g_cli_text_owner);
         EMBED_CALL(keyed_reject, KeyedCtx, .keyed = args->keyed_out, .key = args->key, .why = "every entry is taken");
         return 0;
     }
-    const CarcerMovableEntry *const place = g_cli_guard->movable_buf_alloc(needed, g_cli_text_owner);
+    const CarcerMovableEntry *const place =
+        (kept != NULL) ? kept : g_cli_guard->movable_buf_alloc(capacity, g_cli_text_owner);
     if (place == NULL)
     {
         EMBED_CALL(keyed_reject, KeyedCtx, .keyed = args->keyed_out, .key = args->key,
@@ -179,7 +220,7 @@ int cli_keyed_append(const CliKeyedKeyAdjacentCfg *args)
     const CliKeyedEntry entry = {1,
                                  cli_keyed_key_adjacent.hash(args),
                                  place,
-                                 needed,
+                                 capacity,
                                  (unsigned int)key_size,
                                  (unsigned int)adjacent_size,
                                  text_at,

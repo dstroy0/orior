@@ -21,8 +21,8 @@ static const char *const s_not_searched[10] = {"venv",        ".venv", "env",  "
 // no function or class of a test
 #define TESTS_NONE 0xffffffffu
 
-// the test frameworks' own names: the base a test case inherits, the method that builds a class, and the start of a
-// test case's test methods' names
+// The test frameworks' own names: the base a test case inherits, and the method that builds a class. Then the start
+// of the names of a test case's test methods
 #define CLI_TESTS_CASE_BASE "TestCase"
 #define CLI_TESTS_BUILDER "__init__"
 #define CLI_TESTS_CASE_START "test"
@@ -30,8 +30,9 @@ static const char *const s_not_searched[10] = {"venv",        ".venv", "env",  "
 // the declarations a file's cell holds first
 #define CLI_TESTS_DECLARED 64u
 
-// A declaration a file names: 1 in `class_of` where it declares a class, 0 a function; where its name's bytes start in
-// the text and how many; its line; its body's last line; and, for a class, 1 where it inherits a test case's base
+// A declaration a file names. `class_of` is 1 where it declares a class, 0 for a function. Then where its name's
+// bytes start in the text and how many, its line, and its body's last line. For a class, 1 where it inherits a test
+// case's base
 typedef struct
 {
     int class_of;
@@ -42,10 +43,10 @@ typedef struct
     int test_case;
 } TestsDeclared;
 
-// A search's work state, under the tests' lock: the rules and the Rust tests; and a file's part: the text, its
-// declarations in a cell grown as they come, their count and capacity, 1 in `refused` where the cells refused one, the
-// leaves the walk saved, its lines' starts and their count, and its tests, each its function and its class,
-// TESTS_NONE where it has none
+// A search's work state, under the tests' lock. It holds the rules and the Rust tests, and a file's part. The part
+// holds the text and its declarations in a cell that grows as they come, with their count and capacity. `refused` is
+// 1 where the cells refused one. Then the leaves the walk saved, its lines' starts and their count. Last, its tests,
+// each its function and its class, TESTS_NONE where it has none
 typedef struct
 {
     const char *text;
@@ -238,7 +239,7 @@ EMBED_INLINE unsigned int found_class_get(const TestingFoundCtx *args)
     return found;
 }
 
-// whether the declaration at `at` is named `word`
+// whether the declaration at `at` has the name `word`
 EMBED_INLINE int found_named(const TestingFoundCtx *args)
 {
     const TestsDeclared *const one = &s_work_state->declared[args->at];
@@ -247,8 +248,9 @@ EMBED_INLINE int found_named(const TestingFoundCtx *args)
            (memor.cmp(&(MemoriaCfg){.src = args->text + one->at, .other = args->file, .bytes = size}) == 0);
 }
 
-// whether the class at `class_at` collects its tests: it inherits a test case's base, or is named as the rules name a
-// test class and no function of its body builds it; and whether it inherits one
+// Whether the class at `class_at` collects its tests. It does where it inherits a test case's base. It does too where
+// its name matches the rules' name for a test class and no function of its body builds it. Also whether it inherits
+// one
 EMBED_INLINE int found_collect(const TestingFoundCtx *args)
 {
     const CliTestRules *rules = args->rules;
@@ -336,8 +338,8 @@ EMBED_INLINE unsigned int found_tests(const TestingFoundCtx *args)
     return count;
 }
 
-// the file's leaves and declarations read off the walk, and its lines' starts and tests given cells: 1, or 0 where the
-// walk does not read the file or the cells refuse it
+// The file's leaves and declarations read off the walk, and its lines' starts and tests given cells. Returns 1, or 0
+// where the walk does not read the file or the cells refuse it
 EMBED_INLINE int found_read(const TestingFoundCtx *args)
 {
     CliTestsWorkState *const work = s_work_state;
@@ -427,8 +429,8 @@ static void found_in(const TestingFoundCtx *args)
     found_release();
 }
 
-// whether the path `file` is one the rules search for tests: a Python file outside the folders not searched, named as
-// a test file, and inside the rules' folders where they name any
+// Whether the path `file` is one the rules search for tests. It is a Python file with the name of a test file,
+// outside the folders the search passes over. It lies inside the rules' folders where they name any
 EMBED_INLINE int found_search(const TestingFoundCtx *args)
 {
     const CliTestRules *rules = args->rules;
@@ -480,15 +482,17 @@ EMBED_INLINE int found_search(const TestingFoundCtx *args)
     return inside;
 }
 
-// the Python tests of the tree at `root`, under the finder's lock
-EMBED_INLINE void found_python(const TestingFoundCtx *args)
+// each of the tree's Python files the rules search read and its tests passed on, with the find's args the context
+static void python_files_found(const CliFilesEachCfg *view)
 {
+    const TestingFoundCtx *const args = view->context;
     const char *root = args->root;
-    EMBED_CALL(cli_testing_rules.test_rules_get, CliTestingRulesCfg, .root = root, .rules = &s_work_state->rules);
-    const CliFiles *const files = EMBED_CALL(cli_files_root_paths.view, CliFilesRootPathsCfg, .root = root);
-    for (unsigned int index = 0u; (files != NULL) && (index < files->count); index += 1u)
+    const CliPicked *const files = view->files;
+    for (unsigned int index = 0u; index < files->count; index += 1u)
     {
-        const char *const file = EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = index);
+        char file_read[CLI_PATH_MAX_LEN];
+        const char *const file =
+            EMBED_CALL(cli_files_view_read.at, CliFilesViewCfg, .view = files, .index = index, .path_out = file_read);
         if (!EMBED_CALL(found_search, TestingFoundCtx, .file = file, .rules = &s_work_state->rules))
         {
             continue;
@@ -515,7 +519,16 @@ EMBED_INLINE void found_python(const TestingFoundCtx *args)
         }
         g_cli_guard->persistent_buf_release(bytes, g_cli_tests_owner);
     }
-    EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
+}
+
+// the Python tests of the tree at `root`, under the finder's lock
+EMBED_INLINE void found_python(const TestingFoundCtx *args)
+{
+    const char *root = args->root;
+    EMBED_CALL(cli_testing_rules.test_rules_get, CliTestingRulesCfg, .root = root, .rules = &s_work_state->rules);
+    TestingFoundCtx found = *args;
+    (void)EMBED_CALL(cli_files_root_paths.each, CliFilesRootPathsCfg, .root = root, .each = python_files_found,
+                     .context = &found);
 }
 
 // the tests' lock taken and the retained work state set under it: 1

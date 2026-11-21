@@ -82,20 +82,28 @@ static void text_is(const char *required)
                                 .context = (void *)required));
 }
 
+// the revert's text read into a buffer of this call and put into the view as one step
+static void revert_applied(const CliChangeRevertCfg *each)
+{
+    char text[1024];
+    TEST_ASSERT_TRUE(each->length < sizeof(text));
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = each->cell, .offset = 0ULL, .dst = text, .bytes = each->length + 1ULL});
+    const CliEdit edit = {each->from, each->to, text, each->length};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_view_edits.apply, CliViewEditsCfg, .key = s_key, .edit = &edit, .count = 1u,
+                                .err_msg = each->context));
+}
+
 // the change at `line` reverted through the view as one step
 static void reverted(unsigned long long line)
 {
     CliChange change;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_document_change.find, CliChangeCfg, .key = s_key, .at = CLI_CHANGE_NONE,
                                 .line = line, .change_out = &change));
-    CliEdit edit;
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     TEST_ASSERT_TRUE(EMBED_CALL(cli_document_change.revert, CliChangeCfg, .key = s_key, .change = &change,
-                                .edit_out = &edit, .err_msg = &err_msg));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_view_edits.apply, CliViewEditsCfg, .key = s_key, .edit = &edit, .count = 1u,
-                                .err_msg = &err_msg));
-    EMBED_CALL(cli_document_change.revert_end, CliChangeCfg, .edit_out = &edit);
+                                .each = revert_applied, .context = &err_msg, .err_msg = &err_msg));
 }
 
 void test_a_line_put_in_is_one_change_marked_added(void)

@@ -10,6 +10,7 @@
 #include "../../../includes/window/panel.h"
 #include "../../cli/src/command_line/cli_internal.h"
 #include "../../cli/src/editor/document_changes.h"
+#include "../../cli/src/editor/view_edits.h"
 
 // The peek as last positioned: its box, empty for none, and each control's square, revert first
 typedef struct
@@ -20,8 +21,8 @@ typedef struct
 
 static ChangePeekPlaces s_places;
 
-// The change displayed: the key of the text it is in, its place among the text's changes, CLI_CHANGE_NONE for none, and
-// the millisecond it was displayed at
+// The change on display. It holds the key of the text it is in, and its place among the text's changes,
+// CLI_CHANGE_NONE for none. Last, the millisecond it came on display
 typedef struct
 {
     char key[CLI_NAME_MAX_LEN];
@@ -61,8 +62,8 @@ EMBED_INLINE void peek_displayed(const ChangePeekCtx *args)
     s_displayed.displayed_ms = cli_clock_milliseconds();
 }
 
-// the change displayed read anew off the store, into `change_out` with how many changes are into `count_out`: 1, or 0
-// where none is displayed or it is gone, which closes the peek
+// The change on display read anew off the store into `change_out`, and the count of changes into `count_out`. Returns
+// 1, or 0 where none is on display or the store has it no more, which closes the peek
 EMBED_INLINE int peek_change(const ChangePeekCtx *args)
 {
     if (s_displayed.at == CLI_CHANGE_NONE)
@@ -197,8 +198,8 @@ void gui_change_peek_draw(const GuiChangePeekCfg *args)
                .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
                                   .one = (GuiRect){box.x, box.y + head - 1, box.width, 1}, .other = clip),
                .color = palette->widget_line);
-    // the change's lines, a sign then the text, as many as the box shows: the older lines first, read off the file as
-    // the last commit has it, then the newer, read off the text
+    // The change's lines, a sign then the text, as many as the box shows. The older lines come first, read off the file
+    // as the last commit has it. Then the newer lines come, read off the text
     const unsigned int code_size =
         (unsigned int)EMBED_CALL(peek_scaled, ChangePeekCtx, .peek = args, .pixels = (int)GUI_CODE_SIZE);
     for (unsigned int at = 0u; at < displayed; at += 1u)
@@ -242,7 +243,7 @@ void gui_change_peek_draw(const GuiChangePeekCfg *args)
 
 int gui_change_peek_hit(const GuiChangePeekCfg *args)
 {
-    // a change closed since the box was positioned leaves no box to press
+    // a change closed since the last place of the box leaves no box to press
     if ((s_displayed.at == CLI_CHANGE_NONE) ||
         !EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = s_places.box, .x = args->x, .y = args->y))
     {
@@ -284,7 +285,7 @@ int gui_change_peek_step(const GuiChangePeekCfg *args)
     {
         return 0;
     }
-    // from the change displayed where one is displayed on this key, else from the line
+    // from the change on display where this key has one on display, else from the line
     const int same = (s_displayed.at != CLI_CHANGE_NONE) &&
                      cellul.eq(&(CatenaFinitaCfg){.src = s_displayed.key, .other = args->key, .cap = CLI_NAME_MAX_LEN});
     CliChange change;
@@ -327,6 +328,33 @@ int gui_change_peek_settled(const GuiChangePeekCfg *args)
            (cli_clock_milliseconds() >= s_displayed.displayed_ms + GUI_CHANGE_PEEK_SETTLE_MS);
 }
 
+// The revert the peek applies: the view's key, where why goes, and whether the view took the edit
+typedef struct
+{
+    const char *key;
+    VerbaLinea *err_msg;
+    int applied;
+} PeekRevertCtx;
+
+// The revert's text read into a buffer of this call, and the edit put into the view as one step. The buffer goes
+// back before the call returns
+static void peek_revert_applied(const CliChangeRevertCfg *each)
+{
+    PeekRevertCtx *const revert = each->context;
+    char *const text = g_cli_guard->temporary_buf_alloc(each->length + 1ULL, g_cli_view_owner);
+    if (text == NULL)
+    {
+        mmgr_line_put(revert->err_msg, "the revert's text could not be read");
+        return;
+    }
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = each->cell, .offset = 0ULL, .dst = text, .bytes = each->length + 1ULL});
+    const CliEdit edit = {each->from, each->to, text, each->length};
+    revert->applied = EMBED_CALL(cli_view_edits.apply, CliViewEditsCfg, .key = revert->key, .edit = &edit, .count = 1u,
+                                 .err_msg = revert->err_msg);
+    g_cli_guard->persistent_buf_release(text, g_cli_view_owner);
+}
+
 int gui_change_peek_revert(const GuiChangePeekCfg *args)
 {
     CliChange change;
@@ -336,11 +364,8 @@ int gui_change_peek_revert(const GuiChangePeekCfg *args)
         mmgr_line_put(args->err_msg, "no change is displayed");
         return 0;
     }
-    return EMBED_CALL(cli_document_change.revert, CliChangeCfg, .key = s_displayed.key, .change = &change,
-                      .edit_out = args->edit_out, .err_msg = args->err_msg);
-}
-
-void gui_change_peek_revert_end(const GuiChangePeekCfg *args)
-{
-    EMBED_CALL(cli_document_change.revert_end, CliChangeCfg, .edit_out = args->edit_out);
+    PeekRevertCtx revert = {args->key, args->err_msg, 0};
+    (void)EMBED_CALL(cli_document_change.revert, CliChangeCfg, .key = s_displayed.key, .change = &change,
+                     .each = peek_revert_applied, .context = &revert, .err_msg = args->err_msg);
+    return revert.applied;
 }

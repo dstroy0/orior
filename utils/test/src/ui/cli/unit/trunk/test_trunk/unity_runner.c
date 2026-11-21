@@ -2,8 +2,8 @@
 
 /*=======Automagically Detected Files To Include=====*/
 #include "unity.h"
-#include "ui/cli/src/code/git.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
+#include "ui/cli/src/code/git.h"
 #include "ui/cli/src/code/symbols_tree.h"
 #include "ui/cli/src/editor/files_internal.h"
 #include "ui/cli/src/editor/watch_internal.h"
@@ -98,32 +98,32 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("utils/test/src/ui/cli/unit/trunk/test_trunk/test_trunk.c");
-  run_test(test_git_lists_the_tree, "test_git_lists_the_tree", 72);
-  run_test(test_each_file_is_a_branch, "test_each_file_is_a_branch", 78);
-  run_test(test_each_folder_is_a_branch, "test_each_folder_is_a_branch", 85);
-  run_test(test_a_file_is_not_a_folder_and_a_folder_is_not_a_file, "test_a_file_is_not_a_folder_and_a_folder_is_not_a_file", 92);
-  run_test(test_the_files_are_counted, "test_the_files_are_counted", 99);
-  run_test(test_every_file_is_removed_through, "test_every_file_is_removed_through", 108);
-  run_test(test_a_call_lists_the_files_flat_and_sorted, "test_a_call_lists_the_files_flat_and_sorted", 121);
-  run_test(test_nothing_of_the_list_remains_after_it, "test_nothing_of_the_list_remains_after_it", 132);
-  run_test(test_the_tree_is_listing_as_it_opens, "test_the_tree_is_listing_as_it_opens", 139);
-  run_test(test_the_tree_is_not_listing_again_for_the_time_that_passed, "test_the_tree_is_not_listing_again_for_the_time_that_passed", 145);
-  run_test(test_a_file_added_joins_and_the_tree_is_not_listing_for_it, "test_a_file_added_joins_and_the_tree_is_not_listing_for_it", 155);
-  run_test(test_a_file_added_leaves_the_other_branches_in_position, "test_a_file_added_leaves_the_other_branches_in_position", 164);
-  run_test(test_a_file_addeds_closest_parent_is_its_folder_which_counts_it, "test_a_file_addeds_closest_parent_is_its_folder_which_counts_it", 175);
-  run_test(test_a_file_git_ignores_does_not_join, "test_a_file_git_ignores_does_not_join", 189);
-  run_test(test_a_file_in_a_folder_not_joined_fetches_its_folders_and_no_other_file, "test_a_file_in_a_folder_not_joined_fetches_its_folders_and_no_other_file", 197);
-  run_test(test_a_folder_that_received_in_joins_its_files_and_the_tree_is_not_listing, "test_a_folder_that_received_in_joins_its_files_and_the_tree_is_not_listing", 209);
-  run_test(test_a_file_that_joined_already_joins_once, "test_a_file_that_joined_already_joins_once", 220);
-  run_test(test_a_removed_file_leaves_with_the_folder_it_left_empty, "test_a_removed_file_leaves_with_the_folder_it_left_empty", 231);
-  run_test(test_a_folder_that_holds_another_stays, "test_a_folder_that_holds_another_stays", 244);
-  run_test(test_a_branch_left_is_reused, "test_a_branch_left_is_reused", 256);
-  run_test(test_a_removed_folder_allocs_all_under_it_and_the_tree_is_not_listing, "test_a_removed_folder_allocs_all_under_it_and_the_tree_is_not_listing", 271);
-  run_test(test_changed_rules_remove_what_they_now_leave_out, "test_changed_rules_remove_what_they_now_leave_out", 284);
-  run_test(test_changed_rules_leave_what_remains_in_its_cell, "test_changed_rules_leave_what_remains_in_its_cell", 293);
-  run_test(test_a_tree_git_cannot_read_is_walked_end_the_folders_a_walk_skips, "test_a_tree_git_cannot_read_is_walked_end_the_folders_a_walk_skips", 307);
-  run_test(test_a_file_added_to_a_walked_tree_joins_unless_a_walk_skips_its_folder, "test_a_file_added_to_a_walked_tree_joins_unless_a_walk_skips_its_folder", 319);
-  run_test(test_a_changed_branch_walked_releases_no_cell_it_did_not_take, "test_a_changed_branch_walked_releases_no_cell_it_did_not_take", 334);
+  run_test(test_git_lists_the_tree, "test_git_lists_the_tree", 73);
+  run_test(test_each_file_is_a_branch, "test_each_file_is_a_branch", 79);
+  run_test(test_each_folder_is_a_branch, "test_each_folder_is_a_branch", 86);
+  run_test(test_a_file_is_not_a_folder_and_a_folder_is_not_a_file, "test_a_file_is_not_a_folder_and_a_folder_is_not_a_file", 93);
+  run_test(test_the_files_are_counted, "test_the_files_are_counted", 100);
+  run_test(test_every_file_is_removed_through, "test_every_file_is_removed_through", 109);
+  run_test(test_a_call_lists_the_files_flat_and_sorted, "test_a_call_lists_the_files_flat_and_sorted", 122);
+  run_test(test_nothing_of_the_list_remains_after_it, "test_nothing_of_the_list_remains_after_it", 133);
+  run_test(test_the_tree_is_listing_as_it_opens, "test_the_tree_is_listing_as_it_opens", 141);
+  run_test(test_the_tree_is_not_listing_again_for_the_time_that_passed, "test_the_tree_is_not_listing_again_for_the_time_that_passed", 147);
+  run_test(test_a_file_added_joins_and_the_tree_is_not_listing_for_it, "test_a_file_added_joins_and_the_tree_is_not_listing_for_it", 158);
+  run_test(test_a_file_added_leaves_the_other_branches_in_position, "test_a_file_added_leaves_the_other_branches_in_position", 167);
+  run_test(test_a_file_addeds_closest_parent_is_its_folder_which_counts_it, "test_a_file_addeds_closest_parent_is_its_folder_which_counts_it", 179);
+  run_test(test_a_file_git_ignores_does_not_join, "test_a_file_git_ignores_does_not_join", 195);
+  run_test(test_a_file_in_a_folder_not_joined_fetches_its_folders_and_no_other_file, "test_a_file_in_a_folder_not_joined_fetches_its_folders_and_no_other_file", 203);
+  run_test(test_a_folder_that_received_in_joins_its_files_and_the_tree_is_not_listing, "test_a_folder_that_received_in_joins_its_files_and_the_tree_is_not_listing", 215);
+  run_test(test_a_file_that_joined_already_joins_once, "test_a_file_that_joined_already_joins_once", 226);
+  run_test(test_a_removed_file_leaves_with_the_folder_it_left_empty, "test_a_removed_file_leaves_with_the_folder_it_left_empty", 239);
+  run_test(test_a_folder_that_holds_another_stays, "test_a_folder_that_holds_another_stays", 252);
+  run_test(test_a_branch_left_is_reused, "test_a_branch_left_is_reused", 264);
+  run_test(test_a_removed_folder_allocs_all_under_it_and_the_tree_is_not_listing, "test_a_removed_folder_allocs_all_under_it_and_the_tree_is_not_listing", 284);
+  run_test(test_changed_rules_remove_what_they_now_leave_out, "test_changed_rules_remove_what_they_now_leave_out", 297);
+  run_test(test_changed_rules_leave_what_remains_in_its_cell, "test_changed_rules_leave_what_remains_in_its_cell", 306);
+  run_test(test_a_tree_git_cannot_read_is_walked_end_the_folders_a_walk_skips, "test_a_tree_git_cannot_read_is_walked_end_the_folders_a_walk_skips", 321);
+  run_test(test_a_file_added_to_a_walked_tree_joins_unless_a_walk_skips_its_folder, "test_a_file_added_to_a_walked_tree_joins_unless_a_walk_skips_its_folder", 333);
+  run_test(test_a_changed_branch_walked_releases_no_cell_it_did_not_take, "test_a_changed_branch_walked_releases_no_cell_it_did_not_take", 348);
 
   return UNITY_END();
 }
