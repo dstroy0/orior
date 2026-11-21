@@ -142,8 +142,7 @@ typedef struct
 // and the dialog's; Preferences, what its rows are at, the palette of the window's own they change, and the scale the
 // system gave, which the zoom positions the frame at a share of; the claim and whether its slides ran at the last tick;
 // the controls' tab's shadow; the wordmark; less motion as the system and the settings ask it; the tree's name, the
-// last part of its folder; the entries of orior's folder read as the window began, which the modules restored from them
-// read in place until the window ends; whether the editor takes the keys and whether the window is to close; what orior
+// last part of its folder; whether the editor takes the keys and whether the window is to close; what orior
 // takes in RAM and when it is next read; the view displayed when the frame was last taken, -1 for none; the editor's
 // rows and columns, the bar's titles displayed and whether the rest fold, and the lines the map is for, each as last
 // passed on; the terminal's two panes' columns and rows and its height as last passed on; what the pointer last moved
@@ -285,7 +284,6 @@ typedef struct GuiWindow
     int off_screen;
     int lattice_frozen;
     const char *title;
-    CliStateEntries entries;
     int editing;
     // whether another window of the system has the keys: the caret stands still and sets no deadline while it does
     int blurred;

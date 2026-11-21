@@ -330,9 +330,7 @@ void gui_window_end(const GuiWindowCfg *args)
     cli_door_macro_close();
     cli_sessions_close();
     cli_comms_end();
-    // the notices read the entries in place, and they let go before the entries do
     cli_notices_end();
-    cli_state_entries_release(&(CliStateEntriesCfg){.entries = &window->entries});
     EMBED_CALL(gui_explorer_theme.set, GuiExplorerThemeCfg, .theme_read = NULL);
     EMBED_CALL(gui_themes_owner.free, GuiThemesOwnerCfg, .themes = &window->themes);
     EMBED_CALL(cli_document_colored.colors_to, CliDocumentColoredCfg, .colored = NULL, .threaded = 0);
@@ -2975,19 +2973,27 @@ EMBED_INLINE void window_palette_rebuild(const GuiWindowCtx *args)
     EMBED_CALL(gui_palette_scheme.own_init, GuiPaletteCfg, .own = &window->palette_own, .scheme = GUI_SCHEME_DARK);
     window->tokens_key[0] = '\0';
     EMBED_CALL(window_tokens_load, GuiWindowCtx, .window = window, .key = tokens_key);
-    for (unsigned int each = 0u; each < window->entries.count; each += 1u)
+    // the color settings read out of orior's folder for this call, and given back before it returns
+    CliStateEntries entries = {NULL, g_cli_view_owner, 0u};
+    char folder[CLI_PATH_MAX_LEN];
+    if (EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = folder))
+    {
+        entries = cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = folder, .owner = g_cli_view_owner});
+    }
+    for (unsigned int each = 0u; each < entries.count; each += 1u)
     {
         char key[CLI_NAME_MAX_LEN];
         char value[GUI_PREFERENCES_TEXT];
-        if ((cli_state_entry_key(&(CliStateEntryCfg){
-                 .entries = &window->entries, .at = each, .out = key, .capacity = sizeof(key)}) != NULL) &&
+        if ((cli_state_entry_key(
+                 &(CliStateEntryCfg){.entries = &entries, .at = each, .out = key, .capacity = sizeof(key)}) != NULL) &&
             cellul.starts(&(CatenaFinitaCfg){.src = key, .other = GUI_WINDOW_COLOR_KEY, .cap = 64ULL}) &&
             (cli_state_entry_text(&(CliStateEntryCfg){
-                 .entries = &window->entries, .at = each, .out = value, .capacity = sizeof(value)}) != NULL))
+                 .entries = &entries, .at = each, .out = value, .capacity = sizeof(value)}) != NULL))
         {
             EMBED_CALL(window_color_apply, GuiWindowCtx, .window = window, .key = key, .value = value);
         }
     }
+    cli_state_entries_release(&(CliStateEntriesCfg){.entries = &entries});
     const GuiTheme *const theme = EMBED_CALL(window_theme_displayed, GuiWindowCtx, .window_read = window);
     for (unsigned int at = 0u; (theme != NULL) && (at < theme->colors); at += 1u)
     {
@@ -6540,13 +6546,14 @@ static void window_start_called(const GuiWindowCfg *args)
     cli_servers_problems_begin(args->woken);
     cli_servers_panels_begin(&(CliServersPanelsCfg){.root = root});
     char folder[CLI_PATH_MAX_LEN];
-    // the entries are in their movable cell until the window ends, read by the modules that restore from them
-    window->entries = (CliStateEntries){NULL, g_cli_view_owner, 0u};
+    // The entries of orior's folder, read for this call. The modules restore from them, and each copies what it keeps.
+    // The entries go back before the call returns
+    CliStateEntries entries_read = {NULL, g_cli_view_owner, 0u};
     if (EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = folder))
     {
-        window->entries = cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = folder, .owner = g_cli_view_owner});
+        entries_read = cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = folder, .owner = g_cli_view_owner});
     }
-    const CliStateEntries *const entries = &window->entries;
+    const CliStateEntries *const entries = &entries_read;
     EMBED_CALL(cli_tests_pane.begin, CliTestsPaneCfg, .woken = args->woken, .entries = entries);
     EMBED_CALL(cli_runs_pane.begin, CliRunsPaneCfg, .woken = args->woken);
     EMBED_CALL(cli_search_pane.begin, CliSearchPaneCfg, .woken = args->woken, .entries = entries);
@@ -6568,6 +6575,7 @@ static void window_start_called(const GuiWindowCfg *args)
         EMBED_CALL(window_group_read, GuiWindowCtx, .window = window, .entries = entries);
         cli_view_session_restore(root, entries, window->rows, window->columns);
     }
+    cli_state_entries_release(&(CliStateEntriesCfg){.entries = &entries_read});
     // the command the window started with, run as the menus run it
     const CliOutcome *const launch = cli_command_line_launched();
     if (launch->command[0] != '\0')

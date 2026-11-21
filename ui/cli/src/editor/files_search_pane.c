@@ -67,7 +67,10 @@ typedef struct
 
 static Search s_search;
 static void (*s_woken)(void);
-static const CliStateEntries *s_entries;
+// the sets' text as the pane began, `<name>:` lines and their patterns, in a movable cell of the pane's own, NULL for
+// none, with its bytes
+static const CarcerMovableEntry *s_sets;
+static unsigned long long s_sets_bytes;
 static embed_atomic_u32 s_stale;
 
 typedef struct
@@ -92,17 +95,15 @@ typedef struct
 EMBED_INLINE unsigned int search_sets_read(const FilesSearchPaneCtx *args)
 {
     Search *const search = &s_search;
-    // the sets' text read out of the entries' cell into a cell of this call
-    const unsigned long long sets_size =
-        cli_state_entry_size(&(CliStateEntryCfg){.entries = s_entries, .key = SEARCH_SETS_KEY});
-    char *const sets_text = (sets_size != CLI_STATE_NONE)
-                                ? g_cli_guard->temporary_buf_alloc(sets_size + 1ULL, g_cli_search_pane_owner)
-                                : NULL;
-    const char *const sets =
-        (sets_text != NULL)
-            ? cli_state_entry_value(&(CliStateEntryCfg){
-                  .entries = s_entries, .key = SEARCH_SETS_KEY, .out = sets_text, .capacity = sets_size + 1ULL})
-            : NULL;
+    // the sets' text read out of the pane's own cell into a cell of this call
+    char *const sets_text =
+        (s_sets != NULL) ? g_cli_guard->temporary_buf_alloc(s_sets_bytes + 1ULL, g_cli_search_pane_owner) : NULL;
+    if (sets_text != NULL)
+    {
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = s_sets, .offset = 0ULL, .dst = sets_text, .bytes = s_sets_bytes + 1ULL});
+    }
+    const char *const sets = sets_text;
     const unsigned long long name_length =
         (args->name != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_SEARCH_NAME_MAX}) : 0ULL;
     unsigned int count = 0u;
@@ -220,8 +221,9 @@ EMBED_INLINE unsigned int search_regexp_match(const FilesSearchPaneCtx *args)
 // how many lines the file `at` has among the lines located
 EMBED_INLINE unsigned int search_file_lines(const FilesSearchPaneCtx *args)
 {
-    const unsigned int end = (args->at + 1u < cli_search_located_files()) ? cli_search_located_file_first(&(CliSearchLocatedCfg){.file = args->at + 1u})
-                                                                          : cli_search_located_count();
+    const unsigned int end = (args->at + 1u < cli_search_located_files())
+                                 ? cli_search_located_file_first(&(CliSearchLocatedCfg){.file = args->at + 1u})
+                                 : cli_search_located_count();
     return end - cli_search_located_file_first(&(CliSearchLocatedCfg){.file = args->at});
 }
 
@@ -413,7 +415,28 @@ EMBED_INLINE void search_changed(const FilesSearchPaneCtx *args)
 void cli_search_pane_begin(const CliSearchPaneCfg *args)
 {
     s_woken = args->woken;
-    s_entries = args->entries;
+    // the sets' text copied out of the entries into the pane's own cell, through a cell of this call
+    (void)g_cli_guard->movable_buf_release(s_sets, g_cli_search_pane_owner);
+    s_sets = NULL;
+    s_sets_bytes = 0ULL;
+    const unsigned long long sets_size =
+        cli_state_entry_size(&(CliStateEntryCfg){.entries = args->entries, .key = SEARCH_SETS_KEY});
+    char *const sets_text = (sets_size != CLI_STATE_NONE)
+                                ? g_cli_guard->temporary_buf_alloc(sets_size + 1ULL, g_cli_search_pane_owner)
+                                : NULL;
+    const int sets_read =
+        (sets_text != NULL) &&
+        (cli_state_entry_value(&(CliStateEntryCfg){
+             .entries = args->entries, .key = SEARCH_SETS_KEY, .out = sets_text, .capacity = sets_size + 1ULL}) !=
+         NULL);
+    s_sets = sets_read ? g_cli_guard->movable_buf_alloc(sets_size + 1ULL, g_cli_search_pane_owner) : NULL;
+    if (s_sets != NULL)
+    {
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = s_sets, .offset = 0ULL, .src = sets_text, .bytes = sets_size + 1ULL});
+        s_sets_bytes = sets_size;
+    }
+    g_cli_guard->persistent_buf_release(sets_text, g_cli_search_pane_owner);
     Search *const search = &s_search;
     // the set saved found by its name among the sets listed
     char saved_name[CLI_SEARCH_NAME_MAX];
@@ -593,7 +616,8 @@ int cli_search_pane_row(const CliSearchPaneCfg *args)
     row->type = CLI_SEARCH_ROW_HIT;
     row->line = hit.line;
     row->col = hit.col;
-    row->text_length = cli_search_located_text(&(CliSearchLocatedCfg){.line = &hit, .out = row->text_copied, .capacity = sizeof(row->text_copied)});
+    row->text_length = cli_search_located_text(
+        &(CliSearchLocatedCfg){.line = &hit, .out = row->text_copied, .capacity = sizeof(row->text_copied)});
     row->text = row->text_copied;
     // the match: the query's bytes at its column, or what the regular expression matched there, one byte at the least
     row->match_at = ((hit.col > 0ULL) && (hit.col - 1ULL < row->text_length)) ? hit.col - 1ULL : 0ULL;
