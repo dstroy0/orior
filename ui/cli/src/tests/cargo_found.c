@@ -264,37 +264,22 @@ static void found_walk(const CargoFoundCtx *args)
     g_cli_cargo_scan.name_used = names;
 }
 
-void cli_cargo_find(const CliCargoTestsCfg *args)
+// What the find of Cargo's tests carries through the tree's files: the find's args, and the walk of each target
+typedef struct
+{
+    const CliCargoTestsCfg *args;
+    CliCargoWalk *walk;
+} CargoFilesFound;
+
+// each Cargo.toml of the tree outside the folders the find does not search read, and its targets' tests found
+static void cargo_files_found(const CliFilesEachCfg *view)
 {
     static const char *const s_not_searched[4] = {"target", "node_modules", ".git", "build"};
-    CliCargoWalk walk = {args->root, args->tests, NULL, NULL, {0u, NULL}, NULL, 0ULL, 0ULL, NULL, 0ULL, 0ULL};
-    CliCargoPiece *piece = args->tests->pieces;
-    while (piece != NULL)
-    {
-        CliCargoPiece *const next = piece->next;
-        g_cli_guard->persistent_buf_release(piece, g_cli_cargo_owner);
-        piece = next;
-    }
-    g_cli_guard->persistent_buf_release(args->tests->found, g_cli_cargo_owner);
-    *args->tests = (CliCargoTests){NULL, 0u, 0u, NULL, 0ULL, 0};
-    g_cli_guard->persistent_buf_release(g_cli_cargo_scan.tokens, g_cli_cargo_owner);
-    g_cli_guard->persistent_buf_release(g_cli_cargo_scan.items, g_cli_cargo_owner);
-    memor.set(&(MemoriaCfg){.dst = &g_cli_cargo_scan, .val = 0, .bytes = sizeof(g_cli_cargo_scan)});
-    // the tests found are the call's own: its caller gives them back as it ends
-    args->tests->found = g_cli_guard->temporary_buf_alloc(
-        (unsigned long long)CLI_CARGO_FOUND * sizeof(*args->tests->found), g_cli_cargo_owner);
-    args->tests->capacity = (args->tests->found != NULL) ? CLI_CARGO_FOUND : 0u;
-    const unsigned long long seen_bytes = (unsigned long long)CLI_CARGO_FOUND * sizeof(*walk.seen);
-    char *const seen_cell = g_cli_guard->temporary_buf_alloc(seen_bytes + CLI_CARGO_TEXT, g_cli_cargo_owner);
-    if (seen_cell != NULL)
-    {
-        walk.seen = (unsigned long long *)(void *)seen_cell;
-        walk.seen_capacity = CLI_CARGO_FOUND;
-        walk.seen_text = seen_cell + seen_bytes;
-        walk.seen_text_capacity = CLI_CARGO_TEXT;
-    }
-    const CliFiles *const files = EMBED_CALL(cli_files_root_paths.view, CliFilesRootPathsCfg, .root = args->root);
-    for (unsigned int index = 0u; (files != NULL) && (index < files->count); index += 1u)
+    const CargoFilesFound *const finding = view->context;
+    const CliCargoTestsCfg *const args = finding->args;
+    CliCargoWalk *const walk = finding->walk;
+    const CliFiles *const files = view->files;
+    for (unsigned int index = 0u; index < files->count; index += 1u)
     {
         const char *const manifest = EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = index);
         const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = manifest, .cap = CLI_POOL_BYTES});
@@ -359,29 +344,61 @@ void cli_cargo_find(const CliCargoTestsCfg *args)
         {
             continue;
         }
-        walk.manifest =
+        walk->manifest =
             EMBED_CALL(found_append, CargoFoundCtx, .tests = args->tests, .text = manifest, .length = length);
-        walk.package = EMBED_CALL(found_append, CargoFoundCtx, .tests = args->tests, .text = package,
-                                  .length = cellul.len(&(CatenaFinitaCfg){.src = package, .cap = CLI_POOL_BYTES}));
-        walk.seen_count = 0ULL;
-        walk.seen_used = 0ULL;
+        walk->package = EMBED_CALL(found_append, CargoFoundCtx, .tests = args->tests, .text = package,
+                                   .length = cellul.len(&(CatenaFinitaCfg){.src = package, .cap = CLI_POOL_BYTES}));
+        walk->seen_count = 0ULL;
+        walk->seen_used = 0ULL;
         for (unsigned int target = 0u; target < target_count; target += 1u)
         {
             const CliCargoFirst *const first = &firsts[target];
             char file[CLI_PATH_MAX_LEN];
             EMBED_CALL(cli_cargo_tests_a_internal.cargo_join, CliCargoTestsACtx, .a = folder, .b = first->path,
                        .between = "/", .out = file, .capacity = sizeof(file));
-            walk.target = (CliCargoTarget){
+            walk->target = (CliCargoTarget){
                 first->type,
                 (first->type == CLI_CARGO_LIB)
                     ? NULL
                     : EMBED_CALL(found_append, CargoFoundCtx, .tests = args->tests, .text = first->name,
                                  .length = cellul.len(&(CatenaFinitaCfg){.src = first->name, .cap = CLI_POOL_BYTES}))};
-            EMBED_CALL(found_walk, CargoFoundCtx, .walk = &walk, .file = file, .path = "", .owner_folder = 1);
+            EMBED_CALL(found_walk, CargoFoundCtx, .walk = walk, .file = file, .path = "", .owner_folder = 1);
         }
     }
+}
+
+void cli_cargo_find(const CliCargoTestsCfg *args)
+{
+    CliCargoWalk walk = {args->root, args->tests, NULL, NULL, {0u, NULL}, NULL, 0ULL, 0ULL, NULL, 0ULL, 0ULL};
+    CliCargoPiece *piece = args->tests->pieces;
+    while (piece != NULL)
+    {
+        CliCargoPiece *const next = piece->next;
+        g_cli_guard->persistent_buf_release(piece, g_cli_cargo_owner);
+        piece = next;
+    }
+    g_cli_guard->persistent_buf_release(args->tests->found, g_cli_cargo_owner);
+    *args->tests = (CliCargoTests){NULL, 0u, 0u, NULL, 0ULL, 0};
+    g_cli_guard->persistent_buf_release(g_cli_cargo_scan.tokens, g_cli_cargo_owner);
+    g_cli_guard->persistent_buf_release(g_cli_cargo_scan.items, g_cli_cargo_owner);
+    memor.set(&(MemoriaCfg){.dst = &g_cli_cargo_scan, .val = 0, .bytes = sizeof(g_cli_cargo_scan)});
+    // the tests found are the call's own: its caller gives them back as it ends
+    args->tests->found = g_cli_guard->temporary_buf_alloc(
+        (unsigned long long)CLI_CARGO_FOUND * sizeof(*args->tests->found), g_cli_cargo_owner);
+    args->tests->capacity = (args->tests->found != NULL) ? CLI_CARGO_FOUND : 0u;
+    const unsigned long long seen_bytes = (unsigned long long)CLI_CARGO_FOUND * sizeof(*walk.seen);
+    char *const seen_cell = g_cli_guard->temporary_buf_alloc(seen_bytes + CLI_CARGO_TEXT, g_cli_cargo_owner);
+    if (seen_cell != NULL)
+    {
+        walk.seen = (unsigned long long *)(void *)seen_cell;
+        walk.seen_capacity = CLI_CARGO_FOUND;
+        walk.seen_text = seen_cell + seen_bytes;
+        walk.seen_text_capacity = CLI_CARGO_TEXT;
+    }
+    CargoFilesFound finding = {args, &walk};
+    (void)EMBED_CALL(cli_files_root_paths.each, CliFilesRootPathsCfg, .root = args->root, .each = cargo_files_found,
+                     .context = &finding);
     cli_cargo_firsts_free();
-    EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
     g_cli_guard->persistent_buf_release(seen_cell, g_cli_cargo_owner);
     g_cli_guard->persistent_buf_release(g_cli_cargo_scan.tokens, g_cli_cargo_owner);
     g_cli_guard->persistent_buf_release(g_cli_cargo_scan.items, g_cli_cargo_owner);

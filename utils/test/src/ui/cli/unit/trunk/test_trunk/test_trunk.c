@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// test_trunk.c: the tree: the filesystem is its trunk and its files are its branches. It is listed once as it opens, and each change after joins
-// or leaves the one branch it names at its closest parent, nothing else listed
-#include "ui/cli/src/code/git.h"
+// test_trunk.c: the tree: the filesystem is its trunk and its files are its branches. It is listed once as it opens,
+// and each change after joins or leaves the one branch it names at its closest parent, nothing else listed
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
+#include "ui/cli/src/code/git.h"
 #include "ui/cli/src/code/symbols_tree.h"
 #include "ui/cli/src/editor/files_internal.h"
 #include "ui/cli/src/editor/watch_internal.h"
@@ -53,7 +53,8 @@ static void repository_listing(const char *name)
     file_written(NULL, "top.txt", "t");
     file_written("src", "src/a.c", "a");
     file_written("lib", "lib/b.c", "b");
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_git_root_out_count_err_msg.run, CliGitRootOutCountErrMsgCfg, .root = s_root, .request = s_init, .count = 2u, .out = &out, .err_msg = &err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_git_root_out_count_err_msg.run, CliGitRootOutCountErrMsgCfg, .root = s_root,
+                                .request = s_init, .count = 2u, .out = &out, .err_msg = &err_msg));
     cli_tree_forgotten();
     EMBED_CALL(cli_symbols_context.tree_list, CliSymbolsContextCfg, .root = s_root);
     s_listing_at = cli_tree_listing_at();
@@ -121,18 +122,19 @@ void test_every_file_is_removed_through(void)
 void test_a_call_lists_the_files_flat_and_sorted(void)
 {
     repository_listing("trunk_opened");
-    const CliFiles *const files = EMBED_CALL(cli_files_root_paths.view, CliFilesRootPathsCfg, .root = s_root);
+    const CliFiles *const files = EMBED_CALL(cli_files_view_internal.view, CliFilesRootPathsCfg, .root = s_root);
     TEST_ASSERT_NOT_NULL(files);
     TEST_ASSERT_EQUAL_UINT64(4ull, files->count);
     TEST_ASSERT_EQUAL_STRING(".gitignore", EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = 0u));
     TEST_ASSERT_EQUAL_STRING("top.txt", EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = 3u));
-    EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
+    EMBED_CALL(cli_files_let_internal.let, CliFilesCfg, .files = files);
 }
 
 void test_nothing_of_the_list_remains_after_it(void)
 {
     repository_listing("trunk_opened");
-    EMBED_CALL(cli_files.let, CliFilesCfg, .files = EMBED_CALL(cli_files_root_paths.view, CliFilesRootPathsCfg, .root = s_root));
+    EMBED_CALL(cli_files_let_internal.let, CliFilesCfg,
+               .files = EMBED_CALL(cli_files_view_internal.view, CliFilesRootPathsCfg, .root = s_root));
     TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_files_views_owner));
 }
 
@@ -146,7 +148,8 @@ void test_the_tree_is_not_listing_again_for_the_time_that_passed(void)
 {
     repository_listing("trunk_is");
     EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 4200u);
-    EMBED_CALL(cli_files.let, CliFilesCfg, .files = EMBED_CALL(cli_files_root_paths.view, CliFilesRootPathsCfg, .root = s_root));
+    EMBED_CALL(cli_files_let_internal.let, CliFilesCfg,
+               .files = EMBED_CALL(cli_files_view_internal.view, CliFilesRootPathsCfg, .root = s_root));
     EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 500u);
     EMBED_CALL(cli_symbols_context.tree_list, CliSymbolsContextCfg, .root = s_root);
     TEST_ASSERT_EQUAL_UINT64(s_listing_at, cli_tree_listing_at());
@@ -169,7 +172,8 @@ void test_a_file_added_leaves_the_other_branches_in_position(void)
     file_written(NULL, "src/new.c", "n");
     path_mirrored("src/new.c");
     TEST_ASSERT_EQUAL_UINT(lib, EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "lib"));
-    TEST_ASSERT_EQUAL_UINT(file, EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "lib/b.c"));
+    TEST_ASSERT_EQUAL_UINT(file,
+                           EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "lib/b.c"));
 }
 
 void test_a_file_addeds_closest_parent_is_its_folder_which_counts_it(void)
@@ -179,7 +183,9 @@ void test_a_file_addeds_closest_parent_is_its_folder_which_counts_it(void)
     path_mirrored("src/new.c");
     const unsigned int parent = EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "src");
     CliTreeBranch added;
-    EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "src/new.c"), .branch_out = &added);
+    EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg,
+               .file = EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "src/new.c"),
+               .branch_out = &added);
     CliTreeBranch folder;
     EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = parent, .branch_out = &folder);
     TEST_ASSERT_EQUAL_UINT(parent, added.parent);
@@ -224,7 +230,9 @@ void test_a_file_that_joined_already_joins_once(void)
     path_mirrored("src/new.c");
     path_mirrored("src/new.c");
     CliTreeBranch folder;
-    EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "src"), .branch_out = &folder);
+    EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg,
+               .file = EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "src"),
+               .branch_out = &folder);
     TEST_ASSERT_EQUAL_UINT(2u, folder.below);
 }
 
@@ -258,14 +266,19 @@ void test_a_branch_left_is_reused(void)
     repository_listing("trunk_left");
     file_written("lone", "lone/two.c", "t");
     path_mirrored("lone");
-    const unsigned int place = EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "lone/two.c");
+    const unsigned int place =
+        EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "lone/two.c");
     file_removed("lone/two.c");
     path_mirrored("lone/two.c");
     file_written(NULL, "src/after.c", "a");
     path_mirrored("src/after.c");
     CliTreeBranch left;
     EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = place, .branch_out = &left);
-    TEST_ASSERT_TRUE(!left.used || (EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "src/after.c") == place) || (EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "src/after.c") < g_cli_branch_count));
+    TEST_ASSERT_TRUE(
+        !left.used ||
+        (EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "src/after.c") == place) ||
+        (EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "src/after.c") <
+         g_cli_branch_count));
 }
 
 void test_a_removed_folder_allocs_all_under_it_and_the_tree_is_not_listing(void)
@@ -298,7 +311,8 @@ void test_changed_rules_leave_what_remains_in_its_cell(void)
     EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = branch, .branch_out = &before);
     file_written(NULL, ".gitignore", "*.o\nout/\nsrc/\n");
     EMBED_CALL(cli_symbols_context.tree_relist, CliSymbolsContextCfg, .root = s_root, .emit = NULL, .context = NULL);
-    TEST_ASSERT_EQUAL_UINT(branch, EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "lib/b.c"));
+    TEST_ASSERT_EQUAL_UINT(branch,
+                           EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "lib/b.c"));
     CliTreeBranch after;
     EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = branch, .branch_out = &after);
     TEST_ASSERT_EQUAL_PTR(before.cell, after.cell);
@@ -349,4 +363,3 @@ void test_a_changed_branch_walked_releases_no_cell_it_did_not_take(void)
     TEST_ASSERT_EQUAL_PTR(g_cli_code_owner, mmgr_owner_of_buf(cli_pool_series_cellularum(), located));
     g_cli_guard->persistent_buf_release(located, g_cli_code_owner);
 }
-

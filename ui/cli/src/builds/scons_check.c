@@ -218,17 +218,14 @@ static void check_export(const CliEachNameSizeCfg *args)
     s_export_used += (unsigned int)args->size;
 }
 
-// what the other SConstructs and SConscripts of the tree export, the file at `path` left out: the tree's files positioned
-// flat for the walk, and each file read into cells given back before the next
-EMBED_INLINE void check_others(const SconsCheckCtx *args)
+// what the other SConstructs and SConscripts of the tree export, the file at `path` left out: the tree's files
+// positioned flat for the walk, and each file read into cells given back before the next
+static void check_others_each(const CliFilesEachCfg *view)
 {
+    const SconsCheckCtx *const args = view->context;
+    const CliFiles *const files = view->files;
     const char *root = args->root;
     const char *path = args->path;
-    const CliFiles *const files = EMBED_CALL(cli_files_root_paths.view, CliFilesRootPathsCfg, .root = root);
-    if (files == NULL)
-    {
-        return;
-    }
     unsigned int read = 0u;
     for (unsigned int at = 0u; (at < files->count) && (read < CLI_SCONS_OTHERS); at += 1u)
     {
@@ -261,7 +258,14 @@ EMBED_INLINE void check_others(const SconsCheckCtx *args)
         g_cli_guard->persistent_buf_release(class_of, g_cli_scons_work_states_owner);
         g_cli_guard->persistent_buf_release(text, g_cli_scons_work_states_owner);
     }
-    EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
+}
+
+// the walk above over the tree's files, which the files module positions and gives back
+EMBED_INLINE void check_others(const SconsCheckCtx *args)
+{
+    SconsCheckCtx others = *args;
+    (void)EMBED_CALL(cli_files_root_paths.each, CliFilesRootPathsCfg, .root = args->root, .each = check_others_each,
+                     .context = &others);
 }
 
 // the file's checks, read already: the SConscripts it reads, and the names it imports matched against those the tree

@@ -274,13 +274,20 @@ EMBED_INLINE int cli_by_name(const TrustCodeCtx *args)
     return 0;
 }
 
-int cli_trust_looked_for(const CliTrustTreeCodeCfg *args)
+// What a look for code in the tree carries through its files: the tree, the line of paths it grows, and how many
+typedef struct
 {
-    CliGrownLine paths;
-    cli_grown_begin(&paths, CLI_TRUST_PATHS_CAPACITY, g_cli_trust_owner);
-    const CliFiles *const files = EMBED_CALL(cli_files_root_paths.view, CliFilesRootPathsCfg, .root = args->tree);
-    unsigned int found = 0u;
-    for (unsigned int index = 0u; (files != NULL) && (index < files->count); index += 1u)
+    const char *tree;
+    CliGrownLine *paths;
+    unsigned int found;
+} TrustLooked;
+
+// each file of the tree that runs code as it is opened or built put on the context's line of paths and counted
+static void trust_files_looked(const CliFilesEachCfg *view)
+{
+    TrustLooked *const looked = view->context;
+    const CliFiles *const files = view->files;
+    for (unsigned int index = 0u; index < files->count; index += 1u)
     {
         const char *const file = EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = index);
         const char *const slash =
@@ -299,7 +306,7 @@ int cli_trust_looked_for(const CliTrustTreeCodeCfg *args)
         }
         else if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "Cargo.toml", .cap = CLI_POOL_BYTES}))
         {
-            char *const text = EMBED_CALL(cli_read_in, TrustCodeCtx, .folder = args->tree, .name = file);
+            char *const text = EMBED_CALL(cli_read_in, TrustCodeCtx, .folder = looked->tree, .name = file);
             is_code = (text != NULL) && EMBED_CALL(cli_proc_macro, TrustCodeCtx, .text = text);
             g_cli_guard->persistent_buf_release(text, g_cli_trust_owner);
         }
@@ -310,11 +317,21 @@ int cli_trust_looked_for(const CliTrustTreeCodeCfg *args)
         }
         if (is_code)
         {
-            mmgr_line_put_n(&paths.line, file, cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_POOL_BYTES}) + 1u);
-            found += 1u;
+            mmgr_line_put_n(&looked->paths->line, file,
+                            cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_POOL_BYTES}) + 1u);
+            looked->found += 1u;
         }
     }
-    EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
+}
+
+int cli_trust_looked_for(const CliTrustTreeCodeCfg *args)
+{
+    CliGrownLine paths;
+    cli_grown_begin(&paths, CLI_TRUST_PATHS_CAPACITY, g_cli_trust_owner);
+    TrustLooked looked = {args->tree, &paths, 0u};
+    (void)EMBED_CALL(cli_files_root_paths.each, CliFilesRootPathsCfg, .root = args->tree, .each = trust_files_looked,
+                     .context = &looked);
+    unsigned int found = looked.found;
     char *const config = EMBED_CALL(cli_read_in, TrustCodeCtx, .folder = args->tree, .name = ".git/config");
     if ((config != NULL) && EMBED_CALL(cli_trust_table.names_a_hook, CliTrustCfg, .config = config))
     {

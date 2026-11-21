@@ -333,14 +333,11 @@ EMBED_INLINE void runs_pending_take(const QryListedCtx *args)
     }
 }
 
-// the tree's files walked for its folders of runs: the folder of every .qry and every overseer.txt
-EMBED_INLINE void runs_walk(const QryListedCtx *args)
+// each of the tree's files that is a run or an overseer's: its folder put among the runs' folders
+static void runs_files_walked(const CliFilesEachCfg *view)
 {
-    Runs *const runs = s_runs;
-    runs->folders = 0u;
-    runs->folder_used = 0u;
-    const CliFiles *const files = EMBED_CALL(cli_files_root_paths.view, CliFilesRootPathsCfg, .root = args->root);
-    for (unsigned int at = 0u; (files != NULL) && (at < files->count); at += 1u)
+    const CliFiles *const files = view->files;
+    for (unsigned int at = 0u; at < files->count; at += 1u)
     {
         const char *const path = EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = at);
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN});
@@ -350,10 +347,16 @@ EMBED_INLINE void runs_walk(const QryListedCtx *args)
             EMBED_CALL(runs_folder_of_append, QryListedCtx, .path = path, .length = length);
         }
     }
-    if (files != NULL)
-    {
-        EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
-    }
+}
+
+// the tree's files walked for its folders of runs: the folder of every .qry and every overseer.txt
+EMBED_INLINE void runs_walk(const QryListedCtx *args)
+{
+    Runs *const runs = s_runs;
+    runs->folders = 0u;
+    runs->folder_used = 0u;
+    (void)EMBED_CALL(cli_files_root_paths.each, CliFilesRootPathsCfg, .root = args->root, .each = runs_files_walked,
+                     .context = NULL);
     runs->walked = 1;
 }
 
@@ -395,7 +398,7 @@ EMBED_INLINE unsigned int runs_lessons_read(const QryListedCtx *args)
                 if (word_end > from)
                 {
                     kinds[each] = EMBED_CALL(pool_append, QryListedCtx, .pool = runs->text, .used = &runs->used,
-                                            .capacity = RUNS_TEXT, .text = text + from, .length = word_end - from);
+                                             .capacity = RUNS_TEXT, .text = text + from, .length = word_end - from);
                 }
                 from = word_end;
             }

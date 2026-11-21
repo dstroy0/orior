@@ -1388,7 +1388,6 @@ utils/test/src/ui/cli/unit/disasm_verify/test_disasm_verify/test_disasm_verify.c
 utils/test/src/ui/cli/unit/editorconfig/test_editorconfig/test_editorconfig.c	1
 utils/test/src/ui/cli/unit/executables/test_executables/test_executables.c	3
 utils/test/src/ui/cli/unit/file_writing/test_file_writing/test_file_writing.c	1
-utils/test/src/ui/cli/unit/files/test_files/test_files.c	6
 utils/test/src/ui/cli/unit/files_rank/test_files_rank/test_files_rank.c	1
 utils/test/src/ui/cli/unit/git/test_git/test_git.c	2
 utils/test/src/ui/cli/unit/git_history/test_git_history/test_git_history.c	6

@@ -68,8 +68,8 @@ void cli_picked_let(const CliFilesPickedCtx *args);
 #define CLI_HIT_TEXT 240u
 #define CLI_HIT_BYTES (CLI_HIT_TEXT * 4u)
 
-// What a search looks for: the query and its bytes, whether it is all ASCII, its characters in lower case, and how it is
-// read
+// What a search looks for: the query and its bytes, whether it is all ASCII, its characters in lower case, and how it
+// is read
 typedef struct
 {
     const char *query;
@@ -84,8 +84,8 @@ typedef struct
 typedef void (*CliHitAppend)(const CliHitAppendCfg *args);
 
 // of `size` bytes of a line, the bytes a hit retains: those before its trailing whitespace, at max CLI_HIT_TEXT
-// characters of them; whether a character joins a word, for a search of whole words; and each line of a file's `size` bytes
-// that contains the query, the first place on it the query is, at max CLI_HITS_MAX of them, passed to `put`. Text
+// characters of them; whether a character joins a word, for a search of whole words; and each line of a file's `size`
+// bytes that contains the query, the first place on it the query is, at max CLI_HITS_MAX of them, passed to `put`. Text
 // in ASCII without case, and any text with case, is found by the sift over the bytes; text outside ASCII without case
 // is found line by line in its lower case (files_hits.c)
 unsigned long long cli_hit_cut(const CliFilesPathCtx *args);
@@ -125,12 +125,12 @@ int cli_paste_by_name(const CliFilesErrMsgCtx *args);
 void cli_paste_free(const CliFilesFolderCtx *args);
 int cli_paste_walk(const CliFilesContextErrMsgCtx *args);
 
-// whether a character is whitespace, as Unicode reads it; whether a word starts at `at` of `text`: the text's start, after
-// a space, a slash, a separator in a name, a dot, a colon or an at, or an upper case character after one that is not, a
-// text with `bytes` 1 being the bytes of a path all ASCII, whose only spaces are a space and a tab; and the match of
-// `required`, lower case, in `displayed` and its lower case `lower`, `count` characters, character for character, a character past
-// `from` scoring more, `latest` sized for CLI_FUZZY_CHARACTERS for its own use: 1 with its score and its places, or 0
-// where it does not match (files_fuzzy.c)
+// whether a character is whitespace, as Unicode reads it; whether a word starts at `at` of `text`: the text's start,
+// after a space, a slash, a separator in a name, a dot, a colon or an at, or an upper case character after one that is
+// not, a text with `bytes` 1 being the bytes of a path all ASCII, whose only spaces are a space and a tab; and the
+// match of `required`, lower case, in `displayed` and its lower case `lower`, `count` characters, character for
+// character, a character past `from` scoring more, `latest` sized for CLI_FUZZY_CHARACTERS for its own use: 1 with its
+// score and its places, or 0 where it does not match (files_fuzzy.c)
 int cli_fuzzy_white(const CliFilesLetterCtx *args);
 // the place `at` with `score` put in the bounded list `top` of `count` places, at max `max`, after every place
 // scoring as much or more, its place found by a binary search, the last let go where the list is full: the list's
@@ -463,6 +463,34 @@ typedef struct
 EMBED_TABLE_LAYOUT(CliFilesBytesRequestedNs, fuzzy_characters);
 EMBED_TABLE_STORAGE CliFilesBytesRequestedNs cli_files_bytes_requested_internal EMBED_UNUSED = {
     .fuzzy_characters = cli_fuzzy_characters,
+};
+
+// The views the files sources take for their own work. A view is every file of the tree at `root`, at max
+// CLI_FILES_MAX, sorted, positioned flat in a temporary cell. The types view is each name and each ending once, sorted.
+// Each returns NULL where the cellblock cannot meet it. The source that takes a view gives it back with the let before
+// it returns (files_seen.c)
+const CliFiles *cli_files_view(const CliFilesRootPathsCfg *args);
+const CliFiles *cli_files_types_view(const CliFilesRootPathsCfg *args);
+void cli_files_let(const CliFilesCfg *args);
+
+typedef struct
+{
+    const CliFiles *(*view)(const CliFilesRootPathsCfg *args);
+    const CliFiles *(*types_view)(const CliFilesRootPathsCfg *args);
+} CliFilesViewNs;
+EMBED_TABLE_LAYOUT(CliFilesViewNs, view, types_view);
+EMBED_TABLE_STORAGE CliFilesViewNs cli_files_view_internal EMBED_UNUSED = {
+    .view = cli_files_view,
+    .types_view = cli_files_types_view,
+};
+
+typedef struct
+{
+    void (*let)(const CliFilesCfg *args);
+} CliFilesLetNs;
+EMBED_TABLE_LAYOUT(CliFilesLetNs, let);
+EMBED_TABLE_STORAGE CliFilesLetNs cli_files_let_internal EMBED_UNUSED = {
+    .let = cli_files_let,
 };
 
 #endif

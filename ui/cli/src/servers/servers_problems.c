@@ -566,6 +566,27 @@ int cli_servers_problems_press(const CliServersProblemsCfg *args)
     return cli_servers_problems_row(&(CliServersProblemsCfg){.at = args->at, .row = args->row}) && !args->row->is_file;
 }
 
+// the tree's check run over every file of the tree, the problems pane its sink, with the check's args the context
+static void problems_files_checked(const CliFilesEachCfg *view)
+{
+    const CliServersProblemsCfg *const args = view->context;
+    const CliFiles *const files = view->files;
+    const char **const paths = g_cli_guard->temporary_buf_alloc(
+        ((unsigned long long)files->count + 1ULL) * sizeof(*paths), g_cli_servers_owner);
+    if (paths == NULL)
+    {
+        return;
+    }
+    for (unsigned int at = 0u; at < files->count; at += 1u)
+    {
+        paths[at] = EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = at);
+    }
+    const CliServersSink sink = cli_servers_problems_sink(&(CliServersProblemsCfg){.root = args->root});
+    (void)EMBED_CALL(cli_servers_root_sink_count.check_tree, CliServersRootSinkCountCfg, .root = args->root,
+                     .files = paths, .count = files->count, .sink = &sink);
+    g_cli_guard->persistent_buf_release(paths, g_cli_servers_owner);
+}
+
 void cli_servers_problems_check(const CliServersProblemsCfg *args)
 {
     if (cli_servers_problems_checking())
@@ -573,24 +594,11 @@ void cli_servers_problems_check(const CliServersProblemsCfg *args)
         cli_servers_stop_check();
         return;
     }
-    const CliFiles *const files =
-        (args->root != NULL) ? EMBED_CALL(cli_files_root_paths.view, CliFilesRootPathsCfg, .root = args->root) : NULL;
-    if (files == NULL)
+    if (args->root == NULL)
     {
         return;
     }
-    const char **const paths = g_cli_guard->temporary_buf_alloc(
-        ((unsigned long long)files->count + 1ULL) * sizeof(*paths), g_cli_servers_owner);
-    if (paths != NULL)
-    {
-        for (unsigned int at = 0u; at < files->count; at += 1u)
-        {
-            paths[at] = EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = at);
-        }
-        const CliServersSink sink = cli_servers_problems_sink(&(CliServersProblemsCfg){.root = args->root});
-        (void)EMBED_CALL(cli_servers_root_sink_count.check_tree, CliServersRootSinkCountCfg, .root = args->root,
-                         .files = paths, .count = files->count, .sink = &sink);
-        g_cli_guard->persistent_buf_release(paths, g_cli_servers_owner);
-    }
-    EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
+    CliServersProblemsCfg checked = *args;
+    (void)EMBED_CALL(cli_files_root_paths.each, CliFilesRootPathsCfg, .root = args->root,
+                     .each = problems_files_checked, .context = &checked);
 }

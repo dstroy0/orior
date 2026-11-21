@@ -53,13 +53,14 @@ EMBED_INLINE int cli_plain(const TemplatesCtx *args)
     while (at < length)
     {
         unsigned int character = 0u;
-        at +=
-            EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
-                       .text_bytes = (const unsigned char *)args->name, .length = length, .at = at, .character = &character);
+        at += EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                         .text_bytes = (const unsigned char *)args->name, .length = length, .at = at,
+                         .character = &character);
         blank = blank &&
-                ((character == ' ') || ((character >= '\t') && (character <= '\r')) || (character == 0x85u) || (character == 0xa0u) ||
-                 (character == 0x1680u) || ((character >= 0x2000u) && (character <= 0x200au)) || (character == 0x2028u) ||
-                 (character == 0x2029u) || (character == 0x202fu) || (character == 0x205fu) || (character == 0x3000u));
+                ((character == ' ') || ((character >= '\t') && (character <= '\r')) || (character == 0x85u) ||
+                 (character == 0xa0u) || (character == 0x1680u) || ((character >= 0x2000u) && (character <= 0x200au)) ||
+                 (character == 0x2028u) || (character == 0x2029u) || (character == 0x202fu) || (character == 0x205fu) ||
+                 (character == 0x3000u));
     }
     return !blank &&
            (args->name[EMBED_CALL(cli_text_set_table.upto, CliTextSetCfg, .text = args->name, .set = "/\\:*?\"<>|")] ==
@@ -115,8 +116,9 @@ EMBED_INLINE int cli_file_copy(const TemplatesCtx *args)
     for (unsigned long long at = 0ULL; text && (at < size);)
     {
         unsigned int character = 0u;
-        const unsigned long long step = EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
-                                                   .text_bytes = bytes, .length = size, .at = at, .character = &character);
+        const unsigned long long step =
+            EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg, .text_bytes = bytes, .length = size,
+                       .at = at, .character = &character);
         text = !((step == 1ULL) && (bytes[at] >= 0x80u));
         at += step;
     }
@@ -239,6 +241,47 @@ int cli_templates_create(const CliTemplatesTemplateNameCfg *args)
     return copied;
 }
 
+// What a template's save carries through the tree's files: the save's args, and its result, 1 until a copy fails
+typedef struct
+{
+    const CliTemplatesNameCfg *args;
+    int copied;
+} TemplatesCopied;
+
+// Each file of the tree but git's copied into the template's folder, its folders made first. The walk stops at the
+// first file or folder that does not copy, and the result is 0 with why given
+static void templates_files_copied(const CliFilesEachCfg *view)
+{
+    TemplatesCopied *const copy = view->context;
+    const CliTemplatesNameCfg *const args = copy->args;
+    const CliFiles *const files = view->files;
+    for (unsigned int index = 0u; index < files->count; index += 1u)
+    {
+        const char *const file = EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = index);
+        if ((cellul.eq(&(CatenaFinitaCfg){.src = file, .other = ".git", .cap = CLI_POOL_BYTES})) ||
+            (cellul.starts(&(CatenaFinitaCfg){.src = file, .other = ".git/", .cap = CLI_POOL_BYTES})))
+        {
+            continue;
+        }
+        char from[CLI_PATH_MAX_LEN];
+        char to[CLI_PATH_MAX_LEN];
+        char parent[CLI_PATH_MAX_LEN];
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = file, .joined = from);
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->made, .relative = file, .joined = to);
+        if (EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = to, .out = parent) &&
+            !EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = parent))
+        {
+            copy->copied = EMBED_CALL(cli_uncopied, TemplatesCtx, .path = parent, .err_msg = args->err_msg);
+            return;
+        }
+        if (!EMBED_CALL(query_from_internal.file_copy, QueryFromCtx, .from = from, .to = to))
+        {
+            copy->copied = EMBED_CALL(cli_uncopied, TemplatesCtx, .path = file, .err_msg = args->err_msg);
+            return;
+        }
+    }
+}
+
 int cli_templates_save(const CliTemplatesNameCfg *args)
 {
     if (!EMBED_CALL(cli_plain, TemplatesCtx, .name = args->name))
@@ -261,33 +304,8 @@ int cli_templates_save(const CliTemplatesNameCfg *args)
         mmgr_line_put(args->err_msg, " is a template already");
         return 0;
     }
-    const CliFiles *const files = EMBED_CALL(cli_files_root_paths.view, CliFilesRootPathsCfg, .root = args->root);
-    for (unsigned int index = 0u; (files != NULL) && (index < files->count); index += 1u)
-    {
-        const char *const file = EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = index);
-        if ((cellul.eq(&(CatenaFinitaCfg){.src = file, .other = ".git", .cap = CLI_POOL_BYTES})) ||
-            (cellul.starts(&(CatenaFinitaCfg){.src = file, .other = ".git/", .cap = CLI_POOL_BYTES})))
-        {
-            continue;
-        }
-        char from[CLI_PATH_MAX_LEN];
-        char to[CLI_PATH_MAX_LEN];
-        char parent[CLI_PATH_MAX_LEN];
-        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = file, .joined = from);
-        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->made, .relative = file, .joined = to);
-        if (EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = to, .out = parent) &&
-            !EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = parent))
-        {
-            EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
-            return EMBED_CALL(cli_uncopied, TemplatesCtx, .path = parent, .err_msg = args->err_msg);
-        }
-        if (!EMBED_CALL(query_from_internal.file_copy, QueryFromCtx, .from = from, .to = to))
-        {
-            const int uncopied = EMBED_CALL(cli_uncopied, TemplatesCtx, .path = file, .err_msg = args->err_msg);
-            EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
-            return uncopied;
-        }
-    }
-    EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
-    return 1;
+    TemplatesCopied copy = {args, 1};
+    (void)EMBED_CALL(cli_files_root_paths.each, CliFilesRootPathsCfg, .root = args->root,
+                     .each = templates_files_copied, .context = &copy);
+    return copy.copied;
 }

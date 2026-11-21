@@ -480,13 +480,13 @@ EMBED_INLINE int found_search(const TestingFoundCtx *args)
     return inside;
 }
 
-// the Python tests of the tree at `root`, under the finder's lock
-EMBED_INLINE void found_python(const TestingFoundCtx *args)
+// each of the tree's Python files the rules search read and its tests passed on, with the find's args the context
+static void python_files_found(const CliFilesEachCfg *view)
 {
+    const TestingFoundCtx *const args = view->context;
     const char *root = args->root;
-    EMBED_CALL(cli_testing_rules.test_rules_get, CliTestingRulesCfg, .root = root, .rules = &s_work_state->rules);
-    const CliFiles *const files = EMBED_CALL(cli_files_root_paths.view, CliFilesRootPathsCfg, .root = root);
-    for (unsigned int index = 0u; (files != NULL) && (index < files->count); index += 1u)
+    const CliFiles *const files = view->files;
+    for (unsigned int index = 0u; index < files->count; index += 1u)
     {
         const char *const file = EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = index);
         if (!EMBED_CALL(found_search, TestingFoundCtx, .file = file, .rules = &s_work_state->rules))
@@ -515,7 +515,16 @@ EMBED_INLINE void found_python(const TestingFoundCtx *args)
         }
         g_cli_guard->persistent_buf_release(bytes, g_cli_tests_owner);
     }
-    EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
+}
+
+// the Python tests of the tree at `root`, under the finder's lock
+EMBED_INLINE void found_python(const TestingFoundCtx *args)
+{
+    const char *root = args->root;
+    EMBED_CALL(cli_testing_rules.test_rules_get, CliTestingRulesCfg, .root = root, .rules = &s_work_state->rules);
+    TestingFoundCtx found = *args;
+    (void)EMBED_CALL(cli_files_root_paths.each, CliFilesRootPathsCfg, .root = root, .each = python_files_found,
+                     .context = &found);
 }
 
 // the tests' lock taken and the retained work state set under it: 1

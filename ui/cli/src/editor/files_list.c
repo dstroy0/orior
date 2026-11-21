@@ -191,7 +191,7 @@ EMBED_INLINE void cli_folders_of(const FilesListCtx *args)
 EMBED_INLINE void cli_folders_collect(const FilesListCtx *args)
 {
     const char *root = args->root;
-    const CliFiles *const files = EMBED_CALL(cli_files_root_paths.view, CliFilesRootPathsCfg, .root = root);
+    const CliFiles *const files = EMBED_CALL(cli_files_view_internal.view, CliFilesRootPathsCfg, .root = root);
     unsigned long long count = 0ULL;
     unsigned long long bytes = 0ULL;
     for (unsigned int pass = 0u; (files != NULL) && (pass < 2u); pass += 1u)
@@ -199,7 +199,7 @@ EMBED_INLINE void cli_folders_collect(const FilesListCtx *args)
         if ((pass == 1u) && !EMBED_CALL(cli_files_bytes_internal.work_init, CliFilesBytesCtx,
                                         .files = &s_listing->folders, .count = count, .bytes = bytes))
         {
-            EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
+            EMBED_CALL(cli_files_let_internal.let, CliFilesCfg, .files = files);
             return;
         }
         for (unsigned int index = 0u; index < files->count; index += 1u)
@@ -214,7 +214,7 @@ EMBED_INLINE void cli_folders_collect(const FilesListCtx *args)
                        .bytes = &bytes);
         }
     }
-    EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
+    EMBED_CALL(cli_files_let_internal.let, CliFilesCfg, .files = files);
     (void)EMBED_CALL(cli_files_bytes_internal.sort, CliFilesBytesCtx, .files = &s_listing->folders);
 }
 
@@ -548,8 +548,8 @@ static void explorer_walk(const FilesListCtx *args)
         *args->left += 1u;
         if (open)
         {
-            EMBED_CALL(explorer_walk, FilesListCtx, .folder = &under, .folder_at = under_at,
-                       .depth = args->depth + 1u, .left = args->left, .rows = args->rows);
+            EMBED_CALL(explorer_walk, FilesListCtx, .folder = &under, .folder_at = under_at, .depth = args->depth + 1u,
+                       .left = args->left, .rows = args->rows);
         }
     }
 }

@@ -55,10 +55,17 @@ typedef struct
     unsigned long long text_max;
 } CliFiles;
 
-// every file of the tree at `root`, at max CLI_FILES_MAX of them, sorted, positioned flat in the temporary tier for the
-// length of one call, until cli_files_let gives it back; or NULL where the cellblock cannot meet it (files_seen.c)
-const CliFiles *cli_files_view(const CliFilesRootPathsCfg *args);
-void cli_files_let(const CliFilesCfg *args);
+// What a view of the tree's files passes to its callback: `context`, and the files, valid for the call alone
+typedef struct
+{
+    void *context;
+    const CliFiles *files;
+} CliFilesEachCfg;
+
+// Every file of the tree at `root`, at max CLI_FILES_MAX of them, sorted, positioned flat in a temporary cell of the
+// files module. The files go to `each` with `context`, and the module gives the cell back before it returns. Returns
+// 1, or 0 where the cellblock cannot meet the view and the files do not go to `each` (files_seen.c)
+int cli_files_each(const CliFilesRootPathsCfg *args);
 // the files of the folder at `root`, less `.git` and `target`, walked from its top: each file's path from the top
 // passed to `each`, at max CLI_FILES_MAX of them (files_seen.c)
 void cli_files_walk(const CliFilesRootEachContextCfg *args);
@@ -70,9 +77,9 @@ int cli_files_on_list(const CliFilesRootEachContextCfg *args);
 int cli_files_folder_list(const CliFilesRootEachCfg *args);
 int cli_files_path_skip(const CliFilesGitCfg *args);
 void cli_files_ignored_read(const CliFilesRootPathsCfg *args);
-// the name of every file of the tree, and every ending, `.lean` from a name's last dot, each once, sorted, positioned flat
-// for one call and given back by cli_files_let; or NULL as there (files_seen.c)
-const CliFiles *cli_files_types_view(const CliFilesRootPathsCfg *args);
+// The name of every file of the tree, and every ending, `.lean` from a name's last dot, each once, sorted. The view
+// goes to `each` as cli_files_each passes its files, and returns as it returns (files_seen.c)
+int cli_files_types_each(const CliFilesRootPathsCfg *args);
 // the files' own report, `<pool's bytes> <their mark> 0`, the max the views and lists occupied of the cellblock at
 // once, written into `out`; the path at `index`; and whether `path` is among the files, which are sorted
 // (files_cells.c)
@@ -432,6 +439,8 @@ struct CliFilesRootPathsCfg
     const char *const *paths;
     unsigned int count;
     unsigned char *ignored;
+    void (*each)(const CliFilesEachCfg *args);
+    void *context;
 };
 
 struct CliFilesTextCfg
@@ -501,18 +510,18 @@ struct CliFilesGitCfg
 
 typedef struct
 {
-    const CliFiles *(*view)(const CliFilesRootPathsCfg *args);
+    int (*each)(const CliFilesRootPathsCfg *args);
     void (*ignored_read)(const CliFilesRootPathsCfg *args);
-    const CliFiles *(*types_view)(const CliFilesRootPathsCfg *args);
+    int (*types_each)(const CliFilesRootPathsCfg *args);
     void (*warm)(const CliFilesRootPathsCfg *args);
     void (*read_behind)(const CliFilesRootPathsCfg *args);
     int (*unread)(const CliFilesRootPathsCfg *args);
 } CliFilesRootPathsNs;
-EMBED_TABLE_LAYOUT(CliFilesRootPathsNs, view, ignored_read, types_view, warm, read_behind, unread);
+EMBED_TABLE_LAYOUT(CliFilesRootPathsNs, each, ignored_read, types_each, warm, read_behind, unread);
 EMBED_TABLE_STORAGE CliFilesRootPathsNs cli_files_root_paths EMBED_UNUSED = {
-    .view = cli_files_view,
+    .each = cli_files_each,
     .ignored_read = cli_files_ignored_read,
-    .types_view = cli_files_types_view,
+    .types_each = cli_files_types_each,
     .warm = cli_files_warm,
     .read_behind = cli_files_read_behind,
     .unread = cli_files_unread,
@@ -529,12 +538,10 @@ EMBED_TABLE_STORAGE CliFilesRootRowsNs cli_files_root_rows EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*let)(const CliFilesCfg *args);
     const char *(*at)(const CliFilesCfg *args);
 } CliFilesNs;
-EMBED_TABLE_LAYOUT(CliFilesNs, let, at);
+EMBED_TABLE_LAYOUT(CliFilesNs, at);
 EMBED_TABLE_STORAGE CliFilesNs cli_files EMBED_UNUSED = {
-    .let = cli_files_let,
     .at = cli_files_at,
 };
 
@@ -749,8 +756,8 @@ typedef struct CliSearchPaneCfg CliSearchPaneCfg;
 // restored from the saved `entries`, which the sets are read from after
 void cli_search_pane_begin(const CliSearchPaneCfg *args);
 // `size` bytes of `text` typed at the query's end at `now_ms`; the key `name` pressed in the field at `now_ms`:
-// Backspace erases the query's last character and Enter searches at the next step, 1 where the key was one of those; and
-// the choice `which` flipped, or the set moved to the next, at `now_ms`, searched at the next step
+// Backspace erases the query's last character and Enter searches at the next step, 1 where the key was one of those;
+// and the choice `which` flipped, or the set moved to the next, at `now_ms`, searched at the next step
 void cli_search_pane_type(const CliSearchPaneCfg *args);
 int cli_search_pane_key(const CliSearchPaneCfg *args);
 void cli_search_pane_option(const CliSearchPaneCfg *args);

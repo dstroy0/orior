@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // files_seen.c: what the tree lists off its trunk, git's where git can read it, every file it tracks or would track,
-// or else every file walked from the top; and the tree's files positioned flat for the length of one call, sorted, in the
-// temporary tier
+// or else every file walked from the top; and the tree's files positioned flat for the length of one call, sorted, in
+// the temporary tier
 #include "../code/symbols.h"
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
@@ -342,7 +342,7 @@ EMBED_INLINE unsigned long long seen_name(const FilesSeenCtx *args)
 
 const CliFiles *cli_files_types_view(const CliFilesRootPathsCfg *args)
 {
-    const CliFiles *const files = cli_files_root_paths.view(args);
+    const CliFiles *const files = cli_files_view_internal.view(args);
     if (files == NULL)
     {
         return NULL;
@@ -363,7 +363,7 @@ const CliFiles *cli_files_types_view(const CliFilesRootPathsCfg *args)
                                        .bytes = sizeof(*types) + (count * sizeof(unsigned int)) + bytes);
     if (types == NULL)
     {
-        EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
+        EMBED_CALL(cli_files_let_internal.let, CliFilesCfg, .files = files);
         return NULL;
     }
     unsigned int *const start = (unsigned int *)(void *)(types + 1);
@@ -384,9 +384,33 @@ const CliFiles *cli_files_types_view(const CliFilesRootPathsCfg *args)
                              .path = path + length - ending, .length = ending);
         }
     }
-    EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
+    EMBED_CALL(cli_files_let_internal.let, CliFilesCfg, .files = files);
     (void)EMBED_CALL(cli_files_bytes_internal.sort, CliFilesBytesCtx, .files = types);
     return types;
+}
+
+int cli_files_each(const CliFilesRootPathsCfg *args)
+{
+    const CliFiles *const files = cli_files_view_internal.view(args);
+    if (files == NULL)
+    {
+        return 0;
+    }
+    args->each(&(CliFilesEachCfg){.context = args->context, .files = files});
+    EMBED_CALL(cli_files_let_internal.let, CliFilesCfg, .files = files);
+    return 1;
+}
+
+int cli_files_types_each(const CliFilesRootPathsCfg *args)
+{
+    const CliFiles *const types = cli_files_view_internal.types_view(args);
+    if (types == NULL)
+    {
+        return 0;
+    }
+    args->each(&(CliFilesEachCfg){.context = args->context, .files = types});
+    EMBED_CALL(cli_files_let_internal.let, CliFilesCfg, .files = types);
+    return 1;
 }
 
 // the tree listed behind the window, as a tree opens, for the first list or search
