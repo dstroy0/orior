@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_test_circuits.cu: RXX, the inverse Fourier transform, measurement, fixtures and main
 #include "qasm_test_internal.h"
+#include "../../../src/platform/platform.h"
 
 // exact gates alone: E = 0 and the peak's probability is 1 exactly
 static void exact_only(void)
@@ -303,7 +304,7 @@ static void device_against_host(void)
     free(text);
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     const char *const directory = (count > 1) ? arguments[1] : ".";
     // the job reserves the widest run here: 13 qubits

@@ -298,7 +298,7 @@ static void peaks_test_errors(SimResults *results)
     cudaFree(device);
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;

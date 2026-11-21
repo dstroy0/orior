@@ -28,6 +28,7 @@
 #include "compression.h"
 #include "device_pool.h"
 #include "tower.h"
+#include "../../../src/platform/platform.h"
 
 #include <cuda_runtime.h>
 
@@ -2660,7 +2661,7 @@ static int knee_ladder(int argc, char **argv)
     return ((failed == 0u) && (stopped == 0)) ? 0 : 1;
 }
 
-int main(int argc, char **argv)
+int program_main(int argc, char **argv)
 {
     if ((argc > 1) && (strcmp(argv[1], "ingest") == 0))
     {

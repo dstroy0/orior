@@ -92,7 +92,7 @@ static void double_fields_test_reference(unsigned long long bits, unsigned long 
     answer[3] = double_fields_merge(request);
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     DoubleFieldsTestResults results;
     results.checks = 0ull;

@@ -157,8 +157,10 @@ static void corpus_periodic(uint8_t *corpus, size_t length)
     fill_periodic(corpus, length);
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     static uint8_t corpus[CORPUS_BYTES];
     static const Arm ARMS[] = {
         {"naive", orior_naive},

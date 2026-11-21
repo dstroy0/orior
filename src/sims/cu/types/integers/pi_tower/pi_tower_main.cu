@@ -7,7 +7,7 @@ static void pi_tower_fill(SimResults *results, const PiTowerTurn &turn, const st
                           const std::vector<PiWide> &floors, unsigned int from_bits, unsigned int to_bits,
                           const PiWide &walk_alpha);
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;

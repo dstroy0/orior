@@ -8,6 +8,7 @@ MODULE="$(cd "$TEST/../../../../../../../src/cu/engine/nbody/max_tree" && pwd)"
 MODULE_CU="$(cd "$TEST/../../../../../../../src/cu/engine/nbody/max_tree" && pwd)"
 TOP="$(cd "$MODULE/../../../../.." && pwd)"
 source "$TOP/utils/maint/engine/build_stamp.sh"
+source "$TOP/includes/exact_types/exact_types.sh"
 build_stamp max_tree_test
 
 EXACT_ROOT="${ORIOR_EXACT_ROOT:-$TOP/includes/exact_types/integers}"
@@ -23,7 +24,7 @@ if [ "$EXACT_DIGITS" -gt 1024 ]; then
     EXACT_DIGITS=1024
 fi
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$MODULE" -I "$MODULE_CU" -I "$EXACT_ROOT"
-          "-DORIOR_EXACT_LIMBS=${EXACT_LIMBS}u" "-DORIOR_EXACT_DIGITS=${EXACT_DIGITS}u")
+          "-DORIOR_EXACT_LIMBS=${EXACT_LIMBS}u" "-DORIOR_EXACT_DIGITS=${EXACT_DIGITS}u" "${EXACT_TYPES_FLAGS[@]}")
 
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
@@ -49,7 +50,7 @@ esac
 rm -f "$BINARY"
 OBJECTS=()
 for source in "$MODULE"/max_tree_{build,nodes,pairs}.c \
-              "$EXACT_ROOT"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
+              "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" \
               "$TEST"/max_tree_levels_test_{draw,agree}.c; do
     object="$OUT/$(basename "$source" .c)_test.$EXTENSION"
     rm -f "$object"
@@ -64,9 +65,9 @@ for source in "$MODULE"/max_tree_{build,nodes,pairs}.c \
 done
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
-        nvcc "${HOST_FLAGS[@]}" -o "$BINARY" "${OBJECTS[@]}" ;;
+        nvcc "${HOST_FLAGS[@]}" -o "$BINARY" "${OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}" ;;
     *)
-        cc -o "$BINARY" "${OBJECTS[@]}" ;;
+        cc -o "$BINARY" "${OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}" ;;
 esac
 [ -f "$BINARY" ] || { echo "  build failed: the test did not link"; exit 1; }
 

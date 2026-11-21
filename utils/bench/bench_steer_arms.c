@@ -64,8 +64,10 @@ static void build_mask(uint8_t *alive, size_t alignments, MaskKind type)
     }
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     int failed = 0;
 
     const OriorSteerEngine *arms[ARMS_MAX];

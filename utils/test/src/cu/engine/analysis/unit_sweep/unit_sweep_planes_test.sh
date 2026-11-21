@@ -9,6 +9,7 @@ UNIT_SWEEP="$TOP/src/cu/engine/analysis/unit_sweep"
 UNIT_SWEEP_CU="$TOP/src/cu/engine/analysis/unit_sweep"
 NO_ROUNDING="$TOP/includes/exact_types/integers"
 source "$TOP/includes/file_defs/file_defs.sh"
+source "$TOP/includes/exact_types/exact_types.sh"
 source "$TOP/utils/maint/engine/build_stamp.sh"
 source "$TOP/utils/maint/engine/tessera_build.sh"
 build_stamp unit_sweep_planes_test
@@ -49,7 +50,7 @@ INCLUDES=(-I "$TOP/src/cu/engine" -I "$UNIT_SWEEP" -I "$NO_ROUNDING" "${FILE_DEF
 rm -f "$BINARY"
 OBJECTS=()
 LINEA_OBJECTS=()
-for source in "${FILE_DEFS_LINEA[@]}" "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c; do
+for source in "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}"; do
     object="$OUT/$(basename "$source" .c)_unit_sweep_planes.$EXTENSION"
     rm -f "$object"
     case "$(uname -s)" in
@@ -61,6 +62,7 @@ for source in "${FILE_DEFS_LINEA[@]}" "$NO_ROUNDING"/exact_integer_{add,limbs,mu
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
     case "$source" in
+        */mmgr/src/locus_carcerum/*) ;;
         */mmgr/src/*) LINEA_OBJECTS+=("$object") ;;
     esac
 done

@@ -242,7 +242,7 @@ static int suffix_digits(SimResults *job, Stage *stage, const std::vector<StageR
     return ok;
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     SimResults job;
     char job_capacity[SIM_LINE_CAPACITY];

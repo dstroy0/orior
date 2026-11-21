@@ -14,6 +14,7 @@ DEVICE_POOL="$ENGINE/runtime/device_pool"
 DEVICE_POOL_CU="$ENGINE/../../cu/engine/runtime/device_pool"
 NO_ROUNDING="$ENGINE/../types/integers"
 source "$ENGINE/../includes/file_defs/file_defs.sh"
+source "$ENGINE/../includes/exact_types/exact_types.sh"
 build_stamp sort_test
 
 HOST_FLAGS=()
@@ -53,7 +54,7 @@ INCLUDES=(-I "$ENGINE" -I "$SORT" -I "$SCAN" -I "$HEAVIEST" -I "$DEVICE_POOL" -I
 rm -f "$BINARY"
 OBJECTS=()
 LINEA_OBJECTS=()
-for source in "${FILE_DEFS_LINEA[@]}" "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
+for source in "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" \
               "$HEAVIEST/heaviest_matching.c"; do
     object="$OUT/$(basename "$source" .c)_sort.$EXTENSION"
     rm -f "$object"
@@ -66,6 +67,7 @@ for source in "${FILE_DEFS_LINEA[@]}" "$NO_ROUNDING"/exact_integer_{add,limbs,mu
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
     case "$source" in
+        */mmgr/src/locus_carcerum/*) ;;
         */mmgr/src/*) LINEA_OBJECTS+=("$object") ;;
     esac
 done

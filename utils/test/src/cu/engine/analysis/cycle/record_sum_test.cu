@@ -410,7 +410,7 @@ static void sum_records(SumResults *results)
     free(host_sums);
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     SumResults results;
     results.checks = 0ull;

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // period_test_main.cu: volumes, errors and main
 #include "period_test_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 static void test_volume(SimResults *results, const char *name, const unsigned short *volume, unsigned int rank,
                         const unsigned long long *extent, const unsigned long long *expected, int print)
@@ -127,7 +128,7 @@ static void test_error(SimResults *results, const char *name, const unsigned sho
               name);
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;

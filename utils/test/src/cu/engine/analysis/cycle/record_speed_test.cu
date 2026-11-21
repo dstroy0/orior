@@ -136,7 +136,7 @@ static void speed_mix(SpeedProgram *program)
     program->in_limbs = 2u;
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;

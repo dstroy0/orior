@@ -579,7 +579,7 @@ static void show_mean(const ZetaRational draws[DRAWS], char *text, size_t capaci
     show(&total, text, capacity);
 }
 
-int main(int argument_count, char **arguments)
+int program_main(int argument_count, char **arguments)
 {
 #ifdef _WIN32
     // The report ends each line with a line feed alone, on every platform.

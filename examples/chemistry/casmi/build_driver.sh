@@ -92,6 +92,9 @@ done
 INCLUDES+=("${TESSERA_INCLUDES[@]}")
 # MMgr's line, which the engine writes its text through: its flags for every source, its sources among the portable ones
 source "$ENGINE/../includes/file_defs/file_defs.sh"
+source "$ENGINE/../includes/exact_types/exact_types.sh"
+# the exact sources reach MMgr and embedded_types through their own headers
+EXACT_FLAGS+=("${FILE_DEFS_MMGR_FLAGS[@]}")
 INCLUDES+=("${FILE_DEFS_MMGR_FLAGS[@]}")
 
 OBJECTS=()
@@ -109,7 +112,7 @@ for name in exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}; do
     PORTABLE+=("$EXACT_ROOT/$name.c")
 done
 PORTABLE+=("$ROOT/src/parquet/parquet.c" "$ROOT/src/mass/mass.c")
-PORTABLE+=("${FILE_DEFS_LINEA[@]}")
+PORTABLE+=("${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}")
 for source in "${PORTABLE[@]}"; do
     object="$OUT/$(basename "$source" .c)_casmi_driver.$EXTENSION"
     rm -f "$object"
@@ -122,6 +125,7 @@ for source in "${PORTABLE[@]}"; do
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
     case "$source" in
+        */mmgr/src/locus_carcerum/*) ;;
         */mmgr/src/*) LINEA_OBJECTS+=("$object") ;;
     esac
 done

@@ -560,7 +560,7 @@ static void odd_test_errors(SimResults *results, const OddTestDevice *device)
               "an odd background order errors on the unit sweeps, a request error from unit_sweep");
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;

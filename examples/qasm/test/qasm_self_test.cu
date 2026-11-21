@@ -4,6 +4,7 @@
 // states, each lane equal to the dense port's run from the same start amplitude for amplitude; then the same programs
 // on the device inside one tessera job, their records equal to the host's word for word; then the errors.
 #include "../src/qasm.h"
+#include "../../../src/platform/platform.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -400,8 +401,10 @@ static void qasm_test_errors(QasmResults *results)
     free(landed);
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     QasmResults results = {0u, 0u};
     EngineError error;
     memset(&error, 0, sizeof(error));

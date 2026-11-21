@@ -23,6 +23,7 @@
  *       seeds 0 to 11. The tallest margin of the twelve is the floor of the row.
  */
 #include "../period_detector.h"
+#include "../subtraction_record.h"
 #include "../twister_record.h"
 
 #include "../../0_experimental/exact_zeta/zeta_shuffle.h"
@@ -37,113 +38,6 @@ static const unsigned int GRUNDY_WINDOWS[GRUNDY_WINDOW_COUNT] = {16u, 24u, 32u, 
 
 /** @brief The shuffles of each row. */
 #define GRUNDY_DRAWS 12u
-
-/**
- * @brief The step of the Grundy sequences: from the last `largest` values of each game, its value at position n.
- *
- * @param[in]  largest The largest move, and the values that a state holds.
- * @param[in]  most    The max moves, and so the largest value.
- * @param[in]  width   The bits of a value.
- * @param[out] program The program [BORROWS].
- * @param[out] error   The error [BORROWS].
- * @return             1 where it loaded.
- * @note Member 0 is the state: the value d back at field d - 1. Member 1 is the moves of the game, bit d - 1 for the
- *       move d. Member 2 is the position. The value is the least whole number that no move of at most n reaches.
- * @note The outputs are the new state, the new value first, each value narrowed to its own bits. Each output is one
- *       bit wider than its register. A state field is then width + 1 bits.
- */
-static int grundy_make_step(unsigned int largest, unsigned int most, unsigned int width, GameProgram *program,
-                            EngineError *error)
-{
-    ExactRecordProgram built;
-    exact_record_open(&built);
-    unsigned int state[32];
-    for (unsigned int back = 0u; back < largest; back += 1u)
-    {
-        const unsigned int field = exact_record_member_field(&built, width + 1u, back * (width + 1u));
-        state[back] = exact_record_read_unsigned(&built, field, 0u);
-    }
-    const unsigned int moves = exact_record_read_unsigned(&built, exact_record_member_field(&built, largest, 0u), 1u);
-    const unsigned int position = exact_record_read_unsigned(&built, exact_record_member_field(&built, 32u, 0u), 2u);
-    unsigned int on[32];
-    for (unsigned int back = 0u; back < largest; back += 1u)
-    {
-        const unsigned int has = exact_record_bit(&built, moves, back);
-        const unsigned int reach = exact_record_above(&built, position, exact_record_constant(&built, back));
-        on[back] = exact_record_product(&built, has, reach);
-    }
-    unsigned int value = exact_record_constant(&built, most + 1u);
-    for (unsigned int candidate = most + 1u; candidate > 0u; candidate -= 1u)
-    {
-        const unsigned int number = exact_record_constant(&built, candidate - 1u);
-        unsigned int hits = exact_record_constant(&built, 0u);
-        for (unsigned int back = 0u; back < largest; back += 1u)
-        {
-            hits = exact_record_sum(
-                &built, hits, exact_record_product(&built, on[back], exact_record_equal(&built, state[back], number)));
-        }
-        const unsigned int seen = exact_record_above(&built, hits, exact_record_constant(&built, 0u));
-        value = exact_record_select(&built, seen, value, number);
-    }
-    unsigned int outputs[32];
-    outputs[0] = exact_record_narrow(&built, value, width);
-    for (unsigned int back = 1u; back < largest; back += 1u)
-    {
-        outputs[back] = exact_record_narrow(&built, state[back - 1u], width);
-    }
-    const unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {((largest * (width + 1u)) + 31u) / 32u, 1u, 1u};
-    const int ok = game_load(&built, 3u, outputs, largest, in_limbs, program, error);
-    exact_record_close(&built);
-    return ok;
-}
-
-/**
- * @brief The mark of a pair a shift apart: 1 where its two values differ.
- *
- * @param[in]  width      The bits of a value.
- * @param[in]  in_limbs_0 The limbs of a record of the sequence.
- * @param[out] program    The program [BORROWS].
- * @param[out] output     The step of the mark [BORROWS].
- * @param[out] error      The error [BORROWS].
- * @return                1 where it loaded.
- */
-static int grundy_make_differ(unsigned int width, unsigned int in_limbs_0, GameProgram *program, unsigned int *output,
-                              EngineError *error)
-{
-    ExactRecordProgram built;
-    exact_record_open(&built);
-    const unsigned int field = exact_record_member_field(&built, width + 1u, 0u);
-    const unsigned int here = exact_record_read_unsigned(&built, field, 0u);
-    const unsigned int there = exact_record_read_unsigned(&built, field, 1u);
-    const unsigned int differ =
-        exact_record_difference(&built, exact_record_constant(&built, 1u), exact_record_equal(&built, here, there));
-    const unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {in_limbs_0, in_limbs_0, 0u};
-    *output = differ;
-    const int ok = game_load(&built, 2u, &differ, 1u, in_limbs, program, error);
-    exact_record_close(&built);
-    return ok;
-}
-
-/**
- * @brief The gather of a value: the value of a record of the sequence, written as a record of its own.
- *
- * @param[in]  width      The bits of a value.
- * @param[in]  in_limbs_0 The limbs of a record of the sequence.
- * @param[out] program    The program [BORROWS].
- * @param[out] error      The error [BORROWS].
- * @return                1 where it loaded.
- */
-static int grundy_make_gather(unsigned int width, unsigned int in_limbs_0, GameProgram *program, EngineError *error)
-{
-    ExactRecordProgram built;
-    exact_record_open(&built);
-    const unsigned int read = exact_record_read_unsigned(&built, exact_record_member_field(&built, width + 1u, 0u), 0u);
-    const unsigned int value = exact_record_narrow(&built, read, width);
-    const unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {in_limbs_0, 0u, 0u};
-    const int ok = game_load(&built, 1u, &value, 1u, in_limbs, program, error);
-    exact_record_close(&built);
-    return ok;
-}
 
 /* ---------------------------------------------------------------- the sweep */
 
@@ -168,30 +62,10 @@ static int grundy_next(unsigned int *chosen, unsigned int size, unsigned int lar
 /** @brief The device state of the run. */
 typedef struct
 {
-    unsigned int *games;   /**< The moves of each game, one limb a record. */
-    unsigned int *places;  /**< The positions 0 to N - 1, one limb a record. */
-    unsigned int *zero;    /**< One state of zeros. */
-    unsigned int *history; /**< The state of each game after each position, position by position. */
-    unsigned int *index;   /**< The index of a sweep. */
-    unsigned int *out;     /**< The records of a sweep. */
-    unsigned int *values;  /**< The value of each place of each series, one limb a record, a zero record last. */
+    unsigned int *index;  /**< The index of a sweep. */
+    unsigned int *out;    /**< The records of a sweep. */
+    unsigned int *values; /**< The value of each place of each series, one limb a record, a zero record last. */
 } GrundyDevice;
-
-/**
- * @brief Sends the index of a sweep to the device.
- *
- * @param[in,out] results The results [BORROWS].
- * @param[in]     device  The device state [BORROWS].
- * @param[in]     index   The index on the host [BORROWS].
- * @param[in]     entries How many entries.
- * @return                1 where it went.
- */
-static int grundy_send_index(SimResults *results, const GrundyDevice *device, const unsigned int *index,
-                             unsigned long long entries)
-{
-    return sim_status_check(results, cudaMemcpy(device->index, index, entries * 4ULL, cudaMemcpyHostToDevice),
-                            "index sent");
-}
 
 /**
  * @brief Runs the sweep.
@@ -200,7 +74,7 @@ static int grundy_send_index(SimResults *results, const GrundyDevice *device, co
  * @param[in] argv The largest move and the max moves, both optional [BORROWS].
  * @return         0 where every check holds, else 1.
  */
-int main(int argc, char **argv)
+int program_main(int argc, char **argv)
 {
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;
@@ -245,150 +119,41 @@ int main(int argc, char **argv)
     }
     EngineError error;
     memset(&error, 0, sizeof(error));
-    GameProgram step;
-    GameProgram differ;
-    GameProgram gather;
     GameProgram lag;
     unsigned int lag_steps[DETECTOR_SUMS];
-    unsigned int differ_step = 0u;
-    int ok = grundy_make_step(largest, most, width, &step, &error);
-    const unsigned int state_limbs = step.layout.out_limbs;
-    ok = ok && grundy_make_differ(width, state_limbs, &differ, &differ_step, &error) &&
-         grundy_make_gather(width, state_limbs, &gather, &error) && detector_make_lag(width, &lag, lag_steps, &error);
-    sim_check(&results, ok, "the four record programs imprint, arrange and load");
+    int ok = detector_make_lag(width, &lag, lag_steps, &error);
+    sim_check(&results, ok, "the lag program imprints, arranges and loads");
     const unsigned long long whole = GRUNDY_POSITIONS;
-    const unsigned long long history_records = (whole * games) + 1ULL;
     const unsigned long long series_max = games + ((unsigned long long)GRUNDY_DRAWS * games);
     const unsigned long long lag_lanes = DETECTOR_SWEEP_LANES;
-    const unsigned long long sweep_lanes = (lag_lanes > (whole * games)) ? lag_lanes : (whole * games);
     const unsigned long long out_limbs_max = (lag.layout.out_limbs > 1u) ? lag.layout.out_limbs : 1u;
-    const unsigned long long declared = (history_records * state_limbs * 4ULL) + (sweep_lanes * 3ULL * 4ULL) +
-                                        (sweep_lanes * out_limbs_max * 4ULL) + (((series_max * whole) + 1ULL) * 4ULL) +
-                                        (whole * 4ULL) + (games * 4ULL) + (state_limbs * 4ULL) +
+    const unsigned long long declared = subtraction_bytes(games, whole, lag_lanes) + (lag_lanes * 2ULL * 4ULL) +
+                                        (lag_lanes * out_limbs_max * 4ULL) + (((series_max * whole) + 1ULL) * 4ULL) +
                                         twister_bytes(GRUNDY_DRAWS);
     ok = ok && sim_job_submit(&results, "grundy_period", argc, argv, declared);
     GrundyDevice device;
     memset(&device, 0, sizeof(device));
-    ok =
-        ok && sim_status_check(&results, cudaMalloc((void **)&device.games, games * 4ULL), "games") &&
-        sim_status_check(&results, cudaMalloc((void **)&device.places, whole * 4ULL), "places") &&
-        sim_status_check(&results, cudaMalloc((void **)&device.zero, state_limbs * 4ULL), "zero state") &&
-        sim_status_check(&results, cudaMalloc((void **)&device.history, history_records * state_limbs * 4ULL),
-                         "history") &&
-        sim_status_check(&results, cudaMalloc((void **)&device.index, sweep_lanes * 3ULL * 4ULL), "index") &&
-        sim_status_check(&results, cudaMalloc((void **)&device.out, sweep_lanes * out_limbs_max * 4ULL), "out") &&
-        sim_status_check(&results, cudaMalloc((void **)&device.values, ((series_max * whole) + 1ULL) * 4ULL), "values");
-    unsigned int *const host_index = (unsigned int *)malloc((size_t)(sweep_lanes * 3ULL * 4ULL));
-    unsigned int *const places = (unsigned int *)malloc((size_t)(whole * 4ULL));
-    ok = ok && (host_index != NULL) && (places != NULL);
-    for (unsigned int place = 0u; ok && (place < GRUNDY_POSITIONS); place += 1u)
-    {
-        places[place] = place;
-    }
-    ok = ok &&
-         sim_status_check(&results, cudaMemcpy(device.games, masks, games * 4ULL, cudaMemcpyHostToDevice),
-                          "games sent") &&
-         sim_status_check(&results, cudaMemcpy(device.places, places, whole * 4ULL, cudaMemcpyHostToDevice),
-                          "places sent") &&
-         sim_status_check(&results, cudaMemset(device.zero, 0, state_limbs * 4ULL), "zero state set") &&
-         sim_status_check(&results, cudaMemset(device.history, 0, history_records * state_limbs * 4ULL),
-                          "history cleared") &&
+    ok = ok && sim_status_check(&results, cudaMalloc((void **)&device.index, lag_lanes * 2ULL * 4ULL), "index") &&
+         sim_status_check(&results, cudaMalloc((void **)&device.out, lag_lanes * out_limbs_max * 4ULL), "out") &&
+         sim_status_check(&results, cudaMalloc((void **)&device.values, ((series_max * whole) + 1ULL) * 4ULL),
+                          "values") &&
          sim_status_check(&results, cudaMemset(device.values, 0, ((series_max * whole) + 1ULL) * 4ULL),
                           "values cleared");
-    // the Grundy step, one sweep a position: lane g reads its state, its game and the position. The first position
-    // reads one state of zeros for every game.
-    for (unsigned int game = 0u; ok && (game < games); game += 1u)
-    {
-        host_index[(3u * game) + 0u] = 0u;
-        host_index[(3u * game) + 1u] = game;
-        host_index[(3u * game) + 2u] = 0u;
-    }
-    ok = ok && grundy_send_index(&results, &device, host_index, games * 3ULL);
-    for (unsigned int place = 0u; ok && (place < GRUNDY_POSITIONS); place += 1u)
-    {
-        if (place == 1u)
-        {
-            for (unsigned int game = 0u; game < games; game += 1u)
-            {
-                host_index[3u * game] = game;
-            }
-            ok = grundy_send_index(&results, &device, host_index, games * 3ULL);
-        }
-        const unsigned int *const before =
-            (place == 0u) ? device.zero : (device.history + ((unsigned long long)(place - 1u) * games * state_limbs));
-        const CycleRecordRunRequest run = {step.record,
-                                           {before, device.games, device.places + place},
-                                           {(place == 0u) ? 1ULL : games, games, 1ULL},
-                                           device.index,
-                                           games,
-                                           device.history + ((unsigned long long)place * games * state_limbs),
-                                           &error};
-        ok = ok && (cycle_record_run(&run) == (long)games);
-    }
-    sim_check(&results, ok, "the Grundy step sweeps every position of every game");
-    // the exact period: the first shift where the pairs that differ past the bound sum to 0
+    unsigned int *const host_index = (unsigned int *)malloc((size_t)(lag_lanes * 2ULL * 4ULL));
     unsigned int *const period = (unsigned int *)calloc(games + 1u, sizeof(unsigned int));
-    unsigned int *const open = (unsigned int *)malloc((games + 1u) * sizeof(unsigned int));
     unsigned int *const sums =
         (unsigned int *)malloc((size_t)((series_max + 1ULL) * (GRUNDY_LAGS + 1ULL) * 2ULL * 4ULL));
-    ok = ok && (period != NULL) && (open != NULL) && (sums != NULL);
+    // the Grundy sequence of every game and its exact period, on the record machine
+    SubtractionGames heaps;
+    memset(&heaps, 0, sizeof(heaps));
+    ok = ok && (host_index != NULL) && (period != NULL) && (sums != NULL) &&
+         subtraction_open(&results, &heaps, masks, games, largest, most, GRUNDY_POSITIONS, lag_lanes) &&
+         subtraction_periods(&results, &heaps, period);
     unsigned int settled = 0u;
-    for (unsigned int shift = 1u; ok && (settled < games) && (shift <= (GRUNDY_POSITIONS / 4u)); shift += 1u)
+    for (unsigned int game = 0u; ok && (game < games); game += 1u)
     {
-        const unsigned int cap = GRUNDY_POSITIONS / 2u;
-        const unsigned int room = GRUNDY_POSITIONS - (3u * shift);
-        const unsigned int bound = (cap < room) ? cap : room;
-        const unsigned int from = bound - 1u;
-        const unsigned int to = GRUNDY_POSITIONS - shift;
-        const unsigned int run_length = (to > from) ? (to - from) : 0u;
-        unsigned int open_count = 0u;
-        for (unsigned int game = 0u; game < games; game += 1u)
-        {
-            if (period[game] == 0u)
-            {
-                open[open_count] = game;
-                open_count += 1u;
-            }
-        }
-        if (run_length == 0u)
-        {
-            for (unsigned int at = 0u; at < open_count; at += 1u)
-            {
-                period[open[at]] = shift;
-            }
-            settled += open_count;
-            continue;
-        }
-        unsigned long long lane = 0ULL;
-        for (unsigned int at = 0u; at < open_count; at += 1u)
-        {
-            for (unsigned int place = from; place < to; place += 1u)
-            {
-                host_index[2ULL * lane] = (place * games) + open[at];
-                host_index[(2ULL * lane) + 1ULL] = ((place + shift) * games) + open[at];
-                lane += 1ULL;
-            }
-        }
-        ok = grundy_send_index(&results, &device, host_index, lane * 2ULL);
-        const CycleRecordRunRequest run = {differ.record,
-                                           {device.history, device.history, NULL},
-                                           {whole * games, whole * games, 0ULL},
-                                           device.index,
-                                           lane,
-                                           device.out,
-                                           &error};
-        ok = ok && (cycle_record_run(&run) == (long)lane) &&
-             game_sum(&differ, differ_step, device.out, lane, run_length, sums, &error);
-        for (unsigned int at = 0u; ok && (at < open_count); at += 1u)
-        {
-            if ((sums[2u * at] == 0u) && (sums[(2u * at) + 1u] == 0u))
-            {
-                period[open[at]] = shift;
-                settled += 1u;
-            }
-        }
+        settled += (period[game] != 0u) ? 1u : 0u;
     }
-    sim_check(&results, ok, "the shifts sweep and sum on the device");
     unsigned char present[(GRUNDY_POSITIONS / 4u) + 1u];
     memset(present, 0, sizeof(present));
     for (unsigned int game = 0u; ok && (game < games); game += 1u)
@@ -489,15 +254,7 @@ int main(int argc, char **argv)
         if ((written >= lag_lanes) || ((one + 1ULL) == series))
         {
             const unsigned long long first_series = (one + 1ULL) - (written / whole);
-            ok = grundy_send_index(&results, &device, host_index, written);
-            const CycleRecordRunRequest run = {gather.record,
-                                               {device.history, NULL, NULL},
-                                               {whole * games, 0ULL, 0ULL},
-                                               device.index,
-                                               written,
-                                               device.values + (first_series * whole),
-                                               &error};
-            ok = ok && (cycle_record_run(&run) == (long)written);
+            ok = subtraction_write(&results, &heaps, host_index, written, 0, device.values + (first_series * whole));
             written = 0ULL;
         }
     }
@@ -659,23 +416,15 @@ int main(int argc, char **argv)
     sim_check(&results, unclear_digits == 0ULL, "every printed value rounds alike at both ends of its interval");
     sim_check(&results, stable == short_rows, "a true period is one number at every window");
     sim_flush(&results);
-    cudaFree(device.games);
-    cudaFree(device.places);
-    cudaFree(device.zero);
-    cudaFree(device.history);
     cudaFree(device.index);
     cudaFree(device.out);
     cudaFree(device.values);
-    game_release(&step);
-    game_release(&differ);
-    game_release(&gather);
+    subtraction_close(&heaps);
     game_release(&lag);
     cycle_record_sum_release();
     free(masks);
     free(host_index);
-    free(places);
     free(period);
-    free(open);
     free(sums);
     free(row_game);
     free(order);

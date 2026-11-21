@@ -42,6 +42,7 @@ extern "C"
 #include "../../../../scaffolding/c_target.h"
 #include "machine_ir_types.h"
 #include "target.h"
+#include "../../../../../platform/platform.h"
 
 #include <cctype>
 #include <cstdio>
@@ -2933,7 +2934,7 @@ static int forms_read(const char *questions_path, const char *listing, const cha
     return 0;
 }
 
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
     if ((count == 6) && (strcmp(words[1], "write") == 0))
     {

@@ -424,7 +424,7 @@ static void record_compare_case(RecordResults *results)
     exact_record_close(&program);
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     RecordResults results;
     results.checks = 0ull;

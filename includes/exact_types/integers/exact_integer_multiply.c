@@ -20,9 +20,11 @@ static void fermat_fourier(uint32_t *elements, size_t count, unsigned int depth,
         }
         if (reversed > at)
         {
-            memcpy(turned, &elements[at * width], width * sizeof(uint32_t));
-            memcpy(&elements[at * width], &elements[reversed * width], width * sizeof(uint32_t));
-            memcpy(&elements[reversed * width], turned, width * sizeof(uint32_t));
+            memor.cpy(&(MemoriaCfg){.dst = turned, .src = &elements[at * width], .bytes = width * sizeof(uint32_t)});
+            memor.cpy(&(MemoriaCfg){
+                .dst = &elements[at * width], .src = &elements[reversed * width], .bytes = width * sizeof(uint32_t)});
+            memor.cpy(
+                &(MemoriaCfg){.dst = &elements[reversed * width], .src = turned, .bytes = width * sizeof(uint32_t)});
         }
     }
     for (size_t span = 2u; span <= count; span <<= 1u)
@@ -140,8 +142,7 @@ static int fermat_transform(uint32_t *result, const uint32_t *left, const uint32
     const size_t width = inner + 1u;
     const size_t cycle = 2u * inner_bits;
     const size_t total = limbs + width + 1u;
-    uint32_t *const workspace =
-        (uint32_t *)calloc((2u * count * width) + (4u * width) + (2u * total) + 2u, sizeof(uint32_t));
+    uint32_t *const workspace = exact_work_taken((2u * count * width) + (4u * width) + (2u * total) + 2u, 1);
     if (workspace == NULL)
     {
         return 0;
@@ -155,8 +156,10 @@ static int fermat_transform(uint32_t *result, const uint32_t *left, const uint32
     uint32_t *const negative = &positive[total];
     for (size_t at = 0u; at < count; at++)
     {
-        memcpy(&first[at * width], &left[at * piece], piece * sizeof(uint32_t));
-        memcpy(&second[at * width], &right[at * piece], piece * sizeof(uint32_t));
+        memor.cpy(
+            &(MemoriaCfg){.dst = &first[at * width], .src = &left[at * piece], .bytes = piece * sizeof(uint32_t)});
+        memor.cpy(
+            &(MemoriaCfg){.dst = &second[at * width], .src = &right[at * piece], .bytes = piece * sizeof(uint32_t)});
         fermat_shift(&first[at * width], &first[at * width], at * (inner_bits / count), inner, scratch);
         fermat_shift(&second[at * width], &second[at * width], at * (inner_bits / count), inner, scratch);
     }
@@ -166,10 +169,10 @@ static int fermat_transform(uint32_t *result, const uint32_t *left, const uint32
     {
         if (fermat_multiply(product, &first[at * width], &second[at * width], inner) == 0)
         {
-            free(workspace);
+            exact_work_released(workspace);
             return 0;
         }
-        memcpy(&first[at * width], product, width * sizeof(uint32_t));
+        memor.cpy(&(MemoriaCfg){.dst = &first[at * width], .src = product, .bytes = width * sizeof(uint32_t)});
     }
     fermat_fourier(first, count, depth, inner, cycle - ((2u * inner_bits) / count), scratch, turned);
     for (size_t at = 0u; at < count; at++)
@@ -189,28 +192,28 @@ static int fermat_transform(uint32_t *result, const uint32_t *left, const uint32
     }
     // each sum folds into the ring, n bits at a time with signs in turn, because 2^n is -1
     uint32_t *const folded = product;
-    memset(result, 0, (limbs + 1u) * sizeof(uint32_t));
-    uint32_t *const chunk = (uint32_t *)calloc(limbs + 1u, sizeof(uint32_t));
+    memor.set(&(MemoriaCfg){.dst = result, .bytes = (limbs + 1u) * sizeof(uint32_t), .val = 0u});
+    uint32_t *const chunk = exact_work_taken(limbs + 1u, 1);
     if (chunk == NULL)
     {
-        free(workspace);
+        exact_work_released(workspace);
         return 0;
     }
     for (unsigned int sign = 0u; sign < 2u; sign++)
     {
         const uint32_t *const sum = (sign == 0u) ? positive : negative;
-        uint32_t *const into = (uint32_t *)calloc(limbs + 1u, sizeof(uint32_t));
+        uint32_t *const into = exact_work_taken(limbs + 1u, 1);
         if (into == NULL)
         {
-            free(chunk);
-            free(workspace);
+            exact_work_released(chunk);
+            exact_work_released(workspace);
             return 0;
         }
         for (size_t start = 0u, index = 0u; start < total; start += limbs, index++)
         {
             const size_t taken = ((total - start) < limbs) ? (total - start) : limbs;
-            memset(chunk, 0, (limbs + 1u) * sizeof(uint32_t));
-            memcpy(chunk, &sum[start], taken * sizeof(uint32_t));
+            memor.set(&(MemoriaCfg){.dst = chunk, .bytes = (limbs + 1u) * sizeof(uint32_t), .val = 0u});
+            memor.cpy(&(MemoriaCfg){.dst = chunk, .src = &sum[start], .bytes = taken * sizeof(uint32_t)});
             if ((index & 1u) == 0u)
             {
                 fermat_add(into, into, chunk, limbs);
@@ -222,17 +225,17 @@ static int fermat_transform(uint32_t *result, const uint32_t *left, const uint32
         }
         if (sign == 0u)
         {
-            memcpy(result, into, (limbs + 1u) * sizeof(uint32_t));
+            memor.cpy(&(MemoriaCfg){.dst = result, .src = into, .bytes = (limbs + 1u) * sizeof(uint32_t)});
         }
         else
         {
             fermat_subtract(result, result, into, limbs);
         }
-        free(into);
+        exact_work_released(into);
     }
     (void)folded;
-    free(chunk);
-    free(workspace);
+    exact_work_released(chunk);
+    exact_work_released(workspace);
     return 1;
 }
 
@@ -242,10 +245,11 @@ static int fermat_multiply(uint32_t *result, const uint32_t *left, const uint32_
     if ((left[limbs] != 0u) || (right[limbs] != 0u))
     {
         // 2^n is -1
-        memcpy(result, (left[limbs] != 0u) ? right : left, (limbs + 1u) * sizeof(uint32_t));
+        memor.cpy(&(MemoriaCfg){
+            .dst = result, .src = (left[limbs] != 0u) ? right : left, .bytes = (limbs + 1u) * sizeof(uint32_t)});
         if ((left[limbs] != 0u) && (right[limbs] != 0u))
         {
-            memset(result, 0, (limbs + 1u) * sizeof(uint32_t));
+            memor.set(&(MemoriaCfg){.dst = result, .bytes = (limbs + 1u) * sizeof(uint32_t), .val = 0u});
             result[0] = 1u;
             return 1;
         }
@@ -255,16 +259,16 @@ static int fermat_multiply(uint32_t *result, const uint32_t *left, const uint32_
     const unsigned int depth = fermat_depth(limbs);
     if (depth < 2u)
     {
-        uint32_t *const product = (uint32_t *)calloc((2u * limbs) + 1u, sizeof(uint32_t));
+        uint32_t *const product = exact_work_taken((2u * limbs) + 1u, 1);
         if ((product == NULL) || (limbs_product(product, left, limbs, right, limbs) == 0))
         {
-            free(product);
+            exact_work_released(product);
             return 0;
         }
-        memcpy(result, product, limbs * sizeof(uint32_t));
+        memor.cpy(&(MemoriaCfg){.dst = result, .src = product, .bytes = limbs * sizeof(uint32_t)});
         result[limbs] = 0u;
         fermat_subtract(result, result, &product[limbs], limbs);
-        free(product);
+        exact_work_released(product);
         return 1;
     }
     return fermat_transform(result, left, right, limbs, depth);
@@ -277,7 +281,7 @@ int transform_product(uint32_t *wide, const uint32_t *left, size_t left_used, co
     const size_t bits = (left_used + right_used) * LIMB_BITS;
     const size_t step = (size_t)LIMB_BITS << ((bits_ceiling_log(bits) + 1u) / 2u);
     const size_t limbs = (((bits + step - 1u) / step) * step) / LIMB_BITS;
-    uint32_t *const workspace = (uint32_t *)calloc(3u * (limbs + 1u), sizeof(uint32_t));
+    uint32_t *const workspace = exact_work_taken(3u * (limbs + 1u), 1);
     if (workspace == NULL)
     {
         return 0;
@@ -285,22 +289,22 @@ int transform_product(uint32_t *wide, const uint32_t *left, size_t left_used, co
     uint32_t *const first = workspace;
     uint32_t *const second = &workspace[limbs + 1u];
     uint32_t *const product = &workspace[2u * (limbs + 1u)];
-    memcpy(first, left, left_used * sizeof(uint32_t));
-    memcpy(second, right, right_used * sizeof(uint32_t));
+    memor.cpy(&(MemoriaCfg){.dst = first, .src = left, .bytes = left_used * sizeof(uint32_t)});
+    memor.cpy(&(MemoriaCfg){.dst = second, .src = right, .bytes = right_used * sizeof(uint32_t)});
     // the product is below 2^bits <= 2^n. The ring leaves it whole
     const int product_ok = fermat_multiply(product, first, second, limbs);
     if (product_ok != 0)
     {
-        memcpy(wide, product, (left_used + right_used) * sizeof(uint32_t));
+        memor.cpy(&(MemoriaCfg){.dst = wide, .src = product, .bytes = (left_used + right_used) * sizeof(uint32_t)});
     }
-    free(workspace);
+    exact_work_released(workspace);
     return product_ok;
 }
 
 // the product by the rung of the ladder that the operands reach, or by the transform alone when the caller asks for it.
 // A rung that cannot allocate its workspace steps down to the rung below. Long multiplication needs no workspace
 static OriorExactStatus exact_multiply_by(const OriorExactInteger *left, const OriorExactInteger *right,
-                                           OriorExactInteger *result, int transform_only)
+                                          OriorExactInteger *result, int transform_only)
 {
     if ((left->sign == 0) || (right->sign == 0))
     {
@@ -351,8 +355,9 @@ static OriorExactStatus exact_multiply_by(const OriorExactInteger *left, const O
         // Written only now, and the sign taken first, since `result` may be either factor.
         const int32_t sign = (left->sign == right->sign) ? 1 : -1;
         const size_t range_used = (range < EXACT_LIMBS) ? range : EXACT_LIMBS;
-        memcpy(result->limb, wide, range_used * sizeof(uint32_t));
-        memset(&result->limb[range_used], 0, (EXACT_LIMBS - range_used) * sizeof(uint32_t));
+        memor.cpy(&(MemoriaCfg){.dst = result->limb, .src = wide, .bytes = range_used * sizeof(uint32_t)});
+        memor.set(&(MemoriaCfg){
+            .dst = &result->limb[range_used], .bytes = (EXACT_LIMBS - range_used) * sizeof(uint32_t), .val = 0u});
         settle_sign(result, sign);
     }
     EXACT_SCRATCH_RELEASE(wide);
@@ -360,13 +365,13 @@ static OriorExactStatus exact_multiply_by(const OriorExactInteger *left, const O
 }
 
 OriorExactStatus orior_exact_multiply_transform(const OriorExactInteger *left, const OriorExactInteger *right,
-                                                  OriorExactInteger *result)
+                                                OriorExactInteger *result)
 {
     return exact_multiply_by(left, right, result, 1);
 }
 
 OriorExactStatus orior_exact_multiply(const OriorExactInteger *left, const OriorExactInteger *right,
-                                        OriorExactInteger *result)
+                                      OriorExactInteger *result)
 {
     return exact_multiply_by(left, right, result, 0);
 }

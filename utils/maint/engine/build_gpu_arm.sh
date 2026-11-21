@@ -87,13 +87,20 @@ rm -f "$OUT/bench_exact_gpu.exe"
 # succeeds whatever nvcc did. A filter on the output must never decide whether the build passed.
 # Unquoted. An empty WIDTH_DEFINES has to expand to no argument at all, and quoted it would pass an
 # empty one to nvcc.
+# the defines of the width as words, split where WIDTH_DEFINES has spaces
+# shellcheck disable=SC2206
+WIDTH_WORDS=($WIDTH_DEFINES)
+source "$ROOT/includes/exact_types/exact_types.sh"
+HOST_FLAGS=(-ccbin "$MSVC_BIN" -Xcompiler /Zc:preprocessor)
+EXACT_TYPES_EXTRA=(-DORIOR_EXACT_HAVE_CUDA=1 "${WIDTH_WORDS[@]}")
+exact_types_compile gpu_arm "${EXACT_TYPES_ARITHMETIC[@]}" || exit 1
 # shellcheck disable=SC2086
 nvcc -ccbin "$MSVC_BIN" -O2 $GENCODE \
-    -I "$ROOT/includes/exact_types/integers" \
+    "${EXACT_TYPES_FLAGS[@]}" \
     -DORIOR_EXACT_HAVE_CUDA=1 $WIDTH_DEFINES \
     -o "$OUT/bench_exact_gpu.exe" \
     "$ROOT/includes/exact_types/integers/arm.cu" \
-    "$ROOT/includes/exact_types/integers"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
+    "${EXACT_TYPES_OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}" \
     "$ROOT/includes/exact_types/integers/arm.c" \
     "$ROOT/utils/bench/bench_exact_arms.c" \
     2>&1 | grep -viE "^\s*$|Copyright|Microsoft \(R\)|exact_integer\.c$|arm\.c$|bench_exact_arms\.c$|arm_cuda\.cu$" | head -20

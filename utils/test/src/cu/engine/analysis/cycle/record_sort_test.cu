@@ -295,7 +295,7 @@ static void sort_index(SortResults *results, unsigned int *records, unsigned int
     keymath_record_release(&key);
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     SortResults results;
     results.checks = 0ull;

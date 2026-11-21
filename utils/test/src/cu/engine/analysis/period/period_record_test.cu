@@ -384,7 +384,7 @@ static void record_timed(SimResults *results)
     free(lanes);
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;

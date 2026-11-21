@@ -34,8 +34,8 @@ static void magnitude_shift_down(uint32_t *value, size_t bits)
     }
 }
 
-// result[0, left_count + right_count) = left . right on the ladder: the transform once both reach its rung, Karatsuba
-// or long multiplication below it, each stepping down when its workspace cannot be allocated
+// result[0, left_count + right_count) = left . right on the ladder. The transform runs once both reach its rung, and
+// Karatsuba or long multiplication runs below it. Each steps down where the pool cannot meet its workspace
 void limbs_ladder_product(uint32_t *result, const uint32_t *left, size_t left_count, const uint32_t *right,
                           size_t right_count)
 {
@@ -57,8 +57,8 @@ static void magnitude_low_product(const uint32_t *left, const uint32_t *right, s
                                   uint32_t *work)
 {
     limbs_ladder_product(work, left, limbs, right, limbs);
-    memcpy(result, work, limbs * sizeof(uint32_t));
-    memset(&result[limbs], 0, (EXACT_LIMBS - limbs) * sizeof(uint32_t));
+    memor.cpy(&(MemoriaCfg){.dst = result, .src = work, .bytes = limbs * sizeof(uint32_t)});
+    memor.set(&(MemoriaCfg){.dst = &result[limbs], .bytes = (EXACT_LIMBS - limbs) * sizeof(uint32_t), .val = 0u});
 }
 
 // the inverse of an odd magnitude modulo 2^(32 limbs) by Newton's step x (2 - d x), which doubles the bits that are
@@ -69,7 +69,7 @@ static void magnitude_odd_inverse(const uint32_t *odd, size_t limbs, uint32_t *i
     uint32_t *const guess = work;
     uint32_t *const step = &work[EXACT_LIMBS];
     uint32_t *const product = &work[2u * EXACT_LIMBS];
-    memset(guess, 0, EXACT_LIMBS * sizeof(uint32_t));
+    memor.set(&(MemoriaCfg){.dst = guess, .bytes = EXACT_LIMBS * sizeof(uint32_t), .val = 0u});
     guess[0] = odd[0];
     // d . d = 1 modulo 8 for every odd d
     size_t right_bits = 3u;
@@ -89,11 +89,11 @@ static void magnitude_odd_inverse(const uint32_t *odd, size_t limbs, uint32_t *i
         magnitude_low_product(guess, step, range, guess, product);
         right_bits = doubled;
     }
-    memcpy(inverse, guess, EXACT_LIMBS * sizeof(uint32_t));
+    memor.cpy(&(MemoriaCfg){.dst = inverse, .src = guess, .bytes = EXACT_LIMBS * sizeof(uint32_t)});
 }
 
 OriorExactStatus orior_exact_divide_exact(const OriorExactInteger *numerator, const OriorExactInteger *divisor,
-                                            OriorExactInteger *quotient)
+                                          OriorExactInteger *quotient)
 {
     if (divisor->sign == 0)
     {
@@ -116,12 +116,12 @@ OriorExactStatus orior_exact_divide_exact(const OriorExactInteger *numerator, co
     uint32_t *const inverse_work = &work[5u * EXACT_LIMBS];
     uint32_t *const inverse = &work[9u * EXACT_LIMBS];
     const size_t twos = magnitude_trailing_zeros(divisor->limb);
-    memcpy(odd, divisor->limb, EXACT_LIMBS * sizeof(uint32_t));
-    memcpy(top, numerator->limb, EXACT_LIMBS * sizeof(uint32_t));
+    memor.cpy(&(MemoriaCfg){.dst = odd, .src = divisor->limb, .bytes = EXACT_LIMBS * sizeof(uint32_t)});
+    memor.cpy(&(MemoriaCfg){.dst = top, .src = numerator->limb, .bytes = EXACT_LIMBS * sizeof(uint32_t)});
     magnitude_shift_down(odd, twos);
     magnitude_shift_down(top, twos);
     const size_t limbs = magnitude_used(top);
-    memset(low_product, 0, EXACT_LIMBS * sizeof(uint32_t));
+    memor.set(&(MemoriaCfg){.dst = low_product, .bytes = EXACT_LIMBS * sizeof(uint32_t), .val = 0u});
     if (limbs != 0u)
     {
         magnitude_odd_inverse(odd, limbs, inverse, inverse_work);
@@ -134,12 +134,14 @@ OriorExactStatus orior_exact_divide_exact(const OriorExactInteger *numerator, co
     if ((low_product_used != 0u) && ((low_product_used + divisor_used) <= (2u * EXACT_LIMBS)))
     {
         limbs_ladder_product(back, low_product, low_product_used, divisor->limb, divisor_used);
-        memset(&back[low_product_used + divisor_used], 0,
-               ((2u * EXACT_LIMBS) - low_product_used - divisor_used) * sizeof(uint32_t));
+        memor.set(&(MemoriaCfg){.dst = &back[low_product_used + divisor_used],
+                                .bytes = ((2u * EXACT_LIMBS) - low_product_used - divisor_used) * sizeof(uint32_t),
+                                .val = 0u});
         if ((magnitude_compare(back, numerator->limb) == 0) && (magnitude_is_zero(&back[EXACT_LIMBS]) != 0))
         {
             const int32_t sign = numerator->sign * divisor->sign;
-            memcpy(quotient->limb, low_product, EXACT_LIMBS * sizeof(uint32_t));
+            memor.cpy(
+                &(MemoriaCfg){.dst = quotient->limb, .src = low_product, .bytes = EXACT_LIMBS * sizeof(uint32_t)});
             settle_sign(quotient, sign);
             status = ORIOR_EXACT_OK;
         }
@@ -148,7 +150,7 @@ OriorExactStatus orior_exact_divide_exact(const OriorExactInteger *numerator, co
     return status;
 }
 
-// the 32 bits of value starting at bit from, the bits past the top reading as zero
+// the 32 bits of value from bit `from` up, and zero for each bit past the top
 static uint64_t limbs_window(const uint32_t *value, size_t used, size_t from)
 {
     const size_t limb_shift = from / LIMB_BITS;
@@ -158,8 +160,9 @@ static uint64_t limbs_window(const uint32_t *value, size_t used, size_t from)
     return ((low | (high << LIMB_BITS)) >> part) & LIMB_MASK;
 }
 
-// result = first . |first_factor| + or - second . |second_factor| over count limbs and one above, the factors below
-// 2^32 in magnitude and of opposite signs or zero, the combination known to be non-negative; other contains count + 1
+// result = first . |first_factor| + or - second . |second_factor| over count limbs and one above. The factors are below
+// 2^32 in magnitude, and of opposite signs or zero. The caller knows that the combination is not negative. other
+// contains count + 1
 static void limbs_combine(uint32_t *result, const uint32_t *first, int64_t first_factor, const uint32_t *second,
                           int64_t second_factor, size_t count, uint32_t *other)
 {
@@ -193,11 +196,11 @@ static void limbs_combine(uint32_t *result, const uint32_t *first, int64_t first
     }
 }
 
-// Lehmer's gcd (Knuth's algorithm L): the leading 32 bits of u and the same bits of v run Euclid's steps in words
-// while the quotient is certain, and the steps' cofactors then advance u and v in one pass, about thirty bits at a
-// time; where no step is certain one long division advances them; the last two words finish in a word
+// Lehmer's gcd (Knuth's algorithm L). The leading 32 bits of u and the same bits of v run Euclid's steps in words while
+// the quotient is certain. The cofactors of the steps then advance u and v in one pass, about thirty bits at a time.
+// Where no step is certain, one long division advances them. The last two words finish in a word
 OriorExactStatus orior_exact_gcd(const OriorExactInteger *left, const OriorExactInteger *right,
-                                   OriorExactInteger *result)
+                                 OriorExactInteger *result)
 {
     if (left->sign == 0)
     {
@@ -222,10 +225,12 @@ OriorExactStatus orior_exact_gcd(const OriorExactInteger *left, const OriorExact
     uint32_t *const other = &work[4u * width];
     uint32_t *const quotient = &work[5u * width];
     uint32_t *const divide_work = &work[(5u * width) + EXACT_LIMBS];
-    memset(work, 0, 4u * width * sizeof(uint32_t));
+    memor.set(&(MemoriaCfg){.dst = work, .bytes = 4u * width * sizeof(uint32_t), .val = 0u});
     const int left_larger = (magnitude_compare(left->limb, right->limb) >= 0);
-    memcpy(buffer[0], left_larger ? left->limb : right->limb, EXACT_LIMBS * sizeof(uint32_t));
-    memcpy(buffer[1], left_larger ? right->limb : left->limb, EXACT_LIMBS * sizeof(uint32_t));
+    memor.cpy(&(MemoriaCfg){
+        .dst = buffer[0], .src = left_larger ? left->limb : right->limb, .bytes = EXACT_LIMBS * sizeof(uint32_t)});
+    memor.cpy(&(MemoriaCfg){
+        .dst = buffer[1], .src = left_larger ? right->limb : left->limb, .bytes = EXACT_LIMBS * sizeof(uint32_t)});
     // u in buffer[current], v in buffer[current + 1], the next pair in the other two
     unsigned int current = 0u;
     size_t larger_used = limbs_used(buffer[0], width);
@@ -264,7 +269,7 @@ OriorExactStatus orior_exact_gcd(const OriorExactInteger *left, const OriorExact
         {
             // no word step was certain: one long division, u, v -> v, u mod v
             magnitude_divide(larger, smaller, quotient, buffer[into + 1u], divide_work);
-            memcpy(buffer[into], smaller, width * sizeof(uint32_t));
+            memor.cpy(&(MemoriaCfg){.dst = buffer[into], .src = smaller, .bytes = width * sizeof(uint32_t)});
             range[into] = width;
             range[into + 1u] = width;
         }
@@ -277,7 +282,9 @@ OriorExactStatus orior_exact_gcd(const OriorExactInteger *left, const OriorExact
             {
                 if (range[into + side] > (count + 1u))
                 {
-                    memset(&buffer[into + side][count + 1u], 0, (range[into + side] - count - 1u) * sizeof(uint32_t));
+                    memor.set(&(MemoriaCfg){.dst = &buffer[into + side][count + 1u],
+                                            .bytes = (range[into + side] - count - 1u) * sizeof(uint32_t),
+                                            .val = 0u});
                 }
                 range[into + side] = count + 1u;
             }
@@ -292,7 +299,7 @@ OriorExactStatus orior_exact_gcd(const OriorExactInteger *left, const OriorExact
     if (smaller_word != 0u)
     {
         uint32_t *const rest = buffer[(current == 0u) ? 2u : 0u];
-        memset(rest, 0, width * sizeof(uint32_t));
+        memor.set(&(MemoriaCfg){.dst = rest, .bytes = width * sizeof(uint32_t), .val = 0u});
         magnitude_divide(buffer[current], buffer[current + 1u], quotient, rest, divide_work);
         larger_word = smaller_word;
         smaller_word = ((uint64_t)rest[1] << LIMB_BITS) | (uint64_t)rest[0];
@@ -311,7 +318,7 @@ OriorExactStatus orior_exact_gcd(const OriorExactInteger *left, const OriorExact
     }
     else
     {
-        memcpy(result->limb, buffer[current], EXACT_LIMBS * sizeof(uint32_t));
+        memor.cpy(&(MemoriaCfg){.dst = result->limb, .src = buffer[current], .bytes = EXACT_LIMBS * sizeof(uint32_t)});
     }
     settle_sign(result, 1);
     EXACT_SCRATCH_RELEASE(work);

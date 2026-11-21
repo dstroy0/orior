@@ -7,6 +7,7 @@
 #include "record.h"
 
 #include "core_radius_weights.h"
+#include "../../../../src/platform/platform.h"
 
 // The datum enters the core through Z_{-2A} Pi alone, and the tangent of the rule of core_radius_weights.h along a
 // datum direction p is the same rule taken once in the tangent of each field: with j = k - i,
@@ -463,7 +464,7 @@ static CoreRadiusSequence core_tangent_over_transport(const CoreRadiusSequence &
     return core_tangent_quotient(core_tangent_quotient(scaled, root, reach), root, reach);
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     char capacity[SIM_LINE_CAPACITY];
     SimResults results;

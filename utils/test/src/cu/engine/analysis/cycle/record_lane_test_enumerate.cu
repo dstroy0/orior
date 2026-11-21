@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_lane_test_enumerate.cu: enumeration, scale, edges, indexing and main
 #include "record_lane_test_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 // every lane hits, one in 2^4, 2^8, 2^12 and 2^16, and none
 static const unsigned long long s_lane_thresholds[LANE_TEST_THRESHOLDS] = {1ull << 32u, 1ull << 28u, 1ull << 24u,
@@ -397,7 +398,7 @@ static void lane_indexed(LaneResults *results)
     lane_free(&loaded);
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     LaneResults results;
     results.checks = 0ull;

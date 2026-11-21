@@ -216,7 +216,7 @@ static void device_test_round(DeviceTestResults *results, unsigned int round, un
     tessera_ledger_close(&host);
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     DeviceTestResults results = {0u, 0u};
     char job_capacity[SIM_LINE_CAPACITY];

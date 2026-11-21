@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_tower_test_ruleset.cu: matches, rulesets, the operation stack, blocks, errors and main
 #include "record_tower_test_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 // t, z, y and x: a line of 64, a cube of 4, blocks with odd extents on every axis, a block on all four axes, and one
 // sample, which no level lifts
@@ -423,7 +424,7 @@ static void tower_test_errors(SimResults *results)
     sim_check(results, errored, "a step with a zero weight, no taps, or a sign other than 1 or -1 errors");
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;

@@ -10,6 +10,7 @@ source "$TOP/cell_tracking/maint/tessera_build.sh"
 PEAKS="$TOP/cell_tracking/src/peaks"
 NO_ROUNDING="$ENGINE/../types/integers"
 source "$ENGINE/../includes/file_defs/file_defs.sh"
+source "$ENGINE/../includes/exact_types/exact_types.sh"
 build_stamp peaks_test
 
 HOST_FLAGS=()
@@ -48,7 +49,7 @@ INCLUDES=(-I "$ENGINE" -I "$ENGINE/../../cu/engine" -I "$PEAKS" -I "$NO_ROUNDING
 rm -f "$BINARY"
 OBJECTS=()
 LINEA_OBJECTS=()
-for source in "${FILE_DEFS_LINEA[@]}" "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c; do
+for source in "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}"; do
     object="$OUT/$(basename "$source" .c)_peaks.$EXTENSION"
     rm -f "$object"
     case "$(uname -s)" in
@@ -60,6 +61,7 @@ for source in "${FILE_DEFS_LINEA[@]}" "$NO_ROUNDING"/exact_integer_{add,limbs,mu
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
     case "$source" in
+        */mmgr/src/locus_carcerum/*) ;;
         */mmgr/src/*) LINEA_OBJECTS+=("$object") ;;
     esac
 done

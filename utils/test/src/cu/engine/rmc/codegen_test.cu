@@ -317,7 +317,7 @@ static void device_bootstrap(DeviceResults *results, CodeGenerator *generator, c
     asm_printer_ruleset_release(&text_rules);
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     DeviceResults results = {0u, 0u, 0u};
     char job_capacity[SIM_LINE_CAPACITY];

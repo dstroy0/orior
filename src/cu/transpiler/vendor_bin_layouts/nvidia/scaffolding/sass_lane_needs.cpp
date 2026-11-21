@@ -23,6 +23,7 @@ extern "C"
 #include "../../../../../../includes/file_defs/krs/ruleset_reader.h"
 #include "sass_target.h"
 #include "target.h"
+#include "../../../../../platform/platform.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -149,8 +150,10 @@ static void lane_decide(const HostProgram *program, int reuse, unsigned int *que
     host_free(&loaded);
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     const Ruleset *const rules = sass_target().ruleset(1);
     if (rules == NULL)
     {

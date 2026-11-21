@@ -29,6 +29,7 @@ EXACT_RECORD="$NO_ROUNDING/exact_record"
 SHUFFLE="$TOP/examples/0_experimental/exact_zeta"
 SIMS_CU="$TOP/src/sims/cu"
 source "$TOP/includes/file_defs/file_defs.sh"
+source "$TOP/includes/exact_types/exact_types.sh"
 source "$TOP/utils/maint/engine/build_stamp.sh"
 source "$TOP/utils/maint/engine/tessera_build.sh"
 build_stamp "game_theory_$PROGRAM"
@@ -68,12 +69,12 @@ for one in $ARCHES; do
 done
 
 INCLUDES=(-I "$ENGINE" -I "$CYCLE" -I "$CODEGEN" -I "$PARSERS" -I "$KEYMATH" -I "$KEY_SCHEDULE" -I "$NO_ROUNDING"
-          -I "$EXACT_RECORD" -I "$SHUFFLE" -I "$SIMS_CU" "${FILE_DEFS_MMGR_FLAGS[@]}" "${TESSERA_INCLUDES[@]}")
+          -I "$EXACT_RECORD" -I "$SHUFFLE" -I "$SIMS_CU" "${EXACT_TYPES_FLAGS[@]}" "${TESSERA_INCLUDES[@]}")
 rm -f "$BINARY"
 OBJECTS=()
 LINEA_OBJECTS=()
-for source in "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
-              "$CYCLE/cycle.c" "$EXACT_RECORD/exact_record.c" "$SHUFFLE/zeta_shuffle.c"; do
+for source in "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_RECORD[@]}" \
+              "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" "$CYCLE/cycle.c" "$SHUFFLE/zeta_shuffle.c"; do
     object="$OUT/$(basename "$source" .c)_game.$EXTENSION"
     rm -f "$object"
     case "$(uname -s)" in
@@ -85,6 +86,7 @@ for source in "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "$NO_ROUNDING"/e
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
     case "$source" in
+        */mmgr/src/locus_carcerum/*) ;;
         */mmgr/src/*) LINEA_OBJECTS+=("$object") ;;
     esac
 done
@@ -92,7 +94,8 @@ tessera_build game "${LINEA_OBJECTS[@]}" || exit 1
 
 nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${GENCODE[@]}" "${INCLUDES[@]}" "${LONG_PATHS[@]}" -o "$BINARY" "$SOURCE" \
     "$SIMS_CU/sim_job.cu" "$CYCLE"/cycle*.cu "$CODEGEN"/*.cu "$PARSERS"/*.cu "$PARSERS"/../file_defs/krs/ruleset_flat/*.cu \
-    "$KEYMATH/keymath.cu" "$KEY_SCHEDULE/key_schedule.cu" "${OBJECTS[@]}" "${TESSERA_OBJECTS[@]}" "${TESSERA_SEAL[@]}"
+    "$KEYMATH/keymath.cu" "$KEY_SCHEDULE/key_schedule.cu" "${OBJECTS[@]}" "${TESSERA_OBJECTS[@]}" "${TESSERA_SEAL[@]}" \
+    "${EXACT_TYPES_LIBRARIES[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build $PROGRAM"; exit 1; }
 cd "$TOP" || exit 1
 "$BINARY" "$@"

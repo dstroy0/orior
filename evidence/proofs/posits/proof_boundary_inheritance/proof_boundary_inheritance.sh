@@ -14,14 +14,13 @@ set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$HERE/../../../.." && pwd)"
 RING="$TOP/examples/0_experimental/exact_navier_stokes"
-EXACT="$TOP/includes/exact_types/integers"
+source "$TOP/includes/exact_types/exact_types.sh"
 # One folder per platform. A Linux shell and a Windows shell can share this tree, and neither runs the
 # binary of the other.
 OUT="$TOP/build/proof_boundary_inheritance/$(uname -s | tr "[:upper:]" "[:lower:]")"
 mkdir -p "$OUT"
 
-"${CC:-cc}" -std=c11 -O2 -Wall -Wextra -DORIOR_EXACT_LIMBS=256u -o "$OUT/proof_boundary_inheritance" \
-    "$HERE/proof_boundary_inheritance.c" "$RING/torus_fields.c" "$EXACT/exact_integer_add.c" \
-    "$EXACT/exact_integer_decimal.c" "$EXACT/exact_integer_divide.c" "$EXACT/exact_integer_gcd.c" \
-    "$EXACT/exact_integer_limbs.c" "$EXACT/exact_integer_multiply.c" || exit 1
+"${CC:-cc}" -std=c11 -O2 -Wall -Wextra -DORIOR_EXACT_LIMBS=256u "${EXACT_TYPES_FLAGS[@]}" \
+    -o "$OUT/proof_boundary_inheritance" "$HERE/proof_boundary_inheritance.c" "$RING/torus_fields.c" \
+    "${EXACT_TYPES_ARITHMETIC[@]}" "${EXACT_TYPES_LIBRARIES[@]}" || exit 1
 "$OUT/proof_boundary_inheritance"

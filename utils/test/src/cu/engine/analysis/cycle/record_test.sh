@@ -16,6 +16,7 @@ KEY_SCHEDULE="$TOP/src/cu/engine/analysis/key_schedule"
 KEY_SCHEDULE_CU="$TOP/src/cu/engine/analysis/key_schedule"
 NO_ROUNDING="$TOP/includes/exact_types/integers"
 source "$TOP/includes/file_defs/file_defs.sh"
+source "$TOP/includes/exact_types/exact_types.sh"
 source "$TOP/utils/maint/engine/build_stamp.sh"
 build_stamp record_test
 
@@ -62,7 +63,7 @@ esac
 
 rm -f "$BINARY"
 OBJECTS=()
-for source in "${FILE_DEFS_LINEA[@]}" "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
+for source in "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" \
               "$CYCLE/cycle.c" "$TEST/record_test.c"; do
     object="$OUT/$(basename "$source" .c)_host.$EXTENSION"
     rm -f "$object"

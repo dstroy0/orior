@@ -236,8 +236,10 @@ static void levels_errors(LevelsResults *results, const LevelsVolume *volume)
     max_tree_release(&tree);
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     static LevelsVolume earlier;
     static LevelsVolume later;
     LevelsResults results = {0u, 0u};

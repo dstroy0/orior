@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "qasm.h"
+#include "../../../src/platform/platform.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,7 +25,7 @@ static void qasm_print_error(const char *what, const EngineError *error)
             (int)error->module, error->site, error->status);
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     int on_host = 0;
     const char *path = NULL;

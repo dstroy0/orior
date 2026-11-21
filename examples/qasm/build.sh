@@ -9,6 +9,7 @@ QASM="$TOP/examples/qasm/src"
 
 QASM_CU="$TOP/examples/qasm/src"
 source "$TOP/includes/file_defs/file_defs.sh"
+source "$TOP/includes/exact_types/exact_types.sh"
 NO_ROUNDING="$TOP/includes/exact_types/integers"
 CYCLE="$TOP/src/cu/engine/analysis/cycle"
 CYCLE_CU="$TOP/src/cu/engine/analysis/cycle"
@@ -97,7 +98,7 @@ qasm_build()
     local source
     local object
     # the formats with the line: the ruleset reader reads a ruleset's .ksc as the run stores it (qry_member.h)
-    for source in "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
+    for source in "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" \
                   "$CYCLE/cycle.c" "$QASM"/qasm_{exact,trig,lexer,expression,gates,statements,read}.c \
                   "$QASM"/qasm_field_{rational,number}.c "$QASM/qasm_dense.c" "$QASM"/qasm_chain_{matrix,apply}.c \
                   "$QASM"/qasm_symbolic_{polynomial,function}.c "$QASM"/qasm_lens_{hash,rank}.c; do
@@ -105,6 +106,7 @@ qasm_build()
         qasm_c_object "$source" "$object" || return 1
         OBJECTS+=("$object")
         case "$source" in
+            */mmgr/src/locus_carcerum/*) ;;
             */mmgr/src/*) LINEA_OBJECTS+=("$object") ;;
         esac
     done

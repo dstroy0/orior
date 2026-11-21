@@ -15,6 +15,7 @@
 #include "../../../utils/test/src/cu/engine/analysis/cycle/record_image.h"
 #include "vhdl_target.h"
 #include "yosys_script.h"
+#include "../../platform/platform.h"
 
 #include <stddef.h>
 #include <stdio.h>
@@ -358,7 +359,7 @@ static void vhdl_run(void *context, const HostProgram *program, int reuse, unsig
     host_free(&loaded);
 }
 
-int main(int argc, char **argv)
+int program_main(int argc, char **argv)
 {
     // each line reaches the log as it is written, where stdout is a file: GHDL and Yosys take minutes a program
     setvbuf(stdout, NULL, _IOLBF, 0);

@@ -8,6 +8,7 @@ set -u
 TEST="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$TEST/../../../../../.." && pwd)"
 source "$TOP/utils/maint/engine/build_stamp.sh"
+source "$TOP/includes/exact_types/exact_types.sh"
 build_stamp exact_transform_test
 
 HOST_FLAGS=()
@@ -36,10 +37,11 @@ for WIDTH in ${EXACT_TEST_WIDTHS:-"-DORIOR_EXACT_LIMBS=128u" "-DORIOR_EXACT_LIMB
     NAME="$(echo "$WIDTH" | tr -cd '0-9')"
     BINARY="$OUT/exact_transform_test_$NAME$SUFFIX"
     rm -f "$BINARY"
-    nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "$WIDTH" "$@" -I "$TOP/includes/exact_types/integers" -o "$BINARY" \
-        "$TEST/exact_transform_test.cu" \
-        "$TOP/includes/exact_types/integers"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
-        > "$OUT/build_$NAME.log" 2>&1
+    EXACT_TYPES_EXTRA=("$WIDTH" "$@")
+    exact_types_compile "transform_$NAME" "${EXACT_TYPES_ARITHMETIC[@]}" > "$OUT/build_$NAME.log" 2>&1 &&
+        nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "$WIDTH" "$@" "${EXACT_TYPES_FLAGS[@]}" -o "$BINARY" \
+            "$TEST/exact_transform_test.cu" "${EXACT_TYPES_OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}" \
+            >> "$OUT/build_$NAME.log" 2>&1
     [ -f "$BINARY" ] || { echo "  build failed at $WIDTH:"; cat "$OUT/build_$NAME.log"; exit 1; }
     "$BINARY"
     RESULT=$?

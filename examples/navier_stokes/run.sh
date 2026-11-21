@@ -22,6 +22,7 @@ build_stamp navier_stokes
 
 SIMS_CU="$SRC/sims/cu"
 source "$SRC/../includes/file_defs/file_defs.sh"
+source "$SRC/../includes/exact_types/exact_types.sh"
 NO_ROUNDING="$SRC/../includes/exact_types/integers"
 CFG_JSON="$SRC/../includes/formats/cfg_json"
 DAEMON_DIRECTORY="$SRC/cu/engine/runtime/daemon"
@@ -107,7 +108,7 @@ build_unit()
 }
 
 OBJECTS=()
-for source in "${FILE_DEFS_LINEA[@]}" "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
+for source in "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" \
               "$CFG_JSON/cfg_json.c"; do
     object="$OBJECT_DIRECTORY/$(basename "$source" .c).$EXTENSION"
     build_object "$source" "$object"

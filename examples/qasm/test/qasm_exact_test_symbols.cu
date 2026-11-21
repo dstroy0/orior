@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_exact_test_symbols.cu: MPS qubits, symbols, the lens and main
 #include "qasm_exact_test_internal.h"
+#include "../../../src/platform/platform.h"
 
 static void qasm_test_mps_qubits(QasmResults *results)
 {
@@ -462,8 +463,10 @@ static void qasm_test_boundary_lens(QasmResults *results)
     printf("  boundary lens: %llu us\n", engine_clock_microseconds() - start);
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     QasmResults results = {0u, 0u};
     qasm_test_gates();
     qasm_test_exact_qubits(&results);

@@ -264,7 +264,7 @@ static void lattice_moments(SimResults *results, const SimScene *scene, const Si
               "the second moment lies within 1% of the law");
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;

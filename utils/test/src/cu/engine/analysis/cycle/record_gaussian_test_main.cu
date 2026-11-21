@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_gaussian_test_main.cu: main
 #include "record_gaussian_test_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 // (1 + i)^k for k = 0 to 8, read off its polar form 2^(k/2) e^(i k pi / 4)
 static const long long s_gaussian_power_real[GAUSSIAN_TEST_FLOORS + 1u] = {1ll,  1ll, 0ll, -2ll, -4ll,
@@ -10,7 +11,7 @@ static const long long s_gaussian_power_real[GAUSSIAN_TEST_FLOORS + 1u] = {1ll, 
 static const long long s_gaussian_power_imaginary[GAUSSIAN_TEST_FLOORS + 1u] = {0ll,  1ll,  2ll,  2ll, 0ll,
                                                                                 -4ll, -8ll, -8ll, 0ll};
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;

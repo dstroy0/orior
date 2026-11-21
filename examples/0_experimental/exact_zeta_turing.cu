@@ -3914,7 +3914,7 @@ static int turing_line(FILE *in, std::string *line)
     return 1;
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     int code = 2;
     if (count == 3)

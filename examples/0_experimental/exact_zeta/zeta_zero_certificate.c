@@ -535,7 +535,7 @@ static int report_floor(FILE *out)
     return !four_corner_verified && record.verified && record.whole && (record.count == 1);
 }
 
-int main(int argument_count, char **arguments)
+int program_main(int argument_count, char **arguments)
 {
 #ifdef _WIN32
     // The report ends each line with a line feed alone, on every platform.

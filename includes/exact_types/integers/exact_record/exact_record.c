@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "exact_record.h"
 
-#include <stdlib.h>
-#include <string.h>
+#include "../exact_cells.h"
 
 // the rows of a nibble's table, and the squares that raise a power to the 16th
 #define EXACT_RECORD_NIBBLE_BITS 4u
 #define EXACT_RECORD_NIBBLE_ROWS 16u
 
-// the room an array grows to, at least `needed`, doubling
+// the room an array grows to, at least `needed`, at twice the room each time
 static unsigned int exact_record_room(unsigned int room, unsigned int needed)
 {
     unsigned int grown = (room == 0u) ? 16u : room;
@@ -20,6 +19,9 @@ static unsigned int exact_record_room(unsigned int room, unsigned int needed)
     return grown;
 }
 
+// An array grown to room for `needed` entries of `size` bytes. A cell of the grown room comes from the pool, the
+// entries so far go into it, and the old cell goes back. 1, or 0 where the pool cannot meet the grown room. A 0 leaves
+// the array as it was
 static int exact_record_grow(void **array, unsigned int *room, unsigned int needed, size_t size)
 {
     if (needed <= *room)
@@ -27,11 +29,16 @@ static int exact_record_grow(void **array, unsigned int *room, unsigned int need
         return 1;
     }
     const unsigned int grown = exact_record_room(*room, needed);
-    void *const moved = realloc(*array, (size_t)grown * size);
+    void *const moved = exact_record_cell_taken((size_t)grown * size, 0);
     if (moved == NULL)
     {
         return 0;
     }
+    if (*array != NULL)
+    {
+        memor.cpy(&(MemoriaCfg){.dst = moved, .src = *array, .bytes = (size_t)*room * size});
+    }
+    exact_record_cell_released(*array);
     *array = moved;
     *room = grown;
     return 1;
@@ -39,23 +46,23 @@ static int exact_record_grow(void **array, unsigned int *room, unsigned int need
 
 void exact_record_open(ExactRecordProgram *program)
 {
-    memset(program, 0, sizeof(*program));
+    memor.set(&(MemoriaCfg){.dst = program, .bytes = sizeof(*program), .val = 0u});
 }
 
 void exact_record_close(ExactRecordProgram *program)
 {
     for (unsigned int at = 0u; at < program->table_count; at += 1u)
     {
-        free(program->table_values[at]);
+        exact_record_cell_released(program->table_values[at]);
     }
-    free(program->steps);
-    free(program->field_bits);
-    free(program->field_offset);
-    free(program->tables);
-    free(program->table_values);
-    free(program->values);
-    free(program->known);
-    memset(program, 0, sizeof(*program));
+    exact_record_cell_released(program->steps);
+    exact_record_cell_released(program->field_bits);
+    exact_record_cell_released(program->field_offset);
+    exact_record_cell_released(program->tables);
+    exact_record_cell_released(program->table_values);
+    exact_record_cell_released(program->values);
+    exact_record_cell_released(program->known);
+    memor.set(&(MemoriaCfg){.dst = program, .bytes = sizeof(*program), .val = 0u});
 }
 
 // a step written as given, its value known or not; the steps, values and flags grow to one room together
@@ -97,7 +104,8 @@ static unsigned int exact_record_fold(ExactRecordProgram *program, long long val
 {
     if (value >= 0LL)
     {
-        return exact_record_append(program, ENGINE_RECORD_CONSTANT, (unsigned int)((unsigned long long)value & 0xFFFFFFFFULL),
+        return exact_record_append(program, ENGINE_RECORD_CONSTANT,
+                                   (unsigned int)((unsigned long long)value & 0xFFFFFFFFULL),
                                    (unsigned int)((unsigned long long)value >> 32u), 0u, 1, value);
     }
     const unsigned int zero = exact_record_append(program, ENGINE_RECORD_CONSTANT, 0u, 0u, 0u, 1, 0LL);
@@ -119,7 +127,8 @@ int exact_record_known(const ExactRecordProgram *program, unsigned int value, lo
 }
 
 // the value of a step over known operands, 1 where it is a known value too
-static int exact_record_value(EngineRecordOperation operation, long long a, long long b, unsigned int right, long long *out)
+static int exact_record_value(EngineRecordOperation operation, long long a, long long b, unsigned int right,
+                              long long *out)
 {
     switch (operation)
     {
@@ -129,8 +138,7 @@ static int exact_record_value(EngineRecordOperation operation, long long a, long
     case ENGINE_RECORD_DIFFERENCE:
         *out = a - b;
         return exact_record_small(*out);
-    case ENGINE_RECORD_PRODUCT:
-    {
+    case ENGINE_RECORD_PRODUCT: {
         const long long size_a = (a < 0LL) ? -a : a;
         const long long size_b = (b < 0LL) ? -b : b;
         if ((size_a != 0LL) && (size_b >= EXACT_RECORD_KNOWN_BOUND / size_a))
@@ -161,8 +169,7 @@ static int exact_record_value(EngineRecordOperation operation, long long a, long
     case ENGINE_RECORD_XOR:
         *out = a ^ b;
         return 1;
-    case ENGINE_RECORD_WRAP:
-    {
+    case ENGINE_RECORD_WRAP: {
         if (right >= 63u)
         {
             *out = a;
@@ -257,7 +264,8 @@ unsigned int exact_record_mask(ExactRecordProgram *program, unsigned int bits)
     {
         return exact_record_constant(program, (bits == 0u) ? 0ULL : (~0ULL >> (64u - bits)));
     }
-    return exact_record_difference(program, exact_record_power_two(program, bits), exact_record_constant(program, 1ULL));
+    return exact_record_difference(program, exact_record_power_two(program, bits),
+                                   exact_record_constant(program, 1ULL));
 }
 
 static unsigned int exact_record_field_at(ExactRecordProgram *program, unsigned int bits, unsigned int offset)
@@ -346,7 +354,8 @@ unsigned int exact_record_absolute(ExactRecordProgram *program, unsigned int val
 
 unsigned int exact_record_down(ExactRecordProgram *program, unsigned int left, unsigned int right)
 {
-    return exact_record_difference(program, exact_record_quotient(program, left, right), exact_record_constant(program, 1ULL));
+    return exact_record_difference(program, exact_record_quotient(program, left, right),
+                                   exact_record_constant(program, 1ULL));
 }
 
 unsigned int exact_record_up(ExactRecordProgram *program, unsigned int left, unsigned int right)
@@ -422,13 +431,13 @@ unsigned int exact_record_table(ExactRecordProgram *program, unsigned int index_
         return 0u;
     }
     const size_t words = ((size_t)1u << index_bits) * (size_t)((out_bits + 31u) / 32u);
-    unsigned int *const copy = (unsigned int *)malloc(words * sizeof(unsigned int));
+    unsigned int *const copy = (unsigned int *)exact_record_cell_taken(words * sizeof(unsigned int), 0);
     if (copy == NULL)
     {
         program->failed = 1;
         return 0u;
     }
-    memcpy(copy, values, words * sizeof(unsigned int));
+    memor.cpy(&(MemoriaCfg){.dst = copy, .src = values, .bytes = words * sizeof(unsigned int)});
     program->table_values[program->table_count] = copy;
     program->tables[program->table_count].index_bits = index_bits;
     program->tables[program->table_count].out_bits = out_bits;
@@ -460,10 +469,11 @@ unsigned int exact_record_power(ExactRecordProgram *program, unsigned int base, 
 }
 
 // value *= factor over `limbs` limbs, a table row arranged on the host: the factor's two limbs, a row each as the long
-// multiplication takes them. 1 where the product passes the limbs or its room cannot be allocated
+// multiplication takes them. 1 where the product passes the limbs or the pool cannot meet its room
 static unsigned int exact_record_limbs_times(unsigned int *value, unsigned int limbs, unsigned long long factor)
 {
-    unsigned int *const product = (unsigned int *)calloc((size_t)limbs + 2u, sizeof(unsigned int));
+    unsigned int *const product =
+        (unsigned int *)exact_record_cell_taken(((size_t)limbs + 2u) * sizeof(unsigned int), 1);
     if (product == NULL)
     {
         return 1u;
@@ -482,24 +492,26 @@ static unsigned int exact_record_limbs_times(unsigned int *value, unsigned int l
         product[limbs + row] = (unsigned int)carry;
     }
     const unsigned int over = (unsigned int)((product[limbs] != 0u) || (product[limbs + 1u] != 0u));
-    memcpy(value, product, (size_t)limbs * sizeof(unsigned int));
-    free(product);
+    memor.cpy(&(MemoriaCfg){.dst = value, .src = product, .bytes = (size_t)limbs * sizeof(unsigned int)});
+    exact_record_cell_released(product);
     return over;
 }
 
 unsigned int exact_record_power_of(ExactRecordProgram *program, unsigned long long base, unsigned int exponent,
                                    unsigned int exponent_bits)
 {
-    // a known exponent by squares: its bits are known, and the table's index would be a constant narrower than it
+    // a known exponent by squares: the program knows its bits, and the index of the table would be a constant narrower
+    // than it
     long long known = 0LL;
     if (exact_record_known(program, exponent, &known))
     {
         return exact_record_power(program, exact_record_constant(program, base), exponent, exponent_bits);
     }
-    // the table's rows base^v for v below 16, in limbs enough for base^15 at 15 times base's bits, then arranged as wide
-    // as the widest row, base^15 for a base past 1
+    // the rows of the table, base^v for v below 16. Each row has limbs enough for base^15, at 15 times the bits of
+    // base. The arrangement then makes each row as wide as the widest row, which is base^15 for a base past 1
     const unsigned int bound_limbs = ((exact_record_bits_of(base) * (EXACT_RECORD_NIBBLE_ROWS - 1u)) / 32u) + 1u;
-    unsigned int *const rows = (unsigned int *)calloc((size_t)EXACT_RECORD_NIBBLE_ROWS * bound_limbs, sizeof(unsigned int));
+    unsigned int *const rows = (unsigned int *)exact_record_cell_taken(
+        ((size_t)EXACT_RECORD_NIBBLE_ROWS * bound_limbs) * sizeof(unsigned int), 1);
     if (rows == NULL)
     {
         program->failed = 1;
@@ -509,7 +521,9 @@ unsigned int exact_record_power_of(ExactRecordProgram *program, unsigned long lo
     for (unsigned int row = 1u; row < EXACT_RECORD_NIBBLE_ROWS; row += 1u)
     {
         unsigned int *const entry = &rows[(size_t)row * bound_limbs];
-        memcpy(entry, &rows[(size_t)(row - 1u) * bound_limbs], (size_t)bound_limbs * sizeof(unsigned int));
+        memor.cpy(&(MemoriaCfg){.dst = entry,
+                                .src = &rows[(size_t)(row - 1u) * bound_limbs],
+                                .bytes = (size_t)bound_limbs * sizeof(unsigned int)});
         if (exact_record_limbs_times(entry, bound_limbs, base) != 0u)
         {
             program->failed = 1;
@@ -530,23 +544,26 @@ unsigned int exact_record_power_of(ExactRecordProgram *program, unsigned long lo
         }
     }
     const unsigned int row_limbs = (out_bits + 31u) / 32u;
-    unsigned int *const values = (unsigned int *)calloc((size_t)EXACT_RECORD_NIBBLE_ROWS * row_limbs, sizeof(unsigned int));
+    unsigned int *const values = (unsigned int *)exact_record_cell_taken(
+        ((size_t)EXACT_RECORD_NIBBLE_ROWS * row_limbs) * sizeof(unsigned int), 1);
     if (values == NULL)
     {
-        free(rows);
+        exact_record_cell_released(rows);
         program->failed = 1;
         return 0u;
     }
     for (unsigned int row = 0u; row < EXACT_RECORD_NIBBLE_ROWS; row += 1u)
     {
-        memcpy(&values[(size_t)row * row_limbs], &rows[(size_t)row * bound_limbs], (size_t)row_limbs * sizeof(unsigned int));
+        memor.cpy(&(MemoriaCfg){.dst = &values[(size_t)row * row_limbs],
+                                .src = &rows[(size_t)row * bound_limbs],
+                                .bytes = (size_t)row_limbs * sizeof(unsigned int)});
     }
-    free(rows);
+    exact_record_cell_released(rows);
     const unsigned int table = exact_record_table(program, EXACT_RECORD_NIBBLE_BITS, out_bits, values);
-    free(values);
+    exact_record_cell_released(values);
     const unsigned int nibbles = (exponent_bits + EXACT_RECORD_NIBBLE_BITS - 1u) / EXACT_RECORD_NIBBLE_BITS;
-    // 16^nibbles is above every exponent: added, it leaves each nibble's bits as they are, and a quotient by any
-    // lower power of 16 leaves a whole nibble for the table's index
+    // 16^nibbles is above every exponent. Added, it leaves the bits of each nibble as they are. A quotient by any lower
+    // power of 16 then leaves a whole nibble for the index of the table
     const unsigned int guarded =
         exact_record_sum(program, exponent, exact_record_power_two(program, EXACT_RECORD_NIBBLE_BITS * nibbles));
     unsigned int power = 0u;

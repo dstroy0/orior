@@ -21,6 +21,7 @@ set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$HERE/../../../../../.." && pwd)"
 source "$TOP/includes/file_defs/file_defs.sh"
+source "$TOP/includes/exact_types/exact_types.sh"
 CUB="$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding"
 INT="$TOP/src/cu/transpiler/lstar/interface"
 KRS="$TOP/includes/parsers"
@@ -54,11 +55,11 @@ cc -std=c11 -O1 -Wall -I "$CUDA/include" -o "$OUT/interface_sass_run" "$HERE/int
     "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS[@]}" \
     -L "$CUDA/lib/x64" -lcuda 2>/dev/null || { echo "  the runner did not link against the CUDA driver"; exit 1; }
 # the descent is orior's own, and orior reads exact integers
-cc -std=c11 -O2 -Wall -I "$SIFT" -I "$EXACT" -o "$OUT/gate_descent" \
+cc -std=c11 -O2 -Wall -I "$SIFT" "${EXACT_TYPES_FLAGS[@]}" -o "$OUT/gate_descent" \
     "$TOP/utils/test/src/cu/transpiler/lstar/protocol/gate_descent.c" "$BOOT/gate/chain_build.c" \
     "$SIFT/orior_core.c" "$SIFT/orior_field.c" "$SIFT/orior_steer.c" "$SIFT/orior_steer_count.c" \
-    "$SIFT/orior_steer_plan.c" "$SIFT/scan.c" "$EXACT/exact_integer_add.c" "$EXACT/exact_integer_multiply.c" \
-    "$EXACT/exact_integer_limbs.c" "${FILE_DEFS[@]}" || exit 1
+    "$SIFT/orior_steer_plan.c" "$SIFT/scan.c" "${FILE_DEFS_FORMATS[@]}" "${EXACT_TYPES_ARITHMETIC[@]}" \
+    "${EXACT_TYPES_LIBRARIES[@]}" || exit 1
 
 MACHINE="$TOP/src/cu/transpiler/lstar/protocol/table/sm_86.khw"
 WIN_OUT="$(cygpath -m "$OUT")"

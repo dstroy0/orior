@@ -15,6 +15,7 @@
 #include "asm_printer.h"
 #include "code_generator.h"
 #include "record_image.h"
+#include "../../../../../../../src/platform/platform.h"
 
 #include <stddef.h>
 #include <stdio.h>
@@ -280,7 +281,7 @@ static void c_run(void *context, const HostProgram *program, int reuse, unsigned
     host_free(&loaded);
 }
 
-int main(int argc, char **argv)
+int program_main(int argc, char **argv)
 {
     if (argc != 3)
     {

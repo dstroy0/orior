@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_divide_test_main.cu: wide division, constants and main
 #include "record_divide_test_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 // the 256-limb file: 2048-bit numerators over 1024-bit divisors, and a 1024-bit factor multiplied on and divided
 // back out
@@ -262,7 +263,7 @@ static void divide_constant(DivideResults *results)
     divide_free(&loaded);
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     DivideResults results;
     results.checks = 0ull;

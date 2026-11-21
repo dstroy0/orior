@@ -13,6 +13,7 @@
 #include "crc.h"
 #include "vhdl_target.h"
 #include "yosys_script.h"
+#include "../../platform/platform.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -245,7 +246,7 @@ static int construction_measure(const Ruleset *rules, const std::string &package
     return 0;
 }
 
-int main(int argc, char **argv)
+int program_main(int argc, char **argv)
 {
     // each line reaches the log as it is written, where stdout is a file: each form is synthesized alone
     setvbuf(stdout, NULL, _IOLBF, 0);

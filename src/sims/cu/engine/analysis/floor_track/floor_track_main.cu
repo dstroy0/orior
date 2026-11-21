@@ -251,7 +251,7 @@ static int track_scene(SimResults *results, const char *name, const SimScene *sc
     return ok;
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;

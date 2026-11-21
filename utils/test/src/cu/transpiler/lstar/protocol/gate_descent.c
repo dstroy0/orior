@@ -333,7 +333,7 @@ static unsigned int gate_relation(unsigned int anchor, const LadderQuestion *cas
 
 // Given a folder, each relation's arrangements, the descent's verdict on each and the cases it placed are written there
 // for a target to be queried (gate_put)
-int main(int count, char **words)
+int program_main(int count, char **words)
 {
     s_put_folder = (count > 1) ? words[1] : NULL;
     static LadderQuestion cases[LADDER_CASE_COUNT];

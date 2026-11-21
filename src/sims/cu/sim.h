@@ -6,6 +6,7 @@
 #include "../../cu/engine/engine_config.h"
 
 #include "../../../includes/exact_types/integers/exact_integer.h"
+#include "../../platform/platform.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
 #include <string.h>
@@ -18,9 +19,11 @@
 
 #define SIM_LINE_CAPACITY 8192ULL
 
-// the words a counter owns in its key's run of counters: sim_binomial_half takes one word per 64 trials,
-// sim_poisson_four_cumulants one per 6 electrons and sim_thinned one per 64 / bits electrons, and a word past these
-// is drawn on a key of the counter's own (sim_counter_draw). No count runs into the next counter's words
+// the words that a counter owns in the run of counters of its key. One word goes to each 64 trials of
+// sim_binomial_half. One goes to each 6 electrons of sim_poisson_four_cumulants, and one to each 64 / bits electrons of
+// sim_thinned. A word past these
+// comes from a key of the counter's own (sim_counter_draw). No count runs into the words of the next
+// counter
 #define SIM_COUNTER_STRIDE 65536ULL
 
 #define SIM_COUNTER_PAST_PURPOSE 0x50415354ULL
@@ -62,8 +65,9 @@ static inline __host__ __device__ unsigned long long sim_draw_below(unsigned lon
     return sim_draw(key, counter) % bound;
 }
 
-// word `word` of a counter's draws: the first SIM_COUNTER_STRIDE lie in the counter's own stride of the key's counters,
-// and each word past them is drawn on a key made from the counter. A count of any size stays within its own words
+// word `word` of the draws of a counter. The first SIM_COUNTER_STRIDE lie in the stride of the counter among the
+// counters of the key. Each word past them comes from a key made from the counter. A count of any size stays within its
+// own words
 static inline __host__ __device__ unsigned long long sim_counter_draw(unsigned long long key,
                                                                       unsigned long long counter,
                                                                       unsigned long long word)
@@ -108,10 +112,10 @@ static inline __host__ __device__ unsigned long long sim_binomial_half(unsigned 
 
 #define SIM_SHOT_DIGIT_WORD 191102976ULL
 
-// A count of mean S whose first four cumulants are each S, a Poisson count's: each of the S expected electrons adds
-// 0, 1, 2 or 4 with chances 9, 8, 6 and 1 in 24, a law whose factorial moments are 1 to the fourth, as Poisson(1)'s
-// are; it parts from Poisson at the fifth. A word's draw below 24^6 gives six electrons' chances. A counter's
-// SIM_COUNTER_STRIDE words contain 6 of them each.
+// A count of mean S whose first four cumulants are each S, as those of a Poisson count are. Each of the S expected
+// electrons adds 0, 1, 2 or 4 with chances 9, 8, 6 and 1 in 24. The factorial moments of that law are 1 to the fourth,
+// as those of Poisson(1) are. It parts from Poisson at the fifth. A word's draw below 24^6 gives six electrons'
+// chances. A counter's SIM_COUNTER_STRIDE words contain 6 of them each.
 static inline __host__ __device__ unsigned long long sim_poisson_four_cumulants(unsigned long long key,
                                                                                 unsigned long long counter,
                                                                                 unsigned long long electrons)
@@ -143,7 +147,8 @@ static inline void sim_open(SimResults *results, char *capacity)
 
 static inline void sim_flush(SimResults *results)
 {
-    (void)(mmgr_line_ok(&results->line) && (fwrite(results->line.out, 1u, mmgr_line_finish(&results->line), stdout) == results->line.at));
+    (void)(mmgr_line_ok(&results->line) &&
+           (fwrite(results->line.out, 1u, mmgr_line_finish(&results->line), stdout) == results->line.at));
     results->line.at = 0ULL;
     fflush(stdout);
 }
@@ -202,8 +207,7 @@ static inline int sim_exact_product(const OriorExactInteger *left, const OriorEx
     return orior_exact_multiply(left, right, result) == ORIOR_EXACT_OK;
 }
 
-static inline int sim_exact_scaled(const OriorExactInteger *value, unsigned long long factor,
-                                   OriorExactInteger *result)
+static inline int sim_exact_scaled(const OriorExactInteger *value, unsigned long long factor, OriorExactInteger *result)
 {
     OriorExactInteger scale;
     sim_exact_unsigned(&scale, factor);
@@ -269,7 +273,7 @@ static inline unsigned long long sim_ratio_floor(const OriorExactInteger *numera
 // 10^9 exceeds 2^29. A magnitude of ORIOR_EXACT_BITS bits has at max ORIOR_EXACT_BITS / 29 + 1 groups
 #define SIM_DECIMAL_GROUPS ((((unsigned long long)(ORIOR_EXACT_BITS)) / 29ULL) + 1ULL)
 
-// the count of limbs up to and including the top non-zero one; 0 for zero
+// the count of limbs up to the top limb that is not zero, with that limb in the count; 0 for zero
 static inline unsigned long long sim_exact_limbs_used(const OriorExactInteger *value)
 {
     unsigned long long used = ORIOR_EXACT_LIMBS;
@@ -280,8 +284,8 @@ static inline unsigned long long sim_exact_limbs_used(const OriorExactInteger *v
     return used;
 }
 
-// the magnitude of `value` in decimal, every digit exact: each group of nine is the remainder of a short division of
-// the limbs by 10^9, taken from the top limb down
+// the magnitude of `value` in decimal, every digit exact. Each group of nine is the remainder of a short division of
+// the limbs by 10^9, from the top limb down
 static inline void sim_exact_decimal(VerbaLinea *line, const OriorExactInteger *value)
 {
     OriorExactInteger work = *value;
@@ -310,8 +314,8 @@ static inline void sim_exact_decimal(VerbaLinea *line, const OriorExactInteger *
     }
 }
 
-// the ratio truncated, not rounded, to `places`, at any width the exact integer supports: the whole part is printed
-// exact, and the fraction is the floor of the remainder times 10^places over the denominator, which is below 10^places
+// the ratio truncated, not rounded, to `places`, at any width that the exact integer supports. The line takes the
+// whole part exact. The fraction is the floor of the remainder times 10^places over the denominator, below 10^places
 static inline void sim_ratio_print(VerbaLinea *line, const OriorExactInteger *numerator,
                                    const OriorExactInteger *denominator, unsigned int places)
 {
@@ -364,7 +368,8 @@ static inline int sim_status_check(SimResults *results, cudaError_t status, cons
 {
     if (status != cudaSuccess)
     {
-        // the runtime's last error is taken here, once reported. The next launch check does not read it again
+        // the check takes the last error of the runtime here, after the report. The next launch check does not read it
+        // again
         (void)cudaGetLastError();
         sim_check(results, 0, what);
         mmgr_line_put(&results->line, "    cuda: ");

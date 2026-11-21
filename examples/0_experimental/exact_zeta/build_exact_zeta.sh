@@ -17,7 +17,7 @@ set -u
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$HERE/../../.." && pwd)"
-EXACT="$TOP/includes/exact_types/integers"
+source "$TOP/includes/exact_types/exact_types.sh"
 # One folder per platform. A Linux shell and a Windows shell can share this tree, and neither runs the
 # binary of the other.
 OUT="$TOP/build/exact_zeta/$(uname -s | tr "[:upper:]" "[:lower:]")"
@@ -51,8 +51,7 @@ esac
 
 SOURCES=("$HERE/zeta_exact.c" "$HERE/zeta_gram_walk.c" "$HERE/zeta_riemann_siegel.c" "$HERE/zeta_search.c"
     "$HERE/zeta_shuffle.c" "$HERE/zeta_tension.c" "$HERE/zeta_theta.c" "$HERE/zeta_machine.c"
-    "$EXACT/exact_integer_add.c" "$EXACT/exact_integer_decimal.c" "$EXACT/exact_integer_divide.c"
-    "$EXACT/exact_integer_gcd.c" "$EXACT/exact_integer_limbs.c" "$EXACT/exact_integer_multiply.c")
+    "${EXACT_TYPES_ARITHMETIC[@]}")
 # A width below 4096 bits declares its own floor of decimal digits, as exact_integer_widths.h asks.
 DIGITS=()
 if [ "${LIMBS%u}" -lt 128 ]; then
@@ -66,8 +65,8 @@ if [ "$STACK" -gt 0 ]; then
         *) ulimit -s unlimited 2>/dev/null || ulimit -s "$(ulimit -H -s)" ;;
     esac
 fi
-"${CC:-cc}" -std=c11 -O2 -Wall -Wextra -DORIOR_EXACT_LIMBS="$LIMBS" "${DIGITS[@]}" -o "$OUT/$PROGRAM" \
-    "$HERE/$PROGRAM.c" "${SOURCES[@]}" "${LINK[@]}" -lm || exit 1
+"${CC:-cc}" -std=c11 -O2 -Wall -Wextra -DORIOR_EXACT_LIMBS="$LIMBS" "${DIGITS[@]}" "${EXACT_TYPES_FLAGS[@]}" \
+    -o "$OUT/$PROGRAM" "$HERE/$PROGRAM.c" "${SOURCES[@]}" "${LINK[@]}" "${EXACT_TYPES_LIBRARIES[@]}" -lm || exit 1
 # The programs read and write paths from the top of the tree.
 cd "$TOP" || exit 1
 "$OUT/$PROGRAM" "$@"

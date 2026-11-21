@@ -872,8 +872,10 @@ static int report_island(FILE *out)
     return divergence_free && real_valued && distinct && injective;
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
 #ifdef _WIN32
     // The report ends each line with a line feed alone, on every platform.
     (void)_setmode(_fileno(stdout), _O_BINARY);

@@ -4384,7 +4384,7 @@ static int scaled_inputs(SimResults *job, const ScaledConstants &k, unsigned lon
     return ok;
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     SimResults job;
     char job_capacity[SIM_LINE_CAPACITY];

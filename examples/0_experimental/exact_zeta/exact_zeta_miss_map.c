@@ -5223,7 +5223,7 @@ typedef int (*RatedMode)(const char *binary, int64_t base, int64_t count, double
  * @param[in] argv The arguments [BORROWS].
  * @return         0 where every host check passes, else 1, or 2 on a usage error.
  */
-int main(int argc, char **argv)
+int program_main(int argc, char **argv)
 {
 #ifdef _WIN32
     (void)_setmode(_fileno(stdout), _O_BINARY);

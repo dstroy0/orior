@@ -260,8 +260,10 @@ static void povm_frame_run(SimResults *results, PovmFrame *frame, const PovmStat
     sim_flush(results);
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;
     sim_open(&results, line_buffer);

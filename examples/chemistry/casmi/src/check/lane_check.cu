@@ -1525,7 +1525,7 @@ static int lane_counts(SimResults *results, const LaneColumn *column, const Lane
     return ok;
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     char capacity[SIM_LINE_CAPACITY];
     SimResults results;

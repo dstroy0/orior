@@ -66,7 +66,7 @@ static void omega_dyadic(OriorExactInteger *value, const unsigned long long *cou
     }
 }
 
-int main(int argc, char **argv)
+int program_main(int argc, char **argv)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
     static char line_buffer[SIM_LINE_CAPACITY];

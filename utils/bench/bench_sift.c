@@ -803,8 +803,10 @@ static void report_widths(const char *name, const uint8_t *corpus, size_t corpus
     }
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     const size_t english_len = fill_from_text(s_english_corpus, s_english, CORPUS_BYTES);
     const size_t structured_len = fill_from_text(s_structured_corpus, s_structured, CORPUS_BYTES);
     const size_t periodic_len = fill_periodic(s_periodic_corpus, CORPUS_BYTES);

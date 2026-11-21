@@ -164,7 +164,7 @@ static void doubled_reading_program(unsigned int bits, unsigned int share_bits, 
     stage_output(program, total);
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     SimResults job;
     char job_capacity[SIM_LINE_CAPACITY];

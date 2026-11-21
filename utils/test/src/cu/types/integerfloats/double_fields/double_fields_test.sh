@@ -16,6 +16,7 @@ KEY_SCHEDULE="$TOP/src/cu/engine/analysis/key_schedule"
 KEY_SCHEDULE_CU="$TOP/src/cu/engine/analysis/key_schedule"
 NO_ROUNDING="$TOP/includes/exact_types/integers"
 source "$TOP/includes/file_defs/file_defs.sh"
+source "$TOP/includes/exact_types/exact_types.sh"
 DOUBLE_FIELDS="$TOP/includes/exact_types/integerfloats/double_fields"
 DOUBLE_FIELDS_CU="$TOP/includes/exact_types/integerfloats/double_fields"
 source "$TOP/utils/maint/engine/build_stamp.sh"
@@ -60,7 +61,7 @@ rm -f "$BINARY"
 OBJECTS=()
 LINEA_OBJECTS=()
 # the formats with the line: the ruleset reader reads a ruleset's .ksc as the run stores it (qry_member.h)
-for source in "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
+for source in "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" \
               "$CYCLE/cycle.c" "$DOUBLE_FIELDS/double_fields.c"; do
     object="$OUT/$(basename "$source" .c)_double_fields.$EXTENSION"
     rm -f "$object"
@@ -73,6 +74,7 @@ for source in "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "$NO_ROUNDING"/e
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
     case "$source" in
+        */mmgr/src/locus_carcerum/*) ;;
         */mmgr/src/*) LINEA_OBJECTS+=("$object") ;;
     esac
 done

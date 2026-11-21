@@ -372,7 +372,7 @@ static int spherical_sweep(SimResults *job, SphericalStage *stage, unsigned long
     return ok;
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     SimResults job;
     char job_capacity[SIM_LINE_CAPACITY];

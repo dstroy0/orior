@@ -409,7 +409,7 @@ static int wythoff_play(SimResults *results, const GameProgram *cell, const Game
  * @param[in] argv The heap size, optional [BORROWS].
  * @return         0 where every check holds, else 1.
  */
-int main(int argc, char **argv)
+int program_main(int argc, char **argv)
 {
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;

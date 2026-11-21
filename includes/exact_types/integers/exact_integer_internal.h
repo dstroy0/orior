@@ -20,8 +20,7 @@
  */
 #include "exact_integer.h"
 
-#include <stdlib.h>
-#include <string.h>
+#include "exact_cells.h"
 
 /** @brief Bits per limb. */
 #define LIMB_BITS 32u
@@ -37,9 +36,9 @@
 
 #define EXACT_LIMBS ((size_t)ORIOR_EXACT_LIMBS)
 
-// The width-sized work copies of a call are one block, placed at compile time. It is on the stack while the width is
-// at max ORIOR_EXACT_STACK_LIMBS, and from the heap past it. No stack bounds a width. Where the allocation of a block
-// from the heap fails, the call gives ORIOR_EXACT_WILL_NOT_FIT.
+// The work copies of a call at the width are one block, which the build places. The block is on the local stack while
+// the width is at max ORIOR_EXACT_STACK_LIMBS, and on the temporary tier of the pool past it. No stack bounds a width.
+// Where the pool cannot meet a block, the call gives ORIOR_EXACT_WILL_NOT_FIT.
 #if (ORIOR_EXACT_LIMBS) <= (ORIOR_EXACT_STACK_LIMBS)
 #define EXACT_SCRATCH(name_, count_)                                                                                   \
     uint32_t name_##_on_stack[count_];                                                                                 \
@@ -47,15 +46,17 @@
 #define EXACT_SCRATCH_VALID(name_) (1)
 #define EXACT_SCRATCH_RELEASE(name_) ((void)(name_))
 #define EXACT_VALUE(name_)                                                                                             \
-    OriorExactInteger name_##_on_stack;                                                                               \
+    OriorExactInteger name_##_on_stack;                                                                                \
     OriorExactInteger *const name_ = &name_##_on_stack
 #define EXACT_VALUE_RELEASE(name_) ((void)(name_))
 #else
-#define EXACT_SCRATCH(name_, count_) uint32_t *const name_ = (uint32_t *)malloc((size_t)(count_) * sizeof(uint32_t))
+#define EXACT_SCRATCH(name_, count_) uint32_t *const name_ = exact_work_taken((size_t)(count_), 0)
 #define EXACT_SCRATCH_VALID(name_) ((name_) != NULL)
-#define EXACT_SCRATCH_RELEASE(name_) free(name_)
-#define EXACT_VALUE(name_) OriorExactInteger *const name_ = (OriorExactInteger *)malloc(sizeof(OriorExactInteger))
-#define EXACT_VALUE_RELEASE(name_) free(name_)
+#define EXACT_SCRATCH_RELEASE(name_) exact_work_released(name_)
+#define EXACT_VALUE(name_)                                                                                             \
+    OriorExactInteger *const name_ =                                                                                   \
+        (OriorExactInteger *)g_exact_guard->temporary_buf_alloc(sizeof(OriorExactInteger), g_exact_owner)
+#define EXACT_VALUE_RELEASE(name_) g_exact_guard->persistent_buf_release((name_), g_exact_owner)
 #endif
 
 void orior_exact_zero(OriorExactInteger *value);
@@ -71,7 +72,7 @@ int orior_exact_equal(const OriorExactInteger *left, const OriorExactInteger *ri
 void settle_sign(OriorExactInteger *result, int32_t sign);
 
 OriorExactStatus orior_exact_add(const OriorExactInteger *left, const OriorExactInteger *right,
-                                   OriorExactInteger *result);
+                                 OriorExactInteger *result);
 
 uint32_t limbs_add(uint32_t *result, const uint32_t *left, const uint32_t *right, size_t count);
 

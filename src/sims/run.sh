@@ -22,6 +22,8 @@ if [ "${1:-}" = "--" ]; then
 fi
 
 source "$TOP/../includes/file_defs/file_defs.sh"
+
+source "$TOP/../includes/exact_types/exact_types.sh"
 NO_ROUNDING="$TOP/../includes/exact_types/integers"
 PERIOD="$TOP/cu/engine/analysis/period"
 PERIOD_CU="$TOP/cu/engine/analysis/period"
@@ -155,12 +157,13 @@ build_object()
 }
 OBJECTS=()
 LINEA_OBJECTS=()
-for source in "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
+for source in "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" \
               "${HOST_SOURCES[@]}"; do
     object="$OUT/$(basename "$source" .c)_sim.$EXTENSION"
     build_object "$source" "$object"
     OBJECTS+=("$object")
     case "$source" in
+        */mmgr/src/locus_carcerum/*) ;;
         */mmgr/src/*) LINEA_OBJECTS+=("$object") ;;
     esac
 done

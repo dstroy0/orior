@@ -990,7 +990,7 @@ static int main_stretch(FILE *out, int64_t n0, int64_t count)
     return every ? 0 : 1;
 }
 
-int main(int argument_count, char **arguments)
+int program_main(int argument_count, char **arguments)
 {
 #ifdef _WIN32
     // The report ends each line with a line feed alone, on every platform.

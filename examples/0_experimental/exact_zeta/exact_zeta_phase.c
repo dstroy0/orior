@@ -536,7 +536,7 @@ static int report_flips(FILE *out, int64_t jitters)
     return every;
 }
 
-int main(int argument_count, char **arguments)
+int program_main(int argument_count, char **arguments)
 {
 #ifdef _WIN32
     // The report ends each line with a line feed alone, on every platform.

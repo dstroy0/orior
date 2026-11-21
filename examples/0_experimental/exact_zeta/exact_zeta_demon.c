@@ -1160,7 +1160,7 @@ static void report(const Curves *real, const Arm arms[2], const OriorExactIntege
     }
 }
 
-int main(int argument_count, char **arguments)
+int program_main(int argument_count, char **arguments)
 {
 #ifdef _WIN32
     // The report ends each line with a line feed alone, on every platform.

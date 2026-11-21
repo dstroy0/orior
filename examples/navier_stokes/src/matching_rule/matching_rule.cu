@@ -6,6 +6,7 @@
 
 #include "jet_rule.h"
 #include "record.h"
+#include "../../../../src/platform/platform.h"
 
 // With A = 1/2 + h, D = 1/2 - h, d = 1 - eta^2 and L = 1 - 2 h eta^2, the paper's left sides are
 //     R_theta = T_{-(A+1/2)} F + v0 (X F_X + F) + U Z_{-(A+1/2)} F - 2 (X F)_XX,
@@ -97,7 +98,7 @@ static int matching_rule_report(SimResults *results, int passed, const char *pas
     return passed;
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     char capacity[SIM_LINE_CAPACITY];
     SimResults results;

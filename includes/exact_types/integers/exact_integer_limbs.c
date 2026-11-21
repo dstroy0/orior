@@ -73,7 +73,7 @@ uint32_t limbs_deduct(uint32_t *value, size_t count, const uint32_t *taken, size
 void limbs_long_product(uint32_t *result, const uint32_t *left, size_t left_count, const uint32_t *right,
                         size_t right_count)
 {
-    memset(result, 0, (left_count + right_count) * sizeof(result[0]));
+    memor.set(&(MemoriaCfg){.dst = result, .bytes = (left_count + right_count) * sizeof(result[0]), .val = 0u});
     for (size_t low = 0u; low < left_count; low++)
     {
         if (left[low] == 0u)
@@ -105,7 +105,7 @@ static int limbs_karatsuba(uint32_t *result, const uint32_t *left, const uint32_
     {
         return 0;
     }
-    uint32_t *const work = (uint32_t *)malloc(4u * (high + 1u) * sizeof(uint32_t));
+    uint32_t *const work = exact_work_taken(4u * (high + 1u), 0);
     if (work == NULL)
     {
         return 0;
@@ -113,13 +113,13 @@ static int limbs_karatsuba(uint32_t *result, const uint32_t *left, const uint32_
     uint32_t *const left_sum = work;
     uint32_t *const right_sum = &work[high + 1u];
     uint32_t *const middle = &work[2u * (high + 1u)];
-    memcpy(left_sum, &left[low], high * sizeof(uint32_t));
-    memcpy(right_sum, &right[low], high * sizeof(uint32_t));
+    memor.cpy(&(MemoriaCfg){.dst = left_sum, .src = &left[low], .bytes = high * sizeof(uint32_t)});
+    memor.cpy(&(MemoriaCfg){.dst = right_sum, .src = &right[low], .bytes = high * sizeof(uint32_t)});
     left_sum[high] = limbs_accumulate(left_sum, high, left, low);
     right_sum[high] = limbs_accumulate(right_sum, high, right, low);
     if (limbs_product(middle, left_sum, high + 1u, right_sum, high + 1u) == 0)
     {
-        free(work);
+        exact_work_released(work);
         return 0;
     }
     (void)limbs_deduct(middle, 2u * (high + 1u), result, 2u * low);
@@ -128,7 +128,7 @@ static int limbs_karatsuba(uint32_t *result, const uint32_t *left, const uint32_
     const size_t remaining = (2u * count) - low;
     const size_t middle_count = (2u * (high + 1u) < remaining) ? (2u * (high + 1u)) : remaining;
     (void)limbs_accumulate(&result[low], remaining, middle, middle_count);
-    free(work);
+    exact_work_released(work);
     return 1;
 }
 
@@ -155,23 +155,23 @@ int limbs_product(uint32_t *result, const uint32_t *left, size_t left_count, con
     {
         return limbs_karatsuba(result, left, right, left_count);
     }
-    uint32_t *const slice = (uint32_t *)malloc(2u * right_count * sizeof(uint32_t));
+    uint32_t *const slice = exact_work_taken(2u * right_count, 0);
     if (slice == NULL)
     {
         return 0;
     }
-    memset(result, 0, (left_count + right_count) * sizeof(uint32_t));
+    memor.set(&(MemoriaCfg){.dst = result, .bytes = (left_count + right_count) * sizeof(uint32_t), .val = 0u});
     for (size_t start = 0u; start < left_count; start += right_count)
     {
         const size_t piece = ((left_count - start) < right_count) ? (left_count - start) : right_count;
         if (limbs_product(slice, &left[start], piece, right, right_count) == 0)
         {
-            free(slice);
+            exact_work_released(slice);
             return 0;
         }
         (void)limbs_accumulate(&result[start], (left_count + right_count) - start, slice, piece + right_count);
     }
-    free(slice);
+    exact_work_released(slice);
     return 1;
 }
 
@@ -251,7 +251,7 @@ void fermat_shift(uint32_t *result, const uint32_t *value, size_t shift, size_t 
     shift = negated ? (shift - bits) : shift;
     const size_t limb_shift = shift / LIMB_BITS;
     const unsigned int part = (unsigned int)(shift % LIMB_BITS);
-    memset(scratch, 0, ((2u * limbs) + 2u) * sizeof(uint32_t));
+    memor.set(&(MemoriaCfg){.dst = scratch, .bytes = ((2u * limbs) + 2u) * sizeof(uint32_t), .val = 0u});
     for (size_t at = 0u; at <= limbs; at++)
     {
         scratch[at + limb_shift] |= value[at] << part;
@@ -261,7 +261,7 @@ void fermat_shift(uint32_t *result, const uint32_t *value, size_t shift, size_t 
         }
     }
     // value . 2^shift < 2^(2n). The part above n is below 2^n and its top word is zero
-    memcpy(result, scratch, limbs * sizeof(uint32_t));
+    memor.cpy(&(MemoriaCfg){.dst = result, .src = scratch, .bytes = limbs * sizeof(uint32_t)});
     result[limbs] = 0u;
     fermat_subtract(result, result, &scratch[limbs], limbs);
     if (negated)

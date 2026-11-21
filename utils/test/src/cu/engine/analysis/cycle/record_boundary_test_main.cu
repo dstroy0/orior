@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_boundary_test_main.cu: redundancy and main
 #include "record_boundary_test_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 // The redundant residue code on the boundary ("Redundancy" in two_crystals' Open). T is n to n and every crystal is
 // legal. A corrupted crystal is another crystal and T^-1 returns other samples with no sign of it. The code carries
@@ -446,7 +447,7 @@ static void boundary_lines_out(BoundaryResults *results)
 // RECORD_BOUNDARY_PART names the parts to run, separated by commas; every part runs in order where it is unset or
 // empty. Each part draws from its own seed and answers the same alone as among the others. A name that is no part is
 // a failed check
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     BoundaryResults results;
     results.checks = 0ull;

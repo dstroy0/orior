@@ -592,7 +592,7 @@ static void in_scale(const OriorExactInteger *units, ZetaRational *result)
     rational_make(units, &under, result);
 }
 
-int main(int argument_count, char **arguments)
+int program_main(int argument_count, char **arguments)
 {
 #ifdef _WIN32
     // The report ends each line with a line feed alone, on every platform.

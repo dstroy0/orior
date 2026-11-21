@@ -6,6 +6,7 @@
 // what leaves a remainder; the gcd divides both values and leaves coprime cofactors.
 
 #include "../../../../../../includes/exact_types/integers/exact_integer.h"
+#include "../../../../../../src/platform/platform.h"
 
 #include <cstdio>
 #include <cstring>
@@ -109,8 +110,10 @@ static unsigned int divide_width(unsigned int max)
     return 1u + (divide_draw() % max);
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     printf("  exact integer division\n");
 
     unsigned int passed_trials = 0u;

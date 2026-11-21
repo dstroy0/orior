@@ -51,15 +51,18 @@ rm -f "$OUT/bench_steer_gpu.exe"
 
 # PIPESTATUS and not $?, because the pipe into grep would otherwise report grep's status and grep
 # succeeds whatever nvcc did. A filter on the output must never decide whether the build passed.
+source "$ROOT/includes/exact_types/exact_types.sh"
+HOST_FLAGS=(-ccbin "$MSVC_BIN" -Xcompiler /Zc:preprocessor)
+exact_types_compile gpu_scan "${EXACT_TYPES_ARITHMETIC[@]}" || exit 1
 nvcc -ccbin "$MSVC_BIN" -O2 $GENCODE \
     -I "$ROOT/src/cu/engine/nbody/orior" \
-    -I "$ROOT/includes/exact_types/integers" \
+    "${EXACT_TYPES_FLAGS[@]}" \
     -DORIOR_STEER_HAVE_CUDA=1 \
     -o "$OUT/bench_steer_gpu.exe" \
     "$ROOT/src/cu/engine/nbody/orior/scan.cu" \
     "$ROOT/src/cu/engine/nbody/orior/scan.c" \
     "$ROOT/src/cu/engine/nbody/orior"/orior_{core,steer,field,steer_plan,steer_count}.c \
-    "$ROOT/includes/exact_types/integers"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
+    "${EXACT_TYPES_OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}" \
     "$ROOT/includes/exact_types/integers/arm.c" \
     "$ROOT/utils/bench/bench_steer_arms.c" \
     2>&1 | grep -viE "^\s*$|Copyright|Microsoft \(R\)|scan_cuda\.cu$|scan\.c$|orior\.c$|exact_integer\.c$|arm\.c$|bench_steer_arms\.c$" | head -30

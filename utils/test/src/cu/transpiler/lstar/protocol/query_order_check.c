@@ -34,8 +34,10 @@ static void check_that(int descent, const char *what)
     }
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
 #if defined(_WIN32)
     // the clock, found by probing: the first word of the shared page's head that advances inside `turns` reads, and
     // the order waits on its turns as long

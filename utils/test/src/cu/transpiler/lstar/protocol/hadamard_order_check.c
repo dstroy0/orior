@@ -264,8 +264,10 @@ static unsigned int check_contention_rate(unsigned int links, unsigned int passe
     return (1000u * found) / trials;
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     unsigned int state = 0x9e3779b9u;
     for (unsigned int at = 0u; at < SIZE_COUNT; at += 1u)
     {

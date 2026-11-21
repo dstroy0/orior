@@ -131,7 +131,7 @@ static int tail_words(FILE *in, unsigned int *words, unsigned int count)
     return 1;
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     SimResults job;
     char job_capacity[SIM_LINE_CAPACITY];

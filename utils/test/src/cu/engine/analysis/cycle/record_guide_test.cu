@@ -71,7 +71,7 @@ static long long guide_take(const unsigned int *record, unsigned int offset, uns
     return (long long)word;
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     GuideResults results;
     results.checks = 0ull;

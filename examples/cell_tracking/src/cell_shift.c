@@ -82,7 +82,7 @@ static int shift_order(const void *left, const void *right)
     return orior_exact_compare((const OriorExactInteger *)left, (const OriorExactInteger *)right);
 }
 
-int main(int argc, char **argv)
+int program_main(int argc, char **argv)
 {
     if (argc < 6)
     {

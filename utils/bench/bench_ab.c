@@ -2081,7 +2081,7 @@ static size_t ab_fill_mixed(uint8_t *into, size_t length)
     return region * 4u;
 }
 
-int main(int argc, char **argv)
+int program_main(int argc, char **argv)
 {
     if (argc > 1)
     {

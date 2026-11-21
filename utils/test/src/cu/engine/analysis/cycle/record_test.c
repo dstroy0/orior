@@ -103,8 +103,10 @@ static void host_error(HostResults *results, const HostProgram *program, const u
     host_check(results, ok, what);
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     HostResults results = {0u, 0u};
     printf("  record host test: %u lanes a program, ORIOR_EXACT_LIMBS %u\n", HOST_TEST_LANES,
            (unsigned int)ORIOR_EXACT_LIMBS);

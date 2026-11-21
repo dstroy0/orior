@@ -470,7 +470,7 @@ static void planes_test_errors(SimResults *results, const PlanesTestDevice *devi
     sim_check(results, planes_test_error(&request, &error), "an empty extent errors");
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;

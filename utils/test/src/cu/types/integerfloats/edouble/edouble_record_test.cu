@@ -731,7 +731,7 @@ static void edouble_ball_case(EdoubleResults *results)
     exact_record_close(&program);
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     EdoubleResults results;
     results.checks = 0ull;

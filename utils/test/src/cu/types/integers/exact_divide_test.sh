@@ -6,6 +6,7 @@ set -u
 TEST="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$TEST/../../../../../.." && pwd)"
 source "$TOP/utils/maint/engine/build_stamp.sh"
+source "$TOP/includes/exact_types/exact_types.sh"
 build_stamp exact_divide_test
 
 HOST_FLAGS=()
@@ -29,9 +30,9 @@ case "$(uname -s)" in
 esac
 
 rm -f "$BINARY"
-nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 -I "$TOP/includes/exact_types/integers" -o "$BINARY" \
-    "$TEST/exact_divide_test.cu" \
-    "$TOP/includes/exact_types/integers"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c
+exact_types_compile divide "${EXACT_TYPES_ARITHMETIC[@]}" || exit 1
+nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${EXACT_TYPES_FLAGS[@]}" -o "$BINARY" "$TEST/exact_divide_test.cu" \
+    "${EXACT_TYPES_OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build the test"; exit 1; }
 
 "$BINARY"

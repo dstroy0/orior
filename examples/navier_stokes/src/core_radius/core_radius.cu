@@ -7,6 +7,7 @@
 #include "record.h"
 
 #include "core_radius_weights.h"
+#include "../../../../src/platform/platform.h"
 
 #include <algorithm>
 
@@ -851,7 +852,7 @@ static SimRational core_radius_rate(const CoreRadiusScale *scale, const CoreRadi
     return proved;
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     char capacity[SIM_LINE_CAPACITY];
     SimResults results;

@@ -18,6 +18,7 @@ fi
 
 TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../../.." && pwd)"
 source "$TOP/includes/file_defs/file_defs.sh"
+source "$TOP/includes/exact_types/exact_types.sh"
 HERE="$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding"
 RULESETS="$TOP/src/cu/transpiler/lstar/protocol/table"
 CYCLE="$TOP/src/cu/engine/analysis/cycle"
@@ -56,7 +57,7 @@ INCLUDES=(-I "$TOP/src/cu/engine" -I "$TOP/includes/codecs/crc" -I "$CYCLE"
     -I "$CYCLE_CU" -I "$CODEGEN" -I "$CODEGEN_CU" -I "$CODEGEN_CU_2" -I "$KEYMATH" -I "$KEYMATH_CU" -I "$KEY_SCHEDULE"
     -I "$KEY_SCHEDULE_CU" -I "$NO_ROUNDING" "${FILE_DEFS_MMGR_FLAGS[@]}" -I "$TOP/utils/test/src/cu/engine/analysis/cycle")
 OBJECTS=()
-for source in "${FILE_DEFS_LINEA[@]}" "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c; do
+for source in "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}"; do
     object="$OUT/$(basename "$source" .c).o"
     if [ ! -f "$object" ] || [ "$source" -nt "$object" ]; then
         cc -std=c11 -O2 -w "${INCLUDES[@]}" -c "$source" -o "$object" || exit 1

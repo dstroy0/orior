@@ -179,8 +179,10 @@ static void root_signed_columns(VerbaLinea *line, long long value, unsigned int 
     mmgr_line_decimal_signed(line, value);
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;
     sim_open(&results, line_buffer);

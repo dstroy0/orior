@@ -94,6 +94,9 @@ MODULES+=("${INGEST[@]}")
 MODULE_INCLUDES=(-I "$TOP/src/cu/engine" -I "$TOP/includes/codecs/crc")
 # MMgr's line, which the engine writes its text through: its flags for every source, its sources built with the C ones
 source "$TOP/includes/file_defs/file_defs.sh"
+source "$TOP/includes/exact_types/exact_types.sh"
+# the exact sources reach MMgr and embedded_types through their own headers
+EXACT_FLAGS+=("${FILE_DEFS_MMGR_FLAGS[@]}")
 MODULE_INCLUDES+=("${FILE_DEFS_MMGR_FLAGS[@]}")
 MODULE_SOURCES=("$TOP/src/cu/engine"/engine_{record,residual,files,zarr,source,listing,seal,report,history}.cu)
 for module in "${MODULES[@]}"; do
@@ -195,6 +198,10 @@ for source in "${FILE_DEFS_LINEA[@]}"; do
 done
 for name in exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}; do
     listed "$EXACT_ROOT/$name.c" "${EXACT_WORDS[@]}"
+done
+# the platform of the program and the cellblock that it places, which exact_types takes its cells from
+for source in "${EXACT_TYPES_PLATFORM_LIBRARY[@]}" "${EXACT_TYPES_CARCER[@]}"; do
+    listed "$source" "${C_WORDS[@]}"
 done
 wait
 if [ -f "$FAILED" ]; then

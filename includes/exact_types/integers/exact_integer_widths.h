@@ -4,8 +4,7 @@
 #ifndef EXACT_INTEGER_WIDTHS_H
 #define EXACT_INTEGER_WIDTHS_H
 
-#include <stddef.h>
-#include <stdint.h>
+#include "embed_types.h"
 
 #ifdef __cplusplus
 /* nvcc compiles the GPU arm as C++, and the arm calls these functions, which the C compiler compiles.

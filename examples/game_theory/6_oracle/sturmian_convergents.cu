@@ -439,7 +439,7 @@ static int sturmian_row_order(const void *left, const void *right)
  * @param[in] argv The arguments, none read [BORROWS].
  * @return         0 where every check holds, else 1.
  */
-int main(int argc, char **argv)
+int program_main(int argc, char **argv)
 {
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;

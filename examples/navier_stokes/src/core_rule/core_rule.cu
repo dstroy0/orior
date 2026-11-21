@@ -6,6 +6,7 @@
 
 #include "record.h"
 #include "series_rule.h"
+#include "../../../../src/platform/platform.h"
 
 // The system of OpenAI 2026, eq. (4.13), in the paper's profile variables with nu = 1, A = 1/2 + h, D = 1/2 - h,
 // d = 1 - eta^2 and L = 1 - 2 h eta^2:
@@ -135,7 +136,7 @@ static int core_rule_report(SimResults *results, int passed, const char *pass, c
     return passed;
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     char capacity[SIM_LINE_CAPACITY];
     SimResults results;

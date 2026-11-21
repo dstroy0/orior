@@ -13,16 +13,14 @@ set -u
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$HERE/../../.." && pwd)"
-EXACT="$TOP/includes/exact_types/integers"
+source "$TOP/includes/exact_types/exact_types.sh"
 # One folder per platform. A Linux shell and a Windows shell can share this tree, and neither runs the
 # binary of the other.
 OUT="$TOP/build/exact_navier_stokes/$(uname -s | tr "[:upper:]" "[:lower:]")"
 mkdir -p "$OUT"
 
 WIDTH=(-DORIOR_EXACT_LIMBS=32u -DORIOR_EXACT_DIGITS=256u)
-SOURCES=("$HERE/torus_fields.c" "$EXACT/exact_integer_add.c" "$EXACT/exact_integer_decimal.c"
-    "$EXACT/exact_integer_divide.c" "$EXACT/exact_integer_gcd.c" "$EXACT/exact_integer_limbs.c"
-    "$EXACT/exact_integer_multiply.c")
+SOURCES=("$HERE/torus_fields.c" "${EXACT_TYPES_ARITHMETIC[@]}")
 
 WHICH="${1:-both}"
 STATUS=0
@@ -33,7 +31,8 @@ for report in exact_navier_stokes_on_torus exact_navier_stokes_cascade; do
         cascade) [ "$report" = exact_navier_stokes_cascade ] || continue ;;
         *) echo "usage: build_exact_navier_stokes.sh [torus|cascade]"; exit 2 ;;
     esac
-    "${CC:-cc}" -std=c11 -O2 -Wall -Wextra "${WIDTH[@]}" -o "$OUT/$report" "$HERE/$report.c" "${SOURCES[@]}" || exit 1
+    "${CC:-cc}" -std=c11 -O2 -Wall -Wextra "${WIDTH[@]}" "${EXACT_TYPES_FLAGS[@]}" -o "$OUT/$report" "$HERE/$report.c" \
+        "${SOURCES[@]}" "${EXACT_TYPES_LIBRARIES[@]}" || exit 1
     "$OUT/$report" || STATUS=1
 done
 exit "$STATUS"

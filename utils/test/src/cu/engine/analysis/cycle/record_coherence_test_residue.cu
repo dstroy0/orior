@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_coherence_test_residue.cu: the residue table and main
 #include "record_coherence_test_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 // A table step reads the low index_bits of its source's magnitude: -1 and 2^w - 1 read rows 1 and 2^b - 1. The
 // table does not commute with the wrap. Indexed by the two's complement residue x mod 2^b, which the and with 2^b - 1
@@ -179,7 +180,7 @@ static void coherence_residue_table(CoherenceResults *results)
     free(program);
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     CoherenceResults results;
     results.checks = 0ull;

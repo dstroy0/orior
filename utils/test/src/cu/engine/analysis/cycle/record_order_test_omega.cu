@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_order_test_omega.cu: permutations, the omega program and main
 #include "record_order_test_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 // a permutation of the 2^16 states cut into cycles: the first half of a shuffled order on cycles no longer than the
 // run, the second half on cycles longer than it
@@ -303,7 +304,7 @@ static void order_omega(OrderResults *results)
     free(stack.steps);
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     OrderResults results;
     results.checks = 0ull;

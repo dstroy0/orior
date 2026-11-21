@@ -103,7 +103,7 @@ static int grade_arms(const OriorExactArm *const *arms, unsigned int count, cons
     return wrong;
 }
 
-int main(int argc, char **argv)
+int program_main(int argc, char **argv)
 {
     static uint64_t values[RUN_PLACES];
     static OriorExactInteger lags[LAGS];

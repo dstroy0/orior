@@ -22,6 +22,7 @@ TOWER="$SOURCE/engine/analysis/tower"
 COMPRESSION="$SOURCE/engine/analysis/compression"
 DEVICE_POOL="$SOURCE/engine/runtime/device_pool"
 source "$SOURCE/includes/file_defs/file_defs.sh"
+source "$SOURCE/includes/exact_types/exact_types.sh"
 INTEGERS="$SOURCE/types/integers"
 SNAPPY="$SOURCE/includes/codecs/snappy"
 ZSTD="$SOURCE/includes/codecs/zstd"
@@ -64,7 +65,7 @@ INCLUDES=(-I "$SOURCE/engine" -I "$TOP/src/sims/cu" -I "$CYCLE" -I "$KEYMATH" -I
 rm -f "$BINARY"
 OBJECTS=()
 LINEA_OBJECTS=()
-for source in "${FILE_DEFS_LINEA[@]}" "$INTEGERS"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
+for source in "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" \
               "$INTEGERS/exact_record/exact_record.c" "$SOURCE/types/integerfloats/edouble/edouble_record.c" "$CYCLE/cycle.c" "$SNAPPY"/*.c "$ZSTD"/*.c \
               "$ROOT/src/parquet/parquet.c"; do
     object="$OUT/$(basename "$source" .c)_casmi_check.$EXTENSION"
@@ -78,6 +79,7 @@ for source in "${FILE_DEFS_LINEA[@]}" "$INTEGERS"/exact_integer_{add,limbs,multi
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
     case "$source" in
+        */mmgr/src/locus_carcerum/*) ;;
         */mmgr/src/*) LINEA_OBJECTS+=("$object") ;;
     esac
 done

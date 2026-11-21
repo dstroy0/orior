@@ -4,6 +4,7 @@ set -u
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$ROOT/.." && pwd)"
 source "$ROOT/maint/build_stamp.sh"
+source "$ROOT/../../includes/exact_types/exact_types.sh"
 build_stamp cell_shift
 rm -f "$OUT/cell_shift.exe"
 NO_ROUNDING="$ENGINE/../types/integers"
@@ -15,22 +16,25 @@ ARCH="${1:-sm_${CAP:-86}}"
 
 if command -v nvcc >/dev/null 2>&1 && [ -n "$MSVC_BIN" ] && [ -n "$CAP" ]; then
     echo "  device engine, $ARCH"
+    HOST_FLAGS=(-ccbin "$MSVC_BIN" -Xcompiler /Zc:preprocessor)
+    EXACT_TYPES_EXTRA=(-DORIOR_EXACT_HAVE_CUDA=1)
+    exact_types_compile cell_shift "${EXACT_TYPES_ARITHMETIC[@]}" || exit 1
     nvcc -ccbin "$MSVC_BIN" -O2 -gencode "arch=compute_${ARCH#sm_},code=${ARCH}" \
-        -I "$NO_ROUNDING" \
+        -I "$NO_ROUNDING" "${EXACT_TYPES_FLAGS[@]}" \
         -DORIOR_EXACT_HAVE_CUDA=1 \
         -o "$OUT/cell_shift.exe" \
         "$ROOT/src/cell_shift.c" \
         "$NO_ROUNDING_CU/arm.cu" \
-        "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
-        "$NO_ROUNDING/arm.c"
+        "${EXACT_TYPES_OBJECTS[@]}" \
+        "$NO_ROUNDING/arm.c" "${EXACT_TYPES_LIBRARIES[@]}"
     STATUS=$?
 else
     echo "  portable engine only: no nvcc, no host compiler, or no device"
-    cc -O2 -std=c11 -I "$NO_ROUNDING" \
+    cc -O2 -std=c11 -I "$NO_ROUNDING" "${EXACT_TYPES_FLAGS[@]}" \
         -o "$OUT/cell_shift.exe" \
         "$ROOT/src/cell_shift.c" \
-        "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
-        "$NO_ROUNDING/arm.c"
+        "${EXACT_TYPES_ARITHMETIC[@]}" \
+        "$NO_ROUNDING/arm.c" "${EXACT_TYPES_LIBRARIES[@]}"
     STATUS=$?
 fi
 

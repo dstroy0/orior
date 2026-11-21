@@ -78,14 +78,14 @@ static size_t agreement_without_table(int (*equal)(const OriorExactInteger *left
 }
 
 size_t orior_exact_agreement(const OriorExactInteger *positions, const uint64_t *values, size_t count,
-                              const OriorExactInteger *lag)
+                             const OriorExactInteger *lag)
 {
     return orior_exact_agreement_using(orior_exact_equal, positions, values, count, lag);
 }
 
 size_t orior_exact_agreement_using(int (*equal)(const OriorExactInteger *left, const OriorExactInteger *right),
-                                    const OriorExactInteger *positions, const uint64_t *values, size_t count,
-                                    const OriorExactInteger *lag)
+                                   const OriorExactInteger *positions, const uint64_t *values, size_t count,
+                                   const OriorExactInteger *lag)
 {
     // What the measure requires of the set is membership: is there a point exactly one lag away, and
     // does it carry the same value. A set has no order. A search that walks one puts on the domain a
@@ -118,7 +118,8 @@ size_t orior_exact_agreement_using(int (*equal)(const OriorExactInteger *left, c
         slots <<= 1u;
     }
 
-    size_t *table = (size_t *)malloc(slots * sizeof(size_t));
+    // Explicit cast takes the cell of the pool as the buckets that it holds
+    size_t *const table = (size_t *)g_exact_guard->temporary_buf_alloc(slots * sizeof(size_t), g_exact_owner);
     if (table == NULL)
     {
         // No table. The scan answers instead. Slower and correct beats absent.
@@ -146,7 +147,7 @@ size_t orior_exact_agreement_using(int (*equal)(const OriorExactInteger *left, c
     EXACT_VALUE(moved);
     if (!EXACT_SCRATCH_VALID(moved))
     {
-        free(table);
+        g_exact_guard->persistent_buf_release(table, g_exact_owner);
         return agreement_without_table(equal, positions, values, count, lag);
     }
     size_t agreed = 0u;
@@ -177,6 +178,6 @@ size_t orior_exact_agreement_using(int (*equal)(const OriorExactInteger *left, c
     }
 
     EXACT_VALUE_RELEASE(moved);
-    free(table);
+    g_exact_guard->persistent_buf_release(table, g_exact_owner);
     return agreed;
 }

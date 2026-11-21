@@ -9,7 +9,7 @@ static const unsigned int s_plane_fibonacci[PLANE_FIBONACCI] = {
 static const unsigned long long s_plane_widths[PLANE_WIDTHS] = {7ULL,   16ULL,  32ULL,  64ULL,
                                                                 106ULL, 113ULL, 128ULL, 256ULL};
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;

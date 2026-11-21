@@ -61,6 +61,7 @@ set -u
 
 TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 source "$TOP/includes/file_defs/file_defs.sh"
+source "$TOP/includes/exact_types/exact_types.sh"
 OUT="$TOP/build/engine"
 mkdir -p "$OUT"
 
@@ -72,16 +73,15 @@ done
 
 # the descent is orior's own, and orior reads exact integers
 SIFT="$TOP/src/cu/engine/nbody/orior"
-EXACT="$TOP/includes/exact_types/integers"
-cc -std=c11 -O2 -Wall -Wextra -I"$SIFT" -I"$EXACT" -o "$OUT/gate_descent" \
+cc -std=c11 -O2 -Wall -Wextra -I"$SIFT" "${EXACT_TYPES_FLAGS[@]}" -o "$OUT/gate_descent" \
     "$TOP/utils/test/src/cu/transpiler/lstar/protocol/gate_descent.c" "$TOP/src/cu/transpiler/lstar/protocol/gate/chain_build.c" \
     "$SIFT/orior_core.c" "$SIFT/orior_field.c" "$SIFT/orior_steer.c" \
     "$SIFT/orior_steer_count.c" "$SIFT/orior_steer_plan.c" "$SIFT/scan.c" \
-    "$EXACT/exact_integer_add.c" "$EXACT/exact_integer_multiply.c" "$EXACT/exact_integer_limbs.c" \
-    "${FILE_DEFS[@]}" || exit 1
-cc -std=c11 -O2 -Wall -Wextra -o "$OUT/hadamard_order_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/hadamard_order_check.c" \
+    "${FILE_DEFS_FORMATS[@]}" "${EXACT_TYPES_ARITHMETIC[@]}" "${EXACT_TYPES_LIBRARIES[@]}" || exit 1
+cc -std=c11 -O2 -Wall -Wextra "${EXACT_TYPES_FLAGS[@]}" -o "$OUT/hadamard_order_check" \
+    "$TOP/utils/test/src/cu/transpiler/lstar/protocol/hadamard_order_check.c" \
     "$TOP/src/cu/transpiler/lstar/protocol/order/hadamard_order.c" \
-    "$EXACT/exact_integer_add.c" "$EXACT/exact_integer_multiply.c" "$EXACT/exact_integer_limbs.c" || exit 1
+    "${EXACT_TYPES_ARITHMETIC[@]}" "${EXACT_TYPES_LIBRARIES[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/query_put_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/query_put_check.c" \
     "$TOP/src/cu/transpiler/lstar/protocol/query/query_put.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/answer_read_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/answer_read_check.c" \
@@ -151,14 +151,14 @@ cc -std=c11 -O2 -Wall -Wextra -I"$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -o 
 cc -std=c11 -O2 -Wall -Wextra -pthread -I"$TOP/src/cu/engine" -o "$OUT/launch_queue_check" \
     "$TOP/utils/test/src/cu/transpiler/lstar/interface/launch_queue_check.c" "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c \
     "$INTERFACE/interface_names.c" || exit 1
-cc -std=c11 -O2 -Wall -Wextra -o "$OUT/query_order_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/query_order_check.c" \
+cc -std=c11 -O2 -Wall -Wextra "${EXACT_TYPES_FLAGS[@]}" -o "$OUT/query_order_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/query_order_check.c" \
     "$BOOT/order/query_order.c" "$BOOT/query/query_put.c" "$BOOT/order/hadamard_order.c" \
-    "$EXACT/exact_integer_add.c" "$EXACT/exact_integer_multiply.c" "$EXACT/exact_integer_limbs.c" || exit 1
+    "${EXACT_TYPES_ARITHMETIC[@]}" "${EXACT_TYPES_LIBRARIES[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/stem_group_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/stem_group_check.c" \
     "$BOOT/order/stem_group.c" || exit 1
-cc -std=c11 -O2 -Wall -Wextra -o "$OUT/branch_side_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/branch_side_check.c" \
+cc -std=c11 -O2 -Wall -Wextra "${EXACT_TYPES_FLAGS[@]}" -o "$OUT/branch_side_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/branch_side_check.c" \
     "$BOOT/order/query_order.c" "$BOOT/query/query_put.c" "$BOOT/order/hadamard_order.c" \
-    "$EXACT/exact_integer_add.c" "$EXACT/exact_integer_multiply.c" "$EXACT/exact_integer_limbs.c" || exit 1
+    "${EXACT_TYPES_ARITHMETIC[@]}" "${EXACT_TYPES_LIBRARIES[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/gnascor_trace" "$TOP/utils/maint/engine/gnascor_trace.c" "$BOOT/query/query_put.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/host_entry_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/host_entry_check.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/classify_walk" "$BOOT/query/classify_walk.c" "${FILE_DEFS[@]}" || exit 1

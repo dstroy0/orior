@@ -180,7 +180,7 @@ static void arrival_unlay(ArrivalLaid *positioned)
     keymath_record_release(&positioned->key);
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     SimResults job;
     char job_capacity[SIM_LINE_CAPACITY];

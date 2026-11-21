@@ -99,8 +99,10 @@ static int check_against(const CheckReading *one, const CheckReading *two, unsig
 }
 #endif
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
 #if defined(_WIN32)
     const unsigned long long page = 0x7ffe0000ull;
     unsigned long long clock = 0ull;

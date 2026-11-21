@@ -27,6 +27,7 @@
 #include "../../../../src/cu/engine/analysis/tower/tower.h"
 #include "track.h"
 #include "../../../../src/cu/engine/nbody/velocity/velocity.h"
+#include "../../../../src/platform/platform.h"
 
 #include <cuda_runtime.h>
 
@@ -1178,7 +1179,7 @@ static int run_track(const TreeRules *rules, const RunInputs *inputs)
     return failures;
 }
 
-int main(int argc, char **argv)
+int program_main(int argc, char **argv)
 {
     TreeRules rules;
     memset(&rules, 0, sizeof(rules));

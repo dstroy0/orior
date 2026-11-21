@@ -108,12 +108,12 @@ OriorExactStatus orior_exact_scale_by_ten(OriorExactInteger *value, uint32_t pow
     {
         return ORIOR_EXACT_WILL_NOT_FIT;
     }
-    memcpy(scaled, value->limb, EXACT_LIMBS * sizeof(uint32_t));
+    memor.cpy(&(MemoriaCfg){.dst = scaled, .src = value->limb, .bytes = EXACT_LIMBS * sizeof(uint32_t)});
     size_t used = magnitude_used(scaled);
     OriorExactStatus status = ORIOR_EXACT_WILL_NOT_FIT;
     if (magnitude_scale_by_ten(scaled, &used, power) == 0)
     {
-        memcpy(value->limb, scaled, EXACT_LIMBS * sizeof(uint32_t));
+        memor.cpy(&(MemoriaCfg){.dst = value->limb, .src = scaled, .bytes = EXACT_LIMBS * sizeof(uint32_t)});
         settle_sign(value, value->sign);
         status = ORIOR_EXACT_OK;
     }
@@ -283,7 +283,7 @@ static int magnitude_accumulate_digits(uint32_t *value, size_t *used, const char
  *          their own and copy out only on ORIOR_EXACT_OK. An error leaves a caller's untouched.
  */
 static OriorExactStatus decimal_read(const char *text, size_t length, uint32_t digits, OriorExactInteger *value,
-                                      OriorExactInteger *uncertainty, int *carried)
+                                     OriorExactInteger *uncertainty, int *carried)
 {
     DecimalLayout layout;
     const OriorExactStatus layout_status = decimal_layout(text, length, &layout);
@@ -368,8 +368,8 @@ OriorExactStatus orior_exact_from_decimal(const char *text, size_t length, uint3
     return status;
 }
 
-OriorExactStatus orior_exact_from_measured(const char *text, size_t length, uint32_t digits,
-                                             OriorExactInteger *value, OriorExactInteger *uncertainty, int *carried)
+OriorExactStatus orior_exact_from_measured(const char *text, size_t length, uint32_t digits, OriorExactInteger *value,
+                                           OriorExactInteger *uncertainty, int *carried)
 {
     EXACT_VALUE(read);
     EXACT_VALUE(spread);

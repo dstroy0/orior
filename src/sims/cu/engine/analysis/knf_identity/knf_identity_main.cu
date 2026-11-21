@@ -240,7 +240,7 @@ static void knf_controls(SimResults *results, unsigned short *device_lanes, unsi
               "alike voxels are identified in at max n/(draws + 1) + 5 sqrt(n p) of the n controls");
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;

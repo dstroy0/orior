@@ -7,6 +7,7 @@
 // Every value is allocated from the heap. The test runs at any width the header accepts.
 
 #include "../../../../../../includes/exact_types/integers/exact_integer.h"
+#include "../../../../../../src/platform/platform.h"
 
 #include <chrono>
 #include <cstdio>
@@ -193,8 +194,14 @@ static OriorExactStatus ladder_long(const OriorExactInteger *left, const OriorEx
     return ORIOR_EXACT_OK;
 }
 
-int main(void)
+// the pool that the work of the exact integers comes from. At the widest width a value is 512 KiB, and the work of one
+// product holds several values
+extern "C" const unsigned long long g_program_pool_bytes = 1ULL << 30u;
+
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     // unbuffered: a long run shows where it is
     setvbuf(stdout, NULL, _IONBF, 0);
     printf("  exact integer multiplication ladder at %llu bits (%llu limbs; Karatsuba from %u, transform from %u)\n",

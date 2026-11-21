@@ -93,6 +93,9 @@ for module in "${MODULES[@]}"; do
 done
 # MMgr's line, which the engine writes its text through: its flags for every source, its sources among the portable ones
 source "$ENGINE/../includes/file_defs/file_defs.sh"
+source "$ENGINE/../includes/exact_types/exact_types.sh"
+# the exact sources reach MMgr and embedded_types through their own headers
+EXACT_FLAGS+=("${FILE_DEFS_MMGR_FLAGS[@]}")
 MODULE_INCLUDES+=("${FILE_DEFS_MMGR_FLAGS[@]}")
 PORTABLE_SOURCES=()
 for portable in cu/engine/nbody/body_overlap cu/engine/nbody/heaviest_matching cu/engine/analysis/shift_agreement \
@@ -101,7 +104,7 @@ for portable in cu/engine/nbody/body_overlap cu/engine/nbody/heaviest_matching c
                 "${INGEST[@]}"; do
     PORTABLE_SOURCES+=("$(build_path "$portable")"/*.c)
 done
-PORTABLE_SOURCES+=("${FILE_DEFS_LINEA[@]}")
+PORTABLE_SOURCES+=("${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_PLATFORM_LIBRARY[@]}" "${EXACT_TYPES_CARCER[@]}")
 PORTABLE_OBJECTS=()
 for source in "${PORTABLE_SOURCES[@]}"; do
     name="$(basename "$source" .c)"

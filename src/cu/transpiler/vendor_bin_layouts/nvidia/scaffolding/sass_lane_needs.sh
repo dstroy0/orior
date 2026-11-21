@@ -9,6 +9,7 @@ set -u
 
 TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../../.." && pwd)"
 source "$TOP/includes/file_defs/file_defs.sh"
+source "$TOP/includes/exact_types/exact_types.sh"
 CYCLE="$TOP/src/cu/engine/analysis/cycle"
 CYCLE_CU="$TOP/src/cu/engine/analysis/cycle"
 CODEGEN="$TOP/src/cu/engine/rmc"
@@ -35,7 +36,7 @@ for source in "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.
 done
 # cycle.c is the host oracle that runs a lane, which nothing here does: only the encoder and the layout are wanted,
 # and on this host cycle.c wants __ehdr_start, which the linker gives an ELF and not a PE
-for source in "${FILE_DEFS_LINEA[@]}" "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c; do
+for source in "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}"; do
     object="$OUT/$(basename "$source" .c).o"
     cc -std=c11 -O2 -Wall -Wextra "${INCLUDES[@]}" -c "$source" -o "$object" || exit 1
     OBJECTS+=("$object")

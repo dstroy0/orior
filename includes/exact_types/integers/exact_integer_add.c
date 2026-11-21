@@ -4,7 +4,7 @@
 
 void orior_exact_zero(OriorExactInteger *value)
 {
-    memset(value->limb, 0, sizeof(value->limb));
+    memor.set(&(MemoriaCfg){.dst = value->limb, .bytes = sizeof(value->limb), .val = 0u});
     value->sign = 0;
 }
 
@@ -186,7 +186,7 @@ void settle_sign(OriorExactInteger *result, int32_t sign)
  * @note Subtraction is this call with the sign turned over.
  */
 static OriorExactStatus exact_add_signed(const OriorExactInteger *left, const OriorExactInteger *right,
-                                          int32_t right_sign, OriorExactInteger *result)
+                                         int32_t right_sign, OriorExactInteger *result)
 {
     if (left->sign == 0)
     {
@@ -235,13 +235,13 @@ static OriorExactStatus exact_add_signed(const OriorExactInteger *left, const Or
 }
 
 OriorExactStatus orior_exact_add(const OriorExactInteger *left, const OriorExactInteger *right,
-                                   OriorExactInteger *result)
+                                 OriorExactInteger *result)
 {
     return exact_add_signed(left, right, right->sign, result);
 }
 
 OriorExactStatus orior_exact_subtract(const OriorExactInteger *left, const OriorExactInteger *right,
-                                        OriorExactInteger *result)
+                                      OriorExactInteger *result)
 {
     return exact_add_signed(left, right, -right->sign, result);
 }

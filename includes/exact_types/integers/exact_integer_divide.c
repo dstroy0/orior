@@ -54,14 +54,15 @@ static void limbs_divide(const uint32_t *top, size_t top_used, const uint32_t *b
     {
         if (top_used >= bottom_used)
         {
-            memset(quotient, 0, ((top_used - bottom_used) + 1u) * sizeof(uint32_t));
+            memor.set(
+                &(MemoriaCfg){.dst = quotient, .bytes = ((top_used - bottom_used) + 1u) * sizeof(uint32_t), .val = 0u});
         }
-        memset(rest, 0, bottom_used * sizeof(uint32_t));
-        memcpy(rest, top, top_used * sizeof(uint32_t));
+        memor.set(&(MemoriaCfg){.dst = rest, .bytes = bottom_used * sizeof(uint32_t), .val = 0u});
+        memor.cpy(&(MemoriaCfg){.dst = rest, .src = top, .bytes = top_used * sizeof(uint32_t)});
         return;
     }
-    memset(quotient, 0, ((top_used - bottom_used) + 1u) * sizeof(uint32_t));
-    memset(rest, 0, bottom_used * sizeof(uint32_t));
+    memor.set(&(MemoriaCfg){.dst = quotient, .bytes = ((top_used - bottom_used) + 1u) * sizeof(uint32_t), .val = 0u});
+    memor.set(&(MemoriaCfg){.dst = rest, .bytes = bottom_used * sizeof(uint32_t), .val = 0u});
     if (bottom_used == 1u)
     {
         const uint64_t divisor = (uint64_t)bottom[0];
@@ -158,10 +159,10 @@ static int limbs_reciprocal(uint32_t *x, const uint32_t *d, size_t used, size_t 
 {
     const size_t precision = t - used;
     const size_t count = precision + 2u;
-    memset(x, 0, count * sizeof(uint32_t));
+    memor.set(&(MemoriaCfg){.dst = x, .bytes = count * sizeof(uint32_t), .val = 0u});
     if ((precision <= (size_t)NEWTON_BASE_LIMBS) || (used <= (size_t)NEWTON_BASE_LIMBS))
     {
-        uint32_t *const workspace = (uint32_t *)calloc((t + 1u) + (t + 2u) + used + (t + used + 2u), sizeof(uint32_t));
+        uint32_t *const workspace = exact_work_taken((t + 1u) + (t + 2u) + used + (t + used + 2u), 1);
         if (workspace == NULL)
         {
             return 0;
@@ -172,8 +173,8 @@ static int limbs_reciprocal(uint32_t *x, const uint32_t *d, size_t used, size_t 
         uint32_t *const work = &rest[used];
         power[t] = 1u;
         limbs_divide(power, t + 1u, d, used, quotient, rest, work);
-        memcpy(x, quotient, count * sizeof(uint32_t));
-        free(workspace);
+        memor.cpy(&(MemoriaCfg){.dst = x, .src = quotient, .bytes = count * sizeof(uint32_t)});
+        exact_work_released(workspace);
         return 1;
     }
     const size_t half = precision / 2u;
@@ -182,7 +183,7 @@ static int limbs_reciprocal(uint32_t *x, const uint32_t *d, size_t used, size_t 
     const size_t dropped = used - taken;
     // products run to t + 4 limbs; the Newton step's error term to t + 2
     const size_t span = t + precision + 8u;
-    uint32_t *const workspace = (uint32_t *)calloc((5u * span) + count, sizeof(uint32_t));
+    uint32_t *const workspace = exact_work_taken((5u * span) + count, 1);
     if (workspace == NULL)
     {
         return 0;
@@ -195,16 +196,16 @@ static int limbs_reciprocal(uint32_t *x, const uint32_t *d, size_t used, size_t 
     uint32_t *const inner = &correction[span];
     if (limbs_reciprocal(inner, &d[dropped], taken, taken + inner_precision) == 0)
     {
-        free(workspace);
+        exact_work_released(workspace);
         return 0;
     }
     // the half-precision reciprocal, shifted up by the limbs of precision it lacks
-    memcpy(&guess[half], inner, (inner_precision + 2u) * sizeof(uint32_t));
+    memor.cpy(&(MemoriaCfg){.dst = &guess[half], .src = inner, .bytes = (inner_precision + 2u) * sizeof(uint32_t)});
     size_t guess_used = limbs_used(guess, count);
     // the error beta^t - d x, and its sign
     limbs_ladder_product(product, d, used, guess, guess_used);
     size_t product_used = limbs_used(product, used + guess_used);
-    memset(error, 0, span * sizeof(uint32_t));
+    memor.set(&(MemoriaCfg){.dst = error, .bytes = span * sizeof(uint32_t), .val = 0u});
     error[t] = 1u;
     const int over = (limbs_compare(product, product_used, error, t + 1u) > 0);
     if (over)
@@ -219,13 +220,14 @@ static int limbs_reciprocal(uint32_t *x, const uint32_t *d, size_t used, size_t 
     if (error_used != 0u)
     {
         // the step x . |e| / beta^t, taken down by t limbs
-        memset(step, 0, span * sizeof(uint32_t));
+        memor.set(&(MemoriaCfg){.dst = step, .bytes = span * sizeof(uint32_t), .val = 0u});
         limbs_ladder_product(step, guess, guess_used, error, error_used);
         const size_t step_used = limbs_used(step, guess_used + error_used);
-        memset(correction, 0, span * sizeof(uint32_t));
-        // the step is below the guess. The cap only limits a far guess inside its limbs, and the exact pass below fixes it
+        memor.set(&(MemoriaCfg){.dst = correction, .bytes = span * sizeof(uint32_t), .val = 0u});
+        // the step is below the guess. The cap only limits a far guess inside its limbs, and the exact pass below fixes
+        // it
         const size_t correction_used = (step_used > t) ? (((step_used - t) < count) ? (step_used - t) : count) : 0u;
-        memcpy(correction, &step[t], correction_used * sizeof(uint32_t));
+        memor.cpy(&(MemoriaCfg){.dst = correction, .src = &step[t], .bytes = correction_used * sizeof(uint32_t)});
         if (over)
         {
             (void)limbs_deduct(guess, count, correction, correction_used);
@@ -237,10 +239,10 @@ static int limbs_reciprocal(uint32_t *x, const uint32_t *d, size_t used, size_t 
     }
     // exact: step back while d x > beta^t, then up while beta^t - d x >= d
     guess_used = limbs_used(guess, count);
-    memset(product, 0, span * sizeof(uint32_t));
+    memor.set(&(MemoriaCfg){.dst = product, .bytes = span * sizeof(uint32_t), .val = 0u});
     limbs_ladder_product(product, d, used, guess, guess_used);
     product_used = limbs_used(product, used + guess_used);
-    memset(error, 0, span * sizeof(uint32_t));
+    memor.set(&(MemoriaCfg){.dst = error, .bytes = span * sizeof(uint32_t), .val = 0u});
     error[t] = 1u;
     uint32_t one = 1u;
     while (limbs_compare(product, product_used, error, t + 1u) > 0)
@@ -257,8 +259,8 @@ static int limbs_reciprocal(uint32_t *x, const uint32_t *d, size_t used, size_t 
         (void)limbs_deduct(error, rest_used, d, used);
         rest_used = limbs_used(error, rest_used);
     }
-    memcpy(x, guess, count * sizeof(uint32_t));
-    free(workspace);
+    memor.cpy(&(MemoriaCfg){.dst = x, .src = guess, .bytes = count * sizeof(uint32_t)});
+    exact_work_released(workspace);
     return 1;
 }
 
@@ -273,15 +275,16 @@ static int limbs_divide_newton(const uint32_t *top, size_t top_used, const uint3
     {
         if (top_used >= bottom_used)
         {
-            memset(quotient, 0, ((top_used - bottom_used) + 1u) * sizeof(uint32_t));
+            memor.set(
+                &(MemoriaCfg){.dst = quotient, .bytes = ((top_used - bottom_used) + 1u) * sizeof(uint32_t), .val = 0u});
         }
-        memset(rest, 0, bottom_used * sizeof(uint32_t));
-        memcpy(rest, top, top_used * sizeof(uint32_t));
+        memor.set(&(MemoriaCfg){.dst = rest, .bytes = bottom_used * sizeof(uint32_t), .val = 0u});
+        memor.cpy(&(MemoriaCfg){.dst = rest, .src = top, .bytes = top_used * sizeof(uint32_t)});
         return 1;
     }
     const size_t precision = top_used - bottom_used;
     const size_t span = (2u * top_used) + 8u;
-    uint32_t *const workspace = (uint32_t *)calloc((precision + 2u) + (2u * span), sizeof(uint32_t));
+    uint32_t *const workspace = exact_work_taken((precision + 2u) + (2u * span), 1);
     if (workspace == NULL)
     {
         return 0;
@@ -291,23 +294,23 @@ static int limbs_divide_newton(const uint32_t *top, size_t top_used, const uint3
     uint32_t *const estimate = &product[span];
     if (limbs_reciprocal(reciprocal, bottom, bottom_used, top_used) == 0)
     {
-        free(workspace);
+        exact_work_released(workspace);
         return 0;
     }
     const size_t reciprocal_used = limbs_used(reciprocal, precision + 2u);
     limbs_ladder_product(product, top, top_used, reciprocal, reciprocal_used);
     const size_t product_used = limbs_used(product, top_used + reciprocal_used);
     const size_t estimate_used = (product_used > top_used) ? (product_used - top_used) : 0u;
-    memcpy(estimate, &product[top_used], estimate_used * sizeof(uint32_t));
+    memor.cpy(&(MemoriaCfg){.dst = estimate, .src = &product[top_used], .bytes = estimate_used * sizeof(uint32_t)});
     // the remainder top - q d, then up while it is at least d
-    memset(product, 0, span * sizeof(uint32_t));
+    memor.set(&(MemoriaCfg){.dst = product, .bytes = span * sizeof(uint32_t), .val = 0u});
     if (estimate_used != 0u)
     {
         limbs_ladder_product(product, estimate, estimate_used, bottom, bottom_used);
     }
     uint32_t *const remainder = &product[span / 2u];
-    memset(remainder, 0, (span / 2u) * sizeof(uint32_t));
-    memcpy(remainder, top, top_used * sizeof(uint32_t));
+    memor.set(&(MemoriaCfg){.dst = remainder, .bytes = (span / 2u) * sizeof(uint32_t), .val = 0u});
+    memor.cpy(&(MemoriaCfg){.dst = remainder, .src = top, .bytes = top_used * sizeof(uint32_t)});
     (void)limbs_deduct(remainder, top_used, product, limbs_used(product, estimate_used + bottom_used));
     size_t remainder_used = limbs_used(remainder, top_used);
     uint32_t one = 1u;
@@ -317,10 +320,10 @@ static int limbs_divide_newton(const uint32_t *top, size_t top_used, const uint3
         (void)limbs_deduct(remainder, remainder_used, bottom, bottom_used);
         remainder_used = limbs_used(remainder, remainder_used);
     }
-    memcpy(quotient, estimate, (precision + 1u) * sizeof(uint32_t));
-    memset(rest, 0, bottom_used * sizeof(uint32_t));
-    memcpy(rest, remainder, remainder_used * sizeof(uint32_t));
-    free(workspace);
+    memor.cpy(&(MemoriaCfg){.dst = quotient, .src = estimate, .bytes = (precision + 1u) * sizeof(uint32_t)});
+    memor.set(&(MemoriaCfg){.dst = rest, .bytes = bottom_used * sizeof(uint32_t), .val = 0u});
+    memor.cpy(&(MemoriaCfg){.dst = rest, .src = remainder, .bytes = remainder_used * sizeof(uint32_t)});
+    exact_work_released(workspace);
     return 1;
 }
 
@@ -332,28 +335,30 @@ static void magnitude_divide_by(const uint32_t *top, const uint32_t *bottom, uin
 {
     const size_t top_used = magnitude_used(top);
     const size_t bottom_used = magnitude_used(bottom);
-    memset(quotient, 0, EXACT_LIMBS * sizeof(uint32_t));
-    memset(rest, 0, EXACT_LIMBS * sizeof(uint32_t));
+    memor.set(&(MemoriaCfg){.dst = quotient, .bytes = EXACT_LIMBS * sizeof(uint32_t), .val = 0u});
+    memor.set(&(MemoriaCfg){.dst = rest, .bytes = EXACT_LIMBS * sizeof(uint32_t), .val = 0u});
     const size_t quotient_limbs = (top_used >= bottom_used) ? ((top_used - bottom_used) + 1u) : 0u;
     const int by_newton = (newton_only != 0) || ((bottom_used >= (size_t)ORIOR_EXACT_NEWTON_LIMBS) &&
                                                  (quotient_limbs >= (size_t)ORIOR_EXACT_NEWTON_LIMBS));
     if ((quotient_limbs != 0u) && (by_newton != 0))
     {
         // the limbs of the quotient past the width are zero, because the quotient is no larger than the top
-        uint32_t *const full_quotient = (uint32_t *)calloc(quotient_limbs + 1u, sizeof(uint32_t));
+        uint32_t *const full_quotient = exact_work_taken(quotient_limbs + 1u, 1);
         if ((full_quotient != NULL) &&
             (limbs_divide_newton(top, top_used, bottom, bottom_used, full_quotient, rest) != 0))
         {
-            memcpy(quotient, full_quotient,
-                   ((quotient_limbs < EXACT_LIMBS) ? quotient_limbs : EXACT_LIMBS) * sizeof(uint32_t));
-            free(full_quotient);
+            memor.cpy(&(MemoriaCfg){.dst = quotient,
+                                    .src = full_quotient,
+                                    .bytes = ((quotient_limbs < EXACT_LIMBS) ? quotient_limbs : EXACT_LIMBS) *
+                                             sizeof(uint32_t)});
+            exact_work_released(full_quotient);
             return;
         }
-        free(full_quotient);
+        exact_work_released(full_quotient);
     }
     if (quotient_limbs == 0u)
     {
-        memcpy(rest, top, top_used * sizeof(uint32_t));
+        memor.cpy(&(MemoriaCfg){.dst = rest, .src = top, .bytes = top_used * sizeof(uint32_t)});
         return;
     }
     limbs_divide(top, top_used, bottom, bottom_used, quotient, rest, work);
@@ -365,7 +370,7 @@ void magnitude_divide(const uint32_t *top, const uint32_t *bottom, uint32_t *quo
 }
 
 static OriorExactStatus exact_divide_by(const OriorExactInteger *numerator, const OriorExactInteger *divisor,
-                                         OriorExactInteger *quotient, OriorExactInteger *remainder, int newton_only)
+                                        OriorExactInteger *quotient, OriorExactInteger *remainder, int newton_only)
 {
     if (divisor->sign == 0)
     {
@@ -382,22 +387,22 @@ static OriorExactStatus exact_divide_by(const OriorExactInteger *numerator, cons
     // the code reads the signs before it writes an output that shares an input
     const int32_t quotient_sign = numerator->sign * divisor->sign;
     const int32_t rest_sign = numerator->sign;
-    memcpy(quotient->limb, full_quotient, EXACT_LIMBS * sizeof(uint32_t));
+    memor.cpy(&(MemoriaCfg){.dst = quotient->limb, .src = full_quotient, .bytes = EXACT_LIMBS * sizeof(uint32_t)});
     settle_sign(quotient, quotient_sign);
-    memcpy(remainder->limb, rest, EXACT_LIMBS * sizeof(uint32_t));
+    memor.cpy(&(MemoriaCfg){.dst = remainder->limb, .src = rest, .bytes = EXACT_LIMBS * sizeof(uint32_t)});
     settle_sign(remainder, rest_sign);
     EXACT_SCRATCH_RELEASE(work);
     return ORIOR_EXACT_OK;
 }
 
 OriorExactStatus orior_exact_divide(const OriorExactInteger *numerator, const OriorExactInteger *divisor,
-                                      OriorExactInteger *quotient, OriorExactInteger *remainder)
+                                    OriorExactInteger *quotient, OriorExactInteger *remainder)
 {
     return exact_divide_by(numerator, divisor, quotient, remainder, 0);
 }
 
 OriorExactStatus orior_exact_divide_newton(const OriorExactInteger *numerator, const OriorExactInteger *divisor,
-                                             OriorExactInteger *quotient, OriorExactInteger *remainder)
+                                           OriorExactInteger *quotient, OriorExactInteger *remainder)
 {
     return exact_divide_by(numerator, divisor, quotient, remainder, 1);
 }

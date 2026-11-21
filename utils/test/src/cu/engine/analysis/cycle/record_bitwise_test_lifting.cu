@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_bitwise_test_lifting.cu: the stack, lifting and main
 #include "record_bitwise_test_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 // a stack of BITWISE_TEST_FLOORS floors over four 32-bit words (w0, w1, w2, w3). Each floor's round is
 // n = wrap32(((w2 and (w0 xor w1)) + w3) xor constant), and the words move down one: (w1, w2, w3, n). One program,
@@ -388,7 +389,7 @@ static void bitwise_lifting(BitwiseResults *results)
     bitwise_free(&loaded);
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     BitwiseResults results;
     results.checks = 0ull;

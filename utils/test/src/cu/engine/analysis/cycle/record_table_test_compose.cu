@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_table_test_compose.cu: file limbs, composition, reuse, errors and main
 #include "record_table_test_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 static long table_file_limbs(TableProgram *program)
 {
@@ -238,7 +239,7 @@ static void table_errors(TableResults *results)
     free(values);
 }
 
-int main(int count, char **arguments)
+int program_main(int count, char **arguments)
 {
     TableResults results;
     results.checks = 0ull;
