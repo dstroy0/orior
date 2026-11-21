@@ -1,5 +1,9 @@
 name = "Lng"
-defaultTargets = ["Lng"]
+defaultTargets = ["Lng", "LngLift"]
 
 [[lean_lib]]
 name = "Lng"
+
+[[lean_lib]]
+name = "LngLift"
+defaultFacets = ["static"]

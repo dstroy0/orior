@@ -66,6 +66,9 @@ extern "C"
     // `format` and what follows it printed, as printf prints them, and appended after every text `list` contains
     void lng_list_printed(LngList *list, const char *format, ...);
 
+    // the cell of the row `row` of `table` under `column`, or "" where the head names no such column
+    const char *lng_cell_or_none(const LngTable *table, unsigned int row, const char *column);
+
     // 1 where `set` contains `text`, with its place in `*at`; 0 where it does not, with the place it would take
     int lng_set_find(const LngList *set, const char *text, unsigned int *at);
 
@@ -234,6 +237,9 @@ extern "C"
     // `to_name`. The result is the word of `to` for it. The lift refuses with NULL where the transpiler has no word
     // `bridge`. It refuses where `bridge` is no thing and has no ladder anchor, and so no gsm cases. It refuses too
     // where a side has no witnessed row for it. Each refusal names the row and goes into `refusals`
+    //
+    // The code of the lift is LngLift.lean in theory/lng, compiled to C, and lng_lift.c passes it the columns of the
+    // tables. A program that calls lng_lift links Lng_LngLift.a and the Lean runtime
     const char *lng_lift(const LngTable *transpiler, const LngTable *from, const char *from_name, const LngTable *to,
                          const char *to_name, const char *bridge, LngList *refusals);
 

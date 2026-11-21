@@ -25,4 +25,5 @@ projections. \texttt{.g} is a sound chart at every width and sign, and C and Pyt
 \texttt{uint32\_t}. Each chart is fail-closed, and a symbol outside it halts. A defect legend adds the known
 typos, idioms and 1:1 mappings of a dirty corpus, disjoint from the chart and closed on its targets. Lean proves
 that the legend keeps every meaning, and that it reports each unknown symbol with its place. A language check
-fails where a witnessed symbol lacks its theorem, and a lift refuses every symbol that has no proof.
+fails where a witnessed symbol lacks its theorem, and a lift refuses every symbol that has no proof. The lift that
+runs is Lean code, compiled to C and linked into the program, and so the proofs hold of the code that runs.

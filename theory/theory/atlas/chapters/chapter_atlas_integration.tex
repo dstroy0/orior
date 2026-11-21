@@ -13,12 +13,14 @@ transform in one pass.
         words, the anchors of the transpiler words, the cases of each \texttt{.gsm} file and the rows of each chart
         into Lean data.
   \item The same command builds the Lean project under \texttt{theory/lng} with Lake. It fails on any proof that
-        \texttt{sorry} closes.
+        \texttt{sorry} closes. It also builds \texttt{Lng\_LngLift.a}, the lift that \texttt{lng\_lift} runs.
+  \item \texttt{lng\_check\_test.sh} links that archive and runs the tests of the language check, the lift's among
+        them.
   \item \texttt{lng\_check} reads every table against the others and against the theorem names of each Lean file.
 \end{enumerate}
 
 The project uses the core of Lean 4.35 and \texttt{Std.Tactic.BVDecide}, and no other library. At the time of
-writing, the build closes every proof in 18 jobs. The language check reports no defect, 29 operators of
+writing, the build closes every proof in 23 jobs. The language check reports no defect, 29 operators of
 \texttt{.g} with gsm, and 13 mnemonics with a transpiler form. Lean reads 76 rows of two charts. It proves three
 charts sound and fail-closed, \texttt{.g} at every width and sign and C and Python on \texttt{uint32\_t}. It
 proves the lift between any two sound charts, and the soundness and the exact hole report of a defect legend.
@@ -36,6 +38,6 @@ The proofs leave the following open.
   \item The proofs state the semantics of C and Python as Lean models of their standards. They do not prove a
         compiler or an interpreter correct. The witness checks the tool on the cases, and only there.
   \item For C, a shift by 32 or more and a quotient by 0 have no value. The lift carries no meaning on those words.
-  \item Lean proves the lift of each symbol, and it does not prove \texttt{lng\_lift}, the C code that performs a
-        lift. The language check holds that code to the tables, and the tests of \texttt{lng\_check} cover it.
+  \item The lift that runs is Lean code, and Chapter~\ref{ch:legend} proves it. Its proof trusts the compiler and
+        the runtime of Lean, and the C wrapper that passes the columns of the tables to it.
 \end{itemize}

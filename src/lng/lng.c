@@ -434,7 +434,7 @@ const char *lng_cell(const LngTable *table, unsigned int row, const char *column
 }
 
 // the cell of the row `row` under `column`, or "" where the head names none
-static const char *lng_cell_or_none(const LngTable *table, unsigned int row, const char *column)
+const char *lng_cell_or_none(const LngTable *table, unsigned int row, const char *column)
 {
     const char *const cell = lng_cell(table, row, column);
     return (cell != NULL) ? cell : "";
@@ -2056,45 +2056,6 @@ void lng_targets_holes(const LngTable *const *targets, const char *const *names,
         }
     }
     lng_map_free(&given);
-}
-
-// the word of the witnessed row of `target` that bridges to `bridge`, or NULL with the refusal in `refusals`
-static const char *lng_lift_side(const LngTable *target, const char *name, const char *bridge, LngList *refusals)
-{
-    const unsigned int row = lng_bridged_row(target, bridge);
-    if (row == target->rows)
-    {
-        lng_list_printed(refusals, "%s has no row for %s", name, bridge);
-        return NULL;
-    }
-    if (lng_cell_or_none(target, row, "witness")[0] == '\0')
-    {
-        lng_list_printed(refusals, "%s's %s for %s has no witness", name, lng_cell_or_none(target, row, "word"),
-                         bridge);
-        return NULL;
-    }
-    return lng_cell_or_none(target, row, "word");
-}
-
-const char *lng_lift(const LngTable *transpiler, const LngTable *from, const char *from_name, const LngTable *to,
-                     const char *to_name, const char *bridge, LngList *refusals)
-{
-    const unsigned int crossed = lng_bridge_word_row(transpiler, bridge);
-    if (crossed == transpiler->rows)
-    {
-        lng_list_printed(refusals, "the transpiler has no word %s, and no lift goes through it", bridge);
-        return NULL;
-    }
-    // a relation goes through gsm, and a word with no ladder anchor has no gsm cases; a thing goes by its width
-    if ((strcmp(lng_cell_or_none(transpiler, crossed, "type"), "thing") != 0) &&
-        (lng_cell_or_none(transpiler, crossed, "anchor")[0] == '\0'))
-    {
-        lng_list_printed(refusals, "%s has no gsm cases, and no lift goes through it", bridge);
-        return NULL;
-    }
-    const char *const taken = lng_lift_side(from, from_name, bridge, refusals);
-    const char *const given = lng_lift_side(to, to_name, bridge, refusals);
-    return ((taken != NULL) && (given != NULL)) ? given : NULL;
 }
 
 void lng_theorem_names(const char *const *line, unsigned int lines, LngList *names)

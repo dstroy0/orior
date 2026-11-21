@@ -13,3 +13,4 @@ import Lng.atlas
 import Lng.lift
 import Lng.any
 import Lng.legend
+import Lng.lift_code

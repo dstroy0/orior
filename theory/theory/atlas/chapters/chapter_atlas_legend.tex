@@ -111,9 +111,31 @@ Let the legend over C hold the typo \texttt{ad} for add, the idiom \texttt{x = x
 is the error that names that hole. The idiom gives the value of the Python add\_assign on every pair of words.
 \end{proposition}
 
-\section{The C code}
+\section{The lift that runs}
 
-\texttt{lng\_lift} refuses a word that the tables do not hold. Its refusal names the word and the table that lacks
-it, as \texttt{the transpiler has no word ad}. The test of \texttt{lng\_check} holds that refusal for the typo
-\texttt{ad}. The place of the word in its source is a fact of the caller, and \texttt{lng\_lift} does not report
-it. Lean proves \texttt{translate}, and it does not prove the C code.
+The code of \texttt{lng\_lift} is \texttt{LngLift.lift}, in \texttt{theory/lng/LngLift.lean}. Lean compiles that
+module to C, and Lake builds it into the archive \texttt{Lng\_LngLift.a}. The file \texttt{src/lng/lng\_lift.c}
+holds no rule of the lift. It starts the runtime of Lean once, passes the code the columns of the three tables,
+and reads the answer back. A program that calls \texttt{lng\_lift} links the archive and the runtime of Lean. The
+proofs below are therefore proofs of the code that runs.
+
+\begin{theorem}[\texttt{side\_ok}, \texttt{lift\_ok}]
+Where the lift answers with a place $j$, the transpiler has a word for the bridge word, with an anchor or of the
+type thing. The source has a witnessed row for the bridge word. The row at $j$ of the target lies within the
+target, bridges to the bridge word, and has a witness.
+\end{theorem}
+
+\begin{theorem}[\texttt{lift\_unknown}]
+Where the transpiler has no word for the bridge word $b$, the lift gives exactly one refusal: \texttt{the
+transpiler has no word $b$, and no lift goes through it}.
+\end{theorem}
+
+\begin{theorem}[\texttt{tables\_lift}, \texttt{tables\_meaning}, \texttt{tables\_typo}]
+On the tables of the tree, the lift from C to Python answers for each of the 30 shared bridge words. The row it
+gives bridges to the same word, and the semantics of C and of Python agree on it, on every pair of words of the
+domain. The typo \texttt{ad} gets exactly the refusal of \texttt{lift\_unknown}.
+\end{theorem}
+
+The test of \texttt{lng\_check} links the archive and runs the same code, typo included. A refusal names the word
+and the table that lacks it. The place of the word in its source is a fact of the caller, and
+\texttt{lng\_lift} does not report it. \texttt{translate} reports each hole with its place.

@@ -313,7 +313,9 @@ def write_g_rows():
 def write_charts():
     """Lng/charts.lean: each row of each target table, its target, its symbol, its type, its bridge word and its
     witness."""
-    lines = ["/-! The rows of each target table, written by harness.py lng prove. -/", "", "namespace Lng.Charts", "",
+    lines = ["import LngLift", "",
+             "/-! The rows of each target table and of the transpiler table, written by harness.py lng prove. -/", "",
+             "namespace Lng.Charts", "",
              "structure ChartRow where", "  target : String", "  symbol : String", "  type : String",
              "  bridge : String", "  witness : String", "", "def charts : List ChartRow := ["]
     entries = []
@@ -322,7 +324,11 @@ def write_charts():
         for row in rows:
             entries.append("  ⟨%s, %s, %s, %s, %s⟩" % (lean_text(name), lean_text(row["word"]), lean_text(row["type"]),
                                                     lean_text(row["transpiler"]), lean_text(row["witness"])))
-    lines += [",\n".join(entries), "]", "", "end Lng.Charts", ""]
+    lines += [",\n".join(entries), "]", "", "def crossings : List LngLift.Crossing := ["]
+    _, transpiler = tsv_rows(TRANSPILER)
+    crossed = ["  ⟨%s, %s, %s, %s⟩" % (lean_text(row["word"]), lean_text(row["type"]), lean_text(row["anchor"]),
+                                      lean_text(row["target"])) for row in transpiler]
+    lines += [",\n".join(crossed), "]", "", "end Lng.Charts", ""]
     with open(os.path.join(THEORY, "Lng", "charts.lean"), "w", encoding="utf-8", newline="\n") as handle:
         handle.write("\n".join(lines))
     return len(entries)
