@@ -159,8 +159,10 @@ static void bench_fill(uint32_t *corpus, size_t corpus_len, size_t sigma, uint32
     }
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     const size_t corpus_cap = 1u << 17;
     uint32_t *const corpus = (uint32_t *)malloc(corpus_cap * sizeof(uint32_t));
     uint8_t *const survivors = (uint8_t *)malloc(corpus_cap);

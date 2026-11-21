@@ -39,8 +39,9 @@ int program_main(int argc, char **argv);
 // this constant, and every other program takes the default of the platform
 extern const unsigned long long g_program_pool_bytes;
 
-// the process stage, which main runs. The pool of `bytes` goes over pages from the system, at least
-// PLATFORM_POOL_BYTES_LEAST. The movable option and the parts of the block take their places after it. 1, or 0 where
+// the process stage, which main runs. The pool of `bytes`, at least
+// PLATFORM_POOL_BYTES_LEAST, goes over pages from the system, with the regions of the temporary tier beside it. The
+// movable option and the parts of the block take their places after it. 1, or 0 where
 // the system gives no pages. The first call places the pool, and a later call answers 1 and changes nothing
 int platform_open(unsigned long long bytes);
 
@@ -103,6 +104,36 @@ void platform_text_reset(PlatformText *text);
 // the cell of the text given back, after its last read
 void platform_text_ended(PlatformText *text);
 
+// ---- an array that grows ----
+
+// `count` elements of `element` bytes each, in one cell of the pool. The room doubles as the count grows,
+// and each element past the old count starts at zero. The elements are whole in `cell`, in their order
+typedef struct
+{
+    void *cell;                 // The cell of the elements [BORROWS].
+    unsigned long long count;   // The elements that the array holds.
+    unsigned long long room;    // The elements that the cell holds.
+    unsigned long long element; // The bytes of one element.
+    unsigned int place;         // The place of the owner of the cell.
+    int ephemeral;              // One where the cell is on the temporary tier.
+} PlatformArray;
+
+// the array begun, empty, with no cell until its first element
+void platform_array_begun(PlatformArray *array, unsigned long long element, unsigned int place, int ephemeral);
+
+// The array grown or cut to `count` elements, each new element zero. 1, or 0 where the pool cannot meet the room, and
+// the array is then as it was
+int platform_array_counted(PlatformArray *array, unsigned long long count);
+
+// The element at `value`, `element` bytes of it, put after the last. 1, or 0 where the pool cannot meet the room
+int platform_array_appended(PlatformArray *array, const void *value);
+
+// the element at `at`, or NULL past the count [BORROWS]
+void *platform_array_at(const PlatformArray *array, unsigned long long at);
+
+// the cell of the array given back, after its last read, and the array empty
+void platform_array_ended(PlatformArray *array);
+
 // ---- the system ----
 
 // The value of the environment variable `name` into `out` of `capacity` bytes, terminated. The answer is its length,
@@ -130,6 +161,9 @@ int platform_folder_made(const char *path);
 
 // the number that the system gives the process
 unsigned long long platform_process_id(void);
+
+// the monotonic clock of the system in nanoseconds, from a start that the system chooses
+unsigned long long platform_clock_ns(void);
 
 // The library at `name` loaded, by the search of the system where the name holds no folder. The handle, or NULL where
 // the system cannot load it

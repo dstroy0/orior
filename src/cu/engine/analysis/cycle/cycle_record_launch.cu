@@ -1,17 +1,26 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cycle_record_launch.cu: the resident program, the launch, the check against the interpreter, the latch
-#include <chrono>
 #include "cycle_record_internal.h"
 
-// The compiled program run resident. Its block is arranged for this run and sent to the device, and the program is
-// launched, then launched again from where its block records it is, until every lane is done. The host reads the
-// block back only between launches, when it is sealed: a device block whose seal does not match (written while no
-// launch referenced it), a launch that failed, or a launch that left the block anywhere but yielded or done errors on
-// the run, and the host's copy is left sealed at the fault with the error's module and site. It runs on as many thread
-// blocks as the device fits at once, or fewer where the lanes need fewer. A thread block takes the threads its
-// registers' shared memory fits, or where the lanes are few, their share of the device's processors in whole warps, so
-// that a launch of a few thousand lanes reaches every processor and not only a few thread blocks' worth.
+#include "../../engine_note.h"
+#include "memoria_operor/memoria_linea.h"
+
+// the owner that the cells of a launch count to
+#define CYCLE_LAUNCH_PLACE ((unsigned int)platform_place_g_engine_owner)
+
+// The compiled program run resident. The call arranges its block for this run and sends it to the device. It then
+// launches the program, and launches it again from where its block records it, until every lane ends. The host reads
+// the block back only between launches, when the seal of the block holds.
+//
+// Three faults error on the run. One is a device block whose seal does not match, written while no launch referenced
+// it. The others are a launch that failed, and a launch that left the block anywhere but yielded or done. The copy of the host then stays
+// sealed at the fault, with the module and the site of the error.
+//
+// The program runs on as many thread blocks as the device fits at once, or fewer where the lanes need fewer. A thread
+// block takes the threads that the shared memory of its registers fits. Where the lanes are few, it takes their share
+// of the processors of the device in whole warps. A launch of a few thousand lanes then reaches every processor, and not
+// only a few thread blocks.
 static int cycle_record_resident(const CycleRecord *record, CycleCompiledLaunch program, EngineError *error)
 {
     const unsigned long long share = (program.count + record->processors - 1ULL) / record->processors;
@@ -28,7 +37,7 @@ static int cycle_record_resident(const CycleRecord *record, CycleCompiledLaunch 
     const unsigned long long wdt = 1000ULL * CYCLE_PROGRAM_WDT_MICROSECONDS;
     const EngineSignum signature = block->signature;
     const unsigned long long generation = block->generation + 1ULL;
-    memset(block, 0, sizeof(EngineProgramBlock));
+    mmgr_bytes_set(block, 0u, sizeof(EngineProgramBlock));
     block->signature = signature;
     block->generation = generation;
     block->command = ENGINE_PROGRAM_RUN;
@@ -42,7 +51,7 @@ static int cycle_record_resident(const CycleRecord *record, CycleCompiledLaunch 
     block->ttl = ttl;
     block->wdt = wdt;
     block->lanes = program.count;
-    // a device address is stored as a 64-bit word, as every word of the block is
+    // the block keeps a device address as a 64-bit word, as it keeps every word
     block->result = (unsigned long long)(uintptr_t)program.out;
     block->result_words = program.count * record->out_limbs;
     block->checksum = cycle_block_seal(block);
@@ -101,8 +110,8 @@ static int cycle_record_resident(const CycleRecord *record, CycleCompiledLaunch 
             block->error_site = (unsigned long long)error->site;
         }
         block->checksum = cycle_block_seal(block);
-        // the sealed block goes back to the device, where the next launch finds it; a fault is left sealed on the
-        // host's copy whether the device can still take it
+        // the sealed block goes back to the device, where the next launch finds it. A fault stays sealed on the copy of
+        // the host, whether the device can still take it or not
         const cudaError_t sent = cudaMemcpy(device_block, block, sizeof(EngineProgramBlock), cudaMemcpyHostToDevice);
         ok = ok && CYCLE_STATUS_CHECK(sent, device_block, error);
         running = (ok != 0) && (state == ENGINE_PROGRAM_YIELDED);
@@ -110,18 +119,18 @@ static int cycle_record_resident(const CycleRecord *record, CycleCompiledLaunch 
     return ok;
 }
 
-// one launch of a record program, compiled or on the interpreter, run to its end: a compiled program runs resident,
-// launched again until it is done. With `nanoseconds` it is timed in whole nanoseconds on the host's steady clock,
-// from before the launch to the device's synchronizing after it
+// one launch of a record program, compiled or on the interpreter, run to its end. A compiled program runs resident, and
+// the call launches it again until it ends. With `nanoseconds` the call times it in whole nanoseconds on the monotonic
+// clock of the host. The time runs from before the launch to the synchronization of the device after it
 static int cycle_record_launch(const CycleRecord *record, const CycleRecordLaunch &launch, unsigned int blocks,
                                int compiled, unsigned long long *nanoseconds, EngineError *error)
 {
     int ok = 1;
-    const auto began = std::chrono::steady_clock::now();
+    const unsigned long long began = platform_clock_ns();
     if ((ok != 0) && (compiled != 0))
     {
         CycleCompiledLaunch program;
-        memset(&program, 0, sizeof(program));
+        mmgr_bytes_set(&program, 0u, sizeof(program));
         for (unsigned int member = 0u; member < ENGINE_RECORD_MEMBERS_MAX; member += 1u)
         {
             program.in[member] = launch.in[member];
@@ -151,38 +160,41 @@ static int cycle_record_launch(const CycleRecord *record, const CycleRecordLaunc
     {
         cycle_record_kernel<ENGINE_RECORD_LIMBS_MAX, 0u><<<blocks, CYCLE_BLOCK>>>(launch);
     }
-    // the launch's own error is read and reset whichever way it launched
+    // the call reads and resets the own error of the launch, whichever way it launched
     const cudaError_t launched = cudaGetLastError();
     ok = ok && CYCLE_STATUS_CHECK(launched, launch.out, error);
     ok = ok && CYCLE_STATUS_CHECK(cudaDeviceSynchronize(), launch.out, error);
     if ((ok != 0) && (nanoseconds != NULL))
     {
-        // a steady clock's span is never negative
-        *nanoseconds = (unsigned long long)std::chrono::duration_cast<std::chrono::nanoseconds>(
-                           std::chrono::steady_clock::now() - began)
-                           .count();
+        // the clock is monotonic, and so its span is never negative
+        *nanoseconds = platform_clock_ns() - began;
     }
     return ok;
 }
 
-// CYCLE_RECORD_CHECK: the compiled program has run into the request's records. The interpreter runs the same lanes
-// into records of its own, and both runs' records and errors must be the same word for word. The compiled run's
-// errors are put back for the run to read
+// CYCLE_RECORD_CHECK: the compiled program ran into the records of the request. The interpreter runs the same lanes into
+// records of its own. The records and the errors of both runs must be the same word for word. The call puts the errors
+// of the compiled run back for the run to read
 static int cycle_record_check(const CycleRecord *record, CycleRecordLaunch launch, unsigned int blocks,
                               unsigned long long compiled_nanoseconds, int report, EngineError *error)
 {
     const size_t words = (size_t)launch.count * record->out_limbs;
-    std::vector<unsigned int> compiled_records(words);
-    std::vector<unsigned int> interpreted_records(words);
+    // the records of both runs, ephemeral work that goes back before the check returns
+    unsigned int *const compiled_records =
+        (unsigned int *)platform_cell_taken((unsigned long long)words * sizeof(unsigned int), CYCLE_LAUNCH_PLACE, 1);
+    unsigned int *const interpreted_records =
+        (unsigned int *)platform_cell_taken((unsigned long long)words * sizeof(unsigned int), CYCLE_LAUNCH_PLACE, 1);
     unsigned int compiled_error = 0u;
     unsigned int interpreted_error = 0u;
     unsigned int *interpreted = NULL;
     unsigned long long interpreted_nanoseconds = 0ULL;
-    int ok = CYCLE_STATUS_CHECK(
+    int ok = CYCLE_CHECK((compiled_records != NULL) && (interpreted_records != NULL), record, error,
+                         ENGINE_ERROR_RESOURCE) &&
+             CYCLE_STATUS_CHECK(
                  cudaMemcpy(&compiled_error, record->device_error, sizeof(unsigned int), cudaMemcpyDeviceToHost),
                  record->device_error, error) &&
              CYCLE_STATUS_CHECK(
-                 cudaMemcpy(compiled_records.data(), launch.out, words * sizeof(unsigned int), cudaMemcpyDeviceToHost),
+                 cudaMemcpy(compiled_records, launch.out, words * sizeof(unsigned int), cudaMemcpyDeviceToHost),
                  launch.out, error) &&
              CYCLE_STATUS_CHECK(cudaMalloc((void **)&interpreted, words * sizeof(unsigned int)), &interpreted, error) &&
              CYCLE_STATUS_CHECK(cudaMemset(record->device_error, 0, sizeof(unsigned int)), record->device_error, error);
@@ -193,7 +205,7 @@ static int cycle_record_check(const CycleRecord *record, CycleRecordLaunch launc
              cudaMemcpy(&interpreted_error, record->device_error, sizeof(unsigned int), cudaMemcpyDeviceToHost),
              record->device_error, error) &&
          CYCLE_STATUS_CHECK(
-             cudaMemcpy(interpreted_records.data(), interpreted, words * sizeof(unsigned int), cudaMemcpyDeviceToHost),
+             cudaMemcpy(interpreted_records, interpreted, words * sizeof(unsigned int), cudaMemcpyDeviceToHost),
              interpreted, error) &&
          CYCLE_STATUS_CHECK(
              cudaMemcpy(record->device_error, &compiled_error, sizeof(unsigned int), cudaMemcpyHostToDevice),
@@ -207,18 +219,38 @@ static int cycle_record_check(const CycleRecord *record, CycleRecordLaunch launc
     const int same = (differs == words) && (compiled_error == interpreted_error);
     if ((ok != 0) && (report != 0))
     {
-        fprintf(stderr, "  cycle: %llu lanes, compiled %llu ns, interpreted %llu ns, errored %u and %u, %s\n",
-                launch.count, compiled_nanoseconds, interpreted_nanoseconds, compiled_error, interpreted_error,
-                (same != 0) ? "the same records" : "records differ");
+        EngineNote note;
+        engine_note_begun(&note);
+        mmgr_line_put(&note.line, "  cycle: ");
+        mmgr_line_decimal(&note.line, launch.count, 1u);
+        mmgr_line_put(&note.line, " lanes, compiled ");
+        mmgr_line_decimal(&note.line, compiled_nanoseconds, 1u);
+        mmgr_line_put(&note.line, " ns, interpreted ");
+        mmgr_line_decimal(&note.line, interpreted_nanoseconds, 1u);
+        mmgr_line_put(&note.line, " ns, errored ");
+        mmgr_line_decimal(&note.line, compiled_error, 1u);
+        mmgr_line_put(&note.line, " and ");
+        mmgr_line_decimal(&note.line, interpreted_error, 1u);
+        mmgr_line_put(&note.line, (same != 0) ? ", the same records\n" : ", records differ\n");
+        engine_note_written(&note);
     }
     if ((ok != 0) && (same == 0) && (differs != words))
     {
-        fprintf(stderr,
-                "  cycle: the compiled record program differs from the interpreter at lane %zu, word %zu: %08x "
-                "against %08x\n",
-                differs / record->out_limbs, differs % record->out_limbs, compiled_records[differs],
-                interpreted_records[differs]);
+        EngineNote note;
+        engine_note_begun(&note);
+        mmgr_line_put(&note.line, "  cycle: the compiled record program differs from the interpreter at lane ");
+        mmgr_line_decimal(&note.line, differs / record->out_limbs, 1u);
+        mmgr_line_put(&note.line, ", word ");
+        mmgr_line_decimal(&note.line, differs % record->out_limbs, 1u);
+        mmgr_line_put(&note.line, ": ");
+        mmgr_line_hex(&note.line, compiled_records[differs], 8u);
+        mmgr_line_put(&note.line, " against ");
+        mmgr_line_hex(&note.line, interpreted_records[differs], 8u);
+        mmgr_line_ch(&note.line, '\n');
+        engine_note_written(&note);
     }
+    platform_cell_released(interpreted_records, CYCLE_LAUNCH_PLACE);
+    platform_cell_released(compiled_records, CYCLE_LAUNCH_PLACE);
     return ok && CYCLE_CHECK(same != 0, record->device_error, error, ENGINE_ERROR_LOGIC);
 }
 
@@ -236,7 +268,7 @@ extern "C" long cycle_record_run(const CycleRecordRunRequest *request)
     }
     const CycleRecord *const record = request->record;
     CycleRecordLaunch launch;
-    memset(&launch, 0, sizeof(launch));
+    mmgr_bytes_set(&launch, 0u, sizeof(launch));
     for (unsigned int member = 0u; member < record->members; member += 1u)
     {
         // with no index, lane i reads record i of a member, or its one record where it has one
@@ -274,16 +306,31 @@ extern "C" long cycle_record_run(const CycleRecordRunRequest *request)
     ok = ok && ((check == 0) || cycle_record_check(record, launch, blocks, nanoseconds, report, error));
     if ((ok != 0) && (report != 0) && (check == 0))
     {
-        fprintf(stderr, "  cycle: %llu lanes %s in %llu ns\n", request->count,
-                (compiled != 0) ? "compiled" : "interpreted", nanoseconds);
+        EngineNote note;
+        engine_note_begun(&note);
+        mmgr_line_put(&note.line, "  cycle: ");
+        mmgr_line_decimal(&note.line, request->count, 1u);
+        mmgr_line_put(&note.line, (compiled != 0) ? " lanes compiled in " : " lanes interpreted in ");
+        mmgr_line_decimal(&note.line, nanoseconds, 1u);
+        mmgr_line_put(&note.line, " ns\n");
+        engine_note_written(&note);
     }
     if ((ok != 0) && (report != 0) && (compiled != 0))
     {
-        fprintf(stderr, "  cycle: the program ran %llu launches, %llu check-ins, %llu ns on the device, %llu threads\n",
-                record->block->launches, record->block->checkin, record->block->runtime,
-                record->block->grant_threads);
+        EngineNote note;
+        engine_note_begun(&note);
+        mmgr_line_put(&note.line, "  cycle: the program ran ");
+        mmgr_line_decimal(&note.line, record->block->launches, 1u);
+        mmgr_line_put(&note.line, " launches, ");
+        mmgr_line_decimal(&note.line, record->block->checkin, 1u);
+        mmgr_line_put(&note.line, " check-ins, ");
+        mmgr_line_decimal(&note.line, record->block->runtime, 1u);
+        mmgr_line_put(&note.line, " ns on the device, ");
+        mmgr_line_decimal(&note.line, record->block->grant_threads, 1u);
+        mmgr_line_put(&note.line, " threads\n");
+        engine_note_written(&note);
     }
-    // the frame's reservation is given back whether the sweep succeeded
+    // the reservation of the frame goes back whether the sweep succeeded or not
     const int returned = cycle_stack_return(stack, request->device_out, error);
     ok =
         ok && returned &&
@@ -309,9 +356,9 @@ __device__ static int cycle_latch_valid(const unsigned int *record, unsigned int
     return (set_bits != 0u) ? 1 : 0;
 }
 
-// the latch over the records: each thread scans its lanes from its lowest and stops at the first whose output is true,
-// each warp takes the least of its threads' by a tree of shuffles, and each warp's goes to one atomic minimum over the
-// device. Every thread of a warp reaches the shuffles, the block being whole warps
+// the latch over the records. Each thread scans its lanes from its lowest and stops at the first whose output is true.
+// Each warp takes the least of its threads by a tree of shuffles. Each warp then sends its least to one atomic minimum
+// over the device. Every thread of a warp reaches the shuffles, since the block is whole warps
 __global__ static void cycle_latch_kernel(const unsigned int *records, unsigned long long count, unsigned int out_limbs,
                                           unsigned int offset, unsigned int bits, unsigned long long *first)
 {
@@ -374,7 +421,7 @@ extern "C" long cycle_record_latch(const CycleRecordLatchRequest *request)
 }
 
 // limb `limb` of a record's field at `offset`, `bits` wide: the field's bits 32 limb to 32 limb + 31, zero past the
-// field. The limb after the first is read only where the field runs into it
+// field. The call reads the limb after the first only where the field runs into it
 __device__ static unsigned int cycle_sum_limb(const unsigned int *record, unsigned int offset, unsigned int bits,
                                               unsigned int limb)
 {
@@ -390,14 +437,14 @@ __device__ static unsigned int cycle_sum_limb(const unsigned int *record, unsign
     return (left < 32u) ? (value & ((1u << left) - 1u)) : value;
 }
 
-// the sum over the records: each thread takes `chunk` consecutive records and, limb by limb, adds the field's limb
-// into 64 bits for as long as its records stay in one run, then adds that total to the run's by one atomic add. The
-// pass past the last limb counts the fields whose sign bit is set. A run contains at max 2^32 records, and 2^32 limbs
+// the sum over the records. Each thread takes `chunk` consecutive records. Limb by limb, it adds the limb of the field
+// into 64 bits for as long as its records stay in one run. It then adds that total to the total of the run by one
+// atomic add. The pass past the last limb counts the fields whose sign bit is 1. A run contains at max 2^32 records, and 2^32 limbs
 // fit 64 bits
-__global__ static void cycle_sum_kernel(const unsigned int *records, unsigned long long count,
-                                        unsigned long long group, unsigned int out_limbs, unsigned int offset,
-                                        unsigned int bits, unsigned int field_limbs, unsigned long long chunk,
-                                        unsigned long long *totals, unsigned long long *negatives)
+__global__ static void cycle_sum_kernel(const unsigned int *records, unsigned long long count, unsigned long long group,
+                                        unsigned int out_limbs, unsigned int offset, unsigned int bits,
+                                        unsigned int field_limbs, unsigned long long chunk, unsigned long long *totals,
+                                        unsigned long long *negatives)
 {
     const unsigned long long thread = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x;
     const unsigned long long begin = thread * chunk;
@@ -454,8 +501,8 @@ static void cycle_sum_subtract(unsigned int *sum, unsigned int limbs, unsigned i
     }
 }
 
-// the sum's device totals and negative counts, retained between calls and grown to the max bytes requested so far, so
-// that a sum requested once a sweep allocates nothing after the first
+// the totals of the sum on the device and its negative counts. They stay between calls, and they grow to the max bytes
+// of the requests so far. A sum that a sweep requests once then takes nothing after the first
 typedef struct
 {
     unsigned long long *totals;
@@ -493,7 +540,7 @@ extern "C" void cycle_record_sum_release(void)
 {
     cudaFree(g_cycle_sum_scratch.totals);
     cudaFree(g_cycle_sum_scratch.negatives);
-    memset(&g_cycle_sum_scratch, 0, sizeof(g_cycle_sum_scratch));
+    mmgr_bytes_set(&g_cycle_sum_scratch, 0u, sizeof(g_cycle_sum_scratch));
 }
 
 extern "C" long cycle_record_sum(const CycleRecordSumRequest *request)
@@ -515,14 +562,16 @@ extern "C" long cycle_record_sum(const CycleRecordSumRequest *request)
     const unsigned int blocks = (unsigned int)((threads + CYCLE_BLOCK - 1ULL) / CYCLE_BLOCK);
     const size_t total_bytes = (size_t)(runs * field_limbs) * sizeof(unsigned long long);
     const size_t negative_bytes = (size_t)runs * sizeof(unsigned long long);
-    unsigned long long *totals = (unsigned long long *)malloc(total_bytes);
-    unsigned long long *negatives = (unsigned long long *)malloc(negative_bytes);
+    // the totals of the device, read back as ephemeral work that goes back before the sum returns
+    unsigned long long *const totals = (unsigned long long *)platform_cell_taken(total_bytes, CYCLE_LAUNCH_PLACE, 1);
+    unsigned long long *const negatives =
+        (unsigned long long *)platform_cell_taken(negative_bytes, CYCLE_LAUNCH_PLACE, 1);
     int ok = CYCLE_CHECK((totals != NULL) && (negatives != NULL), request, error, ENGINE_ERROR_RESOURCE) &&
              cycle_sum_scratch(total_bytes, negative_bytes, error);
     unsigned long long *const device_totals = g_cycle_sum_scratch.totals;
     unsigned long long *const device_negatives = g_cycle_sum_scratch.negatives;
     ok = ok && CYCLE_STATUS_CHECK(cudaMemset(device_totals, 0, total_bytes), device_totals, error) &&
-             CYCLE_STATUS_CHECK(cudaMemset(device_negatives, 0, negative_bytes), device_negatives, error);
+         CYCLE_STATUS_CHECK(cudaMemset(device_negatives, 0, negative_bytes), device_negatives, error);
     if (ok != 0)
     {
         cycle_sum_kernel<<<blocks, CYCLE_BLOCK>>>(request->records, request->count, request->group, request->out_limbs,
@@ -538,14 +587,14 @@ extern "C" long cycle_record_sum(const CycleRecordSumRequest *request)
     for (unsigned long long run = 0ULL; (ok != 0) && (run < runs); run += 1ULL)
     {
         unsigned int *const sum = &request->sums[run * request->sum_limbs];
-        memset(sum, 0, request->sum_limbs * sizeof(unsigned int));
+        mmgr_bytes_set(sum, 0u, request->sum_limbs * sizeof(unsigned int));
         for (unsigned int limb = 0u; limb < field_limbs; limb += 1u)
         {
             cycle_sum_add(sum, request->sum_limbs, limb, totals[(run * field_limbs) + limb]);
         }
         cycle_sum_subtract(sum, request->sum_limbs, request->bits, negatives[run]);
     }
-    free(totals);
-    free(negatives);
+    platform_cell_released(negatives, CYCLE_LAUNCH_PLACE);
+    platform_cell_released(totals, CYCLE_LAUNCH_PLACE);
     return (ok != 0) ? (long)request->count : CYCLE_ERROR;
 }

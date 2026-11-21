@@ -417,8 +417,10 @@ static int o2_case_cost_boundary(void)
     return 0;
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     int failed = 0;
 
     printf("\n  O2 COMPOSITION, a descent resuming from another descent's survivors.\n\n");

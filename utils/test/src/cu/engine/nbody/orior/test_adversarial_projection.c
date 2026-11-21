@@ -256,8 +256,10 @@ static int adversarial_case_joint_projection(void)
     return failed;
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     int failed = 0;
 
     printf("\n  ADVERSARIAL SUITE, written to break the guarantees and not show them.\n\n");

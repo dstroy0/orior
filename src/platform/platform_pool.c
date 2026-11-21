@@ -145,7 +145,9 @@ int platform_open(unsigned long long bytes)
     {
         return 1;
     }
-    const unsigned long long asked = (bytes < PLATFORM_POOL_BYTES_LEAST) ? PLATFORM_POOL_BYTES_LEAST : bytes;
+    // the persistent tier gets the bytes asked for, and the regions of the temporary tier come off the top beside them
+    const unsigned long long asked = ((bytes < PLATFORM_POOL_BYTES_LEAST) ? PLATFORM_POOL_BYTES_LEAST : bytes) +
+                                     (unsigned long long)MMGR_CARCER_REGION_AREA;
     // Explicit cast takes the pages that the system gave as the bytes that the cellblock lies on
     uint8_t *const storage = (uint8_t *)platform_pages_mapped(asked);
     if ((storage == NULL) || !mmgr_series_cellularum_placed(&platform_site_platform_pool_ctx, storage, (size_t)asked))
@@ -306,4 +308,75 @@ void platform_text_ended(PlatformText *text)
     text->cell = NULL;
     text->capacity = 0ULL;
     text->line = mmgr_line_over(NULL, 0u);
+}
+
+void platform_array_begun(PlatformArray *array, unsigned long long element, unsigned int place, int ephemeral)
+{
+    array->cell = NULL;
+    array->count = 0ULL;
+    array->room = 0ULL;
+    array->element = element;
+    array->place = place;
+    array->ephemeral = ephemeral;
+}
+
+int platform_array_counted(PlatformArray *array, unsigned long long count)
+{
+    if (count > array->room)
+    {
+        unsigned long long room = (array->room == 0ULL) ? 8ULL : array->room;
+        while (room < count)
+        {
+            room *= 2ULL;
+        }
+        void *const grown = platform_cell_grown(array->cell, array->count * array->element, room * array->element,
+                                                array->place, array->ephemeral);
+        if (grown == NULL)
+        {
+            return 0;
+        }
+        array->cell = grown;
+        array->room = room;
+    }
+    if (count > array->count)
+    {
+        // Explicit cast reads the cell as its bytes, from the first new element on
+        memor.set(&(MemoriaCfg){.dst = (char *)array->cell + (array->count * array->element),
+                                .bytes = (size_t)((count - array->count) * array->element),
+                                .val = 0u});
+    }
+    array->count = count;
+    return 1;
+}
+
+int platform_array_appended(PlatformArray *array, const void *value)
+{
+    const unsigned long long at = array->count;
+    if (!platform_array_counted(array, at + 1ULL))
+    {
+        return 0;
+    }
+    // Explicit cast reads the cell as its bytes, at the new element
+    memor.cpy(&(MemoriaCfg){
+        .dst = (char *)array->cell + (at * array->element), .src = value, .bytes = (size_t)array->element});
+    return 1;
+}
+
+void *platform_array_at(const PlatformArray *array, unsigned long long at)
+{
+    // Explicit cast reads the cell as its bytes, at the element
+    return (at < array->count) ? (void *)((char *)array->cell + (at * array->element)) : NULL;
+}
+
+void platform_array_ended(PlatformArray *array)
+{
+    platform_cell_released(array->cell, array->place);
+    array->cell = NULL;
+    array->count = 0ULL;
+    array->room = 0ULL;
+}
+
+unsigned long long platform_clock_ns(void)
+{
+    return (unsigned long long)embed_clock_ns();
 }

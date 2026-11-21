@@ -3,6 +3,12 @@
 // cycle_launch.cu: keys loaded and the sweep launched
 #include "cycle_internal.h"
 
+#include "../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+
+// the owner that the cells of a loaded key and of a launch count to
+#define CYCLE_KEY_PLACE ((unsigned int)platform_place_g_engine_owner)
+
 extern "C" long cycle_key_load(const EngineKeyLayout *layout, CycleKey **key_out, EngineError *error)
 {
     if (error == NULL)
@@ -16,8 +22,13 @@ extern "C" long cycle_key_load(const EngineKeyLayout *layout, CycleKey **key_out
         return CYCLE_ERROR;
     }
     *key_out = NULL;
-    CycleKey *const key = (CycleKey *)calloc(1u, sizeof(CycleKey));
+    // the key is a resource that the caller gives back with cycle_key_release
+    CycleKey *const key = (CycleKey *)platform_cell_taken(sizeof(CycleKey), CYCLE_KEY_PLACE, 0);
     int ok = CYCLE_CHECK(key != NULL, key_out, error, ENGINE_ERROR_RESOURCE);
+    if (ok)
+    {
+        mmgr_bytes_set(key, 0u, sizeof(CycleKey));
+    }
     ok = ok && CYCLE_STATUS_CHECK(cudaMalloc((void **)&key->device_terms, (size_t)layout->terms * sizeof(DeviceTerm)),
                                   &key->device_terms, error);
     ok = ok && CYCLE_STATUS_CHECK(cudaMalloc((void **)&key->device_weights,
@@ -55,7 +66,7 @@ extern "C" void cycle_key_release(CycleKey *key)
     }
     cudaFree(key->device_terms);
     cudaFree(key->device_weights);
-    free(key);
+    platform_cell_released(key, CYCLE_KEY_PLACE);
 }
 
 extern "C" unsigned int cycle_key_scratch_limbs(const CycleKey *key)
@@ -71,12 +82,13 @@ extern "C" void cycle_resident_release(void)
     cudaFree(resident->scratch);
     cudaFree(resident->table);
     cudaFree(resident->folds);
-    memset(resident, 0, sizeof(*resident));
+    mmgr_bytes_set(resident, 0u, sizeof(*resident));
 }
 
-// The stack a launch grew past `before`, given back once its work is done. The runtime raises the stack limit to the
-// widest frame a kernel launches with, reserves that frame for every thread the device maintains resident, and reserves
-// it until the limit is set back. A `before` of 0 is a limit never read, and nothing is set.
+// The stack that a launch grew past `before`, given back once its work ends. The runtime raises the stack limit to the
+// widest frame that a kernel launches with. It reserves that frame for every thread that the device keeps resident, and
+// it keeps the reservation until the call sets the limit back. A `before` of 0 is a limit that the launch never read,
+// and the call then sets nothing.
 int cycle_stack_return(size_t before, const void *evacaddr, EngineError *error)
 {
     if (before == 0u)
@@ -216,47 +228,56 @@ extern "C" long cycle_run(const CycleRunRequest *request)
             &resident->table, error);
         resident->table_capacity = (ok != 0) ? (size_t)request->count : 0u;
     }
-    std::vector<const unsigned short *> table((size_t)request->count);
-    for (size_t atom = 0u; atom < table.size(); atom += 1u)
+    // the table of lanes and the folds, ephemeral work that the launch sends to the device and gives back
+    const unsigned short **const table = (const unsigned short **)platform_cell_taken(
+        (unsigned long long)request->count * sizeof(const unsigned short *), CYCLE_KEY_PLACE, 1);
+    ok = ok && CYCLE_CHECK(table != NULL, request, error, ENGINE_ERROR_RESOURCE);
+    for (size_t atom = 0u; (ok != 0) && (atom < (size_t)request->count); atom += 1u)
     {
         table[atom] = request->atoms[atom].lanes;
     }
-    ok = ok && CYCLE_STATUS_CHECK(cudaMemcpy(resident->table, table.data(),
-                                             table.size() * sizeof(const unsigned short *), cudaMemcpyHostToDevice),
-                                  resident->table, error);
+    ok = ok &&
+         CYCLE_STATUS_CHECK(cudaMemcpy(resident->table, table, (size_t)request->count * sizeof(const unsigned short *),
+                                       cudaMemcpyHostToDevice),
+                            resident->table, error);
+    platform_cell_released(table, CYCLE_KEY_PLACE);
 
     CycleLaunch launch;
-    memset(&launch, 0, sizeof(launch));
+    mmgr_bytes_set(&launch, 0u, sizeof(launch));
     launch.extent[0] = extent->depth;
     launch.extent[1] = extent->height;
     launch.extent[2] = extent->width;
     launch.stride[0] = extent->height * extent->width;
     launch.stride[1] = extent->width;
     launch.stride[2] = 1ULL;
-    std::vector<unsigned long long> folds;
+    PlatformArray folds;
+    platform_array_begun(&folds, sizeof(unsigned long long), CYCLE_KEY_PLACE, 1);
     for (unsigned int axis = 0u; axis < 3u; axis += 1u)
     {
-        launch.fold_start[axis] = (unsigned long long)folds.size();
+        launch.fold_start[axis] = folds.count;
         launch.range[axis] = request->key->range[axis];
         const unsigned long long span = launch.extent[axis] + (2ULL * launch.range[axis]);
-        for (unsigned long long entry = 0ULL; entry < span; entry += 1ULL)
+        for (unsigned long long entry = 0ULL; (ok != 0) && (entry < span); entry += 1ULL)
         {
             const long long position = (long long)entry - (long long)launch.range[axis];
-            folds.push_back(cycle_reflect(position, (long long)launch.extent[axis]) * launch.stride[axis]);
+            const unsigned long long fold =
+                cycle_reflect(position, (long long)launch.extent[axis]) * launch.stride[axis];
+            ok = CYCLE_CHECK(platform_array_appended(&folds, &fold), request, error, ENGINE_ERROR_RESOURCE);
         }
     }
-    if ((ok != 0) && (folds.size() > resident->fold_capacity))
+    if ((ok != 0) && (folds.count > resident->fold_capacity))
     {
         cudaFree(resident->folds);
         resident->folds = NULL;
         resident->fold_capacity = 0u;
-        ok = CYCLE_STATUS_CHECK(cudaMalloc((void **)&resident->folds, folds.size() * sizeof(unsigned long long)),
+        ok = CYCLE_STATUS_CHECK(cudaMalloc((void **)&resident->folds, (size_t)folds.count * sizeof(unsigned long long)),
                                 &resident->folds, error);
-        resident->fold_capacity = (ok != 0) ? folds.size() : 0u;
+        resident->fold_capacity = (ok != 0) ? (size_t)folds.count : 0u;
     }
-    ok = ok && CYCLE_STATUS_CHECK(cudaMemcpy(resident->folds, folds.data(), folds.size() * sizeof(unsigned long long),
-                                             cudaMemcpyHostToDevice),
+    ok = ok && CYCLE_STATUS_CHECK(cudaMemcpy(resident->folds, folds.cell,
+                                             (size_t)folds.count * sizeof(unsigned long long), cudaMemcpyHostToDevice),
                                   resident->folds, error);
+    platform_array_ended(&folds);
     if (ok == 0)
     {
         return CYCLE_ERROR;
@@ -294,7 +315,7 @@ extern "C" long cycle_run(const CycleRunRequest *request)
     {
         ok = CYCLE_CHECK(need <= 256u, &request->key->columns, error, ENGINE_ERROR_REQUEST);
     }
-    // the sweep runs on after its launch. A grown stack is given back once it ends
+    // the sweep runs on after its launch. A grown stack goes back once it ends
     const int returned = cycle_stack_return(stack, request->device_out, error);
     return ((ok != 0) && (returned != 0)) ? (long)request->count : CYCLE_ERROR;
 }

@@ -93,8 +93,10 @@ static void grade(const char *what, size_t measured, size_t expected)
     printf("  %-34s measured %-12zu expected %-12zu %s\n", what, measured, expected, agrees ? "OK" : "DISAGREES");
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     uint8_t *const corpus = (uint8_t *)malloc(AGREEMENT_CORPUS_BYTES);
 
     if (corpus == NULL)

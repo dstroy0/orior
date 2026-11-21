@@ -17,10 +17,11 @@ if(NOT DEFINED ORIOR_ROOT)
     get_filename_component(ORIOR_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)
 endif()
 
-# MMgr, built as orior builds it: its suites left to its own runs, embedded_types taken from the tree's checkout, and its
-# link time optimization the flags ui/cli/build.sh passes it, which the program's whole link reads. orior_mmgr
-# builds the modules of its host environment, the ones ui/cli/build.sh joins to the command line's objects. The
-# owner queue has room for every owner orior registers, the same room in MMgr's objects and orior's
+# MMgr, built as orior builds it. Its suites run in its own runs, and embedded_types comes from the checkout of the tree.
+# Its link time optimization takes the flags that ui/cli/build.sh passes it, which the whole link of the program reads.
+# The target orior_mmgr builds the modules of its host environment, the ones that ui/cli/build.sh joins to the objects
+# of the command line. The owner queue has room for every owner that orior registers, the same room in MMgr's objects and
+# orior's
 set(MMGR_BUILD_TESTS OFF)
 set(MMGR_LTO OFF)
 add_compile_definitions(MMGR_CARCER_OWNERS=1024u MMGR_CARCER_REGIONS=16u MMGR_CARCER_REGION_BYTES=4194304u MMGR_CARCER_LARGE_REGION_BYTES=68157440u)
@@ -35,13 +36,32 @@ foreach(module ${ORIOR_MMGR_MODULES})
     endif()
 endforeach()
 
-# ORIOR_MMGR_ONLY configures MMgr's modules and nothing past them: the command line's build asks for those alone, from
-# a tree that may hold src/cu and no utils/
+# ORIOR_MMGR_ONLY configures MMgr's modules and nothing past them. The build of the command line asks for those alone,
+# from a tree that may hold src/cu and no utils/
 option(ORIOR_MMGR_ONLY "Configure MMgr's modules alone" OFF)
 if(ORIOR_MMGR_ONLY)
     return()
 endif()
 
+
+# The platform of a program (src/platform) holds the pool, the owners and the calls into the system. The exact types and
+# the engine take their cells from that pool. The target orior_platform_library is that platform with no main, for a
+# library. The target orior_platform adds main and the process stage. Every executable links it and defines
+# program_main
+set(ORIOR_PLATFORM_LIBRARY_SOURCES ${ORIOR_ROOT}/src/platform/platform_pool.c
+    ${ORIOR_ROOT}/src/platform/platform_windows.c ${ORIOR_ROOT}/src/platform/platform_posix.c)
+add_library(orior_platform_library STATIC ${ORIOR_PLATFORM_LIBRARY_SOURCES})
+target_include_directories(orior_platform_library PUBLIC ${ORIOR_ROOT}/src/platform)
+target_link_libraries(orior_platform_library PUBLIC mmgr_locus_carcerum_host mmgr_memoria_operor_host
+    mmgr_cellularum_laboro_host mmgr_verba_scribo_host)
+if(WIN32)
+    target_link_libraries(orior_platform_library PUBLIC synchronization)
+else()
+    find_package(Threads REQUIRED)
+    target_link_libraries(orior_platform_library PUBLIC Threads::Threads ${CMAKE_DL_LIBS})
+endif()
+add_library(orior_platform STATIC ${ORIOR_ROOT}/src/platform/platform_process.c)
+target_link_libraries(orior_platform PUBLIC orior_platform_library)
 
 set(ORIOR_EXACT_PORTABLE_SOURCES ${ORIOR_ROOT}/includes/exact_types/integers/exact_integer_add.c
     ${ORIOR_ROOT}/includes/exact_types/integers/exact_integer_limbs.c ${ORIOR_ROOT}/includes/exact_types/integers/exact_integer_multiply.c
@@ -50,6 +70,7 @@ set(ORIOR_EXACT_PORTABLE_SOURCES ${ORIOR_ROOT}/includes/exact_types/integers/exa
     ${ORIOR_ROOT}/includes/exact_types/integers/arm.c)
 add_library(orior_exact_portable STATIC ${ORIOR_EXACT_PORTABLE_SOURCES})
 target_include_directories(orior_exact_portable PUBLIC ${ORIOR_ROOT}/includes/exact_types/integers)
+target_link_libraries(orior_exact_portable PUBLIC orior_platform_library)
 target_compile_options(orior_exact_portable PRIVATE ${SIFT_WARNINGS})
 
 
@@ -79,7 +100,7 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|i[3-6]86)$")
     endif()
 
     # AVX-512 on the GCC and Clang builds that accept the flags. MSVC's AVX-512 handling differs and
-    # no machine here runs the arm. It is gated to the same compilers the exact avx512 arm gates
+    # no machine here runs the arm. Its gate takes the same compilers as the gate of the exact avx512 arm
     # to and confirmed by utils/maint/engine/verify_arm_asm.sh.
     if(NOT MSVC)
         check_c_compiler_flag("-mavx512f -mavx512bw" ORIOR_STEER_CC_TAKES_AVX512)
@@ -126,11 +147,13 @@ target_compile_definitions(orior_kernel_counted PUBLIC ${ORIOR_DEFINES}
 target_link_libraries(orior_kernel_counted PUBLIC orior_exact_portable)
 target_compile_options(orior_kernel_counted PRIVATE $<$<COMPILE_LANGUAGE:C>:${SIFT_WARNINGS}>)
 
-# The shared libraries utils/test/python's graders load through ctypes. orior_host is the kernel's host arms with the
-# read counters, and the exact integer sources compiled into it. No static library has to be position independent;
-# on Windows utils/test/src/cu/engine/nbody/orior/orior_probe.def names its exports. shift_agreement_host is shift_agreement.c alone.
+# The shared libraries. The library orior_host holds the host arms of the kernel with the read counters, the exact
+# integer sources and the platform with no main. The process that loads it runs the process stage. No static library has to be
+# position independent. On Windows utils/test/src/cu/engine/nbody/orior/orior_probe.def names its exports.
+# shift_agreement_host is shift_agreement.c alone.
 add_library(orior_host SHARED ${ORIOR_SOURCES} ${ORIOR_EXACT_PORTABLE_SOURCES})
 target_include_directories(orior_host PRIVATE engine/nbody/orior ${ORIOR_ROOT}/includes/exact_types/integers)
+target_link_libraries(orior_host PRIVATE orior_platform_library)
 target_compile_definitions(orior_host PRIVATE ${ORIOR_DEFINES} ORIOR_COUNT_READS=1)
 if(ORIOR_EXACT_LIMBS)
     target_compile_definitions(orior_host PRIVATE ORIOR_EXACT_LIMBS=${ORIOR_EXACT_LIMBS}u)
@@ -218,7 +241,7 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|i[3-6]86)$")
     list(APPEND ORIOR_ARM_SOURCES ${ORIOR_ROOT}/includes/exact_types/integers/arm_avx2.c)
     list(APPEND ORIOR_ARM_DEFINES ORIOR_EXACT_HAVE_AVX2=1)
     # -mavx2 permits the intrinsics in this translation unit. It does not permit the compiler to
-    # assume AVX2 anywhere else, because no other translation unit is built with it.
+    # assume AVX2 anywhere else, because the build gives the flag to no other translation unit.
     if(NOT MSVC)
         list(APPEND ORIOR_ARM_OPTIONS -mavx2)
     else()
@@ -287,7 +310,7 @@ add_library(bench_corpora STATIC ${ORIOR_ROOT}/utils/bench/bench_corpora.c)
 target_include_directories(bench_corpora PUBLIC ${ORIOR_ROOT}/utils/bench)
 target_compile_options(bench_corpora PRIVATE ${SIFT_WARNINGS})
 
-# Reads, which travel between machines and are what an asymptotic claim is made of.
+# Reads, which travel between machines, and which an asymptotic claim consists of.
 add_executable(bench_scaling_reads ${ORIOR_ROOT}/utils/bench/bench_scaling.c)
 target_link_libraries(bench_scaling_reads PRIVATE orior_kernel_counted bench_corpora)
 target_compile_options(bench_scaling_reads PRIVATE ${SIFT_WARNINGS})
@@ -301,7 +324,7 @@ add_executable(bench_dispatch ${ORIOR_ROOT}/utils/bench/bench_dispatch.c)
 target_link_libraries(bench_dispatch PRIVATE orior_kernel bench_corpora)
 target_compile_options(bench_dispatch PRIVATE ${SIFT_WARNINGS})
 
-# The engine's tests live in the orior tree this was forked from; a fork without them builds without them.
+# The tests of the engine lie in utils/test, and a tree without them builds without them.
 set(ORIOR_TESTS "${ORIOR_ROOT}/utils/test/src/cu/engine/nbody/orior")
 if(EXISTS "${ORIOR_TESTS}/test_steer_checks.c")
     add_executable(test_steer ${ORIOR_TESTS}/test_steer_checks.c ${ORIOR_TESTS}/test_steer_grading.c
@@ -363,3 +386,11 @@ foreach(one ${ORIOR_UNTIMED_BENCHES})
         INTERPROCEDURAL_OPTIMIZATION FALSE)
 endforeach()
 
+
+# every executable above runs on the platform, which owns main, and defines program_main
+foreach(one bench_exact_arms bench_exact bench_scaling_reads bench_scaling_cycles bench_dispatch test_steer test_adversarial
+            bench_raster bench_steer_arms bench_sigma bench_coherence test_arm_agreement test_o2_spawn bench_lattice)
+    if(TARGET ${one})
+        target_link_libraries(${one} PRIVATE orior_platform)
+    endif()
+endforeach()

@@ -278,8 +278,10 @@ static void run_repeated_agreement(void)
     }
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     printf("limbs %u places %u\n", (unsigned)ORIOR_EXACT_LIMBS, (unsigned)PLACES);
     run_arithmetic();
     run_errors();

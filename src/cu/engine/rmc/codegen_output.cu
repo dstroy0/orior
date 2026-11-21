@@ -3,6 +3,8 @@
 // codegen_output.cu: the assembly text written on the device, the step layout, and the entry points
 #include "codegen_device_internal.h"
 
+#include "../../../platform/platform.h"
+
 #if (defined(__CUDACC__))
 
 // The lane written on the device, in `device_arena`, which the caller frees, from the step table at `device_steps`, in
@@ -310,8 +312,8 @@ static int layout_steps(DeviceArena *memory, const LayoutRequest *request, Engin
         *error = layout_error(0, &ended);
         return 0;
     }
-    // the sizes as key_schedule_record_layout positions it out; the layout limited the file to ENGINE_RECORD_LIMBS_MAX limbs
-    // and the record's bits to a 31-bit count
+    // the sizes as key_schedule_record_layout positions it out; the layout limited the file to ENGINE_RECORD_LIMBS_MAX
+    // limbs and the record's bits to a 31-bit count
     memset(layout, 0, sizeof(*layout));
     layout->steps = count;
     layout->members = request->members;
@@ -349,9 +351,14 @@ int layout_device(const LayoutRequest *request, EngineRecordLayout *layout, std:
     // the step table and the tables' values read back, arranged as key_schedule_record_layout positions them out
     if (ok != 0)
     {
-        device_layout.step_table = (DeviceRecordStep *)malloc((size_t)device_layout.steps * sizeof(DeviceRecordStep));
+        // the tables are resources of the layout, which key_schedule_record_release gives back to the pool
+        device_layout.step_table =
+            (DeviceRecordStep *)platform_cell_taken((unsigned long long)device_layout.steps * sizeof(DeviceRecordStep),
+                                                    (unsigned int)platform_place_g_engine_owner, 0);
         device_layout.table_values =
-            (value_count != 0ULL) ? (unsigned int *)malloc((size_t)(value_count + 1ULL) * sizeof(unsigned int)) : NULL;
+            (value_count != 0ULL) ? (unsigned int *)platform_cell_taken((value_count + 1ULL) * sizeof(unsigned int),
+                                                                        (unsigned int)platform_place_g_engine_owner, 0)
+                                  : NULL;
         device_layout.table_word_count = value_count;
         ok = (device_layout.step_table != NULL) && ((value_count == 0ULL) || (device_layout.table_values != NULL));
         if (ok != 0)
@@ -364,9 +371,7 @@ int layout_device(const LayoutRequest *request, EngineRecordLayout *layout, std:
         {
             *error =
                 (memory.ok != 0) ? "the host could not store the layout read back" : "the device errored on a call";
-            free(device_layout.step_table);
-            free(device_layout.table_values);
-            device_layout = EngineRecordLayout{};
+            key_schedule_record_release(&device_layout);
         }
     }
     codegen_device_release(&memory);

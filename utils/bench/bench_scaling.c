@@ -64,8 +64,10 @@ typedef struct
     OriorEngine run;
 } Arm;
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     static const Arm ARMS[] = {
         {"exact_compare", orior_naive},
         {"orior_inorder", orior_inorder},

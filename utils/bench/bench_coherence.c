@@ -64,8 +64,10 @@ static double two_to_the(double exponent)
     return power;
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     const size_t type_count = sizeof KINDS / sizeof KINDS[0];
     uint8_t *const corpus = (uint8_t *)malloc(CORPUS_BYTES);
     uint8_t *const absent = (uint8_t *)malloc(NEEDLE_BYTES * NEEDLES_PER_ROW);

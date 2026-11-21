@@ -3,52 +3,55 @@
 #include "keymath.h"
 #include "keymath_core.h"
 
-#include <stdlib.h>
-#include <string.h>
-
-#include <vector>
+#include "../../../../../includes/exact_types/integers/exact_integer.h"
+#include "../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
 
 #define KEYMATH_CHECK(condition_, evacaddr_, error_, type_)                                                            \
     engine_error_check((condition_), (type_), ENGINE_MODULE_KEYMATH, (unsigned int)__LINE__,                           \
                        (const void *)(evacaddr_), (error_))
 
-typedef std::vector<unsigned int> ExactLimbs;
+// the owner that the cells of keymath count to
+#define KEYMATH_PLACE ((unsigned int)platform_place_g_engine_owner)
 
+// One term of the residual key while the steps build it. It holds its sign, its shift, and a row of weights on each
+// axis, each weight an exact integer. The rows are ephemeral, and the encode gives them back before it returns
 struct EncodeTerm
 {
     unsigned int negative;
     unsigned long long shift;
-    std::vector<ExactLimbs> rows[ENGINE_AXES];
+    PlatformArray rows[ENGINE_AXES];
 };
 
-static ExactLimbs exact_sum(const ExactLimbs &left, const ExactLimbs &right)
+// the weight at `tap` of a row, or NULL past its taps
+static OriorExactInteger *encode_weight(const PlatformArray *row, unsigned long long tap)
 {
-    const size_t wider = (left.size() > right.size()) ? left.size() : right.size();
-    ExactLimbs sum(wider + 1u, 0u);
-    unsigned long long carry = 0ULL;
-    for (size_t limb = 0u; limb < wider; limb += 1u)
-    {
-        const unsigned long long total =
-            carry + ((limb < left.size()) ? left[limb] : 0u) + ((limb < right.size()) ? right[limb] : 0u);
-        sum[limb] = (unsigned int)(total & 0xFFFFFFFFULL);
-        carry = total >> 32u;
-    }
-    sum[wider] = (unsigned int)carry;
-    while ((sum.size() > 1u) && (sum.back() == 0u))
-    {
-        sum.pop_back();
-    }
-    return sum;
+    // Explicit cast reads the element of the row as the exact integer that it holds
+    return (OriorExactInteger *)platform_array_at(row, tap);
 }
 
-static unsigned long long exact_bit_length(const ExactLimbs &value)
+// the limbs of a weight up to its top limb that is not zero, at least one
+static unsigned long long encode_limbs_used(const OriorExactInteger *weight)
 {
-    for (size_t limb = value.size(); limb > 0u; limb -= 1u)
+    for (unsigned long long limb = ORIOR_EXACT_LIMBS; limb > 1ULL; limb -= 1ULL)
     {
-        unsigned int top = value[limb - 1u];
+        if (weight->limb[limb - 1ULL] != 0u)
+        {
+            return limb;
+        }
+    }
+    return 1ULL;
+}
+
+// the bits of a weight up to its top bit that is one, 0 for zero
+static unsigned long long encode_bit_length(const OriorExactInteger *weight)
+{
+    for (unsigned long long limb = ORIOR_EXACT_LIMBS; limb > 0ULL; limb -= 1ULL)
+    {
+        unsigned int top = weight->limb[limb - 1ULL];
         if (top != 0u)
         {
-            unsigned long long bits = (unsigned long long)(limb - 1u) * 32ULL;
+            unsigned long long bits = (limb - 1ULL) * 32ULL;
             while (top != 0u)
             {
                 bits += 1ULL;
@@ -60,65 +63,260 @@ static unsigned long long exact_bit_length(const ExactLimbs &value)
     return 0ULL;
 }
 
-static ExactLimbs exact_less_one(ExactLimbs value)
+// a row of `taps` weights, each zero. 1, or 0 where the pool cannot meet it
+static int encode_row_made(PlatformArray *row, unsigned long long taps)
 {
-    for (size_t limb = 0u; limb < value.size(); limb += 1u)
+    platform_array_begun(row, sizeof(OriorExactInteger), KEYMATH_PLACE, 1);
+    return platform_array_counted(row, taps);
+}
+
+// the row `from` copied into `into`, a row of its own. 1, or 0 where the pool cannot meet it
+static int encode_row_copied(PlatformArray *into, const PlatformArray *from)
+{
+    if (!encode_row_made(into, from->count))
     {
-        const unsigned int was = value[limb];
-        value[limb] = was - 1u;
-        if (was != 0u)
+        return 0;
+    }
+    mmgr_bytes_copy(into->cell, from->cell, (size_t)(from->count * from->element));
+    return 1;
+}
+
+// the term `from` copied into `into`, with rows of its own. 1, or 0 where the pool cannot meet them
+static int encode_term_copied(EncodeTerm *into, const EncodeTerm *from)
+{
+    into->negative = from->negative;
+    into->shift = from->shift;
+    int ok = 1;
+    for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
+    {
+        platform_array_begun(&into->rows[axis], sizeof(OriorExactInteger), KEYMATH_PLACE, 1);
+        ok = ok && encode_row_copied(&into->rows[axis], &from->rows[axis]);
+    }
+    return ok;
+}
+
+// the rows of each term of the terms given back, and then the cell of the terms
+static void encode_terms_ended(PlatformArray *terms)
+{
+    for (unsigned long long at = 0ULL; at < terms->count; at += 1ULL)
+    {
+        // Explicit cast reads the element as the term that it holds
+        EncodeTerm *const term = (EncodeTerm *)platform_array_at(terms, at);
+        for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
         {
-            break;
+            platform_array_ended(&term->rows[axis]);
         }
     }
-    return value;
+    platform_array_ended(terms);
 }
 
-static void encode_unit_step(std::vector<ExactLimbs> &row)
+// the terms of `from` copied into `into`, with a cell of its own. 1, or 0 where the pool cannot meet them
+static int encode_terms_copied(PlatformArray *into, const PlatformArray *from)
 {
-    const ExactLimbs zero(1u, 0u);
-    std::vector<ExactLimbs> stepped(row.size() + 1u);
-    for (size_t tap = 0u; tap < stepped.size(); tap += 1u)
+    platform_array_begun(into, sizeof(EncodeTerm), KEYMATH_PLACE, 1);
+    int ok = 1;
+    for (unsigned long long at = 0ULL; ok && (at < from->count); at += 1ULL)
     {
-        const ExactLimbs &here = (tap < row.size()) ? row[tap] : zero;
-        const ExactLimbs &before = (tap > 0u) ? row[tap - 1u] : zero;
-        stepped[tap] = exact_sum(here, before);
+        EncodeTerm copy;
+        // Explicit cast reads the element as the term that it holds
+        ok = encode_term_copied(&copy, (const EncodeTerm *)platform_array_at(from, at)) &&
+             platform_array_appended(into, &copy);
     }
-    row.swap(stepped);
+    return ok;
 }
 
-// the row times 1 + z + ... + z^(length - 1): each tap the sum of the `length` taps ending at it
-static void encode_comb(std::vector<ExactLimbs> &row, unsigned int length)
+// The row replaced by `next`: the cell of the old row goes back, and the row takes the cell of `next`
+static void encode_row_replaced(PlatformArray *row, PlatformArray *next)
 {
-    const ExactLimbs zero(1u, 0u);
-    std::vector<ExactLimbs> summed(row.size() + length - 1u, zero);
-    for (size_t tap = 0u; tap < summed.size(); tap += 1u)
+    platform_array_ended(row);
+    *row = *next;
+}
+
+// the row times 1 + z: each tap the sum of itself and the tap before. 1, or 0 where a weight passes the width
+static int encode_unit_step(PlatformArray *row)
+{
+    PlatformArray stepped;
+    if (!encode_row_made(&stepped, row->count + 1ULL))
     {
-        for (unsigned int back = 0u; (back < length) && (back <= tap); back += 1u)
+        return 0;
+    }
+    int ok = 1;
+    for (unsigned long long tap = 0ULL; ok && (tap < stepped.count); tap += 1ULL)
+    {
+        OriorExactInteger *const into = encode_weight(&stepped, tap);
+        const OriorExactInteger *const here = encode_weight(row, tap);
+        const OriorExactInteger *const before = (tap > 0ULL) ? encode_weight(row, tap - 1ULL) : NULL;
+        if (here != NULL)
         {
-            if ((tap - back) < row.size())
+            ok = orior_exact_add(into, here, into) == ORIOR_EXACT_OK;
+        }
+        if (ok && (before != NULL))
+        {
+            ok = orior_exact_add(into, before, into) == ORIOR_EXACT_OK;
+        }
+    }
+    encode_row_replaced(row, &stepped);
+    return ok;
+}
+
+// the row times 1 + z + ... + z^(length - 1): each tap the sum of the `length` taps ending at it. 1, or 0 where a
+// weight passes the width
+static int encode_comb(PlatformArray *row, unsigned int length)
+{
+    PlatformArray summed;
+    if (!encode_row_made(&summed, row->count + length - 1u))
+    {
+        return 0;
+    }
+    int ok = 1;
+    for (unsigned long long tap = 0ULL; ok && (tap < summed.count); tap += 1ULL)
+    {
+        for (unsigned int back = 0u; ok && (back < length) && (back <= tap); back += 1u)
+        {
+            const OriorExactInteger *const weight = encode_weight(row, tap - back);
+            if (weight != NULL)
             {
-                summed[tap] = exact_sum(summed[tap], row[tap - back]);
+                ok =
+                    orior_exact_add(encode_weight(&summed, tap), weight, encode_weight(&summed, tap)) == ORIOR_EXACT_OK;
             }
         }
     }
-    row.swap(summed);
+    encode_row_replaced(row, &summed);
+    return ok;
 }
 
-// the row times 1 + 2 z^spacing + z^(2 spacing): a pair [1, 2, 1] whose taps are `spacing` apart, two taps of the
-// row's own spacing and none between
-static void encode_spaced_pair(std::vector<ExactLimbs> &row, unsigned long long spacing)
+// the row times 1 + 2 z^spacing + z^(2 spacing): a pair [1, 2, 1] whose taps are `spacing` apart, two taps of the row's
+// own spacing and none between. 1, or 0 where a weight passes the width
+static int encode_spaced_pair(PlatformArray *row, unsigned long long spacing)
 {
-    const ExactLimbs zero(1u, 0u);
-    std::vector<ExactLimbs> paired(row.size() + (size_t)(2ULL * spacing), zero);
-    for (size_t tap = 0u; tap < row.size(); tap += 1u)
+    PlatformArray paired;
+    if (!encode_row_made(&paired, row->count + (2ULL * spacing)))
     {
-        const ExactLimbs twice = exact_sum(row[tap], row[tap]);
-        paired[tap] = exact_sum(paired[tap], row[tap]);
-        paired[tap + (size_t)spacing] = exact_sum(paired[tap + (size_t)spacing], twice);
-        paired[tap + (size_t)(2ULL * spacing)] = exact_sum(paired[tap + (size_t)(2ULL * spacing)], row[tap]);
+        return 0;
     }
-    row.swap(paired);
+    int ok = 1;
+    for (unsigned long long tap = 0ULL; ok && (tap < row->count); tap += 1ULL)
+    {
+        const OriorExactInteger *const weight = encode_weight(row, tap);
+        OriorExactInteger *const first = encode_weight(&paired, tap);
+        OriorExactInteger *const middle = encode_weight(&paired, tap + spacing);
+        OriorExactInteger *const last = encode_weight(&paired, tap + (2ULL * spacing));
+        ok = (orior_exact_add(first, weight, first) == ORIOR_EXACT_OK) &&
+             (orior_exact_add(middle, weight, middle) == ORIOR_EXACT_OK) &&
+             (orior_exact_add(middle, weight, middle) == ORIOR_EXACT_OK) &&
+             (orior_exact_add(last, weight, last) == ORIOR_EXACT_OK);
+    }
+    encode_row_replaced(row, &paired);
+    return ok;
+}
+
+// the terms of `running` stepped by one smooth, comb or spaced pair. 1, or 0 where a weight passes the width or the
+// pool cannot meet a row
+static int encode_terms_stepped(PlatformArray *running, const EngineStep *doing)
+{
+    int ok = 1;
+    for (unsigned int axis = 0u; ok && (axis < ENGINE_AXES); axis += 1u)
+    {
+        for (unsigned long long at = 0ULL; ok && (at < running->count); at += 1ULL)
+        {
+            // Explicit cast reads the element as the term that it holds
+            EncodeTerm *const term = (EncodeTerm *)platform_array_at(running, at);
+            if (doing->operation == ENGINE_SMOOTH)
+            {
+                for (unsigned int unit = 0u; ok && (unit < doing->orders[axis]); unit += 1u)
+                {
+                    ok = encode_unit_step(&term->rows[axis]);
+                }
+            }
+            else if ((doing->operation == ENGINE_COMB) && (doing->orders[axis] >= 2u))
+            {
+                ok = encode_comb(&term->rows[axis], doing->orders[axis]);
+            }
+            else if (doing->operation == ENGINE_SPACED)
+            {
+                for (unsigned int pair = 0u; ok && (pair < doing->orders[axis]); pair += 1u)
+                {
+                    ok = encode_spaced_pair(&term->rows[axis], 1ULL << doing->shift);
+                }
+            }
+        }
+    }
+    return ok;
+}
+
+// The key of the terms: each term's sign and shift, and on each axis its taps, its limbs and its growth. The limbs of
+// each row go out limb by limb, each limb over every weight of the row. 1, or 0 where the pool cannot meet them
+static int encode_key_placed(const PlatformArray *running, EngineKey *key, EngineError *error)
+{
+    unsigned long long limb_count = 0ULL;
+    for (unsigned long long at = 0ULL; at < running->count; at += 1ULL)
+    {
+        // Explicit cast reads the element as the term that it holds
+        const EncodeTerm *const term = (const EncodeTerm *)platform_array_at(running, at);
+        for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
+        {
+            unsigned long long widest = 1ULL;
+            for (unsigned long long tap = 0ULL; tap < term->rows[axis].count; tap += 1ULL)
+            {
+                const unsigned long long used = encode_limbs_used(encode_weight(&term->rows[axis], tap));
+                widest = (used > widest) ? used : widest;
+            }
+            limb_count += widest * term->rows[axis].count;
+        }
+    }
+    // the key is a resource that the caller gives back with keymath_key_release
+    key->term = (EngineKeyTerm *)platform_cell_taken((running->count + 1ULL) * sizeof(EngineKeyTerm), KEYMATH_PLACE, 0);
+    key->limbs = (unsigned int *)platform_cell_taken((limb_count + 1ULL) * sizeof(unsigned int), KEYMATH_PLACE, 0);
+    if (!KEYMATH_CHECK((key->term != NULL) && (key->limbs != NULL), key, error, ENGINE_ERROR_RESOURCE))
+    {
+        return 0;
+    }
+    unsigned long long placed_limbs = 0ULL;
+    OriorExactInteger one;
+    orior_exact_zero(&one);
+    one.limb[0] = 1u;
+    one.sign = 1;
+    for (unsigned long long at = 0ULL; at < running->count; at += 1ULL)
+    {
+        // Explicit cast reads the element as the term that it holds
+        const EncodeTerm *const term = (const EncodeTerm *)platform_array_at(running, at);
+        EngineKeyTerm *const out = &key->term[at];
+        mmgr_bytes_set(out, 0u, sizeof(*out));
+        out->negative = term->negative;
+        out->shift = term->shift;
+        for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
+        {
+            const PlatformArray *const row = &term->rows[axis];
+            unsigned long long widest = 1ULL;
+            OriorExactInteger sum;
+            orior_exact_zero(&sum);
+            for (unsigned long long tap = 0ULL; tap < row->count; tap += 1ULL)
+            {
+                const unsigned long long used = encode_limbs_used(encode_weight(row, tap));
+                widest = (used > widest) ? used : widest;
+                (void)orior_exact_add(&sum, encode_weight(row, tap), &sum);
+            }
+            // the growth is the bits of the sum less one, and the sum of a row of weights is at least one
+            OriorExactInteger less_one;
+            (void)orior_exact_subtract(&sum, &one, &less_one);
+            EngineKeyRow *const placed = &out->row[axis];
+            placed->taps = row->count;
+            placed->limbs = widest;
+            placed->first = placed_limbs;
+            placed->growth_bits = encode_bit_length(&less_one);
+            for (unsigned long long limb = 0ULL; limb < widest; limb += 1ULL)
+            {
+                for (unsigned long long tap = 0ULL; tap < row->count; tap += 1ULL)
+                {
+                    key->limbs[placed_limbs] = encode_weight(row, tap)->limb[limb];
+                    placed_limbs += 1ULL;
+                }
+            }
+        }
+    }
+    key->terms = (unsigned int)running->count;
+    key->limb_count = placed_limbs;
+    return 1;
 }
 
 extern "C" long keymath_encode(const KeymathEncodeRequest *request)
@@ -133,163 +331,114 @@ extern "C" long keymath_encode(const KeymathEncodeRequest *request)
     {
         return KEYMATH_ERROR;
     }
-    memset(request->key, 0, sizeof(*request->key));
-
-    std::vector<EncodeTerm> running(1u);
-    running[0].negative = 0u;
-    running[0].shift = 0ULL;
+    mmgr_bytes_set(request->key, 0u, sizeof(*request->key));
+    // the one term of the start: each axis a row of the one weight 1
+    PlatformArray running;
+    platform_array_begun(&running, sizeof(EncodeTerm), KEYMATH_PLACE, 1);
+    EncodeTerm start;
+    start.negative = 0u;
+    start.shift = 0ULL;
+    int ok = 1;
     for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
     {
-        running[0].rows[axis].assign(1u, ExactLimbs(1u, 1u));
+        ok = encode_row_made(&start.rows[axis], 1ULL) && ok;
+        if (ok)
+        {
+            OriorExactInteger *const weight = encode_weight(&start.rows[axis], 0ULL);
+            weight->limb[0] = 1u;
+            weight->sign = 1;
+        }
     }
-    std::vector<EncodeTerm> saved;
+    ok = ok && platform_array_appended(&running, &start);
+    PlatformArray saved;
+    platform_array_begun(&saved, sizeof(EncodeTerm), KEYMATH_PLACE, 1);
     int has_saved = 0;
-    // whether the running terms' and the retained terms' centers sit half a voxel before the voxel on each axis: an
-    // order o's window starts floor((o + 1) / 2) before it, and the center moves half a voxel with each odd order
+    // whether the centers of the running terms and of the retained terms sit half a voxel before the voxel on each
+    // axis. The window of an order o starts floor((o + 1) / 2) before it, and the center moves half a voxel with each
+    // odd order
     unsigned int running_half[ENGINE_AXES] = {0u, 0u, 0u};
     unsigned int saved_half[ENGINE_AXES] = {0u, 0u, 0u};
-    for (unsigned int step = 0u; step < request->count; step += 1u)
+    for (unsigned int step = 0u; ok && (step < request->count); step += 1u)
     {
-        const EngineStep &doing = request->steps[step];
-        if (doing.operation == ENGINE_SMOOTH)
+        const EngineStep *const doing = &request->steps[step];
+        if (doing->operation == ENGINE_SMOOTH)
         {
             for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
             {
-                running_half[axis] ^= doing.orders[axis] & 1u;
-                for (EncodeTerm &term : running)
-                {
-                    for (unsigned int unit = 0u; unit < doing.orders[axis]; unit += 1u)
-                    {
-                        encode_unit_step(term.rows[axis]);
-                    }
-                }
+                running_half[axis] ^= doing->orders[axis] & 1u;
             }
+            ok = KEYMATH_CHECK(encode_terms_stepped(&running, doing), doing, error, ENGINE_ERROR_REQUEST);
         }
-        else if (doing.operation == ENGINE_COMB)
+        else if (doing->operation == ENGINE_COMB)
         {
             for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
             {
-                const unsigned int length = doing.orders[axis];
-                if (length < 2u)
-                {
-                    continue;
-                }
                 // a comb of n widens the window by n - 1 taps, and moves the center as an order of n - 1 does
-                running_half[axis] ^= (length - 1u) & 1u;
-                for (EncodeTerm &term : running)
-                {
-                    encode_comb(term.rows[axis], length);
-                }
+                running_half[axis] ^= (doing->orders[axis] >= 2u) ? ((doing->orders[axis] - 1u) & 1u) : 0u;
             }
+            ok = KEYMATH_CHECK(encode_terms_stepped(&running, doing), doing, error, ENGINE_ERROR_REQUEST);
         }
-        else if (doing.operation == ENGINE_SPACED)
+        else if (doing->operation == ENGINE_SPACED)
         {
             // a spaced pair is symmetric about the voxel: it widens the window by 2 · 2^shift taps and moves no center
-            if (!KEYMATH_CHECK(doing.shift < ENGINE_SPACINGS, &doing, error, ENGINE_ERROR_REQUEST))
-            {
-                return KEYMATH_ERROR;
-            }
-            for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
-            {
-                for (EncodeTerm &term : running)
-                {
-                    for (unsigned int pair = 0u; pair < doing.orders[axis]; pair += 1u)
-                    {
-                        encode_spaced_pair(term.rows[axis], 1ULL << doing.shift);
-                    }
-                }
-            }
+            ok = KEYMATH_CHECK(doing->shift < ENGINE_SPACINGS, doing, error, ENGINE_ERROR_REQUEST) &&
+                 KEYMATH_CHECK(encode_terms_stepped(&running, doing), doing, error, ENGINE_ERROR_REQUEST);
         }
-        else if (doing.operation == ENGINE_SAVE)
+        else if (doing->operation == ENGINE_SAVE)
         {
-            saved = running;
+            encode_terms_ended(&saved);
+            ok = KEYMATH_CHECK(encode_terms_copied(&saved, &running), doing, error, ENGINE_ERROR_RESOURCE);
             has_saved = 1;
-            memcpy(saved_half, running_half, sizeof(saved_half));
+            mmgr_bytes_copy(saved_half, running_half, sizeof(saved_half));
         }
-        else if ((doing.operation == ENGINE_SCALE_SUBTRACT) && (has_saved != 0))
+        else if ((doing->operation == ENGINE_SCALE_SUBTRACT) && (has_saved != 0))
         {
             // terms subtracted half a voxel apart are no residual of one voxel
-            if (!KEYMATH_CHECK(memcmp(saved_half, running_half, sizeof(saved_half)) == 0, &doing, error,
-                               ENGINE_ERROR_REQUEST))
+            PlatformArray next;
+            ok = KEYMATH_CHECK(mmgr_bytes_compare(saved_half, running_half, sizeof(saved_half)) == 0, doing, error,
+                               ENGINE_ERROR_REQUEST) &&
+                 KEYMATH_CHECK(encode_terms_copied(&next, &saved), doing, error, ENGINE_ERROR_RESOURCE);
+            for (unsigned long long at = 0ULL; ok && (at < next.count); at += 1ULL)
             {
-                return KEYMATH_ERROR;
+                // Explicit cast reads the element as the term that it holds
+                ((EncodeTerm *)platform_array_at(&next, at))->shift += (unsigned long long)doing->shift;
             }
-            std::vector<EncodeTerm> next = saved;
-            for (EncodeTerm &term : next)
+            // the running terms move to the end of next, each of the opposite sign, and their rows move with them
+            for (unsigned long long at = 0ULL; ok && (at < running.count); at += 1ULL)
             {
-                term.shift += (unsigned long long)doing.shift;
+                // Explicit cast reads the element as the term that it holds
+                EncodeTerm moved = *(EncodeTerm *)platform_array_at(&running, at);
+                moved.negative ^= 1u;
+                ok = KEYMATH_CHECK(platform_array_appended(&next, &moved), doing, error, ENGINE_ERROR_RESOURCE);
             }
-            for (EncodeTerm term : running)
-            {
-                term.negative ^= 1u;
-                next.push_back(term);
-            }
-            running.swap(next);
+            platform_array_ended(&running);
+            running = next;
         }
         else
         {
-            KEYMATH_CHECK(0, &doing, error, ENGINE_ERROR_REQUEST);
-            return KEYMATH_ERROR;
+            ok = KEYMATH_CHECK(0, doing, error, ENGINE_ERROR_REQUEST);
         }
     }
-
-    std::vector<EngineKeyTerm> table(running.size());
-    std::vector<unsigned int> limbs;
-    for (size_t index = 0u; index < running.size(); index += 1u)
+    ok = ok && encode_key_placed(&running, request->key, error);
+    encode_terms_ended(&running);
+    encode_terms_ended(&saved);
+    if (!ok)
     {
-        const EncodeTerm &term = running[index];
-        EngineKeyTerm &out = table[index];
-        memset(&out, 0, sizeof(out));
-        out.negative = term.negative;
-        out.shift = term.shift;
-        for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
-        {
-            const std::vector<ExactLimbs> &row = term.rows[axis];
-            size_t widest = 1u;
-            ExactLimbs sum(1u, 0u);
-            for (const ExactLimbs &weight : row)
-            {
-                widest = (weight.size() > widest) ? weight.size() : widest;
-                sum = exact_sum(sum, weight);
-            }
-            EngineKeyRow &placed = out.row[axis];
-            placed.taps = (unsigned long long)row.size();
-            placed.limbs = (unsigned long long)widest;
-            placed.first = (unsigned long long)limbs.size();
-            placed.growth_bits = exact_bit_length(exact_less_one(sum));
-            for (size_t limb = 0u; limb < widest; limb += 1u)
-            {
-                for (const ExactLimbs &weight : row)
-                {
-                    limbs.push_back((limb < weight.size()) ? weight[limb] : 0u);
-                }
-            }
-        }
-    }
-    EngineKey *const key = request->key;
-    key->term = (EngineKeyTerm *)malloc((table.size() + 1u) * sizeof(EngineKeyTerm));
-    key->limbs = (unsigned int *)malloc((limbs.size() + 1u) * sizeof(unsigned int));
-    if (!KEYMATH_CHECK((key->term != NULL) && (key->limbs != NULL), key, error, ENGINE_ERROR_RESOURCE))
-    {
-        keymath_key_release(key);
+        keymath_key_release(request->key);
         return KEYMATH_ERROR;
     }
-    memcpy(key->term, table.data(), table.size() * sizeof(EngineKeyTerm));
-    memcpy(key->limbs, limbs.data(), limbs.size() * sizeof(unsigned int));
-    key->terms = (unsigned int)table.size();
-    key->limb_count = (unsigned long long)limbs.size();
-    return (long)key->terms;
+    return (long)request->key->terms;
 }
 
 extern "C" void keymath_key_release(EngineKey *key)
 {
-    free(key->term);
-    free(key->limbs);
-    memset(key, 0, sizeof(*key));
+    platform_cell_released(key->term, KEYMATH_PLACE);
+    platform_cell_released(key->limbs, KEYMATH_PLACE);
+    mmgr_bytes_set(key, 0u, sizeof(*key));
 }
 
-// The record encoding: each step's term, width and form arranged by keymath_core_record_encode (keymath_core.h), which
-// the device runs as well, and the key arranged from the terms, the outputs and the tables
+// The record encoding. keymath_core_record_encode (keymath_core.h), which the device runs as well, arranges the term,
+// the width and the form of each step. The key then comes from the terms, the outputs and the tables
 extern "C" long keymath_record_encode(const KeymathRecordRequest *request)
 {
     if ((request == NULL) || (request->error == NULL))
@@ -305,11 +454,25 @@ extern "C" long keymath_record_encode(const KeymathRecordRequest *request)
     {
         return KEYMATH_ERROR;
     }
-    memset(request->key, 0, sizeof(*request->key));
-    std::vector<EngineRecordTerm> terms(request->count);
-    std::vector<unsigned char> never_negative(request->count, (unsigned char)0u);
-    std::vector<KeymathCoreAffine> forms(request->count);
-    std::vector<KeymathCoreTerm> arena;
+    mmgr_bytes_set(request->key, 0u, sizeof(*request->key));
+    const unsigned long long count = request->count;
+    // the work of the encoding is ephemeral, and the key is a resource that the caller gives back
+    EngineRecordTerm *const terms =
+        (EngineRecordTerm *)platform_cell_taken(count * sizeof(EngineRecordTerm), KEYMATH_PLACE, 0);
+    unsigned char *const never_negative = (unsigned char *)platform_cell_taken(count, KEYMATH_PLACE, 1);
+    KeymathCoreAffine *const forms =
+        (KeymathCoreAffine *)platform_cell_taken(count * sizeof(KeymathCoreAffine), KEYMATH_PLACE, 1);
+    if (!KEYMATH_CHECK((terms != NULL) && (never_negative != NULL) && (forms != NULL), request, error,
+                       ENGINE_ERROR_RESOURCE))
+    {
+        platform_cell_released(forms, KEYMATH_PLACE);
+        platform_cell_released(never_negative, KEYMATH_PLACE);
+        platform_cell_released(terms, KEYMATH_PLACE);
+        return KEYMATH_ERROR;
+    }
+    mmgr_bytes_set(terms, 0u, (size_t)(count * sizeof(EngineRecordTerm)));
+    mmgr_bytes_set(never_negative, 0u, (size_t)count);
+    mmgr_bytes_set(forms, 0u, (size_t)(count * sizeof(KeymathCoreAffine)));
     unsigned int bound[KEYMATH_BOUND_LIMBS];
     KeymathCoreEncode encoding{};
     encoding.steps = request->steps;
@@ -321,22 +484,35 @@ extern "C" long keymath_record_encode(const KeymathRecordRequest *request)
     encoding.output_count = request->output_count;
     encoding.tables = request->tables;
     encoding.table_count = request->table_count;
-    encoding.terms = terms.data();
-    encoding.never_negative = never_negative.data();
-    encoding.forms = forms.data();
+    encoding.terms = terms;
+    encoding.never_negative = never_negative;
+    encoding.forms = forms;
     encoding.bound = bound;
-    unsigned long long capacity = (unsigned long long)request->count * KEYMATH_ARENA_PER_STEP;
+    // the arena of the encoding, which doubles where the encoding ends full
+    PlatformArray arena;
+    platform_array_begun(&arena, sizeof(KeymathCoreTerm), KEYMATH_PLACE, 1);
+    unsigned long long capacity = count * KEYMATH_ARENA_PER_STEP;
     int ok = 0;
+    int room = 1;
     do
     {
-        arena.resize((size_t)capacity);
-        encoding.arena.terms = arena.data();
+        room = platform_array_counted(&arena, capacity);
+        encoding.arena.terms = (KeymathCoreTerm *)arena.cell;
         encoding.arena.capacity = capacity;
-        ok = keymath_core_record_encode(&encoding);
+        ok = room && keymath_core_record_encode(&encoding);
         capacity *= 2ULL;
-    } while ((ok == 0) && (encoding.end == KEYMATH_CORE_FULL));
+    } while (room && (ok == 0) && (encoding.end == KEYMATH_CORE_FULL));
+    platform_array_ended(&arena);
+    platform_cell_released(forms, KEYMATH_PLACE);
+    platform_cell_released(never_negative, KEYMATH_PLACE);
     if (ok == 0)
     {
+        platform_cell_released(terms, KEYMATH_PLACE);
+        if (!room)
+        {
+            KEYMATH_CHECK(0, request, error, ENGINE_ERROR_RESOURCE);
+            return KEYMATH_ERROR;
+        }
         // the step, its table or the output the encoding ended at
         const void *const evacaddr =
             (encoding.end == KEYMATH_CORE_OUTPUT)  ? (const void *)&request->outputs[encoding.at]
@@ -346,56 +522,60 @@ extern "C" long keymath_record_encode(const KeymathRecordRequest *request)
         return KEYMATH_ERROR;
     }
     EngineRecordKey *const key = request->key;
-    key->term = (EngineRecordTerm *)malloc(terms.size() * sizeof(EngineRecordTerm));
-    key->output = (unsigned int *)malloc((size_t)request->output_count * sizeof(unsigned int));
-    if (!KEYMATH_CHECK((key->term != NULL) && (key->output != NULL), key, error, ENGINE_ERROR_RESOURCE))
+    key->term = terms;
+    key->output = (unsigned int *)platform_cell_taken((unsigned long long)request->output_count * sizeof(unsigned int),
+                                                      KEYMATH_PLACE, 0);
+    if (!KEYMATH_CHECK(key->output != NULL, key, error, ENGINE_ERROR_RESOURCE))
     {
         keymath_record_release(key);
         return KEYMATH_ERROR;
     }
-    memcpy(key->term, terms.data(), terms.size() * sizeof(EngineRecordTerm));
-    memcpy(key->output, request->outputs, (size_t)request->output_count * sizeof(unsigned int));
+    mmgr_bytes_copy(key->output, request->outputs, (size_t)request->output_count * sizeof(unsigned int));
     key->steps = request->count;
     key->members = request->members;
     key->outputs = request->output_count;
     key->tables = request->table_count;
     if (request->table_count != 0u)
     {
-        std::vector<unsigned int> values;
-        key->table = (EngineRecordTable *)malloc((size_t)request->table_count * sizeof(EngineRecordTable));
-        if (!KEYMATH_CHECK(key->table != NULL, key, error, ENGINE_ERROR_RESOURCE))
-        {
-            keymath_record_release(key);
-            return KEYMATH_ERROR;
-        }
+        // the words of every table, one after the next
+        unsigned long long words = 0ULL;
         for (unsigned int table = 0u; table < request->table_count; table += 1u)
         {
-            const EngineRecordTable &source = request->tables[table];
             // index_bits is at max 32, and the entry count at max 2^32, which an unsigned long long represents
-            const unsigned long long entries = 1ULL << source.index_bits;
-            const unsigned int out_limbs = (source.out_bits + 31u) / 32u;
-            key->table[table].index_bits = source.index_bits;
-            key->table[table].out_bits = source.out_bits;
-            key->table[table].values = NULL;
-            values.insert(values.end(), source.values, source.values + (entries * out_limbs));
+            words += (1ULL << request->tables[table].index_bits) * ((request->tables[table].out_bits + 31u) / 32u);
         }
-        key->table_values = (unsigned int *)malloc((values.size() + 1u) * sizeof(unsigned int));
-        if (!KEYMATH_CHECK(key->table_values != NULL, key, error, ENGINE_ERROR_RESOURCE))
+        key->table = (EngineRecordTable *)platform_cell_taken(
+            (unsigned long long)request->table_count * sizeof(EngineRecordTable), KEYMATH_PLACE, 0);
+        key->table_values =
+            (unsigned int *)platform_cell_taken((words + 1ULL) * sizeof(unsigned int), KEYMATH_PLACE, 0);
+        if (!KEYMATH_CHECK((key->table != NULL) && (key->table_values != NULL), key, error, ENGINE_ERROR_RESOURCE))
         {
             keymath_record_release(key);
             return KEYMATH_ERROR;
         }
-        memcpy(key->table_values, values.data(), values.size() * sizeof(unsigned int));
-        key->table_word_count = (unsigned long long)values.size();
+        unsigned long long at = 0ULL;
+        for (unsigned int table = 0u; table < request->table_count; table += 1u)
+        {
+            const EngineRecordTable *const source = &request->tables[table];
+            const unsigned long long entries = 1ULL << source->index_bits;
+            const unsigned int out_limbs = (source->out_bits + 31u) / 32u;
+            key->table[table].index_bits = source->index_bits;
+            key->table[table].out_bits = source->out_bits;
+            key->table[table].values = NULL;
+            mmgr_bytes_copy(&key->table_values[at], source->values,
+                            (size_t)(entries * out_limbs * sizeof(unsigned int)));
+            at += entries * out_limbs;
+        }
+        key->table_word_count = words;
     }
     return (long)key->steps;
 }
 
 extern "C" void keymath_record_release(EngineRecordKey *key)
 {
-    free(key->term);
-    free(key->output);
-    free(key->table);
-    free(key->table_values);
-    memset(key, 0, sizeof(*key));
+    platform_cell_released(key->term, KEYMATH_PLACE);
+    platform_cell_released(key->output, KEYMATH_PLACE);
+    platform_cell_released(key->table, KEYMATH_PLACE);
+    platform_cell_released(key->table_values, KEYMATH_PLACE);
+    mmgr_bytes_set(key, 0u, sizeof(*key));
 }

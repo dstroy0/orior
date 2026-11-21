@@ -3,14 +3,17 @@
 #include "cycle.h"
 #include "../../../../../includes/exact_types/integers/exact_integer.h"
 
-#include <stdlib.h>
-#include <string.h>
+#include "../../../../platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
 
 _Static_assert(ORIOR_EXACT_LIMBS >= 2u, "cycle: a record constant is 64 bits and needs two limbs");
 
 #define CYCLE_CHECK(condition_, evacaddr_, error_, type_)                                                              \
     engine_error_check((condition_), (type_), ENGINE_MODULE_CYCLE, (unsigned int)__LINE__, (const void *)(evacaddr_),  \
                        (error_))
+
+// the owner that the cells of the host route count to
+#define CYCLE_PLACE ((unsigned int)platform_place_g_engine_owner)
 
 static int cycle_host_fits(const OriorExactInteger *value, unsigned int limbs)
 {
@@ -90,8 +93,8 @@ static int cycle_host_ladder(const OriorExactInteger *numerator, const OriorExac
     return 1;
 }
 
-// limb `at` of an integer's two's complement, the device's cycle_record_complement: `carry` starts at 1 and the limbs
-// are taken from the lowest up
+// limb `at` of the two's complement of an integer, as the cycle_record_complement of the device does it. `carry` starts
+// at 1, and the walk takes the limbs from the lowest up
 static uint32_t cycle_host_complement(const OriorExactInteger *value, unsigned int at, unsigned long long *carry)
 {
     if (value->sign >= 0)
@@ -118,8 +121,8 @@ static void cycle_host_uncomplement(OriorExactInteger *value, unsigned int limbs
     cycle_host_settle(value, (negative != 0) ? -1 : 1);
 }
 
-// the xor or the and over the step's limbs, its sign the operands' (the xor negative where exactly one is, the and
-// where both are), as the device's cycle_record_bitwise
+// the xor or the and over the limbs of the step, as the cycle_record_bitwise of the device. Its sign is that of the
+// operands: the xor is negative where exactly one is, and the and where both are
 static void cycle_host_bitwise(const DeviceRecordStep *step, const OriorExactInteger *left,
                                const OriorExactInteger *right, OriorExactInteger *value)
 {
@@ -164,8 +167,7 @@ static void cycle_host_wrap(const DeviceRecordStep *step, const OriorExactIntege
     *value = result;
 }
 
-static void cycle_host_put(unsigned int *record, unsigned int offset, unsigned int bits,
-                           const OriorExactInteger *value)
+static void cycle_host_put(unsigned int *record, unsigned int offset, unsigned int bits, const OriorExactInteger *value)
 {
     unsigned int carry = 1u;
     for (unsigned int bit = 0u; bit < bits; bit += 1u)
@@ -330,7 +332,8 @@ long cycle_record_run_host(const CycleRecordHostRequest *request)
     {
         // with no index, lane i reads record i of a member, or its one record where it has one
         if (!CYCLE_CHECK((request->in[member] != NULL) && (request->bodies[member] != 0ULL) &&
-                             ((request->index != NULL) || (request->first + request->count <= request->bodies[member]) ||
+                             ((request->index != NULL) ||
+                              (request->first + request->count <= request->bodies[member]) ||
                               (request->bodies[member] == 1ULL)),
                          &request->in[member], error, ENGINE_ERROR_REQUEST))
         {
@@ -339,14 +342,16 @@ long cycle_record_run_host(const CycleRecordHostRequest *request)
     }
     for (unsigned int at = 0u; at < layout->steps; at += 1u)
     {
-        // a step wider than the host's exact integer cannot be represented on the host
+        // the exact integer of the host cannot hold a step wider than it
         if (!CYCLE_CHECK(layout->step_table[at].limbs <= ORIOR_EXACT_LIMBS, &layout->step_table[at], error,
                          ENGINE_ERROR_REQUEST))
         {
             return CYCLE_ERROR;
         }
     }
-    OriorExactInteger *const file = (OriorExactInteger *)malloc((size_t)layout->steps * sizeof(OriorExactInteger));
+    // the register file of the run, ephemeral work that goes back before the run returns
+    OriorExactInteger *const file = (OriorExactInteger *)platform_cell_taken(
+        (unsigned long long)layout->steps * sizeof(OriorExactInteger), CYCLE_PLACE, 1);
     if (!CYCLE_CHECK(file != NULL, layout, error, ENGINE_ERROR_RESOURCE))
     {
         return CYCLE_ERROR;
@@ -367,7 +372,7 @@ long cycle_record_run_host(const CycleRecordHostRequest *request)
             atom[member] = &request->in[member][(ok ? body : 0ULL) * layout->in_limbs[member]];
         }
         unsigned int *const record = &request->out[written * layout->out_limbs];
-        memset(record, 0, (size_t)layout->out_limbs * sizeof(unsigned int));
+        memor.set(&(MemoriaCfg){.dst = record, .bytes = (size_t)layout->out_limbs * sizeof(unsigned int), .val = 0u});
         for (unsigned int at = 0u; ok && (at < layout->steps); at += 1u)
         {
             const DeviceRecordStep *const step = &layout->step_table[at];
@@ -383,7 +388,7 @@ long cycle_record_run_host(const CycleRecordHostRequest *request)
             }
         }
     }
-    free(file);
+    platform_cell_released(file, CYCLE_PLACE);
     return ok ? (long)request->count : CYCLE_ERROR;
 }
 
@@ -440,14 +445,16 @@ static unsigned int cycle_host_bit_length(unsigned long long value)
     return length;
 }
 
-// 1 where a sum request is whole: records and sums named, a whole number of runs of at max 2^32 records, the field
-// inside its record, and the sums wide enough for the field and the run's count beside it. Shared by both routes
+// 1 where a sum request is whole. It names records and sums, and a whole number of runs of at max 2^32 records. The
+// field lies inside its record, and the sums are wide enough for the field and the count of the run beside it. Both
+// routes call this
 int cycle_record_sum_valid(const CycleRecordSumRequest *request)
 {
     return (request->records != NULL) && (request->sums != NULL) && (request->count != 0ULL) &&
            (request->group != 0ULL) && (request->group <= (1ULL << 32u)) &&
            ((request->count % request->group) == 0ULL) && (request->out_limbs != 0u) && (request->bits != 0u) &&
-           (((unsigned long long)request->offset + request->bits) <= (32ULL * (unsigned long long)request->out_limbs)) &&
+           (((unsigned long long)request->offset + request->bits) <=
+            (32ULL * (unsigned long long)request->out_limbs)) &&
            ((32ULL * (unsigned long long)request->sum_limbs) >=
             ((unsigned long long)request->bits + cycle_host_bit_length(request->group)));
 }
@@ -456,7 +463,7 @@ int cycle_record_sum_valid(const CycleRecordSumRequest *request)
 static void cycle_host_sum_field(const unsigned int *record, unsigned int offset, unsigned int bits,
                                  unsigned int *value, unsigned int limbs)
 {
-    memset(value, 0, limbs * sizeof(unsigned int));
+    memor.set(&(MemoriaCfg){.dst = value, .bytes = limbs * sizeof(unsigned int), .val = 0u});
     for (unsigned int bit = 0u; bit < bits; bit += 1u)
     {
         const unsigned int from = offset + bit;
@@ -482,7 +489,8 @@ long cycle_record_sum_host(const CycleRecordSumRequest *request)
         return CYCLE_ERROR;
     }
     const unsigned int limbs = request->sum_limbs;
-    unsigned int *const value = (unsigned int *)malloc(limbs * sizeof(unsigned int));
+    unsigned int *const value =
+        (unsigned int *)platform_cell_taken((unsigned long long)limbs * sizeof(unsigned int), CYCLE_PLACE, 1);
     if (!CYCLE_CHECK(value != NULL, request, error, ENGINE_ERROR_RESOURCE))
     {
         return CYCLE_ERROR;
@@ -491,7 +499,7 @@ long cycle_record_sum_host(const CycleRecordSumRequest *request)
     for (unsigned long long run = 0ULL; run < runs; run += 1ULL)
     {
         unsigned int *const sum = &request->sums[run * limbs];
-        memset(sum, 0, limbs * sizeof(unsigned int));
+        memor.set(&(MemoriaCfg){.dst = sum, .bytes = limbs * sizeof(unsigned int), .val = 0u});
         for (unsigned long long lane = run * request->group; lane < ((run + 1ULL) * request->group); lane += 1ULL)
         {
             cycle_host_sum_field(&request->records[lane * request->out_limbs], request->offset, request->bits, value,
@@ -505,12 +513,12 @@ long cycle_record_sum_host(const CycleRecordSumRequest *request)
             }
         }
     }
-    free(value);
+    platform_cell_released(value, CYCLE_PLACE);
     return (long)request->count;
 }
 
-// 1 where a sort request is whole: records and order named, a whole number of runs, at max 2^32 records so that every
-// lane is a 32-bit index, and the field inside its record. Shared by both routes
+// 1 where a sort request is whole. It names records and an order, a whole number of runs, and at max 2^32 records, and
+// so every lane is a 32-bit index. The field lies inside its record. Both routes call this
 int cycle_record_sort_valid(const CycleRecordSortRequest *request)
 {
     return (request->records != NULL) && (request->order != NULL) && (request->count != 0ULL) &&
@@ -554,8 +562,9 @@ long cycle_record_sort_host(const CycleRecordSortRequest *request)
     {
         return CYCLE_ERROR;
     }
-    // a run of at max 2^32 records is stored in host memory, its count below SIZE_MAX
-    unsigned int *const spare = (unsigned int *)malloc((size_t)request->group * sizeof(unsigned int));
+    // a run of at max 2^32 records goes into host memory, its count below SIZE_MAX
+    unsigned int *const spare =
+        (unsigned int *)platform_cell_taken(request->group * sizeof(unsigned int), CYCLE_PLACE, 1);
     if (!CYCLE_CHECK(spare != NULL, request, error, ENGINE_ERROR_RESOURCE))
     {
         return CYCLE_ERROR;
@@ -588,9 +597,9 @@ long cycle_record_sort_host(const CycleRecordSortRequest *request)
                     spare[out] = take_right ? order[right++] : order[left++];
                 }
             }
-            memcpy(order, spare, (size_t)group * sizeof(unsigned int));
+            memor.cpy(&(MemoriaCfg){.dst = order, .src = spare, .bytes = (size_t)group * sizeof(unsigned int)});
         }
     }
-    free(spare);
+    platform_cell_released(spare, CYCLE_PLACE);
     return (long)request->count;
 }

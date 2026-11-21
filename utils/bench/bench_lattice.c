@@ -571,8 +571,10 @@ static void report_swept(const LatticeCase *shape, unsigned levels, unsigned pla
     }
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     fill_levels(s_line, sizeof s_line, 0x11u, SYMBOL_LEVELS);
     fill_levels(s_grid, sizeof s_grid, 0x22u, SYMBOL_LEVELS);
     fill_levels(s_cube, sizeof s_cube, 0x33u, SYMBOL_LEVELS);

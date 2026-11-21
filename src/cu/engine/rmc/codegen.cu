@@ -4,7 +4,8 @@
 // tables
 #include "codegen_device_internal.h"
 
-#include <stdio.h>
+#include "../engine_note.h"
+#include "memoria_operor/memoria_linea.h"
 
 int layout_same(const EngineRecordLayout *left, const EngineRecordLayout *right)
 {
@@ -15,10 +16,11 @@ int layout_same(const EngineRecordLayout *left, const EngineRecordLayout *right)
     {
         same = same && (left->in_limbs[member] == right->in_limbs[member]);
     }
-    same = same && (memcmp(left->step_table, right->step_table, (size_t)left->steps * sizeof(DeviceRecordStep)) == 0);
-    return same &&
-           ((left->table_word_count == 0ULL) || (memcmp(left->table_values, right->table_values,
-                                                        (size_t)left->table_word_count * sizeof(unsigned int)) == 0));
+    same = same && (mmgr_bytes_compare(left->step_table, right->step_table,
+                                       (size_t)left->steps * sizeof(DeviceRecordStep)) == 0);
+    return same && ((left->table_word_count == 0ULL) ||
+                    (mmgr_bytes_compare(left->table_values, right->table_values,
+                                        (size_t)left->table_word_count * sizeof(unsigned int)) == 0));
 }
 
 int layout_device_agrees(const LayoutRequest *request, EngineRecordLayout *layout, int report)
@@ -27,21 +29,37 @@ int layout_device_agrees(const LayoutRequest *request, EngineRecordLayout *layou
     std::string error;
     if (layout_device(request, &device_layout, &error) == 0)
     {
-        fprintf(stderr, "  codegen: the device did not arrange a program of %u steps (%s)\n", layout->steps,
-                error.c_str());
+        EngineNote note;
+        engine_note_begun(&note);
+        mmgr_line_put(&note.line, "  codegen: the device did not arrange a program of ");
+        mmgr_line_decimal(&note.line, layout->steps, 1u);
+        mmgr_line_put(&note.line, " steps (");
+        mmgr_line_put(&note.line, error.c_str());
+        mmgr_line_put(&note.line, ")\n");
+        engine_note_written(&note);
         return 0;
     }
     if (layout_same(&device_layout, layout) == 0)
     {
-        fprintf(stderr, "  codegen: the device arranged a program of %u steps apart from the host's\n", layout->steps);
+        EngineNote note;
+        engine_note_begun(&note);
+        mmgr_line_put(&note.line, "  codegen: the device arranged a program of ");
+        mmgr_line_decimal(&note.line, layout->steps, 1u);
+        mmgr_line_put(&note.line, " steps apart from the host's\n");
+        engine_note_written(&note);
         key_schedule_record_release(&device_layout);
         return 0;
     }
     if (report != 0)
     {
-        fprintf(stderr,
-                "  codegen: the device arranged a program of %u steps, %u limbs of file, word for word the host's\n",
-                device_layout.steps, device_layout.file_limbs);
+        EngineNote note;
+        engine_note_begun(&note);
+        mmgr_line_put(&note.line, "  codegen: the device arranged a program of ");
+        mmgr_line_decimal(&note.line, device_layout.steps, 1u);
+        mmgr_line_put(&note.line, " steps, ");
+        mmgr_line_decimal(&note.line, device_layout.file_limbs, 1u);
+        mmgr_line_put(&note.line, " limbs of file, word for word the host's\n");
+        engine_note_written(&note);
     }
     key_schedule_record_release(layout);
     *layout = device_layout;
@@ -58,8 +76,9 @@ __global__ void codegen_device_fill(unsigned int *to, unsigned long long count, 
     }
 }
 
-// what each step reads from outside itself, a thread a step: each record word's first put and 1 past its last, each
-// atom word's first reader, and the loops the step writes, whose running sum is the loop number each step begins at
+// what each step reads from outside itself, a thread a step. For each record word it is the first put and 1 past its
+// last, and for each atom word its first reader. It is also the loops that the step writes. Their running sum is the loop
+// number that each step begins at
 __global__ void codegen_device_facts(IrProgram program, unsigned int *put_first, unsigned int *put_last,
                                      unsigned int *atom_reader, unsigned int *loops)
 {
@@ -96,9 +115,9 @@ __global__ void codegen_device_unlaid(unsigned int *put_first, const unsigned in
     }
 }
 
-// each step's forms counted, a thread a step, from the loop number it begins at, and what it leaves for the lane's own
-// forms gathered: the max of each bank, the tables, a broken form or a step the lane does not support, and the last
-// step's banks
+// the forms of each step counted, a thread a step, from the loop number that it begins at. The call gathers what the
+// step leaves for the own forms of the lane: the max of each bank, and the tables. It also gathers a broken form or a
+// step that the lane does not support, and the banks of the last step
 __global__ void codegen_device_count(IrProgram program, const unsigned int *loop_first, unsigned long long *counts,
                                      unsigned int *errors, unsigned int *summary)
 {
@@ -128,7 +147,8 @@ __global__ void codegen_device_count(IrProgram program, const unsigned int *loop
     }
 }
 
-// each step's forms written where the scan of the counts puts them, a thread a step, decided again as they were counted
+// the forms of each step written where the scan of the counts puts them, a thread a step, decided again as the count
+// decided them
 __global__ void codegen_device_write(IrProgram program, const unsigned int *loop_first,
                                      const unsigned long long *counts, const unsigned long long *item_first,
                                      MachineInstr *items)
@@ -147,8 +167,8 @@ __global__ void codegen_device_write(IrProgram program, const unsigned int *loop
     (void)codegen_step(&lane, at);
 }
 
-// the lane as the steps left it for its own forms: the last step's banks, the max of each any step took, whether any
-// reads the tables, and the loops the steps wrote
+// the lane as the steps left it for its own forms. It holds the banks of the last step, and the max of each bank that
+// any step took. It also holds whether any step reads the tables, and the loops that the steps wrote
 __global__ void codegen_device_left(const unsigned int *summary, unsigned int loops, MachineFunction *lane_out)
 {
     if (codegen_device_thread() != 0ULL)
@@ -167,13 +187,15 @@ __global__ void codegen_device_left(const unsigned int *summary, unsigned int lo
     *lane_out = lane;
 }
 
-// the lane's own forms in the order they are decided, the note, the lane's first form, the declarations, the opening,
-// the close, then, after the schedule where the body is split, the body's opening and the end, since a construct's
-// scratch goes on from where each bank is: those from `first` to `last` of that order, in one thread, going on from
-// the lane as `lane_out` contains it. Counted where `items` is NULL, each part's count arranged in `parts`; else
-// written from `items` where `parts` puts each, with the header's item, which the assembly printer takes whole, where
-// the note is written, and the lane left in `lane_out` for the forms decided after. `states` is the states the body was
-// split into, 0 where it is not split
+// The own forms of the lane, in the order that the call decides them. They are the note, the first form of the lane,
+// the declarations, the opening and the close. After the schedule, where it splits the body, the opening of the body
+// and the end follow. The scratch of a construct goes on from where each bank is.
+//
+// The call takes those from `first` to `last` of that order, in one thread, and goes on from the lane that `lane_out`
+// holds. Where `items` is NULL it counts them, and arranges the count of each part in `parts`. Otherwise it writes them
+// from `items` where `parts` puts each. The item of the header, which the assembly printer takes whole, goes where the
+// note goes. The lane stays in `lane_out` for the forms that the call decides after. `states` is the states of the split
+// body, 0 where the schedule does not split it
 __global__ void codegen_prologue_epilogue(IrProgram program, const unsigned int *errors, unsigned int *summary,
                                           MachineFunction *lane_out, unsigned int atoms, unsigned int places,
                                           unsigned int first, unsigned int last, int scheduled, unsigned int states,
@@ -251,10 +273,11 @@ __global__ void codegen_prologue_epilogue(IrProgram program, const unsigned int 
     }
 }
 
-// The body split into states, in one thread, going on from the lane as `lane_out` contains it: the body's forms,
-// `body_count` of them from `body` in the order they run (the opening, the steps and the close), arranged into the
-// schedule (codegen_schedule_instr), as the host's lane splits them. Counted where `items` is NULL; else written there
-// and the lane left in `lane_out` for the forms decided after. How it was split in `ended`
+// The body split into states, in one thread, from the lane that `lane_out` holds. The forms of the body are `body_count`
+// forms from `body`, in the order that they run: the opening, the steps and the close. The call arranges them into the
+// schedule (codegen_schedule_instr), as the lane of the host splits them. Where `items` is NULL it counts them.
+// Otherwise it writes them there, and the lane stays in `lane_out` for the forms that the call decides after. `ended`
+// holds how the call split the body
 __global__ void codegen_schedule(IrProgram program, unsigned int *summary, MachineFunction *lane_out, Schedule schedule,
                                  unsigned int writes, unsigned int ports, const MachineInstr *body,
                                  unsigned long long body_count, unsigned long long capacity, MachineInstr *items,

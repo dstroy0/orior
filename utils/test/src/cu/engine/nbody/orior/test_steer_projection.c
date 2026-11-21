@@ -384,8 +384,10 @@ static int check_any_type_agrees(void)
     return failed;
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     uint8_t *corpus = (uint8_t *)malloc(STEER_CORPUS);
     if (corpus == NULL)
     {

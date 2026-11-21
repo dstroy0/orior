@@ -70,8 +70,10 @@ static size_t first_difference(const uint8_t *left, const uint8_t *right, size_t
     return cells;
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     int failed = 0;
 
     uint8_t *corpus = (uint8_t *)malloc(RASTER_CORPUS);

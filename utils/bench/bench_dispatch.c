@@ -446,8 +446,10 @@ static void score_named(const Row *rows, size_t count)
            (worst > 0.0) ? (kernel_lost / worst) : 0.0);
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     const size_t needle_count = sizeof NEEDLE_LENGTHS / sizeof NEEDLE_LENGTHS[0];
     const size_t absent_bytes = NEEDLE_LENGTHS[needle_count - 1u] * NEEDLES_PER_ROW;
 
