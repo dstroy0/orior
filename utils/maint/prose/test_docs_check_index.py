@@ -24,12 +24,13 @@ import docs_check
 def both(lines, **options):
     """(indexed hits, brute force hits) for one file's lines."""
     indexed = list(docs_check.banned_hits(lines, **options))
-    retained = docs_check.candidates
-    docs_check.candidates = lambda text, needing=None: list(docs_check.BANNED)
+    # banned_hits reads candidates from the scan module, and the replacement goes there.
+    retained = docs_check.scan.candidates
+    docs_check.scan.candidates = lambda text, needing=None: list(docs_check.BANNED)
     try:
         brute = list(docs_check.banned_hits(lines, **options))
     finally:
-        docs_check.candidates = retained
+        docs_check.scan.candidates = retained
     return indexed, brute
 
 
