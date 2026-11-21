@@ -7513,16 +7513,9 @@ EMBED_INLINE void window_change_peek_pressed(const GuiWindowCtx *args)
     window->pending = 1;
     if ((args->at == GUI_CHANGE_PEEK_REVERT) && (key != NULL))
     {
-        CliEdit edit;
         char why[CLI_ERR_MSG_MAX_LEN];
         VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-        const int built = EMBED_CALL(gui_change_peek.revert, GuiChangePeekCfg, .edit_out = &edit, .err_msg = &err_msg);
-        const int reverted = built && EMBED_CALL(cli_view_edits.apply, CliViewEditsCfg, .key = key, .edit = &edit,
-                                                 .count = 1u, .err_msg = &err_msg);
-        if (built)
-        {
-            EMBED_CALL(gui_change_peek.revert_end, GuiChangePeekCfg, .edit_out = &edit);
-        }
+        const int reverted = EMBED_CALL(gui_change_peek.revert, GuiChangePeekCfg, .key = key, .err_msg = &err_msg);
         if (!reverted && (mmgr_line_finish(&err_msg) != 0ULL))
         {
             cli_notice_post(&(CliNoticesCfg){.text = why, .failed = 1});

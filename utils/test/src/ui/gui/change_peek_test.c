@@ -166,17 +166,10 @@ int main(void)
               "a press under the box lands on none of it");
 
     // the revert puts the last commit's text back as one step
-    CliEdit edit;
     char edit_why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea edit_err = {edit_why, sizeof(edit_why), 0ULL};
-    const int reverted = EMBED_CALL(gui_change_peek.revert, GuiChangePeekCfg, .edit_out = &edit, .err_msg = &edit_err);
-    cli_check(reverted && EMBED_CALL(cli_view_edits.apply, CliViewEditsCfg, .key = s_key, .edit = &edit, .count = 1u,
-                                     .err_msg = &edit_err),
+    cli_check(EMBED_CALL(gui_change_peek.revert, GuiChangePeekCfg, .key = s_key, .err_msg = &edit_err),
               "the revert's edit is written into the view");
-    if (reverted)
-    {
-        EMBED_CALL(gui_change_peek.revert_end, GuiChangePeekCfg, .edit_out = &edit);
-    }
     cli_check(text_is(s_head), "the view's text is the last commit's again");
     const CliViewInput undo = {.type = CLI_VIEW_KEY, .name = "Mod+Z"};
     (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = s_key, .input = &undo, .err_msg = &edit_err);

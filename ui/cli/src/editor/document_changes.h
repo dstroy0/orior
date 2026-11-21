@@ -28,22 +28,32 @@ typedef struct
     unsigned int then_to;
 } CliChange;
 
-// the change `at` among the changes of the text stored under `key`, or where `at` is CLI_CHANGE_NONE the change the
-// line `line` is in, into `change_out`, its place into `at_out` and how many changes are into `count_out`, each
-// where not NULL: 1, or 0 where none is there, the count still given
+// The change `at` among the changes of the text stored under `key` goes into `change_out`. Where `at` is
+// CLI_CHANGE_NONE, it is the change the line `line` is in. Its place goes into `at_out`, and the count of changes into
+// `count_out`, each where not NULL. Returns 1, or 0 where none is there, and the count comes all the same
 int cli_document_change_find(const CliChangeCfg *args);
-// the change `by` changes on from the change `at`, wrapping at the ends, or where `at` is CLI_CHANGE_NONE the first
-// change that starts below the line `line` going down and the last that starts above it going up, the ends wrapping:
-// 1 with it into `change_out` and its place into `at_out`, or 0 where no change is
+// The change `by` changes on from the change `at`, and the ends wrap. Where `at` is CLI_CHANGE_NONE, a step down goes
+// to the first change that starts below the line `line`. A step up goes to the last that starts above it, and the ends
+// wrap. Returns 1 with it into `change_out` and its place into `at_out`, or 0 where no change is
 int cli_document_change_step(const CliChangeCfg *args);
 // the marks of the `count` lines from `line`, one byte a line into `marks_out`, CLI_CHANGE_MARK_NONE where a line
 // is in no change
 void cli_document_change_marks(const CliChangeCfg *args);
-// the edit that puts the older lines of `change` back into the text stored under `key`, its text in a temporary cell
-// the caller gives back with cli_document_change_revert_end once the edit is applied: 1 with the edit into `edit_out`,
-// or 0 with why written into `err_msg` where the cells cannot meet it
+// What a revert passes to its callback: `context`, and the place from `from` to `to` that the older lines go into.
+// Their text is `length` bytes and a 0 in a movable cell of the editor module, valid for the call alone. A reader
+// reads the text into a buffer of its own call
+typedef struct
+{
+    void *context;
+    CliPosition from;
+    CliPosition to;
+    const CarcerMovableEntry *cell;
+    unsigned long long length;
+} CliChangeRevertCfg;
+// The edit that puts the older lines of `change` back into the text stored under `key`. Its text goes into a movable
+// cell of the editor module, and the edit goes to `each` with `context`. The module gives the cell back before it
+// returns. Returns 1, or 0 with why written into `err_msg` where the cells cannot meet it
 int cli_document_change_revert(const CliChangeCfg *args);
-void cli_document_change_revert_end(const CliChangeCfg *args);
 // the mark of `change`, and the first line the gutter marks it on
 unsigned int cli_document_change_mark(const CliChangeCfg *args);
 unsigned int cli_document_change_marked_from(const CliChangeCfg *args);
@@ -59,7 +69,8 @@ struct CliChangeCfg
     unsigned int *at_out;
     unsigned int *count_out;
     unsigned char *marks_out;
-    CliEdit *edit_out;
+    void (*each)(const CliChangeRevertCfg *args);
+    void *context;
     VerbaLinea *err_msg;
 };
 
@@ -69,17 +80,15 @@ typedef struct
     int (*step)(const CliChangeCfg *args);
     void (*marks)(const CliChangeCfg *args);
     int (*revert)(const CliChangeCfg *args);
-    void (*revert_end)(const CliChangeCfg *args);
     unsigned int (*mark)(const CliChangeCfg *args);
     unsigned int (*marked_from)(const CliChangeCfg *args);
 } CliDocumentChangeNs;
-EMBED_TABLE_LAYOUT(CliDocumentChangeNs, find, step, marks, revert, revert_end, mark, marked_from);
+EMBED_TABLE_LAYOUT(CliDocumentChangeNs, find, step, marks, revert, mark, marked_from);
 EMBED_TABLE_STORAGE CliDocumentChangeNs cli_document_change EMBED_UNUSED = {
     .find = cli_document_change_find,
     .step = cli_document_change_step,
     .marks = cli_document_change_marks,
     .revert = cli_document_change_revert,
-    .revert_end = cli_document_change_revert_end,
     .mark = cli_document_change_mark,
     .marked_from = cli_document_change_marked_from,
 };
