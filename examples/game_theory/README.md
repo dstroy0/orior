@@ -10,7 +10,7 @@ that carry their own answer key, and show what pruning the opponent's replies do
 | `1_represent` | `four_games_one_protocol.py`               | what a position retains, and what six calls a game has to answer             |
 | `1_represent` | `reversi_positions.py`                     | a played board and the same pieces drawn, side by side                     |
 | `2_partition` | `what_the_branching_costs.py`              | how fast a position subdivides, and where enumeration stops being possible |
-| `2_partition` | `board_width.py`                           | Reversi returns 8; a grid with two axes of structure returns one of them   |
+| `2_partition` | `board_width.cu`                           | Reversi returns 8; a grid with two axes of structure returns one of them   |
 | `3_reference` | `what_random_play_reaches.py`              | what the same position returns when nobody is trying                       |
 | `3_reference` | `position_null.py`                         | the departure is the flip rule, not the board                              |
 | `4_measure`   | `entropy_of_the_outcome_given_the_move.py` | H(Y\|X), and how many bits the choice of move is worth                     |

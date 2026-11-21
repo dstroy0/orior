@@ -90,7 +90,7 @@ EXP-x-035	retired	examples/0_experimental/exact_zeta_held.py
 GAM-1-001	live	examples/game_theory/1_represent/four_games_one_protocol.py
 GAM-1-002	live	examples/game_theory/1_represent/reversi_positions.py
 GAM-2-001	live	examples/game_theory/2_partition/what_the_branching_costs.py
-GAM-2-002	live	examples/game_theory/2_partition/board_width.py
+GAM-2-002	live	examples/game_theory/2_partition/board_width.cu
 GAM-3-001	live	examples/game_theory/3_reference/what_random_play_reaches.py
 GAM-3-002	live	examples/game_theory/3_reference/position_null.py
 GAM-4-001	live	examples/game_theory/4_measure/entropy_of_the_outcome_given_the_move.py
