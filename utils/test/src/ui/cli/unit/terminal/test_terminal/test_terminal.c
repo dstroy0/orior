@@ -27,8 +27,8 @@
 
 static CliTerminalXterm s_xterm;
 static char s_text[1024];
-// the key of the text the xterm writes into, the folder and the file it is paged over, and whether a text is under
-// the key
+// the key of the text the xterm writes into, and the folder and the file the text pages over. Then whether a text
+// is under the key
 static const char *const s_key = "terminal-check";
 static char s_folder[CLI_PATH_MAX_LEN];
 static char s_path[CLI_PATH_MAX_LEN];
@@ -54,8 +54,8 @@ static unsigned long long text_lines(void)
     return lines;
 }
 
-// the xterm opened `columns` wide and `rows` tall, writing into a text of `rows` empty lines and no history, paged
-// over a file of the suite's folder and stored under s_key
+// the xterm opened `columns` wide and `rows` tall. It writes into a text of `rows` empty lines and no history. The
+// text pages over a file of the suite's folder, and its key is s_key
 static void xterm_open(unsigned int columns, unsigned int rows)
 {
     char lines[64];
@@ -74,7 +74,7 @@ static void xterm_open(unsigned int columns, unsigned int rows)
     TEST_ASSERT_TRUE(EMBED_CALL(cli_pages_path.open, CliPagesPathCfg, .key = s_key, .path = s_path, .out = &shape,
                                 .err_msg = &err_msg));
     s_stored = 1;
-    // the index of so small a file is whole at once or a moment after; a wait past ten seconds is a failure, not a hang
+    // the index of so small a file is whole at once or soon after. A wait past ten seconds is a failure, not a hang
     int whole = 0;
     unsigned long long counted = 0ULL;
     static CliWake s_index_pause;
@@ -110,8 +110,8 @@ static unsigned long long line_raw(const char *key, unsigned long long line)
     return fits;
 }
 
-// the bytes of the line `line` of the text under `key` into s_text, those past ASCII as '?', as many as s_text fits
-// and ended by a 0: their count
+// the bytes of the line `line` of the text under `key` into s_text, those past ASCII as '?'. As many as s_text
+// fits, and a 0 after them: their count
 static unsigned long long line_bytes(const char *key, unsigned long long line)
 {
     const unsigned long long fits = line_raw(key, line);
@@ -123,7 +123,7 @@ static unsigned long long line_bytes(const char *key, unsigned long long line)
     return fits;
 }
 
-// the file the xterm's text is paged over read whole into s_text, ended by a 0: its bytes
+// the file the xterm's text pages over, read whole into s_text, and a 0 after it: its bytes
 static unsigned long long file_text(void)
 {
     unsigned long long size = 0ULL;
@@ -457,7 +457,7 @@ void test_a_character_past_ascii_is_read_whole_across_two_reads(void)
     xterm_put("\xc3");
     xterm_put("\xa9!");
     xterm_put("\xff");
-    // the character whole, the mark and the replacement character, which the ill-formed byte is written as
+    // the character whole, the mark and the replacement character, which the xterm writes for the ill-formed byte
     TEST_ASSERT_EQUAL_UINT64(6ULL, line_raw(s_key, 0ULL));
     TEST_ASSERT_EQUAL_MEMORY("\xc3\xa9!\xef\xbf\xbd", s_text, 6u);
     TEST_ASSERT_EQUAL_UINT(3u, s_xterm.cursor.x);
@@ -494,9 +494,9 @@ void test_a_smaller_xterm_sends_the_lines_above_the_cursor_to_the_history(void)
     TEST_ASSERT_EQUAL_STRING("2", xterm_line_text(1ULL));
 }
 
-// the shell `words` started on an 80 by 24 xterm, `typed` typed into it at once where it is not NULL, and drained
-// onto the xterm until it is exited or ten seconds pass, then hung up on and drained until it ends: 1 where it
-// ended of itself
+// the shell `words` started on an 80 by 24 xterm, and `typed` typed into it at once where it is not NULL. The xterm
+// drains the shell until the shell exits or ten seconds pass. Then the call hangs up on the shell and drains it
+// until it ends. Returns 1 where the shell ended of itself
 static int shell_run(const char *const *words, const char *typed)
 {
     static CliTerminalShell s_shell;
@@ -669,7 +669,7 @@ void test_the_terminal_opens_on_a_tab_whose_shell_takes_what_is_typed_and_shows_
     // Control with a character goes to the shell, a plain character comes as text, and Ctrl+` goes on to the window
     TEST_ASSERT_TRUE(cli_terminal_tabs_key(&(CliTerminalTabsCfg){.name = "A"}));
     TEST_ASSERT_FALSE(cli_terminal_tabs_key(&(CliTerminalTabsCfg){.name = "Ctrl+`"}));
-    // what is typed and echoed reads `tabs^_heard` or `tabs''_heard`; only the shell's output reads `tabs_heard`
+    // the keys and their echo read `tabs^_heard` or `tabs''_heard`; only the shell's output reads `tabs_heard`
 #if defined(_WIN32)
     TEST_ASSERT_TRUE(typed("echo tabs^_heard"));
 #else
@@ -690,8 +690,8 @@ void test_the_terminal_opens_on_a_tab_whose_shell_takes_what_is_typed_and_shows_
     terminal_ended();
 }
 
-// the values stored in orior's folder, read as the window reads them as it starts: their cell NULL where none could
-// be read
+// the values stored in orior's folder, read as the window reads them as it starts: their cell NULL where the read
+// finds none
 static CliStateEntries entries_read(void)
 {
     char folder[CLI_PATH_MAX_LEN];
@@ -727,7 +727,7 @@ void test_the_terminal_place_is_stored_as_the_window_ends_and_read_back_as_it_st
     terminal_ended();
     place_restored();
     const CliTerminalPanel after = cli_terminal_tabs_panel();
-    // the panel opens as it was, without taking the keys, its tabs, the one displayed, the one beside it and its height
+    // the panel opens as it was and does not take the keys: its tabs, the one displayed, the one beside it, its height
     TEST_ASSERT_TRUE(after.open);
     TEST_ASSERT_FALSE(after.keys);
     TEST_ASSERT_EQUAL_UINT(2u, after.tabs);
@@ -817,8 +817,8 @@ void test_a_tab_read_back_starts_its_shell_in_its_folder_and_its_rows_reach_its_
     TEST_ASSERT_TRUE_MESSAGE(found, "the rows located as the window ended are in the tab's history");
 }
 
-// the answers the window gives the menus, as they read for the terminal's rows: an item that needs a state of the
-// terminal's cannot be chosen while it is off, and an item shows the terminal's state its `checks` names
+// the answers the window gives the menus, as they read for the terminal's rows. The user cannot choose an item while
+// the terminal's state it needs is off. An item shows the terminal's state its `checks` names
 static int menu_item_disabled(const CliItem *item)
 {
     return (item->needs[0] != '\0') && !cli_terminal_tabs_checked(&(CliTerminalTabsCfg){.name = item->needs});
@@ -895,7 +895,7 @@ void test_the_terminal_menu_shows_split_terminal_on_while_a_shell_is_beside_the_
     terminal_ended();
 }
 
-// the panel's menu opened at x, y, as the window opens it where it is asked for on the panel
+// the panel's menu opened at x, y, as the window opens it where the user asks for it on the panel
 static void terminal_menu_asked(int x, int y)
 {
     cli_menus_own_open(&(CliMenusCfg){.rows = cli_terminal_tabs_menu(),

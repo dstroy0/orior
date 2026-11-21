@@ -183,7 +183,7 @@ void test_a_rename_writes_the_name_in_every_files_view(void)
                                                                                  .err_msg = &s_err_msg}),
                                   s_why);
     TEST_ASSERT_EQUAL_UINT(3u, files);
-    // the two files with no view are written and closed again; use.c stays the view displayed, changed
+    // the save writes the two files with no view and closes them again; use.c stays the view displayed, changed
     TEST_ASSERT_EQUAL_UINT(1u, cli_view_count());
     TEST_ASSERT_EQUAL_INT(0, cli_view_displayed());
     TEST_ASSERT_EQUAL_UINT(0u, cli_references_rows());

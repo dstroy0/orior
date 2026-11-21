@@ -21,7 +21,7 @@ static GuiColor pixel_at(const GuiRaster *raster, int x, int y)
     return raster->pixels[((unsigned int)y * raster->width) + (unsigned int)x];
 }
 
-// the store told nothing of a change: the head alone is stored by the call
+// the store told nothing of a change: the call stores the head alone
 static void head_stored_each(const CliEachHunkCfg *args)
 {
     (void)args;
@@ -116,7 +116,7 @@ int main(void)
     cli_check((drawn_caret.width > 0) && (again.x == drawn_caret.x) && (again.y == drawn_caret.y) &&
                   (again.width == drawn_caret.width) && (again.height == drawn_caret.height),
               "a caret drawn is drawn again at its own rectangle");
-    // a file no problem is located in has no span underlined
+    // a file with no problem in it has no span underlined
     memor.set(&(MemoriaCfg){.dst = raster.pixels,
                             .val = 0,
                             .bytes = (unsigned long long)raster.width * raster.height * sizeof(*raster.pixels)});

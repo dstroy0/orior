@@ -1421,7 +1421,6 @@ utils/test/src/ui/cli/unit/query_writer/test_query_writer/test_query_writer.c	2
 utils/test/src/ui/cli/unit/raster/test_raster/test_raster.c	1
 utils/test/src/ui/cli/unit/reach/test_reach/test_reach.c	12
 utils/test/src/ui/cli/unit/recent/test_recent/test_recent.c	1
-utils/test/src/ui/cli/unit/references/test_references/test_references.c	1
 utils/test/src/ui/cli/unit/regexp/test_regexp/test_regexp.c	1
 utils/test/src/ui/cli/unit/requests/test_requests/test_requests.c	3
 utils/test/src/ui/cli/unit/requests_pane/test_requests_pane/test_requests_pane.c	2
@@ -1437,7 +1436,6 @@ utils/test/src/ui/cli/unit/sift/test_sift/test_sift.c	3
 utils/test/src/ui/cli/unit/sort/test_sort/test_sort.c	1
 utils/test/src/ui/cli/unit/support/cli_unity.c	1
 utils/test/src/ui/cli/unit/support/cli_unity.h	5
-utils/test/src/ui/cli/unit/terminal/test_terminal/test_terminal.c	15
 utils/test/src/ui/cli/unit/test_runs/test_test_runs/test_test_runs.c	2
 utils/test/src/ui/cli/unit/text_walks/test_text_walks/test_text_walks.c	4
 utils/test/src/ui/cli/unit/toolchains/test_toolchains/test_toolchains.c	3
@@ -1460,7 +1458,6 @@ utils/test/src/ui/gui/glass_test.c	2
 utils/test/src/ui/gui/glyphs_test.c	1
 utils/test/src/ui/gui/ground_bench.c	1
 utils/test/src/ui/gui/gui_test.sh	10
-utils/test/src/ui/gui/gutter_test.c	2
 utils/test/src/ui/gui/icon_file.c	1
 utils/test/src/ui/gui/icons_test.c	1
 utils/test/src/ui/gui/lattice_test.c	1
