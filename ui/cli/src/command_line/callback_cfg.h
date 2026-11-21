@@ -287,6 +287,13 @@ typedef struct
 typedef struct
 {
     void *context;
+    const char *const *rows;
+    unsigned int count;
+} CliEachRowsCountCfg;
+
+typedef struct
+{
+    void *context;
     const char *displayed;
 } CliEachDisplayedCfg;
 

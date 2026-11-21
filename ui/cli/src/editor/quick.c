@@ -330,35 +330,30 @@ EMBED_INLINE void quick_place(const QuickCtx *args)
     *args->column = (found == 2u) ? numbers[0] : 0ULL;
 }
 
-// the files' rows for `length` bytes of `text`, a path and a place after it: with no path the files opened last, else
-// the tree's files that answer it, at max `max`, and the reading row while the tree is read
-EMBED_INLINE void quick_files(const QuickCtx *args)
+// The files' rows for the place `args` holds, with the files opened last as `each`'s rows. With no path they are the
+// files opened last. Else they are the tree's files that answer the path, at max `max`, and the reading row while the
+// tree is read
+static void quick_files_ranked(const CliEachRowsCountCfg *each)
 {
+    const QuickCtx *const args = each->context;
     QuickBuild *const build = args->build;
-    unsigned long long path_length = 0ULL;
-    unsigned long long line = 0ULL;
-    unsigned long long column = 0ULL;
-    EMBED_CALL(quick_place, QuickCtx, .text = args->text, .length = args->length, .path_length = &path_length,
-               .line = &line, .column = &column);
-    const char *recent[CLI_RECENT_MAX];
-    char *recent_cell = NULL;
-    const unsigned int recents =
-        EMBED_CALL(cli_recent.list, CliRecentCfg, .list = CLI_RECENT_FILES, .max = CLI_RECENT_MAX, .rows_out = recent,
-                   .cell_out = &recent_cell, .owner = g_cli_quick_owner);
-    if (path_length == 0ULL)
+    const char *const *const recent = each->rows;
+    const unsigned int recents = each->count;
+    unsigned long long *const line = args->line;
+    unsigned long long *const column = args->column;
+    if (*args->path_length == 0ULL)
     {
         for (unsigned int at = 0u; (at < recents) && (at < args->max); at += 1u)
         {
             EMBED_CALL(quick_file_row, QuickCtx, .build = build, .text = recent[at],
                        .length = cellul.len(&(CatenaFinitaCfg){.src = recent[at], .cap = CLI_PATH_MAX_LEN}),
-                       .opened = 1, .line = &line, .column = &column);
+                       .opened = 1, .line = line, .column = column);
         }
-        g_cli_guard->persistent_buf_release(recent_cell, g_cli_quick_owner);
         return;
     }
     char query[CLI_QUICK_TEXT_MAX + 1u];
     VerbaLinea typed = {query, sizeof(query), 0ULL};
-    mmgr_line_put_n(&typed, args->text, path_length);
+    mmgr_line_put_n(&typed, args->text, *args->path_length);
     (void)mmgr_line_finish(&typed);
     CliFilesRanked ranked = {NULL, 0u, NULL, NULL, 0};
     (void)EMBED_CALL(cli_files_root_rows.ranked_find, CliFilesRootRowsCfg, .root = s_quick.root, .rows = &ranked,
@@ -369,8 +364,8 @@ EMBED_INLINE void quick_files(const QuickCtx *args)
         const CliFileRanked *const one = &ranked.row[at];
         EMBED_CALL(quick_file_row, QuickCtx, .build = build, .text = one->path,
                    .length = cellul.len(&(CatenaFinitaCfg){.src = one->path, .cap = CLI_PATH_MAX_LEN}),
-                   .hits = ranked.hit + one->hit_first, .hit_count = one->hit_count, .from = 0u, .line = &line,
-                   .column = &column);
+                   .hits = ranked.hit + one->hit_first, .hit_count = one->hit_count, .from = 0u, .line = line,
+                   .column = column);
     }
     if (ranked.reading)
     {
@@ -378,7 +373,24 @@ EMBED_INLINE void quick_files(const QuickCtx *args)
         EMBED_CALL(quick_said, QuickCtx, .build = build, .type = CLI_QUICK_ROW_READING, .text = QUICK_READING);
     }
     g_cli_guard->persistent_buf_release(ranked.cell, g_cli_quick_owner);
-    g_cli_guard->persistent_buf_release(recent_cell, g_cli_quick_owner);
+}
+
+// the files' rows for `length` bytes of `text`, a path and a place after it, at max `max`
+EMBED_INLINE void quick_files(const QuickCtx *args)
+{
+    unsigned long long path_length = 0ULL;
+    unsigned long long line = 0ULL;
+    unsigned long long column = 0ULL;
+    EMBED_CALL(quick_place, QuickCtx, .text = args->text, .length = args->length, .path_length = &path_length,
+               .line = &line, .column = &column);
+    QuickCtx placed = {.build = args->build,
+                       .text = args->text,
+                       .max = args->max,
+                       .path_length = &path_length,
+                       .line = &line,
+                       .column = &column};
+    (void)EMBED_CALL(cli_recent.each, CliRecentCfg, .list = CLI_RECENT_FILES, .max = CLI_RECENT_MAX,
+                     .each = quick_files_ranked, .context = &placed);
 }
 
 // the menus' commands read once into a cell sized to them, every item of a menu the bar shows that runs a command,
@@ -475,21 +487,24 @@ EMBED_INLINE unsigned long long quick_command_label(const QuickCtx *args)
     return mmgr_line_finish(&label);
 }
 
-// the commands' rows for `length` bytes of `text` typed, at max `max`, the best match first, and with nothing typed
-// the ones run last first, each with its keys
-EMBED_INLINE void quick_commands(const QuickCtx *args)
+// The commands' scoring: the commands' query typed, the quick open's args, and the count of commands put in the top
+typedef struct
 {
+    const QuickCtx *args;
+    const char *query;
+    unsigned int count;
+} QuickScored;
+
+// Each command the menus enable scored against the query, the commands run last as `each`'s rows ahead of the others,
+// and the best put in the build's top, at max `max`
+static void quick_commands_scored(const CliEachRowsCountCfg *each)
+{
+    QuickScored *const scored = each->context;
+    const QuickCtx *const args = scored->args;
     QuickBuild *const build = args->build;
-    EMBED_CALL(quick_commands_read, QuickCtx, .build = build);
-    char query[CLI_QUICK_TEXT_MAX + 1u];
-    VerbaLinea typed = {query, sizeof(query), 0ULL};
-    mmgr_line_put_n(&typed, args->text, args->length);
-    (void)mmgr_line_finish(&typed);
-    const char *recent[CLI_RECENT_MAX];
-    char *recent_cell = NULL;
-    const unsigned int recents =
-        EMBED_CALL(cli_recent.list, CliRecentCfg, .list = CLI_RECENT_COMMANDS, .max = CLI_RECENT_MAX,
-                   .rows_out = recent, .cell_out = &recent_cell, .owner = g_cli_quick_owner);
+    const char *const query = scored->query;
+    const char *const *const recent = each->rows;
+    const unsigned int recents = each->count;
     char label[2u * CLI_LABEL_MAX_LEN];
     unsigned int count = 0u;
     for (unsigned int at = 0u; at < s_quick.commands; at += 1u)
@@ -526,7 +541,24 @@ EMBED_INLINE void quick_commands(const QuickCtx *args)
         count = EMBED_CALL(cli_files_top_internal.put, CliFilesTopCtx, .top = build->top, .at = at, .score = score,
                            .count = count, .max = args->max);
     }
-    g_cli_guard->persistent_buf_release(recent_cell, g_cli_quick_owner);
+    scored->count = count;
+}
+
+// the commands' rows for `length` bytes of `text` typed, at max `max`, the best match first, and with nothing typed
+// the ones run last first, each with its keys
+EMBED_INLINE void quick_commands(const QuickCtx *args)
+{
+    QuickBuild *const build = args->build;
+    EMBED_CALL(quick_commands_read, QuickCtx, .build = build);
+    char query[CLI_QUICK_TEXT_MAX + 1u];
+    VerbaLinea typed = {query, sizeof(query), 0ULL};
+    mmgr_line_put_n(&typed, args->text, args->length);
+    (void)mmgr_line_finish(&typed);
+    QuickScored scored = {.args = args, .query = query, .count = 0u};
+    (void)EMBED_CALL(cli_recent.each, CliRecentCfg, .list = CLI_RECENT_COMMANDS, .max = CLI_RECENT_MAX,
+                     .each = quick_commands_scored, .context = &scored);
+    const unsigned int count = scored.count;
+    char label[2u * CLI_LABEL_MAX_LEN];
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         QuickCommand chosen = {0};

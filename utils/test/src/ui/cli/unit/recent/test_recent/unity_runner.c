@@ -76,13 +76,13 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("utils/test/src/ui/cli/unit/recent/test_recent/test_recent.c");
-  run_test(test_a_push_puts_the_newest_first, "test_a_push_puts_the_newest_first", 39);
-  run_test(test_a_repeat_moves_to_the_front_and_is_once, "test_a_repeat_moves_to_the_front_and_is_once", 50);
-  run_test(test_the_list_stops_at_its_max, "test_the_list_stops_at_its_max", 68);
-  run_test(test_the_files_and_the_commands_are_apart, "test_the_files_and_the_commands_are_apart", 85);
-  run_test(test_an_empty_entry_or_one_with_a_line_end_changes_nothing, "test_an_empty_entry_or_one_with_a_line_end_changes_nothing", 107);
-  run_test(test_a_list_asked_for_fewer_answers_its_newest, "test_a_list_asked_for_fewer_answers_its_newest", 126);
-  run_test(test_each_list_is_in_orior_folder_a_line_an_entry, "test_each_list_is_in_orior_folder_a_line_an_entry", 137);
+  run_test(test_a_push_puts_the_newest_first, "test_a_push_puts_the_newest_first", 69);
+  run_test(test_a_repeat_moves_to_the_front_and_is_once, "test_a_repeat_moves_to_the_front_and_is_once", 80);
+  run_test(test_the_list_stops_at_its_max, "test_the_list_stops_at_its_max", 98);
+  run_test(test_the_files_and_the_commands_are_apart, "test_the_files_and_the_commands_are_apart", 115);
+  run_test(test_an_empty_entry_or_one_with_a_line_end_changes_nothing, "test_an_empty_entry_or_one_with_a_line_end_changes_nothing", 134);
+  run_test(test_a_list_asked_for_fewer_answers_its_newest, "test_a_list_asked_for_fewer_answers_its_newest", 154);
+  run_test(test_each_list_is_in_orior_folder_a_line_an_entry, "test_each_list_is_in_orior_folder_a_line_an_entry", 162);
 
   return UNITY_END();
 }

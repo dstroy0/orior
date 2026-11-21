@@ -18,31 +18,32 @@ typedef struct CliRecentCfg CliRecentCfg;
 #define CLI_RECENT_MAX 20u
 
 // `entry` put first in the list `list`, out of the place it was where it was in it already, the oldest past
-// CLI_RECENT_MAX let go, and the list stored; an entry empty or with a line end in it changes nothing. And the list
-// `list`, at max `max` of its entries, newest first, into `rows_out`, sized for `max`: how many, each located in
-// the temporary cell of `owner` written into `cell_out`, which the caller gives back with
-// g_cli_guard->persistent_buf_release
+// CLI_RECENT_MAX let go, and the list stored; an entry empty or with a line end in it changes nothing.
+//
+// The list `list`, at max `max` of its entries, newest first, goes to `each` with `context` as one set of rows. The
+// rows are in a temporary cell of the recent module. They stay valid for the call to `each` alone, and the module
+// gives the cell back before it returns. A list with no entries goes to `each` as 0 rows, and a list past
+// CLI_RECENT_LISTS does not go to `each`. Returns the row count
 void cli_recent_push(const CliRecentCfg *args);
-unsigned int cli_recent_list(const CliRecentCfg *args);
+unsigned int cli_recent_each(const CliRecentCfg *args);
 struct CliRecentCfg
 {
     unsigned int list;
     const char *entry;
     unsigned int max;
-    const char **rows_out;
-    char **cell_out;
-    const CellOwner *owner;
+    void (*each)(const CliEachRowsCountCfg *args);
+    void *context;
 };
 
 typedef struct
 {
     void (*push)(const CliRecentCfg *args);
-    unsigned int (*list)(const CliRecentCfg *args);
+    unsigned int (*each)(const CliRecentCfg *args);
 } CliRecentNs;
-EMBED_TABLE_LAYOUT(CliRecentNs, push, list);
+EMBED_TABLE_LAYOUT(CliRecentNs, push, each);
 EMBED_TABLE_STORAGE CliRecentNs cli_recent EMBED_UNUSED = {
     .push = cli_recent_push,
-    .list = cli_recent_list,
+    .each = cli_recent_each,
 };
 
 #endif

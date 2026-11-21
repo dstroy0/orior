@@ -188,22 +188,24 @@ void cli_recent_push(const CliRecentCfg *args)
     g_cli_guard->persistent_buf_release(text, g_cli_machine_owner);
 }
 
-unsigned int cli_recent_list(const CliRecentCfg *args)
+unsigned int cli_recent_each(const CliRecentCfg *args)
 {
-    *args->cell_out = NULL;
     if (args->list >= CLI_RECENT_LISTS)
     {
         return 0u;
     }
     EMBED_CALL(recent_read, RecentCtx, .list = args->list);
     const RecentList *const list = &s_recent[args->list];
-    // the entries read out into the caller's cell, the rows located in it
-    char *const text = EMBED_CALL(recent_text_copy, RecentCtx, .list = args->list, .owner = args->owner);
-    *args->cell_out = text;
+    // The entries go into a temporary cell of this module and the rows point into it. The module gives the cell back
+    // after `each` returns
+    char *const text = EMBED_CALL(recent_text_copy, RecentCtx, .list = args->list, .owner = g_cli_machine_owner);
     const unsigned int count = (text == NULL) ? 0u : (list->count < args->max) ? list->count : args->max;
+    const char *rows[CLI_RECENT_MAX];
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        args->rows_out[at] = text + list->start[at];
+        rows[at] = text + list->start[at];
     }
+    args->each(&(CliEachRowsCountCfg){.context = args->context, .rows = rows, .count = count});
+    g_cli_guard->persistent_buf_release(text, g_cli_machine_owner);
     return count;
 }
