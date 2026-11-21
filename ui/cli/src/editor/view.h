@@ -67,8 +67,9 @@ typedef struct CliViewSaveCfg CliViewSaveCfg;
 #define CLI_VIEW_POINTER_UP 2u
 #define CLI_VIEW_TAB 4u
 #define CLI_VIEW_JOINED 1200ULL
-// the lines either side of the cursor that give the file's own words for a completion
-#define CLI_VIEW_WORD_LINES 3000ULL
+// the lines either side of the cursor that give the file's own words for a completion: the edited line alone. The
+// rest of the file's names come off its branch in the tree
+#define CLI_VIEW_WORD_LINES 0ULL
 
 // One input. It holds its type, a key's name and `length` bytes of text typed. Then the pointer's event, its row from
 // the view's top, its column in cells, its count of presses in a row, and Shift. Then a

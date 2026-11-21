@@ -1,8 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // suggest_test.c: the completion's list on its one cell: the list forced open on the word before the cursor lists the
-// file's words that answer it, the one typed left out, the rows read with their labels, the row chosen moved by the
-// keys, the prefix typed on narrowing the list, a row accepted written over the prefix, and Escape closing the list
+// names of the file's branch in the tree that answer it, the one typed left out, the rows read with their labels, the
+// row chosen moved by the keys, the prefix typed on narrowing the list, a row accepted written over the prefix, and
+// Escape closing the list
+#include "../../../../../ui/cli/src/code/git.h"
+#include "../../../../../ui/cli/src/code/symbols.h"
 #include "../../../../../ui/cli/src/editor/document.h"
 #include "../../../../../ui/cli/src/editor/view.h"
 #include "../../../../../ui/cli/src/plugins/plugins.h"
@@ -47,7 +50,7 @@ int main(void)
 {
     (void)cli_pool_made(CLI_POOL_BYTES);
     static const char s_key[] = "check:suggest";
-    static const char s_text[] = "int alpha; int beta; int alphabet;\nint albatross; int gamma;\nalp";
+    static const char s_text[] = "int alpha(void);\nint beta(void);\nint alphabet(void);\nint albatross(void);\nalp";
     char error_text[1024];
     VerbaLinea why = {error_text, sizeof(error_text), 0ULL};
     char grammar[CLI_NAME_MAX_LEN];
@@ -66,15 +69,46 @@ int main(void)
     cli_view_show(&(CliViewAtCfg){.at = 0u});
     const CliViewInput sized = {.type = CLI_VIEW_SIZE, .rows = 10u, .columns = 80u};
     (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = s_key, .input = &sized, .err_msg = &why);
-    cli_servers_panels_begin(&(CliServersPanelsCfg){.root = "."});
-    cursor_put(s_key, 2ULL, 3ULL);
+    // the file on disk in a tree of its own, listed and walked. The tree's branch for the file gives the names the
+    // list offers, and the line under edit gives the rest
+    char tree[CLI_PATH_MAX_LEN];
+    cli_check_folder("build/harness/suggest_tree", tree);
+    char src[CLI_PATH_MAX_LEN];
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = tree, .relative = "src", .joined = src);
+    (void)EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = src);
+    char file[CLI_PATH_MAX_LEN];
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = tree, .relative = "src/words.c", .joined = file);
+    cli_check(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = file,
+                         .bytes = s_text, .size = sizeof(s_text) - 1ULL),
+              "the file is written into its tree");
+    // the tree lists the files its repository tracks
+    char out_text[1024];
+    VerbaLinea out = {out_text, sizeof(out_text), 0ULL};
+    const char *const init[2] = {"init", "-q"};
+    const char *const add[2] = {"add", "-A"};
+    cli_check(EMBED_CALL(cli_git_root_out_count_err_msg.run, CliGitRootOutCountErrMsgCfg, .root = tree, .out = &out,
+                         .count = 2u, .err_msg = &why, .request = init) &&
+                  EMBED_CALL(cli_git_root_out_count_err_msg.run, CliGitRootOutCountErrMsgCfg, .root = tree, .out = &out,
+                             .count = 2u, .err_msg = &why, .request = add),
+              "the tree's repository tracks the file");
+    EMBED_CALL(cli_symbols_context.tree_list, CliSymbolsContextCfg, .root = tree);
+    EMBED_CALL(cli_symbols_root.tree_walk, CliSymbolsRootCfg, .root = tree);
+    CliWake pause = CLI_WAKE_INIT;
+    const unsigned long long last_ms = cli_clock_milliseconds() + 10000ULL;
+    while (cli_tree_unwalked() && (cli_clock_milliseconds() < last_ms))
+    {
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &pause, .milliseconds_u64 = 5ULL);
+    }
+    cli_check(!cli_tree_unwalked(), "the tree is walked");
+    cli_servers_panels_begin(&(CliServersPanelsCfg){.root = tree});
+    cursor_put(s_key, 4ULL, 3ULL);
     CliCompletionPanel panel;
     cli_check(!cli_servers_panels_completion(&(CliServersPanelsCfg){.panel = &panel}),
               "no list is before one is asked for");
     cli_check(cli_servers_panels_key(&(CliServersPanelsCfg){.name = "Mod+Space"}),
               "the list is forced open by its key");
     cli_check(cli_servers_panels_completion(&(CliServersPanelsCfg){.panel = &panel}) && (panel.count == 2u) &&
-                  (panel.rows == 2u) && (panel.line == 2ULL) && (panel.from == 0ULL) &&
+                  (panel.rows == 2u) && (panel.line == 4ULL) && (panel.from == 0ULL) &&
                   cellul.eq(&(CatenaFinitaCfg){.src = panel.prefix, .other = "alp", .cap = 4ULL}),
               "the words that start with the prefix answer it, the word typed left out");
     cli_check(row_reads(0u, "alpha") && row_reads(1u, "alphabet"), "the rows read the shorter label first");
