@@ -40,9 +40,8 @@ typedef struct
 } GuiMapPosition;
 
 // The minimap. It holds whether the views hold its lines, which it reads from them a line at a time. It holds the
-// view's top it last was beside and the rows above the slider where it began, which keep it still while the view
-// moves. It also holds the place it last was at, and the drag: whether one runs, where it began and the view's top
-// then
+// view's top it last was beside and the rows above the slider where it began. These keep it still as the view moves.
+// It also holds the place it last was at, and the drag: whether one runs, where it began and the view's top then
 typedef struct
 {
     int lines;
