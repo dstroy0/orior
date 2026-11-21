@@ -17,8 +17,8 @@
 #include "embed_atomic.h"
 #include "files_search_hits.h"
 
-// the max characters a found line's text decodes to for a regular expression's match, the keys the set chosen and the
-// sets are under in orior's folder, and the set's name where the whole tree is searched
+// The max characters a found line's text decodes to for a regular expression's match. Then the keys of the set chosen
+// and of the sets in orior's folder. Last, the set's name where the search covers the whole tree
 #define SEARCH_CHARACTERS (CLI_HIT_TEXT + 1u)
 #define SEARCH_SET_KEY "search.set"
 #define SEARCH_SETS_KEY "search.sets"
@@ -26,8 +26,8 @@
 // a part of a cell rounded up to the alignment every part of it has
 #define SEARCH_ALIGNED(bytes_) ((((unsigned long long)(bytes_)) + 15ULL) & ~15ULL)
 
-// A file with lines found: its first row, the bytes of its path, the place of its name in its path, and whether its
-// lines are closed
+// A file with lines found: its first row, the bytes of its path, and the place of its name in its path. Last, whether
+// its lines show closed
 typedef struct
 {
     unsigned int row;
@@ -36,11 +36,13 @@ typedef struct
     int closed;
 } SearchFile;
 
-// The pane's data: the query, how it is read, the set chosen counted from 1 and 0 for the whole tree, how many sets
-// Preferences lists, the set's name in Preferences' text with its bytes, whether a search waits and since when, whether
-// rows are for the query and how many, the report with its bytes, and the search's movable cell: a SearchFile a file
-// and, where the query is a regular expression, the bytes it matched in each line after them, how many files it holds
-// and whether it holds the matches. The set's patterns are read into the search run's scratch as it runs
+// The pane's data. It holds the query and the way the search reads it. Then the set chosen, counted from 1, and 0 for
+// the whole tree. Then how many sets Preferences lists, and the set's name in Preferences' text with its bytes. Then
+// whether a search waits and since when, and whether the rows are for the query and how many.
+//
+// Then the report with its bytes, and the search's movable cell. The cell holds a SearchFile for each file. Where the
+// query is a regular expression, the bytes it matched in each line come after them. Then how many files it holds, and
+// whether it holds the matches. The search run reads the set's patterns into its own scratch as it runs
 typedef struct
 {
     CliTyped query;
@@ -89,9 +91,9 @@ typedef struct
     CliPatterns *patterns;
 } FilesSearchPaneCtx;
 
-// the sets Preferences lists, `<name>:` on a line and its patterns on the lines after: how many; the set `set`'s name
-// in the text and, where `patterns` is not NULL, its patterns read from its lines into it, none where `set` is 0; and
-// where `name` is not NULL, the number of the set with that name into `count_out`, 0 where none has it
+// The sets Preferences lists, `<name>:` on a line and its patterns on the lines after. Returns how many. Then the set
+// `set`'s name in the text. Where `patterns` is not NULL, its patterns come from its lines into it, none where `set` is
+// 0. Where `name` is not NULL, the number of the set with that name goes into `count_out`, 0 where none has it
 EMBED_INLINE unsigned int search_sets_read(const FilesSearchPaneCtx *args)
 {
     Search *const search = &s_search;
@@ -163,7 +165,7 @@ EMBED_INLINE unsigned int search_sets_read(const FilesSearchPaneCtx *args)
             *args->count_out = count;
         }
     }
-    // the set's lines, as they are in the entry, read as its patterns; none where the whole tree is searched
+    // the set's lines, as they are in the entry, read as its patterns; none where the search covers the whole tree
     if (args->patterns != NULL)
     {
         EMBED_CALL(cli_patterns_text.read_set_text, CliPatternsTextCfg, .text = (sets != NULL) ? sets + lines_from : "",
@@ -189,8 +191,9 @@ EMBED_INLINE unsigned long long search_character_bytes(const FilesSearchPaneCtx 
     return (character < 0x10000u) ? 3ULL : 4ULL;
 }
 
-// the bytes `regexp` matches at the column of the located line `line_read`, whose text is `text`, read in the line's
-// characters decoded into `characters` with the match's spans into `groups`: 1 where it matches nothing there
+// The bytes `regexp` matches at the column of the line `line_read` that the search found, whose text is `text`. The
+// read decodes the line's characters into `characters`, with the match's spans into `groups`. Returns 1 where it
+// matches nothing there
 EMBED_INLINE unsigned int search_regexp_match(const FilesSearchPaneCtx *args)
 {
     const CliStandingLine *const hit = args->line_read;
@@ -227,8 +230,9 @@ EMBED_INLINE unsigned int search_file_lines(const FilesSearchPaneCtx *args)
     return end - cli_search_located_file_first(&(CliSearchLocatedCfg){.file = args->at});
 }
 
-// the files' first rows from the file `at` on, and the rows counted: a row a file, and under one whose lines are not
-// closed a row each line. The first file's first row is 0; a later file's own first row is from the layout before
+// The files' first rows from the file `at` on, and the rows counted. Each file has a row, and under one whose lines
+// show, each line has a row. The first file's first row is 0. A later file's own first row comes from the layout
+// before
 EMBED_INLINE void search_layout(const FilesSearchPaneCtx *args)
 {
     Search *const search = &s_search;
@@ -277,9 +281,9 @@ EMBED_INLINE unsigned int search_file_of(const FilesSearchPaneCtx *args)
     return low;
 }
 
-// the tree at `root` searched for the query: the lines found located in the search's cells; the search's cell taken
-// with the report, each file's path measured and its name found, and each line's regular expression match read; the
-// rows arranged; and the rows located for the query
+// The tree at `root` searched for the query, and the lines found go into the search's cells. Then the search's cell
+// taken with the report, each file's path measured, and its name found. Then each line's regular expression match
+// read. Last, the rows laid out, and the rows set for the query
 EMBED_INLINE void search_run(const FilesSearchPaneCtx *args)
 {
     Search *const search = &s_search;
@@ -307,8 +311,8 @@ EMBED_INLINE void search_run(const FilesSearchPaneCtx *args)
         cli_search_located_free();
         return;
     }
-    // the run's scratch, in the temporary tier: the error line, the set's patterns, and for a regular expression the
-    // pattern, its work state, the match's spans and a line's characters, each part aligned
+    // The run's scratch, in the temporary tier: the error line, and the set's patterns. For a regular expression it
+    // holds the pattern, its work state, the match's spans and a line's characters, each part aligned
     const unsigned long long patterns_at = SEARCH_ALIGNED(CLI_ERR_MSG_MAX_LEN);
     const unsigned long long regexp_at = patterns_at + SEARCH_ALIGNED(sizeof(CliPatterns));
     const unsigned long long work_state_at = regexp_at + SEARCH_ALIGNED(sizeof(CliRegexp));
@@ -494,7 +498,7 @@ void cli_search_pane_option(const CliSearchPaneCfg *args)
     case CLI_SEARCH_SET: {
         search->set = (search->set < search->sets) ? search->set + 1u : 0u;
         search->sets = EMBED_CALL(search_sets_read, FilesSearchPaneCtx, .set = search->set);
-        // the set's name saved as its own text, with the folder it is saved in, in the temporary tier for the save
+        // the set's name as its own text, with the folder the save writes into, in the temporary tier for the save
         char *const folder = g_cli_guard->temporary_buf_alloc(
             CLI_PATH_MAX_LEN + CLI_ERR_MSG_MAX_LEN + search->set_name_length + 1ULL, g_cli_search_pane_owner);
         if (folder == NULL)
