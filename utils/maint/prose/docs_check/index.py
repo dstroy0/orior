@@ -100,10 +100,13 @@ _FOLDS = {}
 def _fold(character):
     """The character a literal in the index is compared against, the way IGNORECASE compares."""
     if character not in _FOLDS:
-        folded = character
-        for character in "abcdefghijklmnopqrstuvwxyz":
-            if re.fullmatch(character, character, re.IGNORECASE):
-                folded = character
+        # A character with no ASCII letter to match keeps its own lower case, where that is one
+        # character. A lower case of two characters would move every offset after it.
+        lower = character.lower()
+        folded = lower if len(lower) == 1 else character
+        for letter in "abcdefghijklmnopqrstuvwxyz":
+            if re.fullmatch(letter, character, re.IGNORECASE):
+                folded = letter
                 break
         _FOLDS[character] = folded
     return _FOLDS[character]

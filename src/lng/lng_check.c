@@ -1,12 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// lng_check.c: the three language tables checked against the tree and against each other (lng.h), run from the top of
-// the tree by lng_check.sh.
+// lng_check.c: the check of the three language tables against the tree and against each other (lng.h). lng_check.sh
+// runs it from the top of the tree.
 //
 //     src/lng/lng_check.sh
 //
-// Each defect is printed and the run exits 1. A finding does not fail the run. Exit 2 where a table, the schema or
-// gnascor could not be read
+// The check prints each defect, and the run exits 1 where it finds one. A finding does not fail the run. The run exits
+// 2 where it cannot read a table, the schema or gnascor
 #include "lng.h"
 #include "verba_scribo/verba_scribo.h"
 
@@ -17,6 +17,7 @@
 #define LNG_SCHEMA "src/cu/engine/rmc/machine_ir_types.h"
 #define LNG_GNASCOR "src/cu/transpiler/gnascor.md"
 #define LNG_FORMS "src/cu/transpiler/lstar/protocol/table/cu.krs"
+#define LNG_LADDER "src/cu/transpiler/lstar/protocol/counterexample/ladder.h"
 
 static KfileLines s_file;
 
@@ -37,6 +38,20 @@ static void lng_check_table(const char *path, LngTable *table, LngList *defects)
     lng_table_read((const char *const *)s_file.line, s_file.lines, table, defects);
 }
 
+// The words of one file, `file_used`, against `table` for the file at `path`, each defect appended to `defects`.
+// Then each word goes into `used`, the tree's words, where the tree's map has none. Last, `file_used` empties for the
+// next file
+static void lng_check_file_words(const LngTable *table, const char *path, LngMap *file_used, LngMap *used,
+                                 LngList *defects)
+{
+    lng_used_check(table, path, file_used, defects);
+    for (unsigned int at = 0u; at < file_used->key.count; at += 1u)
+    {
+        lng_map_put(used, file_used->key.text[at], file_used->value.text[at]);
+    }
+    lng_map_free(file_used);
+}
+
 int main(void)
 {
     LngList defects = {NULL, 0u, 0u};
@@ -46,18 +61,43 @@ int main(void)
     LngTable asm_table = {{NULL, 0u, 0u}, NULL, 0u, 0u};
     lng_check_table("src/lng/transpiler_lng.tsv", &table, &defects);
     lng_table_check(&table, g_lng_types, LNG_KINDS, &defects);
+    // each anchor a row names is an anchor of the ladder, the text of an `anchor_(NAME, "text"` of ladder.h
+    LngList ladder_anchors = {NULL, 0u, 0u};
+    lng_check_read(LNG_LADDER);
+    for (unsigned int line = 0u; line < s_file.lines; line += 1u)
+    {
+        const char *const opened = strstr(s_file.line[line], "anchor_(");
+        const char *const quote = (opened != NULL) ? strchr(opened, '"') : NULL;
+        const char *const closed = (quote != NULL) ? strchr(quote + 1, '"') : NULL;
+        if (closed != NULL)
+        {
+            LngList text = {NULL, 0u, 0u};
+            lng_list_printed(&text, "%.*s", (int)(closed - quote - 1), quote + 1);
+            lng_set_add(&ladder_anchors, text.text[0]);
+            lng_list_free(&text);
+        }
+    }
+    for (unsigned int row = 0u; row < table.rows; row += 1u)
+    {
+        const char *const anchor = lng_cell(&table, row, "anchor");
+        unsigned int place = 0u;
+        if ((anchor != NULL) && (anchor[0] != '\0') && !lng_set_find(&ladder_anchors, anchor, &place))
+        {
+            lng_list_printed(&defects, "%s has the anchor %s, which the ladder has no anchor for",
+                             lng_cell(&table, row, "word"), anchor);
+        }
+    }
+    lng_list_free(&ladder_anchors);
     lng_table_findings(&table, &findings);
     lng_check_table("src/lng/gnascor_hol_lng.tsv", &hol, &defects);
     lng_table_check(&hol, g_lng_hol_types, LNG_HOL_KINDS, &defects);
     lng_table_findings(&hol, &findings);
     lng_check_table("src/lng/gnascor_asm_lng.tsv", &asm_table, &defects);
 
-    LngList hits = {NULL, 0u, 0u};
-    for (unsigned int row = 0u; row < table.rows; row += 1u)
-    {
-        lng_set_add(&hits, lng_cell(&table, row, "word"));
-    }
+    // every word of the tree. The check reads the words of each file against the rows with no target and the rows
+    // of the target of that file
     LngMap used = {{NULL, 0u, 0u}, {NULL, 0u, 0u}};
+    LngMap file_used = {{NULL, 0u, 0u}, {NULL, 0u, 0u}};
     LngList used_names = {NULL, 0u, 0u};
     lng_check_read(LNG_SCHEMA);
     for (unsigned int line = 0u; line < s_file.lines; line += 1u)
@@ -72,26 +112,29 @@ int main(void)
         lng_list_printed(&where, "%s %s", LNG_SCHEMA, used_names.text[name]);
         for (unsigned int word = 0u; word < words.count; word += 1u)
         {
-            lng_map_put(&used, words.text[word], where.text[0]);
+            lng_map_put(&file_used, words.text[word], where.text[0]);
         }
         lng_list_free(&where);
         lng_list_free(&words);
     }
-    static const char *const s_suffixes[3] = {".krs", ".ksc", ".kdm"};
-    LngList found[3] = {{NULL, 0u, 0u}, {NULL, 0u, 0u}, {NULL, 0u, 0u}};
-    lng_files_ending(s_suffixes, 3u, found);
+    lng_check_file_words(&table, "", &file_used, &used, &defects);
+    static const char *const s_suffixes[4] = {".krs", ".ksc", ".kdm", "_lng.tsv"};
+    LngList found[4] = {{NULL, 0u, 0u}, {NULL, 0u, 0u}, {NULL, 0u, 0u}, {NULL, 0u, 0u}};
+    lng_files_ending(s_suffixes, 4u, found);
     const LngList rulesets = found[0];
     const LngList kscs = found[1];
     const LngList kdms = found[2];
     for (unsigned int at = 0u; at < rulesets.count; at += 1u)
     {
         kfile_lines_read(&s_file, rulesets.text[at]);
-        lng_ruleset_words(rulesets.text[at], (const char *const *)s_file.line, s_file.lines, &used);
+        lng_ruleset_words(rulesets.text[at], (const char *const *)s_file.line, s_file.lines, &file_used);
+        lng_check_file_words(&table, rulesets.text[at], &file_used, &used, &defects);
     }
     for (unsigned int at = 0u; at < kscs.count; at += 1u)
     {
         kfile_lines_read(&s_file, kscs.text[at]);
-        lng_ksc_words(kscs.text[at], &s_file, &used);
+        lng_ksc_words(kscs.text[at], &s_file, &file_used);
+        lng_check_file_words(&table, kscs.text[at], &file_used, &used, &defects);
     }
     for (unsigned int at = 0u; at < (kscs.count + kdms.count); at += 1u)
     {
@@ -99,17 +142,9 @@ int main(void)
         LngList lines = {NULL, 0u, 0u};
         kfile_lines_read(&s_file, path);
         lng_ruleset_lines(&s_file, &lines);
-        lng_ruleset_words(path, (const char *const *)lines.text, lines.count, &used);
+        lng_ruleset_words(path, (const char *const *)lines.text, lines.count, &file_used);
+        lng_check_file_words(&table, path, &file_used, &used, &defects);
         lng_list_free(&lines);
-    }
-    for (unsigned int at = 0u; at < used.key.count; at += 1u)
-    {
-        unsigned int place = 0u;
-        if (!lng_set_find(&hits, used.key.text[at], &place))
-        {
-            lng_list_printed(&defects, "%s is used at %s and no table contains it", used.key.text[at],
-                             used.value.text[at]);
-        }
     }
 
     // gnascor's word map, read whole
@@ -118,8 +153,8 @@ int main(void)
     size_t joined = 0u;
     for (unsigned int line = 0u; line < s_file.lines; line += 1u)
     {
-        joined = verba_textus.put(
-            &(VerbaTextusCfg){.out = s_text_bytes, .cap = sizeof(s_text_bytes), .at = joined, .text = s_file.line[line]});
+        joined = verba_textus.put(&(VerbaTextusCfg){
+            .out = s_text_bytes, .cap = sizeof(s_text_bytes), .at = joined, .text = s_file.line[line]});
         joined = verba_littera.ch(
             &(VerbaLitteraCfg){.out = s_text_bytes, .cap = sizeof(s_text_bytes), .at = joined, .ch = '\n'});
     }
@@ -147,7 +182,9 @@ int main(void)
             int found = 0;
             for (unsigned int row = 0u; (row < table.rows) && !found; row += 1u)
             {
-                found = (strcmp(lng_cell(&table, row, "word"), listed_words.text[at]) == 0) &&
+                // gnascor lists the transpiler's words, and no target's row answers for one
+                found = (lng_cell(&table, row, "target")[0] == '\0') &&
+                        (strcmp(lng_cell(&table, row, "word"), listed_words.text[at]) == 0) &&
                         (strcmp(lng_cell(&table, row, "type"), s_listed_type[type]) == 0);
             }
             if (!found)
@@ -158,7 +195,55 @@ int main(void)
         }
     }
 
-    // each name the schema lists, between two underscores, for a word to be found in it whole
+    // each target table: a file of the walk that ends in _lng.tsv and has a witness column
+    const LngList tables = found[3];
+    LngTable *const targets = (LngTable *)calloc((size_t)tables.count + 1u, sizeof(LngTable));
+    const LngTable **const checked = (const LngTable **)calloc((size_t)tables.count + 1u, sizeof(LngTable *));
+    LngList target_names = {NULL, 0u, 0u};
+    if ((targets == NULL) || (checked == NULL))
+    {
+        fprintf(stderr, "lng_check: no memory for the target tables\n");
+        return 2;
+    }
+    unsigned int target_count = 0u;
+    for (unsigned int at = 0u; at < tables.count; at += 1u)
+    {
+        LngTable *const read = &targets[target_count];
+        lng_check_table(tables.text[at], read, &defects);
+        int witnessed = 0;
+        for (unsigned int column = 0u; column < read->head.count; column += 1u)
+        {
+            witnessed = witnessed || (strcmp(read->head.text[column], "witness") == 0);
+        }
+        if (!witnessed)
+        {
+            lng_table_free(read);
+            continue;
+        }
+        char name[256];
+        lng_target_of(tables.text[at], name, sizeof(name));
+        const size_t length = strlen(name);
+        name[(length > 4u) ? (length - 4u) : length] = '\0';
+        lng_list_add(&target_names, name);
+        lng_target_check(&table, read, name, &defects, &findings);
+        // each bridge word a row gives is a use of that transpiler word
+        for (unsigned int row = 0u; row < read->rows; row += 1u)
+        {
+            const char *const bridge = lng_cell(read, row, "transpiler");
+            if ((bridge != NULL) && (bridge[0] != '\0'))
+            {
+                LngList where = {NULL, 0u, 0u};
+                lng_list_printed(&where, "%s:%u", tables.text[at], row + 2u);
+                lng_map_put(&used, bridge, where.text[0]);
+                lng_list_free(&where);
+            }
+        }
+        checked[target_count] = read;
+        target_count += 1u;
+    }
+    lng_targets_holes(checked, (const char *const *)target_names.text, target_count, &defects, &findings);
+
+    // each name the schema lists, between two underscores, for a search that finds only a whole word in it
     LngList names = {NULL, 0u, 0u};
     for (unsigned int at = 0u; at < used_names.count; at += 1u)
     {
@@ -239,13 +324,19 @@ int main(void)
     {
         lng_list_free(&listed[type]);
     }
-    for (unsigned int suffix = 0u; suffix < 3u; suffix += 1u)
+    for (unsigned int suffix = 0u; suffix < 4u; suffix += 1u)
     {
         lng_list_free(&found[suffix]);
     }
     lng_list_free(&used_names);
     lng_map_free(&used);
-    lng_list_free(&hits);
+    for (unsigned int at = 0u; at < target_count; at += 1u)
+    {
+        lng_table_free(&targets[at]);
+    }
+    free(targets);
+    free((void *)checked);
+    lng_list_free(&target_names);
     lng_table_free(&asm_table);
     lng_table_free(&hol);
     lng_table_free(&table);

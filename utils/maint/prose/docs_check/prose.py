@@ -192,6 +192,43 @@ def comment_prose(lines):
     return retained
 
 
+def c_code_of(line):
+    """The C line `line` with the text of each string and character literal turned to spaces.
+
+    The comment markers are found on this form. A `/*` inside a literal, as the `"%s/*"` of a
+    folder walk, does not open a block, and a `//` inside a literal does not open a comment. A
+    literal does not continue past the end of its line. The text of a comment on the line stays as
+    it is, and a quote inside a comment does not open a literal.
+    """
+    masked = []
+    at = 0
+    while at < len(line):
+        two = line[at:at + 2]
+        if two == "//":
+            masked.append(line[at:])
+            break
+        if two == "/*":
+            close = line.find("*/", at + 2)
+            end = len(line) if close < 0 else close + 2
+            masked.append(line[at:end])
+            at = end
+            continue
+        character = line[at]
+        if character not in "\"'":
+            masked.append(character)
+            at += 1
+            continue
+        masked.append(character)
+        at += 1
+        while at < len(line) and line[at] != character:
+            masked.append("  " if (line[at] == "\\" and at + 1 < len(line)) else " ")
+            at += 2 if line[at] == "\\" else 1
+        if at < len(line):
+            masked.append(character)
+            at += 1
+    return "".join(masked)
+
+
 def prose_only(path, lines, ledger=None):
     """The comment and docstring lines of a source file, with the code blanked out.
 
@@ -234,23 +271,26 @@ def prose_only(path, lines, ledger=None):
             retained.append(line if (in_block or stripped.startswith("#")) else "")
             continue
 
-        # C and its headers.
-        if "/*" in line:
+        # C and its headers. The markers are read off the line with its literals blanked, and the
+        # part of a line inside a block that is already open is comment text as it stands.
+        if in_block:
+            close = line.find("*/")
+            code = line if close < 0 else line[:close + 2] + c_code_of(line[close + 2:])
+        else:
+            code = c_code_of(line)
+        if "/*" in code:
             in_block = True
         was = in_block
-        if "*/" in line:
+        if "*/" in code:
             in_block = False
         if was or stripped.startswith("//"):
             retained.append(line)
-        elif "//" in line:
-            # A trailing // or ///< comment on a code line. Reading only a line-leading // leaves
-            # every banned phrase in a trailing comment unflagged, and a header full of ///< briefs
-            # goes unread. Retain from the first // to the end and blank the code before it, which
-            # preserves the line number a finding points at. A trailing /*
-            # */ block is already caught by in_block above; this is the slash form it missed. Crude
-            # about a // inside a string literal, the same trade this function makes for the leading
-            # case.
-            cut = line.index("//")
+        elif "//" in code:
+            # A trailing // or ///< comment on a code line. The text from the first // outside a
+            # literal to the end of the line is comment text, and the code before it is blank. The
+            # line number of a finding stays the line a reader opens. The block test above reads a
+            # trailing /* */ block.
+            cut = code.index("//")
             retained.append(line[cut:])
         else:
             retained.append("")

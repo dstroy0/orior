@@ -1,12 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// lng_check_test.c: src/lng/lng.c graded on tables whose defects and findings were worked out by hand.
+// lng_check_test.c: the test of src/lng/lng.c on tables whose defects and findings come from a read by hand.
 //
 //     utils/test/src/lng/lng_check_test.sh
 //
-// Every expectation below was written by reading the input instead of by running the tool. Each check has a clean
-// input it must pass and a broken one it must catch: a check that has never caught anything cannot be distinguished
-// from one that catches nothing.
+// Each expectation below comes from a read of its input, and not from a run of the tool. Each check has a clean input
+// it must pass and a broken one it must catch. A check that catches nothing looks the same as a check that cannot
+// catch.
 #include "../../../../src/lng/lng.h"
 
 #include <stdio.h>
@@ -99,6 +99,74 @@ static void clean(LngList *lines)
     blank(lines, "add", "doing", "", "", "", "", s_add, 1u);
     blank(lines, "and", "doing", "", "", "", "", s_and, 1u);
     blank(lines, "word", "thing", "32", "0", "unsigned int", "", NULL, 0u);
+}
+
+// the head of a transpiler test table with a target column, placed as the first of `lines`
+static void target_head(LngList *lines)
+{
+    lng_list_add(lines, "word\ttype\tnames\ttarget\tselected_by_process\tselected_by_step\tselected_by_branch\t"
+                        "selected_by_fulltrace\tbits\tsigned\tc_type\tcomplement\t<\t>=\t+\t&\t&&\t-");
+}
+
+// a row of a transpiler test table with a target column, its operator cells 1 for each of `operators`, `count` of
+// them, appended to `lines`
+static void target_row(LngList *lines, const char *word, const char *type, const char *target, const char *bits,
+                       const char *sign, const char *const *operators, unsigned int count)
+{
+    char cells[6][2] = {"", "", "", "", "", ""};
+    for (unsigned int at = 0u; at < 6u; at += 1u)
+    {
+        for (unsigned int one = 0u; one < count; one += 1u)
+        {
+            cells[at][0] = (strcmp(s_operators[at], operators[one]) == 0) ? '1' : cells[at][0];
+        }
+    }
+    lng_list_printed(lines, "%s\t%s\t\t%s\t\t\t\t\t%s\t%s\t\t\t%s\t%s\t%s\t%s\t%s\t%s", word, type, target, bits, sign,
+                     cells[0], cells[1], cells[2], cells[3], cells[4], cells[5]);
+}
+
+// the head of a language's test table placed as the first of `lines`
+static void language_head(LngList *lines)
+{
+    lng_list_add(lines, "word\ttype\tnames\tprobe\texpected\twitness\tselected_by_process\tselected_by_step\t"
+                        "selected_by_branch\tselected_by_fulltrace\tbits\tsigned\ttranspiler\t<\t>=\t+\t&\t&&\t-");
+}
+
+// a row of a language's test table, its operator cells 1 for each of `operators`, `count` of them, appended to
+// `lines`. A type's probe prints `expected`, and a type with no expected output has no probe. A relation's probe is a
+// template, and its expected outputs are the ladder's
+static void language_row(LngList *lines, const char *word, const char *type, const char *expected, const char *witness,
+                         const char *bits, const char *sign, const char *bridge, const char *const *operators,
+                         unsigned int count)
+{
+    char cells[6][2] = {"", "", "", "", "", ""};
+    for (unsigned int at = 0u; at < 6u; at += 1u)
+    {
+        for (unsigned int one = 0u; one < count; one += 1u)
+        {
+            cells[at][0] = (strcmp(s_operators[at], operators[one]) == 0) ? '1' : cells[at][0];
+        }
+    }
+    const int typed = (strcmp(type, "type") == 0);
+    const char *const probe = typed ? ((expected[0] != '\0') ? "probe" : "") : "answer = left + right;";
+    lng_list_printed(lines, "%s\t%s\t\t%s\t%s\t%s\t\t\t\t\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s", word, type, probe,
+                     typed ? expected : "", witness, bits, sign, bridge, cells[0], cells[1], cells[2], cells[3],
+                     cells[4], cells[5]);
+}
+
+// the bridge of the tests into `table`: add for + and sub for -, each with its ladder anchor, mul with none, and
+// word, a thing of 32 bits
+static void bridge_of(LngTable *table, LngList *defects)
+{
+    LngList lines = {NULL, 0u, 0u};
+    lng_list_add(&lines,
+                 "word\ttype\tnames\ttarget\tanchor\tselected_by_process\tselected_by_step\tselected_by_branch\t"
+                 "selected_by_fulltrace\tbits\tsigned\tc_type\tcomplement\t<\t>=\t+\t&\t&&\t-");
+    lng_list_add(&lines, "add\tdoing\t\t\tadd\t\t\t\t\t\t\t\t\t\t\t1\t\t\t");
+    lng_list_add(&lines, "sub\tdoing\t\t\ttake\t\t\t\t\t\t\t\t\t\t\t\t\t\t1");
+    lng_list_add(&lines, "mul\tdoing\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t");
+    lng_list_add(&lines, "word\tthing\t\t\t\t\t\t\t\t32\t0\t\t\t\t\t\t\t\t");
+    table_of(&lines, table, defects);
 }
 
 // a row of a high order test table, its cells apart by tabs, appended to `lines`
@@ -406,8 +474,8 @@ int main(void)
     }
 
     {
-        // a .ksc of the ksc's own lines, a who line and a block of the ruleset's language: the ksc reads its own
-        // lines and the ruleset reads the block's, each line retaining its number
+        // a .ksc with lines of its own, a who line and a block of the ruleset's language. The ksc reads its own lines
+        // and the ruleset reads the lines of the block. Each line keeps its number
         static KfileLines s_file;
         static const char *const s_lines[7] = {
             "channel probe_sm",
@@ -443,6 +511,220 @@ int main(void)
         lng_map_free(&used);
         lng_list_free(&found_lines);
         kfile_lines_free(&s_file);
+    }
+
+    {
+        // the target of a file is its name without its folders and its extension
+        char target[16];
+        lng_target_of("src/table/openqasm2_0.krs", target, sizeof(target));
+        static const char *const s_qasm[1] = {"openqasm2_0"};
+        LngList got = {NULL, 0u, 0u};
+        lng_list_add(&got, target);
+        expect("the target of a path", &got, s_qasm, 1u);
+        lng_list_free(&got);
+        lng_target_of("table\\sm_86.ksc", target, sizeof(target));
+        static const char *const s_part[1] = {"sm_86"};
+        lng_list_add(&got, target);
+        expect("the target of a path with back slashes", &got, s_part, 1u);
+        lng_list_free(&got);
+        lng_target_of("openqasm2_0.krs", target, 4u);
+        static const char *const s_cut[1] = {"ope"};
+        lng_list_add(&got, target);
+        expect("the target cut to its capacity", &got, s_cut, 1u);
+        lng_list_free(&got);
+    }
+
+    {
+        // a word of no target is a word for every file, and a target's word is a word only for a file of that target
+        static const char *const s_add[1] = {"+"};
+        target_head(&lines);
+        target_row(&lines, "add", "doing", "", "", "", s_add, 1u);
+        target_row(&lines, "gate", "doing", "qasm", "", "", NULL, 0u);
+        target_row(&lines, "t", "doing", "qasm", "", "", NULL, 0u);
+        target_row(&lines, "t", "thing", "qasm", "", "", NULL, 0u);
+        table_of(&lines, &table, &defects);
+        expect("a table with targets reads whole", &defects, NULL, 0u);
+        lng_table_check(&table, g_lng_types, LNG_KINDS, &defects);
+        expect("one word of two types in a target is no defect", &defects, NULL, 0u);
+        LngMap used = {{NULL, 0u, 0u}, {NULL, 0u, 0u}};
+        lng_map_put(&used, "add", "x:1");
+        lng_map_put(&used, "gate", "x:2");
+        lng_map_put(&used, "nand", "x:3");
+        lng_map_put(&used, "t", "x:4");
+        lng_used_check(&table, "table/qasm.krs", &used, &defects);
+        static const char *const s_own[1] = {"nand is used at x:3 and no table contains it"};
+        expect("a file of the target reads its target's words", &defects, s_own, 1u);
+        lng_list_free(&defects);
+        lng_used_check(&table, "table/c.krs", &used, &defects);
+        static const char *const s_other[3] = {
+            "gate is used at x:2 and no table contains it",
+            "nand is used at x:3 and no table contains it",
+            "t is used at x:4 and no table contains it",
+        };
+        expect("a file of another target does not read them", &defects, s_other, 3u);
+        lng_list_free(&defects);
+        lng_map_free(&used);
+        lng_table_findings(&table, &findings);
+        static const char *const s_two[1] = {"t of qasm is doing meaning no operator and thing meaning no operator"};
+        expect("one word of two types in a target", &findings, s_two, 1u);
+        lng_list_free(&findings);
+    }
+
+    {
+        // a target's word and the transpiler's word of the same letters are two words
+        static const char *const s_add[1] = {"+"};
+        target_head(&lines);
+        target_row(&lines, "t", "thing", "", "", "", NULL, 0u);
+        target_row(&lines, "t", "doing", "qasm", "", "", NULL, 0u);
+        target_row(&lines, "add", "doing", "", "", "", s_add, 1u);
+        target_row(&lines, "add", "doing", "qasm", "", "", NULL, 0u);
+        table_of(&lines, &table, &defects);
+        lng_table_check(&table, g_lng_types, LNG_KINDS, &defects);
+        expect("a word in two targets is no defect", &defects, NULL, 0u);
+        lng_table_findings(&table, &findings);
+        expect("a word in two targets has one meaning in each", &findings, NULL, 0u);
+        lng_list_free(&findings);
+
+        target_head(&lines);
+        target_row(&lines, "add", "doing", "", "", "", s_add, 1u);
+        target_row(&lines, "add", "doing", "qasm", "", "", NULL, 0u);
+        target_row(&lines, "add", "doing", "qasm", "", "", NULL, 0u);
+        table_of(&lines, &table, &defects);
+        lng_table_check(&table, g_lng_types, LNG_KINDS, &defects);
+        static const char *const s_twice[1] = {"add doing of qasm is listed twice"};
+        expect("a row listed twice in one target", &defects, s_twice, 1u);
+        lng_list_free(&defects);
+    }
+
+    {
+        // the cross reads the transpiler's own things, and no target's thing
+        static const char *const s_add[1] = {"+"};
+        target_head(&lines);
+        target_row(&lines, "word", "thing", "", "32", "0", NULL, 0u);
+        target_row(&lines, "add", "doing", "", "", "", s_add, 1u);
+        target_row(&lines, "pi", "thing", "qasm", "", "", NULL, 0u);
+        table_of(&lines, &table, &defects);
+        hol_head(&lines);
+        hol_row(&lines, "u32_t", "type", "32", "0", "word", "", "");
+        hol_row(&lines, "plus", "plain", "", "", "add", "", "1");
+        hol_row(&lines, "angle", "type", "64", "1", "pi", "", "");
+        table_of(&lines, &hol, &defects);
+        lng_hol_check(&table, &hol, &defects, &findings);
+        static const char *const s_crossed[1] = {"angle crosses to pi, which the transpiler has no word for"};
+        expect("a cross into a target's thing", &defects, s_crossed, 1u);
+        expect("a cross into a target's thing", &findings, NULL, 0u);
+        lng_list_free(&defects);
+        lng_list_free(&findings);
+    }
+
+    {
+        // a language's table whose rows each bridge to a transpiler word, every row witnessed
+        static const char *const s_add[1] = {"+"};
+        LngTable bridge = {{NULL, 0u, 0u}, NULL, 0u, 0u};
+        bridge_of(&bridge, &defects);
+        language_head(&lines);
+        language_row(&lines, "+", "core op", "", "cc", "", "", "add", s_add, 1u);
+        language_row(&lines, "uint32_t", "type", "32 0", "cc", "32", "0", "word", NULL, 0u);
+        table_of(&lines, &table, &defects);
+        lng_target_check(&bridge, &table, "c", &defects, &findings);
+        expect("a clean language table", &defects, NULL, 0u);
+        expect("a clean language table", &findings, NULL, 0u);
+        lng_table_free(&bridge);
+    }
+
+    {
+        // each defect of a language's table, and a row with no witness
+        static const char *const s_add[1] = {"+"};
+        static const char *const s_minus[1] = {"-"};
+        LngTable bridge = {{NULL, 0u, 0u}, NULL, 0u, 0u};
+        bridge_of(&bridge, &defects);
+        language_head(&lines);
+        language_row(&lines, "+", "verb", "", "cc", "", "", "add", s_add, 1u);
+        language_row(&lines, "*", "core op", "", "cc", "", "", "mul", NULL, 0u);
+        language_row(&lines, "-", "core op", "", "", "", "", "add", s_minus, 1u);
+        language_row(&lines, "uint16_t", "type", "16 0", "", "16", "0", "word", NULL, 0u);
+        language_row(&lines, "+=", "core op", "", "", "", "", "", NULL, 0u);
+        table_of(&lines, &table, &defects);
+        lng_target_check(&bridge, &table, "c", &defects, &findings);
+        static const char *const s_defects[5] = {
+            "c's + has the type verb, which no table names",
+            "c bridges to add twice",
+            "c's - marks -, and its bridge add does not",
+            "c's uint16_t is 16 bits signed 0 and bridges to word, which is 32 bits signed 0",
+            "c's += bridges to no transpiler word, and no lift takes it to gsm",
+        };
+        static const char *const s_holes[3] = {
+            "c's * bridges to mul, which has no gsm cases, and no lift goes through it",
+            "c's - for add has no witness, and no lift goes through it",
+            "c's uint16_t for word has no witness, and no lift goes through it",
+        };
+        expect("each defect of a language table", &defects, s_defects, 5u);
+        expect("each hole of a language table", &findings, s_holes, 3u);
+        lng_list_free(&defects);
+        lng_list_free(&findings);
+        lng_table_free(&bridge);
+    }
+
+    {
+        // the holes between two languages, and a lift through the bridge
+        static const char *const s_add[1] = {"+"};
+        static const char *const s_minus[1] = {"-"};
+        LngTable bridge = {{NULL, 0u, 0u}, NULL, 0u, 0u};
+        LngTable c = {{NULL, 0u, 0u}, NULL, 0u, 0u};
+        LngTable py = {{NULL, 0u, 0u}, NULL, 0u, 0u};
+        bridge_of(&bridge, &defects);
+        language_head(&lines);
+        language_row(&lines, "+", "core op", "", "cc", "", "", "add", s_add, 1u);
+        language_row(&lines, "-", "core op", "", "cc", "", "", "sub", s_minus, 1u);
+        language_row(&lines, "*", "core op", "", "", "", "", "mul", NULL, 0u);
+        language_row(&lines, "uint32_t", "type", "32 0", "cc", "32", "0", "word", NULL, 0u);
+        table_of(&lines, &c, &defects);
+        language_head(&lines);
+        language_row(&lines, "+", "core op", "", "python", "", "", "add", s_add, 1u);
+        language_row(&lines, "uint32_t", "type", "32 1", "python", "32", "0", "word", NULL, 0u);
+        table_of(&lines, &py, &defects);
+        const LngTable *const s_tables[2] = {&c, &py};
+        static const char *const s_names[2] = {"c", "py"};
+        lng_targets_holes(s_tables, s_names, 2u, &defects, &findings);
+        static const char *const s_disagree[1] = {"c expects 32 0 for word, and py expects 32 1"};
+        static const char *const s_missing[2] = {"py has no row for mul, which c bridges to",
+                                                 "py has no row for sub, which c bridges to"};
+        expect("two languages that disagree", &defects, s_disagree, 1u);
+        expect("a bridge word one language lacks", &findings, s_missing, 2u);
+        lng_list_free(&defects);
+        lng_list_free(&findings);
+
+        LngList refusals = {NULL, 0u, 0u};
+        const char *const lifted = lng_lift(&bridge, &c, "c", &py, "py", "add", &refusals);
+        LngList got = {NULL, 0u, 0u};
+        lng_list_add(&got, (lifted != NULL) ? lifted : "(refused)");
+        static const char *const s_lifted[1] = {"+"};
+        expect("a lift of add from c to py", &got, s_lifted, 1u);
+        expect("a lift of add from c to py", &refusals, NULL, 0u);
+        lng_list_free(&got);
+        static const char *const s_refused[3] = {
+            "py has no row for sub",
+            "mul has no gsm cases, and no lift goes through it",
+            "the transpiler has no word div, and no lift goes through it",
+        };
+        const char *const no_row = lng_lift(&bridge, &c, "c", &py, "py", "sub", &refusals);
+        const char *const no_gsm = lng_lift(&bridge, &c, "c", &py, "py", "mul", &refusals);
+        const char *const no_word = lng_lift(&bridge, &c, "c", &py, "py", "div", &refusals);
+        expect("each lift that refuses", &refusals, s_refused, 3u);
+        expect_count("each lift that refuses", (no_row == NULL) && (no_gsm == NULL) && (no_word == NULL), 1u);
+        lng_list_free(&refusals);
+
+        language_head(&lines);
+        language_row(&lines, "+", "core op", "", "", "", "", "add", s_add, 1u);
+        table_of(&lines, &py, &defects);
+        const char *const unwitnessed = lng_lift(&bridge, &c, "c", &py, "py", "add", &refusals);
+        static const char *const s_hole[1] = {"py's + for add has no witness"};
+        expect("a lift into a hole", &refusals, s_hole, 1u);
+        expect_count("a lift into a hole", unwitnessed == NULL, 1u);
+        lng_list_free(&refusals);
+        lng_table_free(&py);
+        lng_table_free(&c);
+        lng_table_free(&bridge);
     }
 
     lng_table_free(&matrix);

@@ -1,225 +1,317 @@
-word	type	names	selected_by_process	selected_by_step	selected_by_branch	selected_by_fulltrace	bits	signed	c_type	complement	+	-	*	/	%	&	|	^	<<	>>	<	<=	>	>=	==	!=	==0	!=0	<0	&&	||	-x	~x	!x	?:	=	(T)	*p	*p=	f()	.	if	return	goto	label:	switch	{}	T x	//	const	atomic()	+=	-=	*=	/=	%=	&=	|=	^=	<<=	>>=
-sign	thing	a register's class, a signed byte of -1, 0 or 1					8	1	signed char																																																				
-byte	thing	a register's class, 8 bits					8	0	unsigned char																																																				
-signed_byte	thing	a register's class, 8 bits					8	1	signed char																																																				
-halfword	thing	a register's class, 16 bits					16	0	unsigned short																																																				
-signed_halfword	thing	a register's class, 16 bits					16	1	short																																																				
-word	thing	a register's class, 32 bits					32	0	unsigned int																																																				
-signed_word	thing	a register's class, 32 bits					32	1	int																																																				
-wide	thing	a register's class, 64 bits					64	0	unsigned long long																																																				
-signed_wide	thing	a register's class, 64 bits					64	1	long long																																																				
-predicate	thing	a register's class, a flag					1	0	bool																																																				
-global	thing	a space of memory																																				1																							
-parameter	thing	a space of memory																																				1																							
-launch	thing	a space of memory																																				1																							
-record	thing	a space of memory																																					1																						
-shared	thing	a space of memory																																				1																							
-low	thing	a part																																																											
-high	thing	a part																																																											
-first	thing	a part																																																											
-middle	thing	a part																																																											
-last	thing	a part																																																											
-left	thing	a part																																																											
-right	thing	a part																																																											
-x	thing	a part																																							1																				
-y	thing	a part																																							1																				
-z	thing	a part																																							1																				
-program	thing	the text around a lane																																																											
-unit	thing	the text around a lane																																																											
-step	thing	the text around a lane																																																											
-lane	thing	the text around a lane																																																											
-kernel	thing	the text around a lane																																																											
-state	thing	the text around a lane																																																											
-loop	thing	the text around a lane																																																											
-label	thing	the text around a lane																																											1																
-error	thing	the text around a lane																																																											
-file	thing	a bank a lane declares																																														1													
-signs	thing	a bank a lane declares																																														1													
-out	thing	a bank a lane declares																																														1													
-atoms	thing	a bank a lane declares																																														1													
-temporaries	thing	a bank a lane declares																																														1													
-wides	thing	a bank a lane declares																																														1													
-words	thing	a bank a lane declares																																														1													
-members	thing	a bank a lane declares																																														1													
-predicates	thing	a bank a lane declares																																														1													
-states	thing	a bank a lane declares																																														1													
-fixed	thing	a bank a lane declares																																														1													
-thread	thing	CUDA's own																																																											
-block	thing	CUDA's own																																																											
-grid	thing	CUDA's own																																																											
-idx	thing	CUDA's own																																																											
-dim	thing	CUDA's own																																																											
-warp	thing	CUDA's own																																																											
-size	thing	CUDA's own																																																											
-set	doing	a verb																																		1																									
-copy	doing	a verb																																		1																									
-add	doing	a verb									1																																																		
-sub	doing	a verb										1																																																	
-borrow	doing	a verb										1																																																	
-mul	doing	a verb											1																																																
-div	doing	a verb												1																																															
-bitand	doing	a verb														1																																													
-bitor	doing	a verb															1																																												
-bitxor	doing	a verb																1																																											
-shl	doing	a verb																	1																																										
-shr	doing	a verb																		1																																									
-funnel	doing	a verb																		1																																									
-select	doing	a verb																																	1																										
-neg	doing	a verb																														1																													
-absolute	doing	a verb																											1			1			1																										
-pack	doing	a verb															1		1																																										
-unpack	doing	a verb																		1																	1																								
-test	doing	a verb																																																											
-load	doing	a verb																																				1																							
-store	doing	a verb																																					1																						
-ask	doing	a verb																																						1																					
-cast	doing	a verb																																			1																								
-exit	doing	a verb																																									1																		
-return	doing	a verb																																									1																		
-open	doing	a verb																																													1														
-body	doing	a verb																																													1														
-close	doing	a verb																																													1														
-note	doing	a verb																																															1												
-declare	doing	a verb																																														1													
-start	doing	a verb																																																											
-next	doing	a verb																																		1																									
-dispatch	doing	a verb																																												1															
-read	doing	a verb																																				1																							
-back	doing	a verb																																										1																	
-lt	doing	a comparison, the flag a test sets								ge											1																																								
-le	doing	a comparison, the flag a test sets								gt												1																																							
-gt	doing	a comparison, the flag a test sets								le													1																																						
-ge	doing	a comparison, the flag a test sets								lt														1																																					
-eq	doing	a comparison, the flag a test sets								ne															1																																				
-ne	doing	a comparison, the flag a test sets								eq																1																																			
-zero	doing	a comparison, the flag a test sets								nonzero																	1																																		
-nonzero	doing	a comparison, the flag a test sets								zero																		1																																	
-negative	doing	a comparison, the flag a test sets																											1																																
-signed	doing	a word that follows the doing word																																			1																								
-constant	doing	a word that follows the doing word																																																1											
-atomic	doing	a word that follows the doing word																																																	1										
-from	gluing	a word that joins a name to a thing or a condition																																			1																								
-if	gluing	a word that joins a name to a thing or a condition																																								1																			
-unless	gluing	a word that joins a name to a thing or a condition																																1								1																			
-and	gluing	a word that joins a name to a thing or a condition																												1																															
-or	gluing	a word that joins a name to a thing or a condition																													1																														
-register	ksc	a fold of the register a form writes	orior_measuring_stick_engine	read	the form's to moves a word of the constant bank	stick_kernel > value > read > fold																																																							
-number	ksc	a fold of a number put in place	orior_measuring_stick_engine	choose	the number is written in place	stick_kernel > value > read > choose																																																							
-offset	ksc	a fold of an element's offset into its load	orior_measuring_stick_engine	stick_kernel	in[i + k] with k a number	stick_kernel > operand > folded																																																							
-pow2	ksc	a fold of a multiply by a power of two into a shift	orior_measuring_stick_engine	read	a multiply by a power of two	stick_kernel > value > read > choose																																																							
-word_used_once	ksc	a fold of a word moved once	orior_measuring_stick_engine	assign	a word moved into another and used nowhere else	stick_kernel > assign																																																							
-complement	ksc	a fold of a select's test into its complement	orior_measuring_stick_engine	read	a select over a test whose complement sass.ksc holds	stick_kernel > value > read > choose																																																							
-pipe	ksc	an operation written on the FMA pipe in place of the integer pipe	orior_measuring_stick_engine	balance	the lane's integer pipe holds the least and the over sass.ksc gives	stick_kernel > assign > fold_loads > balance																																																							
-equal	ksc	two writings the system answers alike																																																											
-nonnegative	selection	a value never negative, ordered and widened unsigned	orior_measuring_stick_engine	combined	both operands of an ordering are never negative	stick_kernel > typed > combined																																																							
-low	selection	the text of a value's low bits	orior_measuring_stick_engine	converted	a narrowing reads only its operand's low bits	stick_kernel > typed > converted																																																							
-are	selection	a name read as an expression not yet written	orior_measuring_stick_engine	stick_kernel	a byte or a halfword loaded	stick_kernel > operand > are																																																							
-narrowed	selection	a wide every later read converts to a word	orior_measuring_stick_engine	stick_kernel	every later read casts to a word's width	stick_kernel > operand > stick_narrowed																																																							
-fold_loads	selection	a load and its one extension written as the extending load	orior_measuring_stick_engine	fold_loads	the loaded word is read only by its extension	stick_kernel > assign > fold_loads																																																							
-balance	selection	the pipe each pipe choice is written on	orior_measuring_stick_engine	balance	sass.ksc holds a pipe for the operation	stick_kernel > assign > fold_loads > balance																																																							
-fewest	selection	the reading of fewest forms whose text assembles	orior_measuring_stick_engine	choose	of readings that assemble, the one of fewest forms, the first taken on a tie	stick_kernel > value > read > choose																																																							
-krs	record	a record a ruleset or a ksc line opens with																																																											
-ksc	record	a record a ruleset or a ksc line opens with																																																											
-ruleset	record	a record a ruleset or a ksc line opens with																																																											
-toolchain	record	a record a ruleset or a ksc line opens with																																																											
-header	record	a record a ruleset or a ksc line opens with																																																											
-form	record	a record a ruleset or a ksc line opens with																																																											
-err	record	a record a ruleset or a ksc line opens with																																																											
-nop	record	a record a ruleset or a ksc line opens with																																																											
-construct	record	a record a ruleset or a ksc line opens with																																																											
-end	record	a record a ruleset or a ksc line opens with																																																											
-channel	record	a record a ruleset or a ksc line opens with																																																											
-class	record	a record a ruleset or a ksc line opens with																																																											
-count	record	a record a ruleset or a ksc line opens with																																																											
-compile	record	a record a ruleset or a ksc line opens with																																																											
-folds	record	a record a ruleset or a ksc line opens with																																																											
-bank	record	a record a ruleset line opens with																																																											
-fixed	record	a record a ruleset line opens with																																																											
-run	ksc	a channel a question is put through																																																											
-decode	ksc	a channel a question is put through																																																											
-clock	ksc	a channel a question is put through																																																											
-answers	ksc	the class of an answer																																																											
-nothing	ksc	the class of an answer																																																											
-illegal	ksc	the class of an answer																																																											
-nvrtc	thing	a tool or a header a ruleset is written for																																																											
-nvdisasm	thing	a tool or a header a ruleset is written for																																																											
-prelude	thing	a tool or a header a ruleset is written for																																																											
-pcie	thing	a tool or a header a ruleset is written for																																																											
-source	thing	a tool or a header a ruleset is written for																																																											
-top	thing	a tool or a header a ruleset is written for																																																											
-log	thing	a tool or a header a ruleset is written for																																																											
-bus	thing	a part of the bus a ruleset is written for																																																											
-device	thing	a part of the bus a ruleset is written for																																																											
-function	thing	a part of the bus a ruleset is written for																																																											
-endpoint	thing	a part of the bus a ruleset is written for																																																											
-bridge	thing	a part of the bus a ruleset is written for																																																											
-master	thing	a part of the bus a ruleset is written for																																																											
-primary	thing	a part of the bus a ruleset is written for																																																											
-secondary	thing	a part of the bus a ruleset is written for																																																											
-subordinate	thing	a part of the bus a ruleset is written for																																																											
-memory	thing	a part of the bus a ruleset is written for																																																											
-mask	thing	a part of the bus a ruleset is written for																																																											
-identity	thing	a part of the bus a ruleset is written for																																																											
-multifunction	thing	a part of the bus a ruleset is written for																																																											
-atom	thing	a bank a lane declares																																																											
-immediate	thing	a bank a lane declares																																																											
-member	thing	a bank a lane declares																																																											
-temporary	thing	a bank a lane declares																																																											
-index	thing	a fixed name a lane reads																																																											
-indexed	thing	a fixed name a lane reads																																																											
-tables	thing	a fixed name a lane reads																																																											
-threads	thing	a fixed name a lane reads																																																											
-bodies	thing	a fixed name a lane reads																																																											
-one	thing	a fixed name a lane reads																																																											
-ok	thing	a fixed name a lane reads																																																											
-address	thing	a parameter of a form																																				1																							
-operation	thing	a parameter of a form																																																											
-compiler	thing	a parameter of a form																																																											
-major	thing	a parameter of a form																																																											
-minor	thing	a parameter of a form																																																											
-ttl	thing	a parameter of a form																																																											
-value	thing	a parameter of a form																																																											
-bits	thing	a parameter of a form																																																											
-base	thing	a parameter of a form																																																											
-steps	thing	a parameter of a form																																																											
-time	thing	a parameter of a form																																																											
-bytes	thing	a parameter of a form																																																											
-owner	thing	a parameter of a form																																																											
-command	thing	a parameter of a form																																																											
-added	thing	a parameter of a form																																																											
-chosen	thing	a parameter of a form																																																											
-hot	thing	a parameter of a form																																																											
-held	thing	a parameter of a form																																																											
-used	thing	a parameter of a form																																																											
-ones	thing	a parameter of a form																																																											
-memories	thing	a parameter of a form																																																											
-checkin	thing	a parameter of a form																																																											
-checkins	thing	a parameter of a form																																																											
-exectime	thing	a parameter of a form																																																											
-done	thing	a state a form reports																																																											
-finished	thing	a state a form reports																																																											
-stopped	thing	a state a form reports																																																											
-yielded	thing	a state a form reports																																																											
-absent	thing	a state a form reports																																																											
-answered	thing	a state a form reports																																																											
-present	thing	a state a form reports																																																											
-probed	thing	a state a form reports																																																											
-silent	thing	a state a form reports																																																											
-coarse	thing	a state a form reports																																																											
-fine	thing	a state a form reports																																																											
-listen	doing	a verb																																																											
-probe	doing	a verb																																																											
-write	doing	a verb																																					1																						
-measure	doing	a verb																																																											
-enable	doing	a verb																																																											
-stop	doing	a verb																																																											
-initialising	doing	a verb																																																											
-to	gluing	a word that joins a name to a thing or a condition																																																											
-at	gluing	a word that joins a name to a thing or a condition																																																											
-where	gluing	a word that joins a name to a thing or a condition																																																											
-also	gluing	a word that joins a name to a thing or a condition																																																											
-otherwise	gluing	a word that joins a name to a thing or a condition																																																											
-every	gluing	a word that joins a name to a thing or a condition																																																											
-all	gluing	a word that joins a name to a thing or a condition																																																											
-once	gluing	a word that joins a name to a thing or a condition																																																											
-not	doing	a verb																															1																												
+word	type	names	target	anchor	selected_by_process	selected_by_step	selected_by_branch	selected_by_fulltrace	bits	signed	c_type	complement	+	-	*	/	%	&	|	^	<<	>>	<	<=	>	>=	==	!=	==0	!=0	<0	&&	||	-x	~x	!x	?:	=	(T)	*p	*p=	f()	.	if	return	goto	label:	switch	{}	T x	//	const	atomic()	+=	-=	*=	/=	%=	&=	|=	^=	<<=	>>=
+sign	thing	a register's class, a signed byte of -1, 0 or 1							8	1	signed char																																																				
+byte	thing	a register's class, 8 bits							8	0	unsigned char																																																				
+signed_byte	thing	a register's class, 8 bits							8	1	signed char																																																				
+halfword	thing	a register's class, 16 bits							16	0	unsigned short																																																				
+signed_halfword	thing	a register's class, 16 bits							16	1	short																																																				
+word	thing	a register's class, 32 bits							32	0	unsigned int																																																				
+signed_word	thing	a register's class, 32 bits							32	1	int																																																				
+wide	thing	a register's class, 64 bits							64	0	unsigned long long																																																				
+signed_wide	thing	a register's class, 64 bits							64	1	long long																																																				
+predicate	thing	a register's class, a flag							1	0	bool																																																				
+global	thing	a space of memory																																						1																							
+parameter	thing	a space of memory																																						1																							
+launch	thing	a space of memory																																						1																							
+record	thing	a space of memory																																							1																						
+shared	thing	a space of memory																																						1																							
+low	thing	a part																																																													
+high	thing	a part																																																													
+first	thing	a part																																																													
+middle	thing	a part																																																													
+last	thing	a part																																																													
+left	thing	a part																																																													
+right	thing	a part																																																													
+x	thing	a part																																									1																				
+y	thing	a part																																									1																				
+z	thing	a part																																									1																				
+program	thing	the text around a lane																																																													
+unit	thing	the text around a lane																																																													
+step	thing	the text around a lane																																																													
+lane	thing	the text around a lane																																																													
+kernel	thing	the text around a lane																																																													
+state	thing	the text around a lane																																																													
+loop	thing	the text around a lane																																																													
+label	thing	the text around a lane																																													1																
+error	thing	the text around a lane																																																													
+file	thing	a bank a lane declares																																																1													
+signs	thing	a bank a lane declares																																																1													
+out	thing	a bank a lane declares																																																1													
+atoms	thing	a bank a lane declares																																																1													
+temporaries	thing	a bank a lane declares																																																1													
+wides	thing	a bank a lane declares																																																1													
+words	thing	a bank a lane declares																																																1													
+members	thing	a bank a lane declares																																																1													
+predicates	thing	a bank a lane declares																																																1													
+states	thing	a bank a lane declares																																																1													
+fixed	thing	a bank a lane declares																																																1													
+thread	thing	CUDA's own																																																													
+block	thing	CUDA's own																																																													
+grid	thing	CUDA's own																																																													
+idx	thing	CUDA's own																																																													
+dim	thing	CUDA's own																																																													
+warp	thing	CUDA's own																																																													
+size	thing	CUDA's own																																																													
+set	doing	a verb																																				1																									
+copy	doing	a verb																																				1																									
+add	doing	a verb		add									1																																																		
+sub	doing	a verb		take										1																																																	
+borrow	doing	a verb												1																																																	
+mul	doing	a verb		product											1																																																
+div	doing	a verb														1																																															
+bitand	doing	a verb																1																																													
+bitor	doing	a verb																	1																																												
+bitxor	doing	a verb																		1																																											
+shl	doing	a verb		up																	1																																										
+shr	doing	a verb		down																		1																																									
+funnel	doing	a verb																				1																																									
+select	doing	a verb																																			1																										
+neg	doing	a verb																																1																													
+absolute	doing	a verb																													1			1			1																										
+pack	doing	a verb																	1		1																																										
+unpack	doing	a verb																				1																	1																								
+test	doing	a verb																																																													
+load	doing	a verb																																						1																							
+store	doing	a verb																																							1																						
+ask	doing	a verb																																								1																					
+cast	doing	a verb																																					1																								
+exit	doing	a verb																																											1																		
+return	doing	a verb																																											1																		
+open	doing	a verb																																															1														
+body	doing	a verb																																															1														
+close	doing	a verb																																															1														
+note	doing	a verb																																																	1												
+declare	doing	a verb																																																1													
+start	doing	a verb																																																													
+next	doing	a verb																																				1																									
+dispatch	doing	a verb																																														1															
+read	doing	a verb																																						1																							
+back	doing	a verb																																												1																	
+lt	doing	a comparison, the flag a test sets		less								ge											1																																								
+le	doing	a comparison, the flag a test sets		at_max								gt												1																																							
+gt	doing	a comparison, the flag a test sets		more								le													1																																						
+ge	doing	a comparison, the flag a test sets		at_least								lt														1																																					
+eq	doing	a comparison, the flag a test sets		same								ne															1																																				
+ne	doing	a comparison, the flag a test sets		apart								eq																1																																			
+zero	doing	a comparison, the flag a test sets										nonzero																	1																																		
+nonzero	doing	a comparison, the flag a test sets										zero																		1																																	
+negative	doing	a comparison, the flag a test sets																													1																																
+signed	doing	a word that follows the doing word																																					1																								
+constant	doing	a word that follows the doing word																																																		1											
+atomic	doing	a word that follows the doing word																																																			1										
+from	gluing	a word that joins a name to a thing or a condition																																					1																								
+if	gluing	a word that joins a name to a thing or a condition																																										1																			
+unless	gluing	a word that joins a name to a thing or a condition																																		1								1																			
+and	gluing	a word that joins a name to a thing or a condition																														1																															
+or	gluing	a word that joins a name to a thing or a condition																															1																														
+register	ksc	a fold of the register a form writes			orior_measuring_stick_engine	read	the form's to moves a word of the constant bank	stick_kernel > value > read > fold																																																							
+number	ksc	a fold of a number put in place			orior_measuring_stick_engine	choose	the number is written in place	stick_kernel > value > read > choose																																																							
+offset	ksc	a fold of an element's offset into its load			orior_measuring_stick_engine	stick_kernel	in[i + k] with k a number	stick_kernel > operand > folded																																																							
+pow2	ksc	a fold of a multiply by a power of two into a shift			orior_measuring_stick_engine	read	a multiply by a power of two	stick_kernel > value > read > choose																																																							
+word_used_once	ksc	a fold of a word moved once			orior_measuring_stick_engine	assign	a word moved into another and used nowhere else	stick_kernel > assign																																																							
+complement	ksc	a fold of a select's test into its complement			orior_measuring_stick_engine	read	a select over a test whose complement sass.ksc holds	stick_kernel > value > read > choose																																																							
+pipe	ksc	an operation written on the FMA pipe in place of the integer pipe			orior_measuring_stick_engine	balance	the lane's integer pipe holds the least and the over sass.ksc gives	stick_kernel > assign > fold_loads > balance																																																							
+equal	ksc	two writings the system answers alike																																																													
+nonnegative	selection	a value never negative, ordered and widened unsigned			orior_measuring_stick_engine	combined	both operands of an ordering are never negative	stick_kernel > typed > combined																																																							
+low	selection	the text of a value's low bits			orior_measuring_stick_engine	converted	a narrowing reads only its operand's low bits	stick_kernel > typed > converted																																																							
+are	selection	a name read as an expression not yet written			orior_measuring_stick_engine	stick_kernel	a byte or a halfword loaded	stick_kernel > operand > are																																																							
+narrowed	selection	a wide every later read converts to a word			orior_measuring_stick_engine	stick_kernel	every later read casts to a word's width	stick_kernel > operand > stick_narrowed																																																							
+fold_loads	selection	a load and its one extension written as the extending load			orior_measuring_stick_engine	fold_loads	the loaded word is read only by its extension	stick_kernel > assign > fold_loads																																																							
+balance	selection	the pipe each pipe choice is written on			orior_measuring_stick_engine	balance	sass.ksc holds a pipe for the operation	stick_kernel > assign > fold_loads > balance																																																							
+fewest	selection	the reading of fewest forms whose text assembles			orior_measuring_stick_engine	choose	of readings that assemble, the one of fewest forms, the first taken on a tie	stick_kernel > value > read > choose																																																							
+krs	record	a record a ruleset or a ksc line opens with																																																													
+ksc	record	a record a ruleset or a ksc line opens with																																																													
+ruleset	record	a record a ruleset or a ksc line opens with																																																													
+toolchain	record	a record a ruleset or a ksc line opens with																																																													
+header	record	a record a ruleset or a ksc line opens with																																																													
+form	record	a record a ruleset or a ksc line opens with																																																													
+err	record	a record a ruleset or a ksc line opens with																																																													
+nop	record	a record a ruleset or a ksc line opens with																																																													
+construct	record	a record a ruleset or a ksc line opens with																																																													
+end	record	a record a ruleset or a ksc line opens with																																																													
+channel	record	a record a ruleset or a ksc line opens with																																																													
+class	record	a record a ruleset or a ksc line opens with																																																													
+count	record	a record a ruleset or a ksc line opens with																																																													
+compile	record	a record a ruleset or a ksc line opens with																																																													
+folds	record	a record a ruleset or a ksc line opens with																																																													
+bank	record	a record a ruleset line opens with																																																													
+fixed	record	a record a ruleset line opens with																																																													
+run	ksc	a channel a question is put through																																																													
+decode	ksc	a channel a question is put through																																																													
+clock	ksc	a channel a question is put through																																																													
+answers	ksc	the class of an answer																																																													
+nothing	ksc	the class of an answer																																																													
+illegal	ksc	the class of an answer																																																													
+nvrtc	thing	a tool or a header a ruleset is written for																																																													
+nvdisasm	thing	a tool or a header a ruleset is written for																																																													
+prelude	thing	a tool or a header a ruleset is written for																																																													
+pcie	thing	a tool or a header a ruleset is written for																																																													
+source	thing	a tool or a header a ruleset is written for																																																													
+top	thing	a tool or a header a ruleset is written for																																																													
+log	thing	a tool or a header a ruleset is written for																																																													
+bus	thing	a part of the bus a ruleset is written for																																																													
+device	thing	a part of the bus a ruleset is written for																																																													
+function	thing	a part of the bus a ruleset is written for																																																													
+endpoint	thing	a part of the bus a ruleset is written for																																																													
+bridge	thing	a part of the bus a ruleset is written for																																																													
+master	thing	a part of the bus a ruleset is written for																																																													
+primary	thing	a part of the bus a ruleset is written for																																																													
+secondary	thing	a part of the bus a ruleset is written for																																																													
+subordinate	thing	a part of the bus a ruleset is written for																																																													
+memory	thing	a part of the bus a ruleset is written for																																																													
+mask	thing	a part of the bus a ruleset is written for																																																													
+identity	thing	a part of the bus a ruleset is written for																																																													
+multifunction	thing	a part of the bus a ruleset is written for																																																													
+atom	thing	a bank a lane declares																																																													
+immediate	thing	a bank a lane declares																																																													
+member	thing	a bank a lane declares																																																													
+temporary	thing	a bank a lane declares																																																													
+index	thing	a fixed name a lane reads																																																													
+indexed	thing	a fixed name a lane reads																																																													
+tables	thing	a fixed name a lane reads																																																													
+threads	thing	a fixed name a lane reads																																																													
+bodies	thing	a fixed name a lane reads																																																													
+one	thing	a fixed name a lane reads																																																													
+ok	thing	a fixed name a lane reads																																																													
+address	thing	a parameter of a form																																						1																							
+operation	thing	a parameter of a form																																																													
+compiler	thing	a parameter of a form																																																													
+major	thing	a parameter of a form																																																													
+minor	thing	a parameter of a form																																																													
+ttl	thing	a parameter of a form																																																													
+value	thing	a parameter of a form																																																													
+bits	thing	a parameter of a form																																																													
+base	thing	a parameter of a form																																																													
+steps	thing	a parameter of a form																																																													
+time	thing	a parameter of a form																																																													
+bytes	thing	a parameter of a form																																																													
+owner	thing	a parameter of a form																																																													
+command	thing	a parameter of a form																																																													
+added	thing	a parameter of a form																																																													
+chosen	thing	a parameter of a form																																																													
+hot	thing	a parameter of a form																																																													
+held	thing	a parameter of a form																																																													
+used	thing	a parameter of a form																																																													
+ones	thing	a parameter of a form																																																													
+memories	thing	a parameter of a form																																																													
+checkin	thing	a parameter of a form																																																													
+checkins	thing	a parameter of a form																																																													
+exectime	thing	a parameter of a form																																																													
+done	thing	a state a form reports																																																													
+finished	thing	a state a form reports																																																													
+stopped	thing	a state a form reports																																																													
+yielded	thing	a state a form reports																																																													
+absent	thing	a state a form reports																																																													
+answered	thing	a state a form reports																																																													
+present	thing	a state a form reports																																																													
+probed	thing	a state a form reports																																																													
+silent	thing	a state a form reports																																																													
+coarse	thing	a state a form reports																																																													
+fine	thing	a state a form reports																																																													
+listen	doing	a verb																																																													
+probe	doing	a verb																																																													
+write	doing	a verb																																							1																						
+measure	doing	a verb																																																													
+enable	doing	a verb																																																													
+stop	doing	a verb																																																													
+initialising	doing	a verb																																																													
+to	gluing	a word that joins a name to a thing or a condition																																																													
+at	gluing	a word that joins a name to a thing or a condition																																																													
+where	gluing	a word that joins a name to a thing or a condition																																																													
+also	gluing	a word that joins a name to a thing or a condition																																																													
+otherwise	gluing	a word that joins a name to a thing or a condition																																																													
+every	gluing	a word that joins a name to a thing or a condition																																																													
+all	gluing	a word that joins a name to a thing or a condition																																																													
+once	gluing	a word that joins a name to a thing or a condition																																																													
+not	doing	a verb																																	1																												
+carry	thing	a fixed name a lane reads																																																													
+nand	doing	a verb																1																	1																												
+nor	doing	a verb																	1																1																												
+rol	doing	a verb																	1		1	1																																									
+ror	doing	a verb																	1		1	1																																									
+rem	doing	a verb															1																																														
+part	record	a record a ruleset or a ksc line opens with																																																													
+field	record	a record a ruleset or a ksc line opens with																																																													
+ports	thing	the count of the memory writes the text makes in one state																																																													
+container	thing	the header of the sass ruleset	sass																																																												
+OPENQASM	thing	the header a program of OpenQASM 2.0 opens with	openqasm2_0																																																												
+include	doing	a statement that reads the gates of a file into the program	openqasm2_0																																																												
+qreg	doing	a statement that declares a register of qubits	openqasm2_0																																																												
+creg	doing	a statement that declares a register of classical bits	openqasm2_0																																																												
+gate	doing	a statement that declares a gate as a body of other gates	openqasm2_0																																																												
+opaque	doing	a statement that declares a gate with no body	openqasm2_0																																																												
+reset	doing	a statement that puts a qubit back in the state zero	openqasm2_0																																																												
+barrier	doing	a statement that stops a compiler from a move of gates across it	openqasm2_0																																																												
+pi	thing	the constant pi, the angle of a half turn	openqasm2_0																																																												
+sin	doing	the sine of an angle	openqasm2_0																																																												
+cos	doing	the cosine of an angle	openqasm2_0																																																												
+tan	doing	the tangent of an angle	openqasm2_0																																																												
+exp	doing	the number e to the power of an angle	openqasm2_0																																																												
+ln	doing	the natural logarithm of an angle	openqasm2_0																																																												
+sqrt	doing	the square root of an angle	openqasm2_0																																																												
+U	doing	the gate on one qubit of three Euler angles, which the language holds without qelib1.inc	openqasm2_0																																																												
+CX	doing	the controlled NOT on two qubits, which the language holds without qelib1.inc	openqasm2_0																																																												
+u3	doing	the gate on one qubit of three Euler angles	openqasm2_0																																																												
+u	doing	the gate on one qubit of three Euler angles, the same as u3	openqasm2_0																																																												
+u2	doing	the gate U with its first angle at pi/2 and two angles of its own	openqasm2_0																																																												
+u1	doing	the phase gate of one angle, the gate U with its first two angles at 0	openqasm2_0																																																												
+p	doing	the phase gate of one angle, the same as u1	openqasm2_0																																																												
+u0	doing	the idle gate on one qubit for the time gamma	openqasm2_0																																																												
+id	doing	the identity gate on one qubit	openqasm2_0																																																												
+iden	doing	the identity gate on one qubit, the same as id	openqasm2_0																																																												
+s	doing	the phase gate of a quarter turn, the square root of Z	openqasm2_0																																																												
+sdg	doing	the inverse of the gate s	openqasm2_0																																																												
+t	doing	the phase gate of an eighth turn, the square root of the gate s	openqasm2_0																																																												
+tdg	doing	the inverse of the gate t	openqasm2_0																																																												
+sx	doing	the square root of the gate X	openqasm2_0																																																												
+sxdg	doing	the inverse of the gate sx	openqasm2_0																																																												
+rx	doing	a rotation of one qubit about the X axis by an angle	openqasm2_0																																																												
+ry	doing	a rotation of one qubit about the Y axis by an angle	openqasm2_0																																																												
+rz	doing	a rotation of one qubit about the Z axis by an angle	openqasm2_0																																																												
+cx	doing	the controlled NOT on two qubits	openqasm2_0																																																												
+cy	doing	the controlled Y on two qubits	openqasm2_0																																																												
+cz	doing	the controlled Z on two qubits	openqasm2_0																																																												
+ch	doing	the controlled Hadamard on two qubits	openqasm2_0																																																												
+swap	doing	the gate that exchanges the states of two qubits	openqasm2_0																																																												
+crx	doing	the controlled rotation about the X axis by an angle	openqasm2_0																																																												
+cry	doing	the controlled rotation about the Y axis by an angle	openqasm2_0																																																												
+crz	doing	the controlled rotation about the Z axis by an angle	openqasm2_0																																																												
+cu1	doing	the controlled phase gate of one angle	openqasm2_0																																																												
+cp	doing	the controlled phase gate of one angle, the same as cu1	openqasm2_0																																																												
+cu3	doing	the controlled gate of three Euler angles	openqasm2_0																																																												
+cu	doing	the controlled gate of three Euler angles and the global phase gamma	openqasm2_0																																																												
+csx	doing	the controlled square root of the gate X	openqasm2_0																																																												
+rxx	doing	a rotation of two qubits about the XX axis by an angle	openqasm2_0																																																												
+ryy	doing	a rotation of two qubits about the YY axis by an angle	openqasm2_0																																																												
+rzz	doing	a rotation of two qubits about the ZZ axis by an angle	openqasm2_0																																																												
+ccx	doing	the NOT on one qubit with two control qubits, the Toffoli gate	openqasm2_0																																																												
+cswap	doing	the swap of two qubits with one control qubit, the Fredkin gate	openqasm2_0																																																												
+c3x	doing	the NOT on one qubit with three control qubits	openqasm2_0																																																												
+c4x	doing	the NOT on one qubit with four control qubits	openqasm2_0																																																												
+a	thing	a qubit a gate acts on	openqasm2_0																																																												
+b	thing	a qubit a gate acts on	openqasm2_0																																																												
+c	thing	the control qubit of a controlled gate, or a qubit a gate acts on	openqasm2_0																																																												
+d	thing	a qubit a gate acts on	openqasm2_0																																																												
+e	thing	a qubit a gate acts on	openqasm2_0																																																												
+t	thing	the target qubit of a controlled gate	openqasm2_0																																																												
+q	thing	the qubit a gate on one qubit acts on	openqasm2_0																																																												
+theta	thing	the first Euler angle of a gate	openqasm2_0																																																												
+phi	thing	the second Euler angle of a gate	openqasm2_0																																																												
+lambda	thing	the third Euler angle of a gate	openqasm2_0																																																												
+gamma	thing	the global phase of the gate cu, or the idle time of the gate u0	openqasm2_0																																																												
+angle	thing	the angle a function such as sin takes	openqasm2_0																																																												
+bit	thing	a classical bit that a measure writes	openqasm2_0																																																												
+qubit	thing	a qubit a statement acts on	openqasm2_0																																																												
+qubits	thing	the list of qubits a gate or a barrier acts on	openqasm2_0																																																												
+parameters	thing	the list of angles a gate declares	openqasm2_0																																																												
+name	thing	the name a register or a gate declares	openqasm2_0																																																												
+h	doing	the Hadamard gate on one qubit	openqasm2_0																																																												
+add_assign	doing	a verb		add																																																		1									
+sub_assign	doing	a verb		take																																																			1								
+mul_assign	doing	a verb		product																																																				1							
+div_assign	doing	a verb																																																							1						
+rem_assign	doing	a verb																																																								1					
+bitand_assign	doing	a verb																																																									1				
+bitor_assign	doing	a verb																																																										1			
+bitxor_assign	doing	a verb																																																											1		
+shl_assign	doing	a verb		up																																																										1	
+shr_assign	doing	a verb		down																																																											1

@@ -4,8 +4,8 @@
 """
 harness.py - the one entry point for orior's test suites.
 
-utils/test/test_matrix.json is the source of truth: one env per suite, each naming the script that
-builds and runs it. Every build and run is a tessera job: `run` passes each suite's script to
+utils/test/test_matrix.json is the source of truth: one env per suite, each with the script that
+builds and runs it. Every build and run is a tessera job. `run` passes each suite's script to
 tessera_run, which admits it on the device's daemon, and the daemon decides what runs beside what.
 
     harness.py run                        every suite in the matrix
@@ -15,43 +15,44 @@ tessera_run, which admits it on the device's daemon, and the daemon decides what
     harness.py run --idle SECONDS         a suite silent this long once admitted is hung (1800; 0 never)
     harness.py build gui | mmgr           the window's program and MMgr's suites built (harness_build.py)
     harness.py cli build | test | coverage  the CLI built, its Unity suites run, and their coverage merged (harness_cli.py)
-    harness.py cu wrappers | build        every .cu given a thin wrapper, and nvcc building the wrappers (harness_cu.py)
+    harness.py cu wrappers | build        every .cu given a thin wrapper, and nvcc builds the wrappers (harness_cu.py)
     harness.py container ...              the window's systems as containers that stay up, each with its own copy of the
                                           tree: Linux, Ubuntu on arm64, Raspberry Pi's Debian, Windows, macOS (harness_container.py)
     harness.py docs ste                   every technical document checked against ASD-STE100 (harness_docs.py)
     harness.py evidence r                 the R hypotheses' CSVs written from build/corpora and each script run (harness_evidence.py)
+    harness.py lng witness                every target table's probes run through its tool, each witness cell written (harness_lng.py)
     harness.py source ...               the C sources read by the compiler and the linker's tools (harness_build.py)
     harness.py package [--check]          the install bundle: imp, tab and the license texts archived, installed and removed (harness_package.py)
     harness.py sonarqube ...              the server's project, scan and duplications (harness_sonarqube.py)
     harness.py window ...                 the released window started, ended, pictured, measured, its suite run (harness_window.py)
     harness.py wsl ...                    the ext4 test volume under WSL, the tree copied onto it, commands run there (harness_wsl.py)
 
-Every invocation is a line of build/harness/harness.log, when it began, the command line, its exit code, its
-seconds and its output's file, and its output is retained whole under build/harness/log/.
+Every invocation is a line of build/harness/harness.log: when it began, the command line, its exit code, its
+seconds and its output's file. The harness keeps its output whole under build/harness/log/.
 
---at exports the commit once, with git archive, to build/trees/<commit>
-(fetching it from origin where this clone does not hold it) and runs that tree's matrix there; its
-logs go to build/harness/at_<commit>/.
+--at exports the commit once, with git archive, to build/trees/<commit>. It fetches the commit from origin
+where this clone does not hold it. Then it runs that tree's matrix there, and its logs go to
+build/harness/at_<commit>/.
 
-Every suite's nvcc goes through one compile cache, build/compile_cache
-(utils/maint/engine/compile_cache.py, set up by utils/maint/engine/build_stamp.sh): each source is compiled once a tree and
-set of flags, by the first suite that needs it, and the rest link its object. A tree is keyed by
-its committed files, uncommitted changes and untracked files, or by its commit where pinned.
+Every suite's nvcc goes through one compile cache, build/compile_cache (utils/maint/engine/compile_cache.py, set up
+by utils/maint/engine/build_stamp.sh). The first suite that needs a source compiles it once for a tree and set of
+flags, and the rest link its object. The cache keys a tree by its committed files, uncommitted changes and untracked
+files, or by its commit where the run pins one.
 
 Each suite's output goes to build/harness/<env>.log. A suite passes when
 its job exits 0, every "test exit N" line it printed is 0, and no check failed ("N checks, M
-failed"). A suite that prints "not run:" and no check line is NOT RUN. One that prints no check
-line and no exit line is NO CHECKS, which is reported, never read as a pass by silence.
+failed"). A suite that prints "not run:" and no check line has the status NOT RUN. One that prints no
+check line and no exit line has the status NO CHECKS. The harness reports it, and never reads its silence as a pass.
 
 An env holds:
 
     desc      what the suite proves
-    script    the script, repository-relative, run under bash
+    script    the script, relative to the repository, that bash runs
     src       the sources it builds, as +<path> under src/
     tests     the test folders it runs, under utils/test/
     env       settings the script runs under, NAME: VALUE
-    wsl       true where the script runs under WSL, which takes its settings on the command line, on the ext4 test
-              volume where one is mounted (harness.py wsl)
+    wsl       true where the script runs under WSL, which takes its settings on the command line. It runs on the
+              ext4 test volume where the host has one (harness.py wsl)
 
 Every change to the matrix goes through `harness.py env`, which splices the one env it changes
 into the file as text: a change is a minimal diff. Nothing else in the file moves. A script
@@ -86,6 +87,7 @@ import harness_container  # noqa: E402
 import harness_cu  # noqa: E402
 import harness_docs  # noqa: E402
 import harness_evidence  # noqa: E402
+import harness_lng  # noqa: E402
 import harness_wsl  # noqa: E402
 import harness_package  # noqa: E402
 import harness_sonarqube  # noqa: E402
@@ -136,13 +138,13 @@ def lock_release(lock):
 
 
 # ---------------------------------------------------------------------------
-# text splicing: the table is edited as text and a write is a minimal diff
+# text splices: the harness edits the table as text, and a write is a minimal diff
 # ---------------------------------------------------------------------------
 
 
 def env_span(text, name):
-    """(pad, key_start, close) for an env: the indent it sits at, the index of its opening quote,
-    and the index of its object's matching close brace.
+    """(pad, key_start, close) for an env. These are the indent it sits at and the index of its opening quote. The
+    third is the index of the close brace that matches its object.
 
     The brace scan steps over string literals. A desc is free text and may carry a lone brace,
     which a counter that reads every character would take for structure.
@@ -184,8 +186,8 @@ def splice_after(text, anchor, name, entry):
 def splice_replace(text, name, entry):
     """Replace an env's whole `"name": {...}` in place, rendered at the indent it already sits at.
 
-    The same render as splice_after: an updated env and a new one are indented identically. The
-    leading pad is dropped because the text retained ahead of key_start already carries it.
+    The same render as splice_after: an updated env and a new one have the same indent. The render
+    leaves out the leading pad, because the text ahead of key_start already carries it.
     """
     pad, key_start, close = env_span(text, name)
     block = json.dumps({name: entry}, indent=2)[1:-1].rstrip()
@@ -193,10 +195,10 @@ def splice_replace(text, name, entry):
 
 
 def splice_remove(text, name):
-    """Cut an env's whole `"name": {...}` out, taking the one comma that joined it to its neighbors.
+    """Cut an env's whole `"name": {...}` out, with the one comma that joined it to the envs beside it.
 
     The comma sits after the close brace for every env but the last, where it sits before the key.
-    Removing the wrong one, or neither, leaves the table unparseable.
+    A cut of the wrong comma, or of neither, leaves a table that no parser reads.
     """
     pad, key_start, close = env_span(text, name)
     end = close + 1
@@ -224,7 +226,7 @@ def read_table(path):
 
 
 def write_verified(path, text, before, changed, expect):
-    """Write only if the reparsed table matches `expect` for `changed` and is untouched elsewhere."""
+    """Write only where the table, parsed again, matches `expect` for `changed` and has no other change."""
     after = json.loads(text)
     for name, want in expect.items():
         if after["envs"].get(name) != want:
@@ -257,7 +259,7 @@ def src_filter(p):
 
 
 def settings(pairs):
-    """{NAME: VALUE} from NAME=VALUE arguments, or None and the one that is not written so."""
+    """{NAME: VALUE} from NAME=VALUE arguments, or None and the one argument of another form."""
     out = {}
     for pair in pairs:
         name, sep, value = pair.partition("=")
@@ -311,7 +313,7 @@ def cmd_env_add(a):
 
 
 def cmd_env_update(a):
-    """Change an existing env. Every list option adds unless its --drop- twin removes."""
+    """Change an env of the matrix. Every list option adds unless its --drop- twin removes."""
 
     def edit(text, before):
         envs = before["envs"]
@@ -374,8 +376,8 @@ def cmd_env_update(a):
 
 
 def cmd_env_remove(a):
-    """Cut envs out of the matrix. Their tests are not deleted: a test folder no env still names
-    stops running, so that errors unless --force."""
+    """Cut envs out of the matrix. The cut keeps their tests. A test folder that no env names then stops
+    running, and that errors unless --force."""
 
     def edit(text, before):
         envs = before["envs"]
@@ -401,7 +403,7 @@ def cmd_env_remove(a):
                 print("   ", o)
             return 1
         if a.verbose:
-            # Where each test folder still runs once these envs are gone
+            # Where each test folder still runs after the cut of these envs
             covers = {}
             for n, e in retained.items():
                 for t in e.get("tests") or []:
@@ -449,8 +451,8 @@ TESSERA_RUN_CANDIDATES = (
 SCRIPT_BUILD = os.path.join(ROOT, "build", "harness")
 # a suite admitted and silent this long is hung
 IDLE_SECONDS = 1800
-# the processors a suite reserves where its env names none: a suite that links cached objects peaks near one, and
-# the daemon still holds a suite's retained peak where that is more
+# the processors a suite reserves where its env names none. A suite that links cached objects peaks near one. The
+# daemon still reserves a suite's measured peak where that is more
 PROCESSORS = 2
 
 
@@ -499,9 +501,9 @@ def gitlinks_exported(full, partial):
 
 
 def pinned_root(commit):
-    """orior as it was at a commit, exported once to build/trees/<commit>. Where this clone does not hold the commit,
-    the call fetches it from origin. A .pinned file names the commit. The compile cache keys the tree on that name. None
-    where git cannot name the commit, or where the export of a gitlink fails."""
+    """orior as it was at a commit, exported once to build/trees/<commit>. The export fetches the commit from origin
+    where this clone does not hold it. A .pinned file names the commit, the compile cache's key for it. None where
+    git cannot name the commit, or where the export of a gitlink fails."""
     found = subprocess.run(["git", "-C", ROOT, "rev-parse", "--verify", "--quiet", commit + "^{commit}"],
                            capture_output=True, text=True)
     if found.returncode != 0:
@@ -536,7 +538,7 @@ def script_command(name, e, tessera, root=ROOT, script_build=SCRIPT_BUILD):
     env = dict(os.environ)
     env.update(e.get("env", {}))
     env["BUILD_OUT"] = out
-    # one compile cache for every suite, pinned or not: a tree's objects are compiled by its first suite
+    # one compile cache for every suite, pinned or not: the first suite of a tree compiles its objects
     env["COMPILE_CACHE_DIR"] = os.path.join(ROOT, "build", "compile_cache").replace("\\", "/")
     # a suite compiles what the cache lacks as many at a time as the processors it reserves
     env["COMPILE_CACHE_JOBS"] = str(e.get("processors", PROCESSORS))
@@ -551,7 +553,7 @@ def script_command(name, e, tessera, root=ROOT, script_build=SCRIPT_BUILD):
     script = os.path.join(root, *e["script"].split("/"))
     if e.get("wsl"):
         # WSL takes no environment from here: the settings ride on the command line. The script is the copy on the
-        # ext4 volume where the volume is mounted and the tree is this one, else the tree through WSL's 9p mount
+        # ext4 volume where WSL has the volume and the tree is this one. Else it is the tree through WSL's 9p mount
         on_volume = (root == ROOT) and harness_wsl.mounted()
         where = "%s/%s" % (harness_wsl.TREE, e["script"]) if on_volume else wsl_path(script)
         sets = " ".join(
@@ -585,10 +587,10 @@ def script_end_tree(process):
 
 
 def script_run_one(name, e, tessera, root=ROOT, script_build=SCRIPT_BUILD, idle=IDLE_SECONDS):
-    """Run one env's suite. Returns (name, status, checks, failed, exit, log path, seconds). Once the daemon admits
-    it, a suite whose log does not grow for `idle` seconds (the env's "idle_seconds" where it names one) is hung: its
-    job and every process it started are ended, and it fails. The wait to be admitted prints nothing and is not
-    counted; a WSL suite is counted from its start."""
+    """Run one env's suite. Returns (name, status, checks, failed, exit, log path, seconds). After the daemon admits
+    it, a suite is hung where its log does not grow for `idle` seconds (the env's "idle_seconds" where it names one).
+    The harness then ends its job and every process it started, and the suite fails. The wait for the daemon prints
+    nothing, and the count of idle seconds starts after it. The count for a WSL suite starts at the suite's start."""
     cmd, env = script_command(name, e, tessera, root, script_build)
     log = os.path.join(script_build, name + ".log")
     idle = e.get("idle_seconds", idle)
@@ -621,8 +623,8 @@ def script_run_one(name, e, tessera, root=ROOT, script_build=SCRIPT_BUILD, idle=
     with open(log, encoding="utf-8", errors="replace") as fh:
         text = fh.read()
     checks, failed, exits = harness_cli.output_read(text)
-    # a suite passes when the job exited 0, every "test exit" it printed is 0 and no check failed; a script that
-    # built nothing and ran nothing prints no check line, which is reported, never read as a pass by silence
+    # a suite passes when the job exited 0, every "test exit" it printed is 0 and no check failed. A script that
+    # built nothing and ran nothing prints no check line. The harness reports it, and never reads its silence as a pass
     if rc != 0 or failed or any(exits):
         status = "FAIL"
     elif checks == 0 and "not run:" in text:
@@ -681,7 +683,7 @@ def cmd_run(a):
         print("not a suite in utils/test/test_matrix.json: " + " ".join(missing))
         return 1
     os.makedirs(script_build, exist_ok=True)
-    # the suites that run under WSL run on the ext4 volume where it is mounted: the tree is copied there first
+    # the suites that run under WSL run on the ext4 volume where WSL has it, and the harness copies the tree there first
     if (root == ROOT) and any(table[n].get("wsl") for n in names) and harness_wsl.mounted():
         print("wsl suites run on %s" % harness_wsl.TREE)
         if harness_wsl.synced() != 0:
@@ -809,7 +811,7 @@ def build_parser():
     p.add_argument("--at", metavar="HASH", help="run the suites of orior as it was at this commit (fetched from origin if need be)")
     p.add_argument("--idle", type=int, default=IDLE_SECONDS, metavar="SECONDS", help="end a suite whose log has not grown this long once admitted (0: never)")
     p.set_defaults(fn=cmd_run)
-    for module in (harness_build, harness_cli, harness_container, harness_cu, harness_docs, harness_evidence, harness_package, harness_sonarqube, harness_window, harness_wsl):
+    for module in (harness_build, harness_cli, harness_container, harness_cu, harness_docs, harness_evidence, harness_lng, harness_package, harness_sonarqube, harness_window, harness_wsl):
         module.register(sub)
     return ap
 
@@ -835,8 +837,8 @@ class Teed:
 
 
 def main():
-    """The command run, its output retained under build/harness/log and the invocation a line of build/harness/harness.log:
-    when it began, the command line, its exit code, its seconds and its output's file."""
+    """The command run, its output kept under build/harness/log, and the invocation a line of build/harness/harness.log.
+    The line gives when it began, the command line, its exit code, its seconds and its output's file."""
     ap = build_parser()
     a, extra = ap.parse_known_args()
     if extra and not getattr(a, "takes_extra", False):
