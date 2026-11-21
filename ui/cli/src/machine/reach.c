@@ -454,8 +454,8 @@ EMBED_INLINE void (*reach_woken(embed_atomic_uptr_value stored))(void)
 // a command's thread woken: its command done, or its answer held
 static void reach_wake(const ReachCtx *args)
 {
-    embed_atomic_word_store(&args->message->done, 1u);
-    embed_word_wake(&args->message->done);
+    EMBED_CALL(embed_atomic_word_table.store, EmbedAtomicWordStoreCfg, .word = &args->message->done, .value = 1u);
+    EMBED_CALL(embed_word_wake, EmbedWordWakeCfg, .word = &args->message->done);
 }
 
 // The next command popped off the ring, into `command_out` with its stamp into `stamp_out`: 1 where the slot of the
@@ -463,15 +463,17 @@ static void reach_wake(const ReachCtx *args)
 // waits, where the next is granted and not yet pushed, or where another pass popped it first
 static int reach_popped(CliReachCommand **command_out, embed_u64 *stamp_out)
 {
-    if (!cli_ticket_pushed(&s_interface.ring, embed_atomic_u32_load(&s_interface.taken), stamp_out))
+    if (!cli_ticket_pushed(&s_interface.ring,
+                           EMBED_CALL(embed_atomic_u32_table.load, EmbedAtomicU32LoadCfg, .word = &s_interface.taken),
+                           stamp_out))
     {
         return 0;
     }
     void *job = NULL;
     embed_u64 seen = 0u;
     // Explicit cast carries the interface's address as the pass's entry
-    if (!embed_ticket_ring_pass_pop(&s_interface.turnstiles, (embed_atomic_uptr_value)(embed_word)&s_interface,
-                                    &s_interface.ring, *stamp_out, &job, &seen))
+    if (!EMBED_CALL(embed_ticket_ring_pass_pop, EmbedTicketRingPassPopCfg, &s_interface.turnstiles,
+                    (embed_atomic_uptr_value)(embed_word)&s_interface, &s_interface.ring, *stamp_out, &job, &seen))
     {
         return 0;
     }
@@ -484,9 +486,11 @@ static int reach_popped(CliReachCommand **command_out, embed_u64 *stamp_out)
 static void reach_released(const ReachCtx *args)
 {
     embed_u64 seen = 0u;
-    (void)embed_ticket_ring_drain_release(&s_interface.turnstiles, &s_interface.ring, args->stamp, &seen);
+    (void)EMBED_CALL(embed_ticket_ring_drain_release, EmbedTicketRingDrainReleaseCfg, &s_interface.turnstiles,
+                     &s_interface.ring, args->stamp, &seen);
     // a ticket holds 32 bits at most, and the next ticket wraps to 0 as the 32 bit count of taken tickets does
-    embed_atomic_u32_store(&s_interface.taken, (embed_u32)(embed_ticket_of_stamp(args->stamp) + 1u));
+    EMBED_CALL(embed_atomic_u32_table.store, EmbedAtomicU32StoreCfg, .word = &s_interface.taken,
+               .value = (embed_u32)(EMBED_CALL(embed_ticket_of_stamp, EmbedTicketOfStampCfg, args->stamp) + 1u));
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_interface.room);
 }
 
@@ -516,7 +520,8 @@ static int reach_received(const CliCommsRecvCfg *args)
         at += cellul.len(&(CatenaFinitaCfg){.src = args->body + at, .cap = args->size - at}) + 1ULL;
     }
     if ((fields < CLI_REACH_HEAD_FIELDS) || (args->body[args->size - 1ULL] != '\0') ||
-        ((fields - CLI_REACH_HEAD_FIELDS) > CLI_REACH_WORDS) || (embed_atomic_u32_load(&s_interface.closed) != 0u))
+        ((fields - CLI_REACH_HEAD_FIELDS) > CLI_REACH_WORDS) ||
+        (EMBED_CALL(embed_atomic_u32_table.load, EmbedAtomicU32LoadCfg, .word = &s_interface.closed) != 0u))
     {
         return 1;
     }
@@ -535,9 +540,9 @@ static int reach_received(const CliCommsRecvCfg *args)
     }
     command.word_list = given;
     command.ran = 0;
-    embed_atomic_word_store(&command.done, 0u);
+    EMBED_CALL(embed_atomic_word_table.store, EmbedAtomicWordStoreCfg, .word = &command.done, .value = 0u);
     const embed_u32 ticket = EMBED_ATOMIC_ADD_32(&s_interface.ticket, 1u);
-    const embed_u64 stamp = embed_ticket_stamp(cli_ticket_epoch(), ticket);
+    const embed_u64 stamp = EMBED_CALL(embed_ticket_stamp, EmbedTicketStampCfg, cli_ticket_epoch(), ticket);
     // Explicit cast carries the command's address as the pass's entry
     const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)&command;
     embed_u64 seen = 0u;
@@ -545,30 +550,34 @@ static int reach_received(const CliCommsRecvCfg *args)
     {
         const unsigned int room = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_interface.room);
         if (cli_ticket_room(&s_interface.ring, ticket) &&
-            embed_ticket_ring_pass_grant(&s_interface.turnstiles, address, &s_interface.ring, stamp, &seen))
+            EMBED_CALL(embed_ticket_ring_pass_grant, EmbedTicketRingPassGrantCfg, &s_interface.turnstiles, address,
+                       &s_interface.ring, stamp, &seen))
         {
             break;
         }
-        if (embed_atomic_u32_load(&s_interface.closed) != 0u)
+        if (EMBED_CALL(embed_atomic_u32_table.load, EmbedAtomicU32LoadCfg, .word = &s_interface.closed) != 0u)
         {
             return 1;
         }
         EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_interface.room, .seen = room);
     }
-    (void)embed_ticket_ring_pass_push(&s_interface.turnstiles, address, &s_interface.ring, stamp, &command, &seen);
+    (void)EMBED_CALL(embed_ticket_ring_pass_push, EmbedTicketRingPassPushCfg, &s_interface.turnstiles, address,
+                     &s_interface.ring, stamp, &command, &seen);
     // a interface closed as this pushed: the ring popped here, so no command is on it with no one to mark it
-    if (embed_atomic_u32_load(&s_interface.closed) != 0u)
+    if (EMBED_CALL(embed_atomic_u32_table.load, EmbedAtomicU32LoadCfg, .word = &s_interface.closed) != 0u)
     {
         reach_refused_all();
     }
-    void (*const woken)(void) = reach_woken(embed_atomic_uptr_load(&s_interface.woken));
+    void (*const woken)(void) =
+        reach_woken(EMBED_CALL(embed_atomic_uptr_table.load, EmbedAtomicUptrLoadCfg, .word = &s_interface.woken));
     if (woken != NULL)
     {
         woken();
     }
-    while (embed_atomic_word_load(&command.done) == 0u)
+    while (EMBED_CALL(embed_atomic_word_table.load, EmbedAtomicWordLoadCfg, .word = &command.done) == 0u)
     {
-        (void)embed_word_wait(&command.done, 0u, EMBED_WAIT_INFINITE);
+        (void)EMBED_CALL(embed_word_wait, EmbedWordWaitCfg, .word = &command.done, .old_value = 0u,
+                         .nanoseconds = EMBED_WAIT_INFINITE);
     }
     return 1;
 }
@@ -581,13 +590,14 @@ int cli_reach_open(const CliReachCfg *args)
     EmbedTicketRingSlot *const slots =
         (EmbedTicketRingSlot *)(void *)EMBED_CALL(cli_rings.part, CliRingsPartCfg, .part = CLI_RINGS_REACH);
     memor.set(&(MemoriaCfg){.dst = slots, .val = 0, .bytes = CLI_REACH_RING_BYTES});
-    embed_ticket_ring_begin(&s_interface.ring, slots, CLI_REACH_RING_SHIFT);
-    embed_atomic_u32_store(&s_interface.ticket, 0u);
-    embed_atomic_u32_store(&s_interface.taken, 0u);
+    EMBED_CALL(embed_ticket_ring_begin, EmbedTicketRingBeginCfg, &s_interface.ring, slots, CLI_REACH_RING_SHIFT);
+    EMBED_CALL(embed_atomic_u32_table.store, EmbedAtomicU32StoreCfg, .word = &s_interface.ticket, .value = 0u);
+    EMBED_CALL(embed_atomic_u32_table.store, EmbedAtomicU32StoreCfg, .word = &s_interface.taken, .value = 0u);
     s_interface.room = (CliWake)CLI_WAKE_INIT;
     // Explicit cast stores the function pointer as the word that holds it
-    embed_atomic_uptr_store(&s_interface.woken, (embed_atomic_uptr_value)(embed_word)args->woken);
-    embed_atomic_u32_store(&s_interface.closed, 0u);
+    EMBED_CALL(embed_atomic_uptr_table.store, EmbedAtomicUptrStoreCfg, .word = &s_interface.woken,
+               .value = (embed_atomic_uptr_value)(embed_word)args->woken);
+    EMBED_CALL(embed_atomic_u32_table.store, EmbedAtomicU32StoreCfg, .word = &s_interface.closed, .value = 0u);
     s_interface.key[0] = '\0';
     static const char *const s_listen[1] = {"command"};
     static const char *const s_send[1] = {"answer/*"};
@@ -703,10 +713,10 @@ void cli_reach_held_answer(const CliReachCfg *args)
 
 void cli_reach_close(void)
 {
-    embed_atomic_u32_store(&s_interface.closed, 1u);
+    EMBED_CALL(embed_atomic_u32_table.store, EmbedAtomicU32StoreCfg, .word = &s_interface.closed, .value = 1u);
     EMBED_ATOMIC_ORDERED();
     cli_reach_held_answer(&(CliReachCfg){.done = 0, .text = "the window closed before an answer"});
     reach_refused_all();
-    embed_atomic_uptr_store(&s_interface.woken, 0u);
+    EMBED_CALL(embed_atomic_uptr_table.store, EmbedAtomicUptrStoreCfg, .word = &s_interface.woken, .value = 0u);
     s_interface.key[0] = '\0';
 }

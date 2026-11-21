@@ -61,7 +61,8 @@ static void jobs_worker(void *context)
         }
         void *popped = NULL;
         embed_u64 seen_word = 0u;
-        (void)embed_ticket_ring_pass_pop(&s_turnstiles, address, &s_ring, stamp, &popped, &seen_word);
+        (void)EMBED_CALL(embed_ticket_ring_pass_pop, EmbedTicketRingPassPopCfg, &s_turnstiles, address, &s_ring, stamp,
+                         &popped, &seen_word);
         const CarcerMovableEntry *const cell = popped;
         JobsCell job = {NULL, 0ULL};
         (void)g_cli_guard->movable_buf_read(
@@ -78,7 +79,8 @@ static void jobs_worker(void *context)
         }
         g_cli_guard->persistent_buf_release(bytes, g_cli_servers_owner);
         (void)g_cli_guard->movable_buf_release(cell, g_cli_servers_owner);
-        (void)embed_ticket_ring_drain_release(&s_turnstiles, &s_ring, stamp, &seen_word);
+        (void)EMBED_CALL(embed_ticket_ring_drain_release, EmbedTicketRingDrainReleaseCfg, &s_turnstiles, &s_ring, stamp,
+                         &seen_word);
         (void)EMBED_ATOMIC_ADD_32(&s_done, 1u);
         EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
     }
@@ -144,12 +146,14 @@ int cli_servers_later_dispatch(const CliServersRunSizeCtx *args)
         }
         EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_wake, .seen = seen);
     }
-    const embed_u64 stamp = embed_ticket_stamp(cli_ticket_epoch(), ticket);
+    const embed_u64 stamp = EMBED_CALL(embed_ticket_stamp, EmbedTicketStampCfg, cli_ticket_epoch(), ticket);
     // Explicit cast carries the cell's token as the pass's entry, and as the word in the ring entry
     const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)cell;
     embed_u64 seen_word = 0u;
-    (void)embed_ticket_ring_pass_grant(&s_turnstiles, address, &s_ring, stamp, &seen_word);
-    (void)embed_ticket_ring_pass_push(&s_turnstiles, address, &s_ring, stamp, (void *)(embed_word)cell, &seen_word);
+    (void)EMBED_CALL(embed_ticket_ring_pass_grant, EmbedTicketRingPassGrantCfg, &s_turnstiles, address, &s_ring, stamp,
+                     &seen_word);
+    (void)EMBED_CALL(embed_ticket_ring_pass_push, EmbedTicketRingPassPushCfg, &s_turnstiles, address, &s_ring, stamp,
+                     (void *)(embed_word)cell, &seen_word);
     jobs_worker_started();
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
     return 1;

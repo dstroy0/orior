@@ -61,12 +61,13 @@ EMBED_INLINE void client_recv(const InterfaceClientCtx *args)
     // the slot of the next ticket granted, which fails while the entry of that slot is still queued; the entry is the
     // reader's alone until it is pushed
     CliIpcClient *const client = args->client;
-    const embed_u64 stamp = embed_ticket_stamp(cli_ticket_epoch(), client->ticket);
+    const embed_u64 stamp = EMBED_CALL(embed_ticket_stamp, EmbedTicketStampCfg, cli_ticket_epoch(), client->ticket);
     CliIpcEntry *const entry = &client->recv_queue[client->ticket & (CLI_IPC_RECV_QUEUE - 1u)];
     // Explicit cast carries the entry's address as the pass's entry
     const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)entry;
     embed_u64 seen = 0u;
-    if (!embed_ticket_ring_pass_grant(&client->turnstiles, address, &client->ring, stamp, &seen))
+    if (!EMBED_CALL(embed_ticket_ring_pass_grant, EmbedTicketRingPassGrantCfg, &client->turnstiles, address,
+                    &client->ring, stamp, &seen))
     {
         return;
     }
@@ -113,7 +114,8 @@ EMBED_INLINE void client_recv(const InterfaceClientCtx *args)
         }
         entry->size = rest_size;
     }
-    (void)embed_ticket_ring_pass_push(&client->turnstiles, address, &client->ring, stamp, entry, &seen);
+    (void)EMBED_CALL(embed_ticket_ring_pass_push, EmbedTicketRingPassPushCfg, &client->turnstiles, address,
+                     &client->ring, stamp, entry, &seen);
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &client->wake);
 }
 
@@ -124,8 +126,8 @@ static int client_popped(CliIpcClient *client, CliIpcEntry **entry_out, embed_u6
     embed_u64 seen = 0u;
     // Explicit cast carries the end's address as the pass's entry
     if (!cli_ticket_pushed(&client->ring, client->taken, stamp_out) ||
-        !embed_ticket_ring_pass_pop(&client->turnstiles, (embed_atomic_uptr_value)(embed_word)client, &client->ring,
-                                    *stamp_out, &job, &seen))
+        !EMBED_CALL(embed_ticket_ring_pass_pop, EmbedTicketRingPassPopCfg, &client->turnstiles,
+                    (embed_atomic_uptr_value)(embed_word)client, &client->ring, *stamp_out, &job, &seen))
     {
         return 0;
     }
@@ -137,7 +139,8 @@ static int client_popped(CliIpcClient *client, CliIpcEntry **entry_out, embed_u6
 static void client_released(const InterfaceClientCtx *args)
 {
     embed_u64 seen = 0u;
-    (void)embed_ticket_ring_drain_release(&args->client->turnstiles, &args->client->ring, args->stamp, &seen);
+    (void)EMBED_CALL(embed_ticket_ring_drain_release, EmbedTicketRingDrainReleaseCfg, &args->client->turnstiles,
+                     &args->client->ring, args->stamp, &seen);
     args->client->taken += 1u;
 }
 
@@ -265,7 +268,7 @@ CliIpcClient *cli_ipc_join(const CliIpcErrMsgAddressCfg *args)
                                          sizeof(EmbedTicketRingSlot)));
     memor.set(&(MemoriaCfg){
         .dst = slots, .val = 0, .bytes = (unsigned long long)CLI_IPC_RECV_QUEUE * sizeof(EmbedTicketRingSlot)});
-    embed_ticket_ring_begin(&client->ring, slots, CLI_IPC_RECV_SHIFT);
+    EMBED_CALL(embed_ticket_ring_begin, EmbedTicketRingBeginCfg, &client->ring, slots, CLI_IPC_RECV_SHIFT);
     client->ticket = 0u;
     client->taken = 0u;
     EMBED_ATOMIC_STORE(&client->answered, 0u);

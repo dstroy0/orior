@@ -768,13 +768,15 @@ void cli_files_explorer_refresh(void)
 
 void cli_files_explorer_stale(void)
 {
-    (void)embed_atomic_u32_fetch_add(&s_explorer_stale, 1u);
+    (void)EMBED_CALL(embed_atomic_u32_table.fetch_add, EmbedAtomicU32FetchAddCfg, .word = &s_explorer_stale,
+                     .value = 1u);
 }
 
 int cli_files_explorer_changed(void)
 {
     static unsigned int s_seen;
-    const unsigned int marks = embed_atomic_u32_load(&s_explorer_stale);
+    const unsigned int marks =
+        EMBED_CALL(embed_atomic_u32_table.load, EmbedAtomicU32LoadCfg, .word = &s_explorer_stale);
     const int changed = marks != s_seen;
     s_seen = marks;
     return changed;

@@ -9,13 +9,16 @@
 #define NOMINMAX
 #include <windows.h>
 
-int embed_word_wait(embed_atomic_word *word, embed_atomic_word_value seen, embed_u64 nanoseconds)
+int embed_word_wait(const EmbedWordWaitCfg *args)
 {
+    embed_atomic_word *const word = args->word;
+    const embed_atomic_word_value seen = args->old_value;
+    const embed_u64 nanoseconds = args->nanoseconds;
     embed_atomic_word_value was = seen;
 
     if (nanoseconds == 0u)
     {
-        return embed_atomic_word_load(word) != seen;
+        return EMBED_CALL(embed_atomic_word_table.load, EmbedAtomicWordLoadCfg, .word = word) != seen;
     }
     // WaitOnAddress takes whole milliseconds: the limit is rounded up, and a limit past the longest a DWORD counts
     // waits that long
@@ -24,17 +27,18 @@ int embed_word_wait(embed_atomic_word *word, embed_atomic_word_value seen, embed
                          : (milliseconds < 0xfffffffeULL)     ? (DWORD)milliseconds
                                                               : (DWORD)0xfffffffeULL;
     (void)WaitOnAddress(&word->value, &was, sizeof(was), waited);
-    return embed_atomic_word_load(word) != seen;
+    return EMBED_CALL(embed_atomic_word_table.load, EmbedAtomicWordLoadCfg, .word = word) != seen;
 }
 
-void embed_word_wake(embed_atomic_word *word)
+void embed_word_wake(const EmbedWordWakeCfg *args)
 {
-    WakeByAddressAll(&word->value);
+    WakeByAddressAll(&args->word->value);
 }
 
 int cli_wake_wait_for(const CliWakeCtx *args)
 {
-    embed_atomic_word_value seen = embed_atomic_word_load(&args->wake->generation);
+    embed_atomic_word_value seen =
+        EMBED_CALL(embed_atomic_word_table.load, EmbedAtomicWordLoadCfg, .word = &args->wake->generation);
     // a wait past the longest a DWORD counts waits that long
     const DWORD waited = (DWORD)((args->milliseconds_u64 < 0xfffffffeULL) ? args->milliseconds_u64 : 0xfffffffeULL);
     return WaitOnAddress(&args->wake->generation.value, &seen, sizeof(seen), waited) != FALSE;
@@ -50,7 +54,8 @@ int cli_wake_wait_seen_for(const CliWakeCtx *args)
 
 unsigned int cli_wake_read(const CliWakeCtx *args)
 {
-    return (unsigned int)embed_atomic_word_load(&args->wake->generation);
+    return (unsigned int)EMBED_CALL(embed_atomic_word_table.load, EmbedAtomicWordLoadCfg,
+                                    .word = &args->wake->generation);
 }
 
 void cli_wake_wait_seen(const CliWakeCtx *args)
@@ -61,7 +66,8 @@ void cli_wake_wait_seen(const CliWakeCtx *args)
 
 void cli_wake_all(const CliWakeCtx *args)
 {
-    (void)embed_atomic_word_fetch_add(&args->wake->generation, 1u);
+    (void)EMBED_CALL(embed_atomic_word_table.fetch_add, EmbedAtomicWordFetchAddCfg, .word = &args->wake->generation,
+                     .value = 1u);
     WakeByAddressAll(&args->wake->generation.value);
 }
 

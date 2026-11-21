@@ -41,8 +41,8 @@ __global__ void atomic_global_kernel(embed_atomic_u32 *count, embed_atomic_u64 *
 {
     for (unsigned int step = 0u; step < ATOMIC_ROUNDS; step += 1u)
     {
-        (void)embed_atomic_u32_fetch_add(count, 1u);
-        (void)embed_atomic_u64_fetch_add(wide, 3u);
+        (void)EMBED_CALL(embed_atomic_u32_fetch_add, EmbedAtomicU32FetchAddCfg, count, 1u);
+        (void)EMBED_CALL(embed_atomic_u64_fetch_add, EmbedAtomicU64FetchAddCfg, wide, 3u);
     }
 }
 
@@ -53,17 +53,17 @@ __global__ void atomic_shared_kernel(unsigned int *counts)
     __shared__ embed_atomic_u32 count;
     if (threadIdx.x == 0u)
     {
-        embed_atomic_u32_store(&count, 0u);
+        EMBED_CALL(embed_atomic_u32_store, EmbedAtomicU32StoreCfg, &count, 0u);
     }
     __syncthreads();
     for (unsigned int step = 0u; step < ATOMIC_ROUNDS; step += 1u)
     {
-        (void)embed_atomic_u32_fetch_add(&count, 1u);
+        (void)EMBED_CALL(embed_atomic_u32_fetch_add, EmbedAtomicU32FetchAddCfg, &count, 1u);
     }
     __syncthreads();
     if (threadIdx.x == 0u)
     {
-        counts[blockIdx.x] = embed_atomic_u32_load(&count);
+        counts[blockIdx.x] = EMBED_CALL(embed_atomic_u32_load, EmbedAtomicU32LoadCfg, &count);
     }
 }
 
@@ -76,7 +76,7 @@ __global__ void atomic_claim_kernel(embed_atomic_u32 *slots, unsigned int *won)
     for (unsigned int at = 0u; at < ATOMIC_SLOTS; at += 1u)
     {
         embed_u32 free_slot = 0u;
-        if (embed_atomic_u32_swap_if(&slots[at], &free_slot, thread + 1u))
+        if (EMBED_CALL(embed_atomic_u32_swap_if, EmbedAtomicU32SwapIfCfg, &slots[at], &free_slot, thread + 1u))
         {
             taken += 1u;
         }
@@ -103,9 +103,10 @@ static bool atomic_global(void)
     ran = ran && (cudaMemcpy(&counted, count, sizeof(counted), cudaMemcpyDeviceToHost) == cudaSuccess) &&
           (cudaMemcpy(&counted_wide, wide, sizeof(counted_wide), cudaMemcpyDeviceToHost) == cudaSuccess);
     atomic_check(ran, "the grid adding to two counters in global memory runs to its end");
-    atomic_check(embed_atomic_u32_load(&counted) == (ATOMIC_BLOCKS * ATOMIC_BLOCK_THREADS * ATOMIC_ROUNDS),
+    atomic_check(EMBED_CALL(embed_atomic_u32_load, EmbedAtomicU32LoadCfg, &counted) ==
+                     (ATOMIC_BLOCKS * ATOMIC_BLOCK_THREADS * ATOMIC_ROUNDS),
                  "every add the grid made to the 32-bit counter is counted");
-    atomic_check(embed_atomic_u64_load(&counted_wide) ==
+    atomic_check(EMBED_CALL(embed_atomic_u64_load, EmbedAtomicU64LoadCfg, &counted_wide) ==
                      ((embed_u64)ATOMIC_BLOCKS * ATOMIC_BLOCK_THREADS * ATOMIC_ROUNDS * 3u),
                  "every add the grid made to the 64-bit counter is counted");
     (void)cudaFree(count);
@@ -164,7 +165,7 @@ static bool atomic_claim(void)
     unsigned int held = 0u;
     for (unsigned int at = 0u; at < ATOMIC_SLOTS; at += 1u)
     {
-        const embed_u32 holder = embed_atomic_u32_load(&holders[at]);
+        const embed_u32 holder = EMBED_CALL(embed_atomic_u32_load, EmbedAtomicU32LoadCfg, &holders[at]);
         held += ((holder >= 1u) && (holder <= threads)) ? 1u : 0u;
     }
     atomic_check(held == ATOMIC_SLOTS, "every slot holds one thread's number");
@@ -180,9 +181,9 @@ int program_main(int argc, char **argv)
     // the host arm of this C++ unit: the same operations once
     embed_atomic_u32 host = EMBED_ATOMIC_INIT(5u);
     embed_u32 expected = 5u;
-    const bool swapped = embed_atomic_u32_swap_if(&host, &expected, 7u);
-    const embed_u32 before = embed_atomic_u32_fetch_add(&host, 1u);
-    atomic_check(swapped && (before == 7u) && (embed_atomic_u32_load(&host) == 8u),
+    const bool swapped = EMBED_CALL(embed_atomic_u32_swap_if, EmbedAtomicU32SwapIfCfg, &host, &expected, 7u);
+    const embed_u32 before = EMBED_CALL(embed_atomic_u32_fetch_add, EmbedAtomicU32FetchAddCfg, &host, 1u);
+    atomic_check(swapped && (before == 7u) && (EMBED_CALL(embed_atomic_u32_load, EmbedAtomicU32LoadCfg, &host) == 8u),
                  "the host arm swaps, adds and reads a word in a C++ unit");
     atomic_check((sizeof(embed_atomic_u32) == 4u) && (sizeof(embed_atomic_u64) == 8u),
                  "the words are 32 and 64 bits on the host");

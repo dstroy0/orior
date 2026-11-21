@@ -258,7 +258,8 @@ static const CarcerMovableEntry *problems_table_built(const ProblemsCtx *args)
 static void problems_woken(void)
 {
     // Explicit cast reads the word as the function pointer stored in it
-    void (*const woken)(void) = (void (*)(void))(embed_word)embed_atomic_uptr_load(&s_problems.woken);
+    void (*const woken)(void) = (void (*)(void))(embed_word)EMBED_CALL(
+        embed_atomic_uptr_table.load, EmbedAtomicUptrLoadCfg, .word = &s_problems.woken);
     if (woken != NULL)
     {
         woken();
@@ -295,7 +296,7 @@ static void problems_reported(const CliServerDiagnosticsCfg *args)
     (void)g_cli_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .src = &report, .bytes = sizeof(report)});
     const embed_u32 ticket = EMBED_ATOMIC_ADD_32(&s_problems.ticket, 1u);
-    const embed_u64 stamp = embed_ticket_stamp(cli_ticket_epoch(), ticket);
+    const embed_u64 stamp = EMBED_CALL(embed_ticket_stamp, EmbedTicketStampCfg, cli_ticket_epoch(), ticket);
     // Explicit cast carries the cell's token as the pass's entry, and as the word the ring's entry keeps
     const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)cell;
     embed_u64 seen = 0u;
@@ -303,11 +304,12 @@ static void problems_reported(const CliServerDiagnosticsCfg *args)
     {
         const unsigned int room = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_problems.room);
         if (cli_ticket_room(&s_problems.ring, ticket) &&
-            embed_ticket_ring_pass_grant(&s_problems.turnstiles, address, &s_problems.ring, stamp, &seen))
+            EMBED_CALL(embed_ticket_ring_pass_grant, EmbedTicketRingPassGrantCfg, &s_problems.turnstiles, address,
+                       &s_problems.ring, stamp, &seen))
         {
             break;
         }
-        if (embed_atomic_u32_load(&s_problems.open) == 0u)
+        if (EMBED_CALL(embed_atomic_u32_table.load, EmbedAtomicU32LoadCfg, .word = &s_problems.open) == 0u)
         {
             if (report.has_file)
             {
@@ -318,16 +320,18 @@ static void problems_reported(const CliServerDiagnosticsCfg *args)
         }
         EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_problems.room, .seen = room);
     }
-    (void)embed_ticket_ring_pass_push(&s_problems.turnstiles, address, &s_problems.ring, stamp,
-                                      (void *)(embed_word)cell, &seen);
+    (void)EMBED_CALL(embed_ticket_ring_pass_push, EmbedTicketRingPassPushCfg, &s_problems.turnstiles, address,
+                     &s_problems.ring, stamp, (void *)(embed_word)cell, &seen);
     problems_woken();
 }
 
 // from any thread: how far the tree's check is
 static void problems_check_moved(const CliServerCheckCfg *args)
 {
-    embed_atomic_u64_store(&s_problems.check_done, args->done);
-    embed_atomic_u64_store(&s_problems.check_total, args->total);
+    EMBED_CALL(embed_atomic_u64_table.store, EmbedAtomicU64StoreCfg, .word = &s_problems.check_done,
+               .value = args->done);
+    EMBED_CALL(embed_atomic_u64_table.store, EmbedAtomicU64StoreCfg, .word = &s_problems.check_total,
+               .value = args->total);
     problems_woken();
 }
 
@@ -349,20 +353,21 @@ void cli_servers_problems_begin(void (*woken)(void))
     EmbedTicketRingSlot *const slots =
         (EmbedTicketRingSlot *)(void *)EMBED_CALL(cli_rings.part, CliRingsPartCfg, .part = CLI_RINGS_PROBLEMS);
     memor.set(&(MemoriaCfg){.dst = slots, .val = 0, .bytes = CLI_PROBLEMS_RING_BYTES});
-    embed_ticket_ring_begin(&s_problems.ring, slots, CLI_PROBLEMS_RING_SHIFT);
-    embed_atomic_u32_store(&s_problems.ticket, 0u);
+    EMBED_CALL(embed_ticket_ring_begin, EmbedTicketRingBeginCfg, &s_problems.ring, slots, CLI_PROBLEMS_RING_SHIFT);
+    EMBED_CALL(embed_atomic_u32_table.store, EmbedAtomicU32StoreCfg, .word = &s_problems.ticket, .value = 0u);
     s_problems.room = (CliWake)CLI_WAKE_INIT;
-    embed_atomic_u64_store(&s_problems.check_done, 0ULL);
-    embed_atomic_u64_store(&s_problems.check_total, 0ULL);
+    EMBED_CALL(embed_atomic_u64_table.store, EmbedAtomicU64StoreCfg, .word = &s_problems.check_done, .value = 0ULL);
+    EMBED_CALL(embed_atomic_u64_table.store, EmbedAtomicU64StoreCfg, .word = &s_problems.check_total, .value = 0ULL);
     // Explicit cast stores the function pointer as the word that holds it
-    embed_atomic_uptr_store(&s_problems.woken, (embed_atomic_uptr_value)(embed_word)woken);
+    EMBED_CALL(embed_atomic_uptr_table.store, EmbedAtomicUptrStoreCfg, .word = &s_problems.woken,
+               .value = (embed_atomic_uptr_value)(embed_word)woken);
     s_problems.taken = 0u;
     s_problems.table = NULL;
     s_problems.count = 0u;
     s_problems.errors = 0u;
     s_problems.done = 0ULL;
     s_problems.total = 0ULL;
-    embed_atomic_u32_store(&s_problems.open, 1u);
+    EMBED_CALL(embed_atomic_u32_table.store, EmbedAtomicU32StoreCfg, .word = &s_problems.open, .value = 1u);
 }
 
 // On the view's thread: every report pushed popped in the order of its ticket, and the table built over it. The
@@ -378,7 +383,8 @@ static int problems_taken(void)
     {
         void *job = NULL;
         embed_u64 seen = 0u;
-        if (!embed_ticket_ring_pass_pop(&s_problems.turnstiles, address, &s_problems.ring, stamp, &job, &seen))
+        if (!EMBED_CALL(embed_ticket_ring_pass_pop, EmbedTicketRingPassPopCfg, &s_problems.turnstiles, address,
+                        &s_problems.ring, stamp, &job, &seen))
         {
             break;
         }
@@ -413,7 +419,8 @@ static int problems_taken(void)
             cli_servers_report_release(&(CliServersReportCfg){.report = report.file.report});
         }
         (void)g_cli_guard->movable_buf_release(cell, g_cli_servers_owner);
-        (void)embed_ticket_ring_drain_release(&s_problems.turnstiles, &s_problems.ring, stamp, &seen);
+        (void)EMBED_CALL(embed_ticket_ring_drain_release, EmbedTicketRingDrainReleaseCfg, &s_problems.turnstiles,
+                         &s_problems.ring, stamp, &seen);
         s_problems.taken += 1u;
         EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_problems.room);
     }
@@ -423,8 +430,10 @@ static int problems_taken(void)
 int cli_servers_problems_step(void)
 {
     int moved = problems_taken();
-    const unsigned long long total = embed_atomic_u64_load(&s_problems.check_total);
-    const unsigned long long done = embed_atomic_u64_load(&s_problems.check_done);
+    const unsigned long long total =
+        EMBED_CALL(embed_atomic_u64_table.load, EmbedAtomicU64LoadCfg, .word = &s_problems.check_total);
+    const unsigned long long done =
+        EMBED_CALL(embed_atomic_u64_table.load, EmbedAtomicU64LoadCfg, .word = &s_problems.check_done);
     moved = moved || (done != s_problems.done) || (total != s_problems.total);
     s_problems.done = done;
     s_problems.total = total;
@@ -434,7 +443,7 @@ int cli_servers_problems_step(void)
 void cli_servers_problems_end(void)
 {
     cli_servers_stop_check();
-    embed_atomic_u32_store(&s_problems.open, 0u);
+    EMBED_CALL(embed_atomic_u32_table.store, EmbedAtomicU32StoreCfg, .word = &s_problems.open, .value = 0u);
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_problems.room);
     (void)problems_taken();
     for (unsigned int at = 0u; at < s_problems.count; at += 1u)
@@ -449,7 +458,7 @@ void cli_servers_problems_end(void)
     s_problems.table = NULL;
     s_problems.count = 0u;
     s_problems.errors = 0u;
-    embed_atomic_uptr_store(&s_problems.woken, 0u);
+    EMBED_CALL(embed_atomic_uptr_table.store, EmbedAtomicUptrStoreCfg, .word = &s_problems.woken, .value = 0u);
 }
 
 CliProblemsCounts cli_servers_problems_counts(void)

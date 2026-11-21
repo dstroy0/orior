@@ -467,8 +467,9 @@ static void cli_language_each(const CliEachPluginCfg *args)
 EMBED_INLINE void cli_languages_placed(const PluginsCtx *args)
 {
     // the token goes through the atomic word as the integer of its address
-    const CarcerMovableEntry *const before = (const CarcerMovableEntry *)(embed_word)embed_atomic_word_exchange(
-        &s_languages, (embed_atomic_word_value)(embed_word)args->pairs);
+    const CarcerMovableEntry *const before = (const CarcerMovableEntry *)(embed_word)EMBED_CALL(
+        embed_atomic_word_table.exchange, EmbedAtomicWordExchangeCfg, .word = &s_languages,
+        .value = (embed_atomic_word_value)(embed_word)args->pairs);
     (void)g_cli_guard->movable_buf_release(before, g_cli_plugins_owner);
 }
 
@@ -593,12 +594,13 @@ void cli_plugins_languages_end(void)
 // the token of the languages' cell, the cell read from the plugins where no call read it before
 static const CarcerMovableEntry *cli_languages_token(void)
 {
-    if (embed_atomic_word_load(&s_languages) == 0u)
+    if (EMBED_CALL(embed_atomic_word_table.load, EmbedAtomicWordLoadCfg, .word = &s_languages) == 0u)
     {
         cli_plugins_languages_changed();
     }
     // the atomic word holds the integer of the token's address
-    return (const CarcerMovableEntry *)(embed_word)embed_atomic_word_load(&s_languages);
+    return (const CarcerMovableEntry *)(embed_word)EMBED_CALL(embed_atomic_word_table.load, EmbedAtomicWordLoadCfg,
+                                                              .word = &s_languages);
 }
 
 // the id of the pair `at` of the cell `pairs` read into `id_out` with its end: 1

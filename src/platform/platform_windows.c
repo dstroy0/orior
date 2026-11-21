@@ -48,7 +48,8 @@ static DWORD WINAPI platform_thread_entered(LPVOID supplied)
 
 int platform_thread_started(void (*run)(void *context), void *context)
 {
-    const embed_u32 place = embed_atomic_u32_fetch_add(&s_threads_given, 1u);
+    const embed_u32 place =
+        EMBED_CALL(embed_atomic_u32_table.fetch_add, EmbedAtomicU32FetchAddCfg, .word = &s_threads_given, .value = 1u);
     if (place >= PLATFORM_THREADS_MAX)
     {
         return 0;
@@ -79,12 +80,15 @@ unsigned int platform_processors(void)
     return (count != 0u) ? (unsigned int)count : 1u;
 }
 
-int embed_word_wait(embed_atomic_word *word, embed_atomic_word_value old_value, embed_word nanoseconds)
+int embed_word_wait(const EmbedWordWaitCfg *args)
 {
+    embed_atomic_word *const word = args->word;
+    const embed_atomic_word_value old_value = args->old_value;
+    const embed_word nanoseconds = args->nanoseconds;
     embed_atomic_word_value compare_value = old_value;
     if (nanoseconds == 0u)
     {
-        return embed_atomic_word_load(word) != old_value;
+        return EMBED_CALL(embed_atomic_word_table.load, EmbedAtomicWordLoadCfg, .word = word) != old_value;
     }
     // WaitOnAddress takes whole milliseconds. The limit rounds up, and a limit past what a DWORD counts waits that long
     const embed_u64 milliseconds =
@@ -93,14 +97,14 @@ int embed_word_wait(embed_atomic_word *word, embed_atomic_word_value old_value, 
                          : (milliseconds < 0xfffffffeULL)     ? (DWORD)milliseconds
                                                               : (DWORD)0xfffffffeULL;
     (void)WaitOnAddress(&word->value, &compare_value, sizeof(compare_value), waited);
-    return embed_atomic_word_load(word) != old_value;
+    return EMBED_CALL(embed_atomic_word_table.load, EmbedAtomicWordLoadCfg, .word = word) != old_value;
 }
 
-void embed_word_wake(embed_atomic_word *word)
+void embed_word_wake(const EmbedWordWakeCfg *args)
 {
     // WakeByAddressAll takes the address of the word as a plain pointer. The address goes through uintptr_t, and so no
     // cast removes the qualifier of the atomic value
-    WakeByAddressAll((void *)(uintptr_t)&word->value);
+    WakeByAddressAll((void *)(uintptr_t)&args->word->value);
 }
 
 embed_word embed_clock_ns(void)

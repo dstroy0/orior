@@ -254,12 +254,15 @@ typedef struct
 EMBED_INLINE void cli_gate_shut(CliGate *gate)
 {
     EmbedTurnstileBackoff backoff;
-    embed_atomic_word_value was = embed_atomic_word_fetch_or(&gate->state, CLI_GATE_HELD);
-    embed_turnstile_backoff_begin(&backoff);
+    embed_atomic_word_value was = EMBED_CALL(embed_atomic_word_table.fetch_or, EmbedAtomicWordFetchOrCfg,
+                                             .word = &gate->state, .value = CLI_GATE_HELD);
+    EMBED_CALL(embed_turnstile_backoff_begin, EmbedTurnstileBackoffBeginCfg, &backoff);
     while ((was & CLI_GATE_HELD) != 0u)
     {
-        embed_turnstile_backoff_step(&gate->state, was, CLI_GATE_SLEEPER, &backoff, 1u);
-        was = embed_atomic_word_fetch_or(&gate->state, CLI_GATE_HELD);
+        EMBED_CALL(embed_turnstile_backoff_step, EmbedTurnstileBackoffStepCfg, &gate->state, was, CLI_GATE_SLEEPER,
+                   &backoff, 1u);
+        was = EMBED_CALL(embed_atomic_word_table.fetch_or, EmbedAtomicWordFetchOrCfg, .word = &gate->state,
+                         .value = CLI_GATE_HELD);
     }
     EMBED_ATOMIC_ORDERED();
 }
@@ -268,10 +271,11 @@ EMBED_INLINE void cli_gate_shut(CliGate *gate)
 EMBED_INLINE void cli_gate_opened(CliGate *gate)
 {
     EMBED_ATOMIC_ORDERED();
-    const embed_atomic_word_value was = embed_atomic_word_fetch_and(&gate->state, ~(CLI_GATE_HELD | CLI_GATE_SLEEPER));
+    const embed_atomic_word_value was = EMBED_CALL(embed_atomic_word_table.fetch_and, EmbedAtomicWordFetchAndCfg,
+                                                   .word = &gate->state, .value = ~(CLI_GATE_HELD | CLI_GATE_SLEEPER));
     if ((was & CLI_GATE_SLEEPER) != 0u)
     {
-        embed_word_wake(&gate->state);
+        EMBED_CALL(embed_word_wake, EmbedWordWakeCfg, .word = &gate->state);
     }
 }
 
@@ -286,10 +290,12 @@ EMBED_INLINE embed_u16 cli_ticket_epoch(void)
 // flag bits clear into `stamp_out`: what a consumer tests before it pops the next ticket in order
 EMBED_INLINE int cli_ticket_pushed(const EmbedTicketRing *ring, embed_u32 next, embed_u64 *stamp_out)
 {
-    const embed_u64 current = embed_atomic_u64_load(&embed_ticket_ring_slot(ring, (embed_u64)next)->stamp);
-    *stamp_out = embed_ticket_fields_of_stamp(current);
-    return (embed_ticket_of_stamp(current) == next) && ((current & EMBED_TICKET_PUSHED_BIT) != 0u) &&
-           ((current & EMBED_TICKET_POPPED_BIT) == 0u);
+    const embed_u64 current =
+        EMBED_CALL(embed_atomic_u64_table.load, EmbedAtomicU64LoadCfg,
+                   .word = &EMBED_CALL(embed_ticket_ring_slot, EmbedTicketRingSlotCfg, ring, (embed_u64)next)->stamp);
+    *stamp_out = EMBED_CALL(embed_ticket_fields_of_stamp, EmbedTicketFieldsOfStampCfg, current);
+    return (EMBED_CALL(embed_ticket_of_stamp, EmbedTicketOfStampCfg, current) == next) &&
+           ((current & EMBED_TICKET_PUSHED_BIT) != 0u) && ((current & EMBED_TICKET_POPPED_BIT) == 0u);
 }
 
 // Whether the slot of the ticket `next` is ready for its grant: a zero word on the ring's first lap, else the
@@ -297,11 +303,14 @@ EMBED_INLINE int cli_ticket_pushed(const EmbedTicketRing *ring, embed_u32 next, 
 // lap of the ring, which the ring's proofs need and the consumer's pop in ticket order relies on
 EMBED_INLINE int cli_ticket_room(const EmbedTicketRing *ring, embed_u32 next)
 {
-    const embed_u64 current = embed_atomic_u64_load(&embed_ticket_ring_slot(ring, (embed_u64)next)->stamp);
+    const embed_u64 current =
+        EMBED_CALL(embed_atomic_u64_table.load, EmbedAtomicU64LoadCfg,
+                   .word = &EMBED_CALL(embed_ticket_ring_slot, EmbedTicketRingSlotCfg, ring, (embed_u64)next)->stamp);
     // Explicit cast narrows the slot count, at max 2^31, to the ticket's width
     const embed_u32 lap = (embed_u32)(ring->mask + 1u);
     return ((current == 0u) && (next < lap)) ||
-           (((current & EMBED_TICKET_RELEASED_BIT) != 0u) && (embed_ticket_of_stamp(current) == next - lap));
+           (((current & EMBED_TICKET_RELEASED_BIT) != 0u) &&
+            (EMBED_CALL(embed_ticket_of_stamp, EmbedTicketOfStampCfg, current) == next - lap));
 }
 
 // A setting of a started process's environment: `name` set to `value`, or taken out where `value` is NULL

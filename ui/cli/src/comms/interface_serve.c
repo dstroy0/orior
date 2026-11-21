@@ -79,7 +79,7 @@ static int serve_recv(const CliCommsRecvCfg *args)
         return -1;
     }
     const embed_u32 ticket = EMBED_ATOMIC_ADD_32(&joined->claimed, 1u);
-    const embed_u64 stamp = embed_ticket_stamp(cli_ticket_epoch(), ticket);
+    const embed_u64 stamp = EMBED_CALL(embed_ticket_stamp, EmbedTicketStampCfg, cli_ticket_epoch(), ticket);
     CliIpcEntry *const entry = &joined->entries[ticket & (CLI_IPC_ENTRIES - 1u)];
     // Explicit cast carries the entry's address as the pass's entry
     const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)entry;
@@ -90,7 +90,8 @@ static int serve_recv(const CliCommsRecvCfg *args)
     {
         const unsigned int room = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &joined->queue_wake);
         if (cli_ticket_room(&joined->ring, ticket) &&
-            embed_ticket_ring_pass_grant(&joined->turnstiles, address, &joined->ring, stamp, &seen))
+            EMBED_CALL(embed_ticket_ring_pass_grant, EmbedTicketRingPassGrantCfg, &joined->turnstiles, address,
+                       &joined->ring, stamp, &seen))
         {
             break;
         }
@@ -120,7 +121,8 @@ static int serve_recv(const CliCommsRecvCfg *args)
     {
         memor.cpy(&(MemoriaCfg){.dst = entry->body, .src = args->body, .bytes = (embed_word)size});
     }
-    (void)embed_ticket_ring_pass_push(&joined->turnstiles, address, &joined->ring, stamp, entry, &seen);
+    (void)EMBED_CALL(embed_ticket_ring_pass_push, EmbedTicketRingPassPushCfg, &joined->turnstiles, address,
+                     &joined->ring, stamp, entry, &seen);
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &joined->queue_wake);
     return 1;
 }
@@ -215,8 +217,8 @@ static void serve_drain(void *context)
         embed_u64 found = 0u;
         if (cli_ticket_pushed(&joined->ring, joined->taken, &stamp) &&
             // Explicit cast carries the place's address as the pass's entry
-            embed_ticket_ring_pass_pop(&joined->turnstiles, (embed_atomic_uptr_value)(embed_word)joined, &joined->ring,
-                                       stamp, &job, &found))
+            EMBED_CALL(embed_ticket_ring_pass_pop, EmbedTicketRingPassPopCfg, &joined->turnstiles,
+                       (embed_atomic_uptr_value)(embed_word)joined, &joined->ring, stamp, &job, &found))
         {
             CliIpcEntry *const entry = job;
             if ((EMBED_ATOMIC_LOAD(&joined->sending) != 0u) &&
@@ -228,7 +230,8 @@ static void serve_drain(void *context)
             {
                 EMBED_CALL(cli_transfer_region_bytes.region_close, CliTransferRegionBytesCfg, .region = &entry->region);
             }
-            (void)embed_ticket_ring_drain_release(&joined->turnstiles, &joined->ring, stamp, &found);
+            (void)EMBED_CALL(embed_ticket_ring_drain_release, EmbedTicketRingDrainReleaseCfg, &joined->turnstiles,
+                             &joined->ring, stamp, &found);
             joined->taken += 1u;
             // a reading thread asleep for the slot's room wakes to it
             EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &joined->queue_wake);
@@ -382,7 +385,7 @@ static void serve_accept(void *context)
                                                  sizeof(EmbedTicketRingSlot)));
             memor.set(&(MemoriaCfg){
                 .dst = slots, .val = 0, .bytes = (unsigned long long)CLI_IPC_ENTRIES * sizeof(EmbedTicketRingSlot)});
-            embed_ticket_ring_begin(&joined->ring, slots, CLI_IPC_ENTRIES_SHIFT);
+            EMBED_CALL(embed_ticket_ring_begin, EmbedTicketRingBeginCfg, &joined->ring, slots, CLI_IPC_ENTRIES_SHIFT);
             joined->answer = joined->frame + CLI_IPC_FRAME + ((unsigned long long)CLI_IPC_ENTRIES * CLI_IPC_ENTRY_BODY);
             joined->place = place;
             EMBED_ATOMIC_STORE(&joined->going, 2u);

@@ -284,7 +284,8 @@ unsigned int cli_view_hit(const CliViewThreadCfg *args)
     {
         void *job = NULL;
         embed_u64 seen = 0u;
-        if (!embed_ticket_ring_pass_pop(&s_view.hits_turnstiles, address, &transfer->ring, stamp, &job, &seen))
+        if (!EMBED_CALL(embed_ticket_ring_pass_pop, EmbedTicketRingPassPopCfg, &s_view.hits_turnstiles, address,
+                        &transfer->ring, stamp, &job, &seen))
         {
             break;
         }
@@ -293,7 +294,8 @@ unsigned int cli_view_hit(const CliViewThreadCfg *args)
         memor.cpy(&(MemoriaCfg){.dst = rects, .src = map->client, .bytes = GUI_WINDOW_HIT_CLIENTS * sizeof(GuiRect)});
         *transfer->retained = *map;
         transfer->retained->client = rects;
-        (void)embed_ticket_ring_drain_release(&s_view.hits_turnstiles, &transfer->ring, stamp, &seen);
+        (void)EMBED_CALL(embed_ticket_ring_drain_release, EmbedTicketRingDrainReleaseCfg, &s_view.hits_turnstiles,
+                         &transfer->ring, stamp, &seen);
         transfer->taken += 1u;
     }
     return cli_view_hit_of(&(CliViewThreadCfg){.hits = transfer->retained, .x = args->x, .y = args->y});
@@ -304,11 +306,11 @@ unsigned int cli_view_hit(const CliViewThreadCfg *args)
 static CliViewHits *view_hits_next(const ViewThreadCtx *args)
 {
     CliViewHitsTransfer *const transfer = &s_view.hits[args->surface];
-    const embed_u64 stamp = embed_ticket_stamp(cli_ticket_epoch(), transfer->ticket);
+    const embed_u64 stamp = EMBED_CALL(embed_ticket_stamp, EmbedTicketStampCfg, cli_ticket_epoch(), transfer->ticket);
     embed_u64 seen = 0u;
     // Explicit cast carries the transfer's address as the pass's entry
-    if (!embed_ticket_ring_pass_grant(&s_view.hits_turnstiles, (embed_atomic_uptr_value)(embed_word)transfer,
-                                      &transfer->ring, stamp, &seen))
+    if (!EMBED_CALL(embed_ticket_ring_pass_grant, EmbedTicketRingPassGrantCfg, &s_view.hits_turnstiles,
+                    (embed_atomic_uptr_value)(embed_word)transfer, &transfer->ring, stamp, &seen))
     {
         return NULL;
     }
@@ -322,9 +324,9 @@ static void view_hits_publish(const ViewThreadCtx *args)
     CliViewHitsTransfer *const transfer = &s_view.hits[args->surface];
     embed_u64 seen = 0u;
     // Explicit cast carries the transfer's address as the pass's entry
-    (void)embed_ticket_ring_pass_push(&s_view.hits_turnstiles, (embed_atomic_uptr_value)(embed_word)transfer,
-                                      &transfer->ring, transfer->granted,
-                                      &transfer->buffer[transfer->ticket & (CLI_VIEW_HITS_SLOTS - 1u)], &seen);
+    (void)EMBED_CALL(embed_ticket_ring_pass_push, EmbedTicketRingPassPushCfg, &s_view.hits_turnstiles,
+                     (embed_atomic_uptr_value)(embed_word)transfer, &transfer->ring, transfer->granted,
+                     &transfer->buffer[transfer->ticket & (CLI_VIEW_HITS_SLOTS - 1u)], &seen);
     transfer->ticket += 1u;
 }
 
@@ -1105,7 +1107,8 @@ static int view_cell_init(void)
         transfer->retained = transfer->buffer + CLI_VIEW_HITS_SLOTS;
         transfer->ticket = 0u;
         transfer->taken = 0u;
-        embed_ticket_ring_begin(&transfer->ring, slots + (surface * CLI_VIEW_HITS_SLOTS), CLI_VIEW_HITS_SHIFT);
+        EMBED_CALL(embed_ticket_ring_begin, EmbedTicketRingBeginCfg, &transfer->ring,
+                   slots + (surface * CLI_VIEW_HITS_SLOTS), CLI_VIEW_HITS_SHIFT);
         for (unsigned int at = 0u; at < maps_each; at += 1u)
         {
             transfer->buffer[at].client = rects + ((((embed_word)surface * maps_each) + at) * GUI_WINDOW_HIT_CLIENTS);

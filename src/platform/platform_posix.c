@@ -77,7 +77,8 @@ static void *platform_thread_entered(void *supplied)
 
 int platform_thread_started(void (*run)(void *context), void *context)
 {
-    const embed_u32 place = embed_atomic_u32_fetch_add(&s_threads_given, 1u);
+    const embed_u32 place =
+        EMBED_CALL(embed_atomic_u32_table.fetch_add, EmbedAtomicU32FetchAddCfg, .word = &s_threads_given, .value = 1u);
     if (place >= PLATFORM_THREADS_MAX)
     {
         return 0;
@@ -115,11 +116,14 @@ unsigned int platform_processors(void)
     return (count > 0L) ? (unsigned int)count : 1u;
 }
 
-int embed_word_wait(embed_atomic_word *word, embed_atomic_word_value old_value, embed_word nanoseconds)
+int embed_word_wait(const EmbedWordWaitCfg *args)
 {
+    embed_atomic_word *const word = args->word;
+    const embed_atomic_word_value old_value = args->old_value;
+    const embed_word nanoseconds = args->nanoseconds;
     if (nanoseconds == 0u)
     {
-        return embed_atomic_word_load(word) != old_value;
+        return EMBED_CALL(embed_atomic_word_table.load, EmbedAtomicWordLoadCfg, .word = word) != old_value;
     }
 #if defined(__linux__)
     struct timespec span;
@@ -144,16 +148,17 @@ int embed_word_wait(embed_atomic_word *word, embed_atomic_word_value old_value, 
     struct timespec span;
     span.tv_sec = (time_t)(sleep_ns / 1000000000ULL);
     span.tv_nsec = (long)(sleep_ns % 1000000000ULL);
-    if (embed_atomic_word_load(word) == old_value)
+    if (EMBED_CALL(embed_atomic_word_table.load, EmbedAtomicWordLoadCfg, .word = word) == old_value)
     {
         (void)nanosleep(&span, NULL);
     }
 #endif
-    return embed_atomic_word_load(word) != old_value;
+    return EMBED_CALL(embed_atomic_word_table.load, EmbedAtomicWordLoadCfg, .word = word) != old_value;
 }
 
-void embed_word_wake(embed_atomic_word *word)
+void embed_word_wake(const EmbedWordWakeCfg *args)
 {
+    embed_atomic_word *const word = args->word;
 #if defined(__linux__)
     (void)syscall(SYS_futex, (void *)(uintptr_t)&word->value, FUTEX_WAKE_PRIVATE, INT_MAX, NULL, NULL, 0);
 #elif defined(__APPLE__)

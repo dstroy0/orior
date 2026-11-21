@@ -24,7 +24,9 @@ EMBED_STATIC_ASSERT(CLI_SERVERS_CHECKING >= 2u, "the check needs a checker for e
 // reference back, the checkers woken to do so; with the queue's lock acquired
 static void check_queue_clear(void)
 {
-    embed_atomic_u64_store(&s_queue.generation, embed_atomic_u64_load(&s_queue.generation) + 1ULL);
+    EMBED_CALL(embed_atomic_u64_table.store, EmbedAtomicU64StoreCfg, .word = &s_queue.generation,
+               .value =
+                   EMBED_CALL(embed_atomic_u64_table.load, EmbedAtomicU64LoadCfg, .word = &s_queue.generation) + 1ULL);
     EMBED_CALL(cli_servers_queue_files_internal.check_queued_cleared, CliServersQueueFilesCtx, .queue = &s_queue);
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_queue_ready);
 }
@@ -93,13 +95,15 @@ static void check_checker(void *context)
         }
         void *popped = NULL;
         embed_u64 seen = 0u;
-        (void)embed_ticket_ring_pass_pop(&ring->turnstiles, address, &ring->ring, stamp, &popped, &seen);
+        (void)EMBED_CALL(embed_ticket_ring_pass_pop, EmbedTicketRingPassPopCfg, &ring->turnstiles, address, &ring->ring,
+                         stamp, &popped, &seen);
         const CarcerMovableEntry *const cell = popped;
         CliServersQueued one = {NULL, 0ULL, CLI_SERVERS_NO_FILE, 0u};
         (void)g_cli_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .dst = &one, .bytes = sizeof(one)});
         // a stale file's marks went with its check's cells, so only a fresh file's mark is cleared
-        const int stale = one.generation != embed_atomic_u64_load(&s_queue.generation);
+        const int stale = one.generation !=
+                          EMBED_CALL(embed_atomic_u64_table.load, EmbedAtomicU64LoadCfg, .word = &s_queue.generation);
         if (!stale)
         {
             if ((one.file != CLI_SERVERS_NO_FILE) && (one.file < s_queue.file_at_max))
@@ -126,13 +130,15 @@ static void check_checker(void *context)
         }
         EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = one.server);
         (void)g_cli_guard->movable_buf_release(cell, g_cli_servers_check_work_state_owner);
-        (void)embed_ticket_ring_drain_release(&ring->turnstiles, &ring->ring, stamp, &seen);
+        (void)EMBED_CALL(embed_ticket_ring_drain_release, EmbedTicketRingDrainReleaseCfg, &ring->turnstiles,
+                         &ring->ring, stamp, &seen);
         if (stale)
         {
             continue;
         }
         const unsigned long long done = EMBED_ATOMIC_ADD_64(&s_queue.done, 1ULL) + 1ULL;
-        const unsigned long long total = embed_atomic_u64_load(&s_queue.total);
+        const unsigned long long total =
+            EMBED_CALL(embed_atomic_u64_table.load, EmbedAtomicU64LoadCfg, .word = &s_queue.total);
         const int has_sink = s_queue.has_sink;
         s_emit[checker] = s_queue.sink;
         if (has_sink)
@@ -185,11 +191,13 @@ unsigned int cli_servers_check_tree(const CliServersRootSinkCountCfg *args)
 void cli_servers_stop_check(void)
 {
     check_queue_clear();
-    embed_atomic_u64_store(&s_queue.total, embed_atomic_u64_load(&s_queue.done));
+    EMBED_CALL(embed_atomic_u64_table.store, EmbedAtomicU64StoreCfg, .word = &s_queue.total,
+               .value = EMBED_CALL(embed_atomic_u64_table.load, EmbedAtomicU64LoadCfg, .word = &s_queue.done));
     const int has_sink = s_queue.has_sink;
     static CliServersSink s_emit;
     s_emit = s_queue.sink;
-    const unsigned long long done = embed_atomic_u64_load(&s_queue.done);
+    const unsigned long long done =
+        EMBED_CALL(embed_atomic_u64_table.load, EmbedAtomicU64LoadCfg, .word = &s_queue.done);
     if (has_sink)
     {
         EMBED_CALL(check_progress_emit, ServersCheckCtx, .sink = &s_emit, .done = done, .total = done);
@@ -204,7 +212,9 @@ int cli_servers_check_on(void)
 
 int cli_servers_checking(void)
 {
-    const int checking = s_queue.on && (embed_atomic_u64_load(&s_queue.done) < embed_atomic_u64_load(&s_queue.total));
+    const int checking =
+        s_queue.on && (EMBED_CALL(embed_atomic_u64_table.load, EmbedAtomicU64LoadCfg, .word = &s_queue.done) <
+                       EMBED_CALL(embed_atomic_u64_table.load, EmbedAtomicU64LoadCfg, .word = &s_queue.total));
     return checking;
 }
 
@@ -220,8 +230,8 @@ void cli_servers_check_set(const CliServersSinkCtx *args)
     {
         s_queue.sink = *sink;
     }
-    embed_atomic_u64_store(&s_queue.done, done);
-    embed_atomic_u64_store(&s_queue.total, total);
+    EMBED_CALL(embed_atomic_u64_table.store, EmbedAtomicU64StoreCfg, .word = &s_queue.done, .value = done);
+    EMBED_CALL(embed_atomic_u64_table.store, EmbedAtomicU64StoreCfg, .word = &s_queue.total, .value = total);
 }
 
 void cli_servers_check_count(const CliServersOnCtx *args)
@@ -232,8 +242,8 @@ void cli_servers_check_count(const CliServersOnCtx *args)
     unsigned long long *total = args->total_pointer;
     *on = s_queue.on;
     *waiting = cli_servers_check_waiting(&(CliServersQueueCfg){.queue = &s_queue});
-    *done = embed_atomic_u64_load(&s_queue.done);
-    *total = embed_atomic_u64_load(&s_queue.total);
+    *done = EMBED_CALL(embed_atomic_u64_table.load, EmbedAtomicU64LoadCfg, .word = &s_queue.done);
+    *total = EMBED_CALL(embed_atomic_u64_table.load, EmbedAtomicU64LoadCfg, .word = &s_queue.total);
 }
 
 int cli_servers_check_allocs(const CliServersPathLspCtx *args)
@@ -271,8 +281,8 @@ void cli_servers_check_let_go(void)
     s_queue.has_sink = 0;
     s_queue.file_count = 0u;
     s_queue.files_used = 0ULL;
-    embed_atomic_u64_store(&s_queue.total, 0ULL);
-    embed_atomic_u64_store(&s_queue.done, 0ULL);
+    EMBED_CALL(embed_atomic_u64_table.store, EmbedAtomicU64StoreCfg, .word = &s_queue.total, .value = 0ULL);
+    EMBED_CALL(embed_atomic_u64_table.store, EmbedAtomicU64StoreCfg, .word = &s_queue.done, .value = 0ULL);
     if (s_queue.files_cell != NULL)
     {
         (void)g_cli_guard->movable_buf_release(s_queue.files_cell, g_cli_servers_check_work_state_owner);
@@ -388,9 +398,12 @@ unsigned int cli_servers_check_queue(const CliServersCountCtx *args)
         EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = args->waiting[at].server);
     }
     const int idle = (cli_servers_check_waiting(&(CliServersQueueCfg){.queue = &s_queue}) == 0u) &&
-                     (embed_atomic_u64_load(&s_queue.done) >= embed_atomic_u64_load(&s_queue.total));
-    const unsigned long long done = embed_atomic_u64_load(&s_queue.done);
-    const unsigned long long total = embed_atomic_u64_load(&s_queue.total);
+                     (EMBED_CALL(embed_atomic_u64_table.load, EmbedAtomicU64LoadCfg, .word = &s_queue.done) >=
+                      EMBED_CALL(embed_atomic_u64_table.load, EmbedAtomicU64LoadCfg, .word = &s_queue.total));
+    const unsigned long long done =
+        EMBED_CALL(embed_atomic_u64_table.load, EmbedAtomicU64LoadCfg, .word = &s_queue.done);
+    const unsigned long long total =
+        EMBED_CALL(embed_atomic_u64_table.load, EmbedAtomicU64LoadCfg, .word = &s_queue.total);
     if (!idle)
     {
         EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_queue_ready);
