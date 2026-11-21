@@ -24,6 +24,7 @@
  *       that the ends agree at every term.
  */
 #include "../period_detector.h"
+#include "../twister_record.h"
 
 #include "../../0_experimental/exact_zeta/zeta_shuffle.h"
 
@@ -470,7 +471,8 @@ int main(int argc, char **argv)
     const unsigned long long lanes = (DETECTOR_SWEEP_LANES > values) ? DETECTOR_SWEEP_LANES : values;
     const unsigned long long out_limbs = (lag.layout.out_limbs > 1u) ? lag.layout.out_limbs : 1u;
     const unsigned long long declared = (STURMIAN_SLOPES * 16ULL) + (words * 4ULL) + (values * 4ULL) +
-                                        (lanes * 2ULL * 4ULL) + (lanes * out_limbs * 4ULL);
+                                        (lanes * 2ULL * 4ULL) + (lanes * out_limbs * 4ULL) +
+                                        twister_bytes(STURMIAN_DRAWS);
     ok = ok && sim_job_submit(&results, "sturmian_convergents", argc, argv, declared);
     unsigned int *device_slopes = NULL;
     unsigned int *device_words = NULL;
@@ -524,9 +526,43 @@ int main(int argc, char **argv)
     }
     sim_check(&results, ok && (low_offset == 0u) && (split == 0ULL),
               "both ends of each slope give the same gap at every term");
-    // the series: for each slope its word, then its 12 shuffles at the seeds 0 to 11 by the twister of CPython
+    // the series: for each slope its word, then its 12 shuffles at the seeds 0 to 11. The twister on the device draws
+    // each order. The order depends on the seed and the length alone, and one generator a seed serves every slope.
+    unsigned int seeds[STURMIAN_DRAWS];
+    for (unsigned int draw = 0u; draw < STURMIAN_DRAWS; draw += 1u)
+    {
+        seeds[draw] = draw;
+    }
+    unsigned int *const orders = (unsigned int *)malloc((size_t)(STURMIAN_DRAWS * terms * sizeof(unsigned int)));
+    TwisterSet twister;
+    ok = ok && (orders != NULL) && twister_open(&results, &twister, seeds, STURMIAN_DRAWS) &&
+         twister_shuffle(&results, &twister, STURMIAN_TERMS, orders);
+    // the twister of the host, as a second route: every order of the device equals its order
     unsigned int *const order = (unsigned int *)malloc((size_t)(terms * sizeof(unsigned int)));
+    unsigned long long mismatches = 0ULL;
     ok = ok && (order != NULL);
+    for (unsigned int draw = 0u; ok && (draw < STURMIAN_DRAWS); draw += 1u)
+    {
+        for (unsigned int place = 0u; place < STURMIAN_TERMS; place += 1u)
+        {
+            order[place] = place;
+        }
+        ZetaTwister host;
+        twister_seed(&host, draw);
+        for (unsigned int place = STURMIAN_TERMS - 1u; place > 0u; place -= 1u)
+        {
+            const unsigned int other = twister_below(&host, place + 1u);
+            const unsigned int held_place = order[place];
+            order[place] = order[other];
+            order[other] = held_place;
+        }
+        for (unsigned int place = 0u; place < STURMIAN_TERMS; place += 1u)
+        {
+            mismatches += (order[place] != orders[(draw * terms) + place]) ? 1ULL : 0ULL;
+        }
+    }
+    sim_check(&results, ok && (mismatches == 0ULL),
+              "the twister of the device draws every order that the twister of the host draws");
     unsigned long long written = 0ULL;
     for (unsigned long long one = 0ULL; ok && (one < series); one += 1ULL)
     {
@@ -535,26 +571,13 @@ int main(int argc, char **argv)
         const unsigned int draw = (unsigned int)(one % (1ULL + STURMIAN_DRAWS));
         for (unsigned int place = 0u; place < STURMIAN_TERMS; place += 1u)
         {
-            order[place] = place;
-        }
-        if (draw > 0u)
-        {
-            ZetaTwister twister;
-            twister_seed(&twister, draw - 1u);
-            for (unsigned int place = STURMIAN_TERMS - 1u; place > 0u; place -= 1u)
-            {
-                const unsigned int other = twister_below(&twister, place + 1u);
-                const unsigned int held_place = order[place];
-                order[place] = order[other];
-                order[other] = held_place;
-            }
-        }
-        for (unsigned int place = 0u; place < STURMIAN_TERMS; place += 1u)
-        {
-            host_index[written + place] = (slope * STURMIAN_TERMS) + order[place];
+            const unsigned int from = (draw == 0u) ? place : orders[((draw - 1u) * terms) + place];
+            host_index[written + place] = (slope * STURMIAN_TERMS) + from;
         }
         written += terms;
     }
+    twister_close(&twister);
+    free(orders);
     ok = ok && sim_status_check(&results, cudaMemcpy(device_index, host_index, written * 4ULL, cudaMemcpyHostToDevice),
                                 "gather index sent");
     const CycleRecordRunRequest run_gather = {

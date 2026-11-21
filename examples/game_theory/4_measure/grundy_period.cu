@@ -23,6 +23,7 @@
  *       seeds 0 to 11. The tallest margin of the twelve is the floor of the row.
  */
 #include "../period_detector.h"
+#include "../twister_record.h"
 
 #include "../../0_experimental/exact_zeta/zeta_shuffle.h"
 
@@ -263,7 +264,8 @@ int main(int argc, char **argv)
     const unsigned long long out_limbs_max = (lag.layout.out_limbs > 1u) ? lag.layout.out_limbs : 1u;
     const unsigned long long declared = (history_records * state_limbs * 4ULL) + (sweep_lanes * 3ULL * 4ULL) +
                                         (sweep_lanes * out_limbs_max * 4ULL) + (((series_max * whole) + 1ULL) * 4ULL) +
-                                        (whole * 4ULL) + (games * 4ULL) + (state_limbs * 4ULL);
+                                        (whole * 4ULL) + (games * 4ULL) + (state_limbs * 4ULL) +
+                                        twister_bytes(GRUNDY_DRAWS);
     ok = ok && sim_job_submit(&results, "grundy_period", argc, argv, declared);
     GrundyDevice device;
     memset(&device, 0, sizeof(device));
@@ -425,36 +427,62 @@ int main(int argc, char **argv)
             rows += 1u;
         }
     }
-    // series 0 to games - 1 are the games themselves, then the 12 shuffles of each row, row by row
+    // series 0 to games - 1 are the games themselves, then the 12 shuffles of each row, row by row. The twister on the
+    // device draws each order. The order depends on the seed and the length alone, and one generator a seed serves
+    // every row.
     const unsigned long long series = games + ((unsigned long long)rows * GRUNDY_DRAWS);
+    unsigned int seeds[GRUNDY_DRAWS];
+    for (unsigned int draw = 0u; draw < GRUNDY_DRAWS; draw += 1u)
+    {
+        seeds[draw] = draw;
+    }
+    unsigned int *const orders = (unsigned int *)malloc((size_t)(GRUNDY_DRAWS * whole * sizeof(unsigned int)));
+    TwisterSet twister;
+    ok = ok && (orders != NULL) && twister_open(&results, &twister, seeds, GRUNDY_DRAWS) &&
+         twister_shuffle(&results, &twister, GRUNDY_POSITIONS, orders);
+    twister_close(&twister);
+    // the twister of the host, as a second route: every order of the device equals its order
     unsigned int *const order = (unsigned int *)malloc(whole * sizeof(unsigned int));
     ok = ok && (order != NULL);
+    unsigned long long mismatches = 0ULL;
+    for (unsigned int draw = 0u; ok && (draw < GRUNDY_DRAWS); draw += 1u)
+    {
+        for (unsigned int place = 0u; place < GRUNDY_POSITIONS; place += 1u)
+        {
+            order[place] = place;
+        }
+        ZetaTwister host;
+        twister_seed(&host, draw);
+        for (unsigned int place = GRUNDY_POSITIONS - 1u; place > 0u; place -= 1u)
+        {
+            const unsigned int other = twister_below(&host, place + 1u);
+            const unsigned int held_place = order[place];
+            order[place] = order[other];
+            order[other] = held_place;
+        }
+        for (unsigned int place = 0u; place < GRUNDY_POSITIONS; place += 1u)
+        {
+            mismatches += (order[place] != orders[(draw * whole) + place]) ? 1ULL : 0ULL;
+        }
+    }
+    sim_check(&results, ok && (mismatches == 0ULL),
+              "the twister of the device draws every order that the twister of the host draws");
     unsigned long long written = 0ULL;
     for (unsigned long long one = 0ULL; ok && (one < series); one += 1ULL)
     {
         // the game of a series and the seed of a shuffle are small counts
         unsigned int game = (unsigned int)one;
-        for (unsigned int place = 0u; place < GRUNDY_POSITIONS; place += 1u)
-        {
-            order[place] = place;
-        }
+        unsigned int draw = GRUNDY_DRAWS;
         if (one >= games)
         {
             const unsigned long long rank = one - games;
             game = row_game[rank / GRUNDY_DRAWS];
-            ZetaTwister twister;
-            twister_seed(&twister, (uint32_t)(rank % GRUNDY_DRAWS));
-            for (unsigned int place = GRUNDY_POSITIONS - 1u; place > 0u; place -= 1u)
-            {
-                const unsigned int other = twister_below(&twister, place + 1u);
-                const unsigned int held_place = order[place];
-                order[place] = order[other];
-                order[other] = held_place;
-            }
+            draw = (unsigned int)(rank % GRUNDY_DRAWS);
         }
         for (unsigned int place = 0u; place < GRUNDY_POSITIONS; place += 1u)
         {
-            host_index[written] = (order[place] * games) + game;
+            const unsigned int from = (draw == GRUNDY_DRAWS) ? place : orders[(draw * whole) + place];
+            host_index[written] = (from * games) + game;
             written += 1ULL;
         }
         // the gather writes a batch of series at a time
@@ -651,6 +679,7 @@ int main(int argc, char **argv)
     free(sums);
     free(row_game);
     free(order);
+    free(orders);
     free(lag_sums);
     free(readings);
     free(live);
