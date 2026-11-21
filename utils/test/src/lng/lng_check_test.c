@@ -492,6 +492,36 @@ int program_main(int argc, char **argv)
         lng_list_free(&defects);
         lng_list_free(&findings);
         lng_table_free(&words);
+
+        // the .g operators: + through its core op add to the anchor add, and < through lt, whose transpiler word has
+        // no anchor
+        LngTable hol_words = {{NULL, 0u, 0u}, NULL, 0u, 0u};
+        hol_head(&lines);
+        hol_row(&lines, "u32_t", "type", "32", "0", "word", "", "");
+        hol_row(&lines, "add", "core op", "", "", "", "", "1");
+        hol_row(&lines, "lt", "core op", "", "", "", "1", "");
+        table_of(&lines, &hol_words, &defects);
+        lng_list_add(&lines, "word\ttype\ttarget\tanchor");
+        lng_list_add(&lines, "add\tdoing\t\tadd");
+        lng_list_add(&lines, "lt\tdoing\t\t");
+        table_of(&lines, &words, &defects);
+        const char *word = NULL;
+        const char *const plus = lng_g_anchor(&hol_words, &words, "+", &word);
+        LngList read = {NULL, 0u, 0u};
+        lng_list_printed(&read, "%s %s", (word != NULL) ? word : "-", (plus != NULL) ? plus : "-");
+        const char *const below = lng_g_anchor(&hol_words, &words, "<", &word);
+        lng_list_printed(&read, "%s %s", (word != NULL) ? word : "-", (below != NULL) ? below : "-");
+        static const char *const s_read[2] = {"add add", "lt -"};
+        expect("a .g operator compiled to its anchor", &read, s_read, 2u);
+        lng_list_free(&read);
+        const unsigned int compiled = lng_g_bindings(&hol_words, &words, &findings);
+        static const char *const s_unbound[1] = {"the .g operator < reads lt, which has no gsm cases"};
+        expect_count("the .g operators with gsm", compiled, 1u);
+        expect("a .g operator with no gsm", &findings, s_unbound, 1u);
+        lng_list_free(&defects);
+        lng_list_free(&findings);
+        lng_table_free(&words);
+        lng_table_free(&hol_words);
     }
 
     {

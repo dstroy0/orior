@@ -181,6 +181,17 @@ extern "C"
     // no form, and that hole goes into `findings`
     unsigned int lng_asm_forms(const LngTable *transpiler, const LngTable *table, LngList *defects, LngList *findings);
 
+    // The ladder anchor that the .g operator `symbol` compiles to, and so its gsm: the cases of that anchor. The core
+    // op of the high order table `hol` that marks the operator goes into `word`. That word crosses to the transpiler
+    // word that its `transpiler` cell names, or else to the transpiler word of its own name. The result is the anchor
+    // of that transpiler word. It is NULL where no core op marks the operator, and then `word` is NULL too. It is NULL
+    // where the transpiler word has no anchor
+    const char *lng_g_anchor(const LngTable *hol, const LngTable *transpiler, const char *symbol, const char **word);
+
+    // The .g operators of `hol` that compile to gsm, and their count. Each operator that a row marks and that has no
+    // gsm cases goes into `findings`
+    unsigned int lng_g_bindings(const LngTable *hol, const LngTable *transpiler, LngList *findings);
+
     // Every file under src and utils, from the folder the run is in, that ends in one of `suffixes`, `count` of them.
     // Each path starts at that folder and goes into the set of `found` at the place of its suffix. The walk goes over
     // the two trees once

@@ -17,10 +17,13 @@ anchor at the ladder's word of 32 bits. A case of one word gives `left`, and `ri
 Where every answer is the case's answer, the witness cell gets the tool and its version. Else the cell is empty. That
 row is a hole, and no lift goes through it. lng_check (src/lng/lng_check.sh) reads the tables and reports each hole.
 
-The command harness.py lng prove writes the cases of ladder.h into theory/lng/Lng/ladder_cases.lean. It writes the rows of
-gnascor_asm_lng.tsv into theory/lng/Lng/matrix_rows.lean, then builds theory/lng with lake. Each target has a Lean
-file, theory/lng/Lng/<target>_lng.lean. That file has a theorem for each witnessed relation, with the name of its
-bridge word. lng_check reports each relation with none."""
+The command harness.py lng prove writes the cases of ladder.h into theory/lng/Lng/ladder_cases.lean. It writes the
+rows of gnascor_asm_lng.tsv into theory/lng/Lng/matrix_rows.lean. The high order words go into
+theory/lng/Lng/g_rows.lean. The anchors of the transpiler's words and the cases of each .gsm file go with them. The
+proofs of .g in g_lng.lean read them. Then the command builds theory/lng with lake.
+
+Each target has a Lean file, theory/lng/Lng/<target>_lng.lean. That file has a theorem for each witnessed relation,
+with the name of its bridge word. lng_check reports each relation with none."""
 
 import glob
 import os
@@ -259,11 +262,61 @@ def write_matrix_rows():
     return len(entries)
 
 
+HOL = os.path.join(TABLES, "gnascor_hol_lng.tsv")
+GSM_FILES = os.path.join(ROOT, "src", "cu", "transpiler", "lstar", "protocol", "table")
+
+
+def tsv_rows(path):
+    """The head and the rows of the tsv at `path`, each row a dict from the head's cells to its cells."""
+    with open(path, encoding="utf-8") as handle:
+        lines = [line.split("\t") for line in handle.read().split("\n") if line != ""]
+    head = lines[0]
+    return head, [dict(zip(head, cells + [""] * (len(head) - len(cells)))) for cells in lines[1:]]
+
+
+def write_g_rows():
+    """Lng/g_rows.lean: the rows of gnascor_hol_lng.tsv, each with the operators it marks. With them go the
+    transpiler's own words that have an anchor, and the cases of each .gsm file of the protocol's tables."""
+    head, hol = tsv_rows(HOL)
+    operators = head[head.index("transpiler") + 1:]
+    lines = ["/-! The high order words, the anchors of the transpiler's words and the .gsm files, written by harness.py",
+             "lng prove. -/", "", "namespace Lng.GRows", "",
+             "structure HolRow where", "  word : String", "  type : String", "  transpiler : String",
+             "  symbols : List String", "", "def holRows : List HolRow := ["]
+    entries = []
+    for row in hol:
+        marked = [operator for operator in operators if row[operator] == "1"]
+        entries.append("  ⟨%s, %s, %s, [%s]⟩" % (lean_text(row["word"]), lean_text(row["type"]),
+                                                lean_text(row["transpiler"]),
+                                                ", ".join(lean_text(operator) for operator in marked)))
+    lines += [",\n".join(entries), "]", "", "def anchors : List (String × String) := ["]
+    _, transpiler = tsv_rows(TRANSPILER)
+    pairs = ["  (%s, %s)" % (lean_text(row["word"]), lean_text(row["anchor"])) for row in transpiler
+             if row["target"] == "" and row["anchor"] != ""]
+    lines += [",\n".join(pairs), "]", "", "def gsmFiles : List (String × List (List Nat × Nat)) := ["]
+    files = []
+    for path in sorted(glob.glob(os.path.join(GSM_FILES, "*.gsm"))):
+        cases = []
+        with open(path, encoding="utf-8") as handle:
+            for line in handle.read().split("\n"):
+                if "->" in line:
+                    words, answer = line.split("->")
+                    cases.append("([%s], %s)" % (words.replace(",", ", "), answer.strip()))
+        files.append("  (%s, [%s])" % (lean_text(os.path.basename(path)), ", ".join(cases)))
+    lines += [",\n".join(files), "]", "", "end Lng.GRows", ""]
+    with open(os.path.join(THEORY, "Lng", "g_rows.lean"), "w", encoding="utf-8", newline="\n") as handle:
+        handle.write("\n".join(lines))
+    return len(entries), len(files)
+
+
 def cmd_prove(a):
-    """The ladder's cases and the matrix rows written as Lean data, the proofs built, and no proof left open."""
+    """The ladder's cases, the matrix rows and the .g rows written as Lean data, the proofs built, and no proof left
+    open."""
     cases = write_ladder_cases()
     rows = write_matrix_rows()
-    print("lng prove: %d ladder cases and %d matrix rows written" % (cases, rows))
+    words, files = write_g_rows()
+    print("lng prove: %d ladder cases, %d matrix rows, %d high order words and %d .gsm files written"
+          % (cases, rows, words, files))
     built = subprocess.run(["lake", "build"], cwd=THEORY)
     if built.returncode != 0:
         print("lng prove: lake build failed")

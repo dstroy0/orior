@@ -341,6 +341,8 @@ int program_main(int argc, char **argv)
     lng_asm_check(&asm_table, &defects, &findings);
     // each mnemonic's transpiler form, from the anchor of what its transitions do to each side
     const unsigned int formed = lng_asm_forms(&table, &asm_table, &defects, &findings);
+    // each .g operator's gsm, through its core op, the transpiler word it crosses to and that word's anchor
+    const unsigned int bound = lng_g_bindings(&hol, &table, &findings);
 
     for (unsigned int at = 0u; at < defects.count; at += 1u)
     {
@@ -351,8 +353,8 @@ int program_main(int argc, char **argv)
         printf("finding: %s\n", findings.text[at]);
     }
     printf("%u defects, %u findings, %u words, %u high order words, %u transitions, %u mnemonics with a transpiler "
-           "form\n",
-           defects.count, findings.count, table.rows, hol.rows, asm_table.rows, formed);
+           "form, %u .g operators with gsm\n",
+           defects.count, findings.count, table.rows, hol.rows, asm_table.rows, formed, bound);
     const int failed = (defects.count != 0u);
     lng_list_free(&form_texts);
     lng_list_free(&form_names);

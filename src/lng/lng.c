@@ -2234,3 +2234,59 @@ unsigned int lng_asm_forms(const LngTable *transpiler, const LngTable *table, Ln
     lng_list_free(&mnemonics);
     return formed;
 }
+
+const char *lng_g_anchor(const LngTable *hol, const LngTable *transpiler, const char *symbol, const char **word)
+{
+    for (unsigned int row = 0u; row < hol->rows; row += 1u)
+    {
+        if (!mmgr_text_equal(lng_cell_or_none(hol, row, "type"), "core op", PLATFORM_TEXT_TO_TERMINATOR) ||
+            !mmgr_text_equal(lng_cell_or_none(hol, row, symbol), "1", PLATFORM_TEXT_TO_TERMINATOR))
+        {
+            continue;
+        }
+        *word = lng_cell_or_none(hol, row, "word");
+        // a core op crosses to the transpiler's word of its own name, where its row names no other
+        const char *const crossed = lng_cell_or_none(hol, row, "transpiler");
+        const unsigned int bridge = lng_bridge_word_row(transpiler, (crossed[0] != '\0') ? crossed : *word);
+        if (bridge == transpiler->rows)
+        {
+            return NULL;
+        }
+        const char *const anchor = lng_cell_or_none(transpiler, bridge, "anchor");
+        return (anchor[0] != '\0') ? anchor : NULL;
+    }
+    *word = NULL;
+    return NULL;
+}
+
+unsigned int lng_g_bindings(const LngTable *hol, const LngTable *transpiler, LngList *findings)
+{
+    LngList symbols = {NULL, 0u, 0u};
+    for (unsigned int row = 0u; row < hol->rows; row += 1u)
+    {
+        if (!mmgr_text_equal(lng_cell_or_none(hol, row, "type"), "type", PLATFORM_TEXT_TO_TERMINATOR))
+        {
+            lng_operators_of(hol, row, &symbols);
+        }
+    }
+    unsigned int bound = 0u;
+    for (unsigned int at = 0u; at < symbols.count; at += 1u)
+    {
+        const char *word = NULL;
+        if (lng_g_anchor(hol, transpiler, symbols.text[at], &word) != NULL)
+        {
+            bound += 1u;
+            continue;
+        }
+        if (word == NULL)
+        {
+            lng_list_printed(findings, "the .g operator %s has no core op, and no gsm cases", symbols.text[at]);
+        }
+        else
+        {
+            lng_list_printed(findings, "the .g operator %s reads %s, which has no gsm cases", symbols.text[at], word);
+        }
+    }
+    lng_list_free(&symbols);
+    return bound;
+}
