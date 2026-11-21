@@ -18,7 +18,7 @@ that carry their own answer key, and show what pruning the opponent's replies do
 | `4_measure`   | `rules_and_play.py`                        | the departure reads the rules and does not order the players               |
 | `5_sift`      | `survivorship_changes_the_question.py`     | what pruning the opponent's branches does to the quantity being reported   |
 | `6_oracle`    | `against_published_values.py`              | whether any of it matches what somebody else published                     |
-| `6_oracle`    | `bouton_and_wythoff.py`                    | Bouton 1901 and Wythoff 1907, off grids built without either               |
+| `6_oracle`    | `bouton_and_wythoff.cu`                    | Bouton 1901 and Wythoff 1907, off grids built without either               |
 | `6_oracle`    | `sturmian_convergents.py`                  | what the period detector returns on a sequence with no period              |
 
 ## Why a game

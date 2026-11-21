@@ -101,7 +101,7 @@ GAM-6-001	live	examples/game_theory/6_oracle/against_published_values.py
 GAM-6-002	live	examples/game_theory/6_oracle/first_move_advantage.py
 GAM-6-003	live	examples/game_theory/6_oracle/kpk_value_of_move.py
 GAM-6-004	live	examples/game_theory/6_oracle/krk_both_sides.py
-GAM-6-005	live	examples/game_theory/6_oracle/bouton_and_wythoff.py
+GAM-6-005	live	examples/game_theory/6_oracle/bouton_and_wythoff.cu
 GAM-6-006	live	examples/game_theory/6_oracle/sturmian_convergents.py
 LNG-1-001	live	examples/language/1_represent/akshara_web.py
 LNG-1-002	live	examples/language/1_represent/binary_web.py

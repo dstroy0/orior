@@ -22,13 +22,9 @@
  * @note Each shuffle keeps every value of a row and moves the place that carries it, by the twister of CPython at the
  *       seeds 0 to 11. The tallest margin of the twelve is the floor of the row.
  */
-#include "sim.h"
+#include "../game_record.h"
 
-#include "../../../includes/exact_types/integers/exact_record/exact_record.h"
 #include "../../0_experimental/exact_zeta/zeta_shuffle.h"
-#include "cycle.h"
-#include "key_schedule.h"
-#include "keymath.h"
 
 /** @brief The positions of each game. The longest period of the sweep still repeats many times past its start. */
 #define GRUNDY_POSITIONS 2048u
@@ -51,53 +47,6 @@ static const unsigned int GRUNDY_WINDOWS[GRUNDY_WINDOW_COUNT] = {16u, 24u, 32u, 
 #define GRUNDY_BITS_FIRST 64u
 #define GRUNDY_BITS_LAST 1024u
 
-/** @brief A program on the record machine: its key, its layout and its load on the device. */
-typedef struct
-{
-    EngineRecordKey key;       /**< The imprint. */
-    EngineRecordLayout layout; /**< The layout. */
-    CycleRecord *record;       /**< The load on the device. */
-} GrundyProgram;
-
-/**
- * @brief Imprints, arranges and loads a built program.
- *
- * @param[in]  built    The program [BORROWS].
- * @param[in]  members  The members it reads.
- * @param[in]  outputs  The steps it writes [BORROWS].
- * @param[in]  count    How many.
- * @param[in]  in_limbs The limbs of a record of each member [BORROWS].
- * @param[out] program  The program [BORROWS].
- * @param[out] error    The error [BORROWS].
- * @return              1 where it loaded.
- */
-static int grundy_load(const ExactRecordProgram *built, unsigned int members, const unsigned int *outputs,
-                       unsigned int count, const unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX],
-                       GrundyProgram *program, EngineError *error)
-{
-    memset(program, 0, sizeof(*program));
-    const KeymathRecordRequest encode = {
-        built->steps, built->count,  built->field_bits,  built->fields, members, outputs,
-        count,        built->tables, built->table_count, &program->key, error};
-    const KeyScheduleRecordRequest layout = {
-        &program->key, built->field_offset, built->fields, in_limbs, 1, &program->layout, error};
-    return (built->failed == 0) && (keymath_record_encode(&encode) != KEYMATH_ERROR) &&
-           (key_schedule_record_layout(&layout) != KEY_SCHEDULE_ERROR) &&
-           (cycle_record_load(&program->layout, &program->record, error) != CYCLE_ERROR);
-}
-
-/** @brief Gives a program back. */
-static void grundy_release(GrundyProgram *program)
-{
-    if (program->record != NULL)
-    {
-        cycle_record_release(program->record);
-    }
-    key_schedule_record_release(&program->layout);
-    keymath_record_release(&program->key);
-    memset(program, 0, sizeof(*program));
-}
-
 /**
  * @brief The step of the Grundy sequences: from the last `largest` values of each game, its value at position n.
  *
@@ -112,7 +61,7 @@ static void grundy_release(GrundyProgram *program)
  * @note The outputs are the new state, the new value first, each value narrowed to its own bits. Each output is one
  *       bit wider than its register. A state field is then width + 1 bits.
  */
-static int grundy_make_step(unsigned int largest, unsigned int most, unsigned int width, GrundyProgram *program,
+static int grundy_make_step(unsigned int largest, unsigned int most, unsigned int width, GameProgram *program,
                             EngineError *error)
 {
     ExactRecordProgram built;
@@ -152,7 +101,7 @@ static int grundy_make_step(unsigned int largest, unsigned int most, unsigned in
         outputs[back] = exact_record_narrow(&built, state[back - 1u], width);
     }
     const unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {((largest * (width + 1u)) + 31u) / 32u, 1u, 1u};
-    const int ok = grundy_load(&built, 3u, outputs, largest, in_limbs, program, error);
+    const int ok = game_load(&built, 3u, outputs, largest, in_limbs, program, error);
     exact_record_close(&built);
     return ok;
 }
@@ -167,7 +116,7 @@ static int grundy_make_step(unsigned int largest, unsigned int most, unsigned in
  * @param[out] error      The error [BORROWS].
  * @return                1 where it loaded.
  */
-static int grundy_make_differ(unsigned int width, unsigned int in_limbs_0, GrundyProgram *program, unsigned int *output,
+static int grundy_make_differ(unsigned int width, unsigned int in_limbs_0, GameProgram *program, unsigned int *output,
                               EngineError *error)
 {
     ExactRecordProgram built;
@@ -179,7 +128,7 @@ static int grundy_make_differ(unsigned int width, unsigned int in_limbs_0, Grund
         exact_record_difference(&built, exact_record_constant(&built, 1u), exact_record_equal(&built, here, there));
     const unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {in_limbs_0, in_limbs_0, 0u};
     *output = differ;
-    const int ok = grundy_load(&built, 2u, &differ, 1u, in_limbs, program, error);
+    const int ok = game_load(&built, 2u, &differ, 1u, in_limbs, program, error);
     exact_record_close(&built);
     return ok;
 }
@@ -193,14 +142,14 @@ static int grundy_make_differ(unsigned int width, unsigned int in_limbs_0, Grund
  * @param[out] error      The error [BORROWS].
  * @return                1 where it loaded.
  */
-static int grundy_make_gather(unsigned int width, unsigned int in_limbs_0, GrundyProgram *program, EngineError *error)
+static int grundy_make_gather(unsigned int width, unsigned int in_limbs_0, GameProgram *program, EngineError *error)
 {
     ExactRecordProgram built;
     exact_record_open(&built);
     const unsigned int read = exact_record_read_unsigned(&built, exact_record_member_field(&built, width + 1u, 0u), 0u);
     const unsigned int value = exact_record_narrow(&built, read, width);
     const unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {in_limbs_0, 0u, 0u};
-    const int ok = grundy_load(&built, 1u, &value, 1u, in_limbs, program, error);
+    const int ok = game_load(&built, 1u, &value, 1u, in_limbs, program, error);
     exact_record_close(&built);
     return ok;
 }
@@ -214,7 +163,7 @@ static int grundy_make_gather(unsigned int width, unsigned int in_limbs_0, Grund
  * @param[out] error   The error [BORROWS].
  * @return             1 where it loaded.
  */
-static int grundy_make_lag(unsigned int width, GrundyProgram *program, unsigned int steps[GRUNDY_SUMS],
+static int grundy_make_lag(unsigned int width, GameProgram *program, unsigned int steps[GRUNDY_SUMS],
                            EngineError *error)
 {
     ExactRecordProgram built;
@@ -228,162 +177,12 @@ static int grundy_make_lag(unsigned int width, GrundyProgram *program, unsigned 
     steps[3] = exact_record_product(&built, here, here);
     steps[4] = exact_record_product(&built, there, there);
     const unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {1u, 1u, 0u};
-    const int ok = grundy_load(&built, 2u, steps, GRUNDY_SUMS, in_limbs, program, error);
+    const int ok = game_load(&built, 2u, steps, GRUNDY_SUMS, in_limbs, program, error);
     exact_record_close(&built);
     return ok;
 }
 
-/**
- * @brief The sums of one output field over each run of records on the device.
- *
- * @param[in]  program The program that wrote the records [BORROWS].
- * @param[in]  step    The step of the field.
- * @param[in]  records The records on the device [BORROWS].
- * @param[in]  count   How many.
- * @param[in]  group   The records of a run.
- * @param[out] sums    One sum a run, two limbs each [BORROWS].
- * @param[out] error   The error [BORROWS].
- * @return             1 where the device summed them.
- */
-static int grundy_sum(const GrundyProgram *program, unsigned int step, const unsigned int *records,
-                      unsigned long long count, unsigned long long group, unsigned int *sums, EngineError *error)
-{
-    const CycleRecordSumRequest request = {records,
-                                           count,
-                                           group,
-                                           program->layout.out_limbs,
-                                           program->layout.step_table[step].out_offset,
-                                           program->layout.step_table[step].out_bits,
-                                           2u,
-                                           sums,
-                                           error};
-    return cycle_record_sum(&request) != CYCLE_ERROR;
-}
-
 /* ---------------------------------------------------------------- the exact detector on the host */
-
-/** @brief An exact integer from a whole number of either sign. */
-static void grundy_exact(OriorExactInteger *value, long long number)
-{
-    sim_exact_signed(value, number);
-}
-
-/** @brief The sum of two exact integers into a result; 0 where the width cannot hold it. */
-static int grundy_add(const OriorExactInteger *left, const OriorExactInteger *right, OriorExactInteger *result)
-{
-    return orior_exact_add(left, right, result) == ORIOR_EXACT_OK;
-}
-
-/** @brief The difference of two exact integers into a result; 0 where the width cannot hold it. */
-static int grundy_subtract(const OriorExactInteger *left, const OriorExactInteger *right, OriorExactInteger *result)
-{
-    return orior_exact_subtract(left, right, result) == ORIOR_EXACT_OK;
-}
-
-/** @brief The product of two exact integers into a result; 0 where the width cannot hold it. */
-static int grundy_multiply(const OriorExactInteger *left, const OriorExactInteger *right, OriorExactInteger *result)
-{
-    return orior_exact_multiply(left, right, result) == ORIOR_EXACT_OK;
-}
-
-/**
- * @brief The floor or the ceiling of left / right, for a positive divisor.
- *
- * @param[in]  left    The dividend [BORROWS].
- * @param[in]  right   The divisor, above 0 [BORROWS].
- * @param[in]  ceiling 1 for the ceiling, 0 for the floor.
- * @param[out] result  The quotient [BORROWS].
- * @return             1 where the division is clean.
- */
-static int grundy_divide(const OriorExactInteger *left, const OriorExactInteger *right, int ceiling,
-                         OriorExactInteger *result)
-{
-    OriorExactInteger quotient;
-    OriorExactInteger remainder;
-    if (orior_exact_divide(left, right, &quotient, &remainder) != ORIOR_EXACT_OK)
-    {
-        return 0;
-    }
-    OriorExactInteger one;
-    grundy_exact(&one, 1);
-    // The quotient rounds toward zero. A remainder below zero moves the floor down, and one above zero the ceiling up.
-    if ((remainder.sign < 0) && !ceiling)
-    {
-        return grundy_subtract(&quotient, &one, result);
-    }
-    if ((remainder.sign > 0) && ceiling)
-    {
-        return grundy_add(&quotient, &one, result);
-    }
-    *result = quotient;
-    return 1;
-}
-
-/** @brief 2^bits as an exact integer. */
-static int grundy_two_to(unsigned int bits, OriorExactInteger *result)
-{
-    OriorExactInteger two;
-    grundy_exact(result, 1);
-    grundy_exact(&two, 2);
-    int ok = 1;
-    for (unsigned int bit = 0u; ok && (bit < bits); bit += 1u)
-    {
-        ok = grundy_multiply(result, &two, result);
-    }
-    return ok;
-}
-
-/**
- * @brief The whole square root of a value that is not negative, by the method of Newton on exact integers.
- *
- * @param[in]  value  The value [BORROWS].
- * @param[out] result The root: the largest r with r^2 at most the value [BORROWS].
- * @return            1 where it is clean.
- */
-static int grundy_root(const OriorExactInteger *value, OriorExactInteger *result)
-{
-    if (value->sign <= 0)
-    {
-        orior_exact_zero(result);
-        return value->sign == 0;
-    }
-    unsigned int top = ORIOR_EXACT_LIMBS;
-    while ((top > 0u) && (value->limb[top - 1u] == 0u))
-    {
-        top -= 1u;
-    }
-    unsigned int bits = 32u * top;
-    while ((bits > 0u) && (((value->limb[(bits - 1u) / 32u] >> ((bits - 1u) % 32u)) & 1u) == 0u))
-    {
-        bits -= 1u;
-    }
-    // The first guess is 2^ceil(bits / 2), at least the root. Each step of Newton from above stays at the root or
-    // above.
-    OriorExactInteger guess;
-    int ok = grundy_two_to((bits + 1u) / 2u, &guess);
-    OriorExactInteger two;
-    grundy_exact(&two, 2);
-    while (ok)
-    {
-        OriorExactInteger next;
-        ok = grundy_divide(value, &guess, 0, &next) && grundy_add(&next, &guess, &next) &&
-             grundy_divide(&next, &two, 0, &next);
-        if (!ok || (orior_exact_compare(&next, &guess) >= 0))
-        {
-            break;
-        }
-        guess = next;
-    }
-    *result = guess;
-    return ok;
-}
-
-/** @brief An interval of a real value at 2^-bits: its floor and its ceiling there. */
-typedef struct
-{
-    OriorExactInteger low;  /**< At most the value, at 2^-bits. */
-    OriorExactInteger high; /**< At least the value. */
-} GrundyInterval;
 
 /** @brief The sums of one series at one lag, as the device returned them. */
 typedef struct
@@ -402,7 +201,7 @@ typedef struct
  * @note P = N^2 sum v v' - N S (sum v + sum v') + n S^2, with S the sum of the series. D = n sum v^2 - (sum v)^2 on
  *       each side, without the scale of the center. A side that does not vary gives a mark of 0.
  */
-static int grundy_mark(const GrundyLagSums *sums, unsigned int lag, unsigned int bits, GrundyInterval *mark)
+static int grundy_mark(const GrundyLagSums *sums, unsigned int lag, unsigned int bits, GameInterval *mark)
 {
     const long long whole = GRUNDY_POSITIONS;
     const long long pairs = whole - (long long)lag;
@@ -412,30 +211,30 @@ static int grundy_mark(const GrundyLagSums *sums, unsigned int lag, unsigned int
     OriorExactInteger right;
     OriorExactInteger left_square;
     OriorExactInteger right_square;
-    grundy_exact(&total, sums[0].term[1]);
-    grundy_exact(&product, sums[lag].term[0]);
-    grundy_exact(&left, sums[lag].term[1]);
-    grundy_exact(&right, sums[lag].term[2]);
-    grundy_exact(&left_square, sums[lag].term[3]);
-    grundy_exact(&right_square, sums[lag].term[4]);
+    game_exact(&total, sums[0].term[1]);
+    game_exact(&product, sums[lag].term[0]);
+    game_exact(&left, sums[lag].term[1]);
+    game_exact(&right, sums[lag].term[2]);
+    game_exact(&left_square, sums[lag].term[3]);
+    game_exact(&right_square, sums[lag].term[4]);
     OriorExactInteger length;
     OriorExactInteger count;
-    grundy_exact(&length, whole);
-    grundy_exact(&count, pairs);
+    game_exact(&length, whole);
+    game_exact(&count, pairs);
     OriorExactInteger scale;
-    int ok = grundy_multiply(&length, &length, &scale);
+    int ok = game_multiply(&length, &length, &scale);
     OriorExactInteger p_value;
     OriorExactInteger work;
     OriorExactInteger side;
-    ok = ok && grundy_multiply(&scale, &product, &p_value) && grundy_add(&left, &right, &side) &&
-         grundy_multiply(&side, &total, &side) && grundy_multiply(&side, &length, &side) &&
-         grundy_subtract(&p_value, &side, &p_value) && grundy_multiply(&total, &total, &work) &&
-         grundy_multiply(&work, &count, &work) && grundy_add(&p_value, &work, &p_value);
+    ok = ok && game_multiply(&scale, &product, &p_value) && game_add(&left, &right, &side) &&
+         game_multiply(&side, &total, &side) && game_multiply(&side, &length, &side) &&
+         game_subtract(&p_value, &side, &p_value) && game_multiply(&total, &total, &work) &&
+         game_multiply(&work, &count, &work) && game_add(&p_value, &work, &p_value);
     OriorExactInteger left_spread;
     OriorExactInteger right_spread;
-    ok = ok && grundy_multiply(&count, &left_square, &left_spread) && grundy_multiply(&left, &left, &work) &&
-         grundy_subtract(&left_spread, &work, &left_spread) && grundy_multiply(&count, &right_square, &right_spread) &&
-         grundy_multiply(&right, &right, &work) && grundy_subtract(&right_spread, &work, &right_spread);
+    ok = ok && game_multiply(&count, &left_square, &left_spread) && game_multiply(&left, &left, &work) &&
+         game_subtract(&left_spread, &work, &left_spread) && game_multiply(&count, &right_square, &right_spread) &&
+         game_multiply(&right, &right, &work) && game_subtract(&right_spread, &work, &right_spread);
     if (!ok)
     {
         return 0;
@@ -449,21 +248,21 @@ static int grundy_mark(const GrundyLagSums *sums, unsigned int lag, unsigned int
     OriorExactInteger spread;
     OriorExactInteger power;
     OriorExactInteger root;
-    ok = grundy_multiply(&left_spread, &right_spread, &spread) && grundy_two_to(2u * bits, &power) &&
-         grundy_multiply(&spread, &power, &spread) && grundy_root(&spread, &root);
+    ok = game_multiply(&left_spread, &right_spread, &spread) && game_power(2, 2u * bits, &power) &&
+         game_multiply(&spread, &power, &spread) && game_root(&spread, &root);
     // sqrt(D_l D_r) 2^bits lies in [root, root + 1), and it is root where the square is exact
     OriorExactInteger square;
-    ok = ok && grundy_multiply(&root, &root, &square);
+    ok = ok && game_multiply(&root, &root, &square);
     const int exact = ok && (orior_exact_compare(&square, &spread) == 0);
     OriorExactInteger numerator;
     OriorExactInteger shift;
-    ok = ok && grundy_two_to(bits, &shift) && grundy_multiply(&count, &p_value, &numerator) &&
-         grundy_multiply(&numerator, &shift, &numerator) && grundy_multiply(&numerator, &shift, &numerator);
+    ok = ok && game_power(2, bits, &shift) && game_multiply(&count, &p_value, &numerator) &&
+         game_multiply(&numerator, &shift, &numerator) && game_multiply(&numerator, &shift, &numerator);
     OriorExactInteger one;
-    grundy_exact(&one, 1);
+    game_exact(&one, 1);
     OriorExactInteger small_root;
     OriorExactInteger large_root;
-    ok = ok && grundy_multiply(&scale, &root, &small_root);
+    ok = ok && game_multiply(&scale, &root, &small_root);
     if (exact)
     {
         large_root = small_root;
@@ -471,14 +270,14 @@ static int grundy_mark(const GrundyLagSums *sums, unsigned int lag, unsigned int
     else
     {
         OriorExactInteger root_up;
-        ok = ok && grundy_add(&root, &one, &root_up) && grundy_multiply(&scale, &root_up, &large_root);
+        ok = ok && game_add(&root, &one, &root_up) && game_multiply(&scale, &root_up, &large_root);
     }
     // the magnitude over the larger root is the smaller bound, and over the smaller root the larger one
     const int negative = numerator.sign < 0;
     numerator.sign = 1;
     OriorExactInteger lower;
     OriorExactInteger upper;
-    ok = ok && grundy_divide(&numerator, &large_root, 0, &lower) && grundy_divide(&numerator, &small_root, 1, &upper);
+    ok = ok && game_divide(&numerator, &large_root, 0, &lower) && game_divide(&numerator, &small_root, 1, &upper);
     if (ok && negative)
     {
         mark->low = upper;
@@ -497,9 +296,9 @@ static int grundy_mark(const GrundyLagSums *sums, unsigned int lag, unsigned int
 /** @brief The reading of the detector on one series at one window. */
 typedef struct
 {
-    unsigned int period;   /**< The period it reads, or 0 for none. */
-    int decided;           /**< 1 where the order of the scores is clear at the precision that it reached. */
-    GrundyInterval margin; /**< The margin of the period over the lags outside its family, at 2^-64. */
+    unsigned int period; /**< The period it reads, or 0 for none. */
+    int decided;         /**< 1 where the order of the scores is clear at the precision that it reached. */
+    GameInterval margin; /**< The margin of the period over the lags outside its family, at 2^-64. */
 } GrundyReading;
 
 /**
@@ -525,8 +324,8 @@ static int grundy_detect(const GrundyLagSums *sums, unsigned int longest, Grundy
         reading->decided = 1;
         return 1;
     }
-    static GrundyInterval marks[GRUNDY_LAGS + 1u];
-    static GrundyInterval scores[GRUNDY_LAGS + 1u];
+    static GameInterval marks[GRUNDY_LAGS + 1u];
+    static GameInterval scores[GRUNDY_LAGS + 1u];
     static long long weights[GRUNDY_LAGS + 1u];
     for (unsigned int bits = GRUNDY_BITS_FIRST; bits <= GRUNDY_BITS_LAST; bits *= 2u)
     {
@@ -552,22 +351,22 @@ static int grundy_detect(const GrundyLagSums *sums, unsigned int longest, Grundy
                 OriorExactInteger *const low = inside ? &family_low : &outside_low;
                 OriorExactInteger *const high = inside ? &family_high : &outside_high;
                 family += inside ? 1 : 0;
-                ok = grundy_add(low, &marks[lag].low, low) && grundy_add(high, &marks[lag].high, high);
+                ok = game_add(low, &marks[lag].low, low) && game_add(high, &marks[lag].high, high);
             }
             const long long outside = (long long)longest - family;
             OriorExactInteger family_count;
             OriorExactInteger outside_count;
-            grundy_exact(&family_count, family);
-            grundy_exact(&outside_count, outside);
+            game_exact(&family_count, family);
+            game_exact(&outside_count, outside);
             OriorExactInteger first;
             OriorExactInteger second;
             // the score times family x outside: outside sum(family) - family sum(outside), low and high
-            ok = ok && grundy_multiply(&outside_count, &family_low, &first) &&
-                 grundy_multiply(&family_count, &outside_high, &second) &&
-                 grundy_subtract(&first, &second, &scores[period].low) &&
-                 grundy_multiply(&outside_count, &family_high, &first) &&
-                 grundy_multiply(&family_count, &outside_low, &second) &&
-                 grundy_subtract(&first, &second, &scores[period].high);
+            ok = ok && game_multiply(&outside_count, &family_low, &first) &&
+                 game_multiply(&family_count, &outside_high, &second) &&
+                 game_subtract(&first, &second, &scores[period].low) &&
+                 game_multiply(&outside_count, &family_high, &first) &&
+                 game_multiply(&family_count, &outside_low, &second) &&
+                 game_subtract(&first, &second, &scores[period].high);
             weights[period] = family * outside;
         }
         if (!ok)
@@ -581,10 +380,10 @@ static int grundy_detect(const GrundyLagSums *sums, unsigned int longest, Grundy
             OriorExactInteger one;
             OriorExactInteger other;
             OriorExactInteger weight;
-            grundy_exact(&weight, weights[best]);
-            ok = grundy_multiply(&scores[period].high, &weight, &one);
-            grundy_exact(&weight, weights[period]);
-            ok = ok && grundy_multiply(&scores[best].high, &weight, &other);
+            game_exact(&weight, weights[best]);
+            ok = game_multiply(&scores[period].high, &weight, &one);
+            game_exact(&weight, weights[period]);
+            ok = ok && game_multiply(&scores[best].high, &weight, &other);
             if (ok && (orior_exact_compare(&one, &other) >= 0))
             {
                 best = period;
@@ -600,10 +399,10 @@ static int grundy_detect(const GrundyLagSums *sums, unsigned int longest, Grundy
             OriorExactInteger winner;
             OriorExactInteger rival;
             OriorExactInteger weight;
-            grundy_exact(&weight, weights[period]);
-            ok = grundy_multiply(&scores[best].low, &weight, &winner);
-            grundy_exact(&weight, weights[best]);
-            ok = ok && grundy_multiply(&scores[period].high, &weight, &rival);
+            game_exact(&weight, weights[period]);
+            ok = game_multiply(&scores[best].low, &weight, &winner);
+            game_exact(&weight, weights[best]);
+            ok = ok && game_multiply(&scores[period].high, &weight, &rival);
             const int order = orior_exact_compare(&winner, &rival);
             clear = ok && ((order > 0) || ((order == 0) && (period < best)));
         }
@@ -618,75 +417,19 @@ static int grundy_detect(const GrundyLagSums *sums, unsigned int longest, Grundy
             // the margin at 2^-64: the score over its weight, from 2^-bits
             OriorExactInteger weight;
             OriorExactInteger shift;
-            grundy_exact(&weight, weights[best]);
-            return grundy_two_to(bits - 64u, &shift) && grundy_multiply(&weight, &shift, &weight) &&
-                   grundy_divide(&scores[best].low, &weight, 0, &reading->margin.low) &&
-                   grundy_divide(&scores[best].high, &weight, 1, &reading->margin.high);
+            game_exact(&weight, weights[best]);
+            return game_power(2, bits - 64u, &shift) && game_multiply(&weight, &shift, &weight) &&
+                   game_divide(&scores[best].low, &weight, 0, &reading->margin.low) &&
+                   game_divide(&scores[best].high, &weight, 1, &reading->margin.high);
         }
     }
     return 0;
 }
 
-/**
- * @brief The digits of a value at 2^-64, rounded to `places` decimals, where its floor and ceiling agree.
- *
- * @param[in]  value  The value [BORROWS].
- * @param[in]  places The decimals.
- * @param[out] scaled The value times 10^places, rounded to the nearest whole number [BORROWS].
- * @return            1 where both ends of the interval round alike.
- */
-static int grundy_round(const GrundyInterval *value, unsigned int places, long long *scaled)
-{
-    OriorExactInteger ten_power;
-    OriorExactInteger ten;
-    grundy_exact(&ten_power, 1);
-    grundy_exact(&ten, 10);
-    int ok = 1;
-    for (unsigned int place = 0u; ok && (place < places); place += 1u)
-    {
-        ok = grundy_multiply(&ten_power, &ten, &ten_power);
-    }
-    OriorExactInteger unit;
-    OriorExactInteger half;
-    ok = ok && grundy_two_to(64u, &unit) && grundy_two_to(63u, &half);
-    long long ends[2] = {0, 0};
-    const OriorExactInteger *const bounds[2] = {&value->low, &value->high};
-    for (int end = 0; ok && (end < 2); end += 1)
-    {
-        OriorExactInteger work;
-        ok = grundy_multiply(bounds[end], &ten_power, &work) && grundy_add(&work, &half, &work) &&
-             grundy_divide(&work, &unit, 0, &work);
-        // the rounded value is a small whole number, in the low two limbs
-        const unsigned long long magnitude = ((unsigned long long)work.limb[1] << 32u) | work.limb[0];
-        ends[end] = (work.sign < 0) ? -(long long)magnitude : (long long)magnitude;
-    }
-    *scaled = ends[0];
-    return ok && (ends[0] == ends[1]);
-}
-
-/** @brief Writes a rounded value, `scaled` over 10^places, with its decimals. */
-static void grundy_put_decimal(VerbaLinea *line, long long scaled, unsigned int places)
-{
-    long long unit = 1;
-    for (unsigned int place = 0u; place < places; place += 1u)
-    {
-        unit *= 10;
-    }
-    if (scaled < 0)
-    {
-        mmgr_line_ch(line, '-');
-        scaled = -scaled;
-    }
-    // the rounded value is not negative here
-    mmgr_line_decimal(line, (unsigned long long)(scaled / unit), 1u);
-    mmgr_line_ch(line, '.');
-    mmgr_line_decimal(line, (unsigned long long)(scaled % unit), places);
-}
-
 /** @brief The order of two intervals by their floors, for qsort. */
 static int grundy_interval_order(const void *left, const void *right)
 {
-    return orior_exact_compare(&((const GrundyInterval *)left)->low, &((const GrundyInterval *)right)->low);
+    return orior_exact_compare(&((const GameInterval *)left)->low, &((const GameInterval *)right)->low);
 }
 
 /**
@@ -699,9 +442,9 @@ static int grundy_interval_order(const void *left, const void *right)
  * @param[out]    found  The min, the median and the max [BORROWS].
  * @return               1 where it is clean.
  */
-static int grundy_spread(GrundyInterval *values, unsigned long long count, GrundyInterval found[3])
+static int grundy_spread(GameInterval *values, unsigned long long count, GameInterval found[3])
 {
-    qsort(values, (size_t)count, sizeof(GrundyInterval), grundy_interval_order);
+    qsort(values, (size_t)count, sizeof(GameInterval), grundy_interval_order);
     found[0] = values[0];
     found[2] = values[count - 1ULL];
     if ((count % 2ULL) == 1ULL)
@@ -710,12 +453,11 @@ static int grundy_spread(GrundyInterval *values, unsigned long long count, Grund
         return 1;
     }
     OriorExactInteger two;
-    grundy_exact(&two, 2);
-    const GrundyInterval *const low = &values[(count / 2ULL) - 1ULL];
-    const GrundyInterval *const high = &values[count / 2ULL];
-    return grundy_add(&low->low, &high->low, &found[1].low) && grundy_divide(&found[1].low, &two, 0, &found[1].low) &&
-           grundy_add(&low->high, &high->high, &found[1].high) &&
-           grundy_divide(&found[1].high, &two, 1, &found[1].high);
+    game_exact(&two, 2);
+    const GameInterval *const low = &values[(count / 2ULL) - 1ULL];
+    const GameInterval *const high = &values[count / 2ULL];
+    return game_add(&low->low, &high->low, &found[1].low) && game_divide(&found[1].low, &two, 0, &found[1].low) &&
+           game_add(&low->high, &high->high, &found[1].high) && game_divide(&found[1].high, &two, 1, &found[1].high);
 }
 
 /* ---------------------------------------------------------------- the sweep */
@@ -818,10 +560,10 @@ int main(int argc, char **argv)
     }
     EngineError error;
     memset(&error, 0, sizeof(error));
-    GrundyProgram step;
-    GrundyProgram differ;
-    GrundyProgram gather;
-    GrundyProgram lag;
+    GameProgram step;
+    GameProgram differ;
+    GameProgram gather;
+    GameProgram lag;
     unsigned int lag_steps[GRUNDY_SUMS];
     unsigned int differ_step = 0u;
     int ok = grundy_make_step(largest, most, width, &step, &error);
@@ -950,7 +692,7 @@ int main(int argc, char **argv)
                                            device.out,
                                            &error};
         ok = ok && (cycle_record_run(&run) == (long)lane) &&
-             grundy_sum(&differ, differ_step, device.out, lane, run_length, sums, &error);
+             game_sum(&differ, differ_step, device.out, lane, run_length, sums, &error);
         for (unsigned int at = 0u; ok && (at < open_count); at += 1u)
         {
             if ((sums[2u * at] == 0u) && (sums[(2u * at) + 1u] == 0u))
@@ -1085,7 +827,7 @@ int main(int argc, char **argv)
         ok = ok && (cycle_record_run(&run) == (long)lane);
         for (unsigned int term = 0u; ok && (term < GRUNDY_SUMS); term += 1u)
         {
-            ok = grundy_sum(&lag, lag_steps[term], device.out, lane, whole, sums, &error);
+            ok = game_sum(&lag, lag_steps[term], device.out, lane, whole, sums, &error);
             for (unsigned long long group = 0ULL; ok && (group < (lane / whole)); group += 1ULL)
             {
                 // each sum is below 2^63: its two limbs are a whole number that is not negative
@@ -1125,15 +867,15 @@ int main(int argc, char **argv)
         snprintf(text, sizeof(text), "%-8u %8u %8u %8u\n", reach, inside, hit, settled - inside);
         mmgr_line_put(line, text);
     }
-    GrundyInterval *const live = (GrundyInterval *)calloc(rows + 1u, sizeof(GrundyInterval));
-    GrundyInterval *const floors = (GrundyInterval *)calloc(rows + 1u, sizeof(GrundyInterval));
-    GrundyInterval *const ratios = (GrundyInterval *)calloc(rows + 1u, sizeof(GrundyInterval));
+    GameInterval *const live = (GameInterval *)calloc(rows + 1u, sizeof(GameInterval));
+    GameInterval *const floors = (GameInterval *)calloc(rows + 1u, sizeof(GameInterval));
+    GameInterval *const ratios = (GameInterval *)calloc(rows + 1u, sizeof(GameInterval));
     ok = ok && (live != NULL) && (floors != NULL) && (ratios != NULL);
     unsigned long long ratio_count = 0ULL;
     unsigned long long uncleared = 0ULL;
     unsigned long long unclear_orders = 0ULL;
     OriorExactInteger unit;
-    ok = ok && grundy_two_to(64u, &unit);
+    ok = ok && game_power(2, 64u, &unit);
     for (unsigned int row = 0u; ok && (row < rows); row += 1u)
     {
         live[row] = readings[(row_game[row] * GRUNDY_WINDOW_COUNT) + (GRUNDY_WINDOW_COUNT - 1u)].margin;
@@ -1161,10 +903,10 @@ int main(int argc, char **argv)
         if (ok && (floors[row].low.sign > 0))
         {
             OriorExactInteger work;
-            ok = grundy_multiply(&live[row].low, &unit, &work) &&
-                 grundy_divide(&work, &floors[row].high, 0, &ratios[ratio_count].low) &&
-                 grundy_multiply(&live[row].high, &unit, &work) &&
-                 grundy_divide(&work, &floors[row].low, 1, &ratios[ratio_count].high);
+            ok = game_multiply(&live[row].low, &unit, &work) &&
+                 game_divide(&work, &floors[row].high, 0, &ratios[ratio_count].low) &&
+                 game_multiply(&live[row].high, &unit, &work) &&
+                 game_divide(&work, &floors[row].low, 1, &ratios[ratio_count].high);
             ratio_count += 1ULL;
         }
         else if (ok && (floors[row].high.sign > 0))
@@ -1188,22 +930,22 @@ int main(int argc, char **argv)
         char text[96];
         snprintf(text, sizeof(text), "\nat window %u, %u rows\n", widest, rows);
         mmgr_line_put(line, text);
-        GrundyInterval *const sets[3] = {live, floors, ratios};
+        GameInterval *const sets[3] = {live, floors, ratios};
         const unsigned long long counts[3] = {rows, rows, ratio_count};
         static const char *const LABELS[3] = {"  live margin   min ", "  shuffle floor min ", "  ratio         min "};
         static const char *const PARTS[3] = {"", "  median ", "  max "};
         for (int set = 0; ok && (set < 3); set += 1)
         {
-            GrundyInterval found[3];
+            GameInterval found[3];
             ok = (counts[set] > 0ULL) && grundy_spread(sets[set], counts[set], found);
             const unsigned int decimals = (set == 2) ? 2u : 3u;
             mmgr_line_put(line, LABELS[set]);
             for (int part = 0; ok && (part < ((set == 2) ? 2 : 3)); part += 1)
             {
                 long long scaled = 0;
-                unclear_digits += grundy_round(&found[part], decimals, &scaled) ? 0ULL : 1ULL;
+                unclear_digits += game_round(&found[part], 64u, decimals, &scaled) ? 0ULL : 1ULL;
                 mmgr_line_put(line, PARTS[part]);
-                grundy_put_decimal(line, scaled, decimals);
+                game_put_decimal(line, scaled, decimals);
             }
             mmgr_line_ch(line, '\n');
         }
@@ -1250,10 +992,10 @@ int main(int argc, char **argv)
     cudaFree(device.index);
     cudaFree(device.out);
     cudaFree(device.values);
-    grundy_release(&step);
-    grundy_release(&differ);
-    grundy_release(&gather);
-    grundy_release(&lag);
+    game_release(&step);
+    game_release(&differ);
+    game_release(&gather);
+    game_release(&lag);
     cycle_record_sum_release();
     free(masks);
     free(host_index);
