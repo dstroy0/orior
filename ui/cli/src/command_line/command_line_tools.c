@@ -9,14 +9,14 @@
 #include "../toolchains/toolchains.h"
 #include "command_line_internal.h"
 
-// the max plugins listed, and the rows their capacity is taken with
+// the max plugins in the list, and the rows that hold their capacity
 #define CLI_PLUGINS_LISTING 1024u
 
 // the nodes and the bytes of texts a tree made of a command's words contains past those its words make
 #define CLI_TOOLS_NODES_MORE 64u
 #define CLI_TOOLS_TEXT_MORE 1024ULL
 
-// the tree a plugin.json is read into, or a command's words are made into, a cell sized to it given back once read
+// the tree that a command's words make, in a cell of its size. The call gives the cell back after the read
 static CliJson s_json;
 static char s_line[1u << 16u];
 
@@ -52,7 +52,7 @@ typedef struct
     unsigned int at;
 } CommandLineToolsCtx;
 
-// a flag of new-plugin refused, its closing word missing
+// a flag of new-plugin that the call refuses, because its closing word is absent
 #define CLI_TOOLS_REFUSED 0xffffffffu
 // `text` copied into `into`, sized for `capacity`, cut where it does not fit
 EMBED_INLINE void tools_copy(const CommandLineToolsCtx *args)
@@ -203,8 +203,8 @@ int cli_plugins_list(void)
     return 0;
 }
 
-// a tree allocated empty in a cell sized to what `count` words make, every comma of them a node and the texts twice
-// their bytes at max: 1, or 0 where the cell is refused
+// an empty tree in a cell of the size that `count` words make. Each comma of the words is a node, and the texts are
+// twice their bytes at max. 1, or 0 where the pool refuses the cell
 EMBED_INLINE int tools_tree_reserve(const CommandLineToolsCtx *args)
 {
     unsigned long long bytes = 0ULL;
@@ -276,9 +276,9 @@ EMBED_INLINE void tools_err_two(const CommandLineToolsCtx *args)
                .size = mmgr_line_ok(&line) ? line.at : 0ULL);
 }
 
-// the block comment's opening, the word after the flag at `at`, and its closing, the word after that, set on the
-// plugin's `object`: 2, the words it takes, or CLI_TOOLS_REFUSED where the `count` words end before its closing, why
-// given
+// the opening of the block comment, the word after the flag at `at`, and its closing, the next word. The call sets
+// them on the plugin's `object`. 2, the words it takes, or CLI_TOOLS_REFUSED with why given where the `count` words end
+// before its closing
 EMBED_INLINE unsigned int tools_block_comment(const CommandLineToolsCtx *args)
 {
     if (args->at + 2u >= args->count)
@@ -302,8 +302,8 @@ EMBED_INLINE unsigned int tools_block_comment(const CommandLineToolsCtx *args)
     return 2u;
 }
 
-// the flag at `at` of the `count` words that takes the words after it set on the plugin's `object`: a list, a text or
-// the block comment; how many words after the flag it takes, 0 where it is none of these, or CLI_TOOLS_REFUSED with
+// the flag at `at` of the `count` words, with the words after it set on the plugin's `object` as a list, a text or
+// the block comment. The count of words that the flag takes, 0 where it is none of these, or CLI_TOOLS_REFUSED with
 // why given
 EMBED_INLINE unsigned int tools_valued_flag(const CommandLineToolsCtx *args)
 {
@@ -342,8 +342,8 @@ EMBED_INLINE unsigned int tools_valued_flag(const CommandLineToolsCtx *args)
     return 0u;
 }
 
-// a flag `name` new-plugin does not take refused, why given: it needs a value where `text`, the word after it, is
-// NULL, else it is not one new-plugin takes
+// a flag `name` that new-plugin does not take, refused with why given. The flag needs a value where `text`, the next
+// word, is NULL. Else new-plugin does not take the flag
 EMBED_INLINE void tools_flag_refused(const CommandLineToolsCtx *args)
 {
     if (args->text == NULL)
@@ -501,7 +501,7 @@ EMBED_INLINE unsigned int tools_describe(const CommandLineToolsCtx *args)
     return tool;
 }
 
-// the toolchain `add` describes added: 1 with what was added reported into `out`, or 0 with why given
+// the toolchain that `add` describes, added. 1 with a report of the addition into `out`, or 0 with why given
 int cli_toolchain_add(const CliCommandLineOutErrMsgCtx *args)
 {
     VerbaLinea *err_msg = args->err_msg;

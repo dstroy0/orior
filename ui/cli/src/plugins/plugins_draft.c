@@ -5,8 +5,8 @@
 #include "../text/text.h"
 #include "plugins.h"
 
-// the max bytes of a pattern made; and the nodes and bytes of texts a draft makes besides the copies of its answers
-// and the plugin it starts from, the members of a plugin and a grammar made from nothing among them
+// the max bytes of a pattern that the draft makes. The next two are the nodes and bytes of the texts a draft
+// makes, apart from the copies of its answers and its start plugin. A new plugin and grammar are among those texts
 #define CLI_PATTERN_MAX_LEN 1024u
 #define CLI_DRAFT_NODES_MORE 512u
 #define CLI_DRAFT_TEXT_MORE (1ULL << 14u)
@@ -362,7 +362,7 @@ EMBED_INLINE unsigned int cli_grammar_get(const PluginsDraftCtx *args)
     return grammar;
 }
 
-// the comments the answers name: `line` where one is given, `block` where two are
+// the comments that the answers name: `line` where the answers give one, `block` where they give two
 EMBED_INLINE unsigned int cli_comments_get(const PluginsDraftCtx *args)
 {
     CliJson *json = args->json;
@@ -499,8 +499,8 @@ EMBED_INLINE unsigned int cli_extensions_read(const PluginsDraftCtx *args)
     return extensions;
 }
 
-// a new language's members set on `plugin` from the answers in `spec`: its comments, its pairs, its `quotes`, the
-// indent after an open bracket, its grammar, and no hovers or snippets
+// a new language's members set on `plugin` from the answers in `spec`. They are its comments, its pairs, its `quotes`,
+// the indent after an open bracket and its grammar, with no hovers or snippets
 EMBED_INLINE void cli_draft_new(const PluginsDraftCtx *args)
 {
     CliJson *const json = args->json;
@@ -549,8 +549,8 @@ EMBED_INLINE void cli_members_merged(const PluginsDraftCtx *args)
     }
 }
 
-// the keywords, types and constants the answers in `spec` give set on `plugin`'s grammar where it has one, each list
-// that names any; the keywords as its words where the grammar has words
+// the keywords, types and constants of the answers in `spec`, set on the grammar of `plugin` where it has one. Each
+// list goes in where the answers name any. The keywords are its words where the grammar has words
 EMBED_INLINE void cli_grammar_lists(const PluginsDraftCtx *args)
 {
     CliJson *const json = args->json;
@@ -580,9 +580,9 @@ EMBED_INLINE void cli_grammar_lists(const PluginsDraftCtx *args)
     }
 }
 
-// `plugin` filled from the plugin `from` names: its members where `plugin` has none, the comments where the answers in
-// `spec` give any, the `quotes` where they are `quoted`, and the grammar's lists: 1, or 0 with why given where no
-// such plugin reads as an object
+// `plugin` filled from the plugin that `from` names. It gets the members that `plugin` does not have, and the comments
+// where the answers in `spec` give any. It gets the `quotes` where they are `quoted`, and the lists of the grammar. 1,
+// or 0 with why given where no such plugin is an object
 EMBED_INLINE int cli_draft_from_template(const PluginsDraftCtx *args)
 {
     CliJson *const json = args->json;

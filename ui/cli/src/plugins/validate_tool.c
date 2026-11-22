@@ -78,8 +78,8 @@ EMBED_INLINE int tool_string(const ValidateToolCtx *args)
     return (member == CLI_JSON_NONE) ? !args->needed : (*value != NULL);
 }
 
-// the array of strings `name` of `object` into `array`: 1, or 0 where it is no array of strings, or absent and
-// `needed`; CLI_JSON_NONE, an array with none, where it is absent and not needed
+// the array of strings `name` of `object` into `array`. 1, or 0 where it is no array of strings, or absent and
+// `needed`. An absent array where `needed` is 0 gives CLI_JSON_NONE, an array with no items
 EMBED_INLINE int tool_strings(const ValidateToolCtx *args)
 {
     const CliJson *json = args->json;
@@ -112,8 +112,8 @@ EMBED_INLINE int tool_strings(const ValidateToolCtx *args)
     return 1;
 }
 
-// the whole number `name` of `object`, no greater than `max`, into `value`: 1, or 0 where it is none, as serde reads
-// an unsigned integer, or absent and no `fallback` is given; `*fallback` where it is absent
+// the whole number `name` of `object`, no greater than `max`, into `value`. 1, or 0 where it is no unsigned integer as
+// serde reads one, or where it is absent with no `fallback`. An absent number gives `*fallback`
 EMBED_INLINE int tool_count(const ValidateToolCtx *args)
 {
     const CliJson *json = args->json;
@@ -281,7 +281,7 @@ EMBED_INLINE int tool_audit(const ValidateToolCtx *args)
             return 0;
         }
     }
-    // an explanation is found by its key in the order a BTreeMap orders them
+    // the call finds an explanation by its key, in the order of a BTreeMap
     EMBED_CALL(cli_json_tree_object_name.json_sort, CliJsonTreeObjectNameCfg, .json = (CliJson *)json,
                .object = args->tool->explains);
     return 1;
@@ -339,9 +339,9 @@ EMBED_INLINE int tool_read(const ValidateToolCtx *args)
                       .tool = args->tool);
 }
 
-// What a look over the tool plugins finds: each tool by its id, the last plugin of an id located for it, with its
-// place among the plugins and whether it checks the language sought; and, as one is read again, the place sought and
-// whether it was read
+// What a look over the tool plugins finds: each tool by its id, with the last plugin of that id. The record holds the
+// plugin's place among the plugins, and whether the tool checks the language. On a second read it holds the place
+// that the call looks for, and whether the read succeeds
 typedef struct
 {
     const char *language;
@@ -357,8 +357,8 @@ typedef struct
 
 static CliToolLook s_look;
 
-// a plugin looked at: a tool recorded by its id, or, as one is read again, the tool at the place sought read into the
-// capacity
+// a plugin that the look reaches: the call records a tool by its id. On a second read, the call reads the tool at the
+// place that it looks for into the capacity
 static void tool_look(const CliEachPluginCfg *args)
 {
     CliToolLook *const look = (CliToolLook *)args->context;
@@ -435,7 +435,7 @@ EMBED_INLINE void tool_looked_over(const ValidateToolCtx *args)
 
 int cli_validate_tool_for(const CliValidateCfg *args)
 {
-    // each plugin is read into the validation's capacity, retained for the look as a validation retains it
+    // the look copies each plugin into the capacity of the validation, and keeps it as a validation keeps it
     if (!cli_validate_lock())
     {
         return 0;

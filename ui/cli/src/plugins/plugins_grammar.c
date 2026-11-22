@@ -1,20 +1,20 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// plugins_grammar.c: a language plugin's grammar stored for the colorer under `plugin:<id>`, read from the plugin.json
-// of the plugin of that id that is, the reader's in place of one that comes with orior, made whole from the tree's
-// tables, and stored again only where the whole grammar changed. A language `<id>:<name>` is the plugin `<id>`'s for
-// the folder `<name>`
+// plugins_grammar.c: a language plugin's grammar stored for the colorer under `plugin:<id>`. The grammar comes from the
+// kept settings of the plugin of that id, and the reader's plugin takes the place of one that comes with orior. The
+// tree's tables make the grammar whole, and the file stores it again only where the whole grammar changed. A language
+// `<id>:<name>` is the language of the plugin `<id>` for the folder `<name>`
 #include "../command_line/pool.h"
 #include "../editor/highlight.h"
 #include "../text/text.h"
 #include "plugins.h"
 
-// the plugins whose grammars are stored at max, and the bytes a whole grammar is written in
+// the max plugins with a stored grammar, and the bytes for a whole grammar
 #define CLI_PLUGIN_GRAMMARS_MAX 1024u
 #define CLI_PLUGIN_GRAMMAR_CAPACITY (4ULL << 20u)
 
-// A plugin whose grammar is stored: its id, and the stamp of the plugin.json it was read from. Each is in a movable
-// cell of its own: the stamp first, then the id with its 0
+// A plugin with a stored grammar: its id, and the stamp of its whole grammar at the last store. Each plugin has a
+// movable cell of its own, with the stamp first, then the id with its 0
 typedef struct
 {
     char id[CLI_NAME_MAX_LEN];
@@ -22,13 +22,13 @@ typedef struct
 } CliPluginGrammar;
 #define CLI_PLUGIN_GRAMMAR_ID_AT sizeof(unsigned long long)
 
-// the plugins whose grammars are stored, each cell's token, and how many are
+// the plugins with a stored grammar, the token of each cell, and their count
 static const CarcerMovableEntry *s_grammars[CLI_PLUGIN_GRAMMARS_MAX];
 static unsigned int s_grammar_count;
 
-// The plugin sought: its id, and the folder its language is for, empty for none; the tree its tables are read
-// from; whether one of that id was found and its grammar made whole, the last, the one that is, written into
-// `whole`; and why where it was not
+// The plugin that the call looks for: its id, and the folder of its language, empty for none. The record holds the
+// tree with the plugin's tables. It records whether the call found a plugin of that id and made its grammar whole in
+// `whole`, and why where it did not
 typedef struct
 {
     const char *id;
@@ -67,8 +67,8 @@ static CliPluginGrammar grammar_listed(const PluginsGrammarCtx *args)
     return listed;
 }
 
-// the plugin `id` listed after the others with `stamp`, in a cell sized to the two: 1, or 0 where the list is at
-// its max or the cells cannot meet it; under the lock
+// the plugin `id` listed after the others with `stamp`, in a cell sized to the two, under the lock. 1, or 0 where the
+// list is full or the pool refuses the cell
 static int cli_grammar_listed_put(const PluginsGrammarCtx *args)
 {
     const unsigned long long id_bytes =
@@ -237,7 +237,7 @@ static int plugins_grammar_stored(const CliPluginsIdKeyCfg *args)
     {
         stored = EMBED_CALL(cli_grammar_resolved_store, PluginsGrammarCtx, .key = args->key, .whole = &whole,
                             .err_msg = args->err_msg);
-        // a grammar whose stamp the cells cannot hold is made whole again the next time it is sought
+        // where the cells cannot hold the stamp, the next ask makes the grammar whole again
         if (stored && (at == s_grammar_count))
         {
             (void)EMBED_CALL(cli_grammar_listed_put, PluginsGrammarCtx, .id = args->id, .stamp = stamp);

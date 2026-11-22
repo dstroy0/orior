@@ -9,13 +9,13 @@
 #include "../toolchains/format.h"
 #include "purpose_lines.h"
 
-// the max lines of a text read for its comment, and the max bytes of each text a comment is made in
+// the max lines of a text that the call reads for its comment, and the max bytes of each text of a comment
 #define CLI_COMMENT_LINES 65536u
 #define CLI_COMMENT_CAPACITY (1u << 18u)
 
-// The work state a comment is read in, guarded by the lock: the text's lines and a block comment's, `line_capacity` of
-// each, the comment marks of its language, and the texts made, `capacity` bytes each; the lists and the texts one cell
-// sized to the text read
+// The work state for the read of a comment, which the lock guards. It holds the text's lines and the lines of a block
+// comment, `line_capacity` of each, and the comment marks of the language. It holds the texts that the call makes,
+// `capacity` bytes each. The lists and the texts share one cell, sized to the text
 typedef struct
 {
     CliSpan *line;
@@ -44,8 +44,8 @@ typedef struct
     VerbaLinea *out;
     unsigned int *at;
 } PurposeCommentCtx;
-// a text's lines, as Rust's lines() splits them, CLI_COMMENT_LINES at max, read into the work state where it has
-// work state for a list of them: their count
+// a text's lines, as Rust's lines() splits them, CLI_COMMENT_LINES at max. The call reads them into the work state
+// where it has room for a list of them: their count
 EMBED_INLINE unsigned int cli_lines_read(const PurposeCommentCtx *args)
 {
     const char *text = args->text;
@@ -67,8 +67,8 @@ EMBED_INLINE unsigned int cli_lines_read(const PurposeCommentCtx *args)
     return lines;
 }
 
-// the work state taken for the lines of `size` bytes of `text`, and the texts made of them, each its bytes and one more
-// at max CLI_COMMENT_CAPACITY, the lines read into it: 1, or 0 where the cellblock could not meet it
+// the work state taken for the lines of `size` bytes of `text`, and for the texts that the call makes of them. Each
+// text has its bytes and one more, at max CLI_COMMENT_CAPACITY. 1, or 0 where the cellblock refuses the cell
 EMBED_INLINE int cli_byte_buffer_alloc(const PurposeCommentCtx *args)
 {
     s_work_state.line = NULL;
@@ -184,7 +184,7 @@ static void cli_sentences(const PurposeCommentCtx *args)
         mmgr_line_put_n(args->out, s_work_state.joined, joined.at);
         return;
     }
-    // the cut's last sentence end past its first third, else the cut, its trailing whitespace left off, and an ellipsis
+    // the cut's last sentence end after its first third, else the cut without white space at its end, and an ellipsis
     for (unsigned long long end = cut; end >= 2ULL; end -= 1ULL)
     {
         if ((s_work_state.joined[end - 2ULL] == '.') && (s_work_state.joined[end - 1ULL] == ' '))
@@ -271,7 +271,7 @@ EMBED_INLINE void cli_first_paragraph(const PurposeCommentCtx *args)
     {
         mmgr_line_ch(args->out, at[0]);
     }
-    // the marks of emphasis left out of what was written
+    // the call leaves the marks of emphasis out of the text
     char *const written = args->out->out;
     unsigned long long paragraph = begun;
     for (unsigned long long at = begun; at < args->out->at; at += 1ULL)
@@ -338,7 +338,7 @@ EMBED_INLINE void cli_block_read(const PurposeCommentCtx *args)
     {
         *at = s_work_state.lines;
     }
-    // the body's lines, each with its marks taken off, no more than the work state's lines they were joined from
+    // the body's lines, each without its marks, no more than the lines of the work state that they come from
     unsigned int count = 0u;
     const unsigned long long length = (end > from) ? (end - from) : 0ULL;
     for (unsigned long long place = 0ULL; (place < length) && (count < s_work_state.line_capacity);)
@@ -448,7 +448,7 @@ EMBED_INLINE void cli_comment_read(const PurposeCommentCtx *args)
             mmgr_line_put_n(&text_line, body,
                             (ended != NULL) ? (unsigned long long)(ended - body)
                                             : cellul.len(&(CatenaFinitaCfg){.src = body, .cap = CLI_POOL_BYTES}));
-            // a docstring read is passed: a license's docstring does not stop the reading there
+            // the call goes past a docstring that it reads, because a license's docstring must not stop the read
             at += 1u;
         }
         else

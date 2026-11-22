@@ -1,43 +1,54 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// plugins.h: plugins, what the window takes in from outside its own code (plugins.c finds and reads them,
-// plugins_draft.c writes one from a few answers, plugins_text.c positions one out and creates it). A language plugin is
-// a folder named by its id containing plugin.json:
+// plugins.h: plugins, what the window takes in from outside its own code. plugins.c finds and reads them.
+// plugins_draft.c writes one from a few answers, and plugins_text.c lays one out and creates it. A language plugin is
+// a folder named by its id. The folder contains plugin.json, with these members:
 //
-//   id, name, version       the plugin's own name for itself, the name it shows, and its version
-//   type                    "language", "tool" for a tool plugin, which the validation reads, or "script" for a
-//                           plugin that runs code of its own, which the window's scripts.js runs: the file `main`
-//                           names beside plugin.json, plugin.js where it names none, in the form of orior's calls
-//                           `api` names
-//   extensions              the file extensions it opens, without the dot
-//   names                   the whole names of the files it opens beside them, where it has any
-//   each                    { folder, table, unless, except }: the plugin a language of its own for each folder of
-//                           `folder` in the tree holding `table`, `{name}` in it the folder's name, opening the
-//                           folder's name as an extension as the language `<id>:<name>`
-//   comments                { line, block: [open, close] }, either left out where it has none
-//   pairs, quotes           the brackets it closes and the quotes it pairs
-//   indentAfter             a pattern a line ends with to indent the next deeper
-//   delimiters              { extension: characters } for each extension whose files are tables: the first
-//                           character separates a line into fields and the second, where one is given, encloses
-//                           a field; the view positions each field at its column offset
-//   grammar                 lists of words by name and the tokenizer, as editor/tokens.js reads one; a pattern is
-//                           a string, or { pattern, flags } where it takes flags; a list may be read from a table of
-//                           the tree and a pattern may be a list's words (cli_plugins_grammar_resolved)
-//   hovers                  a word and the text hovering it shows, where it has any
-//   snippets                { label, body } for the completion list, `${1:name}` a stop in a body
-//   reads, writes           for a script plugin, the patterns of the tree's files it reads and writes, `*` any
-//                           characters but `/` and `**` any folders, and `reaches`, the hosts it reaches on the
-//                           network, `*.` before a host for any under it; the window restricts it to these, and runs it
-//                           only once the reader lets it
+//   id, name, version       The plugin's own name for itself, the name it shows, and its version.
 //
-// The plugins that come with orior are under ui/plugins and built into the program (plugins_bundled.c, written as
-// the program is built by bundle/plugins_bundle.c). The reader's are under `plugins/` in orior's own folder, and one
-// of the reader's is in for one that comes with orior of the same id.
+//   type                    "language", "tool" or "script". The validation reads a tool plugin. A script plugin has
+//                           code of its own: the file that `main` names beside plugin.json, or plugin.js where `main`
+//                           names none. `api` names the form of orior's calls that the code uses.
 //
-// The generator writes a language plugin from a few answers: a name, the extensions, how a line and a block are
-// commented, the keywords, types and constants, and the quotes. Given a plugin to start from, it copies that plugin's
-// grammar and changes what the answers name. Beside plugin.json it writes a sample file in the new language to open
-// and try
+//   extensions              The file extensions that the plugin opens, without the dot.
+//
+//   names                   The whole names of the files that the plugin opens, where it has any.
+//
+//   each                    { folder, table, unless, except }. The plugin makes a language for each folder of
+//                           `folder` in the tree that holds `table`. `{name}` in it is the folder's name. The
+//                           language `<id>:<name>` opens the folder's name as an extension.
+//
+//   comments                { line, block: [open, close] }. The plugin leaves out a member where it has none.
+//
+//   pairs, quotes           The brackets that the plugin closes and the quotes that it pairs.
+//
+//   indentAfter             A pattern at the end of a line. The next line goes one level deeper.
+//
+//   delimiters              { extension: characters } for each extension whose files are tables. The first character
+//                           divides a line into fields. The second character, where it is present, encloses a field.
+//                           The view puts each field at its column.
+//
+//   grammar                 Lists of words by name, and the tokenizer that the highlighter reads. A pattern is a
+//                           string, or { pattern, flags } where it takes flags. A list can come from a table of the
+//                           tree, and a pattern can be the words of a list (cli_plugins_grammar_resolved).
+//
+//   hovers                  A word and the text that a hover on it shows, where the plugin has any.
+//
+//   snippets                { label, body } for the completion list. `${1:name}` is a stop in a body.
+//
+//   reads, writes           The patterns of the tree's files that a script plugin reads and writes. `*` is any
+//                           characters but `/`, and `**` is any folders. `reaches` holds the hosts that the plugin
+//                           reaches on the network, and `*.` before a host means any host under it. The plugin gets
+//                           only these, and only after the reader permits it.
+//
+// The plugins that come with orior are under ui/plugins, and the build puts them into the program (plugins_bundled.c,
+// from bundle/plugins_bundle.c). The reader's plugins are under `plugins/` in orior's own folder. A reader's plugin
+// takes the place of the plugin of the same id that comes with orior.
+//
+// The generator writes a language plugin from a few answers. The answers give a name, the extensions, the comment
+// marks of a line and a block, the keywords, types and constants, and the quotes. With a plugin to start from, the
+// generator copies that plugin's grammar and changes what the answers name. Beside plugin.json it writes a sample file
+// in the new language to open and try
 #ifndef PLUGINS_H
 #define PLUGINS_H
 #include "../command_line/pool.h"
@@ -74,8 +85,9 @@ typedef struct CliPluginsSettingSetCfg CliPluginsSettingSetCfg;
 #define CLI_LANGUAGE_GRAMMARS 1024u
 #define CLI_LANGUAGE_MARK_MAX 16u
 
-// The grammar of one language as the caller reads it: the language's id, the key the colorer stores the grammar under,
-// whether its tokens name a declaration, and the marks a directive's line and its carrying on start by, empty for none
+// The grammar of one language as the caller reads it. The record holds the language's id, and the key of the grammar
+// in the colorer. It also holds whether the tokens name a declaration. The last two members are the marks at the start
+// of a directive's line and of its next line, empty for none
 typedef struct
 {
     char id[CLI_NAME_MAX_LEN];
@@ -85,11 +97,11 @@ typedef struct
     char directive_continued[CLI_LANGUAGE_MARK_MAX];
 } CliLanguageGrammar;
 
-// the bytes a plugin's text and its sample are written in, as a plugin is written
+// the bytes for a plugin's text and for its sample, as the generator writes a plugin
 #define CLI_PLUGIN_TEXT_CAPACITY (1ULL << 20u)
 
-// A plugin that comes with orior: its id, the text of its plugin.json, `size` bytes, and the code it runs as a script
-// plugin, `code_size` bytes, NULL for one that runs none
+// A plugin that comes with orior: its id, and the text of its plugin.json, `size` bytes. The record also holds the code
+// of a script plugin, `code_size` bytes, NULL for a plugin with no code
 typedef struct
 {
     const char *id;
@@ -99,7 +111,7 @@ typedef struct
     unsigned long long code_size;
 } CliBundled;
 
-// the plugins built into the program, in the order of their ids (plugins_bundled.c, written as the program is built)
+// the plugins in the program, in the order of their ids (plugins_bundled.c, which the build writes)
 extern const CliBundled g_cli_bundled[];
 extern const unsigned int g_cli_bundled_count;
 
@@ -155,20 +167,22 @@ int cli_plugins_setting_set(const CliPluginsSettingSetCfg *args);
 // the program ends
 void cli_plugins_settings_changed(void);
 void cli_plugins_settings_end(void);
-// The language each extension, whole name and pattern of paths opens as, read anew from the language plugins into the
-// table the plugins module owns, a reader's plugin located in for one that comes with orior. The next call of
-// cli_plugins_language_for reads the new table. The reader's plugins folder, made where it is absent, kept open from
-// the window's start to its end: a change under it reads the table again on the watch's thread. And the table given
-// back as the program ends
+// The language that each extension, whole name and pattern of paths opens as. The call reads it again from the
+// language plugins into the table of the plugins module. A reader's plugin takes the place of one that comes with
+// orior. The next call of cli_plugins_language_for reads the new table.
+//
+// The watch makes the reader's plugins folder where it is absent, and keeps it open from the window's start to its
+// end. A change under the folder reads the table again on the watch's thread. The last call gives back the table as
+// the program ends
 void cli_plugins_languages_changed(void);
 void cli_plugins_watch_start(void);
 void cli_plugins_languages_end(void);
-// the grammar of the language plugin `id` stored for the colorer under `plugin:<id>`, its key written into `key`,
-// sized for CLI_NAME_MAX_LEN: read from the plugin.json of the plugin of that id that is, and read again only where
-// that text changed since it was stored. 1, or 0 with why given (plugins_grammar.c)
+// the grammar of the language plugin `id` stored for the colorer under `plugin:<id>`, with its key in `key`, sized for
+// CLI_NAME_MAX_LEN. The grammar comes from the kept settings of the plugin of that id. The call stores it again only
+// where the whole grammar changed since the last store. 1, or 0 with why given (plugins_grammar.c)
 int cli_plugins_grammar_store(const CliPluginsIdKeyCfg *args);
-// One color of a language plugin's palette: the name of the token it colors, as the grammar names tokens, and its
-// value as the plugin writes it, `#rrggbbaa`, the alpha the token's luminosity over the editor's ground
+// One color of a language plugin's palette: the name of the token that it colors, as the grammar names tokens. The
+// value is as the plugin writes it, `#rrggbbaa`. The alpha is the token's luminosity over the editor's ground
 struct CliPluginColorCfg
 {
     void *context;
@@ -176,9 +190,9 @@ struct CliPluginColorCfg
     const char *value;
 };
 typedef void (*CliPluginColorEach)(const CliPluginColorCfg *args);
-// each color of the palette of the language plugin `id` passed to `each` with `context`, in the order the plugin
-// writes them, the reader's copy of a plugin that comes with orior read in its place: 1 where a plugin of the id is
-// and carries a palette, else 0 (plugins_palette.c)
+// each color of the palette of the language plugin `id` passed to `each` with `context`, in the order of the plugin.
+// The reader's copy of a plugin that comes with orior takes its place. 1 where a plugin of the id has a palette, else
+// 0 (plugins_palette.c)
 int cli_plugins_palette_each(const CliPluginsIdEachCfg *args);
 struct CliPluginIdCfg
 {
@@ -186,63 +200,71 @@ struct CliPluginIdCfg
     const char *id;
 };
 typedef void (*CliPluginIdEach)(const CliPluginIdCfg *args);
-// the id of each plugin that carries a palette passed to `each` with `context`, in the order the plugins are, a
-// reader's plugin that is in for one that comes with orior passed on after it (plugins_palette.c)
+// the id of each plugin with a palette passed to `each` with `context`, in the order of the plugins. A reader's plugin
+// that takes the place of one that comes with orior comes after it (plugins_palette.c)
 void cli_plugins_palettes_each(const CliPluginsEachIdCfg *args);
-// the color `name` of the palette of the plugin `id` made `value`, and the plugin's plugin.json written whole with it
-// under the reader's plugins folder in a folder of the id, where it is in for the one that comes with orior: 1,
-// or 0 where no plugin of the id carries a palette or the file could not be written (plugins_palette.c)
+// the color `name` of the palette of the plugin `id` made `value`. The call then writes the plugin's whole plugin.json
+// into a folder of the id under the reader's plugins folder. That file takes the place of the one that comes with
+// orior. 1, or 0 where no plugin of the id has a palette or the write fails (plugins_palette.c)
 int cli_plugins_palette_set(const CliPluginsIdNameValueCfg *args);
-// the language the file at `path` opens as, of those the plugins module's table gives, into `id_out`, sized for
-// CLI_NAME_MAX_LEN: by its whole name where a plugin names it, by a plugin's pattern of paths where one takes it, and
-// by its extension where neither does. 1, or 0 where none does. The table is read from the plugins at the first call
+// the language that the file at `path` opens as, from the table of the plugins module, into `id_out`, sized for
+// CLI_NAME_MAX_LEN. The whole name comes first where a plugin names it, then a plugin's pattern of paths. The
+// extension comes last. 1, or 0 where none fits. The first call reads the table from the plugins
 int cli_plugins_language_for(const CliPluginsLanguagesPathCfg *args);
-// the grammar of the language the file at `path` opens as, or of the language `id`, into the caller's record
-// `grammar_out`: its id, the key the colorer stores it under, whether its tokens name a declaration, and the marks a
-// directive's line and its carrying on start by. Where `store` is 1, the grammar goes to the colorer at the first ask,
-// and the plugins module keeps that it went. 1, or 0 where the language has no grammar or its grammar refuses to store
+// the grammar of the language that the file at `path` opens as, or of the language `id`, into the record
+// `grammar_out` (CliLanguageGrammar). Where `store` is 1, the grammar goes to the colorer at the first ask, and the
+// plugins module records that it went. 1, or 0 where the language has no grammar or the colorer refuses it
 int cli_plugins_grammar_of(const CliPluginsGrammarOfCfg *args);
-// the tree a plugin's tables are read from, as the window opens it; and that tree into `tree`, sized for
-// CLI_PATH_MAX_LEN: 1, or 0 where none is open (plugins_tables.c)
+// the tree that holds a plugin's tables, as the window opens it. The second call writes that tree into `tree`, sized
+// for CLI_PATH_MAX_LEN: 1, or 0 where no tree is open (plugins_tables.c)
 void cli_plugins_set_tree(const CliPluginsRootCfg *args);
 int cli_plugins_tree(const CliPluginsTreeCfg *args);
-// The grammar at `grammar` in `json` made whole into `out` as JSON, before the colorer stores it: each word list a
-// table of the tree `tree` fills, `{"table", "columns", "rows": {"column", "match", "skip"}, "match", "skip"}`, read
-// from the table, `{name}` in its path `name`: the cell of each row `rows` saves in each of `columns`, the first group
-// of `match` or its whole match, none `skip` matches, none where the table does not read; and each rule whose pattern
-// is a word list, `{"words", "before", "after"}`, given the list's words, escaped, the longest first, between `before`
-// and `after` as its pattern, a rule whose list has none left out. 1, or 0 with why given (plugins_tables.c)
+// The grammar at `grammar` in `json` made whole into `out` as JSON, before the colorer stores it. 1, or 0 with why
+// given (plugins_tables.c).
+//
+// A table of the tree `tree` fills a word list of this form:
+// `{"table", "columns", "rows": {"column", "match", "skip"}, "match", "skip"}`. `{name}` in the table's path is `name`.
+// The list gets the cell of each row that `rows` keeps, in each of `columns`. Each cell gives the first group of
+// `match`, or the whole match. A cell that `skip` matches gives no word. A table that does not read gives no words.
+//
+// A rule whose pattern is a word list, `{"words", "before", "after"}`, gets the words of the list as its pattern. The
+// call escapes the words and puts the longest first, between `before` and `after`. A rule whose list has no words goes
+// out
 int cli_plugins_grammar_resolved(const CliPluginsErrMsgJsonCfg *args);
-// whether the folder `name` is one of the languages of the plugin whose `each`, `{"folder", "table", "unless":
-// {"column", "match"}, "except"}`, is at `each` in `json`: its table read from the folder of that name in `folder` of
-// the tree `tree`, no row's cell in `unless`'s column matched by its pattern, and the name not among `except`
-// (plugins_tables.c)
+// whether the folder `name` is one of the languages of a plugin. The plugin's `each` is at `each` in `json`, with the
+// form `{"folder", "table", "unless": {"column", "match"}, "except"}`. The table comes from the folder `name` in
+// `folder` of the tree `tree`. The pattern of `unless` matches no row's cell in its column. The name is not among
+// `except` (plugins_tables.c)
 int cli_plugins_folder_exists(const CliPluginsJsonCfg *args);
-// the code the script plugin `id` runs into `out`: the file its plugin.json names as `main`, or each of a list of them
-// there in order, joined by a line's end, plugin.js where it names none, in the plugin's own folder, or the code built
-// into the program for one that comes with orior. A name that leaves the folder is refused. 1, or 0 with why given
-// (plugins.c); and the same code read for the plugin `id` of the folder `folder` whose plugin.json is `size` bytes of
+// the code of the script plugin `id` into `out`. The code is the file that its plugin.json names as `main`, or each
+// file of a list there in order, with a line's end between. It is plugin.js where `main` names none. All the files are
+// in the plugin's own folder, and the call refuses a name that leaves it. A plugin that comes with orior has its code
+// in the program. 1, or 0 with why given (plugins.c).
+//
+// The second call reads the same code for the plugin `id` of the folder `folder`, whose plugin.json is `size` bytes of
 // `text` (plugins_code.c)
 int cli_plugins_code_get(const CliPluginsIdCfg *args);
 int cli_plugins_code_in(const CliPluginsIdCfg *args);
 // a name as an id into `id`, sized for CLI_NAME_MAX_LEN: its characters and digits in lower case, every run of anything
 // else one dash
 void cli_plugins_slug(const CliPluginsIdNameCfg *args);
-// The plugin the answers at `spec` in `json` request, `{name, id, extensions, from, lineComment, blockComment,
-// keywords, types, constants, quotes}` each of which may be left out, made in `json`: its node, or CLI_JSON_NONE with
-// why given; and a tree allocated into `draft`, released through persistent_buf_release, sized to the answers at `spec`
-// in `json`, to the plugin they start from and to what a draft of them makes, the answers copied into it: their node
-// there, or CLI_JSON_NONE with why given (plugins_draft.c)
+// The plugin that the answers at `spec` in `json` request, made in `json`: its node, or CLI_JSON_NONE with why given.
+// The answers are `{name, id, extensions, from, lineComment, blockComment, keywords, types, constants, quotes}`, and
+// each can be absent (plugins_draft.c).
+//
+// The second call puts a tree into `draft`, and persistent_buf_release gives it back. The tree has room for the
+// answers, for the plugin that they start from, and for what a draft of them makes. The call copies the answers into
+// it: their node there, or CLI_JSON_NONE with why given
 unsigned int cli_plugins_draft(const CliPluginsErrMsgJsonSpecTypeCfg *args);
 unsigned int cli_plugins_draft_tree(const CliPluginsErrMsgJsonSpecCfg *args);
-// a plugin as its file arranges it: each value on one line where it fits in 110 characters; and a few lines in its
-// language to open and try, a comment, a keyword, a type, a constant, a string and a number, each where the plugin has
-// one, each ended by "\n" (plugins_text.c)
+// a plugin as its file lays it out, each value on one line where it fits in 110 characters (plugins_text.c). The
+// second call writes a few lines in the plugin's language to open and try. They hold a comment, a keyword, a type, a
+// constant, a string and a number, where the plugin has each. Each line ends with "\n"
 void cli_plugins_text_get(const CliPluginsJsonOutCfg *args);
 void cli_plugins_sample_get(const CliPluginsJsonOutCfg *args);
-// the plugin the answers request written under `dir`, in a folder of its id, with a sample file beside it, the folder
-// into `folder`, sized for CLI_PATH_MAX_LEN: a plugin of that id already there is retained unless `replace`. And the
-// same under the reader's plugins folder. 1, or 0 with why given
+// the plugin that the answers request, written in a folder of its id under `dir`, with a sample file beside it. The
+// folder goes into `folder`, sized for CLI_PATH_MAX_LEN. The call keeps a plugin of that id already there, unless
+// `replace`. The second call does the same under the reader's plugins folder. 1, or 0 with why given
 int cli_plugins_create_in(const CliPluginsErrMsgCfg *args);
 int cli_plugins_create(const CliPluginsErrMsgCfg *args);
 

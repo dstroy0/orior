@@ -23,9 +23,9 @@ typedef struct
     char key[CLI_NAME_MAX_LEN];
     char id[CLI_NAME_MAX_LEN];
 } CliLanguagePair;
-// One language with a grammar as the languages' cell keeps it: its id, the marks of a directive's line and of its
-// carrying on, whether its tokens name a declaration, and whether its grammar went to the colorer: 1, refused, -1, or
-// not yet asked, 0
+// One language with a grammar, as the cell of the languages keeps it. The record holds its id, and the marks at the
+// start of a directive's line and of its next line. It holds whether the tokens name a declaration. The last member
+// says whether the grammar went to the colorer: 1, -1 where the colorer refused it, or 0 before the first ask
 typedef struct
 {
     char id[CLI_NAME_MAX_LEN];
@@ -46,9 +46,9 @@ typedef struct
 #define CLI_LANGUAGE_GRAMMAR_AT(count, at)                                                                             \
     (CLI_LANGUAGE_KEY_AT(count) + ((unsigned long long)(at) * sizeof(CliLanguageGrammarEntry)))
 
-// The language each extension, whole name and pattern of paths opens as, as the walk over the plugins reads it: a
-// cell of the temporary tier of `capacity` pairs, `count` of them read, and after them CLI_LANGUAGE_GRAMMARS grammars,
-// `grammars` of them read. The build takes it and gives it back
+// The language that each extension, whole name and pattern of paths opens as, from the walk over the plugins. The
+// walk fills a cell of the temporary tier with `capacity` pairs, `count` of them in use. CLI_LANGUAGE_GRAMMARS grammars
+// follow, `grammars` of them in use. The build takes the cell and gives it back
 typedef struct
 {
     CliLanguagePair *pair;
@@ -132,8 +132,8 @@ static void cli_user_each(const CliEachNameIsFolderCfg *args)
     user->count += 1u;
 }
 
-// every plugin passed on, the lock acquired: the reader's counted, their ids taken into a cell of their count, and each
-// plugin.json passed on mapped where it lies
+// every plugin passed on, with the lock acquired. The call counts the reader's plugins and takes their ids into a cell
+// of their count. It maps each plugin.json where it lies and passes it on
 EMBED_INLINE void cli_each_lock(const PluginsCtx *args)
 {
     for (unsigned int at = 0u; at < g_cli_bundled_count; at += 1u)
@@ -166,7 +166,7 @@ EMBED_INLINE void cli_each_lock(const PluginsCtx *args)
         mmgr_line_put(&line, dir);
         mmgr_line_ch(&line, '/');
         mmgr_line_put(&line, user.name[at]);
-        // the folder's path ended before the file's is made from it
+        // the folder's path gets its end before the call makes the file's path from it
         if (mmgr_line_finish(&line) == 0ULL)
         {
             continue;
@@ -268,8 +268,8 @@ EMBED_INLINE unsigned long long cli_extension_key(const PluginsCtx *args)
     return mmgr_line_finish(&line);
 }
 
-// The folders a plugin is for as they are listed: the languages they are mapped into, the plugin's `each` in its
-// tree, the tree the tables are read from, and the plugin's id
+// The folders of a plugin, as the folder walk lists them. The record holds the languages that take the folders, and the
+// plugin's `each` in its tree. It also holds the tree with the tables, and the plugin's id
 typedef struct
 {
     CliLanguagesBuilt *languages;
@@ -305,9 +305,9 @@ static void cli_folder_map(const CliEachNameIsFolderCfg *args)
     }
 }
 
-// A language plugin's grammar noted where it has one, in the place of one of its id noted before: whether its tokens
-// name a declaration, and the marks of a directive's line and its carrying on. A later plugin of the id without a
-// grammar takes the one noted out. The plugin read last for each id is the one noted
+// A language plugin's grammar noted where it has one, in the place of an earlier note of its id. The note holds whether
+// the tokens name a declaration, and the marks at the start of a directive's line and of its next line. A later plugin
+// of the id with no grammar removes the note. The last plugin of each id gives the note
 EMBED_INLINE void cli_language_grammar_note(const PluginsCtx *args)
 {
     CliLanguagesBuilt *const languages = args->languages;
@@ -472,11 +472,11 @@ EMBED_INLINE void cli_languages_placed(const PluginsCtx *args)
     (void)g_cli_guard->movable_buf_release(before, g_cli_plugins_owner);
 }
 
-// The pairs and the grammars read by the walk over the plugins into one cell of the temporary tier at their max, then
-// written into a movable cell sized to them. That cell goes in place of the one before it
+// The walk over the plugins reads the pairs and the grammars into one cell of the temporary tier, at their max. The
+// call then writes them into a movable cell of their size, in place of the cell before it
 void cli_plugins_languages_changed(void)
 {
-    // the settings are read again first, and the languages are read from them
+    // the call reads the settings again first, and then reads the languages from them
     cli_plugins_settings_changed();
     CliLanguagePair *const pair = g_cli_guard->temporary_buf_alloc(
         ((unsigned long long)CLI_LANGUAGE_PAIRS * sizeof(CliLanguagePair)) +
@@ -687,7 +687,7 @@ int cli_plugins_language_for(const CliPluginsLanguagesPathCfg *args)
             return EMBED_CALL(cli_language_id_read, PluginsCtx, .pairs = pairs, .at = at, .id_out = args->id_out);
         }
     }
-    // the path's characters and a pattern's work state are read only where a key is a pattern
+    // the call reads the path's characters and the work state of a pattern only where a key is a pattern
     int patterned = 0;
     for (unsigned int at = 0u; (at < head.count) && !patterned; at += 1u)
     {
@@ -750,7 +750,7 @@ static void plugins_code_each(const CliEachPluginCfg *args)
     code->size = (code->text != NULL) ? args->plugin->size : 0ULL;
     if (code->text != NULL)
     {
-        // a plugin.json's size fits a embed_word, as it was read whole
+        // the size of a plugin.json fits an embed_word, because the whole file is in memory
         memor.cpy(&(MemoriaCfg){.dst = code->text, .src = args->plugin->text, .bytes = (embed_word)args->plugin->size});
         code->text[args->plugin->size] = '\0';
     }

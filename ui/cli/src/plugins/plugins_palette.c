@@ -56,7 +56,7 @@ static void cli_palette_each(const CliEachPluginCfg *args)
 
 int cli_plugins_palette_each(const CliPluginsIdEachCfg *args)
 {
-    // the plugin of the id is the reader's copy where one is, and it is the one read
+    // the reader's copy of the plugin, where one exists, takes the place of the one that comes with orior
     PaletteNeedle needle = {args->each, args->context, 0};
     (void)EMBED_CALL(cli_plugins_settings_of_table.of, CliPluginsSettingsOfCfg, .id = args->id,
                      .each = cli_palette_each, .context = &needle);
@@ -79,8 +79,8 @@ void cli_plugins_palettes_each(const CliPluginsEachIdCfg *args)
                .context = (void *)(embed_word)args);
 }
 
-// The plugin's tree written whole as plugin.json under the reader's plugins folder, in a folder of the plugin's id, as
-// its file positions it out: `written` 1, or 0 where the folder or the file could not be made
+// The plugin's tree written whole as plugin.json in a folder of its id, under the reader's plugins folder. The
+// call lays the file out with cli_plugins_text_get. `written` is 1, or 0 where the call cannot make the folder or file
 static void cli_palette_file_write(const CliEachPluginCfg *args)
 {
     int *const written = (int *)args->context;
@@ -123,7 +123,7 @@ static void cli_palette_file_write(const CliEachPluginCfg *args)
 
 int cli_plugins_palette_set(const CliPluginsIdNameValueCfg *args)
 {
-    // the color changes in the kept settings first, and the reader's plugin.json is then written from them
+    // the color changes in the kept settings first, and the call then writes the reader's plugin.json from them
     if (!EMBED_CALL(cli_plugins_setting_set_table.set, CliPluginsSettingSetCfg, .id = args->id, .object = "palette",
                     .name = args->name, .value = args->value))
     {
