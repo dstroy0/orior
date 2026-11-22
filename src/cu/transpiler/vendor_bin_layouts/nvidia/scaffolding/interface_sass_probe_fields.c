@@ -126,7 +126,14 @@ int program_main(int count, char **words)
             continue;
         }
         char lines[2048];
-        snprintf(lines, sizeof(lines), FIELDS_LINES_HEAD "%s%s" FIELDS_LINES_TAIL, redirected, observe);
+        {
+            VerbaLinea lines_line = mmgr_line_over(lines, sizeof(lines));
+            mmgr_line_put(&lines_line, FIELDS_LINES_HEAD);
+            mmgr_line_put(&lines_line, redirected);
+            mmgr_line_put(&lines_line, observe);
+            mmgr_line_put(&lines_line, FIELDS_LINES_TAIL);
+            (void)mmgr_line_finish(&lines_line);
+        }
         unsigned long long low = 0ULL;
         unsigned long long high = 0ULL;
         const unsigned int assembled =

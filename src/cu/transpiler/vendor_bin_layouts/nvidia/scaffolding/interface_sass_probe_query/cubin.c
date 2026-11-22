@@ -6,6 +6,7 @@
 #include "../../../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 
 // A question of preference instead of membership. Every question above tests whether the part CAN do a thing;
 // this tests which of two codings of one thing the part prefers. Both must answer the same, or they are not
@@ -140,7 +141,7 @@ double sass_cubin_nanoseconds(void)
 {
     const char *const line = mmgr_text_find(sass_output(), "timed ", PLATFORM_TEXT_TO_TERMINATOR);
     const char *const taken = (line != NULL) ? mmgr_text_find(line, ", ", PLATFORM_TEXT_TO_TERMINATOR) : NULL;
-    return (taken != NULL) ? strtod(taken + 2, NULL) : 0.0;
+    return (taken != NULL) ? EMBED_CALL(cellul.to_double, TransfiguroCfg, .src = taken + 2, .end = NULL) : 0.0;
 }
 
 // form_0's text with the line that begins `IADD3 ` replaced by `instruction`, into `text`: 1, or 0 where the text

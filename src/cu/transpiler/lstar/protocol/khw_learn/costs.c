@@ -207,7 +207,20 @@ unsigned int khw_costs_queried(const char *path)
     const Who who = WHO_HERE;
     for (unsigned int at = 0u; at < timed; at += 1u)
     {
-        snprintf(s_rows[at], sizeof(s_rows[at]), KHW_COST_ROW, s_least[at], s_low[at], s_high[at], s_spread[at]);
+        // The part's .ksc keeps the cost of a form under the row `run answers <least> cost <low> <high> <spread>`.
+        // Each number is in hex, as every run row writes it. The word is the least launch's advance of the clock that
+        // the part names over the copies, less the kernel's alone. The question is the form and the spread of the
+        // launches.
+        VerbaLinea row = mmgr_line_over(s_rows[at], sizeof(s_rows[at]));
+        mmgr_line_put(&row, "run answers ");
+        mmgr_line_hex(&row, s_least[at], 16u);
+        mmgr_line_put(&row, " cost ");
+        mmgr_line_hex(&row, s_low[at], 16u);
+        mmgr_line_ch(&row, ' ');
+        mmgr_line_hex(&row, s_high[at], 16u);
+        mmgr_line_ch(&row, ' ');
+        mmgr_line_hex(&row, s_spread[at], 16u);
+        (void)mmgr_line_finish(&row);
         s_row[at] = s_rows[at];
     }
     const int written = (timed != 0u) && ksc_read(&s_file, path) &&

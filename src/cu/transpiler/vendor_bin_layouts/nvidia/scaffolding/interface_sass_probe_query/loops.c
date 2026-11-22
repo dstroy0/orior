@@ -15,16 +15,16 @@ static void sass_loop_rename(const char *from, const char *stem, char *into, siz
     size_t walk = 0u;
     while ((from[walk] != '\0') && ((at + stem_length + 2u) < room))
     {
-        const int alone = (walk == 0u) || !isalpha((unsigned char)from[walk - 1u]);
+        const int alone = (walk == 0u) || !mmgr_text_is_alpha((unsigned char)from[walk - 1u]);
         if (alone && (mmgr_text_order(&from[walk], stem, (size_t)(stem_length)) == 0) &&
-            isdigit((unsigned char)from[walk + stem_length]))
+            mmgr_text_is_num((unsigned char)from[walk + stem_length]))
         {
             mmgr_bytes_copy(&into[at], stem, stem_length);
             at += stem_length;
             into[at] = '8';
             at += 1u;
             walk += stem_length;
-            while (isdigit((unsigned char)from[walk]))
+            while (mmgr_text_is_num((unsigned char)from[walk]))
             {
                 walk += 1u;
             }

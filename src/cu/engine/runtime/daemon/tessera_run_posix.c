@@ -242,6 +242,51 @@ int run_parent_alive(const char *parent)
     return !locked;
 }
 
+// the white space that the read of /proc's stat skips before each field
+#define RUN_STAT_SPACE " \t\n\v\f\r"
+
+// The fields of /proc's stat after the name: the state, the parent, nine fields skipped, then four counts of ticks.
+// The answer is the count of fields read, 6 where all of them came, as the read of a format counts them
+static int run_stat_fields(const char *at, RunProcess *process, unsigned long long ticks[4])
+{
+    at += mmgr_text_span(at, RUN_STAT_SPACE, PLATFORM_TEXT_TO_TERMINATOR);
+    if (*at == '\0')
+    {
+        return 0;
+    }
+    process->state = *at;
+    at += 1;
+    const char *end = at;
+    process->parent = mmgr_text_unsigned_in(at, &end, 10u);
+    if (end == at)
+    {
+        return 1;
+    }
+    at = end;
+    for (unsigned int skipped = 0u; skipped < 9u; skipped += 1u)
+    {
+        at += mmgr_text_span(at, RUN_STAT_SPACE, PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t word = mmgr_text_span_not(at, RUN_STAT_SPACE, PLATFORM_TEXT_TO_TERMINATOR);
+        if (word == 0u)
+        {
+            return 2;
+        }
+        at += word;
+    }
+    for (unsigned int tick = 0u; tick < 4u; tick += 1u)
+    {
+        end = at;
+        ticks[tick] = mmgr_text_unsigned_in(at, &end, 10u);
+        if (end == at)
+        {
+            // Explicit cast narrows a count of at max 4 to the int of the answer
+            return 2 + (int)tick;
+        }
+        at = end;
+    }
+    return 6;
+}
+
 int run_process_read(unsigned long long pid, RunProcess *process)
 {
     char path[64];
@@ -263,18 +308,13 @@ int run_process_read(unsigned long long pid, RunProcess *process)
     // the name may contain spaces and parentheses: the fields are read after its last ')', the state, the parent, nine
     // skipped, then the process's own user and system ticks and those of the children it waited for
     const char *const after_name = read ? mmgr_text_char_last(line, ')', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
-    unsigned long long user = 0ULL;
-    unsigned long long system = 0ULL;
-    unsigned long long children_user = 0ULL;
-    unsigned long long children_system = 0ULL;
-    if ((after_name == NULL) ||
-        (sscanf(after_name + 1, " %c %llu %*s %*s %*s %*s %*s %*s %*s %*s %*s %llu %llu %llu %llu", &process->state,
-                &process->parent, &user, &system, &children_user, &children_system) != 6))
+    unsigned long long ticks[4] = {0ULL, 0ULL, 0ULL, 0ULL};
+    if ((after_name == NULL) || (run_stat_fields(after_name + 1, process, ticks) != 6))
     {
         return 0;
     }
     process->pid = pid;
-    process->ticks = user + system + children_user + children_system;
+    process->ticks = ticks[0] + ticks[1] + ticks[2] + ticks[3];
     process->in_tree = 0;
     return 1;
 }

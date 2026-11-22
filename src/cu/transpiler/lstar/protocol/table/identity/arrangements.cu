@@ -1,7 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// arrangements.cu: the arrangements of primitives that produce each operator, read from the .kdm and written as a chain of ours
+// arrangements.cu: the arrangements of primitives that produce each operator, read from the .kdm and written as a chain
+// of ours
 #include "identity_internal.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "precept_value.h"
 
 #define COST_PRECEPT_TEXT(name_, text_, arity_) text_,
@@ -21,7 +23,7 @@ static int arrangement_read(const std::string &text, size_t *at, std::vector<Pre
         *at += 1u;
     }
     size_t end = *at;
-    while ((end < text.size()) && (isalnum((unsigned char)text[end]) != 0))
+    while ((end < text.size()) && (mmgr_text_is_alnum((unsigned char)text[end]) != 0))
     {
         end += 1u;
     }
@@ -32,7 +34,7 @@ static int arrangement_read(const std::string &text, size_t *at, std::vector<Pre
         *child = (name == "zero") ? PRECEPT_ZERO : PRECEPT_ONES;
         return 1;
     }
-    if ((name.size() == 2u) && (name[0] == 'w') && (isdigit((unsigned char)name[1]) != 0))
+    if ((name.size() == 2u) && (name[0] == 'w') && (mmgr_text_is_num((unsigned char)name[1]) != 0))
     {
         *child = PRECEPT_ARG_AT((unsigned int)(name[1] - '0'));
         return 1;
@@ -121,8 +123,8 @@ const Word *word_produced(const std::vector<PreceptNode> &nodes)
 // `ones` for a word of ones, every node but the root written to a register of its own numbered from `next` on, and
 // the root to `to`. Empty where a precept has no such word or the ruleset writes none of it
 std::string arrangement_written(const Ruleset *sass, const std::vector<PreceptNode> &nodes,
-                                       const std::vector<std::string> &operands, const std::string &ones,
-                                       const std::string &to, unsigned int next)
+                                const std::vector<std::string> &operands, const std::string &ones,
+                                const std::string &to, unsigned int next)
 {
     const auto none = [](const std::string &) { return std::string(); };
     std::vector<std::string> lines;
@@ -165,7 +167,7 @@ std::string arrangement_written(const Ruleset *sass, const std::vector<PreceptNo
 // the lines of the .kdm at `kdm` into `lines`, each arrangement's row into `rows`, and each operator's rows by their
 // place into `operators`; a row whose chain is no tree over the precepts is `unread`
 void kdm_rows_read(const char *kdm, std::vector<std::string> *lines, std::vector<CostRow> *rows,
-                          std::map<std::string, std::vector<size_t>> *operators)
+                   std::map<std::string, std::vector<size_t>> *operators)
 {
     // the .kdm as the run stores it (kdm.h), a line each
     KdmFile kdm_file = {};

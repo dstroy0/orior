@@ -292,7 +292,14 @@ static std::string emit_bits_apart(unsigned long long nvidia_low, unsigned long 
         if ((bit % 8) == 7)
         {
             char top[16];
-            snprintf(top, sizeof(top), "%-9d", bit);
+            VerbaLinea top_line = mmgr_line_over(top, sizeof(top));
+            // Explicit cast widens a bit number of 0 to 127 to the unsigned word of the writer
+            mmgr_line_decimal(&top_line, (uint64_t)bit, 1u);
+            while (top_line.at < 9u)
+            {
+                mmgr_line_ch(&top_line, ' ');
+            }
+            (void)mmgr_line_finish(&top_line);
             numbers += top;
         }
         const unsigned long long theirs = (((bit >= 64) ? nvidia_high : nvidia_low) >> (unsigned int)(bit % 64)) & 1ULL;
@@ -315,7 +322,10 @@ static void emit_row(unsigned int block, unsigned int precept, const std::string
 static std::string emit_hex(unsigned long long value, int width)
 {
     char text[32];
-    snprintf(text, sizeof(text), "%0*llx", width, value);
+    VerbaLinea line = mmgr_line_over(text, sizeof(text));
+    // Explicit cast carries a width that the callers give as a count of hex digits, never below 0
+    mmgr_line_hex(&line, value, (unsigned int)width);
+    (void)mmgr_line_finish(&line);
     return text;
 }
 

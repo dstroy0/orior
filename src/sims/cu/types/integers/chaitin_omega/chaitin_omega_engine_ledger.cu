@@ -27,10 +27,47 @@ void omega_engine_ledger_read(const char *path, std::vector<OmegaEngineJob> &job
         {
             continue;
         }
-        if ((sscanf(line, "engine %u %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu end%n",
-                    &job.length, &job.from, &job.count, &fate[0], &fate[1], &fate[2], &fate[3], &fate[4], &fate[5],
-                    &contradictions, &max[0], &max[1], &max[2], &max[3], &read) != 14) ||
-            ((size_t)read != (written - 1u)) || (job.length > OMEGA_LENGTH_MAX) ||
+        // the line's head, then its fourteen numbers, each after its white space, then white space and its tail. The
+        // count of bytes read is the place past the tail, and 0 where the tail is not there
+        unsigned long long field[14];
+        int fields = 0;
+        const char *at = line;
+        if (mmgr_text_starts(line, "engine", PLATFORM_TEXT_TO_TERMINATOR))
+        {
+            at = line + 6;
+            while (fields < 14)
+            {
+                const char *end = at;
+                const embed_word value = mmgr_text_unsigned_in(at, &end, 10u);
+                if (end == at)
+                {
+                    break;
+                }
+                field[fields] = value;
+                at = end;
+                fields += 1;
+            }
+        }
+        if (fields == 14)
+        {
+            at += mmgr_text_span(at, " \t\n\v\f\r", PLATFORM_TEXT_TO_TERMINATOR);
+            // Explicit cast narrows the bytes read of a line of at max 1024 bytes to the int that counts them
+            read = mmgr_text_starts(at, "end", PLATFORM_TEXT_TO_TERMINATOR) ? (int)((at + 3) - line) : 0;
+            // Explicit cast narrows the job's length, which the ledger writes as an unsigned int, to that width
+            job.length = (unsigned int)field[0];
+            job.from = field[1];
+            job.count = field[2];
+            for (unsigned int one = 0u; one < 6u; one += 1u)
+            {
+                fate[one] = field[3u + one];
+            }
+            contradictions = field[9];
+            for (unsigned int one = 0u; one < 4u; one += 1u)
+            {
+                max[one] = field[10u + one];
+            }
+        }
+        if ((fields != 14) || ((size_t)read != (written - 1u)) || (job.length > OMEGA_LENGTH_MAX) ||
             ((fate[0] + fate[1] + fate[2] + fate[3] + fate[4] + fate[5]) != job.count))
         {
             continue;

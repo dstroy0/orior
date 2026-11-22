@@ -55,11 +55,6 @@
 // one query, which raise a form's cost above a launch's own (P6, Q5)
 #define KHW_COST_COPIES 2048u
 
-// the row a form's cost is stored under in the part's .ksc: its word the least launch's advance of the clock the part
-// named over the copies, less the kernel's alone, and its question the form and the spread of the launches,
-// `run answers <least> cost <low> <high> <spread>`, in hex as every run row writes them
-#define KHW_COST_ROW "run answers %016llx cost %016llx %016llx %016llx"
-
 // the max words after `--` the channel is opened on and their end: a carrier, the airlock's pop and its cross, each of
 // up to eight words, and the `--pop` and `--cross` between them (run_channel.h)
 #define KHW_CARRIER_WORDS 27u

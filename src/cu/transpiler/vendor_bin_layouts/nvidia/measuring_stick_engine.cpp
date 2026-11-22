@@ -228,15 +228,15 @@ static std::vector<std::string> stick_tokens(const std::string &expression)
     while (at < expression.size())
     {
         const char character = expression[at];
-        if (isspace((unsigned char)character) != 0)
+        if (mmgr_text_is_space((unsigned char)character) != 0)
         {
             at += 1u;
             continue;
         }
         size_t end = at + 1u;
-        if ((isalnum((unsigned char)character) != 0) || (character == '_'))
+        if ((mmgr_text_is_alnum((unsigned char)character) != 0) || (character == '_'))
         {
-            while ((end < expression.size()) && ((isalnum((unsigned char)expression[end]) != 0) ||
+            while ((end < expression.size()) && ((mmgr_text_is_alnum((unsigned char)expression[end]) != 0) ||
                                                  (expression[end] == '_') || (expression[end] == '.')))
             {
                 end += 1u;
@@ -423,7 +423,7 @@ static int stick_reads_name(const std::string &text, const std::string &name)
         return 0;
     }
     const auto joins = [](char character) {
-        return (isalnum((unsigned char)character) != 0) || (character == '_') || (character == '.');
+        return (mmgr_text_is_alnum((unsigned char)character) != 0) || (character == '_') || (character == '.');
     };
     for (size_t at = text.find(name); at != std::string::npos; at = text.find(name, at + 1u))
     {
@@ -1846,7 +1846,7 @@ class StickKernel
         const auto is = located.find(name);
         const int type = (is != located.end()) ? is->second.type : type_of(name);
         if ((type < 0) || (flags.count(name) != 0u) || !stick_operation(name).empty() ||
-            (isdigit((unsigned char)name[0]) != 0))
+            (mmgr_text_is_num((unsigned char)name[0]) != 0))
         {
             return refuse("a step of what stores no value of C: " + name);
         }
@@ -1970,7 +1970,7 @@ class StickKernel
             token_at += 1u;
             return inner;
         }
-        if (isdigit((unsigned char)token[0]) != 0)
+        if (mmgr_text_is_num((unsigned char)token[0]) != 0)
         {
             return number_typed(token);
         }
@@ -2002,7 +2002,7 @@ class StickKernel
         const unsigned long long number = mmgr_text_unsigned_in(token.c_str(), &end, 0);
         std::string suffix = (end == NULL) ? std::string() : std::string(end);
         std::transform(suffix.begin(), suffix.end(), suffix.begin(),
-                       [](unsigned char character) { return (char)tolower(character); });
+                       [](unsigned char character) { return (char)mmgr_text_lower(character); });
         const int unsigned_one = (suffix.find('u') != std::string::npos);
         const int wide = (suffix.find("ll") != std::string::npos) || (number > 0xFFFFFFFFULL);
         if (number > 0xFFFFFFFFULL)

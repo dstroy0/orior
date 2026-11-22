@@ -3,6 +3,7 @@
 // forms.cu: what a form's text states: its tokens, its launches, conditions and instructions, and what its opcode
 // controls, compares, operates on or commutes
 #include "identity_internal.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 // The way a query enters the part, its vector: the registers it declares, the lanes it is put over, a case a lane, and
 // the operands of a case its code loads. A query is put at the least magnitude, the registers its chain names as
@@ -44,9 +45,9 @@ int vector_alike(const std::vector<unsigned char> &code, const std::vector<std::
 // carrier's own links after the form, those no operand of a case reaches, and then its store and what follows. With no
 // form located, `read` is a value the form reads; with one, a value it writes. Empty where a link of the carrier's own
 // after the form names the stored register, or `read` is a uniform register
-std::string carrier_cut_at_read(const std::vector<CarrierLink> &links, long cases_defined,
-                                       const std::string &text, long link_at, long form_lines, const std::string &read,
-                                       const std::string &located, int wide)
+std::string carrier_cut_at_read(const std::vector<CarrierLink> &links, long cases_defined, const std::string &text,
+                                long link_at, long form_lines, const std::string &read, const std::string &located,
+                                int wide)
 {
     const std::vector<std::string> lines = carrier_pieces(text, '\n');
     long stored_at = -1;
@@ -103,8 +104,8 @@ std::string carrier_cut_at_read(const std::vector<CarrierLink> &links, long case
 // The shape of what the form `form_text` at link `at` of a carrier, its links `links` and its lines `lines`, reads: the
 // form and the link that writes each register it reads, their registers struck out. Two links of one shape read the
 // cases alike, and contain the same rows of a product
-std::string read_shape(const std::vector<CarrierLink> &links, const std::vector<std::string> &lines,
-                              long cases_defined, const std::string &form_text, long at)
+std::string read_shape(const std::vector<CarrierLink> &links, const std::vector<std::string> &lines, long cases_defined,
+                       const std::string &form_text, long at)
 {
     static const std::regex s_register("\\b(U?R[0-9]+|P[0-9]+)\\b");
     std::string shape = std::regex_replace(form_text, s_register, "R");
@@ -131,7 +132,7 @@ std::vector<std::string> form_tokens(const std::string &text)
             if ((end < text.size()) && (text[end] == '.'))
             {
                 end += 1u;
-                while ((end < text.size()) && (isalnum((unsigned char)text[end]) || (text[end] == '_')))
+                while ((end < text.size()) && (mmgr_text_is_alnum((unsigned char)text[end]) || (text[end] == '_')))
                 {
                     end += 1u;
                 }
@@ -140,16 +141,16 @@ std::vector<std::string> form_tokens(const std::string &text)
             at = end;
             continue;
         }
-        if (isspace((unsigned char)character))
+        if (mmgr_text_is_space((unsigned char)character))
         {
             at += 1u;
             continue;
         }
         size_t end = at + 1u;
-        if (isalnum((unsigned char)character) || (character == '_') || (character == '.'))
+        if (mmgr_text_is_alnum((unsigned char)character) || (character == '_') || (character == '.'))
         {
             while ((end < text.size()) &&
-                   (isalnum((unsigned char)text[end]) || (text[end] == '_') || (text[end] == '.')))
+                   (mmgr_text_is_alnum((unsigned char)text[end]) || (text[end] == '_') || (text[end] == '.')))
             {
                 end += 1u;
             }
@@ -250,7 +251,7 @@ static std::vector<std::vector<std::string>> form_instructions(const std::string
             opcode.clear();
             words >> opcode;
         }
-        if (opcode.empty() || !isupper((unsigned char)opcode[0]))
+        if (opcode.empty() || !mmgr_text_is_upper((unsigned char)opcode[0]))
         {
             continue;
         }
@@ -300,16 +301,16 @@ static int opcode_operates(const std::string &opcode)
 // least or a max, a bitwise table that reads its first two inputs alike, or an equality
 static int instruction_commutes(const std::vector<std::string> &instruction)
 {
-    static const std::regex s_commutes("U?(IADD3|IMAD|IMUL|IMNMX|VABSDIFF|FADD|FMUL|FFMA|FMNMX|DADD|DMUL|DFMA|HADD2|HMUL2|"
-                                       "HFMA2)");
+    static const std::regex s_commutes(
+        "U?(IADD3|IMAD|IMUL|IMNMX|VABSDIFF|FADD|FMUL|FFMA|FMNMX|DADD|DMUL|DFMA|HADD2|HMUL2|"
+        "HFMA2)");
     const std::string &opcode = instruction[0];
     const std::string stem = opcode_stem(opcode);
     if (opcode_compares(opcode))
     {
         const size_t dot = opcode.find('.');
-        const std::string condition = (dot == std::string::npos) ? std::string()
-                                                                 : opcode.substr(dot + 1u, opcode.find('.', dot + 1u) -
-                                                                                               dot - 1u);
+        const std::string condition =
+            (dot == std::string::npos) ? std::string() : opcode.substr(dot + 1u, opcode.find('.', dot + 1u) - dot - 1u);
         return (condition == "EQ") || (condition == "NE");
     }
     if (std::regex_match(stem, std::regex("U?LOP3")))

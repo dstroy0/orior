@@ -40,11 +40,12 @@ FILE_DEFS_MMGR=("${FILE_DEFS_MMGR_FLAGS[@]}")
 # is for a program that writes its text through the line alone, and builds with FILE_DEFS_MMGR_FLAGS.
 # Each compiles under the C11 of MSVC. A module that MMgr builds with atomics or packed enums does not
 FILE_DEFS_LINEA=()
-for FILE_DEFS_MODULE in verba_scribo cellularum_laboro clz fractio memoria_operor proximus_operor transformo \
+for FILE_DEFS_MODULE in ascii_persona_bitorum verba_scribo cellularum_laboro clz fractio memoria_operor proximus_operor transformo \
     verbum_scrutor; do
     FILE_DEFS_LINEA+=("$FILE_DEFS_MMGR_TOP/src/$FILE_DEFS_MODULE"/*.c)
 done
-FILE_DEFS_LINEA+=("$FILE_DEFS_MMGR_TOP/src/impensa_ancorae_acus/impensa_ancorae_acus_generic.c")
+FILE_DEFS_LINEA+=("$FILE_DEFS_MMGR_TOP/src/impensa_ancorae_acus/impensa_ancorae_acus.c"
+    "$FILE_DEFS_MMGR_TOP/src/impensa_ancorae_acus/impensa_ancorae_acus_generic.c")
 
 # the sources of each module, and of the profiles of impensa_ancorae_acus, each a source of its own. Of the profiles,
 # it takes the one that the build of MMgr takes where the build names none: generic

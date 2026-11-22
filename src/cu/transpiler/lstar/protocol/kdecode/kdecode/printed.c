@@ -224,7 +224,7 @@ static const KdecodeOracle *kdecode_format_oracle(const KdecodeRun *run, unsigne
         size_t length = 0u;
         while ((length < 4u) && (run->file[at].type[length] != '\0'))
         {
-            stem[length] = (char)tolower((unsigned char)run->file[at].type[length]);
+            stem[length] = (char)mmgr_text_lower((unsigned char)run->file[at].type[length]);
             length += 1u;
         }
         stem[length] = '\0';

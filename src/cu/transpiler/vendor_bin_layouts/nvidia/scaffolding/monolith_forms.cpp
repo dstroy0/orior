@@ -34,8 +34,8 @@
 #include "cellularum_laboro/cellularum_linea.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 
-    // the cubin writer is C and its headers carry no guard of their own: this file names the linkage here
-    extern "C"
+// the cubin writer is C and its headers carry no guard of their own: this file names the linkage here
+extern "C"
 {
 #include "../../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../sass_assemble.h"
@@ -1507,7 +1507,7 @@ static std::map<unsigned int, std::vector<std::string>> sass_blocks(const char *
         const size_t open = text.find("/*");
         const size_t address = text.find("*/");
         if ((open == std::string::npos) || (address == std::string::npos) || (open > address) ||
-            !isxdigit((unsigned char)text[open + 2u]))
+            !mmgr_text_is_hex((unsigned char)text[open + 2u]))
         {
             continue;
         }
@@ -1802,11 +1802,11 @@ static bool signedness_only(const std::string &now, const std::string &read,
     bool any = false;
     while (true)
     {
-        while ((here < now.size()) && (isspace((unsigned char)now[here]) != 0))
+        while ((here < now.size()) && (mmgr_text_is_space((unsigned char)now[here]) != 0))
         {
             here += 1u;
         }
-        while ((there < read.size()) && (isspace((unsigned char)read[there]) != 0))
+        while ((there < read.size()) && (mmgr_text_is_space((unsigned char)read[there]) != 0))
         {
             there += 1u;
         }

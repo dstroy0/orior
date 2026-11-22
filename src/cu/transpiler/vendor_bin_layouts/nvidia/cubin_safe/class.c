@@ -24,7 +24,7 @@ int cubin_class_control_or_wait(const struct TablesSetTag *tables, unsigned long
     while ((length + 1u < sizeof(operation)) && (class_->name[length] != '\0') && (class_->name[length] != '_'))
     {
         // the name's bytes are ASCII characters and digits, which toupper takes as unsigned char
-        operation[length] = (char)toupper((unsigned char)class_->name[length]);
+        operation[length] = (char)mmgr_text_upper((unsigned char)class_->name[length]);
         length += 1u;
     }
     operation[length] = '\0';

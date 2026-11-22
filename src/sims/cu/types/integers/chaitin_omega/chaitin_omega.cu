@@ -153,13 +153,43 @@ static void omega_ledger_read(const char *path, std::vector<OmegaLedgerJob> &job
         {
             continue;
         }
-        int read = 0;
-        if (sscanf(line, "%u %u %u %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu%n", &job.steps,
-                   &job.tokens, &job.length, &job.from, &job.count, &fate[0], &fate[1], &fate[2], &fate[3], &fate[4],
-                   &fate[5], &contradictions, &max[0], &max[1], &max[2], &max[3], &read) != OMEGA_LEDGER_FIELDS)
+        // the line's numbers, each after its white space, at max OMEGA_LEDGER_FIELDS of them
+        unsigned long long field[OMEGA_LEDGER_FIELDS];
+        const char *at = line;
+        int fields = 0;
+        while (fields < OMEGA_LEDGER_FIELDS)
+        {
+            const char *end = at;
+            const embed_word value = mmgr_text_unsigned_in(at, &end, 10u);
+            if (end == at)
+            {
+                break;
+            }
+            field[fields] = value;
+            at = end;
+            fields += 1;
+        }
+        if (fields != OMEGA_LEDGER_FIELDS)
         {
             continue;
         }
+        // Explicit casts narrow the job's three counts, which the ledger writes as unsigned ints, to that width
+        job.steps = (unsigned int)field[0];
+        job.tokens = (unsigned int)field[1];
+        job.length = (unsigned int)field[2];
+        job.from = field[3];
+        job.count = field[4];
+        for (unsigned int one = 0u; one < 6u; one += 1u)
+        {
+            fate[one] = field[5u + one];
+        }
+        contradictions = field[11];
+        for (unsigned int one = 0u; one < 4u; one += 1u)
+        {
+            max[one] = field[12u + one];
+        }
+        // Explicit cast narrows the bytes read of a line of at max 1024 bytes to the int that counts them
+        const int read = (int)(at - line);
         // the whole line and nothing after, and every term of the job given one fate
         if (((size_t)read != (written - 1u)) || (job.length > OMEGA_LENGTH_MAX) ||
             ((fate[0] + fate[1] + fate[2] + fate[3] + fate[4] + fate[5]) != job.count))

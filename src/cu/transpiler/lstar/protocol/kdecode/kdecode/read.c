@@ -186,7 +186,8 @@ static void kdecode_oracle_parsed(const unsigned char *bytes, unsigned long long
                 const char *const named =
                     (gloss != NULL) ? mmgr_text_find(gloss, ".oracle.tsv", PLATFORM_TEXT_TO_TERMINATOR) : NULL;
                 const char *start = named;
-                while ((start != NULL) && (start > gloss) && (isalnum((unsigned char)start[-1]) || (start[-1] == '_')))
+                while ((start != NULL) && (start > gloss) &&
+                       (mmgr_text_is_alnum((unsigned char)start[-1]) || (start[-1] == '_')))
                 {
                     start -= 1;
                 }

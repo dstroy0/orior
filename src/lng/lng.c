@@ -2208,7 +2208,7 @@ void lng_target_of(const char *path, char *target, size_t capacity)
     const char *const dot = mmgr_text_char(name, '.', PLATFORM_TEXT_TO_TERMINATOR);
     const size_t length = (dot != NULL) ? (size_t)(dot - name) : mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR);
     const size_t kept = (length < capacity) ? length : (capacity - 1u);
-    memcpy(target, name, kept);
+    mmgr_bytes_copy(target, name, kept);
     target[kept] = '\0';
 }
 
