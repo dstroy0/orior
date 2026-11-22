@@ -139,7 +139,9 @@ static EngineIngestTools s_ingest_tools;
 // names none, and never more than the items
 static unsigned long long entry_each_workers(unsigned long long items)
 {
-    const char *const named = getenv("TESSERA_RUN_PROCESSORS");
+    char named_text[PLATFORM_ENVIRONMENT_BYTES];
+    const char *const named =
+        (platform_environment("TESSERA_RUN_PROCESSORS", named_text, sizeof(named_text)) != 0ULL) ? named_text : NULL;
     const char *end = NULL;
     const unsigned long long requested_workers =
         ((named != NULL) && (named[0] >= '1') && (named[0] <= '9')) ? mmgr_text_unsigned_in(named, &end, 10) : 0ULL;

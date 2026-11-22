@@ -260,7 +260,7 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
         krep_seal_release(&seal);
         if (ok == 0)
         {
-            remove(iapx_path);
+            (void)platform_file_removed(iapx_path);
             entry_directories_remove(iapx_path, 0, made);
             break;
         }

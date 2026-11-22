@@ -29,7 +29,7 @@ void *stick_allocated(void *pointer)
             platform_terminal_write(1, error_text,
                                     (unsigned long long)mmgr_text_length(error_text, PLATFORM_TEXT_TO_TERMINATOR));
         }
-        exit(2);
+        platform_process_ended(2);
     }
     return pointer;
 }
@@ -83,7 +83,7 @@ unsigned int stick_named(const char *text, size_t length)
             platform_terminal_write(1, error_text,
                                     (unsigned long long)mmgr_text_length(error_text, PLATFORM_TEXT_TO_TERMINATOR));
         }
-        exit(2);
+        platform_process_ended(2);
     }
     if (s_names == s_name_room)
     {
@@ -107,7 +107,7 @@ void stick_read(const char *path)
             platform_terminal_write(1, error_text,
                                     (unsigned long long)mmgr_text_length(error_text, PLATFORM_TEXT_TO_TERMINATOR));
         }
-        exit(2);
+        platform_process_ended(2);
     }
 }
 

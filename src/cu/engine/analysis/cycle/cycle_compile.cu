@@ -147,7 +147,9 @@ static int cycle_host_compiler_run(const std::string &source, const std::string 
 {
     std::vector<std::string> arguments;
 #if defined(_WIN32)
-    const char *const bin = getenv("CYCLE_HOST_CCBIN");
+    char bin_text[PLATFORM_ENVIRONMENT_BYTES];
+    const char *const bin =
+        (platform_environment("CYCLE_HOST_CCBIN", bin_text, sizeof(bin_text)) != 0ULL) ? bin_text : NULL;
     arguments.push_back("nvcc");
     if ((bin != NULL) && (bin[0] != '\0'))
     {
@@ -159,7 +161,9 @@ static int cycle_host_compiler_run(const std::string &source, const std::string 
         arguments.push_back(flag);
     }
 #else
-    const char *const compiler = getenv("CXX");
+    char compiler_text[PLATFORM_ENVIRONMENT_BYTES];
+    const char *const compiler =
+        (platform_environment("CXX", compiler_text, sizeof(compiler_text)) != 0ULL) ? compiler_text : NULL;
     arguments.push_back(((compiler != NULL) && (compiler[0] != '\0')) ? compiler : "c++");
     for (const char *const flag : {"-shared", "-fPIC", "-O1", "-x", "c++"})
     {
@@ -333,16 +337,16 @@ int cycle_host_program_load(const EngineRecordLayout *layout, CycleRecord *recor
         // a name another process took first is left as it is, and its library is loaded
         if (built)
         {
-            rename((partial + CYCLE_HOST_LIBRARY).c_str(), (stem + CYCLE_HOST_LIBRARY).c_str());
-            rename((partial + ".cpp").c_str(), (stem + ".cpp").c_str());
+            (void)platform_file_moved((partial + CYCLE_HOST_LIBRARY).c_str(), (stem + CYCLE_HOST_LIBRARY).c_str());
+            (void)platform_file_moved((partial + ".cpp").c_str(), (stem + ".cpp").c_str());
         }
         for (const char *const left : {CYCLE_HOST_LIBRARY, ".cpp", ".lib", ".exp"})
         {
-            remove((partial + left).c_str());
+            (void)platform_file_removed((partial + left).c_str());
         }
         if (built)
         {
-            remove(log.c_str());
+            (void)platform_file_removed(log.c_str());
         }
     }
     CycleHostProgram program;
@@ -450,7 +454,9 @@ static int cycle_host_words_read(std::vector<unsigned int> &words, const unsigne
 // threads, and never more than the lanes
 static unsigned int cycle_host_threads(unsigned long long lanes)
 {
-    const char *const named = getenv("CYCLE_HOST_THREADS");
+    char named_text[PLATFORM_ENVIRONMENT_BYTES];
+    const char *const named =
+        (platform_environment("CYCLE_HOST_THREADS", named_text, sizeof(named_text)) != 0ULL) ? named_text : NULL;
     const char *end = NULL;
     const unsigned long long requested =
         ((named != NULL) && (named[0] >= '0') && (named[0] <= '9')) ? mmgr_text_unsigned_in(named, &end, 10) : 0ULL;

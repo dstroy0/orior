@@ -73,7 +73,14 @@ static int machine_box_merge(ClimbMachine *machine, const unsigned int *cell_raw
             pieces[piece_count].count = machine->box_count[entry];
             piece_count += (none != 0u) ? 0u : 1u;
         }
-        qsort(pieces, piece_count, sizeof(MachineBoxPiece), machine_box_piece_order);
+        {
+            // the room of the sort, on the temporary tier, which goes back as the sort ends
+            void *const sort_room =
+                platform_cell_taken((unsigned long long)(piece_count) * (unsigned long long)(sizeof(MachineBoxPiece)),
+                                    platform_place_g_program_owner, 1);
+            (void)mmgr_bytes_sort(pieces, piece_count, sizeof(MachineBoxPiece), machine_box_piece_order, sort_room);
+            platform_cell_released(sort_room, platform_place_g_program_owner);
+        }
         for (size_t piece = 0u; piece < piece_count; piece += 1u)
         {
             const int same = (piece != 0u) && (pieces[piece].target == pieces[piece - 1u].target);

@@ -184,7 +184,14 @@ void period_select(const unsigned long long *same, const PeriodLattice *lattice,
                    unsigned long long count, const PeriodMargin *given_top, PeriodAxis *result)
 {
     period_axis_open(lattice, axis, result);
-    qsort(band, (size_t)count, sizeof(PeriodMargin), period_margin_compare);
+    {
+        // the room of the sort, on the temporary tier, which goes back as the sort ends
+        void *const sort_room =
+            platform_cell_taken((unsigned long long)((size_t)count) * (unsigned long long)(sizeof(PeriodMargin)),
+                                platform_place_g_program_owner, 1);
+        (void)mmgr_bytes_sort(band, (size_t)count, sizeof(PeriodMargin), period_margin_compare, sort_room);
+        platform_cell_released(sort_room, platform_place_g_program_owner);
+    }
     result->band_count = count;
     PeriodMargin top = {0ULL, result->pairs_per_lag};
     if (count != 0ULL)

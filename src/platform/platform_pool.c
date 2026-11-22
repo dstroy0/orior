@@ -188,11 +188,33 @@ int platform_open(unsigned long long bytes)
     return 1;
 }
 
+// the hooks that platform_close runs, in the order of their calls, and their count
+static void (*s_close_hooks[PLATFORM_CLOSE_HOOKS])(void);
+static unsigned int s_close_hook_count;
+
+int platform_at_close(void (*hook)(void))
+{
+    if ((hook == NULL) || (s_close_hook_count >= PLATFORM_CLOSE_HOOKS))
+    {
+        return 0;
+    }
+    s_close_hooks[s_close_hook_count] = hook;
+    s_close_hook_count += 1u;
+    return 1;
+}
+
 void platform_close(void)
 {
     if (s_pool_bytes == 0ULL)
     {
         return;
+    }
+    // the hooks run while the pool and the line are still there, the last one first. A hook that ends the process in
+    // its turn finds no hook left to run twice
+    while (s_close_hook_count > 0u)
+    {
+        s_close_hook_count -= 1u;
+        s_close_hooks[s_close_hook_count]();
     }
     platform_line_flushed();
     platform_mover_ended();

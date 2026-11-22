@@ -232,19 +232,23 @@ static int construction_measure(const Ruleset *rules, const std::string &package
         {
             return 0;
         }
-        const std::string analyze =
-            "cd '" + work + "' && rm -f work-obj08.cf && ghdl -a --std=08 alone.vhd > analyze.log 2>&1";
-        if (system(analyze.c_str()) != 0)
+        // the library of the last analysis goes, and GHDL reads the form alone into analyze.log, in the work folder
+        (void)platform_file_removed((work + "/work-obj08.cf").c_str());
+        const char *const analysis[] = {"ghdl", "-a", "--std=08", "alone.vhd", NULL};
+        if (platform_program_run_in(analysis, work.c_str(), (work + "/analyze.log").c_str(), NULL, 0) != 0L)
         {
             continue;
         }
         const std::string script = yosys_script().synthesis("alone.v", "form_alone", std::string());
-        const std::string synthesize =
-            "cd '" + work +
-            "' && ghdl --synth --std=08 --out=verilog alone.vhd -e form_alone > alone.v 2> synth.log && "
-            "yosys -s alone.ys > yosys.log 2>&1";
+        // GHDL writes the Verilog of the form to alone.v and its errors to synth.log, and then Yosys reads alone.ys
+        const char *const synthesis[] = {"ghdl",      "--synth", "--std=08",   "--out=verilog",
+                                         "alone.vhd", "-e",      "form_alone", NULL};
+        const char *const yosys[] = {"yosys", "-s", "alone.ys", NULL};
         *cost = 0ULL;
-        return !script.empty() && construction_write(work + "/alone.ys", script) && (system(synthesize.c_str()) == 0) &&
+        return !script.empty() && construction_write(work + "/alone.ys", script) &&
+               (platform_program_run_in(synthesis, work.c_str(), (work + "/alone.v").c_str(),
+                                        (work + "/synth.log").c_str(), 0) == 0L) &&
+               (platform_program_run_in(yosys, work.c_str(), (work + "/yosys.log").c_str(), NULL, 0) == 0L) &&
                construction_after(work + "/yosys.log", "(length=", cost);
     }
     return 0;
@@ -369,7 +373,7 @@ int program_main(int argc, char **argv)
     }
     if (!same)
     {
-        remove(argv[3]);
+        (void)platform_file_removed(argv[3]);
     }
     {
         VerbaLinea *const output_line = platform_line_out();

@@ -242,7 +242,7 @@ extern "C" long engine_bodies_write(const char *set, const char *sample, EngineB
     krep_bodies_release(&back);
     if (same == 0)
     {
-        remove(path);
+        (void)platform_file_removed(path);
         engine_error_frame(error);
         engine_error_latch(error);
         return ENGINE_ERROR;

@@ -285,7 +285,7 @@ int daemon_history_save(void)
 #if defined(_WIN32)
     ok = ok && (MoveFileExA(fresh, path, MOVEFILE_REPLACE_EXISTING) != 0);
 #else
-    ok = ok && (rename(fresh, path) == 0);
+    ok = ok && platform_file_moved(fresh, path);
 #endif
     if (!ok)
     {

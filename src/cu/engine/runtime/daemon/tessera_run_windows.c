@@ -73,7 +73,8 @@ static char *run_command_line(const char *program, char *const *words, int count
 // alone looks in the system folders first, where "bash" is WSL's. The program as named where PATH does not contain it
 static const char *run_program_found(const char *program, char *found, size_t capacity)
 {
-    const char *const path = getenv("PATH");
+    char path_text[PLATFORM_ENVIRONMENT_PATH_BYTES];
+    const char *const path = (platform_environment("PATH", path_text, sizeof(path_text)) != 0ULL) ? path_text : NULL;
     if ((strpbrk(program, "\\/:") != NULL) || (path == NULL))
     {
         return program;
@@ -141,7 +142,9 @@ int run_mounted_path(const char *path, char *mounted, size_t capacity)
 // the Linux tessera_run as WSL names it: $TESSERA_RUN_WSL, or the tessera_run beside this program
 int run_wsl_program(char *mounted, size_t capacity)
 {
-    const char *const named = getenv("TESSERA_RUN_WSL");
+    char named_text[PLATFORM_ENVIRONMENT_BYTES];
+    const char *const named =
+        (platform_environment("TESSERA_RUN_WSL", named_text, sizeof(named_text)) != 0ULL) ? named_text : NULL;
     if ((named != NULL) && (named[0] != '\0'))
     {
         VerbaLinea formed_line_2 = mmgr_line_over(mounted, capacity);

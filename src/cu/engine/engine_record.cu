@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // engine_record.cu: the error recorded for the caller, and the record layout on the device
 #include "engine_internal.h"
+#include "../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 extern "C" void engine_percent_of(unsigned long long numerator, unsigned long long denominator,
@@ -25,7 +26,14 @@ extern "C" unsigned int engine_sort_unique(unsigned long long *keys, unsigned in
     {
         return 0u;
     }
-    qsort(keys, count, sizeof(unsigned long long), engine_order_keys);
+    {
+        // the room of the sort, on the temporary tier, which goes back as the sort ends
+        void *const sort_room =
+            platform_cell_taken((unsigned long long)(count) * (unsigned long long)(sizeof(unsigned long long)),
+                                platform_place_g_program_owner, 1);
+        (void)mmgr_bytes_sort(keys, count, sizeof(unsigned long long), engine_order_keys, sort_room);
+        platform_cell_released(sort_room, platform_place_g_program_owner);
+    }
     unsigned int unique_count = 1u;
     for (unsigned int position = 1u; position < count; position += 1u)
     {
@@ -102,7 +110,9 @@ static int engine_record_layout_device(const EngineRecordRequest *request, Engin
                                           request->field_offset, request->fields,      request->members,
                                           request->in_limbs,     request->outputs,     request->output_count,
                                           request->tables,       request->table_count, request->reuse};
-    const char *const report = getenv("CYCLE_RECORD_REPORT");
+    char report_text[PLATFORM_ENVIRONMENT_BYTES];
+    const char *const report =
+        (platform_environment("CYCLE_RECORD_REPORT", report_text, sizeof(report_text)) != 0ULL) ? report_text : NULL;
     return layout_device_agrees(&layout_request, layout, (report != NULL) && (report[0] == '1'));
 }
 

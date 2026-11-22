@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // max_tree_grade.cu: grading the codes
 #include "max_tree_device_internal.h"
+#include "../../../../platform/platform.h"
 
 static int max_tree_grade_codes(const unsigned int *residual, unsigned int depth, unsigned int height,
                                 unsigned int width, const unsigned char *coded, unsigned int *differ,
@@ -66,7 +67,9 @@ extern "C" long max_tree_objects(const MaxTreeObjectsRequest *request)
 {
     if (g_max_tree_profile < 0)
     {
-        g_max_tree_profile = (getenv("MAX_TREE_PROFILE") != NULL) ? 1 : 0;
+        char profile_text[PLATFORM_ENVIRONMENT_BYTES];
+        g_max_tree_profile =
+            (platform_environment("MAX_TREE_PROFILE", profile_text, sizeof(profile_text)) != 0ULL) ? 1 : 0;
     }
     unsigned long long stage_mark = engine_clock_microseconds();
     if ((request == NULL) || (request->error == NULL))

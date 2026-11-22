@@ -166,6 +166,10 @@ void platform_array_ended(PlatformArray *array);
 // or 0 where the process has no such variable, where its value is empty, or where the value does not fit
 unsigned long long platform_environment(const char *name, char *out, unsigned long long capacity);
 
+// the bytes of the buffer that a value of the environment goes into, and of one that a search path goes into
+#define PLATFORM_ENVIRONMENT_BYTES 4096u
+#define PLATFORM_ENVIRONMENT_PATH_BYTES 32768u
+
 // the size of the file at `path` into `bytes`: 1, or 0 where the system cannot open the file
 int platform_file_size(const char *path, unsigned long long *bytes);
 
@@ -273,6 +277,20 @@ unsigned long long platform_process_id(void);
 // the monotonic clock of the system in nanoseconds, from a start that the system chooses
 unsigned long long platform_clock_ns(void);
 
+// the clock of the calendar: the whole seconds since the start of 1970, UTC, as time answers them
+unsigned long long platform_epoch_seconds(void);
+
+// the hooks that platform_close runs most allowed
+#define PLATFORM_CLOSE_HOOKS 32u
+
+// A hook that platform_close runs before it gives the pool back, as atexit runs one. The hooks run in the reverse
+// order of the calls. The answer is 1, or 0 where PLATFORM_CLOSE_HOOKS are there already or the hook is NULL
+int platform_at_close(void (*hook)(void));
+
+// The process ended with `code` as its exit code, as exit ends it. platform_close runs first, with its hooks. The
+// line goes out and the pool goes back
+void platform_process_ended(int code);
+
 // The library at `name` loaded, by the search of the system where the name holds no folder. The handle, or NULL where
 // the system cannot load it
 void *platform_library_opened(const char *name);
@@ -286,6 +304,14 @@ void platform_library_closed(void *library);
 // The program `arguments[0]` run with the arguments after it, up to the NULL that ends them. Its output and its errors
 // go to the file at `log`, which the call makes or replaces. The answer is its exit code, or -1 where it did not start
 long platform_program_run(const char *const *arguments, const char *log);
+
+// The program `arguments[0]` run with the arguments after it, as platform_program_run runs it, in the folder `folder`,
+// or in the folder of this process where `folder` is NULL. Its output goes to the file at `output`, and its errors to
+// the file at `errors`, or to `output` too where `errors` is NULL. The call makes or replaces each file, or writes
+// after the end of each where `append` is 1. A path of a file counts from the folder of this process. The answer is
+// the exit code of the program, or -1 where it did not start
+long platform_program_run_in(const char *const *arguments, const char *folder, const char *output, const char *errors,
+                             int append);
 
 EMBED_END_DECLS
 

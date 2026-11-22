@@ -82,9 +82,9 @@ void cycle_cache_write(const std::string &folder, const std::string &path, const
                         (platform_file_write_items(source.data(), 1u, source.size(), file) == source.size()) &&
                         (platform_file_write_items(image.data(), 1u, image.size(), file) == image.size());
     const int closed = platform_file_close(file) == 0;
-    if (!written || !closed || (rename(partial.c_str(), path.c_str()) != 0))
+    if (!written || !closed || !platform_file_moved(partial.c_str(), path.c_str()))
     {
-        remove(partial.c_str());
+        (void)platform_file_removed(partial.c_str());
     }
 }
 

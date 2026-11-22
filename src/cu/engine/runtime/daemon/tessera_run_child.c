@@ -184,7 +184,7 @@ char **run_channel_open(RunChannel *channel, const RunRequest *request, char *co
         if (placed)
         {
             run_record_close(channel);
-            remove(path);
+            (void)platform_file_removed(path);
         }
         {
             const char *const error_text = s_run_unwatched;
@@ -194,8 +194,8 @@ char **run_channel_open(RunChannel *channel, const RunRequest *request, char *co
         return NULL;
     }
     // records a child of an earlier process of the same pid left are not read as this child's
-    remove(run_path_joined(channel->records, ".child", path, sizeof(path)) ? path : "");
-    remove(run_path_joined(channel->records, ".log", path, sizeof(path)) ? path : "");
+    (void)platform_file_removed(run_path_joined(channel->records, ".child", path, sizeof(path)) ? path : "");
+    (void)platform_file_removed(run_path_joined(channel->records, ".log", path, sizeof(path)) ? path : "");
     // the words before the command's own, a count at least 0. It converts exactly
     mmgr_bytes_copy(watched, words, (size_t)inside_at * sizeof(char *));
     watched[inside_at] = channel->program;
@@ -298,9 +298,9 @@ void run_channel_close(RunChannel *channel)
         }
         return;
     }
-    remove(run_path_joined(channel->records, ".parent", path, sizeof(path)) ? path : "");
-    remove(run_path_joined(channel->records, ".child", path, sizeof(path)) ? path : "");
-    remove(run_path_joined(channel->records, ".log", path, sizeof(path)) ? path : "");
+    (void)platform_file_removed(run_path_joined(channel->records, ".parent", path, sizeof(path)) ? path : "");
+    (void)platform_file_removed(run_path_joined(channel->records, ".child", path, sizeof(path)) ? path : "");
+    (void)platform_file_removed(run_path_joined(channel->records, ".log", path, sizeof(path)) ? path : "");
 }
 
 // reports the command's processors each sweep until it ends, the last reading only when it spans half a sweep, since

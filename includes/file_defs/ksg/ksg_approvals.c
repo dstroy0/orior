@@ -116,7 +116,7 @@ static int ksg_written(const char *path, const unsigned char *const *pieces, con
     whole = qry_writer_file_closed(file) && whole && qry_writer_file_placed(s_part, path);
     if (!whole)
     {
-        (void)remove(s_part);
+        (void)platform_file_removed(s_part);
     }
     return whole;
 }

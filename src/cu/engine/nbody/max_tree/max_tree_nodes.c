@@ -517,7 +517,14 @@ long max_tree_probe_levels(const MaxTreeProbeRequest *request)
         // MAX_TREE_ABSENT in the high word sorts a probe that is not admitted after every node
         keys[probe] = ((unsigned long long)own << 32u) | probe;
     }
-    qsort(keys, probes, sizeof(unsigned long long), max_tree_key_compare);
+    {
+        // the room of the sort, on the temporary tier, which goes back as the sort ends
+        void *const sort_room =
+            platform_cell_taken((unsigned long long)(probes) * (unsigned long long)(sizeof(unsigned long long)),
+                                platform_place_g_program_owner, 1);
+        (void)mmgr_bytes_sort(keys, probes, sizeof(unsigned long long), max_tree_key_compare, sort_room);
+        platform_cell_released(sort_room, platform_place_g_program_owner);
+    }
     for (unsigned int at = 0u; at < probes; at += 1u)
     {
         // the low word of a key is the probe's index

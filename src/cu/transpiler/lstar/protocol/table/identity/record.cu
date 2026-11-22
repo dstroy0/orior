@@ -336,7 +336,7 @@ void record_open(const char *ksc, const char *mode)
     static int s_registered = 0;
     if (s_registered == 0)
     {
-        atexit(record_close);
+        (void)platform_at_close(record_close);
         s_registered = 1;
     }
 }

@@ -355,6 +355,19 @@ unsigned long long platform_process_id(void)
     return (unsigned long long)getpid();
 }
 
+unsigned long long platform_epoch_seconds(void)
+{
+    struct timespec now;
+    // Explicit cast carries the seconds of a time after 1970 to the unsigned count
+    return (clock_gettime(CLOCK_REALTIME, &now) == 0) && (now.tv_sec > 0) ? (unsigned long long)now.tv_sec : 0ULL;
+}
+
+void platform_process_ended(int code)
+{
+    platform_close();
+    _exit(code);
+}
+
 void *platform_library_opened(const char *name)
 {
     return dlopen(name, RTLD_NOW | RTLD_LOCAL);
@@ -372,10 +385,29 @@ void platform_library_closed(void *library)
 
 long platform_program_run(const char *const *arguments, const char *log)
 {
+    return platform_program_run_in(arguments, NULL, log, NULL, 0);
+}
+
+long platform_program_run_in(const char *const *arguments, const char *folder, const char *output, const char *errors,
+                             int append)
+{
+    const int flags = O_WRONLY | O_CREAT | ((append != 0) ? O_APPEND : O_TRUNC);
     posix_spawn_file_actions_t actions;
     (void)posix_spawn_file_actions_init(&actions);
-    (void)posix_spawn_file_actions_addopen(&actions, 1, log, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    (void)posix_spawn_file_actions_adddup2(&actions, 1, 2);
+    // the files open before the move to the folder, and so their paths count from the folder of this process
+    (void)posix_spawn_file_actions_addopen(&actions, 1, output, flags, 0644);
+    if (errors != NULL)
+    {
+        (void)posix_spawn_file_actions_addopen(&actions, 2, errors, flags, 0644);
+    }
+    else
+    {
+        (void)posix_spawn_file_actions_adddup2(&actions, 1, 2);
+    }
+    if (folder != NULL)
+    {
+        (void)posix_spawn_file_actions_addchdir_np(&actions, folder);
+    }
     pid_t child = 0;
     // posix_spawnp takes the arguments as plain pointers, and it reads them alone
     const int started =

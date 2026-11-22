@@ -98,7 +98,14 @@ static unsigned int entry_listing(const char *directory, char ***names, int samp
     {
         listed[found_at] = found[found_at];
     }
-    qsort(listed, found.size(), sizeof(char *), entry_order_names);
+    {
+        // the room of the sort, on the temporary tier, which goes back as the sort ends
+        void *const sort_room =
+            platform_cell_taken((unsigned long long)(found.size()) * (unsigned long long)(sizeof(char *)),
+                                platform_place_g_program_owner, 1);
+        (void)mmgr_bytes_sort(listed, found.size(), sizeof(char *), entry_order_names, sort_room);
+        platform_cell_released(sort_room, platform_place_g_program_owner);
+    }
     *names = listed;
     return (unsigned int)found.size();
 }

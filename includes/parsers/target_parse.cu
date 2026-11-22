@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // target_parse.cu: where rulesets are found; their lines are read by ruleset_core.h
 #include "../../src/cu/engine/rmc/target_internal.h"
+#include "../../src/platform/platform.h"
 #include "tree_folder.h"
 
 // The rulesets of the lanes, one a language. A process reads each once from its .krs file in
@@ -21,7 +22,9 @@
 // two folders above the folder of this file, in the tree of its build
 std::string ruleset_folder(void)
 {
-    const char *const named = getenv("CYCLE_RULESETS");
+    char named_text[PLATFORM_ENVIRONMENT_BYTES];
+    const char *const named =
+        (platform_environment("CYCLE_RULESETS", named_text, sizeof(named_text)) != 0ULL) ? named_text : NULL;
     if ((named != NULL) && (named[0] != '\0'))
     {
         return std::string(named);

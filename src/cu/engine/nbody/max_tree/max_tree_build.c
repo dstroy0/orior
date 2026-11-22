@@ -145,7 +145,14 @@ static long max_tree_grow(const unsigned int *residual, unsigned int depth, unsi
         }
     }
     s_ordering_residual = residual;
-    qsort(tree->order, order_count, sizeof(unsigned int), max_tree_compare);
+    {
+        // the room of the sort, on the temporary tier, which goes back as the sort ends
+        void *const sort_room =
+            platform_cell_taken((unsigned long long)(order_count) * (unsigned long long)(sizeof(unsigned int)),
+                                platform_place_g_program_owner, 1);
+        (void)mmgr_bytes_sort(tree->order, order_count, sizeof(unsigned int), max_tree_compare, sort_room);
+        platform_cell_released(sort_room, platform_place_g_program_owner);
+    }
     s_ordering_residual = NULL;
 
     const size_t plane = (size_t)height * width;

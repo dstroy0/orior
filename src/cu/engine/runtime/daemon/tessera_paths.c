@@ -50,10 +50,10 @@ void tessera_bytes_hex(VerbaLinea *line, const unsigned char *bytes, unsigned in
     }
 }
 
-static const char *tessera_environment(const char *name)
+// the value of the variable `name` in `out` of PLATFORM_ENVIRONMENT_BYTES, or NULL where it holds none or an empty one
+static const char *tessera_environment(const char *name, char out[PLATFORM_ENVIRONMENT_BYTES])
 {
-    const char *const value = getenv(name);
-    return ((value != NULL) && (value[0] != '\0')) ? value : NULL;
+    return (platform_environment(name, out, PLATFORM_ENVIRONMENT_BYTES) != 0ULL) ? out : NULL;
 }
 
 static int tessera_line_done(VerbaLinea *line)
@@ -68,7 +68,8 @@ int tessera_path_endpoint(const unsigned char device[TESSERA_DEVICE_BYTES], char
     mmgr_line_put(&line, s_tessera_pipe);
     // a runtime named apart (a test's) is a pipe of its own, as it is a folder of its own on Linux; a backslash, which
     // a pipe's name may not contain past its prefix, is written as '_'
-    const char *const runtime = tessera_environment("TESSERA_RUNTIME");
+    char runtime_text[PLATFORM_ENVIRONMENT_BYTES];
+    const char *const runtime = tessera_environment("TESSERA_RUNTIME", runtime_text);
     for (const char *walk = runtime; (walk != NULL) && (*walk != '\0'); walk += 1)
     {
         mmgr_line_ch(&line, (*walk == '\\') ? '_' : *walk);
@@ -79,8 +80,10 @@ int tessera_path_endpoint(const unsigned char device[TESSERA_DEVICE_BYTES], char
     }
     tessera_bytes_hex(&line, device, TESSERA_DEVICE_BYTES);
 #else
-    const char *runtime = tessera_environment("TESSERA_RUNTIME");
-    runtime = (runtime != NULL) ? runtime : tessera_environment("XDG_RUNTIME_DIR");
+    // the second read takes the buffer only where the first left it empty
+    char runtime_text[PLATFORM_ENVIRONMENT_BYTES];
+    const char *runtime = tessera_environment("TESSERA_RUNTIME", runtime_text);
+    runtime = (runtime != NULL) ? runtime : tessera_environment("XDG_RUNTIME_DIR", runtime_text);
     if (runtime != NULL)
     {
         tessera_text_staged(&line, runtime);
@@ -99,7 +102,8 @@ int tessera_path_endpoint(const unsigned char device[TESSERA_DEVICE_BYTES], char
 int tessera_path_state(const unsigned char device[TESSERA_DEVICE_BYTES], char *path, unsigned int capacity)
 {
     VerbaLinea line = {path, capacity, 0ULL};
-    const char *const chosen = tessera_environment("TESSERA_STATE");
+    char chosen_text[PLATFORM_ENVIRONMENT_BYTES];
+    const char *const chosen = tessera_environment("TESSERA_STATE", chosen_text);
     if (chosen != NULL)
     {
         tessera_text_staged(&line, chosen);
@@ -107,7 +111,8 @@ int tessera_path_state(const unsigned char device[TESSERA_DEVICE_BYTES], char *p
     else
     {
 #if defined(_WIN32)
-        const char *const local = tessera_environment("LOCALAPPDATA");
+        char local_text[PLATFORM_ENVIRONMENT_BYTES];
+        const char *const local = tessera_environment("LOCALAPPDATA", local_text);
         if (local == NULL)
         {
             return 0;
@@ -116,8 +121,10 @@ int tessera_path_state(const unsigned char device[TESSERA_DEVICE_BYTES], char *p
         mmgr_line_ch(&line, TESSERA_SEPARATOR);
         mmgr_line_put(&line, s_tessera_folder);
 #else
-        const char *const state = tessera_environment("XDG_STATE_HOME");
-        const char *const home = tessera_environment("HOME");
+        char state_text[PLATFORM_ENVIRONMENT_BYTES];
+        char home_text[PLATFORM_ENVIRONMENT_BYTES];
+        const char *const state = tessera_environment("XDG_STATE_HOME", state_text);
+        const char *const home = tessera_environment("HOME", home_text);
         if ((state == NULL) && (home == NULL))
         {
             return 0;

@@ -106,7 +106,14 @@ long max_tree_pairs(const MaxTreePairsRequest *request)
         keys[found] = ((unsigned long long)from << 32u) | to;
         found += 1u;
     }
-    qsort(keys, found, sizeof(unsigned long long), max_tree_key_compare);
+    {
+        // the room of the sort, on the temporary tier, which goes back as the sort ends
+        void *const sort_room =
+            platform_cell_taken((unsigned long long)(found) * (unsigned long long)(sizeof(unsigned long long)),
+                                platform_place_g_program_owner, 1);
+        (void)mmgr_bytes_sort(keys, found, sizeof(unsigned long long), max_tree_key_compare, sort_room);
+        platform_cell_released(sort_room, platform_place_g_program_owner);
+    }
     unsigned int distinct = 0u;
     for (size_t at = 0u; at < found; at += 1u)
     {
@@ -228,7 +235,14 @@ long max_tree_overlap_sums(const MaxTreeOverlapSumsRequest *request)
         keys[2u * (size_t)query] = ((unsigned long long)earlier->subtree_end[node] << 32u) | (2ULL * query);
         keys[(2u * (size_t)query) + 1u] = ((unsigned long long)node << 32u) | ((2ULL * query) + 1ULL);
     }
-    qsort(keys, events, sizeof(unsigned long long), max_tree_key_compare);
+    {
+        // the room of the sort, on the temporary tier, which goes back as the sort ends
+        void *const sort_room =
+            platform_cell_taken((unsigned long long)(events) * (unsigned long long)(sizeof(unsigned long long)),
+                                platform_place_g_program_owner, 1);
+        (void)mmgr_bytes_sort(keys, events, sizeof(unsigned long long), max_tree_key_compare, sort_room);
+        platform_cell_released(sort_room, platform_place_g_program_owner);
+    }
     unsigned int entry = 0u;
     for (size_t at = 0u; at < events; at += 1u)
     {

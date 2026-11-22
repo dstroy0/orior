@@ -12,14 +12,16 @@ CycleLinker g_cycle_linker;
 
 int cycle_environment_set(const char *name)
 {
-    const char *const value = getenv(name);
+    char value_text[PLATFORM_ENVIRONMENT_BYTES];
+    const char *const value = (platform_environment(name, value_text, sizeof(value_text)) != 0ULL) ? value_text : NULL;
     return ((value != NULL) && (value[0] == '1')) ? 1 : 0;
 }
 
 // a count of microseconds the environment names, or `otherwise` where it names none or one that is not a whole number
 unsigned long long cycle_environment_microseconds(const char *name, unsigned long long otherwise)
 {
-    const char *const value = getenv(name);
+    char value_text[PLATFORM_ENVIRONMENT_BYTES];
+    const char *const value = (platform_environment(name, value_text, sizeof(value_text)) != 0ULL) ? value_text : NULL;
     if ((value == NULL) || (value[0] < '0') || (value[0] > '9'))
     {
         return otherwise;
@@ -183,17 +185,24 @@ std::string cycle_target_source(int major, int minor, int lto)
 // the folder compiled programs are cached in across processes: $CYCLE_CACHE, else the user's cache, then cycle
 std::string cycle_cache_folder(void)
 {
-    const char *const named = getenv("CYCLE_CACHE");
+    char named_text[PLATFORM_ENVIRONMENT_BYTES];
+    const char *const named =
+        (platform_environment("CYCLE_CACHE", named_text, sizeof(named_text)) != 0ULL) ? named_text : NULL;
     if ((named != NULL) && (named[0] != '\0'))
     {
         return std::string(named);
     }
 #if defined(_WIN32)
-    const char *const local = getenv("LOCALAPPDATA");
+    char local_text[PLATFORM_ENVIRONMENT_BYTES];
+    const char *const local =
+        (platform_environment("LOCALAPPDATA", local_text, sizeof(local_text)) != 0ULL) ? local_text : NULL;
     return (local != NULL) ? (std::string(local) + "\\cycle") : std::string();
 #else
-    const char *const cache = getenv("XDG_CACHE_HOME");
-    const char *const home = getenv("HOME");
+    char cache_text[PLATFORM_ENVIRONMENT_BYTES];
+    const char *const cache =
+        (platform_environment("XDG_CACHE_HOME", cache_text, sizeof(cache_text)) != 0ULL) ? cache_text : NULL;
+    char home_text[PLATFORM_ENVIRONMENT_BYTES];
+    const char *const home = (platform_environment("HOME", home_text, sizeof(home_text)) != 0ULL) ? home_text : NULL;
     if ((cache != NULL) && (cache[0] != '\0'))
     {
         return std::string(cache) + "/cycle";

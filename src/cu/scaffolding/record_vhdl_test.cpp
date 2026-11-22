@@ -177,11 +177,22 @@ struct VhdlTrial
 static void vhdl_synthesize(const VhdlPlace *place, VhdlTrial *trial)
 {
     const std::string script = yosys_script().synthesis("synth.v", "cycle_program_unit", "memories.log");
-    const std::string command =
-        "cd '" + place->work + "' && ghdl --synth --std=08 -gwords=" + std::to_string(VHDL_TEST_SYNTHESIS_WORDS) +
-        " --out=verilog program.vhd -e cycle_program_unit > synth.v 2> synth.log && yosys -s synth.ys > yosys.log 2>&1";
-    const int status =
-        (!script.empty() && vhdl_write(place->work + "/synth.ys", script)) ? system(command.c_str()) : -1;
+    // GHDL writes the Verilog of the program to synth.v and its errors to synth.log. Yosys then reads synth.ys. Each
+    // runs in the work folder
+    const std::string words = "-gwords=" + std::to_string(VHDL_TEST_SYNTHESIS_WORDS);
+    const char *const synthesis[] = {"ghdl",        "--synth", "--std=08",           words.c_str(), "--out=verilog",
+                                     "program.vhd", "-e",      "cycle_program_unit", NULL};
+    const char *const yosys[] = {"yosys", "-s", "synth.ys", NULL};
+    const std::string verilog = place->work + "/synth.v";
+    const std::string synthesis_log = place->work + "/synth.log";
+    const std::string yosys_log = place->work + "/yosys.log";
+    long status = -1L;
+    if (!script.empty() && vhdl_write(place->work + "/synth.ys", script))
+    {
+        status = platform_program_run_in(synthesis, place->work.c_str(), verilog.c_str(), synthesis_log.c_str(), 0);
+        status =
+            (status == 0L) ? platform_program_run_in(yosys, place->work.c_str(), yosys_log.c_str(), NULL, 0) : status;
+    }
     trial->memories = vhdl_after(place->work + "/memories.log", "$mem_v2");
     trial->registered = vhdl_lines(place->work + "/yosys.log", "merging output FF");
     trial->cells = vhdl_after(place->work + "/yosys.log", "Number of cells:");
@@ -195,13 +206,20 @@ static void vhdl_try(const VhdlPlace *place, const std::string &text, const Reco
 {
     *trial = VhdlTrial{0, 0u, {}, 0ULL, 0, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL};
     const std::string records_path = place->work + "/records.txt";
-    remove(records_path.c_str());
+    (void)platform_file_removed(records_path.c_str());
     const int written = !text.empty() && vhdl_write(place->work + "/program.vhd", text) &&
                         record_image_write(place->work + "/memory.txt", image);
-    const std::string command = "cd '" + place->work + "' && ghdl -a --std=08 program.vhd '" + place->bench +
-                                "' > ghdl.log 2>&1 && ghdl --elab-run --std=08 record_vhdl_bench -gwords=" +
-                                std::to_string(image->memory.size()) + " >> ghdl.log 2>&1";
-    const int status = written ? system(command.c_str()) : -1;
+    // GHDL reads the program and the bench, and then runs the bench, each in the work folder and each into ghdl.log
+    const std::string words = "-gwords=" + std::to_string(image->memory.size());
+    const char *const analysis[] = {"ghdl", "-a", "--std=08", "program.vhd", place->bench.c_str(), NULL};
+    const char *const run[] = {"ghdl", "--elab-run", "--std=08", "record_vhdl_bench", words.c_str(), NULL};
+    const std::string ghdl_log = place->work + "/ghdl.log";
+    long status = -1L;
+    if (written)
+    {
+        status = platform_program_run_in(analysis, place->work.c_str(), ghdl_log.c_str(), NULL, 0);
+        status = (status == 0L) ? platform_program_run_in(run, place->work.c_str(), ghdl_log.c_str(), NULL, 1) : status;
+    }
     trial->read =
         (status == 0) && record_image_read(records_path, image, &trial->error, trial->records, &trial->clocks);
     if (trial->read == 0)
@@ -214,9 +232,22 @@ static void vhdl_try(const VhdlPlace *place, const std::string &text, const Reco
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        const std::string show = "head -20 '" + place->work + "/ghdl.log'";
+        // the first 20 lines of the log, as head shows them. A read that ends in no newline is part of a line
+        PlatformFile *const log = platform_file_open(ghdl_log.c_str(), "r");
+        char log_text[1024];
+        unsigned int shown = 0u;
+        while ((log != NULL) && (shown < 20u) &&
+               (platform_file_text_read(log_text, (int)sizeof(log_text), log) != NULL))
+        {
+            mmgr_line_put(platform_line_out(), log_text);
+            const size_t length = mmgr_text_length(log_text, PLATFORM_TEXT_TO_TERMINATOR);
+            shown += ((length != 0u) && (log_text[length - 1u] == '\n')) ? 1u : 0u;
+        }
+        if (log != NULL)
+        {
+            (void)platform_file_close(log);
+        }
         platform_line_flushed();
-        (void)system(show.c_str());
     }
     if (place->synthesis && trial->read)
     {

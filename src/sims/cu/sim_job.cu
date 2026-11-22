@@ -23,7 +23,9 @@
 static int sim_job_daemon(char *path, size_t capacity)
 {
     // $TESSERA_DAEMON names the daemon; otherwise it is the tessera_daemon beside this program
-    const char *const named = getenv("TESSERA_DAEMON");
+    char named_text[PLATFORM_ENVIRONMENT_BYTES];
+    const char *const named =
+        (platform_environment("TESSERA_DAEMON", named_text, sizeof(named_text)) != 0ULL) ? named_text : NULL;
     if ((named != NULL) && (named[0] != '\0'))
     {
         VerbaLinea formed_line_1 = mmgr_line_over(path, capacity);
@@ -110,7 +112,9 @@ int sim_job_submit(SimResults *results, const char *name, int count, char *const
     submit.grace_microseconds = SIM_JOB_RUNNING_MICROSECONDS;
     submit.sweep_microseconds = SIM_JOB_SWEEP_MICROSECONDS;
     submit.idle_microseconds = SIM_JOB_IDLE_MICROSECONDS;
-    submit.override_budget = (getenv("TESSERA_OVERRIDE") != NULL) ? 1u : 0u;
+    char override_text[PLATFORM_ENVIRONMENT_BYTES];
+    submit.override_budget =
+        (platform_environment("TESSERA_OVERRIDE", override_text, sizeof(override_text)) != 0ULL) ? 1u : 0u;
     submit.daemon_path = daemon;
     submit.error = &error;
     TesseraTicket ticket;

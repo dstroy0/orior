@@ -227,7 +227,7 @@ static void daemon_fired(const TesseraEvent *event, unsigned long long now)
                 unlink(g_daemon.endpoint);
             }
 #endif
-            exit(0);
+            platform_process_ended(0);
         }
         return;
     }

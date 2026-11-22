@@ -391,7 +391,12 @@ int kfile_lines_written_by(KfileLines *file, unsigned int first, const char *con
     }
     if (written)
     {
-        qsort(entries, entry_count, sizeof(KfileLinesEntry), kfile_lines_entry_order);
+        // the room of the sort, on the temporary tier, which goes back as the sort ends
+        void *const sort_room =
+            platform_cell_taken((unsigned long long)(entry_count) * (unsigned long long)(sizeof(KfileLinesEntry)),
+                                platform_place_g_program_owner, 1);
+        (void)mmgr_bytes_sort(entries, entry_count, sizeof(KfileLinesEntry), kfile_lines_entry_order, sort_room);
+        platform_cell_released(sort_room, platform_place_g_program_owner);
     }
     KfileLines made = {NULL, 0u, 0u};
     Who in_force = {0u, 0u, 0u, 0ULL};

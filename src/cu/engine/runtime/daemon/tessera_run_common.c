@@ -124,7 +124,9 @@ size_t run_own_path(char *path, size_t capacity)
 int run_daemon_path(char *path, size_t capacity)
 {
     // $TESSERA_DAEMON names the daemon; otherwise it is the tessera_daemon beside this program
-    const char *const named = getenv("TESSERA_DAEMON");
+    char named_text[PLATFORM_ENVIRONMENT_BYTES];
+    const char *const named =
+        (platform_environment("TESSERA_DAEMON", named_text, sizeof(named_text)) != 0ULL) ? named_text : NULL;
     if ((named != NULL) && (named[0] != '\0'))
     {
         VerbaLinea formed_line_1 = mmgr_line_over(path, capacity);
@@ -192,7 +194,8 @@ int run_path_joined(const char *first, const char *second, char *path, size_t ca
 // a limit in milliseconds from the environment, in microseconds; the fallback where it is not set or not a count
 unsigned long long run_limit(const char *name, unsigned long long fallback)
 {
-    const char *const text = getenv(name);
+    char text_text[PLATFORM_ENVIRONMENT_BYTES];
+    const char *const text = (platform_environment(name, text_text, sizeof(text_text)) != 0ULL) ? text_text : NULL;
     const char *end = NULL;
     const unsigned long long milliseconds = (text != NULL) ? mmgr_text_unsigned_in(text, &end, 10) : 0ULL;
     const int given = (text != NULL) && (end != text) && (*end == '\0') && (milliseconds != 0ULL);
@@ -237,20 +240,39 @@ int run_record_read(const char *path, char state[RUN_STATE_CAPACITY], unsigned l
     return read ? run_record_fields(line, state, numbers) : -1;
 }
 
-// the time now in UTC, as a log entry opens with it
+// The time now in UTC, as a log entry opens with it, in the form 2026-11-21T23:07:38Z. The date comes from the count
+// of days since 1970 by the eras of the calendar. Each era is 400 years, 146097 days, from the start of a March. A
+// year of an era starts in March, and so the leap day is the last day of its year.
 static void run_stamp(char *text, size_t capacity)
 {
-    const time_t now = time(NULL);
-    struct tm parts;
-#if defined(_WIN32)
-    const int ok = gmtime_s(&parts, &now) == 0;
-#else
-    const int ok = gmtime_r(&now, &parts) != NULL;
-#endif
-    if (!ok || (strftime(text, capacity, "%Y-%m-%dT%H:%M:%SZ", &parts) == 0u))
-    {
-        text[0] = '\0';
-    }
+    const unsigned long long seconds = platform_epoch_seconds();
+    const unsigned long long of_day = seconds % 86400ULL;
+    // the days from the start of March of the year 0 to the start of 1970 are 719468
+    const unsigned long long days = (seconds / 86400ULL) + 719468ULL;
+    const unsigned long long era = days / 146097ULL;
+    const unsigned long long of_era = days - (era * 146097ULL);
+    const unsigned long long year_of_era =
+        (of_era - (of_era / 1460ULL) + (of_era / 36524ULL) - (of_era / 146096ULL)) / 365ULL;
+    const unsigned long long of_year =
+        of_era - ((365ULL * year_of_era) + (year_of_era / 4ULL) - (year_of_era / 100ULL));
+    const unsigned long long from_march = ((5ULL * of_year) + 2ULL) / 153ULL;
+    const unsigned long long day = of_year - (((153ULL * from_march) + 2ULL) / 5ULL) + 1ULL;
+    const unsigned long long month = (from_march < 10ULL) ? (from_march + 3ULL) : (from_march - 9ULL);
+    const unsigned long long year = (era * 400ULL) + year_of_era + ((month <= 2ULL) ? 1ULL : 0ULL);
+    VerbaLinea line = mmgr_line_over(text, capacity);
+    mmgr_line_decimal(&line, year, 4u);
+    mmgr_line_ch(&line, '-');
+    mmgr_line_decimal(&line, month, 2u);
+    mmgr_line_ch(&line, '-');
+    mmgr_line_decimal(&line, day, 2u);
+    mmgr_line_ch(&line, 'T');
+    mmgr_line_decimal(&line, of_day / 3600ULL, 2u);
+    mmgr_line_ch(&line, ':');
+    mmgr_line_decimal(&line, (of_day / 60ULL) % 60ULL, 2u);
+    mmgr_line_ch(&line, ':');
+    mmgr_line_decimal(&line, of_day % 60ULL, 2u);
+    mmgr_line_ch(&line, 'Z');
+    (void)mmgr_line_finish(&line);
 }
 
 // an entry in the child's log, which outlives both processes where the parent did not end first, and on stderr

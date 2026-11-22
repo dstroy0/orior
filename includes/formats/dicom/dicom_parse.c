@@ -439,7 +439,15 @@ int dicom_sort(EngineError *error)
     }
     g_dicom_sorting = resident->slices;
     g_dicom_keyed = resident->keyed;
-    qsort(resident->order, (size_t)resident->count, sizeof(unsigned long long), dicom_order_slices);
+    {
+        // the room of the sort, on the temporary tier, which goes back as the sort ends
+        void *const sort_room = platform_cell_taken((unsigned long long)((size_t)resident->count) *
+                                                        (unsigned long long)(sizeof(unsigned long long)),
+                                                    platform_place_g_program_owner, 1);
+        (void)mmgr_bytes_sort(resident->order, (size_t)resident->count, sizeof(unsigned long long), dicom_order_slices,
+                              sort_room);
+        platform_cell_released(sort_room, platform_place_g_program_owner);
+    }
     g_dicom_sorting = NULL;
     return 1;
 }

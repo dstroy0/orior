@@ -127,7 +127,14 @@ int program_main(int argc, char **argv)
             }
         }
     }
-    qsort(stick, sticks, sizeof(StickKernel), stick_kernel_order);
+    {
+        // the room of the sort, on the temporary tier, which goes back as the sort ends
+        void *const sort_room =
+            platform_cell_taken((unsigned long long)(sticks) * (unsigned long long)(sizeof(StickKernel)),
+                                platform_place_g_program_owner, 1);
+        (void)mmgr_bytes_sort(stick, sticks, sizeof(StickKernel), stick_kernel_order, sort_room);
+        platform_cell_released(sort_room, platform_place_g_program_owner);
+    }
     // every name the table contains, in the order of the names, and each operation stored where it is past the room
     unsigned int *const order = (unsigned int *)stick_allocated(
         platform_cell_cleared(s_names + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0));
@@ -135,7 +142,14 @@ int program_main(int argc, char **argv)
     {
         order[at] = at;
     }
-    qsort(order, s_names, sizeof(unsigned int), stick_name_order);
+    {
+        // the room of the sort, on the temporary tier, which goes back as the sort ends
+        void *const sort_room =
+            platform_cell_taken((unsigned long long)(s_names) * (unsigned long long)(sizeof(unsigned int)),
+                                platform_place_g_program_owner, 1);
+        (void)mmgr_bytes_sort(order, s_names, sizeof(unsigned int), stick_name_order, sort_room);
+        platform_cell_released(sort_room, platform_place_g_program_owner);
+    }
     if (operations_room < s_names)
     {
         operations = (unsigned char *)stick_allocated(

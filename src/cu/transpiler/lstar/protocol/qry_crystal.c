@@ -237,7 +237,7 @@ static int qry_crystal_written(const char *qry, const char *set)
             mmgr_line_put(&buffer_line, ".npy");
             (void)mmgr_line_finish(&buffer_line);
         }
-        remove(path);
+        (void)platform_file_removed(path);
     }
     QRY_CRYSTAL_FOLDER_REMOVED(source);
     if (!whole || (differ != 0ULL))
@@ -353,7 +353,7 @@ static int qry_crystal_read(const char *set, const char *qry)
             mmgr_line_ch(&engine_note.line, '\n');
             engine_note_written(&engine_note);
         }
-        remove(qry);
+        (void)platform_file_removed(qry);
         return 0;
     }
     {

@@ -75,7 +75,7 @@ void query_logs_opened(void)
     }
     s_trace_log = &s_trace_whole;
     s_query_log = &s_log_whole;
-    atexit(query_logs_closed);
+    (void)platform_at_close(query_logs_closed);
 }
 
 // `log` passed to the run where every query is to reach it as it is written: on the thread that carries the

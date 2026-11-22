@@ -224,7 +224,10 @@ unsigned long long tessera_self_host_mask(void)
         return 0ULL;
     }
     unsigned long long reserved = TESSERA_SELF_RESERVED_CORES;
-    const char *const named = getenv("TESSERA_HOST_RESERVED_CORES");
+    char named_text[PLATFORM_ENVIRONMENT_BYTES];
+    const char *const named =
+        (platform_environment("TESSERA_HOST_RESERVED_CORES", named_text, sizeof(named_text)) != 0ULL) ? named_text
+                                                                                                      : NULL;
     if ((named != NULL) && (named[0] != '\0'))
     {
         const char *end = NULL;

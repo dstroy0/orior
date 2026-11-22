@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "body_overlap.h"
+#include "memoria_operor/memoria_linea.h"
 #include "../../../../platform/platform.h"
 
 #include <stdlib.h>
@@ -107,7 +108,12 @@ long body_overlap_host(const BodyOverlapRequest *args)
     }
     if (total != 0u)
     {
-        qsort(pairs, total, sizeof(unsigned long long), overlap_order);
+        // the room of the sort, on the temporary tier, which goes back as the sort ends
+        void *const sort_room =
+            platform_cell_taken((unsigned long long)(total) * (unsigned long long)(sizeof(unsigned long long)),
+                                platform_place_g_program_owner, 1);
+        (void)mmgr_bytes_sort(pairs, total, sizeof(unsigned long long), overlap_order, sort_room);
+        platform_cell_released(sort_room, platform_place_g_program_owner);
     }
 
     size_t distinct = 0u;

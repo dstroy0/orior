@@ -320,8 +320,12 @@ int daemon_socket_passed(void)
     return 0;
 #else
     // systemd passes one listening socket over as fd 3 and names this process as its receiver
-    const char *const listen_pid = getenv("LISTEN_PID");
-    const char *const listen_fds = getenv("LISTEN_FDS");
+    char listen_pid_text[PLATFORM_ENVIRONMENT_BYTES];
+    const char *const listen_pid =
+        (platform_environment("LISTEN_PID", listen_pid_text, sizeof(listen_pid_text)) != 0ULL) ? listen_pid_text : NULL;
+    char listen_fds_text[PLATFORM_ENVIRONMENT_BYTES];
+    const char *const listen_fds =
+        (platform_environment("LISTEN_FDS", listen_fds_text, sizeof(listen_fds_text)) != 0ULL) ? listen_fds_text : NULL;
     return (listen_pid != NULL) && (listen_fds != NULL) &&
            (mmgr_text_unsigned_in(listen_pid, NULL, 10) == (unsigned long long)getpid()) &&
            (mmgr_text_equal(listen_fds, "1", PLATFORM_TEXT_TO_TERMINATOR));

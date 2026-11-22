@@ -200,7 +200,7 @@ static int ksg_sealed(const char *path)
     ksg_print(path);
     if (!whole)
     {
-        (void)remove(s_part);
+        (void)platform_file_removed(s_part);
         ksg_print(": it could not be read or its seal written\n");
         return 0;
     }

@@ -39,7 +39,7 @@ static void lng_check_read(const char *path)
             mmgr_line_ch(&engine_note.line, '\n');
             engine_note_written(&engine_note);
         }
-        exit(2);
+        platform_process_ended(2);
     }
 }
 

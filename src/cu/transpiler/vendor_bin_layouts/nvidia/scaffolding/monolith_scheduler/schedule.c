@@ -218,7 +218,14 @@ int scheduler_record(const char *path)
     {
         return 0;
     }
-    qsort(s_operation, s_operations, sizeof(s_operation[0]), scheduler_by_count);
+    {
+        // the room of the sort, on the temporary tier, which goes back as the sort ends
+        void *const sort_room =
+            platform_cell_taken((unsigned long long)(s_operations) * (unsigned long long)(sizeof(s_operation[0])),
+                                platform_place_g_program_owner, 1);
+        (void)mmgr_bytes_sort(s_operation, s_operations, sizeof(s_operation[0]), scheduler_by_count, sort_room);
+        platform_cell_released(sort_room, platform_place_g_program_owner);
+    }
     {
         mmgr_line_put(platform_file_line(out), "# The scheduler's bits NVIDIA's compiler writes\n\n");
     }

@@ -310,6 +310,26 @@ unsigned long long platform_process_id(void)
     return (unsigned long long)GetCurrentProcessId();
 }
 
+// the 100 ns ticks of the system's time from the start of 1601 to the start of 1970
+#define PLATFORM_EPOCH_TICKS 116444736000000000ULL
+
+unsigned long long platform_epoch_seconds(void)
+{
+    FILETIME now;
+    GetSystemTimeAsFileTime(&now);
+    // Explicit casts carry the two halves of the 100 ns ticks into one word
+    const unsigned long long ticks =
+        ((unsigned long long)now.dwHighDateTime << 32u) | (unsigned long long)now.dwLowDateTime;
+    return (ticks > PLATFORM_EPOCH_TICKS) ? ((ticks - PLATFORM_EPOCH_TICKS) / 10000000ULL) : 0ULL;
+}
+
+void platform_process_ended(int code)
+{
+    platform_close();
+    // Explicit cast carries the exit code to the unsigned code of the system, as the C library carries it
+    ExitProcess((UINT)code);
+}
+
 void *platform_library_opened(const char *name)
 {
     // the call keeps a module handle as a plain pointer, as the other systems keep theirs
@@ -330,6 +350,21 @@ void platform_library_closed(void *library)
 
 long platform_program_run(const char *const *arguments, const char *log)
 {
+    return platform_program_run_in(arguments, NULL, log, NULL, 0);
+}
+
+// a file of the output of a program, open for the program to write and to pass on. The call makes or replaces it, or
+// writes after its end where `append` is 1
+static HANDLE platform_run_file(const char *path, int append)
+{
+    SECURITY_ATTRIBUTES inherited = {sizeof(SECURITY_ATTRIBUTES), NULL, TRUE};
+    return CreateFileA(path, (append != 0) ? FILE_APPEND_DATA : GENERIC_WRITE, FILE_SHARE_READ, &inherited,
+                       (append != 0) ? OPEN_ALWAYS : CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+}
+
+long platform_program_run_in(const char *const *arguments, const char *folder, const char *output, const char *errors,
+                             int append)
+{
     // the command line: each argument in quotes, a space between them
     unsigned long long length = 1ULL;
     for (unsigned long long at = 0ULL; arguments[at] != NULL; at += 1ULL)
@@ -349,22 +384,30 @@ long platform_program_run(const char *const *arguments, const char *log)
         mmgr_line_ch(&command, '"');
     }
     (void)mmgr_line_finish(&command);
-    SECURITY_ATTRIBUTES inherited = {sizeof(SECURITY_ATTRIBUTES), NULL, TRUE};
-    const HANDLE output =
-        CreateFileA(log, GENERIC_WRITE, FILE_SHARE_READ, &inherited, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-    if (output == INVALID_HANDLE_VALUE)
+    const HANDLE out_file = platform_run_file(output, append);
+    const HANDLE error_file = (errors != NULL) ? platform_run_file(errors, append) : out_file;
+    if ((out_file == INVALID_HANDLE_VALUE) || (error_file == INVALID_HANDLE_VALUE))
     {
+        if (out_file != INVALID_HANDLE_VALUE)
+        {
+            (void)CloseHandle(out_file);
+        }
+        if ((errors != NULL) && (error_file != INVALID_HANDLE_VALUE))
+        {
+            (void)CloseHandle(error_file);
+        }
         platform_cell_released(line, (unsigned int)platform_place_g_program_owner);
         return -1L;
     }
     STARTUPINFOA startup = {sizeof(STARTUPINFOA)};
     startup.dwFlags = STARTF_USESTDHANDLES;
     startup.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
-    startup.hStdOutput = output;
-    startup.hStdError = output;
+    startup.hStdOutput = out_file;
+    startup.hStdError = error_file;
     PROCESS_INFORMATION process = {NULL, NULL, 0u, 0u};
     DWORD status = 1u;
-    const BOOL started = CreateProcessA(NULL, line, NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &startup, &process);
+    const BOOL started =
+        CreateProcessA(NULL, line, NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, folder, &startup, &process);
     if (started)
     {
         (void)WaitForSingleObject(process.hProcess, INFINITE);
@@ -372,7 +415,11 @@ long platform_program_run(const char *const *arguments, const char *log)
         (void)CloseHandle(process.hThread);
         (void)CloseHandle(process.hProcess);
     }
-    (void)CloseHandle(output);
+    (void)CloseHandle(out_file);
+    if (errors != NULL)
+    {
+        (void)CloseHandle(error_file);
+    }
     platform_cell_released(line, (unsigned int)platform_place_g_program_owner);
     // an exit code of the system is a DWORD, and a long holds every code that a program returns
     return started ? (long)status : -1L;

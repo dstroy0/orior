@@ -86,7 +86,15 @@ int zip_archive_index(ZipArchive *archive, EngineError *error)
         }
     }
     s_zip_sorting = archive->directory;
-    qsort(entry_at, (size_t)archive->entries, sizeof(unsigned long long), zip_order_entries);
+    {
+        // the room of the sort, on the temporary tier, which goes back as the sort ends
+        void *const sort_room = platform_cell_taken((unsigned long long)((size_t)archive->entries) *
+                                                        (unsigned long long)(sizeof(unsigned long long)),
+                                                    platform_place_g_program_owner, 1);
+        (void)mmgr_bytes_sort(entry_at, (size_t)archive->entries, sizeof(unsigned long long), zip_order_entries,
+                              sort_room);
+        platform_cell_released(sort_room, platform_place_g_program_owner);
+    }
     s_zip_sorting = NULL;
     platform_cell_released(archive->entry_at, platform_place_g_program_owner);
     archive->entry_at = entry_at;

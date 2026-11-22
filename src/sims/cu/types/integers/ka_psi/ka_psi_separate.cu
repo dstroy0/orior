@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // ka_psi_separate.cu: wide arithmetic, the grid and separation
 #include "ka_psi_internal.h"
+#include "memoria_operor/memoria_linea.h"
 #include "../../../../../platform/platform.h"
 
 void psi_all_scales(SimResults *results, const PsiCase *psi_case, const PsiScale *scale, unsigned long long tilt,
@@ -325,7 +326,14 @@ void psi_separate(SimResults *results, const PsiCase *psi_case, const PsiScale *
         // count is at max 10^6
         images[index].index = (unsigned int)index;
     }
-    qsort(images, (size_t)count, sizeof(PsiImage), psi_image_order);
+    {
+        // the room of the sort, on the temporary tier, which goes back as the sort ends
+        void *const sort_room =
+            platform_cell_taken((unsigned long long)((size_t)count) * (unsigned long long)(sizeof(PsiImage)),
+                                platform_place_g_program_owner, 1);
+        (void)mmgr_bytes_sort(images, (size_t)count, sizeof(PsiImage), psi_image_order, sort_room);
+        platform_cell_released(sort_room, platform_place_g_program_owner);
+    }
     PsiWide least = psi_wide_difference(images[1].value, images[0].value);
     unsigned long long least_at = 0ULL;
     for (unsigned long long at = 1ULL; (at + 1ULL) < count; at += 1ULL)
@@ -455,7 +463,14 @@ void psi_separate(SimResults *results, const PsiCase *psi_case, const PsiScale *
         }
         images[index].value = sum;
     }
-    qsort(images, (size_t)count, sizeof(PsiImage), psi_image_order);
+    {
+        // the room of the sort, on the temporary tier, which goes back as the sort ends
+        void *const sort_room =
+            platform_cell_taken((unsigned long long)((size_t)count) * (unsigned long long)(sizeof(PsiImage)),
+                                platform_place_g_program_owner, 1);
+        (void)mmgr_bytes_sort(images, (size_t)count, sizeof(PsiImage), psi_image_order, sort_room);
+        platform_cell_released(sort_room, platform_place_g_program_owner);
+    }
     PsiWide truncated = psi_wide_difference(images[1].value, images[0].value);
     for (unsigned long long at = 1ULL; (at + 1ULL) < count; at += 1ULL)
     {
