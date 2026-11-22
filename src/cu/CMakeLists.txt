@@ -48,7 +48,7 @@ endif()
 # the engine take their cells from that pool. The target orior_platform_library is that platform with no main, for a
 # library. The target orior_platform adds main and the process stage. Every executable links it and defines
 # program_main
-set(ORIOR_PLATFORM_LIBRARY_SOURCES ${ORIOR_ROOT}/src/platform/platform_pool.c
+set(ORIOR_PLATFORM_LIBRARY_SOURCES ${ORIOR_ROOT}/src/platform/platform_pool.c ${ORIOR_ROOT}/src/platform/platform_file.c
     ${ORIOR_ROOT}/src/platform/platform_windows.c ${ORIOR_ROOT}/src/platform/platform_posix.c)
 add_library(orior_platform_library STATIC ${ORIOR_PLATFORM_LIBRARY_SOURCES})
 target_include_directories(orior_platform_library PUBLIC ${ORIOR_ROOT}/src/platform)

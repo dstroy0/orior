@@ -171,6 +171,77 @@ int platform_file_read(const char *path, void *out, unsigned long long capacity,
 // `count` bytes of `data` written to the file at `path`, which the call makes or replaces: 1 where every byte went
 int platform_file_written(const char *path, const void *data, unsigned long long count);
 
+// ---- a file as a stream ----
+
+// the bytes a file holds between the program and the system
+#define PLATFORM_FILE_BUFFER_BYTES 16384u
+
+// the answer of a write or a read of a file that did not go, as EOF is the C library's
+#define PLATFORM_FILE_END (-1)
+
+// A file open as a stream. A file written holds a line of MMgr over its buffer, and the line passes the buffer to the
+// system as it fills. A file read holds the bytes it read last in the same buffer. A text file has a mode with no b.
+// On Windows it writes a line's end as two bytes and reads the two back as one, as the C library does there
+typedef struct
+{
+    VerbaLinea line;           // The line of a file written.
+    unsigned long long handle; // The file of the system.
+    int writing;               // One for a file written, and 0 for a file read.
+    int text;                  // One for a text file on Windows.
+
+    int failed;   // One once a write or a read of the system failed.
+    int ended;    // One once a read met the end of the file.
+    size_t held;  // The bytes of the buffer that a read holds.
+    size_t taken; // The bytes of those that the program took.
+    char buffer[PLATFORM_FILE_BUFFER_BYTES];
+} PlatformFile;
+
+// The file at `path` open in `mode`. An r reads it, a w writes it made new, and an a writes after its end. A b after
+// any of them reads or writes its bytes as they are. The answer is the file, a cell of the pool. It is NULL where the
+// mode is none of these or the system refused
+PlatformFile *platform_file_open(const char *path, const char *mode);
+
+// What a file written holds goes to the system, and then the file closes and its cell goes back. The answer is 0, or
+// PLATFORM_FILE_END where a write or the close failed. NULL is no file and answers PLATFORM_FILE_END
+int platform_file_close(PlatformFile *file);
+
+// the line of a file written, which a program writes the file through [BORROWS]
+VerbaLinea *platform_file_line(PlatformFile *file);
+
+// `count` items of `size` bytes from `bytes` written to the file: the count of whole items that went, as fwrite answers
+size_t platform_file_write_items(const void *bytes, size_t size, size_t count, PlatformFile *file);
+
+// at max `count` items of `size` bytes read into `out`: the count of whole items read, as fread answers
+size_t platform_file_read_items(void *out, size_t size, size_t count, PlatformFile *file);
+
+// a terminated text written to the file: 0, or PLATFORM_FILE_END where it did not go, as fputs answers
+int platform_file_text_put(const char *text, PlatformFile *file);
+
+// one byte written to the file: the byte, or PLATFORM_FILE_END where it did not go, as fputc answers
+int platform_file_char_put(int character, PlatformFile *file);
+
+// Bytes read into `out` up to a line's end, which it keeps, or `capacity` less one of them, and a terminator after
+// them. The answer is `out`, or NULL where the read met the end of the file or failed before any byte, as fgets
+// answers
+char *platform_file_text_read(char *out, int capacity, PlatformFile *file);
+
+// what a file written holds passed to the system: 0, or PLATFORM_FILE_END where it did not go, as fflush answers
+int platform_file_flush(PlatformFile *file);
+
+// The place of the file moved to `offset`, as fseek moves it. A `whence` of 0 counts from the start, 1 from the place
+// now and 2 from the end. The answer is 0, or -1 where the system refused. The end of the file is no longer met after
+// a move
+int platform_file_seek(PlatformFile *file, long long offset, int whence);
+
+// the place of the file, as ftell answers it: the bytes before the next write or read, or -1 where the system refused
+long long platform_file_tell(PlatformFile *file);
+
+// 1 once a write or a read of the file failed, as ferror answers
+int platform_file_failed(const PlatformFile *file);
+
+// 1 once a read met the end of the file, as feof answers
+int platform_file_ended(const PlatformFile *file);
+
 // the file at `from` moved to `to`, in place of any file there: 1, or 0 where the system refused
 int platform_file_moved(const char *from, const char *to);
 

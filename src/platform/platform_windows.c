@@ -229,6 +229,62 @@ int platform_file_written(const char *path, const void *data, unsigned long long
     return ok;
 }
 
+unsigned long long platform_stream_opened(const char *path, int kind)
+{
+    const DWORD access = (kind == 0) ? GENERIC_READ : ((kind == 1) ? GENERIC_WRITE : FILE_APPEND_DATA);
+    const DWORD disposition = (kind == 0) ? OPEN_EXISTING : ((kind == 1) ? CREATE_ALWAYS : OPEN_ALWAYS);
+    const HANDLE file = CreateFileA(path, access, FILE_SHARE_READ, NULL, disposition, FILE_ATTRIBUTE_NORMAL, NULL);
+    // Explicit cast carries the handle as the integer that platform_file.c holds, and a handle is never 0
+    return (file == INVALID_HANDLE_VALUE) ? 0ULL : (unsigned long long)(uintptr_t)file;
+}
+
+unsigned long long platform_stream_put(unsigned long long handle, const void *bytes, unsigned long long count)
+{
+    // Explicit casts read the integer back as the handle and the source as its bytes
+    const HANDLE file = (HANDLE)(uintptr_t)handle;
+    const char *const from = (const char *)bytes;
+    unsigned long long put = 0ULL;
+    while (put < count)
+    {
+        // a piece is a gibibyte at max, which a DWORD counts
+        const DWORD piece = (DWORD)(((count - put) < (1ULL << 30u)) ? (count - put) : (1ULL << 30u));
+        DWORD wrote = 0u;
+        if ((WriteFile(file, from + put, piece, &wrote, NULL) == 0) || (wrote == 0u))
+        {
+            return put;
+        }
+        put += wrote;
+    }
+    return put;
+}
+
+unsigned long long platform_stream_got(unsigned long long handle, void *out, unsigned long long capacity)
+{
+    // Explicit cast reads the integer back as the handle
+    const HANDLE file = (HANDLE)(uintptr_t)handle;
+    // a piece is a gibibyte at max, which a DWORD counts
+    const DWORD piece = (DWORD)((capacity < (1ULL << 30u)) ? capacity : (1ULL << 30u));
+    DWORD read = 0u;
+    return (ReadFile(file, out, piece, &read, NULL) != 0) ? (unsigned long long)read : 0ULL;
+}
+
+long long platform_stream_placed(unsigned long long handle, long long offset, int whence)
+{
+    // Explicit cast reads the integer back as the handle
+    const HANDLE file = (HANDLE)(uintptr_t)handle;
+    LARGE_INTEGER distance;
+    LARGE_INTEGER placed;
+    distance.QuadPart = offset;
+    const DWORD method = (whence == 0) ? FILE_BEGIN : ((whence == 1) ? FILE_CURRENT : FILE_END);
+    return (SetFilePointerEx(file, distance, &placed, method) != 0) ? (long long)placed.QuadPart : -1LL;
+}
+
+int platform_stream_shut(unsigned long long handle)
+{
+    // Explicit cast reads the integer back as the handle
+    return CloseHandle((HANDLE)(uintptr_t)handle) != 0;
+}
+
 int platform_file_moved(const char *from, const char *to)
 {
     return MoveFileExA(from, to, MOVEFILE_REPLACE_EXISTING) != 0;

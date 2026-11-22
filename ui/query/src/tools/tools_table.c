@@ -38,8 +38,8 @@ const char *const g_query_mmgr[] = {
     // the platform: main and the process stage, the pool, and the calls into the system. It defines the host's
     // address wait, wake and clock, which the turnstiles of LocusCarcerum sleep, wake and stamp through. Every program
     // defines program_main and no main
-    "src/platform/platform_process.c", "src/platform/platform_pool.c", "src/platform/platform_windows.c",
-    "src/platform/platform_posix.c", NULL};
+    "src/platform/platform_process.c", "src/platform/platform_pool.c", "src/platform/platform_file.c",
+    "src/platform/platform_windows.c", "src/platform/platform_posix.c", NULL};
 
 // MMgr's include folders, from the top of the tree, and the settings it is built with, given every compile
 const char *const g_query_mmgr_includes[] = {"includes/mmgr/include", "includes/mmgr/src",

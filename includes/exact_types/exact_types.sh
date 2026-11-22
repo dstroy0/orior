@@ -18,7 +18,8 @@ EXACT_TYPES_RECORD=("$EXACT_TYPES_TOP/integers/exact_record/exact_record.c")
 
 # the platform of a library: the pool, the owners, and the calls into the system. The process that loads the library
 # runs the process stage, platform_open of platform.h, before its first call into it
-EXACT_TYPES_PLATFORM_LIBRARY=("$EXACT_TYPES_REPO/src/platform/platform_pool.c" "$EXACT_TYPES_REPO/src/platform/platform_windows.c"
+EXACT_TYPES_PLATFORM_LIBRARY=("$EXACT_TYPES_REPO/src/platform/platform_pool.c" "$EXACT_TYPES_REPO/src/platform/platform_file.c"
+    "$EXACT_TYPES_REPO/src/platform/platform_windows.c"
     "$EXACT_TYPES_REPO/src/platform/platform_posix.c")
 
 # the platform of a program: main and the process stage, and the platform of a library. A program that links them

@@ -28,4 +28,22 @@ void platform_thread_yield(void);
 // the processors that the system runs threads on, 1 at the fewest
 unsigned int platform_processors(void);
 
+// A file of the system, on the handle that platform_file.c holds. A kind of 0 reads the file. A kind of 1 writes a
+// file made new in place of any file there. A kind of 2 writes after the end of the file, which the call makes where
+// none is there. The answer is the handle, and 0 where the system refused
+unsigned long long platform_stream_opened(const char *path, int kind);
+
+// `count` bytes of `bytes` written to the file: the count that went, `count` where every byte went
+unsigned long long platform_stream_put(unsigned long long handle, const void *bytes, unsigned long long count);
+
+// at max `capacity` bytes of the file into `out`: the count read, and 0 at the end of the file or where the read failed
+unsigned long long platform_stream_got(unsigned long long handle, void *out, unsigned long long capacity);
+
+// The place of the file moved to `offset`. A `whence` of 0 counts from the start, 1 from the place now and 2 from the
+// end. The answer is the place after the move, and -1 where the system refused
+long long platform_stream_placed(unsigned long long handle, long long offset, int whence);
+
+// the file of the handle closed: 1, or 0 where the system refused
+int platform_stream_shut(unsigned long long handle);
+
 #endif

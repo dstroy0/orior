@@ -278,6 +278,57 @@ int platform_file_written(const char *path, const void *data, unsigned long long
     return ok;
 }
 
+unsigned long long platform_stream_opened(const char *path, int kind)
+{
+    // the flags of fopen for r, w and a, and the mode fopen gives a file it makes, which the umask then narrows
+    const int flags =
+        (kind == 0) ? O_RDONLY : ((kind == 1) ? (O_WRONLY | O_CREAT | O_TRUNC) : (O_WRONLY | O_CREAT | O_APPEND));
+    const int file = open(path, flags, 0666);
+    // Explicit cast carries the descriptor one up as the handle. A descriptor of 0 is a handle of 1
+    return (file < 0) ? 0ULL : (unsigned long long)file + 1ULL;
+}
+
+unsigned long long platform_stream_put(unsigned long long handle, const void *bytes, unsigned long long count)
+{
+    // Explicit casts read the handle back as the descriptor and the source as its bytes
+    const int file = (int)(handle - 1ULL);
+    const char *const from = (const char *)bytes;
+    unsigned long long put = 0ULL;
+    while (put < count)
+    {
+        const ssize_t wrote = write(file, from + put, (size_t)(count - put));
+        if (wrote <= 0)
+        {
+            return put;
+        }
+        // a write that put bytes answers a positive count
+        put += (unsigned long long)wrote;
+    }
+    return put;
+}
+
+unsigned long long platform_stream_got(unsigned long long handle, void *out, unsigned long long capacity)
+{
+    // Explicit cast reads the handle back as the descriptor
+    const ssize_t read_count = read((int)(handle - 1ULL), out, (size_t)capacity);
+    // a read that took bytes answers a positive count
+    return (read_count > 0) ? (unsigned long long)read_count : 0ULL;
+}
+
+long long platform_stream_placed(unsigned long long handle, long long offset, int whence)
+{
+    const int from = (whence == 0) ? SEEK_SET : ((whence == 1) ? SEEK_CUR : SEEK_END);
+    // Explicit casts read the handle back as the descriptor and carry the place in the system's width
+    const off_t placed = lseek((int)(handle - 1ULL), (off_t)offset, from);
+    return (placed < 0) ? -1LL : (long long)placed;
+}
+
+int platform_stream_shut(unsigned long long handle)
+{
+    // Explicit cast reads the handle back as the descriptor
+    return close((int)(handle - 1ULL)) == 0;
+}
+
 int platform_file_moved(const char *from, const char *to)
 {
     return rename(from, to) == 0;
