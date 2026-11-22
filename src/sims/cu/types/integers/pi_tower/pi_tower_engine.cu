@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pi_tower_engine.cu: the engine, depth and requests
 #include "pi_tower_internal.h"
+#include "../../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 // 13 and 14 on the engine: position 0 and Bailey's, and the tower's deepest resolution requested. 15, a segment, is a
@@ -129,10 +130,10 @@ void pi_tower_deep(SimResults *results, int count, char **arguments, const PiWid
     mmgr_line_put(&results->line, ", on the engine\n");
     sim_flush(results);
     g_pi_tower_stopped = 0;
-    void (*const was)(int) = signal(SIGINT, pi_tower_stop);
+    const PlatformSignalHandler was = platform_signal_handled(SIGINT, pi_tower_stop);
     PiTowerBbpRun run;
     const int ran = pi_tower_bbp_sum(results, &bbp, 1, &run);
-    signal(SIGINT, was);
+    (void)platform_signal_handled(SIGINT, was);
     pi_tower_bbp_progress(results, &bbp, &run);
     const unsigned int certified = ((ran != 0) && (run.finished != 0)) ? pi_tower_bbp_certified(&bbp, run.sum) : 0u;
     pi_tower_bbp_print(results, &bbp, &run, certified);

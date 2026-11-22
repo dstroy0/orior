@@ -414,7 +414,8 @@ unsigned long long qry_member_streamed(const char *name, const void *bytes, unsi
     const char *const qry = qry_member_path();
     const size_t length = mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR);
     const size_t qry_length = (qry != NULL) ? mmgr_text_length(qry, PLATFORM_TEXT_TO_TERMINATOR) : 0u;
-    if ((qry == NULL) || (length == 0u) || (length >= QRY_NAME_MAX_LEN) || (strpbrk(name, "/\\:") != NULL) ||
+    if ((qry == NULL) || (length == 0u) || (length >= QRY_NAME_MAX_LEN) ||
+        ((name[mmgr_text_span_not(name, "/\\:", PLATFORM_TEXT_TO_TERMINATOR)] != '\0')) ||
         ((qry_length + 1u + length) >= room))
     {
         return 0ULL;

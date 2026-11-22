@@ -116,23 +116,10 @@ int sass_cubin_answer_toolchain(SassProbe *probe, const char *path, char *answer
     return sass_cubin_run(probe, path, 0x0000000bu, answered, room);
 }
 
-// `name` set to `value` in this process's environment, which the runner it starts inherits. MSVC defines putenv with
-// an underscore and warns on the other; POSIX has setenv and takes the two apart
+// `name` set to `value` in this process's environment, which the runner it starts inherits
 void sass_environment(const char *name, const char *value)
 {
-#if defined(_WIN32)
-    char both[64];
-    {
-        VerbaLinea buffer_line = mmgr_line_over(both, sizeof(both));
-        mmgr_line_put(&buffer_line, name);
-        mmgr_line_put(&buffer_line, "=");
-        mmgr_line_put(&buffer_line, value);
-        (void)mmgr_line_finish(&buffer_line);
-    }
-    _putenv(both);
-#else
-    setenv(name, value, 1);
-#endif
+    (void)platform_environment_set(name, value);
 }
 
 // The nanoseconds a run took, as the runner timed it by the host's clock, or 0 where it printed none. The runner

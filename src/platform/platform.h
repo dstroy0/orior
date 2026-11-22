@@ -166,6 +166,17 @@ void platform_array_ended(PlatformArray *array);
 // or 0 where the process has no such variable, where its value is empty, or where the value does not fit
 unsigned long long platform_environment(const char *name, char *out, unsigned long long capacity);
 
+// The environment variable `name` set to `value`, for this process and the programs that it runs from now on. The
+// answer is 1, or 0 where the system refused
+int platform_environment_set(const char *name, const char *value);
+
+// a handler of a signal, which hears the number of the signal
+typedef void (*PlatformSignalHandler)(int number);
+
+// The signal `number` heard by `handler` from now on, as signal sets it. SIG_IGN ignores the signal, and SIG_DFL
+// gives it back to the system. The answer is the handler before, as signal answers it
+PlatformSignalHandler platform_signal_handled(int number, PlatformSignalHandler handler);
+
 // the bytes of the buffer that a value of the environment goes into, and of one that a search path goes into
 #define PLATFORM_ENVIRONMENT_BYTES 4096u
 #define PLATFORM_ENVIRONMENT_PATH_BYTES 32768u

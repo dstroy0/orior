@@ -70,7 +70,8 @@ static char *interface_command_line(const char *program, char *const *words, cha
             line[length] = ' ';
             length += 1u;
         }
-        const int quoted = (word[0] == '\0') || (strpbrk(word, " \t\n\v\"") != NULL);
+        const int quoted =
+            (word[0] == '\0') || ((word[mmgr_text_span_not(word, " \t\n\v\"", PLATFORM_TEXT_TO_TERMINATOR)] != '\0'));
         if (!quoted)
         {
             mmgr_bytes_copy(line + length, word, mmgr_text_length(word, PLATFORM_TEXT_TO_TERMINATOR));
@@ -113,7 +114,7 @@ static const char *interface_program_found(const char *program, char *found, siz
     static char s_path[32768];
     const DWORD length_path = GetEnvironmentVariableA("PATH", s_path, (DWORD)sizeof(s_path));
     const char *const path = ((length_path != 0u) && (length_path < sizeof(s_path))) ? s_path : NULL;
-    if ((strpbrk(program, "\\/:") != NULL) || (path == NULL))
+    if (((program[mmgr_text_span_not(program, "\\/:", PLATFORM_TEXT_TO_TERMINATOR)] != '\0')) || (path == NULL))
     {
         return program;
     }

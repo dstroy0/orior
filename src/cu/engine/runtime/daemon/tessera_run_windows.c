@@ -5,6 +5,7 @@
 #include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 
 #if (defined(_WIN32))
 _Alignas(8) static const char s_run_unjoined[] =
@@ -33,7 +34,8 @@ static char *run_command_line(const char *program, char *const *words, int count
             line[length] = ' ';
             length += 1u;
         }
-        const int quoted = (word[0] == '\0') || (strpbrk(word, " \t\n\v\"") != NULL);
+        const int quoted =
+            (word[0] == '\0') || ((word[mmgr_text_span_not(word, " \t\n\v\"", PLATFORM_TEXT_TO_TERMINATOR)] != '\0'));
         if (!quoted)
         {
             mmgr_bytes_copy(line + length, word, mmgr_text_length(word, PLATFORM_TEXT_TO_TERMINATOR));
@@ -75,7 +77,7 @@ static const char *run_program_found(const char *program, char *found, size_t ca
 {
     char path_text[PLATFORM_ENVIRONMENT_PATH_BYTES];
     const char *const path = (platform_environment("PATH", path_text, sizeof(path_text)) != 0ULL) ? path_text : NULL;
-    if ((strpbrk(program, "\\/:") != NULL) || (path == NULL))
+    if (((program[mmgr_text_span_not(program, "\\/:", PLATFORM_TEXT_TO_TERMINATOR)] != '\0')) || (path == NULL))
     {
         return program;
     }
@@ -106,7 +108,10 @@ int run_names_wsl(const char *program)
     {
         base = ((*walk == '\\') || (*walk == '/')) ? (walk + 1) : base;
     }
-    return (_stricmp(base, "wsl.exe") == 0) || (_stricmp(base, "wsl") == 0);
+    return (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = base, .other = "wsl.exe", .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .ci = EMBED_TRUE)) ||
+           (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = base, .other = "wsl", .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .ci = EMBED_TRUE));
 }
 
 // a path on a drive as WSL mounts it, X:\a\b as /mnt/x/a/b; 0 for a path on no drive character
@@ -157,7 +162,8 @@ int run_wsl_program(char *mounted, size_t capacity)
     char path[ENGINE_PATH_CAPACITY];
     const size_t length = run_own_path(path, sizeof(path));
     // the Linux program is this one's name without its extension
-    if ((length < 4u) || (_stricmp(path + length - 4u, ".exe") != 0))
+    if ((length < 4u) || (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = path + length - 4u, .other = ".exe",
+                                      .cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_TRUE)))
     {
         return 0;
     }

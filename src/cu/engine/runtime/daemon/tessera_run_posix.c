@@ -35,7 +35,7 @@ int run_processors_named(unsigned long long processors)
     mmgr_line_decimal(&formed_line_1, processors, 1u);
     (void)mmgr_line_finish(&formed_line_1);
     const int written = (int)formed_line_1.at;
-    return (written > 0) && (setenv("TESSERA_RUN_PROCESSORS", text, 1) == 0);
+    return (written > 0) && platform_environment_set("TESSERA_RUN_PROCESSORS", text);
 }
 
 int run_start(RunChild *child, char *const *words, int count, unsigned long long mask, RunChannel *channel)
@@ -96,9 +96,9 @@ int run_start(RunChild *child, char *const *words, int count, unsigned long long
 #endif
     // an interrupt or a hangup from the terminal reaches the command, which ends. This process waits for it, then
     // releases its job or writes its last record
-    signal(SIGINT, SIG_IGN);
-    signal(SIGQUIT, SIG_IGN);
-    signal(SIGHUP, SIG_IGN);
+    (void)platform_signal_handled(SIGINT, SIG_IGN);
+    (void)platform_signal_handled(SIGQUIT, SIG_IGN);
+    (void)platform_signal_handled(SIGHUP, SIG_IGN);
     return 1;
 }
 

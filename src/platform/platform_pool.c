@@ -8,6 +8,7 @@
 
 #include "memoria_operor/memoria_operor.h"
 
+#include <signal.h>
 #include <stdlib.h>
 
 // The pool. Its bytes come from the system at the process stage, outside the image of the program, and the record of
@@ -484,6 +485,11 @@ void platform_array_ended(PlatformArray *array)
     array->cell = NULL;
     array->count = 0ULL;
     array->room = 0ULL;
+}
+
+PlatformSignalHandler platform_signal_handled(int number, PlatformSignalHandler handler)
+{
+    return signal(number, handler);
 }
 
 unsigned long long platform_clock_ns(void)
