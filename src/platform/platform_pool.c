@@ -396,6 +396,60 @@ void *platform_cell_grown(void *cell, unsigned long long held, unsigned long lon
     return grown;
 }
 
+const void *platform_movable_taken(unsigned long long bytes, unsigned int place)
+{
+    if (place >= (unsigned int)platform_place_count)
+    {
+        return NULL;
+    }
+    const CellOwner *const owner = &mmgr_owner_table[place];
+    const CarcerMovableEntry *const cell = g_platform_guard->movable_buf_alloc((size_t)bytes, owner);
+    if ((cell == NULL) && (bytes != 0ULL))
+    {
+        platform_cell_refused(bytes, PLATFORM_TIER_MOVABLE, owner);
+    }
+    return cell;
+}
+
+int platform_movable_written(const void *cell, unsigned long long offset, const void *from, unsigned long long count)
+{
+    // Explicit cast reads the handle as the entry of the pool that it is
+    return (cell != NULL) &&
+           g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = (const CarcerMovableEntry *)cell,
+                                                                   .offset = (size_t)offset,
+                                                                   .src = from,
+                                                                   .bytes = (size_t)count});
+}
+
+int platform_movable_read(const void *cell, unsigned long long offset, void *into, unsigned long long count)
+{
+    // Explicit cast reads the handle as the entry of the pool that it is
+    return (cell != NULL) &&
+           g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = (const CarcerMovableEntry *)cell,
+                                                                  .offset = (size_t)offset,
+                                                                  .dst = into,
+                                                                  .bytes = (size_t)count});
+}
+
+int platform_movable_same(const void *cell, unsigned long long offset, const void *bytes, unsigned long long count)
+{
+    // Explicit cast reads the handle as the entry of the pool that it is
+    return (cell != NULL) &&
+           (g_platform_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = (const CarcerMovableEntry *)cell,
+                                                                      .offset = (size_t)offset,
+                                                                      .src = bytes,
+                                                                      .bytes = (size_t)count}) == 0);
+}
+
+void platform_movable_released(const void *cell, unsigned int place)
+{
+    if ((cell != NULL) && (place < (unsigned int)platform_place_count) && (s_pool_bytes != 0ULL))
+    {
+        // Explicit cast reads the handle as the entry of the pool that it is
+        (void)g_platform_guard->movable_buf_release((const CarcerMovableEntry *)cell, &mmgr_owner_table[place]);
+    }
+}
+
 // the bytes that a text begins with. The flush doubles the cell toward its max as the writes come
 #define PLATFORM_TEXT_FIRST (4ULL << 10u)
 

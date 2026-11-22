@@ -94,14 +94,15 @@ struct CycleTarget
 // `holders` counts the loaded records that reference it, and the last release unloads it
 struct CycleCompiledProgram
 {
-    char *source;
+    const void *source;
     unsigned long long length;
     cudaLibrary_t library;
     cudaKernel_t kernel;
     unsigned long long holders;
 };
 
-// bytes in one cell of the pool, `count` of them: an image built from a source, or a text the device wrote
+// `count` bytes in a cell of the temporary tier, an image built from a source, which the caller gives back before its
+// work ends
 struct CycleImage
 {
     unsigned char *bytes;
@@ -114,6 +115,10 @@ int cycle_image_taken(CycleImage *image, const void *from, unsigned long long co
 
 // the cell of `image` given back, and the image empty
 void cycle_image_ended(CycleImage *image);
+
+// `count` bytes of `from` that the process keeps, in a movable cell of their own with a byte 0 after them. The
+// handle, or NULL where the pool cannot meet the cell
+const void *cycle_kept(const void *from, unsigned long long count);
 
 int cycle_environment_set(const char *name);
 

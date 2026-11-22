@@ -25,7 +25,7 @@ int cycle_cache_read(const char *path, const char *source, unsigned long long le
         return 0;
     }
     PlatformText contents;
-    platform_text_begun(&contents, CYCLE_CACHE_FILE_MAX, platform_place_g_program_owner, 0);
+    platform_text_begun(&contents, CYCLE_CACHE_FILE_MAX, platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     char block[65536];
     size_t read = platform_file_read_items(block, 1u, sizeof(block), file);
     while (read != 0u)
@@ -128,7 +128,8 @@ int cycle_program_compile(const char *source, const char *name, int major, int m
     const nvrtcResult sized = (lto != 0) ? compiler->ltoir_size(program, &size) : compiler->cubin_size(program, &size);
     if ((compiled == NVRTC_SUCCESS) && (sized == NVRTC_SUCCESS) && (size != 0u))
     {
-        image->bytes = (unsigned char *)platform_cell_taken(size, platform_place_g_program_owner, 0);
+        image->bytes =
+            (unsigned char *)platform_cell_taken(size, platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
         // NVRTC writes the image as its own bytes, which a char pointer reads
         const nvrtcResult taken = (image->bytes == NULL) ? NVRTC_ERROR_OUT_OF_MEMORY
                                   : (lto != 0)           ? compiler->ltoir(program, (char *)image->bytes)
@@ -195,7 +196,8 @@ int cycle_program_link(const CycleTarget *lane_target, const void *object, unsig
         (size != 0u);
     if (linked)
     {
-        cubin->bytes = (unsigned char *)platform_cell_taken(size, platform_place_g_program_owner, 0);
+        cubin->bytes =
+            (unsigned char *)platform_cell_taken(size, platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
         cubin->count = size;
         if ((cubin->bytes == NULL) || (linker->cubin(handle, cubin->bytes) != NVJITLINK_SUCCESS))
         {

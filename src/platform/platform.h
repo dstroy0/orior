@@ -104,6 +104,26 @@ void *platform_cell_cleared(unsigned long long count, unsigned long long size, u
 void *platform_cell_grown(void *cell, unsigned long long held, unsigned long long bytes, unsigned int place,
                           int ephemeral);
 
+// ---- a movable cell ----
+
+// A movable cell of `bytes` from the pool, counted to the owner at `place`. It is a resource that the program keeps,
+// and a move of the pool can move it, which leaves no hole behind. The caller reads and writes it through the calls
+// below, by its handle alone. NULL where the pool cannot meet the bytes [RETURNS OWNERSHIP]
+const void *platform_movable_taken(unsigned long long bytes, unsigned int place);
+
+// `count` bytes of `from` written into the movable cell at `offset`: 1, or 0 where the span passes the cell
+int platform_movable_written(const void *cell, unsigned long long offset, const void *from, unsigned long long count);
+
+// `count` bytes of the movable cell at `offset` read into `into`: 1, or 0 where the span passes the cell
+int platform_movable_read(const void *cell, unsigned long long offset, void *into, unsigned long long count);
+
+// 1 where the `count` bytes of the movable cell at `offset` are the `count` bytes at `bytes`
+int platform_movable_same(const void *cell, unsigned long long offset, const void *bytes, unsigned long long count);
+
+// a movable cell given back by the owner that took it. Nothing goes back where the cell is NULL or after
+// platform_close [TAKES OWNERSHIP]
+void platform_movable_released(const void *cell, unsigned int place);
+
 // ---- a text that grows ----
 
 // the tiers of a text's cell: the persistent tier, the temporary tier, and a movable cell

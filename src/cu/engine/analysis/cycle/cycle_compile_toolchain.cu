@@ -256,7 +256,8 @@ void cycle_cache_path(const char *folder, const char *source, unsigned long long
 
 int cycle_image_taken(CycleImage *image, const void *from, unsigned long long count)
 {
-    image->bytes = (unsigned char *)platform_cell_taken(count + 1ULL, platform_place_g_program_owner, 0);
+    image->bytes =
+        (unsigned char *)platform_cell_taken(count + 1ULL, platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     image->count = (image->bytes != NULL) ? count : 0ULL;
     if (image->bytes != NULL)
     {
@@ -264,6 +265,19 @@ int cycle_image_taken(CycleImage *image, const void *from, unsigned long long co
         image->bytes[count] = 0u;
     }
     return (image->bytes != NULL) ? 1 : 0;
+}
+
+const void *cycle_kept(const void *from, unsigned long long count)
+{
+    const unsigned char zero = 0u;
+    const void *const cell = platform_movable_taken(count + 1ULL, platform_place_g_program_owner);
+    if ((cell != NULL) &&
+        (!platform_movable_written(cell, 0ULL, from, count) || !platform_movable_written(cell, count, &zero, 1ULL)))
+    {
+        platform_movable_released(cell, platform_place_g_program_owner);
+        return NULL;
+    }
+    return cell;
 }
 
 void cycle_image_ended(CycleImage *image)

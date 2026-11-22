@@ -103,7 +103,7 @@ static inline unsigned long long atomicCAS(unsigned long long *address, unsigned
 // `length` bytes. `holders` counts the loaded records that reference it, and the last release unloads it
 struct CycleHostProgram
 {
-    char *source;
+    const void *source;
     unsigned long long length;
     void *library;
     CycleHostEntry entry;
@@ -293,7 +293,7 @@ static CycleHostProgram *cycle_host_program_found(const char *text, unsigned lon
     for (unsigned long long at = 0ULL; at < s_cycle_host_programs.count; at += 1ULL)
     {
         CycleHostProgram *const program = (CycleHostProgram *)platform_array_at(&s_cycle_host_programs, at);
-        if ((program->length == length) && (mmgr_bytes_compare(program->source, text, (size_t)length) == 0))
+        if ((program->length == length) && platform_movable_same(program->source, 0ULL, text, length))
         {
             return program;
         }
@@ -425,18 +425,15 @@ static int cycle_host_program_built(const EngineRecordLayout *layout, CycleRecor
         program.grid = (CycleHostGrid)dlsym(program.library, "cycle_host_grid");
 #endif
     }
-    program.source = (char *)platform_cell_taken(length + 1ULL, platform_place_g_program_owner, 0);
+    // the source the process keeps to find the program by, in a movable cell
+    program.source = cycle_kept(bytes, length);
     program.length = length;
-    if (program.source != NULL)
-    {
-        mmgr_bytes_copy(program.source, bytes, (size_t)length + 1u);
-    }
     const int loaded = (program.entry != NULL) && (program.grid != NULL) && (program.source != NULL) &&
                        cycle_host_file_same(named_source, bytes, length) &&
                        platform_array_appended(&s_cycle_host_programs, &program);
     if (loaded == 0)
     {
-        platform_cell_released(program.source, platform_place_g_program_owner);
+        platform_movable_released(program.source, platform_place_g_program_owner);
         if (program.library != NULL)
         {
             cycle_host_library_close(program.library);
@@ -520,7 +517,7 @@ void cycle_host_program_release(CycleHostEntry entry)
             if (program->holders == 0ULL)
             {
                 cycle_host_library_close(program->library);
-                platform_cell_released(program->source, platform_place_g_program_owner);
+                platform_movable_released(program->source, platform_place_g_program_owner);
                 // the programs after it move down one place, and the order of the rest holds
                 const unsigned long long after = s_cycle_host_programs.count - at - 1ULL;
                 mmgr_bytes_move(program, program + 1, (size_t)(after * sizeof(CycleHostProgram)));

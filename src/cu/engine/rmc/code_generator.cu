@@ -234,8 +234,32 @@ static int code_generator_appended(PlatformArray *to, const PlatformArray *from)
     return 1;
 }
 
-// Forms `decide` decides, into `items`, which the call begins. `decide` counts them first on a copy of the lane. It
-// then decides them into as many items as it counted, and the lane goes on from the second as from one decision. 1,
+// The items `decide` decides put after those `items` holds: counted with no items first, then the list grown by that
+// count once and decided into its end. 1, or 0 where the pool cannot meet the room
+template <typename Decide>
+static int code_generator_decided_after(MachineFunction *lane, PlatformArray *items, const Decide &decide)
+{
+    MachineFunction counting = *lane;
+    counting.items = NULL;
+    counting.capacity = 0ULL;
+    counting.count = 0ULL;
+    decide(&counting);
+    const unsigned long long held = items->count;
+    if (platform_array_counted(items, held + counting.count) == 0)
+    {
+        return 0;
+    }
+    lane->items = (MachineInstr *)platform_array_at(items, held);
+    lane->capacity = counting.count;
+    lane->count = 0ULL;
+    decide(lane);
+    lane->items = NULL;
+    lane->capacity = 0ULL;
+    return 1;
+}
+
+// Forms `decide` decides, into `items`, which the call empties first. `decide` counts them first on a copy of the lane.
+// It then decides them into as many items as it counted, and the lane goes on from the second as from one decision. 1,
 // or 0 where the pool cannot meet the items
 template <typename Decide>
 static int code_generator_decided(MachineFunction *lane, PlatformArray *items, const Decide &decide)
@@ -245,8 +269,8 @@ static int code_generator_decided(MachineFunction *lane, PlatformArray *items, c
     counting.capacity = 0ULL;
     counting.count = 0ULL;
     decide(&counting);
-    platform_array_begun(items, sizeof(MachineInstr), platform_place_g_program_owner, 0);
-    if (platform_array_counted(items, counting.count) == 0)
+    // the list keeps the cell and the tier its caller gave it, cut to empty and then taken at the count once
+    if ((platform_array_counted(items, 0ULL) == 0) || (platform_array_counted(items, counting.count) == 0))
     {
         return 0;
     }
@@ -600,7 +624,9 @@ int CodeGenerator::decide(const EngineRecordLayout *layout, const ScheduleModel 
     decision.step_words = code_generator_words(steps, 0u);
     for (unsigned int part = 0u; part < 9u; part += 1u)
     {
-        platform_array_begun(&decision.parts[part], sizeof(MachineInstr), platform_place_g_program_owner, 0);
+        // each part is ephemeral work of this call, given back before it returns
+        platform_array_begun(&decision.parts[part], sizeof(MachineInstr), platform_place_g_program_owner,
+                             PLATFORM_TIER_TEMPORARY);
     }
     int ok = (decision.scratch != NULL) && (decision.put_first != NULL) && (decision.put_last != NULL) &&
              (decision.atom_reader != NULL) && (decision.atom_last != NULL) && (decision.errors != NULL) &&
@@ -643,11 +669,10 @@ int CodeGenerator::decide(const EngineRecordLayout *layout, const ScheduleModel 
     for (unsigned int at = 0u; (ok != 0) && (at < steps); at += 1u)
     {
         int stepped = 0;
-        PlatformArray step;
-        ok = code_generator_decided(
-            &lane, &step, [at, &stepped](MachineFunction *deciding) { stepped = codegen_step(deciding, at); });
-        ok = ok && (stepped != 0) && code_generator_appended(&decision.parts[CODE_GENERATOR_STEPPED], &step);
-        platform_array_ended(&step);
+        ok = code_generator_decided_after(
+            &lane, &decision.parts[CODE_GENERATOR_STEPPED],
+            [at, &stepped](MachineFunction *deciding) { stepped = codegen_step(deciding, at); });
+        ok = ok && (stepped != 0);
         decision.errors[at] = lane.errors;
         // a 64-bit temporary takes two words
         decision.step_words[at] = lane.temps + (2u * lane.wides);
@@ -693,11 +718,17 @@ int CodeGenerator::decide(const EngineRecordLayout *layout, const ScheduleModel 
     header.arguments[1] = codegen_zero();
     header.arguments[2] = codegen_zero();
     header.arguments[3] = codegen_zero();
-    ok = ok && platform_array_counted(items, 0ULL) &&
-         code_generator_appended(items, &decision.parts[CODE_GENERATOR_NOTED]) &&
-         platform_array_appended(items, &header);
     const unsigned int parts[5] = {CODE_GENERATOR_OPENING_LANE, CODE_GENERATOR_DECLARATIONS, CODE_GENERATOR_BODY_OPEN,
                                    CODE_GENERATOR_BODY, CODE_GENERATOR_ENDING};
+    // the list taken once at its full size, the parts and the header, so that it does not grow above them
+    unsigned long long total = decision.parts[CODE_GENERATOR_NOTED].count + 1ULL;
+    for (unsigned int part = 0u; part < 5u; part += 1u)
+    {
+        total += decision.parts[parts[part]].count;
+    }
+    ok = ok && platform_array_counted(items, total) && platform_array_counted(items, 0ULL) &&
+         code_generator_appended(items, &decision.parts[CODE_GENERATOR_NOTED]) &&
+         platform_array_appended(items, &header);
     for (unsigned int part = 0u; (ok != 0) && (part < 5u); part += 1u)
     {
         ok = code_generator_appended(items, &decision.parts[parts[part]]);
@@ -772,8 +803,9 @@ int CodeGenerator::lane(const EngineRecordLayout *layout, const TargetInfo *targ
                         ScheduleReport *report)
 {
     platform_text_reset(text);
+    // the lane's items are ephemeral work of this call, given back before it returns
     PlatformArray items;
-    platform_array_begun(&items, sizeof(MachineInstr), platform_place_g_program_owner, 0);
+    platform_array_begun(&items, sizeof(MachineInstr), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     const Ruleset *const rules = ready();
     RegisterFile file;
     int ok = decide(layout, model, report, places, live, &items) &&

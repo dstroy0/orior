@@ -19,7 +19,7 @@ static CycleCompiledProgram *cycle_program_found(const char *text, unsigned long
     for (unsigned long long at = 0ULL; at < s_cycle_programs.count; at += 1ULL)
     {
         CycleCompiledProgram *const program = (CycleCompiledProgram *)platform_array_at(&s_cycle_programs, at);
-        if ((program->length == length) && (mmgr_bytes_compare(program->source, text, (size_t)length) == 0))
+        if ((program->length == length) && platform_movable_same(program->source, 0ULL, text, length))
         {
             return program;
         }
@@ -97,11 +97,8 @@ static int cycle_program_load(const EngineRecordLayout *layout, CycleRecord *rec
     mmgr_bytes_set(&program, 0, sizeof(program));
     program.holders = 1ULL;
     program.length = length;
-    program.source = (char *)platform_cell_taken(length + 1ULL, platform_place_g_program_owner, 0);
-    if (program.source != NULL)
-    {
-        mmgr_bytes_copy(program.source, text, (size_t)length + 1u);
-    }
+    // the source the process keeps to find the program by, in a movable cell
+    program.source = cycle_kept(text, length);
     const int loaded =
         (cubin.bytes != NULL) && (program.source != NULL) &&
         (cudaLibraryLoadData(&program.library, cubin.bytes, NULL, NULL, 0u, NULL, NULL, 0u) == cudaSuccess) &&
@@ -112,7 +109,7 @@ static int cycle_program_load(const EngineRecordLayout *layout, CycleRecord *rec
     cycle_image_ended(&cubin);
     if (!loaded)
     {
-        platform_cell_released(program.source, platform_place_g_program_owner);
+        platform_movable_released(program.source, platform_place_g_program_owner);
         if (program.library != NULL)
         {
             cudaLibraryUnload(program.library);
@@ -212,7 +209,7 @@ void cycle_program_release(cudaKernel_t kernel)
             if (program->holders == 0ULL)
             {
                 cudaLibraryUnload(program->library);
-                platform_cell_released(program->source, platform_place_g_program_owner);
+                platform_movable_released(program->source, platform_place_g_program_owner);
                 // the programs after it move down one place, and the order of the rest holds
                 const unsigned long long after = s_cycle_programs.count - at - 1ULL;
                 mmgr_bytes_move(program, program + 1, (size_t)(after * sizeof(CycleCompiledProgram)));
@@ -324,7 +321,14 @@ static thread_local int s_cycle_codegen_depth = 0;
 // the depth at which the assembly printer writes its own lane
 #define CYCLE_CODEGEN_OWN_LANE 2
 
-// the texts that the device wrote in this process and that the host's matched, a CycleImage each. The device writes
+// a text that the device wrote in this process and that the host's matched: its movable cell and its bytes
+struct CycleWritten
+{
+    const void *cell;
+    unsigned long long count;
+};
+
+// the texts that the device wrote in this process and that the host's matched, a CycleWritten each. The device writes
 // each text once. The array begins at its first text
 static PlatformArray s_cycle_codegen_written;
 
@@ -333,8 +337,8 @@ static int cycle_codegen_written_before(const char *text, unsigned long long len
 {
     for (unsigned long long at = 0ULL; at < s_cycle_codegen_written.count; at += 1ULL)
     {
-        const CycleImage *const written = (const CycleImage *)platform_array_at(&s_cycle_codegen_written, at);
-        if ((written->count == length) && (mmgr_bytes_compare(written->bytes, text, (size_t)length) == 0))
+        const CycleWritten *const written = (const CycleWritten *)platform_array_at(&s_cycle_codegen_written, at);
+        if ((written->count == length) && platform_movable_same(written->cell, 0ULL, text, length))
         {
             return 1;
         }
@@ -377,7 +381,7 @@ static int cycle_codegen_on_device(const CodeGenerator &generator, const Ruleset
     const unsigned long long host_length = platform_text_size(text);
     if (s_cycle_codegen_written.element == 0ULL)
     {
-        platform_array_begun(&s_cycle_codegen_written, sizeof(CycleImage), platform_place_g_program_owner, 0);
+        platform_array_begun(&s_cycle_codegen_written, sizeof(CycleWritten), platform_place_g_program_owner, 0);
     }
     if (cycle_codegen_written_before(host_text, host_length) != 0)
     {
@@ -546,11 +550,10 @@ static int cycle_codegen_on_device(const CodeGenerator &generator, const Ruleset
     if (same != 0)
     {
         // the device's text is the host's byte for byte, and the host's stays where it is
-        CycleImage kept = {NULL, 0ULL};
-        if (cycle_image_taken(&kept, device_text, device_length) &&
-            !platform_array_appended(&s_cycle_codegen_written, &kept))
+        const CycleWritten kept = {cycle_kept(device_text, device_length), device_length};
+        if ((kept.cell != NULL) && !platform_array_appended(&s_cycle_codegen_written, &kept))
         {
-            cycle_image_ended(&kept);
+            platform_movable_released(kept.cell, platform_place_g_program_owner);
         }
     }
     platform_text_ended(&written);
