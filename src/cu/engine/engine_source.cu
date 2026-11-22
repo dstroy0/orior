@@ -465,9 +465,12 @@ extern "C" long engine_source_lanes(const char *source, const char *sample, unsi
     *lanes = 0ULL;
     char path[ENTRY_PATH_CAPACITY];
     const int archived = (source != NULL) && entry_is_file(source);
-    const int placed = (source != NULL) && (sample != NULL) &&
-                       (archived ? (snprintf(path, sizeof(path), "%s", source) > 0)
-                                 : engine_source_find(source, sample, path, sizeof(path)));
+    VerbaLinea formed_line_8;
+    const int placed =
+        (source != NULL) && (sample != NULL) &&
+        (archived ? ((formed_line_8 = mmgr_line_over(path, sizeof(path)), mmgr_line_put(&formed_line_8, source),
+                      (void)mmgr_line_finish(&formed_line_8), (int)formed_line_8.at) > 0)
+                  : engine_source_find(source, sample, path, sizeof(path)));
     EntrySource *const described = placed ? (EntrySource *)calloc(1u, sizeof(EntrySource)) : NULL;
     int ok = ENGINE_CHECK(placed != 0, sample, error, ENGINE_ERROR_REQUEST) &&
              ENGINE_CHECK(described != NULL, &described, error, ENGINE_ERROR_RESOURCE) &&

@@ -191,16 +191,24 @@ static int unprinted_operand(const char *base, unsigned int type, unsigned int m
         mmgr_line_put(&formed_line_2, after);
         (void)mmgr_line_finish(&formed_line_2);
         return (int)formed_line_2.at < (int)room;
-    case SASS_OPERAND_PREDICATE:
-        return snprintf(operand, room, "%s%s", displayed,
-                        (place == 0u)
-                            ? "P0"
-                            : ((mmgr_text_equal(base, "PT", PLATFORM_TEXT_TO_TERMINATOR)) ? "PT" : "P1")) < (int)room;
-    case SASS_OPERAND_UNIFORM:
-        return snprintf(operand, room, "%s%s", displayed,
-                        (place == 0u) ? "UR6"
-                                      : ((mmgr_text_equal(base, "URZ", PLATFORM_TEXT_TO_TERMINATOR)) ? "URZ" : "UR4")) <
-               (int)room;
+    case SASS_OPERAND_PREDICATE: {
+        VerbaLinea formed_line_43 = mmgr_line_over(operand, room);
+        mmgr_line_put(&formed_line_43, displayed);
+        mmgr_line_put(&formed_line_43,
+                      (place == 0u) ? "P0"
+                                    : ((mmgr_text_equal(base, "PT", PLATFORM_TEXT_TO_TERMINATOR)) ? "PT" : "P1"));
+        (void)mmgr_line_finish(&formed_line_43);
+        return (int)formed_line_43.at < (int)room;
+    }
+    case SASS_OPERAND_UNIFORM: {
+        VerbaLinea formed_line_44 = mmgr_line_over(operand, room);
+        mmgr_line_put(&formed_line_44, displayed);
+        mmgr_line_put(&formed_line_44,
+                      (place == 0u) ? "UR6"
+                                    : ((mmgr_text_equal(base, "URZ", PLATFORM_TEXT_TO_TERMINATOR)) ? "URZ" : "UR4"));
+        (void)mmgr_line_finish(&formed_line_44);
+        return (int)formed_line_44.at < (int)room;
+    }
     case SASS_OPERAND_IMMEDIATE:
         return (place != 0u) && (snprintf(operand, room, "%s%s", displayed, base) < (int)room);
     case SASS_OPERAND_CONSTANT:
@@ -322,13 +330,24 @@ static int unprinted_memory_text(const SassForm *form, char *text, size_t room, 
         char operand[SASS_MACHINE_TOKEN + 8u];
         switch (form->type[place])
         {
-        case SASS_OPERAND_PREDICATE:
-            snprintf(operand, sizeof(operand), "%s",
-                     (mmgr_text_equal(base.operand[place], "PT", PLATFORM_TEXT_TO_TERMINATOR)) ? "PT" : "P0");
-            break;
-        case SASS_OPERAND_ADDRESS:
-            snprintf(operand, sizeof(operand), "[R4%s+0x8]",
-                     (mmgr_text_find(base.operand[place], ".64", PLATFORM_TEXT_TO_TERMINATOR) != NULL) ? ".64" : "");
+        case SASS_OPERAND_PREDICATE: {
+            VerbaLinea formed_line_45 = mmgr_line_over(operand, sizeof(operand));
+            mmgr_line_put(&formed_line_45,
+                          (mmgr_text_equal(base.operand[place], "PT", PLATFORM_TEXT_TO_TERMINATOR)) ? "PT" : "P0");
+            (void)mmgr_line_finish(&formed_line_45);
+            (void)formed_line_45.at;
+        }
+        break;
+        case SASS_OPERAND_ADDRESS: {
+            VerbaLinea formed_line_46 = mmgr_line_over(operand, sizeof(operand));
+            mmgr_line_put(&formed_line_46, "[R4");
+            mmgr_line_put(&formed_line_46,
+                          (mmgr_text_find(base.operand[place], ".64", PLATFORM_TEXT_TO_TERMINATOR) != NULL) ? ".64"
+                                                                                                            : "");
+            mmgr_line_put(&formed_line_46, "+0x8]");
+            (void)mmgr_line_finish(&formed_line_46);
+            (void)formed_line_46.at;
+        }
             after = 1;
             break;
         case SASS_OPERAND_REGISTER:

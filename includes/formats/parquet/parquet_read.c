@@ -313,7 +313,11 @@ unsigned int parquet_members(const EngineIngestTools *tools, const char *path, c
             // a row group's decimal, a slash, the leaf's path and its terminator
             const size_t size = 12u + mmgr_text_length(footer->leaf[leaf].path, PLATFORM_TEXT_TO_TERMINATOR);
             listed[at] = (char *)malloc(size);
-            ok = (listed[at] != NULL) && (snprintf(listed[at], size, "%u/%s", group, footer->leaf[leaf].path) > 0);
+            VerbaLinea formed_line_1;
+            ok = (listed[at] != NULL) &&
+                 ((formed_line_1 = mmgr_line_over(listed[at], size), mmgr_line_decimal(&formed_line_1, group, 1u),
+                   mmgr_line_put(&formed_line_1, "/"), mmgr_line_put(&formed_line_1, footer->leaf[leaf].path),
+                   (void)mmgr_line_finish(&formed_line_1), (int)formed_line_1.at) > 0);
             at += 1u;
         }
     }

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // engine_report.cu: the run's report
 #include "engine_internal.h"
+#include "../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 static int entry_report_write(VerbaLinea *line, FILE *file)
@@ -158,8 +159,11 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
         char source_path[ENTRY_PATH_CAPACITY];
         char iapx_path[ENTRY_PATH_CAPACITY];
         const int archived = entry_is_file(request->source);
+        VerbaLinea formed_line_1;
         const int placed =
-            archived ? (snprintf(source_path, sizeof(source_path), "%s", request->source) > 0)
+            archived ? ((formed_line_1 = mmgr_line_over(source_path, sizeof(source_path)),
+                         mmgr_line_put(&formed_line_1, request->source), (void)mmgr_line_finish(&formed_line_1),
+                         (int)formed_line_1.at) > 0)
                      : engine_source_find(request->source, request->samples[sample], source_path, sizeof(source_path));
         unsigned int made = 0u;
         ok = ENGINE_CHECK(placed != 0, request->samples[sample], error, ENGINE_ERROR_REQUEST) &&

@@ -441,9 +441,16 @@ void khw_text_composed(const KhwForm *form, char *written, size_t room)
         }
         if (form->type[run] == KHW_TYPE_PREDICATE)
         {
+            VerbaLinea formed_line_70;
+            VerbaLinea formed_line_71;
             ((number & 7ULL) == 7ULL)
-                ? (at += (size_t)snprintf(&written[at], room - at, "%sPT", between))
-                : (at += (size_t)snprintf(&written[at], room - at, "%sP%llu", between, number & 7ULL));
+                ? (at += (size_t)(formed_line_70 = mmgr_line_over(&written[at], room - at),
+                                  mmgr_line_put(&formed_line_70, between), mmgr_line_put(&formed_line_70, "PT"),
+                                  (void)mmgr_line_finish(&formed_line_70), (int)formed_line_70.at))
+                : (at += (size_t)(formed_line_71 = mmgr_line_over(&written[at], room - at),
+                                  mmgr_line_put(&formed_line_71, between), mmgr_line_put(&formed_line_71, "P"),
+                                  mmgr_line_decimal(&formed_line_71, number & 7ULL, 1u),
+                                  (void)mmgr_line_finish(&formed_line_71), (int)formed_line_71.at));
         }
         else if (form->type[run] == KHW_TYPE_CONSTANT)
         {

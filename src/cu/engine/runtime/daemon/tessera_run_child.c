@@ -43,10 +43,19 @@ static void run_record_write(RunChannel *channel)
         return;
     }
     char line[RUN_RECORD_CAPACITY];
-    const int length = channel->bound ? snprintf(line, sizeof(line), "launched %llu child %llu keepalive %llu\n",
-                                                 channel->launched, channel->child, channel->keepalive)
-                                      : snprintf(line, sizeof(line), "launching %llu keepalive %llu\n",
-                                                 channel->launched, channel->keepalive);
+    VerbaLinea formed_line_12;
+    VerbaLinea formed_line_13;
+    const int length =
+        channel->bound
+            ? (formed_line_12 = mmgr_line_over(line, sizeof(line)), mmgr_line_put(&formed_line_12, "launched "),
+               mmgr_line_decimal(&formed_line_12, channel->launched, 1u), mmgr_line_put(&formed_line_12, " child "),
+               mmgr_line_decimal(&formed_line_12, channel->child, 1u), mmgr_line_put(&formed_line_12, " keepalive "),
+               mmgr_line_decimal(&formed_line_12, channel->keepalive, 1u), mmgr_line_put(&formed_line_12, "\n"),
+               (void)mmgr_line_finish(&formed_line_12), (int)formed_line_12.at)
+            : (formed_line_13 = mmgr_line_over(line, sizeof(line)), mmgr_line_put(&formed_line_13, "launching "),
+               mmgr_line_decimal(&formed_line_13, channel->launched, 1u), mmgr_line_put(&formed_line_13, " keepalive "),
+               mmgr_line_decimal(&formed_line_13, channel->keepalive, 1u), mmgr_line_put(&formed_line_13, "\n"),
+               (void)mmgr_line_finish(&formed_line_13), (int)formed_line_13.at);
     // a record's length is positive and compared whole against its capacity
     if ((length > 0) && ((size_t)length < sizeof(line)))
     {

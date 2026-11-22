@@ -97,8 +97,15 @@ int zarr_key(const ZarrLayout *layout, const char *root, const unsigned long lon
     {
         const unsigned int named = (layout->format == ZARR_FORMAT_N5) ? (rank - 1u - axis) : axis;
         const int joined = (layout->prefixed != 0u) || (axis != 0u);
-        written = joined ? snprintf(&path[at], ZARR_PATH_CAPACITY - at, "%c%llu", separator, position[named])
-                         : snprintf(&path[at], ZARR_PATH_CAPACITY - at, "%llu", position[named]);
+        VerbaLinea formed_line_14;
+        VerbaLinea formed_line_15;
+        written = joined ? (formed_line_14 = mmgr_line_over(&path[at], ZARR_PATH_CAPACITY - at),
+                            mmgr_line_ch(&formed_line_14, (char)(separator)),
+                            mmgr_line_decimal(&formed_line_14, position[named], 1u),
+                            (void)mmgr_line_finish(&formed_line_14), (int)formed_line_14.at)
+                         : (formed_line_15 = mmgr_line_over(&path[at], ZARR_PATH_CAPACITY - at),
+                            mmgr_line_decimal(&formed_line_15, position[named], 1u),
+                            (void)mmgr_line_finish(&formed_line_15), (int)formed_line_15.at);
         if ((written < 0) || ((size_t)written >= (ZARR_PATH_CAPACITY - at)))
         {
             return 0;

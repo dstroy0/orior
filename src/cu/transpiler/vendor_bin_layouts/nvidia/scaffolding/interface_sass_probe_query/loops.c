@@ -54,19 +54,34 @@ static void sass_loop_operand(const char *base, unsigned int type, unsigned int 
     case SASS_OPERAND_UNIFORM:
         sass_loop_rename(base, "UR", filled, sizeof(filled));
         break;
-    case SASS_OPERAND_PREDICATE:
-        snprintf(filled, sizeof(filled), "%s",
-                 (mmgr_text_equal(base, "PT", PLATFORM_TEXT_TO_TERMINATOR)) ? "PT" : "P0");
-        break;
-    case SASS_OPERAND_LABEL:
-        snprintf(filled, sizeof(filled), "%s", SASS_LOOP_LABEL);
-        break;
-    case SASS_OPERAND_IMMEDIATE:
-        snprintf(filled, sizeof(filled), "%s", SASS_LOOP_BACK);
-        break;
-    default:
-        snprintf(filled, sizeof(filled), "%s", base);
-        break;
+    case SASS_OPERAND_PREDICATE: {
+        VerbaLinea formed_line_11 = mmgr_line_over(filled, sizeof(filled));
+        mmgr_line_put(&formed_line_11, (mmgr_text_equal(base, "PT", PLATFORM_TEXT_TO_TERMINATOR)) ? "PT" : "P0");
+        (void)mmgr_line_finish(&formed_line_11);
+        (void)formed_line_11.at;
+    }
+    break;
+    case SASS_OPERAND_LABEL: {
+        VerbaLinea formed_line_12 = mmgr_line_over(filled, sizeof(filled));
+        mmgr_line_put(&formed_line_12, SASS_LOOP_LABEL);
+        (void)mmgr_line_finish(&formed_line_12);
+        (void)formed_line_12.at;
+    }
+    break;
+    case SASS_OPERAND_IMMEDIATE: {
+        VerbaLinea formed_line_13 = mmgr_line_over(filled, sizeof(filled));
+        mmgr_line_put(&formed_line_13, SASS_LOOP_BACK);
+        (void)mmgr_line_finish(&formed_line_13);
+        (void)formed_line_13.at;
+    }
+    break;
+    default: {
+        VerbaLinea formed_line_14 = mmgr_line_over(filled, sizeof(filled));
+        mmgr_line_put(&formed_line_14, base);
+        (void)mmgr_line_finish(&formed_line_14);
+        (void)formed_line_14.at;
+    }
+    break;
     }
     {
         VerbaLinea buffer_line = mmgr_line_over(operand, room);

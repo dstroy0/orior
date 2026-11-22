@@ -319,14 +319,38 @@ static void sass_operand_read(const SassForm *form, const SassInstructionParts *
         ((place->value.inverted != 0u) ? (~operand_value & mask) : operand_value) * place->value.scale;
     switch (form->type[at])
     {
-    case SASS_OPERAND_REGISTER:
-        (value == 255ULL) ? snprintf(operand, room, "%sRZ", mark) : snprintf(operand, room, "%sR%llu", mark, value);
+    case SASS_OPERAND_REGISTER: {
+        VerbaLinea formed_line_17;
+        VerbaLinea formed_line_18;
+        (value == 255ULL)
+            ? (formed_line_17 = mmgr_line_over(operand, room), mmgr_line_put(&formed_line_17, mark),
+               mmgr_line_put(&formed_line_17, "RZ"), (void)mmgr_line_finish(&formed_line_17), (int)formed_line_17.at)
+            : (formed_line_18 = mmgr_line_over(operand, room), mmgr_line_put(&formed_line_18, mark),
+               mmgr_line_put(&formed_line_18, "R"), mmgr_line_decimal(&formed_line_18, value, 1u),
+               (void)mmgr_line_finish(&formed_line_18), (int)formed_line_18.at);
+    }
         return;
-    case SASS_OPERAND_UNIFORM:
-        (value == 63ULL) ? snprintf(operand, room, "%sURZ", mark) : snprintf(operand, room, "%sUR%llu", mark, value);
+    case SASS_OPERAND_UNIFORM: {
+        VerbaLinea formed_line_19;
+        VerbaLinea formed_line_20;
+        (value == 63ULL)
+            ? (formed_line_19 = mmgr_line_over(operand, room), mmgr_line_put(&formed_line_19, mark),
+               mmgr_line_put(&formed_line_19, "URZ"), (void)mmgr_line_finish(&formed_line_19), (int)formed_line_19.at)
+            : (formed_line_20 = mmgr_line_over(operand, room), mmgr_line_put(&formed_line_20, mark),
+               mmgr_line_put(&formed_line_20, "UR"), mmgr_line_decimal(&formed_line_20, value, 1u),
+               (void)mmgr_line_finish(&formed_line_20), (int)formed_line_20.at);
+    }
         return;
-    case SASS_OPERAND_PREDICATE:
-        (value == 7ULL) ? snprintf(operand, room, "%sPT", mark) : snprintf(operand, room, "%sP%llu", mark, value);
+    case SASS_OPERAND_PREDICATE: {
+        VerbaLinea formed_line_21;
+        VerbaLinea formed_line_22;
+        (value == 7ULL)
+            ? (formed_line_21 = mmgr_line_over(operand, room), mmgr_line_put(&formed_line_21, mark),
+               mmgr_line_put(&formed_line_21, "PT"), (void)mmgr_line_finish(&formed_line_21), (int)formed_line_21.at)
+            : (formed_line_22 = mmgr_line_over(operand, room), mmgr_line_put(&formed_line_22, mark),
+               mmgr_line_put(&formed_line_22, "P"), mmgr_line_decimal(&formed_line_22, value, 1u),
+               (void)mmgr_line_finish(&formed_line_22), (int)formed_line_22.at);
+    }
         return;
     case SASS_OPERAND_IMMEDIATE:
         if (place->value.first == SASS_BRANCH_FIRST)
@@ -387,8 +411,14 @@ static void sass_operand_read(const SassForm *form, const SassInstructionParts *
         const char *const wide =
             (mmgr_text_find(base->operand[at], ".64", PLATFORM_TEXT_TO_TERMINATOR) != NULL) ? ".64" : "";
         char named[16];
-        (value == 255ULL) ? snprintf(named, sizeof(named), "RZ%s", wide)
-                          : snprintf(named, sizeof(named), "R%llu%s", value, wide);
+        VerbaLinea formed_line_23;
+        VerbaLinea formed_line_24;
+        (value == 255ULL)
+            ? (formed_line_23 = mmgr_line_over(named, sizeof(named)), mmgr_line_put(&formed_line_23, "RZ"),
+               mmgr_line_put(&formed_line_23, wide), (void)mmgr_line_finish(&formed_line_23), (int)formed_line_23.at)
+            : (formed_line_24 = mmgr_line_over(named, sizeof(named)), mmgr_line_put(&formed_line_24, "R"),
+               mmgr_line_decimal(&formed_line_24, value, 1u), mmgr_line_put(&formed_line_24, wide),
+               (void)mmgr_line_finish(&formed_line_24), (int)formed_line_24.at);
         // a memory operand that reads a descriptor names its uniform register, desc[] where bit 101 shows it and term[]
         // where it does not
         char operand_value[24] = "";
@@ -397,16 +427,36 @@ static void sass_operand_read(const SassForm *form, const SassInstructionParts *
             const unsigned long long descriptor =
                 sass_bits_read(low, high, place->descriptor.first, place->descriptor.bits);
             const int displayed = (int)sass_bits_read(low, high, SASS_DESCRIPTOR_DISPLAYED, 1u);
+            VerbaLinea formed_line_25;
+            VerbaLinea formed_line_26;
             (descriptor == SASS_DESCRIPTOR_ZERO)
-                ? snprintf(operand_value, sizeof(operand_value), "%s[URZ]", displayed ? "desc" : "term")
-                : snprintf(operand_value, sizeof(operand_value), "%s[UR%llu]", displayed ? "desc" : "term", descriptor);
+                ? (formed_line_25 = mmgr_line_over(operand_value, sizeof(operand_value)),
+                   mmgr_line_put(&formed_line_25, displayed ? "desc" : "term"), mmgr_line_put(&formed_line_25, "[URZ]"),
+                   (void)mmgr_line_finish(&formed_line_25), (int)formed_line_25.at)
+                : (formed_line_26 = mmgr_line_over(operand_value, sizeof(operand_value)),
+                   mmgr_line_put(&formed_line_26, displayed ? "desc" : "term"), mmgr_line_put(&formed_line_26, "[UR"),
+                   mmgr_line_decimal(&formed_line_26, descriptor, 1u), mmgr_line_put(&formed_line_26, "]"),
+                   (void)mmgr_line_finish(&formed_line_26), (int)formed_line_26.at);
         }
-        (offset == 0ULL) ? snprintf(operand, room, "%s[%s]", operand_value, named)
-                         : snprintf(operand, room, "%s[%s+0x%llx]", operand_value, named, offset);
+        VerbaLinea formed_line_27;
+        VerbaLinea formed_line_28;
+        (offset == 0ULL)
+            ? (formed_line_27 = mmgr_line_over(operand, room), mmgr_line_put(&formed_line_27, operand_value),
+               mmgr_line_put(&formed_line_27, "["), mmgr_line_put(&formed_line_27, named),
+               mmgr_line_put(&formed_line_27, "]"), (void)mmgr_line_finish(&formed_line_27), (int)formed_line_27.at)
+            : (formed_line_28 = mmgr_line_over(operand, room), mmgr_line_put(&formed_line_28, operand_value),
+               mmgr_line_put(&formed_line_28, "["), mmgr_line_put(&formed_line_28, named),
+               mmgr_line_put(&formed_line_28, "+0x"), mmgr_line_hex(&formed_line_28, offset, 1u),
+               mmgr_line_put(&formed_line_28, "]"), (void)mmgr_line_finish(&formed_line_28), (int)formed_line_28.at);
         return;
     }
-    default:
-        snprintf(operand, room, "%s%s", mark, base->operand[at]);
+    default: {
+        VerbaLinea formed_line_29 = mmgr_line_over(operand, room);
+        mmgr_line_put(&formed_line_29, mark);
+        mmgr_line_put(&formed_line_29, base->operand[at]);
+        (void)mmgr_line_finish(&formed_line_29);
+        (void)formed_line_29.at;
+    }
         return;
     }
 }
@@ -433,8 +483,14 @@ int sass_encoding_read(const SassMachine *machine, unsigned long long low, unsig
     if ((guard != 7ULL) || (negated != 0ULL))
     {
         char predicate[16];
-        (guard == 7ULL) ? snprintf(predicate, sizeof(predicate), "PT")
-                        : snprintf(predicate, sizeof(predicate), "P%llu", guard);
+        VerbaLinea formed_line_30;
+        VerbaLinea formed_line_31;
+        (guard == 7ULL)
+            ? (formed_line_30 = mmgr_line_over(predicate, sizeof(predicate)), mmgr_line_put(&formed_line_30, "PT"),
+               (void)mmgr_line_finish(&formed_line_30), (int)formed_line_30.at)
+            : (formed_line_31 = mmgr_line_over(predicate, sizeof(predicate)), mmgr_line_put(&formed_line_31, "P"),
+               mmgr_line_decimal(&formed_line_31, guard, 1u), (void)mmgr_line_finish(&formed_line_31),
+               (int)formed_line_31.at);
         VerbaLinea formed_line_1 = mmgr_line_over(text + at, room - at);
         mmgr_line_put(&formed_line_1, "@");
         mmgr_line_put(&formed_line_1, (negated != 0ULL) ? "!" : "");

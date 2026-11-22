@@ -144,8 +144,11 @@ int writings_kernel(const char *kernel_text, char *kernel, size_t room)
         return 0;
     }
     const size_t length = strcspn(kernel_text + 6, ":\r\n");
+    VerbaLinea formed_line_17;
     return (kernel_text[6u + length] == ':') &&
-           (snprintf(kernel, room, "%.*s", (int)length, kernel_text + 6) < (int)room);
+           ((formed_line_17 = mmgr_line_over(kernel, room),
+             mmgr_line_put_max(&formed_line_17, kernel_text + 6, (size_t)((int)length)),
+             (void)mmgr_line_finish(&formed_line_17), (int)formed_line_17.at) < (int)room);
 }
 
 // the kernel with its line that begins `IADD3 ` replaced by `lines`, into `text`: 1, or 0 where the kernel contains no

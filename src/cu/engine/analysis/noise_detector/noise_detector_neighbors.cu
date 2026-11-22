@@ -247,8 +247,12 @@ extern "C" long noise_neighbors_set(const NoiseSetRequest *request)
     }
     EngineError *const error = request->error;
     char path[ENGINE_PATH_CAPACITY];
-    const int written =
-        (request->set != NULL) ? snprintf(path, sizeof(path), "%s/noise_neighbors.tsv", request->set) : -1;
+    VerbaLinea formed_line_1;
+    const int written = (request->set != NULL) ? (formed_line_1 = mmgr_line_over(path, sizeof(path)),
+                                                  mmgr_line_put(&formed_line_1, request->set),
+                                                  mmgr_line_put(&formed_line_1, "/noise_neighbors.tsv"),
+                                                  (void)mmgr_line_finish(&formed_line_1), (int)formed_line_1.at)
+                                               : -1;
     const int named = (written > 0) && ((size_t)written < sizeof(path));
     FILE *const table = named ? fopen(path, "wb") : NULL;
     int ok = NOISE_DETECTOR_CHECK(named && (request->samples != NULL) && (request->load != NULL), request, error,

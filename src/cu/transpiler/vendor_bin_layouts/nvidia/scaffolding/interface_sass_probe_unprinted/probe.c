@@ -129,8 +129,11 @@ int unprinted_kernel(const char *kernel_text, char *kernel, size_t room)
         return 0;
     }
     const size_t length = strcspn(kernel_text + 6, ":\r\n");
+    VerbaLinea formed_line_7;
     return (kernel_text[6u + length] == ':') &&
-           (snprintf(kernel, room, "%.*s", (int)length, kernel_text + 6) < (int)room);
+           ((formed_line_7 = mmgr_line_over(kernel, room),
+             mmgr_line_put_max(&formed_line_7, kernel_text + 6, (size_t)((int)length)),
+             (void)mmgr_line_finish(&formed_line_7), (int)formed_line_7.at) < (int)room);
 }
 
 // every instruction of `code`, `count` of them, whose operation bits are `low` and `high`'s, their numbers in order

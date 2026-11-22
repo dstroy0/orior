@@ -295,7 +295,10 @@ int fields_redirect(const char *instruction, char *redirected, size_t room, char
         (void)mmgr_line_finish(&formed_line_3);
         return (int)formed_line_3.at < (int)room;
     }
-    if (writes_predicate && (snprintf(observe, observe_room, "%s", FIELDS_LINES_PREDICATE) >= (int)observe_room))
+    VerbaLinea formed_line_29;
+    if (writes_predicate && ((formed_line_29 = mmgr_line_over(observe, observe_room),
+                              mmgr_line_put(&formed_line_29, FIELDS_LINES_PREDICATE),
+                              (void)mmgr_line_finish(&formed_line_29), (int)formed_line_29.at) >= (int)observe_room))
     {
         return 0;
     }

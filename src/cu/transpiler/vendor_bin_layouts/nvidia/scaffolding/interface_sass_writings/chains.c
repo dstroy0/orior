@@ -254,11 +254,14 @@ int writings_chains_write(const char *pattern, const char *kernel_text, const ch
                 (void)mmgr_line_finish(&buffer_line);
             }
             char put[256];
+            VerbaLinea formed_line_9;
             fits = (writing < s_form_count) &&
                    writings_put(s_forms[writing], (node + 1u == count) ? WRITINGS_RESULT : to, nodes[node].operand[0],
                                 nodes[node].operand[1], put, sizeof(put)) &&
-                   ((at += (size_t)snprintf(&lines[at], sizeof(lines) - at, "%s%s", (node == 0u) ? "" : "\n", put)) <
-                    sizeof(lines));
+                   ((at += (size_t)(formed_line_9 = mmgr_line_over(&lines[at], sizeof(lines) - at),
+                                    mmgr_line_put(&formed_line_9, (node == 0u) ? "" : "\n"),
+                                    mmgr_line_put(&formed_line_9, put), (void)mmgr_line_finish(&formed_line_9),
+                                    (int)formed_line_9.at)) < sizeof(lines));
         }
         fits = fits && (snprintf(&lines[at], sizeof(lines) - at, WRITINGS_TAIL) < (int)(sizeof(lines) - at)) &&
                writings_splice(s_kernel_text, lines, s_query_text, sizeof(s_query_text));

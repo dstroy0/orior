@@ -239,11 +239,30 @@ int sass_text_placed(const SassForm *form, char *written, size_t room)
         // A placed constant keeps its bank and its base and places its immediate, `c[0x0][0x160+{<place>}]`. The
         // operand then reads as a constant after the place takes its value.
         const size_t head = (parts.type[operand] == SASS_OPERAND_CONSTANT) ? sass_constant_head(text) : 0u;
-        printed = (place == SASS_RUN_NO_PLACE) ? snprintf(written + at, room - at, "%s%s%s", between, mark, text)
-                  : address ? snprintf(written + at, room - at, "%s%s[{%u}%s", between, mark, place, text + inner)
-                  : head != 0u
-                      ? snprintf(written + at, room - at, "%s%s%.*s{%u}]", between, mark, (int)head, text, place)
-                      : snprintf(written + at, room - at, "%s%s{%u}", between, mark, place);
+        VerbaLinea formed_line_24;
+        VerbaLinea formed_line_25;
+        VerbaLinea formed_line_26;
+        VerbaLinea formed_line_27;
+        printed =
+            (place == SASS_RUN_NO_PLACE)
+                ? (formed_line_24 = mmgr_line_over(written + at, room - at), mmgr_line_put(&formed_line_24, between),
+                   mmgr_line_put(&formed_line_24, mark), mmgr_line_put(&formed_line_24, text),
+                   (void)mmgr_line_finish(&formed_line_24), (int)formed_line_24.at)
+            : address ? (formed_line_25 = mmgr_line_over(written + at, room - at),
+                         mmgr_line_put(&formed_line_25, between), mmgr_line_put(&formed_line_25, mark),
+                         mmgr_line_put(&formed_line_25, "[{"), mmgr_line_decimal(&formed_line_25, place, 1u),
+                         mmgr_line_put(&formed_line_25, "}"), mmgr_line_put(&formed_line_25, text + inner),
+                         (void)mmgr_line_finish(&formed_line_25), (int)formed_line_25.at)
+            : head != 0u
+                ? (formed_line_26 = mmgr_line_over(written + at, room - at), mmgr_line_put(&formed_line_26, between),
+                   mmgr_line_put(&formed_line_26, mark), mmgr_line_put_max(&formed_line_26, text, (size_t)((int)head)),
+                   mmgr_line_put(&formed_line_26, "{"), mmgr_line_decimal(&formed_line_26, place, 1u),
+                   mmgr_line_put(&formed_line_26, "}]"), (void)mmgr_line_finish(&formed_line_26),
+                   (int)formed_line_26.at)
+                : (formed_line_27 = mmgr_line_over(written + at, room - at), mmgr_line_put(&formed_line_27, between),
+                   mmgr_line_put(&formed_line_27, mark), mmgr_line_put(&formed_line_27, "{"),
+                   mmgr_line_decimal(&formed_line_27, place, 1u), mmgr_line_put(&formed_line_27, "}"),
+                   (void)mmgr_line_finish(&formed_line_27), (int)formed_line_27.at);
         at += (printed > 0) ? (size_t)printed : room;
     }
     return (at < room) ? 1 : 0;

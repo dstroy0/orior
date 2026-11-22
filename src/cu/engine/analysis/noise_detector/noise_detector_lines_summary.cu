@@ -339,12 +339,21 @@ extern "C" long noise_lines_set(const NoiseSetRequest *request)
     }
     EngineError *const error = request->error;
     char path[ENGINE_PATH_CAPACITY];
-    const int written = (request->set != NULL) ? snprintf(path, sizeof(path), "%s/noise_lines.tsv", request->set) : -1;
+    VerbaLinea formed_line_1;
+    const int written = (request->set != NULL) ? (formed_line_1 = mmgr_line_over(path, sizeof(path)),
+                                                  mmgr_line_put(&formed_line_1, request->set),
+                                                  mmgr_line_put(&formed_line_1, "/noise_lines.tsv"),
+                                                  (void)mmgr_line_finish(&formed_line_1), (int)formed_line_1.at)
+                                               : -1;
     const int named = (written > 0) && ((size_t)written < sizeof(path));
     FILE *const table = named ? fopen(path, "wb") : NULL;
     char plane_path[ENGINE_PATH_CAPACITY];
-    const int plane_written =
-        (request->set != NULL) ? snprintf(plane_path, sizeof(plane_path), "%s/noise_planes.tsv", request->set) : -1;
+    VerbaLinea formed_line_2;
+    const int plane_written = (request->set != NULL) ? (formed_line_2 = mmgr_line_over(plane_path, sizeof(plane_path)),
+                                                        mmgr_line_put(&formed_line_2, request->set),
+                                                        mmgr_line_put(&formed_line_2, "/noise_planes.tsv"),
+                                                        (void)mmgr_line_finish(&formed_line_2), (int)formed_line_2.at)
+                                                     : -1;
     const int plane_named = (plane_written > 0) && ((size_t)plane_written < sizeof(plane_path));
     FILE *const plane_table = plane_named ? fopen(plane_path, "wb") : NULL;
     int ok = NOISE_DETECTOR_CHECK(named && plane_named && (request->samples != NULL) && (request->load != NULL),
