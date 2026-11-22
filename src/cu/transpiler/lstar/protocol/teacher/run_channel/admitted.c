@@ -36,7 +36,7 @@ static unsigned int run_channel_admitted(RunQuestion *const *questions, unsigned
         run_channel_named(at, alone, code_name, cases_name, answers_name);
         VerbaLinea stem_line = {stem, sizeof(stem), 0ULL};
         mmgr_line_put(&stem_line, RUN_AIRLOCK_ANSWERS);
-        mmgr_line_put_max(&stem_line, answers_name, strcspn(answers_name, "."));
+        mmgr_line_put_max(&stem_line, answers_name, mmgr_text_span_not(answers_name, ".", PLATFORM_TEXT_TO_TERMINATOR));
         mmgr_line_finish(&stem_line);
         VerbaLinea popped_line = {popped, sizeof(popped), 0ULL};
         mmgr_line_put(&popped_line, RUN_AIRLOCK_ANSWERS);
@@ -55,7 +55,7 @@ static unsigned int run_channel_admitted(RunQuestion *const *questions, unsigned
         VerbaLinea verdict_line = {verdict, sizeof(verdict), 0ULL};
         mmgr_line_put_max(&verdict_line, (const char *)answer, (answer_size < 159ULL) ? answer_size : 159ULL);
         mmgr_line_finish(&verdict_line);
-        verdict[strcspn(verdict, "\r\n")] = '\0';
+        verdict[mmgr_text_span_not(verdict, "\r\n", PLATFORM_TEXT_TO_TERMINATOR)] = '\0';
         if (!run_channel_key_gated(verdict))
         {
             continue;
@@ -67,7 +67,7 @@ static unsigned int run_channel_admitted(RunQuestion *const *questions, unsigned
         for (unsigned long long walk = 0ULL; walk < size;)
         {
             const char *const line = (const char *)(read + walk);
-            const char *const end = (const char *)memchr(line, '\n', (size_t)(size - walk));
+            const char *const end = (const char *)mmgr_bytes_find(line, '\n', (size_t)(size - walk));
             const size_t length = (end != NULL) ? (size_t)(end - line) : (size_t)(size - walk);
             walk += (unsigned long long)length + 1ULL;
             clear += ((length > stem_length) && (mmgr_bytes_compare(line, stem, stem_length) == 0) &&
@@ -134,7 +134,7 @@ static unsigned int run_channel_admitted(RunQuestion *const *questions, unsigned
         for (unsigned long long walk = 0ULL; walk < size;)
         {
             const char *const line = (const char *)(read + walk);
-            const char *const end = (const char *)memchr(line, '\n', (size_t)(size - walk));
+            const char *const end = (const char *)mmgr_bytes_find(line, '\n', (size_t)(size - walk));
             const size_t length = (end != NULL) ? (size_t)(end - line) : (size_t)(size - walk);
             walk += (unsigned long long)length + 1ULL;
             if ((length <= stem_length) || (mmgr_bytes_compare(line, stem, stem_length) != 0) ||

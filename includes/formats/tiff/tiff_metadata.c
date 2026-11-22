@@ -151,7 +151,7 @@ static void tiff_imagej_value(TiffFile *file, const char *text, const char *key,
         if ((mmgr_text_order(line, key, (size_t)(key_length)) == 0) && (line[key_length] == '='))
         {
             const char *const digits = &line[key_length + 1u];
-            const size_t length = strcspn(digits, "\r\n");
+            const size_t length = mmgr_text_span_not(digits, "\r\n", PLATFORM_TEXT_TO_TERMINATOR);
             *present = 1u;
             if (!tiff_digits(digits, length, value))
             {
@@ -392,12 +392,13 @@ int tiff_ome(TiffFile *file, const TiffPage *page, const char *text, unsigned lo
         return tiff_fail(file, "an OME SizeZ or SizeT of 0");
     }
     if ((order == NULL) || (order_length != 5u) || (!mmgr_text_starts(order, "XY", PLATFORM_TEXT_TO_TERMINATOR)) ||
-        (memchr(order, 'Z', 5u) == NULL) || (memchr(order, 'C', 5u) == NULL) || (memchr(order, 'T', 5u) == NULL))
+        (mmgr_bytes_find(order, 'Z', 5u) == NULL) || (mmgr_bytes_find(order, 'C', 5u) == NULL) ||
+        (mmgr_bytes_find(order, 'T', 5u) == NULL))
     {
         return tiff_fail(file, "an OME DimensionOrder that is not XY followed by Z, C and T");
     }
-    const size_t z_place = (size_t)((const char *)memchr(order, 'Z', 5u) - order);
-    const size_t t_place = (size_t)((const char *)memchr(order, 'T', 5u) - order);
+    const size_t z_place = (size_t)((const char *)mmgr_bytes_find(order, 'Z', 5u) - order);
+    const size_t t_place = (size_t)((const char *)mmgr_bytes_find(order, 'T', 5u) - order);
     const unsigned long long z_stride = (z_place < t_place) ? 1ULL : extent_t;
     const unsigned long long t_stride = (z_place < t_place) ? extent_z : 1ULL;
     unsigned long long planes = 0ULL;

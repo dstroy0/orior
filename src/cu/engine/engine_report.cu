@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // engine_report.cu: the run's report
 #include "engine_internal.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
@@ -405,7 +406,7 @@ extern "C" long engine_iapx_load(const char *set, const char *sample, unsigned l
         platform_cell_released(rebuilt, platform_place_g_program_owner);
         krep_side_release(&section);
         VerbaLinea line;
-        line.capacity = ENTRY_ROW_TEXT + strnlen(sample, ENTRY_PATH_CAPACITY);
+        line.capacity = ENTRY_ROW_TEXT + mmgr_text_length(sample, ENTRY_PATH_CAPACITY);
         line.out = (char *)platform_cell_taken((size_t)line.capacity, platform_place_g_program_owner, 0);
         line.at = 0ULL;
         if (line.out != NULL)

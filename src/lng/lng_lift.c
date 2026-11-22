@@ -7,6 +7,9 @@
 // tables, and reads the answer back. Lng/lift_code.lean proves what the Lean code computes.
 
 #include "lng.h"
+#include "../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include <lean/lean.h>
 #include <stdlib.h>
@@ -75,7 +78,7 @@ const char *lng_lift(const LngTable *transpiler, const LngTable *from, const cha
     if (place[0] != '\0')
     {
         // side_ok in Lng/lift_code.lean proves that the place is below the count of rows of `to`
-        const unsigned long row = strtoul(place, NULL, 10);
+        const unsigned long row = mmgr_text_unsigned_in(place, NULL, 10);
         word = lng_cell_or_none(to, (unsigned int)row, "word");
     }
     for (size_t at = 1u; at < lean_array_size(answer); at += 1u)

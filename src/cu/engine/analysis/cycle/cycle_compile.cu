@@ -11,6 +11,7 @@
 // interpreter as it checks the device's. On Windows the compiler is nvcc handing the source to the host compiler
 // alone, with -ccbin $CYCLE_HOST_CCBIN where it is set; elsewhere it is $CXX, else c++
 #include "cycle_compile_internal.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../platform/platform.h"
 #include "../../engine_note.h"
 #include "memoria_operor/memoria_linea.h"
@@ -450,9 +451,9 @@ static int cycle_host_words_read(std::vector<unsigned int> &words, const unsigne
 static unsigned int cycle_host_threads(unsigned long long lanes)
 {
     const char *const named = getenv("CYCLE_HOST_THREADS");
-    char *end = NULL;
+    const char *end = NULL;
     const unsigned long long requested =
-        ((named != NULL) && (named[0] >= '0') && (named[0] <= '9')) ? strtoull(named, &end, 10) : 0ULL;
+        ((named != NULL) && (named[0] >= '0') && (named[0] <= '9')) ? mmgr_text_unsigned_in(named, &end, 10) : 0ULL;
     const unsigned long long hardware = std::thread::hardware_concurrency();
     const unsigned long long threads =
         ((requested != 0ULL) && (end != NULL) && (*end == '\0')) ? requested : ((hardware != 0ULL) ? hardware : 1ULL);

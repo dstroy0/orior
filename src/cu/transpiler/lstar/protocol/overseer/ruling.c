@@ -388,7 +388,7 @@ unsigned int overseer_lessons_read(QryShared *run)
     while (at < size)
     {
         const unsigned char *const line = bytes + at;
-        const unsigned char *const found = (const unsigned char *)memchr(line, '\n', (size_t)(size - at));
+        const unsigned char *const found = (const unsigned char *)mmgr_bytes_find(line, '\n', (size_t)(size - at));
         const size_t length = (size_t)(((found != NULL) ? found : (bytes + size)) - line);
         at += (unsigned long long)length + 1ULL;
         char text[OVERSEER_STANDING_MAX_LEN + 128u];

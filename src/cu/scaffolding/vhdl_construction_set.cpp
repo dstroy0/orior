@@ -148,7 +148,8 @@ static int construction_after(const std::string &path, const char *label, unsign
     {
         const char *const at = mmgr_text_find(line, label, PLATFORM_TEXT_TO_TERMINATOR);
         found = at != NULL;
-        *number = found ? strtoull(at + mmgr_text_length(label, PLATFORM_TEXT_TO_TERMINATOR), NULL, 10) : *number;
+        *number = found ? mmgr_text_unsigned_in(at + mmgr_text_length(label, PLATFORM_TEXT_TO_TERMINATOR), NULL, 10)
+                        : *number;
     }
     platform_file_close(file);
     return found;

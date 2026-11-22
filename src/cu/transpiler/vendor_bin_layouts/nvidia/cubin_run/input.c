@@ -97,7 +97,8 @@ int cubin_run_line(CubinRunLines *lines, char *line, size_t room)
         return 0;
     }
     const unsigned char *const start = lines->bytes + lines->at;
-    const unsigned char *const end = (const unsigned char *)memchr(start, '\n', (size_t)(lines->size - lines->at));
+    const unsigned char *const end =
+        (const unsigned char *)mmgr_bytes_find(start, '\n', (size_t)(lines->size - lines->at));
     const size_t length = (end != NULL) ? ((size_t)(end - start) + 1u) : (size_t)(lines->size - lines->at);
     const size_t copied = (length < (room - 1u)) ? length : (room - 1u);
     mmgr_bytes_copy(line, start, copied);

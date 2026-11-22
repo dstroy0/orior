@@ -176,7 +176,7 @@ int program_main(int count, char **words)
         }
         return 2;
     }
-    const unsigned long max = (count == 7) ? strtoul(words[6], NULL, 10) : 0UL;
+    const unsigned long max = (count == 7) ? mmgr_text_unsigned_in(words[6], NULL, 10) : 0UL;
     if ((count >= 6) && !sass_run_cases(words[5]))
     {
         {
@@ -225,7 +225,7 @@ int program_main(int count, char **words)
         }
         return 2;
     }
-    const unsigned long first = strtoul(words[3], NULL, 10);
+    const unsigned long first = mmgr_text_unsigned_in(words[3], NULL, 10);
     char line[SASS_RUN_LINE];
     unsigned long number = 0UL;
     while (platform_file_text_read(line, sizeof(line), list) != NULL)

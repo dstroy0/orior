@@ -3,6 +3,8 @@
 // query_interface.c: a walk of queries put from inside the interface, every ending recorded as the answer of the
 // address that caused it
 #include "query_interface.h"
+#include "../../../../../platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "memoria_operor/memoria_linea.h"
 #include "../../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "verba_scribo/verba_linea.h"
@@ -121,22 +123,22 @@ static unsigned long long query_interface_read(const QueryWalk *walk, const char
     const char *at = lines;
     while (read < given)
     {
-        char *end = NULL;
-        const unsigned long long address = strtoull(at, &end, 16);
+        const char *end = NULL;
+        const unsigned long long address = mmgr_text_unsigned_in(at, &end, 16);
         if (end == at)
         {
             break;
         }
         at = end;
         // a bit and a type are each one small number, stored at the width of the fields that contain them
-        const unsigned int bit = (unsigned int)strtoul(at, &end, 10);
+        const unsigned int bit = (unsigned int)mmgr_text_unsigned_in(at, &end, 10);
         if (end == at)
         {
             break;
         }
         at = end;
         // as above
-        const unsigned int type = (unsigned int)strtoul(at, &end, 10);
+        const unsigned int type = (unsigned int)mmgr_text_unsigned_in(at, &end, 10);
         if ((end == at) || (address != (walk->from + ((next + read) * walk->stride))))
         {
             break;

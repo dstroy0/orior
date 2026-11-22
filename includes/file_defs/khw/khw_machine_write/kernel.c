@@ -127,8 +127,8 @@ static int khw_runs_read(KhwForm *answered_form, const char *text)
     unsigned int words = 0u;
     for (const char *at = text; *at != '\0';)
     {
-        at += strspn(at, " \t\r\n");
-        const size_t length = strcspn(at, " \t\r\n");
+        at += mmgr_text_span(at, " \t\r\n", PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t length = mmgr_text_span_not(at, " \t\r\n", PLATFORM_TEXT_TO_TERMINATOR);
         words += (length != 0u) ? 1u : 0u;
         at += length;
     }
@@ -160,11 +160,11 @@ static int khw_runs_read(KhwForm *answered_form, const char *text)
             }
             // the none mark, with its type's character after it where the run is no register's, or the place with its
             // character after it. The character's place among the four is its type, and no character is a register's
-            char *end = NULL;
+            const char *end = NULL;
             const int none =
                 (mmgr_text_order(place, SASS_RUN_NO_PLACE_TEXT,
                                  (size_t)(mmgr_text_length(SASS_RUN_NO_PLACE_TEXT, PLATFORM_TEXT_TO_TERMINATOR))) == 0);
-            answered_form->place[run] = none ? SASS_RUN_NO_PLACE : (unsigned int)strtoul(place, &end, 10);
+            answered_form->place[run] = none ? SASS_RUN_NO_PLACE : (unsigned int)mmgr_text_unsigned_in(place, &end, 10);
             end = none ? (place + mmgr_text_length(SASS_RUN_NO_PLACE_TEXT, PLATFORM_TEXT_TO_TERMINATOR)) : end;
             const char *const character = ((end != NULL) && (*end != '\0'))
                                               ? mmgr_text_char(KHW_TYPE_CHARACTERS, *end, PLATFORM_TEXT_TO_TERMINATOR)
@@ -212,7 +212,8 @@ unsigned int khw_answers_read(const char *answers, KhwForm *form, unsigned int r
     unsigned long long next = 0ULL;
     while ((next < size) && (read < room))
     {
-        const unsigned char *const end = (const unsigned char *)memchr(bytes + next, '\n', (size_t)(size - next));
+        const unsigned char *const end =
+            (const unsigned char *)mmgr_bytes_find(bytes + next, '\n', (size_t)(size - next));
         const size_t length = (end != NULL) ? (size_t)(end - (bytes + next)) : (size_t)(size - next);
         {
             VerbaLinea buffer_line = mmgr_line_over(line, sizeof(line));

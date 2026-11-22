@@ -151,7 +151,7 @@ void run_channel_read(RunQuestion *question, const char *answers_name, unsigned 
     }
     // the first line, the answer; and after it, in any order, the lines the carrier adds: the registers it read off
     // the part, and the time its launches took, which is read wherever it is
-    const unsigned char *const first_end = (const unsigned char *)memchr(bytes, '\n', (size_t)size);
+    const unsigned char *const first_end = (const unsigned char *)mmgr_bytes_find(bytes, '\n', (size_t)size);
     const size_t first_length = (first_end != NULL) ? (size_t)(first_end - bytes) : (size_t)size;
     const size_t copied = (first_length < (sizeof(s_answer_line) - 1u)) ? first_length : (sizeof(s_answer_line) - 1u);
     mmgr_bytes_copy(s_answer_line, bytes, copied);
@@ -174,7 +174,7 @@ void run_channel_read(RunQuestion *question, const char *answers_name, unsigned 
         if (mmgr_text_starts(line, "clock address ", PLATFORM_TEXT_TO_TERMINATOR))
         {
             // the timer register's address, in hex as the carrier writes it
-            question->clock_address = (unsigned int)strtoul(line + 14, NULL, 16);
+            question->clock_address = (unsigned int)mmgr_text_unsigned_in(line + 14, NULL, 16);
         }
     }
     unsigned int launches = 0u;
@@ -187,7 +187,7 @@ void run_channel_read(RunQuestion *question, const char *answers_name, unsigned 
         line_number(&timed_at, 0, &question->max);
     }
     timed = timed && (launches == question->launches);
-    s_answer_line[strcspn(s_answer_line, "\r\n")] = '\0';
+    s_answer_line[mmgr_text_span_not(s_answer_line, "\r\n", PLATFORM_TEXT_TO_TERMINATOR)] = '\0';
     if (!mmgr_text_starts(s_answer_line, "answered", PLATFORM_TEXT_TO_TERMINATOR))
     {
         question->outcome = (mmgr_text_starts(s_answer_line, "skipped", PLATFORM_TEXT_TO_TERMINATOR))
@@ -214,8 +214,8 @@ void run_channel_read(RunQuestion *question, const char *answers_name, unsigned 
     const char *at = s_answer_line + 8u;
     for (unsigned int place = 0u; place < question->cases; place += 1u)
     {
-        char *after_word = NULL;
-        question->answered[place] = strtoull(at, &after_word, 16);
+        const char *after_word = NULL;
+        question->answered[place] = mmgr_text_unsigned_in(at, &after_word, 16);
         if (after_word == at)
         {
             VerbaLinea refused = {question->refused, sizeof(question->refused), 0ULL};

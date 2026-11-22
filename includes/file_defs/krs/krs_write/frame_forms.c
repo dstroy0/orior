@@ -3,6 +3,7 @@
 // frame_forms.c: the frame forms of a part's ruleset. The module reads the table of names, writes a form's line as
 // the schema's form, and writes the lines. The ruleset's own line stays where the run passes none.
 #include "frame_forms.h"
+#include "memoria_operor/memoria_linea.h"
 #include "../../../../src/platform/platform.h"
 #include "cellularum_laboro/cellularum_linea.h"
 
@@ -46,8 +47,8 @@ typedef struct
 static void frame_table_beside(char *path, size_t room)
 {
     const char *const file = __FILE__;
-    const char *const forward = strrchr(file, '/');
-    const char *const back = strrchr(file, '\\');
+    const char *const forward = mmgr_text_char_last(file, '/', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const back = mmgr_text_char_last(file, '\\', PLATFORM_TEXT_TO_TERMINATOR);
     const char *const slash = (back == NULL) ? forward : ((forward == NULL) || (back > forward)) ? back : forward;
     // The folder is __FILE__ up to and with its last slash. A file name with no folder is in this folder.
     const int folder = (slash != NULL) ? (int)((slash - file) + 1) : 0;
@@ -78,7 +79,7 @@ unsigned int krs_frame_read(const char *path)
     char line[1024];
     while (line_read(file_bytes, file_size, &file_at, line, sizeof(line)) && (s_rows < KRS_FRAME_ROWS))
     {
-        line[strcspn(line, "\r\n")] = '\0';
+        line[mmgr_text_span_not(line, "\r\n", PLATFORM_TEXT_TO_TERMINATOR)] = '\0';
         if ((line[0] == '#') || (line[0] == '\0'))
         {
             continue;
@@ -302,7 +303,7 @@ static unsigned int frame_given_read(const char *krs_path, KrsFrameGiven *given)
         {
             continue;
         }
-        line[strcspn(line, "\r\n")] = '\0';
+        line[mmgr_text_span_not(line, "\r\n", PLATFORM_TEXT_TO_TERMINATOR)] = '\0';
         {
             VerbaLinea buffer_line = mmgr_line_over(given[count].name, sizeof(given[count].name));
             mmgr_line_put(&buffer_line, name);
@@ -335,7 +336,7 @@ static const char *frame_given_of(const KrsFrameGiven *given, unsigned int count
 // Return 1 if `before`, a line with no newline, is `line` up to its newline.
 static int frame_same_line(const char *before, const char *line)
 {
-    const size_t length = strcspn(line, "\n");
+    const size_t length = mmgr_text_span_not(line, "\n", PLATFORM_TEXT_TO_TERMINATOR);
     return (mmgr_text_length(before, PLATFORM_TEXT_TO_TERMINATOR) == length) &&
            (mmgr_text_order(before, line, (size_t)(length)) == 0);
 }

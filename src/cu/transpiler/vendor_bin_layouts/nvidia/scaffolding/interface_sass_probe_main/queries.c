@@ -3,6 +3,7 @@
 // queries.c: the queries: two containers the same, the lane written, the compiles counted, the questions read and
 // compiled, the loop and the queries run
 #include "probe_main_internal.h"
+#include "memoria_operor/memoria_linea.h"
 #include "../../../../../../platform/platform.h"
 #include "cellularum_laboro/cellularum_linea.h"
 
@@ -171,7 +172,7 @@ static int sass_questions_read(SassProbe *probe, const char *output)
     {
         return 0;
     }
-    const unsigned long version = strtoul(line + ((*line == '\n') ? 4 : 3), NULL, 10);
+    const unsigned long version = mmgr_text_unsigned_in(line + ((*line == '\n') ? 4 : 3), NULL, 10);
     {
         VerbaLinea buffer_line = mmgr_line_over(probe->architecture, sizeof(probe->architecture));
         mmgr_line_put(&buffer_line, "SM");
@@ -182,13 +183,13 @@ static int sass_questions_read(SassProbe *probe, const char *output)
     for (const char *line = mmgr_text_find(output, "\ncubin ", PLATFORM_TEXT_TO_TERMINATOR); line != NULL;
          line = mmgr_text_find(line + 1, "\ncubin ", PLATFORM_TEXT_TO_TERMINATOR))
     {
-        char *after = NULL;
-        const unsigned long number = strtoul(line + 7, &after, 10);
+        const char *after = NULL;
+        const unsigned long number = mmgr_text_unsigned_in(line + 7, &after, 10);
         if ((number != (unsigned long)probe->questions) || (probe->questions == SASS_QUESTIONS) || (*after != ' '))
         {
             return 0;
         }
-        const size_t length = strcspn(after + 1, "\r\n");
+        const size_t length = mmgr_text_span_not(after + 1, "\r\n", PLATFORM_TEXT_TO_TERMINATOR);
         {
             VerbaLinea buffer_line = mmgr_line_over(probe->names[probe->questions], SASS_NAME);
             mmgr_line_put_max(&buffer_line, after + 1, (size_t)((int)length));

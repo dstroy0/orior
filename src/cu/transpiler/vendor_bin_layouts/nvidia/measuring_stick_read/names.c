@@ -114,7 +114,7 @@ void stick_read(const char *path)
 // the place past the space at `text`
 const char *stick_spaced(const char *text)
 {
-    return text + strspn(text, s_space);
+    return text + mmgr_text_span(text, s_space, PLATFORM_TEXT_TO_TERMINATOR);
 }
 
 // the length of a guard at `text`, `@!?U?P[T0-9]+` and the space after it, or 0 where none is there
@@ -133,8 +133,8 @@ size_t stick_guard(const char *text)
         return 0u;
     }
     at += 1u;
-    const size_t marks = strspn(&text[at], "T0123456789");
-    const size_t space = (marks != 0u) ? strspn(&text[at + marks], s_space) : 0u;
+    const size_t marks = mmgr_text_span(&text[at], "T0123456789", PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t space = (marks != 0u) ? mmgr_text_span(&text[at + marks], s_space, PLATFORM_TEXT_TO_TERMINATOR) : 0u;
     return (space != 0u) ? (at + marks + space) : 0u;
 }
 
@@ -149,14 +149,15 @@ size_t stick_form_guard(const char *text)
     at += 1u;
     at += (text[at] == '!') ? 1u : 0u;
     at += (text[at] == '{') ? 1u : 0u;
-    const size_t name = strspn(&text[at], "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
+    const size_t name = mmgr_text_span(&text[at], "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_",
+                                       PLATFORM_TEXT_TO_TERMINATOR);
     if (name == 0u)
     {
         return 0u;
     }
     at += name;
     at += (text[at] == '}') ? 1u : 0u;
-    const size_t space = strspn(&text[at], s_space);
+    const size_t space = mmgr_text_span(&text[at], s_space, PLATFORM_TEXT_TO_TERMINATOR);
     return (space != 0u) ? (at + space) : 0u;
 }
 
@@ -170,13 +171,13 @@ int stick_operation_of(const char *line, unsigned int *operation)
         return 0;
     }
     at += 2;
-    const size_t digits = strspn(at, "0123456789abcdef");
+    const size_t digits = mmgr_text_span(at, "0123456789abcdef", PLATFORM_TEXT_TO_TERMINATOR);
     if ((digits < 4u) || (!mmgr_text_starts(&at[digits], "*/", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         return 0;
     }
     at += digits + 2u;
-    const size_t space = strspn(at, s_space);
+    const size_t space = mmgr_text_span(at, s_space, PLATFORM_TEXT_TO_TERMINATOR);
     if (space == 0u)
     {
         return 0;
@@ -195,7 +196,7 @@ int stick_operation_of(const char *line, unsigned int *operation)
     }
     char *const instruction = stick_copy(at, length);
     const char *const text = stick_spaced(instruction + stick_guard(instruction));
-    const size_t word = strcspn(text, s_space);
+    const size_t word = mmgr_text_span_not(text, s_space, PLATFORM_TEXT_TO_TERMINATOR);
     const int found = (word != 0u);
     if (found)
     {

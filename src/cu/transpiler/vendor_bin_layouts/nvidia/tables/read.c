@@ -6,6 +6,7 @@
 #include "../../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 
 #include "../../../../../../includes/parsers/line_read.h"
 
@@ -14,7 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static const char *tables_past_spaces(const char *at)
+    static const char *tables_past_spaces(const char *at)
 {
     while ((*at == ' ') || (*at == '\t'))
     {
@@ -87,9 +88,9 @@ static int tables_field_line(const char *line, TablesField *field)
     }
     mmgr_bytes_set(field, 0, sizeof(*field));
     const char *at = line + 5;
-    char *end = NULL;
+    const char *end = NULL;
     // the count, then pairs of numbers while a number follows the underscore
-    const unsigned long count = strtoul(at, &end, 10);
+    const unsigned long count = mmgr_text_unsigned_in(at, &end, 10);
     if ((end == at) || (*end != '_'))
     {
         return 0;
@@ -97,14 +98,14 @@ static int tables_field_line(const char *line, TablesField *field)
     at = end + 1;
     for (;;)
     {
-        char *high_end = NULL;
-        const unsigned long high = strtoul(at, &high_end, 10);
+        const char *high_end = NULL;
+        const unsigned long high = mmgr_text_unsigned_in(at, &high_end, 10);
         if ((high_end == at) || (*high_end != '_'))
         {
             break;
         }
-        char *low_end = NULL;
-        const unsigned long low = strtoul(high_end + 1, &low_end, 10);
+        const char *low_end = NULL;
+        const unsigned long low = mmgr_text_unsigned_in(high_end + 1, &low_end, 10);
         if ((low_end == high_end + 1) || (*low_end != '_') || (low > high) || (high > 127UL))
         {
             break;
@@ -141,9 +142,9 @@ static int tables_field_line(const char *line, TablesField *field)
     if (*operand == '*')
     {
         field->fixed = 1;
-        field->value = strtoull(operand + 1, NULL, 0);
+        field->value = mmgr_text_unsigned_in(operand + 1, NULL, 0);
     }
-    size_t operand_length = strcspn(operand, ";");
+    size_t operand_length = mmgr_text_span_not(operand, ";", PLATFORM_TEXT_TO_TERMINATOR);
     while ((operand_length != 0u) && (operand[operand_length - 1u] == ' '))
     {
         operand_length -= 1u;
@@ -168,7 +169,7 @@ static void tables_fields_line(const char *line, TablesClass *class_)
     const char *const operand = tables_past_spaces(equals + 1);
     // the operand's arguments, where it is a call: the text between its parentheses, split on commas
     const char *const open = mmgr_text_char(operand, '(', PLATFORM_TEXT_TO_TERMINATOR);
-    const char *const close = (open != NULL) ? strrchr(operand, ')') : NULL;
+    const char *const close = (open != NULL) ? mmgr_text_char_last(operand, ')', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
     unsigned int parts = 1u;
     for (const char *at = line; at < equals; at += 1)
     {
@@ -195,7 +196,7 @@ static void tables_fields_line(const char *line, TablesClass *class_)
         length += 1u;
         // the argument in this field's place, or the whole operand
         const char *argument = operand;
-        size_t argument_length = strcspn(operand, ";");
+        size_t argument_length = mmgr_text_span_not(operand, ";", PLATFORM_TEXT_TO_TERMINATOR);
         if ((parts > 1u) && (open != NULL) && (close != NULL) && (close > open))
         {
             const char *at = open + 1;
@@ -256,7 +257,7 @@ static unsigned int tables_immediate_bits(const char *open, const char *end)
     {
         if (mmgr_text_starts(at, "Imm(", PLATFORM_TEXT_TO_TERMINATOR))
         {
-            return (unsigned int)strtoul(at + 4, NULL, 10);
+            return (unsigned int)mmgr_text_unsigned_in(at + 4, NULL, 10);
         }
     }
     return 0u;
@@ -292,7 +293,7 @@ static void tables_size_read(const char *line, TablesClass *class_)
         {
             digits += 1;
         }
-        class_->size_bytes[class_->sizes] = (unsigned int)strtoul(digits, NULL, 10) / 8u;
+        class_->size_bytes[class_->sizes] = (unsigned int)mmgr_text_unsigned_in(digits, NULL, 10) / 8u;
         class_->sizes += 1u;
         at = end + 1;
     }
@@ -397,7 +398,7 @@ static void tables_constant_read(const char *line, TablesClass *class_)
         return;
     }
     tables_name_before(first_open, first_close, class_->bank);
-    const char *const last_close = strrchr(first_close, ']');
+    const char *const last_close = mmgr_text_char_last(first_close, ']', PLATFORM_TEXT_TO_TERMINATOR);
     const char *last_open = NULL;
     for (const char *at = first_close; (last_close != NULL) && (at < last_close); at += 1)
     {
@@ -467,7 +468,8 @@ int tables_set_read(TablesSet *set, const unsigned char *text, size_t size)
             register_type = 0;
             continue;
         }
-        else if ((line[0] >= 'A') && (line[0] <= 'Z') && (strspn(line, "ABCDEFGHIJKLMNOPQRSTUVWXYZ_") == length))
+        else if ((line[0] >= 'A') && (line[0] <= 'Z') &&
+                 (mmgr_text_span(line, "ABCDEFGHIJKLMNOPQRSTUVWXYZ_", PLATFORM_TEXT_TO_TERMINATOR) == length))
         {
             // within CONDITIONS, a type of error the conditions after it are under; elsewhere another part's head,
             // PROPERTIES, PREDICATES: capitals and underscores alone
@@ -706,7 +708,8 @@ static long long tables_condition_constant(TablesCondition *condition)
         }
         if (value[0] == 'R')
         {
-            return strtoll(value + 1, NULL, 10);
+            // Explicit cast widens the signed word of the read to the long long of the constant
+            return (long long)EMBED_CALL(cellul.to_long, TransfiguroCfg, .src = value + 1, .end = NULL);
         }
     }
     if (mmgr_text_equal(list, "UniformRegister", PLATFORM_TEXT_TO_TERMINATOR))
@@ -717,7 +720,8 @@ static long long tables_condition_constant(TablesCondition *condition)
         }
         if (mmgr_text_starts(value, "UR", PLATFORM_TEXT_TO_TERMINATOR))
         {
-            return strtoll(value + 2, NULL, 10);
+            // Explicit cast widens the signed word of the read to the long long of the constant
+            return (long long)EMBED_CALL(cellul.to_long, TransfiguroCfg, .src = value + 2, .end = NULL);
         }
     }
     if (((mmgr_text_equal(list, "Predicate", PLATFORM_TEXT_TO_TERMINATOR)) &&
@@ -777,8 +781,10 @@ static long long tables_condition_primary(TablesCondition *condition)
     }
     if ((*condition->at >= '0') && (*condition->at <= '9'))
     {
-        char *end = NULL;
-        const long long value = strtoll(condition->at, &end, 0);
+        const char *end = NULL;
+        // The text opens with a digit, and so the read has no sign. Explicit cast carries the unsigned word to the
+        // long long of the constant
+        const long long value = (long long)mmgr_text_unsigned_in(condition->at, &end, 0u);
         condition->at = end;
         return value;
     }

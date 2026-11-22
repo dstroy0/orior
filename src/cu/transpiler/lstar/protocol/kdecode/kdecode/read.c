@@ -130,7 +130,7 @@ static int kdecode_field(const char *line, unsigned int field, char *word, size_
         }
         at += 1;
     }
-    const size_t length = strcspn(at, "\t\r\n");
+    const size_t length = mmgr_text_span_not(at, "\t\r\n", PLATFORM_TEXT_TO_TERMINATOR);
     VerbaLinea copied = {word, room, 0ULL};
     mmgr_line_put_max(&copied, at, (length < room) ? length : (room - 1u));
     mmgr_line_finish(&copied);
@@ -182,7 +182,7 @@ static void kdecode_oracle_parsed(const unsigned char *bytes, unsigned long long
                                      .cap = sizeof(column->form),
                                      .at = verba_textus.put_clip(&(VerbaTextusCfg){
                                          .out = column->form, .cap = sizeof(column->form), .at = 0u, .text = form})});
-                const char *const gloss = strrchr(s_line, '\t');
+                const char *const gloss = mmgr_text_char_last(s_line, '\t', PLATFORM_TEXT_TO_TERMINATOR);
                 const char *const named =
                     (gloss != NULL) ? mmgr_text_find(gloss, ".oracle.tsv", PLATFORM_TEXT_TO_TERMINATOR) : NULL;
                 const char *start = named;
@@ -207,7 +207,7 @@ static void kdecode_oracle_parsed(const unsigned char *bytes, unsigned long long
             // a family numbered past its name, `record 1`, is the family its name gives
             KdecodeCode *const one = &oracle->code[oracle->codes];
             VerbaLinea family = {one->family, sizeof(one->family), 0ULL};
-            mmgr_line_put_max(&family, where, strcspn(where, " "));
+            mmgr_line_put_max(&family, where, mmgr_text_span_not(where, " ", PLATFORM_TEXT_TO_TERMINATOR));
             mmgr_line_finish(&family);
             (void)verba_finis.finish(
                 &(VerbaFinisCfg){.out = one->name,

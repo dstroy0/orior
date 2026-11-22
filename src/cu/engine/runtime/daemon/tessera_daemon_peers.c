@@ -291,19 +291,19 @@ int daemon_arguments(int count, char **arguments, unsigned long long *idle)
     int have_idle = 0;
     for (int at = 1; (at + 1) < count; at += 2)
     {
-        char *end = NULL;
+        const char *end = NULL;
         if (mmgr_text_equal(arguments[at], "--device", PLATFORM_TEXT_TO_TERMINATOR))
         {
             have_device = daemon_hex(arguments[at + 1], g_daemon.device, TESSERA_DEVICE_BYTES);
         }
         else if (mmgr_text_equal(arguments[at], "--luid", PLATFORM_TEXT_TO_TERMINATOR))
         {
-            g_daemon.luid = strtoull(arguments[at + 1], &end, 16);
+            g_daemon.luid = mmgr_text_unsigned_in(arguments[at + 1], &end, 16);
             have_luid = (end != arguments[at + 1]) && (*end == '\0');
         }
         else if (mmgr_text_equal(arguments[at], "--idle", PLATFORM_TEXT_TO_TERMINATOR))
         {
-            *idle = strtoull(arguments[at + 1], &end, 10);
+            *idle = mmgr_text_unsigned_in(arguments[at + 1], &end, 10);
             have_idle = (end != arguments[at + 1]) && (*end == '\0');
         }
         else
@@ -323,7 +323,7 @@ int daemon_socket_passed(void)
     const char *const listen_pid = getenv("LISTEN_PID");
     const char *const listen_fds = getenv("LISTEN_FDS");
     return (listen_pid != NULL) && (listen_fds != NULL) &&
-           (strtoull(listen_pid, NULL, 10) == (unsigned long long)getpid()) &&
+           (mmgr_text_unsigned_in(listen_pid, NULL, 10) == (unsigned long long)getpid()) &&
            (mmgr_text_equal(listen_fds, "1", PLATFORM_TEXT_TO_TERMINATOR));
 #endif
 }

@@ -37,8 +37,8 @@ int kqr_number_read(const char *text, size_t length, int base, unsigned long lon
     }
     mmgr_bytes_copy(plain, text, length);
     plain[length] = '\0';
-    char *after = NULL;
-    *value = strtoull(plain, &after, base);
+    const char *after = NULL;
+    *value = mmgr_text_unsigned_in(plain, &after, base);
     return (*after == '\0') && (plain[0] != '-') && (plain[0] != '+');
 }
 
@@ -48,7 +48,7 @@ int kqr_identity_read(const char *text, KqrIdentity *identity)
     const char *at = text;
     for (unsigned int word = 0u; word < 7u; word += 1u)
     {
-        const size_t length = strcspn(at, " ");
+        const size_t length = mmgr_text_span_not(at, " ", PLATFORM_TEXT_TO_TERMINATOR);
         const int hexed = (word == 0u) || (word == 6u);
         if (!kqr_number_read(at, length, hexed ? 16 : 10, &value[word]) || (!hexed && (value[word] > 0xffffffffULL)))
         {

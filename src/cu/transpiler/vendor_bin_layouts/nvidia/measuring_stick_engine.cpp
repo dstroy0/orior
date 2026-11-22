@@ -50,6 +50,7 @@
 extern "C"
 {
 #include "sass_assemble.h"
+#include "memoria_operor/memoria_linea.h"
 #include "../../../engine/engine_note.h"
 #include "cellularum_laboro/cellularum_linea.h"
 #include "sass_machine.h"
@@ -604,7 +605,7 @@ static std::string stick_pipe_choice(const std::string &instruction, std::string
     }
     if (std::regex_match(text, found, shifted))
     {
-        const unsigned long bits = strtoul(std::string(found[3]).c_str(), NULL, 0);
+        const unsigned long bits = mmgr_text_unsigned_in(std::string(found[3]).c_str(), NULL, 0);
         *writing = "IMAD.SHL.U32 " + std::string(found[1]) + ", " + std::string(found[2]) + ", " +
                    std::to_string(1UL << bits) + ", RZ";
         return "SHF.L.U32";
@@ -705,14 +706,14 @@ static std::string stick_constant(const std::string &text)
     {
         const size_t plus = terms.find('+', at);
         const std::string term = terms.substr(at, (plus == std::string::npos) ? std::string::npos : (plus - at));
-        offset += strtoull(term.c_str(), NULL, 0);
+        offset += mmgr_text_unsigned_in(term.c_str(), NULL, 0);
         at = (plus == std::string::npos) ? terms.size() : (plus + 1u);
     }
     char written[64];
     {
         VerbaLinea buffer_line = mmgr_line_over(written, sizeof(written));
         mmgr_line_put(&buffer_line, "c[0x");
-        mmgr_line_hex(&buffer_line, strtoull(std::string(found[1]).c_str(), NULL, 0), 1u);
+        mmgr_line_hex(&buffer_line, mmgr_text_unsigned_in(std::string(found[1]).c_str(), NULL, 0), 1u);
         mmgr_line_put(&buffer_line, "][0x");
         mmgr_line_hex(&buffer_line, offset, 1u);
         mmgr_line_put(&buffer_line, "]");
@@ -1625,8 +1626,8 @@ class StickKernel
             return 0;
         }
         const std::string digits = bare.substr(before.size(), bare.size() - before.size() - after.size());
-        char *end = NULL;
-        const unsigned long long value = strtoull(digits.c_str(), &end, 0);
+        const char *end = NULL;
+        const unsigned long long value = mmgr_text_unsigned_in(digits.c_str(), &end, 0);
         if ((end == NULL) || (*end != '\0') || (value > 0xFFFFFFFFULL))
         {
             return 0;
@@ -1997,8 +1998,8 @@ class StickKernel
     // A suffix u gives unsigned, and ll gives long long. Else it is an int where it fits one
     StickTyped number_typed(const std::string &token)
     {
-        char *end = NULL;
-        const unsigned long long number = strtoull(token.c_str(), &end, 0);
+        const char *end = NULL;
+        const unsigned long long number = mmgr_text_unsigned_in(token.c_str(), &end, 0);
         std::string suffix = (end == NULL) ? std::string() : std::string(end);
         std::transform(suffix.begin(), suffix.end(), suffix.begin(),
                        [](unsigned char character) { return (char)tolower(character); });

@@ -60,7 +60,7 @@ unsigned int sass_operation_schedule(const SassMachine *machine, const char *ope
     // The names before the first dot that NVIDIA's compiler gives a write barrier at every place, or a read barrier.
     static const char *const s_late[] = {"LDG", "LDS", "S2R", "S2UR", "F2I", "I2F", "MUFU", "ATOMG"};
     static const char *const s_store[] = {"STG", "STS", "STL", "ST", "RED"};
-    const size_t base = strcspn(operation, ".");
+    const size_t base = mmgr_text_span_not(operation, ".", PLATFORM_TEXT_TO_TERMINATOR);
     *soonest = SASS_STALL_MAX_LEN;
     for (unsigned int at = 0u; at < (sizeof(s_late) / sizeof(s_late[0])); at += 1u)
     {
@@ -180,7 +180,7 @@ static size_t sass_constant_head(const char *text)
     {
         return 0u;
     }
-    const char *const plus = strrchr(second, '+');
+    const char *const plus = mmgr_text_char_last(second, '+', PLATFORM_TEXT_TO_TERMINATOR);
     // The head is a few bytes of a short operand.
     return (size_t)(((plus != NULL) ? plus : second) + 1 - text);
 }
@@ -235,7 +235,7 @@ int sass_text_placed(const SassForm *form, char *written, size_t room)
         // A placed address keeps its brackets and what follows its register inside them, `[{<place>}.64]`. The
         // operand then reads as an address after the place takes its value.
         const int address = (parts.type[operand] == SASS_OPERAND_ADDRESS) && (text[0] == '[');
-        const size_t inner = address ? (1u + strcspn(text + 1, ".+]")) : 0u;
+        const size_t inner = address ? (1u + mmgr_text_span_not(text + 1, ".+]", PLATFORM_TEXT_TO_TERMINATOR)) : 0u;
         // A placed constant keeps its bank and its base and places its immediate, `c[0x0][0x160+{<place>}]`. The
         // operand then reads as a constant after the place takes its value.
         const size_t head = (parts.type[operand] == SASS_OPERAND_CONSTANT) ? sass_constant_head(text) : 0u;
@@ -344,14 +344,14 @@ static int sass_runs_read(SassForm *form, const char *column)
             (mmgr_text_order(&at[read + 1], SASS_RUN_NO_PLACE_TEXT,
                              (size_t)(mmgr_text_length(SASS_RUN_NO_PLACE_TEXT, PLATFORM_TEXT_TO_TERMINATOR))) != 0))
         {
-            place = (unsigned int)strtoul(&at[read + 1], NULL, 10);
+            place = (unsigned int)mmgr_text_unsigned_in(&at[read + 1], NULL, 10);
         }
         form->run[form->runs].operand = operand;
         form->run[form->runs].first = first;
         form->run[form->runs].last = last;
         form->run[form->runs].place = place;
         form->runs += 1u;
-        const size_t length = strcspn(at, ";");
+        const size_t length = mmgr_text_span_not(at, ";", PLATFORM_TEXT_TO_TERMINATOR);
         at += length + ((at[length] == ';') ? 1u : 0u);
     }
     return 1;
@@ -462,7 +462,7 @@ static int sass_types_read(SassForm *form, const char *column)
     const char *at = column;
     while (*at != '\0')
     {
-        const size_t length = strcspn(at, ",");
+        const size_t length = mmgr_text_span_not(at, ",", PLATFORM_TEXT_TO_TERMINATOR);
         // The mark is the last character if it is one, and the type is the rest.
         const size_t mark_length = ((length != 0u) && (sass_name_place(s_mark_names, (unsigned int)SASS_MARK_COUNT,
                                                                        at + length - 1u, 1u) != SASS_MARK_COUNT))
@@ -584,14 +584,14 @@ int sass_machine_read(SassMachine *machine, const char *path)
     int broken = 0;
     while (line_read(file_bytes, file_size, &file_at, line, sizeof(line)))
     {
-        line[strcspn(line, "\r\n")] = '\0';
+        line[mmgr_text_span_not(line, "\r\n", PLATFORM_TEXT_TO_TERMINATOR)] = '\0';
         if ((line[0] == '#') || (line[0] == '\0'))
         {
             continue;
         }
         if (mmgr_text_starts(line, "forms ", PLATFORM_TEXT_TO_TERMINATOR))
         {
-            version = (unsigned int)strtoul(line + 6, NULL, 10);
+            version = (unsigned int)mmgr_text_unsigned_in(line + 6, NULL, 10);
             continue;
         }
         if (mmgr_text_starts(line, "part ", PLATFORM_TEXT_TO_TERMINATOR))

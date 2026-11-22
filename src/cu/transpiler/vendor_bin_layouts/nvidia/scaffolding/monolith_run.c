@@ -12,6 +12,7 @@
 //     monolith_run <cubin> [runs] [turns] [cost runs]
 #include "../../../../engine/rmc/precept_value.h"
 #include "../../../../../platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "../../../../engine/engine_note.h"
 #include "../monolith.h"
 
@@ -108,7 +109,10 @@ static unsigned int monolith_chain(unsigned int precept, unsigned int word, unsi
 // a count of the words given, read as at least one
 static unsigned int monolith_count_given(int count_of_words, char **words, int place, long otherwise)
 {
-    const long given = (count_of_words > place) ? strtol(words[place], NULL, 10) : otherwise;
+    // Explicit cast narrows the signed word of the read to the long of a count, which a count of words fits
+    const long given = (count_of_words > place)
+                           ? (long)EMBED_CALL(cellul.to_long, TransfiguroCfg, .src = words[place], .end = NULL)
+                           : otherwise;
     return (given > 0L) ? (unsigned int)given : 1u;
 }
 

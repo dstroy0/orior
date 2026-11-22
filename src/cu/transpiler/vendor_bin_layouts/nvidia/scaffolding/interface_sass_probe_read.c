@@ -106,7 +106,7 @@ static unsigned long long sass_word_read(const char *text, const char *line_end,
 {
     const char *const start = mmgr_text_find(text, "/* 0x", PLATFORM_TEXT_TO_TERMINATOR);
     *found = (start != NULL) && (start < line_end);
-    return *found ? strtoull(start + 5, NULL, 16) : 0ULL;
+    return *found ? mmgr_text_unsigned_in(start + 5, NULL, 16) : 0ULL;
 }
 
 int sass_listing_read(const char *output, SassListing *listing)
@@ -134,7 +134,7 @@ int sass_listing_read(const char *output, SassListing *listing)
             }
             SassInstruction *const instruction = &listing->instructions[listing->count];
             listing->count += 1u;
-            instruction->address = strtoull(address + 2, NULL, 16);
+            instruction->address = mmgr_text_unsigned_in(address + 2, NULL, 16);
             const char *text = address + address_length;
             while ((text < line_end) && (*text == ' '))
             {
@@ -196,7 +196,7 @@ void sass_parts_read(const char *text, SassParts *parts)
     }
     if (*text == '@')
     {
-        const size_t length = strcspn(text, " ");
+        const size_t length = mmgr_text_span_not(text, " ", PLATFORM_TEXT_TO_TERMINATOR);
         sass_token_copy(parts->predicate, text, length);
         text += length;
         while (*text == ' ')
@@ -204,7 +204,7 @@ void sass_parts_read(const char *text, SassParts *parts)
             text += 1;
         }
     }
-    const size_t operation_length = strcspn(text, " ");
+    const size_t operation_length = mmgr_text_span_not(text, " ", PLATFORM_TEXT_TO_TERMINATOR);
     sass_token_copy(parts->operation, text, operation_length);
     text += operation_length;
     // the operands, split at each comma outside brackets
@@ -219,7 +219,7 @@ void sass_parts_read(const char *text, SassParts *parts)
         {
             // an operand runs from its start to the comma or the end past it
             const size_t length = (size_t)(walk - start);
-            if ((parts->operands < SASS_OPERANDS) && (strspn(start, " ") < length))
+            if ((parts->operands < SASS_OPERANDS) && (mmgr_text_span(start, " ", PLATFORM_TEXT_TO_TERMINATOR) < length))
             {
                 sass_token_copy(parts->operand[parts->operands], start, length);
                 parts->operands += 1u;
@@ -284,26 +284,27 @@ static void sass_target_relative(char *text, unsigned long long address)
     const char *operation = text;
     if (operation[0] == '@')
     {
-        operation += strcspn(operation, " ");
-        operation += strspn(operation, " ");
+        operation += mmgr_text_span_not(operation, " ", PLATFORM_TEXT_TO_TERMINATOR);
+        operation += mmgr_text_span(operation, " ", PLATFORM_TEXT_TO_TERMINATOR);
     }
     char name[SASS_OPERAND_TEXT];
     {
         VerbaLinea buffer_line = mmgr_line_over(name, sizeof(name));
-        mmgr_line_put_max(&buffer_line, operation, (size_t)((int)strcspn(operation, " ")));
+        mmgr_line_put_max(&buffer_line, operation,
+                          (size_t)((int)mmgr_text_span_not(operation, " ", PLATFORM_TEXT_TO_TERMINATOR)));
         (void)mmgr_line_finish(&buffer_line);
     }
-    char *const comma = strrchr(text, ',');
+    char *const comma = mmgr_text_char_last(text, ',', PLATFORM_TEXT_TO_TERMINATOR);
     char *target =
         (comma != NULL) ? (comma + 1) : (char *)(operation + mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR));
-    target += strspn(target, " ");
+    target += mmgr_text_span(target, " ", PLATFORM_TEXT_TO_TERMINATOR);
     const int negative = (target[0] == '-');
     if (!sass_operation_relative(name) ||
         (!mmgr_text_starts(target + (negative ? 1 : 0), "0x", PLATFORM_TEXT_TO_TERMINATOR)))
     {
         return;
     }
-    const unsigned long long magnitude = strtoull(target + (negative ? 1 : 0), NULL, 16);
+    const unsigned long long magnitude = mmgr_text_unsigned_in(target + (negative ? 1 : 0), NULL, 16);
     // the address and the distance are both two's complement words of 64 bits, and their difference is taken as one
     const long long distance = (long long)((negative ? (0ULL - magnitude) : magnitude) - (address + 16ULL));
     const size_t room = SASS_TEXT - (size_t)(target - text);
@@ -433,7 +434,7 @@ int sass_decode(const char *architecture, const char *path, const unsigned long 
     for (const char *walk = mmgr_text_find(sass_output(), "at address 0x", PLATFORM_TEXT_TO_TERMINATOR); walk != NULL;
          walk = mmgr_text_find(walk + 1, "at address 0x", PLATFORM_TEXT_TO_TERMINATOR))
     {
-        const unsigned long long place = strtoull(walk + 13, NULL, 16) / 16ULL;
+        const unsigned long long place = mmgr_text_unsigned_in(walk + 13, NULL, 16) / 16ULL;
         if (place < (unsigned long long)count)
         {
             named += refused[place] ? 0u : 1u;

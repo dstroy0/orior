@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cycle_compile_toolchain.cu: the environment, the compiler and linker, and the cache's names
 #include "cycle_compile_internal.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../platform/platform.h"
 
 CycleCompiler g_cycle_compiler;
@@ -22,8 +24,8 @@ unsigned long long cycle_environment_microseconds(const char *name, unsigned lon
     {
         return otherwise;
     }
-    char *end = NULL;
-    const unsigned long long named = strtoull(value, &end, 10);
+    const char *end = NULL;
+    const unsigned long long named = mmgr_text_unsigned_in(value, &end, 10);
     return ((end != NULL) && (*end == '\0')) ? named : otherwise;
 }
 

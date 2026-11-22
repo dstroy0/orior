@@ -78,10 +78,11 @@ int program_main(int argc, char **argv)
     static OmegaCounts counts;
     // L alone runs on the engine, bounded by nothing. L, steps and tokens run the budgeted kernel on the device
     // ("cpu" after them: on the host), retained as the cross-check. "--ledger <path>" plans either run as jobs.
-    counts.length = (argc > 1) ? (unsigned int)strtoul(argv[1], NULL, 10) : OMEGA_LENGTH_DEFAULT;
+    counts.length = (argc > 1) ? (unsigned int)mmgr_text_unsigned_in(argv[1], NULL, 10) : OMEGA_LENGTH_DEFAULT;
     const int budgeted = (argc > 2) && (argv[2][0] >= '0') && (argv[2][0] <= '9');
-    counts.steps = budgeted ? (unsigned int)strtoul(argv[2], NULL, 10) : OMEGA_STEPS_DEFAULT;
-    counts.tokens = (budgeted && (argc > 3)) ? (unsigned int)strtoul(argv[3], NULL, 10) : OMEGA_TOKENS_DEFAULT;
+    counts.steps = budgeted ? (unsigned int)mmgr_text_unsigned_in(argv[2], NULL, 10) : OMEGA_STEPS_DEFAULT;
+    counts.tokens =
+        (budgeted && (argc > 3)) ? (unsigned int)mmgr_text_unsigned_in(argv[3], NULL, 10) : OMEGA_TOKENS_DEFAULT;
     const int on_engine = !budgeted;
     int on_device = budgeted;
     const char *ledger = NULL;

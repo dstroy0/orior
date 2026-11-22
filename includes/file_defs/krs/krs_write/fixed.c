@@ -63,7 +63,7 @@ static unsigned int fixed_given_read(const char *krs_path, KrsFixedGiven *given)
         {
             continue;
         }
-        line[strcspn(line, "\r\n")] = '\0';
+        line[mmgr_text_span_not(line, "\r\n", PLATFORM_TEXT_TO_TERMINATOR)] = '\0';
         {
             VerbaLinea buffer_line = mmgr_line_over(given[count].name, sizeof(given[count].name));
             mmgr_line_put(&buffer_line, name);
@@ -183,7 +183,8 @@ static void fixed_register_kept(const char *name, const char *line)
         mmgr_line_put(&buffer_line, equals + 2);
         (void)mmgr_line_finish(&buffer_line);
     }
-    s_register[s_registers].text[strcspn(s_register[s_registers].text, " \t")] = '\0';
+    s_register[s_registers].text[mmgr_text_span_not(s_register[s_registers].text, " \t", PLATFORM_TEXT_TO_TERMINATOR)] =
+        '\0';
     s_registers += 1u;
 }
 

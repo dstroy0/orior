@@ -127,9 +127,9 @@ int ksg_seal_ended(KsgSeal *seal, unsigned char *root, unsigned char *trailer)
 
 int ksg_type_sealed(const char *path)
 {
-    const char *const dot = strrchr(path, '.');
-    const char *const slash = strrchr(path, '/');
-    const char *const back = strrchr(path, '\\');
+    const char *const dot = mmgr_text_char_last(path, '.', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const slash = mmgr_text_char_last(path, '/', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const back = mmgr_text_char_last(path, '\\', PLATFORM_TEXT_TO_TERMINATOR);
     if ((dot == NULL) || ((slash != NULL) && (slash > dot)) || ((back != NULL) && (back > dot)))
     {
         return 0;

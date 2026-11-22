@@ -3,6 +3,7 @@
 // driver.c: the driver opened by name with every entry point taken, and the part's fault telemetry: the management
 // library and the system's event log opened, drained before a launch and read after it for a fault
 #include "cubin_run_internal.h"
+#include "../../../../../platform/platform.h"
 #include "../../../../engine/engine_note.h"
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
@@ -147,7 +148,7 @@ static unsigned long long cubin_run_event_number(const char *xml, const char *ta
 {
     const char *const opened = mmgr_text_find(xml, tag, PLATFORM_TEXT_TO_TERMINATOR);
     const char *const closed = (opened != NULL) ? mmgr_text_char(opened, '>', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
-    return (closed != NULL) ? strtoull(closed + 1, NULL, 10) : 0ULL;
+    return (closed != NULL) ? mmgr_text_unsigned_in(closed + 1, NULL, 10) : 0ULL;
 }
 
 // the text of the driver's error in `xml` into `text`, which has room for `room`: its second datum, the first the

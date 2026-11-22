@@ -3,6 +3,7 @@
 // interface_ptx_probe_runs.cu: the probe's runs: PTX's header and the kernel, the cubins assembled, built, written
 // and run, and the membership, single and clocks probes
 #include "interface_ptx_probe_internal.h"
+#include "memoria_operor/memoria_linea.h"
 #include "../../../../../platform/platform.h"
 #include "cellularum_laboro/cellularum_linea.h"
 
@@ -621,7 +622,7 @@ int probe_cubin_run(const char *path, int count, char **arguments)
     for (int word = 0; (word < (count - 3)) && (word < (int)PROBE_IN_WORDS); word += 1)
     {
         // a word the caller gives in hex, which fits an unsigned int
-        in[word] = (unsigned int)strtoul(arguments[3 + word], NULL, 16);
+        in[word] = (unsigned int)mmgr_text_unsigned_in(arguments[3 + word], NULL, 16);
     }
     unsigned int out[PROBE_OUT_WORDS] = {0u, 0u, 0u, 0u};
     const cudaError_t status = probe_run(kernel, in, out, 1u);
@@ -646,7 +647,7 @@ int probe_cubin_run(const char *path, int count, char **arguments)
     // and a run measured from outside shows what a kernel costs whatever the part will name. The run above is not
     // counted, since it carries the library load and the first launch
     const char *const repeats = getenv("PROBE_REPEATS");
-    const unsigned long runs = (repeats != NULL) ? strtoul(repeats, NULL, 10) : 0UL;
+    const unsigned long runs = (repeats != NULL) ? mmgr_text_unsigned_in(repeats, NULL, 10) : 0UL;
     if (runs != 0UL)
     {
         const std::chrono::steady_clock::time_point opened = std::chrono::steady_clock::now();

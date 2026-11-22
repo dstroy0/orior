@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pi_plane_ring_report.cu: rings, paths and printing
 #include "pi_plane_internal.h"
+#include "memoria_operor/memoria_linea.h"
 #include "../../../../../platform/platform.h"
 #include "cellularum_laboro/cellularum_linea.h"
 
@@ -211,7 +212,7 @@ unsigned int plane_number(int count, char **arguments, const char *name, unsigne
         if (mmgr_text_equal(arguments[argument], name, PLATFORM_TEXT_TO_TERMINATOR))
         {
             // a request past its max errors in its reader. The conversion's range does not matter here
-            return (unsigned int)strtoul(arguments[argument + 1], NULL, 10);
+            return (unsigned int)mmgr_text_unsigned_in(arguments[argument + 1], NULL, 10);
         }
     }
     return fallback;

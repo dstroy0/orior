@@ -74,7 +74,7 @@ int khw_pieces_read(const char *path)
     char line[1024];
     while (platform_file_text_read(line, sizeof(line), file) != NULL)
     {
-        line[strcspn(line, "\r\n")] = '\0';
+        line[mmgr_text_span_not(line, "\r\n", PLATFORM_TEXT_TO_TERMINATOR)] = '\0';
         if ((line[0] == '#') || (line[0] == '\0') || (s_pieces == KHW_PIECES))
         {
             continue;

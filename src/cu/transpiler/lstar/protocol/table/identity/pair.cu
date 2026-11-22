@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pair.cu: the pair: each pair of the bridge put to the part through the carriers, its verdict written beneath it
 #include "pair.h"
+#include "memoria_operor/memoria_linea.h"
 #include "../../../../../../platform/platform.h"
 #include "cellularum_laboro/cellularum_linea.h"
 
@@ -276,7 +277,7 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
             pair.reads = hashed;
             const auto path = recorded_paths.find(pair.first + " " + pair.second);
             if ((path != recorded_paths.end()) && path->second.read &&
-                (strtoull(pair.reads.c_str(), NULL, 16) == path->second.reads) &&
+                (mmgr_text_unsigned_in(pair.reads.c_str(), NULL, 16) == path->second.reads) &&
                 (mmgr_text_starts(path->second.verdict, "closed ", PLATFORM_TEXT_TO_TERMINATOR)))
             {
                 pair.verdict = path->second.verdict;
@@ -524,7 +525,7 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
             (void)mmgr_line_finish(&buffer_line);
         }
         s_path.read = pair.reads.empty() ? 0 : 1;
-        s_path.reads = strtoull(pair.reads.c_str(), NULL, 16);
+        s_path.reads = mmgr_text_unsigned_in(pair.reads.c_str(), NULL, 16);
         {
             VerbaLinea buffer_line = mmgr_line_over(s_path.verdict, sizeof(s_path.verdict));
             mmgr_line_put(&buffer_line, pair.verdict.c_str());

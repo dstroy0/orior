@@ -21,6 +21,7 @@
 // later pass reads back against the form's runs. The kernel opens with its section's label, loads the case into
 // registers and stores the answer's first word from R7.
 #include "interface_sass_probe_fields/fields_internal.h"
+#include "memoria_operor/memoria_linea.h"
 #include "../../../../../platform/platform.h"
 #include "../../../../engine/engine_note.h"
 #include "cellularum_laboro/cellularum_linea.h"
@@ -102,8 +103,8 @@ int program_main(int count, char **words)
     char line[512];
     while (platform_file_text_read(line, sizeof(line), instructions) != NULL)
     {
-        line[strcspn(line, "\r\n")] = '\0';
-        const char *walk = line + strspn(line, " \t");
+        line[mmgr_text_span_not(line, "\r\n", PLATFORM_TEXT_TO_TERMINATOR)] = '\0';
+        const char *walk = line + mmgr_text_span(line, " \t", PLATFORM_TEXT_TO_TERMINATOR);
         if ((*walk == '\0') || (mmgr_text_starts(walk, "IADD3 R8", PLATFORM_TEXT_TO_TERMINATOR)))
         {
             continue;

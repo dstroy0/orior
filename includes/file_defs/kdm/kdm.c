@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // kdm.c: a part's .kdm read, its rows read, its section and its pipes written by a who, and written back whole (kdm.h)
 #include "kdm.h"
+#include "memoria_operor/memoria_linea.h"
 #include "../../../src/platform/platform.h"
 #include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 
 #include "../../parsers/who.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-int kdm_read(KdmFile *file, const char *path)
+    int kdm_read(KdmFile *file, const char *path)
 {
     return kfile_lines_read(file, path);
 }
@@ -34,7 +36,7 @@ int kdm_row_read(const char *line, KdmRow *row)
     while (fields < 6u)
     {
         field[fields] = at;
-        length[fields] = strcspn(at, "\t");
+        length[fields] = mmgr_text_span_not(at, "\t", PLATFORM_TEXT_TO_TERMINATOR);
         at += length[fields];
         fields += 1u;
         if (*at != '\t')
@@ -48,14 +50,15 @@ int kdm_row_read(const char *line, KdmRow *row)
     {
         return 0;
     }
-    row->verdict = (fields == 6u) ? (int)strtol(field[5], NULL, 10) : -1;
+    // Explicit cast narrows the signed word of the read to the int of a verdict, which holds one of a few values
+    row->verdict = (fields == 6u) ? (int)EMBED_CALL(cellul.to_long, TransfiguroCfg, .src = field[5], .end = NULL) : -1;
     // each field is cut to its length, which an int counts for a field that fits its room
     {
         VerbaLinea buffer_line = mmgr_line_over(row->operation, sizeof(row->operation));
         mmgr_line_put_max(&buffer_line, field[0], (size_t)((int)length[0]));
         (void)mmgr_line_finish(&buffer_line);
     }
-    row->nodes = (unsigned int)strtoul(field[1], NULL, 10);
+    row->nodes = (unsigned int)mmgr_text_unsigned_in(field[1], NULL, 10);
     {
         VerbaLinea buffer_line = mmgr_line_over(row->chain, sizeof(row->chain));
         mmgr_line_put_max(&buffer_line, field[2], (size_t)((int)length[2]));
@@ -66,7 +69,7 @@ int kdm_row_read(const char *line, KdmRow *row)
         mmgr_line_put_max(&buffer_line, field[3], (size_t)((int)length[3]));
         (void)mmgr_line_finish(&buffer_line);
     }
-    row->runs = (unsigned int)strtoul(field[4], NULL, 10);
+    row->runs = (unsigned int)mmgr_text_unsigned_in(field[4], NULL, 10);
     return 1;
 }
 

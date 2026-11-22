@@ -375,8 +375,8 @@ int writings_krs_read(const char *folder, const char *ruleset, const char *recor
         const char *walk = rule + 5u + name_length;
         while ((equals != NULL) && (walk < equals) && (param_count < 8u))
         {
-            walk += strspn(walk, " ");
-            const size_t length = strcspn(walk, " =");
+            walk += mmgr_text_span(walk, " ", PLATFORM_TEXT_TO_TERMINATOR);
+            const size_t length = mmgr_text_span_not(walk, " =", PLATFORM_TEXT_TO_TERMINATOR);
             if ((length == 0u) || (walk >= equals))
             {
                 break;

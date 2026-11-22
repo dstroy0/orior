@@ -123,7 +123,8 @@ int program_main(int count, char **words)
     size_t question_count = 0u;
     for (unsigned long long at = 0ULL; at < list_size;)
     {
-        const unsigned char *const end = (const unsigned char *)memchr(list + at, '\n', (size_t)(list_size - at));
+        const unsigned char *const end =
+            (const unsigned char *)mmgr_bytes_find(list + at, '\n', (size_t)(list_size - at));
         const size_t length = (end != NULL) ? (size_t)(end - (list + at)) : (size_t)(list_size - at);
         char line[1024];
         {

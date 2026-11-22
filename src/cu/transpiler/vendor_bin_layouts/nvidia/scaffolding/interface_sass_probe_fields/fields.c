@@ -3,6 +3,7 @@
 // fields.c: the fields: each field read off the part, what writes first, a mark, a swap and an address swap, a
 // redirect, and the fields named
 #include "fields_internal.h"
+#include "memoria_operor/memoria_linea.h"
 #include "../../../../../../platform/platform.h"
 #include "../../../../../engine/engine_note.h"
 #include "cellularum_laboro/cellularum_linea.h"
@@ -261,7 +262,8 @@ static void fields_swap(const char *operand, const char *put, char *out, size_t 
     size_t length = 0u;
     if (operand[0] == 'R')
     {
-        length = (operand[1] == 'Z') ? 2u : (1u + strspn(operand + 1, "0123456789"));
+        length =
+            (operand[1] == 'Z') ? 2u : (1u + mmgr_text_span(operand + 1, "0123456789", PLATFORM_TEXT_TO_TERMINATOR));
     }
     const char *const rest = operand + length;
     const size_t rest_length =
@@ -279,7 +281,7 @@ static void fields_swap(const char *operand, const char *put, char *out, size_t 
 // register is copied as it is. 1, or 0 where `out` will not contain it
 static int fields_address_swap(const char *operand, const char *put, char *out, size_t room)
 {
-    const char *const open = strrchr(operand, '[');
+    const char *const open = mmgr_text_char_last(operand, '[', PLATFORM_TEXT_TO_TERMINATOR);
     if ((open == NULL) || (open[1] != 'R') || ((open[2] != 'Z') && ((open[2] < '0') || (open[2] > '9'))))
     {
         VerbaLinea formed_line_1 = mmgr_line_over(out, room);

@@ -39,8 +39,8 @@ int ksc_line_add(KscFile *file, const char *text)
 // it: 1, or 0 where there is no word or it does not fit
 static int ksc_word_read(const char *text, size_t *at, char *word, size_t room)
 {
-    *at += strspn(text + *at, " \t");
-    const size_t length = strcspn(text + *at, " \t");
+    *at += mmgr_text_span(text + *at, " \t", PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length = mmgr_text_span_not(text + *at, " \t", PLATFORM_TEXT_TO_TERMINATOR);
     if ((length == 0u) || (length >= room))
     {
         return 0;
@@ -61,9 +61,9 @@ int ksc_row_read(const char *line, const char *channel, KscRow *row)
     {
         return 0;
     }
-    char *after = NULL;
-    row->value = strtoull(row->word, &after, 16);
-    at += strspn(line + at, " \t");
+    const char *after = NULL;
+    row->value = mmgr_text_unsigned_in(row->word, &after, 16);
+    at += mmgr_text_span(line + at, " \t", PLATFORM_TEXT_TO_TERMINATOR);
     {
         VerbaLinea buffer_line = mmgr_line_over(row->question, sizeof(row->question));
         mmgr_line_put(&buffer_line, line + at);

@@ -148,7 +148,7 @@ void sass_instruction_read(const char *text, SassInstructionParts *parts)
     }
     if (*text == '@')
     {
-        const size_t length = strcspn(text, SASS_SPACES);
+        const size_t length = mmgr_text_span_not(text, SASS_SPACES, PLATFORM_TEXT_TO_TERMINATOR);
         sass_token_take(parts->guard, text, length);
         text += length;
         while (sass_is_space(*text))
@@ -156,7 +156,7 @@ void sass_instruction_read(const char *text, SassInstructionParts *parts)
             text += 1;
         }
     }
-    const size_t operation_length = strcspn(text, SASS_SPACES);
+    const size_t operation_length = mmgr_text_span_not(text, SASS_SPACES, PLATFORM_TEXT_TO_TERMINATOR);
     sass_token_take(parts->operation, text, operation_length);
     text += operation_length;
     // the operands, split at each comma outside brackets
@@ -170,7 +170,8 @@ void sass_instruction_read(const char *text, SassInstructionParts *parts)
         if ((character == '\0') || ((character == ',') && (depth == 0)))
         {
             const size_t length = (size_t)(walk - start);
-            if ((parts->operands < SASS_MACHINE_OPERANDS) && (strspn(start, SASS_SPACES) < length))
+            if ((parts->operands < SASS_MACHINE_OPERANDS) &&
+                (mmgr_text_span(start, SASS_SPACES, PLATFORM_TEXT_TO_TERMINATOR) < length))
             {
                 sass_operand_take(parts, parts->operands, start, length);
                 parts->operands += 1u;

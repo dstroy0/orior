@@ -38,8 +38,8 @@ int krf_line_add(KrfFile *file, const char *text)
 // it: 1, or 0 where there is no word or it does not fit
 static int krf_word_read(const char *text, size_t *at, char *word, size_t room)
 {
-    *at += strspn(text + *at, " \t");
-    const size_t length = strcspn(text + *at, " \t");
+    *at += mmgr_text_span(text + *at, " \t", PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length = mmgr_text_span_not(text + *at, " \t", PLATFORM_TEXT_TO_TERMINATOR);
     if ((length == 0u) || (length >= room))
     {
         return 0;
@@ -62,7 +62,7 @@ int krf_row_read(const char *line, KrfRow *row)
     {
         return 0;
     }
-    at += strspn(line + at, " \t");
+    at += mmgr_text_span(line + at, " \t", PLATFORM_TEXT_TO_TERMINATOR);
     {
         VerbaLinea buffer_line = mmgr_line_over(row->row, sizeof(row->row));
         mmgr_line_put(&buffer_line, line + at);
@@ -74,8 +74,8 @@ int krf_row_read(const char *line, KrfRow *row)
 // the name a path ends in, after its last separator, a slash written either way
 static const char *krf_base_of(const char *path)
 {
-    const char *const slash = strrchr(path, '/');
-    const char *const backslash = strrchr(path, '\\');
+    const char *const slash = mmgr_text_char_last(path, '/', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const backslash = mmgr_text_char_last(path, '\\', PLATFORM_TEXT_TO_TERMINATOR);
     const char *const separator = ((slash == NULL) || ((backslash != NULL) && (backslash > slash))) ? backslash : slash;
     return (separator == NULL) ? path : (separator + 1);
 }
@@ -83,7 +83,7 @@ static const char *krf_base_of(const char *path)
 // how many characters of `base` are before its last extension, every one where it has none
 static size_t krf_stem_length(const char *base)
 {
-    const char *const dot = strrchr(base, '.');
+    const char *const dot = mmgr_text_char_last(base, '.', PLATFORM_TEXT_TO_TERMINATOR);
     // a name is shorter than a size_t counts, and the dot is at or past the name's start
     return (dot == NULL) ? mmgr_text_length(base, PLATFORM_TEXT_TO_TERMINATOR) : (size_t)(dot - base);
 }

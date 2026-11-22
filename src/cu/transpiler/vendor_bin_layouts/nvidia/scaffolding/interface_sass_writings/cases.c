@@ -143,7 +143,7 @@ int writings_kernel(const char *kernel_text, char *kernel, size_t room)
     {
         return 0;
     }
-    const size_t length = strcspn(kernel_text + 6, ":\r\n");
+    const size_t length = mmgr_text_span_not(kernel_text + 6, ":\r\n", PLATFORM_TEXT_TO_TERMINATOR);
     VerbaLinea formed_line_17;
     return (kernel_text[6u + length] == ':') &&
            ((formed_line_17 = mmgr_line_over(kernel, room),
@@ -195,7 +195,8 @@ static void writings_swap(const char *operand, const char *put, char *out, size_
     size_t length = 0u;
     if (operand[0] == 'R')
     {
-        length = (operand[1] == 'Z') ? 2u : (1u + strspn(operand + 1, "0123456789"));
+        length =
+            (operand[1] == 'Z') ? 2u : (1u + mmgr_text_span(operand + 1, "0123456789", PLATFORM_TEXT_TO_TERMINATOR));
     }
     const char *const rest = operand + length;
     const size_t rest_length =

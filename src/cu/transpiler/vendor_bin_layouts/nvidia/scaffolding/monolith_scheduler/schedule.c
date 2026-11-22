@@ -25,8 +25,9 @@ static int scheduler_same_operation(unsigned int one, unsigned int two)
 {
     const char *const left = s_operation[one].name;
     const char *const right = s_operation[two].name;
-    const size_t length = strcspn(left, ".");
-    return (length == strcspn(right, ".")) && (mmgr_text_order(left, right, (size_t)(length)) == 0);
+    const size_t length = mmgr_text_span_not(left, ".", PLATFORM_TEXT_TO_TERMINATOR);
+    return (length == mmgr_text_span_not(right, ".", PLATFORM_TEXT_TO_TERMINATOR)) &&
+           (mmgr_text_order(left, right, (size_t)(length)) == 0);
 }
 
 // 1 where an instruction after `writer` and before `reader`, of the writer's operation, sets a write barrier that an

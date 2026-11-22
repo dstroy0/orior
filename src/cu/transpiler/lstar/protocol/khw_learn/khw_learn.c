@@ -99,7 +99,7 @@ int program_main(int count, char **word)
     {
         if ((mmgr_text_equal(word[at], "--position", PLATFORM_TEXT_TO_TERMINATOR)) && ((at + 1) < split))
         {
-            enumerate = (unsigned int)strtoul(word[at + 1], NULL, 10);
+            enumerate = (unsigned int)mmgr_text_unsigned_in(word[at + 1], NULL, 10);
             at += 1;
         }
         else if ((mmgr_text_equal(word[at], "--forms", PLATFORM_TEXT_TO_TERMINATOR)) && ((at + 1) < split))
@@ -130,7 +130,7 @@ int program_main(int count, char **word)
         }
         else
         {
-            rounds = (unsigned int)strtoul(word[at], NULL, 10);
+            rounds = (unsigned int)mmgr_text_unsigned_in(word[at], NULL, 10);
         }
     }
     if (!khw_kernel_read())

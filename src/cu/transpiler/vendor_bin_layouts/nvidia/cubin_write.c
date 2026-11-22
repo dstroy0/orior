@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cubin_write.c: a cubin written by the one emitter, from the layout of the ELF a CUDA toolchain writes
 #include "cubin_write.h"
+#include "memoria_operor/memoria_linea.h"
 #include "../../../../platform/platform.h"
 #include "cellularum_laboro/cellularum_linea.h"
 
@@ -20,8 +21,8 @@ static const ContainerLayout *cubin_layout(void)
     if (s_read == 0)
     {
         const char *const file = __FILE__;
-        const char *const forward = strrchr(file, '/');
-        const char *const back = strrchr(file, '\\');
+        const char *const forward = mmgr_text_char_last(file, '/', PLATFORM_TEXT_TO_TERMINATOR);
+        const char *const back = mmgr_text_char_last(file, '\\', PLATFORM_TEXT_TO_TERMINATOR);
         const char *const slash = (back == NULL) ? forward : ((forward == NULL) || (back > forward)) ? back : forward;
         // the folder is __FILE__ up to and with its last slash, and a file named with no folder is in this one
         const int folder = (slash != NULL) ? (int)((slash - file) + 1) : 0;

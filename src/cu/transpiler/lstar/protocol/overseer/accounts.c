@@ -196,8 +196,8 @@ static void overseer_clause_read(OverseerTally *tally, const char *expert, const
 static void overseer_account_read(OverseerTally *tally, const char *line, const char *end, QryShared *run,
                                   unsigned long long conference)
 {
-    const char *const colon = (const char *)memchr(line, ':', (size_t)(end - line));
-    if ((colon == NULL) || (colon == line) || (memchr(line, ' ', (size_t)(colon - line)) != NULL))
+    const char *const colon = (const char *)mmgr_bytes_find(line, ':', (size_t)(end - line));
+    if ((colon == NULL) || (colon == line) || (mmgr_bytes_find(line, ' ', (size_t)(colon - line)) != NULL))
     {
         return;
     }
@@ -251,7 +251,7 @@ void overseer_accounts_read(OverseerTally *tally, const unsigned char *bytes, un
     while (at < size)
     {
         const unsigned char *const line = bytes + at;
-        const unsigned char *const found = (const unsigned char *)memchr(line, '\n', (size_t)(size - at));
+        const unsigned char *const found = (const unsigned char *)mmgr_bytes_find(line, '\n', (size_t)(size - at));
         const unsigned char *const end = (found != NULL) ? found : (bytes + size);
         // the line's length, and where it ends, are within the bytes
         const size_t length = (size_t)(end - line);
@@ -262,7 +262,7 @@ void overseer_accounts_read(OverseerTally *tally, const unsigned char *bytes, un
         {
             const unsigned char *const other = before + seen;
             const unsigned char *const other_found =
-                (const unsigned char *)memchr(other, '\n', (size_t)(before_size - seen));
+                (const unsigned char *)mmgr_bytes_find(other, '\n', (size_t)(before_size - seen));
             const size_t other_length =
                 (size_t)(((other_found != NULL) ? other_found : (before + before_size)) - other);
             seen_before = (other_length == length) && (mmgr_bytes_compare(other, line, length) == 0);

@@ -68,7 +68,7 @@ int kfile_lines_read(KfileLines *file, const char *path)
     {
         // a file read whole is at max what a size_t counts
         const char *const start = (const char *)(bytes + at);
-        const char *const end = (const char *)memchr(start, '\n', (size_t)(size - at));
+        const char *const end = (const char *)mmgr_bytes_find(start, '\n', (size_t)(size - at));
         size_t length = (end != NULL) ? (size_t)(end - start) : (size_t)(size - at);
         at += (unsigned long long)length + ((end != NULL) ? 1ULL : 0ULL);
         length -= ((length != 0u) && (start[length - 1u] == '\r')) ? 1u : 0u;

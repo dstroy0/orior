@@ -170,8 +170,8 @@ int krs_text_named(const KrsForm *form, const unsigned int *order, char paramete
 // the folder `path` lies in, into `folder`, which has room for `room`: "." where it names none
 void krs_folder_of(const char *path, char *folder, size_t room)
 {
-    const char *const slash = strrchr(path, '/');
-    const char *const back = strrchr(path, '\\');
+    const char *const slash = mmgr_text_char_last(path, '/', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const back = mmgr_text_char_last(path, '\\', PLATFORM_TEXT_TO_TERMINATOR);
     const char *const last = ((slash != NULL) && ((back == NULL) || (slash > back))) ? slash : back;
     if (last == NULL)
     {

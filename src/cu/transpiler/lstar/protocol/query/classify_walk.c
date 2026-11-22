@@ -9,6 +9,9 @@
 // Every number is read as hexadecimal. A line is passed before the next address is queried. An address that ends the
 // process ends it with every line before it already passed, and the interface reads where the walk stopped.
 #include "verba_scribo/verba_linea.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include <stdio.h>
 #include <string.h>
 #include "../../../../../../includes/file_defs/qry/writer/qry_member.h"
@@ -22,9 +25,9 @@ int program_main(int count_of_words, char **words)
     {
         return 2;
     }
-    const unsigned long long from = strtoull(words[1], NULL, 16);
-    const unsigned long long count = strtoull(words[2], NULL, 16);
-    const unsigned long long stride = strtoull(words[3], NULL, 16);
+    const unsigned long long from = mmgr_text_unsigned_in(words[1], NULL, 16);
+    const unsigned long long count = mmgr_text_unsigned_in(words[2], NULL, 16);
+    const unsigned long long stride = mmgr_text_unsigned_in(words[3], NULL, 16);
     for (unsigned long long number = 0ULL; number < count; number += 1ULL)
     {
         const unsigned long long at = from + (number * stride);

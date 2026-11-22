@@ -314,7 +314,7 @@ void pair_row_passed(const std::string &first, const std::string &second, int re
                                       table_text(first.c_str(), first.size()),
                                       table_text(second.c_str(), second.size()),
                                       closed ? 1ULL : 0ULL,
-                                      open ? strtoull(verdict.c_str() + 5, NULL, 10) : 0ULL,
+                                      open ? mmgr_text_unsigned_in(verdict.c_str() + 5, NULL, 10) : 0ULL,
                                       table_text(closing.c_str(), closing.size()),
                                       read ? 1ULL : 0ULL,
                                       read ? reads : 0ULL,

@@ -36,7 +36,7 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
     for (unsigned int place = 0u; place < parts.operands; place += 1u)
     {
         const char *const operand = parts.operand[place];
-        const char *const open = strrchr(operand, '[');
+        const char *const open = mmgr_text_char_last(operand, '[', PLATFORM_TEXT_TO_TERMINATOR);
         const char *const named = (parts.type[place] == SASS_OPERAND_ADDRESS)    ? ((open != NULL) ? (open + 1) : NULL)
                                   : (parts.type[place] == SASS_OPERAND_REGISTER) ? operand
                                                                                  : NULL;
@@ -215,7 +215,7 @@ static const char *sass_line_take(const char *text, char *line, size_t room)
     {
         return NULL;
     }
-    const size_t length = strcspn(text, "\n");
+    const size_t length = mmgr_text_span_not(text, "\n", PLATFORM_TEXT_TO_TERMINATOR);
     size_t line_length = length;
     // a listing indents with spaces and a ruleset with tabs, and both end an instruction with a semicolon
     while ((line_length != 0u) && ((text[line_length - 1u] == ' ') || (text[line_length - 1u] == '\t') ||
@@ -250,7 +250,7 @@ static int sass_line_is_instruction(const char *line)
 static unsigned long long sass_label_address(const SassLabels *labels, const char *operand, int *known)
 {
     const char *const open = mmgr_text_char(operand, '(', PLATFORM_TEXT_TO_TERMINATOR);
-    const size_t length = (open != NULL) ? strcspn(open + 1, ")") : 0u;
+    const size_t length = (open != NULL) ? mmgr_text_span_not(open + 1, ")", PLATFORM_TEXT_TO_TERMINATOR) : 0u;
     *known = 0;
     unsigned long long found = 0ULL;
     for (unsigned int at = 0u; (open != NULL) && (at < labels->count); at += 1u)

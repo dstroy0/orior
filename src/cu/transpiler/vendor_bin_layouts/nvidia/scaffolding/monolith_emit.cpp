@@ -95,7 +95,7 @@ static int emit_word(const std::string &text, size_t from, unsigned long long *w
     {
         return 0;
     }
-    *word = strtoull(text.c_str() + at + 5u, nullptr, 16);
+    *word = mmgr_text_unsigned_in(text.c_str() + at + 5u, nullptr, 16);
     return 1;
 }
 
@@ -115,7 +115,7 @@ static std::vector<EmitLine> emit_listing(const char *path)
             continue;
         }
         EmitLine read;
-        read.address = strtoull(line.c_str() + open + 2u, nullptr, 16);
+        read.address = mmgr_text_unsigned_in(line.c_str() + open + 2u, nullptr, 16);
         const size_t text_end = line.find(';', close);
         read.text = emit_plain(
             line.substr(close + 2u, (text_end == std::string::npos) ? std::string::npos : (text_end - close - 2u)));
@@ -132,7 +132,9 @@ static std::vector<EmitLine> emit_listing(const char *path)
 // the tag a line is, PMTRIG's immediate, or 0 where it is no tag
 static unsigned int emit_tag(const EmitLine &line)
 {
-    return (line.text.rfind("PMTRIG ", 0u) == 0u) ? (unsigned int)strtoul(line.text.c_str() + 7u, nullptr, 16) : 0u;
+    return (line.text.rfind("PMTRIG ", 0u) == 0u)
+               ? (unsigned int)mmgr_text_unsigned_in(line.text.c_str() + 7u, nullptr, 16)
+               : 0u;
 }
 
 // a line's operands split at their commas, its operation and guard dropped
@@ -410,7 +412,7 @@ static void emit_unread_read(const char *path, const SassMachine *machine)
         {
             continue;
         }
-        const unsigned int number = (unsigned int)strtoul(cells[0].c_str(), nullptr, 10);
+        const unsigned int number = (unsigned int)mmgr_text_unsigned_in(cells[0].c_str(), nullptr, 10);
         if (number > questions.size())
         {
             questions.resize(number, Question{std::string(), 0u, 0u, 1});
@@ -419,8 +421,10 @@ static void emit_unread_read(const char *path, const SassMachine *machine)
         const std::string &bits = cells[2];
         const size_t dash = bits.find('-');
         question.instruction = cells[1].substr(1u, cells[1].size() - 2u);
-        question.first = (unsigned int)strtoul(bits.c_str(), nullptr, 10);
-        question.last = (dash == std::string::npos) ? 0u : (unsigned int)strtoul(bits.c_str() + dash + 1u, nullptr, 10);
+        question.first = (unsigned int)mmgr_text_unsigned_in(bits.c_str(), nullptr, 10);
+        question.last = (dash == std::string::npos)
+                            ? 0u
+                            : (unsigned int)mmgr_text_unsigned_in(bits.c_str() + dash + 1u, nullptr, 10);
         const std::string printed = ", as printed";
         const int as_printed = (cells[5].size() > printed.size()) &&
                                (cells[5].compare(cells[5].size() - printed.size(), printed.size(), printed) == 0);
@@ -477,10 +481,10 @@ static void emit_unread_forms_read(const char *path, const SassMachine *machine)
         {
             continue;
         }
-        const unsigned int first = (unsigned int)strtoul(cells[2].c_str(), nullptr, 10);
-        const unsigned int last = (unsigned int)strtoul(cells[2].c_str() + dash + 1u, nullptr, 10);
-        const unsigned long alike = strtoul(cells[5].c_str(), nullptr, 10);
-        const unsigned long questioned = strtoul(cells[5].c_str() + of + 4u, nullptr, 10);
+        const unsigned int first = (unsigned int)mmgr_text_unsigned_in(cells[2].c_str(), nullptr, 10);
+        const unsigned int last = (unsigned int)mmgr_text_unsigned_in(cells[2].c_str() + dash + 1u, nullptr, 10);
+        const unsigned long alike = mmgr_text_unsigned_in(cells[5].c_str(), nullptr, 10);
+        const unsigned long questioned = mmgr_text_unsigned_in(cells[5].c_str() + of + 4u, nullptr, 10);
         if ((last < first) || (((last - first) + 1u) > EMIT_UNREAD_FORMS_WIDEST) || (alike != questioned) ||
             (questioned == 0UL))
         {
@@ -616,7 +620,7 @@ static void emit_block(const std::vector<EmitLine> &lines, unsigned int block, c
         // instruction after the branch, and the address is given as the label's
         const size_t branch = line.text.find("BRA 0x");
         const unsigned long long target =
-            (branch == std::string::npos) ? 0ULL : strtoull(line.text.c_str() + branch + 6u, nullptr, 16);
+            (branch == std::string::npos) ? 0ULL : mmgr_text_unsigned_in(line.text.c_str() + branch + 6u, nullptr, 16);
         const std::string put = (branch == std::string::npos)
                                     ? line.text
                                     : (line.text.substr(0u, branch + 4u) + "`(" + line.text.substr(branch + 4u) + ")");
@@ -1372,7 +1376,7 @@ int program_main(int count, char **arguments)
         }
         return emit_record(arguments[3], arguments[1]) ? 0 : 1;
     }
-    const unsigned int block = (unsigned int)strtoul(arguments[2], nullptr, 10);
+    const unsigned int block = (unsigned int)mmgr_text_unsigned_in(arguments[2], nullptr, 10);
     if ((block == 0u) || (block > PRECEPT_COUNT))
     {
         {

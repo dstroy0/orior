@@ -4,6 +4,9 @@
 // enumeration region read from them. An address that ends its probe answered nothing, and the walk goes on from the
 // next address in a fresh probe.
 #include "bus_enum_walk.h"
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 
 #include <stdlib.h>
 
@@ -17,21 +20,21 @@ static unsigned long long bus_enum_walk_read(const QueryWalk *walk, const char *
     const char *at = lines;
     while (read < given)
     {
-        char *end = NULL;
-        const unsigned long long address = strtoull(at, &end, 16);
+        const char *end = NULL;
+        const unsigned long long address = mmgr_text_unsigned_in(at, &end, 16);
         if (end == at)
         {
             break;
         }
         at = end;
-        const unsigned long type = strtoul(at, &end, 16);
+        const unsigned long type = mmgr_text_unsigned_in(at, &end, 16);
         if (end == at)
         {
             break;
         }
         at = end;
         // the read-back word, read past
-        strtoul(at, &end, 16);
+        mmgr_text_unsigned_in(at, &end, 16);
         if (end == at)
         {
             break;

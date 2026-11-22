@@ -92,7 +92,8 @@ static int sass_cubin_run(SassProbe *probe, const char *path, unsigned int first
     }
     {
         VerbaLinea buffer_line = mmgr_line_over(answered, room);
-        mmgr_line_put_max(&buffer_line, line, (size_t)((int)strcspn(line, "\r\n")));
+        mmgr_line_put_max(&buffer_line, line,
+                          (size_t)((int)mmgr_text_span_not(line, "\r\n", PLATFORM_TEXT_TO_TERMINATOR)));
         (void)mmgr_line_finish(&buffer_line);
     }
     return 1;
@@ -151,7 +152,7 @@ int sass_query_text(const char *was, const char *instruction, char *text, size_t
     const char *walk = was;
     while ((*walk != '\0') && (at < (room - 1u)))
     {
-        const size_t length = strcspn(walk, "\n");
+        const size_t length = mmgr_text_span_not(walk, "\n", PLATFORM_TEXT_TO_TERMINATOR);
         const char *const chosen = (mmgr_text_starts(walk, "IADD3 ", PLATFORM_TEXT_TO_TERMINATOR)) ? instruction : walk;
         const size_t copied =
             (chosen == instruction) ? mmgr_text_length(instruction, PLATFORM_TEXT_TO_TERMINATOR) : length;
@@ -284,7 +285,7 @@ unsigned int sass_cubin_prefers(SassProbe *probe, const SassMachine *machine, un
                 const double taken = sass_prefer_time(probe, machine, s_was, coding, answer, sizeof(answer));
                 // the answer is "answered <word> ..." where it ran, and "refused" where it did not assemble
                 const unsigned int word = (mmgr_text_starts(answer, "answered ", PLATFORM_TEXT_TO_TERMINATOR))
-                                              ? (unsigned int)strtoul(answer + 9, NULL, 16)
+                                              ? (unsigned int)mmgr_text_unsigned_in(answer + 9, NULL, 16)
                                               : 0u;
                 if ((taken == 0.0) || (!mmgr_text_starts(answer, "answered ", PLATFORM_TEXT_TO_TERMINATOR)) ||
                     (word != prefer->answer))

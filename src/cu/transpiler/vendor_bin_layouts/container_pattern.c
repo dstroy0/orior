@@ -178,7 +178,7 @@ int container_pattern_matches(const Places *places, const unsigned char *pattern
         }
         const unsigned long long name =
             container_value_read(&pattern[at + places->section_name], places->section_name_width);
-        if ((name >= names_size) || (memchr(&pattern[names_at + name], '\0', names_size - name) == NULL))
+        if ((name >= names_size) || (mmgr_bytes_find(&pattern[names_at + name], '\0', names_size - name) == NULL))
         {
             return 0;
         }

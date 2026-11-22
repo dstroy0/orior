@@ -19,8 +19,8 @@ typedef struct
 // into `nodes` with its children first, its register text into `operand`: 1, or 0 where it does not read
 static int writings_chain_read(const char **walk, WritingsNode *nodes, unsigned int *count, char *operand, size_t room)
 {
-    *walk += strspn(*walk, " ");
-    const size_t length = strspn(*walk, "abcdefghijklmnopqrstuvwxyz0123456789");
+    *walk += mmgr_text_span(*walk, " ", PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length = mmgr_text_span(*walk, "abcdefghijklmnopqrstuvwxyz0123456789", PLATFORM_TEXT_TO_TERMINATOR);
     char name[16];
     if ((length == 0u) || (length >= sizeof(name)))
     {
@@ -64,12 +64,12 @@ static int writings_chain_read(const char **walk, WritingsNode *nodes, unsigned 
     *walk += 1;
     int read =
         (precept < PRECEPT_COUNT) && writings_chain_read(walk, nodes, count, node.operand[0], sizeof(node.operand[0]));
-    *walk += strspn(*walk, " ");
+    *walk += mmgr_text_span(*walk, " ", PLATFORM_TEXT_TO_TERMINATOR);
     if (read && (**walk == ','))
     {
         *walk += 1;
         read = writings_chain_read(walk, nodes, count, node.operand[1], sizeof(node.operand[1]));
-        *walk += strspn(*walk, " ");
+        *walk += mmgr_text_span(*walk, " ", PLATFORM_TEXT_TO_TERMINATOR);
     }
     if (!read || (**walk != ')') || (*count >= WRITINGS_CHAIN_NODES))
     {

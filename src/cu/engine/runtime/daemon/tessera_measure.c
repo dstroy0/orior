@@ -241,8 +241,8 @@ static int tessera_instance_field(const char *name, const char *label, unsigned 
     }
     const char *const start = found + mmgr_text_length(label, PLATFORM_TEXT_TO_TERMINATOR);
     const int hexadecimal = (start[0] == '0') && ((start[1] == 'x') || (start[1] == 'X'));
-    char *end = NULL;
-    *value = strtoull(hexadecimal ? (start + 2) : start, &end, hexadecimal ? 16 : 10);
+    const char *end = NULL;
+    *value = mmgr_text_unsigned_in(hexadecimal ? (start + 2) : start, &end, hexadecimal ? 16 : 10);
     return end != (hexadecimal ? (start + 2) : start);
 }
 
@@ -360,7 +360,7 @@ static unsigned long long tessera_started(unsigned long long pid)
     char line[ENGINE_PATH_CAPACITY];
     const int read = platform_file_text_read(line, sizeof(line), stat) != NULL;
     platform_file_close(stat);
-    const char *const after_name = read ? strrchr(line, ')') : NULL;
+    const char *const after_name = read ? mmgr_text_char_last(line, ')', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
     if (after_name == NULL)
     {
         return 0ULL;
@@ -371,7 +371,7 @@ static unsigned long long tessera_started(unsigned long long pid)
         field = mmgr_text_char(field, ' ', PLATFORM_TEXT_TO_TERMINATOR);
         field = (field != NULL) ? (field + 1) : NULL;
     }
-    return (field != NULL) ? strtoull(field, NULL, 10) : 0ULL;
+    return (field != NULL) ? mmgr_text_unsigned_in(field, NULL, 10) : 0ULL;
 }
 #endif
 

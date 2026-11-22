@@ -28,13 +28,13 @@ unsigned int sass_text_read(const char *output, const char *kernel, char *text, 
     const char *walk = output;
     while ((walk != NULL) && (*walk != '\0'))
     {
-        const size_t length = strcspn(walk, "\n");
+        const size_t length = mmgr_text_span_not(walk, "\n", PLATFORM_TEXT_TO_TERMINATOR);
         char line[SASS_TEXT * 2u];
         const size_t taken = (length < (sizeof(line) - 1u)) ? length : (sizeof(line) - 1u);
         mmgr_bytes_copy(line, walk, taken);
         line[taken] = '\0';
         // the disassembler's output ends its lines the way the host does, and a carriage return is none of the text
-        line[strcspn(line, "\r")] = '\0';
+        line[mmgr_text_span_not(line, "\r", PLATFORM_TEXT_TO_TERMINATOR)] = '\0';
         walk += length + ((walk[length] == '\n') ? 1u : 0u);
         // a listing contains a section a function, and only the kernel's own is written back. .sectioninfo names no
         // section, and the name it shares the front of is not a line that opens one

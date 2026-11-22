@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_run_posix.c: starting, timing and ending a job's process tree on POSIX
 #include "tessera_run_internal.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
@@ -261,7 +262,7 @@ int run_process_read(unsigned long long pid, RunProcess *process)
     platform_file_close(stat);
     // the name may contain spaces and parentheses: the fields are read after its last ')', the state, the parent, nine
     // skipped, then the process's own user and system ticks and those of the children it waited for
-    const char *const after_name = read ? strrchr(line, ')') : NULL;
+    const char *const after_name = read ? mmgr_text_char_last(line, ')', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
     unsigned long long user = 0ULL;
     unsigned long long system = 0ULL;
     unsigned long long children_user = 0ULL;
@@ -293,8 +294,8 @@ RunProcess *run_tree(pid_t root, unsigned long long *count)
     *count = 0ULL;
     for (const struct dirent *entry = readdir(listing); ok && (entry != NULL); entry = readdir(listing))
     {
-        char *end = NULL;
-        const unsigned long long pid = strtoull(entry->d_name, &end, 10);
+        const char *end = NULL;
+        const unsigned long long pid = mmgr_text_unsigned_in(entry->d_name, &end, 10);
         RunProcess read;
         if ((end == entry->d_name) || (*end != '\0') || !run_process_read(pid, &read))
         {

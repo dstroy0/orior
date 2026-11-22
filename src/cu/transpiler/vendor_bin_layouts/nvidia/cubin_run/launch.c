@@ -321,7 +321,7 @@ unsigned int s_facets = 0u;
 void cubin_run_container_out(const char *answers_path, const unsigned char *container, unsigned long long size)
 {
     char path[CUBIN_RUN_LINE];
-    const char *const dot = strrchr(answers_path, '.');
+    const char *const dot = mmgr_text_char_last(answers_path, '.', PLATFORM_TEXT_TO_TERMINATOR);
     const int stem =
         (dot != NULL) ? (int)(dot - answers_path) : (int)mmgr_text_length(answers_path, PLATFORM_TEXT_TO_TERMINATOR);
     {

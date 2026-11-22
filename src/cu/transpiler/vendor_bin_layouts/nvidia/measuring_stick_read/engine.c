@@ -21,7 +21,7 @@ void stick_nvcc_read(const char *path)
         if (mmgr_text_order(text, s_function, (size_t)(sizeof(s_function) - 1u)) == 0)
         {
             const char *const name = text + (sizeof(s_function) - 1u);
-            const size_t length = strcspn(name, s_space);
+            const size_t length = mmgr_text_span_not(name, s_space, PLATFORM_TEXT_TO_TERMINATOR);
             if (length != 0u)
             {
                 unsigned int at = 0u;
@@ -76,7 +76,7 @@ static void stick_lane_operations(const char *path, StickNumbers *operations)
     for (unsigned int line = 0u; line < s_file.lines; line += 1u)
     {
         // the line, the space at either end cut
-        char *const text = s_file.line[line] + strspn(s_file.line[line], s_space);
+        char *const text = s_file.line[line] + mmgr_text_span(s_file.line[line], s_space, PLATFORM_TEXT_TO_TERMINATOR);
         size_t length = mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR);
         while ((length != 0u) && (mmgr_text_char(s_space, text[length - 1u], PLATFORM_TEXT_TO_TERMINATOR) != NULL))
         {
@@ -89,7 +89,7 @@ static void stick_lane_operations(const char *path, StickNumbers *operations)
             continue;
         }
         const char *const word = text + stick_guard(text);
-        size_t characters = strcspn(word, s_space);
+        size_t characters = mmgr_text_span_not(word, s_space, PLATFORM_TEXT_TO_TERMINATOR);
         while ((characters != 0u) && (word[characters - 1u] == ';'))
         {
             characters -= 1u;
@@ -110,8 +110,8 @@ unsigned int stick_cells(const char *line, char **cell, unsigned int max)
     const char *at = line;
     while (count < max)
     {
-        const size_t length =
-            ((count + 1u) == max) ? mmgr_text_length(at, PLATFORM_TEXT_TO_TERMINATOR) : strcspn(at, "\t");
+        const size_t length = ((count + 1u) == max) ? mmgr_text_length(at, PLATFORM_TEXT_TO_TERMINATOR)
+                                                    : mmgr_text_span_not(at, "\t", PLATFORM_TEXT_TO_TERMINATOR);
         cell[count] = stick_copy(at, length);
         count += 1u;
         if (at[length] != '\t')
@@ -161,7 +161,7 @@ void stick_engine_read(const char *table, const char *directory)
             platform_cell_released(entry->answer, platform_place_g_program_owner);
             platform_cell_released(entry->note, platform_place_g_program_owner);
             entry->answer = stick_copy(cell[1], mmgr_text_length(cell[1], PLATFORM_TEXT_TO_TERMINATOR));
-            entry->steps = (unsigned int)strtoul(cell[2], NULL, 10);
+            entry->steps = (unsigned int)mmgr_text_unsigned_in(cell[2], NULL, 10);
             entry->note = stick_copy(cell[4], mmgr_text_length(cell[4], PLATFORM_TEXT_TO_TERMINATOR));
             entry->operations.count = 0u;
             entry->agree = 0u;
@@ -216,7 +216,7 @@ void stick_ruleset_operations(const char *path, unsigned char **buffer, unsigned
         slash = ((*at == '/') || (*at == '\\')) ? at : slash;
     }
     const size_t folder = (slash != NULL) ? (size_t)(slash - path) : 0u;
-    const char *const dot = strrchr(path, '.');
+    const char *const dot = mmgr_text_char_last(path, '.', PLATFORM_TEXT_TO_TERMINATOR);
     const size_t stem = ((dot != NULL) && ((slash == NULL) || (dot > slash)))
                             ? (size_t)(dot - path)
                             : mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR);
@@ -280,7 +280,7 @@ void stick_ruleset_operations(const char *path, unsigned char **buffer, unsigned
                         mmgr_bytes_move(&tab[1], &tab[2], mmgr_text_length(&tab[2], PLATFORM_TEXT_TO_TERMINATOR) + 1u);
                     }
                     // the instruction, the space at either end cut, then its guard
-                    char *const start = cut + strspn(cut, s_space);
+                    char *const start = cut + mmgr_text_span(cut, s_space, PLATFORM_TEXT_TO_TERMINATOR);
                     size_t size = mmgr_text_length(start, PLATFORM_TEXT_TO_TERMINATOR);
                     while ((size != 0u) &&
                            (mmgr_text_char(s_space, start[size - 1u], PLATFORM_TEXT_TO_TERMINATOR) != NULL))
@@ -293,7 +293,7 @@ void stick_ruleset_operations(const char *path, unsigned char **buffer, unsigned
                     if ((words != 0u) && (!mmgr_text_starts(word, "//", PLATFORM_TEXT_TO_TERMINATOR)) &&
                         (word[0] != '.') && (word[words - 1u] != ':'))
                     {
-                        size_t characters = strcspn(word, s_space);
+                        size_t characters = mmgr_text_span_not(word, s_space, PLATFORM_TEXT_TO_TERMINATOR);
                         while ((characters != 0u) && (word[characters - 1u] == ';'))
                         {
                             characters -= 1u;

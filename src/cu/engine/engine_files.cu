@@ -140,9 +140,9 @@ static EngineIngestTools s_ingest_tools;
 static unsigned long long entry_each_workers(unsigned long long items)
 {
     const char *const named = getenv("TESSERA_RUN_PROCESSORS");
-    char *end = NULL;
+    const char *end = NULL;
     const unsigned long long requested_workers =
-        ((named != NULL) && (named[0] >= '1') && (named[0] <= '9')) ? strtoull(named, &end, 10) : 0ULL;
+        ((named != NULL) && (named[0] >= '1') && (named[0] <= '9')) ? mmgr_text_unsigned_in(named, &end, 10) : 0ULL;
     const unsigned long long workers =
         ((requested_workers != 0ULL) && (end != NULL) && (*end == '\0')) ? requested_workers : 1ULL;
     return (workers < items) ? workers : items;
@@ -542,7 +542,7 @@ int entry_element_named(const char *name, EngineArrayExtent *extent, unsigned in
     const int ordered =
         (length >= 3u) && ((name[0] == '<') || (name[0] == '>') || (name[0] == '|') || (name[0] == '='));
     const char type = ordered ? name[1] : '\0';
-    const unsigned long width = ordered ? strtoul(&name[2], NULL, 10) : 0UL;
+    const unsigned long width = ordered ? mmgr_text_unsigned_in(&name[2], NULL, 10) : 0UL;
     if ((ordered == 0) || ((type != 'u') && (type != 'i') && (type != 'f')) ||
         ((width != 1UL) && (width != 2UL) && (width != 4UL) && (width != 8UL)))
     {

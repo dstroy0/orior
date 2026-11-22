@@ -124,7 +124,9 @@ static unsigned long long vhdl_after(const std::string &path, const char *label)
     while ((found == 0ULL) && (platform_file_text_read(line, sizeof(line), file) != NULL))
     {
         const char *const at = mmgr_text_find(line, label, PLATFORM_TEXT_TO_TERMINATOR);
-        found = (at != NULL) ? strtoull(at + mmgr_text_length(label, PLATFORM_TEXT_TO_TERMINATOR), NULL, 10) : 0ULL;
+        found = (at != NULL)
+                    ? mmgr_text_unsigned_in(at + mmgr_text_length(label, PLATFORM_TEXT_TO_TERMINATOR), NULL, 10)
+                    : 0ULL;
     }
     platform_file_close(file);
     return found;

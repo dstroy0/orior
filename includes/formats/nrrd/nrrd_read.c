@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // nrrd_read.c: the data file, the layout and the read
 #include "nrrd_internal.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../src/platform/platform.h"
 #include "../../../src/cu/engine/engine_note.h"
 #include "memoria_operor/memoria_linea.h"
@@ -31,7 +32,7 @@ static unsigned int nrrd_data_file(NrrdSpan value, NrrdFields *fields)
     NrrdSpan rest = value;
     NrrdSpan token = {NULL, 0ULL};
     const int listed = nrrd_token(&rest, &token) && nrrd_equals(token, "LIST");
-    const int formatted = (memchr(value.text, '%', (size_t)value.length) != NULL);
+    const int formatted = (mmgr_bytes_find(value.text, '%', (size_t)value.length) != NULL);
     if ((value.length == 0ULL) || listed || formatted)
     {
         {
@@ -49,7 +50,7 @@ static unsigned int nrrd_data_file(NrrdSpan value, NrrdFields *fields)
 
 static unsigned int nrrd_field(NrrdSpan line, NrrdFields *fields)
 {
-    const char *const colon = memchr(line.text, ':', (size_t)line.length);
+    const char *const colon = mmgr_bytes_find(line.text, ':', (size_t)line.length);
     if (colon == NULL)
     {
         return 0u;

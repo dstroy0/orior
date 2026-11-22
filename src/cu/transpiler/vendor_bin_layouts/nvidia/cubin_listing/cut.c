@@ -199,12 +199,12 @@ static int cubin_section_written(const char *listing, CubinSection *section, uns
         const size_t end = section->lines[line].end;
         while (written_ok && (at < end))
         {
-            const char *const open = (const char *)memchr(listing + at, '`', end - at);
+            const char *const open = (const char *)mmgr_bytes_find(listing + at, '`', end - at);
             size_t mark = (open != NULL) ? (size_t)(open - listing) : end;
             // a note the cubin carries for an instruction, `(*"BRANCH_TARGETS ..."*)`, is the container's and no part
             // of the instruction: it is where a raw read prints one space, and the note and the spaces before it
             // are put as that space
-            const char *const note = (const char *)memchr(listing + at, '(', mark - at);
+            const char *const note = (const char *)mmgr_bytes_find(listing + at, '(', mark - at);
             const int noted = (note != NULL) && (((size_t)(note - listing) + 1u) < end) && (note[1] == '*');
             const char *const note_end = noted ? cubin_note_end(listing, (size_t)(note - listing) + 2u, end) : NULL;
             if (note_end != NULL)
@@ -226,7 +226,7 @@ static int cubin_section_written(const char *listing, CubinSection *section, uns
             }
             // `(<label>): the label put as its offset where the section sets it, the mark retained as printed otherwise
             const char *const close = ((at + 2u) < end) && (listing[at + 1u] == '(')
-                                          ? (const char *)memchr(listing + at + 2u, ')', end - (at + 2u))
+                                          ? (const char *)mmgr_bytes_find(listing + at + 2u, ')', end - (at + 2u))
                                           : NULL;
             size_t found = section->label_count;
             const size_t name = at + 2u;
@@ -297,7 +297,7 @@ int cubin_listing_cut(const char *listing, size_t length, const char *const *nam
     size_t at = 0u;
     while (written_ok && (at < length))
     {
-        const char *const newline = (const char *)memchr(listing + at, '\n', length - at);
+        const char *const newline = (const char *)mmgr_bytes_find(listing + at, '\n', length - at);
         size_t end = (newline != NULL) ? (size_t)(newline - listing) : length;
         const size_t next = end + 1u;
         end = ((end > at) && (listing[end - 1u] == '\r')) ? (end - 1u) : end;

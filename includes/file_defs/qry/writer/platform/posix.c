@@ -108,7 +108,7 @@ static void qry_writer_folder_synced(const char *path)
 {
     char folder[QRY_WRITER_TOP_MAX_LEN + QRY_NAME_MAX_LEN + 2u];
     const size_t length = mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR);
-    const char *const cut = strrchr(path, '/');
+    const char *const cut = mmgr_text_char_last(path, '/', PLATFORM_TEXT_TO_TERMINATOR);
     if ((cut == NULL) || (length >= sizeof(folder)))
     {
         return;

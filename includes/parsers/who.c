@@ -96,7 +96,7 @@ static int who_row(const unsigned char *table, unsigned long long size, unsigned
     {
         return 1;
     }
-    const size_t length = strcspn(tab + 1, "\r");
+    const size_t length = mmgr_text_span_not(tab + 1, "\r", PLATFORM_TEXT_TO_TERMINATOR);
     if (length >= WHO_PATH_MAX_LEN)
     {
         return 1;
@@ -177,10 +177,10 @@ static unsigned int who_program_number(void)
     {
         return 0u;
     }
-    const char *const slash = strrchr(path, '/');
-    const char *const back = strrchr(path, '\\');
+    const char *const slash = mmgr_text_char_last(path, '/', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const back = mmgr_text_char_last(path, '\\', PLATFORM_TEXT_TO_TERMINATOR);
     const char *const base = (back > slash) ? (back + 1) : ((slash != NULL) ? (slash + 1) : path);
-    const size_t stem = strcspn(base, ".");
+    const size_t stem = mmgr_text_span_not(base, ".", PLATFORM_TEXT_TO_TERMINATOR);
     const unsigned char *table = NULL;
     unsigned long long size = 0ULL;
     unsigned long long at = 0ULL;
@@ -194,7 +194,9 @@ static unsigned int who_program_number(void)
     }
     while (who_row(table, size, &at, &number, source))
     {
-        const char *const own = (strrchr(source, '/') != NULL) ? (strrchr(source, '/') + 1) : source;
+        const char *const own = (mmgr_text_char_last(source, '/', PLATFORM_TEXT_TO_TERMINATOR) != NULL)
+                                    ? (mmgr_text_char_last(source, '/', PLATFORM_TEXT_TO_TERMINATOR) + 1)
+                                    : source;
         if ((number == 0u) || (mmgr_text_order(own, base, (size_t)(stem)) != 0) || (own[stem] != '.'))
         {
             continue;

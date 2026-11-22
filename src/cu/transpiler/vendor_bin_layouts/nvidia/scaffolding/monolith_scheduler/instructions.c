@@ -105,8 +105,8 @@ static void scheduler_reads(const char *text, SchedulerInstruction *instruction)
         {
             continue;
         }
-        char *after = NULL;
-        const unsigned long number = strtoul(walk + 1, &after, 10);
+        const char *after = NULL;
+        const unsigned long number = mmgr_text_unsigned_in(walk + 1, &after, 10);
         const unsigned int pair = (mmgr_text_starts(after, ".64", PLATFORM_TEXT_TO_TERMINATOR)) ? 2u : 1u;
         for (unsigned int add = 0u; (add < pair) && (instruction->reads < SCHEDULER_READS); add += 1u)
         {
@@ -201,7 +201,7 @@ void scheduler_instruction(const unsigned char *bytes, unsigned long long addres
                                 !instruction->control && !scheduler_predicates_only(parts.operation);
     if (writes_register && (!mmgr_text_equal(parts.operand[written], "RZ", PLATFORM_TEXT_TO_TERMINATOR)))
     {
-        instruction->writes = (unsigned int)strtoul(parts.operand[written] + 1, NULL, 10);
+        instruction->writes = (unsigned int)mmgr_text_unsigned_in(parts.operand[written] + 1, NULL, 10);
     }
     for (unsigned int at = writes_register ? (written + 1u) : 0u; at < parts.operands; at += 1u)
     {

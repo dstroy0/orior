@@ -56,7 +56,7 @@
 static int khw_ksc_path(const char *path, char *ksc, size_t room)
 {
     static const char s_extension[] = ".ksc";
-    const char *const dot = strrchr(path, '.');
+    const char *const dot = mmgr_text_char_last(path, '.', PLATFORM_TEXT_TO_TERMINATOR);
     const size_t stem = (dot != NULL) ? (size_t)(dot - path) : mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR);
     const size_t extension = (dot != NULL) ? sizeof(s_extension) : 1u;
     if ((stem + extension) > room)

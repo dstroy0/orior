@@ -29,11 +29,13 @@
 // the tool writes into the ruleset in place each form whose questions all read whole and alike (read_adopted defines
 // what whole is).
 #include "../../../../../../utils/test/src/cu/engine/analysis/cycle/record_programs.h"
+#include "memoria_operor/memoria_linea.h"
 #include "../../../../engine/engine_note.h"
 #include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 
-// the cubin writer is C and its headers carry no guard of their own: this file names the linkage here
-extern "C"
+    // the cubin writer is C and its headers carry no guard of their own: this file names the linkage here
+    extern "C"
 {
 #include "../../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../sass_assemble.h"
@@ -1458,7 +1460,7 @@ static std::vector<Question> questions_read(const char *path)
             continue;
         }
         Question question;
-        question.tag = (unsigned int)strtoul(parts[0].c_str(), NULL, 10);
+        question.tag = (unsigned int)mmgr_text_unsigned_in(parts[0].c_str(), NULL, 10);
         question.form = parts[1];
         question.key = parts[2];
         for (size_t at = 3u; at < parts.size(); at += 1u)
@@ -1473,7 +1475,7 @@ static std::vector<Question> questions_read(const char *path)
             role.name = parts[at].substr(role.fixed ? 1u : 0u, equals - (role.fixed ? 1u : 0u));
             const std::vector<std::string> fields = line_split(parts[at].substr(equals + 1u), ':');
             role.place = fields[0];
-            role.word = (fields.size() > 1u) ? (unsigned int)strtoul(fields[1].c_str(), NULL, 10) : 0u;
+            role.word = (fields.size() > 1u) ? (unsigned int)mmgr_text_unsigned_in(fields[1].c_str(), NULL, 10) : 0u;
             role.type = (fields.size() > 2u) ? fields[2] : std::string();
             role.number = (role.place == "number") ? fields[1] : std::string();
             role.opaque = (fields.size() > 4u) && (fields[3] == "number");
@@ -1523,7 +1525,7 @@ static std::map<unsigned int, std::vector<std::string>> sass_blocks(const char *
         }
         if (instruction.compare(0u, 7u, "PMTRIG ") == 0)
         {
-            tag = (unsigned int)strtoul(instruction.c_str() + 7, NULL, 16);
+            tag = (unsigned int)mmgr_text_unsigned_in(instruction.c_str() + 7, NULL, 16);
             continue;
         }
         blocks[tag].push_back(instruction);
@@ -1557,7 +1559,7 @@ static std::map<unsigned int, std::vector<std::string>> ptx_blocks(const char *p
         text.pop_back();
         if (text.compare(0u, 13u, "pmevent.mask ") == 0)
         {
-            tag = (unsigned int)strtoul(text.c_str() + 13, NULL, 10);
+            tag = (unsigned int)mmgr_text_unsigned_in(text.c_str() + 13, NULL, 10);
             continue;
         }
         blocks[tag].push_back(trim(text));
@@ -1595,7 +1597,7 @@ static size_t sass_register(const std::string &operand, size_t from, size_t *len
 // the number of the register `token`, R7 or P3
 static unsigned int token_number(const std::string &token)
 {
-    return (unsigned int)strtoul(token.c_str() + 1, NULL, 10);
+    return (unsigned int)mmgr_text_unsigned_in(token.c_str() + 1, NULL, 10);
 }
 
 // the operands that an instruction writes: its first, and every predicate straight after it, where it writes any. None
@@ -1643,7 +1645,9 @@ struct Bases
 static std::string hex_number(const std::string &decimal)
 {
     char text[32];
-    const long long value = strtoll(decimal.c_str(), NULL, 10);
+    const TransfiguroCfg read = {decimal.c_str(), NULL, 0u};
+    // Explicit cast widens the signed word of the read to the long long of the value
+    const long long value = (long long)mmgr_cellul_to_long(&read);
     if (value < 0)
     {
         VerbaLinea buffer_line = mmgr_line_over(text, sizeof(text));
@@ -1665,7 +1669,7 @@ static std::string hex_number(const std::string &decimal)
 // decimal. A word past the sign bit can also be the negative that it reads as when signed. 1 where the name applies
 static int number_named(std::string *named, const std::string &number, const std::string &name, std::string *why)
 {
-    const unsigned long long word = strtoull(number.c_str(), NULL, 10);
+    const unsigned long long word = mmgr_text_unsigned_in(number.c_str(), NULL, 10);
     const std::string negative = ((word >= 0x80000000ULL) && (word <= 0xffffffffULL))
                                      ? std::to_string(-(long long)(0x100000000ULL - word))
                                      : number;
@@ -1709,7 +1713,8 @@ static std::string numbers_named(const std::string &text, const Question &questi
         {
             continue;
         }
-        const unsigned long long word = (role.number[0] == '-') ? 0ULL : strtoull(role.number.c_str(), NULL, 10);
+        const unsigned long long word =
+            (role.number[0] == '-') ? 0ULL : mmgr_text_unsigned_in(role.number.c_str(), NULL, 10);
         if (number_named(&named, role.number, "{" + role.name + "}", why) || (word <= 0xffffffffULL))
         {
             continue;
@@ -1737,7 +1742,8 @@ static int number_carried(const std::string &text, const Role &role)
         }
         low = text.find(named, low + 1u);
     }
-    const unsigned long long word = (role.number[0] == '-') ? 0ULL : strtoull(role.number.c_str(), NULL, 10);
+    const unsigned long long word =
+        (role.number[0] == '-') ? 0ULL : mmgr_text_unsigned_in(role.number.c_str(), NULL, 10);
     const std::string negative = ((word >= 0x80000000ULL) && (word <= 0xffffffffULL))
                                      ? std::to_string(-(long long)(0x100000000ULL - word))
                                      : role.number;
@@ -1866,7 +1872,8 @@ static Read sass_read(const Question &question, const std::vector<std::string> &
     };
     auto offset_of = [](const std::string &address) -> unsigned int {
         const size_t plus = address.find('+');
-        return (plus == std::string::npos) ? 0u : (unsigned int)strtoul(address.c_str() + plus + 1u, NULL, 16);
+        return (plus == std::string::npos) ? 0u
+                                           : (unsigned int)mmgr_text_unsigned_in(address.c_str() + plus + 1u, NULL, 16);
     };
     // `operand` with each register it reads written as its value's name between two \x02
     auto read_names = [&](const std::string &operand) -> std::string {
@@ -1894,7 +1901,7 @@ static Read sass_read(const Question &question, const std::vector<std::string> &
         if ((operands.size() >= 2u) && (operands.back().compare(0u, 10u, "c[0x0][0x1") == 0) &&
             ((operation == "MOV") || (operation == "IMAD.MOV.U32")))
         {
-            const unsigned int place = (unsigned int)strtoul(operands.back().c_str() + 7, NULL, 16);
+            const unsigned int place = (unsigned int)mmgr_text_unsigned_in(operands.back().c_str() + 7, NULL, 16);
             if ((place >= 0x160u) && (place < 0x170u))
             {
                 bases->in_low = (place == 0x160u) ? (int)token_number(operands[0]) : bases->in_low;
@@ -2268,7 +2275,9 @@ static Read ptx_read(const Question &question, const std::vector<std::string> &l
         auto address = [](const std::string &operand, std::string *base) -> unsigned int {
             const size_t plus = operand.find('+');
             *base = operand.substr(1u, ((plus == std::string::npos) ? (operand.size() - 1u) : plus) - 1u);
-            return (plus == std::string::npos) ? 0u : (unsigned int)strtoul(operand.c_str() + plus + 1u, NULL, 10);
+            return (plus == std::string::npos)
+                       ? 0u
+                       : (unsigned int)mmgr_text_unsigned_in(operand.c_str() + plus + 1u, NULL, 10);
         };
         if ((operation.compare(0u, 19u, "ld.volatile.global.") == 0) && (operands.size() == 2u))
         {
@@ -2504,7 +2513,8 @@ static int sass_assembles(const std::string &text, const Question &question)
         // type
         if ((role.place == "number") || role.opaque)
         {
-            const unsigned long long word = (role.number[0] == '-') ? 0ULL : strtoull(role.number.c_str(), NULL, 10);
+            const unsigned long long word =
+                (role.number[0] == '-') ? 0ULL : mmgr_text_unsigned_in(role.number.c_str(), NULL, 10);
             const std::string high = "{" + role.name + "}.hi";
             size_t at = filled.find(high);
             while (at != std::string::npos)

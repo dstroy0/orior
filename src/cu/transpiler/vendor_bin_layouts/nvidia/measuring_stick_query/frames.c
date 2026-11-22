@@ -296,11 +296,11 @@ void msq_gate_reported(MsqVerdicts *verdicts, const MsqQuestion *question, const
 // the stem of `name`: past its last `/` or `\`, short of its last `.`
 void msq_stem(const char *name, char *stem, size_t room)
 {
-    const char *const forward = strrchr(name, '/');
-    const char *const back = strrchr(name, '\\');
+    const char *const forward = mmgr_text_char_last(name, '/', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const back = mmgr_text_char_last(name, '\\', PLATFORM_TEXT_TO_TERMINATOR);
     const char *const slash = ((forward != NULL) && ((back == NULL) || (forward > back))) ? forward : back;
     const char *const base = (slash != NULL) ? (slash + 1) : name;
-    const char *const dot = strrchr(base, '.');
+    const char *const dot = mmgr_text_char_last(base, '.', PLATFORM_TEXT_TO_TERMINATOR);
     const size_t length = (dot != NULL) ? (size_t)(dot - base) : mmgr_text_length(base, PLATFORM_TEXT_TO_TERMINATOR);
     {
         VerbaLinea buffer_line = mmgr_line_over(stem, room);
@@ -312,10 +312,10 @@ void msq_stem(const char *name, char *stem, size_t room)
 // `name` short of its last `.`, the extension past it put in its place
 void msq_extension_put(const char *name, const char *extension, char *put, size_t room)
 {
-    const char *const forward = strrchr(name, '/');
-    const char *const back = strrchr(name, '\\');
+    const char *const forward = mmgr_text_char_last(name, '/', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const back = mmgr_text_char_last(name, '\\', PLATFORM_TEXT_TO_TERMINATOR);
     const char *const slash = ((forward != NULL) && ((back == NULL) || (forward > back))) ? forward : back;
-    const char *const dot = strrchr(name, '.');
+    const char *const dot = mmgr_text_char_last(name, '.', PLATFORM_TEXT_TO_TERMINATOR);
     const size_t length = ((dot != NULL) && ((slash == NULL) || (dot > slash)))
                               ? (size_t)(dot - name)
                               : mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR);

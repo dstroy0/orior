@@ -95,6 +95,7 @@
 // vendor. Exit 0 where a line went out. Exit 2 where no writer of the run runs, or where the inputs, the machine or the
 // driver were out of reach.
 #include "cubin_run/cubin_run_internal.h"
+#include "memoria_operor/memoria_linea.h"
 #include "../../../../platform/platform.h"
 #include "../../../engine/engine_note.h"
 #include "cellularum_laboro/cellularum_linea.h"
@@ -253,13 +254,14 @@ int program_main(int count, char **words)
     const CubinRunShape unshaped = {CUBIN_RUN_THREADS, 1u};
     if (!listed)
     {
-        const unsigned int place = (unsigned int)strtoul(words[7], NULL, 10);
-        const unsigned int launches = (count >= 9) ? (unsigned int)strtoul(words[8], NULL, 10) : 0u;
-        const CubinRunShape shape = {(count == 11) ? (unsigned int)strtoul(words[9], NULL, 10) : CUBIN_RUN_THREADS,
-                                     (count == 11) ? (unsigned int)strtoul(words[10], NULL, 10) : 1u};
+        const unsigned int place = (unsigned int)mmgr_text_unsigned_in(words[7], NULL, 10);
+        const unsigned int launches = (count >= 9) ? (unsigned int)mmgr_text_unsigned_in(words[8], NULL, 10) : 0u;
+        const CubinRunShape shape = {(count == 11) ? (unsigned int)mmgr_text_unsigned_in(words[9], NULL, 10)
+                                                   : CUBIN_RUN_THREADS,
+                                     (count == 11) ? (unsigned int)mmgr_text_unsigned_in(words[10], NULL, 10) : 1u};
         const int carried =
-            cubin_run_question(kernel, pattern_size, words[3], (unsigned int)strtoul(words[4], NULL, 10), words[5],
-                               words[6], place, launches, (count == 11) ? shape : unshaped, count == 11);
+            cubin_run_question(kernel, pattern_size, words[3], (unsigned int)mmgr_text_unsigned_in(words[4], NULL, 10),
+                               words[5], words[6], place, launches, (count == 11) ? shape : unshaped, count == 11);
         return (carried == 2) ? 2 : 0;
     }
     // Each line of the list is one question of no shape of its own:

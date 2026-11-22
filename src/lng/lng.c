@@ -345,7 +345,7 @@ static void lng_cells(const char *line, LngList *cells)
     const char *at = line;
     for (;;)
     {
-        const size_t length = strcspn(at, "\t");
+        const size_t length = mmgr_text_span_not(at, "\t", PLATFORM_TEXT_TO_TERMINATOR);
         lng_list_insert(cells, cells->count, at, length);
         if (at[length] == '\0')
         {
@@ -504,8 +504,8 @@ void lng_words_of(const char *name, LngList *words)
     const char *at = name;
     for (;;)
     {
-        const size_t length = strcspn(at, "_");
-        if ((length != 0u) && (strspn(at, "0123456789") < length))
+        const size_t length = mmgr_text_span_not(at, "_", PLATFORM_TEXT_TO_TERMINATOR);
+        if ((length != 0u) && (mmgr_text_span(at, "0123456789", PLATFORM_TEXT_TO_TERMINATOR) < length))
         {
             lng_list_insert(words, words->count, at, length);
         }
@@ -790,7 +790,7 @@ void lng_table_findings(const LngTable *table, LngList *findings)
     }
     for (unsigned int at = 0u; at < words.count; at += 1u)
     {
-        const char *const unit = strchr(words.text[at], '\x1f');
+        const char *const unit = mmgr_text_char(words.text[at], '\x1f', PLATFORM_TEXT_TO_TERMINATOR);
         const size_t word_length = (size_t)(unit - words.text[at]);
         const char *const target = unit + 1;
         LngList meanings = {NULL, 0u, 0u};
@@ -844,12 +844,14 @@ void lng_schema_forms(const char *text, LngList *names)
     while (at != NULL)
     {
         const char *const upper = at + (sizeof(s_form) - 1u);
-        const size_t uppers = strspn(upper, "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_");
+        const size_t uppers =
+            mmgr_text_span(upper, "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_", PLATFORM_TEXT_TO_TERMINATOR);
         const char *next = at + 1;
         if ((uppers != 0u) && (mmgr_text_order(&upper[uppers], ", \"", (size_t)(3u)) == 0))
         {
             const char *const name = &upper[uppers + 3u];
-            const size_t length = strspn(name, "abcdefghijklmnopqrstuvwxyz0123456789_");
+            const size_t length =
+                mmgr_text_span(name, "abcdefghijklmnopqrstuvwxyz0123456789_", PLATFORM_TEXT_TO_TERMINATOR);
             if ((length != 0u) && (name[length] == '"'))
             {
                 lng_list_insert(names, names->count, name, length);
@@ -868,7 +870,7 @@ static int lng_braced_at(const char *text, size_t at, size_t *name, size_t *leng
     {
         return 0;
     }
-    const size_t characters = strspn(&text[at + 1u], s_lower);
+    const size_t characters = mmgr_text_span(&text[at + 1u], s_lower, PLATFORM_TEXT_TO_TERMINATOR);
     if (characters == 0u)
     {
         return 0;
@@ -876,7 +878,7 @@ static int lng_braced_at(const char *text, size_t at, size_t *name, size_t *leng
     size_t end = at + 1u + characters;
     if (text[end] == ':')
     {
-        const size_t digits = strspn(&text[end + 1u], "0123456789");
+        const size_t digits = mmgr_text_span(&text[end + 1u], "0123456789", PLATFORM_TEXT_TO_TERMINATOR);
         end = ((digits != 0u) && (text[end + 1u + digits] == '}')) ? (end + 1u + digits) : end;
     }
     if (text[end] != '}')
@@ -894,7 +896,7 @@ static int lng_braced_at(const char *text, size_t at, size_t *name, size_t *leng
 static void lng_braced_names(const char *token, LngList *names)
 {
     const size_t whole = mmgr_text_length(token, PLATFORM_TEXT_TO_TERMINATOR);
-    if ((whole != 0u) && (strspn(token, s_lower) == whole))
+    if ((whole != 0u) && (mmgr_text_span(token, s_lower, PLATFORM_TEXT_TO_TERMINATOR) == whole))
     {
         lng_list_add(names, token);
         return;
@@ -950,7 +952,7 @@ void lng_ruleset_words(const char *path, const char *const *line, unsigned int l
         {
             // a form's text, after its first `=`, is no word of the ruleset
             lng_list_free(&tokens);
-            lng_tokens(text, strcspn(text, "="), &tokens);
+            lng_tokens(text, mmgr_text_span_not(text, "=", PLATFORM_TEXT_TO_TERMINATOR), &tokens);
         }
         LngList where = {NULL, 0u, 0u};
         {
@@ -1106,12 +1108,12 @@ static void lng_folds(const char *line, LngList *folds, LngList *puts)
     while (at != NULL)
     {
         const char *const fold = at + (sizeof(s_folds) - 1u);
-        const size_t fold_length = strcspn(fold, s_space);
+        const size_t fold_length = mmgr_text_span_not(fold, s_space, PLATFORM_TEXT_TO_TERMINATOR);
         const char *next = at + 1;
         if ((fold_length != 0u) && (mmgr_text_order(&fold[fold_length], s_put, (size_t)(sizeof(s_put) - 1u)) == 0))
         {
             const char *const put = &fold[fold_length + (sizeof(s_put) - 1u)];
-            const size_t put_length = strcspn(put, s_space);
+            const size_t put_length = mmgr_text_span_not(put, s_space, PLATFORM_TEXT_TO_TERMINATOR);
             if (put_length != 0u)
             {
                 lng_list_insert(folds, folds->count, fold, fold_length);
@@ -1258,7 +1260,7 @@ void lng_gnascor_lists(const char *text, LngList *thing, LngList *doing, LngList
     const char *line = things;
     while (line < doings)
     {
-        const char *const newline = memchr(line, '\n', (size_t)(doings - line));
+        const char *const newline = mmgr_bytes_find(line, '\n', (size_t)(doings - line));
         const size_t length = (newline != NULL) ? (size_t)(newline - line) : (size_t)(doings - line);
         char *const line_copy = lng_copy(line, length);
         size_t start = 0u;
@@ -1275,10 +1277,10 @@ void lng_gnascor_lists(const char *text, LngList *thing, LngList *doing, LngList
     }
     if (gluings > doings)
     {
-        const char *const newline = memchr(doings, '\n', (size_t)(gluings - doings));
+        const char *const newline = mmgr_bytes_find(doings, '\n', (size_t)(gluings - doings));
         lng_ticked(doings, (newline != NULL) ? (size_t)(newline - doings) : (size_t)(gluings - doings), doing);
     }
-    const size_t length = strcspn(gluings, "\n");
+    const size_t length = mmgr_text_span_not(gluings, "\n", PLATFORM_TEXT_TO_TERMINATOR);
     size_t start = 0u;
     size_t size = 0u;
     if (lng_field(gluings, length, '.', 1u, &start, &size))
@@ -1321,17 +1323,18 @@ static size_t lng_literal_at(const char *text)
     static const char s_name_start[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_";
     if ((text[0] != '\0') && (mmgr_text_char(s_name_start, text[0], PLATFORM_TEXT_TO_TERMINATOR) != NULL))
     {
-        return 1u + strspn(&text[1], "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_0123456789");
+        return 1u + mmgr_text_span(&text[1], "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_0123456789",
+                                   PLATFORM_TEXT_TO_TERMINATOR);
     }
     if ((text[0] == '0') && (text[1] == 'x'))
     {
-        const size_t digits = strspn(&text[2], "0123456789abcdefABCDEF");
+        const size_t digits = mmgr_text_span(&text[2], "0123456789abcdefABCDEF", PLATFORM_TEXT_TO_TERMINATOR);
         if (digits != 0u)
         {
             return 2u + digits + ((text[2u + digits] == 'u') ? 1u : 0u);
         }
     }
-    const size_t digits = strspn(text, "0123456789");
+    const size_t digits = mmgr_text_span(text, "0123456789", PLATFORM_TEXT_TO_TERMINATOR);
     if (digits == 0u)
     {
         return 0u;
@@ -1369,7 +1372,7 @@ void lng_c_operators(const char *text, LngList *operators)
     {
         if ((unescaped[at] == '/') && (unescaped[at + 1u] == '/'))
         {
-            at += 2u + strcspn(&unescaped[at + 2u], "\\");
+            at += 2u + mmgr_text_span_not(&unescaped[at + 2u], "\\", PLATFORM_TEXT_TO_TERMINATOR);
             continue;
         }
         unnoted[copied] = unescaped[at];
@@ -2202,8 +2205,8 @@ void lng_target_of(const char *path, char *target, size_t capacity)
     {
         name = ((*at == '/') || (*at == '\\')) ? (at + 1) : name;
     }
-    const char *const dot = strchr(name, '.');
-    const size_t length = (dot != NULL) ? (size_t)(dot - name) : strlen(name);
+    const char *const dot = mmgr_text_char(name, '.', PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length = (dot != NULL) ? (size_t)(dot - name) : mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR);
     const size_t kept = (length < capacity) ? length : (capacity - 1u);
     memcpy(target, name, kept);
     target[kept] = '\0';

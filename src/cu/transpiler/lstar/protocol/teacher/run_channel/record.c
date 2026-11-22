@@ -187,11 +187,12 @@ void run_channel_list_line(unsigned int place, char *line)
     size_t at = 0u;
     for (unsigned int seen = 0u; (seen < place) && (at < s_channel.list_size); seen += 1u)
     {
-        const char *const end = (const char *)memchr(s_channel_list + at, '\n', s_channel.list_size - at);
+        const char *const end = (const char *)mmgr_bytes_find(s_channel_list + at, '\n', s_channel.list_size - at);
         at = (end != NULL) ? ((size_t)(end - s_channel_list) + 1u) : s_channel.list_size;
     }
-    const char *const end =
-        (at < s_channel.list_size) ? (const char *)memchr(s_channel_list + at, '\n', s_channel.list_size - at) : NULL;
+    const char *const end = (at < s_channel.list_size)
+                                ? (const char *)mmgr_bytes_find(s_channel_list + at, '\n', s_channel.list_size - at)
+                                : NULL;
     size_t length = (at >= s_channel.list_size) ? 0u
                     : (end != NULL)             ? ((size_t)(end - (s_channel_list + at)) + 1u)
                                                 : (s_channel.list_size - at);

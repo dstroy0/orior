@@ -227,8 +227,8 @@ unsigned long long tessera_self_host_mask(void)
     const char *const named = getenv("TESSERA_HOST_RESERVED_CORES");
     if ((named != NULL) && (named[0] != '\0'))
     {
-        char *end = NULL;
-        const unsigned long long value = strtoull(named, &end, 10);
+        const char *end = NULL;
+        const unsigned long long value = mmgr_text_unsigned_in(named, &end, 10);
         reserved = (*end == '\0') ? value : reserved;
     }
     // one core at least is always left to the jobs

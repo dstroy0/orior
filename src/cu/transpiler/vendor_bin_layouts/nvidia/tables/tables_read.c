@@ -14,6 +14,7 @@
 // constant operand so, `bank <first>..<last> offset <first>..<last> <count>`. Exit 0, 2 where the words are not as
 // above, and 1 where the instruction set could not be read
 #include "../cubin_safe.h"
+#include "memoria_operor/memoria_linea.h"
 #include "../../../../../platform/platform.h"
 #include "../../../../engine/engine_note.h"
 #include "cellularum_laboro/cellularum_linea.h"
@@ -176,13 +177,13 @@ int program_main(int count, char **words)
     unsigned long long bank_size = 0ULL;
     if (((given + 1) < count) && (mmgr_text_equal(words[given], "--bank", PLATFORM_TEXT_TO_TERMINATOR)))
     {
-        bank_size = strtoull(words[given + 1], NULL, 0);
+        bank_size = mmgr_text_unsigned_in(words[given + 1], NULL, 0);
         given += 2;
     }
     for (; (given + 1) < count; given += 2)
     {
-        const unsigned long long low = strtoull(words[given], NULL, 16);
-        const unsigned long long high = strtoull(words[given + 1], NULL, 16);
+        const unsigned long long low = mmgr_text_unsigned_in(words[given], NULL, 16);
+        const unsigned long long high = mmgr_text_unsigned_in(words[given + 1], NULL, 16);
         char line[256];
         const int classed = tables_class_described(&set, low, high, line, sizeof(line));
         const TablesClass *const class_ = classed ? tables_class_of(&set, low, high) : NULL;

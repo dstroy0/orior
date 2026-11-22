@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // written.c: what the pass writes: the run's texts, the runs read, the answers and the working set
 #include "../../../parsers/who.h"
+#include "memoria_operor/memoria_linea.h"
 #include "../../../../src/platform/platform.h"
 #include "cellularum_laboro/cellularum_linea.h"
 #include "khw_write.h"
@@ -118,8 +119,8 @@ int khw_runs_read(KhwAnswered *answered, const char *text)
     unsigned int words = 0u;
     for (const char *at = text; *at != '\0';)
     {
-        at += strspn(at, " \t\r\n");
-        const size_t length = strcspn(at, " \t\r\n");
+        at += mmgr_text_span(at, " \t\r\n", PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t length = mmgr_text_span_not(at, " \t\r\n", PLATFORM_TEXT_TO_TERMINATOR);
         words += (length != 0u) ? 1u : 0u;
         at += length;
     }
@@ -149,11 +150,11 @@ int khw_runs_read(KhwAnswered *answered, const char *text)
             }
             // the none mark, with its type's character after it where the run is no register's, or the place with its
             // character after it. The character's place among the four is its type, and no character is a register's
-            char *end = NULL;
+            const char *end = NULL;
             const int none =
                 (mmgr_text_order(place, KHW_PLACE_NONE_TEXT,
                                  (size_t)(mmgr_text_length(KHW_PLACE_NONE_TEXT, PLATFORM_TEXT_TO_TERMINATOR))) == 0);
-            answered->place[run] = none ? KHW_PLACE_NONE : (unsigned int)strtoul(place, &end, 10);
+            answered->place[run] = none ? KHW_PLACE_NONE : (unsigned int)mmgr_text_unsigned_in(place, &end, 10);
             end = none ? (place + mmgr_text_length(KHW_PLACE_NONE_TEXT, PLATFORM_TEXT_TO_TERMINATOR)) : end;
             const char *const character = ((end != NULL) && (*end != '\0'))
                                               ? mmgr_text_char(KHW_TYPE_CHARACTERS, *end, PLATFORM_TEXT_TO_TERMINATOR)

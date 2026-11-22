@@ -165,7 +165,7 @@ unsigned int krs_given_read(const char *path)
         if (line_word(&at, type, sizeof(type)) && line_word(&at, name, sizeof(name)) &&
             (mmgr_text_equal(type, "form", PLATFORM_TEXT_TO_TERMINATOR)))
         {
-            line[strcspn(line, "\r\n")] = '\0';
+            line[mmgr_text_span_not(line, "\r\n", PLATFORM_TEXT_TO_TERMINATOR)] = '\0';
             {
                 VerbaLinea buffer_line = mmgr_line_over(s_given[s_givens], sizeof(s_given[s_givens]));
                 mmgr_line_put(&buffer_line, line);

@@ -3,6 +3,8 @@
 // airlock.c: the airlock: the cross run over the list and passed or gated, the questions named and relisted, the check
 // traced, and a register refusal put again with the count raised
 #include "run_channel_internal.h"
+#include "../../../../../../platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "memoria_operor/memoria_linea.h"
 
 // The words `command`, ended by NULL, run as a process given `limit_microseconds`, what it printed passed as the blob
@@ -54,7 +56,7 @@ static int run_channel_airlock_passed(unsigned int questions)
     for (size_t at = 0u; at < s_channel.list_size;)
     {
         const char *const line = s_channel_list + at;
-        const char *const end = (const char *)memchr(line, '\n', s_channel.list_size - at);
+        const char *const end = (const char *)mmgr_bytes_find(line, '\n', s_channel.list_size - at);
         const size_t line_length = (end != NULL) ? (size_t)(end - line) : (s_channel.list_size - at);
         at += line_length + 1u;
         // a line is `<code> <registers> <cases> <answers> <probe> <launches>`: the answers are its fourth word
@@ -265,7 +267,7 @@ unsigned int run_channel_raised(RunQuestion *const *questions, unsigned int firs
         run_channel_named(at, alone, code_name, cases_name, answers_name);
         VerbaLinea stem_line = {stem, sizeof(stem), 0ULL};
         mmgr_line_put(&stem_line, RUN_AIRLOCK_ANSWERS);
-        mmgr_line_put_max(&stem_line, answers_name, strcspn(answers_name, "."));
+        mmgr_line_put_max(&stem_line, answers_name, mmgr_text_span_not(answers_name, ".", PLATFORM_TEXT_TO_TERMINATOR));
         const size_t stem_length = (size_t)mmgr_line_finish(&stem_line);
         unsigned int clearing = 0u;
         int gated = 0;
@@ -273,7 +275,7 @@ unsigned int run_channel_raised(RunQuestion *const *questions, unsigned int firs
         for (unsigned long long walk = 0ULL; walk < size;)
         {
             const char *const line = (const char *)(gated_list + walk);
-            const char *const end = (const char *)memchr(line, '\n', (size_t)(size - walk));
+            const char *const end = (const char *)mmgr_bytes_find(line, '\n', (size_t)(size - walk));
             const size_t length = (end != NULL) ? (size_t)(end - line) : (size_t)(size - walk);
             walk += (unsigned long long)length + 1ULL;
             if ((length <= stem_length) || (mmgr_bytes_compare(line, stem, stem_length) != 0) ||
@@ -286,9 +288,9 @@ unsigned int run_channel_raised(RunQuestion *const *questions, unsigned int firs
             VerbaLinea text_line = {text, sizeof(text), 0ULL};
             mmgr_line_put_max(&text_line, line + stem_length + 1u, length - stem_length - 1u);
             mmgr_line_finish(&text_line);
-            char *after = NULL;
-            const unsigned long long count_read = strtoull(text, &after, 10);
-            const char *const why = after + strspn(after, " ");
+            const char *after = NULL;
+            const unsigned long long count_read = mmgr_text_unsigned_in(text, &after, 10);
+            const char *const why = after + mmgr_text_span(after, " ", PLATFORM_TEXT_TO_TERMINATOR);
             char message[RUN_LINE_MAX_LEN + 640u];
             VerbaLinea message_line = {message, sizeof(message), 0ULL};
             mmgr_line_put(&message_line, "gated, ");

@@ -196,8 +196,8 @@ static int qry_writer_files_placed(QryShared *shared)
         const QryRecord *const record =
             (const QryRecord *)(qry_shared_records(shared) + qry_shared_schedule(shared)[at - 1ULL]);
         const char *const name = (const char *)(record + 1);
-        if ((memchr(name, '/', record->name_length) == NULL) || (name[0] == '/') ||
-            (memchr(name, ':', record->name_length) != NULL))
+        if ((mmgr_bytes_find(name, '/', record->name_length) == NULL) || (name[0] == '/') ||
+            (mmgr_bytes_find(name, ':', record->name_length) != NULL))
         {
             continue;
         }
@@ -276,7 +276,8 @@ int program_main(int count, char **words)
         return 2;
     }
     // the region positioned from the request, the fourth word, and made whole
-    const unsigned long long requested_bytes = (count == 4) ? strtoull(words[3], NULL, 10) : QRY_WRITER_RUN_DEFAULT;
+    const unsigned long long requested_bytes =
+        (count == 4) ? mmgr_text_unsigned_in(words[3], NULL, 10) : QRY_WRITER_RUN_DEFAULT;
     unsigned long long members = 0ULL;
     unsigned long long places = 0ULL;
     unsigned long long run_bytes = 0ULL;

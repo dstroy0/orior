@@ -8,6 +8,7 @@
 // The check prints each defect, and the run exits 1 where it finds one. A finding does not fail the run. The run exits
 // 2 where it cannot read a table, the schema or gnascor
 #include "../cu/engine/engine_note.h"
+#include "memoria_operor/memoria_linea.h"
 #include "../platform/platform.h"
 #include "cellularum_laboro/cellularum_linea.h"
 #include "lng.h"
@@ -384,8 +385,9 @@ int program_main(int argc, char **argv)
             continue;
         }
         const char *const name = text_line + 5;
-        const size_t space = strspn(name, " \t\v\f\r\x1c\x1d\x1e\x1f");
-        const size_t length = strcspn(&name[space], " \t\v\f\r\x1c\x1d\x1e\x1f=");
+        const size_t space = mmgr_text_span(name, " \t\v\f\r\x1c\x1d\x1e\x1f", PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t length =
+            mmgr_text_span_not(&name[space], " \t\v\f\r\x1c\x1d\x1e\x1f=", PLATFORM_TEXT_TO_TERMINATOR);
         if ((&name[space] >= equals) || (length == 0u))
         {
             continue;

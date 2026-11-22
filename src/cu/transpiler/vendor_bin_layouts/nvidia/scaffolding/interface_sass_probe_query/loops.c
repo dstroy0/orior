@@ -136,7 +136,7 @@ static int sass_loop_answer(SassProbe *probe, unsigned int count, unsigned int *
         return 0;
     }
     // the answer's first word, which the run prints after "answered "
-    *word = (unsigned int)strtoul(answered + 9, NULL, 16);
+    *word = (unsigned int)mmgr_text_unsigned_in(answered + 9, NULL, 16);
     return 1;
 }
 

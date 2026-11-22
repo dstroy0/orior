@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // engine_seal.cu: side bytes, the seal and the crystal's verification
 #include "engine_internal.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
@@ -394,11 +395,12 @@ void entry_percent(VerbaLinea *line, unsigned long long part, unsigned long long
 unsigned long long entry_report_capacity(char *const *samples, unsigned long long reached, const char *source,
                                          const char *set)
 {
-    const unsigned long long fixed = strnlen(source, ENTRY_PATH_CAPACITY) + strnlen(set, ENTRY_PATH_CAPACITY);
+    const unsigned long long fixed =
+        mmgr_text_length(source, ENTRY_PATH_CAPACITY) + mmgr_text_length(set, ENTRY_PATH_CAPACITY);
     unsigned long long needed = (2ULL * ENTRY_ROW_TEXT) + fixed;
     for (unsigned long long sample = 0ULL; sample < reached; sample += 1ULL)
     {
-        needed += ENTRY_ROW_TEXT + fixed + strnlen(samples[sample], ENTRY_PATH_CAPACITY);
+        needed += ENTRY_ROW_TEXT + fixed + mmgr_text_length(samples[sample], ENTRY_PATH_CAPACITY);
     }
     return needed;
 }

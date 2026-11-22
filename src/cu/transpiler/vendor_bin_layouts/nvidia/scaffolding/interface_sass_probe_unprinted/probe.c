@@ -128,7 +128,7 @@ int unprinted_kernel(const char *kernel_text, char *kernel, size_t room)
     {
         return 0;
     }
-    const size_t length = strcspn(kernel_text + 6, ":\r\n");
+    const size_t length = mmgr_text_span_not(kernel_text + 6, ":\r\n", PLATFORM_TEXT_TO_TERMINATOR);
     VerbaLinea formed_line_7;
     return (kernel_text[6u + length] == ':') &&
            ((formed_line_7 = mmgr_line_over(kernel, room),
@@ -261,8 +261,9 @@ int unprinted_run(const unsigned char *code, unsigned long long code_size, unsig
             mmgr_line_put(&buffer_line, ", code ");
             mmgr_line_decimal(&buffer_line, answer.code, 1u);
             mmgr_line_put(&buffer_line, (name != NULL) ? ", " : "");
-            mmgr_line_put_max(&buffer_line, (name != NULL) ? name + 1 : "",
-                              (size_t)((name != NULL) ? (int)strcspn(name + 1, "\r\n") : 0));
+            mmgr_line_put_max(
+                &buffer_line, (name != NULL) ? name + 1 : "",
+                (size_t)((name != NULL) ? (int)mmgr_text_span_not(name + 1, "\r\n", PLATFORM_TEXT_TO_TERMINATOR) : 0));
             (void)mmgr_line_finish(&buffer_line);
         }
         return 0;
@@ -271,8 +272,8 @@ int unprinted_run(const unsigned char *code, unsigned long long code_size, unsig
     const char *walk = line + 9;
     for (unsigned int word = 0u; word < UNPRINTED_COPIES; word += 1u)
     {
-        char *after = NULL;
-        answered[word] = (unsigned int)strtoul(walk, &after, 16);
+        const char *after = NULL;
+        answered[word] = (unsigned int)mmgr_text_unsigned_in(walk, &after, 16);
         walk = after;
     }
     return 1;

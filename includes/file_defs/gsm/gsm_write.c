@@ -20,6 +20,7 @@
 // It runs in a query run, the .qry that QRY names (qry_member.h). The forms that the writer of the vendor passes back
 // are the blob GSM_FORMS_NAME of the run. What it prints goes to the run as GSM_MACHINE_NAME.
 #include "../../../src/cu/transpiler/lstar/protocol/counterexample/ladder.h"
+#include "memoria_operor/memoria_linea.h"
 #include "../../../src/platform/platform.h"
 #include "cellularum_laboro/cellularum_linea.h"
 #include "../../parsers/line_read.h"
@@ -65,7 +66,8 @@ static unsigned int gsm_relations_read(const unsigned char *bytes, unsigned long
     unsigned long long next = 0ULL;
     while (next < size)
     {
-        const unsigned char *const end = (const unsigned char *)memchr(bytes + next, '\n', (size_t)(size - next));
+        const unsigned char *const end =
+            (const unsigned char *)mmgr_bytes_find(bytes + next, '\n', (size_t)(size - next));
         const size_t length = (end != NULL) ? (size_t)(end - (bytes + next)) : (size_t)(size - next);
         {
             VerbaLinea buffer_line = mmgr_line_over(line, sizeof(line));
@@ -98,8 +100,8 @@ static unsigned int gsm_relations_read(const unsigned char *bytes, unsigned long
 // the folder `path` lies in, into `folder`, which has room for `room`: "." where it names none
 static void gsm_folder_of(const char *path, char *folder, size_t room)
 {
-    const char *const slash = strrchr(path, '/');
-    const char *const back = strrchr(path, '\\');
+    const char *const slash = mmgr_text_char_last(path, '/', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const back = mmgr_text_char_last(path, '\\', PLATFORM_TEXT_TO_TERMINATOR);
     const char *const last = ((slash != NULL) && ((back == NULL) || (slash > back))) ? slash : back;
     if (last == NULL)
     {

@@ -14,6 +14,8 @@
 // clock bus`, in place of the row before it, and the row let go recorded in the .krf beside it. Exit 0 where a clock
 // was found, 1 where none was in the span, 2 where the BAR0 driver was not reached or the words are not these.
 #include "../../../../../includes/file_defs/krf/krf.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../platform/platform.h"
 #include "../../../engine/engine_note.h"
 #include "../../../../../includes/file_defs/ksc/ksc.h"
@@ -84,9 +86,9 @@ int program_main(int count, char **words)
         return 2;
     }
     const char *const ksc = words[1];
-    const unsigned long long from = strtoull(words[2], NULL, 16);
-    const unsigned long long address_given = strtoull(words[3], NULL, 16);
-    const unsigned long long turns = strtoull(words[4], NULL, 16);
+    const unsigned long long from = mmgr_text_unsigned_in(words[2], NULL, 16);
+    const unsigned long long address_given = mmgr_text_unsigned_in(words[3], NULL, 16);
+    const unsigned long long turns = mmgr_text_unsigned_in(words[4], NULL, 16);
     if ((address_given == 0ULL) || (address_given > BUS_CLOCK_WORDS_MAX) || ((from % 4ULL) != 0ULL))
     {
         {

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cubin_queries.c: the container queried: every query of the container put to the part in turn
 #include "probe_query_internal.h"
+#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../../../platform/platform.h"
 
 // a question of the interface's own, queried in the part's code: the instruction to put in place of form_0's own, and
@@ -178,7 +180,7 @@ unsigned int sass_cubin_queries(SassProbe *probe, const SassMachine *machine, un
             continue;
         }
         // the answer's first word, which the run prints after "answered "
-        word = (unsigned int)strtoul(answered + 9, NULL, 16);
+        word = (unsigned int)mmgr_text_unsigned_in(answered + 9, NULL, 16);
         const int same = (word == s_queries[number].answer);
         right += same ? 1u : 0u;
         // it ran and answered. Where the answer is what the question specifies, the part satisfies the question; where

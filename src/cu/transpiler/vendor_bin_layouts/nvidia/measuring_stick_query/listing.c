@@ -3,6 +3,7 @@
 // listing.c: the vendor's listing: the disassembler run over a container and its output read, the listing cut into
 // lines, each line's guard, word and body, the line at an address, and the address the vendor stopped at
 #include "msq_internal.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 QryShared *s_run = NULL;
@@ -178,7 +179,7 @@ int msq_listing_read(const char *printed, size_t length, MsqListing *listing)
     size_t at = 0u;
     while ((at + 1u) < length)
     {
-        const char *const open = (const char *)memchr(text + at, '/', length - at);
+        const char *const open = (const char *)mmgr_bytes_find(text + at, '/', length - at);
         if (open == NULL)
         {
             break;

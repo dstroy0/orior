@@ -105,7 +105,7 @@ unsigned int khw_forms_read(const char *name)
         if (mmgr_text_order(relation, FRAME_READS, (size_t)(frame_prefix)) == 0)
         {
             char *const dot = mmgr_text_char(relation + frame_prefix, '.', PLATFORM_TEXT_TO_TERMINATOR);
-            answered.reading = (dot != NULL) ? strtoull(dot + 1, NULL, 16) : 0ULL;
+            answered.reading = (dot != NULL) ? mmgr_text_unsigned_in(dot + 1, NULL, 16) : 0ULL;
             if (dot != NULL)
             {
                 *dot = '\0';

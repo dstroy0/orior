@@ -72,7 +72,8 @@ int khw_texts_assembled(const char *path, const char *answers)
     while (from < size)
     {
         // the rest of the blob, which a size_t counts as the blob fits the buffer
-        const unsigned char *const end = (const unsigned char *)memchr(texts + from, '\f', (size_t)(size - from));
+        const unsigned char *const end =
+            (const unsigned char *)mmgr_bytes_find(texts + from, '\f', (size_t)(size - from));
         const size_t length = (end == NULL) ? 0u : (size_t)(end - (texts + from));
         if ((end == NULL) || (taken == KHW_ASSEMBLED_TEXTS) || (length > KHW_ASSEMBLED_TEXT_BYTES))
         {

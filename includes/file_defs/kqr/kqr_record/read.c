@@ -60,7 +60,7 @@ static int kqr_line_identity(const char *line, KqrIdentity *identity, unsigned i
         return 0;
     }
     const char *const name_start = end + 1;
-    const size_t length = strcspn(name_start, " ");
+    const size_t length = mmgr_text_span_not(name_start, " ", PLATFORM_TEXT_TO_TERMINATOR);
     char name[16];
     if (length >= sizeof(name))
     {
@@ -91,8 +91,8 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
     while ((stopped == NULL) && line_read(bytes, size, &at, s_line, sizeof(s_line)))
     {
         number += 1u;
-        s_line[strcspn(s_line, "\r\n")] = '\0';
-        if (s_line[strspn(s_line, " ")] == '\0')
+        s_line[mmgr_text_span_not(s_line, "\r\n", PLATFORM_TEXT_TO_TERMINATOR)] = '\0';
+        if (s_line[mmgr_text_span(s_line, " ", PLATFORM_TEXT_TO_TERMINATOR)] == '\0')
         {
             continue;
         }
@@ -100,7 +100,7 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
         unsigned long long words[5] = {0ULL, 0ULL, 0ULL, 0ULL, 0ULL};
         if ((number == 1u) && kqr_line_type(s_line, "kqr"))
         {
-            const char *const named = s_line + 3 + strspn(s_line + 3, " ");
+            const char *const named = s_line + 3 + mmgr_text_span(s_line + 3, " ", PLATFORM_TEXT_TO_TERMINATOR);
             record->file.record[0].word[0] = kqr_text_number(record, named);
         }
         else if (s_line[0] == '#')
@@ -111,7 +111,7 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
         else if (kqr_line_type(s_line, "cycle"))
         {
             const char *const after = s_line + 6;
-            const size_t length = strcspn(after, " ");
+            const size_t length = mmgr_text_span_not(after, " ", PLATFORM_TEXT_TO_TERMINATOR);
             stopped = kqr_number_read(after, length, 10, &words[0]) ? NULL : "a cycle with no number";
             words[1] = kqr_text_number(record, after + length + ((after[length] == ' ') ? 1u : 0u));
             krep_record_add(&record->file, KQR_CYCLE_RECORD, words, 2u);
@@ -127,21 +127,23 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
         }
         else if (kqr_line_type(s_line, "pair"))
         {
-            const char *field = s_line + 4 + strspn(s_line + 4, " ");
-            const size_t first = strcspn(field, " ");
+            const char *field = s_line + 4 + mmgr_text_span(s_line + 4, " ", PLATFORM_TEXT_TO_TERMINATOR);
+            const size_t first = mmgr_text_span_not(field, " ", PLATFORM_TEXT_TO_TERMINATOR);
             char text[KQR_VERDICT];
             kqr_text_cut(text, sizeof(text), field, first);
             words[0] = kqr_text_number(record, text);
-            field += first + strspn(field + first, " ");
-            const size_t second = strcspn(field, " ");
+            field += first + mmgr_text_span(field + first, " ", PLATFORM_TEXT_TO_TERMINATOR);
+            const size_t second = mmgr_text_span_not(field, " ", PLATFORM_TEXT_TO_TERMINATOR);
             kqr_text_cut(text, sizeof(text), field, second);
             words[1] = kqr_text_number(record, text);
-            field += second + strspn(field + second, " ");
+            field += second + mmgr_text_span(field + second, " ", PLATFORM_TEXT_TO_TERMINATOR);
             // the hash of the pair's reads, sixteen hex digits ahead of the verdict, where the record contains one
-            const size_t gap = strcspn(field, " ");
-            words[2] =
-                ((gap == 16u) && (field[gap] == ' ') && (strspn(field, "0123456789abcdef") >= 16u)) ? 1ULL : 0ULL;
-            words[3] = words[2] ? strtoull(field, NULL, 16) : 0ULL;
+            const size_t gap = mmgr_text_span_not(field, " ", PLATFORM_TEXT_TO_TERMINATOR);
+            words[2] = ((gap == 16u) && (field[gap] == ' ') &&
+                        (mmgr_text_span(field, "0123456789abcdef", PLATFORM_TEXT_TO_TERMINATOR) >= 16u))
+                           ? 1ULL
+                           : 0ULL;
+            words[3] = words[2] ? mmgr_text_unsigned_in(field, NULL, 16) : 0ULL;
             field += words[2] ? 17 : 0;
             words[4] = kqr_text_number(record, field);
             stopped = (field[0] != '\0') ? NULL : "a pair with no verdict";
@@ -155,12 +157,12 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
                           : "a sample with no identity or no answer";
             if ((stopped == NULL) && (s_sample.answer == KQR_ANSWERS))
             {
-                char *after = NULL;
-                s_sample.nanoseconds = strtoull(rest, &after, 10);
-                char *least_after = NULL;
-                const unsigned long long least = strtoull(after, &least_after, 10);
-                char *max_after = NULL;
-                const unsigned long long max = strtoull(least_after, &max_after, 10);
+                const char *after = NULL;
+                s_sample.nanoseconds = mmgr_text_unsigned_in(rest, &after, 10);
+                const char *least_after = NULL;
+                const unsigned long long least = mmgr_text_unsigned_in(after, &least_after, 10);
+                const char *max_after = NULL;
+                const unsigned long long max = mmgr_text_unsigned_in(least_after, &max_after, 10);
                 s_sample.launched = ((least_after != after) && (max_after != least_after)) ? 1 : 0;
                 s_sample.least = s_sample.launched ? least : 0ULL;
                 s_sample.max = s_sample.launched ? max : 0ULL;
@@ -185,10 +187,10 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
                           : "a query with no identity or no answer";
             if ((stopped == NULL) && (s_query.answer == KQR_ANSWERS))
             {
-                char *after = NULL;
+                const char *after = NULL;
                 while ((*rest != '\0') && (s_query.words < KQR_WORDS))
                 {
-                    s_query.word[s_query.words] = strtoull(rest, &after, 16);
+                    s_query.word[s_query.words] = mmgr_text_unsigned_in(rest, &after, 16);
                     if (after == rest)
                     {
                         break;
@@ -228,7 +230,8 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
         error_at = kqr_error_put(error, room, error_at, ": ", 2u);
         if (mmgr_text_equal(stopped, "is no line of a query record", PLATFORM_TEXT_TO_TERMINATOR))
         {
-            error_at = kqr_error_put(error, room, error_at, s_line, strcspn(s_line, " "));
+            error_at = kqr_error_put(error, room, error_at, s_line,
+                                     mmgr_text_span_not(s_line, " ", PLATFORM_TEXT_TO_TERMINATOR));
             error_at = kqr_error_put(error, room, error_at, " ", 1u);
         }
         error_at =

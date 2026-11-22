@@ -71,10 +71,10 @@ int run_arguments(int count, char **arguments, RunRequest *request)
             continue;
         }
         const int valued = (at + 1) < count;
-        char *end = NULL;
+        const char *end = NULL;
         if (valued && (mmgr_text_equal(arguments[at], "--processors", PLATFORM_TEXT_TO_TERMINATOR)))
         {
-            request->processors = strtoull(arguments[at + 1], &end, 10);
+            request->processors = mmgr_text_unsigned_in(arguments[at + 1], &end, 10);
             if ((end == arguments[at + 1]) || (*end != '\0'))
             {
                 return 0;
@@ -193,8 +193,8 @@ int run_path_joined(const char *first, const char *second, char *path, size_t ca
 unsigned long long run_limit(const char *name, unsigned long long fallback)
 {
     const char *const text = getenv(name);
-    char *end = NULL;
-    const unsigned long long milliseconds = (text != NULL) ? strtoull(text, &end, 10) : 0ULL;
+    const char *end = NULL;
+    const unsigned long long milliseconds = (text != NULL) ? mmgr_text_unsigned_in(text, &end, 10) : 0ULL;
     const int given = (text != NULL) && (end != text) && (*end == '\0') && (milliseconds != 0ULL);
     return given ? (milliseconds * RUN_THOUSAND) : fallback;
 }
@@ -203,7 +203,7 @@ unsigned long long run_limit(const char *name, unsigned long long fallback)
 // numbers read, or -1 for a line that is not whole
 static int run_record_fields(const char *line, char state[RUN_STATE_CAPACITY], unsigned long long numbers[RUN_NUMBERS])
 {
-    const size_t length = strcspn(line, " \n");
+    const size_t length = mmgr_text_span_not(line, " \n", PLATFORM_TEXT_TO_TERMINATOR);
     if ((length == 0u) || (length >= RUN_STATE_CAPACITY))
     {
         return -1;
@@ -214,11 +214,11 @@ static int run_record_fields(const char *line, char state[RUN_STATE_CAPACITY], u
     int count = 0;
     while ((count < RUN_NUMBERS) && (walk[0] == ' ') && (walk[1] >= '0') && (walk[1] <= '9'))
     {
-        char *end = NULL;
-        numbers[count] = strtoull(walk + 1, &end, 10);
+        const char *end = NULL;
+        numbers[count] = mmgr_text_unsigned_in(walk + 1, &end, 10);
         count += 1;
         // past the word that names the next number
-        walk = (end[0] == ' ') ? (end + 1 + strcspn(end + 1, " \n")) : end;
+        walk = (end[0] == ' ') ? (end + 1 + mmgr_text_span_not(end + 1, " \n", PLATFORM_TEXT_TO_TERMINATOR)) : end;
     }
     return (walk[0] == '\n') ? count : -1;
 }

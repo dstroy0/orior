@@ -283,7 +283,7 @@ static int listing_line(const unsigned char *list, unsigned long long size, unsi
     {
         return 0;
     }
-    const unsigned char *const end = (const unsigned char *)memchr(list + *at, '\n', (size_t)(size - *at));
+    const unsigned char *const end = (const unsigned char *)mmgr_bytes_find(list + *at, '\n', (size_t)(size - *at));
     size_t length = (end != NULL) ? (size_t)(end - (list + *at)) : (size_t)(size - *at);
     const unsigned long long next = *at + length + 1ULL;
     length = ((length != 0u) && (list[*at + length - 1u] == '\r')) ? (length - 1u) : length;
@@ -358,11 +358,11 @@ int program_main(int count, char **words)
             continue;
         }
         ListedCode *const code = &codes[code_count];
-        const char *const forward = strrchr(line, '/');
-        const char *const back = strrchr(line, '\\');
+        const char *const forward = mmgr_text_char_last(line, '/', PLATFORM_TEXT_TO_TERMINATOR);
+        const char *const back = mmgr_text_char_last(line, '\\', PLATFORM_TEXT_TO_TERMINATOR);
         const char *const slash = ((forward != NULL) && ((back == NULL) || (forward > back))) ? forward : back;
         const char *const base = (slash != NULL) ? (slash + 1) : line;
-        const char *const dot = strrchr(base, '.');
+        const char *const dot = mmgr_text_char_last(base, '.', PLATFORM_TEXT_TO_TERMINATOR);
         {
             VerbaLinea buffer_line = mmgr_line_over(code->number, sizeof(code->number));
             mmgr_line_put_max(&buffer_line, base,

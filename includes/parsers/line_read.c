@@ -15,7 +15,7 @@ int line_read(const unsigned char *bytes, unsigned long long size, unsigned long
         return 0;
     }
     // the rest of the text, which a size_t counts as the text is in memory
-    const unsigned char *const end = (const unsigned char *)memchr(bytes + *at, '\n', (size_t)(size - *at));
+    const unsigned char *const end = (const unsigned char *)mmgr_bytes_find(bytes + *at, '\n', (size_t)(size - *at));
     const size_t length = (end != NULL) ? (size_t)(end - (bytes + *at)) : (size_t)(size - *at);
     const size_t copy_len = (length < room) ? length : (room - 1u);
     mmgr_bytes_copy(line, bytes + *at, copy_len);

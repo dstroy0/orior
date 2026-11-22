@@ -126,18 +126,21 @@ static int sass_form_lands(const SassForm *form, const SassForm *other)
 // `plain` carries `named` carries too, as IMAD.IADD carries IMAD's and IMAD.MOV.U32 carries IMAD.U32's
 static int sass_name_within(const char *plain, const char *named)
 {
-    const size_t length = strcspn(plain, ".");
+    const size_t length = mmgr_text_span_not(plain, ".", PLATFORM_TEXT_TO_TERMINATOR);
     int within =
-        (strcspn(named, ".") == length) && (mmgr_text_order(plain, named, (size_t)(length)) == 0) &&
+        (mmgr_text_span_not(named, ".", PLATFORM_TEXT_TO_TERMINATOR) == length) &&
+        (mmgr_text_order(plain, named, (size_t)(length)) == 0) &&
         (mmgr_text_length(plain, PLATFORM_TEXT_TO_TERMINATOR) < mmgr_text_length(named, PLATFORM_TEXT_TO_TERMINATOR));
-    for (const char *walk = plain + length; within && (*walk == '.'); walk += 1u + strcspn(walk + 1, "."))
+    for (const char *walk = plain + length; within && (*walk == '.');
+         walk += 1u + mmgr_text_span_not(walk + 1, ".", PLATFORM_TEXT_TO_TERMINATOR))
     {
-        const size_t modifier = 1u + strcspn(walk + 1, ".");
+        const size_t modifier = 1u + mmgr_text_span_not(walk + 1, ".", PLATFORM_TEXT_TO_TERMINATOR);
         int carried = 0;
-        for (const char *seek = named + length; !carried && (*seek == '.'); seek += 1u + strcspn(seek + 1, "."))
+        for (const char *seek = named + length; !carried && (*seek == '.');
+             seek += 1u + mmgr_text_span_not(seek + 1, ".", PLATFORM_TEXT_TO_TERMINATOR))
         {
-            carried =
-                ((1u + strcspn(seek + 1, ".")) == modifier) && (mmgr_text_order(seek, walk, (size_t)(modifier)) == 0);
+            carried = ((1u + mmgr_text_span_not(seek + 1, ".", PLATFORM_TEXT_TO_TERMINATOR)) == modifier) &&
+                      (mmgr_text_order(seek, walk, (size_t)(modifier)) == 0);
         }
         within = carried;
     }

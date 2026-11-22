@@ -80,16 +80,16 @@ int container_layout_read(ContainerLayout *layout, const char *path)
         {
             char width[LAYOUT_TEXT_MAX_LEN];
             row->type = LAYOUT_FIELD;
-            row->offset = strtoull(value, NULL, 10);
+            row->offset = mmgr_text_unsigned_in(value, NULL, 10);
             layout_word(line, at, width, sizeof(width));
-            row->width = (unsigned int)strtoul(width, NULL, 10);
+            row->width = (unsigned int)mmgr_text_unsigned_in(width, NULL, 10);
         }
         else if ((mmgr_text_equal(type, "size", PLATFORM_TEXT_TO_TERMINATOR)) ||
                  (mmgr_text_equal(type, "tag", PLATFORM_TEXT_TO_TERMINATOR)))
         {
             row->type = (mmgr_text_equal(type, "size", PLATFORM_TEXT_TO_TERMINATOR)) ? (unsigned int)LAYOUT_SIZE
                                                                                      : (unsigned int)LAYOUT_TAG;
-            row->offset = strtoull(value, NULL, 10);
+            row->offset = mmgr_text_unsigned_in(value, NULL, 10);
         }
         else if (mmgr_text_equal(type, "name", PLATFORM_TEXT_TO_TERMINATOR))
         {

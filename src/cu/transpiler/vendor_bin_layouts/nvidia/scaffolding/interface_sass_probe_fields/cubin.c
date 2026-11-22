@@ -70,7 +70,7 @@ int fields_kernel(const char *kernel_text, char *kernel, size_t room)
     {
         return 0;
     }
-    const size_t length = strcspn(kernel_text + 6, ":\r\n");
+    const size_t length = mmgr_text_span_not(kernel_text + 6, ":\r\n", PLATFORM_TEXT_TO_TERMINATOR);
     VerbaLinea formed_line_11;
     return (kernel_text[6u + length] == ':') &&
            ((formed_line_11 = mmgr_line_over(kernel, room),
@@ -241,8 +241,8 @@ int fields_first(const char *path, char *instruction, size_t room)
     int found = 0;
     while (!found && (platform_file_text_read(line, sizeof(line), file) != NULL))
     {
-        line[strcspn(line, "\r\n")] = '\0';
-        const char *const walk = line + strspn(line, " \t");
+        line[mmgr_text_span_not(line, "\r\n", PLATFORM_TEXT_TO_TERMINATOR)] = '\0';
+        const char *const walk = line + mmgr_text_span(line, " \t", PLATFORM_TEXT_TO_TERMINATOR);
         if ((*walk != '\0') && (!mmgr_text_starts(walk, "IADD3 R8", PLATFORM_TEXT_TO_TERMINATOR)))
         {
             VerbaLinea formed_line_2 = mmgr_line_over(instruction, room);

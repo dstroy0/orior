@@ -61,7 +61,7 @@ unsigned long long sass_register_value(const char *text)
         return 7ULL;
     }
     const char *const digits = text + ((text[0] == 'U') ? 2u : 1u);
-    return strtoull(digits, NULL, 10) + (sass_high_half(text) ? 1ULL : 0ULL);
+    return mmgr_text_unsigned_in(digits, NULL, 10) + (sass_high_half(text) ? 1ULL : 0ULL);
 }
 
 // the offset a constant names, c[bank][offset], and the bank through `bank`. The offset may be a sum, each term after
@@ -70,16 +70,16 @@ unsigned long long sass_constant_value(const char *text, unsigned long long *ban
 {
     const char *const first = mmgr_text_char(text, '[', PLATFORM_TEXT_TO_TERMINATOR);
     const char *const second = (first != NULL) ? mmgr_text_char(first + 1, '[', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
-    *bank = (first != NULL) ? strtoull(first + 1, NULL, 0) : 0ULL;
+    *bank = (first != NULL) ? mmgr_text_unsigned_in(first + 1, NULL, 0) : 0ULL;
     if (second == NULL)
     {
         return 0ULL;
     }
-    char *walk = NULL;
-    unsigned long long offset = strtoull(second + 1, &walk, 0);
+    const char *walk = NULL;
+    unsigned long long offset = mmgr_text_unsigned_in(second + 1, &walk, 0);
     while (*walk == '+')
     {
-        offset += strtoull(walk + 1, &walk, 0);
+        offset += mmgr_text_unsigned_in(walk + 1, &walk, 0);
     }
     return offset;
 }
@@ -87,9 +87,9 @@ unsigned long long sass_constant_value(const char *text, unsigned long long *ban
 // the base register an address names, [R2.64+0x4], and its offset through `offset`
 static unsigned long long sass_address_value(const char *text, unsigned long long *offset)
 {
-    const char *const open = strrchr(text, '[');
+    const char *const open = mmgr_text_char_last(text, '[', PLATFORM_TEXT_TO_TERMINATOR);
     const char *const plus = (open != NULL) ? mmgr_text_char(open, '+', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
-    *offset = (plus != NULL) ? strtoull(plus + 1, NULL, 0) : 0ULL;
+    *offset = (plus != NULL) ? mmgr_text_unsigned_in(plus + 1, NULL, 0) : 0ULL;
     return (open != NULL) ? sass_register_value(open + 1) : 0ULL;
 }
 
@@ -112,7 +112,8 @@ int sass_operand_value(const SassInstructionParts *parts, unsigned int place, un
         // is the pair's second register, and for a number it is the number's high word. strtoull stops at the dot:
         // so the stem is read and shifted; a negative number is shifted as the 64-bit word it is written into
         const unsigned long long whole =
-            (text[0] == '-') ? (unsigned long long)(-(long long)strtoull(text + 1, NULL, 0)) : strtoull(text, NULL, 0);
+            (text[0] == '-') ? (unsigned long long)(-(long long)mmgr_text_unsigned_in(text + 1, NULL, 0))
+                             : mmgr_text_unsigned_in(text, NULL, 0);
         *value = sass_high_half(text) ? (whole >> 32u) : whole;
         return 1;
     }

@@ -14,6 +14,7 @@
 // Exit 0 with the seeds on the standard output; 1 where the listing did not read; 2 where the words are not these
 #include <stdio.h>
 #include "../../../../platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
 #include <stdlib.h>
 #include <string.h>
@@ -116,8 +117,8 @@ int program_main(int count, char **word)
         for (const char *at = mmgr_text_find(line, "/* 0x", PLATFORM_TEXT_TO_TERMINATOR); at != NULL;
              at = mmgr_text_find(at + 5, "/* 0x", PLATFORM_TEXT_TO_TERMINATOR))
         {
-            char *end = NULL;
-            const unsigned long long value = strtoull(at + 5, &end, 16);
+            const char *end = NULL;
+            const unsigned long long value = mmgr_text_unsigned_in(at + 5, &end, 16);
             if ((end == NULL) || ((end - (at + 5)) != 16) ||
                 (!mmgr_text_starts(end, " */", PLATFORM_TEXT_TO_TERMINATOR)))
             {

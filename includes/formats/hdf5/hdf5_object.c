@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // hdf5_object.c: layout, pipeline, links and symbol tables
 #include "hdf5_internal.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../src/platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
@@ -259,7 +260,7 @@ static Hdf5Walk hdf5_table_symbols(Hdf5File *file, Hdf5GroupWalk *walk, const un
         const unsigned long long cache = hdf5_little(&symbol[2u * file->offset_bytes], 4u);
         const unsigned char *const name = (name_offset < names_length) ? &names[name_offset] : NULL;
         const unsigned char *const end =
-            (name != NULL) ? (const unsigned char *)memchr(name, 0, names_length - (size_t)name_offset) : NULL;
+            (name != NULL) ? (const unsigned char *)mmgr_bytes_find(name, 0, names_length - (size_t)name_offset) : NULL;
         const size_t length = (end != NULL) ? (size_t)(end - name) : 0u;
         const int ordered = (end != NULL) && ((walk->last_name == NULL) ||
                                               hdf5_name_after(name, length, walk->last_name, walk->last_length));
@@ -310,10 +311,12 @@ static Hdf5Walk hdf5_table_node(Hdf5File *file, Hdf5GroupWalk *walk, const unsig
         const unsigned long long left = hdf5_little(left_key, file->length_bytes);
         const unsigned long long right = hdf5_little(&left_key[key_bytes + pointer_bytes], file->length_bytes);
         const unsigned char *const left_end =
-            (left < names_length) ? (const unsigned char *)memchr(&names[left], 0, names_length - (size_t)left) : NULL;
+            (left < names_length) ? (const unsigned char *)mmgr_bytes_find(&names[left], 0, names_length - (size_t)left)
+                                  : NULL;
         const unsigned char *const right_end =
-            (right < names_length) ? (const unsigned char *)memchr(&names[right], 0, names_length - (size_t)right)
-                                   : NULL;
+            (right < names_length)
+                ? (const unsigned char *)mmgr_bytes_find(&names[right], 0, names_length - (size_t)right)
+                : NULL;
         const int keyed = (left_end != NULL) && (right_end != NULL);
         const int wanted =
             (walk->target == NULL) ||
