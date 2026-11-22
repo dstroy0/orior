@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // krep_sections.cu: the crystal, side, history, bodies and forms
 #include "krep_internal.h"
+#include "../../../src/platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 extern "C" int krep_crystal_head(const char *path, EngineStream *stream, EngineSignum *root, EngineError *error)
@@ -16,15 +17,15 @@ extern "C" int krep_crystal_head(const char *path, EngineStream *stream, EngineS
     }
     mmgr_bytes_set(stream, 0, sizeof(*stream));
     unsigned long long head[KREP_CRYSTAL_HEAD_WORDS];
-    FILE *const crystal = fopen(path, "rb");
+    PlatformFile *const crystal = platform_file_open(path, "rb");
     int ok = krep_crystal_head_from(path, crystal, stream, head, error);
     if (ok && (root != NULL))
     {
-        ok = KREP_IO(fread(root, sizeof(EngineSignum), 1u, crystal) == 1u, root, error);
+        ok = KREP_IO(platform_file_read_items(root, sizeof(EngineSignum), 1u, crystal) == 1u, root, error);
     }
     if (crystal != NULL)
     {
-        fclose(crystal);
+        platform_file_close(crystal);
     }
     return ok;
 }
@@ -49,7 +50,7 @@ extern "C" int krep_crystal_read(const KrepCrystalRequest *request)
     EngineSideSection discarded;
     EngineSideSection *const side_section = (request->section != NULL) ? request->section : &discarded;
     mmgr_bytes_set(side_section, 0, sizeof(*side_section));
-    FILE *const crystal = fopen(request->path, "rb");
+    PlatformFile *const crystal = platform_file_open(request->path, "rb");
     int ok = krep_crystal_head_from(request->path, crystal, stream, head, error) &&
              krep_seal_read(crystal, head, seal, error);
     const size_t limbs = ok ? (size_t)((stream->bits + 31ULL) / 32ULL) : 0u;
@@ -61,10 +62,10 @@ extern "C" int krep_crystal_read(const KrepCrystalRequest *request)
          KREP_IO(krep_words_read(crystal, offsets, (size_t)stream->chunks) != 0, offsets, error) &&
          KREP_IO(krep_limbs_read(crystal, limb_table, limbs) != 0, limb_table, error) &&
          krep_side_read(crystal, head, side_section, error) &&
-         KREP_CHECK(fgetc(crystal) == EOF, crystal, error, ENGINE_ERROR_LOGIC);
+         KREP_CHECK(platform_file_char_get(crystal) == EOF, crystal, error, ENGINE_ERROR_LOGIC);
     if (crystal != NULL)
     {
-        fclose(crystal);
+        platform_file_close(crystal);
     }
     stream->offsets = offsets;
     stream->stream = limb_table;
@@ -127,18 +128,19 @@ extern "C" int krep_history_write(const char *path, const EngineHistory *history
     }
     const unsigned long long head[4] = {ENGINE_HISTORY_WINDOW, history->windows, history->payload_crc,
                                         history->cloud_crc};
-    FILE *const out = fopen(path, "wb");
+    PlatformFile *const out = platform_file_open(path, "wb");
     int ok =
         KREP_IO(out != NULL, path, error) && KREP_IO(krep_head_write(out, KREP_TYPE_NOISE_FLOOR) != 0, out, error) &&
         KREP_IO(krep_words_write(out, history->extent, 4u) != 0, history->extent, error) &&
         KREP_IO(krep_words_write(out, head, 4u) != 0, head, error) &&
-        KREP_IO(fwrite(&history->sample, sizeof(EngineSignum), 1u, out) == 1u, &history->sample, error) &&
+        KREP_IO(platform_file_write_items(&history->sample, sizeof(EngineSignum), 1u, out) == 1u, &history->sample,
+                error) &&
         KREP_IO(krep_words_write(out, history->cloud, (size_t)(history->windows * history->windows)) != 0,
                 history->cloud, error) &&
         KREP_IO(krep_words_write(out, history->history, krep_history_words(history)) != 0, history->history, error);
     if (out != NULL)
     {
-        ok = KREP_IO(fclose(out) == 0, out, error) && ok;
+        ok = KREP_IO(platform_file_close(out) == 0, out, error) && ok;
     }
     return ok;
 }
@@ -154,13 +156,14 @@ extern "C" int krep_history_read(const char *path, EngineHistory *history, unsig
         return 0;
     }
     mmgr_bytes_set(history, 0, sizeof(*history));
-    FILE *const back = fopen(path, "rb");
+    PlatformFile *const back = platform_file_open(path, "rb");
     unsigned long long head[4] = {0ULL, 0ULL, 0ULL, 0ULL};
     int ok = KREP_IO(back != NULL, path, error) &&
              KREP_IO(krep_head_read(back, KREP_TYPE_NOISE_FLOOR) != 0, back, error) &&
              KREP_IO(krep_words_read(back, history->extent, 4u) != 0, history->extent, error) &&
              KREP_IO(krep_words_read(back, head, 4u) != 0, head, error) &&
-             KREP_IO(fread(&history->sample, sizeof(EngineSignum), 1u, back) == 1u, &history->sample, error) &&
+             KREP_IO(platform_file_read_items(&history->sample, sizeof(EngineSignum), 1u, back) == 1u, &history->sample,
+                     error) &&
              KREP_CHECK((head[0] == ENGINE_HISTORY_WINDOW) && (history->extent[0] >= 2ULL) &&
                             (head[1] ==
                              (((history->extent[0] - 1ULL) + ENGINE_HISTORY_WINDOW - 1ULL) / ENGINE_HISTORY_WINDOW)) &&
@@ -182,13 +185,13 @@ extern "C" int krep_history_read(const char *path, EngineHistory *history, unsig
         history->history = (unsigned long long *)calloc(words, sizeof(unsigned long long));
         ok = KREP_CHECK(history->history != NULL, &history->history, error, ENGINE_ERROR_RESOURCE) &&
              KREP_IO(krep_words_read(back, history->history, words) != 0, history->history, error) &&
-             KREP_CHECK(fgetc(back) == EOF, back, error, ENGINE_ERROR_LOGIC) &&
+             KREP_CHECK(platform_file_char_get(back) == EOF, back, error, ENGINE_ERROR_LOGIC) &&
              KREP_CHECK(crc_words(CRC_TABLE, history->history, words) == history->payload_crc, &history->payload_crc,
                         error, ENGINE_ERROR_LOGIC);
     }
     if (back != NULL)
     {
-        fclose(back);
+        platform_file_close(back);
     }
     if (ok == 0)
     {
@@ -216,7 +219,7 @@ extern "C" int krep_bodies_write(const char *path, const EngineBodyTable *table,
         return 0;
     }
     const unsigned long long counts[3] = {table->frames, table->bodies, table->crc};
-    FILE *const out = fopen(path, "wb");
+    PlatformFile *const out = platform_file_open(path, "wb");
     int ok = KREP_IO(out != NULL, path, error) && KREP_IO(krep_head_write(out, KREP_TYPE_BODIES) != 0, out, error) &&
              KREP_IO(krep_words_write(out, table->extent, 4u) != 0, table->extent, error) &&
              KREP_IO(krep_words_write(out, counts, 3u) != 0, counts, error) &&
@@ -226,7 +229,7 @@ extern "C" int krep_bodies_write(const char *path, const EngineBodyTable *table,
                      table->words, error);
     if (out != NULL)
     {
-        ok = KREP_IO(fclose(out) == 0, out, error) && ok;
+        ok = KREP_IO(platform_file_close(out) == 0, out, error) && ok;
     }
     return ok;
 }
@@ -242,7 +245,7 @@ extern "C" int krep_bodies_read(const char *path, EngineBodyTable *table, Engine
         return 0;
     }
     mmgr_bytes_set(table, 0, sizeof(*table));
-    FILE *const back = fopen(path, "rb");
+    PlatformFile *const back = platform_file_open(path, "rb");
     unsigned long long counts[3] = {0ULL, 0ULL, 0ULL};
     int ok = KREP_IO(back != NULL, path, error) && KREP_IO(krep_head_read(back, KREP_TYPE_BODIES) != 0, back, error) &&
              KREP_IO(krep_words_read(back, table->extent, 4u) != 0, table->extent, error) &&
@@ -265,13 +268,13 @@ extern "C" int krep_bodies_read(const char *path, EngineBodyTable *table, Engine
                 error) &&
         KREP_IO(krep_words_read(back, table->words, (size_t)(table->bodies * ENGINE_BODY_WORDS)) != 0, table->words,
                 error) &&
-        KREP_CHECK(fgetc(back) == EOF, back, error, ENGINE_ERROR_LOGIC) &&
+        KREP_CHECK(platform_file_char_get(back) == EOF, back, error, ENGINE_ERROR_LOGIC) &&
         KREP_CHECK(table->frame_start[table->frames] == table->bodies, table->frame_start, error, ENGINE_ERROR_LOGIC) &&
         KREP_CHECK(crc_words(CRC_TABLE, table->words, (size_t)(table->bodies * ENGINE_BODY_WORDS)) == table->crc,
                    &table->crc, error, ENGINE_ERROR_LOGIC);
     if (back != NULL)
     {
-        fclose(back);
+        platform_file_close(back);
     }
     if (ok == 0)
     {
@@ -299,7 +302,7 @@ extern "C" int krep_forms_write(const char *path, const KrepFormTable *table, En
         return 0;
     }
     const unsigned long long counts[3] = {table->forms, table->name_words, table->crc};
-    FILE *const out = fopen(path, "wb");
+    PlatformFile *const out = platform_file_open(path, "wb");
     int ok = KREP_IO(out != NULL, path, error) &&
              KREP_IO(krep_head_write(out, KREP_TYPE_CONSTRUCTION_SET) != 0, out, error) &&
              KREP_IO(krep_words_write(out, counts, 3u) != 0, counts, error) &&
@@ -307,7 +310,7 @@ extern "C" int krep_forms_write(const char *path, const KrepFormTable *table, En
                      error);
     if (out != NULL)
     {
-        ok = KREP_IO(fclose(out) == 0, out, error) && ok;
+        ok = KREP_IO(platform_file_close(out) == 0, out, error) && ok;
     }
     return ok;
 }
@@ -323,7 +326,7 @@ extern "C" int krep_forms_read(const char *path, KrepFormTable *table, EngineErr
         return 0;
     }
     mmgr_bytes_set(table, 0, sizeof(*table));
-    FILE *const back = fopen(path, "rb");
+    PlatformFile *const back = platform_file_open(path, "rb");
     unsigned long long counts[3] = {0ULL, 0ULL, 0ULL};
     int ok =
         KREP_IO(back != NULL, path, error) &&
@@ -339,12 +342,12 @@ extern "C" int krep_forms_read(const char *path, KrepFormTable *table, EngineErr
     ok = ok && KREP_CHECK(table->words != NULL, &table->words, error, ENGINE_ERROR_RESOURCE) &&
          KREP_IO(krep_words_read(back, table->words, (size_t)(table->forms + table->name_words)) != 0, table->words,
                  error) &&
-         KREP_CHECK(fgetc(back) == EOF, back, error, ENGINE_ERROR_LOGIC) &&
+         KREP_CHECK(platform_file_char_get(back) == EOF, back, error, ENGINE_ERROR_LOGIC) &&
          KREP_CHECK(crc_words(CRC_TABLE, table->words, (size_t)(table->forms + table->name_words)) == table->crc,
                     &table->crc, error, ENGINE_ERROR_LOGIC);
     if (back != NULL)
     {
-        fclose(back);
+        platform_file_close(back);
     }
     if (ok == 0)
     {

@@ -5,6 +5,7 @@
 // approval put in the list beside it through `<file>.ksa.part`, made durable and put in its place whole; and every
 // approval in a list verified against its seal, with the approvers a check requires found among those that are valid
 #include "ksg_tool.h"
+#include "../../../src/platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 #include "../qry/writer/qry_writer_internal.h"
@@ -128,16 +129,17 @@ static const KsaScheme *ksg_key_read(const char *path, const char *type, int sec
     unsigned char stored_head[KREP_HEAD_BYTES];
     char tag[KSA_TAG_BYTES];
     ksg_head_of(type, head);
-    FILE *const file = fopen(path, "rb");
-    const int opened = (file != NULL) && (fread(stored_head, 1u, sizeof(stored_head), file) == sizeof(stored_head)) &&
+    PlatformFile *const file = platform_file_open(path, "rb");
+    const int opened = (file != NULL) &&
+                       (platform_file_read_items(stored_head, 1u, sizeof(stored_head), file) == sizeof(stored_head)) &&
                        (mmgr_bytes_compare(stored_head, head, sizeof(head)) == 0) &&
-                       (fread(tag, 1u, sizeof(tag), file) == sizeof(tag));
+                       (platform_file_read_items(tag, 1u, sizeof(tag), file) == sizeof(tag));
     const KsaScheme *const scheme = opened ? ksa_scheme_tagged(tag) : NULL;
     const unsigned int count = (scheme == NULL) ? 0u : (secret ? scheme->secret_bytes : scheme->key_bytes);
-    const int read = (scheme != NULL) && (fread(bytes, 1u, count, file) == count);
+    const int read = (scheme != NULL) && (platform_file_read_items(bytes, 1u, count, file) == count);
     if (file != NULL)
     {
-        (void)fclose(file);
+        (void)platform_file_close(file);
     }
     if (!read)
     {
@@ -208,7 +210,7 @@ static int ksg_list_read(const char *path)
 {
     static char s_listed[KSG_PATH_MAX_LEN];
     s_list.count = 0ULL;
-    FILE *const file = ksg_path_with(path, KSA_SUFFIX, s_listed) ? fopen(s_listed, "rb") : NULL;
+    PlatformFile *const file = ksg_path_with(path, KSA_SUFFIX, s_listed) ? platform_file_open(s_listed, "rb") : NULL;
     if (file == NULL)
     {
         return 1;
@@ -217,27 +219,27 @@ static int ksg_list_read(const char *path)
     unsigned char stored_head[KREP_HEAD_BYTES];
     unsigned char word[8];
     ksg_head_of(KSA_TYPE, head);
-    int whole = (fread(stored_head, 1u, sizeof(stored_head), file) == sizeof(stored_head)) &&
+    int whole = (platform_file_read_items(stored_head, 1u, sizeof(stored_head), file) == sizeof(stored_head)) &&
                 (mmgr_bytes_compare(stored_head, head, sizeof(head)) == 0) &&
-                (fread(word, 1u, sizeof(word), file) == sizeof(word));
+                (platform_file_read_items(word, 1u, sizeof(word), file) == sizeof(word));
     const unsigned long long count = whole ? ksg_word_got(word) : 0ULL;
     whole = whole && (count <= KSA_APPROVALS_MAX);
     for (unsigned long long at = 0ULL; whole && (at < count); at += 1ULL)
     {
         KsaApproval *const approval = &s_list.approval[at];
         unsigned char sizes[16];
-        whole = (fread(approval->tag, 1u, KSA_TAG_BYTES, file) == KSA_TAG_BYTES) &&
-                (fread(sizes, 1u, sizeof(sizes), file) == sizeof(sizes));
+        whole = (platform_file_read_items(approval->tag, 1u, KSA_TAG_BYTES, file) == KSA_TAG_BYTES) &&
+                (platform_file_read_items(sizes, 1u, sizeof(sizes), file) == sizeof(sizes));
         const unsigned long long key_bytes = whole ? ksg_word_got(sizes) : 0ULL;
         const unsigned long long signature_bytes = whole ? ksg_word_got(sizes + 8u) : 0ULL;
         whole = whole && (key_bytes <= KSA_KEY_MAX) && (signature_bytes <= KSA_SIGNATURE_MAX) &&
-                (fread(approval->key, 1u, (size_t)key_bytes, file) == key_bytes) &&
-                (fread(approval->signature, 1u, (size_t)signature_bytes, file) == signature_bytes);
+                (platform_file_read_items(approval->key, 1u, (size_t)key_bytes, file) == key_bytes) &&
+                (platform_file_read_items(approval->signature, 1u, (size_t)signature_bytes, file) == signature_bytes);
         // each count was bounded at max KSA_KEY_MAX or KSA_SIGNATURE_MAX just above
         approval->key_bytes = (unsigned int)key_bytes;
         approval->signature_bytes = (unsigned int)signature_bytes;
     }
-    (void)fclose(file);
+    (void)platform_file_close(file);
     s_list.count = whole ? count : 0ULL;
     return whole;
 }

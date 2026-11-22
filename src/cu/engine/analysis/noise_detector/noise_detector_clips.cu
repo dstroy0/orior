@@ -342,26 +342,63 @@ void noise_clips_summary(const char *name, const NoiseClips *clips)
     platform_line_flushed();
 }
 
-int noise_clips_rows(FILE *const tables[NOISE_CLIPS_TABLES], const char *name, const NoiseClips *clips)
+int noise_clips_rows(PlatformFile *const tables[NOISE_CLIPS_TABLES], const char *name, const NoiseClips *clips)
 {
     unsigned int least = 0u;
     unsigned int max = 0u;
     unsigned long long empty = 0ULL;
     noise_clips_range(clips, &least, &max, &empty);
+    unsigned long long formed_mark_1;
     int ok =
-        fprintf(tables[NOISE_TABLE_CLIPS], "%s\t%u\t%u\t%llu\t%llu\t%llu\t%llu\t%llu\t%llu\t%u\t%u\t%u\t%u\t%u\t%u\n",
-                name, least, max, empty, clips->counts[NOISE_CLIPS_AT_ZERO], clips->counts[NOISE_CLIPS_AT_TOP],
-                clips->counts[NOISE_CLIPS_CONSTANT], clips->counts[NOISE_CLIPS_CONSTANT_ZERO],
-                clips->counts[NOISE_CLIPS_CONSTANT_TOP], clips->box[0], clips->box[1], clips->box[2], clips->box[3],
-                clips->box[4], clips->box[5]) > 0;
+        (formed_mark_1 = platform_file_mark(tables[NOISE_TABLE_CLIPS]),
+         mmgr_line_put(platform_file_line(tables[NOISE_TABLE_CLIPS]), name),
+         mmgr_line_put(platform_file_line(tables[NOISE_TABLE_CLIPS]), "\t"),
+         mmgr_line_decimal(platform_file_line(tables[NOISE_TABLE_CLIPS]), least, 1u),
+         mmgr_line_put(platform_file_line(tables[NOISE_TABLE_CLIPS]), "\t"),
+         mmgr_line_decimal(platform_file_line(tables[NOISE_TABLE_CLIPS]), max, 1u),
+         mmgr_line_put(platform_file_line(tables[NOISE_TABLE_CLIPS]), "\t"),
+         mmgr_line_decimal(platform_file_line(tables[NOISE_TABLE_CLIPS]), empty, 1u),
+         mmgr_line_put(platform_file_line(tables[NOISE_TABLE_CLIPS]), "\t"),
+         mmgr_line_decimal(platform_file_line(tables[NOISE_TABLE_CLIPS]), clips->counts[NOISE_CLIPS_AT_ZERO], 1u),
+         mmgr_line_put(platform_file_line(tables[NOISE_TABLE_CLIPS]), "\t"),
+         mmgr_line_decimal(platform_file_line(tables[NOISE_TABLE_CLIPS]), clips->counts[NOISE_CLIPS_AT_TOP], 1u),
+         mmgr_line_put(platform_file_line(tables[NOISE_TABLE_CLIPS]), "\t"),
+         mmgr_line_decimal(platform_file_line(tables[NOISE_TABLE_CLIPS]), clips->counts[NOISE_CLIPS_CONSTANT], 1u),
+         mmgr_line_put(platform_file_line(tables[NOISE_TABLE_CLIPS]), "\t"),
+         mmgr_line_decimal(platform_file_line(tables[NOISE_TABLE_CLIPS]), clips->counts[NOISE_CLIPS_CONSTANT_ZERO], 1u),
+         mmgr_line_put(platform_file_line(tables[NOISE_TABLE_CLIPS]), "\t"),
+         mmgr_line_decimal(platform_file_line(tables[NOISE_TABLE_CLIPS]), clips->counts[NOISE_CLIPS_CONSTANT_TOP], 1u),
+         mmgr_line_put(platform_file_line(tables[NOISE_TABLE_CLIPS]), "\t"),
+         mmgr_line_decimal(platform_file_line(tables[NOISE_TABLE_CLIPS]), clips->box[0], 1u),
+         mmgr_line_put(platform_file_line(tables[NOISE_TABLE_CLIPS]), "\t"),
+         mmgr_line_decimal(platform_file_line(tables[NOISE_TABLE_CLIPS]), clips->box[1], 1u),
+         mmgr_line_put(platform_file_line(tables[NOISE_TABLE_CLIPS]), "\t"),
+         mmgr_line_decimal(platform_file_line(tables[NOISE_TABLE_CLIPS]), clips->box[2], 1u),
+         mmgr_line_put(platform_file_line(tables[NOISE_TABLE_CLIPS]), "\t"),
+         mmgr_line_decimal(platform_file_line(tables[NOISE_TABLE_CLIPS]), clips->box[3], 1u),
+         mmgr_line_put(platform_file_line(tables[NOISE_TABLE_CLIPS]), "\t"),
+         mmgr_line_decimal(platform_file_line(tables[NOISE_TABLE_CLIPS]), clips->box[4], 1u),
+         mmgr_line_put(platform_file_line(tables[NOISE_TABLE_CLIPS]), "\t"),
+         mmgr_line_decimal(platform_file_line(tables[NOISE_TABLE_CLIPS]), clips->box[5], 1u),
+         mmgr_line_put(platform_file_line(tables[NOISE_TABLE_CLIPS]), "\n"),
+         platform_file_written_since(tables[NOISE_TABLE_CLIPS], formed_mark_1)) > 0;
     for (unsigned int value = 0u; ok && (value < NOISE_VALUES); value += 1u)
     {
         if (clips->values[value] == 0ULL)
         {
             continue;
         }
-        ok = fprintf(tables[NOISE_TABLE_VALUES], "%s\t%u\t%llu\t%llu\n", name, value, clips->values[value],
-                     clips->constant_values[value]) > 0;
+        unsigned long long formed_mark_2;
+        ok = (formed_mark_2 = platform_file_mark(tables[NOISE_TABLE_VALUES]),
+              mmgr_line_put(platform_file_line(tables[NOISE_TABLE_VALUES]), name),
+              mmgr_line_put(platform_file_line(tables[NOISE_TABLE_VALUES]), "\t"),
+              mmgr_line_decimal(platform_file_line(tables[NOISE_TABLE_VALUES]), value, 1u),
+              mmgr_line_put(platform_file_line(tables[NOISE_TABLE_VALUES]), "\t"),
+              mmgr_line_decimal(platform_file_line(tables[NOISE_TABLE_VALUES]), clips->values[value], 1u),
+              mmgr_line_put(platform_file_line(tables[NOISE_TABLE_VALUES]), "\t"),
+              mmgr_line_decimal(platform_file_line(tables[NOISE_TABLE_VALUES]), clips->constant_values[value], 1u),
+              mmgr_line_put(platform_file_line(tables[NOISE_TABLE_VALUES]), "\n"),
+              platform_file_written_since(tables[NOISE_TABLE_VALUES], formed_mark_2)) > 0;
     }
     for (unsigned int level_bin = 0u; ok && (level_bin < NOISE_LEVEL_BINS); level_bin += 1u)
     {
@@ -370,13 +407,27 @@ int noise_clips_rows(FILE *const tables[NOISE_CLIPS_TABLES], const char *name, c
         {
             continue;
         }
-        ok = fprintf(tables[NOISE_TABLE_SPIKES], "%s\t%u\t%llu", name, level_bin << (NOISE_LEVEL_BIN_SHIFT - 1u),
-                     cell[NOISE_SPIKE_TRIPLES]) > 0;
+        unsigned long long formed_mark_3;
+        ok = (formed_mark_3 = platform_file_mark(tables[NOISE_TABLE_SPIKES]),
+              mmgr_line_put(platform_file_line(tables[NOISE_TABLE_SPIKES]), name),
+              mmgr_line_put(platform_file_line(tables[NOISE_TABLE_SPIKES]), "\t"),
+              mmgr_line_decimal(platform_file_line(tables[NOISE_TABLE_SPIKES]),
+                                level_bin << (NOISE_LEVEL_BIN_SHIFT - 1u), 1u),
+              mmgr_line_put(platform_file_line(tables[NOISE_TABLE_SPIKES]), "\t"),
+              mmgr_line_decimal(platform_file_line(tables[NOISE_TABLE_SPIKES]), cell[NOISE_SPIKE_TRIPLES], 1u),
+              platform_file_written_since(tables[NOISE_TABLE_SPIKES], formed_mark_3)) > 0;
         for (unsigned int sum = 1u; ok && (sum < NOISE_SPIKE_SUMS); sum += 1u)
         {
-            ok = fprintf(tables[NOISE_TABLE_SPIKES], "\t%llu", cell[sum]) > 0;
+            unsigned long long formed_mark_4;
+            ok = (formed_mark_4 = platform_file_mark(tables[NOISE_TABLE_SPIKES]),
+                  mmgr_line_put(platform_file_line(tables[NOISE_TABLE_SPIKES]), "\t"),
+                  mmgr_line_decimal(platform_file_line(tables[NOISE_TABLE_SPIKES]), cell[sum], 1u),
+                  platform_file_written_since(tables[NOISE_TABLE_SPIKES], formed_mark_4)) > 0;
         }
-        ok = ok && (fprintf(tables[NOISE_TABLE_SPIKES], "\n") > 0);
+        unsigned long long formed_mark_5;
+        ok = ok && ((formed_mark_5 = platform_file_mark(tables[NOISE_TABLE_SPIKES]),
+                     mmgr_line_put(platform_file_line(tables[NOISE_TABLE_SPIKES]), "\n"),
+                     platform_file_written_since(tables[NOISE_TABLE_SPIKES], formed_mark_5)) > 0);
     }
     return ok;
 }

@@ -183,14 +183,14 @@ int writings_chains_write(const char *pattern, const char *kernel_text, const ch
         mmgr_line_put(&buffer_line, "/list.txt");
         (void)mmgr_line_finish(&buffer_line);
     }
-    FILE *const list = fopen(path, "wb");
+    PlatformFile *const list = platform_file_open(path, "wb");
     {
         VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
         mmgr_line_put(&buffer_line, into);
         mmgr_line_put(&buffer_line, "/chains.txt");
         (void)mmgr_line_finish(&buffer_line);
     }
-    FILE *const chains = fopen(path, "wb");
+    PlatformFile *const chains = platform_file_open(path, "wb");
     // the .kdm as the run stores it (kdm.h)
     static KdmFile s_rows;
     if ((list == NULL) || (chains == NULL) || !kdm_read(&s_rows, kdm) || (s_rows.lines == 0u))
@@ -288,14 +288,27 @@ int writings_chains_write(const char *pattern, const char *kernel_text, const ch
             unwritten += 1u;
             continue;
         }
-        fprintf(list, "%s %s\n", cubin, s_kernel);
-        fprintf(chains, "%u\t%s\t%s\t%s\n", written, operator_name, chain,
-                (verdict == 1u) ? "located" : ((verdict == 0u) ? "out" : "-"));
+        {
+            mmgr_line_put(platform_file_line(list), cubin);
+            mmgr_line_put(platform_file_line(list), " ");
+            mmgr_line_put(platform_file_line(list), s_kernel);
+            mmgr_line_put(platform_file_line(list), "\n");
+        }
+        {
+            mmgr_line_decimal(platform_file_line(chains), written, 1u);
+            mmgr_line_put(platform_file_line(chains), "\t");
+            mmgr_line_put(platform_file_line(chains), operator_name);
+            mmgr_line_put(platform_file_line(chains), "\t");
+            mmgr_line_put(platform_file_line(chains), chain);
+            mmgr_line_put(platform_file_line(chains), "\t");
+            mmgr_line_put(platform_file_line(chains), (verdict == 1u) ? "located" : ((verdict == 0u) ? "out" : "-"));
+            mmgr_line_put(platform_file_line(chains), "\n");
+        }
         written += 1u;
     }
     kdm_free(&s_rows);
-    fclose(list);
-    fclose(chains);
+    platform_file_close(list);
+    platform_file_close(chains);
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "interface sass chains: ");
@@ -328,15 +341,15 @@ int writings_chains_read(const char *folder, const char *record)
         mmgr_line_put(&buffer_line, "/chains/chains.txt");
         (void)mmgr_line_finish(&buffer_line);
     }
-    FILE *const chains = fopen(path, "rb");
+    PlatformFile *const chains = platform_file_open(path, "rb");
     {
         VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
         mmgr_line_put(&buffer_line, folder);
         mmgr_line_put(&buffer_line, "/chains/answers.txt");
         (void)mmgr_line_finish(&buffer_line);
     }
-    FILE *const answers = fopen(path, "rb");
-    FILE *const out = fopen(record, "wb");
+    PlatformFile *const answers = platform_file_open(path, "rb");
+    PlatformFile *const out = platform_file_open(record, "wb");
     if ((chains == NULL) || (answers == NULL) || (out == NULL))
     {
         {
@@ -353,7 +366,7 @@ int writings_chains_read(const char *folder, const char *record)
         return 2;
     }
     unsigned int count = 0u;
-    while ((count < WRITINGS_CHAINS_MAX) && (fgets(line, sizeof(line), chains) != NULL))
+    while ((count < WRITINGS_CHAINS_MAX) && (platform_file_text_read(line, sizeof(line), chains) != NULL))
     {
         unsigned int number = 0u;
         char operator_name[32];
@@ -375,21 +388,30 @@ int writings_chains_read(const char *folder, const char *record)
         }
         count += 1u;
     }
-    fclose(chains);
+    platform_file_close(chains);
     unsigned int ran = 0u;
     unsigned int refused = 0u;
     writings_answers_read(answers, count, s_chain_answered, s_chain_ran, &ran, &refused);
-    fclose(answers);
+    platform_file_close(answers);
     unsigned int put[LADDER_ANCHOR_COUNT] = {0u};
     unsigned int anchor_counts[LADDER_ANCHOR_COUNT] = {0u};
-    fprintf(out, "# Chains run on the part\n\n");
-    fprintf(out,
+    {
+        mmgr_line_put(platform_file_line(out), "# Chains run on the part\n\n");
+    }
+    {
+        mmgr_line_put(
+            platform_file_line(out),
             "Written by `interface_sass_writings.sh` whole on every run. Every arrangement of the part's .kdm is "
-            "written node by node, each node the first writing `interface_sass_writings.md` found for its "
-            "precept, run on the part over the search's cases, and read back against the relation the "
-            "arrangement is a row of. %u chains ran and %u were refused by the part.\n\n",
-            ran, refused);
-    fprintf(out, "## Chains that did not answer as their relation\n\n");
+            "written node by node, each node the first writing `interface_sass_writings.md` found for its precept, run "
+            "on the part over the search's cases, and read back against the relation the arrangement is a row of. ");
+        mmgr_line_decimal(platform_file_line(out), ran, 1u);
+        mmgr_line_put(platform_file_line(out), " chains ran and ");
+        mmgr_line_decimal(platform_file_line(out), refused, 1u);
+        mmgr_line_put(platform_file_line(out), " were refused by the part.\n\n");
+    }
+    {
+        mmgr_line_put(platform_file_line(out), "## Chains that did not answer as their relation\n\n");
+    }
     unsigned int differed = 0u;
     for (unsigned int number = 0u; number < count; number += 1u)
     {
@@ -409,17 +431,38 @@ int writings_chains_read(const char *folder, const char *record)
         anchor_counts[anchor] += (agreed == s_cases) ? 1u : 0u;
         if (agreed != s_cases)
         {
-            fprintf(out, "- %s `%s`: %u of %u cases\n", s_anchor_text[anchor], s_chain[number], agreed, s_cases);
+            {
+                mmgr_line_put(platform_file_line(out), "- ");
+                mmgr_line_put(platform_file_line(out), s_anchor_text[anchor]);
+                mmgr_line_put(platform_file_line(out), " `");
+                mmgr_line_put(platform_file_line(out), s_chain[number]);
+                mmgr_line_put(platform_file_line(out), "`: ");
+                mmgr_line_decimal(platform_file_line(out), agreed, 1u);
+                mmgr_line_put(platform_file_line(out), " of ");
+                mmgr_line_decimal(platform_file_line(out), s_cases, 1u);
+                mmgr_line_put(platform_file_line(out), " cases\n");
+            }
             differed += 1u;
         }
     }
-    fprintf(out, "%s\n## By relation\n\n| relation | chains run | answering every case |\n|---|---|---|\n",
-            (differed == 0u) ? "None.\n" : "");
+    {
+        mmgr_line_put(platform_file_line(out), (differed == 0u) ? "None.\n" : "");
+        mmgr_line_put(platform_file_line(out),
+                      "\n## By relation\n\n| relation | chains run | answering every case |\n|---|---|---|\n");
+    }
     for (unsigned int anchor = 0u; anchor < LADDER_ANCHOR_COUNT; anchor += 1u)
     {
         if (put[anchor] != 0u)
         {
-            fprintf(out, "| %s | %u | %u |\n", s_anchor_text[anchor], put[anchor], anchor_counts[anchor]);
+            {
+                mmgr_line_put(platform_file_line(out), "| ");
+                mmgr_line_put(platform_file_line(out), s_anchor_text[anchor]);
+                mmgr_line_put(platform_file_line(out), " | ");
+                mmgr_line_decimal(platform_file_line(out), put[anchor], 1u);
+                mmgr_line_put(platform_file_line(out), " | ");
+                mmgr_line_decimal(platform_file_line(out), anchor_counts[anchor], 1u);
+                mmgr_line_put(platform_file_line(out), " |\n");
+            }
             {
                 VerbaLinea *const output_line = platform_line_out();
                 mmgr_line_put(output_line, "  ");
@@ -434,7 +477,7 @@ int writings_chains_read(const char *folder, const char *record)
             }
         }
     }
-    fclose(out);
+    platform_file_close(out);
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "interface sass chains: ");

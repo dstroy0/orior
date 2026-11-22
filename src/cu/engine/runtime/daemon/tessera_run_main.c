@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_run_main.c: tessera_run's main
 #include "tessera_run_internal.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../platform/platform.h"
 #include "../../engine_note.h"
 #include "memoria_operor/memoria_linea.h"
@@ -18,7 +19,11 @@ int program_main(int count, char **arguments)
     mmgr_bytes_set(&request, 0, sizeof(request));
     if (!run_arguments(count, arguments, &request))
     {
-        fputs(s_run_usage, stderr);
+        {
+            const char *const error_text = s_run_usage;
+            platform_terminal_write(1, error_text,
+                                    (unsigned long long)mmgr_text_length(error_text, PLATFORM_TEXT_TO_TERMINATOR));
+        }
         return RUN_FAILED;
     }
     const unsigned long long mask = tessera_self_host_mask();
@@ -50,7 +55,11 @@ int program_main(int count, char **arguments)
     mmgr_bytes_set(&submit, 0, sizeof(submit));
     if (!run_daemon_path(daemon, sizeof(daemon)) || !run_signum(&request, arguments, count, &submit.signum, &error))
     {
-        fputs(s_run_unsubmitted, stderr);
+        {
+            const char *const error_text = s_run_unsubmitted;
+            platform_terminal_write(1, error_text,
+                                    (unsigned long long)mmgr_text_length(error_text, PLATFORM_TEXT_TO_TERMINATOR));
+        }
         return RUN_FAILED;
     }
     submit.declared = request.processors * TESSERA_HOST_PROCESSOR;

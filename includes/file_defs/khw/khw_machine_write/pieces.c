@@ -58,7 +58,7 @@ static unsigned long long khw_run_read(unsigned long long low, unsigned long lon
 // the pieces of the vendor's table at `path`, into s_piece. 1, or 0 with the reason printed
 int khw_pieces_read(const char *path)
 {
-    FILE *const file = fopen(path, "rb");
+    PlatformFile *const file = platform_file_open(path, "rb");
     if (file == NULL)
     {
         {
@@ -72,7 +72,7 @@ int khw_pieces_read(const char *path)
         return 0;
     }
     char line[1024];
-    while (fgets(line, sizeof(line), file) != NULL)
+    while (platform_file_text_read(line, sizeof(line), file) != NULL)
     {
         line[strcspn(line, "\r\n")] = '\0';
         if ((line[0] == '#') || (line[0] == '\0') || (s_pieces == KHW_PIECES))
@@ -109,7 +109,7 @@ int khw_pieces_read(const char *path)
         }
         s_pieces += 1u;
     }
-    fclose(file);
+    platform_file_close(file);
     if (s_pieces == 0u)
     {
         {

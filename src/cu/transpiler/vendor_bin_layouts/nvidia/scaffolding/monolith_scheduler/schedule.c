@@ -212,33 +212,52 @@ static int scheduler_by_count(const void *left, const void *right)
 // the record: every operation by how often NVIDIA wrote it, and the readings gathered from them
 int scheduler_record(const char *path)
 {
-    FILE *const out = fopen(path, "wb");
+    PlatformFile *const out = platform_file_open(path, "wb");
     if (out == NULL)
     {
         return 0;
     }
     qsort(s_operation, s_operations, sizeof(s_operation[0]), scheduler_by_count);
-    fprintf(out, "# The scheduler's bits NVIDIA's compiler writes\n\n");
-    fprintf(out, "Written by `monolith_scheduler.sh` whole on every run. Every CUDA source of the tree is built by "
-                 "NVIDIA's compiler for one part, each cubin's code sections are read from the ELF, each instruction "
-                 "is named by our reader through the machine file and its bits 105 to 127 read through the fields the "
-                 "machine file names. No listing is read and no disassembler is run.\n\n");
-    fprintf(out, "%u cubins, %llu instructions, %llu no form reads, %u operations.\n\n", s_cubins, s_instructions,
-            s_unread, s_operations);
-    fprintf(out, "An operation's soonest read is the fewest cycles, its stalls summed, between it and the first "
-                 "instruction that reads the register it writes, over every place it sets no write barrier and no "
-                 "later one blocks it. Readers waiting count the first readers of a register it writes with a write "
-                 "barrier where a wait on that barrier is between the two, at the reader or before it, against "
-                 "those where none does. A barrier counts its producers, and a wait on it blocks until all of them are "
-                 "back. Behind a later one counts the first readers of a register it writes with no barrier where a "
-                 "later instruction of the same operation sets one, waited on before the read. Behind an earlier one "
-                 "counts those where no later one does and an earlier instruction of the same operation sets one, "
-                 "waited on before the read, with the fewest cycles between that wait and the read. The machine file "
-                 "columns count the places whose form records a write barrier, and a read barrier, against the places "
-                 "a form was found.\n\n");
-    fprintf(out, "| operation | written | stalls | write barrier | read barrier | waits | soonest read | readers "
-                 "waiting | behind a later one | behind an earlier one | machine file write | machine file read |\n"
-                 "|---|---|---|---|---|---|---|---|---|---|---|---|\n");
+    {
+        mmgr_line_put(platform_file_line(out), "# The scheduler's bits NVIDIA's compiler writes\n\n");
+    }
+    {
+        mmgr_line_put(platform_file_line(out),
+                      "Written by `monolith_scheduler.sh` whole on every run. Every CUDA source of the tree is built "
+                      "by NVIDIA's compiler for one part, each cubin's code sections are read from the ELF, each "
+                      "instruction is named by our reader through the machine file and its bits 105 to 127 read "
+                      "through the fields the machine file names. No listing is read and no disassembler is run.\n\n");
+    }
+    {
+        mmgr_line_decimal(platform_file_line(out), s_cubins, 1u);
+        mmgr_line_put(platform_file_line(out), " cubins, ");
+        mmgr_line_decimal(platform_file_line(out), s_instructions, 1u);
+        mmgr_line_put(platform_file_line(out), " instructions, ");
+        mmgr_line_decimal(platform_file_line(out), s_unread, 1u);
+        mmgr_line_put(platform_file_line(out), " no form reads, ");
+        mmgr_line_decimal(platform_file_line(out), s_operations, 1u);
+        mmgr_line_put(platform_file_line(out), " operations.\n\n");
+    }
+    {
+        mmgr_line_put(
+            platform_file_line(out),
+            "An operation's soonest read is the fewest cycles, its stalls summed, between it and the first instruction "
+            "that reads the register it writes, over every place it sets no write barrier and no later one blocks it. "
+            "Readers waiting count the first readers of a register it writes with a write barrier where a wait on that "
+            "barrier is between the two, at the reader or before it, against those where none does. A barrier counts "
+            "its producers, and a wait on it blocks until all of them are back. Behind a later one counts the first "
+            "readers of a register it writes with no barrier where a later instruction of the same operation sets one, "
+            "waited on before the read. Behind an earlier one counts those where no later one does and an earlier "
+            "instruction of the same operation sets one, waited on before the read, with the fewest cycles between "
+            "that wait and the read. The machine file columns count the places whose form records a write barrier, and "
+            "a read barrier, against the places a form was found.\n\n");
+    }
+    {
+        mmgr_line_put(platform_file_line(out),
+                      "| operation | written | stalls | write barrier | read barrier | waits | soonest read | readers "
+                      "waiting | behind a later one | behind an earlier one | machine file write | machine file read "
+                      "|\n|---|---|---|---|---|---|---|---|---|---|---|---|\n");
+    }
     for (unsigned int at = 0u; at < s_operations; at += 1u)
     {
         const SchedulerOperation *const operation = &s_operation[at];
@@ -275,15 +294,40 @@ int scheduler_record(const char *path)
             mmgr_line_put(&buffer_line, " after the wait");
             (void)mmgr_line_finish(&buffer_line);
         }
-        fprintf(
-            out,
-            "| `%s` | %llu | %s | %llu | %llu | %llu | %s | %llu of %llu | %llu | %s | %llu of %llu | %llu of %llu |\n",
-            operation->name, operation->count, stalls, operation->write_barriers, operation->read_barriers,
-            operation->waits, soonest, operation->readers_waiting,
-            operation->readers_waiting + operation->readers_not_waiting, operation->readers_behind_later, earlier,
-            operation->machine_barriers, operation->machine_formed, operation->machine_read_barriers,
-            operation->machine_formed);
+        {
+            mmgr_line_put(platform_file_line(out), "| `");
+            mmgr_line_put(platform_file_line(out), operation->name);
+            mmgr_line_put(platform_file_line(out), "` | ");
+            mmgr_line_decimal(platform_file_line(out), operation->count, 1u);
+            mmgr_line_put(platform_file_line(out), " | ");
+            mmgr_line_put(platform_file_line(out), stalls);
+            mmgr_line_put(platform_file_line(out), " | ");
+            mmgr_line_decimal(platform_file_line(out), operation->write_barriers, 1u);
+            mmgr_line_put(platform_file_line(out), " | ");
+            mmgr_line_decimal(platform_file_line(out), operation->read_barriers, 1u);
+            mmgr_line_put(platform_file_line(out), " | ");
+            mmgr_line_decimal(platform_file_line(out), operation->waits, 1u);
+            mmgr_line_put(platform_file_line(out), " | ");
+            mmgr_line_put(platform_file_line(out), soonest);
+            mmgr_line_put(platform_file_line(out), " | ");
+            mmgr_line_decimal(platform_file_line(out), operation->readers_waiting, 1u);
+            mmgr_line_put(platform_file_line(out), " of ");
+            mmgr_line_decimal(platform_file_line(out), operation->readers_waiting + operation->readers_not_waiting, 1u);
+            mmgr_line_put(platform_file_line(out), " | ");
+            mmgr_line_decimal(platform_file_line(out), operation->readers_behind_later, 1u);
+            mmgr_line_put(platform_file_line(out), " | ");
+            mmgr_line_put(platform_file_line(out), earlier);
+            mmgr_line_put(platform_file_line(out), " | ");
+            mmgr_line_decimal(platform_file_line(out), operation->machine_barriers, 1u);
+            mmgr_line_put(platform_file_line(out), " of ");
+            mmgr_line_decimal(platform_file_line(out), operation->machine_formed, 1u);
+            mmgr_line_put(platform_file_line(out), " | ");
+            mmgr_line_decimal(platform_file_line(out), operation->machine_read_barriers, 1u);
+            mmgr_line_put(platform_file_line(out), " of ");
+            mmgr_line_decimal(platform_file_line(out), operation->machine_formed, 1u);
+            mmgr_line_put(platform_file_line(out), " |\n");
+        }
     }
-    fclose(out);
+    platform_file_close(out);
     return 1;
 }

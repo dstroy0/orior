@@ -36,20 +36,20 @@ struct ConstructionForm
 static std::vector<ConstructionForm> construction_forms(const std::string &path)
 {
     std::vector<ConstructionForm> forms;
-    FILE *const file = fopen(path.c_str(), "rb");
+    PlatformFile *const file = platform_file_open(path.c_str(), "rb");
     if (file == NULL)
     {
         return forms;
     }
     std::string text;
     char block[4096];
-    size_t read = fread(block, 1u, sizeof(block), file);
+    size_t read = platform_file_read_items(block, 1u, sizeof(block), file);
     while (read != 0u)
     {
         text.append(block, read);
-        read = fread(block, 1u, sizeof(block), file);
+        read = platform_file_read_items(block, 1u, sizeof(block), file);
     }
-    fclose(file);
+    platform_file_close(file);
     size_t at = 0u;
     while (at < text.size())
     {
@@ -125,32 +125,32 @@ static ConstructionType construction_type(const std::string &parameter)
 
 static int construction_write(const std::string &path, const std::string &text)
 {
-    FILE *const file = fopen(path.c_str(), "wb");
+    PlatformFile *const file = platform_file_open(path.c_str(), "wb");
     if (file == NULL)
     {
         return 0;
     }
-    const int written = fwrite(text.data(), 1u, text.size(), file) == text.size();
-    return (fclose(file) == 0) && written;
+    const int written = platform_file_write_items(text.data(), 1u, text.size(), file) == text.size();
+    return (platform_file_close(file) == 0) && written;
 }
 
 // the number after `label` on the first line of `path` that contains it, and 1 where a line contains it
 static int construction_after(const std::string &path, const char *label, unsigned long long *number)
 {
-    FILE *const file = fopen(path.c_str(), "rb");
+    PlatformFile *const file = platform_file_open(path.c_str(), "rb");
     if (file == NULL)
     {
         return 0;
     }
     char line[1024];
     int found = 0;
-    while ((found == 0) && (fgets(line, sizeof(line), file) != NULL))
+    while ((found == 0) && (platform_file_text_read(line, sizeof(line), file) != NULL))
     {
         const char *const at = mmgr_text_find(line, label, PLATFORM_TEXT_TO_TERMINATOR);
         found = at != NULL;
         *number = found ? strtoull(at + mmgr_text_length(label, PLATFORM_TEXT_TO_TERMINATOR), NULL, 10) : *number;
     }
-    fclose(file);
+    platform_file_close(file);
     return found;
 }
 
@@ -252,7 +252,7 @@ static int construction_measure(const Ruleset *rules, const std::string &package
 int program_main(int argc, char **argv)
 {
     // each line reaches the log as it is written, where stdout is a file: each form is synthesized alone
-    setvbuf(stdout, NULL, _IOLBF, 0);
+    platform_line_out_every_write();
     if (argc != 4)
     {
         {

@@ -135,13 +135,13 @@ static void omega_hand_settle(const OmegaCounts *counts, unsigned int length, un
 // every whole line of the ledger; a line cut short by a stop mid-write is not a job and is run again
 static void omega_ledger_read(const char *path, std::vector<OmegaLedgerJob> &jobs)
 {
-    FILE *file = fopen(path, "r");
+    PlatformFile *file = platform_file_open(path, "r");
     if (file == NULL)
     {
         return;
     }
     char line[1024];
-    while (fgets(line, (int)sizeof(line), file) != NULL)
+    while (platform_file_text_read(line, (int)sizeof(line), file) != NULL)
     {
         OmegaLedgerJob job;
         omega_results_open(&job.results);
@@ -177,7 +177,7 @@ static void omega_ledger_read(const char *path, std::vector<OmegaLedgerJob> &job
         job.results.bits_champion[job.length] = max[3];
         jobs.push_back(job);
     }
-    fclose(file);
+    platform_file_close(file);
 }
 
 static int omega_ledger_write(const char *path, const OmegaCounts *counts, unsigned int length, unsigned long long from,
@@ -185,31 +185,60 @@ static int omega_ledger_write(const char *path, const OmegaCounts *counts, unsig
 {
     // a line cut short by a stop mid-write is ended first. This job's line starts a line of its own
     int ended = 1;
-    FILE *before = fopen(path, "rb");
+    PlatformFile *before = platform_file_open(path, "rb");
     if (before != NULL)
     {
-        if (fseek(before, -1L, SEEK_END) == 0)
+        if (platform_file_seek(before, -1L, SEEK_END) == 0)
         {
-            ended = (fgetc(before) == '\n');
+            ended = (platform_file_char_get(before) == '\n');
         }
-        fclose(before);
+        platform_file_close(before);
     }
-    FILE *file = fopen(path, "a");
+    PlatformFile *file = platform_file_open(path, "a");
     if (file == NULL)
     {
         return 0;
     }
     if (ended == 0)
     {
-        fputc('\n', file);
+        platform_file_char_put('\n', file);
     }
-    fprintf(file, "%u %u %u %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu\n", counts->steps,
-            counts->tokens, length, from, count, results->fate[0][length], results->fate[1][length],
-            results->fate[2][length], results->fate[3][length], results->fate[4][length], results->fate[5][length],
-            results->contradictions, results->max_steps[length], results->steps_champion[length],
-            results->max_bits[length], results->bits_champion[length]);
-    const int written = (fflush(file) == 0);
-    return (fclose(file) == 0) && written;
+    {
+        mmgr_line_decimal(platform_file_line(file), counts->steps, 1u);
+        mmgr_line_put(platform_file_line(file), " ");
+        mmgr_line_decimal(platform_file_line(file), counts->tokens, 1u);
+        mmgr_line_put(platform_file_line(file), " ");
+        mmgr_line_decimal(platform_file_line(file), length, 1u);
+        mmgr_line_put(platform_file_line(file), " ");
+        mmgr_line_decimal(platform_file_line(file), from, 1u);
+        mmgr_line_put(platform_file_line(file), " ");
+        mmgr_line_decimal(platform_file_line(file), count, 1u);
+        mmgr_line_put(platform_file_line(file), " ");
+        mmgr_line_decimal(platform_file_line(file), results->fate[0][length], 1u);
+        mmgr_line_put(platform_file_line(file), " ");
+        mmgr_line_decimal(platform_file_line(file), results->fate[1][length], 1u);
+        mmgr_line_put(platform_file_line(file), " ");
+        mmgr_line_decimal(platform_file_line(file), results->fate[2][length], 1u);
+        mmgr_line_put(platform_file_line(file), " ");
+        mmgr_line_decimal(platform_file_line(file), results->fate[3][length], 1u);
+        mmgr_line_put(platform_file_line(file), " ");
+        mmgr_line_decimal(platform_file_line(file), results->fate[4][length], 1u);
+        mmgr_line_put(platform_file_line(file), " ");
+        mmgr_line_decimal(platform_file_line(file), results->fate[5][length], 1u);
+        mmgr_line_put(platform_file_line(file), " ");
+        mmgr_line_decimal(platform_file_line(file), results->contradictions, 1u);
+        mmgr_line_put(platform_file_line(file), " ");
+        mmgr_line_decimal(platform_file_line(file), results->max_steps[length], 1u);
+        mmgr_line_put(platform_file_line(file), " ");
+        mmgr_line_decimal(platform_file_line(file), results->steps_champion[length], 1u);
+        mmgr_line_put(platform_file_line(file), " ");
+        mmgr_line_decimal(platform_file_line(file), results->max_bits[length], 1u);
+        mmgr_line_put(platform_file_line(file), " ");
+        mmgr_line_decimal(platform_file_line(file), results->bits_champion[length], 1u);
+        mmgr_line_put(platform_file_line(file), "\n");
+    }
+    const int written = (platform_file_flush(file) == 0);
+    return (platform_file_close(file) == 0) && written;
 }
 
 // every closed term through L bits run on the device as jobs, the host settling each launch's passed back terms

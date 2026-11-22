@@ -243,7 +243,7 @@ int program_main(int count, char **arguments)
     const char *const ruleset = (count > 1) ? arguments[1] : "src/cu/transpiler/lstar/protocol/table/sass.krs";
     const char *const path = (count > 2) ? arguments[2] : "src/cu/transpiler/lstar/protocol/table/sm_86.khw";
     // the writing of every form that assembled, stored where a third argument names a file for it
-    FILE *const output_file = (count > 3) ? fopen(arguments[3], "w") : NULL;
+    PlatformFile *const output_file = (count > 3) ? platform_file_open(arguments[3], "w") : NULL;
     static SassMachine machine;
     if (!sass_machine_read(&machine, path))
     {
@@ -297,7 +297,8 @@ int program_main(int count, char **arguments)
             assembled += 1u;
             if (output_file != NULL)
             {
-                fprintf(output_file, "%s%s", wrote.c_str(), (!wrote.empty() && (wrote.back() == '\n')) ? "" : "\n");
+                mmgr_line_put(platform_file_line(output_file), wrote.c_str());
+                mmgr_line_put(platform_file_line(output_file), (!wrote.empty() && (wrote.back() == '\n')) ? "" : "\n");
             }
         }
         else if (outcome == KRS_NO_INSTRUCTION)
@@ -335,7 +336,7 @@ int program_main(int count, char **arguments)
     }
     if (output_file != NULL)
     {
-        fclose(output_file);
+        platform_file_close(output_file);
     }
     return (refused == 0u) ? 0 : 1;
 }

@@ -41,21 +41,21 @@ int writings_write(const char *pattern, const char *kernel_text, const char *mac
         mmgr_line_put(&buffer_line, "/cases.txt");
         (void)mmgr_line_finish(&buffer_line);
     }
-    FILE *const cases = fopen(path, "wb");
+    PlatformFile *const cases = platform_file_open(path, "wb");
     {
         VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
         mmgr_line_put(&buffer_line, folder);
         mmgr_line_put(&buffer_line, "/list.txt");
         (void)mmgr_line_finish(&buffer_line);
     }
-    FILE *const list = fopen(path, "wb");
+    PlatformFile *const list = platform_file_open(path, "wb");
     {
         VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
         mmgr_line_put(&buffer_line, folder);
         mmgr_line_put(&buffer_line, "/forms.txt");
         (void)mmgr_line_finish(&buffer_line);
     }
-    FILE *const forms = fopen(path, "wb");
+    PlatformFile *const forms = platform_file_open(path, "wb");
     if ((cases == NULL) || (list == NULL) || (forms == NULL))
     {
         {
@@ -71,7 +71,10 @@ int writings_write(const char *pattern, const char *kernel_text, const char *mac
     }
     for (unsigned int at = 0u; at < s_cases; at += 1u)
     {
-        fprintf(cases, "%08x %08x\n", s_case[at][0], s_case[at][1]);
+        mmgr_line_hex(platform_file_line(cases), s_case[at][0], 8u);
+        mmgr_line_put(platform_file_line(cases), " ");
+        mmgr_line_hex(platform_file_line(cases), s_case[at][1], 8u);
+        mmgr_line_put(platform_file_line(cases), "\n");
     }
     unsigned int fitting = 0u;
     unsigned int written = 0u;
@@ -137,14 +140,24 @@ int writings_write(const char *pattern, const char *kernel_text, const char *mac
             {
                 continue;
             }
-            fprintf(list, "%s %s\n", cubin, s_kernel);
-            fprintf(forms, "%u\t%s\n", written, instruction);
+            {
+                mmgr_line_put(platform_file_line(list), cubin);
+                mmgr_line_put(platform_file_line(list), " ");
+                mmgr_line_put(platform_file_line(list), s_kernel);
+                mmgr_line_put(platform_file_line(list), "\n");
+            }
+            {
+                mmgr_line_decimal(platform_file_line(forms), written, 1u);
+                mmgr_line_put(platform_file_line(forms), "\t");
+                mmgr_line_put(platform_file_line(forms), instruction);
+                mmgr_line_put(platform_file_line(forms), "\n");
+            }
             written += 1u;
         }
     }
-    fclose(cases);
-    fclose(list);
-    fclose(forms);
+    platform_file_close(cases);
+    platform_file_close(list);
+    platform_file_close(forms);
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "interface sass writings: ");
@@ -165,11 +178,11 @@ int writings_write(const char *pattern, const char *kernel_text, const char *mac
 // the answers `answers` contains, a line a cubin as interface_sass_run writes them, read into `answered`, which
 // contains s_cases words a cubin: s_ran set for each cubin that answered every case, and the counts of those that
 // answered and those the part refused through `ran` and `refused`
-void writings_answers_read(FILE *answers, unsigned int count, unsigned int (*answered)[WRITINGS_CASES],
+void writings_answers_read(PlatformFile *answers, unsigned int count, unsigned int (*answered)[WRITINGS_CASES],
                            unsigned char *ran_one, unsigned int *ran, unsigned int *refused)
 {
     char line[WRITINGS_LINE];
-    while (fgets(line, sizeof(line), answers) != NULL)
+    while (platform_file_text_read(line, sizeof(line), answers) != NULL)
     {
         char *walk = NULL;
         const unsigned long number = strtoul(line, &walk, 10);
@@ -223,14 +236,14 @@ int writings_load(const char *folder)
         mmgr_line_put(&buffer_line, "/forms.txt");
         (void)mmgr_line_finish(&buffer_line);
     }
-    FILE *const forms = fopen(path, "rb");
+    PlatformFile *const forms = platform_file_open(path, "rb");
     {
         VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
         mmgr_line_put(&buffer_line, folder);
         mmgr_line_put(&buffer_line, "/answers.txt");
         (void)mmgr_line_finish(&buffer_line);
     }
-    FILE *const answers = fopen(path, "rb");
+    PlatformFile *const answers = platform_file_open(path, "rb");
     if ((forms == NULL) || (answers == NULL))
     {
         {
@@ -245,7 +258,7 @@ int writings_load(const char *folder)
         return 0;
     }
     s_form_count = 0u;
-    while ((s_form_count < WRITINGS_FORMS_MAX) && (fgets(line, sizeof(line), forms) != NULL))
+    while ((s_form_count < WRITINGS_FORMS_MAX) && (platform_file_text_read(line, sizeof(line), forms) != NULL))
     {
         const char *const tab = mmgr_text_char(line, '\t', PLATFORM_TEXT_TO_TERMINATOR);
         if (tab != NULL)
@@ -258,11 +271,11 @@ int writings_load(const char *folder)
             s_form_count += 1u;
         }
     }
-    fclose(forms);
+    platform_file_close(forms);
     s_forms_ran = 0u;
     s_forms_refused = 0u;
     writings_answers_read(answers, s_form_count, s_answered, s_ran, &s_forms_ran, &s_forms_refused);
-    fclose(answers);
+    platform_file_close(answers);
     for (unsigned int number = 0u; number < s_form_count; number += 1u)
     {
         for (unsigned int relation = 0u; s_ran[number] && (relation < s_relations); relation += 1u)
@@ -283,7 +296,7 @@ int writings_load(const char *folder)
 // the machine file contains. 0, or 2 where nothing could be read
 int writings_read(const char *folder, const char *record)
 {
-    FILE *const out = writings_load(folder) ? fopen(record, "wb") : NULL;
+    PlatformFile *const out = writings_load(folder) ? platform_file_open(record, "wb") : NULL;
     if (out == NULL)
     {
         {
@@ -300,16 +313,25 @@ int writings_read(const char *folder, const char *record)
     const unsigned int form_count = s_form_count;
     const unsigned int ran = s_forms_ran;
     const unsigned int refused = s_forms_refused;
-    fprintf(out, "# Writings found on the part\n\n");
-    fprintf(out,
+    {
+        mmgr_line_put(platform_file_line(out), "# Writings found on the part\n\n");
+    }
+    {
+        mmgr_line_put(
+            platform_file_line(out),
             "Written by `interface_sass_writings.sh` whole on every run. Every form of the machine file that writes a "
-            "register from registers, predicates and numbers alone is run on the part in place of the kernel's "
-            "IADD3, its first two register sources given each case's two words and every other register source "
-            "RZ. The cases are the ladder's own two-word cases, the words a width turns on against the counts a "
-            "shift turns on, and drawn words, put at once. A form is listed under a ladder relation or a precept "
-            "where it gives every case the word that relation or precept gives it. %u forms ran over %u cases "
-            "and %u were refused by the part.\n\n",
-            ran, s_cases, refused);
+            "register from registers, predicates and numbers alone is run on the part in place of the kernel's IADD3, "
+            "its first two register sources given each case's two words and every other register source RZ. The cases "
+            "are the ladder's own two-word cases, the words a width turns on against the counts a shift turns on, and "
+            "drawn words, put at once. A form is listed under a ladder relation or a precept where it gives every case "
+            "the word that relation or precept gives it. ");
+        mmgr_line_decimal(platform_file_line(out), ran, 1u);
+        mmgr_line_put(platform_file_line(out), " forms ran over ");
+        mmgr_line_decimal(platform_file_line(out), s_cases, 1u);
+        mmgr_line_put(platform_file_line(out), " cases and ");
+        mmgr_line_decimal(platform_file_line(out), refused, 1u);
+        mmgr_line_put(platform_file_line(out), " were refused by the part.\n\n");
+    }
     unsigned int found_total = 0u;
     for (unsigned int relation = 0u; relation < s_relations; relation += 1u)
     {
@@ -318,16 +340,27 @@ int writings_read(const char *folder, const char *record)
         {
             found += (s_ran[number] && s_relation_agreed[number][relation]) ? 1u : 0u;
         }
-        fprintf(out, "## %s %s\n\n%u forms give every case its word.\n\n",
-                s_relation[relation].precept ? "precept" : "relation", s_relation[relation].name, found);
+        {
+            mmgr_line_put(platform_file_line(out), "## ");
+            mmgr_line_put(platform_file_line(out), s_relation[relation].precept ? "precept" : "relation");
+            mmgr_line_put(platform_file_line(out), " ");
+            mmgr_line_put(platform_file_line(out), s_relation[relation].name);
+            mmgr_line_put(platform_file_line(out), "\n\n");
+            mmgr_line_decimal(platform_file_line(out), found, 1u);
+            mmgr_line_put(platform_file_line(out), " forms give every case its word.\n\n");
+        }
         for (unsigned int number = 0u; number < form_count; number += 1u)
         {
             if (s_ran[number] && s_relation_agreed[number][relation])
             {
-                fprintf(out, "- `%s`\n", s_forms[number]);
+                mmgr_line_put(platform_file_line(out), "- `");
+                mmgr_line_put(platform_file_line(out), s_forms[number]);
+                mmgr_line_put(platform_file_line(out), "`\n");
             }
         }
-        fprintf(out, "\n");
+        {
+            mmgr_line_put(platform_file_line(out), "\n");
+        }
         found_total += found;
         {
             VerbaLinea *const output_line = platform_line_out();
@@ -342,7 +375,7 @@ int writings_read(const char *folder, const char *record)
             platform_line_out_ended();
         }
     }
-    fclose(out);
+    platform_file_close(out);
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "interface sass writings: ");

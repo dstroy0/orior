@@ -5,6 +5,7 @@
 #define KREP_INTERNAL_H
 
 #include "krep.h"
+#include "../../../src/platform/platform.h"
 
 #include "crc.h"
 
@@ -18,15 +19,15 @@
 #define KREP_IO(condition_, evacaddr_, error_)                                                                         \
     engine_io_check((condition_), ENGINE_MODULE_KREP, (unsigned int)__LINE__, (const void *)(evacaddr_), (error_))
 
-extern "C" int krep_words_write(FILE *file, const unsigned long long *words, size_t count);
+extern "C" int krep_words_write(PlatformFile *file, const unsigned long long *words, size_t count);
 
-extern "C" int krep_words_read(FILE *file, unsigned long long *words, size_t count);
+extern "C" int krep_words_read(PlatformFile *file, unsigned long long *words, size_t count);
 
-extern "C" int krep_limbs_read(FILE *file, unsigned int *limbs, size_t count);
+extern "C" int krep_limbs_read(PlatformFile *file, unsigned int *limbs, size_t count);
 
-extern "C" int krep_head_write(FILE *file, const char *type);
+extern "C" int krep_head_write(PlatformFile *file, const char *type);
 
-extern "C" int krep_head_read(FILE *file, const char *type);
+extern "C" int krep_head_read(PlatformFile *file, const char *type);
 
 static_assert(KREP_HEAD_LANE_NODES + 1 == KREP_CRYSTAL_HEAD_WORDS, "the crystal's head words end at its lane nodes");
 
@@ -34,13 +35,13 @@ static_assert(sizeof(EngineSignum) == ENGINE_SIGNUM_BYTES, "a signum is its 32 b
 
 unsigned long long krep_lanes(const unsigned long long extent[4]);
 
-int krep_seal_read(FILE *crystal, const unsigned long long head[KREP_CRYSTAL_HEAD_WORDS], EngineSeal *seal,
+int krep_seal_read(PlatformFile *crystal, const unsigned long long head[KREP_CRYSTAL_HEAD_WORDS], EngineSeal *seal,
                    EngineError *error);
 
-int krep_crystal_head_from(const char *path, FILE *crystal, EngineStream *stream,
+int krep_crystal_head_from(const char *path, PlatformFile *crystal, EngineStream *stream,
                            unsigned long long head[KREP_CRYSTAL_HEAD_WORDS], EngineError *error);
 
-int krep_side_read(FILE *crystal, const unsigned long long head[KREP_CRYSTAL_HEAD_WORDS], EngineSideSection *section,
-                   EngineError *error);
+int krep_side_read(PlatformFile *crystal, const unsigned long long head[KREP_CRYSTAL_HEAD_WORDS],
+                   EngineSideSection *section, EngineError *error);
 
 #endif

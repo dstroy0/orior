@@ -173,6 +173,23 @@ static int platform_file_byte(PlatformFile *file)
     return byte;
 }
 
+int platform_file_char_get(PlatformFile *file)
+{
+    return platform_file_byte(file);
+}
+
+unsigned long long platform_file_mark(PlatformFile *file)
+{
+    // Explicit casts widen the two counts of the line to the width of the mark
+    return (unsigned long long)file->line.flushed + (unsigned long long)file->line.at;
+}
+
+int platform_file_written_since(PlatformFile *file, unsigned long long mark)
+{
+    // Explicit cast narrows a count of the bytes of one call, which an int holds as fprintf answers it
+    return (file->failed != 0) ? -1 : (int)(platform_file_mark(file) - mark);
+}
+
 size_t platform_file_read_items(void *out, size_t size, size_t count, PlatformFile *file)
 {
     if ((size == 0u) || (count == 0u))

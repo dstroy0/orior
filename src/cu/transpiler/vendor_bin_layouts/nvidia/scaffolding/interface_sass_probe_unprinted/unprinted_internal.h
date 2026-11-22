@@ -7,6 +7,7 @@
 #define UNPRINTED_INTERNAL_H
 
 #include "../../cubin_write.h"
+#include "../../../../../../platform/platform.h"
 #include "../../cubin_safe.h"
 #include "../../sass_assemble.h"
 #include "../../../../lstar/interface/interface.h"
@@ -191,14 +192,18 @@ extern char s_kernel_text[UNPRINTED_TEXT_BYTES];
 extern char s_query_text[UNPRINTED_TEXT_BYTES];
 
 unsigned long long unprinted_file_read(const char *path, unsigned char *bytes, unsigned long long room);
-unsigned long long unprinted_bits_read(unsigned long long low, unsigned long long high, unsigned int first, unsigned int bits);
+unsigned long long unprinted_bits_read(unsigned long long low, unsigned long long high, unsigned int first,
+                                       unsigned int bits);
 void unprinted_binary(unsigned long long value, unsigned int bits, char *text);
 int unprinted_text(const char *kernel_text, const char *lines, char *text, size_t room);
 int unprinted_kernel(const char *kernel_text, char *kernel, size_t room);
-unsigned int unprinted_find(const unsigned char *code, unsigned int count, unsigned long long low, unsigned long long high, unsigned int *found, unsigned int room);
-void unprinted_place_write(unsigned char *code, unsigned int place, const UnprintedFixed *fixed, unsigned int fixed_count, unsigned int first, unsigned int bits, unsigned long long value);
-int unprinted_run(const unsigned char *code, unsigned long long code_size, unsigned int *answered, char *ended, size_t room);
-int unprinted_query(const UnprintedQuestion *question, unsigned int number, FILE *record);
-void unprinted_forms(FILE *record);
+unsigned int unprinted_find(const unsigned char *code, unsigned int count, unsigned long long low,
+                            unsigned long long high, unsigned int *found, unsigned int room);
+void unprinted_place_write(unsigned char *code, unsigned int place, const UnprintedFixed *fixed,
+                           unsigned int fixed_count, unsigned int first, unsigned int bits, unsigned long long value);
+int unprinted_run(const unsigned char *code, unsigned long long code_size, unsigned int *answered, char *ended,
+                  size_t room);
+int unprinted_query(const UnprintedQuestion *question, unsigned int number, PlatformFile *record);
+void unprinted_forms(PlatformFile *record);
 
 #endif

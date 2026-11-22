@@ -336,10 +336,12 @@ int sass_fields(SassProbe *probe, const SassOperation *operation)
         mmgr_line_put(&buffer_line, ".bits");
         (void)mmgr_line_finish(&buffer_line);
     }
-    FILE *const bits = fopen(path, "w");
+    PlatformFile *const bits = platform_file_open(path, "w");
     if (bits != NULL)
     {
-        fprintf(bits, "base: %s\n", s_sass_texts[0]);
+        mmgr_line_put(platform_file_line(bits), "base: ");
+        mmgr_line_put(platform_file_line(bits), s_sass_texts[0]);
+        mmgr_line_put(platform_file_line(bits), "\n");
     }
     char run_category[SASS_CATEGORY] = "";
     char run_example[SASS_EXAMPLE] = "";
@@ -353,7 +355,13 @@ int sass_fields(SassProbe *probe, const SassOperation *operation)
             sass_bit_read(&base, s_sass_texts[0], s_sass_texts[1u + bit], category, example);
             if (bits != NULL)
             {
-                fprintf(bits, "bit %u: %s: %s\n", bit, category, s_sass_texts[1u + bit]);
+                mmgr_line_put(platform_file_line(bits), "bit ");
+                mmgr_line_decimal(platform_file_line(bits), bit, 1u);
+                mmgr_line_put(platform_file_line(bits), ": ");
+                mmgr_line_put(platform_file_line(bits), category);
+                mmgr_line_put(platform_file_line(bits), ": ");
+                mmgr_line_put(platform_file_line(bits), s_sass_texts[1u + bit]);
+                mmgr_line_put(platform_file_line(bits), "\n");
             }
         }
         // a modifier bit is a run of its own, since each names a modifier of its own
@@ -383,7 +391,7 @@ int sass_fields(SassProbe *probe, const SassOperation *operation)
     }
     if (bits != NULL)
     {
-        fclose(bits);
+        platform_file_close(bits);
     }
     return 1;
 }

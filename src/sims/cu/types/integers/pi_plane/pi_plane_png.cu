@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pi_plane_png.cu: PNG pictures
 #include "pi_plane_internal.h"
+#include "../../../../../platform/platform.h"
 
 static void plane_crc(unsigned int *crc, const unsigned char *bytes, size_t count)
 {
@@ -91,13 +92,13 @@ int plane_png(const std::string &path, const std::vector<unsigned char> &pixels,
     plane_chunk(&file, "IHDR", header);
     plane_chunk(&file, "IDAT", stream);
     plane_chunk(&file, "IEND", std::vector<unsigned char>());
-    FILE *const out = fopen(path.c_str(), "wb");
+    PlatformFile *const out = platform_file_open(path.c_str(), "wb");
     if (out == NULL)
     {
         return 0;
     }
-    const size_t written = fwrite(file.data(), 1u, file.size(), out);
-    const int closed = fclose(out) == 0;
+    const size_t written = platform_file_write_items(file.data(), 1u, file.size(), out);
+    const int closed = platform_file_close(out) == 0;
     return closed && (written == file.size());
 }
 

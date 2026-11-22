@@ -4,6 +4,7 @@
 #define STACK_H
 
 #include "../../../src/cu/engine/engine_config.h"
+#include "../../../src/platform/platform.h"
 
 #include <stdio.h>
 
@@ -20,7 +21,7 @@ extern "C"
 #define STACK_SEEK fseeko
 #endif
 
-    FILE *stack_open(const char *path, unsigned int header[4]);
+    PlatformFile *stack_open(const char *path, unsigned int header[4]);
 
     int stack_upload(const char *path, unsigned long long extent[4], unsigned short **device_lanes);
 

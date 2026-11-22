@@ -1347,8 +1347,8 @@ static int forms_write(const char *c_path, const char *ptx_path, const char *mon
             }
         }
     }
-    FILE *const out = fopen(monolith_path, "wb");
-    FILE *const rows = fopen(questions_path, "wb");
+    PlatformFile *const out = platform_file_open(monolith_path, "wb");
+    PlatformFile *const rows = platform_file_open(questions_path, "wb");
     if ((out == NULL) || (rows == NULL))
     {
         {
@@ -1364,19 +1364,29 @@ static int forms_write(const char *c_path, const char *ptx_path, const char *mon
         }
         return 2;
     }
-    fprintf(out,
-            "// written by monolith_forms from c.krs and the lanes of the record programs; not edited by hand\n"
-            "typedef unsigned int u32;\ntypedef unsigned long long u64;\ntypedef signed char s8;\n\n"
-            "#define MONOLITH_TAG(tag_) asm volatile(\"pmevent.mask %%0;\" ::\"n\"(tag_) : \"memory\")\n"
-            "%s\nextern \"C\" __global__ void monolith_forms(const u32 *in, u32 *out)\n{\n"
-            "    u32 carry = 0u;\n%s\n    MONOLITH_TAG(%u);\n}\n",
-            writer.helpers.c_str(), writer.body.c_str(), writer.tag + 1u);
+    {
+        mmgr_line_put(platform_file_line(out),
+                      "// written by monolith_forms from c.krs and the lanes of the record programs; not edited by "
+                      "hand\ntypedef unsigned int u32;\ntypedef unsigned long long u64;\ntypedef signed char "
+                      "s8;\n\n#define MONOLITH_TAG(tag_) asm volatile(\"pmevent.mask ");
+        mmgr_line_ch(platform_file_line(out), '%');
+        mmgr_line_put(platform_file_line(out), "0;\" ::\"n\"(tag_) : \"memory\")\n");
+        mmgr_line_put(platform_file_line(out), writer.helpers.c_str());
+        mmgr_line_put(
+            platform_file_line(out),
+            "\nextern \"C\" __global__ void monolith_forms(const u32 *in, u32 *out)\n{\n    u32 carry = 0u;\n");
+        mmgr_line_put(platform_file_line(out), writer.body.c_str());
+        mmgr_line_put(platform_file_line(out), "\n    MONOLITH_TAG(");
+        mmgr_line_decimal(platform_file_line(out), writer.tag + 1u, 1u);
+        mmgr_line_put(platform_file_line(out), ");\n}\n");
+    }
     for (const std::string &row : writer.questions)
     {
-        fprintf(rows, "%s\n", row.c_str());
+        mmgr_line_put(platform_file_line(rows), row.c_str());
+        mmgr_line_put(platform_file_line(rows), "\n");
     }
-    fclose(out);
-    fclose(rows);
+    platform_file_close(out);
+    platform_file_close(rows);
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "monolith_forms: ");
@@ -1432,13 +1442,13 @@ struct Question
 static std::vector<Question> questions_read(const char *path)
 {
     std::vector<Question> questions;
-    FILE *const file = fopen(path, "rb");
+    PlatformFile *const file = platform_file_open(path, "rb");
     if (file == NULL)
     {
         return questions;
     }
     char line[4096];
-    while (fgets(line, sizeof(line), file) != NULL)
+    while (platform_file_text_read(line, sizeof(line), file) != NULL)
     {
         std::string text(line);
         text.erase(text.find_last_not_of("\r\n") + 1u);
@@ -1472,7 +1482,7 @@ static std::vector<Question> questions_read(const char *path)
         }
         questions.push_back(question);
     }
-    fclose(file);
+    platform_file_close(file);
     return questions;
 }
 
@@ -1480,14 +1490,14 @@ static std::vector<Question> questions_read(const char *path)
 static std::map<unsigned int, std::vector<std::string>> sass_blocks(const char *path)
 {
     std::map<unsigned int, std::vector<std::string>> blocks;
-    FILE *const file = fopen(path, "rb");
+    PlatformFile *const file = platform_file_open(path, "rb");
     if (file == NULL)
     {
         return blocks;
     }
     char line[4096];
     unsigned int tag = 0u;
-    while (fgets(line, sizeof(line), file) != NULL)
+    while (platform_file_text_read(line, sizeof(line), file) != NULL)
     {
         const std::string text(line);
         // an instruction's line opens with its address between /* and */, in hex with no space. A line of encoding
@@ -1518,7 +1528,7 @@ static std::map<unsigned int, std::vector<std::string>> sass_blocks(const char *
         }
         blocks[tag].push_back(instruction);
     }
-    fclose(file);
+    platform_file_close(file);
     return blocks;
 }
 
@@ -1526,7 +1536,7 @@ static std::map<unsigned int, std::vector<std::string>> sass_blocks(const char *
 static std::map<unsigned int, std::vector<std::string>> ptx_blocks(const char *path)
 {
     std::map<unsigned int, std::vector<std::string>> blocks;
-    FILE *const file = fopen(path, "rb");
+    PlatformFile *const file = platform_file_open(path, "rb");
     if (file == NULL)
     {
         return blocks;
@@ -1534,7 +1544,7 @@ static std::map<unsigned int, std::vector<std::string>> ptx_blocks(const char *p
     char line[4096];
     unsigned int tag = 0u;
     int inside = 0;
-    while (fgets(line, sizeof(line), file) != NULL)
+    while (platform_file_text_read(line, sizeof(line), file) != NULL)
     {
         std::string text = trim(std::string(line));
         text.erase(text.find_last_not_of("\r\n") + 1u);
@@ -1552,7 +1562,7 @@ static std::map<unsigned int, std::vector<std::string>> ptx_blocks(const char *p
         }
         blocks[tag].push_back(trim(text));
     }
-    fclose(file);
+    platform_file_close(file);
     return blocks;
 }
 
@@ -2713,8 +2723,9 @@ static int krs_apply(const char *path, const std::map<std::string, std::string> 
         out += line + ((end == std::string::npos) ? "" : "\n");
         at = stop + 1u;
     }
-    FILE *const back = fopen(path, "wb");
-    if ((back == NULL) || (fwrite(out.data(), 1u, out.size(), back) != out.size()) || (fclose(back) != 0))
+    PlatformFile *const back = platform_file_open(path, "wb");
+    if ((back == NULL) || (platform_file_write_items(out.data(), 1u, out.size(), back) != out.size()) ||
+        (platform_file_close(back) != 0))
     {
         return -1;
     }
@@ -2741,7 +2752,7 @@ static int forms_read(const char *questions_path, const char *listing, const cha
     }
     const std::map<unsigned int, std::vector<std::string>> sass_lines = sass_blocks(listing);
     const std::map<unsigned int, std::vector<std::string>> ptx_lines = ptx_blocks(ptx);
-    FILE *const out = fopen(record, "wb");
+    PlatformFile *const out = platform_file_open(record, "wb");
     if (out == NULL)
     {
         {
@@ -2767,19 +2778,25 @@ static int forms_read(const char *questions_path, const char *listing, const cha
     }
     const auto ptx_opening = ptx_lines.find(0u);
     ptx_read(nothing, (ptx_opening != ptx_lines.end()) ? ptx_opening->second : none, &ptx_bases);
-    fprintf(out, "# The forms read off NVIDIA's compiler\n\n");
-    fprintf(
-        out,
-        "Written by `monolith_forms.sh` whole on every run. Every form the lanes of the record programs decide "
-        "is submitted to NVIDIA's compiler once for each set of banks its arguments come from, in one program "
-        "between tags (`monolith_forms.cpp`). A question in the form's text in `c.krs` is read off the PTX "
-        "and compared with the form `ptx.krs` gives; one in its text in `ptx.krs`, put to `ptxas` as inline "
-        "PTX, is read off the listing and compared with the form `sass.krs` gives. Each block is read back "
-        "into the form it is, its registers named by the arguments they contain. A fixed register is named in angle "
-        "brackets, and the ruleset names it. A form every question of which reads whole and alike is the "
-        "ruleset's form, written into it by `monolith_forms.sh apply`; any other retains the ruleset's text, "
-        "and the reason is beside it.\n\n");
-    fprintf(out, "| tag | form | banks | read off | read | note |\n|---|---|---|---|---|---|\n");
+    {
+        mmgr_line_put(platform_file_line(out), "# The forms read off NVIDIA's compiler\n\n");
+    }
+    {
+        mmgr_line_put(platform_file_line(out),
+                      "Written by `monolith_forms.sh` whole on every run. Every form the lanes of the record programs "
+                      "decide is submitted to NVIDIA's compiler once for each set of banks its arguments come from, in "
+                      "one program between tags (`monolith_forms.cpp`). A question in the form's text in `c.krs` is "
+                      "read off the PTX and compared with the form `ptx.krs` gives; one in its text in `ptx.krs`, put "
+                      "to `ptxas` as inline PTX, is read off the listing and compared with the form `sass.krs` gives. "
+                      "Each block is read back into the form it is, its registers named by the arguments they contain. "
+                      "A fixed register is named in angle brackets, and the ruleset names it. A form every question of "
+                      "which reads whole and alike is the ruleset's form, written into it by `monolith_forms.sh "
+                      "apply`; any other retains the ruleset's text, and the reason is beside it.\n\n");
+    }
+    {
+        mmgr_line_put(platform_file_line(out),
+                      "| tag | form | banks | read off | read | note |\n|---|---|---|---|---|---|\n");
+    }
     // each form's readings: the text every question gave where all gave one whole, else empty with the reason
     struct Verdict
     {
@@ -2878,9 +2895,21 @@ static int forms_read(const char *questions_path, const char *listing, const cha
         }
         const size_t space = question.key.find(' ');
         const std::string banks = (space == std::string::npos) ? std::string() : question.key.substr(space + 1u);
-        fprintf(out, "| %u | %s | %s | %s | `%s` | %s |\n", question.tag, question.form.c_str(), banks.c_str(),
-                !from_ptx ? "PTX" : (loaded ? "SASS, numbers loaded" : "SASS"), cell(text_flat(read.text)).c_str(),
-                cell(why).c_str());
+        {
+            mmgr_line_put(platform_file_line(out), "| ");
+            mmgr_line_decimal(platform_file_line(out), question.tag, 1u);
+            mmgr_line_put(platform_file_line(out), " | ");
+            mmgr_line_put(platform_file_line(out), question.form.c_str());
+            mmgr_line_put(platform_file_line(out), " | ");
+            mmgr_line_put(platform_file_line(out), banks.c_str());
+            mmgr_line_put(platform_file_line(out), " | ");
+            mmgr_line_put(platform_file_line(out), !from_ptx ? "PTX" : (loaded ? "SASS, numbers loaded" : "SASS"));
+            mmgr_line_put(platform_file_line(out), " | `");
+            mmgr_line_put(platform_file_line(out), cell(text_flat(read.text)).c_str());
+            mmgr_line_put(platform_file_line(out), "` | ");
+            mmgr_line_put(platform_file_line(out), cell(why).c_str());
+            mmgr_line_put(platform_file_line(out), " |\n");
+        }
     }
     for (const auto &fold : folds)
     {
@@ -2988,9 +3017,10 @@ static int forms_read(const char *questions_path, const char *listing, const cha
     }
     std::map<std::string, std::string> sass_adopted;
     std::map<std::string, std::string> ptx_adopted;
-    fprintf(
-        out,
-        "\n## By form\n\n| form | sass.krs | SASS read | | ptx.krs | PTX read | |\n|---|---|---|---|---|---|---|\n");
+    {
+        mmgr_line_put(platform_file_line(out), "\n## By form\n\n| form | sass.krs | SASS read | | ptx.krs | PTX read | "
+                                               "|\n|---|---|---|---|---|---|---|\n");
+    }
     unsigned int sass_same = 0u;
     unsigned int ptx_same = 0u;
     for (const auto &entry : sass_verdicts)
@@ -3040,15 +3070,40 @@ static int forms_read(const char *questions_path, const char *listing, const cha
         {
             ptx_adopted[form] = ptx_verdict.text;
         }
-        fprintf(out, "| %s | `%s` | `%s` | %s | `%s` | `%s` | %s |\n", form.c_str(), cell(text_flat(sass_now)).c_str(),
-                cell(text_flat(sass_verdict.text)).c_str(), cell(sass_state).c_str(), cell(text_flat(ptx_now)).c_str(),
-                cell(text_flat(ptx_verdict.text)).c_str(), cell(ptx_state).c_str());
+        {
+            mmgr_line_put(platform_file_line(out), "| ");
+            mmgr_line_put(platform_file_line(out), form.c_str());
+            mmgr_line_put(platform_file_line(out), " | `");
+            mmgr_line_put(platform_file_line(out), cell(text_flat(sass_now)).c_str());
+            mmgr_line_put(platform_file_line(out), "` | `");
+            mmgr_line_put(platform_file_line(out), cell(text_flat(sass_verdict.text)).c_str());
+            mmgr_line_put(platform_file_line(out), "` | ");
+            mmgr_line_put(platform_file_line(out), cell(sass_state).c_str());
+            mmgr_line_put(platform_file_line(out), " | `");
+            mmgr_line_put(platform_file_line(out), cell(text_flat(ptx_now)).c_str());
+            mmgr_line_put(platform_file_line(out), "` | `");
+            mmgr_line_put(platform_file_line(out), cell(text_flat(ptx_verdict.text)).c_str());
+            mmgr_line_put(platform_file_line(out), "` | ");
+            mmgr_line_put(platform_file_line(out), cell(ptx_state).c_str());
+            mmgr_line_put(platform_file_line(out), " |\n");
+        }
     }
-    fprintf(out,
-            "\n%zu questions over %zu forms. Of the forms, sass.krs already gives %u as read and %zu are read "
-            "otherwise; ptx.krs gives %u as read and %zu are read otherwise.\n",
-            questions.size(), sass_verdicts.size(), sass_same, sass_adopted.size(), ptx_same, ptx_adopted.size());
-    fclose(out);
+    {
+        mmgr_line_put(platform_file_line(out), "\n");
+        mmgr_line_decimal(platform_file_line(out), questions.size(), 1u);
+        mmgr_line_put(platform_file_line(out), " questions over ");
+        mmgr_line_decimal(platform_file_line(out), sass_verdicts.size(), 1u);
+        mmgr_line_put(platform_file_line(out), " forms. Of the forms, sass.krs already gives ");
+        mmgr_line_decimal(platform_file_line(out), sass_same, 1u);
+        mmgr_line_put(platform_file_line(out), " as read and ");
+        mmgr_line_decimal(platform_file_line(out), sass_adopted.size(), 1u);
+        mmgr_line_put(platform_file_line(out), " are read otherwise; ptx.krs gives ");
+        mmgr_line_decimal(platform_file_line(out), ptx_same, 1u);
+        mmgr_line_put(platform_file_line(out), " as read and ");
+        mmgr_line_decimal(platform_file_line(out), ptx_adopted.size(), 1u);
+        mmgr_line_put(platform_file_line(out), " are read otherwise.\n");
+    }
+    platform_file_close(out);
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "monolith_forms: ");

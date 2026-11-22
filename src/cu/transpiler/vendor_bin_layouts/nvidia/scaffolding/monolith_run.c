@@ -65,18 +65,18 @@ static void check_that(int passed, const char *what, unsigned int precept, unsig
 
 static unsigned char *monolith_file(const char *path)
 {
-    FILE *const file = fopen(path, "rb");
+    PlatformFile *const file = platform_file_open(path, "rb");
     if (file == NULL)
     {
         return NULL;
     }
-    fseek(file, 0L, SEEK_END);
-    const long size = ftell(file);
-    fseek(file, 0L, SEEK_SET);
+    platform_file_seek(file, 0L, SEEK_END);
+    const long size = platform_file_tell(file);
+    platform_file_seek(file, 0L, SEEK_SET);
     // a size the file reported is at least 0, and a byte past it ends the image
     unsigned char *const bytes = (size > 0L) ? (unsigned char *)malloc((size_t)size + 1u) : NULL;
-    const int read = (bytes != NULL) && (fread(bytes, 1u, (size_t)size, file) == (size_t)size);
-    fclose(file);
+    const int read = (bytes != NULL) && (platform_file_read_items(bytes, 1u, (size_t)size, file) == (size_t)size);
+    platform_file_close(file);
     if (read == 0)
     {
         free(bytes);

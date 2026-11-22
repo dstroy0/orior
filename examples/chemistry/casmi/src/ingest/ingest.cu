@@ -97,7 +97,8 @@ int ingest_run(SimResults *results, int count, char **arguments)
     const long ingested = ok ? engine_ingest_set(&ingest) : ENGINE_ERROR;
     if (ok)
     {
-        engine_ingest_print(&ingest, stdout);
+        engine_ingest_print(&ingest, platform_line_out());
+        platform_line_out_ended();
         if (ingested != 0L)
         {
             ingest_error_line(results, "  the ingest stopped", &error);

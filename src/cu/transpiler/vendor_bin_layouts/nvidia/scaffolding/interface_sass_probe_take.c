@@ -35,18 +35,18 @@ static SassListing s_listing;
 // the file at `path` read as text, or NULL where it does not read
 static char *take_file(const char *path)
 {
-    FILE *const file = fopen(path, "rb");
+    PlatformFile *const file = platform_file_open(path, "rb");
     if (file == NULL)
     {
         return NULL;
     }
-    fseek(file, 0L, SEEK_END);
-    const long size = ftell(file);
-    fseek(file, 0L, SEEK_SET);
+    platform_file_seek(file, 0L, SEEK_END);
+    const long size = platform_file_tell(file);
+    platform_file_seek(file, 0L, SEEK_SET);
     // a size the file reported is at least 0, and a byte past it ends the text
     char *const text = (size >= 0L) ? (char *)malloc((size_t)size + 1u) : NULL;
-    const int read = (text != NULL) && (fread(text, 1u, (size_t)size, file) == (size_t)size);
-    fclose(file);
+    const int read = (text != NULL) && (platform_file_read_items(text, 1u, (size_t)size, file) == (size_t)size);
+    platform_file_close(file);
     if (read == 0)
     {
         free(text);

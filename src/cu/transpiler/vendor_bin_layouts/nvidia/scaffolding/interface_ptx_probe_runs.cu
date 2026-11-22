@@ -169,9 +169,10 @@ static int probe_write(const std::string &text, int major, int minor, const std:
     {
         return 0;
     }
-    FILE *const file = fopen(path.c_str(), "wb");
-    const int written = (file != NULL) && (fwrite(cubin.data(), 1u, cubin.size(), file) == cubin.size());
-    const int closed = (file != NULL) && (fclose(file) == 0);
+    PlatformFile *const file = platform_file_open(path.c_str(), "wb");
+    const int written =
+        (file != NULL) && (platform_file_write_items(cubin.data(), 1u, cubin.size(), file) == cubin.size());
+    const int closed = (file != NULL) && (platform_file_close(file) == 0);
     if (!written || !closed)
     {
         VerbaLinea *const output_line = platform_line_out();
@@ -575,17 +576,17 @@ int probe_clocks(int device)
 int probe_cubin_run(const char *path, int count, char **arguments)
 {
     std::vector<char> cubin;
-    FILE *const file = fopen(path, "rb");
+    PlatformFile *const file = platform_file_open(path, "rb");
     if (file != NULL)
     {
         char block[4096];
-        size_t read = fread(block, 1u, sizeof(block), file);
+        size_t read = platform_file_read_items(block, 1u, sizeof(block), file);
         while (read != 0u)
         {
             cubin.insert(cubin.end(), block, block + read);
-            read = fread(block, 1u, sizeof(block), file);
+            read = platform_file_read_items(block, 1u, sizeof(block), file);
         }
-        fclose(file);
+        platform_file_close(file);
     }
     cudaLibrary_t library = NULL;
     cudaKernel_t kernel = NULL;

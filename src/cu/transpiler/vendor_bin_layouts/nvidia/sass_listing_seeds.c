@@ -92,7 +92,7 @@ int program_main(int count, char **word)
         }
         return 2;
     }
-    FILE *const listing = fopen(word[1], "rb");
+    PlatformFile *const listing = platform_file_open(word[1], "rb");
     if (listing == NULL)
     {
         {
@@ -110,7 +110,7 @@ int program_main(int count, char **word)
     unsigned long long words[2] = {0ULL, 0ULL};
     unsigned int helds = 0u;
     int accepted = 1;
-    while (accepted && (fgets(line, sizeof(line), listing) != NULL))
+    while (accepted && (platform_file_text_read(line, sizeof(line), listing) != NULL))
     {
         for (const char *at = mmgr_text_find(line, "/* 0x", PLATFORM_TEXT_TO_TERMINATOR); at != NULL;
              at = mmgr_text_find(at + 5, "/* 0x", PLATFORM_TEXT_TO_TERMINATOR))
@@ -131,7 +131,7 @@ int program_main(int count, char **word)
             }
         }
     }
-    fclose(listing);
+    platform_file_close(listing);
     if (!accepted)
     {
         {

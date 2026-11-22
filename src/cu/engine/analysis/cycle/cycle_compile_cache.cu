@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cycle_compile_cache.cu: the cache, compiling and linking, the PTX header
 #include "cycle_compile_internal.h"
+#include "../../../../platform/platform.h"
 #include "../../engine_note.h"
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
@@ -15,20 +16,20 @@ static const char s_cycle_cache_magic[] = "cycle image 2\n";
 std::vector<char> cycle_cache_read(const std::string &path, const std::string &source)
 {
     std::vector<char> image;
-    FILE *const file = fopen(path.c_str(), "rb");
+    PlatformFile *const file = platform_file_open(path.c_str(), "rb");
     if (file == NULL)
     {
         return image;
     }
     std::vector<char> contents;
     char block[65536];
-    size_t read = fread(block, 1u, sizeof(block), file);
+    size_t read = platform_file_read_items(block, 1u, sizeof(block), file);
     while (read != 0u)
     {
         contents.insert(contents.end(), block, block + read);
-        read = fread(block, 1u, sizeof(block), file);
+        read = platform_file_read_items(block, 1u, sizeof(block), file);
     }
-    fclose(file);
+    platform_file_close(file);
     const size_t magic = sizeof(s_cycle_cache_magic) - 1u;
     const size_t head = magic + sizeof(unsigned long long);
     unsigned long long length = 0ULL;
@@ -69,18 +70,18 @@ void cycle_cache_write(const std::string &folder, const std::string &path, const
         (void)mmgr_line_finish(&buffer_line);
     }
     const std::string partial = path + suffix;
-    FILE *const file = fopen(partial.c_str(), "wb");
+    PlatformFile *const file = platform_file_open(partial.c_str(), "wb");
     if (file == NULL)
     {
         return;
     }
     const unsigned long long length = source.size();
-    const int written = (fwrite(s_cycle_cache_magic, 1u, sizeof(s_cycle_cache_magic) - 1u, file) ==
+    const int written = (platform_file_write_items(s_cycle_cache_magic, 1u, sizeof(s_cycle_cache_magic) - 1u, file) ==
                          (sizeof(s_cycle_cache_magic) - 1u)) &&
-                        (fwrite(&length, sizeof(length), 1u, file) == 1u) &&
-                        (fwrite(source.data(), 1u, source.size(), file) == source.size()) &&
-                        (fwrite(image.data(), 1u, image.size(), file) == image.size());
-    const int closed = fclose(file) == 0;
+                        (platform_file_write_items(&length, sizeof(length), 1u, file) == 1u) &&
+                        (platform_file_write_items(source.data(), 1u, source.size(), file) == source.size()) &&
+                        (platform_file_write_items(image.data(), 1u, image.size(), file) == image.size());
+    const int closed = platform_file_close(file) == 0;
     if (!written || !closed || (rename(partial.c_str(), path.c_str()) != 0))
     {
         remove(partial.c_str());

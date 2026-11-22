@@ -122,7 +122,7 @@ static long noise_moments_sample(const unsigned short *volume, const unsigned lo
     return (ok != 0) ? 0L : NOISE_DETECTOR_ERROR;
 }
 
-static int noise_moments_rows(FILE *table, const char *name, const NoiseMomentCell cells[NOISE_LEVEL_BINS])
+static int noise_moments_rows(PlatformFile *table, const char *name, const NoiseMomentCell cells[NOISE_LEVEL_BINS])
 {
     int ok = 1;
     for (unsigned int level_bin = 0u; ok && (level_bin < NOISE_LEVEL_BINS); level_bin += 1u)
@@ -132,13 +132,40 @@ static int noise_moments_rows(FILE *table, const char *name, const NoiseMomentCe
         {
             continue;
         }
-        ok = fprintf(table,
-                     "%s\t%u\t%llu\t%llu\t%llu\t%lld\t%llu\t%lld\t%llu\t%llu\t%lld\t%llu\t%llu\t%llu\t%lld\t%lld"
-                     "\t%llu\n",
-                     name, level_bin << (NOISE_LEVEL_BIN_SHIFT - 1u), NOISE_MOMENT_BLOCK, cell->blocks, cell->values,
-                     cell->s1, cell->s1_squared, cell->s1_cubed, cell->s1_fourth, cell->s2, cell->s1_s2,
-                     cell->s1_squared_s2, cell->s2_squared.high, cell->s2_squared.low, cell->s3, cell->s1_s3,
-                     cell->s4) > 0;
+        unsigned long long formed_mark_1;
+        ok =
+            (formed_mark_1 = platform_file_mark(table), mmgr_line_put(platform_file_line(table), name),
+             mmgr_line_put(platform_file_line(table), "\t"),
+             mmgr_line_decimal(platform_file_line(table), level_bin << (NOISE_LEVEL_BIN_SHIFT - 1u), 1u),
+             mmgr_line_put(platform_file_line(table), "\t"),
+             mmgr_line_decimal(platform_file_line(table), NOISE_MOMENT_BLOCK, 1u),
+             mmgr_line_put(platform_file_line(table), "\t"),
+             mmgr_line_decimal(platform_file_line(table), cell->blocks, 1u),
+             mmgr_line_put(platform_file_line(table), "\t"),
+             mmgr_line_decimal(platform_file_line(table), cell->values, 1u),
+             mmgr_line_put(platform_file_line(table), "\t"),
+             mmgr_line_decimal_signed(platform_file_line(table), cell->s1),
+             mmgr_line_put(platform_file_line(table), "\t"),
+             mmgr_line_decimal(platform_file_line(table), cell->s1_squared, 1u),
+             mmgr_line_put(platform_file_line(table), "\t"),
+             mmgr_line_decimal_signed(platform_file_line(table), cell->s1_cubed),
+             mmgr_line_put(platform_file_line(table), "\t"),
+             mmgr_line_decimal(platform_file_line(table), cell->s1_fourth, 1u),
+             mmgr_line_put(platform_file_line(table), "\t"), mmgr_line_decimal(platform_file_line(table), cell->s2, 1u),
+             mmgr_line_put(platform_file_line(table), "\t"),
+             mmgr_line_decimal_signed(platform_file_line(table), cell->s1_s2),
+             mmgr_line_put(platform_file_line(table), "\t"),
+             mmgr_line_decimal(platform_file_line(table), cell->s1_squared_s2, 1u),
+             mmgr_line_put(platform_file_line(table), "\t"),
+             mmgr_line_decimal(platform_file_line(table), cell->s2_squared.high, 1u),
+             mmgr_line_put(platform_file_line(table), "\t"),
+             mmgr_line_decimal(platform_file_line(table), cell->s2_squared.low, 1u),
+             mmgr_line_put(platform_file_line(table), "\t"),
+             mmgr_line_decimal_signed(platform_file_line(table), cell->s3),
+             mmgr_line_put(platform_file_line(table), "\t"),
+             mmgr_line_decimal_signed(platform_file_line(table), cell->s1_s3),
+             mmgr_line_put(platform_file_line(table), "\t"), mmgr_line_decimal(platform_file_line(table), cell->s4, 1u),
+             mmgr_line_put(platform_file_line(table), "\n"), platform_file_written_since(table, formed_mark_1)) > 0;
     }
     return ok;
 }
@@ -151,7 +178,7 @@ extern "C" long noise_moments_set(const NoiseSetRequest *request)
     }
     EngineError *const error = request->error;
     char path[ENGINE_PATH_CAPACITY];
-    FILE *table = NULL;
+    PlatformFile *table = NULL;
     int ok = NOISE_DETECTOR_CHECK((request->set != NULL) && (request->samples != NULL) && (request->load != NULL),
                                   request, error, ENGINE_ERROR_REQUEST) &&
              noise_table_open(request->set, "noise_moments.tsv",
@@ -208,7 +235,7 @@ extern "C" long noise_moments_set(const NoiseSetRequest *request)
     free(cells);
     if (table != NULL)
     {
-        ok = NOISE_DETECTOR_IO(fclose(table) == 0, path, error) && ok;
+        ok = NOISE_DETECTOR_IO(platform_file_close(table) == 0, path, error) && ok;
     }
     if (ok != 0)
     {

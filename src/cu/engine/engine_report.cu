@@ -5,14 +5,14 @@
 #include "../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
-static int entry_report_write(VerbaLinea *line, FILE *file)
+static int entry_report_write(VerbaLinea *line, VerbaLinea *out)
 {
-    const int written = (mmgr_line_ok(line) && (fwrite(line->out, 1u, mmgr_line_finish(line), file) == line->at));
+    const int written = (mmgr_line_ok(line) && (mmgr_line_put_n(out, line->out, mmgr_line_finish(line)) == line->at));
     free(line->out);
     return written;
 }
 
-extern "C" int engine_ingest_print(const EngineIngestRequest *request, FILE *file)
+extern "C" int engine_ingest_print(const EngineIngestRequest *request, VerbaLinea *out)
 {
     const EngineSetReport *const report = request->report;
     if ((report == NULL) || (report->samples == NULL))
@@ -80,10 +80,10 @@ extern "C" int engine_ingest_print(const EngineIngestRequest *request, FILE *fil
         mmgr_line_ch(&line, '\n');
     }
     entry_report_total(&line, report, request->count);
-    return entry_report_write(&line, file);
+    return entry_report_write(&line, out);
 }
 
-extern "C" int engine_prove_print(const EngineSetRequest *request, FILE *file)
+extern "C" int engine_prove_print(const EngineSetRequest *request, VerbaLinea *out)
 {
     const EngineSetReport *const report = request->report;
     if ((report == NULL) || (report->samples == NULL))
@@ -123,7 +123,7 @@ extern "C" int engine_prove_print(const EngineSetRequest *request, FILE *file)
         mmgr_line_ch(&line, '\n');
     }
     entry_report_total(&line, report, request->count);
-    return entry_report_write(&line, file);
+    return entry_report_write(&line, out);
 }
 
 extern "C" long engine_ingest_set(const EngineIngestRequest *request)
@@ -411,7 +411,11 @@ extern "C" long engine_iapx_load(const char *set, const char *sample, unsigned l
             mmgr_line_put(&line, ": the " ENTRY_CRYSTAL_SUFFIX " did not load: ");
             entry_seal_failure(&line, &record);
             mmgr_line_ch(&line, '\n');
-            entry_report_write(&line, stderr);
+            if (mmgr_line_ok(&line))
+            {
+                platform_terminal_write(1, line.out, mmgr_line_finish(&line));
+            }
+            free(line.out);
         }
         engine_error_frame(error);
         engine_error_latch(error);

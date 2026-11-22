@@ -4,6 +4,7 @@
 #define KREP_H
 
 #include "../../../src/cu/engine/engine_config.h"
+#include "../../../src/platform/platform.h"
 
 #include "../kbo/kbo.h"
 #include "../kcr/kcr.h"
@@ -20,17 +21,17 @@ extern "C"
 {
 #endif
 
-    int krep_head_write(FILE *file, const char *type);
+    int krep_head_write(PlatformFile *file, const char *type);
 
-    int krep_head_read(FILE *file, const char *type);
+    int krep_head_read(PlatformFile *file, const char *type);
 
-    int krep_words_write(FILE *file, const unsigned long long *words, size_t count);
+    int krep_words_write(PlatformFile *file, const unsigned long long *words, size_t count);
 
-    int krep_words_read(FILE *file, unsigned long long *words, size_t count);
+    int krep_words_read(PlatformFile *file, unsigned long long *words, size_t count);
 
-    int krep_limbs_write(FILE *file, const unsigned int *limbs, size_t count);
+    int krep_limbs_write(PlatformFile *file, const unsigned int *limbs, size_t count);
 
-    int krep_limbs_read(FILE *file, unsigned int *limbs, size_t count);
+    int krep_limbs_read(PlatformFile *file, unsigned int *limbs, size_t count);
 
     typedef struct
     {

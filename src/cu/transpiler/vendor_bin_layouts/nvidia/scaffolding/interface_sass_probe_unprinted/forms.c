@@ -17,7 +17,7 @@ typedef struct
 
 // question `number` probed at every value of its field, each value's answer printed and written into `record`: how many
 // values answered as printed, or -1 where the question was not put
-int unprinted_query(const UnprintedQuestion *question, unsigned int number, FILE *record)
+int unprinted_query(const UnprintedQuestion *question, unsigned int number, PlatformFile *record)
 {
     // the field's bits as the record names them, none where the question turns no bit and runs its instruction as
     // the assembler wrote it
@@ -56,7 +56,15 @@ int unprinted_query(const UnprintedQuestion *question, unsigned int number, FILE
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        fprintf(record, "| %u | `%s` | %s | not put | | |\n", number, question->turned, span);
+        {
+            mmgr_line_put(platform_file_line(record), "| ");
+            mmgr_line_decimal(platform_file_line(record), number, 1u);
+            mmgr_line_put(platform_file_line(record), " | `");
+            mmgr_line_put(platform_file_line(record), question->turned);
+            mmgr_line_put(platform_file_line(record), "` | ");
+            mmgr_line_put(platform_file_line(record), span);
+            mmgr_line_put(platform_file_line(record), " | not put | | |\n");
+        }
         return -1;
     }
     // the instruction read back through the machine file, which gives its text where the reader defines its field
@@ -144,8 +152,22 @@ int unprinted_query(const UnprintedQuestion *question, unsigned int number, FILE
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        fprintf(record, "| %u | `%s` | %s%s | %s | %s | %s |\n", number, question->turned, span, fixed, value_text,
-                digits, reading);
+        {
+            mmgr_line_put(platform_file_line(record), "| ");
+            mmgr_line_decimal(platform_file_line(record), number, 1u);
+            mmgr_line_put(platform_file_line(record), " | `");
+            mmgr_line_put(platform_file_line(record), question->turned);
+            mmgr_line_put(platform_file_line(record), "` | ");
+            mmgr_line_put(platform_file_line(record), span);
+            mmgr_line_put(platform_file_line(record), fixed);
+            mmgr_line_put(platform_file_line(record), " | ");
+            mmgr_line_put(platform_file_line(record), value_text);
+            mmgr_line_put(platform_file_line(record), " | ");
+            mmgr_line_put(platform_file_line(record), digits);
+            mmgr_line_put(platform_file_line(record), " | ");
+            mmgr_line_put(platform_file_line(record), reading);
+            mmgr_line_put(platform_file_line(record), " |\n");
+        }
     }
     {
         VerbaLinea *const output_line = platform_line_out();
@@ -494,24 +516,29 @@ static void unprinted_form_run(const unsigned int *places, unsigned int copies, 
 // Every form the machine file contains with an operand it does not print, each written with its operands filled
 // (unprinted_form_text), UNPRINTED_COPIES copies to a cubin, and each unprinted run probed at its values against what
 // the form's own bits answer. A row of `record` for each run probed and each form not probed
-void unprinted_forms(FILE *record)
+void unprinted_forms(PlatformFile *record)
 {
-    fprintf(record,
-            "# Every form's unprinted operands, probed on the part\n\n"
-            "Written by `interface_sass_probe_unprinted` (`interface_sass_unprinted.sh --forms`) whole on "
-            "every run. Each form containing a run of an operand it does not print is written with its operands "
-            "filled: its result R8, P0 or UR6, registers it reads R0 and R6 (0xb and 0x7), predicates it "
-            "reads P1 (true), uniform registers UR4, a constant in bank 0 c[0x0][0x0], four copies to a "
-            "run, each answering one word. A form that takes an address is written once a run with its address "
-            "the answer's third word, R4 with 0x8 added, a register before the address R10 and one after it R0 "
-            "and R6, and answers four words: the third word loaded back, the word it found, the third word, "
-            "and 0. Every cubin declares %u registers a thread. Each run is probed at every value where it is "
-            "%u bits or fewer, else at the form's own value with each bit turned, against what the form's own "
-            "bits answer. A run every value of which answers alike is one the part does not read on that "
-            "question.\n\n"
-            "| form | probed as | bits | the form contains | its own bits answer | values alike | values "
-            "otherwise |\n|---|---|---|---|---|---|---|\n",
-            UNPRINTED_REGISTERS, UNPRINTED_FIELD_MAX);
+    {
+        mmgr_line_put(
+            platform_file_line(record),
+            "# Every form's unprinted operands, probed on the part\n\nWritten by `interface_sass_probe_unprinted` "
+            "(`interface_sass_unprinted.sh --forms`) whole on every run. Each form containing a run of an operand it "
+            "does not print is written with its operands filled: its result R8, P0 or UR6, registers it reads R0 and "
+            "R6 (0xb and 0x7), predicates it reads P1 (true), uniform registers UR4, a constant in bank 0 c[0x0][0x0], "
+            "four copies to a run, each answering one word. A form that takes an address is written once a run with "
+            "its address the answer's third word, R4 with 0x8 added, a register before the address R10 and one after "
+            "it R0 and R6, and answers four words: the third word loaded back, the word it found, the third word, and "
+            "0. Every cubin declares ");
+        mmgr_line_decimal(platform_file_line(record), UNPRINTED_REGISTERS, 1u);
+        mmgr_line_put(platform_file_line(record),
+                      " registers a thread. Each run is probed at every value where it is ");
+        mmgr_line_decimal(platform_file_line(record), UNPRINTED_FIELD_MAX, 1u);
+        mmgr_line_put(platform_file_line(record),
+                      " bits or fewer, else at the form's own value with each bit turned, against what the form's own "
+                      "bits answer. A run every value of which answers alike is one the part does not read on that "
+                      "question.\n\n| form | probed as | bits | the form contains | its own bits answer | values alike "
+                      "| values otherwise |\n|---|---|---|---|---|---|---|\n");
+    }
     unsigned int forms = 0u;
     unsigned int queried = 0u;
     unsigned int unread = 0u;
@@ -576,7 +603,15 @@ void unprinted_forms(FILE *record)
                 mmgr_line_ch(output_line, '\n');
                 platform_line_out_ended();
             }
-            fprintf(record, "| `%s` | %s | | | not probed: %s | | |\n", form->text, written ? instruction : "", why);
+            {
+                mmgr_line_put(platform_file_line(record), "| `");
+                mmgr_line_put(platform_file_line(record), form->text);
+                mmgr_line_put(platform_file_line(record), "` | ");
+                mmgr_line_put(platform_file_line(record), written ? instruction : "");
+                mmgr_line_put(platform_file_line(record), " | | | not probed: ");
+                mmgr_line_put(platform_file_line(record), why);
+                mmgr_line_put(platform_file_line(record), " | | |\n");
+            }
             continue;
         }
         queried += 1u;
@@ -613,12 +648,38 @@ void unprinted_forms(FILE *record)
                 mmgr_line_ch(output_line, '\n');
                 platform_line_out_ended();
             }
-            fprintf(record, "| `%s` | `%s` | %u-%u | %s | %08x | %u of %u | %s |\n", form->text, instruction,
-                    run->first, run->last, digits, own[0], tally.alike, tally.queried, tally.otherwise);
+            {
+                mmgr_line_put(platform_file_line(record), "| `");
+                mmgr_line_put(platform_file_line(record), form->text);
+                mmgr_line_put(platform_file_line(record), "` | `");
+                mmgr_line_put(platform_file_line(record), instruction);
+                mmgr_line_put(platform_file_line(record), "` | ");
+                mmgr_line_decimal(platform_file_line(record), run->first, 1u);
+                mmgr_line_put(platform_file_line(record), "-");
+                mmgr_line_decimal(platform_file_line(record), run->last, 1u);
+                mmgr_line_put(platform_file_line(record), " | ");
+                mmgr_line_put(platform_file_line(record), digits);
+                mmgr_line_put(platform_file_line(record), " | ");
+                mmgr_line_hex(platform_file_line(record), own[0], 8u);
+                mmgr_line_put(platform_file_line(record), " | ");
+                mmgr_line_decimal(platform_file_line(record), tally.alike, 1u);
+                mmgr_line_put(platform_file_line(record), " of ");
+                mmgr_line_decimal(platform_file_line(record), tally.queried, 1u);
+                mmgr_line_put(platform_file_line(record), " | ");
+                mmgr_line_put(platform_file_line(record), tally.otherwise);
+                mmgr_line_put(platform_file_line(record), " |\n");
+            }
         }
     }
-    fprintf(record, "\n%u forms contain an unprinted run, %u probed, %u runs answering alike at every value probed.\n",
-            forms, queried, unread);
+    {
+        mmgr_line_put(platform_file_line(record), "\n");
+        mmgr_line_decimal(platform_file_line(record), forms, 1u);
+        mmgr_line_put(platform_file_line(record), " forms contain an unprinted run, ");
+        mmgr_line_decimal(platform_file_line(record), queried, 1u);
+        mmgr_line_put(platform_file_line(record), " probed, ");
+        mmgr_line_decimal(platform_file_line(record), unread, 1u);
+        mmgr_line_put(platform_file_line(record), " runs answering alike at every value probed.\n");
+    }
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "interface sass unprinted: ");

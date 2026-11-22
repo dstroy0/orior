@@ -16,7 +16,7 @@
 
 static unsigned char *tables_file_read(const char *path, size_t *size)
 {
-    FILE *const file = fopen(path, "rb");
+    PlatformFile *const file = platform_file_open(path, "rb");
     if (file == NULL)
     {
         return NULL;
@@ -33,32 +33,33 @@ static unsigned char *tables_file_read(const char *path, size_t *size)
             if (grown == NULL)
             {
                 free(bytes);
-                fclose(file);
+                platform_file_close(file);
                 return NULL;
             }
             bytes = grown;
         }
-        const size_t got = fread(bytes + length, 1u, room - length, file);
+        const size_t got = platform_file_read_items(bytes + length, 1u, room - length, file);
         if (got == 0u)
         {
             break;
         }
         length += got;
     }
-    fclose(file);
+    platform_file_close(file);
     *size = length;
     return bytes;
 }
 
 static int tables_file_written(const char *path, const TablesText *text)
 {
-    FILE *const file = fopen(path, "wb");
+    PlatformFile *const file = platform_file_open(path, "wb");
     if (file == NULL)
     {
         return 0;
     }
-    const int whole = (text->length == 0u) || (fwrite(text->bytes, 1u, text->length, file) == text->length);
-    return (fclose(file) == 0) && whole;
+    const int whole =
+        (text->length == 0u) || (platform_file_write_items(text->bytes, 1u, text->length, file) == text->length);
+    return (platform_file_close(file) == 0) && whole;
 }
 
 int program_main(int count, char **words)

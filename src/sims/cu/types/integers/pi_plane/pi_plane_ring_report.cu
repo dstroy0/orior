@@ -114,22 +114,55 @@ int plane_rings(SimResults *results, const std::vector<unsigned char> &bits, uns
 std::vector<long long> plane_path_cells(const PlaneExtent &extent, const char *path)
 {
     std::vector<long long> under;
-    FILE *const in = fopen(path, "r");
+    PlatformFile *const in = platform_file_open(path, "r");
     if (in == NULL)
     {
         return under;
     }
-    long long row = 0LL;
-    long long column = 0LL;
-    while (fscanf(in, "%lld %lld", &row, &column) == 2)
+    // a line a cell, its row and its column, each signed. The read ends at the first line that holds no two numbers,
+    // and a line of white space alone is no line
+    char line[256];
+    while (platform_file_text_read(line, (int)sizeof(line), in) != NULL)
     {
+        const char *at = line;
+        long long pair[2] = {0LL, 0LL};
+        int read = 0;
+        while (read < 2)
+        {
+            while ((*at == ' ') || (*at == '\t') || (*at == '\r') || (*at == '\n'))
+            {
+                at += 1;
+            }
+            const int negative = (*at == '-') ? 1 : 0;
+            const char *const digits = at + negative;
+            const char *end = digits;
+            const embed_word magnitude = mmgr_text_unsigned(digits, &end);
+            if (end == digits)
+            {
+                break;
+            }
+            // Explicit casts carry the magnitude to the signed width of the cell, as %lld reads it
+            pair[read] = (negative != 0) ? -(long long)magnitude : (long long)magnitude;
+            at = end;
+            read += 1;
+        }
+        if ((read == 0) && (*at == '\0'))
+        {
+            continue;
+        }
+        if (read != 2)
+        {
+            break;
+        }
+        const long long row = pair[0];
+        const long long column = pair[1];
         const long long cell = plane_cell_at(extent, row, column);
         if (cell >= 0LL)
         {
             under.push_back(cell);
         }
     }
-    fclose(in);
+    platform_file_close(in);
     return under;
 }
 

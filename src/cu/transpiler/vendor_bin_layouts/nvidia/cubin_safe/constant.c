@@ -22,7 +22,7 @@ int cubin_safe_tables_read(const char *part)
         mmgr_line_put(&buffer_line, "_instructions.txt");
         (void)mmgr_line_finish(&buffer_line);
     }
-    FILE *const file = fopen(path, "rb");
+    PlatformFile *const file = platform_file_open(path, "rb");
     if (file == NULL)
     {
         return 0;
@@ -39,19 +39,19 @@ int cubin_safe_tables_read(const char *part)
             if (grown == NULL)
             {
                 free(text);
-                fclose(file);
+                platform_file_close(file);
                 return 0;
             }
             text = grown;
         }
-        const size_t got = fread(text + length, 1u, room - length, file);
+        const size_t got = platform_file_read_items(text + length, 1u, room - length, file);
         if (got == 0u)
         {
             break;
         }
         length += got;
     }
-    fclose(file);
+    platform_file_close(file);
     tables_set_freed(&s_tables);
     const int read = tables_set_read(&s_tables, text, length);
     free(text);

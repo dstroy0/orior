@@ -226,14 +226,14 @@ static int run_record_fields(const char *line, char state[RUN_STATE_CAPACITY], u
 // a record file's line as its fields; -1 where the file cannot be read or its line is not whole
 int run_record_read(const char *path, char state[RUN_STATE_CAPACITY], unsigned long long numbers[RUN_NUMBERS])
 {
-    FILE *const file = fopen(path, "rb");
+    PlatformFile *const file = platform_file_open(path, "rb");
     if (file == NULL)
     {
         return -1;
     }
     char line[RUN_RECORD_CAPACITY];
-    const int read = fgets(line, sizeof(line), file) != NULL;
-    fclose(file);
+    const int read = platform_file_text_read(line, sizeof(line), file) != NULL;
+    platform_file_close(file);
     return read ? run_record_fields(line, state, numbers) : -1;
 }
 
@@ -259,11 +259,17 @@ void run_log(const char *records, const char *entry)
     char stamp[32];
     run_stamp(stamp, sizeof(stamp));
     char path[ENGINE_PATH_CAPACITY];
-    FILE *const file = run_path_joined(records, ".log", path, sizeof(path)) ? fopen(path, "ab") : NULL;
+    PlatformFile *const file =
+        run_path_joined(records, ".log", path, sizeof(path)) ? platform_file_open(path, "ab") : NULL;
     if (file != NULL)
     {
-        fprintf(file, "%s %s\n", stamp, entry);
-        fclose(file);
+        {
+            mmgr_line_put(platform_file_line(file), stamp);
+            mmgr_line_put(platform_file_line(file), " ");
+            mmgr_line_put(platform_file_line(file), entry);
+            mmgr_line_put(platform_file_line(file), "\n");
+        }
+        platform_file_close(file);
     }
     {
         EngineNote engine_note;

@@ -11,6 +11,7 @@
 // interpreter as it checks the device's. On Windows the compiler is nvcc handing the source to the host compiler
 // alone, with -ccbin $CYCLE_HOST_CCBIN where it is set; elsewhere it is $CXX, else c++
 #include "cycle_compile_internal.h"
+#include "../../../../platform/platform.h"
 #include "../../engine_note.h"
 #include "memoria_operor/memoria_linea.h"
 #include "cycle_record_internal.h"
@@ -113,31 +114,31 @@ static std::vector<CycleHostProgram> s_cycle_host_programs;
 static std::string cycle_host_file_read(const std::string &path)
 {
     std::string contents;
-    FILE *const file = fopen(path.c_str(), "rb");
+    PlatformFile *const file = platform_file_open(path.c_str(), "rb");
     if (file == NULL)
     {
         return contents;
     }
     char block[65536];
-    size_t read = fread(block, 1u, sizeof(block), file);
+    size_t read = platform_file_read_items(block, 1u, sizeof(block), file);
     while (read != 0u)
     {
         contents.append(block, read);
-        read = fread(block, 1u, sizeof(block), file);
+        read = platform_file_read_items(block, 1u, sizeof(block), file);
     }
-    fclose(file);
+    platform_file_close(file);
     return contents;
 }
 
 static int cycle_host_file_write(const std::string &path, const std::string &contents)
 {
-    FILE *const file = fopen(path.c_str(), "wb");
+    PlatformFile *const file = platform_file_open(path.c_str(), "wb");
     if (file == NULL)
     {
         return 0;
     }
-    const int written = fwrite(contents.data(), 1u, contents.size(), file) == contents.size();
-    return (fclose(file) == 0) && written;
+    const int written = platform_file_write_items(contents.data(), 1u, contents.size(), file) == contents.size();
+    return (platform_file_close(file) == 0) && written;
 }
 
 // the compiler run on `source` into `library`, its output written to `log`; 1 where it ran and succeeded

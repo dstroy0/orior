@@ -102,49 +102,49 @@ static void vhdl_check(VhdlResults *results, int passed, const std::string &what
 
 static int vhdl_write(const std::string &path, const std::string &text)
 {
-    FILE *const file = fopen(path.c_str(), "wb");
+    PlatformFile *const file = platform_file_open(path.c_str(), "wb");
     if (file == NULL)
     {
         return 0;
     }
-    const int written = fwrite(text.data(), 1u, text.size(), file) == text.size();
-    return (fclose(file) == 0) && written;
+    const int written = platform_file_write_items(text.data(), 1u, text.size(), file) == text.size();
+    return (platform_file_close(file) == 0) && written;
 }
 
 // the number after `label` on the first line of `path` that contains it; 0 where none does
 static unsigned long long vhdl_after(const std::string &path, const char *label)
 {
-    FILE *const file = fopen(path.c_str(), "rb");
+    PlatformFile *const file = platform_file_open(path.c_str(), "rb");
     if (file == NULL)
     {
         return 0ULL;
     }
     char line[1024];
     unsigned long long found = 0ULL;
-    while ((found == 0ULL) && (fgets(line, sizeof(line), file) != NULL))
+    while ((found == 0ULL) && (platform_file_text_read(line, sizeof(line), file) != NULL))
     {
         const char *const at = mmgr_text_find(line, label, PLATFORM_TEXT_TO_TERMINATOR);
         found = (at != NULL) ? strtoull(at + mmgr_text_length(label, PLATFORM_TEXT_TO_TERMINATOR), NULL, 10) : 0ULL;
     }
-    fclose(file);
+    platform_file_close(file);
     return found;
 }
 
 // the lines of `path` that contain `label`
 static unsigned long long vhdl_lines(const std::string &path, const char *label)
 {
-    FILE *const file = fopen(path.c_str(), "rb");
+    PlatformFile *const file = platform_file_open(path.c_str(), "rb");
     if (file == NULL)
     {
         return 0ULL;
     }
     char line[1024];
     unsigned long long found = 0ULL;
-    while (fgets(line, sizeof(line), file) != NULL)
+    while (platform_file_text_read(line, sizeof(line), file) != NULL)
     {
         found += (mmgr_text_find(line, label, PLATFORM_TEXT_TO_TERMINATOR) != NULL) ? 1ULL : 0ULL;
     }
-    fclose(file);
+    platform_file_close(file);
     return found;
 }
 
@@ -450,7 +450,7 @@ static void vhdl_run(void *context, const HostProgram *program, int reuse, unsig
 int program_main(int argc, char **argv)
 {
     // each line reaches the log as it is written, where stdout is a file: GHDL and Yosys take minutes a program
-    setvbuf(stdout, NULL, _IOLBF, 0);
+    platform_line_out_every_write();
     VhdlPlace place = {std::string(), std::string(), 0, 0, {}, 0u};
     int usable = argc >= 3;
     for (int at = 3; usable && (at < argc); at += 1)

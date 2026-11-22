@@ -125,8 +125,7 @@ int tessera_measure_host(const TesseraMeasure *measure)
 
 TesseraMeasure *tessera_measure_open(const unsigned char device[TESSERA_DEVICE_BYTES], unsigned long long luid)
 {
-    TesseraMeasure *const measure =
-        (TesseraMeasure *)calloc(1u, sizeof(TesseraMeasure));
+    TesseraMeasure *const measure = (TesseraMeasure *)calloc(1u, sizeof(TesseraMeasure));
     if (measure == NULL)
     {
         return NULL;
@@ -352,14 +351,14 @@ static unsigned long long tessera_started(unsigned long long pid)
         mmgr_line_put(&buffer_line, "/stat");
         (void)mmgr_line_finish(&buffer_line);
     }
-    FILE *const stat = fopen(path, "r");
+    PlatformFile *const stat = platform_file_open(path, "r");
     if (stat == NULL)
     {
         return 0ULL;
     }
     char line[ENGINE_PATH_CAPACITY];
-    const int read = fgets(line, sizeof(line), stat) != NULL;
-    fclose(stat);
+    const int read = platform_file_text_read(line, sizeof(line), stat) != NULL;
+    platform_file_close(stat);
     const char *const after_name = read ? strrchr(line, ')') : NULL;
     if (after_name == NULL)
     {
@@ -377,8 +376,7 @@ static unsigned long long tessera_started(unsigned long long pid)
 
 TesseraProcess *tessera_process_open(unsigned long long pid)
 {
-    TesseraProcess *const process =
-        (TesseraProcess *)calloc(1u, sizeof(TesseraProcess));
+    TesseraProcess *const process = (TesseraProcess *)calloc(1u, sizeof(TesseraProcess));
     if (process == NULL)
     {
         return NULL;

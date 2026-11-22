@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // krep_io.cu: words, limbs, the head and the seal
 #include "krep_internal.h"
+#include "../../../src/platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 static int krep_host_little(void)
@@ -12,11 +13,11 @@ static int krep_host_little(void)
     return (first == 1u) ? 1 : 0;
 }
 
-extern "C" int krep_words_write(FILE *file, const unsigned long long *words, size_t count)
+extern "C" int krep_words_write(PlatformFile *file, const unsigned long long *words, size_t count)
 {
     if (krep_host_little() != 0)
     {
-        return (fwrite(words, sizeof(unsigned long long), count, file) == count) ? 1 : 0;
+        return (platform_file_write_items(words, sizeof(unsigned long long), count, file) == count) ? 1 : 0;
     }
     for (size_t at = 0u; at < count; at += 1u)
     {
@@ -25,7 +26,7 @@ extern "C" int krep_words_write(FILE *file, const unsigned long long *words, siz
         {
             bytes[place] = (unsigned char)((words[at] >> (8u * place)) & 0xFFULL);
         }
-        if (fwrite(bytes, 1u, 8u, file) != 8u)
+        if (platform_file_write_items(bytes, 1u, 8u, file) != 8u)
         {
             return 0;
         }
@@ -33,16 +34,16 @@ extern "C" int krep_words_write(FILE *file, const unsigned long long *words, siz
     return 1;
 }
 
-extern "C" int krep_words_read(FILE *file, unsigned long long *words, size_t count)
+extern "C" int krep_words_read(PlatformFile *file, unsigned long long *words, size_t count)
 {
     if (krep_host_little() != 0)
     {
-        return (fread(words, sizeof(unsigned long long), count, file) == count) ? 1 : 0;
+        return (platform_file_read_items(words, sizeof(unsigned long long), count, file) == count) ? 1 : 0;
     }
     for (size_t at = 0u; at < count; at += 1u)
     {
         unsigned char bytes[8];
-        if (fread(bytes, 1u, 8u, file) != 8u)
+        if (platform_file_read_items(bytes, 1u, 8u, file) != 8u)
         {
             return 0;
         }
@@ -55,11 +56,11 @@ extern "C" int krep_words_read(FILE *file, unsigned long long *words, size_t cou
     return 1;
 }
 
-extern "C" int krep_limbs_write(FILE *file, const unsigned int *limbs, size_t count)
+extern "C" int krep_limbs_write(PlatformFile *file, const unsigned int *limbs, size_t count)
 {
     if (krep_host_little() != 0)
     {
-        return (fwrite(limbs, sizeof(unsigned int), count, file) == count) ? 1 : 0;
+        return (platform_file_write_items(limbs, sizeof(unsigned int), count, file) == count) ? 1 : 0;
     }
     for (size_t at = 0u; at < count; at += 1u)
     {
@@ -68,7 +69,7 @@ extern "C" int krep_limbs_write(FILE *file, const unsigned int *limbs, size_t co
         {
             bytes[place] = (unsigned char)((limbs[at] >> (8u * place)) & 0xFFu);
         }
-        if (fwrite(bytes, 1u, 4u, file) != 4u)
+        if (platform_file_write_items(bytes, 1u, 4u, file) != 4u)
         {
             return 0;
         }
@@ -76,16 +77,16 @@ extern "C" int krep_limbs_write(FILE *file, const unsigned int *limbs, size_t co
     return 1;
 }
 
-extern "C" int krep_limbs_read(FILE *file, unsigned int *limbs, size_t count)
+extern "C" int krep_limbs_read(PlatformFile *file, unsigned int *limbs, size_t count)
 {
     if (krep_host_little() != 0)
     {
-        return (fread(limbs, sizeof(unsigned int), count, file) == count) ? 1 : 0;
+        return (platform_file_read_items(limbs, sizeof(unsigned int), count, file) == count) ? 1 : 0;
     }
     for (size_t at = 0u; at < count; at += 1u)
     {
         unsigned char bytes[4];
-        if (fread(bytes, 1u, 4u, file) != 4u)
+        if (platform_file_read_items(bytes, 1u, 4u, file) != 4u)
         {
             return 0;
         }
@@ -98,20 +99,20 @@ extern "C" int krep_limbs_read(FILE *file, unsigned int *limbs, size_t count)
     return 1;
 }
 
-extern "C" int krep_head_write(FILE *file, const char *type)
+extern "C" int krep_head_write(PlatformFile *file, const char *type)
 {
     const unsigned int version = KREP_VERSION;
-    return (fwrite(KREP_MAGIC, 1u, 8u, file) == 8u) && (fwrite(type, 1u, 4u, file) == 4u) &&
-           (krep_limbs_write(file, &version, 1u) != 0);
+    return (platform_file_write_items(KREP_MAGIC, 1u, 8u, file) == 8u) &&
+           (platform_file_write_items(type, 1u, 4u, file) == 4u) && (krep_limbs_write(file, &version, 1u) != 0);
 }
 
-extern "C" int krep_head_read(FILE *file, const char *type)
+extern "C" int krep_head_read(PlatformFile *file, const char *type)
 {
     unsigned char magic[8];
     char named[4];
     unsigned int version = 0u;
-    return (fread(magic, 1u, 8u, file) == 8u) && (mmgr_bytes_compare(magic, KREP_MAGIC, 8u) == 0) &&
-           (fread(named, 1u, 4u, file) == 4u) && (mmgr_bytes_compare(named, type, 4u) == 0) &&
+    return (platform_file_read_items(magic, 1u, 8u, file) == 8u) && (mmgr_bytes_compare(magic, KREP_MAGIC, 8u) == 0) &&
+           (platform_file_read_items(named, 1u, 4u, file) == 4u) && (mmgr_bytes_compare(named, type, 4u) == 0) &&
            (krep_limbs_read(file, &version, 1u) != 0) && (version == KREP_VERSION);
 }
 
@@ -179,19 +180,20 @@ static void krep_crystal_head_words(const EngineStream *stream, const EngineSide
     head[KREP_HEAD_LANE_NODES] = seal->lane_count;
 }
 
-static int krep_seal_write(FILE *crystal, const EngineSeal *seal, EngineError *error)
+static int krep_seal_write(PlatformFile *crystal, const EngineSeal *seal, EngineError *error)
 {
-    return KREP_IO(fwrite(seal->roots, sizeof(EngineSignum), ENGINE_SEAL_ROOTS, crystal) == ENGINE_SEAL_ROOTS,
+    return KREP_IO(platform_file_write_items(seal->roots, sizeof(EngineSignum), ENGINE_SEAL_ROOTS, crystal) ==
+                       ENGINE_SEAL_ROOTS,
                    seal->roots, error) &&
-           KREP_IO(fwrite(seal->lane_nodes, sizeof(EngineSignum), (size_t)seal->lane_count, crystal) ==
-                       (size_t)seal->lane_count,
+           KREP_IO(platform_file_write_items(seal->lane_nodes, sizeof(EngineSignum), (size_t)seal->lane_count,
+                                             crystal) == (size_t)seal->lane_count,
                    seal->lane_nodes, error) &&
-           KREP_IO(fwrite(seal->chunk_leaves, sizeof(EngineSignum), (size_t)seal->chunk_count, crystal) ==
-                       (size_t)seal->chunk_count,
+           KREP_IO(platform_file_write_items(seal->chunk_leaves, sizeof(EngineSignum), (size_t)seal->chunk_count,
+                                             crystal) == (size_t)seal->chunk_count,
                    seal->chunk_leaves, error);
 }
 
-int krep_seal_read(FILE *crystal, const unsigned long long head[KREP_CRYSTAL_HEAD_WORDS], EngineSeal *seal,
+int krep_seal_read(PlatformFile *crystal, const unsigned long long head[KREP_CRYSTAL_HEAD_WORDS], EngineSeal *seal,
                    EngineError *error)
 {
     seal->lane_count = head[KREP_HEAD_LANE_NODES];
@@ -199,17 +201,18 @@ int krep_seal_read(FILE *crystal, const unsigned long long head[KREP_CRYSTAL_HEA
     seal->lane_nodes = (EngineSignum *)calloc((size_t)seal->lane_count + 1u, sizeof(EngineSignum));
     seal->chunk_leaves = (EngineSignum *)calloc((size_t)seal->chunk_count + 1u, sizeof(EngineSignum));
     return KREP_CHECK((seal->lane_nodes != NULL) && (seal->chunk_leaves != NULL), seal, error, ENGINE_ERROR_RESOURCE) &&
-           KREP_IO(fread(seal->roots, sizeof(EngineSignum), ENGINE_SEAL_ROOTS, crystal) == ENGINE_SEAL_ROOTS,
+           KREP_IO(platform_file_read_items(seal->roots, sizeof(EngineSignum), ENGINE_SEAL_ROOTS, crystal) ==
+                       ENGINE_SEAL_ROOTS,
                    seal->roots, error) &&
-           KREP_IO(fread(seal->lane_nodes, sizeof(EngineSignum), (size_t)seal->lane_count, crystal) ==
-                       (size_t)seal->lane_count,
+           KREP_IO(platform_file_read_items(seal->lane_nodes, sizeof(EngineSignum), (size_t)seal->lane_count,
+                                            crystal) == (size_t)seal->lane_count,
                    seal->lane_nodes, error) &&
-           KREP_IO(fread(seal->chunk_leaves, sizeof(EngineSignum), (size_t)seal->chunk_count, crystal) ==
-                       (size_t)seal->chunk_count,
+           KREP_IO(platform_file_read_items(seal->chunk_leaves, sizeof(EngineSignum), (size_t)seal->chunk_count,
+                                            crystal) == (size_t)seal->chunk_count,
                    seal->chunk_leaves, error);
 }
 
-static int krep_members_write(FILE *crystal, const EngineSideBytes *side, EngineError *error)
+static int krep_members_write(PlatformFile *crystal, const EngineSideBytes *side, EngineError *error)
 {
     const size_t leaves = (size_t)side->leaves;
     return KREP_IO(krep_words_write(crystal, side->pixel_at, leaves) != 0, side->pixel_at, error) &&
@@ -218,7 +221,7 @@ static int krep_members_write(FILE *crystal, const EngineSideBytes *side, Engine
            KREP_IO(krep_words_write(crystal, side->name_start, leaves + 1u) != 0, side->name_start, error) &&
            KREP_IO(krep_words_write(crystal, side->member_crc, leaves) != 0, side->member_crc, error) &&
            KREP_IO(krep_words_write(crystal, side->member_bytes, leaves) != 0, side->member_bytes, error) &&
-           KREP_IO(fwrite(side->names, 1u, (size_t)side->name_start[leaves], crystal) ==
+           KREP_IO(platform_file_write_items(side->names, 1u, (size_t)side->name_start[leaves], crystal) ==
                        (size_t)side->name_start[leaves],
                    side->names, error);
 }
@@ -242,7 +245,7 @@ extern "C" int krep_crystal_write(const KrepCrystalRequest *request)
     unsigned long long head[KREP_CRYSTAL_HEAD_WORDS];
     krep_crystal_head_words(stream, section, seal, head);
     const size_t limbs = (size_t)((stream->bits + 31ULL) / 32ULL);
-    FILE *const crystal = fopen(request->path, "wb");
+    PlatformFile *const crystal = platform_file_open(request->path, "wb");
     int ok = KREP_IO(crystal != NULL, request->path, error) &&
              KREP_IO(krep_head_write(crystal, KREP_TYPE_CRYSTAL) != 0, crystal, error) &&
              KREP_IO(krep_words_write(crystal, head, KREP_CRYSTAL_HEAD_WORDS) != 0, head, error) &&
@@ -251,19 +254,19 @@ extern "C" int krep_crystal_write(const KrepCrystalRequest *request)
              KREP_IO(krep_limbs_write(crystal, stream->stream, limbs) != 0, stream->stream, error);
     if (ok && (head[KREP_HEAD_LEAVES] != 0ULL))
     {
-        ok = KREP_IO(fwrite(section->packed, 1u, (size_t)section->packed_bytes, crystal) ==
+        ok = KREP_IO(platform_file_write_items(section->packed, 1u, (size_t)section->packed_bytes, crystal) ==
                          (size_t)section->packed_bytes,
                      section->packed, error) &&
              krep_members_write(crystal, &section->side, error);
     }
     if (crystal != NULL)
     {
-        ok = KREP_IO(fclose(crystal) == 0, crystal, error) && ok;
+        ok = KREP_IO(platform_file_close(crystal) == 0, crystal, error) && ok;
     }
     return ok;
 }
 
-int krep_crystal_head_from(const char *path, FILE *crystal, EngineStream *stream,
+int krep_crystal_head_from(const char *path, PlatformFile *crystal, EngineStream *stream,
                            unsigned long long head[KREP_CRYSTAL_HEAD_WORDS], EngineError *error)
 {
     mmgr_bytes_set(head, 0, KREP_CRYSTAL_HEAD_WORDS * sizeof(unsigned long long));
@@ -283,7 +286,7 @@ int krep_crystal_head_from(const char *path, FILE *crystal, EngineStream *stream
                             head, error, ENGINE_ERROR_LOGIC);
 }
 
-static int krep_members_read(FILE *crystal, const unsigned long long head[KREP_CRYSTAL_HEAD_WORDS],
+static int krep_members_read(PlatformFile *crystal, const unsigned long long head[KREP_CRYSTAL_HEAD_WORDS],
                              EngineSideBytes *side, EngineError *error)
 {
     const size_t leaves = (size_t)head[KREP_HEAD_LEAVES];
@@ -308,13 +311,13 @@ static int krep_members_read(FILE *crystal, const unsigned long long head[KREP_C
                       side, error, ENGINE_ERROR_LOGIC) &&
            KREP_IO(krep_words_read(crystal, side->member_crc, leaves) != 0, side->member_crc, error) &&
            KREP_IO(krep_words_read(crystal, side->member_bytes, leaves) != 0, side->member_bytes, error) &&
-           KREP_IO(fread(side->names, 1u, (size_t)head[KREP_HEAD_NAMES_BYTES], crystal) ==
+           KREP_IO(platform_file_read_items(side->names, 1u, (size_t)head[KREP_HEAD_NAMES_BYTES], crystal) ==
                        (size_t)head[KREP_HEAD_NAMES_BYTES],
                    side->names, error);
 }
 
-int krep_side_read(FILE *crystal, const unsigned long long head[KREP_CRYSTAL_HEAD_WORDS], EngineSideSection *section,
-                   EngineError *error)
+int krep_side_read(PlatformFile *crystal, const unsigned long long head[KREP_CRYSTAL_HEAD_WORDS],
+                   EngineSideSection *section, EngineError *error)
 {
     mmgr_bytes_set(section, 0, sizeof(*section));
     if (head[KREP_HEAD_LEAVES] == 0ULL)
@@ -325,6 +328,7 @@ int krep_side_read(FILE *crystal, const unsigned long long head[KREP_CRYSTAL_HEA
     section->packed_bytes = packed;
     section->packed = (unsigned char *)malloc((size_t)packed + 1u);
     return KREP_CHECK(section->packed != NULL, &section->packed, error, ENGINE_ERROR_RESOURCE) &&
-           KREP_IO(fread(section->packed, 1u, (size_t)packed, crystal) == (size_t)packed, section->packed, error) &&
+           KREP_IO(platform_file_read_items(section->packed, 1u, (size_t)packed, crystal) == (size_t)packed,
+                   section->packed, error) &&
            krep_members_read(crystal, head, &section->side, error);
 }

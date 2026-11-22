@@ -65,11 +65,11 @@ int tessera_self_paravirtual(void)
     // WSL runs the device through the Windows driver: its NVML lists no process's memory, and its dxg driver answers
     // a process only about itself
     char release[256];
-    FILE *const kernel = fopen("/proc/sys/kernel/osrelease", "r");
-    const int read = (kernel != NULL) && (fgets(release, sizeof(release), kernel) != NULL);
+    PlatformFile *const kernel = platform_file_open("/proc/sys/kernel/osrelease", "r");
+    const int read = (kernel != NULL) && (platform_file_text_read(release, sizeof(release), kernel) != NULL);
     if (kernel != NULL)
     {
-        fclose(kernel);
+        platform_file_close(kernel);
     }
     return read && ((mmgr_text_find(release, "microsoft", PLATFORM_TEXT_TO_TERMINATOR) != NULL) ||
                     (mmgr_text_find(release, "WSL", PLATFORM_TEXT_TO_TERMINATOR) != NULL));
@@ -178,14 +178,14 @@ static unsigned int tessera_self_cores(unsigned long long cores[TESSERA_SELF_COR
             mmgr_line_put(&buffer_line, "/topology/thread_siblings");
             (void)mmgr_line_finish(&buffer_line);
         }
-        FILE *const siblings = fopen(path, "r");
+        PlatformFile *const siblings = platform_file_open(path, "r");
         if (siblings == NULL)
         {
             continue;
         }
         char line[256];
-        const int read = fgets(line, sizeof(line), siblings) != NULL;
-        fclose(siblings);
+        const int read = platform_file_text_read(line, sizeof(line), siblings) != NULL;
+        platform_file_close(siblings);
         // the mask is hex words split by commas, the highest processors first: shifting drops those past sixty-four
         unsigned long long mask = 0ULL;
         for (const char *digit = line; read && (*digit != '\0'); digit += 1)

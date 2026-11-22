@@ -56,8 +56,8 @@ int fields_read(const char *machine_path, const char *instructions, const char *
         }
         return 2;
     }
-    FILE *const in = fopen(answers, "rb");
-    FILE *const out = fopen(record, "wb");
+    PlatformFile *const in = platform_file_open(answers, "rb");
+    PlatformFile *const out = platform_file_open(record, "wb");
     if ((in == NULL) || (out == NULL))
     {
         {
@@ -73,16 +73,23 @@ int fields_read(const char *machine_path, const char *instructions, const char *
         }
         return 2;
     }
-    fprintf(out, "# A form's fields, found on the part\n\n");
-    fprintf(out,
-            "Written by `interface_sass_probe_fields read`. The form is `%s`. Each row is one of its operation "
-            "bits turned over and run on the part, against the answer the form gives untouched. A bit the part "
-            "refuses, one it reads inside a run the machine file records for an operand, one it reads outside "
-            "every recorded run, and one that leaves the answer unchanged are distinguished. A bit blocked from the"
-            "part, whose turned operation key contains a control transfer, a wait or no form in the machine file, "
-            "is marked skipped and run on nothing.\n\n",
-            instruction);
-    fprintf(out, "| bit | operand | part |\n|---|---|---|\n");
+    {
+        mmgr_line_put(platform_file_line(out), "# A form's fields, found on the part\n\n");
+    }
+    {
+        mmgr_line_put(platform_file_line(out), "Written by `interface_sass_probe_fields read`. The form is `");
+        mmgr_line_put(platform_file_line(out), instruction);
+        mmgr_line_put(
+            platform_file_line(out),
+            "`. Each row is one of its operation bits turned over and run on the part, against the answer the form "
+            "gives untouched. A bit the part refuses, one it reads inside a run the machine file records for an "
+            "operand, one it reads outside every recorded run, and one that leaves the answer unchanged are "
+            "distinguished. A bit blocked from thepart, whose turned operation key contains a control transfer, a wait "
+            "or no form in the machine file, is marked skipped and run on nothing.\n\n");
+    }
+    {
+        mmgr_line_put(platform_file_line(out), "| bit | operand | part |\n|---|---|---|\n");
+    }
     char line[256];
     char hidden_bits[512] = "";
     unsigned long long baseline = 0ULL;
@@ -91,7 +98,7 @@ int fields_read(const char *machine_path, const char *instructions, const char *
     unsigned int inside = 0u;
     unsigned int hidden = 0u;
     unsigned int unread = 0u;
-    while (fgets(line, sizeof(line), in) != NULL)
+    while (platform_file_text_read(line, sizeof(line), in) != NULL)
     {
         unsigned int number = 0u;
         char type[64];
@@ -165,12 +172,29 @@ int fields_read(const char *machine_path, const char *instructions, const char *
                 }
             }
         }
-        fprintf(out, "| %u | %s | %s |\n", bit, place, part);
+        {
+            mmgr_line_put(platform_file_line(out), "| ");
+            mmgr_line_decimal(platform_file_line(out), bit, 1u);
+            mmgr_line_put(platform_file_line(out), " | ");
+            mmgr_line_put(platform_file_line(out), place);
+            mmgr_line_put(platform_file_line(out), " | ");
+            mmgr_line_put(platform_file_line(out), part);
+            mmgr_line_put(platform_file_line(out), " |\n");
+        }
     }
-    fprintf(out, "\n%u refused, %u read inside a recorded run, %u read outside every recorded run, %u unread.\n",
-            refused, inside, hidden, unread);
-    fclose(in);
-    fclose(out);
+    {
+        mmgr_line_put(platform_file_line(out), "\n");
+        mmgr_line_decimal(platform_file_line(out), refused, 1u);
+        mmgr_line_put(platform_file_line(out), " refused, ");
+        mmgr_line_decimal(platform_file_line(out), inside, 1u);
+        mmgr_line_put(platform_file_line(out), " read inside a recorded run, ");
+        mmgr_line_decimal(platform_file_line(out), hidden, 1u);
+        mmgr_line_put(platform_file_line(out), " read outside every recorded run, ");
+        mmgr_line_decimal(platform_file_line(out), unread, 1u);
+        mmgr_line_put(platform_file_line(out), " unread.\n");
+    }
+    platform_file_close(in);
+    platform_file_close(out);
     // a tab-delimited line the gathering script turns into one row: the form, its counts, and the bits it reads that
     // the machine file records for no operand
     {

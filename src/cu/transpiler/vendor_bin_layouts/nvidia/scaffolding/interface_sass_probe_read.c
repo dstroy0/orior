@@ -238,7 +238,7 @@ void sass_parts_read(const char *text, SassParts *parts)
 static int sass_binary_write(const char *path, const unsigned long long *low, const unsigned long long *high,
                              const unsigned int *chosen, unsigned int count)
 {
-    FILE *const file = fopen(path, "wb");
+    PlatformFile *const file = platform_file_open(path, "wb");
     if (file == NULL)
     {
         return 0;
@@ -252,11 +252,12 @@ static int sass_binary_write(const char *path, const unsigned long long *low, co
             for (unsigned int byte = 0u; byte < 8u; byte += 1u)
             {
                 // one byte of the word, the lowest first
-                written = written && (fputc((int)((words[word] >> (8u * byte)) & 0xffULL), file) != EOF);
+                written =
+                    written && (platform_file_char_put((int)((words[word] >> (8u * byte)) & 0xffULL), file) != EOF);
             }
         }
     }
-    return (fclose(file) == 0) && written;
+    return (platform_file_close(file) == 0) && written;
 }
 
 static SassListing s_sass_decoded;

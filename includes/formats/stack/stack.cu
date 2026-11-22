@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "stack.h"
+#include "../../../src/platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 #include <cuda_runtime.h>
@@ -20,15 +21,15 @@
 
 #define STACK_UNCACHED_ALIGN 4096ULL
 
-extern "C" FILE *stack_open(const char *path, unsigned int header[4])
+extern "C" PlatformFile *stack_open(const char *path, unsigned int header[4])
 {
-    FILE *const file = fopen(path, "rb");
+    PlatformFile *const file = platform_file_open(path, "rb");
     unsigned int words[5] = {0u, 0u, 0u, 0u, 0u};
-    if ((file == NULL) || (fread(words, sizeof(unsigned int), 5u, file) != 5u))
+    if ((file == NULL) || (platform_file_read_items(words, sizeof(unsigned int), 5u, file) != 5u))
     {
         if (file != NULL)
         {
-            fclose(file);
+            platform_file_close(file);
         }
         return NULL;
     }
@@ -39,7 +40,7 @@ extern "C" FILE *stack_open(const char *path, unsigned int header[4])
 extern "C" int stack_upload(const char *path, unsigned long long extent[4], unsigned short **device_lanes)
 {
     unsigned int header[4] = {0u, 0u, 0u, 0u};
-    FILE *const stack = stack_open(path, header);
+    PlatformFile *const stack = stack_open(path, header);
     for (unsigned int axis = 0u; axis < 4u; axis += 1u)
     {
         extent[axis] = header[axis];
@@ -48,12 +49,13 @@ extern "C" int stack_upload(const char *path, unsigned long long extent[4], unsi
     unsigned short *const volume = (unsigned short *)malloc((lanes + 1u) * sizeof(unsigned short));
     *device_lanes = NULL;
     const int ok =
-        (stack != NULL) && (volume != NULL) && (fread(volume, sizeof(unsigned short), lanes, stack) == lanes) &&
+        (stack != NULL) && (volume != NULL) &&
+        (platform_file_read_items(volume, sizeof(unsigned short), lanes, stack) == lanes) &&
         (cudaMalloc((void **)device_lanes, lanes * sizeof(unsigned short)) == cudaSuccess) &&
         (cudaMemcpy(*device_lanes, volume, lanes * sizeof(unsigned short), cudaMemcpyHostToDevice) == cudaSuccess);
     if (stack != NULL)
     {
-        fclose(stack);
+        platform_file_close(stack);
     }
     free(volume);
     return ok;

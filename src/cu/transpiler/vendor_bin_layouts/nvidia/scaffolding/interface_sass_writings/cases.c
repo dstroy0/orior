@@ -41,13 +41,13 @@ unsigned int s_relations;
 // `path` read whole into `bytes`, sized for `room`: the bytes read, 0 where it was not read
 unsigned long long writings_file_read(const char *path, unsigned char *bytes, unsigned long long room)
 {
-    FILE *const file = fopen(path, "rb");
+    PlatformFile *const file = platform_file_open(path, "rb");
     if (file == NULL)
     {
         return 0ULL;
     }
-    const unsigned long long read = (unsigned long long)fread(bytes, 1u, (size_t)room, file);
-    fclose(file);
+    const unsigned long long read = (unsigned long long)platform_file_read_items(bytes, 1u, (size_t)room, file);
+    platform_file_close(file);
     return read;
 }
 
@@ -357,8 +357,8 @@ int writings_cubin(unsigned int count, const char *path)
     {
         return 0;
     }
-    FILE *const file = fopen(path, "wb");
-    const int put = (file != NULL) && (fwrite(s_cubin, 1u, (size_t)size, file) == size);
-    const int closed = (file != NULL) && (fclose(file) == 0);
+    PlatformFile *const file = platform_file_open(path, "wb");
+    const int put = (file != NULL) && (platform_file_write_items(s_cubin, 1u, (size_t)size, file) == size);
+    const int closed = (file != NULL) && (platform_file_close(file) == 0);
     return put && closed;
 }

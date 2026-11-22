@@ -31,7 +31,7 @@ int schedule_program(const char *set, char *const *names, unsigned int count)
         return 0;
     }
     const unsigned long long cap = (unsigned long long)free_bytes / 3ULL * 2ULL;
-    FILE *const out = fopen(g_schedule_path, "w");
+    PlatformFile *const out = platform_file_open(g_schedule_path, "w");
     if (out == NULL)
     {
         {
@@ -56,10 +56,21 @@ int schedule_program(const char *set, char *const *names, unsigned int count)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    fprintf(out, "{\n  \"scheme\": \"cell_tracking.program\",\n  \"version\": 1,\n");
-    fprintf(out, "  \"tower\": {\"free\": %llu, \"total\": %llu, \"cap\": %llu},\n", (unsigned long long)free_bytes,
-            (unsigned long long)total_bytes, cap);
-    fprintf(out, "  \"stages\": [\n");
+    {
+        mmgr_line_put(platform_file_line(out), "{\n  \"scheme\": \"cell_tracking.program\",\n  \"version\": 1,\n");
+    }
+    {
+        mmgr_line_put(platform_file_line(out), "  \"tower\": {\"free\": ");
+        mmgr_line_decimal(platform_file_line(out), (unsigned long long)free_bytes, 1u);
+        mmgr_line_put(platform_file_line(out), ", \"total\": ");
+        mmgr_line_decimal(platform_file_line(out), (unsigned long long)total_bytes, 1u);
+        mmgr_line_put(platform_file_line(out), ", \"cap\": ");
+        mmgr_line_decimal(platform_file_line(out), cap, 1u);
+        mmgr_line_put(platform_file_line(out), "},\n");
+    }
+    {
+        mmgr_line_put(platform_file_line(out), "  \"stages\": [\n");
+    }
     unsigned int written = 0u;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
@@ -114,13 +125,25 @@ int schedule_program(const char *set, char *const *names, unsigned int count)
             const unsigned long long first = chunk * steps;
             unsigned long long end = first + chunk_frames;
             end = (end > frames) ? frames : end;
-            fprintf(out, "%s    {\"sample\": \"%s\", \"first\": %llu, \"past\": %llu, \"bytes\": %llu}",
-                    (written != 0u) ? ",\n" : "", names[at], first, end, (end - first) * each);
+            {
+                mmgr_line_put(platform_file_line(out), (written != 0u) ? ",\n" : "");
+                mmgr_line_put(platform_file_line(out), "    {\"sample\": \"");
+                mmgr_line_put(platform_file_line(out), names[at]);
+                mmgr_line_put(platform_file_line(out), "\", \"first\": ");
+                mmgr_line_decimal(platform_file_line(out), first, 1u);
+                mmgr_line_put(platform_file_line(out), ", \"past\": ");
+                mmgr_line_decimal(platform_file_line(out), end, 1u);
+                mmgr_line_put(platform_file_line(out), ", \"bytes\": ");
+                mmgr_line_decimal(platform_file_line(out), (end - first) * each, 1u);
+                mmgr_line_put(platform_file_line(out), "}");
+            }
             written += 1u;
         }
     }
-    fprintf(out, "\n  ]\n}\n");
-    fclose(out);
+    {
+        mmgr_line_put(platform_file_line(out), "\n  ]\n}\n");
+    }
+    platform_file_close(out);
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "  ");

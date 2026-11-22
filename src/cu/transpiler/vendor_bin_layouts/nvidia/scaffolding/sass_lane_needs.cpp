@@ -175,11 +175,11 @@ static void lane_decide(const HostProgram *program, int reuse, unsigned int *que
     static int dumped;
     if ((dumped == 0) && !lane.empty())
     {
-        FILE *const file = fopen("build/sass_lane_needs/lane.sass", "wb");
+        PlatformFile *const file = platform_file_open("build/sass_lane_needs/lane.sass", "wb");
         if (file != NULL)
         {
-            fwrite(lane.data(), 1u, lane.size(), file);
-            fclose(file);
+            platform_file_write_items(lane.data(), 1u, lane.size(), file);
+            platform_file_close(file);
             dumped = 1;
         }
     }

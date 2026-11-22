@@ -52,9 +52,13 @@ int program_main(int argc, char **argv)
 {
     if ((argc != 5) && (argc != 7))
     {
-        fputs("orior_measuring_stick_read <nvcc listing> <manifest> <sass.krs> <record> [<engine.tsv> <engine "
-              "directory>]\n",
-              stderr);
+        {
+            const char *const error_text =
+                "orior_measuring_stick_read <nvcc listing> <manifest> <sass.krs> <record> [<engine.tsv> <engine "
+                "directory>]\n";
+            platform_terminal_write(1, error_text,
+                                    (unsigned long long)mmgr_text_length(error_text, PLATFORM_TEXT_TO_TERMINATOR));
+        }
         return 2;
     }
     if (argc == 7)

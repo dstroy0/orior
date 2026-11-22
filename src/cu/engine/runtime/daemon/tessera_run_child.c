@@ -148,7 +148,11 @@ char **run_channel_open(RunChannel *channel, const RunRequest *request, char *co
         inside_at += 1;
         if ((inside_at >= count) || !run_wsl_program(channel->program, sizeof(channel->program)))
         {
-            fputs(s_run_wsl_unmeasured, stderr);
+            {
+                const char *const error_text = s_run_wsl_unmeasured;
+                platform_terminal_write(1, error_text,
+                                        (unsigned long long)mmgr_text_length(error_text, PLATFORM_TEXT_TO_TERMINATOR));
+            }
             return NULL;
         }
     }
@@ -180,7 +184,11 @@ char **run_channel_open(RunChannel *channel, const RunRequest *request, char *co
             run_record_close(channel);
             remove(path);
         }
-        fputs(s_run_unwatched, stderr);
+        {
+            const char *const error_text = s_run_unwatched;
+            platform_terminal_write(1, error_text,
+                                    (unsigned long long)mmgr_text_length(error_text, PLATFORM_TEXT_TO_TERMINATOR));
+        }
         return NULL;
     }
     // records a child of an earlier process of the same pid left are not read as this child's
@@ -272,11 +280,12 @@ void run_channel_close(RunChannel *channel)
     run_record_close(channel);
     char path[ENGINE_PATH_CAPACITY];
     const int ended = mmgr_text_equal(channel->state, "ended", PLATFORM_TEXT_TO_TERMINATOR);
-    FILE *const logged =
-        (!ended && run_path_joined(channel->records, ".log", path, sizeof(path))) ? fopen(path, "rb") : NULL;
+    PlatformFile *const logged = (!ended && run_path_joined(channel->records, ".log", path, sizeof(path)))
+                                     ? platform_file_open(path, "rb")
+                                     : NULL;
     if (logged != NULL)
     {
-        fclose(logged);
+        platform_file_close(logged);
         {
             EngineNote engine_note;
             engine_note_begun(&engine_note);
@@ -335,7 +344,8 @@ static void run_child_write(const char *records, const char *state, unsigned lon
                             unsigned long long wall, int ended, int code)
 {
     char path[ENGINE_PATH_CAPACITY];
-    FILE *const file = run_path_joined(records, ".child", path, sizeof(path)) ? fopen(path, "wb") : NULL;
+    PlatformFile *const file =
+        run_path_joined(records, ".child", path, sizeof(path)) ? platform_file_open(path, "wb") : NULL;
     if (file == NULL)
     {
         return;
@@ -343,13 +353,31 @@ static void run_child_write(const char *records, const char *state, unsigned lon
     if (ended)
     {
         // an exit code is written as the unsigned word a process ends with, which a reader parses as digits
-        fprintf(file, "%s %llu cpu %llu wall %llu exit %u\n", state, pid, cpu, wall, (unsigned int)code);
+        {
+            mmgr_line_put(platform_file_line(file), state);
+            mmgr_line_put(platform_file_line(file), " ");
+            mmgr_line_decimal(platform_file_line(file), pid, 1u);
+            mmgr_line_put(platform_file_line(file), " cpu ");
+            mmgr_line_decimal(platform_file_line(file), cpu, 1u);
+            mmgr_line_put(platform_file_line(file), " wall ");
+            mmgr_line_decimal(platform_file_line(file), wall, 1u);
+            mmgr_line_put(platform_file_line(file), " exit ");
+            mmgr_line_decimal(platform_file_line(file), (unsigned int)code, 1u);
+            mmgr_line_put(platform_file_line(file), "\n");
+        }
     }
     else
     {
-        fprintf(file, "%s %llu cpu %llu wall %llu\n", state, pid, cpu, wall);
+        mmgr_line_put(platform_file_line(file), state);
+        mmgr_line_put(platform_file_line(file), " ");
+        mmgr_line_decimal(platform_file_line(file), pid, 1u);
+        mmgr_line_put(platform_file_line(file), " cpu ");
+        mmgr_line_decimal(platform_file_line(file), cpu, 1u);
+        mmgr_line_put(platform_file_line(file), " wall ");
+        mmgr_line_decimal(platform_file_line(file), wall, 1u);
+        mmgr_line_put(platform_file_line(file), "\n");
     }
-    fclose(file);
+    platform_file_close(file);
 }
 
 // the command's processor time read now, or the time read before where that is more: a tree that has lost processes

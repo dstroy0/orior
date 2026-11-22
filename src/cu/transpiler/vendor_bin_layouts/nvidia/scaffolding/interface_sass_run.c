@@ -99,13 +99,13 @@ static int sass_run_cases(const char *path)
 // `path` read whole into s_image: the bytes read, or 0 where it was not read or does not fit
 static size_t sass_run_image(const char *path)
 {
-    FILE *const file = fopen(path, "rb");
+    PlatformFile *const file = platform_file_open(path, "rb");
     if (file == NULL)
     {
         return 0u;
     }
-    const size_t read = fread(s_image, 1u, sizeof(s_image), file);
-    fclose(file);
+    const size_t read = platform_file_read_items(s_image, 1u, sizeof(s_image), file);
+    platform_file_close(file);
     return (read < sizeof(s_image)) ? read : 0u;
 }
 
@@ -204,8 +204,8 @@ int program_main(int count, char **words)
         }
         return 2;
     }
-    FILE *const list = fopen(words[2], "rb");
-    FILE *const answers = fopen(words[4], "ab");
+    PlatformFile *const list = platform_file_open(words[2], "rb");
+    PlatformFile *const answers = platform_file_open(words[4], "ab");
     CUdevice device = 0;
     CUcontext context = NULL;
     if ((list == NULL) || (answers == NULL) || (cuInit(0u) != CUDA_SUCCESS) ||
@@ -228,7 +228,7 @@ int program_main(int count, char **words)
     const unsigned long first = strtoul(words[3], NULL, 10);
     char line[SASS_RUN_LINE];
     unsigned long number = 0UL;
-    while (fgets(line, sizeof(line), list) != NULL)
+    while (platform_file_text_read(line, sizeof(line), list) != NULL)
     {
         char path[SASS_RUN_LINE];
         char kernel[SASS_RUN_LINE];
@@ -240,15 +240,20 @@ int program_main(int count, char **words)
         }
         if ((max != 0UL) && (number >= (first + max)))
         {
-            fclose(answers);
-            fclose(list);
+            platform_file_close(answers);
+            platform_file_close(list);
             return 4;
         }
         // a line the writer blocked from the part: its turned operation key contains a control transfer, a wait or no
         // form, and running it could loop or stall the part. It is answered without the device
         if (mmgr_text_equal(path, "skip", PLATFORM_TEXT_TO_TERMINATOR))
         {
-            fprintf(answers, "%lu skipped %s\n", number, kernel);
+            {
+                mmgr_line_decimal(platform_file_line(answers), number, 1u);
+                mmgr_line_put(platform_file_line(answers), " skipped ");
+                mmgr_line_put(platform_file_line(answers), kernel);
+                mmgr_line_put(platform_file_line(answers), "\n");
+            }
             number += 1UL;
             continue;
         }
@@ -260,7 +265,12 @@ int program_main(int count, char **words)
             (size == 0u) ? CUBIN_SAFE_SIZE : cubin_safe_image(&s_machine, s_image, size, 0u, &at);
         if (verdict != CUBIN_SAFE)
         {
-            fprintf(answers, "%lu skipped cubin_safe_%u\n", number, verdict);
+            {
+                mmgr_line_decimal(platform_file_line(answers), number, 1u);
+                mmgr_line_put(platform_file_line(answers), " skipped cubin_safe_");
+                mmgr_line_decimal(platform_file_line(answers), verdict, 1u);
+                mmgr_line_put(platform_file_line(answers), "\n");
+            }
             {
                 VerbaLinea *const output_line = platform_line_out();
                 mmgr_line_put(output_line, "  ");
@@ -278,7 +288,10 @@ int program_main(int count, char **words)
         // the airlock: no line reaches the part without the vendor's verdict in hand, the cross must read it first
         if (!cubin_safe_verdict_ready())
         {
-            fprintf(answers, "%lu skipped no vendor verdict\n", number);
+            {
+                mmgr_line_decimal(platform_file_line(answers), number, 1u);
+                mmgr_line_put(platform_file_line(answers), " skipped no vendor verdict\n");
+            }
             {
                 VerbaLinea *const output_line = platform_line_out();
                 mmgr_line_put(output_line, "  ");
@@ -295,29 +308,48 @@ int program_main(int count, char **words)
         {
             const char *name = NULL;
             cuGetErrorName(status, &name);
-            fprintf(answers, "%lu refused %s\n", number, (name != NULL) ? name : "unnamed");
-            fclose(answers);
+            {
+                mmgr_line_decimal(platform_file_line(answers), number, 1u);
+                mmgr_line_put(platform_file_line(answers), " refused ");
+                mmgr_line_put(platform_file_line(answers), (name != NULL) ? name : "unnamed");
+                mmgr_line_put(platform_file_line(answers), "\n");
+            }
+            platform_file_close(answers);
             return 3;
         }
         if (count >= 6)
         {
-            fprintf(answers, "%lu answered", number);
+            {
+                mmgr_line_decimal(platform_file_line(answers), number, 1u);
+                mmgr_line_put(platform_file_line(answers), " answered");
+            }
             for (unsigned int at = 0u; at < s_case_count; at += 1u)
             {
-                fprintf(answers, " %08x", s_answers[at][0]);
+                mmgr_line_put(platform_file_line(answers), " ");
+                mmgr_line_hex(platform_file_line(answers), s_answers[at][0], 8u);
             }
-            fprintf(answers, "\n");
+            {
+                mmgr_line_put(platform_file_line(answers), "\n");
+            }
         }
         else
         {
-            fprintf(answers, "%lu answered %08x %08x %08x %08x\n", number, s_answers[0][0], s_answers[0][1],
-                    s_answers[0][2], s_answers[0][3]);
+            mmgr_line_decimal(platform_file_line(answers), number, 1u);
+            mmgr_line_put(platform_file_line(answers), " answered ");
+            mmgr_line_hex(platform_file_line(answers), s_answers[0][0], 8u);
+            mmgr_line_put(platform_file_line(answers), " ");
+            mmgr_line_hex(platform_file_line(answers), s_answers[0][1], 8u);
+            mmgr_line_put(platform_file_line(answers), " ");
+            mmgr_line_hex(platform_file_line(answers), s_answers[0][2], 8u);
+            mmgr_line_put(platform_file_line(answers), " ");
+            mmgr_line_hex(platform_file_line(answers), s_answers[0][3], 8u);
+            mmgr_line_put(platform_file_line(answers), "\n");
         }
         // the pause spaces the launches and prevents a run of them from flooding the part
         Sleep(SASS_RUN_PAUSE_MS);
         number += 1UL;
     }
-    fclose(answers);
-    fclose(list);
+    platform_file_close(answers);
+    platform_file_close(list);
     return 0;
 }

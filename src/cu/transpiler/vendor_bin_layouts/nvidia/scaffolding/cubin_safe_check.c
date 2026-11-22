@@ -433,11 +433,11 @@ int program_main(int count, char **words)
     unsigned int safe = 0u;
     for (int at = 2; at < count; at += 1)
     {
-        FILE *const file = fopen(words[at], "rb");
-        const size_t size = (file != NULL) ? fread(s_image, 1u, sizeof(s_image), file) : 0u;
+        PlatformFile *const file = platform_file_open(words[at], "rb");
+        const size_t size = (file != NULL) ? platform_file_read_items(s_image, 1u, sizeof(s_image), file) : 0u;
         if (file != NULL)
         {
-            fclose(file);
+            platform_file_close(file);
         }
         unsigned long long where = 0ULL;
         const unsigned int verdict = cubin_safe_image(&s_machine, s_image, size, 0u, &where);

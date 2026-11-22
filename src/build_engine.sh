@@ -71,7 +71,7 @@ MODULES=(engine/formats/stack ../includes/formats/stack ../includes/file_defs/kr
          cu/engine/analysis/noise_detector engine/runtime/schedule cu/engine/runtime/schedule
          engine/compiler/keymath cu/engine/analysis/keymath engine/compiler/key_schedule
          cu/engine/analysis/key_schedule engine/compiler/cycle cu/engine/analysis/cycle
-         engine/compiler/codegen cu/engine/rmc ../includes/parsers ../includes/file_defs/klq engine/runtime/radix_keys
+         engine/compiler/codegen cu/engine/rmc ../includes/parsers ../includes/file_defs/krs/ruleset_flat ../includes/file_defs/klq engine/runtime/radix_keys
          engine/analysis/unit_sweep cu/engine/analysis/unit_sweep engine/runtime/obsignatio
          cu/engine/runtime/obsignatio engine/analysis/residual cu/engine/analysis/residual
          engine/nbody/max_tree cu/engine/nbody/max_tree engine/nbody/flatten cu/engine/nbody/flatten
@@ -155,7 +155,7 @@ queued() {
 
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
-        C_WORDS=(nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2" "${DEFINES[@]}" "${MODULE_INCLUDES[@]}" "${EXACT_FLAGS[@]}")
+        C_WORDS=(nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${DEFINES[@]}" "${MODULE_INCLUDES[@]}" "${EXACT_FLAGS[@]}")
         EXACT_WORDS=(nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2" "${EXACT_FLAGS[@]}")
         ;;
     *)
@@ -194,6 +194,11 @@ for portable in cu/engine/nbody/body_overlap cu/engine/nbody/heaviest_matching c
     done
 done
 for source in "${FILE_DEFS_LINEA[@]}"; do
+    listed "$source" "${C_WORDS[@]}"
+done
+# the member reader of a query file, which the ruleset reader reads a ruleset's blob through
+for source in "$TOP/includes/file_defs/qry/writer/qry_member.c" "$TOP/includes/file_defs/qry/writer/platform/"*.c \
+    "$TOP/includes/file_defs/qry/qry_read.c"; do
     listed "$source" "${C_WORDS[@]}"
 done
 for name in exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}; do

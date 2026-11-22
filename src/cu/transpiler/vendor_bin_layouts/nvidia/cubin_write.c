@@ -85,7 +85,7 @@ static unsigned int cubin_hex_digit(char digit)
 unsigned long long cubin_pattern_read(const char *path, unsigned char *pattern, unsigned long long room, char *kernel,
                                       unsigned int kernel_room)
 {
-    FILE *const file = fopen(path, "rb");
+    PlatformFile *const file = platform_file_open(path, "rb");
     if (file == NULL)
     {
         {
@@ -102,7 +102,7 @@ unsigned long long cubin_pattern_read(const char *path, unsigned char *pattern, 
     int fits = 1;
     kernel[0] = '\0';
     char line[512];
-    while (fits && (fgets(line, sizeof(line), file) != NULL))
+    while (fits && (platform_file_text_read(line, sizeof(line), file) != NULL))
     {
         char name[256];
         const char *read = line;
@@ -132,7 +132,7 @@ unsigned long long cubin_pattern_read(const char *path, unsigned char *pattern, 
             }
         }
     }
-    fclose(file);
+    platform_file_close(file);
     if (!fits || (size == 0ULL) || (kernel[0] == '\0'))
     {
         {

@@ -23,11 +23,11 @@ static unsigned char s_safe_image[SASS_SAFE_CUBIN];
 
 int sass_cubin_safe(const SassProbe *probe, const char *path)
 {
-    FILE *const file = fopen(path, "rb");
-    const size_t size = (file != NULL) ? fread(s_safe_image, 1u, sizeof(s_safe_image), file) : 0u;
+    PlatformFile *const file = platform_file_open(path, "rb");
+    const size_t size = (file != NULL) ? platform_file_read_items(s_safe_image, 1u, sizeof(s_safe_image), file) : 0u;
     if (file != NULL)
     {
-        fclose(file);
+        platform_file_close(file);
     }
     unsigned long long at = 0ULL;
     const unsigned int verdict = ((probe->machine == NULL) || (size == 0u) || (size == sizeof(s_safe_image)))

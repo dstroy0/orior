@@ -217,7 +217,8 @@ static void noise_neighbors_summary(const char *name, const unsigned long long s
     platform_line_flushed();
 }
 
-static int noise_neighbors_rows(FILE *table, const char *name, const unsigned long long sums[NOISE_NEIGHBORS_CELLS])
+static int noise_neighbors_rows(PlatformFile *table, const char *name,
+                                const unsigned long long sums[NOISE_NEIGHBORS_CELLS])
 {
     int ok = 1;
     for (unsigned int radius = 0u; ok && (radius < NOISE_NEIGHBOR_RADII); radius += 1u)
@@ -230,10 +231,24 @@ static int noise_neighbors_rows(FILE *table, const char *name, const unsigned lo
             {
                 continue;
             }
-            ok = fprintf(table, "%s\t%s\t%u\t%llu\t%llu\t%llu\t%llu\t%llu\n", name, NOISE_RANGE_NAMES[radius],
-                         level_bin << (NOISE_LEVEL_BIN_SHIFT - 1u), cell[NOISE_NEIGHBORS_PAIRS],
-                         cell[NOISE_NEIGHBORS_SQUARES], cell[NOISE_NEIGHBORS_OTHER_SQUARES],
-                         cell[NOISE_NEIGHBORS_RAISED], cell[NOISE_NEIGHBORS_LOWERED]) > 0;
+            unsigned long long formed_mark_1;
+            ok =
+                (formed_mark_1 = platform_file_mark(table), mmgr_line_put(platform_file_line(table), name),
+                 mmgr_line_put(platform_file_line(table), "\t"),
+                 mmgr_line_put(platform_file_line(table), NOISE_RANGE_NAMES[radius]),
+                 mmgr_line_put(platform_file_line(table), "\t"),
+                 mmgr_line_decimal(platform_file_line(table), level_bin << (NOISE_LEVEL_BIN_SHIFT - 1u), 1u),
+                 mmgr_line_put(platform_file_line(table), "\t"),
+                 mmgr_line_decimal(platform_file_line(table), cell[NOISE_NEIGHBORS_PAIRS], 1u),
+                 mmgr_line_put(platform_file_line(table), "\t"),
+                 mmgr_line_decimal(platform_file_line(table), cell[NOISE_NEIGHBORS_SQUARES], 1u),
+                 mmgr_line_put(platform_file_line(table), "\t"),
+                 mmgr_line_decimal(platform_file_line(table), cell[NOISE_NEIGHBORS_OTHER_SQUARES], 1u),
+                 mmgr_line_put(platform_file_line(table), "\t"),
+                 mmgr_line_decimal(platform_file_line(table), cell[NOISE_NEIGHBORS_RAISED], 1u),
+                 mmgr_line_put(platform_file_line(table), "\t"),
+                 mmgr_line_decimal(platform_file_line(table), cell[NOISE_NEIGHBORS_LOWERED], 1u),
+                 mmgr_line_put(platform_file_line(table), "\n"), platform_file_written_since(table, formed_mark_1)) > 0;
         }
     }
     return ok;
@@ -254,13 +269,17 @@ extern "C" long noise_neighbors_set(const NoiseSetRequest *request)
                                                   (void)mmgr_line_finish(&formed_line_1), (int)formed_line_1.at)
                                                : -1;
     const int named = (written > 0) && ((size_t)written < sizeof(path));
-    FILE *const table = named ? fopen(path, "wb") : NULL;
-    int ok = NOISE_DETECTOR_CHECK(named && (request->samples != NULL) && (request->load != NULL), request, error,
-                                  ENGINE_ERROR_REQUEST) &&
-             NOISE_DETECTOR_IO(table != NULL, path, error) &&
-             NOISE_DETECTOR_IO(fprintf(table, "sample\taxis\tlowest_mean\tpairs\tsquares\tnext_squares\traised"
-                                              "\tlowered\n") > 0,
-                               table, error);
+    PlatformFile *const table = named ? platform_file_open(path, "wb") : NULL;
+    unsigned long long formed_mark_2;
+    int ok =
+        NOISE_DETECTOR_CHECK(named && (request->samples != NULL) && (request->load != NULL), request, error,
+                             ENGINE_ERROR_REQUEST) &&
+        NOISE_DETECTOR_IO(table != NULL, path, error) &&
+        NOISE_DETECTOR_IO((formed_mark_2 = platform_file_mark(table),
+                           mmgr_line_put(platform_file_line(table),
+                                         "sample\taxis\tlowest_mean\tpairs\tsquares\tnext_squares\traised\tlowered\n"),
+                           platform_file_written_since(table, formed_mark_2)) > 0,
+                          table, error);
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line,
@@ -319,7 +338,7 @@ extern "C" long noise_neighbors_set(const NoiseSetRequest *request)
     free(sums);
     if (table != NULL)
     {
-        ok = NOISE_DETECTOR_IO(fclose(table) == 0, path, error) && ok;
+        ok = NOISE_DETECTOR_IO(platform_file_close(table) == 0, path, error) && ok;
     }
     if (ok != 0)
     {

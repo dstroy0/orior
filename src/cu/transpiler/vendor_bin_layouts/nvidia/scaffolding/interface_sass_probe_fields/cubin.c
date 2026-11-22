@@ -26,21 +26,21 @@ static unsigned char s_key_control[SASS_OPERATION_MASK + 1u];
 // `path` read whole into `bytes`, which has room for `room`: the bytes read, 0 where it was not read
 unsigned long long fields_file_read(const char *path, unsigned char *bytes, unsigned long long room)
 {
-    FILE *const file = fopen(path, "rb");
+    PlatformFile *const file = platform_file_open(path, "rb");
     if (file == NULL)
     {
         return 0ULL;
     }
-    const unsigned long long read = (unsigned long long)fread(bytes, 1u, (size_t)room, file);
-    fclose(file);
+    const unsigned long long read = (unsigned long long)platform_file_read_items(bytes, 1u, (size_t)room, file);
+    platform_file_close(file);
     return read;
 }
 
 static int fields_file_write(const char *path, const unsigned char *bytes, unsigned long long size)
 {
-    FILE *const file = fopen(path, "wb");
-    const int written = (file != NULL) && (fwrite(bytes, 1u, (size_t)size, file) == size);
-    const int closed = (file != NULL) && (fclose(file) == 0);
+    PlatformFile *const file = platform_file_open(path, "wb");
+    const int written = (file != NULL) && (platform_file_write_items(bytes, 1u, (size_t)size, file) == size);
+    const int closed = (file != NULL) && (platform_file_close(file) == 0);
     return written && closed;
 }
 
@@ -232,14 +232,14 @@ int fields_flip_safe(unsigned int place, unsigned int bit, char *name, size_t ro
 // contains none. The kernel's own IADD3 and blank lines are passed over, as the write pass passes them
 int fields_first(const char *path, char *instruction, size_t room)
 {
-    FILE *const file = fopen(path, "rb");
+    PlatformFile *const file = platform_file_open(path, "rb");
     if (file == NULL)
     {
         return 0;
     }
     char line[512];
     int found = 0;
-    while (!found && (fgets(line, sizeof(line), file) != NULL))
+    while (!found && (platform_file_text_read(line, sizeof(line), file) != NULL))
     {
         line[strcspn(line, "\r\n")] = '\0';
         const char *const walk = line + strspn(line, " \t");
@@ -251,7 +251,7 @@ int fields_first(const char *path, char *instruction, size_t room)
             found = (int)formed_line_2.at < (int)room;
         }
     }
-    fclose(file);
+    platform_file_close(file);
     return found;
 }
 

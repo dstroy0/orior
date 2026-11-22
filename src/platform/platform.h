@@ -71,6 +71,10 @@ void platform_line_flushed(void);
 // process ends
 void platform_line_out_ended(void);
 
+// Each later write to the line of the output stream goes out at its end, on a pipe or a file as on a terminal. A
+// program whose reader follows its output as it runs asks for this, as setvbuf of stdout asks the C library
+void platform_line_out_every_write(void);
+
 // `length` bytes of `bytes` written to the line of the output stream as one write, which platform_line_out_ended
 // ends. The answer is the count of bytes the line took, `length` where every byte went
 unsigned long long platform_line_out_put(const char *bytes, unsigned long long length);
@@ -213,6 +217,17 @@ size_t platform_file_write_items(const void *bytes, size_t size, size_t count, P
 
 // at max `count` items of `size` bytes read into `out`: the count of whole items read, as fread answers
 size_t platform_file_read_items(void *out, size_t size, size_t count, PlatformFile *file);
+
+// the next byte of the file read, as unsigned, or PLATFORM_FILE_END at its end or where the read failed, as fgetc
+// answers
+int platform_file_char_get(PlatformFile *file);
+
+// the bytes that the file took so far, for platform_file_written_since
+unsigned long long platform_file_mark(PlatformFile *file);
+
+// The bytes that the file took since `mark`, as fprintf answers for the writes between. The answer is -1 where a write
+// of the file failed
+int platform_file_written_since(PlatformFile *file, unsigned long long mark);
 
 // a terminated text written to the file: 0, or PLATFORM_FILE_END where it did not go, as fputs answers
 int platform_file_text_put(const char *text, PlatformFile *file);

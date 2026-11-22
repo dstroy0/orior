@@ -42,13 +42,13 @@ int program_main(int count, char **words)
     }
     for (int at = 3; at < count; at += 1)
     {
-        FILE *const file = fopen(words[at], "rb");
+        PlatformFile *const file = platform_file_open(words[at], "rb");
         if (file == NULL)
         {
             continue;
         }
-        const size_t size = fread(s_cubin, 1u, sizeof(s_cubin), file);
-        fclose(file);
+        const size_t size = platform_file_read_items(s_cubin, 1u, sizeof(s_cubin), file);
+        platform_file_close(file);
         s_cubins += ((size < sizeof(s_cubin)) && scheduler_cubin(size)) ? 1u : 0u;
     }
     if (!scheduler_record(words[2]))

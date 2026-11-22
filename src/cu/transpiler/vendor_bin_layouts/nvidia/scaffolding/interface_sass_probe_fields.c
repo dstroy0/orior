@@ -84,7 +84,7 @@ int program_main(int count, char **words)
         return 2;
     }
     fields_keys();
-    FILE *const instructions = fopen(words[5], "rb");
+    PlatformFile *const instructions = platform_file_open(words[5], "rb");
     if (instructions == NULL)
     {
         {
@@ -100,7 +100,7 @@ int program_main(int count, char **words)
     }
     // step one: the first instruction turned bit by bit into cubins and a list, which interface_sass_run runs
     char line[512];
-    while (fgets(line, sizeof(line), instructions) != NULL)
+    while (platform_file_text_read(line, sizeof(line), instructions) != NULL)
     {
         line[strcspn(line, "\r\n")] = '\0';
         const char *walk = line + strspn(line, " \t");
@@ -186,7 +186,7 @@ int program_main(int count, char **words)
             mmgr_line_put(&buffer_line, "/list.txt");
             (void)mmgr_line_finish(&buffer_line);
         }
-        FILE *const made = fopen(path, "wb");
+        PlatformFile *const made = platform_file_open(path, "wb");
         // the baseline first, its bit 128 turning nothing, then one line an operation bit. A bit whose turned operation
         // key contains a control transfer, a wait or no form is blocked from the part with a skip line in its place: a
         // bit-flip never loops or stalls the part, and the line order still names the bit a row belongs to
@@ -208,17 +208,22 @@ int program_main(int count, char **words)
             {
                 if (made != NULL)
                 {
-                    fprintf(made, "%s %s\n", cubin, s_kernel);
+                    mmgr_line_put(platform_file_line(made), cubin);
+                    mmgr_line_put(platform_file_line(made), " ");
+                    mmgr_line_put(platform_file_line(made), s_kernel);
+                    mmgr_line_put(platform_file_line(made), "\n");
                 }
             }
             else if (made != NULL)
             {
-                fprintf(made, "skip %s\n", name);
+                mmgr_line_put(platform_file_line(made), "skip ");
+                mmgr_line_put(platform_file_line(made), name);
+                mmgr_line_put(platform_file_line(made), "\n");
             }
         }
         if (made != NULL)
         {
-            fclose(made);
+            platform_file_close(made);
         }
         {
             VerbaLinea *const output_line = platform_line_out();
@@ -233,6 +238,6 @@ int program_main(int count, char **words)
         }
         break;
     }
-    fclose(instructions);
+    platform_file_close(instructions);
     return 0;
 }

@@ -1149,7 +1149,7 @@ static std::string emit_code(const std::string &text)
 // the record written as a table to `path`
 static int emit_record(const char *path, const char *listing)
 {
-    FILE *const file = fopen(path, "w");
+    PlatformFile *const file = platform_file_open(path, "w");
     if (file == nullptr)
     {
         {
@@ -1163,18 +1163,38 @@ static int emit_record(const char *path, const char *listing)
         }
         return 0;
     }
-    fprintf(file, "# The monolith checked against our compiler\n\n");
-    fprintf(file, "Written by `monolith_emit %s all <this file>` and written again on every run. ", listing);
-    fprintf(file, "Each block of the monolith's tagged build is NVIDIA's writing of one precept. ");
-    fprintf(file,
+    {
+        mmgr_line_put(platform_file_line(file), "# The monolith checked against our compiler\n\n");
+    }
+    {
+        mmgr_line_put(platform_file_line(file), "Written by `monolith_emit ");
+        mmgr_line_put(platform_file_line(file), listing);
+        mmgr_line_put(platform_file_line(file), " all <this file>` and written again on every run. ");
+    }
+    {
+        mmgr_line_put(platform_file_line(file),
+                      "Each block of the monolith's tagged build is NVIDIA's writing of one precept. ");
+    }
+    {
+        mmgr_line_put(
+            platform_file_line(file),
             "A row with an address is one of NVIDIA's instructions checked against our reader and our assembler; ");
-    fprintf(file, "a row with a compiler column is our compiler's writing of the block's precept. ");
-    fprintf(file, "Scheduler bits are 105 to 127, apart from the operation's. ");
-    fprintf(file,
-            "NVIDIA's text is written in ours: a memory operand whose descriptor the listing does not print is "
-            "written term[%s], the uniform register the kernel loads c[0x0][0x118] into. ",
-            s_descriptor.empty() ? "URn" : s_descriptor.c_str());
-    fprintf(file, "Operation bits apart only in a field the part does not read, every value of it answering as printed "
+    }
+    {
+        mmgr_line_put(platform_file_line(file),
+                      "a row with a compiler column is our compiler's writing of the block's precept. ");
+    }
+    {
+        mmgr_line_put(platform_file_line(file), "Scheduler bits are 105 to 127, apart from the operation's. ");
+    }
+    {
+        mmgr_line_put(platform_file_line(file), "NVIDIA's text is written in ours: a memory operand whose descriptor "
+                                                "the listing does not print is written term[");
+        mmgr_line_put(platform_file_line(file), s_descriptor.empty() ? "URn" : s_descriptor.c_str());
+        mmgr_line_put(platform_file_line(file), "], the uniform register the kernel loads c[0x0][0x118] into. ");
+    }
+    mmgr_line_put(platform_file_line(file),
+                  "Operation bits apart only in a field the part does not read, every value of it answering as printed "
                   "in `" EMIT_UNREAD_PATH "` or alike in `" EMIT_UNREAD_FORMS_PATH "`, are read as the same.\n\n");
     unsigned int instructions = 0u;
     unsigned int formless = 0u;
@@ -1193,40 +1213,87 @@ static int emit_record(const char *path, const char *listing)
         unread_apart += (row.operation.find("the part does not read") != std::string::npos) ? 1u : 0u;
         scheduler_apart += (!row.scheduler.empty() && (row.scheduler != "same") && (row.scheduler != "-")) ? 1u : 0u;
     }
-    fprintf(file,
-            "%u of NVIDIA's instructions read: %u with no form in the machine file, %u whose text a form matches "
-            "and whose bits it does not, %u whose text a form matches with an operand it places none of, %u with "
-            "operation bits apart, %u apart only at bits the part does not read, %u with scheduler bits "
-            "apart.\n\n",
-            instructions, formless, unknown, unplaced, operation_apart, unread_apart, scheduler_apart);
-    fprintf(file, "| block | precept | address | NVIDIA | our reader | our assembler | scheduler | our compiler | "
-                  "difference |\n");
-    fprintf(file, "|---|---|---|---|---|---|---|---|---|\n");
+    {
+        mmgr_line_decimal(platform_file_line(file), instructions, 1u);
+        mmgr_line_put(platform_file_line(file), " of NVIDIA's instructions read: ");
+        mmgr_line_decimal(platform_file_line(file), formless, 1u);
+        mmgr_line_put(platform_file_line(file), " with no form in the machine file, ");
+        mmgr_line_decimal(platform_file_line(file), unknown, 1u);
+        mmgr_line_put(platform_file_line(file), " whose text a form matches and whose bits it does not, ");
+        mmgr_line_decimal(platform_file_line(file), unplaced, 1u);
+        mmgr_line_put(platform_file_line(file), " whose text a form matches with an operand it places none of, ");
+        mmgr_line_decimal(platform_file_line(file), operation_apart, 1u);
+        mmgr_line_put(platform_file_line(file), " with operation bits apart, ");
+        mmgr_line_decimal(platform_file_line(file), unread_apart, 1u);
+        mmgr_line_put(platform_file_line(file), " apart only at bits the part does not read, ");
+        mmgr_line_decimal(platform_file_line(file), scheduler_apart, 1u);
+        mmgr_line_put(platform_file_line(file), " with scheduler bits apart.\n\n");
+    }
+    {
+        mmgr_line_put(platform_file_line(file), "| block | precept | address | NVIDIA | our reader | our assembler | "
+                                                "scheduler | our compiler | difference |\n");
+    }
+    {
+        mmgr_line_put(platform_file_line(file), "|---|---|---|---|---|---|---|---|---|\n");
+    }
     for (const EmitRow &row : s_rows)
     {
-        fprintf(file, "| %u | %s | %s | %s | %s | %s | %s | %s | %s |\n", row.block, row.precept.c_str(),
-                row.address.c_str(), emit_code(row.nvidia).c_str(),
-                ((row.reader == "same") || (row.reader == "no form matches its text") ||
-                 (row.reader == "a form matches its text and not its bits") || row.reader.empty())
-                    ? row.reader.c_str()
-                    : emit_code(row.reader).c_str(),
-                row.operation.c_str(), row.scheduler.c_str(), emit_code(row.compiler).c_str(), row.difference.c_str());
+        mmgr_line_put(platform_file_line(file), "| ");
+        mmgr_line_decimal(platform_file_line(file), row.block, 1u);
+        mmgr_line_put(platform_file_line(file), " | ");
+        mmgr_line_put(platform_file_line(file), row.precept.c_str());
+        mmgr_line_put(platform_file_line(file), " | ");
+        mmgr_line_put(platform_file_line(file), row.address.c_str());
+        mmgr_line_put(platform_file_line(file), " | ");
+        mmgr_line_put(platform_file_line(file), emit_code(row.nvidia).c_str());
+        mmgr_line_put(platform_file_line(file), " | ");
+        mmgr_line_put(platform_file_line(file),
+                      ((row.reader == "same") || (row.reader == "no form matches its text") ||
+                       (row.reader == "a form matches its text and not its bits") || row.reader.empty())
+                          ? row.reader.c_str()
+                          : emit_code(row.reader).c_str());
+        mmgr_line_put(platform_file_line(file), " | ");
+        mmgr_line_put(platform_file_line(file), row.operation.c_str());
+        mmgr_line_put(platform_file_line(file), " | ");
+        mmgr_line_put(platform_file_line(file), row.scheduler.c_str());
+        mmgr_line_put(platform_file_line(file), " | ");
+        mmgr_line_put(platform_file_line(file), emit_code(row.compiler).c_str());
+        mmgr_line_put(platform_file_line(file), " | ");
+        mmgr_line_put(platform_file_line(file), row.difference.c_str());
+        mmgr_line_put(platform_file_line(file), " |\n");
     }
     // every row whose operation bits are apart, NVIDIA's encoding and ours bit by bit, bit 127 first
-    fprintf(file, "\n## Bits apart\n\n");
-    fprintf(file,
+    {
+        mmgr_line_put(platform_file_line(file), "\n## Bits apart\n\n");
+    }
+    {
+        mmgr_line_put(
+            platform_file_line(file),
             "Each instruction whose operation bits are apart from NVIDIA's, both encodings bit by bit with bit 127 "
             "first under each byte's top bit; `^` marks an operation bit apart and `.` a scheduler bit apart.\n");
+    }
     for (const EmitRow &row : s_rows)
     {
         if (row.bits.empty())
         {
             continue;
         }
-        fprintf(file, "\nBlock %u, %s, `%s`%s\n\n```\n%s```\n", row.block, row.precept.c_str(), row.nvidia.c_str(),
-                row.compiler.empty() ? ", our assembler" : (", " + row.compiler).c_str(), row.bits.c_str());
+        {
+            mmgr_line_put(platform_file_line(file), "\nBlock ");
+            mmgr_line_decimal(platform_file_line(file), row.block, 1u);
+            mmgr_line_put(platform_file_line(file), ", ");
+            mmgr_line_put(platform_file_line(file), row.precept.c_str());
+            mmgr_line_put(platform_file_line(file), ", `");
+            mmgr_line_put(platform_file_line(file), row.nvidia.c_str());
+            mmgr_line_put(platform_file_line(file), "`");
+            mmgr_line_put(platform_file_line(file),
+                          row.compiler.empty() ? ", our assembler" : (", " + row.compiler).c_str());
+            mmgr_line_put(platform_file_line(file), "\n\n```\n");
+            mmgr_line_put(platform_file_line(file), row.bits.c_str());
+            mmgr_line_put(platform_file_line(file), "```\n");
+        }
     }
-    fclose(file);
+    platform_file_close(file);
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "the record of ");

@@ -3,6 +3,7 @@
 // verdicts.c: the verdicts: the gated encodings cleared, read line by line, added and loaded, whether a verdict is
 // ready and blocks, the admitted encodings cleared, read and stored, and a verdict's name
 #include "cubin_safe_internal.h"
+#include "../../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 #include "../../../../../../includes/parsers/line_read.h"
 
@@ -97,7 +98,7 @@ int cubin_safe_verdict_added(const char *bytes, unsigned long long size)
 
 int cubin_safe_verdict_load(const char *path)
 {
-    FILE *const file = fopen(path, "rb");
+    PlatformFile *const file = platform_file_open(path, "rb");
     if (file == NULL)
     {
         return 0;
@@ -120,15 +121,15 @@ int cubin_safe_verdict_load(const char *path)
                 break;
             }
         }
-        const size_t read = fread(bytes + size, 1u, room - size, file);
+        const size_t read = platform_file_read_items(bytes + size, 1u, room - size, file);
         if (read == 0u)
         {
             break;
         }
         size += read;
     }
-    whole = whole && (ferror(file) == 0);
-    fclose(file);
+    whole = whole && (platform_file_failed(file) == 0);
+    platform_file_close(file);
     const int loaded = whole && cubin_safe_verdict_read(bytes, (unsigned long long)size);
     free(bytes);
     if (!loaded)

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_detector_lines.cu: line and plane noise sampled
 #include "noise_detector_internal.h"
+#include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 void noise_wide_add(NoiseWide *sum, unsigned long long low, unsigned long long high)
@@ -138,17 +139,39 @@ static int noise_planes_pool(const NoisePlane *planes, unsigned long long count,
     return ok;
 }
 
-static int noise_planes_rows(FILE *table, const char *name, const NoisePlane *planes, unsigned long long count,
+static int noise_planes_rows(PlatformFile *table, const char *name, const NoisePlane *planes, unsigned long long count,
                              unsigned long long depth, unsigned long long members)
 {
     int ok = 1;
     for (unsigned long long plane = 0ULL; ok && (plane < count); plane += 1ULL)
     {
         const NoisePlane *const one = &planes[plane];
-        ok = fprintf(table, "%s\t%llu\t%llu\t%llu\t%llu\t%lld\t%llu\t%llu\t%llu\t%llu\t%lld\t%llu\t%llu\n", name,
-                     plane / depth, plane % depth, members, one->level, one->summed, one->squared, one->row_squares,
-                     one->column_squares, one->static_members, one->static_summed, one->static_squared,
-                     one->static_level) > 0;
+        unsigned long long formed_mark_1;
+        ok = (formed_mark_1 = platform_file_mark(table), mmgr_line_put(platform_file_line(table), name),
+              mmgr_line_put(platform_file_line(table), "\t"),
+              mmgr_line_decimal(platform_file_line(table), plane / depth, 1u),
+              mmgr_line_put(platform_file_line(table), "\t"),
+              mmgr_line_decimal(platform_file_line(table), plane % depth, 1u),
+              mmgr_line_put(platform_file_line(table), "\t"), mmgr_line_decimal(platform_file_line(table), members, 1u),
+              mmgr_line_put(platform_file_line(table), "\t"),
+              mmgr_line_decimal(platform_file_line(table), one->level, 1u),
+              mmgr_line_put(platform_file_line(table), "\t"),
+              mmgr_line_decimal_signed(platform_file_line(table), one->summed),
+              mmgr_line_put(platform_file_line(table), "\t"),
+              mmgr_line_decimal(platform_file_line(table), one->squared, 1u),
+              mmgr_line_put(platform_file_line(table), "\t"),
+              mmgr_line_decimal(platform_file_line(table), one->row_squares, 1u),
+              mmgr_line_put(platform_file_line(table), "\t"),
+              mmgr_line_decimal(platform_file_line(table), one->column_squares, 1u),
+              mmgr_line_put(platform_file_line(table), "\t"),
+              mmgr_line_decimal(platform_file_line(table), one->static_members, 1u),
+              mmgr_line_put(platform_file_line(table), "\t"),
+              mmgr_line_decimal_signed(platform_file_line(table), one->static_summed),
+              mmgr_line_put(platform_file_line(table), "\t"),
+              mmgr_line_decimal(platform_file_line(table), one->static_squared, 1u),
+              mmgr_line_put(platform_file_line(table), "\t"),
+              mmgr_line_decimal(platform_file_line(table), one->static_level, 1u),
+              mmgr_line_put(platform_file_line(table), "\n"), platform_file_written_since(table, formed_mark_1)) > 0;
     }
     return ok;
 }
@@ -247,7 +270,7 @@ static void noise_static_line_add(NoiseWide *line_squares, unsigned long long *p
 // pooled for the two-way layout. The static voxels' lines pooled apart.
 long noise_lines_sample(const unsigned short *volume, const unsigned long long extent[4],
                         NoiseLineCell cells[NOISE_LINE_CELLS], NoisePlanePool *pool, NoiseStaticPool *still,
-                        FILE *plane_table, const char *name, EngineError *error)
+                        PlatformFile *plane_table, const char *name, EngineError *error)
 {
     const unsigned long long frames = extent[0];
     const unsigned long long depth = extent[1];

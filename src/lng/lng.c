@@ -87,7 +87,11 @@ static void *lng_allocated(void *pointer)
 {
     if (pointer == NULL)
     {
-        fputs("lng: the system gave no memory\n", stderr);
+        {
+            const char *const error_text = "lng: the system gave no memory\n";
+            platform_terminal_write(1, error_text,
+                                    (unsigned long long)mmgr_text_length(error_text, PLATFORM_TEXT_TO_TERMINATOR));
+        }
         exit(2);
     }
     return pointer;

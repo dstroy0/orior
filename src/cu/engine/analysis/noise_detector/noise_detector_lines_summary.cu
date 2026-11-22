@@ -311,7 +311,7 @@ static void noise_static_summary(const NoiseStaticPool *still)
     platform_line_flushed();
 }
 
-static int noise_lines_rows(FILE *table, const char *name, const NoiseLineCell cells[NOISE_LINE_CELLS])
+static int noise_lines_rows(PlatformFile *table, const char *name, const NoiseLineCell cells[NOISE_LINE_CELLS])
 {
     int ok = 1;
     for (unsigned int type = 0u; ok && (type < NOISE_LINE_TYPES); type += 1u)
@@ -323,9 +323,24 @@ static int noise_lines_rows(FILE *table, const char *name, const NoiseLineCell c
             {
                 continue;
             }
-            ok = fprintf(table, "%s\t%s\t%u\t%llu\t%llu\t%llu\t%llu\t%llu\n", name, NOISE_LINE_NAMES[type],
-                         level_bin << (NOISE_LEVEL_BIN_SHIFT - 1u), cell->lines, cell->members, cell->member_squares,
-                         cell->line_squares.high, cell->line_squares.low) > 0;
+            unsigned long long formed_mark_1;
+            ok =
+                (formed_mark_1 = platform_file_mark(table), mmgr_line_put(platform_file_line(table), name),
+                 mmgr_line_put(platform_file_line(table), "\t"),
+                 mmgr_line_put(platform_file_line(table), NOISE_LINE_NAMES[type]),
+                 mmgr_line_put(platform_file_line(table), "\t"),
+                 mmgr_line_decimal(platform_file_line(table), level_bin << (NOISE_LEVEL_BIN_SHIFT - 1u), 1u),
+                 mmgr_line_put(platform_file_line(table), "\t"),
+                 mmgr_line_decimal(platform_file_line(table), cell->lines, 1u),
+                 mmgr_line_put(platform_file_line(table), "\t"),
+                 mmgr_line_decimal(platform_file_line(table), cell->members, 1u),
+                 mmgr_line_put(platform_file_line(table), "\t"),
+                 mmgr_line_decimal(platform_file_line(table), cell->member_squares, 1u),
+                 mmgr_line_put(platform_file_line(table), "\t"),
+                 mmgr_line_decimal(platform_file_line(table), cell->line_squares.high, 1u),
+                 mmgr_line_put(platform_file_line(table), "\t"),
+                 mmgr_line_decimal(platform_file_line(table), cell->line_squares.low, 1u),
+                 mmgr_line_put(platform_file_line(table), "\n"), platform_file_written_since(table, formed_mark_1)) > 0;
         }
     }
     return ok;
@@ -346,7 +361,7 @@ extern "C" long noise_lines_set(const NoiseSetRequest *request)
                                                   (void)mmgr_line_finish(&formed_line_1), (int)formed_line_1.at)
                                                : -1;
     const int named = (written > 0) && ((size_t)written < sizeof(path));
-    FILE *const table = named ? fopen(path, "wb") : NULL;
+    PlatformFile *const table = named ? platform_file_open(path, "wb") : NULL;
     char plane_path[ENGINE_PATH_CAPACITY];
     VerbaLinea formed_line_2;
     const int plane_written = (request->set != NULL) ? (formed_line_2 = mmgr_line_over(plane_path, sizeof(plane_path)),
@@ -355,18 +370,28 @@ extern "C" long noise_lines_set(const NoiseSetRequest *request)
                                                         (void)mmgr_line_finish(&formed_line_2), (int)formed_line_2.at)
                                                      : -1;
     const int plane_named = (plane_written > 0) && ((size_t)plane_written < sizeof(plane_path));
-    FILE *const plane_table = plane_named ? fopen(plane_path, "wb") : NULL;
-    int ok = NOISE_DETECTOR_CHECK(named && plane_named && (request->samples != NULL) && (request->load != NULL),
-                                  request, error, ENGINE_ERROR_REQUEST) &&
-             NOISE_DETECTOR_IO(table != NULL, path, error) &&
-             NOISE_DETECTOR_IO(fprintf(table, "sample\tline\tlowest_mean\tlines\tmembers\tmember_squares"
-                                              "\tline_squares_high\tline_squares_low\n") > 0,
-                               table, error) &&
-             NOISE_DETECTOR_IO(plane_table != NULL, plane_path, error) &&
-             NOISE_DETECTOR_IO(fprintf(plane_table, "sample\tframe\tz\tmembers\tlevel\tplane_sum\tplane_squares"
-                                                    "\trow_squares\tcolumn_squares\tstatic_members\tstatic_sum"
-                                                    "\tstatic_squares\tstatic_level\n") > 0,
-                               plane_table, error);
+    PlatformFile *const plane_table = plane_named ? platform_file_open(plane_path, "wb") : NULL;
+    unsigned long long formed_mark_3;
+    unsigned long long formed_mark_2;
+    int ok =
+        NOISE_DETECTOR_CHECK(named && plane_named && (request->samples != NULL) && (request->load != NULL), request,
+                             error, ENGINE_ERROR_REQUEST) &&
+        NOISE_DETECTOR_IO(table != NULL, path, error) &&
+        NOISE_DETECTOR_IO(
+            (formed_mark_2 = platform_file_mark(table),
+             mmgr_line_put(
+                 platform_file_line(table),
+                 "sample\tline\tlowest_mean\tlines\tmembers\tmember_squares\tline_squares_high\tline_squares_low\n"),
+             platform_file_written_since(table, formed_mark_2)) > 0,
+            table, error) &&
+        NOISE_DETECTOR_IO(plane_table != NULL, plane_path, error) &&
+        NOISE_DETECTOR_IO(
+            (formed_mark_3 = platform_file_mark(plane_table),
+             mmgr_line_put(platform_file_line(plane_table),
+                           "sample\tframe\tz\tmembers\tlevel\tplane_sum\tplane_squares\trow_squares\tcolumn_"
+                           "squares\tstatic_members\tstatic_sum\tstatic_squares\tstatic_level\n"),
+             platform_file_written_since(plane_table, formed_mark_3)) > 0,
+            plane_table, error);
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "  lines: each frame difference summed along a row (x), a column (y) and a whole z "
@@ -443,11 +468,11 @@ extern "C" long noise_lines_set(const NoiseSetRequest *request)
     free(pool);
     if (table != NULL)
     {
-        ok = NOISE_DETECTOR_IO(fclose(table) == 0, path, error) && ok;
+        ok = NOISE_DETECTOR_IO(platform_file_close(table) == 0, path, error) && ok;
     }
     if (plane_table != NULL)
     {
-        ok = NOISE_DETECTOR_IO(fclose(plane_table) == 0, plane_path, error) && ok;
+        ok = NOISE_DETECTOR_IO(platform_file_close(plane_table) == 0, plane_path, error) && ok;
     }
     if (ok != 0)
     {

@@ -80,22 +80,22 @@ static int qry_crystal_npy_written(const char *path, const unsigned char *bytes,
     length += 1;
     const unsigned char lead[10] = {
         0x93u, 'N', 'U', 'M', 'P', 'Y', 1u, 0u, (unsigned char)(length & 0xff), (unsigned char)((length >> 8) & 0xff)};
-    FILE *const file = fopen(path, "wb");
+    PlatformFile *const file = platform_file_open(path, "wb");
     if (file == NULL)
     {
         return 0;
     }
     // the header and the count are each below the room they are written from, and widen to the sizes fwrite takes
-    int written = (fwrite(lead, 1u, sizeof(lead), file) == sizeof(lead)) &&
-                  (fwrite(header, 1u, (size_t)length, file) == (size_t)length) &&
-                  (fwrite(bytes, 1u, (size_t)count, file) == (size_t)count);
-    written = (fclose(file) == 0) && written;
+    int written = (platform_file_write_items(lead, 1u, sizeof(lead), file) == sizeof(lead)) &&
+                  (platform_file_write_items(header, 1u, (size_t)length, file) == (size_t)length) &&
+                  (platform_file_write_items(bytes, 1u, (size_t)count, file) == (size_t)count);
+    written = (platform_file_close(file) == 0) && written;
     return written;
 }
 
 static int qry_crystal_written(const char *qry, const char *set)
 {
-    FILE *const file = fopen(qry, "rb");
+    PlatformFile *const file = platform_file_open(qry, "rb");
     unsigned char *const bytes = (unsigned char *)malloc((size_t)QRY_CRYSTAL_PART);
     char source[1024];
     {
@@ -121,7 +121,7 @@ static int qry_crystal_written(const char *qry, const char *set)
         free(bytes);
         if (file != NULL)
         {
-            fclose(file);
+            platform_file_close(file);
         }
         return 0;
     }
@@ -134,7 +134,7 @@ static int qry_crystal_written(const char *qry, const char *set)
     int whole = 1;
     while (whole && (parts < QRY_CRYSTAL_PARTS))
     {
-        const size_t read = fread(bytes, 1u, (size_t)QRY_CRYSTAL_PART, file);
+        const size_t read = platform_file_read_items(bytes, 1u, (size_t)QRY_CRYSTAL_PART, file);
         if (read == 0u)
         {
             break;
@@ -160,8 +160,8 @@ static int qry_crystal_written(const char *qry, const char *set)
         total += (unsigned long long)read;
         parts += 1u;
     }
-    const int ended = feof(file) != 0;
-    fclose(file);
+    const int ended = platform_file_ended(file) != 0;
+    platform_file_close(file);
     if (!whole || !ended || (parts == 0u))
     {
         {
@@ -193,7 +193,7 @@ static int qry_crystal_written(const char *qry, const char *set)
         qry_crystal_error_printed("the engine did not make the set", &error);
     }
     // each sample loaded again and checked against the .qry byte for byte
-    FILE *const again = whole ? fopen(qry, "rb") : NULL;
+    PlatformFile *const again = whole ? platform_file_open(qry, "rb") : NULL;
     unsigned long long differ = 0ULL;
     for (unsigned int part = 0u; whole && (part < parts); part += 1u)
     {
@@ -208,7 +208,7 @@ static int qry_crystal_written(const char *qry, const char *set)
         whole = whole && (again != NULL) &&
                 (engine_iapx_load(set, s_names[part], extent, &lanes, &root, NULL, &error) != ENGINE_ERROR) &&
                 ((extent[0] * extent[1] * extent[2] * extent[3]) == s_sizes[part]) &&
-                (fread(bytes, 1u, (size_t)s_sizes[part], again) == (size_t)s_sizes[part]);
+                (platform_file_read_items(bytes, 1u, (size_t)s_sizes[part], again) == (size_t)s_sizes[part]);
         for (unsigned long long at = 0ULL; whole && (at < s_sizes[part]); at += 1ULL)
         {
             differ += (lanes[at] != (unsigned short)bytes[at]) ? 1ULL : 0ULL;
@@ -221,7 +221,7 @@ static int qry_crystal_written(const char *qry, const char *set)
     }
     if (again != NULL)
     {
-        fclose(again);
+        platform_file_close(again);
     }
     free(bytes);
     // the sources let go, whether the set matched or not
@@ -275,7 +275,7 @@ static int qry_crystal_written(const char *qry, const char *set)
 
 static int qry_crystal_read(const char *set, const char *qry)
 {
-    FILE *const file = fopen(qry, "wb");
+    PlatformFile *const file = platform_file_open(qry, "wb");
     if (file == NULL)
     {
         {
@@ -304,12 +304,12 @@ static int qry_crystal_read(const char *set, const char *qry)
             (void)mmgr_line_finish(&buffer_line);
         }
         engine_sample_path(path, sizeof(path), set, name, ".kcr");
-        FILE *const sample_file = fopen(path, "rb");
+        PlatformFile *const sample_file = platform_file_open(path, "rb");
         if (sample_file == NULL)
         {
             break;
         }
-        fclose(sample_file);
+        platform_file_close(sample_file);
         unsigned long long extent[4] = {0ULL, 0ULL, 0ULL, 0ULL};
         unsigned short *lanes = NULL;
         EngineSignum root;
@@ -325,7 +325,7 @@ static int qry_crystal_read(const char *set, const char *qry)
             // a lane of an unsigned byte represents that byte
             bytes[at] = (unsigned char)lanes[at];
         }
-        whole = whole && (fwrite(bytes, 1u, (size_t)count, file) == (size_t)count);
+        whole = whole && (platform_file_write_items(bytes, 1u, (size_t)count, file) == (size_t)count);
         total += whole ? count : 0ULL;
         free(lanes);
         if (!whole)
@@ -334,7 +334,7 @@ static int qry_crystal_read(const char *set, const char *qry)
         }
     }
     free(bytes);
-    whole = (fclose(file) == 0) && whole && (parts != 0u);
+    whole = (platform_file_close(file) == 0) && whole && (parts != 0u);
     if (!whole)
     {
         {

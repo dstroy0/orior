@@ -26,7 +26,7 @@
 // the file at `path` whole, or NULL
 static unsigned char *whole(const char *path, size_t *size)
 {
-    FILE *const file = fopen(path, "rb");
+    PlatformFile *const file = platform_file_open(path, "rb");
     if (file == NULL)
     {
         return NULL;
@@ -43,19 +43,19 @@ static unsigned char *whole(const char *path, size_t *size)
             if (grown == NULL)
             {
                 free(bytes);
-                fclose(file);
+                platform_file_close(file);
                 return NULL;
             }
             bytes = grown;
         }
-        const size_t got = fread(bytes + length, 1u, room - length, file);
+        const size_t got = platform_file_read_items(bytes + length, 1u, room - length, file);
         if (got == 0u)
         {
             break;
         }
         length += got;
     }
-    fclose(file);
+    platform_file_close(file);
     *size = length;
     return bytes;
 }

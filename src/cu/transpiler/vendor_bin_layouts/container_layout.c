@@ -30,7 +30,7 @@ static unsigned int layout_word(const char *line, unsigned int at, char *word, u
 
 int container_layout_read(ContainerLayout *layout, const char *path)
 {
-    FILE *const file = fopen(path, "rb");
+    PlatformFile *const file = platform_file_open(path, "rb");
     if (file == NULL)
     {
         {
@@ -51,7 +51,7 @@ int container_layout_read(ContainerLayout *layout, const char *path)
     }
     char line[512];
     unsigned int refused = 0u;
-    while (fgets(line, sizeof(line), file) != NULL)
+    while (platform_file_text_read(line, sizeof(line), file) != NULL)
     {
         if ((line[0] == '#') || (line[0] == '\n') || (line[0] == '\r'))
         {
@@ -112,7 +112,7 @@ int container_layout_read(ContainerLayout *layout, const char *path)
         }
         layout->rows += 1u;
     }
-    fclose(file);
+    platform_file_close(file);
     if (refused != 0u)
     {
         VerbaLinea *const output_line = platform_line_out();

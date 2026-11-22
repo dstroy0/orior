@@ -28,7 +28,7 @@ static unsigned int s_exits[SASS_EXITS];
 // `path` read whole into `bytes`, which has room for `room` of them: how many were read, 0 where the file was not read
 static unsigned long long sass_file_read(const char *path, unsigned char *bytes, unsigned long long room)
 {
-    FILE *const file = fopen(path, "rb");
+    PlatformFile *const file = platform_file_open(path, "rb");
     if (file == NULL)
     {
         {
@@ -41,16 +41,16 @@ static unsigned long long sass_file_read(const char *path, unsigned char *bytes,
         }
         return 0ULL;
     }
-    const unsigned long long read = (unsigned long long)fread(bytes, 1u, (size_t)room, file);
-    fclose(file);
+    const unsigned long long read = (unsigned long long)platform_file_read_items(bytes, 1u, (size_t)room, file);
+    platform_file_close(file);
     return read;
 }
 
 static int sass_file_write(const char *path, const unsigned char *bytes, unsigned long long size)
 {
-    FILE *const file = fopen(path, "wb");
-    const int written = (file != NULL) && (fwrite(bytes, 1u, (size_t)size, file) == size);
-    const int closed = (file != NULL) && (fclose(file) == 0);
+    PlatformFile *const file = platform_file_open(path, "wb");
+    const int written = (file != NULL) && (platform_file_write_items(bytes, 1u, (size_t)size, file) == size);
+    const int closed = (file != NULL) && (platform_file_close(file) == 0);
     if (!written || !closed)
     {
         VerbaLinea *const output_line = platform_line_out();

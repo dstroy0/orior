@@ -4,6 +4,7 @@
 #define PERIOD_H
 
 #include "../../engine_config.h"
+#include "../../../../platform/platform.h"
 
 #include <stdio.h>
 
@@ -74,7 +75,7 @@ extern "C"
 
     long period_draw(const PeriodRequest *request, unsigned long long draw, PeriodMargin *heights);
 
-    int period_print(const PeriodMeasurement *measurement, FILE *file);
+    int period_print(const PeriodMeasurement *measurement, VerbaLinea *out);
 
     // The period on the record machine, from the same request to the same measurement as period_read and period_draw.
     // Each lag's agreement is a record program swept over the pairs that lag reaches and summed by cycle_record_sum,

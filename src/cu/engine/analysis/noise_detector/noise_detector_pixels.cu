@@ -7,7 +7,7 @@
 
 // opens <set>/<file> for writing and writes its header
 int noise_table_open(const char *set, const char *file, const char *header, char path[ENGINE_PATH_CAPACITY],
-                     FILE **table, EngineError *error)
+                     PlatformFile **table, EngineError *error)
 {
     VerbaLinea formed_line_1 = mmgr_line_over(path, ENGINE_PATH_CAPACITY);
     mmgr_line_put(&formed_line_1, set);
@@ -16,10 +16,10 @@ int noise_table_open(const char *set, const char *file, const char *header, char
     (void)mmgr_line_finish(&formed_line_1);
     const int written = (int)formed_line_1.at;
     const int named = (written > 0) && ((size_t)written < ENGINE_PATH_CAPACITY);
-    *table = named ? fopen(path, "wb") : NULL;
+    *table = named ? platform_file_open(path, "wb") : NULL;
     return NOISE_DETECTOR_CHECK(named, set, error, ENGINE_ERROR_REQUEST) &&
            NOISE_DETECTOR_IO(*table != NULL, path, error) &&
-           NOISE_DETECTOR_IO(fputs(header, *table) >= 0, *table, error);
+           NOISE_DETECTOR_IO(platform_file_text_put(header, *table) >= 0, *table, error);
 }
 
 extern "C" long noise_clips_set(const NoiseSetRequest *request)
@@ -37,7 +37,7 @@ extern "C" long noise_clips_set(const NoiseSetRequest *request)
         "sample\tlowest_mean\ttriples\tspikes_16\tdips_16\tspikes_32\tdips_32\tspikes_64\tdips_64\tspikes_128"
         "\tdips_128\n"};
     char paths[NOISE_CLIPS_TABLES][ENGINE_PATH_CAPACITY];
-    FILE *tables[NOISE_CLIPS_TABLES] = {NULL, NULL, NULL};
+    PlatformFile *tables[NOISE_CLIPS_TABLES] = {NULL, NULL, NULL};
     int ok = NOISE_DETECTOR_CHECK((request->set != NULL) && (request->samples != NULL) && (request->load != NULL),
                                   request, error, ENGINE_ERROR_REQUEST);
     for (unsigned int type = 0u; ok && (type < NOISE_CLIPS_TABLES); type += 1u)
@@ -81,7 +81,7 @@ extern "C" long noise_clips_set(const NoiseSetRequest *request)
     {
         if (tables[type] != NULL)
         {
-            ok = NOISE_DETECTOR_IO(fclose(tables[type]) == 0, paths[type], error) && ok;
+            ok = NOISE_DETECTOR_IO(platform_file_close(tables[type]) == 0, paths[type], error) && ok;
         }
     }
     if (ok != 0)
@@ -178,7 +178,7 @@ static long noise_pixels_sample(const unsigned short *volume, const unsigned lon
     return (ok != 0) ? 0L : NOISE_DETECTOR_ERROR;
 }
 
-static int noise_pixels_rows(FILE *table, const char *name, const unsigned long long extent[4],
+static int noise_pixels_rows(PlatformFile *table, const char *name, const unsigned long long extent[4],
                              const unsigned long long *maps)
 {
     const unsigned long long width = extent[3];
@@ -192,9 +192,25 @@ static int noise_pixels_rows(FILE *table, const char *name, const unsigned long 
         {
             continue;
         }
-        ok = fprintf(table, "%s\t%llu\t%llu\t%llu\t%llu\t%llu\t%llu\t%llu\t%llu\n", name, pixel / width, pixel % width,
-                     lower[NOISE_PIXEL_VOXELS], lower[NOISE_PIXEL_VALUES], lower[NOISE_PIXEL_SQUARES],
-                     upper[NOISE_PIXEL_VOXELS], upper[NOISE_PIXEL_VALUES], upper[NOISE_PIXEL_SQUARES]) > 0;
+        unsigned long long formed_mark_1;
+        ok = (formed_mark_1 = platform_file_mark(table), mmgr_line_put(platform_file_line(table), name),
+              mmgr_line_put(platform_file_line(table), "\t"),
+              mmgr_line_decimal(platform_file_line(table), pixel / width, 1u),
+              mmgr_line_put(platform_file_line(table), "\t"),
+              mmgr_line_decimal(platform_file_line(table), pixel % width, 1u),
+              mmgr_line_put(platform_file_line(table), "\t"),
+              mmgr_line_decimal(platform_file_line(table), lower[NOISE_PIXEL_VOXELS], 1u),
+              mmgr_line_put(platform_file_line(table), "\t"),
+              mmgr_line_decimal(platform_file_line(table), lower[NOISE_PIXEL_VALUES], 1u),
+              mmgr_line_put(platform_file_line(table), "\t"),
+              mmgr_line_decimal(platform_file_line(table), lower[NOISE_PIXEL_SQUARES], 1u),
+              mmgr_line_put(platform_file_line(table), "\t"),
+              mmgr_line_decimal(platform_file_line(table), upper[NOISE_PIXEL_VOXELS], 1u),
+              mmgr_line_put(platform_file_line(table), "\t"),
+              mmgr_line_decimal(platform_file_line(table), upper[NOISE_PIXEL_VALUES], 1u),
+              mmgr_line_put(platform_file_line(table), "\t"),
+              mmgr_line_decimal(platform_file_line(table), upper[NOISE_PIXEL_SQUARES], 1u),
+              mmgr_line_put(platform_file_line(table), "\n"), platform_file_written_since(table, formed_mark_1)) > 0;
     }
     return ok;
 }
@@ -207,7 +223,7 @@ extern "C" long noise_pixels_set(const NoiseSetRequest *request)
     }
     EngineError *const error = request->error;
     char path[ENGINE_PATH_CAPACITY];
-    FILE *table = NULL;
+    PlatformFile *table = NULL;
     int ok = NOISE_DETECTOR_CHECK((request->set != NULL) && (request->samples != NULL) && (request->load != NULL),
                                   request, error, ENGINE_ERROR_REQUEST) &&
              noise_table_open(request->set, "noise_pixels.tsv",
@@ -263,7 +279,7 @@ extern "C" long noise_pixels_set(const NoiseSetRequest *request)
     free(maps);
     if (table != NULL)
     {
-        ok = NOISE_DETECTOR_IO(fclose(table) == 0, path, error) && ok;
+        ok = NOISE_DETECTOR_IO(platform_file_close(table) == 0, path, error) && ok;
     }
     if (ok != 0)
     {

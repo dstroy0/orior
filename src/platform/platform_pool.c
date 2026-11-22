@@ -221,6 +221,11 @@ void platform_line_out_ended(void)
     }
 }
 
+void platform_line_out_every_write(void)
+{
+    s_line_out_terminal = 1;
+}
+
 unsigned long long platform_line_out_put(const char *bytes, unsigned long long length)
 {
     // Explicit cast takes a length of bytes in memory, which a size_t counts

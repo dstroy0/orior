@@ -29,14 +29,22 @@ int program_main(int count, char **arguments)
     unsigned long long idle = 0ULL;
     if (!daemon_arguments(count, arguments, &idle))
     {
-        fputs(s_daemon_usage, stderr);
+        {
+            const char *const error_text = s_daemon_usage;
+            platform_terminal_write(1, error_text,
+                                    (unsigned long long)mmgr_text_length(error_text, PLATFORM_TEXT_TO_TERMINATOR));
+        }
         return 2;
     }
     if (!tessera_path_state(g_daemon.device, g_daemon.state, ENGINE_PATH_CAPACITY) ||
         !daemon_directories_make(g_daemon.state) ||
         !tessera_path_endpoint(g_daemon.device, g_daemon.endpoint, ENGINE_PATH_CAPACITY))
     {
-        fputs(s_daemon_no_state, stderr);
+        {
+            const char *const error_text = s_daemon_no_state;
+            platform_terminal_write(1, error_text,
+                                    (unsigned long long)mmgr_text_length(error_text, PLATFORM_TEXT_TO_TERMINATOR));
+        }
         return daemon_error();
     }
     // the history is read before the endpoint exists: no client reaches a daemon that then errors on its history
@@ -149,7 +157,12 @@ int program_main(int count, char **arguments)
     g_daemon.measure = tessera_measure_open(g_daemon.device, g_daemon.luid);
     if (g_daemon.measure == NULL)
     {
-        fputs(tessera_device_names_host(g_daemon.device) ? s_daemon_no_cores : s_daemon_unmeasured, stderr);
+        {
+            const char *const error_text =
+                tessera_device_names_host(g_daemon.device) ? s_daemon_no_cores : s_daemon_unmeasured;
+            platform_terminal_write(1, error_text,
+                                    (unsigned long long)mmgr_text_length(error_text, PLATFORM_TEXT_TO_TERMINATOR));
+        }
         return daemon_error();
     }
     daemon_device_read();
@@ -194,7 +207,11 @@ int program_main(int count, char **arguments)
                                      PIPE_UNLIMITED_INSTANCES, TESSERA_FRAME_BYTES, TESSERA_FRAME_BYTES, 0u, NULL);
         if (listening == INVALID_HANDLE_VALUE)
         {
-            fputs(s_daemon_no_pipe, stderr);
+            {
+                const char *const error_text = s_daemon_no_pipe;
+                platform_terminal_write(1, error_text,
+                                        (unsigned long long)mmgr_text_length(error_text, PLATFORM_TEXT_TO_TERMINATOR));
+            }
             return 1;
         }
     }

@@ -5,6 +5,7 @@
 #define NOISE_DETECTOR_INTERNAL_H
 
 #include "noise_detector.h"
+#include "../../../../platform/platform.h"
 
 #include "../../../../../includes/exact_types/integers/exact_integer.h"
 
@@ -142,7 +143,7 @@ int noise_static_mask(const unsigned short *volume, unsigned long long frames, u
 
 long noise_lines_sample(const unsigned short *volume, const unsigned long long extent[4],
                         NoiseLineCell cells[NOISE_LINE_CELLS], NoisePlanePool *pool, NoiseStaticPool *still,
-                        FILE *plane_table, const char *name, EngineError *error);
+                        PlatformFile *plane_table, const char *name, EngineError *error);
 
 void noise_exact_wide(OriorExactInteger *value, const NoiseWide *wide);
 
@@ -222,10 +223,10 @@ void noise_spikes_pooled(const NoiseClips *clips, unsigned long long pooled[NOIS
 
 void noise_clips_summary(const char *name, const NoiseClips *clips);
 
-int noise_clips_rows(FILE *const tables[NOISE_CLIPS_TABLES], const char *name, const NoiseClips *clips);
+int noise_clips_rows(PlatformFile *const tables[NOISE_CLIPS_TABLES], const char *name, const NoiseClips *clips);
 
 int noise_table_open(const char *set, const char *file, const char *header, char path[ENGINE_PATH_CAPACITY],
-                     FILE **table, EngineError *error);
+                     PlatformFile **table, EngineError *error);
 
 // The moment pass reads each voxel's frames in blocks of this many, each block about its own mean rounded. A level
 // that moves over the frames then adds to a block only what it moves within one: the set's static level moves at max

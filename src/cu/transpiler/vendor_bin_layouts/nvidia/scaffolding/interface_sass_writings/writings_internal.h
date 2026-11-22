@@ -7,6 +7,7 @@
 #define WRITINGS_INTERNAL_H
 
 #include "../../../../../engine/rmc/word_web.h"
+#include "../../../../../../platform/platform.h"
 #include "../../../../../../../includes/file_defs/kdm/kdm.h"
 #include "../../../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../../../lstar/protocol/counterexample/ladder.h"
@@ -51,7 +52,7 @@
 // result's register cleared, and every predicate the form may read set false. After the form its result is moved to
 // R7, which the kernel's own store writes as the answer's first word
 #define WRITINGS_HEAD                                                                                                  \
-    "IMAD.MOV.U32 R10, RZ, RZ, R0\nMOV R11, RZ\nIMAD.MOV.U32 R12, RZ, RZ, R7\nMOV R13, RZ\nMOV R8, RZ\nMOV R9, RZ\n"  \
+    "IMAD.MOV.U32 R10, RZ, RZ, R0\nMOV R11, RZ\nIMAD.MOV.U32 R12, RZ, RZ, R7\nMOV R13, RZ\nMOV R8, RZ\nMOV R9, RZ\n"   \
     "ISETP.NE.AND P0, PT, RZ, RZ, PT\nISETP.NE.AND P1, PT, RZ, RZ, PT\nISETP.NE.AND P2, PT, RZ, RZ, PT\n"              \
     "ISETP.NE.AND P3, PT, RZ, RZ, PT\nISETP.NE.AND P4, PT, RZ, RZ, PT\nISETP.NE.AND P5, PT, RZ, RZ, PT\n"              \
     "ISETP.NE.AND P6, PT, RZ, RZ, PT\n"
@@ -121,13 +122,16 @@ unsigned int writings_table(const SassForm *form);
 unsigned int writings_sources(const SassForm *form);
 unsigned int writings_digit(unsigned int assignment, unsigned int source);
 unsigned int writings_in_order(unsigned int sources);
-int writings_instruction(const SassForm *form, unsigned int table, unsigned int value, unsigned int assignment, char *out, size_t room);
+int writings_instruction(const SassForm *form, unsigned int table, unsigned int value, unsigned int assignment,
+                         char *out, size_t room);
 int writings_cubin(unsigned int count, const char *path);
 int writings_write(const char *pattern, const char *kernel_text, const char *machine, const char *folder);
-void writings_answers_read(FILE *answers, unsigned int count, unsigned int (*answered)[WRITINGS_CASES], unsigned char *ran_one, unsigned int *ran, unsigned int *refused);
+void writings_answers_read(PlatformFile *answers, unsigned int count, unsigned int (*answered)[WRITINGS_CASES],
+                           unsigned char *ran_one, unsigned int *ran, unsigned int *refused);
 int writings_load(const char *folder);
 int writings_read(const char *folder, const char *record);
-int writings_chains_write(const char *pattern, const char *kernel_text, const char *machine, const char *folder, const char *kdm, const char *into);
+int writings_chains_write(const char *pattern, const char *kernel_text, const char *machine, const char *folder,
+                          const char *kdm, const char *into);
 int writings_chains_read(const char *folder, const char *record);
 int writings_descent_read(const char *record, unsigned int pairs, char **folders);
 int writings_krs_read(const char *folder, const char *ruleset, const char *record);

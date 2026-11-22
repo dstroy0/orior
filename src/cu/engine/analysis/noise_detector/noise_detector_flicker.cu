@@ -235,7 +235,7 @@ static void noise_flicker_summary(const char *name, const unsigned long long ext
     platform_line_flushed();
 }
 
-static int noise_flicker_rows(FILE *table, const char *name, const unsigned long long sums[NOISE_FLICKER_CELLS])
+static int noise_flicker_rows(PlatformFile *table, const char *name, const unsigned long long sums[NOISE_FLICKER_CELLS])
 {
     int ok = 1;
     for (unsigned int lag = 0u; ok && (lag < NOISE_FLICKER_LAGS); lag += 1u)
@@ -248,9 +248,22 @@ static int noise_flicker_rows(FILE *table, const char *name, const unsigned long
                 continue;
             }
             const unsigned int lowest = level_bin << (NOISE_LEVEL_BIN_SHIFT - 1u);
-            ok = fprintf(table, "%s\t%u\t%u\t%llu\t%llu\t%llu\t%llu\n", name, 1u << lag, lowest,
-                         cell[NOISE_FLICKER_PAIRS], cell[NOISE_FLICKER_SQUARES], cell[NOISE_FLICKER_NEIGHBOR_PAIRS],
-                         cell[NOISE_FLICKER_NEIGHBOR_SQUARES]) > 0;
+            unsigned long long formed_mark_1;
+            ok =
+                (formed_mark_1 = platform_file_mark(table), mmgr_line_put(platform_file_line(table), name),
+                 mmgr_line_put(platform_file_line(table), "\t"),
+                 mmgr_line_decimal(platform_file_line(table), 1u << lag, 1u),
+                 mmgr_line_put(platform_file_line(table), "\t"),
+                 mmgr_line_decimal(platform_file_line(table), lowest, 1u),
+                 mmgr_line_put(platform_file_line(table), "\t"),
+                 mmgr_line_decimal(platform_file_line(table), cell[NOISE_FLICKER_PAIRS], 1u),
+                 mmgr_line_put(platform_file_line(table), "\t"),
+                 mmgr_line_decimal(platform_file_line(table), cell[NOISE_FLICKER_SQUARES], 1u),
+                 mmgr_line_put(platform_file_line(table), "\t"),
+                 mmgr_line_decimal(platform_file_line(table), cell[NOISE_FLICKER_NEIGHBOR_PAIRS], 1u),
+                 mmgr_line_put(platform_file_line(table), "\t"),
+                 mmgr_line_decimal(platform_file_line(table), cell[NOISE_FLICKER_NEIGHBOR_SQUARES], 1u),
+                 mmgr_line_put(platform_file_line(table), "\n"), platform_file_written_since(table, formed_mark_1)) > 0;
         }
     }
     return ok;
@@ -271,13 +284,17 @@ extern "C" long noise_flicker_set(const NoiseSetRequest *request)
                                                   (void)mmgr_line_finish(&formed_line_1), (int)formed_line_1.at)
                                                : -1;
     const int named = (written > 0) && ((size_t)written < sizeof(path));
-    FILE *const table = named ? fopen(path, "wb") : NULL;
+    PlatformFile *const table = named ? platform_file_open(path, "wb") : NULL;
+    unsigned long long formed_mark_2;
     int ok = NOISE_DETECTOR_CHECK(named && (request->samples != NULL) && (request->load != NULL), request, error,
                                   ENGINE_ERROR_REQUEST) &&
              NOISE_DETECTOR_IO(table != NULL, path, error) &&
-             NOISE_DETECTOR_IO(fprintf(table, "sample\tlag\tlowest_mean\tpairs\tsquares\tneighbor_pairs"
-                                              "\tneighbor_squares\n") > 0,
-                               table, error);
+             NOISE_DETECTOR_IO(
+                 (formed_mark_2 = platform_file_mark(table),
+                  mmgr_line_put(platform_file_line(table),
+                                "sample\tlag\tlowest_mean\tpairs\tsquares\tneighbor_pairs\tneighbor_squares\n"),
+                  platform_file_written_since(table, formed_mark_2)) > 0,
+                 table, error);
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "  flicker: the structure function D(k), the mean square of I(t + k) - I(t), at "
@@ -332,7 +349,7 @@ extern "C" long noise_flicker_set(const NoiseSetRequest *request)
     free(sums);
     if (table != NULL)
     {
-        ok = NOISE_DETECTOR_IO(fclose(table) == 0, path, error) && ok;
+        ok = NOISE_DETECTOR_IO(platform_file_close(table) == 0, path, error) && ok;
     }
     if (ok != 0)
     {

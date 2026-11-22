@@ -4,6 +4,7 @@
 #define ENGINE_H
 
 #include "engine_config.h"
+#include "../../platform/platform.h"
 
 #include <stddef.h>
 #include <stdio.h>
@@ -231,9 +232,9 @@ extern "C"
 
     long engine_ingest_set(const EngineIngestRequest *request);
 
-    int engine_ingest_print(const EngineIngestRequest *request, FILE *file);
+    int engine_ingest_print(const EngineIngestRequest *request, VerbaLinea *out);
 
-    int engine_prove_print(const EngineSetRequest *request, FILE *file);
+    int engine_prove_print(const EngineSetRequest *request, VerbaLinea *out);
 
     long engine_iapx_head(const char *set, const char *sample, unsigned long long extent[4], EngineError *error);
 

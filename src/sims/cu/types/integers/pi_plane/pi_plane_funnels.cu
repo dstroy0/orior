@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pi_plane_funnels.cu: the blind reading and funnels
 #include "pi_plane_internal.h"
+#include "../../../../../platform/platform.h"
 
 // blind pairs: pi's unseen blocks, from block first past
 // the seen bits, each arranged in the rings unrolled beside a shuffle of the same block, which is which decided by a
@@ -42,7 +43,7 @@ int plane_blind(SimResults *results, const std::vector<unsigned long long> &size
     std::vector<unsigned char> all;
     // the bits needed are at max 2^18 or so, far below 2^32
     int ok = plane_bits(results, (unsigned int)needed, &all);
-    FILE *const answer = ok ? fopen((directory + "/blind_answer.txt").c_str(), "w") : NULL;
+    PlatformFile *const answer = ok ? platform_file_open((directory + "/blind_answer.txt").c_str(), "w") : NULL;
     ok = ok && (answer != NULL);
     for (unsigned int pair = 0u; ok && (pair < pairs); pair += 1u)
     {
@@ -55,12 +56,21 @@ int plane_blind(SimResults *results, const std::vector<unsigned long long> &size
         const std::string stem = directory + "/blind_" + std::to_string(pair + 1u);
         ok = plane_ring_unrolled(rings, pi_first ? mine.data() : other.data(), stem + "_A.png") &&
              plane_ring_unrolled(rings, pi_first ? other.data() : mine.data(), stem + "_B.png");
-        fprintf(answer, "pair %u: pi is %s (pi's bits %llu to %llu)\n", pair + 1u, pi_first ? "A" : "B",
-                (unsigned long long)from + 1ULL, (unsigned long long)(from + block));
+        {
+            mmgr_line_put(platform_file_line(answer), "pair ");
+            mmgr_line_decimal(platform_file_line(answer), pair + 1u, 1u);
+            mmgr_line_put(platform_file_line(answer), ": pi is ");
+            mmgr_line_put(platform_file_line(answer), pi_first ? "A" : "B");
+            mmgr_line_put(platform_file_line(answer), " (pi's bits ");
+            mmgr_line_decimal(platform_file_line(answer), (unsigned long long)from + 1ULL, 1u);
+            mmgr_line_put(platform_file_line(answer), " to ");
+            mmgr_line_decimal(platform_file_line(answer), (unsigned long long)(from + block), 1u);
+            mmgr_line_put(platform_file_line(answer), ")\n");
+        }
     }
     if (answer != NULL)
     {
-        ok = (fclose(answer) == 0) && ok;
+        ok = (platform_file_close(answer) == 0) && ok;
     }
     sim_check(results, ok, "the blind pairs are drawn and their answer written");
     mmgr_line_put(line, "  blind: ");
@@ -391,7 +401,7 @@ int plane_funnels(SimResults *results, const std::vector<unsigned long long> &si
         mmgr_line_put(line, ", traced to ring ");
         mmgr_line_decimal(line, rings.size() - 1u, 1u);
         mmgr_line_put(line,
-                       "; funnels_pi.png and funnels_shuffled.png are the first blind pair, the funnels from a mouth ");
+                      "; funnels_pi.png and funnels_shuffled.png are the first blind pair, the funnels from a mouth ");
         mmgr_line_decimal(line, PLANE_FUNNEL_DRAWN_MOUTH, 1u);
         mmgr_line_put(line, " bits wide or wider that reach the last ring in red\n");
         sim_flush(results);

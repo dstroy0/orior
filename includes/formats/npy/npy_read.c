@@ -198,7 +198,11 @@ static void npy_zip_list(const EngineIngestTools *tools, const char *path, const
         }
         for (unsigned int axis = 0u; axis < layout.extent.rank; axis += 1u)
         {
-            fprintf(stderr, (axis == 0u) ? "%llu" : ", %llu", layout.extent.sizes[axis]);
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, (axis == 0u) ? "" : ", ");
+            mmgr_line_decimal(&engine_note.line, (uint64_t)layout.extent.sizes[axis], 1u);
+            engine_note_written(&engine_note);
         }
         {
             EngineNote engine_note;

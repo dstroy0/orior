@@ -251,14 +251,14 @@ int run_process_read(unsigned long long pid, RunProcess *process)
         mmgr_line_put(&buffer_line, "/stat");
         (void)mmgr_line_finish(&buffer_line);
     }
-    FILE *const stat = fopen(path, "r");
+    PlatformFile *const stat = platform_file_open(path, "r");
     if (stat == NULL)
     {
         return 0;
     }
     char line[1024];
-    const int read = fgets(line, sizeof(line), stat) != NULL;
-    fclose(stat);
+    const int read = platform_file_text_read(line, sizeof(line), stat) != NULL;
+    platform_file_close(stat);
     // the name may contain spaces and parentheses: the fields are read after its last ')', the state, the parent, nine
     // skipped, then the process's own user and system ticks and those of the children it waited for
     const char *const after_name = read ? strrchr(line, ')') : NULL;

@@ -19,7 +19,7 @@ int writings_descent_read(const char *record, unsigned int pairs, char **folders
     static char s_verdict[WRITINGS_CHAINS_MAX][16];
     static unsigned int s_chain_answered[WRITINGS_CHAINS_MAX][WRITINGS_CASES];
     static unsigned char s_chain_ran[WRITINGS_CHAINS_MAX];
-    FILE *const out = fopen(record, "wb");
+    PlatformFile *const out = platform_file_open(record, "wb");
     if (out == NULL)
     {
         {
@@ -33,14 +33,22 @@ int writings_descent_read(const char *record, unsigned int pairs, char **folders
         }
         return 2;
     }
-    fprintf(out, "# The descent's cases put to the part\n\n");
-    fprintf(out, "Written by `interface_sass_writings.sh` whole on every run. For each relation `gate_descent` writes "
-                 "every arrangement it descends over, its verdict on each and the cases it placed. Each arrangement "
-                 "is written node by node from the writings `interface_sass_writings.md` found and run on the part "
-                 "over the placed cases alone, and is where it gives every one its word. The part's verdict is "
-                 "checked against the descent's.\n\n");
-    fprintf(out, "| relation | cases placed | arrangements | run | located on the part | located on the host | "
-                 "verdicts that differ |\n|---|---|---|---|---|---|---|\n");
+    {
+        mmgr_line_put(platform_file_line(out), "# The descent's cases put to the part\n\n");
+    }
+    {
+        mmgr_line_put(platform_file_line(out),
+                      "Written by `interface_sass_writings.sh` whole on every run. For each relation `gate_descent` "
+                      "writes every arrangement it descends over, its verdict on each and the cases it placed. Each "
+                      "arrangement is written node by node from the writings `interface_sass_writings.md` found and "
+                      "run on the part over the placed cases alone, and is where it gives every one its word. The "
+                      "part's verdict is checked against the descent's.\n\n");
+    }
+    {
+        mmgr_line_put(platform_file_line(out),
+                      "| relation | cases placed | arrangements | run | located on the part | located on the host | "
+                      "verdicts that differ |\n|---|---|---|---|---|---|---|\n");
+    }
     unsigned int differ_total = 0u;
     for (unsigned int pair = 0u; pair < pairs; pair += 1u)
     {
@@ -61,14 +69,14 @@ int writings_descent_read(const char *record, unsigned int pairs, char **folders
             mmgr_line_put(&buffer_line, "/chains.txt");
             (void)mmgr_line_finish(&buffer_line);
         }
-        FILE *const chains = fopen(path, "rb");
+        PlatformFile *const chains = platform_file_open(path, "rb");
         {
             VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
             mmgr_line_put(&buffer_line, into);
             mmgr_line_put(&buffer_line, "/answers.txt");
             (void)mmgr_line_finish(&buffer_line);
         }
-        FILE *const answers = fopen(path, "rb");
+        PlatformFile *const answers = platform_file_open(path, "rb");
         if (!cases_read || (chains == NULL) || (answers == NULL))
         {
             {
@@ -82,7 +90,7 @@ int writings_descent_read(const char *record, unsigned int pairs, char **folders
                 mmgr_line_ch(&engine_note.line, '\n');
                 engine_note_written(&engine_note);
             }
-            fclose(out);
+            platform_file_close(out);
             return 2;
         }
         while ((placed_count < WRITINGS_CASES) && line_read(cases, cases_size, &cases_at, line, sizeof(line)))
@@ -101,7 +109,7 @@ int writings_descent_read(const char *record, unsigned int pairs, char **folders
         }
         char relation[32] = "";
         unsigned int count = 0u;
-        while ((count < WRITINGS_CHAINS_MAX) && (fgets(line, sizeof(line), chains) != NULL))
+        while ((count < WRITINGS_CHAINS_MAX) && (platform_file_text_read(line, sizeof(line), chains) != NULL))
         {
             unsigned int number = 0u;
             const char *read = line;
@@ -116,7 +124,7 @@ int writings_descent_read(const char *record, unsigned int pairs, char **folders
                 count += 1u;
             }
         }
-        fclose(chains);
+        platform_file_close(chains);
         const unsigned int saved = s_cases;
         s_cases = placed_count;
         unsigned int ran = 0u;
@@ -124,7 +132,7 @@ int writings_descent_read(const char *record, unsigned int pairs, char **folders
         mmgr_bytes_set(s_chain_ran, 0, sizeof(s_chain_ran));
         writings_answers_read(answers, count, s_chain_answered, s_chain_ran, &ran, &refused);
         s_cases = saved;
-        fclose(answers);
+        platform_file_close(answers);
         unsigned int located_part = 0u;
         unsigned int located_host = 0u;
         unsigned int differ = 0u;
@@ -142,12 +150,36 @@ int writings_descent_read(const char *record, unsigned int pairs, char **folders
             if (part != host)
             {
                 differ += 1u;
-                fprintf(out, "%s `%s`: %s on the host, %s on the part\n\n", relation, s_chain[number],
-                        host ? "located" : "out", s_chain_ran[number] ? (part ? "located" : "out") : "not run");
+                {
+                    mmgr_line_put(platform_file_line(out), relation);
+                    mmgr_line_put(platform_file_line(out), " `");
+                    mmgr_line_put(platform_file_line(out), s_chain[number]);
+                    mmgr_line_put(platform_file_line(out), "`: ");
+                    mmgr_line_put(platform_file_line(out), host ? "located" : "out");
+                    mmgr_line_put(platform_file_line(out), " on the host, ");
+                    mmgr_line_put(platform_file_line(out),
+                                  s_chain_ran[number] ? (part ? "located" : "out") : "not run");
+                    mmgr_line_put(platform_file_line(out), " on the part\n\n");
+                }
             }
         }
-        fprintf(out, "| %s | %u | %u | %u | %u | %u | %u |\n", relation, placed_count, count, ran, located_part,
-                located_host, differ);
+        {
+            mmgr_line_put(platform_file_line(out), "| ");
+            mmgr_line_put(platform_file_line(out), relation);
+            mmgr_line_put(platform_file_line(out), " | ");
+            mmgr_line_decimal(platform_file_line(out), placed_count, 1u);
+            mmgr_line_put(platform_file_line(out), " | ");
+            mmgr_line_decimal(platform_file_line(out), count, 1u);
+            mmgr_line_put(platform_file_line(out), " | ");
+            mmgr_line_decimal(platform_file_line(out), ran, 1u);
+            mmgr_line_put(platform_file_line(out), " | ");
+            mmgr_line_decimal(platform_file_line(out), located_part, 1u);
+            mmgr_line_put(platform_file_line(out), " | ");
+            mmgr_line_decimal(platform_file_line(out), located_host, 1u);
+            mmgr_line_put(platform_file_line(out), " | ");
+            mmgr_line_decimal(platform_file_line(out), differ, 1u);
+            mmgr_line_put(platform_file_line(out), " |\n");
+        }
         {
             VerbaLinea *const output_line = platform_line_out();
             mmgr_line_put(output_line, "  ");
@@ -170,7 +202,7 @@ int writings_descent_read(const char *record, unsigned int pairs, char **folders
         }
         differ_total += differ;
     }
-    fclose(out);
+    platform_file_close(out);
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "interface sass descent: ");
@@ -262,7 +294,7 @@ int writings_krs_read(const char *folder, const char *ruleset, const char *recor
     unsigned long long rules_size = 0ULL;
     unsigned long long rules_at = 0ULL;
     const int rules_read = writings_load(folder) && qry_member_file_blob(ruleset, &rules, &rules_size);
-    FILE *const out = rules_read ? fopen(record, "wb") : NULL;
+    PlatformFile *const out = rules_read ? platform_file_open(record, "wb") : NULL;
     if (out == NULL)
     {
         {
@@ -286,13 +318,21 @@ int writings_krs_read(const char *folder, const char *ruleset, const char *recor
     {
         rule_count += (mmgr_text_starts(s_rule[rule_count], "form ", PLATFORM_TEXT_TO_TERMINATOR)) ? 1u : 0u;
     }
-    fprintf(out, "# A ruleset's forms checked against the part's writings\n\n");
-    fprintf(out,
-            "Written by `interface_sass_writings.sh` whole on every run. Each word of the word web that is one "
-            "precept over its operands is looked up in `%s`, its form written with its result and operands where "
-            "the search puts them, and looked for among the forms `interface_sass_writings.md` ran on the part.\n\n",
-            ruleset);
-    fprintf(out, "| word | precept | form as run | on the part |\n|---|---|---|---|\n");
+    {
+        mmgr_line_put(platform_file_line(out), "# A ruleset's forms checked against the part's writings\n\n");
+    }
+    {
+        mmgr_line_put(platform_file_line(out),
+                      "Written by `interface_sass_writings.sh` whole on every run. Each word of the word web that is "
+                      "one precept over its operands is looked up in `");
+        mmgr_line_put(platform_file_line(out), ruleset);
+        mmgr_line_put(platform_file_line(out),
+                      "`, its form written with its result and operands where the search puts them, and looked for "
+                      "among the forms `interface_sass_writings.md` ran on the part.\n\n");
+    }
+    {
+        mmgr_line_put(platform_file_line(out), "| word | precept | form as run | on the part |\n|---|---|---|---|\n");
+    }
     unsigned int found_count = 0u;
     unsigned int differ = 0u;
     for (unsigned int word = 0u; word < WORD_WEB_COUNT; word += 1u)
@@ -320,7 +360,13 @@ int writings_krs_read(const char *folder, const char *ruleset, const char *recor
         }
         if (rule == NULL)
         {
-            fprintf(out, "| `%s` | %s | no form | - |\n", one->name, s_precept_text[precept]);
+            {
+                mmgr_line_put(platform_file_line(out), "| `");
+                mmgr_line_put(platform_file_line(out), one->name);
+                mmgr_line_put(platform_file_line(out), "` | ");
+                mmgr_line_put(platform_file_line(out), s_precept_text[precept]);
+                mmgr_line_put(platform_file_line(out), " | no form | - |\n");
+            }
             continue;
         }
         const char *const equals = mmgr_text_find(rule, " = ", PLATFORM_TEXT_TO_TERMINATOR);
@@ -376,7 +422,17 @@ int writings_krs_read(const char *folder, const char *ruleset, const char *recor
             found_count += agreed ? 1u : 0u;
             differ += agreed ? 0u : 1u;
         }
-        fprintf(out, "| `%s` | %s | `%s` | %s |\n", one->name, s_precept_text[precept], flat, verdict);
+        {
+            mmgr_line_put(platform_file_line(out), "| `");
+            mmgr_line_put(platform_file_line(out), one->name);
+            mmgr_line_put(platform_file_line(out), "` | ");
+            mmgr_line_put(platform_file_line(out), s_precept_text[precept]);
+            mmgr_line_put(platform_file_line(out), " | `");
+            mmgr_line_put(platform_file_line(out), flat);
+            mmgr_line_put(platform_file_line(out), "` | ");
+            mmgr_line_put(platform_file_line(out), verdict);
+            mmgr_line_put(platform_file_line(out), " |\n");
+        }
         {
             VerbaLinea *const output_line = platform_line_out();
             mmgr_line_put(output_line, "  ");
@@ -391,7 +447,7 @@ int writings_krs_read(const char *folder, const char *ruleset, const char *recor
             platform_line_out_ended();
         }
     }
-    fclose(out);
+    platform_file_close(out);
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "interface sass krs: ");

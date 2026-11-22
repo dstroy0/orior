@@ -179,12 +179,12 @@ static int entry_source_describe(const char *path, const char *member, EntrySour
         return parquet_describe(&describe) == 0L;
     case ENTRY_SOURCE_STACK: {
         unsigned int header[4] = {0u, 0u, 0u, 0u};
-        FILE *const stack = stack_open(path, header);
+        PlatformFile *const stack = stack_open(path, header);
         if (stack == NULL)
         {
             return 0;
         }
-        fclose(stack);
+        platform_file_close(stack);
         source->extent.rank = 4u;
         for (unsigned int axis = 0u; axis < 4u; axis += 1u)
         {
@@ -195,12 +195,26 @@ static int entry_source_describe(const char *path, const char *member, EntrySour
         source->extent.element_type = ENGINE_ELEMENT_UNSIGNED;
         return 1;
     }
-    case ENTRY_SOURCE_NO_MEMBER:
-        fprintf(stderr, "  %s: the archive contains no member named %s\n", path, member);
+    case ENTRY_SOURCE_NO_MEMBER: {
+        EngineNote engine_note;
+        engine_note_begun(&engine_note);
+        mmgr_line_put(&engine_note.line, "  ");
+        mmgr_line_put(&engine_note.line, path);
+        mmgr_line_put(&engine_note.line, ": the archive contains no member named ");
+        mmgr_line_put(&engine_note.line, member);
+        mmgr_line_ch(&engine_note.line, '\n');
+        engine_note_written(&engine_note);
         return ENGINE_CHECK(0, member, error, ENGINE_ERROR_REQUEST);
-    default:
-        fprintf(stderr, "  %s: not a dataset format the engine reads\n", path);
+    }
+    default: {
+        EngineNote engine_note;
+        engine_note_begun(&engine_note);
+        mmgr_line_put(&engine_note.line, "  ");
+        mmgr_line_put(&engine_note.line, path);
+        mmgr_line_put(&engine_note.line, ": not a dataset format the engine reads\n");
+        engine_note_written(&engine_note);
         return 0;
+    }
     }
 }
 

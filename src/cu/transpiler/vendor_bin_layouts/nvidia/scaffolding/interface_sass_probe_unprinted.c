@@ -69,7 +69,7 @@ int program_main(int count, char **words)
         }
         return 2;
     }
-    FILE *const record = fopen(words[6], "wb");
+    PlatformFile *const record = platform_file_open(words[6], "wb");
     if (record == NULL)
     {
         {
@@ -86,40 +86,50 @@ int program_main(int count, char **words)
     if (forms)
     {
         unprinted_forms(record);
-        fclose(record);
+        platform_file_close(record);
         return 0;
     }
     const unsigned int questions = (unsigned int)(sizeof(s_questions) / sizeof(s_questions[0]));
-    fprintf(record, "# Bits the disassembler does not print, probed on the part\n\n"
-                    "Written by `interface_sass_probe_unprinted` (`interface_sass_unprinted.sh`) whole on every run. "
-                    "Each row is one value of the field written into the question's instruction and run on the part "
-                    "over the case 0xb, 0x7. A value that answers as printed leaves the field without effect on that "
-                    "question.\n\n"
-                    "Each question's lines, put in place of the kernel's `IADD3`:\n\n");
+    {
+        mmgr_line_put(platform_file_line(record),
+                      "# Bits the disassembler does not print, probed on the part\n\nWritten by "
+                      "`interface_sass_probe_unprinted` (`interface_sass_unprinted.sh`) whole on every run. Each row "
+                      "is one value of the field written into the question's instruction and run on the part over the "
+                      "case 0xb, 0x7. A value that answers as printed leaves the field without effect on that "
+                      "question.\n\nEach question's lines, put in place of the kernel's `IADD3`:\n\n");
+    }
     for (unsigned int number = 0u; number < questions; number += 1u)
     {
-        fprintf(record, "%u. `", number + 1u);
+        {
+            mmgr_line_decimal(platform_file_line(record), number + 1u, 1u);
+            mmgr_line_put(platform_file_line(record), ". `");
+        }
         for (const char *walk = s_questions[number].lines; *walk != '\0'; walk += 1)
         {
             if (*walk == '\n')
             {
-                fputs("`; `", record);
+                platform_file_text_put("`; `", record);
             }
             else
             {
-                fputc(*walk, record);
+                platform_file_char_put(*walk, record);
             }
         }
-        fprintf(record, "`\n");
+        {
+            mmgr_line_put(platform_file_line(record), "`\n");
+        }
     }
-    fprintf(record, "\n| question | instruction | bits | the form contains | value | answer |\n"
-                    "|---|---|---|---|---|---|\n");
+    {
+        mmgr_line_put(
+            platform_file_line(record),
+            "\n| question | instruction | bits | the form contains | value | answer |\n|---|---|---|---|---|---|\n");
+    }
     unsigned int put = 0u;
     for (unsigned int number = 0u; number < questions; number += 1u)
     {
         put += (unprinted_query(&s_questions[number], number + 1u, record) >= 0) ? 1u : 0u;
     }
-    fclose(record);
+    platform_file_close(record);
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "interface sass unprinted: ");

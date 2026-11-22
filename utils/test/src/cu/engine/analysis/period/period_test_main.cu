@@ -90,7 +90,8 @@ static void test_volume(SimResults *results, const char *name, const unsigned sh
             mmgr_line_put(&results->line, name);
             mmgr_line_ch(&results->line, '\n');
             sim_flush(results);
-            period_print(&measurement, stdout);
+            period_print(&measurement, platform_line_out());
+            platform_line_out_ended();
         }
     }
     free(counts);
@@ -100,8 +101,8 @@ static void test_volume(SimResults *results, const char *name, const unsigned sh
 }
 
 static void test_error(SimResults *results, const char *name, const unsigned short *device_lanes, unsigned int rank,
-                         const unsigned long long *extent, unsigned long long draws, unsigned long long *counts,
-                         unsigned long long capacity, PeriodMargin *band, unsigned long long band_capacity)
+                       const unsigned long long *extent, unsigned long long draws, unsigned long long *counts,
+                       unsigned long long capacity, PeriodMargin *band, unsigned long long band_capacity)
 {
     PeriodMeasurement measurement;
     EngineError error;
@@ -204,7 +205,7 @@ int program_main(int count, char **arguments)
         }
     }
     mmgr_line_put(&results.line,
-                   "  a smooth ramp and noise, 16 volumes of 24 x 64 x 64, 8 shuffles each: a period found on ");
+                  "  a smooth ramp and noise, 16 volumes of 24 x 64 x 64, 8 shuffles each: a period found on ");
     mmgr_line_decimal(&results.line, smooth_periods, 1u);
     mmgr_line_put(&results.line, " of ");
     mmgr_line_decimal(&results.line, smooth_axes, 1u);
@@ -266,7 +267,7 @@ int program_main(int count, char **arguments)
         }
     }
     mmgr_line_put(&results.line,
-                   "  uniform random u16, 64 volumes of 32 x 64 x 64, 8 shuffles each: a period found on ");
+                  "  uniform random u16, 64 volumes of 32 x 64 x 64, 8 shuffles each: a period found on ");
     mmgr_line_decimal(&results.line, random_periods, 1u);
     mmgr_line_put(&results.line, " of ");
     mmgr_line_decimal(&results.line, random_axes, 1u);
@@ -289,7 +290,7 @@ int program_main(int count, char **arguments)
         test_error(&results, "an extent of 0", device_lanes, 2u, empty, 8ull, NULL, 0ull, NULL, 0ull);
         test_error(&results, "2^32 voxels", device_lanes, 2u, huge, 8ull, NULL, 0ull, NULL, 0ull);
         test_error(&results, "agreement capacity short by one", device_lanes, 2u, small, 8ull, counts, 7ull, NULL,
-                     0ull);
+                   0ull);
         test_error(&results, "no draws", device_lanes, 2u, small, 0ull, NULL, 0ull, NULL, 0ull);
         test_error(&results, "band capacity short by one", device_lanes, 2u, small, 8ull, NULL, 0ull, band, 15ull);
         PeriodMargin tops[2] = {{1ull, 32ull}, {1ull, 32ull}};

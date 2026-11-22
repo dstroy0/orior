@@ -6,46 +6,46 @@
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
 
-static const NrrdType nrrd_types[] = {{"signed char", 1u, ENGINE_ELEMENT_SIGNED},
-                                      {"int8", 1u, ENGINE_ELEMENT_SIGNED},
-                                      {"int8_t", 1u, ENGINE_ELEMENT_SIGNED},
-                                      {"uchar", 1u, ENGINE_ELEMENT_UNSIGNED},
-                                      {"unsigned char", 1u, ENGINE_ELEMENT_UNSIGNED},
-                                      {"uint8", 1u, ENGINE_ELEMENT_UNSIGNED},
-                                      {"uint8_t", 1u, ENGINE_ELEMENT_UNSIGNED},
-                                      {"short", 2u, ENGINE_ELEMENT_SIGNED},
-                                      {"short int", 2u, ENGINE_ELEMENT_SIGNED},
-                                      {"signed short", 2u, ENGINE_ELEMENT_SIGNED},
-                                      {"signed short int", 2u, ENGINE_ELEMENT_SIGNED},
-                                      {"int16", 2u, ENGINE_ELEMENT_SIGNED},
-                                      {"int16_t", 2u, ENGINE_ELEMENT_SIGNED},
-                                      {"ushort", 2u, ENGINE_ELEMENT_UNSIGNED},
-                                      {"unsigned short", 2u, ENGINE_ELEMENT_UNSIGNED},
-                                      {"unsigned short int", 2u, ENGINE_ELEMENT_UNSIGNED},
-                                      {"uint16", 2u, ENGINE_ELEMENT_UNSIGNED},
-                                      {"uint16_t", 2u, ENGINE_ELEMENT_UNSIGNED},
-                                      {"int", 4u, ENGINE_ELEMENT_SIGNED},
-                                      {"signed int", 4u, ENGINE_ELEMENT_SIGNED},
-                                      {"int32", 4u, ENGINE_ELEMENT_SIGNED},
-                                      {"int32_t", 4u, ENGINE_ELEMENT_SIGNED},
-                                      {"uint", 4u, ENGINE_ELEMENT_UNSIGNED},
-                                      {"unsigned int", 4u, ENGINE_ELEMENT_UNSIGNED},
-                                      {"uint32", 4u, ENGINE_ELEMENT_UNSIGNED},
-                                      {"uint32_t", 4u, ENGINE_ELEMENT_UNSIGNED},
-                                      {"longlong", 8u, ENGINE_ELEMENT_SIGNED},
-                                      {"long long", 8u, ENGINE_ELEMENT_SIGNED},
-                                      {"long long int", 8u, ENGINE_ELEMENT_SIGNED},
-                                      {"signed long long", 8u, ENGINE_ELEMENT_SIGNED},
-                                      {"signed long long int", 8u, ENGINE_ELEMENT_SIGNED},
-                                      {"int64", 8u, ENGINE_ELEMENT_SIGNED},
-                                      {"int64_t", 8u, ENGINE_ELEMENT_SIGNED},
-                                      {"ulonglong", 8u, ENGINE_ELEMENT_UNSIGNED},
-                                      {"unsigned long long", 8u, ENGINE_ELEMENT_UNSIGNED},
-                                      {"unsigned long long int", 8u, ENGINE_ELEMENT_UNSIGNED},
-                                      {"uint64", 8u, ENGINE_ELEMENT_UNSIGNED},
-                                      {"uint64_t", 8u, ENGINE_ELEMENT_UNSIGNED},
-                                      {"float", 4u, ENGINE_ELEMENT_FLOAT},
-                                      {"double", 8u, ENGINE_ELEMENT_FLOAT}};
+static const NrrdType nrrd_type_table[] = {{"signed char", 1u, ENGINE_ELEMENT_SIGNED},
+                                           {"int8", 1u, ENGINE_ELEMENT_SIGNED},
+                                           {"int8_t", 1u, ENGINE_ELEMENT_SIGNED},
+                                           {"uchar", 1u, ENGINE_ELEMENT_UNSIGNED},
+                                           {"unsigned char", 1u, ENGINE_ELEMENT_UNSIGNED},
+                                           {"uint8", 1u, ENGINE_ELEMENT_UNSIGNED},
+                                           {"uint8_t", 1u, ENGINE_ELEMENT_UNSIGNED},
+                                           {"short", 2u, ENGINE_ELEMENT_SIGNED},
+                                           {"short int", 2u, ENGINE_ELEMENT_SIGNED},
+                                           {"signed short", 2u, ENGINE_ELEMENT_SIGNED},
+                                           {"signed short int", 2u, ENGINE_ELEMENT_SIGNED},
+                                           {"int16", 2u, ENGINE_ELEMENT_SIGNED},
+                                           {"int16_t", 2u, ENGINE_ELEMENT_SIGNED},
+                                           {"ushort", 2u, ENGINE_ELEMENT_UNSIGNED},
+                                           {"unsigned short", 2u, ENGINE_ELEMENT_UNSIGNED},
+                                           {"unsigned short int", 2u, ENGINE_ELEMENT_UNSIGNED},
+                                           {"uint16", 2u, ENGINE_ELEMENT_UNSIGNED},
+                                           {"uint16_t", 2u, ENGINE_ELEMENT_UNSIGNED},
+                                           {"int", 4u, ENGINE_ELEMENT_SIGNED},
+                                           {"signed int", 4u, ENGINE_ELEMENT_SIGNED},
+                                           {"int32", 4u, ENGINE_ELEMENT_SIGNED},
+                                           {"int32_t", 4u, ENGINE_ELEMENT_SIGNED},
+                                           {"uint", 4u, ENGINE_ELEMENT_UNSIGNED},
+                                           {"unsigned int", 4u, ENGINE_ELEMENT_UNSIGNED},
+                                           {"uint32", 4u, ENGINE_ELEMENT_UNSIGNED},
+                                           {"uint32_t", 4u, ENGINE_ELEMENT_UNSIGNED},
+                                           {"longlong", 8u, ENGINE_ELEMENT_SIGNED},
+                                           {"long long", 8u, ENGINE_ELEMENT_SIGNED},
+                                           {"long long int", 8u, ENGINE_ELEMENT_SIGNED},
+                                           {"signed long long", 8u, ENGINE_ELEMENT_SIGNED},
+                                           {"signed long long int", 8u, ENGINE_ELEMENT_SIGNED},
+                                           {"int64", 8u, ENGINE_ELEMENT_SIGNED},
+                                           {"int64_t", 8u, ENGINE_ELEMENT_SIGNED},
+                                           {"ulonglong", 8u, ENGINE_ELEMENT_UNSIGNED},
+                                           {"unsigned long long", 8u, ENGINE_ELEMENT_UNSIGNED},
+                                           {"unsigned long long int", 8u, ENGINE_ELEMENT_UNSIGNED},
+                                           {"uint64", 8u, ENGINE_ELEMENT_UNSIGNED},
+                                           {"uint64_t", 8u, ENGINE_ELEMENT_UNSIGNED},
+                                           {"float", 4u, ENGINE_ELEMENT_FLOAT},
+                                           {"double", 8u, ENGINE_ELEMENT_FLOAT}};
 
 static const NrrdSpace nrrd_spaces[] = {{"right-anterior-superior", 0u},
                                         {"RAS", 0u},
@@ -201,12 +201,12 @@ unsigned int nrrd_single(NrrdSpan value, unsigned long long *number)
 
 unsigned int nrrd_type(NrrdSpan value, NrrdFields *fields)
 {
-    for (size_t entry = 0u; entry < (sizeof nrrd_types / sizeof nrrd_types[0u]); entry += 1u)
+    for (size_t entry = 0u; entry < (sizeof nrrd_type_table / sizeof nrrd_type_table[0u]); entry += 1u)
     {
-        if (nrrd_equals(value, nrrd_types[entry].name))
+        if (nrrd_equals(value, nrrd_type_table[entry].name))
         {
-            fields->element_bytes = nrrd_types[entry].element_bytes;
-            fields->element_type = nrrd_types[entry].element_type;
+            fields->element_bytes = nrrd_type_table[entry].element_bytes;
+            fields->element_type = nrrd_type_table[entry].element_type;
             fields->typed = 1u;
             return 1u;
         }

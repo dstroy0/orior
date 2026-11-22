@@ -71,7 +71,7 @@ static void omega_dyadic(OriorExactInteger *value, const unsigned long long *cou
 
 int program_main(int argc, char **argv)
 {
-    setvbuf(stdout, NULL, _IONBF, 0);
+    platform_line_out_every_write();
     static char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;
     sim_open(&results, line_buffer);

@@ -225,7 +225,11 @@ int run_start(RunChild *child, char *const *words, int count, unsigned long long
             CloseHandle(child->job);
         }
         child->job = NULL;
-        fputs(s_run_unjoined, stderr);
+        {
+            const char *const error_text = s_run_unjoined;
+            platform_terminal_write(1, error_text,
+                                    (unsigned long long)mmgr_text_length(error_text, PLATFORM_TEXT_TO_TERMINATOR));
+        }
     }
     // a watched command's pid is recorded before it runs: its child reads that it was launched
     run_record_launched(channel, started.dwProcessId);

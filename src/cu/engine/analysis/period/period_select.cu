@@ -385,9 +385,9 @@ static void period_margin_text(VerbaLinea *line, const PeriodMargin *margin)
     mmgr_line_decimal(line, margin->denominator, 1u);
 }
 
-extern "C" int period_print(const PeriodMeasurement *measurement, FILE *file)
+extern "C" int period_print(const PeriodMeasurement *measurement, VerbaLinea *out)
 {
-    if ((measurement == NULL) || (file == NULL))
+    if ((measurement == NULL) || (out == NULL))
     {
         return 0;
     }
@@ -443,7 +443,7 @@ extern "C" int period_print(const PeriodMeasurement *measurement, FILE *file)
         }
         mmgr_line_put(&line, ")\n");
     }
-    const int written = (mmgr_line_ok(&line) && (fwrite(line.out, 1u, mmgr_line_finish(&line), file) == line.at));
+    const int written = (mmgr_line_ok(&line) && (mmgr_line_put_n(out, line.out, mmgr_line_finish(&line)) == line.at));
     free(line.out);
     return written;
 }

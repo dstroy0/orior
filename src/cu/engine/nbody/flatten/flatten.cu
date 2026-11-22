@@ -39,7 +39,7 @@ static int flatten_write_iapx(const char *path, const MaxTreeLayout *layout, cha
     int ok = FLATTEN_CHECK(again != NULL, &again, error, ENGINE_ERROR_RESOURCE);
     const unsigned int head[FLATTEN_HEAD_LIMBS] = {FLATTEN_FORMAT, MAX_TREE_FIELDS, layout->total_bits, layout->limbs,
                                                    count};
-    FILE *file = ok ? fopen(path, "wb") : NULL;
+    PlatformFile *file = ok ? platform_file_open(path, "wb") : NULL;
     ok = ok && FLATTEN_IO(file != NULL, path, error) &&
          FLATTEN_IO(krep_head_write(file, KREP_TYPE_SHARD) != 0, file, error) &&
          FLATTEN_IO(krep_limbs_write(file, head, FLATTEN_HEAD_LIMBS) != 0, head, error) &&
@@ -50,7 +50,7 @@ static int flatten_write_iapx(const char *path, const MaxTreeLayout *layout, cha
         const unsigned int length = (unsigned int)mmgr_text_length(names[sample], PLATFORM_TEXT_TO_TERMINATOR);
         ok =
             FLATTEN_IO(krep_limbs_write(file, &length, 1u) != 0, &length, error) &&
-            FLATTEN_IO(fwrite(names[sample], 1u, length, file) == length, names[sample], error) &&
+            FLATTEN_IO(platform_file_write_items(names[sample], 1u, length, file) == length, names[sample], error) &&
             FLATTEN_IO(krep_limbs_write(file, orders[sample].smooth, ENGINE_AXES) != 0, orders[sample].smooth, error) &&
             FLATTEN_IO(krep_limbs_write(file, orders[sample].background, ENGINE_AXES) != 0, orders[sample].background,
                        error) &&
@@ -60,10 +60,10 @@ static int flatten_write_iapx(const char *path, const MaxTreeLayout *layout, cha
          FLATTEN_IO(krep_limbs_write(file, magnitudes, words) != 0, magnitudes, error);
     if (file != NULL)
     {
-        ok = FLATTEN_IO(fclose(file) == 0, file, error) && ok;
+        ok = FLATTEN_IO(platform_file_close(file) == 0, file, error) && ok;
     }
 
-    file = ok ? fopen(path, "rb") : NULL;
+    file = ok ? platform_file_open(path, "rb") : NULL;
     unsigned int read_head[FLATTEN_HEAD_LIMBS] = {0u, 0u, 0u, 0u, 0u};
     unsigned int read_bits[MAX_TREE_FIELDS];
     unsigned int read_offset[MAX_TREE_FIELDS];
@@ -84,7 +84,7 @@ static int flatten_write_iapx(const char *path, const MaxTreeLayout *layout, cha
         FlattenOrders read_orders;
         ok = FLATTEN_IO(krep_limbs_read(file, &length, 1u) != 0, &length, error) &&
              FLATTEN_CHECK(length < sizeof(name), &length, error, ENGINE_ERROR_LOGIC) &&
-             FLATTEN_IO(fread(name, 1u, length, file) == length, name, error) &&
+             FLATTEN_IO(platform_file_read_items(name, 1u, length, file) == length, name, error) &&
              FLATTEN_CHECK((length == mmgr_text_length(names[sample], PLATFORM_TEXT_TO_TERMINATOR)) &&
                                (mmgr_bytes_compare(name, names[sample], length) == 0),
                            name, error, ENGINE_ERROR_LOGIC) &&
@@ -101,10 +101,10 @@ static int flatten_write_iapx(const char *path, const MaxTreeLayout *layout, cha
          FLATTEN_IO(krep_limbs_read(file, again, words) != 0, again, error) &&
          FLATTEN_CHECK(mmgr_bytes_compare(again, magnitudes, words * sizeof(unsigned int)) == 0, again, error,
                        ENGINE_ERROR_LOGIC) &&
-         FLATTEN_CHECK(fgetc(file) == EOF, file, error, ENGINE_ERROR_LOGIC);
+         FLATTEN_CHECK(platform_file_char_get(file) == EOF, file, error, ENGINE_ERROR_LOGIC);
     if (file != NULL)
     {
-        fclose(file);
+        platform_file_close(file);
     }
     free(again);
     return ok;
@@ -124,7 +124,7 @@ int flatten_read(const char *set, FlattenResident *resident, EngineError *error)
     (void)mmgr_line_finish(&formed_line_1);
     const int written = (int)formed_line_1.at;
     const int named = (written > 0) && ((size_t)written < sizeof(path));
-    FILE *const file = named ? fopen(path, "rb") : NULL;
+    PlatformFile *const file = named ? platform_file_open(path, "rb") : NULL;
     unsigned int head[FLATTEN_HEAD_LIMBS] = {0u, 0u, 0u, 0u, 0u};
     int ok =
         FLATTEN_CHECK(named, set, error, ENGINE_ERROR_REQUEST) && FLATTEN_IO(file != NULL, path, error) &&
@@ -153,7 +153,8 @@ int flatten_read(const char *set, FlattenResident *resident, EngineError *error)
         FlattenOrders *const orders = &resident->orders[sample];
         ok = ok &&
              FLATTEN_CHECK(resident->names[sample] != NULL, &resident->names[sample], error, ENGINE_ERROR_RESOURCE) &&
-             FLATTEN_IO(fread(resident->names[sample], 1u, length, file) == length, resident->names[sample], error) &&
+             FLATTEN_IO(platform_file_read_items(resident->names[sample], 1u, length, file) == length,
+                        resident->names[sample], error) &&
              FLATTEN_IO(krep_limbs_read(file, orders->smooth, ENGINE_AXES) != 0, orders->smooth, error) &&
              FLATTEN_IO(krep_limbs_read(file, orders->background, ENGINE_AXES) != 0, orders->background, error) &&
              FLATTEN_IO(krep_limbs_read(file, orders->comb, ENGINE_AXES) != 0, orders->comb, error);
@@ -175,10 +176,10 @@ int flatten_read(const char *set, FlattenResident *resident, EngineError *error)
     resident->magnitudes = ok ? (unsigned int *)malloc((words + 1u) * sizeof(unsigned int)) : NULL;
     ok = ok && FLATTEN_CHECK(resident->magnitudes != NULL, &resident->magnitudes, error, ENGINE_ERROR_RESOURCE) &&
          FLATTEN_IO(krep_limbs_read(file, resident->magnitudes, words) != 0, resident->magnitudes, error) &&
-         FLATTEN_CHECK(fgetc(file) == EOF, file, error, ENGINE_ERROR_LOGIC);
+         FLATTEN_CHECK(platform_file_char_get(file) == EOF, file, error, ENGINE_ERROR_LOGIC);
     if (file != NULL)
     {
-        fclose(file);
+        platform_file_close(file);
     }
     if (ok == 0)
     {

@@ -8,13 +8,13 @@
 // the engine's ledger: one line a finished job, "engine" first and "end" last. A line cut anywhere is not a job
 void omega_engine_ledger_read(const char *path, std::vector<OmegaEngineJob> &jobs)
 {
-    FILE *file = fopen(path, "r");
+    PlatformFile *file = platform_file_open(path, "r");
     if (file == NULL)
     {
         return;
     }
     char line[1024];
-    while (fgets(line, (int)sizeof(line), file) != NULL)
+    while (platform_file_text_read(line, (int)sizeof(line), file) != NULL)
     {
         OmegaEngineJob job;
         omega_results_open(&job.results);
@@ -47,39 +47,65 @@ void omega_engine_ledger_read(const char *path, std::vector<OmegaEngineJob> &job
         job.settled = job.count;
         jobs.push_back(job);
     }
-    fclose(file);
+    platform_file_close(file);
 }
 
 int omega_engine_ledger_write(const char *path, const OmegaEngineJob *job)
 {
     int ended = 1;
-    FILE *before = fopen(path, "rb");
+    PlatformFile *before = platform_file_open(path, "rb");
     if (before != NULL)
     {
-        if (fseek(before, -1L, SEEK_END) == 0)
+        if (platform_file_seek(before, -1L, SEEK_END) == 0)
         {
-            ended = (fgetc(before) == '\n');
+            ended = (platform_file_char_get(before) == '\n');
         }
-        fclose(before);
+        platform_file_close(before);
     }
-    FILE *file = fopen(path, "a");
+    PlatformFile *file = platform_file_open(path, "a");
     if (file == NULL)
     {
         return 0;
     }
     if (ended == 0)
     {
-        fputc('\n', file);
+        platform_file_char_put('\n', file);
     }
     const unsigned int length = job->length;
     const OmegaResults *const results = &job->results;
-    fprintf(file, "engine %u %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu end\n", length, job->from,
-            job->count, results->fate[0][length], results->fate[1][length], results->fate[2][length],
-            results->fate[3][length], results->fate[4][length], results->fate[5][length], results->contradictions,
-            results->max_steps[length], results->steps_champion[length], results->max_bits[length],
-            results->bits_champion[length]);
-    const int flushed = (fflush(file) == 0);
-    return (fclose(file) == 0) && flushed;
+    {
+        mmgr_line_put(platform_file_line(file), "engine ");
+        mmgr_line_decimal(platform_file_line(file), length, 1u);
+        mmgr_line_put(platform_file_line(file), " ");
+        mmgr_line_decimal(platform_file_line(file), job->from, 1u);
+        mmgr_line_put(platform_file_line(file), " ");
+        mmgr_line_decimal(platform_file_line(file), job->count, 1u);
+        mmgr_line_put(platform_file_line(file), " ");
+        mmgr_line_decimal(platform_file_line(file), results->fate[0][length], 1u);
+        mmgr_line_put(platform_file_line(file), " ");
+        mmgr_line_decimal(platform_file_line(file), results->fate[1][length], 1u);
+        mmgr_line_put(platform_file_line(file), " ");
+        mmgr_line_decimal(platform_file_line(file), results->fate[2][length], 1u);
+        mmgr_line_put(platform_file_line(file), " ");
+        mmgr_line_decimal(platform_file_line(file), results->fate[3][length], 1u);
+        mmgr_line_put(platform_file_line(file), " ");
+        mmgr_line_decimal(platform_file_line(file), results->fate[4][length], 1u);
+        mmgr_line_put(platform_file_line(file), " ");
+        mmgr_line_decimal(platform_file_line(file), results->fate[5][length], 1u);
+        mmgr_line_put(platform_file_line(file), " ");
+        mmgr_line_decimal(platform_file_line(file), results->contradictions, 1u);
+        mmgr_line_put(platform_file_line(file), " ");
+        mmgr_line_decimal(platform_file_line(file), results->max_steps[length], 1u);
+        mmgr_line_put(platform_file_line(file), " ");
+        mmgr_line_decimal(platform_file_line(file), results->steps_champion[length], 1u);
+        mmgr_line_put(platform_file_line(file), " ");
+        mmgr_line_decimal(platform_file_line(file), results->max_bits[length], 1u);
+        mmgr_line_put(platform_file_line(file), " ");
+        mmgr_line_decimal(platform_file_line(file), results->bits_champion[length], 1u);
+        mmgr_line_put(platform_file_line(file), " end\n");
+    }
+    const int flushed = (platform_file_flush(file) == 0);
+    return (platform_file_close(file) == 0) && flushed;
 }
 
 void omega_engine_settle(const OmegaCounts *counts, OmegaEngineJob *job, const OmegaSettled *settled,

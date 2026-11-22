@@ -32,7 +32,7 @@
 // A check under way: the seal's file, the leaves it read so far, and the lines that differ so far
 typedef struct
 {
-    FILE *seal;
+    PlatformFile *seal;
     unsigned long long leaves;
     unsigned long long differ;
 } KsgChecking;
@@ -113,33 +113,33 @@ static unsigned long long ksg_word_read(const unsigned char *bytes)
 
 // the seal beside `path` opened, its head checked against ksg's and its trailer read into `stored_trailer`: the file,
 // or NULL
-static FILE *ksg_seal_opened(const char *path, unsigned char *stored_trailer)
+static PlatformFile *ksg_seal_opened(const char *path, unsigned char *stored_trailer)
 {
     static char s_sealed[KSG_PATH_MAX_LEN];
-    FILE *const seal = ksg_path_with(path, KSG_SUFFIX, s_sealed) ? fopen(s_sealed, "rb") : NULL;
+    PlatformFile *const seal = ksg_path_with(path, KSG_SUFFIX, s_sealed) ? platform_file_open(s_sealed, "rb") : NULL;
     unsigned char head[KREP_HEAD_BYTES];
     unsigned char stored_head[KREP_HEAD_BYTES];
     ksg_head(head);
-    const int opened = (seal != NULL) && (fseek(seal, -(long)KSG_TRAILER_BYTES, SEEK_END) == 0) &&
-                       (fread(stored_trailer, 1u, KSG_TRAILER_BYTES, seal) == KSG_TRAILER_BYTES) &&
-                       (fseek(seal, 0L, SEEK_SET) == 0) &&
-                       (fread(stored_head, 1u, sizeof(stored_head), seal) == sizeof(stored_head)) &&
+    const int opened = (seal != NULL) && (platform_file_seek(seal, -(long)KSG_TRAILER_BYTES, SEEK_END) == 0) &&
+                       (platform_file_read_items(stored_trailer, 1u, KSG_TRAILER_BYTES, seal) == KSG_TRAILER_BYTES) &&
+                       (platform_file_seek(seal, 0L, SEEK_SET) == 0) &&
+                       (platform_file_read_items(stored_head, 1u, sizeof(stored_head), seal) == sizeof(stored_head)) &&
                        (mmgr_bytes_compare(stored_head, head, sizeof(head)) == 0);
     if (!opened && (seal != NULL))
     {
-        (void)fclose(seal);
+        (void)platform_file_close(seal);
     }
     return opened ? seal : NULL;
 }
 
 int ksg_trailer_read(const char *path, unsigned char *trailer)
 {
-    FILE *const seal = ksg_seal_opened(path, trailer);
+    PlatformFile *const seal = ksg_seal_opened(path, trailer);
     if (seal == NULL)
     {
         return 0;
     }
-    (void)fclose(seal);
+    (void)platform_file_close(seal);
     return 1;
 }
 
@@ -147,7 +147,7 @@ int ksg_trailer_read(const char *path, unsigned char *trailer)
 // the seal failed
 static int ksg_file_sealed(const char *path)
 {
-    FILE *const file = fopen(path, "rb");
+    PlatformFile *const file = platform_file_open(path, "rb");
     if (file == NULL)
     {
         return 0;
@@ -155,15 +155,15 @@ static int ksg_file_sealed(const char *path)
     int whole = 1;
     for (;;)
     {
-        const size_t got = fread(s_read, 1u, sizeof(s_read), file);
+        const size_t got = platform_file_read_items(s_read, 1u, sizeof(s_read), file);
         whole = whole && ksg_seal_bytes(&s_seal, s_read, got);
         if (got < sizeof(s_read))
         {
-            whole = whole && !ferror(file);
+            whole = whole && !platform_file_failed(file);
             break;
         }
     }
-    (void)fclose(file);
+    (void)platform_file_close(file);
     return whole;
 }
 
@@ -217,7 +217,8 @@ static int ksg_leaf_check(void *context, const unsigned char *leaf, unsigned lon
 {
     KsgChecking *const checking = context;
     unsigned char stored_trailer[KSG_SIGNUM_BYTES];
-    const int read = fread(stored_trailer, 1u, sizeof(stored_trailer), checking->seal) == sizeof(stored_trailer);
+    const int read =
+        platform_file_read_items(stored_trailer, 1u, sizeof(stored_trailer), checking->seal) == sizeof(stored_trailer);
     checking->leaves += 1ULL;
     if (read && (mmgr_bytes_compare(stored_trailer, leaf, KSG_SIGNUM_BYTES) == 0))
     {
@@ -242,7 +243,7 @@ static int ksg_checked(const char *path, const KsaApproval *required, unsigned i
 {
     unsigned char trailer[KSG_TRAILER_BYTES];
     unsigned char stored_trailer[KSG_TRAILER_BYTES];
-    FILE *const seal = ksg_seal_opened(path, stored_trailer);
+    PlatformFile *const seal = ksg_seal_opened(path, stored_trailer);
     ksg_print(path);
     if (seal == NULL)
     {
@@ -255,7 +256,7 @@ static int ksg_checked(const char *path, const KsaApproval *required, unsigned i
     unsigned char root[KSG_SIGNUM_BYTES];
     const int sealed = ksg_seal_begun(&s_seal, ksg_leaf_check, &checking) && ksg_file_sealed(path) &&
                        ksg_seal_ended(&s_seal, root, trailer);
-    (void)fclose(seal);
+    (void)platform_file_close(seal);
     const int size_matches = ksg_word_read(trailer) == ksg_word_read(stored_trailer);
     const int count_matches = (ksg_word_read(trailer + 16u) == ksg_word_read(stored_trailer + 16u)) &&
                               (ksg_word_read(stored_trailer + 8u) == KSG_LINE_MAX);
@@ -303,11 +304,11 @@ static int ksg_approved(const char *secret, const char *path)
 // the usage printed
 static int ksg_usage(void)
 {
-    (void)fputs("usage: ksg seal <file>...\n"
-                "       ksg keys <scheme> <secret> <public>\n"
-                "       ksg approve <secret> <file>...\n"
-                "       ksg check [--approver <public>]... <file>...\n",
-                stderr);
+    static const char usage[] = "usage: ksg seal <file>...\n"
+                                "       ksg keys <scheme> <secret> <public>\n"
+                                "       ksg approve <secret> <file>...\n"
+                                "       ksg check [--approver <public>]... <file>...\n";
+    platform_terminal_write(1, usage, sizeof(usage) - 1u);
     return 2;
 }
 

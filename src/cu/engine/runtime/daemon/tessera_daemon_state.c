@@ -199,22 +199,22 @@ int daemon_history_load(void)
     {
         return 0;
     }
-    FILE *const file = fopen(path, "rb");
+    PlatformFile *const file = platform_file_open(path, "rb");
     if (file == NULL)
     {
         return 1;
     }
     // the file is its whole records, then the seal over them; any other length is a broken history
-    int ok = fseek(file, 0L, SEEK_END) == 0;
-    const long length = ok ? ftell(file) : -1L;
+    int ok = platform_file_seek(file, 0L, SEEK_END) == 0;
+    const long length = ok ? platform_file_tell(file) : -1L;
     ok = ok && (length >= (long)OBSIGNATIO_SIGNUM_BYTES) &&
          ((((unsigned long long)length - OBSIGNATIO_SIGNUM_BYTES) % TESSERA_HISTORY_RECORD) == 0ULL) &&
-         (fseek(file, 0L, SEEK_SET) == 0);
+         (platform_file_seek(file, 0L, SEEK_SET) == 0);
     // a length checked non-negative above is the file's byte count
     const unsigned long long total = ok ? (unsigned long long)length : 0ULL;
     unsigned char *const bytes = ok ? (unsigned char *)malloc((size_t)total) : NULL;
-    ok = ok && (bytes != NULL) && (fread(bytes, 1u, (size_t)total, file) == (size_t)total);
-    fclose(file);
+    ok = ok && (bytes != NULL) && (platform_file_read_items(bytes, 1u, (size_t)total, file) == (size_t)total);
+    platform_file_close(file);
     const unsigned long long sealed = total - OBSIGNATIO_SIGNUM_BYTES;
     EngineError error;
     mmgr_bytes_set(&error, 0, sizeof(error));
@@ -277,9 +277,9 @@ int daemon_history_save(void)
     mmgr_bytes_set(&error, 0, sizeof(error));
     const ObsignatioSealRequest seal = {bytes, sealed, bytes + sealed, &error};
     int ok = obsignatio_seal(&seal) == 0L;
-    FILE *const file = ok ? fopen(fresh, "wb") : NULL;
-    ok = ok && (file != NULL) && (fwrite(bytes, 1u, (size_t)total, file) == (size_t)total);
-    ok = (file != NULL) && (fclose(file) == 0) && ok;
+    PlatformFile *const file = ok ? platform_file_open(fresh, "wb") : NULL;
+    ok = ok && (file != NULL) && (platform_file_write_items(bytes, 1u, (size_t)total, file) == (size_t)total);
+    ok = (file != NULL) && (platform_file_close(file) == 0) && ok;
     free(bytes);
 #if defined(_WIN32)
     ok = ok && (MoveFileExA(fresh, path, MOVEFILE_REPLACE_EXISTING) != 0);
@@ -335,14 +335,18 @@ static int daemon_ticket_seal_write(const char *path, const char *text, unsigned
         line[(2u * byte) + 1u] = s_hex[signum[byte] & 0x0Fu];
     }
     line[2u * OBSIGNATIO_SIGNUM_BYTES] = '\0';
-    FILE *const file = fopen(path, "wb");
+    PlatformFile *const file = platform_file_open(path, "wb");
     if (file == NULL)
     {
         return 0;
     }
-    const int printed = (fwrite(text, 1u, (size_t)length, file) == (size_t)length) &&
-                        (fprintf(file, "%s%s\n", s_daemon_seal, line) > 0);
-    return (fclose(file) == 0) && printed;
+    unsigned long long formed_mark_1;
+    const int printed =
+        (platform_file_write_items(text, 1u, (size_t)length, file) == (size_t)length) &&
+        ((formed_mark_1 = platform_file_mark(file), mmgr_line_put(platform_file_line(file), s_daemon_seal),
+          mmgr_line_put(platform_file_line(file), line), mmgr_line_put(platform_file_line(file), "\n"),
+          platform_file_written_since(file, formed_mark_1)) > 0);
+    return (platform_file_close(file) == 0) && printed;
 }
 
 int daemon_ticket_write(unsigned long long identity, const TesseraPeer *peer, unsigned long long peak,
@@ -398,14 +402,14 @@ int daemon_ticket_note(unsigned long long identity, const TesseraPeer *peer, con
     {
         return 0;
     }
-    FILE *const file = fopen(path, "rb");
+    PlatformFile *const file = platform_file_open(path, "rb");
     if (file == NULL)
     {
         return 0;
     }
-    const size_t length = fread(text, 1u, sizeof(text) - 1u, file);
-    const int at_end = feof(file) != 0;
-    fclose(file);
+    const size_t length = platform_file_read_items(text, 1u, sizeof(text) - 1u, file);
+    const int at_end = platform_file_ended(file) != 0;
+    platform_file_close(file);
     const size_t seal_line = (sizeof(s_daemon_seal) - 1u) + (2u * OBSIGNATIO_SIGNUM_BYTES) + 1u;
     if (!at_end || (length < seal_line) || (text[length - 1u] != '\n') ||
         (mmgr_bytes_compare(text + (length - seal_line), s_daemon_seal, sizeof(s_daemon_seal) - 1u) != 0))

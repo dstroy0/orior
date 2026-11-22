@@ -157,7 +157,7 @@ static int lattice_write_npy(const char *path, const SimScene *scene, const unsi
         mmgr_line_ch(&line, ' ');
     }
     mmgr_line_ch(&line, '\n');
-    FILE *const file = fopen(path, "wb");
+    PlatformFile *const file = platform_file_open(path, "wb");
     if (file == NULL)
     {
         return 0;
@@ -166,16 +166,17 @@ static int lattice_write_npy(const char *path, const SimScene *scene, const unsi
                                      // the header length is below 128, one byte, stored little endian
                                      (unsigned char)(line.at & 0xFFULL), (unsigned char)(line.at >> 8u)};
     const unsigned long long lanes_count = scene->frames * sim_scene_voxels(scene);
-    int ok = fwrite(magic, 1u, sizeof(magic), file) == sizeof(magic);
-    ok = ok && (fwrite(head, 1u, (size_t)line.at, file) == (size_t)line.at);
-    ok = ok && (fwrite(lanes, sizeof(unsigned short), (size_t)lanes_count, file) == (size_t)lanes_count);
-    ok = (fclose(file) == 0) && ok;
+    int ok = platform_file_write_items(magic, 1u, sizeof(magic), file) == sizeof(magic);
+    ok = ok && (platform_file_write_items(head, 1u, (size_t)line.at, file) == (size_t)line.at);
+    ok = ok &&
+         (platform_file_write_items(lanes, sizeof(unsigned short), (size_t)lanes_count, file) == (size_t)lanes_count);
+    ok = (platform_file_close(file) == 0) && ok;
     return ok;
 }
 
 static int lattice_write_truth(const char *path, const SimScene *scene, const unsigned long long *truth)
 {
-    FILE *const file = fopen(path, "wb");
+    PlatformFile *const file = platform_file_open(path, "wb");
     if (file == NULL)
     {
         return 0;
@@ -186,7 +187,8 @@ static int lattice_write_truth(const char *path, const SimScene *scene, const un
     line.capacity = sizeof(text_buffer);
     line.at = 0ULL;
     mmgr_line_put(&line, "frame\tbody\tparent\tmass\tsum_z\tsum_y\tsum_x\n");
-    int ok = (mmgr_line_ok(&line) && (fwrite(line.out, 1u, mmgr_line_finish(&line), file) == line.at)) != 0;
+    int ok = (mmgr_line_ok(&line) &&
+              (platform_file_write_items(line.out, 1u, mmgr_line_finish(&line), file) == line.at)) != 0;
     for (unsigned long long frame = 0ULL; ok && (frame < scene->frames); frame += 1ULL)
     {
         for (unsigned int index = 0u; ok && (index < scene->bodies); index += 1u)
@@ -208,10 +210,11 @@ static int lattice_write_truth(const char *path, const SimScene *scene, const un
                 mmgr_line_decimal(&line, field[word], 1u);
             }
             mmgr_line_ch(&line, '\n');
-            ok = (mmgr_line_ok(&line) && (fwrite(line.out, 1u, mmgr_line_finish(&line), file) == line.at)) != 0;
+            ok = (mmgr_line_ok(&line) &&
+                  (platform_file_write_items(line.out, 1u, mmgr_line_finish(&line), file) == line.at)) != 0;
         }
     }
-    ok = (fclose(file) == 0) && ok;
+    ok = (platform_file_close(file) == 0) && ok;
     return ok;
 }
 

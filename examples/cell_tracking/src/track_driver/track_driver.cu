@@ -1935,7 +1935,8 @@ int program_main(int argc, char **argv)
                                             inputs.axes,   inputs.channel, &error,         &report};
         const long ingested = engine_ingest_set(&ingest);
         run_job_release("ingest", &job);
-        engine_ingest_print(&ingest, stdout);
+        engine_ingest_print(&ingest, platform_line_out());
+        platform_line_out_ended();
         free(report.samples);
         if (ingested != 0L)
         {
@@ -1992,7 +1993,8 @@ int program_main(int argc, char **argv)
             prove.error = &error;
             prove.report = &report;
             failures = (engine_iapx_prove_set(&prove) == 0L) ? 0 : 1;
-            engine_prove_print(&prove, stdout);
+            engine_prove_print(&prove, platform_line_out());
+            platform_line_out_ended();
             free(report.samples);
             if (failures != 0)
             {
