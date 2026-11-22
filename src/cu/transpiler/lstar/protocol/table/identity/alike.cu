@@ -65,22 +65,54 @@ int question_alike(const std::vector<unsigned char> &code, const std::vector<std
         s_apart_at = (stored.answer == "answers") ? stored.word : 0xffffffffu;
         if (s_trace_log != NULL)
         {
-            query_log_print(s_trace_log, "query %llu: recorded %s %08x %s\n", *queries, stored.answer.c_str(),
-                            stored.word, key.c_str());
+            {
+                TextNote text_note;
+                text_note_begun(&text_note, &s_trace_log->bytes);
+                mmgr_line_put(&text_note.line, "query ");
+                mmgr_line_decimal(&text_note.line, *queries, 1u);
+                mmgr_line_put(&text_note.line, ": recorded ");
+                mmgr_line_put(&text_note.line, stored.answer.c_str());
+                mmgr_line_put(&text_note.line, " ");
+                mmgr_line_hex(&text_note.line, stored.word, 8u);
+                mmgr_line_put(&text_note.line, " ");
+                mmgr_line_put(&text_note.line, key.c_str());
+                mmgr_line_ch(&text_note.line, '\n');
+                text_note_written(&text_note);
+            }
             query_log_flushed(s_trace_log);
         }
         if (s_query_log != NULL)
         {
-            query_log_print(s_query_log, "query %llu recorded\n", *queries);
+            TextNote text_note;
+            text_note_begun(&text_note, &s_query_log->bytes);
+            mmgr_line_put(&text_note.line, "query ");
+            mmgr_line_decimal(&text_note.line, *queries, 1u);
+            mmgr_line_put(&text_note.line, " recorded");
+            mmgr_line_ch(&text_note.line, '\n');
+            text_note_written(&text_note);
         }
         return alike;
     }
     if (s_trace_log != NULL)
     {
-        query_log_print(s_trace_log,
-                        "query %llu: %llu bytes, %u registers, %u threads in %u blocks, %u launches, %u cases: ",
-                        *queries, question->code_size, question->registers, question->threads, question->blocks,
-                        question->launches, question->cases);
+        TextNote text_note;
+        text_note_begun(&text_note, &s_trace_log->bytes);
+        mmgr_line_put(&text_note.line, "query ");
+        mmgr_line_decimal(&text_note.line, *queries, 1u);
+        mmgr_line_put(&text_note.line, ": ");
+        mmgr_line_decimal(&text_note.line, question->code_size, 1u);
+        mmgr_line_put(&text_note.line, " bytes, ");
+        mmgr_line_decimal(&text_note.line, question->registers, 1u);
+        mmgr_line_put(&text_note.line, " registers, ");
+        mmgr_line_decimal(&text_note.line, question->threads, 1u);
+        mmgr_line_put(&text_note.line, " threads in ");
+        mmgr_line_decimal(&text_note.line, question->blocks, 1u);
+        mmgr_line_put(&text_note.line, " blocks, ");
+        mmgr_line_decimal(&text_note.line, question->launches, 1u);
+        mmgr_line_put(&text_note.line, " launches, ");
+        mmgr_line_decimal(&text_note.line, question->cases, 1u);
+        mmgr_line_put(&text_note.line, " cases: ");
+        text_note_written(&text_note);
     }
     RunQuestion *const single[1] = {question};
     queries_carried(single, &t_dangerous, 1u);
@@ -88,12 +120,27 @@ int question_alike(const std::vector<unsigned char> &code, const std::vector<std
     {
         if (s_trace_log != NULL)
         {
-            query_log_print(s_trace_log, "outcome %u, %s\n", question->outcome, question->refused);
+            {
+                TextNote text_note;
+                text_note_begun(&text_note, &s_trace_log->bytes);
+                mmgr_line_put(&text_note.line, "outcome ");
+                mmgr_line_decimal(&text_note.line, question->outcome, 1u);
+                mmgr_line_put(&text_note.line, ", ");
+                mmgr_line_put(&text_note.line, question->refused);
+                mmgr_line_ch(&text_note.line, '\n');
+                text_note_written(&text_note);
+            }
             query_log_flushed(s_trace_log);
         }
         if (s_query_log != NULL)
         {
-            query_log_print(s_query_log, "query %llu refused\n", *queries);
+            TextNote text_note;
+            text_note_begun(&text_note, &s_query_log->bytes);
+            mmgr_line_put(&text_note.line, "query ");
+            mmgr_line_decimal(&text_note.line, *queries, 1u);
+            mmgr_line_put(&text_note.line, " refused");
+            mmgr_line_ch(&text_note.line, '\n');
+            text_note_written(&text_note);
         }
         if (recordable && ((question->outcome == RUN_ILLEGAL) || (question->outcome == RUN_NOTHING)))
         {
@@ -112,12 +159,26 @@ int question_alike(const std::vector<unsigned char> &code, const std::vector<std
             record_hash(places.data(), sizeof(places[0]) * question->cases, 0xcbf29ce484222325ULL);
         if ((query_hash != t_logged_hash) || (question->cases != t_logged_count))
         {
-            query_log_print(s_query_log, "cases");
+            {
+                TextNote text_note;
+                text_note_begun(&text_note, &s_query_log->bytes);
+                mmgr_line_put(&text_note.line, "cases");
+                text_note_written(&text_note);
+            }
             for (unsigned int place = 0u; place < question->cases; place += 1u)
             {
-                query_log_print(s_query_log, " %s", case_text(places[place]).c_str());
+                TextNote text_note;
+                text_note_begun(&text_note, &s_query_log->bytes);
+                mmgr_line_put(&text_note.line, " ");
+                mmgr_line_put(&text_note.line, case_text(places[place]).c_str());
+                text_note_written(&text_note);
             }
-            query_log_print(s_query_log, "\n");
+            {
+                TextNote text_note;
+                text_note_begun(&text_note, &s_query_log->bytes);
+                mmgr_line_ch(&text_note.line, '\n');
+                text_note_written(&text_note);
+            }
             t_logged_hash = query_hash;
             t_logged_count = question->cases;
         }
@@ -127,7 +188,16 @@ int question_alike(const std::vector<unsigned char> &code, const std::vector<std
             const int in_bracket = bracket_contains(host[places[place]], question->answered[place]);
             came_back += (in_bracket < 0) ? '-' : (in_bracket != 0) ? '=' : 'x';
         }
-        query_log_print(s_query_log, "query %llu %s\n", *queries, came_back.c_str());
+        {
+            TextNote text_note;
+            text_note_begun(&text_note, &s_query_log->bytes);
+            mmgr_line_put(&text_note.line, "query ");
+            mmgr_line_decimal(&text_note.line, *queries, 1u);
+            mmgr_line_put(&text_note.line, " ");
+            mmgr_line_put(&text_note.line, came_back.c_str());
+            mmgr_line_ch(&text_note.line, '\n');
+            text_note_written(&text_note);
+        }
     }
     for (unsigned int place = 0u; place < question->cases; place += 1u)
     {
@@ -136,8 +206,18 @@ int question_alike(const std::vector<unsigned char> &code, const std::vector<std
         {
             if (s_trace_log != NULL)
             {
-                query_log_print(s_trace_log, "apart at case %u, the host %s and the part %llx\n", places[place],
-                                expected.c_str(), question->answered[place]);
+                {
+                    TextNote text_note;
+                    text_note_begun(&text_note, &s_trace_log->bytes);
+                    mmgr_line_put(&text_note.line, "apart at case ");
+                    mmgr_line_decimal(&text_note.line, places[place], 1u);
+                    mmgr_line_put(&text_note.line, ", the host ");
+                    mmgr_line_put(&text_note.line, expected.c_str());
+                    mmgr_line_put(&text_note.line, " and the part ");
+                    mmgr_line_hex(&text_note.line, question->answered[place], 1u);
+                    mmgr_line_ch(&text_note.line, '\n');
+                    text_note_written(&text_note);
+                }
                 query_log_flushed(s_trace_log);
             }
             if (recordable)
@@ -154,9 +234,16 @@ int question_alike(const std::vector<unsigned char> &code, const std::vector<std
     }
     if (s_trace_log != NULL)
     {
-        query_log_print(s_trace_log, "alike%s\n",
-                        (question->launches != 0u) ? (", " + std::to_string(question->nanoseconds) + " ns").c_str()
-                                                   : "");
+        {
+            TextNote text_note;
+            text_note_begun(&text_note, &s_trace_log->bytes);
+            mmgr_line_put(&text_note.line, "alike");
+            mmgr_line_put(&text_note.line, (question->launches != 0u)
+                                               ? (", " + std::to_string(question->nanoseconds) + " ns").c_str()
+                                               : "");
+            mmgr_line_ch(&text_note.line, '\n');
+            text_note_written(&text_note);
+        }
         query_log_flushed(s_trace_log);
     }
     return 1;
@@ -173,22 +260,49 @@ int question_read(const std::vector<unsigned char> &code, RunQuestion *question,
     *queries += 1ULL;
     if (s_trace_log != NULL)
     {
-        query_log_print(s_trace_log,
-                        "query %llu: %llu bytes, %u registers, %u threads in %u blocks, %u launches, %u cases, read: ",
-                        *queries, question->code_size, question->registers, question->threads, question->blocks,
-                        question->launches, question->cases);
+        TextNote text_note;
+        text_note_begun(&text_note, &s_trace_log->bytes);
+        mmgr_line_put(&text_note.line, "query ");
+        mmgr_line_decimal(&text_note.line, *queries, 1u);
+        mmgr_line_put(&text_note.line, ": ");
+        mmgr_line_decimal(&text_note.line, question->code_size, 1u);
+        mmgr_line_put(&text_note.line, " bytes, ");
+        mmgr_line_decimal(&text_note.line, question->registers, 1u);
+        mmgr_line_put(&text_note.line, " registers, ");
+        mmgr_line_decimal(&text_note.line, question->threads, 1u);
+        mmgr_line_put(&text_note.line, " threads in ");
+        mmgr_line_decimal(&text_note.line, question->blocks, 1u);
+        mmgr_line_put(&text_note.line, " blocks, ");
+        mmgr_line_decimal(&text_note.line, question->launches, 1u);
+        mmgr_line_put(&text_note.line, " launches, ");
+        mmgr_line_decimal(&text_note.line, question->cases, 1u);
+        mmgr_line_put(&text_note.line, " cases, read: ");
+        text_note_written(&text_note);
     }
     RunQuestion *const single[1] = {question};
     queries_carried(single, &t_dangerous, 1u);
     const int answered = question->outcome == RUN_ANSWERED;
     if (s_trace_log != NULL)
     {
-        query_log_print(s_trace_log, "%s\n", answered ? "answered" : question->refused);
+        {
+            TextNote text_note;
+            text_note_begun(&text_note, &s_trace_log->bytes);
+            mmgr_line_put(&text_note.line, answered ? "answered" : question->refused);
+            mmgr_line_ch(&text_note.line, '\n');
+            text_note_written(&text_note);
+        }
         query_log_flushed(s_trace_log);
     }
     if (s_query_log != NULL)
     {
-        query_log_print(s_query_log, "query %llu %s\n", *queries, answered ? "read" : "refused");
+        TextNote text_note;
+        text_note_begun(&text_note, &s_query_log->bytes);
+        mmgr_line_put(&text_note.line, "query ");
+        mmgr_line_decimal(&text_note.line, *queries, 1u);
+        mmgr_line_put(&text_note.line, " ");
+        mmgr_line_put(&text_note.line, answered ? "read" : "refused");
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
     }
     return answered;
 }
@@ -333,12 +447,44 @@ static std::string first_type(const std::string &kernel)
 int host_questions_write(const std::string &path, const std::string &stick, const std::set<std::string> &numbers)
 {
     RunWritten file = {path, 0, std::string()};
-    run_print(&file, "// the stick's integer questions as the host computes them, written by orior_klq_identity\n");
-    run_print(&file, "#include <limits>\n#include <stdio.h>\n\n");
-    run_print(&file, "struct HostIndex\n{\n    unsigned int x, y, z;\n};\n");
-    run_print(&file,
-              "static const HostIndex threadIdx = {0u, 0u, 0u};\nstatic const HostIndex blockIdx = {0u, 0u, 0u};\n");
-    run_print(&file, "static const HostIndex blockDim = {1u, 1u, 1u};\n#define __global__\n\n");
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &(&file)->text);
+        mmgr_line_put(&text_note.line,
+                      "// the stick's integer questions as the host computes them, written by orior_klq_identity");
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &(&file)->text);
+        mmgr_line_put(&text_note.line, "#include <limits>\n#include <stdio.h>\n");
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &(&file)->text);
+        mmgr_line_put(&text_note.line, "struct HostIndex\n{\n    unsigned int x, y, z;\n};");
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &(&file)->text);
+        mmgr_line_put(
+            &text_note.line,
+            "static const HostIndex threadIdx = {0u, 0u, 0u};\nstatic const HostIndex blockIdx = {0u, 0u, 0u};");
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &(&file)->text);
+        mmgr_line_put(&text_note.line, "static const HostIndex blockDim = {1u, 1u, 1u};\n#define __global__\n");
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
     std::vector<std::string> written;
     for (const std::string &number : numbers)
     {
@@ -347,7 +493,13 @@ int host_questions_write(const std::string &path, const std::string &stick, cons
         {
             continue;
         }
-        run_print(&file, "%s\n", kernel.c_str());
+        {
+            TextNote text_note;
+            text_note_begun(&text_note, &(&file)->text);
+            mmgr_line_put(&text_note.line, kernel.c_str());
+            mmgr_line_ch(&text_note.line, '\n');
+            text_note_written(&text_note);
+        }
         const std::string type = first_type(kernel);
         const int divides = (kernel.find(" / b") != std::string::npos) || (kernel.find(" % b") != std::string::npos) ||
                             (kernel.find("/=") != std::string::npos) || (kernel.find("%=") != std::string::npos) ||
@@ -355,63 +507,238 @@ int host_questions_write(const std::string &path, const std::string &stick, cons
         const int shifts = (kernel.find("<<") != std::string::npos) || (kernel.find(">>") != std::string::npos);
         // 1 where the host's C would trap on the case or leave it undefined: a divisor of zero, the least value over
         // -1, or a shift by the width or past it
-        run_print(&file, "static int refused_%s(const unsigned long long *in)\n{\n", number.c_str());
-        run_print(&file, "    const %s a = (%s)in[0];\n    const %s b = (%s)in[1];\n    (void)a;\n    (void)b;\n",
-                  type.c_str(), type.c_str(), type.c_str(), type.c_str());
+        {
+            TextNote text_note;
+            text_note_begun(&text_note, &(&file)->text);
+            mmgr_line_put(&text_note.line, "static int refused_");
+            mmgr_line_put(&text_note.line, number.c_str());
+            mmgr_line_put(&text_note.line, "(const unsigned long long *in)\n{");
+            mmgr_line_ch(&text_note.line, '\n');
+            text_note_written(&text_note);
+        }
+        {
+            TextNote text_note;
+            text_note_begun(&text_note, &(&file)->text);
+            mmgr_line_put(&text_note.line, "    const ");
+            mmgr_line_put(&text_note.line, type.c_str());
+            mmgr_line_put(&text_note.line, " a = (");
+            mmgr_line_put(&text_note.line, type.c_str());
+            mmgr_line_put(&text_note.line, ")in[0];\n    const ");
+            mmgr_line_put(&text_note.line, type.c_str());
+            mmgr_line_put(&text_note.line, " b = (");
+            mmgr_line_put(&text_note.line, type.c_str());
+            mmgr_line_put(&text_note.line, ")in[1];\n    (void)a;\n    (void)b;");
+            mmgr_line_ch(&text_note.line, '\n');
+            text_note_written(&text_note);
+        }
         if (divides)
         {
-            run_print(&file,
-                      "    if ((b == 0) || (std::numeric_limits<%s>::is_signed && (b == (%s)-1) && "
-                      "(a == std::numeric_limits<%s>::min())))\n    {\n        return 1;\n    }\n",
-                      type.c_str(), type.c_str(), type.c_str());
+            TextNote text_note;
+            text_note_begun(&text_note, &(&file)->text);
+            mmgr_line_put(&text_note.line, "    if ((b == 0) || (std::numeric_limits<");
+            mmgr_line_put(&text_note.line, type.c_str());
+            mmgr_line_put(&text_note.line, ">::is_signed && (b == (");
+            mmgr_line_put(&text_note.line, type.c_str());
+            mmgr_line_put(&text_note.line, ")-1) && (a == std::numeric_limits<");
+            mmgr_line_put(&text_note.line, type.c_str());
+            mmgr_line_put(&text_note.line, ">::min())))\n    {\n        return 1;\n    }");
+            mmgr_line_ch(&text_note.line, '\n');
+            text_note_written(&text_note);
         }
         if (shifts)
         {
-            run_print(
-                &file,
-                "    if (((unsigned long long)b >= (unsigned long long)(sizeof(a + 0) * 8u)) || ((long long)b < 0))\n"
-                "    {\n        return 1;\n    }\n");
+            TextNote text_note;
+            text_note_begun(&text_note, &(&file)->text);
+            mmgr_line_put(&text_note.line, "    if (((unsigned long long)b >= (unsigned long long)(sizeof(a + 0) * "
+                                           "8u)) || ((long long)b < 0))\n    {\n        return 1;\n    }");
+            mmgr_line_ch(&text_note.line, '\n');
+            text_note_written(&text_note);
         }
-        run_print(&file, "    return 0;\n}\n\n");
+        {
+            TextNote text_note;
+            text_note_begun(&text_note, &(&file)->text);
+            mmgr_line_put(&text_note.line, "    return 0;\n}\n");
+            mmgr_line_ch(&text_note.line, '\n');
+            text_note_written(&text_note);
+        }
         written.push_back(number);
     }
-    run_print(&file, "typedef void (*HostKernel)(const unsigned long long *, unsigned long long *, unsigned int);\n");
-    run_print(&file, "typedef int (*HostRefused)(const unsigned long long *);\n");
-    run_print(&file,
-              "static const struct\n{\n    const char *number;\n    HostKernel kernel;\n    HostRefused refused;\n} "
-              "s_questions[] = {\n");
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &(&file)->text);
+        mmgr_line_put(&text_note.line,
+                      "typedef void (*HostKernel)(const unsigned long long *, unsigned long long *, unsigned int);");
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &(&file)->text);
+        mmgr_line_put(&text_note.line, "typedef int (*HostRefused)(const unsigned long long *);");
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &(&file)->text);
+        mmgr_line_put(&text_note.line, "static const struct\n{\n    const char *number;\n    HostKernel kernel;\n    "
+                                       "HostRefused refused;\n} s_questions[] = {");
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
     for (const std::string &number : written)
     {
-        run_print(&file, "    {\"%s\", measuring_stick_%s, refused_%s},\n", number.c_str(), number.c_str(),
-                  number.c_str());
+        TextNote text_note;
+        text_note_begun(&text_note, &(&file)->text);
+        mmgr_line_put(&text_note.line, "    {\"");
+        mmgr_line_put(&text_note.line, number.c_str());
+        mmgr_line_put(&text_note.line, "\", measuring_stick_");
+        mmgr_line_put(&text_note.line, number.c_str());
+        mmgr_line_put(&text_note.line, ", refused_");
+        mmgr_line_put(&text_note.line, number.c_str());
+        mmgr_line_put(&text_note.line, "},");
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
     }
-    run_print(&file, "};\n\nstatic const unsigned long long s_values[] = {");
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &(&file)->text);
+        mmgr_line_put(&text_note.line, "};\n\nstatic const unsigned long long s_values[] = {");
+        text_note_written(&text_note);
+    }
     for (unsigned int at = 0u; at < IDENTITY_VALUES; at += 1u)
     {
-        run_print(&file, "%s0x%llxull", (at == 0u) ? "" : ", ", s_values[at]);
+        TextNote text_note;
+        text_note_begun(&text_note, &(&file)->text);
+        mmgr_line_put(&text_note.line, (at == 0u) ? "" : ", ");
+        mmgr_line_put(&text_note.line, "0x");
+        mmgr_line_hex(&text_note.line, s_values[at], 1u);
+        mmgr_line_put(&text_note.line, "ull");
+        text_note_written(&text_note);
     }
-    run_print(&file, "};\n\n");
-    run_print(
-        &file,
-        "// each question a line: its number, then its answer to every case in order, - where the case is refused\n");
-    run_print(&file, "int main(void)\n{\n");
-    run_print(&file,
-              "    for (unsigned int at = 0u; at < sizeof(s_questions) / sizeof(s_questions[0]); at += 1u)\n    {\n");
-    run_print(&file, "        printf(\"%%s\", s_questions[at].number);\n");
-    run_print(&file, "        for (unsigned int third = 0u; third < %uu; third += 1u)\n        {\n", IDENTITY_THIRDS);
-    run_print(&file, "            for (unsigned int left = 0u; left < %uu; left += 1u)\n            {\n",
-              (unsigned int)IDENTITY_VALUES);
-    run_print(&file, "                for (unsigned int right = 0u; right < %uu; right += 1u)\n                {\n",
-              (unsigned int)IDENTITY_VALUES);
-    run_print(&file,
-              "                    const unsigned long long in[4] = {s_values[left], s_values[right], third, 0ULL};\n");
-    run_print(&file, "                    unsigned long long out[2] = {0ULL, 0ULL};\n");
-    run_print(&file, "                    if (s_questions[at].refused(in))\n                    {\n");
-    run_print(&file,
-              "                        printf(\" -\");\n                        continue;\n                    }\n");
-    run_print(&file, "                    s_questions[at].kernel(in, out, 1u);\n");
-    run_print(&file, "                    printf(\" %%llx\", out[0]);\n                }\n            }\n        }\n");
-    run_print(&file, "        printf(\"\\n\");\n    }\n    return 0;\n}\n");
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &(&file)->text);
+        mmgr_line_put(&text_note.line, "};\n");
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &(&file)->text);
+        mmgr_line_put(
+            &text_note.line,
+            "// each question a line: its number, then its answer to every case in order, - where the case is refused");
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &(&file)->text);
+        mmgr_line_put(&text_note.line, "int main(void)\n{");
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &(&file)->text);
+        mmgr_line_put(
+            &text_note.line,
+            "    for (unsigned int at = 0u; at < sizeof(s_questions) / sizeof(s_questions[0]); at += 1u)\n    {");
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &(&file)->text);
+        mmgr_line_put(&text_note.line, "        printf(\"");
+        mmgr_line_ch(&text_note.line, '%');
+        mmgr_line_put(&text_note.line, "s\", s_questions[at].number);");
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &(&file)->text);
+        mmgr_line_put(&text_note.line, "        for (unsigned int third = 0u; third < ");
+        mmgr_line_decimal(&text_note.line, IDENTITY_THIRDS, 1u);
+        mmgr_line_put(&text_note.line, "u; third += 1u)\n        {");
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &(&file)->text);
+        mmgr_line_put(&text_note.line, "            for (unsigned int left = 0u; left < ");
+        mmgr_line_decimal(&text_note.line, (unsigned int)IDENTITY_VALUES, 1u);
+        mmgr_line_put(&text_note.line, "u; left += 1u)\n            {");
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &(&file)->text);
+        mmgr_line_put(&text_note.line, "                for (unsigned int right = 0u; right < ");
+        mmgr_line_decimal(&text_note.line, (unsigned int)IDENTITY_VALUES, 1u);
+        mmgr_line_put(&text_note.line, "u; right += 1u)\n                {");
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &(&file)->text);
+        mmgr_line_put(
+            &text_note.line,
+            "                    const unsigned long long in[4] = {s_values[left], s_values[right], third, 0ULL};");
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &(&file)->text);
+        mmgr_line_put(&text_note.line, "                    unsigned long long out[2] = {0ULL, 0ULL};");
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &(&file)->text);
+        mmgr_line_put(&text_note.line, "                    if (s_questions[at].refused(in))\n                    {");
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &(&file)->text);
+        mmgr_line_put(
+            &text_note.line,
+            "                        printf(\" -\");\n                        continue;\n                    }");
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &(&file)->text);
+        mmgr_line_put(&text_note.line, "                    s_questions[at].kernel(in, out, 1u);");
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &(&file)->text);
+        mmgr_line_put(&text_note.line, "                    printf(\" ");
+        mmgr_line_ch(&text_note.line, '%');
+        mmgr_line_put(&text_note.line, "llx\", out[0]);\n                }\n            }\n        }");
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &(&file)->text);
+        mmgr_line_put(&text_note.line, "        printf(\"\\n\");\n    }\n    return 0;\n}");
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
     if (!run_closed(&file))
     {
         {

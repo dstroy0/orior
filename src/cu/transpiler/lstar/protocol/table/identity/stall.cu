@@ -338,8 +338,23 @@ int identity_stall(const char *engine, const char *answers, const char *ksc, con
         {
             over += " " + number;
         }
-        run_print(&table, "%s %s soonest %llu, stalls 0 to %llu: %s, over%s\n", each.first.first.c_str(),
-                  each.first.second.c_str(), soonest, longest, each.second.c_str(), over.c_str());
+        {
+            TextNote text_note;
+            text_note_begun(&text_note, &(&table)->text);
+            mmgr_line_put(&text_note.line, each.first.first.c_str());
+            mmgr_line_put(&text_note.line, " ");
+            mmgr_line_put(&text_note.line, each.first.second.c_str());
+            mmgr_line_put(&text_note.line, " soonest ");
+            mmgr_line_decimal(&text_note.line, soonest, 1u);
+            mmgr_line_put(&text_note.line, ", stalls 0 to ");
+            mmgr_line_decimal(&text_note.line, longest, 1u);
+            mmgr_line_put(&text_note.line, ": ");
+            mmgr_line_put(&text_note.line, each.second.c_str());
+            mmgr_line_put(&text_note.line, ", over");
+            mmgr_line_put(&text_note.line, over.c_str());
+            mmgr_line_ch(&text_note.line, '\n');
+            text_note_written(&text_note);
+        }
         {
             VerbaLinea *const output_line = platform_line_out();
             mmgr_line_put(output_line, "  ");

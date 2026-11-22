@@ -57,9 +57,21 @@ int identity_known(const char *listing, const char *manifest, const std::string 
             mmgr_line_hex(&buffer_line, from_first.back(), 16u);
             (void)mmgr_line_finish(&buffer_line);
         }
-        run_print(&file, "candidate %s %s %s\n", candidate.number.c_str(), number,
-                  (whole == nullptr) ? "unknown"
-                                     : ("known " + address_text(questions, whole->question, whole->link)).c_str());
+        {
+            TextNote text_note;
+            text_note_begun(&text_note, &(&file)->text);
+            mmgr_line_put(&text_note.line, "candidate ");
+            mmgr_line_put(&text_note.line, candidate.number.c_str());
+            mmgr_line_put(&text_note.line, " ");
+            mmgr_line_put(&text_note.line, number);
+            mmgr_line_put(&text_note.line, " ");
+            mmgr_line_put(&text_note.line,
+                          (whole == nullptr)
+                              ? "unknown"
+                              : ("known " + address_text(questions, whole->question, whole->link)).c_str());
+            mmgr_line_ch(&text_note.line, '\n');
+            text_note_written(&text_note);
+        }
         if (whole != nullptr)
         {
             wholes += 1u;
@@ -87,7 +99,14 @@ int identity_known(const char *listing, const char *manifest, const std::string 
             }
             link += length;
         }
-        run_print(&file, "constituents%s\n", read.c_str());
+        {
+            TextNote text_note;
+            text_note_begun(&text_note, &(&file)->text);
+            mmgr_line_put(&text_note.line, "constituents");
+            mmgr_line_put(&text_note.line, read.c_str());
+            mmgr_line_ch(&text_note.line, '\n');
+            text_note_written(&text_note);
+        }
         unsigned int unknown_here = 0u;
         for (unsigned int link = 0u; link < links; link += 1u)
         {
@@ -102,8 +121,17 @@ int identity_known(const char *listing, const char *manifest, const std::string 
             const std::string rule = rule_broken(written.exact) ? " rule 2: its form transfers control or waits" : "";
             if (!alone)
             {
-                run_print(&file, "unknown %s %s%s\n", written.position.c_str(),
-                          window_render(candidate, link, 1u).c_str(), rule.c_str());
+                {
+                    TextNote text_note;
+                    text_note_begun(&text_note, &(&file)->text);
+                    mmgr_line_put(&text_note.line, "unknown ");
+                    mmgr_line_put(&text_note.line, written.position.c_str());
+                    mmgr_line_put(&text_note.line, " ");
+                    mmgr_line_put(&text_note.line, window_render(candidate, link, 1u).c_str());
+                    mmgr_line_put(&text_note.line, rule.c_str());
+                    mmgr_line_ch(&text_note.line, '\n');
+                    text_note_written(&text_note);
+                }
                 unknown_primitives += 1u;
                 unknown_here += 1u;
                 flagged += rule.empty() ? 0u : 1u;
@@ -113,7 +141,16 @@ int identity_known(const char *listing, const char *manifest, const std::string 
             {
                 std::string pair = window_render(candidate, link, 2u);
                 std::replace(pair.begin(), pair.end(), '\n', ';');
-                run_print(&file, "unpaired %s %s\n", written.position.c_str(), pair.c_str());
+                {
+                    TextNote text_note;
+                    text_note_begun(&text_note, &(&file)->text);
+                    mmgr_line_put(&text_note.line, "unpaired ");
+                    mmgr_line_put(&text_note.line, written.position.c_str());
+                    mmgr_line_put(&text_note.line, " ");
+                    mmgr_line_put(&text_note.line, pair.c_str());
+                    mmgr_line_ch(&text_note.line, '\n');
+                    text_note_written(&text_note);
+                }
                 unknown_pairs += 1u;
                 unknown_here += 1u;
             }
@@ -307,12 +344,29 @@ int identity_permute(const char *listing, const char *manifest, const std::strin
         }
         joined += 1u;
         const std::pair<unsigned int, unsigned int> &first = first_type.at(members[0]);
-        run_print(&file, "category %s %u\n", address_text(questions, first.first, first.second).c_str(),
-                  (unsigned int)members.size());
+        {
+            TextNote text_note;
+            text_note_begun(&text_note, &(&file)->text);
+            mmgr_line_put(&text_note.line, "category ");
+            mmgr_line_put(&text_note.line, address_text(questions, first.first, first.second).c_str());
+            mmgr_line_put(&text_note.line, " ");
+            mmgr_line_decimal(&text_note.line, (unsigned int)members.size(), 1u);
+            mmgr_line_ch(&text_note.line, '\n');
+            text_note_written(&text_note);
+        }
         for (const std::string &member : members)
         {
             const std::pair<unsigned int, unsigned int> &at = first_type.at(member);
-            run_print(&file, "member %s %s\n", address_text(questions, at.first, at.second).c_str(), member.c_str());
+            {
+                TextNote text_note;
+                text_note_begun(&text_note, &(&file)->text);
+                mmgr_line_put(&text_note.line, "member ");
+                mmgr_line_put(&text_note.line, address_text(questions, at.first, at.second).c_str());
+                mmgr_line_put(&text_note.line, " ");
+                mmgr_line_put(&text_note.line, member.c_str());
+                mmgr_line_ch(&text_note.line, '\n');
+                text_note_written(&text_note);
+            }
         }
     }
     unsigned int flagged = 0u;
@@ -322,12 +376,33 @@ int identity_permute(const char *listing, const char *manifest, const std::strin
         std::string window = question.window;
         window.pop_back();
         std::replace(window.begin(), window.end(), '\n', ';');
-        run_print(&file, "question %s %u\nfrom %s\nto %s\nwindow %s\n",
-                  address_text(questions, question.question, question.link).c_str(), question.count,
-                  question.from.c_str(), question.to.c_str(), window.c_str());
+        {
+            TextNote text_note;
+            text_note_begun(&text_note, &(&file)->text);
+            mmgr_line_put(&text_note.line, "question ");
+            mmgr_line_put(&text_note.line, address_text(questions, question.question, question.link).c_str());
+            mmgr_line_put(&text_note.line, " ");
+            mmgr_line_decimal(&text_note.line, question.count, 1u);
+            mmgr_line_put(&text_note.line, "\nfrom ");
+            mmgr_line_put(&text_note.line, question.from.c_str());
+            mmgr_line_put(&text_note.line, "\nto ");
+            mmgr_line_put(&text_note.line, question.to.c_str());
+            mmgr_line_put(&text_note.line, "\nwindow ");
+            mmgr_line_put(&text_note.line, window.c_str());
+            mmgr_line_ch(&text_note.line, '\n');
+            text_note_written(&text_note);
+        }
         if (rule_broken(question.to))
         {
-            run_print(&file, "rule 2 %s: its form transfers control or waits\n", question.to.c_str());
+            {
+                TextNote text_note;
+                text_note_begun(&text_note, &(&file)->text);
+                mmgr_line_put(&text_note.line, "rule 2 ");
+                mmgr_line_put(&text_note.line, question.to.c_str());
+                mmgr_line_put(&text_note.line, ": its form transfers control or waits");
+                mmgr_line_ch(&text_note.line, '\n');
+                text_note_written(&text_note);
+            }
             flagged += 1u;
         }
     }

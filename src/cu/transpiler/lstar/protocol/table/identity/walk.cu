@@ -194,8 +194,18 @@ static int identity_last(const char *engine, const char *answers, const char *ks
                 truthy && stall_alike(register_renamed(probe.code, group, probe.renamed, (unsigned long long)number),
                                       host[probe.number], places, &s_question, &queries);
         }
-        run_print(&table, "%c%lld %s%s%s\n", token, number, truthy ? "truthy" : "falsy", truthy ? "" : ": ",
-                  truthy ? "" : s_question.refused);
+        {
+            TextNote text_note;
+            text_note_begun(&text_note, &(&table)->text);
+            mmgr_line_ch(&text_note.line, (char)(token));
+            mmgr_line_decimal_signed(&text_note.line, number);
+            mmgr_line_put(&text_note.line, " ");
+            mmgr_line_put(&text_note.line, truthy ? "truthy" : "falsy");
+            mmgr_line_put(&text_note.line, truthy ? "" : ": ");
+            mmgr_line_put(&text_note.line, truthy ? "" : s_question.refused);
+            mmgr_line_ch(&text_note.line, '\n');
+            text_note_written(&text_note);
+        }
         {
             VerbaLinea *const output_line = platform_line_out();
             mmgr_line_put(output_line, "  ");
@@ -406,8 +416,21 @@ int identity_past(const char *engine, const char *answers, const char *ksc, cons
             s_question.registers = (unsigned int)count;
             s_question.launches = 0u;
             const int alike = question_alike(code, entry.second, places, &s_question, &queries);
-            run_print(&table, "%s names R%u, declaring %lld: %s%s%s\n", entry.first.c_str(), named, count,
-                      alike ? "alike" : "apart", alike ? "" : ", ", alike ? "" : s_question.refused);
+            {
+                TextNote text_note;
+                text_note_begun(&text_note, &(&table)->text);
+                mmgr_line_put(&text_note.line, entry.first.c_str());
+                mmgr_line_put(&text_note.line, " names R");
+                mmgr_line_decimal(&text_note.line, named, 1u);
+                mmgr_line_put(&text_note.line, ", declaring ");
+                mmgr_line_decimal_signed(&text_note.line, count);
+                mmgr_line_put(&text_note.line, ": ");
+                mmgr_line_put(&text_note.line, alike ? "alike" : "apart");
+                mmgr_line_put(&text_note.line, alike ? "" : ", ");
+                mmgr_line_put(&text_note.line, alike ? "" : s_question.refused);
+                mmgr_line_ch(&text_note.line, '\n');
+                text_note_written(&text_note);
+            }
             return alike;
         };
         const long long found = walk_step(declaring_alike, (long long)named + 1, 1, (long long)highest);

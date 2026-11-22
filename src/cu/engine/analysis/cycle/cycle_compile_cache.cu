@@ -286,8 +286,19 @@ const std::string &cycle_ptx_header(int major, int minor, int report)
         return header->lines;
     }
     std::string question;
-    cycle_format(question, "// PTX's header, requested for sm_%d%d of NVRTC %d.%d\n", major, minor, compiler->major,
-                 compiler->minor);
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &question);
+        mmgr_line_put(&text_note.line, "// PTX's header, requested for sm_");
+        mmgr_line_decimal_signed(&text_note.line, major);
+        mmgr_line_decimal_signed(&text_note.line, minor);
+        mmgr_line_put(&text_note.line, " of NVRTC ");
+        mmgr_line_decimal_signed(&text_note.line, compiler->major);
+        mmgr_line_put(&text_note.line, ".");
+        mmgr_line_decimal_signed(&text_note.line, compiler->minor);
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
     question += "extern \"C\" __global__ void cycle_probe(void)\n{\n}\n";
     const std::string folder = cycle_cache_folder();
     const std::string path = folder.empty() ? std::string() : cycle_cache_path(folder, question);

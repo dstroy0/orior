@@ -86,7 +86,17 @@ static int fixed_alike(FixedQuery *query, const std::vector<unsigned char> &vari
     const int alike = question_alike(variant, reference, query->places, query->question, &query->queries);
     query->dry = query->dry || (mmgr_text_starts(query->question->refused, "skipped dry", PLATFORM_TEXT_TO_TERMINATOR));
     const char *const why = (query->question->outcome == RUN_ANSWERED) ? "apart" : query->question->refused;
-    run_print(&query->table, "%s %s%s%s\n", what, alike ? "truthy" : "falsy", alike ? "" : ": ", alike ? "" : why);
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &(&query->table)->text);
+        mmgr_line_put(&text_note.line, what);
+        mmgr_line_put(&text_note.line, " ");
+        mmgr_line_put(&text_note.line, alike ? "truthy" : "falsy");
+        mmgr_line_put(&text_note.line, alike ? "" : ": ");
+        mmgr_line_put(&text_note.line, alike ? "" : why);
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "  ");
@@ -326,7 +336,16 @@ int identity_fixed(const char *engine, const char *answers, const char *ksc, con
         place_stalled_longest(&variant, probe_place, stall, longest);
         if (!question_read(variant, &s_question, &query.queries))
         {
-            run_print(&query.table, "register %u refused: %s\n", number, s_question.refused);
+            {
+                TextNote text_note;
+                text_note_begun(&text_note, &(&query.table)->text);
+                mmgr_line_put(&text_note.line, "register ");
+                mmgr_line_decimal(&text_note.line, number, 1u);
+                mmgr_line_put(&text_note.line, " refused: ");
+                mmgr_line_put(&text_note.line, s_question.refused);
+                mmgr_line_ch(&text_note.line, '\n');
+                text_note_written(&text_note);
+            }
             {
                 VerbaLinea *const output_line = platform_line_out();
                 mmgr_line_put(output_line, "  register ");
@@ -339,8 +358,16 @@ int identity_fixed(const char *engine, const char *answers, const char *ksc, con
         }
         const FixedType type = fixed_type(s_question.answered, word_0.data(), word_1.data(), s_question.cases);
         const char *const question = fixed_type_question(type);
-        run_print(&query.table, "register %u contains %s\n", number,
-                  (type == FIXED_NOTHING) ? "nothing fixed" : question);
+        {
+            TextNote text_note;
+            text_note_begun(&text_note, &(&query.table)->text);
+            mmgr_line_put(&text_note.line, "register ");
+            mmgr_line_decimal(&text_note.line, number, 1u);
+            mmgr_line_put(&text_note.line, " contains ");
+            mmgr_line_put(&text_note.line, (type == FIXED_NOTHING) ? "nothing fixed" : question);
+            mmgr_line_ch(&text_note.line, '\n');
+            text_note_written(&text_note);
+        }
         {
             VerbaLinea *const output_line = platform_line_out();
             mmgr_line_put(output_line, "  register ");

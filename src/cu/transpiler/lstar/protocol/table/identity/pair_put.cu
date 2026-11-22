@@ -176,8 +176,20 @@ int PairWork::put(const std::string &from, const std::string &to, std::string *v
             chose("overseen", link_address);
             if (s_trace_log != NULL)
             {
-                query_log_print(s_trace_log, "pair %s in place of %s at %s: %s\n", to.c_str(), from.c_str(), address,
-                                overseen);
+                {
+                    TextNote text_note;
+                    text_note_begun(&text_note, &s_trace_log->bytes);
+                    mmgr_line_put(&text_note.line, "pair ");
+                    mmgr_line_put(&text_note.line, to.c_str());
+                    mmgr_line_put(&text_note.line, " in place of ");
+                    mmgr_line_put(&text_note.line, from.c_str());
+                    mmgr_line_put(&text_note.line, " at ");
+                    mmgr_line_put(&text_note.line, address);
+                    mmgr_line_put(&text_note.line, ": ");
+                    mmgr_line_put(&text_note.line, overseen);
+                    mmgr_line_ch(&text_note.line, '\n');
+                    text_note_written(&text_note);
+                }
                 query_log_flushed(s_trace_log);
             }
             continue;
@@ -225,10 +237,22 @@ int PairWork::put(const std::string &from, const std::string &to, std::string *v
         }
         if ((s_trace_log != NULL) && !past_closed)
         {
-            query_log_print(s_trace_log, "pair %s in place of %s at %s: %s\n", to.c_str(), from.c_str(), address,
-                            alike                           ? "alike"
-                            : (put_outcome == RUN_ANSWERED) ? "apart"
-                                                            : question.refused);
+            {
+                TextNote text_note;
+                text_note_begun(&text_note, &s_trace_log->bytes);
+                mmgr_line_put(&text_note.line, "pair ");
+                mmgr_line_put(&text_note.line, to.c_str());
+                mmgr_line_put(&text_note.line, " in place of ");
+                mmgr_line_put(&text_note.line, from.c_str());
+                mmgr_line_put(&text_note.line, " at ");
+                mmgr_line_put(&text_note.line, address);
+                mmgr_line_put(&text_note.line, ": ");
+                mmgr_line_put(&text_note.line, alike                           ? "alike"
+                                               : (put_outcome == RUN_ANSWERED) ? "apart"
+                                                                               : question.refused);
+                mmgr_line_ch(&text_note.line, '\n');
+                text_note_written(&text_note);
+            }
             query_log_flushed(s_trace_log);
         }
         // a put the part refused, or a carrier ended on, calls a conference: its guidance is what the learner puts

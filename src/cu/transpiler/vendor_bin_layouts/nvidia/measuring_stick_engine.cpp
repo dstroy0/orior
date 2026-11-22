@@ -55,6 +55,7 @@ extern "C"
 #include "sass_machine.h"
 #include "interface_sass_probe.h"
 }
+#include "../../../text_note/text_note.h"
 
 #include "../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../../../../includes/file_defs/krs/ruleset_core_words.h"
@@ -70,7 +71,6 @@ extern "C"
 
 #include <algorithm>
 #include <cctype>
-#include <cstdarg>
 #include <cstdio>
 #include <cstring>
 #include <fstream>
@@ -282,30 +282,27 @@ static std::string s_trace;
 static bool s_tracing = false;
 static unsigned int s_trace_depth = 0u;
 
-// one line of the trace, indented by the depth of the reading it is of
-static void stick_trace(const char *format, ...)
+// one line of the trace begun, indented by the depth of the reading it is of. Where nothing collects, each write to
+// the line goes nowhere
+static void stick_trace_begun(TextNote *note)
 {
     if (!s_tracing)
     {
+        text_note_closed(note);
         return;
     }
     s_trace.append((size_t)(2u * s_trace_depth), ' ');
-    va_list arguments;
-    va_start(arguments, format);
-    va_list measured;
-    va_copy(measured, arguments);
-    const int length = vsnprintf(NULL, 0u, format, measured);
-    va_end(measured);
-    if (length > 0)
+    text_note_begun(note, &s_trace);
+}
+
+// the line of the trace ended
+static void stick_trace_written(TextNote *note)
+{
+    text_note_written(note);
+    if (s_tracing)
     {
-        const size_t at = s_trace.size();
-        // a length past 0 that vsnprintf returns widens to the size that it adds to
-        s_trace.resize(at + (size_t)length + 1u);
-        vsnprintf(&s_trace[at], (size_t)length + 1u, format, arguments);
-        s_trace.resize(at + (size_t)length);
+        s_trace.push_back('\n');
     }
-    va_end(arguments);
-    s_trace.push_back('\n');
 }
 
 // the depth of the trace one deeper for as long as it is active
@@ -1562,7 +1559,14 @@ class StickKernel
         {
             listed += " " + argument;
         }
-        stick_trace("write %s%s", name.c_str(), listed.c_str());
+        {
+            TextNote text_note;
+            stick_trace_begun(&text_note);
+            mmgr_line_put(&text_note.line, "write ");
+            mmgr_line_put(&text_note.line, name.c_str());
+            mmgr_line_put(&text_note.line, listed.c_str());
+            stick_trace_written(&text_note);
+        }
         // a scratch register the form takes is a fresh one of the kernel's, used over the form's lines alone
         const auto taken = [this](const std::string &bank) {
             return fresh((bank == "wide") ? 64u : ((bank == "predicate") ? STICK_PREDICATE_BITS : 32u)).name;
@@ -1579,7 +1583,13 @@ class StickKernel
     // `why` recorded as the kernel's question where it has none yet
     void note_question(const std::string &why)
     {
-        stick_trace("question %s", why.c_str());
+        {
+            TextNote text_note;
+            stick_trace_begun(&text_note);
+            mmgr_line_put(&text_note.line, "question ");
+            mmgr_line_put(&text_note.line, why.c_str());
+            stick_trace_written(&text_note);
+        }
         question = question.empty() ? why : question;
     }
 
@@ -2142,7 +2152,15 @@ class StickKernel
             StickReading in_register;
             if ((read(stick_bare(spans[at]), 1, &in_place) == 0) || (read(stick_bare(spans[at]), 0, &in_register) == 0))
             {
-                stick_trace("%s refused: its operand %s has no reading", s_form_names[form], spans[at].c_str());
+                {
+                    TextNote text_note;
+                    stick_trace_begun(&text_note);
+                    mmgr_line_put(&text_note.line, s_form_names[form]);
+                    mmgr_line_put(&text_note.line, " refused: its operand ");
+                    mmgr_line_put(&text_note.line, spans[at].c_str());
+                    mmgr_line_put(&text_note.line, " has no reading");
+                    stick_trace_written(&text_note);
+                }
                 return 0;
             }
             options[at].push_back(in_place);
@@ -2175,8 +2193,18 @@ class StickKernel
                       (stick_register_bits(child.bits) != placeholder_bits[at]));
                 if ((fits == 0) && (binding != 0))
                 {
-                    stick_trace("%s choice %zu: operand %zu wants %u bits and has %u", s_form_names[form], choice, at,
-                                placeholder_bits[at], child.bits);
+                    TextNote text_note;
+                    stick_trace_begun(&text_note);
+                    mmgr_line_put(&text_note.line, s_form_names[form]);
+                    mmgr_line_put(&text_note.line, " choice ");
+                    mmgr_line_decimal(&text_note.line, choice, 1u);
+                    mmgr_line_put(&text_note.line, ": operand ");
+                    mmgr_line_decimal(&text_note.line, at, 1u);
+                    mmgr_line_put(&text_note.line, " wants ");
+                    mmgr_line_decimal(&text_note.line, placeholder_bits[at], 1u);
+                    mmgr_line_put(&text_note.line, " bits and has ");
+                    mmgr_line_decimal(&text_note.line, child.bits, 1u);
+                    stick_trace_written(&text_note);
                 }
                 binding = (fits == 0) ? 0 : binding;
                 child.negated = ((int)at == negated) ? 1 : 0;
@@ -2204,18 +2232,44 @@ class StickKernel
             {
                 *best = reading;
                 chosen = 1;
-                stick_trace("%s choice %zu: assembles, %u forms", s_form_names[form], choice, reading.cost);
+                {
+                    TextNote text_note;
+                    stick_trace_begun(&text_note);
+                    mmgr_line_put(&text_note.line, s_form_names[form]);
+                    mmgr_line_put(&text_note.line, " choice ");
+                    mmgr_line_decimal(&text_note.line, choice, 1u);
+                    mmgr_line_put(&text_note.line, ": assembles, ");
+                    mmgr_line_decimal(&text_note.line, reading.cost, 1u);
+                    mmgr_line_put(&text_note.line, " forms");
+                    stick_trace_written(&text_note);
+                }
             }
             else if (assembles(form, {"P0"}, reading.children) != 0)
             {
                 reading.bits = STICK_PREDICATE_BITS;
                 *best = reading;
                 chosen = 1;
-                stick_trace("%s choice %zu: assembles as a flag, %u forms", s_form_names[form], choice, reading.cost);
+                {
+                    TextNote text_note;
+                    stick_trace_begun(&text_note);
+                    mmgr_line_put(&text_note.line, s_form_names[form]);
+                    mmgr_line_put(&text_note.line, " choice ");
+                    mmgr_line_decimal(&text_note.line, choice, 1u);
+                    mmgr_line_put(&text_note.line, ": assembles as a flag, ");
+                    mmgr_line_decimal(&text_note.line, reading.cost, 1u);
+                    mmgr_line_put(&text_note.line, " forms");
+                    stick_trace_written(&text_note);
+                }
             }
             else
             {
-                stick_trace("%s choice %zu: sass.krs's text does not assemble over it", s_form_names[form], choice);
+                TextNote text_note;
+                stick_trace_begun(&text_note);
+                mmgr_line_put(&text_note.line, s_form_names[form]);
+                mmgr_line_put(&text_note.line, " choice ");
+                mmgr_line_decimal(&text_note.line, choice, 1u);
+                mmgr_line_put(&text_note.line, ": sass.krs's text does not assemble over it");
+                stick_trace_written(&text_note);
             }
         }
         return chosen;
@@ -2244,7 +2298,14 @@ class StickKernel
     int read(const std::string &bare, int in_place, StickReading *best)
     {
         static const char *const s_leaves[] = {"form", "stored", "number in place", "number set", "parameter"};
-        stick_trace("read %s%s", bare.c_str(), (in_place != 0) ? " in place" : "");
+        {
+            TextNote text_note;
+            stick_trace_begun(&text_note);
+            mmgr_line_put(&text_note.line, "read ");
+            mmgr_line_put(&text_note.line, bare.c_str());
+            mmgr_line_put(&text_note.line, (in_place != 0) ? " in place" : "");
+            stick_trace_written(&text_note);
+        }
         // the code does not keep a reading made during the read of a join of flags with its order exchanged. The join
         // gets no second order
         const std::string key = std::string((in_place != 0) ? "1" : "0") + bare;
@@ -2254,7 +2315,12 @@ class StickKernel
         {
             read_given = before->second.first;
             *best = before->second.second;
-            stick_trace("(read before)");
+            {
+                TextNote text_note;
+                stick_trace_begun(&text_note);
+                mmgr_line_put(&text_note.line, "(read before)");
+                stick_trace_written(&text_note);
+            }
         }
         else
         {
@@ -2269,11 +2335,29 @@ class StickKernel
         }
         if (read_given == 0)
         {
-            stick_trace("-> no reading of %s", bare.c_str());
+            {
+                TextNote text_note;
+                stick_trace_begun(&text_note);
+                mmgr_line_put(&text_note.line, "-> no reading of ");
+                mmgr_line_put(&text_note.line, bare.c_str());
+                stick_trace_written(&text_note);
+            }
             return 0;
         }
-        stick_trace("-> %s%s%s, %u forms, %u bits", s_leaves[best->leaf], (best->leaf == STICK_FORM) ? " " : "",
-                    (best->leaf == STICK_FORM) ? s_form_names[best->form] : "", best->cost, best->bits);
+        {
+            TextNote text_note;
+            stick_trace_begun(&text_note);
+            mmgr_line_put(&text_note.line, "-> ");
+            mmgr_line_put(&text_note.line, s_leaves[best->leaf]);
+            mmgr_line_put(&text_note.line, (best->leaf == STICK_FORM) ? " " : "");
+            mmgr_line_put(&text_note.line, (best->leaf == STICK_FORM) ? s_form_names[best->form] : "");
+            mmgr_line_put(&text_note.line, ", ");
+            mmgr_line_decimal(&text_note.line, best->cost, 1u);
+            mmgr_line_put(&text_note.line, " forms, ");
+            mmgr_line_decimal(&text_note.line, best->bits, 1u);
+            mmgr_line_put(&text_note.line, " bits");
+            stick_trace_written(&text_note);
+        }
         return 1;
     }
 
@@ -2345,7 +2429,15 @@ class StickKernel
                 {
                     listed += " [" + span + "]";
                 }
-                stick_trace("text of %s matches:%s", s_form_names[pattern.form], listed.c_str());
+                {
+                    TextNote text_note;
+                    stick_trace_begun(&text_note);
+                    mmgr_line_put(&text_note.line, "text of ");
+                    mmgr_line_put(&text_note.line, s_form_names[pattern.form]);
+                    mmgr_line_put(&text_note.line, " matches:");
+                    mmgr_line_put(&text_note.line, listed.c_str());
+                    stick_trace_written(&text_note);
+                }
                 std::vector<std::string> ordered(spans.size());
                 for (size_t placeholder = 0u; placeholder < spans.size(); placeholder += 1u)
                 {

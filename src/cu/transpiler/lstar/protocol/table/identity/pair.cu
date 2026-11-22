@@ -22,7 +22,16 @@ void PairWork::chosen(const char *const *names, unsigned int count, const std::s
     {
         word |= query_trace_flag(s_query_trace, names[at]);
     }
-    query_log_print(s_query_log, "choice 0x%llx %s\n", word, link.c_str());
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &s_query_log->bytes);
+        mmgr_line_put(&text_note.line, "choice 0x");
+        mmgr_line_hex(&text_note.line, word, 1u);
+        mmgr_line_put(&text_note.line, " ");
+        mmgr_line_put(&text_note.line, link.c_str());
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
 }
 
 // one choice written, by its flag's name
@@ -84,7 +93,16 @@ unsigned int PairWork::conferred(const std::string &from, const std::string &to,
     chose("conference", link_address);
     if (s_trace_log != NULL)
     {
-        query_log_print(s_trace_log, "conference %s: %s\n", identity.c_str(), ruling.text);
+        {
+            TextNote text_note;
+            text_note_begun(&text_note, &s_trace_log->bytes);
+            mmgr_line_put(&text_note.line, "conference ");
+            mmgr_line_put(&text_note.line, identity.c_str());
+            mmgr_line_put(&text_note.line, ": ");
+            mmgr_line_put(&text_note.line, ruling.text);
+            mmgr_line_ch(&text_note.line, '\n');
+            text_note_written(&text_note);
+        }
         query_log_flushed(s_trace_log);
     }
     return ruling.guidance;
@@ -185,8 +203,15 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
     query_logs_opened();
     // what the texts of a pair's two forms show of it before any query, written to the log
     const auto pair_facts = [&](const std::string &first, const std::string &second) {
-        query_log_print(s_query_log, "facts %s %s%s\n", first.c_str(), second.c_str(),
-                        pair_categories(work.sass, first, second).c_str());
+        TextNote text_note;
+        text_note_begun(&text_note, &s_query_log->bytes);
+        mmgr_line_put(&text_note.line, "facts ");
+        mmgr_line_put(&text_note.line, first.c_str());
+        mmgr_line_put(&text_note.line, " ");
+        mmgr_line_put(&text_note.line, second.c_str());
+        mmgr_line_put(&text_note.line, pair_categories(work.sass, first, second).c_str());
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
     };
     // every pair of the bridge, in its order, the question and places its put queries with, the hash of what its put
     // reads, and the verdict it came to
@@ -434,7 +459,11 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
     RunWritten file = {klq, 1, std::string()};
     for (const std::string &written_line : written)
     {
-        run_print(&file, "%s\n", written_line.c_str());
+        TextNote text_note;
+        text_note_begun(&text_note, &(&file)->text);
+        mmgr_line_put(&text_note.line, written_line.c_str());
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
     }
     if (!run_closed(&file))
     {

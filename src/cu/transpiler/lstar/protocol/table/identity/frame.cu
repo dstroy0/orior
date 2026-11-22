@@ -51,8 +51,18 @@ static int frame_matches(unsigned long long dropped, void *context)
     const std::vector<unsigned char> variant(query->kernel->begin() + (std::ptrdiff_t)(dropped * 16ULL),
                                              query->kernel->end());
     const int alike = question_alike(variant, *query->reference, *query->places, query->question, query->queries);
-    run_print(query->table, "opening %llu %s%s%s\n", dropped, alike ? "truthy" : "falsy", alike ? "" : ": ",
-              alike ? "" : query->question->refused);
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &query->table->text);
+        mmgr_line_put(&text_note.line, "opening ");
+        mmgr_line_decimal(&text_note.line, dropped, 1u);
+        mmgr_line_put(&text_note.line, " ");
+        mmgr_line_put(&text_note.line, alike ? "truthy" : "falsy");
+        mmgr_line_put(&text_note.line, alike ? "" : ": ");
+        mmgr_line_put(&text_note.line, alike ? "" : query->question->refused);
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "  opening from ");
@@ -100,8 +110,16 @@ int identity_frame(const char *engine, const char *answers, const char *ksc, con
     unsigned long long queries = 0ULL;
     RunWritten table = {(folder + "/frame.txt"), 0, std::string()};
     const int returned = question_alike(kernel, nothing, case_places, &s_question, &queries);
-    run_print(&table, "container %s%s%s\n", returned ? "returned" : "not returned", returned ? "" : ": ",
-              returned ? "" : s_question.refused);
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &(&table)->text);
+        mmgr_line_put(&text_note.line, "container ");
+        mmgr_line_put(&text_note.line, returned ? "returned" : "not returned");
+        mmgr_line_put(&text_note.line, returned ? "" : ": ");
+        mmgr_line_put(&text_note.line, returned ? "" : s_question.refused);
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
     const int dry = mmgr_text_starts(s_question.refused, "skipped dry", PLATFORM_TEXT_TO_TERMINATOR);
     if (!returned)
     {

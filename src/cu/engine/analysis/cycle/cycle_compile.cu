@@ -255,7 +255,15 @@ int cycle_host_program_load(const EngineRecordLayout *layout, CycleRecord *recor
 {
     // one thread's places: a word each, then a sign byte each
     std::string text = s_cycle_host_prelude + source;
-    cycle_format(text, "\nthread_local u32 cycle_words[%u];\n", places + ((places + 3u) / 4u) + 1u);
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &text);
+        mmgr_line_put(&text_note.line, "\nthread_local u32 cycle_words[");
+        mmgr_line_decimal(&text_note.line, places + ((places + 3u) / 4u) + 1u, 1u);
+        mmgr_line_put(&text_note.line, "];");
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
     for (size_t at = 0u; at < s_cycle_host_programs.size(); at += 1u)
     {
         if (s_cycle_host_programs[at].source == text)

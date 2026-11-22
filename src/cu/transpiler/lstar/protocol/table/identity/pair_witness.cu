@@ -144,7 +144,16 @@ int PairWork::witness_lower(const std::string &first, const std::string &second,
             }
             if (!witnessed && (s_query_log != NULL))
             {
-                query_log_print(s_query_log, "witness %s %s %s\n", first.c_str(), second.c_str(), third.c_str());
+                TextNote text_note;
+                text_note_begun(&text_note, &s_query_log->bytes);
+                mmgr_line_put(&text_note.line, "witness ");
+                mmgr_line_put(&text_note.line, first.c_str());
+                mmgr_line_put(&text_note.line, " ");
+                mmgr_line_put(&text_note.line, second.c_str());
+                mmgr_line_put(&text_note.line, " ");
+                mmgr_line_put(&text_note.line, third.c_str());
+                mmgr_line_ch(&text_note.line, '\n');
+                text_note_written(&text_note);
             }
             witnessed = 1;
             // each form written in the link's place with the arguments the third form's link gives by name, and

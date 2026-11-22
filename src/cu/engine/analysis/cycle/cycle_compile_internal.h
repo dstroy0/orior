@@ -5,6 +5,7 @@
 #define CYCLE_COMPILE_INTERNAL_H
 
 #include "cycle_shared.h"
+#include "../../../text_note/text_note.h"
 
 // The record program compiled. Nothing hand-written is linked with it: the language's own forms write every record
 // operation into the lane and the resident kernel that runs the lanes after it (program_unit), and one text is the
@@ -100,8 +101,6 @@ struct CycleCompiledProgram
 };
 
 int cycle_environment_set(const char *name);
-
-void cycle_format(std::string &text, const char *format, ...);
 
 int cycle_compiler_ready(void);
 

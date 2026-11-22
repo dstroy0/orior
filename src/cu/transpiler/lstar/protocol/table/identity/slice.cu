@@ -210,7 +210,13 @@ static int chains_write(const std::vector<Question> &questions, const std::strin
                   number + "\n";
         chains += "constituents" + read + "\nprimitives" + primitive_row + "\noperands" + operand_row + "\n";
     }
-    run_print(&file, "%s%s", primitives.c_str(), chains.c_str());
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &(&file)->text);
+        mmgr_line_put(&text_note.line, primitives.c_str());
+        mmgr_line_put(&text_note.line, chains.c_str());
+        text_note_written(&text_note);
+    }
     if (!run_closed(&file))
     {
         {
@@ -300,9 +306,25 @@ int identity_slice(const char *listing, const char *manifest, const char *stick_
             const std::string identity = lead_link.type + "\t" + rite_link.type;
             const std::string lead_context = member_context(lead, lead_link.position);
             const std::string rite_context = member_context(rite, rite_link.position);
-            run_print(&file, "%s:%s\t%s:%s\t%s\t%s\t%s\n", lead.number.c_str(), lead_link.position.c_str(),
-                      rite.number.c_str(), rite_link.position.c_str(), identity.c_str(), lead_context.c_str(),
-                      rite_context.c_str());
+            {
+                TextNote text_note;
+                text_note_begun(&text_note, &(&file)->text);
+                mmgr_line_put(&text_note.line, lead.number.c_str());
+                mmgr_line_put(&text_note.line, ":");
+                mmgr_line_put(&text_note.line, lead_link.position.c_str());
+                mmgr_line_put(&text_note.line, "\t");
+                mmgr_line_put(&text_note.line, rite.number.c_str());
+                mmgr_line_put(&text_note.line, ":");
+                mmgr_line_put(&text_note.line, rite_link.position.c_str());
+                mmgr_line_put(&text_note.line, "\t");
+                mmgr_line_put(&text_note.line, identity.c_str());
+                mmgr_line_put(&text_note.line, "\t");
+                mmgr_line_put(&text_note.line, lead_context.c_str());
+                mmgr_line_put(&text_note.line, "\t");
+                mmgr_line_put(&text_note.line, rite_context.c_str());
+                mmgr_line_ch(&text_note.line, '\n');
+                text_note_written(&text_note);
+            }
             identities.insert(identity);
             slices += 1u;
             if (question_integer(lead) && question_integer(rite))

@@ -55,7 +55,13 @@ const char *lng_lift(const LngTable *transpiler, const LngTable *from, const cha
 {
     if (!lng_lift_started())
     {
-        lng_list_printed(refusals, "the Lean runtime did not start, and no lift goes through %s", bridge);
+        {
+            LngNote lng_note;
+            lng_note_begun(&lng_note, refusals);
+            mmgr_line_put(&lng_note.line, "the Lean runtime did not start, and no lift goes through ");
+            mmgr_line_put(&lng_note.line, bridge);
+            lng_note_written(&lng_note);
+        }
         return NULL;
     }
     lean_object *const answer = lng_lean_lift(

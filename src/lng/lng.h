@@ -21,6 +21,7 @@
 #define LNG_H
 
 #include "../../includes/file_defs/kfile_lines/kfile_lines.h"
+#include "../platform/platform.h"
 
 #include <stddef.h>
 
@@ -63,8 +64,25 @@ extern "C"
     // `text` appended after every text `list` contains
     void lng_list_add(LngList *list, const char *text);
 
-    // `format` and what follows it printed, as printf prints them, and appended after every text `list` contains
-    void lng_list_printed(LngList *list, const char *format, ...);
+// the bytes that a note of a list holds before it passes them to its text
+#define LNG_NOTE_BYTES 256u
+
+    // One note of a list. Its line writes over its bytes and passes them to its text each time they fill. The end of
+    // the note appends the text after every text of the list, as one text
+    typedef struct
+    {
+        EMBED_ALIGN(MMGR_ALIGN_BYTES) char bytes[LNG_NOTE_BYTES];
+        VerbaLinea line;
+        char *text;
+        size_t length;
+        LngList *list;
+    } LngNote;
+
+    // the note begun, empty, for the end of `list`
+    void lng_note_begun(LngNote *note, LngList *list);
+
+    // what the note wrote appended after every text of its list, as one text
+    void lng_note_written(LngNote *note);
 
     // the cell of the row `row` of `table` under `column`, or "" where the head names no such column
     const char *lng_cell_or_none(const LngTable *table, unsigned int row, const char *column);

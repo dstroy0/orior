@@ -27,9 +27,26 @@ static int curve_point(const std::vector<unsigned char> &code, const std::vector
     question->launches = CURVE_LAUNCHES;
     const int alike = question_alike(code, host, places, question, queries);
     *nanoseconds = alike ? (question->nanoseconds / CURVE_LAUNCHES) : 0ULL;
-    run_print(table, "%s threads %u blocks %u registers %u: %s %llu ns a launch%s%s\n", task.c_str(), threads,
-              question->blocks, registers, alike ? "alike" : "apart", *nanoseconds, alike ? "" : ", ",
-              alike ? "" : question->refused);
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &table->text);
+        mmgr_line_put(&text_note.line, task.c_str());
+        mmgr_line_put(&text_note.line, " threads ");
+        mmgr_line_decimal(&text_note.line, threads, 1u);
+        mmgr_line_put(&text_note.line, " blocks ");
+        mmgr_line_decimal(&text_note.line, question->blocks, 1u);
+        mmgr_line_put(&text_note.line, " registers ");
+        mmgr_line_decimal(&text_note.line, registers, 1u);
+        mmgr_line_put(&text_note.line, ": ");
+        mmgr_line_put(&text_note.line, alike ? "alike" : "apart");
+        mmgr_line_put(&text_note.line, " ");
+        mmgr_line_decimal(&text_note.line, *nanoseconds, 1u);
+        mmgr_line_put(&text_note.line, " ns a launch");
+        mmgr_line_put(&text_note.line, alike ? "" : ", ");
+        mmgr_line_put(&text_note.line, alike ? "" : question->refused);
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
     return alike;
 }
 

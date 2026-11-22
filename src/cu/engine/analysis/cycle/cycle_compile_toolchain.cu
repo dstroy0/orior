@@ -27,18 +27,6 @@ unsigned long long cycle_environment_microseconds(const char *name, unsigned lon
     return ((end != NULL) && (*end == '\0')) ? named : otherwise;
 }
 
-void cycle_format(std::string &text, const char *format, ...)
-{
-    char line[512];
-    va_list arguments;
-    va_start(arguments, format);
-    const int written = vsnprintf(line, sizeof(line), format, arguments);
-    va_end(arguments);
-    // a line the capacity does not fit is cut, and the source then fails to compile and never runs wrong. Written is
-    // read as a size only once it is known positive
-    text.append(line, ((written > 0) && ((size_t)written < sizeof(line))) ? (size_t)written : sizeof(line) - 1u);
-}
-
 static void *cycle_compiler_symbol(void *library, const char *name)
 {
 #if defined(_WIN32)
@@ -171,8 +159,21 @@ int cycle_linker_ready(void)
 std::string cycle_target_source(int major, int minor, int lto)
 {
     std::string text;
-    cycle_format(text, "// a record program's lane, for sm_%d%d, NVRTC %d.%d, as %s\n", major, minor,
-                 g_cycle_compiler.major, g_cycle_compiler.minor, (lto != 0) ? "LTO-IR" : "relocatable cubin");
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &text);
+        mmgr_line_put(&text_note.line, "// a record program's lane, for sm_");
+        mmgr_line_decimal_signed(&text_note.line, major);
+        mmgr_line_decimal_signed(&text_note.line, minor);
+        mmgr_line_put(&text_note.line, ", NVRTC ");
+        mmgr_line_decimal_signed(&text_note.line, g_cycle_compiler.major);
+        mmgr_line_put(&text_note.line, ".");
+        mmgr_line_decimal_signed(&text_note.line, g_cycle_compiler.minor);
+        mmgr_line_put(&text_note.line, ", as ");
+        mmgr_line_put(&text_note.line, (lto != 0) ? "LTO-IR" : "relocatable cubin");
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
     text += g_cycle_prelude;
     return text;
 }

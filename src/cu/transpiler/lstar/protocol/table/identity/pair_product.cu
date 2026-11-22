@@ -15,28 +15,72 @@ int PutLink::logged(PairWork &work) const
     std::string to_line = located;
     std::replace(from_line.begin(), from_line.end(), '\n', ' ');
     std::replace(to_line.begin(), to_line.end(), '\n', ' ');
-    query_log_print(s_query_log, "pair %s in place of %s at %s\nfrom %s\nto %s\nonly", to.c_str(), from.c_str(),
-                    address, from_line.c_str(), to_line.c_str());
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &s_query_log->bytes);
+        mmgr_line_put(&text_note.line, "pair ");
+        mmgr_line_put(&text_note.line, to.c_str());
+        mmgr_line_put(&text_note.line, " in place of ");
+        mmgr_line_put(&text_note.line, from.c_str());
+        mmgr_line_put(&text_note.line, " at ");
+        mmgr_line_put(&text_note.line, address);
+        mmgr_line_put(&text_note.line, "\nfrom ");
+        mmgr_line_put(&text_note.line, from_line.c_str());
+        mmgr_line_put(&text_note.line, "\nto ");
+        mmgr_line_put(&text_note.line, to_line.c_str());
+        mmgr_line_put(&text_note.line, "\nonly");
+        text_note_written(&text_note);
+    }
     for (const std::string &name : from_names)
     {
         if ((given.count(name) != 0u) && (read_by_to.count(name) == 0u))
         {
-            query_log_print(s_query_log, " %s", given[name].c_str());
+            TextNote text_note;
+            text_note_begun(&text_note, &s_query_log->bytes);
+            mmgr_line_put(&text_note.line, " ");
+            mmgr_line_put(&text_note.line, given[name].c_str());
+            text_note_written(&text_note);
         }
     }
     // each of the form's parameters the stand-in writes a literal in place of: one structure, bound
     if (unified && !fixed.empty())
     {
-        query_log_print(s_query_log, "\nbinds");
+        {
+            TextNote text_note;
+            text_note_begun(&text_note, &s_query_log->bytes);
+            mmgr_line_put(&text_note.line, "\nbinds");
+            text_note_written(&text_note);
+        }
         for (const auto &each : fixed)
         {
             const size_t parameter = (size_t)(each.first - 'A');
-            query_log_print(s_query_log, " %s=%s",
-                            (parameter < from_names.size()) ? from_names[parameter].c_str() : "?", each.second.c_str());
+            {
+                TextNote text_note;
+                text_note_begun(&text_note, &s_query_log->bytes);
+                mmgr_line_put(&text_note.line, " ");
+                mmgr_line_put(&text_note.line, (parameter < from_names.size()) ? from_names[parameter].c_str() : "?");
+                mmgr_line_put(&text_note.line, "=");
+                mmgr_line_put(&text_note.line, each.second.c_str());
+                text_note_written(&text_note);
+            }
         }
     }
-    query_log_print(s_query_log, "\nvector registers %u lanes %u operands %u delta %ld seed %lu\n", question.registers,
-                    question.cases, work.carriers.magnitudes[chain.first].second, delta, work.seed);
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &s_query_log->bytes);
+        mmgr_line_put(&text_note.line, "\nvector registers ");
+        mmgr_line_decimal(&text_note.line, question.registers, 1u);
+        mmgr_line_put(&text_note.line, " lanes ");
+        mmgr_line_decimal(&text_note.line, question.cases, 1u);
+        mmgr_line_put(&text_note.line, " operands ");
+        mmgr_line_decimal(&text_note.line, work.carriers.magnitudes[chain.first].second, 1u);
+        mmgr_line_put(&text_note.line, " delta ");
+        mmgr_line_decimal_signed(&text_note.line, delta);
+        mmgr_line_put(&text_note.line, " seed ");
+        mmgr_line_decimal(&text_note.line, work.seed, 1u);
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
     // what the form's product is made of: each register it reads that a case reaches, its value on every
     // case as the part stores it at the form, the carrier cut there and the value stored in its place
     const std::string form_found = found.str(0);
@@ -48,8 +92,7 @@ int PutLink::logged(PairWork &work) const
     // is read as that literal on every case, so that every carrier of the form reads it as one set of
     // values. A parameter inside `[` and `]` shows where the form reads and is no value it reads. With none
     // bound, the registers in the order the form names them
-    const std::vector<std::string> registers_read =
-        carrier_form_reads(flow.first, flow.second, form_found, link_at);
+    const std::vector<std::string> registers_read = carrier_form_reads(flow.first, flow.second, form_found, link_at);
     std::vector<std::string> form_reads;
     std::map<std::string, unsigned long long> literal_reads;
     int addressed = 0;
@@ -117,8 +160,19 @@ int PutLink::logged(PairWork &work) const
             const unsigned int cut_count = (unsigned int)(cut_code.size() / 16u);
             if (s_trace_log != NULL)
             {
-                query_log_print(s_trace_log, "reads %s, the carrier cut at %s, %u links:\n%s", read.c_str(), address,
-                                cut_count, cut.c_str());
+                {
+                    TextNote text_note;
+                    text_note_begun(&text_note, &s_trace_log->bytes);
+                    mmgr_line_put(&text_note.line, "reads ");
+                    mmgr_line_put(&text_note.line, read.c_str());
+                    mmgr_line_put(&text_note.line, ", the carrier cut at ");
+                    mmgr_line_put(&text_note.line, address);
+                    mmgr_line_put(&text_note.line, ", ");
+                    mmgr_line_decimal(&text_note.line, cut_count, 1u);
+                    mmgr_line_put(&text_note.line, " links:\n");
+                    mmgr_line_put(&text_note.line, cut.c_str());
+                    text_note_written(&text_note);
+                }
                 query_log_flushed(s_trace_log);
             }
             cut_codes.push_back(cut_code);
@@ -143,8 +197,21 @@ int PutLink::logged(PairWork &work) const
             const unsigned int cut_count = (unsigned int)(cut_code.size() / 16u);
             if (s_trace_log != NULL)
             {
-                query_log_print(s_trace_log, "writes %s %s, the carrier cut after %s, %u links:\n%s", side_names[side],
-                                product.c_str(), address, cut_count, cut.c_str());
+                {
+                    TextNote text_note;
+                    text_note_begun(&text_note, &s_trace_log->bytes);
+                    mmgr_line_put(&text_note.line, "writes ");
+                    mmgr_line_put(&text_note.line, side_names[side]);
+                    mmgr_line_put(&text_note.line, " ");
+                    mmgr_line_put(&text_note.line, product.c_str());
+                    mmgr_line_put(&text_note.line, ", the carrier cut after ");
+                    mmgr_line_put(&text_note.line, address);
+                    mmgr_line_put(&text_note.line, ", ");
+                    mmgr_line_decimal(&text_note.line, cut_count, 1u);
+                    mmgr_line_put(&text_note.line, " links:\n");
+                    mmgr_line_put(&text_note.line, cut.c_str());
+                    text_note_written(&text_note);
+                }
                 query_log_flushed(s_trace_log);
             }
             cut_codes.push_back(cut_code);
@@ -160,21 +227,45 @@ int PutLink::logged(PairWork &work) const
             // a parameter the chain binds to a literal is that literal on every case, and requires nothing
             if (literal_reads.count(read) != 0u)
             {
-                query_log_print(s_query_log, "reads %s", read.c_str());
+                {
+                    TextNote text_note;
+                    text_note_begun(&text_note, &s_query_log->bytes);
+                    mmgr_line_put(&text_note.line, "reads ");
+                    mmgr_line_put(&text_note.line, read.c_str());
+                    text_note_written(&text_note);
+                }
                 put_reads.push_back(std::make_pair(read, std::vector<unsigned long long>()));
                 for (unsigned int place = 0u; place < question.cases; place += 1u)
                 {
-                    query_log_print(s_query_log, " %llx", literal_reads[read]);
+                    {
+                        TextNote text_note;
+                        text_note_begun(&text_note, &s_query_log->bytes);
+                        mmgr_line_put(&text_note.line, " ");
+                        mmgr_line_hex(&text_note.line, literal_reads[read], 1u);
+                        text_note_written(&text_note);
+                    }
                     put_reads.back().second.push_back(literal_reads[read]);
                 }
-                query_log_print(s_query_log, "\n");
+                {
+                    TextNote text_note;
+                    text_note_begun(&text_note, &s_query_log->bytes);
+                    mmgr_line_ch(&text_note.line, '\n');
+                    text_note_written(&text_note);
+                }
                 continue;
             }
             // an operand of a case the form loads itself is read as the question contains it, and requires nothing
             if (read[0] == '[')
             {
                 const unsigned int operand = (unsigned int)std::stoul(read.substr(6u));
-                query_log_print(s_query_log, "reads [%u]", operand);
+                {
+                    TextNote text_note;
+                    text_note_begun(&text_note, &s_query_log->bytes);
+                    mmgr_line_put(&text_note.line, "reads [");
+                    mmgr_line_decimal(&text_note.line, operand, 1u);
+                    mmgr_line_put(&text_note.line, "]");
+                    text_note_written(&text_note);
+                }
                 put_reads.push_back(
                     std::make_pair("[" + std::to_string(operand) + "]", std::vector<unsigned long long>()));
                 for (unsigned int place = 0u; place < question.cases; place += 1u)
@@ -184,56 +275,129 @@ int PutLink::logged(PairWork &work) const
                         ((2u * operand + 1u) < RUN_IN_WORDS)
                             ? (((unsigned long long)words[2u * operand + 1u] << 32u) | words[2u * operand])
                             : 0ULL;
-                    query_log_print(s_query_log, " %llx", value);
+                    {
+                        TextNote text_note;
+                        text_note_begun(&text_note, &s_query_log->bytes);
+                        mmgr_line_put(&text_note.line, " ");
+                        mmgr_line_hex(&text_note.line, value, 1u);
+                        text_note_written(&text_note);
+                    }
                     put_reads.back().second.push_back(value);
                 }
-                query_log_print(s_query_log, "\n");
+                {
+                    TextNote text_note;
+                    text_note_begun(&text_note, &s_query_log->bytes);
+                    mmgr_line_ch(&text_note.line, '\n');
+                    text_note_written(&text_note);
+                }
                 continue;
             }
             const RunQuestion &cut = cut_answers[cut_at];
             const int unwritten = cut_codes[cut_at].empty();
             cut_at += 1u;
-            query_log_print(s_query_log, "reads %s", read.c_str());
+            {
+                TextNote text_note;
+                text_note_begun(&text_note, &s_query_log->bytes);
+                mmgr_line_put(&text_note.line, "reads ");
+                mmgr_line_put(&text_note.line, read.c_str());
+                text_note_written(&text_note);
+            }
             put_reads.push_back(std::make_pair(read, std::vector<unsigned long long>()));
             if (unwritten || (cut.outcome != RUN_ANSWERED))
             {
-                query_log_print(s_query_log, " refused %s\n", unwritten ? "unwritten" : cut.refused);
+                {
+                    TextNote text_note;
+                    text_note_begun(&text_note, &s_query_log->bytes);
+                    mmgr_line_put(&text_note.line, " refused ");
+                    mmgr_line_put(&text_note.line, unwritten ? "unwritten" : cut.refused);
+                    mmgr_line_ch(&text_note.line, '\n');
+                    text_note_written(&text_note);
+                }
                 continue;
             }
             for (unsigned int place = 0u; place < question.cases; place += 1u)
             {
-                query_log_print(s_query_log, " %llx", cut.answered[place]);
+                {
+                    TextNote text_note;
+                    text_note_begun(&text_note, &s_query_log->bytes);
+                    mmgr_line_put(&text_note.line, " ");
+                    mmgr_line_hex(&text_note.line, cut.answered[place], 1u);
+                    text_note_written(&text_note);
+                }
                 put_reads.back().second.push_back(cut.answered[place]);
             }
-            query_log_print(s_query_log, "\n");
+            {
+                TextNote text_note;
+                text_note_begun(&text_note, &s_query_log->bytes);
+                mmgr_line_ch(&text_note.line, '\n');
+                text_note_written(&text_note);
+            }
         }
         for (unsigned int side = 0u; side < 2u; side += 1u)
         {
             const RunQuestion &cut = cut_answers[cut_at];
             const int unwritten = cut_codes[cut_at].empty();
             cut_at += 1u;
-            query_log_print(s_query_log, "writes %s", side_names[side]);
+            {
+                TextNote text_note;
+                text_note_begun(&text_note, &s_query_log->bytes);
+                mmgr_line_put(&text_note.line, "writes ");
+                mmgr_line_put(&text_note.line, side_names[side]);
+                text_note_written(&text_note);
+            }
             if (unwritten || (cut.outcome != RUN_ANSWERED))
             {
-                query_log_print(s_query_log, " refused %s\n", unwritten ? "unwritten" : cut.refused);
+                {
+                    TextNote text_note;
+                    text_note_begun(&text_note, &s_query_log->bytes);
+                    mmgr_line_put(&text_note.line, " refused ");
+                    mmgr_line_put(&text_note.line, unwritten ? "unwritten" : cut.refused);
+                    mmgr_line_ch(&text_note.line, '\n');
+                    text_note_written(&text_note);
+                }
                 continue;
             }
             for (unsigned int place = 0u; place < question.cases; place += 1u)
             {
-                query_log_print(s_query_log, " %llx", cut.answered[place]);
+                {
+                    TextNote text_note;
+                    text_note_begun(&text_note, &s_query_log->bytes);
+                    mmgr_line_put(&text_note.line, " ");
+                    mmgr_line_hex(&text_note.line, cut.answered[place], 1u);
+                    text_note_written(&text_note);
+                }
                 put_writes[side].push_back(cut.answered[place]);
             }
-            query_log_print(s_query_log, "\n");
+            {
+                TextNote text_note;
+                text_note_begun(&text_note, &s_query_log->bytes);
+                mmgr_line_ch(&text_note.line, '\n');
+                text_note_written(&text_note);
+            }
         }
         query_log_flushed(s_query_log);
     };
     // the values the pair's forms write of their own, each put to the product with every case value
-    query_log_print(s_query_log, "qualifies");
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &s_query_log->bytes);
+        mmgr_line_put(&text_note.line, "qualifies");
+        text_note_written(&text_note);
+    }
     for (const unsigned long long value : qualifiers)
     {
-        query_log_print(s_query_log, " %llx", value);
+        TextNote text_note;
+        text_note_begun(&text_note, &s_query_log->bytes);
+        mmgr_line_put(&text_note.line, " ");
+        mmgr_line_hex(&text_note.line, value, 1u);
+        text_note_written(&text_note);
     }
-    query_log_print(s_query_log, "\n");
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &s_query_log->bytes);
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
     const size_t signal_before = concept_signal(product);
     ConceptReads put_reads;
     std::vector<unsigned long long> put_writes[2];
@@ -253,12 +417,32 @@ int PutLink::logged(PairWork &work) const
         for (unsigned int run = 0u; (run < runs) && !concept_whole(product, pair_cased); run += 1u)
         {
             whole_cases(&question, qualifiers, run);
-            query_log_print(s_query_log, "pair %s in place of %s at %s\nqualified", to.c_str(), from.c_str(), address);
+            {
+                TextNote text_note;
+                text_note_begun(&text_note, &s_query_log->bytes);
+                mmgr_line_put(&text_note.line, "pair ");
+                mmgr_line_put(&text_note.line, to.c_str());
+                mmgr_line_put(&text_note.line, " in place of ");
+                mmgr_line_put(&text_note.line, from.c_str());
+                mmgr_line_put(&text_note.line, " at ");
+                mmgr_line_put(&text_note.line, address);
+                mmgr_line_put(&text_note.line, "\nqualified");
+                text_note_written(&text_note);
+            }
             for (const unsigned long long value : qualifiers)
             {
-                query_log_print(s_query_log, " %llx", value);
+                TextNote text_note;
+                text_note_begun(&text_note, &s_query_log->bytes);
+                mmgr_line_put(&text_note.line, " ");
+                mmgr_line_hex(&text_note.line, value, 1u);
+                text_note_written(&text_note);
             }
-            query_log_print(s_query_log, "\n");
+            {
+                TextNote text_note;
+                text_note_begun(&text_note, &s_query_log->bytes);
+                mmgr_line_ch(&text_note.line, '\n');
+                text_note_written(&text_note);
+            }
             ConceptReads whole_reads;
             std::vector<unsigned long long> whole_writes[2];
             product_put(whole_reads, whole_writes);

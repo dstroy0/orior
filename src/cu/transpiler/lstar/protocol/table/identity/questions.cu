@@ -40,25 +40,6 @@ std::string run_file_text(const std::string &path)
     return text;
 }
 
-// `format` and what follows it added to the end of what `written` contains, as fprintf writes them
-void run_print(RunWritten *written, const char *format, ...)
-{
-    va_list values;
-    va_start(values, format);
-    va_list measured;
-    va_copy(measured, values);
-    const int length = vsnprintf(NULL, 0u, format, measured);
-    va_end(measured);
-    if (length > 0)
-    {
-        const size_t at = written->text.size();
-        written->text.resize(at + (size_t)length + 1u);
-        vsnprintf(&written->text[at], (size_t)length + 1u, format, values);
-        written->text.resize(at + (size_t)length);
-    }
-    va_end(values);
-}
-
 // `written` passed to the run's writer whole: as the current file at its path, or as a blob named by the path's own
 // name. 1, or 0 where no run's writer runs or it was not passed
 int run_closed(const RunWritten *written)

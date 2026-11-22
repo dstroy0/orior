@@ -23,6 +23,7 @@
 #include "../../../../../../../includes/file_defs/klq/query_trace.h"
 #include "target_internal.h"
 #include "word_web.h"
+#include "../../../../../text_note/text_note.h"
 
 #include <ctype.h>
 #include <limits.h>
@@ -383,11 +384,6 @@ extern thread_local int t_other_way;
 
 std::string run_blob_text(const char *name);
 std::string run_file_text(const std::string &path);
-void run_print(RunWritten *written, const char *format, ...);
-#if defined(__GNUC__)
-__attribute__((format(gnu_printf, 2, 3)))
-#endif
-void query_log_print(QueryLog *log, const char *format, ...);
 int run_closed(const RunWritten *written);
 int rule_broken(const std::string &link);
 std::string trimmed(const std::string &text);

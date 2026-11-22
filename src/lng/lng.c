@@ -10,7 +10,6 @@
 #include "../../includes/parsers/who.h"
 #include "verba_scribo/verba_scribo.h"
 
-#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -132,27 +131,33 @@ void lng_list_add(LngList *list, const char *text)
     lng_list_insert(list, list->count, text, mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR));
 }
 
-void lng_list_printed(LngList *list, const char *format, ...)
+// the bytes of a full line of the note that `context` names added to the end of its text
+static int lng_note_passed(void *context, const char *bytes, size_t length)
 {
-    va_list values;
-    va_start(values, format);
-    va_list measured;
-    va_copy(measured, values);
-    const int length = vsnprintf(NULL, 0u, format, measured);
-    va_end(measured);
-    if (length < 0)
-    {
-        va_end(values);
-        lng_allocated(NULL);
-        return;
-    }
-    // a printed length is not negative
-    char *const text = (char *)lng_allocated(malloc((size_t)length + 1u));
-    vsnprintf(text, (size_t)length + 1u, format, values);
-    va_end(values);
-    lng_list_room(list);
-    list->text[list->count] = text;
-    list->count += 1u;
+    LngNote *const note = (LngNote *)context;
+    note->text = (char *)lng_allocated(realloc(note->text, note->length + length + 1u));
+    mmgr_bytes_copy(&note->text[note->length], bytes, length);
+    note->length += length;
+    note->text[note->length] = '\0';
+    return 1;
+}
+
+void lng_note_begun(LngNote *note, LngList *list)
+{
+    note->line = (VerbaLinea){note->bytes, sizeof(note->bytes), 0u, lng_note_passed, note, 0u};
+    note->text = NULL;
+    note->length = 0u;
+    note->list = list;
+}
+
+void lng_note_written(LngNote *note)
+{
+    (void)mmgr_line_flush(&note->line);
+    // a note that wrote nothing is the empty text
+    char *const text = (note->text != NULL) ? note->text : (char *)lng_allocated(calloc(1u, 1u));
+    lng_list_room(note->list);
+    note->list->text[note->list->count] = text;
+    note->list->count += 1u;
 }
 
 int lng_set_find(const LngList *set, const char *text, unsigned int *at)
@@ -391,8 +396,17 @@ void lng_table_read(const char *const *line, unsigned int lines, LngTable *table
         lng_cells(line[at], &cells);
         if (cells.count != table->head.count)
         {
-            lng_list_printed(defects, "line %u has %u cells where the head has %u", number, cells.count,
-                             table->head.count);
+            {
+                LngNote lng_note;
+                lng_note_begun(&lng_note, defects);
+                mmgr_line_put(&lng_note.line, "line ");
+                mmgr_line_decimal(&lng_note.line, number, 1u);
+                mmgr_line_put(&lng_note.line, " has ");
+                mmgr_line_decimal(&lng_note.line, cells.count, 1u);
+                mmgr_line_put(&lng_note.line, " cells where the head has ");
+                mmgr_line_decimal(&lng_note.line, table->head.count, 1u);
+                lng_note_written(&lng_note);
+            }
             lng_list_free(&cells);
             continue;
         }
@@ -504,17 +518,39 @@ void lng_table_check(const LngTable *table, const char *const *types, unsigned i
         const char *const type = lng_cell_or_none(table, row, "type");
         const char *const target = lng_cell_or_none(table, row, "target");
         LngList found = {NULL, 0u, 0u};
-        lng_list_printed(&found, "%s\x1f%s\x1f%s", word, type, target);
+        {
+            LngNote lng_note;
+            lng_note_begun(&lng_note, &found);
+            mmgr_line_put(&lng_note.line, word);
+            mmgr_line_put(&lng_note.line, "\x1f");
+            mmgr_line_put(&lng_note.line, type);
+            mmgr_line_put(&lng_note.line, "\x1f");
+            mmgr_line_put(&lng_note.line, target);
+            lng_note_written(&lng_note);
+        }
         if (lng_set_has(&seen, found.text[0]))
         {
-            lng_list_printed(defects, "%s %s%s%s is listed twice", word, type, (target[0] != '\0') ? " of " : "",
-                             target);
+            LngNote lng_note;
+            lng_note_begun(&lng_note, defects);
+            mmgr_line_put(&lng_note.line, word);
+            mmgr_line_put(&lng_note.line, " ");
+            mmgr_line_put(&lng_note.line, type);
+            mmgr_line_put(&lng_note.line, (target[0] != '\0') ? " of " : "");
+            mmgr_line_put(&lng_note.line, target);
+            mmgr_line_put(&lng_note.line, " is listed twice");
+            lng_note_written(&lng_note);
         }
         lng_set_add(&seen, found.text[0]);
         lng_list_free(&found);
         if (!lng_one_of(type, types, count))
         {
-            lng_list_printed(defects, "%s has the type %s, which no table names", word, type);
+            LngNote lng_note;
+            lng_note_begun(&lng_note, defects);
+            mmgr_line_put(&lng_note.line, word);
+            mmgr_line_put(&lng_note.line, " has the type ");
+            mmgr_line_put(&lng_note.line, type);
+            mmgr_line_put(&lng_note.line, ", which no table names");
+            lng_note_written(&lng_note);
         }
         for (unsigned int at = start; at < table->head.count; at += 1u)
         {
@@ -523,8 +559,15 @@ void lng_table_check(const LngTable *table, const char *const *types, unsigned i
             if (!lng_one_of(column, s_not_operators, LNG_NOT_OPERATORS) && (cell[0] != '\0') &&
                 (!mmgr_text_equal(cell, "1", PLATFORM_TEXT_TO_TERMINATOR)))
             {
-                lng_list_printed(defects, "%s has %s under %s, where an operator cell has 1 or nothing", word, cell,
-                                 column);
+                LngNote lng_note;
+                lng_note_begun(&lng_note, defects);
+                mmgr_line_put(&lng_note.line, word);
+                mmgr_line_put(&lng_note.line, " has ");
+                mmgr_line_put(&lng_note.line, cell);
+                mmgr_line_put(&lng_note.line, " under ");
+                mmgr_line_put(&lng_note.line, column);
+                mmgr_line_put(&lng_note.line, ", where an operator cell has 1 or nothing");
+                lng_note_written(&lng_note);
             }
         }
     }
@@ -563,7 +606,15 @@ void lng_table_check(const LngTable *table, const char *const *types, unsigned i
         if ((other == order.count) ||
             (!mmgr_text_equal(lng_cell_or_none(table, last[other], "complement"), word, PLATFORM_TEXT_TO_TERMINATOR)))
         {
-            lng_list_printed(defects, "%s complements %s, which does not complement it back", word, complement);
+            {
+                LngNote lng_note;
+                lng_note_begun(&lng_note, defects);
+                mmgr_line_put(&lng_note.line, word);
+                mmgr_line_put(&lng_note.line, " complements ");
+                mmgr_line_put(&lng_note.line, complement);
+                mmgr_line_put(&lng_note.line, ", which does not complement it back");
+                lng_note_written(&lng_note);
+            }
             continue;
         }
         LngList mine = {NULL, 0u, 0u};
@@ -591,8 +642,18 @@ void lng_table_check(const LngTable *table, const char *const *types, unsigned i
         {
             char *const their_text = lng_list_joined(&theirs, " ");
             char *const my_text = lng_list_joined(&mine, " ");
-            lng_list_printed(defects, "%s complements %s, and %s does not negate %s", word,
-                             lng_cell_or_none(table, last[other], "word"), their_text, my_text);
+            {
+                LngNote lng_note;
+                lng_note_begun(&lng_note, defects);
+                mmgr_line_put(&lng_note.line, word);
+                mmgr_line_put(&lng_note.line, " complements ");
+                mmgr_line_put(&lng_note.line, lng_cell_or_none(table, last[other], "word"));
+                mmgr_line_put(&lng_note.line, ", and ");
+                mmgr_line_put(&lng_note.line, their_text);
+                mmgr_line_put(&lng_note.line, " does not negate ");
+                mmgr_line_put(&lng_note.line, my_text);
+                lng_note_written(&lng_note);
+            }
             free(their_text);
             free(my_text);
         }
@@ -628,9 +689,20 @@ void lng_table_findings(const LngTable *table, LngList *findings)
         }
         char *const marked = lng_list_joined(&operators, "\x1e");
         LngList key = {NULL, 0u, 0u};
-        lng_list_printed(&key, "%s\x1f%s\x1f%s\x1f%s\x1f%s", lng_cell_or_none(table, row, "type"), marked,
-                         lng_cell_or_none(table, row, "bits"), lng_cell_or_none(table, row, "signed"),
-                         lng_cell_or_none(table, row, "c_type"));
+        {
+            LngNote lng_note;
+            lng_note_begun(&lng_note, &key);
+            mmgr_line_put(&lng_note.line, lng_cell_or_none(table, row, "type"));
+            mmgr_line_put(&lng_note.line, "\x1f");
+            mmgr_line_put(&lng_note.line, marked);
+            mmgr_line_put(&lng_note.line, "\x1f");
+            mmgr_line_put(&lng_note.line, lng_cell_or_none(table, row, "bits"));
+            mmgr_line_put(&lng_note.line, "\x1f");
+            mmgr_line_put(&lng_note.line, lng_cell_or_none(table, row, "signed"));
+            mmgr_line_put(&lng_note.line, "\x1f");
+            mmgr_line_put(&lng_note.line, lng_cell_or_none(table, row, "c_type"));
+            lng_note_written(&lng_note);
+        }
         free(marked);
         unsigned int at = 0u;
         while ((at < groups) && (!mmgr_text_equal(group[at].key, key.text[0], PLATFORM_TEXT_TO_TERMINATOR)))
@@ -669,7 +741,16 @@ void lng_table_findings(const LngTable *table, LngList *findings)
         {
             char *const words = lng_list_joined(&group[at].words, ", ");
             char *const operators = lng_list_joined(&group[at].operators, " ");
-            lng_list_printed(findings, "%s are %s words that all mean %s", words, group[at].type, operators);
+            {
+                LngNote lng_note;
+                lng_note_begun(&lng_note, findings);
+                mmgr_line_put(&lng_note.line, words);
+                mmgr_line_put(&lng_note.line, " are ");
+                mmgr_line_put(&lng_note.line, group[at].type);
+                mmgr_line_put(&lng_note.line, " words that all mean ");
+                mmgr_line_put(&lng_note.line, operators);
+                lng_note_written(&lng_note);
+            }
             free(words);
             free(operators);
         }
@@ -685,8 +766,14 @@ void lng_table_findings(const LngTable *table, LngList *findings)
     for (unsigned int row = 0u; row < table->rows; row += 1u)
     {
         LngList keyed = {NULL, 0u, 0u};
-        lng_list_printed(&keyed, "%s\x1f%s", lng_cell_or_none(table, row, "word"),
-                         lng_cell_or_none(table, row, "target"));
+        {
+            LngNote lng_note;
+            lng_note_begun(&lng_note, &keyed);
+            mmgr_line_put(&lng_note.line, lng_cell_or_none(table, row, "word"));
+            mmgr_line_put(&lng_note.line, "\x1f");
+            mmgr_line_put(&lng_note.line, lng_cell_or_none(table, row, "target"));
+            lng_note_written(&lng_note);
+        }
         lng_set_add(&words, keyed.text[0]);
         lng_list_free(&keyed);
     }
@@ -708,16 +795,30 @@ void lng_table_findings(const LngTable *table, LngList *findings)
             LngList operators = {NULL, 0u, 0u};
             lng_operators_of(table, row, &operators);
             char *const meant = lng_list_joined(&operators, " ");
-            lng_list_printed(&meanings, "%s meaning %s", lng_cell_or_none(table, row, "type"),
-                             (meant[0] != '\0') ? meant : "no operator");
+            {
+                LngNote lng_note;
+                lng_note_begun(&lng_note, &meanings);
+                mmgr_line_put(&lng_note.line, lng_cell_or_none(table, row, "type"));
+                mmgr_line_put(&lng_note.line, " meaning ");
+                mmgr_line_put(&lng_note.line, (meant[0] != '\0') ? meant : "no operator");
+                lng_note_written(&lng_note);
+            }
             free(meant);
             lng_list_free(&operators);
         }
         if (meanings.count > 1u)
         {
             char *const meaning = lng_list_joined(&meanings, " and ");
-            lng_list_printed(findings, "%.*s%s%s is %s", (int)word_length, words.text[at],
-                             (target[0] != '\0') ? " of " : "", target, meaning);
+            {
+                LngNote lng_note;
+                lng_note_begun(&lng_note, findings);
+                mmgr_line_put_max(&lng_note.line, words.text[at], (size_t)((int)word_length));
+                mmgr_line_put(&lng_note.line, (target[0] != '\0') ? " of " : "");
+                mmgr_line_put(&lng_note.line, target);
+                mmgr_line_put(&lng_note.line, " is ");
+                mmgr_line_put(&lng_note.line, meaning);
+                lng_note_written(&lng_note);
+            }
             free(meaning);
         }
         lng_list_free(&meanings);
@@ -841,7 +942,14 @@ void lng_ruleset_words(const char *path, const char *const *line, unsigned int l
             lng_tokens(text, strcspn(text, "="), &tokens);
         }
         LngList where = {NULL, 0u, 0u};
-        lng_list_printed(&where, "%s:%u", path, number);
+        {
+            LngNote lng_note;
+            lng_note_begun(&lng_note, &where);
+            mmgr_line_put(&lng_note.line, path);
+            mmgr_line_put(&lng_note.line, ":");
+            mmgr_line_decimal(&lng_note.line, number, 1u);
+            lng_note_written(&lng_note);
+        }
         const char *const first = tokens.text[0];
         if (inside && (!mmgr_text_equal(first, "end", PLATFORM_TEXT_TO_TERMINATOR)))
         {
@@ -1022,7 +1130,14 @@ void lng_ksc_words(const char *path, const KfileLines *file, LngMap *used)
             continue;
         }
         LngList where = {NULL, 0u, 0u};
-        lng_list_printed(&where, "%s:%u", path, at + 1u);
+        {
+            LngNote lng_note;
+            lng_note_begun(&lng_note, &where);
+            mmgr_line_put(&lng_note.line, path);
+            mmgr_line_put(&lng_note.line, ":");
+            mmgr_line_decimal(&lng_note.line, at + 1u, 1u);
+            lng_note_written(&lng_note);
+        }
         lng_use(used, tokens.text[0], where.text[0]);
         static const char *const s_naming[4] = {"channel", "class", "count", "compile"};
         if (lng_one_of(tokens.text[0], s_naming, 4u) && (tokens.count > 1u))
@@ -1370,8 +1485,17 @@ void lng_form_findings(const LngTable *table, const LngList *names, const LngLis
             if (lng_set_has(&doing, words.text[at]) && (checked.count != 0u) && !writes)
             {
                 char *const claim = lng_list_joined(&checked, " ");
-                lng_list_printed(findings, "%s claims %s through %s, and its form writes none of it", name, claim,
-                                 words.text[at]);
+                {
+                    LngNote lng_note;
+                    lng_note_begun(&lng_note, findings);
+                    mmgr_line_put(&lng_note.line, name);
+                    mmgr_line_put(&lng_note.line, " claims ");
+                    mmgr_line_put(&lng_note.line, claim);
+                    mmgr_line_put(&lng_note.line, " through ");
+                    mmgr_line_put(&lng_note.line, words.text[at]);
+                    mmgr_line_put(&lng_note.line, ", and its form writes none of it");
+                    lng_note_written(&lng_note);
+                }
                 free(claim);
             }
             lng_list_free(&checked);
@@ -1387,7 +1511,15 @@ void lng_form_findings(const LngTable *table, const LngList *names, const LngLis
         if (unclaimed.count != 0u)
         {
             char *const unclaimed_text = lng_list_joined(&unclaimed, " ");
-            lng_list_printed(findings, "%s writes %s, which no word of its name claims", name, unclaimed_text);
+            {
+                LngNote lng_note;
+                lng_note_begun(&lng_note, findings);
+                mmgr_line_put(&lng_note.line, name);
+                mmgr_line_put(&lng_note.line, " writes ");
+                mmgr_line_put(&lng_note.line, unclaimed_text);
+                mmgr_line_put(&lng_note.line, ", which no word of its name claims");
+                lng_note_written(&lng_note);
+            }
             free(unclaimed_text);
         }
         lng_list_free(&unclaimed);
@@ -1445,16 +1577,32 @@ void lng_hol_check(const LngTable *transpiler, const LngTable *hol, LngList *def
         const unsigned int other = lng_row_of(transpiler, crossed, "thing");
         if (!lng_set_has(&words, crossed))
         {
-            lng_list_printed(defects, "%s crosses to %s, which the transpiler has no word for", word, crossed);
+            LngNote lng_note;
+            lng_note_begun(&lng_note, defects);
+            mmgr_line_put(&lng_note.line, word);
+            mmgr_line_put(&lng_note.line, " crosses to ");
+            mmgr_line_put(&lng_note.line, crossed);
+            mmgr_line_put(&lng_note.line, ", which the transpiler has no word for");
+            lng_note_written(&lng_note);
         }
         else if ((other != transpiler->rows) &&
                  ((!mmgr_text_equal(lng_cell_or_none(transpiler, other, "bits"), bits, PLATFORM_TEXT_TO_TERMINATOR)) ||
                   (!mmgr_text_equal(lng_cell_or_none(transpiler, other, "signed"), sign, PLATFORM_TEXT_TO_TERMINATOR))))
         {
-            lng_list_printed(defects, "%s is %s bits signed %s and crosses to %s, which is %s bits signed %s", word,
-                             bits, sign, lng_cell_or_none(transpiler, other, "word"),
-                             lng_cell_or_none(transpiler, other, "bits"),
-                             lng_cell_or_none(transpiler, other, "signed"));
+            LngNote lng_note;
+            lng_note_begun(&lng_note, defects);
+            mmgr_line_put(&lng_note.line, word);
+            mmgr_line_put(&lng_note.line, " is ");
+            mmgr_line_put(&lng_note.line, bits);
+            mmgr_line_put(&lng_note.line, " bits signed ");
+            mmgr_line_put(&lng_note.line, sign);
+            mmgr_line_put(&lng_note.line, " and crosses to ");
+            mmgr_line_put(&lng_note.line, lng_cell_or_none(transpiler, other, "word"));
+            mmgr_line_put(&lng_note.line, ", which is ");
+            mmgr_line_put(&lng_note.line, lng_cell_or_none(transpiler, other, "bits"));
+            mmgr_line_put(&lng_note.line, " bits signed ");
+            mmgr_line_put(&lng_note.line, lng_cell_or_none(transpiler, other, "signed"));
+            lng_note_written(&lng_note);
         }
     }
     LngList found = {NULL, 0u, 0u};
@@ -1463,8 +1611,14 @@ void lng_hol_check(const LngTable *transpiler, const LngTable *hol, LngList *def
         if (mmgr_text_equal(lng_cell_or_none(hol, row, "type"), "type", PLATFORM_TEXT_TO_TERMINATOR))
         {
             LngList width = {NULL, 0u, 0u};
-            lng_list_printed(&width, "%s\x1f%s", lng_cell_or_none(hol, row, "bits"),
-                             lng_cell_or_none(hol, row, "signed"));
+            {
+                LngNote lng_note;
+                lng_note_begun(&lng_note, &width);
+                mmgr_line_put(&lng_note.line, lng_cell_or_none(hol, row, "bits"));
+                mmgr_line_put(&lng_note.line, "\x1f");
+                mmgr_line_put(&lng_note.line, lng_cell_or_none(hol, row, "signed"));
+                lng_note_written(&lng_note);
+            }
             lng_set_add(&found, width.text[0]);
             lng_list_free(&width);
         }
@@ -1475,11 +1629,26 @@ void lng_hol_check(const LngTable *transpiler, const LngTable *hol, LngList *def
         const char *const bits = lng_cell_or_none(transpiler, row, "bits");
         const char *const sign = lng_cell_or_none(transpiler, row, "signed");
         LngList width = {NULL, 0u, 0u};
-        lng_list_printed(&width, "%s\x1f%s", bits, sign);
+        {
+            LngNote lng_note;
+            lng_note_begun(&lng_note, &width);
+            mmgr_line_put(&lng_note.line, bits);
+            mmgr_line_put(&lng_note.line, "\x1f");
+            mmgr_line_put(&lng_note.line, sign);
+            lng_note_written(&lng_note);
+        }
         if (lng_one_of(bits, s_hol_bits, LNG_HOL_BITS) && !lng_set_has(&found, width.text[0]))
         {
-            lng_list_printed(findings, "the transpiler's %s is %s bits signed %s, and no high order type is",
-                             things.text[at], bits, sign);
+            LngNote lng_note;
+            lng_note_begun(&lng_note, findings);
+            mmgr_line_put(&lng_note.line, "the transpiler's ");
+            mmgr_line_put(&lng_note.line, things.text[at]);
+            mmgr_line_put(&lng_note.line, " is ");
+            mmgr_line_put(&lng_note.line, bits);
+            mmgr_line_put(&lng_note.line, " bits signed ");
+            mmgr_line_put(&lng_note.line, sign);
+            mmgr_line_put(&lng_note.line, ", and no high order type is");
+            lng_note_written(&lng_note);
         }
         lng_list_free(&width);
     }
@@ -1518,8 +1687,15 @@ void lng_hol_check(const LngTable *transpiler, const LngTable *hol, LngList *def
         if (!lng_set_has(&hol_means, operator_text) && !lng_one_of(operator_text, s_hol_as_c, LNG_HOL_AS_C))
         {
             char *const meant = lng_list_joined(&transpiler_means.set[at], ", ");
-            lng_list_printed(findings, "the high order language has no word for %s, which the transpiler means by %s",
-                             operator_text, meant);
+            {
+                LngNote lng_note;
+                lng_note_begun(&lng_note, findings);
+                mmgr_line_put(&lng_note.line, "the high order language has no word for ");
+                mmgr_line_put(&lng_note.line, operator_text);
+                mmgr_line_put(&lng_note.line, ", which the transpiler means by ");
+                mmgr_line_put(&lng_note.line, meant);
+                lng_note_written(&lng_note);
+            }
             free(meant);
         }
     }
@@ -1538,8 +1714,17 @@ void lng_hol_check(const LngTable *transpiler, const LngTable *hol, LngList *def
             if ((core != NULL) && !lng_set_has(core, word))
             {
                 char *const named = lng_list_joined(core, ", ");
-                lng_list_printed(findings, "the transpiler names %s %s where the core op is %s", operators.text[at],
-                                 word, named);
+                {
+                    LngNote lng_note;
+                    lng_note_begun(&lng_note, findings);
+                    mmgr_line_put(&lng_note.line, "the transpiler names ");
+                    mmgr_line_put(&lng_note.line, operators.text[at]);
+                    mmgr_line_put(&lng_note.line, " ");
+                    mmgr_line_put(&lng_note.line, word);
+                    mmgr_line_put(&lng_note.line, " where the core op is ");
+                    mmgr_line_put(&lng_note.line, named);
+                    lng_note_written(&lng_note);
+                }
                 free(named);
             }
         }
@@ -1603,10 +1788,18 @@ void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings)
         const char *const given = (written != NULL) ? written : arrow;
         if (!mmgr_text_equal(given, arrow, PLATFORM_TEXT_TO_TERMINATOR))
         {
-            lng_list_printed(defects, "%s to %s in %s is written %s and its bits give %s",
-                             lng_cell_or_none(table, row, "past"), lng_cell_or_none(table, row, "present"),
-                             lng_cell_or_none(table, row, "table"), (given[0] != '\0') ? given : "no arrow",
-                             (arrow[0] != '\0') ? arrow : "none");
+            LngNote lng_note;
+            lng_note_begun(&lng_note, defects);
+            mmgr_line_put(&lng_note.line, lng_cell_or_none(table, row, "past"));
+            mmgr_line_put(&lng_note.line, " to ");
+            mmgr_line_put(&lng_note.line, lng_cell_or_none(table, row, "present"));
+            mmgr_line_put(&lng_note.line, " in ");
+            mmgr_line_put(&lng_note.line, lng_cell_or_none(table, row, "table"));
+            mmgr_line_put(&lng_note.line, " is written ");
+            mmgr_line_put(&lng_note.line, (given[0] != '\0') ? given : "no arrow");
+            mmgr_line_put(&lng_note.line, " and its bits give ");
+            mmgr_line_put(&lng_note.line, (arrow[0] != '\0') ? arrow : "none");
+            lng_note_written(&lng_note);
         }
     }
     LngList states = {NULL, 0u, 0u};
@@ -1629,12 +1822,25 @@ void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings)
             if (mmgr_text_equal(lng_cell_or_none(table, row, "mnemonic"), mnemonics.text[at],
                                 PLATFORM_TEXT_TO_TERMINATOR))
             {
-                lng_list_printed(&transitions, "%s to %s in %s", lng_cell_or_none(table, row, "past"),
-                                 lng_cell_or_none(table, row, "present"), lng_cell_or_none(table, row, "table"));
+                LngNote lng_note;
+                lng_note_begun(&lng_note, &transitions);
+                mmgr_line_put(&lng_note.line, lng_cell_or_none(table, row, "past"));
+                mmgr_line_put(&lng_note.line, " to ");
+                mmgr_line_put(&lng_note.line, lng_cell_or_none(table, row, "present"));
+                mmgr_line_put(&lng_note.line, " in ");
+                mmgr_line_put(&lng_note.line, lng_cell_or_none(table, row, "table"));
+                lng_note_written(&lng_note);
             }
         }
         char *const joined = lng_list_joined(&transitions, ", ");
-        lng_list_printed(findings, "%s is a state and also the mnemonic of %s", mnemonics.text[at], joined);
+        {
+            LngNote lng_note;
+            lng_note_begun(&lng_note, findings);
+            mmgr_line_put(&lng_note.line, mnemonics.text[at]);
+            mmgr_line_put(&lng_note.line, " is a state and also the mnemonic of ");
+            mmgr_line_put(&lng_note.line, joined);
+            lng_note_written(&lng_note);
+        }
         free(joined);
         lng_list_free(&transitions);
     }
@@ -1647,8 +1853,16 @@ void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings)
     for (unsigned int row = 0u; row < table->rows; row += 1u)
     {
         LngList key = {NULL, 0u, 0u};
-        lng_list_printed(&key, "%s\x1f%s\x1f%s", lng_cell_or_none(table, row, "table"),
-                         lng_cell_or_none(table, row, "past"), lng_cell_or_none(table, row, "present"));
+        {
+            LngNote lng_note;
+            lng_note_begun(&lng_note, &key);
+            mmgr_line_put(&lng_note.line, lng_cell_or_none(table, row, "table"));
+            mmgr_line_put(&lng_note.line, "\x1f");
+            mmgr_line_put(&lng_note.line, lng_cell_or_none(table, row, "past"));
+            mmgr_line_put(&lng_note.line, "\x1f");
+            mmgr_line_put(&lng_note.line, lng_cell_or_none(table, row, "present"));
+            lng_note_written(&lng_note);
+        }
         lng_set_add(lng_sets_at(&named, key.text[0]), lng_cell_or_none(table, row, "mnemonic"));
         lng_list_free(&key);
         const char *const left = lng_cell_or_none(table, row, "left");
@@ -1657,7 +1871,14 @@ void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings)
             (!mmgr_text_equal(right, "-", PLATFORM_TEXT_TO_TERMINATOR)))
         {
             LngList pair = {NULL, 0u, 0u};
-            lng_list_printed(&pair, "%s\x1f%s", left, right);
+            {
+                LngNote lng_note;
+                lng_note_begun(&lng_note, &pair);
+                mmgr_line_put(&lng_note.line, left);
+                mmgr_line_put(&lng_note.line, "\x1f");
+                mmgr_line_put(&lng_note.line, right);
+                lng_note_written(&lng_note);
+            }
             lng_set_add(lng_sets_at(&doing, lng_cell_or_none(table, row, "mnemonic")), pair.text[0]);
             lng_list_free(&pair);
         }
@@ -1671,14 +1892,32 @@ void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings)
         if (named.set[at].count > 1u)
         {
             char *const both = lng_list_joined(&named.set[at], " and ");
-            lng_list_printed(defects, "%s names %s to %s both %s", table_name, past, present, both);
+            {
+                LngNote lng_note;
+                lng_note_begun(&lng_note, defects);
+                mmgr_line_put(&lng_note.line, table_name);
+                mmgr_line_put(&lng_note.line, " names ");
+                mmgr_line_put(&lng_note.line, past);
+                mmgr_line_put(&lng_note.line, " to ");
+                mmgr_line_put(&lng_note.line, present);
+                mmgr_line_put(&lng_note.line, " both ");
+                mmgr_line_put(&lng_note.line, both);
+                lng_note_written(&lng_note);
+            }
             free(both);
         }
         if ((mmgr_text_equal(table_name, s_matrix, PLATFORM_TEXT_TO_TERMINATOR)) ||
             (mmgr_text_equal(table_name, s_high_energy_matrix, PLATFORM_TEXT_TO_TERMINATOR)))
         {
             LngList key = {NULL, 0u, 0u};
-            lng_list_printed(&key, "%s\x1f%s", past, present);
+            {
+                LngNote lng_note;
+                lng_note_begun(&lng_note, &key);
+                mmgr_line_put(&lng_note.line, past);
+                mmgr_line_put(&lng_note.line, "\x1f");
+                mmgr_line_put(&lng_note.line, present);
+                lng_note_written(&lng_note);
+            }
             lng_set_add(lng_sets_at(&across, key.text[0]), table_name);
             lng_list_free(&key);
         }
@@ -1695,7 +1934,16 @@ void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings)
         for (unsigned int one = 0u; one < across.set[at].count; one += 1u)
         {
             LngList key = {NULL, 0u, 0u};
-            lng_list_printed(&key, "%s\x1f%s\x1f%s", across.set[at].text[one], past, present);
+            {
+                LngNote lng_note;
+                lng_note_begun(&lng_note, &key);
+                mmgr_line_put(&lng_note.line, across.set[at].text[one]);
+                mmgr_line_put(&lng_note.line, "\x1f");
+                mmgr_line_put(&lng_note.line, past);
+                mmgr_line_put(&lng_note.line, "\x1f");
+                mmgr_line_put(&lng_note.line, present);
+                lng_note_written(&lng_note);
+            }
             const LngList *const its = lng_sets_get(&named, key.text[0]);
             for (unsigned int name = 0u; name < its->count; name += 1u)
             {
@@ -1709,7 +1957,16 @@ void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings)
         if ((across.set[at].count > 1u) && (names.count > 1u) && !lng_set_has(&names, "sync"))
         {
             char *const joined = lng_list_joined(&each, " in one matrix and ");
-            lng_list_printed(findings, "%s to %s is %s", past, present, joined);
+            {
+                LngNote lng_note;
+                lng_note_begun(&lng_note, findings);
+                mmgr_line_put(&lng_note.line, past);
+                mmgr_line_put(&lng_note.line, " to ");
+                mmgr_line_put(&lng_note.line, present);
+                mmgr_line_put(&lng_note.line, " is ");
+                mmgr_line_put(&lng_note.line, joined);
+                lng_note_written(&lng_note);
+            }
             free(joined);
         }
         lng_list_free(&each);
@@ -1728,12 +1985,28 @@ void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings)
         {
             char *const left = lng_key_field(doing.set[at].text[one], 0u);
             char *const right = lng_key_field(doing.set[at].text[one], 1u);
-            lng_list_printed(&pairs, "left %s right %s", left, right);
+            {
+                LngNote lng_note;
+                lng_note_begun(&lng_note, &pairs);
+                mmgr_line_put(&lng_note.line, "left ");
+                mmgr_line_put(&lng_note.line, left);
+                mmgr_line_put(&lng_note.line, " right ");
+                mmgr_line_put(&lng_note.line, right);
+                lng_note_written(&lng_note);
+            }
             free(left);
             free(right);
         }
         char *const joined = lng_list_joined(&pairs, ", ");
-        lng_list_printed(findings, "%s does %s to the pair", doing.key.text[at], joined);
+        {
+            LngNote lng_note;
+            lng_note_begun(&lng_note, findings);
+            mmgr_line_put(&lng_note.line, doing.key.text[at]);
+            mmgr_line_put(&lng_note.line, " does ");
+            mmgr_line_put(&lng_note.line, joined);
+            mmgr_line_put(&lng_note.line, " to the pair");
+            lng_note_written(&lng_note);
+        }
         free(joined);
         lng_list_free(&pairs);
     }
@@ -1745,7 +2018,16 @@ void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings)
         const char *const mirror_past = lng_mirror(past);
         const char *const mirror_present = lng_mirror(present);
         LngList key = {NULL, 0u, 0u};
-        lng_list_printed(&key, "%s\x1f%s\x1f%s", table_name, mirror_past, mirror_present);
+        {
+            LngNote lng_note;
+            lng_note_begun(&lng_note, &key);
+            mmgr_line_put(&lng_note.line, table_name);
+            mmgr_line_put(&lng_note.line, "\x1f");
+            mmgr_line_put(&lng_note.line, mirror_past);
+            mmgr_line_put(&lng_note.line, "\x1f");
+            mmgr_line_put(&lng_note.line, mirror_present);
+            lng_note_written(&lng_note);
+        }
         const LngList *const mirror = lng_sets_get(&named, key.text[0]);
         const int order = mmgr_text_order(past, mirror_past, PLATFORM_TEXT_TO_TERMINATOR);
         const int sooner = (order < 0) || ((order == 0) &&
@@ -1755,8 +2037,24 @@ void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings)
         {
             char *const mine = lng_list_joined(&named.set[at], " ");
             char *const theirs = lng_list_joined(mirror, " ");
-            lng_list_printed(findings, "%s names %s to %s %s and its mirror %s to %s %s", table_name, past, present,
-                             mine, mirror_past, mirror_present, theirs);
+            {
+                LngNote lng_note;
+                lng_note_begun(&lng_note, findings);
+                mmgr_line_put(&lng_note.line, table_name);
+                mmgr_line_put(&lng_note.line, " names ");
+                mmgr_line_put(&lng_note.line, past);
+                mmgr_line_put(&lng_note.line, " to ");
+                mmgr_line_put(&lng_note.line, present);
+                mmgr_line_put(&lng_note.line, " ");
+                mmgr_line_put(&lng_note.line, mine);
+                mmgr_line_put(&lng_note.line, " and its mirror ");
+                mmgr_line_put(&lng_note.line, mirror_past);
+                mmgr_line_put(&lng_note.line, " to ");
+                mmgr_line_put(&lng_note.line, mirror_present);
+                mmgr_line_put(&lng_note.line, " ");
+                mmgr_line_put(&lng_note.line, theirs);
+                lng_note_written(&lng_note);
+            }
             free(mine);
             free(theirs);
         }
@@ -1792,7 +2090,14 @@ static void lng_entry_taken(const char *folder, const char *name, int folder_exi
         return;
     }
     LngList path = {NULL, 0u, 0u};
-    lng_list_printed(&path, "%s/%s", folder, name);
+    {
+        LngNote lng_note;
+        lng_note_begun(&lng_note, &path);
+        mmgr_line_put(&lng_note.line, folder);
+        mmgr_line_put(&lng_note.line, "/");
+        mmgr_line_put(&lng_note.line, name);
+        lng_note_written(&lng_note);
+    }
     const size_t length = mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR);
     if (folder_exists)
     {
@@ -1814,7 +2119,13 @@ static void lng_entry_taken(const char *folder, const char *name, int folder_exi
 static void lng_files_under(const char *folder, const LngWalk *walk)
 {
     LngList pattern = {NULL, 0u, 0u};
-    lng_list_printed(&pattern, "%s/*", folder);
+    {
+        LngNote lng_note;
+        lng_note_begun(&lng_note, &pattern);
+        mmgr_line_put(&lng_note.line, folder);
+        mmgr_line_put(&lng_note.line, "/*");
+        lng_note_written(&lng_note);
+    }
     // the entries requested in large reads, without the short names nothing here reads
     WIN32_FIND_DATAA entry;
     const HANDLE search = FindFirstFileExA(pattern.text[0], FindExInfoBasic, &entry, FindExSearchNameMatch, NULL,
@@ -1843,7 +2154,14 @@ static void lng_files_under(const char *folder, const LngWalk *walk)
     for (const struct dirent *entry = readdir(directory); entry != NULL; entry = readdir(directory))
     {
         LngList path = {NULL, 0u, 0u};
-        lng_list_printed(&path, "%s/%s", folder, entry->d_name);
+        {
+            LngNote lng_note;
+            lng_note_begun(&lng_note, &path);
+            mmgr_line_put(&lng_note.line, folder);
+            mmgr_line_put(&lng_note.line, "/");
+            mmgr_line_put(&lng_note.line, entry->d_name);
+            lng_note_written(&lng_note);
+        }
         struct stat status;
         const int folder_exists = (stat(path.text[0], &status) == 0) && S_ISDIR(status.st_mode);
         lng_list_free(&path);
@@ -1893,8 +2211,13 @@ void lng_used_check(const LngTable *table, const char *path, const LngMap *used,
         }
         if (!contained)
         {
-            lng_list_printed(defects, "%s is used at %s and no table contains it", used->key.text[at],
-                             used->value.text[at]);
+            LngNote lng_note;
+            lng_note_begun(&lng_note, defects);
+            mmgr_line_put(&lng_note.line, used->key.text[at]);
+            mmgr_line_put(&lng_note.line, " is used at ");
+            mmgr_line_put(&lng_note.line, used->value.text[at]);
+            mmgr_line_put(&lng_note.line, " and no table contains it");
+            lng_note_written(&lng_note);
         }
     }
 }
@@ -1942,36 +2265,79 @@ void lng_target_check(const LngTable *transpiler, const LngTable *target, const 
         const int typed = (mmgr_text_equal(type, "type", PLATFORM_TEXT_TO_TERMINATOR));
         if (!lng_one_of(type, g_lng_hol_types, LNG_HOL_TYPES))
         {
-            lng_list_printed(defects, "%s's %s has the type %s, which no table names", name, word, type);
+            LngNote lng_note;
+            lng_note_begun(&lng_note, defects);
+            mmgr_line_put(&lng_note.line, name);
+            mmgr_line_put(&lng_note.line, "'s ");
+            mmgr_line_put(&lng_note.line, word);
+            mmgr_line_put(&lng_note.line, " has the type ");
+            mmgr_line_put(&lng_note.line, type);
+            mmgr_line_put(&lng_note.line, ", which no table names");
+            lng_note_written(&lng_note);
         }
         // a type's probe prints its expected output; a relation's probe runs on the ladder's cases, which give the
         // expected outputs
         if (typed && (probed != expected))
         {
-            lng_list_printed(defects, "%s's %s has a %s and no %s", name, word, probed ? "probe" : "expected output",
-                             probed ? "expected output" : "probe");
+            LngNote lng_note;
+            lng_note_begun(&lng_note, defects);
+            mmgr_line_put(&lng_note.line, name);
+            mmgr_line_put(&lng_note.line, "'s ");
+            mmgr_line_put(&lng_note.line, word);
+            mmgr_line_put(&lng_note.line, " has a ");
+            mmgr_line_put(&lng_note.line, probed ? "probe" : "expected output");
+            mmgr_line_put(&lng_note.line, " and no ");
+            mmgr_line_put(&lng_note.line, probed ? "expected output" : "probe");
+            lng_note_written(&lng_note);
         }
         if (!typed && expected)
         {
-            lng_list_printed(defects,
-                             "%s's %s has an expected output, and the ladder's cases give a relation's outputs", name,
-                             word);
+            LngNote lng_note;
+            lng_note_begun(&lng_note, defects);
+            mmgr_line_put(&lng_note.line, name);
+            mmgr_line_put(&lng_note.line, "'s ");
+            mmgr_line_put(&lng_note.line, word);
+            mmgr_line_put(&lng_note.line, " has an expected output, and the ladder's cases give a relation's outputs");
+            lng_note_written(&lng_note);
         }
         if (bridge[0] == '\0')
         {
-            lng_list_printed(defects, "%s's %s bridges to no transpiler word, and no lift takes it to gsm", name, word);
+            {
+                LngNote lng_note;
+                lng_note_begun(&lng_note, defects);
+                mmgr_line_put(&lng_note.line, name);
+                mmgr_line_put(&lng_note.line, "'s ");
+                mmgr_line_put(&lng_note.line, word);
+                mmgr_line_put(&lng_note.line, " bridges to no transpiler word, and no lift takes it to gsm");
+                lng_note_written(&lng_note);
+            }
             continue;
         }
         const unsigned int crossed = lng_bridge_word_row(transpiler, bridge);
         if (crossed == transpiler->rows)
         {
-            lng_list_printed(defects, "%s's %s bridges to %s, which the transpiler has no word for", name, word,
-                             bridge);
+            {
+                LngNote lng_note;
+                lng_note_begun(&lng_note, defects);
+                mmgr_line_put(&lng_note.line, name);
+                mmgr_line_put(&lng_note.line, "'s ");
+                mmgr_line_put(&lng_note.line, word);
+                mmgr_line_put(&lng_note.line, " bridges to ");
+                mmgr_line_put(&lng_note.line, bridge);
+                mmgr_line_put(&lng_note.line, ", which the transpiler has no word for");
+                lng_note_written(&lng_note);
+            }
             continue;
         }
         if (lng_set_has(&bridged, bridge))
         {
-            lng_list_printed(defects, "%s bridges to %s twice", name, bridge);
+            LngNote lng_note;
+            lng_note_begun(&lng_note, defects);
+            mmgr_line_put(&lng_note.line, name);
+            mmgr_line_put(&lng_note.line, " bridges to ");
+            mmgr_line_put(&lng_note.line, bridge);
+            mmgr_line_put(&lng_note.line, " twice");
+            lng_note_written(&lng_note);
         }
         lng_set_add(&bridged, bridge);
         // a type and its bridge agree on width and sign
@@ -1981,10 +2347,22 @@ void lng_target_check(const LngTable *transpiler, const LngTable *target, const 
              (!mmgr_text_equal(lng_cell_or_none(target, row, "signed"), lng_cell_or_none(transpiler, crossed, "signed"),
                                PLATFORM_TEXT_TO_TERMINATOR))))
         {
-            lng_list_printed(defects, "%s's %s is %s bits signed %s and bridges to %s, which is %s bits signed %s",
-                             name, word, lng_cell_or_none(target, row, "bits"), lng_cell_or_none(target, row, "signed"),
-                             bridge, lng_cell_or_none(transpiler, crossed, "bits"),
-                             lng_cell_or_none(transpiler, crossed, "signed"));
+            LngNote lng_note;
+            lng_note_begun(&lng_note, defects);
+            mmgr_line_put(&lng_note.line, name);
+            mmgr_line_put(&lng_note.line, "'s ");
+            mmgr_line_put(&lng_note.line, word);
+            mmgr_line_put(&lng_note.line, " is ");
+            mmgr_line_put(&lng_note.line, lng_cell_or_none(target, row, "bits"));
+            mmgr_line_put(&lng_note.line, " bits signed ");
+            mmgr_line_put(&lng_note.line, lng_cell_or_none(target, row, "signed"));
+            mmgr_line_put(&lng_note.line, " and bridges to ");
+            mmgr_line_put(&lng_note.line, bridge);
+            mmgr_line_put(&lng_note.line, ", which is ");
+            mmgr_line_put(&lng_note.line, lng_cell_or_none(transpiler, crossed, "bits"));
+            mmgr_line_put(&lng_note.line, " bits signed ");
+            mmgr_line_put(&lng_note.line, lng_cell_or_none(transpiler, crossed, "signed"));
+            lng_note_written(&lng_note);
         }
         // each relation the row marks, its bridge marks too
         LngList marked = {NULL, 0u, 0u};
@@ -1995,8 +2373,17 @@ void lng_target_check(const LngTable *transpiler, const LngTable *target, const 
         {
             if (!lng_set_has(&bridge_marked, marked.text[at]))
             {
-                lng_list_printed(defects, "%s's %s marks %s, and its bridge %s does not", name, word, marked.text[at],
-                                 bridge);
+                LngNote lng_note;
+                lng_note_begun(&lng_note, defects);
+                mmgr_line_put(&lng_note.line, name);
+                mmgr_line_put(&lng_note.line, "'s ");
+                mmgr_line_put(&lng_note.line, word);
+                mmgr_line_put(&lng_note.line, " marks ");
+                mmgr_line_put(&lng_note.line, marked.text[at]);
+                mmgr_line_put(&lng_note.line, ", and its bridge ");
+                mmgr_line_put(&lng_note.line, bridge);
+                mmgr_line_put(&lng_note.line, " does not");
+                lng_note_written(&lng_note);
             }
         }
         lng_list_free(&bridge_marked);
@@ -2005,19 +2392,44 @@ void lng_target_check(const LngTable *transpiler, const LngTable *target, const 
         const char *const anchor = lng_cell_or_none(transpiler, crossed, "anchor");
         if (!typed && (anchor[0] == '\0'))
         {
-            lng_list_printed(findings, "%s's %s bridges to %s, which has no gsm cases, and no lift goes through it",
-                             name, word, bridge);
+            {
+                LngNote lng_note;
+                lng_note_begun(&lng_note, findings);
+                mmgr_line_put(&lng_note.line, name);
+                mmgr_line_put(&lng_note.line, "'s ");
+                mmgr_line_put(&lng_note.line, word);
+                mmgr_line_put(&lng_note.line, " bridges to ");
+                mmgr_line_put(&lng_note.line, bridge);
+                mmgr_line_put(&lng_note.line, ", which has no gsm cases, and no lift goes through it");
+                lng_note_written(&lng_note);
+            }
             continue;
         }
         if (!typed && !probed)
         {
-            lng_list_printed(defects, "%s's %s bridges to %s, which gsm reads as %s, and has no probe", name, word,
-                             bridge, anchor);
+            LngNote lng_note;
+            lng_note_begun(&lng_note, defects);
+            mmgr_line_put(&lng_note.line, name);
+            mmgr_line_put(&lng_note.line, "'s ");
+            mmgr_line_put(&lng_note.line, word);
+            mmgr_line_put(&lng_note.line, " bridges to ");
+            mmgr_line_put(&lng_note.line, bridge);
+            mmgr_line_put(&lng_note.line, ", which gsm reads as ");
+            mmgr_line_put(&lng_note.line, anchor);
+            mmgr_line_put(&lng_note.line, ", and has no probe");
+            lng_note_written(&lng_note);
         }
         if (lng_cell_or_none(target, row, "witness")[0] == '\0')
         {
-            lng_list_printed(findings, "%s's %s for %s has no witness, and no lift goes through it", name, word,
-                             bridge);
+            LngNote lng_note;
+            lng_note_begun(&lng_note, findings);
+            mmgr_line_put(&lng_note.line, name);
+            mmgr_line_put(&lng_note.line, "'s ");
+            mmgr_line_put(&lng_note.line, word);
+            mmgr_line_put(&lng_note.line, " for ");
+            mmgr_line_put(&lng_note.line, bridge);
+            mmgr_line_put(&lng_note.line, " has no witness, and no lift goes through it");
+            lng_note_written(&lng_note);
         }
     }
     lng_list_free(&bridged);
@@ -2049,16 +2461,35 @@ void lng_targets_holes(const LngTable *const *targets, const char *const *names,
             const unsigned int row = lng_bridged_row(targets[table], bridge);
             if (row == targets[table]->rows)
             {
-                lng_list_printed(findings, "%s has no row for %s, which %s bridges to", names[table], bridge,
-                                 given.value.text[at]);
+                {
+                    LngNote lng_note;
+                    lng_note_begun(&lng_note, findings);
+                    mmgr_line_put(&lng_note.line, names[table]);
+                    mmgr_line_put(&lng_note.line, " has no row for ");
+                    mmgr_line_put(&lng_note.line, bridge);
+                    mmgr_line_put(&lng_note.line, ", which ");
+                    mmgr_line_put(&lng_note.line, given.value.text[at]);
+                    mmgr_line_put(&lng_note.line, " bridges to");
+                    lng_note_written(&lng_note);
+                }
                 continue;
             }
             // one bridge word, one output for every target's probe
             const char *const expected = lng_cell_or_none(targets[table], row, "expected");
             if ((first_expected != NULL) && (!mmgr_text_equal(first_expected, expected, PLATFORM_TEXT_TO_TERMINATOR)))
             {
-                lng_list_printed(defects, "%s expects %s for %s, and %s expects %s", first_name, first_expected, bridge,
-                                 names[table], expected);
+                LngNote lng_note;
+                lng_note_begun(&lng_note, defects);
+                mmgr_line_put(&lng_note.line, first_name);
+                mmgr_line_put(&lng_note.line, " expects ");
+                mmgr_line_put(&lng_note.line, first_expected);
+                mmgr_line_put(&lng_note.line, " for ");
+                mmgr_line_put(&lng_note.line, bridge);
+                mmgr_line_put(&lng_note.line, ", and ");
+                mmgr_line_put(&lng_note.line, names[table]);
+                mmgr_line_put(&lng_note.line, " expects ");
+                mmgr_line_put(&lng_note.line, expected);
+                lng_note_written(&lng_note);
             }
             first_expected = (first_expected == NULL) ? expected : first_expected;
             first_name = (first_name == NULL) ? names[table] : first_name;
@@ -2087,7 +2518,12 @@ void lng_theorem_names(const char *const *line, unsigned int lines, LngList *nam
             length += 1u;
         }
         LngList name = {NULL, 0u, 0u};
-        lng_list_printed(&name, "%.*s", (int)length, start);
+        {
+            LngNote lng_note;
+            lng_note_begun(&lng_note, &name);
+            mmgr_line_put_max(&lng_note.line, start, (size_t)((int)length));
+            lng_note_written(&lng_note);
+        }
         lng_set_add(names, name.text[0]);
         lng_list_free(&name);
     }
@@ -2098,7 +2534,14 @@ void lng_target_proofs(const LngTable *target, const char *name, const char *pat
 {
     if (theorems == NULL)
     {
-        lng_list_printed(findings, "%s has no proof file, %s", name, path);
+        {
+            LngNote lng_note;
+            lng_note_begun(&lng_note, findings);
+            mmgr_line_put(&lng_note.line, name);
+            mmgr_line_put(&lng_note.line, " has no proof file, ");
+            mmgr_line_put(&lng_note.line, path);
+            lng_note_written(&lng_note);
+        }
         return;
     }
     for (unsigned int row = 0u; row < target->rows; row += 1u)
@@ -2112,8 +2555,16 @@ void lng_target_proofs(const LngTable *target, const char *name, const char *pat
         }
         if (!lng_set_has(theorems, bridge))
         {
-            lng_list_printed(findings, "%s's %s for %s has no proof in %s", name, lng_cell_or_none(target, row, "word"),
-                             bridge, path);
+            LngNote lng_note;
+            lng_note_begun(&lng_note, findings);
+            mmgr_line_put(&lng_note.line, name);
+            mmgr_line_put(&lng_note.line, "'s ");
+            mmgr_line_put(&lng_note.line, lng_cell_or_none(target, row, "word"));
+            mmgr_line_put(&lng_note.line, " for ");
+            mmgr_line_put(&lng_note.line, bridge);
+            mmgr_line_put(&lng_note.line, " has no proof in ");
+            mmgr_line_put(&lng_note.line, path);
+            lng_note_written(&lng_note);
         }
     }
 }
@@ -2175,9 +2626,17 @@ unsigned int lng_asm_forms(const LngTable *transpiler, const LngTable *table, Ln
         {
             if ((sides[side] != NULL) && (lng_anchor_word(transpiler, sides[side]) == NULL))
             {
-                lng_list_printed(defects, "%s to %s in %s takes the anchor %s, and no one transpiler word has it",
-                                 lng_cell_or_none(table, row, "past"), lng_cell_or_none(table, row, "present"),
-                                 lng_cell_or_none(table, row, "table"), sides[side]);
+                LngNote lng_note;
+                lng_note_begun(&lng_note, defects);
+                mmgr_line_put(&lng_note.line, lng_cell_or_none(table, row, "past"));
+                mmgr_line_put(&lng_note.line, " to ");
+                mmgr_line_put(&lng_note.line, lng_cell_or_none(table, row, "present"));
+                mmgr_line_put(&lng_note.line, " in ");
+                mmgr_line_put(&lng_note.line, lng_cell_or_none(table, row, "table"));
+                mmgr_line_put(&lng_note.line, " takes the anchor ");
+                mmgr_line_put(&lng_note.line, sides[side]);
+                mmgr_line_put(&lng_note.line, ", and no one transpiler word has it");
+                lng_note_written(&lng_note);
             }
         }
     }
@@ -2198,8 +2657,11 @@ unsigned int lng_asm_forms(const LngTable *transpiler, const LngTable *table, Ln
         }
         if (given == 0u)
         {
-            lng_list_printed(findings, "%s has no transpiler form: no transition of it gives each side a bit",
-                             mnemonics.text[at]);
+            LngNote lng_note;
+            lng_note_begun(&lng_note, findings);
+            mmgr_line_put(&lng_note.line, mnemonics.text[at]);
+            mmgr_line_put(&lng_note.line, " has no transpiler form: no transition of it gives each side a bit");
+            lng_note_written(&lng_note);
         }
         formed += (given != 0u) ? 1u : 0u;
     }
@@ -2252,11 +2714,23 @@ unsigned int lng_g_bindings(const LngTable *hol, const LngTable *transpiler, Lng
         }
         if (word == NULL)
         {
-            lng_list_printed(findings, "the .g operator %s has no core op, and no gsm cases", symbols.text[at]);
+            LngNote lng_note;
+            lng_note_begun(&lng_note, findings);
+            mmgr_line_put(&lng_note.line, "the .g operator ");
+            mmgr_line_put(&lng_note.line, symbols.text[at]);
+            mmgr_line_put(&lng_note.line, " has no core op, and no gsm cases");
+            lng_note_written(&lng_note);
         }
         else
         {
-            lng_list_printed(findings, "the .g operator %s reads %s, which has no gsm cases", symbols.text[at], word);
+            LngNote lng_note;
+            lng_note_begun(&lng_note, findings);
+            mmgr_line_put(&lng_note.line, "the .g operator ");
+            mmgr_line_put(&lng_note.line, symbols.text[at]);
+            mmgr_line_put(&lng_note.line, " reads ");
+            mmgr_line_put(&lng_note.line, word);
+            mmgr_line_put(&lng_note.line, ", which has no gsm cases");
+            lng_note_written(&lng_note);
         }
     }
     lng_list_free(&symbols);

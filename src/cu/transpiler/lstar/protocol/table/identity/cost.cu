@@ -234,13 +234,28 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
         {
             if (operator_at.word == NULL)
             {
-                run_print(&table, "%s: its arrangements produce no word of two reads the ruleset writes\n",
-                          each.first.c_str());
+                {
+                    TextNote text_note;
+                    text_note_begun(&text_note, &(&table)->text);
+                    mmgr_line_put(&text_note.line, each.first.c_str());
+                    mmgr_line_put(&text_note.line,
+                                  ": its arrangements produce no word of two reads the ruleset writes");
+                    mmgr_line_ch(&text_note.line, '\n');
+                    text_note_written(&text_note);
+                }
                 own_left(own, "unwritable");
                 continue;
             }
-            run_print(&table, "%s: no link of %s carries the cases with registers alone and can be cut\n",
-                      each.first.c_str(), operator_at.word->name);
+            {
+                TextNote text_note;
+                text_note_begun(&text_note, &(&table)->text);
+                mmgr_line_put(&text_note.line, each.first.c_str());
+                mmgr_line_put(&text_note.line, ": no link of ");
+                mmgr_line_put(&text_note.line, operator_at.word->name);
+                mmgr_line_put(&text_note.line, " carries the cases with registers alone and can be cut");
+                mmgr_line_ch(&text_note.line, '\n');
+                text_note_written(&text_note);
+            }
             own_left(own, "no_link");
             continue;
         }
@@ -263,8 +278,24 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
             mmgr_line_hex(&buffer_line, 16u * (unsigned int)link_at, 4u);
             (void)mmgr_line_finish(&buffer_line);
         }
-        run_print(&table, "%s at %s, %s in place of %s", each.first.c_str(), address, word->name, found_text.c_str());
-        run_print(&table, "%s", (!found_text.empty() && (found_text.back() == '\n')) ? "" : "\n");
+        {
+            TextNote text_note;
+            text_note_begun(&text_note, &(&table)->text);
+            mmgr_line_put(&text_note.line, each.first.c_str());
+            mmgr_line_put(&text_note.line, " at ");
+            mmgr_line_put(&text_note.line, address);
+            mmgr_line_put(&text_note.line, ", ");
+            mmgr_line_put(&text_note.line, word->name);
+            mmgr_line_put(&text_note.line, " in place of ");
+            mmgr_line_put(&text_note.line, found_text.c_str());
+            text_note_written(&text_note);
+        }
+        {
+            TextNote text_note;
+            text_note_begun(&text_note, &(&table)->text);
+            mmgr_line_put(&text_note.line, (!found_text.empty() && (found_text.back() == '\n')) ? "" : "\n");
+            text_note_written(&text_note);
+        }
         const std::string ones = ruleset_register(sass, "file", base);
         const std::string start = ruleset_register(sass, "file", base + 1u);
         const std::string end = ruleset_register(sass, "file", base + 2u);
@@ -470,8 +501,16 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
         {
             const std::string reason = row.verdict.substr(0u, row.verdict.find_first_of(" ,"));
             left[(row.verdict == "alike") ? std::string("untimed") : reason] += 1u;
-            run_print(&table, "  %s: %s\n", row.fields[2].c_str(),
-                      row.verdict.empty() ? "unwritable" : row.verdict.c_str());
+            {
+                TextNote text_note;
+                text_note_begun(&text_note, &(&table)->text);
+                mmgr_line_put(&text_note.line, "  ");
+                mmgr_line_put(&text_note.line, row.fields[2].c_str());
+                mmgr_line_put(&text_note.line, ": ");
+                mmgr_line_put(&text_note.line, row.verdict.empty() ? "unwritable" : row.verdict.c_str());
+                mmgr_line_ch(&text_note.line, '\n');
+                text_note_written(&text_note);
+            }
             continue;
         }
         long long numerator = (long long)row.least - (long long)clock;
@@ -483,8 +522,22 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
         row.fields[4] = "1";
         lines[row.line] =
             row.fields[0] + "\t" + row.fields[1] + "\t" + row.fields[2] + "\t" + row.fields[3] + "\t" + row.fields[4];
-        run_print(&table, "  %s: alike, %llu clocks over %u, the clock alone %llu: %s\n", row.fields[2].c_str(),
-                  row.least, COST_REPEATS, clock, row.fields[3].c_str());
+        {
+            TextNote text_note;
+            text_note_begun(&text_note, &(&table)->text);
+            mmgr_line_put(&text_note.line, "  ");
+            mmgr_line_put(&text_note.line, row.fields[2].c_str());
+            mmgr_line_put(&text_note.line, ": alike, ");
+            mmgr_line_decimal(&text_note.line, row.least, 1u);
+            mmgr_line_put(&text_note.line, " clocks over ");
+            mmgr_line_decimal(&text_note.line, COST_REPEATS, 1u);
+            mmgr_line_put(&text_note.line, ", the clock alone ");
+            mmgr_line_decimal(&text_note.line, clock, 1u);
+            mmgr_line_put(&text_note.line, ": ");
+            mmgr_line_put(&text_note.line, row.fields[3].c_str());
+            mmgr_line_ch(&text_note.line, '\n');
+            text_note_written(&text_note);
+        }
         costed += 1u;
     }
     // each form's cost and spread in the part's clock count, every cost row the .ksc contained let go for them
@@ -495,8 +548,16 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
     {
         if (!form.verdict.empty() || (form.least == ULLONG_MAX) || (clock_alone == ULLONG_MAX))
         {
-            run_print(&table, "  %s: %s\n", form.placed.c_str(),
-                      form.verdict.empty() ? "untimed" : form.verdict.c_str());
+            {
+                TextNote text_note;
+                text_note_begun(&text_note, &(&table)->text);
+                mmgr_line_put(&text_note.line, "  ");
+                mmgr_line_put(&text_note.line, form.placed.c_str());
+                mmgr_line_put(&text_note.line, ": ");
+                mmgr_line_put(&text_note.line, form.verdict.empty() ? "untimed" : form.verdict.c_str());
+                mmgr_line_ch(&text_note.line, '\n');
+                text_note_written(&text_note);
+            }
             continue;
         }
         const unsigned long long least = (form.least > clock_alone) ? (form.least - clock_alone) : 0ULL;
@@ -515,8 +576,22 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
             (void)mmgr_line_finish(&buffer_line);
         }
         cost_rows.push_back(row);
-        run_print(&table, "  %s: %llu clocks over %u, the clock alone %llu, the spread %llu\n", form.placed.c_str(),
-                  form.least, COST_REPEATS, clock_alone, spread);
+        {
+            TextNote text_note;
+            text_note_begun(&text_note, &(&table)->text);
+            mmgr_line_put(&text_note.line, "  ");
+            mmgr_line_put(&text_note.line, form.placed.c_str());
+            mmgr_line_put(&text_note.line, ": ");
+            mmgr_line_decimal(&text_note.line, form.least, 1u);
+            mmgr_line_put(&text_note.line, " clocks over ");
+            mmgr_line_decimal(&text_note.line, COST_REPEATS, 1u);
+            mmgr_line_put(&text_note.line, ", the clock alone ");
+            mmgr_line_decimal(&text_note.line, clock_alone, 1u);
+            mmgr_line_put(&text_note.line, ", the spread ");
+            mmgr_line_decimal(&text_note.line, spread, 1u);
+            mmgr_line_ch(&text_note.line, '\n');
+            text_note_written(&text_note);
+        }
         forms_costed += 1u;
     }
     if (!cost_rows.empty() && !ksc_answers_write(ksc, "cost", cost_rows))

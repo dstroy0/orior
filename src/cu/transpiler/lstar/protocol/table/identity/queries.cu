@@ -32,25 +32,6 @@ thread_local int t_pair = -1;
 
 thread_local int t_dangerous = 0;
 
-// `format` and what follows it added to the end of `log`'s bytes, as fprintf writes them
-void query_log_print(QueryLog *log, const char *format, ...)
-{
-    va_list values;
-    va_start(values, format);
-    va_list measured;
-    va_copy(measured, values);
-    const int length = vsnprintf(NULL, 0u, format, measured);
-    va_end(measured);
-    if (length > 0)
-    {
-        const size_t before = log->bytes.size();
-        log->bytes.resize(before + (size_t)length + 1u);
-        vsnprintf(&log->bytes[before], (size_t)length + 1u, format, values);
-        log->bytes.resize(before + (size_t)length);
-    }
-    va_end(values);
-}
-
 // the run the trace and the log are passed to, NULL while nothing is traced
 QryShared *s_query_run = NULL;
 

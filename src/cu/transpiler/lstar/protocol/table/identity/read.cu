@@ -163,14 +163,37 @@ static int carriers_verdict(RunWritten *file, const std::vector<const Carrier *>
                 const unsigned int third = at / (IDENTITY_VALUES * IDENTITY_VALUES);
                 const unsigned int left = (at / IDENTITY_VALUES) % IDENTITY_VALUES;
                 const unsigned int right = at % IDENTITY_VALUES;
-                run_print(file, "closed %s %llx,%llx,%x->%s,%s\n", text(*slice).c_str(), s_values[left],
-                          s_values[right], third, one.c_str(), other.c_str());
+                {
+                    TextNote text_note;
+                    text_note_begun(&text_note, &file->text);
+                    mmgr_line_put(&text_note.line, "closed ");
+                    mmgr_line_put(&text_note.line, text(*slice).c_str());
+                    mmgr_line_put(&text_note.line, " ");
+                    mmgr_line_hex(&text_note.line, s_values[left], 1u);
+                    mmgr_line_put(&text_note.line, ",");
+                    mmgr_line_hex(&text_note.line, s_values[right], 1u);
+                    mmgr_line_put(&text_note.line, ",");
+                    mmgr_line_hex(&text_note.line, third, 1u);
+                    mmgr_line_put(&text_note.line, "->");
+                    mmgr_line_put(&text_note.line, one.c_str());
+                    mmgr_line_put(&text_note.line, ",");
+                    mmgr_line_put(&text_note.line, other.c_str());
+                    mmgr_line_ch(&text_note.line, '\n');
+                    text_note_written(&text_note);
+                }
                 return 1;
             }
             alike += 1u;
         }
     }
-    run_print(file, "open %u\n", alike);
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &file->text);
+        mmgr_line_put(&text_note.line, "open ");
+        mmgr_line_decimal(&text_note.line, alike, 1u);
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
+    }
     return (alike != 0u) ? 0 : -1;
 }
 
@@ -291,7 +314,12 @@ int identity_read(const std::string &folder, const std::string &klq, int count, 
         copy << line << "\n";
     }
     RunWritten file = {klq, 1, std::string()};
-    run_print(&file, "%s", copy.str().c_str());
+    {
+        TextNote text_note;
+        text_note_begun(&text_note, &(&file)->text);
+        mmgr_line_put(&text_note.line, copy.str().c_str());
+        text_note_written(&text_note);
+    }
     unsigned int number = 0u;
     unsigned int contexts = 0u;
     unsigned int closed = 0u;
@@ -306,14 +334,32 @@ int identity_read(const std::string &folder, const std::string &klq, int count, 
         const size_t tab = identity.first.find('\t');
         const std::string sides[2] = {identity.first.substr(0u, tab), identity.first.substr(tab + 1u)};
         // an identity's address is its max basal carrier's
-        run_print(&file, "slice_identity %s\nfirst %s\nsecond %s\n", carrier_text(identity.second[0]).c_str(),
-                  sides[0].c_str(), sides[1].c_str());
+        {
+            TextNote text_note;
+            text_note_begun(&text_note, &(&file)->text);
+            mmgr_line_put(&text_note.line, "slice_identity ");
+            mmgr_line_put(&text_note.line, carrier_text(identity.second[0]).c_str());
+            mmgr_line_put(&text_note.line, "\nfirst ");
+            mmgr_line_put(&text_note.line, sides[0].c_str());
+            mmgr_line_put(&text_note.line, "\nsecond ");
+            mmgr_line_put(&text_note.line, sides[1].c_str());
+            mmgr_line_ch(&text_note.line, '\n');
+            text_note_written(&text_note);
+        }
         number += 1u;
         for (const std::string &side : sides)
         {
             if (rule_broken(side))
             {
-                run_print(&file, "rule 2 %s: its form transfers control or waits\n", side.c_str());
+                {
+                    TextNote text_note;
+                    text_note_begun(&text_note, &(&file)->text);
+                    mmgr_line_put(&text_note.line, "rule 2 ");
+                    mmgr_line_put(&text_note.line, side.c_str());
+                    mmgr_line_put(&text_note.line, ": its form transfers control or waits");
+                    mmgr_line_ch(&text_note.line, '\n');
+                    text_note_written(&text_note);
+                }
                 flagged += 1u;
             }
         }
@@ -325,7 +371,16 @@ int identity_read(const std::string &folder, const std::string &klq, int count, 
                 if (std::any_of(links.begin(), links.end(),
                                 [&](const std::regex &one) { return std::regex_match(sides[at], one); }))
                 {
-                    run_print(&file, "form %s %s\n", (at == 0u) ? "first" : "second", form.first.c_str());
+                    {
+                        TextNote text_note;
+                        text_note_begun(&text_note, &(&file)->text);
+                        mmgr_line_put(&text_note.line, "form ");
+                        mmgr_line_put(&text_note.line, (at == 0u) ? "first" : "second");
+                        mmgr_line_put(&text_note.line, " ");
+                        mmgr_line_put(&text_note.line, form.first.c_str());
+                        mmgr_line_ch(&text_note.line, '\n');
+                        text_note_written(&text_note);
+                    }
                     formed += 1u;
                 }
             }
@@ -351,24 +406,46 @@ int identity_read(const std::string &folder, const std::string &klq, int count, 
         for (const auto &place : placed)
         {
             const Carrier &basal = *place.second[0];
-            run_print(&file, "context %s\n", carrier_text(basal).c_str());
+            {
+                TextNote text_note;
+                text_note_begun(&text_note, &(&file)->text);
+                mmgr_line_put(&text_note.line, "context ");
+                mmgr_line_put(&text_note.line, carrier_text(basal).c_str());
+                mmgr_line_ch(&text_note.line, '\n');
+                text_note_written(&text_note);
+            }
             // an entry both members contain is written once, and one a member alone contains is written under its side
             const std::set<std::string> first_entries = context_entries(basal.first_context);
             const std::set<std::string> second_entries = context_entries(basal.second_context);
             for (const std::string &entry : first_entries)
             {
-                run_print(&file, "%s%s\n", second_entries.count(entry) ? "" : "first ", entry.c_str());
+                TextNote text_note;
+                text_note_begun(&text_note, &(&file)->text);
+                mmgr_line_put(&text_note.line, second_entries.count(entry) ? "" : "first ");
+                mmgr_line_put(&text_note.line, entry.c_str());
+                mmgr_line_ch(&text_note.line, '\n');
+                text_note_written(&text_note);
             }
             for (const std::string &entry : second_entries)
             {
                 if (!first_entries.count(entry))
                 {
-                    run_print(&file, "second %s\n", entry.c_str());
+                    TextNote text_note;
+                    text_note_begun(&text_note, &(&file)->text);
+                    mmgr_line_put(&text_note.line, "second ");
+                    mmgr_line_put(&text_note.line, entry.c_str());
+                    mmgr_line_ch(&text_note.line, '\n');
+                    text_note_written(&text_note);
                 }
             }
             for (const Carrier *const slice : place.second)
             {
-                run_print(&file, "address %s\n", carrier_text(*slice).c_str());
+                TextNote text_note;
+                text_note_begun(&text_note, &(&file)->text);
+                mmgr_line_put(&text_note.line, "address ");
+                mmgr_line_put(&text_note.line, carrier_text(*slice).c_str());
+                mmgr_line_ch(&text_note.line, '\n');
+                text_note_written(&text_note);
             }
             const int verdict = carriers_verdict(&file, place.second, answers, carrier_text);
             contexts += 1u;
@@ -384,7 +461,11 @@ int identity_read(const std::string &folder, const std::string &klq, int count, 
     std::istringstream chained(run_blob_text("chains.txt"));
     while (std::getline(chained, line))
     {
-        run_print(&file, "%s\n", line.c_str());
+        TextNote text_note;
+        text_note_begun(&text_note, &(&file)->text);
+        mmgr_line_put(&text_note.line, line.c_str());
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
     }
     if (!run_closed(&file))
     {

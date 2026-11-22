@@ -85,7 +85,12 @@ int program_main(int argc, char **argv)
         if (closed != NULL)
         {
             LngList text = {NULL, 0u, 0u};
-            lng_list_printed(&text, "%.*s", (int)(closed - quote - 1), quote + 1);
+            {
+                LngNote lng_note;
+                lng_note_begun(&lng_note, &text);
+                mmgr_line_put_max(&lng_note.line, quote + 1, (size_t)((int)(closed - quote - 1)));
+                lng_note_written(&lng_note);
+            }
             lng_set_add(&ladder_anchors, text.text[0]);
             lng_list_free(&text);
         }
@@ -96,8 +101,13 @@ int program_main(int argc, char **argv)
         unsigned int place = 0u;
         if ((anchor != NULL) && (anchor[0] != '\0') && !lng_set_find(&ladder_anchors, anchor, &place))
         {
-            lng_list_printed(&defects, "%s has the anchor %s, which the ladder has no anchor for",
-                             lng_cell(&table, row, "word"), anchor);
+            LngNote lng_note;
+            lng_note_begun(&lng_note, &defects);
+            mmgr_line_put(&lng_note.line, lng_cell(&table, row, "word"));
+            mmgr_line_put(&lng_note.line, " has the anchor ");
+            mmgr_line_put(&lng_note.line, anchor);
+            mmgr_line_put(&lng_note.line, ", which the ladder has no anchor for");
+            lng_note_written(&lng_note);
         }
     }
     lng_list_free(&ladder_anchors);
@@ -122,7 +132,14 @@ int program_main(int argc, char **argv)
         LngList words = {NULL, 0u, 0u};
         LngList where = {NULL, 0u, 0u};
         lng_words_of(used_names.text[name], &words);
-        lng_list_printed(&where, "%s %s", LNG_SCHEMA, used_names.text[name]);
+        {
+            LngNote lng_note;
+            lng_note_begun(&lng_note, &where);
+            mmgr_line_put(&lng_note.line, LNG_SCHEMA);
+            mmgr_line_put(&lng_note.line, " ");
+            mmgr_line_put(&lng_note.line, used_names.text[name]);
+            lng_note_written(&lng_note);
+        }
         for (unsigned int word = 0u; word < words.count; word += 1u)
         {
             lng_map_put(&file_used, words.text[word], where.text[0]);
@@ -204,8 +221,14 @@ int program_main(int argc, char **argv)
             }
             if (!found)
             {
-                lng_list_printed(&defects, "gnascor lists %s as a %s word and the table does not",
-                                 listed_words.text[at], s_listed_type[type]);
+                LngNote lng_note;
+                lng_note_begun(&lng_note, &defects);
+                mmgr_line_put(&lng_note.line, "gnascor lists ");
+                mmgr_line_put(&lng_note.line, listed_words.text[at]);
+                mmgr_line_put(&lng_note.line, " as a ");
+                mmgr_line_put(&lng_note.line, s_listed_type[type]);
+                mmgr_line_put(&lng_note.line, " word and the table does not");
+                lng_note_written(&lng_note);
             }
         }
     }
@@ -250,7 +273,14 @@ int program_main(int argc, char **argv)
         // each witnessed relation of the table has a theorem of its bridge word in its Lean file
         LngList proof_path = {NULL, 0u, 0u};
         LngList theorems = {NULL, 0u, 0u};
-        lng_list_printed(&proof_path, "theory/lng/Lng/%s_lng.lean", name);
+        {
+            LngNote lng_note;
+            lng_note_begun(&lng_note, &proof_path);
+            mmgr_line_put(&lng_note.line, "theory/lng/Lng/");
+            mmgr_line_put(&lng_note.line, name);
+            mmgr_line_put(&lng_note.line, "_lng.lean");
+            lng_note_written(&lng_note);
+        }
         static KfileLines s_proof;
         const int proven = kfile_lines_read(&s_proof, proof_path.text[0]);
         if (proven)
@@ -268,7 +298,14 @@ int program_main(int argc, char **argv)
             if ((bridge != NULL) && (bridge[0] != '\0'))
             {
                 LngList where = {NULL, 0u, 0u};
-                lng_list_printed(&where, "%s:%u", tables.text[at], row + 2u);
+                {
+                    LngNote lng_note;
+                    lng_note_begun(&lng_note, &where);
+                    mmgr_line_put(&lng_note.line, tables.text[at]);
+                    mmgr_line_put(&lng_note.line, ":");
+                    mmgr_line_decimal(&lng_note.line, row + 2u, 1u);
+                    lng_note_written(&lng_note);
+                }
                 lng_map_put(&used, bridge, where.text[0]);
                 lng_list_free(&where);
             }
@@ -283,7 +320,14 @@ int program_main(int argc, char **argv)
     for (unsigned int at = 0u; at < used_names.count; at += 1u)
     {
         LngList marked = {NULL, 0u, 0u};
-        lng_list_printed(&marked, "_%s_", used_names.text[at]);
+        {
+            LngNote lng_note;
+            lng_note_begun(&lng_note, &marked);
+            mmgr_line_put(&lng_note.line, "_");
+            mmgr_line_put(&lng_note.line, used_names.text[at]);
+            mmgr_line_put(&lng_note.line, "_");
+            lng_note_written(&lng_note);
+        }
         lng_set_add(&names, marked.text[0]);
         lng_list_free(&marked);
     }
@@ -300,7 +344,14 @@ int program_main(int argc, char **argv)
             continue;
         }
         LngList marked = {NULL, 0u, 0u};
-        lng_list_printed(&marked, "_%s_", word);
+        {
+            LngNote lng_note;
+            lng_note_begun(&lng_note, &marked);
+            mmgr_line_put(&lng_note.line, "_");
+            mmgr_line_put(&lng_note.line, word);
+            mmgr_line_put(&lng_note.line, "_");
+            lng_note_written(&lng_note);
+        }
         for (unsigned int at = 0u; (at < names.count) && !named; at += 1u)
         {
             named = (mmgr_text_find(names.text[at], marked.text[0], PLATFORM_TEXT_TO_TERMINATOR) != NULL);
@@ -308,7 +359,13 @@ int program_main(int argc, char **argv)
         lng_list_free(&marked);
         if (!named)
         {
-            lng_list_printed(&findings, "%s is a %s word nothing in the tree uses", word, type);
+            LngNote lng_note;
+            lng_note_begun(&lng_note, &findings);
+            mmgr_line_put(&lng_note.line, word);
+            mmgr_line_put(&lng_note.line, " is a ");
+            mmgr_line_put(&lng_note.line, type);
+            mmgr_line_put(&lng_note.line, " word nothing in the tree uses");
+            lng_note_written(&lng_note);
         }
     }
 
@@ -332,7 +389,12 @@ int program_main(int argc, char **argv)
             continue;
         }
         LngList cut = {NULL, 0u, 0u};
-        lng_list_printed(&cut, "%.*s", (int)length, &name[space]);
+        {
+            LngNote lng_note;
+            lng_note_begun(&lng_note, &cut);
+            mmgr_line_put_max(&lng_note.line, &name[space], (size_t)((int)length));
+            lng_note_written(&lng_note);
+        }
         lng_list_add(&form_names, cut.text[0]);
         lng_list_free(&cut);
         lng_list_add(&form_texts, equals + 1);

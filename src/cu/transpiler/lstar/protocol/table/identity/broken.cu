@@ -154,14 +154,40 @@ int identity_broken(const char *listing, const char *manifest, const std::string
         {
             same += 1u;
         }
-        run_print(&file, "question %s %s %u %u %u\n", mine.number.c_str(), verdict, (unsigned int)rows,
-                  (unsigned int)columns, common[0][0]);
+        {
+            TextNote text_note;
+            text_note_begun(&text_note, &(&file)->text);
+            mmgr_line_put(&text_note.line, "question ");
+            mmgr_line_put(&text_note.line, mine.number.c_str());
+            mmgr_line_put(&text_note.line, " ");
+            mmgr_line_put(&text_note.line, verdict);
+            mmgr_line_put(&text_note.line, " ");
+            mmgr_line_decimal(&text_note.line, (unsigned int)rows, 1u);
+            mmgr_line_put(&text_note.line, " ");
+            mmgr_line_decimal(&text_note.line, (unsigned int)columns, 1u);
+            mmgr_line_put(&text_note.line, " ");
+            mmgr_line_decimal(&text_note.line, common[0][0], 1u);
+            mmgr_line_ch(&text_note.line, '\n');
+            text_note_written(&text_note);
+        }
         for (const size_t row : mine_only)
         {
             const Link &link = mine.chain[row];
             const std::string names = forms_writing(forms, link.type);
-            run_print(&file, "%s %s %s form %s%s\n", moved[row] ? "moved" : "ours", link.position.c_str(),
-                      link.type.c_str(), names.c_str(), folding[row] ? " fold" : "");
+            {
+                TextNote text_note;
+                text_note_begun(&text_note, &(&file)->text);
+                mmgr_line_put(&text_note.line, moved[row] ? "moved" : "ours");
+                mmgr_line_put(&text_note.line, " ");
+                mmgr_line_put(&text_note.line, link.position.c_str());
+                mmgr_line_put(&text_note.line, " ");
+                mmgr_line_put(&text_note.line, link.type.c_str());
+                mmgr_line_put(&text_note.line, " form ");
+                mmgr_line_put(&text_note.line, names.c_str());
+                mmgr_line_put(&text_note.line, folding[row] ? " fold" : "");
+                mmgr_line_ch(&text_note.line, '\n');
+                text_note_written(&text_note);
+            }
             // only a link of a stretch where ours contains more of its own links than nvcc's, in a question nvcc makes
             // in fewer steps, is a step a fold takes away
             if (!folding[row] || (columns >= rows))
@@ -179,8 +205,16 @@ int identity_broken(const char *listing, const char *manifest, const std::string
         }
         for (const size_t column : answer_only)
         {
-            run_print(&file, "theirs %s:%s %s\n", answer.number.c_str(), answer.chain[column].position.c_str(),
-                      answer.chain[column].type.c_str());
+            TextNote text_note;
+            text_note_begun(&text_note, &(&file)->text);
+            mmgr_line_put(&text_note.line, "theirs ");
+            mmgr_line_put(&text_note.line, answer.number.c_str());
+            mmgr_line_put(&text_note.line, ":");
+            mmgr_line_put(&text_note.line, answer.chain[column].position.c_str());
+            mmgr_line_put(&text_note.line, " ");
+            mmgr_line_put(&text_note.line, answer.chain[column].type.c_str());
+            mmgr_line_ch(&text_note.line, '\n');
+            text_note_written(&text_note);
         }
     }
     std::vector<std::pair<std::string, FormFolded>> ranked(folded.begin(), folded.end());
@@ -192,8 +226,16 @@ int identity_broken(const char *listing, const char *manifest, const std::string
               });
     for (const auto &form : ranked)
     {
-        run_print(&file, "fold %s %u %u\n", form.first.c_str(), (unsigned int)form.second.questions.size(),
-                  form.second.alone);
+        TextNote text_note;
+        text_note_begun(&text_note, &(&file)->text);
+        mmgr_line_put(&text_note.line, "fold ");
+        mmgr_line_put(&text_note.line, form.first.c_str());
+        mmgr_line_put(&text_note.line, " ");
+        mmgr_line_decimal(&text_note.line, (unsigned int)form.second.questions.size(), 1u);
+        mmgr_line_put(&text_note.line, " ");
+        mmgr_line_decimal(&text_note.line, form.second.alone, 1u);
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
     }
     if (!run_closed(&file))
     {

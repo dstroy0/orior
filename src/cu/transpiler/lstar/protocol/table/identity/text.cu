@@ -114,7 +114,19 @@ int identity_queue(const char *engine, const char *answers, const char *ksc, con
             counted[category]["alike"] += alike ? 1u : 0u;
         }
         counted[category][reads] += 1u;
-        run_print(&table, "%s\t%s\t%s\t%s\n", number.c_str(), category.c_str(), reads.c_str(), reason.c_str());
+        {
+            TextNote text_note;
+            text_note_begun(&text_note, &(&table)->text);
+            mmgr_line_put(&text_note.line, number.c_str());
+            mmgr_line_put(&text_note.line, "\t");
+            mmgr_line_put(&text_note.line, category.c_str());
+            mmgr_line_put(&text_note.line, "\t");
+            mmgr_line_put(&text_note.line, reads.c_str());
+            mmgr_line_put(&text_note.line, "\t");
+            mmgr_line_put(&text_note.line, reason.c_str());
+            mmgr_line_ch(&text_note.line, '\n');
+            text_note_written(&text_note);
+        }
     }
     if (!run_closed(&table))
     {
@@ -349,8 +361,20 @@ int identity_text(const char *engine, const char *answers, const char *ksc, cons
         unqueried += (verdict == "open 0") ? 1u : 0u;
         if (s_trace_log != NULL)
         {
-            query_log_print(s_trace_log, "text_identity %s [%s %s]: %s\n", sides.c_str(), first.c_str(), second.c_str(),
-                            verdict.c_str());
+            {
+                TextNote text_note;
+                text_note_begun(&text_note, &s_trace_log->bytes);
+                mmgr_line_put(&text_note.line, "text_identity ");
+                mmgr_line_put(&text_note.line, sides.c_str());
+                mmgr_line_put(&text_note.line, " [");
+                mmgr_line_put(&text_note.line, first.c_str());
+                mmgr_line_put(&text_note.line, " ");
+                mmgr_line_put(&text_note.line, second.c_str());
+                mmgr_line_put(&text_note.line, "]: ");
+                mmgr_line_put(&text_note.line, verdict.c_str());
+                mmgr_line_ch(&text_note.line, '\n');
+                text_note_written(&text_note);
+            }
             query_log_flushed(s_trace_log);
         }
         written.push_back(verdict);
@@ -359,7 +383,11 @@ int identity_text(const char *engine, const char *answers, const char *ksc, cons
     RunWritten file = {klq, 1, std::string()};
     for (const std::string &written_line : written)
     {
-        run_print(&file, "%s\n", written_line.c_str());
+        TextNote text_note;
+        text_note_begun(&text_note, &(&file)->text);
+        mmgr_line_put(&text_note.line, written_line.c_str());
+        mmgr_line_ch(&text_note.line, '\n');
+        text_note_written(&text_note);
     }
     if (!run_closed(&file))
     {

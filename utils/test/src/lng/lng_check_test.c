@@ -100,8 +100,34 @@ static void blank(LngList *lines, const char *word, const char *type, const char
             cells[at][0] = (strcmp(s_operators[at], operators[one]) == 0) ? '1' : cells[at][0];
         }
     }
-    lng_list_printed(lines, "%s\t%s\t\t\t\t\t\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s", word, type, bits, sign, c_type,
-                     complement, cells[0], cells[1], cells[2], cells[3], cells[4], cells[5]);
+    {
+        LngNote lng_note;
+        lng_note_begun(&lng_note, lines);
+        mmgr_line_put(&lng_note.line, word);
+        mmgr_line_put(&lng_note.line, "\t");
+        mmgr_line_put(&lng_note.line, type);
+        mmgr_line_put(&lng_note.line, "\t\t\t\t\t\t");
+        mmgr_line_put(&lng_note.line, bits);
+        mmgr_line_put(&lng_note.line, "\t");
+        mmgr_line_put(&lng_note.line, sign);
+        mmgr_line_put(&lng_note.line, "\t");
+        mmgr_line_put(&lng_note.line, c_type);
+        mmgr_line_put(&lng_note.line, "\t");
+        mmgr_line_put(&lng_note.line, complement);
+        mmgr_line_put(&lng_note.line, "\t");
+        mmgr_line_put(&lng_note.line, cells[0]);
+        mmgr_line_put(&lng_note.line, "\t");
+        mmgr_line_put(&lng_note.line, cells[1]);
+        mmgr_line_put(&lng_note.line, "\t");
+        mmgr_line_put(&lng_note.line, cells[2]);
+        mmgr_line_put(&lng_note.line, "\t");
+        mmgr_line_put(&lng_note.line, cells[3]);
+        mmgr_line_put(&lng_note.line, "\t");
+        mmgr_line_put(&lng_note.line, cells[4]);
+        mmgr_line_put(&lng_note.line, "\t");
+        mmgr_line_put(&lng_note.line, cells[5]);
+        lng_note_written(&lng_note);
+    }
 }
 
 // the head of the transpiler's test table placed as the first of `lines`
@@ -154,8 +180,32 @@ static void target_row(LngList *lines, const char *word, const char *type, const
             cells[at][0] = (strcmp(s_operators[at], operators[one]) == 0) ? '1' : cells[at][0];
         }
     }
-    lng_list_printed(lines, "%s\t%s\t\t%s\t\t\t\t\t%s\t%s\t\t\t%s\t%s\t%s\t%s\t%s\t%s", word, type, target, bits, sign,
-                     cells[0], cells[1], cells[2], cells[3], cells[4], cells[5]);
+    {
+        LngNote lng_note;
+        lng_note_begun(&lng_note, lines);
+        mmgr_line_put(&lng_note.line, word);
+        mmgr_line_put(&lng_note.line, "\t");
+        mmgr_line_put(&lng_note.line, type);
+        mmgr_line_put(&lng_note.line, "\t\t");
+        mmgr_line_put(&lng_note.line, target);
+        mmgr_line_put(&lng_note.line, "\t\t\t\t\t");
+        mmgr_line_put(&lng_note.line, bits);
+        mmgr_line_put(&lng_note.line, "\t");
+        mmgr_line_put(&lng_note.line, sign);
+        mmgr_line_put(&lng_note.line, "\t\t\t");
+        mmgr_line_put(&lng_note.line, cells[0]);
+        mmgr_line_put(&lng_note.line, "\t");
+        mmgr_line_put(&lng_note.line, cells[1]);
+        mmgr_line_put(&lng_note.line, "\t");
+        mmgr_line_put(&lng_note.line, cells[2]);
+        mmgr_line_put(&lng_note.line, "\t");
+        mmgr_line_put(&lng_note.line, cells[3]);
+        mmgr_line_put(&lng_note.line, "\t");
+        mmgr_line_put(&lng_note.line, cells[4]);
+        mmgr_line_put(&lng_note.line, "\t");
+        mmgr_line_put(&lng_note.line, cells[5]);
+        lng_note_written(&lng_note);
+    }
 }
 
 // the head of a language's test table placed as the first of `lines`
@@ -182,9 +232,38 @@ static void language_row(LngList *lines, const char *word, const char *type, con
     }
     const int typed = (strcmp(type, "type") == 0);
     const char *const probe = typed ? ((expected[0] != '\0') ? "probe" : "") : "answer = left + right;";
-    lng_list_printed(lines, "%s\t%s\t\t%s\t%s\t%s\t\t\t\t\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s", word, type, probe,
-                     typed ? expected : "", witness, bits, sign, bridge, cells[0], cells[1], cells[2], cells[3],
-                     cells[4], cells[5]);
+    {
+        LngNote lng_note;
+        lng_note_begun(&lng_note, lines);
+        mmgr_line_put(&lng_note.line, word);
+        mmgr_line_put(&lng_note.line, "\t");
+        mmgr_line_put(&lng_note.line, type);
+        mmgr_line_put(&lng_note.line, "\t\t");
+        mmgr_line_put(&lng_note.line, probe);
+        mmgr_line_put(&lng_note.line, "\t");
+        mmgr_line_put(&lng_note.line, typed ? expected : "");
+        mmgr_line_put(&lng_note.line, "\t");
+        mmgr_line_put(&lng_note.line, witness);
+        mmgr_line_put(&lng_note.line, "\t\t\t\t\t");
+        mmgr_line_put(&lng_note.line, bits);
+        mmgr_line_put(&lng_note.line, "\t");
+        mmgr_line_put(&lng_note.line, sign);
+        mmgr_line_put(&lng_note.line, "\t");
+        mmgr_line_put(&lng_note.line, bridge);
+        mmgr_line_put(&lng_note.line, "\t");
+        mmgr_line_put(&lng_note.line, cells[0]);
+        mmgr_line_put(&lng_note.line, "\t");
+        mmgr_line_put(&lng_note.line, cells[1]);
+        mmgr_line_put(&lng_note.line, "\t");
+        mmgr_line_put(&lng_note.line, cells[2]);
+        mmgr_line_put(&lng_note.line, "\t");
+        mmgr_line_put(&lng_note.line, cells[3]);
+        mmgr_line_put(&lng_note.line, "\t");
+        mmgr_line_put(&lng_note.line, cells[4]);
+        mmgr_line_put(&lng_note.line, "\t");
+        mmgr_line_put(&lng_note.line, cells[5]);
+        lng_note_written(&lng_note);
+    }
 }
 
 // the bridge of the tests into `table`: add for + and sub for -, each with its ladder anchor, mul with none, and
@@ -206,7 +285,22 @@ static void bridge_of(LngTable *table, LngList *defects)
 static void hol_row(LngList *lines, const char *word, const char *type, const char *bits, const char *sign,
                     const char *crossed, const char *below, const char *plus)
 {
-    lng_list_printed(lines, "%s\t%s\t\t\t\t\t\t%s\t%s\t%s\t%s\t%s", word, type, bits, sign, crossed, below, plus);
+    LngNote lng_note;
+    lng_note_begun(&lng_note, lines);
+    mmgr_line_put(&lng_note.line, word);
+    mmgr_line_put(&lng_note.line, "\t");
+    mmgr_line_put(&lng_note.line, type);
+    mmgr_line_put(&lng_note.line, "\t\t\t\t\t\t");
+    mmgr_line_put(&lng_note.line, bits);
+    mmgr_line_put(&lng_note.line, "\t");
+    mmgr_line_put(&lng_note.line, sign);
+    mmgr_line_put(&lng_note.line, "\t");
+    mmgr_line_put(&lng_note.line, crossed);
+    mmgr_line_put(&lng_note.line, "\t");
+    mmgr_line_put(&lng_note.line, below);
+    mmgr_line_put(&lng_note.line, "\t");
+    mmgr_line_put(&lng_note.line, plus);
+    lng_note_written(&lng_note);
 }
 
 // the head of a high order test table placed as the first of `lines`
@@ -219,10 +313,12 @@ static void hol_head(LngList *lines)
 // the head of a matrix test table placed as the first of `lines`, with the arrow column where `arrowed`
 static void asm_head(LngList *lines, int arrowed)
 {
-    lng_list_printed(lines,
-                     "mnemonic\ttable\tpast\tpresent\tpast left\tpast right\tpresent left\tpresent right\tleft\t"
-                     "right%s",
-                     arrowed ? "\tarrow" : "");
+    LngNote lng_note;
+    lng_note_begun(&lng_note, lines);
+    mmgr_line_put(&lng_note.line,
+                  "mnemonic\ttable\tpast\tpresent\tpast left\tpast right\tpresent left\tpresent right\tleft\tright");
+    mmgr_line_put(&lng_note.line, arrowed ? "\tarrow" : "");
+    lng_note_written(&lng_note);
 }
 
 // a row of a matrix test table, its `count` cells apart by tabs, appended to `lines`
@@ -496,7 +592,16 @@ int program_main(int argc, char **argv)
         for (unsigned int row = 0u; row < 4u; row += 1u)
         {
             const int formed = lng_asm_form(&words, &matrix, row, &left, &right);
-            lng_list_printed(&got, "%s %s %s", s_rows[row][0], formed ? left : "-", formed ? right : "-");
+            {
+                LngNote lng_note;
+                lng_note_begun(&lng_note, &got);
+                mmgr_line_put(&lng_note.line, s_rows[row][0]);
+                mmgr_line_put(&lng_note.line, " ");
+                mmgr_line_put(&lng_note.line, formed ? left : "-");
+                mmgr_line_put(&lng_note.line, " ");
+                mmgr_line_put(&lng_note.line, formed ? right : "-");
+                lng_note_written(&lng_note);
+            }
         }
         static const char *const s_forms[4] = {"pass not not", "drop not set", "sync - -", "core - -"};
         expect("each transition's transpiler form", &got, s_forms, 4u);
@@ -541,9 +646,23 @@ int program_main(int argc, char **argv)
         const char *word = NULL;
         const char *const plus = lng_g_anchor(&hol_words, &words, "+", &word);
         LngList read = {NULL, 0u, 0u};
-        lng_list_printed(&read, "%s %s", (word != NULL) ? word : "-", (plus != NULL) ? plus : "-");
+        {
+            LngNote lng_note;
+            lng_note_begun(&lng_note, &read);
+            mmgr_line_put(&lng_note.line, (word != NULL) ? word : "-");
+            mmgr_line_put(&lng_note.line, " ");
+            mmgr_line_put(&lng_note.line, (plus != NULL) ? plus : "-");
+            lng_note_written(&lng_note);
+        }
         const char *const below = lng_g_anchor(&hol_words, &words, "<", &word);
-        lng_list_printed(&read, "%s %s", (word != NULL) ? word : "-", (below != NULL) ? below : "-");
+        {
+            LngNote lng_note;
+            lng_note_begun(&lng_note, &read);
+            mmgr_line_put(&lng_note.line, (word != NULL) ? word : "-");
+            mmgr_line_put(&lng_note.line, " ");
+            mmgr_line_put(&lng_note.line, (below != NULL) ? below : "-");
+            lng_note_written(&lng_note);
+        }
         static const char *const s_read[2] = {"add add", "lt -"};
         expect("a .g operator compiled to its anchor", &read, s_read, 2u);
         lng_list_free(&read);
