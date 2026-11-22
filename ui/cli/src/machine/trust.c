@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // trust.c: the reader's answers stored by folder, in trust.json in orior's home
+#include "../../../../includes/regexp/regexp.h"
 #include "../text/json_tree.h"
-#include "../text/regexp.h"
 #include "../text/text.h"
 #include "trust_internal.h"
 
@@ -52,15 +52,15 @@ EMBED_INLINE void cli_key(const TrustCtx *args)
 #if defined(_WIN32)
     static unsigned int s_characters[CLI_PATH_MAX_LEN];
     const unsigned long long count =
-        EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = args->folder,
+        EMBED_CALL(regexp_text.characters, RegexpTextCfg, .text = args->folder,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_POOL_BYTES}),
                    .characters = s_characters, .capacity_u64 = CLI_PATH_MAX_LEN);
     for (unsigned long long at = 0ULL; at < count; at += 1ULL)
     {
         EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = &line,
-                   .character = (s_characters[at] == '\\')
-                                 ? '/'
-                                 : EMBED_CALL(cli_regexp_character.lower, CliRegexpLetterCfg, .character = s_characters[at]));
+                   .character = (s_characters[at] == '\\') ? '/'
+                                                           : EMBED_CALL(regexp_character.lower, RegexpLetterCfg,
+                                                                        .character = s_characters[at]));
     }
 #else
     (void)EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = &line, .text = args->folder, .from = '\\',

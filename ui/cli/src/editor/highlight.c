@@ -72,7 +72,7 @@ EMBED_INLINE unsigned int cli_text(const HighlightCtx *args)
     const char *text = args->text;
     unsigned int characters[CLI_NAME_MAX_LEN];
     const unsigned long long count =
-        EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = text, .size = args->length, .characters = characters,
+        EMBED_CALL(regexp_text.characters, RegexpTextCfg, .text = text, .size = args->length, .characters = characters,
                    .capacity_u64 = CLI_NAME_MAX_LEN);
     VerbaLinea line = {args->grammar->text + args->grammar->text_size, s_read->text_max - args->grammar->text_size,
                        0ULL};
@@ -81,7 +81,7 @@ EMBED_INLINE unsigned int cli_text(const HighlightCtx *args)
         for (unsigned long long at = 0ULL; at < count; at += 1ULL)
         {
             EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = &line,
-                       .character = EMBED_CALL(cli_regexp_character.lower, CliRegexpLetterCfg, .character = characters[at]));
+                       .character = EMBED_CALL(regexp_character.lower, RegexpLetterCfg, .character = characters[at]));
         }
     }
     else
@@ -163,10 +163,10 @@ EMBED_INLINE int cli_pair_split(const HighlightCtx *args)
                        .node = args->item, .length_pointer = &size);
     unsigned int opens = 0u;
     unsigned int closes = 0u;
-    *first = (*pair != NULL)
-                 ? EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
-                              .text_bytes = (const unsigned char *)*pair, .length = size, .at = 0ULL, .character = &opens)
-                 : 0ULL;
+    *first = (*pair != NULL) ? EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                                          .text_bytes = (const unsigned char *)*pair, .length = size, .at = 0ULL,
+                                          .character = &opens)
+                             : 0ULL;
     *second = (*first < size) ? EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
                                            .text_bytes = (const unsigned char *)*pair, .length = size, .at = *first,
                                            .character = &closes)
@@ -347,9 +347,9 @@ static int cli_pattern_get(const HighlightCtx *args)
         mmgr_line_put(err_msg, "a pattern that is neither text nor a source and flags");
         return 0;
     }
-    CliRegexp read;
-    EMBED_CALL(cli_regexp_capacity.capacity, CliRegexpWorkStateCfg, .regexp_out = &read, .work_state = s_read->pattern);
-    if (!EMBED_CALL(cli_regexp_source.read, CliRegexpSourceCfg, .regexp_out = &read, .source = source, .flags = flags,
+    Regexp read;
+    EMBED_CALL(regexp_capacity.capacity, RegexpWorkStateCfg, .regexp_out = &read, .work_state = s_read->pattern);
+    if (!EMBED_CALL(regexp_source.read, RegexpSourceCfg, .regexp_out = &read, .source = source, .flags = flags,
                     .err_msg = err_msg))
     {
         return 0;
@@ -793,10 +793,10 @@ int cli_highlight_read(const CliHighlightJsonCtx *args)
                    .depth = 1u);
         args->grammar_out->state[state].count =
             args->grammar_out->listing_count - args->grammar_out->state[state].first;
-        // the characters a rule of the state that colors or changes the state starts at, each such rule's first characters
-        // joined, and whether any takes nothing; a rule with the plain token and no next is a skip, which a stride over
-        // its characters as plain is the same as, and it joins nothing
-        CliRegexpFirst *const starts = &args->grammar_out->state[state].starts;
+        // the characters a rule of the state that colors or changes the state starts at, each such rule's first
+        // characters joined, and whether any takes nothing; a rule with the plain token and no next is a skip, which a
+        // stride over its characters as plain is the same as, and it joins nothing
+        RegexpFirst *const starts = &args->grammar_out->state[state].starts;
         starts->ascii[0] = 0ULL;
         starts->ascii[1] = 0ULL;
         starts->other = 0;

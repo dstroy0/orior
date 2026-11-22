@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // toolchains.c: the manifest read, orior's own and the reader's, a tool's program found in a folder, and the folders a
 // pattern of toolchains.json names
+#include "../../../../includes/regexp/regexp.h"
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
-#include "../text/regexp.h"
 #include "../text/text.h"
 #include "toolchains_internal.h"
 
@@ -667,14 +667,13 @@ void cli_toolchains_key_get(const CliToolchainsDirKeyCfg *args)
 #if defined(_WIN32)
     unsigned int characters[CLI_PATH_MAX_LEN];
     const unsigned long long count =
-        EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = args->key, .size = length,
-                   .characters = characters, .capacity_u64 = CLI_PATH_MAX_LEN);
+        EMBED_CALL(regexp_text.characters, RegexpTextCfg, .text = args->key, .size = length, .characters = characters,
+                   .capacity_u64 = CLI_PATH_MAX_LEN);
     VerbaLinea line = {args->key, CLI_PATH_MAX_LEN, 0ULL};
     for (unsigned long long at = 0ULL; at < count; at += 1ULL)
     {
         EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = &line,
-                   .character =
-                       EMBED_CALL(cli_regexp_character.lower, CliRegexpLetterCfg, .character = characters[at]));
+                   .character = EMBED_CALL(regexp_character.lower, RegexpLetterCfg, .character = characters[at]));
     }
     mmgr_line_finish(&line);
 #endif

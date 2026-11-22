@@ -4,9 +4,9 @@
 // plugin's code, read from its folder for the reader's and built into the program for one that comes with orior; and a
 // name as an id
 #include "plugins.h"
+#include "../../../../includes/regexp/regexp.h"
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
-#include "../text/regexp.h"
 #include "../text/text.h"
 
 // The reader's plugins' ids in order, in a cell of `capacity`, `count` of them
@@ -243,15 +243,14 @@ EMBED_INLINE unsigned long long cli_on_lower(const PluginsCtx *args)
     const char *text = args->text;
     unsigned int characters[CLI_NAME_MAX_LEN];
     const unsigned long long count =
-        EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = text, .size = args->length,
-                   .characters = characters, .capacity_u64 = CLI_NAME_MAX_LEN);
+        EMBED_CALL(regexp_text.characters, RegexpTextCfg, .text = text, .size = args->length, .characters = characters,
+                   .capacity_u64 = CLI_NAME_MAX_LEN);
     VerbaLinea line = {args->out, CLI_NAME_MAX_LEN, 0ULL};
     mmgr_line_put(&line, args->prefix);
     for (unsigned long long at = 0ULL; at < count; at += 1ULL)
     {
         EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = &line,
-                   .character =
-                       EMBED_CALL(cli_regexp_character.lower, CliRegexpLetterCfg, .character = characters[at]));
+                   .character = EMBED_CALL(regexp_character.lower, RegexpLetterCfg, .character = characters[at]));
     }
     return mmgr_line_finish(&line);
 }
@@ -628,8 +627,8 @@ static int cli_language_pattern_for(const PluginsCtx *args)
 {
     const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_PATH_MAX_LEN});
     unsigned int slashed[CLI_PATH_MAX_LEN + 1u];
-    CliRegexpWorkState work_state;
-    const unsigned long long length = EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = args->path,
+    RegexpWorkState work_state;
+    const unsigned long long length = EMBED_CALL(regexp_text.characters, RegexpTextCfg, .text = args->path,
                                                  .size = whole, .characters = slashed, .capacity_u64 = whole + 1ULL);
     for (unsigned long long at = 0ULL; at < length; at += 1ULL)
     {
@@ -644,21 +643,20 @@ static int cli_language_pattern_for(const PluginsCtx *args)
         char key[CLI_NAME_MAX_LEN];
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = args->pairs, .offset = CLI_LANGUAGE_KEY_AT(at), .dst = key, .bytes = sizeof(key)});
-        CliRegexp pattern;
-        EMBED_CALL(cli_regexp_capacity.capacity, CliRegexpWorkStateCfg, .regexp_out = &pattern,
-                   .work_state = &work_state);
+        Regexp pattern;
+        EMBED_CALL(regexp_capacity.capacity, RegexpWorkStateCfg, .regexp_out = &pattern, .work_state = &work_state);
         char why[CLI_PATH_MAX_LEN];
         VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-        if (!EMBED_CALL(cli_regexp_source.read, CliRegexpSourceCfg, .regexp_out = &pattern, .source = key + 1,
-                        .flags = "", .err_msg = &err_msg))
+        if (!EMBED_CALL(regexp_source.read, RegexpSourceCfg, .regexp_out = &pattern, .source = key + 1, .flags = "",
+                        .err_msg = &err_msg))
         {
             continue;
         }
-        CliRegexpSpan groups[CLI_REGEXP_GROUPS + 1u];
+        RegexpSpan groups[REGEXP_GROUPS + 1u];
         for (unsigned long long place = 0ULL; place < length; place += 1ULL)
         {
-            if (EMBED_CALL(cli_regexp_text_u_32s.match_into, CliRegexpTextU32sCfg, .regexp = &pattern,
-                           .text_u32s = slashed, .length = length, .at = place, .groups = groups))
+            if (EMBED_CALL(regexp_text_u_32s.match_into, RegexpTextU32sCfg, .regexp = &pattern, .text_u32s = slashed,
+                           .length = length, .at = place, .groups = groups))
             {
                 return EMBED_CALL(cli_language_id_read, PluginsCtx, .pairs = args->pairs, .at = at,
                                   .id_out = args->id_out);

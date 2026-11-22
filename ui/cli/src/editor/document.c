@@ -3,10 +3,10 @@
 // document.c: a text's lines of UTF-16 units as the page splits them, and find over them: text sought by the sift, and
 // a pattern, or text sought without case outside ASCII, by the regular expressions the colorer reads
 #include "document.h"
+#include "../../../../includes/regexp/regexp.h"
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
 #include "../text/json_tree.h"
-#include "../text/regexp.h"
 #include "../text/sift.h"
 #include "../text/text.h"
 
@@ -56,8 +56,8 @@ typedef struct
 #define CLI_LONG_S 0x017fu
 #define CLI_KELVIN 0x212au
 
-// `unit` as a search without case reads it: a capital to its small character, the long s to s, the Kelvin sign to k, and
-// every other unit itself
+// `unit` as a search without case reads it: a capital to its small character, the long s to s, the Kelvin sign to k,
+// and every other unit itself
 EMBED_INLINE unsigned short cli_unit_folded(const DocumentCtx *args)
 {
     if ((args->unit >= 0x41u) && (args->unit <= 0x5au))
@@ -187,8 +187,8 @@ void cli_document_units_write(const CliDocumentUnitsCountCfg *args)
     {
         unsigned long long consumed = 0ULL;
         const unsigned int character =
-            EMBED_CALL(cli_document_units.unit_character, CliDocumentUnitsCfg, .units = args->units, .count = args->count,
-                       .at = at, .consumed = &consumed);
+            EMBED_CALL(cli_document_units.unit_character, CliDocumentUnitsCfg, .units = args->units,
+                       .count = args->count, .at = at, .consumed = &consumed);
         at += consumed;
         VerbaLinea one = {bytes, sizeof(bytes), 0ULL};
         EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = &one, .character = character);
@@ -205,10 +205,11 @@ void cli_document_units_utf8(const CliDocumentUnitsCountCfg *args)
     {
         unsigned long long consumed = 0ULL;
         const unsigned int character =
-            EMBED_CALL(cli_document_units.unit_character, CliDocumentUnitsCfg, .units = args->units, .count = args->count,
-                       .at = at, .consumed = &consumed);
+            EMBED_CALL(cli_document_units.unit_character, CliDocumentUnitsCfg, .units = args->units,
+                       .count = args->count, .at = at, .consumed = &consumed);
         at += consumed;
-        EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = args->out, .character = character);
+        EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = args->out,
+                   .character = character);
     }
 }
 
@@ -255,8 +256,8 @@ EMBED_INLINE void cli_joined_let_go(const DocumentCtx *args)
     *joined = (CliJoined){NULL, 0ULL, NULL, 0u};
 }
 
-// a word's character as find reads one for whole words, where it is ASCII: a character, a digit, `_` or `$`: 1 or 0, or -1
-// for a unit outside ASCII, which the regular expressions' tables read
+// a word's character as find reads one for whole words, where it is ASCII: a character, a digit, `_` or `$`: 1 or 0, or
+// -1 for a unit outside ASCII, which the regular expressions' tables read
 EMBED_INLINE int cli_word_unit(const DocumentCtx *args)
 {
     if (args->unit >= 0x80u)
@@ -289,9 +290,9 @@ EMBED_INLINE int cli_word_character(const DocumentCtx *args)
 {
     unsigned int character = args->character;
     return (character == '_') || (character == '$') ||
-           EMBED_CALL(cli_regexp_character.property, CliRegexpLetterCfg, .property = CLI_REGEXP_CHARACTER,
+           EMBED_CALL(regexp_character.property, RegexpLetterCfg, .property = REGEXP_CHARACTER,
                       .character = character) ||
-           EMBED_CALL(cli_regexp_character.property, CliRegexpLetterCfg, .property = CLI_REGEXP_NUMBER, .character = character);
+           EMBED_CALL(regexp_character.property, RegexpLetterCfg, .property = REGEXP_NUMBER, .character = character);
 }
 
 // the query of `needle` written into `out` as a pattern's source: the query itself where it is a pattern, else with
@@ -309,8 +310,8 @@ EMBED_INLINE void cli_pattern_source(const DocumentCtx *args)
                .set = s_signs, .mark = '\\');
 }
 
-// the line `line` of `lines` as code points into `characters`, each one's col in UTF-16 units into `cols` and the line's
-// length after the last: how many
+// the line `line` of `lines` as code points into `characters`, each one's col in UTF-16 units into `cols` and the
+// line's length after the last: how many
 EMBED_INLINE unsigned long long cli_line_characters(const DocumentCtx *args)
 {
     const unsigned short *const unit = args->lines->unit + args->lines->start[args->line_u32];
@@ -335,14 +336,14 @@ EMBED_INLINE unsigned long long cli_line_characters(const DocumentCtx *args)
 
 // the matches of `needle` read as a pattern by the regular expressions the colorer reads, under the `u` flag, and `i`
 // where it runs without case, the `u` let go where the pattern reads only without it and whole words are not sought, as
-// the page's find reads one: each line matched from each character a match can start at, a match of no characters passed
-// over and one that is no whole word where whole words are sought, each passed to `each` with its line and its cols in
-// UTF-16 units, the lines searched whole until one ends with `max` found: 1, or 0 with why given where the pattern
-// does not read or the cells cannot meet it
+// the page's find reads one: each line matched from each character a match can start at, a match of no characters
+// passed over and one that is no whole word where whole words are sought, each passed to `each` with its line and its
+// cols in UTF-16 units, the lines searched whole until one ends with `max` found: 1, or 0 with why given where the
+// pattern does not read or the cells cannot meet it
 static int cli_found_pattern(const DocumentCtx *args)
 {
     VerbaLinea *err_msg = args->err_msg;
-    char source[2u * CLI_REGEXP_CHARACTERS];
+    char source[2u * REGEXP_CHARACTERS];
     VerbaLinea written = {source, sizeof(source), 0ULL};
     EMBED_CALL(cli_pattern_source, DocumentCtx, .needle = args->needle, .out = &written);
     if (mmgr_line_finish(&written) == 0ULL)
@@ -355,27 +356,27 @@ static int cli_found_pattern(const DocumentCtx *args)
     {
         longest = (args->lines->length[line] > longest) ? args->lines->length[line] : longest;
     }
-    const unsigned long long bytes = sizeof(CliRegexpWorkState) + (2ULL * (longest + 1ULL) * sizeof(unsigned int));
+    const unsigned long long bytes = sizeof(RegexpWorkState) + (2ULL * (longest + 1ULL) * sizeof(unsigned int));
     unsigned char *const cell = g_cli_guard->temporary_buf_alloc(bytes, g_cli_editor_owner);
     if (cell == NULL)
     {
         mmgr_line_put(err_msg, "the text could not be searched: the cells cannot meet it");
         return 0;
     }
-    unsigned int *const characters = (unsigned int *)(void *)(cell + sizeof(CliRegexpWorkState));
+    unsigned int *const characters = (unsigned int *)(void *)(cell + sizeof(RegexpWorkState));
     unsigned int *const cols = characters + longest + 1ULL;
-    CliRegexp regexp;
-    EMBED_CALL(cli_regexp_capacity.capacity, CliRegexpWorkStateCfg, .regexp_out = &regexp,
-               .work_state = (CliRegexpWorkState *)(void *)cell);
+    Regexp regexp;
+    EMBED_CALL(regexp_capacity.capacity, RegexpWorkStateCfg, .regexp_out = &regexp,
+               .work_state = (RegexpWorkState *)(void *)cell);
     const unsigned long long output = err_msg->at;
-    int read = EMBED_CALL(cli_regexp_source.read, CliRegexpSourceCfg, .regexp_out = &regexp, .source = source,
+    int read = EMBED_CALL(regexp_source.read, RegexpSourceCfg, .regexp_out = &regexp, .source = source,
                           .flags = args->needle->match_case ? "u" : "iu", .err_msg = err_msg);
     if (!read && !args->needle->word_text)
     {
         err_msg->at = output;
-        EMBED_CALL(cli_regexp_capacity.capacity, CliRegexpWorkStateCfg, .regexp_out = &regexp,
-                   .work_state = (CliRegexpWorkState *)(void *)cell);
-        read = EMBED_CALL(cli_regexp_source.read, CliRegexpSourceCfg, .regexp_out = &regexp, .source = source,
+        EMBED_CALL(regexp_capacity.capacity, RegexpWorkStateCfg, .regexp_out = &regexp,
+                   .work_state = (RegexpWorkState *)(void *)cell);
+        read = EMBED_CALL(regexp_source.read, RegexpSourceCfg, .regexp_out = &regexp, .source = source,
                           .flags = args->needle->match_case ? "" : "i", .err_msg = err_msg);
     }
     unsigned long long found = 0ULL;
@@ -385,12 +386,12 @@ static int cli_found_pattern(const DocumentCtx *args)
                                                     .line_u32 = line, .characters = characters, .cols = cols);
         for (unsigned long long at = 0ULL; at < count;)
         {
-            CliRegexpSpan groups[CLI_REGEXP_GROUPS + 1u];
+            RegexpSpan groups[REGEXP_GROUPS + 1u];
             const int starts = (!regexp.anchored || (at == 0ULL)) &&
-                               (regexp.first.empty || EMBED_CALL(cli_regexp.allows, CliRegexpCfg,
+                               (regexp.first.empty || EMBED_CALL(regexp_first_set.allows, RegexpCfg,
                                                                  .first = &regexp.first, .character = characters[at]));
             const int matched = starts &&
-                                EMBED_CALL(cli_regexp_text_u_32s.match_into, CliRegexpTextU32sCfg, .regexp = &regexp,
+                                EMBED_CALL(regexp_text_u_32s.match_into, RegexpTextU32sCfg, .regexp = &regexp,
                                            .text_u32s = characters, .length = count, .at = at, .groups = groups) &&
                                 (groups[0].to > groups[0].from);
             const unsigned long long to = matched ? groups[0].to : at;
@@ -559,9 +560,9 @@ static void cli_found_at(const CliEachAtCfg *args)
 EMBED_INLINE int cli_found_each(const DocumentCtx *args)
 {
     // a search without case folds the work state's units and the needle's first, each unit to the one the page's search
-    // folds it to, and the sift reads them as they are: the units searched as their bytes, the needle's positioned the same
-    // way, a match starting on an even byte; a text within one of the sift's windows goes by Horspool's shifts and a
-    // longer one by the sift's plan
+    // folds it to, and the sift reads them as they are: the units searched as their bytes, the needle's positioned the
+    // same way, a match starting on an even byte; a text within one of the sift's windows goes by Horspool's shifts and
+    // a longer one by the sift's plan
     if (!args->needle->match_case)
     {
         for (unsigned long long at = 0ULL; at < args->work_state->joined.used; at += 1ULL)

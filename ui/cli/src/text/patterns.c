@@ -3,7 +3,7 @@
 // patterns.c: the patterns of a part read from their lines, matched against a path, written as git's pathspecs, and
 // stored for each part of the window
 #include "patterns.h"
-#include "regexp.h"
+#include "../../../../includes/regexp/regexp.h"
 #include "text.h"
 
 // the patterns of each part, 1 in `s_created` where they were set, and the lock that is acquired while one is read or
@@ -43,7 +43,7 @@ EMBED_INLINE unsigned int cli_fold(const PatternsCtx *args)
 {
     unsigned int character = args->character;
 #if defined(_WIN32)
-    return EMBED_CALL(cli_regexp_character.lower, CliRegexpLetterCfg, .character = character);
+    return EMBED_CALL(regexp_character.lower, RegexpLetterCfg, .character = character);
 #else
     return character;
 #endif
@@ -52,7 +52,8 @@ EMBED_INLINE unsigned int cli_fold(const PatternsCtx *args)
 // whether a byte is one of ASCII's spaces
 EMBED_INLINE int cli_is_space(const PatternsCtx *args)
 {
-    return (args->character_character == ' ') || ((args->character_character >= '\t') && (args->character_character <= '\r'));
+    return (args->character_character == ' ') ||
+           ((args->character_character >= '\t') && (args->character_character <= '\r'));
 }
 
 // whether the glob names the path from its first character to its last
@@ -179,12 +180,12 @@ EMBED_INLINE void cli_pattern_read(const PatternsCtx *args)
     static const unsigned int s_anywhere[3] = {'*', '*', '/'};
     if (!slashed && (capacity >= 3ULL))
     {
-        memor.cpy(
-            &(MemoriaCfg){.dst = args->patterns_out->characters + first, .src = s_anywhere, .bytes = sizeof(s_anywhere)});
+        memor.cpy(&(MemoriaCfg){
+            .dst = args->patterns_out->characters + first, .src = s_anywhere, .bytes = sizeof(s_anywhere)});
         length = 3ULL;
     }
     length +=
-        EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = from, .size = (unsigned long long)(to - from),
+        EMBED_CALL(regexp_text.characters, RegexpTextCfg, .text = from, .size = (unsigned long long)(to - from),
                    .characters = args->patterns_out->characters + first + length, .capacity_u64 = capacity - length);
     if ((*count >= CLI_PATTERNS_MAX) || (capacity < 3ULL))
     {
@@ -307,12 +308,13 @@ int cli_patterns_include_only(const CliPatternsCfg *args)
     return args->patterns->includes != 0u;
 }
 
-// the path's characters, each folded as a pattern compares it, into `characters`, sized for CLI_PATH_MAX_LEN: their count
+// the path's characters, each folded as a pattern compares it, into `characters`, sized for CLI_PATH_MAX_LEN: their
+// count
 EMBED_INLINE unsigned long long cli_path_characters(const PatternsCtx *args)
 {
     unsigned int *characters = args->characters;
     const unsigned long long length =
-        EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = args->path_text,
+        EMBED_CALL(regexp_text.characters, RegexpTextCfg, .text = args->path_text,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->path_text, .cap = CLI_POOL_BYTES}),
                    .characters = characters, .capacity_u64 = CLI_PATH_MAX_LEN);
     for (unsigned long long at = 0ULL; at < length; at += 1ULL)

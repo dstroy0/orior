@@ -9,13 +9,13 @@
 #include "../command_line/callback_cfg.h"
 #include "../command_line/cli_internal.h"
 
+#include "../../../../includes/regexp/regexp.h"
 #include "../code/symbols.h"
 #include "../command_line/pool.h"
 #include "../plugins/plugins.h"
 #include "../servers/servers_internal.h"
 #include "../text/edits.h"
 #include "../text/json_tree.h"
-#include "../text/regexp.h"
 #include "../text/text.h"
 #include "document_internal.h"
 #include "editorconfig.h"
@@ -3014,12 +3014,12 @@ EMBED_INLINE int view_opens_block(const ViewCtx *args)
     const unsigned long long length = view_length(args);
     const unsigned long long count = (args->col < length) ? args->col : length;
     unsigned char *const cell = g_cli_guard->temporary_buf_alloc(
-        sizeof(CliRegexpWorkState) + ((count + 1ULL) * sizeof(unsigned int)), g_cli_views_owner);
+        sizeof(RegexpWorkState) + ((count + 1ULL) * sizeof(unsigned int)), g_cli_views_owner);
     if (cell == NULL)
     {
         return 0;
     }
-    unsigned int *const characters = (unsigned int *)(void *)(cell + sizeof(CliRegexpWorkState));
+    unsigned int *const characters = (unsigned int *)(void *)(cell + sizeof(RegexpWorkState));
     // the units read as characters, a surrogate pair one character
     unsigned long long read = 0ULL;
     unsigned short *const units = EMBED_CALL(view_units_copy, ViewCtx, .view_read = args->view);
@@ -3043,30 +3043,30 @@ EMBED_INLINE int view_opens_block(const ViewCtx *args)
     g_cli_guard->persistent_buf_release(units, g_cli_views_owner);
     char error_text[256];
     VerbaLinea why = {error_text, sizeof(error_text), 0ULL};
-    CliRegexp regexp;
-    EMBED_CALL(cli_regexp_capacity.capacity, CliRegexpWorkStateCfg, .regexp_out = &regexp,
-               .work_state = (CliRegexpWorkState *)(void *)cell);
-    int ok = EMBED_CALL(cli_regexp_source.read, CliRegexpSourceCfg, .regexp_out = &regexp,
-                        .source = args->view->indent_after, .flags = "u", .err_msg = &why);
+    Regexp regexp;
+    EMBED_CALL(regexp_capacity.capacity, RegexpWorkStateCfg, .regexp_out = &regexp,
+               .work_state = (RegexpWorkState *)(void *)cell);
+    int ok = EMBED_CALL(regexp_source.read, RegexpSourceCfg, .regexp_out = &regexp, .source = args->view->indent_after,
+                        .flags = "u", .err_msg = &why);
     if (!ok)
     {
         why.at = 0ULL;
-        EMBED_CALL(cli_regexp_capacity.capacity, CliRegexpWorkStateCfg, .regexp_out = &regexp,
-                   .work_state = (CliRegexpWorkState *)(void *)cell);
-        ok = EMBED_CALL(cli_regexp_source.read, CliRegexpSourceCfg, .regexp_out = &regexp,
-                        .source = args->view->indent_after, .flags = "", .err_msg = &why);
+        EMBED_CALL(regexp_capacity.capacity, RegexpWorkStateCfg, .regexp_out = &regexp,
+                   .work_state = (RegexpWorkState *)(void *)cell);
+        ok = EMBED_CALL(regexp_source.read, RegexpSourceCfg, .regexp_out = &regexp, .source = args->view->indent_after,
+                        .flags = "", .err_msg = &why);
     }
     int matched = 0;
     {
         unsigned long long at = 0ULL;
         while (ok && !matched && (at <= read))
         {
-            CliRegexpSpan groups[CLI_REGEXP_GROUPS + 1u];
+            RegexpSpan groups[REGEXP_GROUPS + 1u];
             const int starts =
                 (!regexp.anchored || (at == 0ULL)) &&
                 ((at == read) || regexp.first.empty ||
-                 EMBED_CALL(cli_regexp.allows, CliRegexpCfg, .first = &regexp.first, .character = characters[at]));
-            matched = starts && EMBED_CALL(cli_regexp_text_u_32s.match_into, CliRegexpTextU32sCfg, .regexp = &regexp,
+                 EMBED_CALL(regexp_first_set.allows, RegexpCfg, .first = &regexp.first, .character = characters[at]));
+            matched = starts && EMBED_CALL(regexp_text_u_32s.match_into, RegexpTextU32sCfg, .regexp = &regexp,
                                            .text_u32s = characters, .length = read, .at = at, .groups = groups);
             at += 1ULL;
         }

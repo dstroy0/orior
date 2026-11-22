@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // history.c: a file's snapshots stored, listed and read back
 #include "history.h"
+#include "../../../../includes/regexp/regexp.h"
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
-#include "../text/regexp.h"
 #include "../text/text.h"
 
 // the max snapshots a file retains
@@ -125,7 +125,7 @@ EMBED_INLINE int cli_folder_get(const HistoryCtx *args)
     const char *const name = (slash != NULL) ? (slash + 1) : args->path;
     unsigned int characters[CLI_PATH_MAX_LEN];
     const unsigned long long count =
-        EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = name,
+        EMBED_CALL(regexp_text.characters, RegexpTextCfg, .text = name,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}), .characters = characters,
                    .capacity_u64 = CLI_PATH_MAX_LEN);
     VerbaLinea line = {args->folder_out, CLI_PATH_MAX_LEN, 0ULL};
@@ -138,10 +138,9 @@ EMBED_INLINE int cli_folder_get(const HistoryCtx *args)
     for (unsigned long long at = 0ULL; at < count; at += 1ULL)
     {
         const unsigned int character = characters[at];
-        if (EMBED_CALL(cli_regexp_character.property, CliRegexpLetterCfg, .property = CLI_REGEXP_CHARACTER,
+        if (EMBED_CALL(regexp_character.property, RegexpLetterCfg, .property = REGEXP_CHARACTER,
                        .character = character) ||
-            EMBED_CALL(cli_regexp_character.property, CliRegexpLetterCfg, .property = CLI_REGEXP_NUMBER,
-                       .character = character) ||
+            EMBED_CALL(regexp_character.property, RegexpLetterCfg, .property = REGEXP_NUMBER, .character = character) ||
             (character == '.') || (character == '_') || (character == '-'))
         {
             EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = &line,

@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // schema_values.c: a schema's values read: its members, strings, booleans and numbers; two values compared as JSON's
-// values are, a number by its value; values displayed in a message as serde_json writes them, an object's keys in order,
-// cut short past forty characters; a pattern matched as ECMAScript reads one; and a number and a string checked against
-// the keywords that bound them
+// values are, a number by its value; values displayed in a message as serde_json writes them, an object's keys in
+// order, cut short past forty characters; a pattern matched as ECMAScript reads one; and a number and a string checked
+// against the keywords that bound them
 #include "../../../../includes/arith/arith.h"
-#include "../text/regexp.h"
+#include "../../../../includes/regexp/regexp.h"
 #include "schema_internal.h"
 
 #include "../text/text.h"
@@ -475,9 +475,9 @@ void cli_schema_type_write(const CliSchemaSizeOutCtx *args)
 
 int cli_schema_matches(const CliSchemaTextCtx *args)
 {
-    static CliRegexp s_regexp;
-    static CliRegexpWorkState s_work_state;
-    static CliRegexpSpan s_groups[CLI_REGEXP_GROUPS + 1u];
+    static Regexp s_regexp;
+    static RegexpWorkState s_work_state;
+    static RegexpSpan s_groups[REGEXP_GROUPS + 1u];
     static char s_err_buf[512];
     if (args->pattern_size >= CLI_SCHEMA_PATTERN)
     {
@@ -493,20 +493,19 @@ int cli_schema_matches(const CliSchemaTextCtx *args)
     {
         memor.cpy(&(MemoriaCfg){.dst = source, .src = args->pattern, .bytes = (embed_word)args->pattern_size});
         source[args->pattern_size] = '\0';
-        EMBED_CALL(cli_regexp_capacity.capacity, CliRegexpWorkStateCfg, .regexp_out = &s_regexp,
-                   .work_state = &s_work_state);
+        EMBED_CALL(regexp_capacity.capacity, RegexpWorkStateCfg, .regexp_out = &s_regexp, .work_state = &s_work_state);
         VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ULL};
-        if (EMBED_CALL(cli_regexp_source.read, CliRegexpSourceCfg, .regexp_out = &s_regexp, .source = source,
-                       .flags = "u", .err_msg = &err_msg))
+        if (EMBED_CALL(regexp_source.read, RegexpSourceCfg, .regexp_out = &s_regexp, .source = source, .flags = "u",
+                       .err_msg = &err_msg))
         {
             const unsigned long long length =
-                EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = args->text, .size = args->size,
+                EMBED_CALL(regexp_text.characters, RegexpTextCfg, .text = args->text, .size = args->size,
                            .characters = characters, .capacity_u64 = capacity);
             found = 0;
             unsigned long long at = 0ULL;
             while (!found && (at <= length))
             {
-                found = EMBED_CALL(cli_regexp_text_u_32s.match_into, CliRegexpTextU32sCfg, .regexp = &s_regexp,
+                found = EMBED_CALL(regexp_text_u_32s.match_into, RegexpTextU32sCfg, .regexp = &s_regexp,
                                    .text_u32s = characters, .length = length, .at = at, .groups = s_groups);
                 at += 1u;
             }

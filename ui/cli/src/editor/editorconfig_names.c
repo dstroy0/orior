@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // editorconfig_names.c: a section's pattern, its braces spread one text at a time, each text matched against the file's
 // name or path
-#include "../text/regexp.h"
+#include "../../../../includes/regexp/regexp.h"
 #include "../text/text.h"
 #include "editorconfig.h"
 
@@ -46,8 +46,8 @@ typedef struct
 
 static int cli_glob(const EditorconfigNamesCtx *args);
 
-// whether a pattern, `pattern_length` characters at `pattern`, names the whole of what is left of a text, `length` characters
-// at `text`, past any of its first `stop` characters, or past none of them
+// whether a pattern, `pattern_length` characters at `pattern`, names the whole of what is left of a text, `length`
+// characters at `text`, past any of its first `stop` characters, or past none of them
 EMBED_INLINE int cli_glob_past_any(const EditorconfigNamesCtx *args)
 {
     for (unsigned long long at = 0ULL; at <= args->stop; at += 1ULL)
@@ -165,8 +165,8 @@ EMBED_INLINE int cli_build(const EditorconfigNamesCtx *args)
     return 1;
 }
 
-// the whole number written in `length` characters at `at`, an optional sign before its digits: 1, or 0 where they are not
-// one or it is past what a long long stores
+// the whole number written in `length` characters at `at`, an optional sign before its digits: 1, or 0 where they are
+// not one or it is past what a long long stores
 EMBED_INLINE int cli_span_is_whole_word(const EditorconfigNamesCtx *args)
 {
     long long *number = args->number;
@@ -375,7 +375,7 @@ int cli_editorconfig_names(const CliEditorconfigPatternCfg *args)
     static unsigned int s_target[CLI_PATH_MAX_LEN];
     static CliSpreading s_spreading;
     const unsigned long long length =
-        EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = args->pattern, .size = args->size,
+        EMBED_CALL(regexp_text.characters, RegexpTextCfg, .text = args->pattern, .size = args->size,
                    .characters = s_pattern, .capacity_u64 = CLI_PATH_MAX_LEN);
     unsigned long long slash = 0ULL;
     while ((slash < length) && (s_pattern[slash] != '/'))
@@ -389,7 +389,7 @@ int cli_editorconfig_names(const CliEditorconfigPatternCfg *args)
         from += 1ULL;
     }
     s_spreading.target = s_target;
-    s_spreading.target_length = EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = target,
+    s_spreading.target_length = EMBED_CALL(regexp_text.characters, RegexpTextCfg, .text = target,
                                            .size = cellul.len(&(CatenaFinitaCfg){.src = target, .cap = CLI_POOL_BYTES}),
                                            .characters = s_target, .capacity_u64 = CLI_PATH_MAX_LEN);
     s_spreading.tried = 0u;

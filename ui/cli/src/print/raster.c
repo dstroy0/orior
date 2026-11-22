@@ -4,9 +4,9 @@
 // resolution with the system's monospace font, its own bold and italic where it has them and made from the regular
 // face where it does not. A page positioned on its side is turned onto the paper as it feeds
 #include "../../../../includes/arith/arith.h"
+#include "../../../../includes/regexp/regexp.h"
 #include "../../../includes/font/font.h"
 #include "../command_line/pool.h"
-#include "../text/regexp.h"
 #include "font_families.h"
 
 // the max bytes of a page's pixels, the max glyphs cached drawn, and the max coverage they cover
@@ -69,8 +69,7 @@ static void raster_faces_release(void)
     {
         for (unsigned int face = 0u; face < 4u; face += 1u)
         {
-            g_cli_guard->persistent_buf_release((void *)(embed_word)(s_typefaces->face_data[face]),
-                                                g_cli_print_owner);
+            g_cli_guard->persistent_buf_release((void *)(embed_word)(s_typefaces->face_data[face]), g_cli_print_owner);
         }
         g_cli_guard->persistent_buf_release(s_typefaces->cover, g_cli_print_owner);
     }
@@ -95,8 +94,8 @@ int cli_print_faces(const CliPrintJsonCfg *args)
     EMBED_CALL(cli_font_families.monospace, CliFontFamiliesCfg, .paths = paths);
     for (unsigned int face = 0u; face < 4u; face += 1u)
     {
-        // a face's file read whole and retained as long as the print draws from it, in a temporary cell of its size and the
-        // slack, a file past FONT_BYTES let go unread
+        // a face's file read whole and retained as long as the print draws from it, in a temporary cell of its size and
+        // the slack, a file past FONT_BYTES let go unread
         unsigned long long size = 0ULL;
         unsigned char *data =
             ((paths[face][0] != '\0') &&
@@ -328,7 +327,7 @@ EMBED_INLINE void cli_draw(const RasterCtx *args)
     const float cell = CLI_PRINT_ADVANCE * scale;
     const float font_scale = em / font->units;
     const unsigned long long count =
-        EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = text, .size = args->length,
+        EMBED_CALL(regexp_text.characters, RegexpTextCfg, .text = text, .size = args->length,
                    .characters = s_work_state->characters, .capacity_u64 = CLI_PATH_MAX_LEN * 4u);
     for (unsigned long long offset = 0ULL; offset < count; offset += 1ULL)
     {
@@ -365,8 +364,8 @@ void cli_print_render(const CliPrintLayoutListingCfg *args)
     {
         return;
     }
-    const CliPrintLaid *const positioned = EMBED_CALL(cli_print_layout_listing_out.position_out, CliPrintLayoutListingOutCfg,
-                                                .listing = listing, .layout = layout);
+    const CliPrintLaid *const positioned = EMBED_CALL(
+        cli_print_layout_listing_out.position_out, CliPrintLayoutListingOutCfg, .listing = listing, .layout = layout);
     const float scale = args->dpi_f32 / 72.0f;
     float width = 0.0f;
     float height = 0.0f;
@@ -409,8 +408,9 @@ void cli_print_render(const CliPrintLayoutListingCfg *args)
         memor.set(
             &(MemoriaCfg){.dst = s_work_state->page, .val = 255, .bytes = page.width * page.height * page.channels});
         const unsigned int first = at * positioned->rows_per_page;
-        const unsigned int last =
-            ((first + positioned->rows_per_page) < positioned->rows) ? (first + positioned->rows_per_page) : positioned->rows;
+        const unsigned int last = ((first + positioned->rows_per_page) < positioned->rows)
+                                      ? (first + positioned->rows_per_page)
+                                      : positioned->rows;
         for (unsigned int row_at = first; row_at < last; row_at += 1u)
         {
             const CliPrintRow *const row = &positioned->row[row_at];
@@ -421,7 +421,8 @@ void cli_print_render(const CliPrintLayoutListingCfg *args)
             {
                 char number[32];
                 VerbaLinea line = {number, sizeof(number), 0ULL};
-                const unsigned long long numbers = (positioned->number_columns > 2ULL) ? (positioned->number_columns - 2ULL) : 0ULL;
+                const unsigned long long numbers =
+                    (positioned->number_columns > 2ULL) ? (positioned->number_columns - 2ULL) : 0ULL;
                 mmgr_line_decimal_columns(&line, row->number, (unsigned int)numbers);
                 const unsigned long long length = mmgr_line_finish(&line);
                 EMBED_CALL(cli_draw, RasterCtx, .page = &page, .text = number, .length = length, .column = 0ULL,

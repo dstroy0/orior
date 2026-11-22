@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // files_find.c: a regular expression searched by git over the tree's files, and the listed files whose paths contain
 // each word of a query
+#include "../../../../includes/regexp/regexp.h"
 #include "../code/git_internal.h"
 #include "../code/symbols.h"
 #include "../machine/trust.h"
 #include "../text/json_tree.h"
-#include "../text/regexp.h"
 #include "../text/text.h"
 #include "files_internal.h"
 
@@ -246,4 +246,3 @@ int cli_search_by_git(const CliFilesRootCtx *args)
     EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
     return received;
 }
-

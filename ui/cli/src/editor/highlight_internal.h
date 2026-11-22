@@ -3,7 +3,7 @@
 // highlight_internal.h: a grammar as highlight.c reads it and highlight_line.c colors by it
 #ifndef HIGHLIGHT_INTERNAL_H
 #define HIGHLIGHT_INTERNAL_H
-#include "../text/regexp.h"
+#include "../../../../includes/regexp/regexp.h"
 #include "embed_dispatch_layout.h"
 #include "highlight.h"
 
@@ -88,7 +88,7 @@ typedef struct
     unsigned int root;
     unsigned int groups;
     int fold;
-    CliRegexpFirst first;
+    RegexpFirst first;
     int anchored;
     unsigned int token;
     unsigned int next;
@@ -97,14 +97,14 @@ typedef struct
 // A state, or a list of words: its name's text, and its rules or its words, `count` of the list from `first`; for a
 // state, the characters any of its rules that colors or changes the state can start a match at, every such rule's first
 // characters joined, and a table of the ASCII ones, 1 at each byte such a rule starts at, by which the colorer strides
-// over the characters no rule takes in one lookup a character; for a state the grammar's `indent` runs, the place among the
-// names of the name its close takes, none for any other; and whether a line begun with it on top begins a statement
+// over the characters no rule takes in one lookup a character; for a state the grammar's `indent` runs, the place among
+// the names of the name its close takes, none for any other; and whether a line begun with it on top begins a statement
 typedef struct
 {
     unsigned int name;
     unsigned int first;
     unsigned int count;
-    CliRegexpFirst starts;
+    RegexpFirst starts;
     unsigned char starts_at[128];
     unsigned int close;
     int begins;
@@ -117,10 +117,10 @@ typedef struct
 // next multiple of, and the rule whose pattern matches a line it passes over, a rule of no state, none for none
 typedef struct
 {
-    CliRegexpNode *node;
-    CliRegexpItem *item;
+    RegexpNode *node;
+    RegexpItem *item;
     unsigned int *part;
-    CliRegexpFirst *part_first;
+    RegexpFirst *part_first;
     CliHighlightRule *rule;
     CliHighlightToken *token;
     CliHighlightCase *cases;
@@ -155,10 +155,10 @@ typedef struct
 // pattern is read into; and how many of each the work state contains, the texts in bytes
 typedef struct
 {
-    CliRegexpNode *node;
-    CliRegexpItem *item;
+    RegexpNode *node;
+    RegexpItem *item;
     unsigned int *part;
-    CliRegexpFirst *part_first;
+    RegexpFirst *part_first;
     CliHighlightRule *rule;
     CliHighlightToken *token;
     CliHighlightCase *cases;
@@ -170,7 +170,7 @@ typedef struct
     char *text;
     unsigned int *own;
     CliHighlightList *own_state;
-    CliRegexpWorkState *pattern;
+    RegexpWorkState *pattern;
     unsigned int nodes_max;
     unsigned int items_max;
     unsigned int parts_max;
@@ -266,7 +266,7 @@ struct CliHighlightCtx
 {
     const CliGrammar *grammar;
     const CliHighlightRule *rule;
-    CliRegexp *pattern;
+    Regexp *pattern;
 };
 
 struct CliHighlightNameCtx

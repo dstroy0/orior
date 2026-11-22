@@ -3,9 +3,9 @@
 // plugins_tables.c: a language plugin's grammar made whole before the colorer stores it: each word list a table of the
 // tree fills read from that table, `{name}` in the tables' paths the name of the folder the plugin is for, and each
 // rule whose pattern is a word list given the list's words as its pattern; and the folders a plugin is for
+#include "../../../../includes/regexp/regexp.h"
 #include "../command_line/pool.h"
 #include "../editor/defs.h"
-#include "../text/regexp.h"
 #include "../text/text.h"
 #include "plugins.h"
 
@@ -29,7 +29,7 @@ typedef struct
     unsigned int column[CLI_DEFS_CELLS];
     unsigned int columns;
     unsigned int rows_by;
-    CliRegexp pattern[CLI_TABLES_PATTERNS];
+    Regexp pattern[CLI_TABLES_PATTERNS];
     int supplied[CLI_TABLES_PATTERNS];
     VerbaLinea *out;
     int written;
@@ -72,13 +72,13 @@ typedef struct
     unsigned int table;
     const char *tree;
     char *path;
-    const CliRegexp *pattern;
+    const Regexp *pattern;
     unsigned int *characters;
     unsigned long long *count;
     unsigned long long *from;
     unsigned long long *to;
-    CliRegexp *pattern_out;
-    CliRegexpWorkState *work_state;
+    Regexp *pattern_out;
+    RegexpWorkState *work_state;
     const char *source;
     VerbaLinea *err_msg;
     CliTableList *list;
@@ -139,13 +139,13 @@ EMBED_INLINE int cli_tables_find(const PluginsTablesCtx *args)
     unsigned long long *count = args->count;
     unsigned long long *from = args->from;
     unsigned long long *to = args->to;
-    *count = EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = text, .size = length,
-                        .characters = characters, .capacity_u64 = CLI_TABLES_CHARACTERS);
-    CliRegexpSpan span[CLI_TABLES_GROUPS];
+    *count = EMBED_CALL(regexp_text.characters, RegexpTextCfg, .text = text, .size = length, .characters = characters,
+                        .capacity_u64 = CLI_TABLES_CHARACTERS);
+    RegexpSpan span[CLI_TABLES_GROUPS];
     const unsigned long long last = args->pattern->anchored ? 0ULL : *count;
     for (unsigned long long at = 0ULL; at <= last; at += 1ULL)
     {
-        if (EMBED_CALL(cli_regexp_text_u_32s.match_into, CliRegexpTextU32sCfg, .regexp = args->pattern,
+        if (EMBED_CALL(regexp_text_u_32s.match_into, RegexpTextU32sCfg, .regexp = args->pattern,
                        .text_u32s = characters, .length = *count, .at = at, .groups = span))
         {
             const unsigned int group = ((args->pattern->groups != 0u) && span[1].set) ? 1u : 0u;
@@ -172,13 +172,12 @@ EMBED_INLINE int cli_tables_matches(const PluginsTablesCtx *args)
 // groups than CLI_TABLES_GROUPS holds
 EMBED_INLINE int cli_tables_pattern_read(const PluginsTablesCtx *args)
 {
-    CliRegexpWorkState *work_state = args->work_state;
+    RegexpWorkState *work_state = args->work_state;
     const char *source = args->source;
     VerbaLinea *err_msg = args->err_msg;
-    EMBED_CALL(cli_regexp_capacity.capacity, CliRegexpWorkStateCfg, .regexp_out = args->pattern_out,
-               .work_state = work_state);
-    if (!EMBED_CALL(cli_regexp_source.read, CliRegexpSourceCfg, .regexp_out = args->pattern_out, .source = source,
-                    .flags = "", .err_msg = err_msg))
+    EMBED_CALL(regexp_capacity.capacity, RegexpWorkStateCfg, .regexp_out = args->pattern_out, .work_state = work_state);
+    if (!EMBED_CALL(regexp_source.read, RegexpSourceCfg, .regexp_out = args->pattern_out, .source = source, .flags = "",
+                    .err_msg = err_msg))
     {
         return 0;
     }
@@ -215,7 +214,7 @@ EMBED_INLINE void cli_tables_word(const PluginsTablesCtx *args)
     }
     else
     {
-        count = EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = args->cell, .size = length,
+        count = EMBED_CALL(regexp_text.characters, RegexpTextCfg, .text = args->cell, .size = length,
                            .characters = characters, .capacity_u64 = CLI_TABLES_CHARACTERS);
         to = count;
     }
@@ -331,8 +330,8 @@ EMBED_INLINE int cli_tables_list_write(const PluginsTablesCtx *args)
     const char *name = args->name;
     VerbaLinea *out = args->out;
     char path[CLI_PATH_MAX_LEN];
-    CliRegexpWorkState *const work_state =
-        g_cli_guard->temporary_buf_alloc(CLI_TABLES_PATTERNS * sizeof(CliRegexpWorkState), g_cli_plugins_owner);
+    RegexpWorkState *const work_state =
+        g_cli_guard->temporary_buf_alloc(CLI_TABLES_PATTERNS * sizeof(RegexpWorkState), g_cli_plugins_owner);
     if (work_state == NULL)
     {
         mmgr_line_put(args->err_msg, "a table's patterns could not be given a cell");
@@ -618,7 +617,7 @@ typedef struct
     const CliJson *json;
     unsigned int unless;
     unsigned int column;
-    const CliRegexp *pattern;
+    const Regexp *pattern;
     int matched;
 } CliTablesUnless;
 
@@ -683,11 +682,11 @@ int cli_plugins_folder_exists(const CliPluginsJsonCfg *args)
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
                                       .object = unless, .name = "match"),
                    .length_pointer = NULL);
-    CliRegexpWorkState *const work_state =
-        (source != NULL) ? g_cli_guard->temporary_buf_alloc(sizeof(CliRegexpWorkState), g_cli_plugins_owner) : NULL;
+    RegexpWorkState *const work_state =
+        (source != NULL) ? g_cli_guard->temporary_buf_alloc(sizeof(RegexpWorkState), g_cli_plugins_owner) : NULL;
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-    CliRegexp pattern;
+    Regexp pattern;
     const int read =
         (work_state != NULL) && EMBED_CALL(cli_tables_pattern_read, PluginsTablesCtx, .pattern_out = &pattern,
                                            .work_state = work_state, .source = source, .err_msg = &err_msg);

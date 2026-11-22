@@ -3,8 +3,8 @@
 // python_paths_parse.c: an expression read from a script's text as the Python paths reading takes it: names,
 // strings, whole numbers, tuples and lists, attributes, calls, indexes and slices, `/` and `+`; a keyword argument's
 // name is passed over
+#include "../../../../includes/regexp/regexp.h"
 #include "../editor/files_internal.h"
-#include "../text/regexp.h"
 #include "../text/text.h"
 #include "python_paths_internal.h"
 
@@ -103,9 +103,10 @@ EMBED_INLINE int cli_character_is(const PythonPathsParseCtx *args)
 // whitespace and line joins passed over
 static void cli_blank(void)
 {
-    while ((g_cli_py.at < g_cli_py.characters) && (EMBED_CALL(cli_files_character_internal.fuzzy_white, CliFilesLetterCtx,
-                                                           .character = g_cli_py.character[g_cli_py.at]) ||
-                                                (g_cli_py.character[g_cli_py.at] == '\\')))
+    while ((g_cli_py.at < g_cli_py.characters) &&
+           (EMBED_CALL(cli_files_character_internal.fuzzy_white, CliFilesLetterCtx,
+                       .character = g_cli_py.character[g_cli_py.at]) ||
+            (g_cli_py.character[g_cli_py.at] == '\\')))
     {
         g_cli_py.at += 1u;
     }
@@ -128,8 +129,8 @@ EMBED_INLINE int cli_word(const PythonPathsParseCtx *args)
 {
     unsigned int *start = args->start;
     *start = g_cli_py.at;
-    while ((g_cli_py.at < g_cli_py.characters) &&
-           EMBED_CALL(cli_files_character_internal.hit_wordy, CliFilesLetterCtx, .character = g_cli_py.character[g_cli_py.at]))
+    while ((g_cli_py.at < g_cli_py.characters) && EMBED_CALL(cli_files_character_internal.hit_wordy, CliFilesLetterCtx,
+                                                             .character = g_cli_py.character[g_cli_py.at]))
     {
         g_cli_py.at += 1u;
     }
@@ -175,8 +176,9 @@ EMBED_INLINE int cli_list(const PythonPathsParseCtx *args)
         if (EMBED_CALL(cli_word, PythonPathsParseCtx, .start = &word_text))
         {
             cli_blank();
-            const int keyword = EMBED_CALL(cli_character_is, PythonPathsParseCtx, .at = g_cli_py.at, .character = '=') &&
-                                !EMBED_CALL(cli_character_is, PythonPathsParseCtx, .at = g_cli_py.at + 1u, .character = '=');
+            const int keyword =
+                EMBED_CALL(cli_character_is, PythonPathsParseCtx, .at = g_cli_py.at, .character = '=') &&
+                !EMBED_CALL(cli_character_is, PythonPathsParseCtx, .at = g_cli_py.at + 1u, .character = '=');
             g_cli_py.at = keyword ? (g_cli_py.at + 1u) : start;
         }
         const unsigned int item = cli_expr();
@@ -392,7 +394,7 @@ unsigned int cli_py_parse(const CliPythonPathsTextCtx *args)
 {
     // a character count is below the reading's max, which an unsigned int stores
     g_cli_py.characters =
-        (unsigned int)EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = args->text, .size = args->length,
+        (unsigned int)EMBED_CALL(regexp_text.characters, RegexpTextCfg, .text = args->text, .size = args->length,
                                  .characters = g_cli_py.character, .capacity_u64 = g_cli_py.characters_max);
     g_cli_py.at = 0u;
     g_cli_py.stacked = 0u;

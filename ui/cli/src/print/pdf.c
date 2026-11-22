@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pdf.c: the pages arranged as a PDF of orior's own writing: PDF 1.4, its text in the Courier faces every PDF reader
-// contains, regular, bold, oblique and bold oblique, encoded as WinAnsi, a character that has no place there written as a
-// question mark. Only the pages the layout names are written
+// contains, regular, bold, oblique and bold oblique, encoded as WinAnsi, a character that has no place there written as
+// a question mark. Only the pages the layout names are written
 #include "../../../../includes/arith/arith.h"
-#include "../text/regexp.h"
+#include "../../../../includes/regexp/regexp.h"
 #include "print.h"
 
 // the bytes a page's contents are taken with
@@ -44,7 +44,8 @@ typedef struct
 // A character as WinAnsi writes it, '?' where it has no place there
 EMBED_INLINE unsigned char cli_win_ansi(const PdfCtx *args)
 {
-    if (((args->character >= 0x20u) && (args->character <= 0x7eu)) || ((args->character >= 0xa0u) && (args->character <= 0xffu)))
+    if (((args->character >= 0x20u) && (args->character <= 0x7eu)) ||
+        ((args->character >= 0xa0u) && (args->character <= 0xffu)))
     {
         // a character of Latin-1 is its one byte
         return (unsigned char)args->character;
@@ -79,7 +80,7 @@ EMBED_INLINE void cli_string(const PdfCtx *args)
         }
         const unsigned long long piece = (cut > 0ULL) ? cut : max;
         const unsigned long long count =
-            EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = text + done, .size = piece,
+            EMBED_CALL(regexp_text.characters, RegexpTextCfg, .text = text + done, .size = piece,
                        .characters = s_characters, .capacity_u64 = CLI_PATH_MAX_LEN * 4u);
         for (unsigned long long at = 0ULL; at < count; at += 1ULL)
         {
@@ -110,9 +111,9 @@ EMBED_INLINE void cli_text_string(const PdfCtx *args)
     static unsigned int s_characters[CLI_PATH_MAX_LEN];
     mmgr_line_put(args->out, "<FEFF");
     const unsigned long long count =
-        EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = text,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES}), .characters = s_characters,
-                   .capacity_u64 = CLI_PATH_MAX_LEN);
+        EMBED_CALL(regexp_text.characters, RegexpTextCfg, .text = text,
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES}),
+                   .characters = s_characters, .capacity_u64 = CLI_PATH_MAX_LEN);
     for (unsigned long long at = 0ULL; at < count; at += 1ULL)
     {
         const unsigned int character = s_characters[at];
@@ -316,8 +317,8 @@ void cli_print_pdf(const CliPrintLayoutListingOutCfg *args)
         mmgr_line_decimal(args->out, page + 1u, 1u);
         mmgr_line_put(args->out, " 0 R >>\nendobj\n");
         cli_grown_reset(&content);
-        EMBED_CALL(cli_content, PdfCtx, .positioned = positioned, .page = printed[at], .height = height, .gray = args->layout->gray,
-                   .out = &content.line);
+        EMBED_CALL(cli_content, PdfCtx, .positioned = positioned, .page = printed[at], .height = height,
+                   .gray = args->layout->gray, .out = &content.line);
         const unsigned long long length = mmgr_line_ok(&content.line) ? cli_grown_size(&content) : 0ULL;
         EMBED_CALL(cli_object, PdfCtx, .out = args->out, .offsets = offsets, .number = page + 1u);
         mmgr_line_put(args->out, "<< /Length ");

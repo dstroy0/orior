@@ -114,17 +114,15 @@ EMBED_INLINE void *cli_position(const HighlightStoreCtx *args)
 EMBED_INLINE unsigned long long cli_layout(const HighlightStoreCtx *args)
 {
     unsigned long long at = 0ULL;
-    args->grammar->node =
-        (CliRegexpNode *)EMBED_CALL(cli_position, HighlightStoreCtx, .region = args->region, .at = at);
-    at += EMBED_CALL(cli_words_get, HighlightStoreCtx, .bytes = args->grammar->nodes * sizeof(CliRegexpNode));
-    args->grammar->item =
-        (CliRegexpItem *)EMBED_CALL(cli_position, HighlightStoreCtx, .region = args->region, .at = at);
-    at += EMBED_CALL(cli_words_get, HighlightStoreCtx, .bytes = args->grammar->items * sizeof(CliRegexpItem));
+    args->grammar->node = (RegexpNode *)EMBED_CALL(cli_position, HighlightStoreCtx, .region = args->region, .at = at);
+    at += EMBED_CALL(cli_words_get, HighlightStoreCtx, .bytes = args->grammar->nodes * sizeof(RegexpNode));
+    args->grammar->item = (RegexpItem *)EMBED_CALL(cli_position, HighlightStoreCtx, .region = args->region, .at = at);
+    at += EMBED_CALL(cli_words_get, HighlightStoreCtx, .bytes = args->grammar->items * sizeof(RegexpItem));
     args->grammar->part = (unsigned int *)EMBED_CALL(cli_position, HighlightStoreCtx, .region = args->region, .at = at);
     at += EMBED_CALL(cli_words_get, HighlightStoreCtx, .bytes = args->grammar->parts * sizeof(unsigned int));
     args->grammar->part_first =
-        (CliRegexpFirst *)EMBED_CALL(cli_position, HighlightStoreCtx, .region = args->region, .at = at);
-    at += EMBED_CALL(cli_words_get, HighlightStoreCtx, .bytes = args->grammar->parts * sizeof(CliRegexpFirst));
+        (RegexpFirst *)EMBED_CALL(cli_position, HighlightStoreCtx, .region = args->region, .at = at);
+    at += EMBED_CALL(cli_words_get, HighlightStoreCtx, .bytes = args->grammar->parts * sizeof(RegexpFirst));
     args->grammar->rule =
         (CliHighlightRule *)EMBED_CALL(cli_position, HighlightStoreCtx, .region = args->region, .at = at);
     at += EMBED_CALL(cli_words_get, HighlightStoreCtx, .bytes = args->grammar->rules * sizeof(CliHighlightRule));
@@ -160,13 +158,13 @@ EMBED_INLINE void cli_copy(const HighlightStoreCtx *args)
     *copy = *args->read;
     EMBED_CALL(cli_layout, HighlightStoreCtx, .grammar = copy, .region = args->region);
     memor.cpy(
-        &(MemoriaCfg){.dst = copy->node, .src = args->read->node, .bytes = args->read->nodes * sizeof(CliRegexpNode)});
+        &(MemoriaCfg){.dst = copy->node, .src = args->read->node, .bytes = args->read->nodes * sizeof(RegexpNode)});
     memor.cpy(
-        &(MemoriaCfg){.dst = copy->item, .src = args->read->item, .bytes = args->read->items * sizeof(CliRegexpItem)});
+        &(MemoriaCfg){.dst = copy->item, .src = args->read->item, .bytes = args->read->items * sizeof(RegexpItem)});
     memor.cpy(
         &(MemoriaCfg){.dst = copy->part, .src = args->read->part, .bytes = args->read->parts * sizeof(unsigned int)});
     memor.cpy(&(MemoriaCfg){
-        .dst = copy->part_first, .src = args->read->part_first, .bytes = args->read->parts * sizeof(CliRegexpFirst)});
+        .dst = copy->part_first, .src = args->read->part_first, .bytes = args->read->parts * sizeof(RegexpFirst)});
     memor.cpy(&(MemoriaCfg){
         .dst = copy->rule, .src = args->read->rule, .bytes = args->read->rules * sizeof(CliHighlightRule)});
     memor.cpy(&(MemoriaCfg){
@@ -438,14 +436,14 @@ EMBED_INLINE unsigned long long cli_grammar_parts(const HighlightStoreCtx *args)
 {
     unsigned long long at = 0ULL;
     args->work_state->node = EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
-                                        .bytes = args->work_state->nodes_max * sizeof(CliRegexpNode));
+                                        .bytes = args->work_state->nodes_max * sizeof(RegexpNode));
     args->work_state->item = EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
-                                        .bytes = args->work_state->items_max * sizeof(CliRegexpItem));
+                                        .bytes = args->work_state->items_max * sizeof(RegexpItem));
     args->work_state->part = EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
                                         .bytes = args->work_state->parts_max * sizeof(unsigned int));
     args->work_state->part_first =
         EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
-                   .bytes = args->work_state->parts_max * sizeof(CliRegexpFirst));
+                   .bytes = args->work_state->parts_max * sizeof(RegexpFirst));
     args->work_state->rule = EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
                                         .bytes = args->work_state->rules_max * sizeof(CliHighlightRule));
     args->work_state->token = EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
@@ -472,7 +470,7 @@ EMBED_INLINE unsigned long long cli_grammar_parts(const HighlightStoreCtx *args)
         EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
                    .bytes = args->work_state->states_max * sizeof(CliHighlightList));
     args->work_state->pattern = EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell,
-                                           .at_pointer = &at, .bytes = sizeof(CliRegexpWorkState));
+                                           .at_pointer = &at, .bytes = sizeof(RegexpWorkState));
     return at;
 }
 

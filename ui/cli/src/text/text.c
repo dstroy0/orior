@@ -3,8 +3,8 @@
 // text.c: a text of UTF-8 read character by character. A byte that starts no character, or a character cut short, is
 // read as one character of its own byte
 #include "text.h"
+#include "../../../../includes/regexp/regexp.h"
 #include "json_tree.h"
-#include "regexp.h"
 
 #include "../../../includes/utf8/utf8.h"
 #include "cellularum_laboro/cellularum_laboro.h"
@@ -38,8 +38,7 @@ int cli_text_alphabetic(const CliTextCfg *args)
     {
         return ((character >= 'a') && (character <= 'z')) || ((character >= 'A') && (character <= 'Z'));
     }
-    return EMBED_CALL(cli_regexp_character.property, CliRegexpLetterCfg, .property = CLI_REGEXP_CHARACTER,
-                      .character = character);
+    return EMBED_CALL(regexp_character.property, RegexpLetterCfg, .property = REGEXP_CHARACTER, .character = character);
 }
 
 int cli_text_alphanumeric(const CliTextCfg *args)
@@ -50,10 +49,9 @@ int cli_text_alphanumeric(const CliTextCfg *args)
         return EMBED_CALL(cli_text_table.alphabetic, CliTextCfg, .character = character) ||
                ((character >= '0') && (character <= '9'));
     }
-    return EMBED_CALL(cli_regexp_character.property, CliRegexpLetterCfg, .property = CLI_REGEXP_CHARACTER,
+    return EMBED_CALL(regexp_character.property, RegexpLetterCfg, .property = REGEXP_CHARACTER,
                       .character = character) ||
-           EMBED_CALL(cli_regexp_character.property, CliRegexpLetterCfg, .property = CLI_REGEXP_NUMBER,
-                      .character = character);
+           EMBED_CALL(regexp_character.property, RegexpLetterCfg, .property = REGEXP_NUMBER, .character = character);
 }
 
 typedef struct

@@ -3,10 +3,10 @@
 // files_search.c: every line in the tree's files that contains a query. The files are what git tracks or would track,
 // or the whole tree where git cannot read it. Text is found by the sift: a worker on each core orior's work may take
 // reads the next file into a cell of its size and searches it there; a regular expression is git's to search
+#include "../../../../includes/regexp/regexp.h"
 #include "../code/symbols.h"
 #include "../command_line/callback_cfg.h"
 #include "../machine/cores.h"
-#include "../text/regexp.h"
 #include "../text/text.h"
 #include "embed_atomic.h"
 #include "files_search_hits.h"
@@ -231,8 +231,8 @@ EMBED_INLINE void cli_stores_released(const FilesSearchCtx *args)
 }
 
 // the stores' lines read back in the order of the files: each written, or passed on, where the lines do not are
-// after the search; where they do, positioned in a cell of this call with each file's first line and written once into the
-// located cell, the stores' cells released
+// after the search; where they do, positioned in a cell of this call with each file's first line and written once into
+// the located cell, the stores' cells released
 EMBED_INLINE void cli_search_ordered(const FilesSearchCtx *args)
 {
     VerbaLinea *out = args->out;
@@ -294,10 +294,10 @@ EMBED_INLINE void cli_search_ordered(const FilesSearchCtx *args)
                     file = hit->file;
                 }
                 const CliStandingLine line = {hit->line, hit->col, hit->file, hit->size, text_used};
-                memor.cpy(
-                    &(MemoriaCfg){.dst = positioned + SEARCH_STANDING_LINE_AT(at), .src = &line, .bytes = sizeof(line)});
-                memor.cpy(
-                    &(MemoriaCfg){.dst = positioned + s_search.text_at + text_used, .src = hit->text, .bytes = hit->size});
+                memor.cpy(&(MemoriaCfg){
+                    .dst = positioned + SEARCH_STANDING_LINE_AT(at), .src = &line, .bytes = sizeof(line)});
+                memor.cpy(&(MemoriaCfg){
+                    .dst = positioned + s_search.text_at + text_used, .src = hit->text, .bytes = hit->size});
                 positioned[s_search.text_at + text_used + hit->size] = '\0';
                 text_used += (unsigned long long)hit->size + 1ULL;
                 s_search.found = at + 1u;
@@ -352,8 +352,10 @@ unsigned long long cli_search_located_text(const CliSearchLocatedCfg *args)
     const unsigned long long copied = (args->line->size < args->capacity) ? args->line->size : (args->capacity - 1ULL);
     if ((copied != 0ULL) && (s_search.located_cell != NULL))
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = s_search.located_cell, .offset = s_search.text_at + args->line->text_at, .dst = args->out, .bytes = copied});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_search.located_cell,
+                                                                .offset = s_search.text_at + args->line->text_at,
+                                                                .dst = args->out,
+                                                                .bytes = copied});
     }
     args->out[copied] = '\0';
     return copied;
@@ -383,7 +385,8 @@ const char *cli_search_located_path(const CliSearchLocatedCfg *args)
 {
     CliStandingLine line;
     args->path_out[0] = '\0';
-    if (!cli_search_located_line(&(CliSearchLocatedCfg){.at = cli_search_located_file_first(&(CliSearchLocatedCfg){.file = args->file}), .line_out = &line}))
+    if (!cli_search_located_line(&(CliSearchLocatedCfg){
+            .at = cli_search_located_file_first(&(CliSearchLocatedCfg){.file = args->file}), .line_out = &line}))
     {
         return args->path_out;
     }
@@ -471,7 +474,7 @@ int cli_files_search(const CliFilesRootOutErrMsgCfg *args)
     EMBED_CALL(cli_search_paths, FilesSearchCtx, .root = root, .patterns = &s_patterns, .set = args->set);
     // a character count is below CLI_FUZZY_CHARACTERS, which an unsigned int stores
     const unsigned int characters =
-        (unsigned int)EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = args->query,
+        (unsigned int)EMBED_CALL(regexp_text.characters, RegexpTextCfg, .text = args->query,
                                  .size = cellul.len(&(CatenaFinitaCfg){.src = args->query, .cap = CLI_POOL_BYTES}),
                                  .characters = s_search.lower, .capacity_u64 = CLI_FUZZY_CHARACTERS);
     int ascii = 1;
@@ -479,12 +482,12 @@ int cli_files_search(const CliFilesRootOutErrMsgCfg *args)
                                 .size = cellul.len(&(CatenaFinitaCfg){.src = args->query, .cap = CLI_POOL_BYTES}));
     for (unsigned int at = 0u; at < characters; at += 1u)
     {
-        s_search.lower[at] = EMBED_CALL(cli_regexp_character.lower, CliRegexpLetterCfg, .character = s_search.lower[at]);
+        s_search.lower[at] = EMBED_CALL(regexp_character.lower, RegexpLetterCfg, .character = s_search.lower[at]);
     }
     s_search.needle =
         (CliNeedle){args->query, cellul.len(&(CatenaFinitaCfg){.src = args->query, .cap = CLI_POOL_BYTES}),
                     ascii,       s_search.lower,
-                    characters,     args->how};
+                    characters,  args->how};
     EMBED_ATOMIC_STORE(&s_search.next, 0u);
     EMBED_ATOMIC_STORE(&s_search.workers, 0u);
     EMBED_CALL(cli_search_run, FilesSearchCtx, .out = args->out);

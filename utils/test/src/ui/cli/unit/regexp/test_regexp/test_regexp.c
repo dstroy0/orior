@@ -1,37 +1,40 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// test_regexp.c: patterns: characters, classes and quantifiers, sticky matches with anchors and boundaries, alternation, groups, lookahead
-// and laziness, backreferences and case, Unicode's properties under the u flag, refused syntax, a string of any length taken a pass at a
-// time, and a pattern that goes too deep or runs away gives up. Each runs on the program's own thread, whose stack has room for more than
-// a match may use
-#include "ui/cli/src/text/regexp.h"
+// test_regexp.c: patterns: characters, classes and quantifiers, sticky matches with anchors and boundaries,
+// alternation, groups, lookahead and laziness, backreferences and case, Unicode's properties under the u flag, refused
+// syntax, a string of any length taken a pass at a time, and a pattern that goes too deep or runs away gives up. Each
+// runs on the program's own thread, whose stack has room for more than a match may use
+#include "includes/regexp/regexp.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
 static const char s_string[] = "\"(?:[^\"\\\\]|\\\\.)*\"";
 static const char s_keyed[] = "\"(?:[^\"\\\\]|\\\\.)*\"(?=\\s*:)";
 
-static CliRegexpWorkState s_work_state;
-static CliRegexp s_regexp;
+static RegexpWorkState s_work_state;
+static Regexp s_regexp;
 static unsigned int s_characters[1u << 18u];
 static unsigned long long s_offset[(1u << 18u) + 1u];
-static CliRegexpSpan s_groups[CLI_REGEXP_GROUPS + 1u];
+static RegexpSpan s_groups[REGEXP_GROUPS + 1u];
 static char s_text[1u << 18u];
 static char s_found[1u << 18u];
 
 // `source` with `flags` read: 1, or 0 where it is refused
-static int regexp_read(const char *source, const char *flags)
+static int pattern_read(const char *source, const char *flags)
 {
     char why[512];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    EMBED_CALL(cli_regexp_capacity.capacity, CliRegexpWorkStateCfg, .regexp_out = &s_regexp, .work_state = &s_work_state);
-    return EMBED_CALL(cli_regexp_source.read, CliRegexpSourceCfg, .regexp_out = &s_regexp, .source = source, .flags = flags, .err_msg = &err_msg);
+    EMBED_CALL(regexp_capacity.capacity, RegexpWorkStateCfg, .regexp_out = &s_regexp, .work_state = &s_work_state);
+    return EMBED_CALL(regexp_source.read, RegexpSourceCfg, .regexp_out = &s_regexp, .source = source, .flags = flags,
+                      .err_msg = &err_msg);
 }
 
 // `text` decoded into s_characters, the byte each character starts at into s_offset: the count of characters
 static unsigned long long characters_of(const char *text)
 {
     const unsigned long long size = CLI_UNITY_LENGTH(text);
-    const unsigned long long count = EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = text, .size = size, .characters = s_characters, .capacity_u64 = sizeof(s_characters) / sizeof(s_characters[0]));
+    const unsigned long long count =
+        EMBED_CALL(regexp_text.characters, RegexpTextCfg, .text = text, .size = size, .characters = s_characters,
+                   .capacity_u64 = sizeof(s_characters) / sizeof(s_characters[0]));
     unsigned long long character = 0ull;
     for (unsigned long long at = 0ull; at < size; at += 1ull)
     {
@@ -45,11 +48,15 @@ static unsigned long long characters_of(const char *text)
     return count;
 }
 
-// the match of `source` with `flags` at character `from` of `text`, into s_found: 1 with the characters it uses in `taken`, or 0 where none matches
-static int matched_at(const char *source, const char *flags, const char *text, unsigned long long from, unsigned long long *taken)
+// the match of `source` with `flags` at character `from` of `text`, into s_found: 1 with the characters it uses in
+// `taken`, or 0 where none matches
+static int matched_at(const char *source, const char *flags, const char *text, unsigned long long from,
+                      unsigned long long *taken)
 {
     const unsigned long long count = characters_of(text);
-    if (!regexp_read(source, flags) || !EMBED_CALL(cli_regexp_text_u_32s.match_into, CliRegexpTextU32sCfg, .regexp = &s_regexp, .text_u32s = s_characters, .length = count, .at = from, .groups = s_groups))
+    if (!pattern_read(source, flags) ||
+        !EMBED_CALL(regexp_text_u_32s.match_into, RegexpTextU32sCfg, .regexp = &s_regexp, .text_u32s = s_characters,
+                    .length = count, .at = from, .groups = s_groups))
     {
         return 0;
     }
@@ -62,7 +69,8 @@ static int matched_at(const char *source, const char *flags, const char *text, u
 }
 
 // the match of `source` with `flags` at character `from` of `text` is `wanted`
-static void assert_match(const char *wanted, const char *source, const char *flags, const char *text, unsigned long long from)
+static void assert_match(const char *wanted, const char *source, const char *flags, const char *text,
+                         unsigned long long from)
 {
     unsigned long long taken = 0ull;
     TEST_ASSERT_TRUE_MESSAGE(matched_at(source, flags, text, from, &taken), source);
@@ -82,8 +90,9 @@ static void assert_groups(const char *wanted, const char *source, const char *te
     const unsigned long long count = characters_of(text);
     char out[256];
     VerbaLinea line = {out, sizeof(out), 0ull};
-    TEST_ASSERT_TRUE(regexp_read(source, ""));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_regexp_text_u_32s.match_into, CliRegexpTextU32sCfg, .regexp = &s_regexp, .text_u32s = s_characters, .length = count, .at = 0ull, .groups = s_groups));
+    TEST_ASSERT_TRUE(pattern_read(source, ""));
+    TEST_ASSERT_TRUE(EMBED_CALL(regexp_text_u_32s.match_into, RegexpTextU32sCfg, .regexp = &s_regexp,
+                                .text_u32s = s_characters, .length = count, .at = 0ull, .groups = s_groups));
     for (unsigned int group = 0u; group <= s_regexp.groups; group += 1u)
     {
         mmgr_line_put(&line, (group > 0u) ? "|" : "");
@@ -338,32 +347,32 @@ void test_with_no_u_flag_a_property_is_literal(void)
 
 void test_lookbehind_is_refused(void)
 {
-    TEST_ASSERT_FALSE(regexp_read("(?<=a)b", ""));
+    TEST_ASSERT_FALSE(pattern_read("(?<=a)b", ""));
 }
 
 void test_a_named_group_is_refused(void)
 {
-    TEST_ASSERT_FALSE(regexp_read("(?<name>a)", ""));
+    TEST_ASSERT_FALSE(pattern_read("(?<name>a)", ""));
 }
 
 void test_a_property_not_read_is_refused(void)
 {
-    TEST_ASSERT_FALSE(regexp_read("\\p{Script=Greek}", "u"));
+    TEST_ASSERT_FALSE(pattern_read("\\p{Script=Greek}", "u"));
 }
 
 void test_an_unclosed_group_is_refused(void)
 {
-    TEST_ASSERT_FALSE(regexp_read("(a", ""));
+    TEST_ASSERT_FALSE(pattern_read("(a", ""));
 }
 
 void test_an_unopened_group_is_refused(void)
 {
-    TEST_ASSERT_FALSE(regexp_read("a)", ""));
+    TEST_ASSERT_FALSE(pattern_read("a)", ""));
 }
 
 void test_a_quantifier_of_nothing_is_refused(void)
 {
-    TEST_ASSERT_FALSE(regexp_read("*a", ""));
+    TEST_ASSERT_FALSE(pattern_read("*a", ""));
 }
 
 void test_a_string_with_escapes_matches(void)
@@ -432,47 +441,51 @@ void test_a_runaway_pattern_gives_up(void)
 }
 
 // whether the ASCII byte `byte` is among the first characters `first`
-static int first_has(const CliRegexpFirst *first, unsigned char byte)
+static int first_has(const RegexpFirst *first, unsigned char byte)
 {
     return (int)((first->ascii[byte >> 6u] >> (byte & 63u)) & 1ull);
 }
 
-// the repeat node of the pattern read whose child is of `child_type`, CLI_REGEXP_NONE where none is
+// the repeat node of the pattern read whose child is of `child_type`, REGEXP_NONE where none is
 static unsigned int repeat_found(unsigned int child_type)
 {
     for (unsigned int at = 0u; at < s_regexp.nodes; at += 1u)
     {
-        if ((s_regexp.node[at].type == CLI_REGEXP_REPEAT) && (s_regexp.node[s_regexp.node[at].child].type == child_type))
+        if ((s_regexp.node[at].type == REGEXP_REPEAT) && (s_regexp.node[s_regexp.node[at].child].type == child_type))
         {
             return at;
         }
     }
-    return CLI_REGEXP_NONE;
+    return REGEXP_NONE;
 }
 
 void test_a_patterns_first_characters_are_read_at_its_root_and_a_plain_run_takes_the_text_one_way(void)
 {
-    TEST_ASSERT_TRUE(regexp_read("[ab]c", ""));
-    const CliRegexpFirst first = EMBED_CALL(cli_regexp_index.first_get, CliRegexpIndexCfg, .regexp = &s_regexp, .index = s_regexp.root);
+    TEST_ASSERT_TRUE(pattern_read("[ab]c", ""));
+    const RegexpFirst first =
+        EMBED_CALL(regexp_index.first_get, RegexpIndexCfg, .regexp = &s_regexp, .index = s_regexp.root);
     TEST_ASSERT_TRUE(first_has(&first, (unsigned char)'a'));
     TEST_ASSERT_TRUE(first_has(&first, (unsigned char)'b'));
     TEST_ASSERT_FALSE(first_has(&first, (unsigned char)'c'));
     TEST_ASSERT_FALSE(first.empty);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_regexp_index.one_way, CliRegexpIndexCfg, .regexp = &s_regexp, .index = s_regexp.root));
+    TEST_ASSERT_TRUE(EMBED_CALL(regexp_index.one_way, RegexpIndexCfg, .regexp = &s_regexp, .index = s_regexp.root));
     // a character node leaves every character outside ASCII to the match
     TEST_ASSERT_TRUE(first.other);
-    TEST_ASSERT_TRUE(regexp_read("a*", ""));
-    const CliRegexpFirst any = EMBED_CALL(cli_regexp_index.first_get, CliRegexpIndexCfg, .regexp = &s_regexp, .index = s_regexp.root);
+    TEST_ASSERT_TRUE(pattern_read("a*", ""));
+    const RegexpFirst any =
+        EMBED_CALL(regexp_index.first_get, RegexpIndexCfg, .regexp = &s_regexp, .index = s_regexp.root);
     TEST_ASSERT_TRUE(first_has(&any, (unsigned char)'a'));
     TEST_ASSERT_TRUE(any.empty);
     // a repeat of one character takes the text one way; a repeat of a group that repeats does not
-    unsigned int repeat = repeat_found(CLI_REGEXP_CHAR);
-    TEST_ASSERT_NOT_EQUAL(CLI_REGEXP_NONE, repeat);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_regexp_index.one_way, CliRegexpIndexCfg, .regexp = &s_regexp, .index = s_regexp.node[repeat].child));
+    unsigned int repeat = repeat_found(REGEXP_CHAR);
+    TEST_ASSERT_NOT_EQUAL(REGEXP_NONE, repeat);
+    TEST_ASSERT_TRUE(
+        EMBED_CALL(regexp_index.one_way, RegexpIndexCfg, .regexp = &s_regexp, .index = s_regexp.node[repeat].child));
     TEST_ASSERT_TRUE(s_regexp.node[repeat].one_way);
-    TEST_ASSERT_TRUE(regexp_read("(a*)+", ""));
-    repeat = repeat_found(CLI_REGEXP_GROUP);
-    TEST_ASSERT_NOT_EQUAL(CLI_REGEXP_NONE, repeat);
-    TEST_ASSERT_FALSE(EMBED_CALL(cli_regexp_index.one_way, CliRegexpIndexCfg, .regexp = &s_regexp, .index = s_regexp.node[repeat].child));
+    TEST_ASSERT_TRUE(pattern_read("(a*)+", ""));
+    repeat = repeat_found(REGEXP_GROUP);
+    TEST_ASSERT_NOT_EQUAL(REGEXP_NONE, repeat);
+    TEST_ASSERT_FALSE(
+        EMBED_CALL(regexp_index.one_way, RegexpIndexCfg, .regexp = &s_regexp, .index = s_regexp.node[repeat].child));
     TEST_ASSERT_FALSE(s_regexp.node[repeat].one_way);
 }

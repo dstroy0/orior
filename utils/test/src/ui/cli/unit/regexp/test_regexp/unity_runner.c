@@ -2,7 +2,7 @@
 
 /*=======Automagically Detected Files To Include=====*/
 #include "unity.h"
-#include "ui/cli/src/text/regexp.h"
+#include "includes/regexp/regexp.h"
 
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
@@ -127,65 +127,65 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("utils/test/src/ui/cli/unit/regexp/test_regexp/test_regexp.c");
-  run_test(test_a_digit_class_repeats, "test_a_digit_class_repeats", 119);
-  run_test(test_a_set_of_ranges_and_a_word_class, "test_a_set_of_ranges_and_a_word_class", 124);
-  run_test(test_a_negated_set_with_escapes, "test_a_negated_set_with_escapes", 129);
-  run_test(test_a_hexadecimal_number_with_a_suffix, "test_a_hexadecimal_number_with_a_suffix", 134);
-  run_test(test_a_bounded_repeat_ends_at_a_boundary, "test_a_bounded_repeat_ends_at_a_boundary", 139);
-  run_test(test_a_bounded_repeat_with_no_boundary_does_not_match, "test_a_bounded_repeat_with_no_boundary_does_not_match", 144);
-  run_test(test_an_exact_repeat, "test_an_exact_repeat", 149);
-  run_test(test_an_open_repeat, "test_an_open_repeat", 154);
-  run_test(test_a_brace_with_no_least_is_literal, "test_a_brace_with_no_least_is_literal", 159);
-  run_test(test_an_escaped_dot_is_a_dot, "test_an_escaped_dot_is_a_dot", 164);
-  run_test(test_a_dot_stops_at_a_line_end, "test_a_dot_stops_at_a_line_end", 169);
-  run_test(test_hexadecimal_and_code_point_escapes, "test_hexadecimal_and_code_point_escapes", 174);
-  run_test(test_a_match_is_sticky_at_its_position, "test_a_match_is_sticky_at_its_position", 179);
-  run_test(test_a_match_does_not_search_ahead, "test_a_match_does_not_search_ahead", 184);
-  run_test(test_a_start_anchor_at_the_start, "test_a_start_anchor_at_the_start", 189);
-  run_test(test_a_start_anchor_past_the_start_does_not_match, "test_a_start_anchor_past_the_start_does_not_match", 194);
-  run_test(test_an_end_anchor_at_the_end, "test_an_end_anchor_at_the_end", 199);
-  run_test(test_an_end_anchor_alone_matches_nothing_at_the_end, "test_an_end_anchor_alone_matches_nothing_at_the_end", 204);
-  run_test(test_word_boundaries_around_a_word, "test_word_boundaries_around_a_word", 209);
-  run_test(test_word_boundaries_inside_a_longer_word_do_not_match, "test_word_boundaries_inside_a_longer_word_do_not_match", 214);
-  run_test(test_optional_groups_read_a_number, "test_optional_groups_read_a_number", 219);
-  run_test(test_a_lookahead_that_holds, "test_a_lookahead_that_holds", 224);
-  run_test(test_a_lookahead_that_fails, "test_a_lookahead_that_fails", 229);
-  run_test(test_a_negative_lookahead_backs_off, "test_a_negative_lookahead_backs_off", 234);
-  run_test(test_the_first_alternative_wins, "test_the_first_alternative_wins", 239);
-  run_test(test_a_lazy_repeat_stops_early, "test_a_lazy_repeat_stops_early", 244);
-  run_test(test_a_greedy_repeat_runs_far, "test_a_greedy_repeat_runs_far", 249);
-  run_test(test_a_repeated_group, "test_a_repeated_group", 254);
-  run_test(test_groups_backtrack_to_a_whole_match, "test_groups_backtrack_to_a_whole_match", 259);
-  run_test(test_a_repeated_repeat_ends, "test_a_repeated_repeat_ends", 264);
-  run_test(test_a_repeat_of_nothing_ends, "test_a_repeat_of_nothing_ends", 269);
-  run_test(test_an_empty_set_matches_nothing, "test_an_empty_set_matches_nothing", 274);
-  run_test(test_a_negated_empty_set_matches_anything, "test_a_negated_empty_set_matches_anything", 279);
-  run_test(test_each_group_reads_its_part, "test_each_group_reads_its_part", 284);
-  run_test(test_a_group_that_took_no_part_is_not_set, "test_a_group_that_took_no_part_is_not_set", 289);
-  run_test(test_a_backreference_with_two_groups, "test_a_backreference_with_two_groups", 294);
-  run_test(test_a_backreference_to_the_opening_quote, "test_a_backreference_to_the_opening_quote", 299);
-  run_test(test_the_case_flag_folds_a_literal, "test_the_case_flag_folds_a_literal", 304);
-  run_test(test_the_case_flag_folds_a_range, "test_the_case_flag_folds_a_range", 309);
-  run_test(test_with_no_case_flag_case_matters, "test_with_no_case_flag_case_matters", 314);
-  run_test(test_character_and_number_properties_under_the_u_flag, "test_character_and_number_properties_under_the_u_flag", 319);
-  run_test(test_a_negated_property, "test_a_negated_property", 324);
-  run_test(test_case_properties, "test_case_properties", 329);
-  run_test(test_with_no_u_flag_a_property_is_literal, "test_with_no_u_flag_a_property_is_literal", 334);
-  run_test(test_lookbehind_is_refused, "test_lookbehind_is_refused", 339);
-  run_test(test_a_named_group_is_refused, "test_a_named_group_is_refused", 344);
-  run_test(test_a_property_not_read_is_refused, "test_a_property_not_read_is_refused", 349);
-  run_test(test_an_unclosed_group_is_refused, "test_an_unclosed_group_is_refused", 354);
-  run_test(test_an_unopened_group_is_refused, "test_an_unopened_group_is_refused", 359);
-  run_test(test_a_quantifier_of_nothing_is_refused, "test_a_quantifier_of_nothing_is_refused", 364);
-  run_test(test_a_string_with_escapes_matches, "test_a_string_with_escapes_matches", 369);
-  run_test(test_a_string_followed_by_a_colon_is_a_key, "test_a_string_followed_by_a_colon_is_a_key", 374);
-  run_test(test_a_string_with_no_colon_is_not_a_key, "test_a_string_with_no_colon_is_not_a_key", 379);
-  run_test(test_a_string_of_any_length_is_taken_a_pass_at_a_time, "test_a_string_of_any_length_is_taken_a_pass_at_a_time", 384);
-  run_test(test_a_repetition_a_pass_at_a_time_matches_as_backtracking_does, "test_a_repetition_a_pass_at_a_time_matches_as_backtracking_does", 399);
-  run_test(test_a_repetition_that_goes_too_deep_gives_up, "test_a_repetition_that_goes_too_deep_gives_up", 412);
-  run_test(test_a_repetition_inside_its_stack_matches, "test_a_repetition_inside_its_stack_matches", 419);
-  run_test(test_a_runaway_pattern_gives_up, "test_a_runaway_pattern_gives_up", 427);
-  run_test(test_a_patterns_first_characters_are_read_at_its_root_and_a_plain_run_takes_the_text_one_way, "test_a_patterns_first_characters_are_read_at_its_root_and_a_plain_run_takes_the_text_one_way", 453);
+  run_test(test_a_digit_class_repeats, "test_a_digit_class_repeats", 128);
+  run_test(test_a_set_of_ranges_and_a_word_class, "test_a_set_of_ranges_and_a_word_class", 133);
+  run_test(test_a_negated_set_with_escapes, "test_a_negated_set_with_escapes", 138);
+  run_test(test_a_hexadecimal_number_with_a_suffix, "test_a_hexadecimal_number_with_a_suffix", 143);
+  run_test(test_a_bounded_repeat_ends_at_a_boundary, "test_a_bounded_repeat_ends_at_a_boundary", 148);
+  run_test(test_a_bounded_repeat_with_no_boundary_does_not_match, "test_a_bounded_repeat_with_no_boundary_does_not_match", 153);
+  run_test(test_an_exact_repeat, "test_an_exact_repeat", 158);
+  run_test(test_an_open_repeat, "test_an_open_repeat", 163);
+  run_test(test_a_brace_with_no_least_is_literal, "test_a_brace_with_no_least_is_literal", 168);
+  run_test(test_an_escaped_dot_is_a_dot, "test_an_escaped_dot_is_a_dot", 173);
+  run_test(test_a_dot_stops_at_a_line_end, "test_a_dot_stops_at_a_line_end", 178);
+  run_test(test_hexadecimal_and_code_point_escapes, "test_hexadecimal_and_code_point_escapes", 183);
+  run_test(test_a_match_is_sticky_at_its_position, "test_a_match_is_sticky_at_its_position", 188);
+  run_test(test_a_match_does_not_search_ahead, "test_a_match_does_not_search_ahead", 193);
+  run_test(test_a_start_anchor_at_the_start, "test_a_start_anchor_at_the_start", 198);
+  run_test(test_a_start_anchor_past_the_start_does_not_match, "test_a_start_anchor_past_the_start_does_not_match", 203);
+  run_test(test_an_end_anchor_at_the_end, "test_an_end_anchor_at_the_end", 208);
+  run_test(test_an_end_anchor_alone_matches_nothing_at_the_end, "test_an_end_anchor_alone_matches_nothing_at_the_end", 213);
+  run_test(test_word_boundaries_around_a_word, "test_word_boundaries_around_a_word", 218);
+  run_test(test_word_boundaries_inside_a_longer_word_do_not_match, "test_word_boundaries_inside_a_longer_word_do_not_match", 223);
+  run_test(test_optional_groups_read_a_number, "test_optional_groups_read_a_number", 228);
+  run_test(test_a_lookahead_that_holds, "test_a_lookahead_that_holds", 233);
+  run_test(test_a_lookahead_that_fails, "test_a_lookahead_that_fails", 238);
+  run_test(test_a_negative_lookahead_backs_off, "test_a_negative_lookahead_backs_off", 243);
+  run_test(test_the_first_alternative_wins, "test_the_first_alternative_wins", 248);
+  run_test(test_a_lazy_repeat_stops_early, "test_a_lazy_repeat_stops_early", 253);
+  run_test(test_a_greedy_repeat_runs_far, "test_a_greedy_repeat_runs_far", 258);
+  run_test(test_a_repeated_group, "test_a_repeated_group", 263);
+  run_test(test_groups_backtrack_to_a_whole_match, "test_groups_backtrack_to_a_whole_match", 268);
+  run_test(test_a_repeated_repeat_ends, "test_a_repeated_repeat_ends", 273);
+  run_test(test_a_repeat_of_nothing_ends, "test_a_repeat_of_nothing_ends", 278);
+  run_test(test_an_empty_set_matches_nothing, "test_an_empty_set_matches_nothing", 283);
+  run_test(test_a_negated_empty_set_matches_anything, "test_a_negated_empty_set_matches_anything", 288);
+  run_test(test_each_group_reads_its_part, "test_each_group_reads_its_part", 293);
+  run_test(test_a_group_that_took_no_part_is_not_set, "test_a_group_that_took_no_part_is_not_set", 298);
+  run_test(test_a_backreference_with_two_groups, "test_a_backreference_with_two_groups", 303);
+  run_test(test_a_backreference_to_the_opening_quote, "test_a_backreference_to_the_opening_quote", 308);
+  run_test(test_the_case_flag_folds_a_literal, "test_the_case_flag_folds_a_literal", 313);
+  run_test(test_the_case_flag_folds_a_range, "test_the_case_flag_folds_a_range", 318);
+  run_test(test_with_no_case_flag_case_matters, "test_with_no_case_flag_case_matters", 323);
+  run_test(test_character_and_number_properties_under_the_u_flag, "test_character_and_number_properties_under_the_u_flag", 328);
+  run_test(test_a_negated_property, "test_a_negated_property", 333);
+  run_test(test_case_properties, "test_case_properties", 338);
+  run_test(test_with_no_u_flag_a_property_is_literal, "test_with_no_u_flag_a_property_is_literal", 343);
+  run_test(test_lookbehind_is_refused, "test_lookbehind_is_refused", 348);
+  run_test(test_a_named_group_is_refused, "test_a_named_group_is_refused", 353);
+  run_test(test_a_property_not_read_is_refused, "test_a_property_not_read_is_refused", 358);
+  run_test(test_an_unclosed_group_is_refused, "test_an_unclosed_group_is_refused", 363);
+  run_test(test_an_unopened_group_is_refused, "test_an_unopened_group_is_refused", 368);
+  run_test(test_a_quantifier_of_nothing_is_refused, "test_a_quantifier_of_nothing_is_refused", 373);
+  run_test(test_a_string_with_escapes_matches, "test_a_string_with_escapes_matches", 378);
+  run_test(test_a_string_followed_by_a_colon_is_a_key, "test_a_string_followed_by_a_colon_is_a_key", 383);
+  run_test(test_a_string_with_no_colon_is_not_a_key, "test_a_string_with_no_colon_is_not_a_key", 388);
+  run_test(test_a_string_of_any_length_is_taken_a_pass_at_a_time, "test_a_string_of_any_length_is_taken_a_pass_at_a_time", 393);
+  run_test(test_a_repetition_a_pass_at_a_time_matches_as_backtracking_does, "test_a_repetition_a_pass_at_a_time_matches_as_backtracking_does", 408);
+  run_test(test_a_repetition_that_goes_too_deep_gives_up, "test_a_repetition_that_goes_too_deep_gives_up", 421);
+  run_test(test_a_repetition_inside_its_stack_matches, "test_a_repetition_inside_its_stack_matches", 428);
+  run_test(test_a_runaway_pattern_gives_up, "test_a_runaway_pattern_gives_up", 436);
+  run_test(test_a_patterns_first_characters_are_read_at_its_root_and_a_plain_run_takes_the_text_one_way, "test_a_patterns_first_characters_are_read_at_its_root_and_a_plain_run_takes_the_text_one_way", 462);
 
   return UNITY_END();
 }

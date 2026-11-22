@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // files_hits.c: the lines of one file that contain a search's query, the first place on each line it is, at max
 // CLI_HITS_MAX of them, and the text of a found line as a hit retains it
+#include "../../../../includes/regexp/regexp.h"
 #include "../command_line/callback_cfg.h"
 #include "../text/json_tree.h"
-#include "../text/regexp.h"
 #include "../text/sift.h"
 #include "../text/text.h"
 #include "files_internal.h"
@@ -41,9 +41,9 @@ unsigned long long cli_hit_cut(const CliFilesPathCtx *args)
 int cli_hit_wordy(const CliFilesLetterCtx *args)
 {
     return (args->character == '_') ||
-           EMBED_CALL(cli_regexp_character.property, CliRegexpLetterCfg, .property = CLI_REGEXP_CHARACTER,
+           EMBED_CALL(regexp_character.property, RegexpLetterCfg, .property = REGEXP_CHARACTER,
                       .character = args->character) ||
-           EMBED_CALL(cli_regexp_character.property, CliRegexpLetterCfg, .property = CLI_REGEXP_NUMBER,
+           EMBED_CALL(regexp_character.property, RegexpLetterCfg, .property = REGEXP_NUMBER,
                       .character = args->character);
 }
 
@@ -147,8 +147,7 @@ EMBED_INLINE int cli_lower_at(const FilesHitsCtx *args)
         unsigned int character = 0u;
         at += EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg, .text_bytes = args->line,
                          .length = args->size, .at = at, .character = &character);
-        if (EMBED_CALL(cli_regexp_character.lower, CliRegexpLetterCfg, .character = character) !=
-            args->needle->lower[index])
+        if (EMBED_CALL(regexp_character.lower, RegexpLetterCfg, .character = character) != args->needle->lower[index])
         {
             return 0;
         }
@@ -163,7 +162,7 @@ EMBED_INLINE void cli_on_step(const FilesHitsCtx *args)
     args->step->at += EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg, .text_bytes = args->line,
                                  .length = args->size, .at = args->step->at, .character = &character);
     args->step->character_at += 1ULL;
-    args->step->last = EMBED_CALL(cli_regexp_character.lower, CliRegexpLetterCfg, .character = character);
+    args->step->last = EMBED_CALL(regexp_character.lower, RegexpLetterCfg, .character = character);
 }
 
 // the first place on the line the query is in its lower case, a whole word where one is requested: 1 with its
@@ -193,7 +192,7 @@ EMBED_INLINE int cli_line_match(const FilesHitsCtx *args)
              EMBED_CALL(cli_files_character_internal.hit_wordy, CliFilesLetterCtx, .character = step.last)) ||
             (has_next &&
              EMBED_CALL(cli_files_character_internal.hit_wordy, CliFilesLetterCtx,
-                        .character = EMBED_CALL(cli_regexp_character.lower, CliRegexpLetterCfg, .character = next)));
+                        .character = EMBED_CALL(regexp_character.lower, RegexpLetterCfg, .character = next)));
         if (!args->needle->how.word_text || !joined)
         {
             *col = step.character_at + 1ULL;

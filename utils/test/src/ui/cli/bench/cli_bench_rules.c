@@ -1,24 +1,25 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// cli_bench_rules.c: the C grammar's root rules, each read as a pattern of its own and tried at every character of every
-// loaded file as the colorer tries it, the characters moved past a match; a row a rule, named by the pattern's start
+// cli_bench_rules.c: the C grammar's root rules, each read as a pattern of its own and tried at every character of
+// every loaded file as the colorer tries it, the characters moved past a match; a row a rule, named by the pattern's
+// start
+#include "../../../../../../includes/regexp/regexp.h"
 #include "../../../../../../ui/cli/src/editor/highlight.h"
 #include "../../../../../../ui/cli/src/text/json_tree.h"
-#include "../../../../../../ui/cli/src/text/regexp.h"
 #include "bench.h"
 
 #include <stdio.h>
 
 #define BENCH_RULE_NAME 28u
 
-static CliRegexpWorkState s_work_state;
+static RegexpWorkState s_work_state;
 
 // the pattern tried over `count` loaded files, the characters decoded into `characters` each time: the measure
-static BenchMeasure rules_tried(const CliRegexp *regexp, const BenchFile *files, unsigned int count,
-                                unsigned int repeat, unsigned int *characters, unsigned long long *matched)
+static BenchMeasure rules_tried(const Regexp *regexp, const BenchFile *files, unsigned int count, unsigned int repeat,
+                                unsigned int *characters, unsigned long long *matched)
 {
     BenchMeasure measure = {0ull, ~0ull};
-    CliRegexpSpan groups[CLI_REGEXP_GROUPS + 1u];
+    RegexpSpan groups[REGEXP_GROUPS + 1u];
     for (unsigned int round = 0u; round < repeat; round += 1u)
     {
         unsigned long long bytes = 0ull;
@@ -31,10 +32,12 @@ static BenchMeasure rules_tried(const CliRegexp *regexp, const BenchFile *files,
                 continue;
             }
             const unsigned long long length =
-                EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = (const char *)files[file].bytes, .size = files[file].size, .characters = characters, .capacity_u64 = files[file].size);
+                EMBED_CALL(regexp_text.characters, RegexpTextCfg, .text = (const char *)files[file].bytes,
+                           .size = files[file].size, .characters = characters, .capacity_u64 = files[file].size);
             for (unsigned long long at = 0ull; at < length;)
             {
-                const int found = EMBED_CALL(cli_regexp_text_u_32s.match_into, CliRegexpTextU32sCfg, .regexp = regexp, .text_u32s = characters, .length = length, .at = at, .groups = groups);
+                const int found = EMBED_CALL(regexp_text_u_32s.match_into, RegexpTextU32sCfg, .regexp = regexp,
+                                             .text_u32s = characters, .length = length, .at = at, .groups = groups);
                 const unsigned long long span = (found && groups[0].set) ? (groups[0].to - groups[0].from) : 0ull;
                 hits += found ? 1ull : 0ull;
                 at += (span > 0ull) ? span : 1ull;
@@ -74,7 +77,8 @@ static const BenchCutDown s_cut_down[5] = {
 static void rules_cut_down(const CliJson *json, unsigned int grammar, const BenchFile *files, unsigned int count,
                            unsigned int repeat, unsigned long long largest)
 {
-    const unsigned int tokenizer = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = grammar, .name = "tokenizer");
+    const unsigned int tokenizer = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                              .object = grammar, .name = "tokenizer");
     for (unsigned int at = 0u; at < 5u; at += 1u)
     {
         const unsigned long long created_capacity = 1ull << 16u;
@@ -85,23 +89,41 @@ static void rules_cut_down(const CliJson *json, unsigned int grammar, const Benc
             return;
         }
         mmgr_line_put(&made, "{\"words\":");
-        EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = grammar, .name = "words"), .out = &made, .indent = 0u, .sorted = 0);
+        EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = grammar, .name = "words"),
+                   .out = &made, .indent = 0u, .sorted = 0);
         mmgr_line_put(&made, ",\"types\":");
-        EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = grammar, .name = "types"), .out = &made, .indent = 0u, .sorted = 0);
+        EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = grammar, .name = "types"),
+                   .out = &made, .indent = 0u, .sorted = 0);
         mmgr_line_put(&made, ",\"tokenizer\":{\"root\":");
         mmgr_line_put(&made, s_cut_down[at].rules);
         mmgr_line_put(&made, ",\"whitespace\":");
-        EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = tokenizer, .name = "whitespace"), .out = &made, .indent = 0u, .sorted = 0);
+        EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = tokenizer, .name = "whitespace"),
+                   .out = &made, .indent = 0u, .sorted = 0);
         mmgr_line_put(&made, ",\"comment\":");
-        EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = tokenizer, .name = "comment"), .out = &made, .indent = 0u, .sorted = 0);
+        EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = tokenizer, .name = "comment"),
+                   .out = &made, .indent = 0u, .sorted = 0);
         mmgr_line_put(&made, ",\"string\":");
-        EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = tokenizer, .name = "string"), .out = &made, .indent = 0u, .sorted = 0);
+        EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                      .object = tokenizer, .name = "string"),
+                   .out = &made, .indent = 0u, .sorted = 0);
         mmgr_line_put(&made, "}}");
         CliJson cut;
         char why[CLI_ERR_MSG_MAX_LEN];
         VerbaLinea err_msg = {why, sizeof(why), 0ull};
-        const unsigned int top = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &cut, .text = made.out, .size = made.at, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = g_checks_owner);
-        if ((top != CLI_JSON_NONE) && EMBED_CALL(cli_highlight_key_json.store, CliHighlightKeyJsonCfg, .key = "bench-cut", .json = &cut, .def = top, .err_msg = &err_msg))
+        const unsigned int top = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
+                                            .json = &cut, .text = made.out, .size = made.at, .nodes_more = 0u,
+                                            .text_more = 0ull, .err_msg = &err_msg, .owner = g_checks_owner);
+        if ((top != CLI_JSON_NONE) && EMBED_CALL(cli_highlight_key_json.store, CliHighlightKeyJsonCfg,
+                                                 .key = "bench-cut", .json = &cut, .def = top, .err_msg = &err_msg))
         {
             bench_row(s_cut_down[at].name, bench_colored("bench-cut", files, count, repeat, largest));
         }
@@ -109,8 +131,7 @@ static void rules_cut_down(const CliJson *json, unsigned int grammar, const Benc
         {
             printf("%s\tnot cached: %.*s\n", s_cut_down[at].name, (int)err_msg.at, why);
         }
-        g_cli_guard->persistent_buf_release(cut.node,
-                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), cut.node));
+        g_cli_guard->persistent_buf_release(cut.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), cut.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&cut),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         g_cli_guard->persistent_buf_release(made.out, g_checks_owner);
@@ -121,9 +142,11 @@ void bench_rules(const char *root, const BenchFile *files, unsigned int count, u
                  unsigned long long largest)
 {
     char path[CLI_PATH_MAX_LEN];
-    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = "ui/plugins/c/plugin.json", .joined = path);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = "ui/plugins/c/plugin.json",
+               .joined = path);
     unsigned long long size = 0ull;
-    const unsigned char *const text = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path, .size_pointer = &size, .owner = g_checks_owner);
+    const unsigned char *const text = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
+                                                 .size_pointer = &size, .owner = g_checks_owner);
     if (text == NULL)
     {
         return;
@@ -131,17 +154,34 @@ void bench_rules(const char *root, const BenchFile *files, unsigned int count, u
     CliJson json;
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const unsigned int top = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json, .text = (const char *)text, .size = size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = g_checks_owner);
-    const unsigned int grammar = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json, .object = top, .name = "grammar");
-    const unsigned int rules = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json, .object = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json, .object = grammar, .name = "tokenizer"), .name = "root");
-    const int fold = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json, .object = grammar, .name = "ignoreCase"), .type = CFG_JSON_TRUE);
+    const unsigned int top = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
+                                        .json = &json, .text = (const char *)text, .size = size, .nodes_more = 0u,
+                                        .text_more = 0ull, .err_msg = &err_msg, .owner = g_checks_owner);
+    const unsigned int grammar = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                                            .object = top, .name = "grammar");
+    const unsigned int rules =
+        EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                   .object = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                                        .object = grammar, .name = "tokenizer"),
+                   .name = "root");
+    const int fold = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json,
+                                .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                   .json_read = &json, .object = grammar, .name = "ignoreCase"),
+                                .type = CFG_JSON_TRUE);
     unsigned int *const characters =
         g_cli_guard->persistent_buf_alloc((largest + 1ull) * sizeof(unsigned int), g_checks_owner);
-    for (unsigned int index = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = &json, .array = rules, .index = index) != CLI_JSON_NONE; index += 1u)
+    for (unsigned int index = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                             .json_read = &json, .array = rules, .index = index) != CLI_JSON_NONE;
+         index += 1u)
     {
-        const unsigned int rule = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = &json, .array = rules, .index = index);
+        const unsigned int rule = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                             .json_read = &json, .array = rules, .index = index);
         unsigned long long length = 0ull;
-        const char *const source = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json, .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = &json, .array = rule, .index = 0u), .length_pointer = &length);
+        const char *const source =
+            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
+                       .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                          .json_read = &json, .array = rule, .index = 0u),
+                       .length_pointer = &length);
         if (source == NULL)
         {
             continue;
@@ -154,10 +194,11 @@ void bench_rules(const char *root, const BenchFile *files, unsigned int count, u
         {
             continue;
         }
-        CliRegexp regexp;
-        EMBED_CALL(cli_regexp_capacity.capacity, CliRegexpWorkStateCfg, .regexp_out = &regexp, .work_state = &s_work_state);
+        Regexp regexp;
+        EMBED_CALL(regexp_capacity.capacity, RegexpWorkStateCfg, .regexp_out = &regexp, .work_state = &s_work_state);
         err_msg.at = 0ull;
-        if (!EMBED_CALL(cli_regexp_source.read, CliRegexpSourceCfg, .regexp_out = &regexp, .source = pattern, .flags = fold ? "i" : "", .err_msg = &err_msg))
+        if (!EMBED_CALL(regexp_source.read, RegexpSourceCfg, .regexp_out = &regexp, .source = pattern,
+                        .flags = fold ? "i" : "", .err_msg = &err_msg))
         {
             continue;
         }
@@ -174,8 +215,7 @@ void bench_rules(const char *root, const BenchFile *files, unsigned int count, u
     }
     g_cli_guard->persistent_buf_release(characters, g_checks_owner);
     rules_cut_down(&json, grammar, files, count, repeat, largest);
-    g_cli_guard->persistent_buf_release(json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     g_cli_guard->persistent_buf_release((void *)(uintptr_t)text, (g_checks_owner));

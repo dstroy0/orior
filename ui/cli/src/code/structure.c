@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // structure.c: a text's tokens line by line, the shortest edit between two sequences, and each token and line numbered
 // by its text
-#include "../text/regexp.h"
+#include "../../../../includes/regexp/regexp.h"
 #include "structure_internal.h"
 
 typedef struct
@@ -28,7 +28,8 @@ typedef struct
     unsigned int *line_names;
 } StructureCtx;
 
-// the character of UTF-8 at `at` before `end`, its bytes into `bytes`: a byte that starts no character is U+FFFD, one byte
+// the character of UTF-8 at `at` before `end`, its bytes into `bytes`: a byte that starts no character is U+FFFD, one
+// byte
 EMBED_INLINE unsigned int cli_character(const StructureCtx *args)
 {
     unsigned int *bytes = args->bytes;
@@ -83,8 +84,8 @@ EMBED_INLINE unsigned int cli_units(const StructureCtx *args)
 
 EMBED_INLINE int cli_is_whitespace(const StructureCtx *args)
 {
-    return ((args->character >= 0x09u) && (args->character <= 0x0du)) || (args->character == 0x20u) || (args->character == 0x85u) ||
-           (args->character == 0xa0u) || (args->character == 0x1680u) ||
+    return ((args->character >= 0x09u) && (args->character <= 0x0du)) || (args->character == 0x20u) ||
+           (args->character == 0x85u) || (args->character == 0xa0u) || (args->character == 0x1680u) ||
            ((args->character >= 0x2000u) && (args->character <= 0x200au)) || (args->character == 0x2028u) ||
            (args->character == 0x2029u) || (args->character == 0x202fu) || (args->character == 0x205fu) ||
            (args->character == 0x3000u);
@@ -93,7 +94,7 @@ EMBED_INLINE int cli_is_whitespace(const StructureCtx *args)
 EMBED_INLINE int cli_starts_name_character(const StructureCtx *args)
 {
     unsigned int character = args->character;
-    return EMBED_CALL(cli_regexp_character.property, CliRegexpLetterCfg, .property = CLI_REGEXP_CHARACTER,
+    return EMBED_CALL(regexp_character.property, RegexpLetterCfg, .property = REGEXP_CHARACTER,
                       .character = character) ||
            (character == '_') || (character == '$');
 }
@@ -101,13 +102,13 @@ EMBED_INLINE int cli_starts_name_character(const StructureCtx *args)
 EMBED_INLINE int cli_alphanumeric(const StructureCtx *args)
 {
     unsigned int character = args->character;
-    return EMBED_CALL(cli_regexp_character.property, CliRegexpLetterCfg, .property = CLI_REGEXP_CHARACTER,
+    return EMBED_CALL(regexp_character.property, RegexpLetterCfg, .property = REGEXP_CHARACTER,
                       .character = character) ||
-           EMBED_CALL(cli_regexp_character.property, CliRegexpLetterCfg, .property = CLI_REGEXP_NUMBER, .character = character);
+           EMBED_CALL(regexp_character.property, RegexpLetterCfg, .property = REGEXP_NUMBER, .character = character);
 }
 
-// what a token continues taking after its first character: a name's characters, a number's, or a string's to its closing
-// quote
+// what a token continues taking after its first character: a name's characters, a number's, or a string's to its
+// closing quote
 enum
 {
     CLI_ALLOC_NAME,
@@ -181,7 +182,8 @@ int cli_structure_lex(const CliStructureTextCtx *args)
         while ((take != CLI_ALLOC_SIGN) && (at < end))
         {
             unsigned int next_bytes = 0u;
-            const unsigned int next = EMBED_CALL(cli_character, StructureCtx, .at = at, .end = end, .bytes = &next_bytes);
+            const unsigned int next =
+                EMBED_CALL(cli_character, StructureCtx, .at = at, .end = end, .bytes = &next_bytes);
             int continues = next != '\n';
             if (continues && (take == CLI_ALLOC_NAME))
             {
@@ -475,6 +477,6 @@ int cli_structure_starts_name(const CliStructureSideCtx *args)
     unsigned int bytes = 0u;
     return EMBED_CALL(cli_starts_name_character, StructureCtx,
                       .character = EMBED_CALL(cli_character, StructureCtx, .at = at,
-                                           .end = args->side_read->text + args->side_read->token[args->token].end,
-                                           .bytes = &bytes));
+                                              .end = args->side_read->text + args->side_read->token[args->token].end,
+                                              .bytes = &bytes));
 }

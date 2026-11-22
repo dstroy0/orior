@@ -10,8 +10,8 @@
 // runs. The watch marks the search stale from its thread through an atomic word
 #include "files.h"
 
+#include "../../../../includes/regexp/regexp.h"
 #include "../command_line/pool.h"
-#include "../text/regexp.h"
 #include "../text/text.h"
 #include "../text/typed.h"
 #include "embed_atomic.h"
@@ -85,9 +85,9 @@ typedef struct
     unsigned long long now_ms;
     unsigned int set;
     unsigned int *count_out;
-    CliRegexp *regexp;
+    Regexp *regexp;
     unsigned int *characters;
-    CliRegexpSpan *groups;
+    RegexpSpan *groups;
     CliPatterns *patterns;
 } FilesSearchPaneCtx;
 
@@ -200,14 +200,12 @@ EMBED_INLINE unsigned int search_regexp_match(const FilesSearchPaneCtx *args)
     const unsigned long long size = hit->size;
     const unsigned long long match_at = ((hit->col > 0ULL) && (hit->col - 1ULL < size)) ? hit->col - 1ULL : 0ULL;
     const char *const text = args->text;
-    const unsigned long long before =
-        EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = text, .size = match_at,
-                   .characters = args->characters, .capacity_u64 = SEARCH_CHARACTERS);
-    const unsigned long long characters =
-        EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = text, .size = size,
-                   .characters = args->characters, .capacity_u64 = SEARCH_CHARACTERS);
+    const unsigned long long before = EMBED_CALL(regexp_text.characters, RegexpTextCfg, .text = text, .size = match_at,
+                                                 .characters = args->characters, .capacity_u64 = SEARCH_CHARACTERS);
+    const unsigned long long characters = EMBED_CALL(regexp_text.characters, RegexpTextCfg, .text = text, .size = size,
+                                                     .characters = args->characters, .capacity_u64 = SEARCH_CHARACTERS);
     if ((before >= characters) ||
-        !EMBED_CALL(cli_regexp_text_u_32s.match_into, CliRegexpTextU32sCfg, .regexp = args->regexp,
+        !EMBED_CALL(regexp_text_u_32s.match_into, RegexpTextU32sCfg, .regexp = args->regexp,
                     .text_u32s = args->characters, .length = characters, .at = before, .groups = args->groups))
     {
         return 1u;
@@ -315,10 +313,9 @@ EMBED_INLINE void search_run(const FilesSearchPaneCtx *args)
     // holds the pattern, its work state, the match's spans and a line's characters, each part aligned
     const unsigned long long patterns_at = SEARCH_ALIGNED(CLI_ERR_MSG_MAX_LEN);
     const unsigned long long regexp_at = patterns_at + SEARCH_ALIGNED(sizeof(CliPatterns));
-    const unsigned long long work_state_at = regexp_at + SEARCH_ALIGNED(sizeof(CliRegexp));
-    const unsigned long long groups_at = work_state_at + SEARCH_ALIGNED(sizeof(CliRegexpWorkState));
-    const unsigned long long characters_at =
-        groups_at + SEARCH_ALIGNED(sizeof(CliRegexpSpan) * (CLI_REGEXP_GROUPS + 1ULL));
+    const unsigned long long work_state_at = regexp_at + SEARCH_ALIGNED(sizeof(Regexp));
+    const unsigned long long groups_at = work_state_at + SEARCH_ALIGNED(sizeof(RegexpWorkState));
+    const unsigned long long characters_at = groups_at + SEARCH_ALIGNED(sizeof(RegexpSpan) * (REGEXP_GROUPS + 1ULL));
     const unsigned long long scratch_bytes =
         search->how.regex ? characters_at + SEARCH_ALIGNED(sizeof(unsigned int) * SEARCH_CHARACTERS) : regexp_at;
     char *const scratch = g_cli_guard->temporary_buf_alloc(scratch_bytes, g_cli_search_pane_owner);
@@ -331,15 +328,15 @@ EMBED_INLINE void search_run(const FilesSearchPaneCtx *args)
     VerbaLinea err_msg = {scratch, CLI_ERR_MSG_MAX_LEN, 0ULL};
     CliPatterns *const patterns = (CliPatterns *)(void *)(scratch + patterns_at);
     search->sets = EMBED_CALL(search_sets_read, FilesSearchPaneCtx, .set = search->set, .patterns = patterns);
-    CliRegexp *const regexp = search->how.regex ? (CliRegexp *)(void *)(scratch + regexp_at) : NULL;
+    Regexp *const regexp = search->how.regex ? (Regexp *)(void *)(scratch + regexp_at) : NULL;
     unsigned int *const characters = search->how.regex ? (unsigned int *)(void *)(scratch + characters_at) : NULL;
-    CliRegexpSpan *const groups = search->how.regex ? (CliRegexpSpan *)(void *)(scratch + groups_at) : NULL;
+    RegexpSpan *const groups = search->how.regex ? (RegexpSpan *)(void *)(scratch + groups_at) : NULL;
     int regexp_read = 0;
     if (search->how.regex)
     {
-        EMBED_CALL(cli_regexp_capacity.capacity, CliRegexpWorkStateCfg, .regexp_out = regexp,
-                   .work_state = (CliRegexpWorkState *)(void *)(scratch + work_state_at));
-        regexp_read = EMBED_CALL(cli_regexp_source.read, CliRegexpSourceCfg, .regexp_out = regexp, .source = query,
+        EMBED_CALL(regexp_capacity.capacity, RegexpWorkStateCfg, .regexp_out = regexp,
+                   .work_state = (RegexpWorkState *)(void *)(scratch + work_state_at));
+        regexp_read = EMBED_CALL(regexp_source.read, RegexpSourceCfg, .regexp_out = regexp, .source = query,
                                  .flags = search->how.match_case ? "" : "i", .err_msg = &err_msg);
         err_msg.at = 0ULL;
     }

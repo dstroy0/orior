@@ -6,12 +6,12 @@
 // JSON read and written again; and the tree searched. Each is run `repeat` times and the best time recorded; a row is
 // written for each as `name<tab>bytes<tab>microseconds<tab>megabytes a second`, the corpus and the repeats first.
 // The corpus is a file of paths, one a line; the tree's top is the second argument
+#include "../../../../../../includes/regexp/regexp.h"
 #include "../../../../../../ui/cli/src/code/symbols.h"
 #include "../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "../../../../../../ui/cli/src/editor/files.h"
 #include "../../../../../../ui/cli/src/editor/highlight.h"
 #include "../../../../../../ui/cli/src/text/json_tree.h"
-#include "../../../../../../ui/cli/src/text/regexp.h"
 #include "../../../../../../ui/cli/src/text/sift.h"
 #include "../../../../../../ui/cli/src/text/text.h"
 #include "bench.h"
@@ -52,7 +52,8 @@ static BenchMeasure bench_pass(BenchEach each, void *context)
         {
             if (s_corpus[at].bytes != NULL)
             {
-                EMBED_CALL(each, BenchEachCfg, .path = s_paths[at], .bytes = s_corpus[at].bytes, .size = s_corpus[at].size, .context = context);
+                EMBED_CALL(each, BenchEachCfg, .path = s_paths[at], .bytes = s_corpus[at].bytes,
+                           .size = s_corpus[at].size, .context = context);
                 bytes += s_corpus[at].size;
             }
         }
@@ -71,7 +72,8 @@ static void each_read(const BenchEachCfg *args)
     (void)bytes;
     (void)size;
     unsigned long long read = 0ull;
-    const unsigned char *const again = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path, .size_pointer = &read, .owner = g_checks_owner);
+    const unsigned char *const again = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
+                                                  .size_pointer = &read, .owner = g_checks_owner);
     g_cli_guard->persistent_buf_release((void *)(uintptr_t)again, (g_checks_owner));
 }
 
@@ -83,7 +85,8 @@ static void each_utf8(const BenchEachCfg *args)
     (void)bytes;
     (void)size;
     unsigned long long read = 0ull;
-    const unsigned char *const again = EMBED_CALL(cli_path_internal.file_alloc_utf8, CliPathCtx, .path = path, .size_pointer = &read, .owner = g_checks_owner);
+    const unsigned char *const again = EMBED_CALL(cli_path_internal.file_alloc_utf8, CliPathCtx, .path = path,
+                                                  .size_pointer = &read, .owner = g_checks_owner);
     g_cli_guard->persistent_buf_release((void *)(uintptr_t)again, (g_checks_owner));
 }
 
@@ -91,22 +94,26 @@ static void each_units(const BenchEachCfg *args)
 {
     unsigned long long size = args->size;
     void *context = args->context;
-    *(unsigned long long *)context += EMBED_CALL(cli_text_size_byte.units, CliTextSizeByteCfg, .text = (const char *)args->bytes, .size = size);
+    *(unsigned long long *)context +=
+        EMBED_CALL(cli_text_size_byte.units, CliTextSizeByteCfg, .text = (const char *)args->bytes, .size = size);
 }
 
 static void each_characters(const BenchEachCfg *args)
 {
     unsigned long long size = args->size;
     unsigned int *const characters = args->context;
-    (void)EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = (const char *)args->bytes, .size = size, .characters = characters, .capacity_u64 = size);
+    (void)EMBED_CALL(regexp_text.characters, RegexpTextCfg, .text = (const char *)args->bytes, .size = size,
+                     .characters = characters, .capacity_u64 = size);
 }
 
-// the file read as UTF-8 a byte that starts no character at a time read as U+FFFD, into the line `context` from its start
+// the file read as UTF-8 a byte that starts no character at a time read as U+FFFD, into the line `context` from its
+// start
 static void each_lossy(const BenchEachCfg *args)
 {
     VerbaLinea *const line = args->context;
     line->at = 0ull;
-    EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = line, .text_bytes = args->bytes, .length = args->size);
+    EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = line, .text_bytes = args->bytes,
+               .length = args->size);
 }
 
 static void each_find(const BenchEachCfg *args)
@@ -114,8 +121,9 @@ static void each_find(const BenchEachCfg *args)
     unsigned long long size = args->size;
     void *context = args->context;
     unsigned long long at = 0ull;
-    *(unsigned long long *)context +=
-        (unsigned long long)EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = (const char *)args->bytes, .length_value = size, .required = BENCH_NEEDLE, .size = sizeof(BENCH_NEEDLE) - 1u, .at_pointer = &at);
+    *(unsigned long long *)context += (unsigned long long)EMBED_CALL(
+        cli_text_size_at.find, CliTextSizeAtCfg, .text = (const char *)args->bytes, .length_value = size,
+        .required = BENCH_NEEDLE, .size = sizeof(BENCH_NEEDLE) - 1u, .at_pointer = &at);
 }
 
 static void sift_found(const CliEachAtCfg *args)
@@ -127,7 +135,9 @@ static void sift_found(const CliEachAtCfg *args)
 static void each_sift(const BenchEachCfg *args)
 {
     void *context = args->context;
-    (void)EMBED_CALL(cli_sift_length.find_all, CliSiftLengthCfg, .text = args->bytes, .length = args->size, .needle = (const unsigned char *)BENCH_NEEDLE, .needle_length = sizeof(BENCH_NEEDLE) - 1u, .fold = 0, .found = sift_found, .context = context);
+    (void)EMBED_CALL(cli_sift_length.find_all, CliSiftLengthCfg, .text = args->bytes, .length = args->size,
+                     .needle = (const unsigned char *)BENCH_NEEDLE, .needle_length = sizeof(BENCH_NEEDLE) - 1u,
+                     .fold = 0, .found = sift_found, .context = context);
 }
 
 // the corpus joined into one text of `whole` bytes and sifted for the needle `s_repeat` times, the least time recorded:
@@ -153,7 +163,9 @@ static void bench_sift_file(unsigned long long whole)
     {
         unsigned long long sum = 0ull;
         const unsigned long long began = cli_clock_microseconds();
-        (void)EMBED_CALL(cli_sift_length.find_all, CliSiftLengthCfg, .text = text, .length = used, .needle = (const unsigned char *)BENCH_NEEDLE, .needle_length = sizeof(BENCH_NEEDLE) - 1u, .fold = 0, .found = sift_found, .context = &sum);
+        (void)EMBED_CALL(cli_sift_length.find_all, CliSiftLengthCfg, .text = text, .length = used,
+                         .needle = (const unsigned char *)BENCH_NEEDLE, .needle_length = sizeof(BENCH_NEEDLE) - 1u,
+                         .fold = 0, .found = sift_found, .context = &sum);
         const unsigned long long consumed = cli_clock_microseconds() - began;
         counted.min = (consumed < counted.min) ? consumed : counted.min;
     }
@@ -172,7 +184,8 @@ static void each_symbols(const BenchEachCfg *args)
     const char *path = args->path;
     unsigned long long size = args->size;
     void *context = args->context;
-    EMBED_CALL(cli_symbols_path_text_size.declare, CliSymbolsPathTextSizeCfg, .path = path, .text = (const char *)args->bytes, .size = size, .each_declared = declared, .context = context);
+    EMBED_CALL(cli_symbols_path_text_size.declare, CliSymbolsPathTextSizeCfg, .path = path,
+               .text = (const char *)args->bytes, .size = size, .each_declared = declared, .context = context);
 }
 
 // A file's lines for the colorer: a copy of its text with each newline made a terminator, and a pointer to each line
@@ -205,7 +218,9 @@ static void each_color(const BenchEachCfg *args)
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     coloring->out.at = 0ull;
-    coloring->colored += (unsigned long long)EMBED_CALL(cli_highlight_key_err_msg.color, CliHighlightKeyErrMsgCfg, .key = coloring->key, .state = "", .lines = coloring->lines, .count = count + 1u, .out = &coloring->out, .err_msg = &err_msg);
+    coloring->colored += (unsigned long long)EMBED_CALL(
+        cli_highlight_key_err_msg.color, CliHighlightKeyErrMsgCfg, .key = coloring->key, .state = "",
+        .lines = coloring->lines, .count = count + 1u, .out = &coloring->out, .err_msg = &err_msg);
 }
 
 BenchMeasure bench_colored(const char *key, const BenchFile *files, unsigned int count, unsigned int repeat,
@@ -233,7 +248,8 @@ BenchMeasure bench_colored(const char *key, const BenchFile *files, unsigned int
 static int bench_corpus(const char *list)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const text = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = list, .size_pointer = &size, .owner = g_checks_owner);
+    const unsigned char *const text = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = list,
+                                                 .size_pointer = &size, .owner = g_checks_owner);
     if (text == NULL)
     {
         fprintf(stderr, "the corpus list %s was not read\n", list);
@@ -254,7 +270,9 @@ static int bench_corpus(const char *list)
         {
             memor.cpy(&(MemoriaCfg){.dst = s_paths[s_count], .src = text + start, .bytes = end - start});
             s_paths[s_count][end - start] = '\0';
-            s_corpus[s_count].bytes = EMBED_CALL(cli_path_internal.file_alloc_utf8, CliPathCtx, .path = s_paths[s_count], .size_pointer = &s_corpus[s_count].size, .owner = g_checks_owner);
+            s_corpus[s_count].bytes =
+                EMBED_CALL(cli_path_internal.file_alloc_utf8, CliPathCtx, .path = s_paths[s_count],
+                           .size_pointer = &s_corpus[s_count].size, .owner = g_checks_owner);
             s_count += 1u;
         }
         start = at + 1ull;
@@ -267,9 +285,11 @@ static int bench_corpus(const char *list)
 static int bench_grammar_cached(void)
 {
     char path[CLI_PATH_MAX_LEN];
-    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = "ui/plugins/c/plugin.json", .joined = path);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = "ui/plugins/c/plugin.json",
+               .joined = path);
     unsigned long long size = 0ull;
-    const unsigned char *const text = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path, .size_pointer = &size, .owner = g_checks_owner);
+    const unsigned char *const text = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
+                                                 .size_pointer = &size, .owner = g_checks_owner);
     if (text == NULL)
     {
         return 0;
@@ -277,11 +297,15 @@ static int bench_grammar_cached(void)
     CliJson json;
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json, .text = (const char *)text, .size = size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = g_checks_owner);
+    const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
+                                         .json = &json, .text = (const char *)text, .size = size, .nodes_more = 0u,
+                                         .text_more = 0ull, .err_msg = &err_msg, .owner = g_checks_owner);
     const int cached = (root != CLI_JSON_NONE) &&
-                       EMBED_CALL(cli_highlight_key_json.store, CliHighlightKeyJsonCfg, .key = "bench-c", .json = &json, .def = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json, .object = root, .name = "grammar"), .err_msg = &err_msg);
-    g_cli_guard->persistent_buf_release(json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+                       EMBED_CALL(cli_highlight_key_json.store, CliHighlightKeyJsonCfg, .key = "bench-c", .json = &json,
+                                  .def = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                    .json_read = &json, .object = root, .name = "grammar"),
+                                  .err_msg = &err_msg);
+    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     g_cli_guard->persistent_buf_release((void *)(uintptr_t)text, (g_checks_owner));
@@ -305,9 +329,11 @@ static BenchMeasure bench_json_tokens(unsigned long long *sum)
         for (unsigned int at = 0u; at < 2u; at += 1u)
         {
             char path[CLI_PATH_MAX_LEN];
-            EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = s_json_files[at], .joined = path);
+            EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = s_json_files[at],
+                       .joined = path);
             unsigned long long size = 0ull;
-            const unsigned char *const text = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path, .size_pointer = &size, .owner = g_checks_owner);
+            const unsigned char *const text = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
+                                                         .size_pointer = &size, .owner = g_checks_owner);
             if (text == NULL)
             {
                 continue;
@@ -315,7 +341,8 @@ static BenchMeasure bench_json_tokens(unsigned long long *sum)
             const unsigned long long began = cli_clock_microseconds();
             for (unsigned int times = 0u; times < 200u; times += 1u)
             {
-                *sum += EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg, .text = (const char *)text, .size = size);
+                *sum += EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg, .text = (const char *)text,
+                                   .size = size);
             }
             consumed += cli_clock_microseconds() - began;
             bytes += 200ull * size;
@@ -339,9 +366,11 @@ static BenchMeasure bench_json(BenchMeasure *write)
         for (unsigned int at = 0u; at < 2u; at += 1u)
         {
             char path[CLI_PATH_MAX_LEN];
-            EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = s_json_files[at], .joined = path);
+            EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = s_json_files[at],
+                       .joined = path);
             unsigned long long size = 0ull;
-            const unsigned char *const text = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path, .size_pointer = &size, .owner = g_checks_owner);
+            const unsigned char *const text = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
+                                                         .size_pointer = &size, .owner = g_checks_owner);
             if (text == NULL)
             {
                 continue;
@@ -356,10 +385,13 @@ static BenchMeasure bench_json(BenchMeasure *write)
                 CliJson json;
                 const unsigned long long began = cli_clock_microseconds();
                 const unsigned int root =
-                    EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json, .text = (const char *)text, .size = size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = g_checks_owner);
+                    EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
+                               .text = (const char *)text, .size = size, .nodes_more = 0u, .text_more = 0ull,
+                               .err_msg = &err_msg, .owner = g_checks_owner);
                 const unsigned long long read = cli_clock_microseconds();
                 out.at = 0ull;
-                EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &json, .node = root, .out = &out, .indent = 0u, .sorted = 0);
+                EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &json, .node = root,
+                           .out = &out, .indent = 0u, .sorted = 0);
                 consumed_write += cli_clock_microseconds() - read;
                 consumed += read - began;
                 g_cli_guard->persistent_buf_release(json.node,

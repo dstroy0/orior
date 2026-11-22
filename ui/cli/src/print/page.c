@@ -3,9 +3,9 @@
 // page.c: a listing read, the page it prints on, and the listing arranged in pages, each line with its number and a
 // long line going on under itself
 #include "../../../../includes/arith/arith.h"
+#include "../../../../includes/regexp/regexp.h"
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
-#include "../text/regexp.h"
 #include "../text/text.h"
 #include "print.h"
 
@@ -285,8 +285,9 @@ void cli_print_size(const CliPrintLayoutWidthCfg *args)
 
 const char *cli_print_media(const CliPrintLayoutCfg *args)
 {
-    return EMBED_CALL(cli_by_name, PageCtx, .name = args->layout->paper, .word_text = "character") ? "na_character_8.5x11in"
-                                                                                                : "iso_a4_210x297mm";
+    return EMBED_CALL(cli_by_name, PageCtx, .name = args->layout->paper, .word_text = "character")
+               ? "na_character_8.5x11in"
+               : "iso_a4_210x297mm";
 }
 
 // The bytes from `from` to `to` trimmed of ASCII's spaces
@@ -527,8 +528,8 @@ EMBED_INLINE void cli_character_append(const PageCtx *args)
         args->positioned->full = 1;
         return;
     }
-    VerbaLinea line = {args->positioned->text + args->positioned->text_used, args->positioned->text_capacity - args->positioned->text_used,
-                       0ULL};
+    VerbaLinea line = {args->positioned->text + args->positioned->text_used,
+                       args->positioned->text_capacity - args->positioned->text_used, 0ULL};
     EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = &line, .character = character);
     if (!mmgr_line_ok(&line))
     {
@@ -559,8 +560,8 @@ EMBED_INLINE unsigned long long cli_number_columns(const PageCtx *args)
     return (widest == 0ULL) ? 0ULL : (digits + 2ULL);
 }
 
-// the character `character` positioned after the piece being made at `*column`: a tab as spaces to the next multiple of `tab`, a
-// control character as nothing, else the character itself, the row broken where it reaches `columns`
+// the character `character` positioned after the piece being made at `*column`: a tab as spaces to the next multiple of
+// `tab`, a control character as nothing, else the character itself, the row broken where it reaches `columns`
 EMBED_INLINE void cli_character_positioned(const PageCtx *args)
 {
     const unsigned int character = args->character;
@@ -578,7 +579,8 @@ EMBED_INLINE void cli_character_positioned(const PageCtx *args)
     {
         if (*args->column == args->columns)
         {
-            EMBED_CALL(cli_piece_append, PageCtx, .positioned = args->positioned, .row = args->row, .piece = args->piece);
+            EMBED_CALL(cli_piece_append, PageCtx, .positioned = args->positioned, .row = args->row,
+                       .piece = args->piece);
             EMBED_CALL(cli_row_append, PageCtx, .positioned = args->positioned, .row = args->row);
             *args->column = 0ULL;
             args->piece->column = 0ULL;
@@ -589,8 +591,8 @@ EMBED_INLINE void cli_character_positioned(const PageCtx *args)
     }
 }
 
-// the run `run` of `listing_read` positioned as pieces after `row` from `*column`, in its color as `layout` prints it, bold
-// or italic, each of its characters positioned in turn
+// the run `run` of `listing_read` positioned as pieces after `row` from `*column`, in its color as `layout` prints it,
+// bold or italic, each of its characters positioned in turn
 EMBED_INLINE void cli_run_positioned(const PageCtx *args)
 {
     const CliPrintRun *const run = args->run;
@@ -604,7 +606,7 @@ EMBED_INLINE void cli_run_positioned(const PageCtx *args)
     piece.text = args->positioned->text_used;
     unsigned int *const characters = s_work_state->characters;
     const unsigned long long count =
-        EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = args->listing_read->text + run->text,
+        EMBED_CALL(regexp_text.characters, RegexpTextCfg, .text = args->listing_read->text + run->text,
                    .size = run->length, .characters = characters, .capacity_u64 = s_work_state->characters_capacity);
     for (unsigned long long at = 0ULL; at < count; at += 1ULL)
     {

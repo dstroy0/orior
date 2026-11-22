@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // git_graph.c: every branch's commits arranged as a graph, or those a search finds over the whole history
-#include "../text/regexp.h"
+#include "../../../../includes/regexp/regexp.h"
 #include "../text/text.h"
 #include "git_internal.h"
 
@@ -52,12 +52,12 @@ EMBED_INLINE void cli_on_lower(const GitGraphCtx *args)
     const char *text = args->text;
     static unsigned int s_characters[CLI_GIT_GRAPH_TEXT_MAX];
     const unsigned long long count =
-        EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = text, .size = args->length, .characters = s_characters,
-                   .capacity_u64 = CLI_GIT_GRAPH_TEXT_MAX);
+        EMBED_CALL(regexp_text.characters, RegexpTextCfg, .text = text, .size = args->length,
+                   .characters = s_characters, .capacity_u64 = CLI_GIT_GRAPH_TEXT_MAX);
     for (unsigned long long at = 0ULL; at < count; at += 1ULL)
     {
         EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = line,
-                   .character = EMBED_CALL(cli_regexp_character.lower, CliRegexpLetterCfg, .character = s_characters[at]));
+                   .character = EMBED_CALL(regexp_character.lower, RegexpLetterCfg, .character = s_characters[at]));
     }
 }
 
