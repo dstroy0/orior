@@ -1,7 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // dots_test.c: the state dots' check. Each state has its color in the palette. One dot draws for each record
-// of the `role` given, right to left from the right edge given. A record that blinks shows for half of each blink.
+// of the `role` given, right to left from the right edge given: servers, script plugins' hosts and remote sessions
+// apart. A record that blinks shows for half of each blink.
 // The remote dot shows the heaviest state of the remote sessions, and no record draws no dot
 #include "../../../../../includes/window/block.h"
 #include "../../../../../ui/cli/src/machine/overseer.h"
@@ -77,6 +78,21 @@ int main(void)
                      .top = 0, .height = (int)DOTS_TEST_HEIGHT, .scale = 100, .role = CLI_OVERSEER_SERVER,
                      .now_ms = 0ULL);
     cli_check(lit_at(&raster, clangd_x, middle, ground), "and lit in the first half");
+
+    // a script plugin's host has a dot of its own role. The servers' row does not show it
+    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "counter", .role = CLI_OVERSEER_PLUGIN,
+               .event = CLI_OVERSEER_READY);
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = all, .color = ground);
+    const int servers_left = EMBED_CALL(gui_dots.draw, GuiDotsCfg, .raster = &raster, .palette = palette, .clip = all,
+                                        .right = 110, .top = 0, .height = (int)DOTS_TEST_HEIGHT, .scale = 100,
+                                        .role = CLI_OVERSEER_SERVER, .now_ms = 0ULL);
+    const int plugins_left = EMBED_CALL(gui_dots.draw, GuiDotsCfg, .raster = &raster, .palette = palette, .clip = all,
+                                        .right = servers_left - GUI_DOTS_GAP, .top = 0, .height = (int)DOTS_TEST_HEIGHT,
+                                        .scale = 100, .role = CLI_OVERSEER_PLUGIN, .now_ms = 0ULL);
+    cli_check((servers_left == left) && (plugins_left == servers_left - GUI_DOTS_GAP - GUI_DOTS_SIDE) &&
+                  lit_at(&raster, servers_left - GUI_DOTS_GAP - (GUI_DOTS_SIDE / 2) - 1, middle, ground) &&
+                  !lit_at(&raster, plugins_left - 2, middle, ground),
+              "a plugin host draws one dot in its own row, left of the servers' dots");
 
     // the remote link's one dot shows the heaviest state of the sessions
     EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "a", .role = CLI_OVERSEER_REMOTE,

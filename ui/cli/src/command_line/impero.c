@@ -4,6 +4,7 @@
 // window specifies which program opens it
 #include "../machine/host.h"
 #include "../machine/overseer.h"
+#include "../scripts/scripts.h"
 #include "command_line.h"
 #include "command_line_internal.h"
 
@@ -34,6 +35,7 @@ int main(int count, char **supplied)
     // the one command this process runs is one lane's: its own cells are the lane's and are rewound as it ends
     EMBED_CALL(cli_command_line_input.run, CliCommandLineInputCfg, .supplied = s_input, .count = words,
                .outcome = &s_outcome);
+    cli_scripts_end();
     cli_overseer_end();
     cli_pool_peaks_report();
     if (!s_outcome.window)

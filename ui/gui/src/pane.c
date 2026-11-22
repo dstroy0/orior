@@ -383,13 +383,19 @@ void gui_pane_draw(const GuiPaneCfg *args)
         .clip = inside);
     if (foot)
     {
-        // the title row of the panel at the foot. A dot for each language server goes at its right end. The remote
-        // link's dot goes after the title where the pane shows one
+        // the title row of the panel at the foot. A dot for each language server goes at its right end, and a dot for
+        // each script plugin's host goes left of them. The remote link's dot goes after the title where the pane shows
+        // one
         const unsigned long long now_ms = cli_clock_milliseconds();
         const int pad = EMBED_CALL(pane_scaled, PaneCtx, .frame = frame, .pixels = GUI_PANE_PAD_LEFT);
+        const int servers_left =
+            EMBED_CALL(gui_dots.draw, GuiDotsCfg, .raster = raster, .palette = args->palette, .clip = inside,
+                       .right = inside.x + inside.width - pad, .top = side.y, .height = side_head,
+                       .scale = frame->scale, .role = CLI_OVERSEER_SERVER, .now_ms = now_ms);
+        const int gap = EMBED_CALL(pane_scaled, PaneCtx, .frame = frame, .pixels = GUI_DOTS_GAP);
         (void)EMBED_CALL(gui_dots.draw, GuiDotsCfg, .raster = raster, .palette = args->palette, .clip = inside,
-                         .right = inside.x + inside.width - pad, .top = side.y, .height = side_head,
-                         .scale = frame->scale, .role = CLI_OVERSEER_SERVER, .now_ms = now_ms);
+                         .right = servers_left - gap, .top = side.y, .height = side_head, .scale = frame->scale,
+                         .role = CLI_OVERSEER_PLUGIN, .now_ms = now_ms);
         if ((table != NULL) && table->remote_dot)
         {
             const int dot = EMBED_CALL(pane_scaled, PaneCtx, .frame = frame, .pixels = GUI_DOTS_SIDE + GUI_DOTS_GAP);

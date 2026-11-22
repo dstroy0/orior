@@ -48,6 +48,7 @@
     owner_(g_cli_notebook_owner, "cli_notebooks")                        \
     owner_(g_cli_notebook_open_owner, "cli_notebook_open")               \
     owner_(g_cli_overseer_owner, "cli_overseer")                         \
+    owner_(g_cli_scripts_owner, "cli_scripts")                           \
     owner_(g_cli_preview_owner, "cli_preview")                           \
     owner_(g_cli_quick_owner, "cli_quick")                               \
     owner_(g_cli_vim_owner, "cli_vim")                                   \

@@ -130,14 +130,17 @@ void cli_lsp_ref(const CliLspContextCfg *args);
 void cli_lsp_unref(const CliLspContextCfg *args);
 
 // what the server reported it can do, as it answered `initialize`, as JSON, its size into `size` and its text copied
-// into `out` of `capacity` bytes with its end, "" with no `out`; the process the server runs as; whether it still runs;
-// the last line it wrote to its errors, or nothing, into `out`; and the server requested to end, and ended where it
-// does not (lsp.c)
+// into `out` of `capacity` bytes with its end, "" with no `out`; the process the server runs as; whether it still runs,
+// with no stop and no end of its output; the last line it wrote to its errors, or nothing, into `out`; and the server
+// requested to end, and ended where it does not (lsp.c)
 const char *cli_lsp_capabilities(const CliLspSizeTypeCfg *args);
 unsigned long long cli_lsp_pid(const CliLspSizeTypeCfg *args);
 int cli_lsp_alive(const CliLspContextCfg *args);
 void cli_lsp_complaint(const CliLspPathOutCfg *args);
 void cli_lsp_stop(const CliLspContextCfg *args);
+// the server's process ended at once, with no request to end; its readers then end as for an end it did not ask for
+// (lsp.c)
+void cli_lsp_kill(const CliLspContextCfg *args);
 
 // a request of `method` with `length` bytes of JSON params, its answer waited for up to `wait` milliseconds and passed
 // over in `answer`, whose message the caller gives back to g_cli_servers_owner, NULL where the request failed; and a
@@ -435,14 +438,16 @@ typedef struct
     void (*unref)(const CliLspContextCfg *args);
     int (*alive)(const CliLspContextCfg *args);
     void (*stop)(const CliLspContextCfg *args);
+    void (*kill)(const CliLspContextCfg *args);
     void (*open_each)(const CliLspContextCfg *args);
 } CliLspContextNs;
-EMBED_TABLE_LAYOUT(CliLspContextNs, ref, unref, alive, stop, open_each);
+EMBED_TABLE_LAYOUT(CliLspContextNs, ref, unref, alive, stop, kill, open_each);
 EMBED_TABLE_STORAGE CliLspContextNs cli_lsp_context EMBED_UNUSED = {
     .ref = cli_lsp_ref,
     .unref = cli_lsp_unref,
     .alive = cli_lsp_alive,
     .stop = cli_lsp_stop,
+    .kill = cli_lsp_kill,
     .open_each = cli_lsp_open_each,
 };
 

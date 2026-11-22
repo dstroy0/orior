@@ -8,6 +8,7 @@
 #include "../../cli/src/command_line/callback_cfg.h"
 #include "../../cli/src/command_line/command_line.h"
 #include "../../cli/src/machine/overseer.h"
+#include "../../cli/src/scripts/scripts.h"
 #include "system.h"
 
 // the window's size where none is saved, in the system's pixels; and the monitors read at max
@@ -360,6 +361,7 @@ int main(void)
     if (s_system == NULL)
     {
         EMBED_CALL(main_err, MainCtx, .err_msg = &why);
+        cli_scripts_end();
         cli_view_end();
         cli_overseer_end();
         return 1;
@@ -372,7 +374,9 @@ int main(void)
     GuiSystem *const system = s_system;
     EMBED_CALL(gui_system_table.run, GuiSystemCfg, .system = system);
     EMBED_CALL(gui_system_table.free, GuiSystemCfg, .system = system);
-    // the overseer's records go back after the view's end, once every server and session that reports to it stops
+    // each script plugin's host stores its state and stops first. The overseer's records go back after the view's end,
+    // once every server and session that reports to it stops
+    cli_scripts_end();
     cli_view_end();
     cli_overseer_end();
     return 0;

@@ -445,7 +445,9 @@ int cli_lsp_alive(const CliLspContextCfg *args)
     {
         args->lsp->ended = 1;
     }
-    const int alive = !args->lsp->ended;
+    // a stop under way, or an end of the output that the reader read, ends the server before the system reports the
+    // process's end
+    const int alive = !args->lsp->ended && !args->lsp->stopping;
     return alive;
 }
 
@@ -471,6 +473,16 @@ void cli_lsp_end(const CliLspCtx *args)
         EMBED_CALL(cli_cols_internal.spawn_kill, CliColsCtx, .spawned_read = &args->lsp->spawned);
         (void)EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &args->lsp->spawned);
         args->lsp->ended = 1;
+    }
+}
+
+void cli_lsp_kill(const CliLspContextCfg *args)
+{
+    // the process ends at once, and the reader then reads the end of its output, as for an end it did not ask for. The
+    // last let-go waits for the process
+    if (!args->lsp->ended && (args->lsp->spawned.process != 0ULL))
+    {
+        EMBED_CALL(cli_cols_internal.spawn_kill, CliColsCtx, .spawned_read = &args->lsp->spawned);
     }
 }
 

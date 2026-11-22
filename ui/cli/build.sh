@@ -277,7 +277,7 @@ archived "$BUNDLE/library.a" "${HOST_OBJECTS[@]}" || { echo "  build failed: the
 "$CC" "--target=$HOST" "${LINK_WORDS[@]}" -o "$BUNDLE/$BUNDLE_NAME$SUFFIX" "$BUNDLE/plugins_bundle.o" "$BUNDLE/library.a" \
     "${LIBRARIES[@]}" || { echo "  build failed: the bundler did not link"; exit 1; }
 "$BUNDLE/$BUNDLE_NAME$SUFFIX" "$TOP/ui/plugins" "$HERE/toolchains.json" "$HERE/commands.json" \
-    "$OUT/plugins_bundled.c" || { echo "  build failed: the bundler did not write plugins_bundled.c"; exit 1; }
+    "$HERE/src/scripts/host.js" "$OUT/plugins_bundled.c" || { echo "  build failed: the bundler did not write plugins_bundled.c"; exit 1; }
 
 # the program, for the target
 if [[ "$TARGET" = "$HOST" ]]; then
