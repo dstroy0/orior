@@ -9,9 +9,10 @@
 // forms' writings is written as retained, and an open one, a relation of absence no part of a set can decide
 // (RULESET_CORE_RELATION_OPEN, RULESET_CORE_MAP_OPEN), as open, and neither fails anything. The map's relations are the
 // lines a lane cannot be read through as it is, written and failing nothing
+#include "../../../../../../src/cu/scaffolding/ruleset_strings.h"
+#include "../../../../../../src/platform/platform.h"
 #include "code_generator.h"
 #include "target_internal.h"
-#include "../../../../../../src/platform/platform.h"
 
 #include <stdio.h>
 
@@ -31,7 +32,7 @@ static void entry_print(const LanguageSet *set, unsigned int at)
     const RulesetCoreEntry *const entry = &set->relations.entries[at];
     {
         VerbaLinea *const output_line = platform_line_out();
-        mmgr_line_put(output_line, set->memory.labels[entry->file].c_str());
+        mmgr_line_put(output_line, set->memory.labels[entry->file]);
         mmgr_line_put(output_line, ":");
         mmgr_line_decimal(output_line, entry->line, 1u);
         mmgr_line_put(output_line, " ");
@@ -124,7 +125,7 @@ static int relations_check(const char *label, const std::string *paths, unsigned
 {
     s_checks += 1u;
     std::string error;
-    if (ruleset_relations_read(paths, count, schema, &set->memory, &set->relations, &error) == 0)
+    if (ruleset_relations_strings(paths, count, schema, &set->memory, &set->relations, &error) == 0)
     {
         {
             VerbaLinea *const output_line = platform_line_out();
@@ -191,10 +192,13 @@ static int target_check(Target &target, LanguageSet *set)
         platform_line_out_ended();
     }
     std::string paths[RULESET_PATHS_MAX];
-    const unsigned int count = ruleset_paths(schema, ruleset_folder() + "/" + schema->file, paths);
+    const unsigned int count = ruleset_strings_paths(schema, ruleset_strings_folder() + "/" + schema->file, paths);
     RulesetFlat flat;
     ruleset_flat_schema(schema, &flat);
-    return relations_check(schema->file, paths, count, &flat.schema, schema, set);
+    // the read of the relations reads the flat schema, and nothing reads it after
+    const int read = relations_check(schema->file, paths, count, &flat.schema, schema, set);
+    ruleset_flat_ended(&flat);
+    return read;
 }
 
 // a form the part's ruleset does not give is open (P10): the ruleset reads, a lane that decides the open form is

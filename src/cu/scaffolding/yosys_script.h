@@ -8,13 +8,15 @@
 
 #include "../engine/rmc/target.h"
 
+#include <string>
+
 class YosysScript : public Target
 {
   public:
     YosysScript(void);
 
-    std::string program(const EngineRecordLayout *layout, const TargetInfo *target, const std::string &header,
-                        unsigned int *places, unsigned int *live) override;
+    int program(const EngineRecordLayout *layout, const TargetInfo *target, const char *header, PlatformText *text,
+                unsigned int *places, unsigned int *live) override;
 
     // the script that reads `source`, synthesizes it from the module `top` and measures it, and where `memories` is not
     // empty, writes the coarse netlist's statistics to the log `memories` before the fine stage; empty where the

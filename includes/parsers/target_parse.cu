@@ -3,6 +3,8 @@
 // target_parse.cu: where rulesets are found; their lines are read by ruleset_core.h
 #include "../../src/cu/engine/rmc/target_internal.h"
 #include "../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
+#include "memoria_operor/memoria_linea.h"
 #include "tree_folder.h"
 
 // The rulesets of the lanes, one a language. A process reads each once from its .krs file in
@@ -20,25 +22,30 @@
 
 // the folder of the rulesets. It is $CYCLE_RULESETS where set. Otherwise it is src/cu/transpiler/lstar/protocol/table
 // two folders above the folder of this file, in the tree of its build
-std::string ruleset_folder(void)
+int ruleset_folder(char *folder, size_t bytes)
 {
-    char named_text[PLATFORM_ENVIRONMENT_BYTES];
-    const char *const named =
-        (platform_environment("CYCLE_RULESETS", named_text, sizeof(named_text)) != 0ULL) ? named_text : NULL;
-    if ((named != NULL) && (named[0] != '\0'))
+    char named[PLATFORM_ENVIRONMENT_BYTES];
+    if ((platform_environment("CYCLE_RULESETS", named, sizeof(named)) != 0ULL) && (named[0] != '\0'))
     {
-        return std::string(named);
+        const size_t length = mmgr_text_length(named, sizeof(named));
+        return (length < bytes) && (mmgr_text_copy(folder, named, bytes) == length);
     }
-    return tree_folder_from(__FILE__, 2u, "src/cu/transpiler/lstar/protocol/table");
+    return tree_folder_from(__FILE__, 2u, "src/cu/transpiler/lstar/protocol/table", folder, bytes);
 }
 
-// the place of `word` among `count` names, or `count` where it is none of them
-unsigned int ruleset_find(const RulesetName *names, unsigned int count, const std::string &word)
+unsigned int ruleset_find(const RulesetName *names, unsigned int count, const char *word)
+{
+    return ruleset_find_span(names, count, word, mmgr_text_length(word, PLATFORM_TEXT_TO_TERMINATOR));
+}
+
+unsigned int ruleset_find_span(const RulesetName *names, unsigned int count, const char *word, size_t length)
 {
     unsigned int found = count;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        found = (word == names[at].text) ? at : found;
+        const int same = (mmgr_text_length(names[at].text, PLATFORM_TEXT_TO_TERMINATOR) == length) &&
+                         (mmgr_bytes_compare(names[at].text, word, length) == 0);
+        found = same ? at : found;
     }
     return found;
 }

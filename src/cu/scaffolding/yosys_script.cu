@@ -27,16 +27,20 @@ YosysScript::YosysScript(void) : Target(&s_yosys_schema)
 {
 }
 
-std::string YosysScript::program(const EngineRecordLayout *layout, const TargetInfo *target, const std::string &header,
-                                 unsigned int *places, unsigned int *live)
+int YosysScript::program(const EngineRecordLayout *layout, const TargetInfo *target, const char *header,
+                         PlatformText *text, unsigned int *places, unsigned int *live)
 {
     (void)layout;
     (void)target;
     (void)header;
+    platform_text_reset(text);
     *places = 0u;
     *live = 0u;
-    return std::string();
+    return 0;
 }
+
+// the bytes a script holds at max
+#define YOSYS_SCRIPT_BYTES (1ULL << 20u)
 
 std::string YosysScript::synthesis(const std::string &source, const std::string &top, const std::string &memories)
 {
@@ -45,17 +49,25 @@ std::string YosysScript::synthesis(const std::string &source, const std::string 
     {
         return std::string();
     }
-    std::string text;
+    PlatformText text;
+    platform_text_begun(&text, YOSYS_SCRIPT_BYTES, platform_place_g_program_owner, 0);
     int broken = 0;
-    ruleset_write(rules, text, YOSYS_READ_SOURCE, {source}, &broken);
-    ruleset_write(rules, text, YOSYS_COARSE, {top}, &broken);
+    const char *const source_argument[1] = {source.c_str()};
+    const char *const top_argument[1] = {top.c_str()};
+    const char *const memories_argument[1] = {memories.c_str()};
+    ruleset_write_taking(rules, &text.line, YOSYS_READ_SOURCE, source_argument, 1u, NULL, &broken);
+    ruleset_write_taking(rules, &text.line, YOSYS_COARSE, top_argument, 1u, NULL, &broken);
     if (!memories.empty())
     {
-        ruleset_write(rules, text, YOSYS_MEMORIES, {memories}, &broken);
+        ruleset_write_taking(rules, &text.line, YOSYS_MEMORIES, memories_argument, 1u, NULL, &broken);
     }
-    ruleset_write(rules, text, YOSYS_FINE, {}, &broken);
-    ruleset_write(rules, text, YOSYS_MEASURE, {}, &broken);
-    return (broken == 0) ? text : std::string();
+    ruleset_write_taking(rules, &text.line, YOSYS_FINE, NULL, 0u, NULL, &broken);
+    ruleset_write_taking(rules, &text.line, YOSYS_MEASURE, NULL, 0u, NULL, &broken);
+    const std::string script = ((broken == 0) && (mmgr_line_ok(&text.line) != 0))
+                                   ? std::string(platform_text_bytes(&text), (size_t)platform_text_size(&text))
+                                   : std::string();
+    platform_text_ended(&text);
+    return script;
 }
 
 YosysScript &yosys_script(void)

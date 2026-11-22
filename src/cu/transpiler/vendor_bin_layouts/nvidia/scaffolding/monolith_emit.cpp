@@ -19,17 +19,18 @@
 // The listing is cuobjdump -sass -fun monolith of the build with MONOLITH_TAGGED 1.
 extern "C"
 {
-#include "../sass_assemble.h"
 #include "../../../../engine/engine_note.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "../sass_assemble.h"
 #include "../sass_machine.h"
+#include "cellularum_laboro/cellularum_linea.h"
+#include "memoria_operor/memoria_linea.h"
 }
 
+#include "../../../../../platform/platform.h"
 #include "../../../../engine/rmc/word_web.h"
+#include "../../../../scaffolding/ruleset_strings.h"
 #include "sass_target.h"
 #include "target.h"
-#include "../../../../../platform/platform.h"
 
 #include <cstdio>
 #include <cstdlib>

@@ -33,11 +33,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <chrono>
-#include <initializer_list>
-#include <string>
-#include <vector>
-
 #if defined(_WIN32)
 #define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
@@ -134,7 +129,7 @@ void cycle_program_release(cudaKernel_t kernel);
 
 // a program's C source built by the host's compiler and loaded for `record`, 0 where it did not build; a cached host
 // program given back. And a host program run resident on the host (cycle_compile.cu)
-int cycle_host_program_load(const EngineRecordLayout *layout, CycleRecord *record, const std::string &source,
+int cycle_host_program_load(const EngineRecordLayout *layout, CycleRecord *record, const char *source,
                             unsigned int places, unsigned long long written, int report);
 
 void cycle_host_program_release(CycleHostEntry entry);

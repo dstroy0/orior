@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // interface_ptx_probe_runs.cu: the probe's runs: PTX's header and the kernel, the cubins assembled, built, written
 // and run, and the membership, single and clocks probes
+#include "../../../../../platform/platform.h"
+#include "../../../../scaffolding/ruleset_strings.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "interface_ptx_probe_internal.h"
 #include "memoria_operor/memoria_linea.h"
-#include "../../../../../platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
 
 // PTX's header for the device, requested of NVRTC by compiling an empty kernel to PTX: the .version, .target and
 // .address_size lines. Empty where NVRTC does not answer

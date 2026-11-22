@@ -5,26 +5,29 @@
 
 // The code generator's text as a record program, the code generator's work where the programs run (engine_table.md item
 // 11(a), the code generator on the device). The core decides the forms of the language's ruleset a lane is written
-// in (codegen_core.h, MachineInstr). The assembly printer writes their text from the ruleset's own written forms positioned
-// out as tables, a lane a byte. Each lane reads one form, by the index, finds which of the form's pieces contains its
-// byte, and writes that byte: a character of a piece of the form's text, of a bank's written form around a register's
-// number, of a word the ruleset contains whole, or a decimal digit of a number. A lane past its form's end writes 0,
-// which no text contains: the text is the lanes' bytes in lane order with the zeros left out. The host arranges once
-// what is the ruleset's, the target's and the header's alone (asm_printer_ruleset_build); the forms' records are positioned
-// out from the items by the functions below, which the device runs (codegen_device.h) and the host oracle runs
-// (asm_printer_host): the two arrange them from one source
+// in (codegen_core.h, MachineInstr). The assembly printer writes their text from the ruleset's own written forms
+// positioned out as tables, a lane a byte. Each lane reads one form, by the index, finds which of the form's pieces
+// contains its byte, and writes that byte: a character of a piece of the form's text, of a bank's written form around a
+// register's number, of a word the ruleset contains whole, or a decimal digit of a number. A lane past its form's end
+// writes 0, which no text contains: the text is the lanes' bytes in lane order with the zeros left out. The host
+// arranges once what is the ruleset's, the target's and the header's alone (asm_printer_ruleset_build); the forms'
+// records are positioned out from the items by the functions below, which the device runs (codegen_device.h) and the
+// host oracle runs (asm_printer_host): the two arrange them from one source
 
-#include "codegen_core.h"
 #include "../../../../includes/file_defs/krs/ruleset_core_words.h"
+#include "codegen_core.h"
 #include "target.h"
-
-#include <string>
-#include <vector>
 
 // the arguments one record of the assembly printer contains, each a word the ruleset contains whole or a number between
 // two words (a bank's written form around a register's number); a form with more placeholders takes a record for each
 // four
 #define ASM_PRINTER_PLACEHOLDERS 4u
+
+// the fields of a record: the part, the first lane, then four for each placeholder
+#define ASM_PRINTER_FIELDS (2u + (4u * ASM_PRINTER_PLACEHOLDERS))
+
+// the tables of the program (AsmPrinterTable)
+#define ASM_PRINTER_PROGRAM_TABLES 6u
 
 // the numbers the program writes are 32-bit words, ten digits at max
 #define ASM_PRINTER_DIGITS 10u
@@ -54,17 +57,24 @@
 #define ASM_PRINTER_LANES_MAX 0x80000000ULL
 
 // the assembly printer: its key and layout, as keymath and key_schedule leave them, and what they took, retained so the
-// device positions it out again (layout_device, codegen_device.h): its steps, the fields' widths and offsets, its tables,
-// each pointing at its values, and the step it outputs
+// device positions it out again (layout_device, codegen_device.h): its steps, the fields' widths and offsets, its
+// tables, each pointing at its values, and the step it outputs a list of words in one cell of the pool, and their count
+struct AsmPrinterWords
+{
+    unsigned int *words;
+    unsigned long long count;
+};
+
 struct AsmPrinterProgram
 {
     EngineRecordKey key;
     EngineRecordLayout layout;
-    std::vector<EngineRecordStep> steps;
-    std::vector<unsigned int> field_bits;
-    std::vector<unsigned int> field_offset;
-    std::vector<EngineRecordTable> tables;
-    std::vector<std::vector<unsigned int>> values;
+    EngineRecordStep *steps;
+    unsigned int step_count;
+    unsigned int field_bits[ASM_PRINTER_FIELDS];
+    unsigned int field_offset[ASM_PRINTER_FIELDS];
+    EngineRecordTable tables[ASM_PRINTER_PROGRAM_TABLES];
+    AsmPrinterWords values[ASM_PRINTER_PROGRAM_TABLES];
     unsigned int output;
 };
 
@@ -89,13 +99,13 @@ struct AsmPrinterArgument
 struct AsmPrinterRuleset
 {
     AsmPrinterProgram program;
-    std::vector<unsigned int> scratch;
-    std::vector<unsigned int> word_lengths;
-    std::vector<unsigned int> part_lanes;
-    std::vector<unsigned int> form_part_first;
-    std::vector<unsigned int> form_parts;
-    std::vector<unsigned int> form_placeholder_first;
-    std::vector<unsigned int> placeholder_parameters;
+    AsmPrinterWords scratch;
+    AsmPrinterWords word_lengths;
+    AsmPrinterWords part_lanes;
+    AsmPrinterWords form_part_first;
+    AsmPrinterWords form_parts;
+    AsmPrinterWords form_placeholder_first;
+    AsmPrinterWords placeholder_parameters;
     unsigned int bank_before[REGCLASS_COUNT];
     unsigned int bank_after[REGCLASS_COUNT];
     unsigned int fixed_word[PHYSREG_COUNT];
@@ -302,22 +312,31 @@ CODEGEN_CORE unsigned int asm_printer_byte(const unsigned int *record, unsigned 
     return (unsigned int)((pair >> (offset % 32u)) & 0xFFULL);
 }
 
-// the assembly printer and its tables for any lane the core decides in `rules` for `target` under `header`: 1 where it
-// is arranged, else 0 and why in `error`. A ruleset that gives a form as a construct errors, since a construct's
-// scratch is the code generator's to take, as is a bank that writes its register with other than one number, a header
-// that contains a byte 0, and more words or characters than the tables contain
-int asm_printer_ruleset_build(const Ruleset *rules, const TargetInfo *target, const std::string &header,
-                              AsmPrinterRuleset *text_rules, std::string *error);
+// The assembly printer and its tables for any lane the core decides in `rules` for `target` under `header`. 1 where it
+// is arranged, else 0 and why on `error`. A ruleset that gives a form as a construct errors, since a construct's
+// scratch is the code generator's to take. So does a bank that writes its register with other than one number, and
+// more words or characters than the tables contain
+int asm_printer_ruleset_build(const Ruleset *rules, const TargetInfo *target, const char *header,
+                              AsmPrinterRuleset *text_rules, VerbaLinea *error);
 
 void asm_printer_ruleset_release(AsmPrinterRuleset *text_rules);
+
+// `count` words of `from` copied into a cell of their own in `words`: 1, or 0 where the pool cannot meet the cell
+int asm_printer_words_taken(AsmPrinterWords *words, const unsigned int *from, unsigned long long count);
+
+// the cell of `words` given back, and the list empty
+void asm_printer_words_ended(AsmPrinterWords *words);
+
+// 1 where two lists hold the same words
+int asm_printer_words_same(const AsmPrinterWords *left, const AsmPrinterWords *right);
 
 // the rules as the records' layout reads them in host memory, their lists `text_rules`' own
 AsmPrinterLists asm_printer_lists(const AsmPrinterRuleset *text_rules);
 
 // the host oracle: the lane's items (CodeGenerator::decided) arranged as records by the functions above and written by
-// the assembly printer on the host (cycle_record_run_host); 1 where it ran, its text in `text`, else 0 and why in
-// `error_message`
-int asm_printer_host(const AsmPrinterRuleset *text_rules, const std::vector<MachineInstr> &items, std::string *text,
-                     std::string *error_message);
+// the assembly printer on the host (cycle_record_run_host), from the `count` items at `items`. 1 where it ran, its text
+// on `text`, else 0 and why on `error_message`
+int asm_printer_host(const AsmPrinterRuleset *text_rules, const MachineInstr *items, unsigned long long count,
+                     PlatformText *text, VerbaLinea *error_message);
 
 #endif

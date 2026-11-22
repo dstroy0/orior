@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // log.cu: the log read off the run into the puts, case sets, metas, categories and choices, and each pair's set,
 // product and identity decoded off its puts
-#include "decoder_internal.h"
 #include "../../../../../../platform/platform.h"
+#include "decoder_internal.h"
 #include "memoria_operor/memoria_linea.h"
 
 #include "../../../../../../../includes/file_defs/qry/qry_read.h"
@@ -73,13 +73,18 @@ int Decoding::log_read(const char *qry)
     int block_answered = 0;
     std::string line;
     static const std::regex s_put("^pair (\\S+) in place of (\\S+) at (\\S+)$");
-    std::string trace_error;
-    if (!query_trace_read(query_trace_path(), &trace, &trace_error))
+    char trace_path[PLATFORM_PATH_BYTES];
+    char trace_why[QUERY_TRACE_GLOSS_BYTES];
+    VerbaLinea trace_error = mmgr_line_over(trace_why, sizeof(trace_why));
+    const int trace_read =
+        query_trace_path(trace_path, sizeof(trace_path)) && query_trace_read(trace_path, &trace, &trace_error);
+    (void)mmgr_line_finish(&trace_error);
+    if (!trace_read)
     {
         {
             VerbaLinea *const output_line = platform_line_out();
             mmgr_line_put(output_line, "orior_klq_decoder: ");
-            mmgr_line_put(output_line, trace_error.c_str());
+            mmgr_line_put(output_line, trace_why);
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
@@ -87,8 +92,8 @@ int Decoding::log_read(const char *qry)
     }
     std::string choosing;
     // the pairs the lower witness answered: a choice of a link of a third form the part answered alike or apart
-    const unsigned long long lower_flag = query_trace_flag(trace, "lower");
-    const unsigned long long answer_flags = query_trace_flag(trace, "alike") | query_trace_flag(trace, "apart");
+    const unsigned long long lower_flag = query_trace_flag(&trace, "lower");
+    const unsigned long long answer_flags = query_trace_flag(&trace, "alike") | query_trace_flag(&trace, "apart");
     while (std::getline(log, line))
     {
         line = (!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line;
@@ -100,12 +105,13 @@ int Decoding::log_read(const char *qry)
             {
                 witnessed.insert(choosing);
             }
-            for (const auto &flag : trace.named)
+            for (unsigned int flag_at = 0u; flag_at < trace.count; flag_at += 1u)
             {
-                if ((word & flag.first) != 0ULL)
+                const QueryTraceFlag &flag = trace.flags[flag_at];
+                if ((word & flag.word) != 0ULL)
                 {
-                    choices[choosing][flag.first] += 1u;
-                    chosen[flag.first] += 1u;
+                    choices[choosing][flag.word] += 1u;
+                    chosen[flag.word] += 1u;
                 }
             }
         }

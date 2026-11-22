@@ -14,16 +14,15 @@
 // come back to the host after they are arranged, and the text's length after its bytes are gathered
 static int codegen_device_written(DeviceArena *device_arena, const EngineRecordLayout *layout,
                                   const DeviceRecordStep *device_steps, const AsmPrinterRuleset *text_rules,
-                                  unsigned int places, const ScheduleCosts *costs, std::string *text,
-                                  std::string *error_message)
+                                  unsigned int places, const ScheduleCosts *costs, PlatformText *text,
+                                  VerbaLinea *error_message)
 {
     DeviceArena &memory = *device_arena;
     MachineInstr *items = NULL;
     unsigned long long item_count = 0ULL;
     ScheduleReport report{};
-    if (codegen_device_decide(device_arena, layout, device_steps, text_rules->scratch.data(),
-                              text_rules->scratch.size(), places, costs, &report, &items, &item_count,
-                              error_message) == 0)
+    if (codegen_device_decide(device_arena, layout, device_steps, text_rules->scratch.words, text_rules->scratch.count,
+                              places, costs, &report, &items, &item_count, error_message) == 0)
     {
         return 0;
     }
@@ -32,15 +31,15 @@ static int codegen_device_written(DeviceArena *device_arena, const EngineRecordL
     unsigned int *const device_summary = codegen_device_copy(&memory, summary, CODEGEN_SUMMARY);
     // the ruleset's written forms with their lists in device memory, and the records each item takes
     AsmPrinterLists forms = asm_printer_lists(text_rules);
-    forms.word_lengths = codegen_device_copy(&memory, text_rules->word_lengths.data(), text_rules->word_lengths.size());
-    forms.part_lanes = codegen_device_copy(&memory, text_rules->part_lanes.data(), text_rules->part_lanes.size());
+    forms.word_lengths = codegen_device_copy(&memory, text_rules->word_lengths.words, text_rules->word_lengths.count);
+    forms.part_lanes = codegen_device_copy(&memory, text_rules->part_lanes.words, text_rules->part_lanes.count);
     forms.form_part_first =
-        codegen_device_copy(&memory, text_rules->form_part_first.data(), text_rules->form_part_first.size());
-    forms.form_parts = codegen_device_copy(&memory, text_rules->form_parts.data(), text_rules->form_parts.size());
-    forms.form_placeholder_first = codegen_device_copy(&memory, text_rules->form_placeholder_first.data(),
-                                                       text_rules->form_placeholder_first.size());
-    forms.placeholder_parameters = codegen_device_copy(&memory, text_rules->placeholder_parameters.data(),
-                                                       text_rules->placeholder_parameters.size());
+        codegen_device_copy(&memory, text_rules->form_part_first.words, text_rules->form_part_first.count);
+    forms.form_parts = codegen_device_copy(&memory, text_rules->form_parts.words, text_rules->form_parts.count);
+    forms.form_placeholder_first = codegen_device_copy(&memory, text_rules->form_placeholder_first.words,
+                                                       text_rules->form_placeholder_first.count);
+    forms.placeholder_parameters = codegen_device_copy(&memory, text_rules->placeholder_parameters.words,
+                                                       text_rules->placeholder_parameters.count);
     unsigned long long *const record_counts = codegen_device_take<unsigned long long>(&memory, item_count);
     unsigned long long *const record_first = codegen_device_take<unsigned long long>(&memory, item_count);
     if (memory.ok != 0)
@@ -53,9 +52,9 @@ static int codegen_device_written(DeviceArena *device_arena, const EngineRecordL
     codegen_device_read(&memory, summary, device_summary, CODEGEN_SUMMARY);
     if ((memory.ok != 0) && ((summary[CODEGEN_BROKEN] != 0u) || (record_count >= ASM_PRINTER_LANES_MAX)))
     {
-        *error_message = (summary[CODEGEN_BROKEN] != 0u)
-                             ? "a form breaks the lane"
-                             : "the text contains more records than the assembly printer supports";
+        mmgr_line_put(error_message, (summary[CODEGEN_BROKEN] != 0u)
+                                         ? "a form breaks the lane"
+                                         : "the text contains more records than the assembly printer supports");
         return 0;
     }
     unsigned int *const records = codegen_device_take<unsigned int>(&memory, record_count * ASM_PRINTER_RECORD_LIMBS);
@@ -72,7 +71,7 @@ static int codegen_device_written(DeviceArena *device_arena, const EngineRecordL
     const unsigned long long lanes = codegen_device_scan(&memory, record_lanes, lane_first, record_count);
     if ((memory.ok != 0) && ((lanes >= ASM_PRINTER_LANES_MAX) || (lanes == 0ULL)))
     {
-        *error_message = "the text contains more lanes than the assembly printer supports";
+        mmgr_line_put(error_message, "the text contains more lanes than the assembly printer supports");
         return 0;
     }
     unsigned int *const index = codegen_device_take<unsigned int>(&memory, lanes);
@@ -84,7 +83,7 @@ static int codegen_device_written(DeviceArena *device_arena, const EngineRecordL
     }
     if (memory.ok == 0)
     {
-        *error_message = "the device errored on a call";
+        mmgr_line_put(error_message, "the device errored on a call");
         return 0;
     }
     // the assembly printer arranged by the device and checked against the host's word for word, then run by the record
@@ -102,7 +101,7 @@ static int codegen_device_written(DeviceArena *device_arena, const EngineRecordL
     key_schedule_record_release(&text_layout);
     if (loaded == CYCLE_ERROR)
     {
-        *error_message = "the record machine did not load the assembly printer";
+        mmgr_line_put(error_message, "the record machine did not load the assembly printer");
         return 0;
     }
     const unsigned int out_limbs = cycle_record_out_limbs(record);
@@ -138,30 +137,49 @@ static int codegen_device_written(DeviceArena *device_arena, const EngineRecordL
                                                            gathered_count, (int)lanes, NonzeroByte()) == cudaSuccess);
     int length = 0;
     codegen_device_read(&memory, &length, gathered_count, 1ULL);
-    std::string written((size_t)((length > 0) ? length : 0), '\0');
-    codegen_device_read(&memory, &written[0], (const char *)gathered, written.size());
+    // a text's length is never negative, and the selection counts it in an int
+    const unsigned long long written = (length > 0) ? (unsigned long long)length : 0ULL;
+    char *const host_bytes = (char *)platform_cell_taken(written + 1ULL, platform_place_g_program_owner, 1);
+    memory.ok = (memory.ok != 0) && (host_bytes != NULL);
+    codegen_device_read(&memory, host_bytes, (const char *)gathered, written);
     if (memory.ok == 0)
     {
-        *error_message = "the device errored on a call, or the assembly printer did not run";
+        platform_cell_released(host_bytes, platform_place_g_program_owner);
+        mmgr_line_put(error_message, "the device errored on a call, or the assembly printer did not run");
         return 0;
     }
-    *text = written;
+    platform_text_reset(text);
+    (void)mmgr_line_put_n(&text->line, host_bytes, (size_t)written);
+    platform_cell_released(host_bytes, platform_place_g_program_owner);
     return 1;
 }
 
-// why keymath's encoding, where `keymath` is 1, or key_schedule's layout errored on the program, from where it ended
-static std::string layout_error(int keymath, const LayoutEnd *ended)
+// why keymath's encoding, where `keymath` is 1, or key_schedule's layout errored on the program, from where it ended,
+// onto `error`
+static void layout_error(int keymath, const LayoutEnd *ended, VerbaLinea *error)
 {
-    const std::string at = std::to_string(ended->at);
+    if ((keymath != 0) && (ended->end == KEYMATH_CORE_OUTPUT))
+    {
+        mmgr_line_put(error, "keymath errored output ");
+        mmgr_line_decimal(error, ended->at, 1u);
+        return;
+    }
     if (keymath != 0)
     {
-        return (ended->end == KEYMATH_CORE_TABLE)    ? "keymath errored step " + at + "'s table"
-               : (ended->end == KEYMATH_CORE_OUTPUT) ? "keymath errored output " + at
-                                                     : "keymath errored step " + at;
+        mmgr_line_put(error, "keymath errored step ");
+        mmgr_line_decimal(error, ended->at, 1u);
+        mmgr_line_put(error, (ended->end == KEYMATH_CORE_TABLE) ? "'s table" : "");
+        return;
     }
-    return (ended->end == KEY_SCHEDULE_CORE_STEP)   ? "key_schedule errored step " + at
-           : (ended->end == KEY_SCHEDULE_CORE_FILE) ? "the program's registers are more limbs than the file contains"
-                                                    : "the program's outputs are more bits than a record counts";
+    if (ended->end == KEY_SCHEDULE_CORE_STEP)
+    {
+        mmgr_line_put(error, "key_schedule errored step ");
+        mmgr_line_decimal(error, ended->at, 1u);
+        return;
+    }
+    mmgr_line_put(error, (ended->end == KEY_SCHEDULE_CORE_FILE)
+                             ? "the program's registers are more limbs than the file contains"
+                             : "the program's outputs are more bits than a record counts");
 }
 
 // The program of `request` arranged on the device, in `memory`, which the caller frees: keymath's encoding in one
@@ -173,7 +191,7 @@ static std::string layout_error(int keymath, const LayoutEnd *ended)
 // the record's bits
 static int layout_steps(DeviceArena *memory, const LayoutRequest *request, EngineRecordLayout *layout,
                         DeviceRecordStep **device_steps, unsigned int **device_values, unsigned long long *value_count,
-                        std::string *error)
+                        VerbaLinea *error)
 {
     int valid = (request->steps != NULL) && (request->count != 0u) && (request->outputs != NULL) &&
                 (request->output_count != 0u) && (request->output_count <= request->count) &&
@@ -185,47 +203,49 @@ static int layout_steps(DeviceArena *memory, const LayoutRequest *request, Engin
     }
     if (valid == 0)
     {
-        *error = "the request is not a program keymath and key_schedule take";
+        mmgr_line_put(error, "the request is not a program keymath and key_schedule take");
         return 0;
     }
     if (request->count >= CODEGEN_COUNT_MAX)
     {
-        *error = "the program has more steps than a scan counts";
+        mmgr_line_put(error, "the program has more steps than a scan counts");
         return 0;
     }
     const unsigned int count = request->count;
     // each table's values in device memory, one after another, and its descriptor pointing at them there; a table
     // indexed by more bits than a table supports, or with no values, errors on whole, as keymath could not arrange the
     // key's values
-    std::vector<EngineRecordTable> tables(request->table_count);
-    std::vector<unsigned long long> table_first(request->table_count);
-    std::vector<unsigned long long> table_words(request->table_count);
     unsigned long long words = 0ULL;
     for (unsigned int table = 0u; table < request->table_count; table += 1u)
     {
-        tables[table] = request->tables[table];
-        if ((tables[table].index_bits > ENGINE_RECORD_TABLE_INDEX_BITS_MAX) || (tables[table].values == NULL))
+        const EngineRecordTable *const given = &request->tables[table];
+        if ((given->index_bits > ENGINE_RECORD_TABLE_INDEX_BITS_MAX) || (given->values == NULL))
         {
-            *error =
-                "table " + std::to_string(table) + " is indexed by more bits than a table supports, or has no values";
+            mmgr_line_put(error, "table ");
+            mmgr_line_decimal(error, table, 1u);
+            mmgr_line_put(error, " is indexed by more bits than a table supports, or has no values");
             return 0;
         }
-        table_first[table] = words;
         // index_bits is at max 32, and the entry count at max 2^32
-        const unsigned long long entries = 1ULL << tables[table].index_bits;
-        table_words[table] = entries * (unsigned long long)((tables[table].out_bits + 31u) / 32u);
-        words += table_words[table];
+        words += (1ULL << given->index_bits) * (unsigned long long)((given->out_bits + 31u) / 32u);
     }
     unsigned int *const values = codegen_device_take<unsigned int>(memory, words);
+    EngineRecordTable *const device_tables =
+        (request->tables != NULL) ? codegen_device_take<EngineRecordTable>(memory, request->table_count) : NULL;
+    unsigned long long table_first = 0ULL;
     for (unsigned int table = 0u; (memory->ok != 0) && (table < request->table_count); table += 1u)
     {
-        tables[table].values = &values[table_first[table]];
-        if (table_words[table] != 0ULL)
-        {
-            memory->ok =
-                cudaMemcpy(&values[table_first[table]], request->tables[table].values,
-                           (size_t)(table_words[table] * sizeof(unsigned int)), cudaMemcpyHostToDevice) == cudaSuccess;
-        }
+        // each table's descriptor goes to the device alone, and points at its values there
+        EngineRecordTable placed = request->tables[table];
+        const unsigned long long table_words =
+            (1ULL << placed.index_bits) * (unsigned long long)((placed.out_bits + 31u) / 32u);
+        placed.values = &values[table_first];
+        memory->ok = (table_words == 0ULL) ||
+                     (cudaMemcpy(&values[table_first], request->tables[table].values,
+                                 (size_t)(table_words * sizeof(unsigned int)), cudaMemcpyHostToDevice) == cudaSuccess);
+        memory->ok = (memory->ok != 0) && (cudaMemcpy(&device_tables[table], &placed, sizeof(placed),
+                                                      cudaMemcpyHostToDevice) == cudaSuccess);
+        table_first += table_words;
     }
     // the program keymath and key_schedule read, in device memory
     const EngineRecordStep *const steps = codegen_device_copy(memory, request->steps, count);
@@ -235,8 +255,6 @@ static int layout_steps(DeviceArena *memory, const LayoutRequest *request, Engin
         (request->field_offset != NULL) ? codegen_device_copy(memory, request->field_offset, request->fields) : NULL;
     const unsigned int *const in_limbs = codegen_device_copy(memory, request->in_limbs, request->members);
     const unsigned int *const outputs = codegen_device_copy(memory, request->outputs, request->output_count);
-    const EngineRecordTable *const device_tables =
-        (request->tables != NULL) ? codegen_device_copy(memory, tables.data(), request->table_count) : NULL;
     LayoutEnd *const device_ended = codegen_device_take<LayoutEnd>(memory, 1ULL);
     LayoutEnd ended{};
     // keymath's encoding: each step's term, never-negative mark and form. An arena that filled stays taken until the
@@ -273,7 +291,7 @@ static int layout_steps(DeviceArena *memory, const LayoutRequest *request, Engin
     } while ((memory->ok != 0) && (ended.ok == 0) && (ended.end == KEYMATH_CORE_FULL));
     if ((memory->ok != 0) && (ended.ok == 0))
     {
-        *error = layout_error(1, &ended);
+        layout_error(1, &ended, error);
         return 0;
     }
     // key_schedule's layout: each step arranged for the device and placed, and each output placed in the record
@@ -305,12 +323,12 @@ static int layout_steps(DeviceArena *memory, const LayoutRequest *request, Engin
     codegen_device_read(memory, &ended, device_ended, 1ULL);
     if (memory->ok == 0)
     {
-        *error = "the device errored on a call";
+        mmgr_line_put(error, "the device errored on a call");
         return 0;
     }
     if (ended.ok == 0)
     {
-        *error = layout_error(0, &ended);
+        layout_error(0, &ended, error);
         return 0;
     }
     // the sizes as key_schedule_record_layout positions it out; the layout limited the file to ENGINE_RECORD_LIMBS_MAX
@@ -332,18 +350,20 @@ static int layout_steps(DeviceArena *memory, const LayoutRequest *request, Engin
 }
 
 int codegen_device(const EngineRecordLayout *layout, const AsmPrinterRuleset *text_rules, unsigned int places,
-                   const ScheduleCosts *costs, std::string *text, std::string *error)
+                   const ScheduleCosts *costs, PlatformText *text, VerbaLinea *error)
 {
-    DeviceArena memory = {std::vector<void *>(), 1};
+    DeviceArena memory{};
+    memory.ok = 1;
     const DeviceRecordStep *const device_steps = codegen_device_copy(&memory, layout->step_table, layout->steps);
     const int written = codegen_device_written(&memory, layout, device_steps, text_rules, places, costs, text, error);
     codegen_device_release(&memory);
     return written;
 }
 
-int layout_device(const LayoutRequest *request, EngineRecordLayout *layout, std::string *error)
+int layout_device(const LayoutRequest *request, EngineRecordLayout *layout, VerbaLinea *error)
 {
-    DeviceArena memory = {std::vector<void *>(), 1};
+    DeviceArena memory{};
+    memory.ok = 1;
     DeviceRecordStep *device_steps = NULL;
     unsigned int *device_values = NULL;
     unsigned long long value_count = 0ULL;
@@ -370,8 +390,8 @@ int layout_device(const LayoutRequest *request, EngineRecordLayout *layout, std:
         }
         if (ok == 0)
         {
-            *error =
-                (memory.ok != 0) ? "the host could not store the layout read back" : "the device errored on a call";
+            mmgr_line_put(error, (memory.ok != 0) ? "the host could not store the layout read back"
+                                                  : "the device errored on a call");
             key_schedule_record_release(&device_layout);
         }
     }
@@ -381,9 +401,10 @@ int layout_device(const LayoutRequest *request, EngineRecordLayout *layout, std:
 }
 
 int codegen_device_steps(const LayoutRequest *request, const AsmPrinterRuleset *text_rules, unsigned int places,
-                         const ScheduleCosts *costs, std::string *text, std::string *error)
+                         const ScheduleCosts *costs, PlatformText *text, VerbaLinea *error)
 {
-    DeviceArena memory = {std::vector<void *>(), 1};
+    DeviceArena memory{};
+    memory.ok = 1;
     DeviceRecordStep *device_steps = NULL;
     unsigned int *device_values = NULL;
     unsigned long long value_count = 0ULL;
@@ -395,22 +416,26 @@ int codegen_device_steps(const LayoutRequest *request, const AsmPrinterRuleset *
     return written;
 }
 
-int codegen_device_instrs(const EngineRecordLayout *layout, const std::vector<unsigned int> &scratch,
-                          unsigned int places, const ScheduleCosts *costs, ScheduleReport *report,
-                          std::vector<MachineInstr> *items, std::string *error)
+int codegen_device_instrs(const EngineRecordLayout *layout, const unsigned int *scratch,
+                          unsigned long long scratch_count, unsigned int places, const ScheduleCosts *costs,
+                          ScheduleReport *report, PlatformArray *items, VerbaLinea *error)
 {
-    DeviceArena memory = {std::vector<void *>(), 1};
+    DeviceArena memory{};
+    memory.ok = 1;
     const DeviceRecordStep *const device_steps = codegen_device_copy(&memory, layout->step_table, layout->steps);
     MachineInstr *decided = NULL;
     unsigned long long item_count = 0ULL;
-    int ok = codegen_device_decide(&memory, layout, device_steps, scratch.data(), scratch.size(), places, costs, report,
+    int ok = codegen_device_decide(&memory, layout, device_steps, scratch, scratch_count, places, costs, report,
                                    &decided, &item_count, error);
     if (ok != 0)
     {
-        items->assign((size_t)item_count, MachineInstr{});
-        codegen_device_read(&memory, items->data(), decided, item_count);
+        memory.ok = platform_array_counted(items, 0ULL) && platform_array_counted(items, item_count);
+        codegen_device_read(&memory, (MachineInstr *)items->cell, decided, item_count);
         ok = memory.ok != 0;
-        *error = (ok != 0) ? *error : std::string("the device errored on a call");
+        if (ok == 0)
+        {
+            mmgr_line_put(error, "the device errored on a call");
+        }
     }
     codegen_device_release(&memory);
     return ok;
@@ -418,48 +443,49 @@ int codegen_device_instrs(const EngineRecordLayout *layout, const std::vector<un
 #endif
 #if !(defined(__CUDACC__))
 int codegen_device(const EngineRecordLayout *layout, const AsmPrinterRuleset *text_rules, unsigned int places,
-                   const ScheduleCosts *costs, std::string *text, std::string *error)
+                   const ScheduleCosts *costs, PlatformText *text, VerbaLinea *error)
 {
     (void)layout;
     (void)text_rules;
     (void)places;
     (void)costs;
     (void)text;
-    *error = "the build has no device";
+    mmgr_line_put(error, "the build has no device");
     return 0;
 }
 
-int layout_device(const LayoutRequest *request, EngineRecordLayout *layout, std::string *error)
+int layout_device(const LayoutRequest *request, EngineRecordLayout *layout, VerbaLinea *error)
 {
     (void)request;
     (void)layout;
-    *error = "the build has no device";
+    mmgr_line_put(error, "the build has no device");
     return 0;
 }
 
 int codegen_device_steps(const LayoutRequest *request, const AsmPrinterRuleset *text_rules, unsigned int places,
-                         const ScheduleCosts *costs, std::string *text, std::string *error)
+                         const ScheduleCosts *costs, PlatformText *text, VerbaLinea *error)
 {
     (void)request;
     (void)text_rules;
     (void)places;
     (void)costs;
     (void)text;
-    *error = "the build has no device";
+    mmgr_line_put(error, "the build has no device");
     return 0;
 }
 
-int codegen_device_instrs(const EngineRecordLayout *layout, const std::vector<unsigned int> &scratch,
-                          unsigned int places, const ScheduleCosts *costs, ScheduleReport *report,
-                          std::vector<MachineInstr> *items, std::string *error)
+int codegen_device_instrs(const EngineRecordLayout *layout, const unsigned int *scratch,
+                          unsigned long long scratch_count, unsigned int places, const ScheduleCosts *costs,
+                          ScheduleReport *report, PlatformArray *items, VerbaLinea *error)
 {
     (void)layout;
     (void)scratch;
+    (void)scratch_count;
     (void)places;
     (void)costs;
     (void)report;
     (void)items;
-    *error = "the build has no device";
+    mmgr_line_put(error, "the build has no device");
     return 0;
 }
 #endif

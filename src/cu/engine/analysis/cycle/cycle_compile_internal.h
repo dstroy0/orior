@@ -4,8 +4,8 @@
 #ifndef CYCLE_COMPILE_INTERNAL_H
 #define CYCLE_COMPILE_INTERNAL_H
 
+#include "../../../../platform/platform.h"
 #include "cycle_shared.h"
-#include "../../../text_note/text_note.h"
 
 // The record program compiled. Nothing hand-written is linked with it: the language's own forms write every record
 // operation into the lane and the resident kernel that runs the lanes after it (program_unit), and one text is the
@@ -87,18 +87,33 @@ struct CycleTarget
     int major;
     int minor;
     unsigned long long hash;
-    std::string source;
+    PlatformText source;
 };
 
-// a program compiled in this process, found again by its whole source, and the records loaded that reference it: the
-// last one released unloads it
+// A program that this process compiled. The process finds it again by its whole source, a cell of `length` bytes.
+// `holders` counts the loaded records that reference it, and the last release unloads it
 struct CycleCompiledProgram
 {
-    std::string source;
+    char *source;
+    unsigned long long length;
     cudaLibrary_t library;
     cudaKernel_t kernel;
     unsigned long long holders;
 };
+
+// bytes in one cell of the pool, `count` of them: an image built from a source, or a text the device wrote
+struct CycleImage
+{
+    unsigned char *bytes;
+    unsigned long long count;
+};
+
+// `count` bytes of `from` copied into a cell of their own in `image`, with a byte 0 after them: 1, or 0 where the pool
+// cannot meet the cell
+int cycle_image_taken(CycleImage *image, const void *from, unsigned long long count);
+
+// the cell of `image` given back, and the image empty
+void cycle_image_ended(CycleImage *image);
 
 int cycle_environment_set(const char *name);
 
@@ -106,26 +121,35 @@ int cycle_compiler_ready(void);
 
 int cycle_linker_ready(void);
 
-std::string cycle_target_source(int major, int minor, int lto);
+// the target's text onto `text`, which the caller began empty
+void cycle_target_source(int major, int minor, int lto, PlatformText *text);
 
-std::string cycle_cache_folder(void);
+// the folder of the cache into `folder`, `bytes` of it: 1, or 0 where there is none or it does not fit
+int cycle_cache_folder(char *folder, size_t bytes);
 
-unsigned long long cycle_source_hash(const std::string &source);
+unsigned long long cycle_source_hash(const char *source, unsigned long long length);
 
-std::string cycle_cache_path(const std::string &folder, const std::string &source);
+// the file of a source of `length` bytes in the cache, into `path`, `bytes` of it
+void cycle_cache_path(const char *folder, const char *source, unsigned long long length, char *path, size_t bytes);
 
-std::vector<char> cycle_cache_read(const std::string &path, const std::string &source);
+// the image a cache file holds for this very source into `image`: 1, or 0, and `image` empty, where there is none
+int cycle_cache_read(const char *path, const char *source, unsigned long long length, CycleImage *image);
 
-void cycle_cache_write(const std::string &folder, const std::string &path, const std::string &source,
-                       const std::vector<char> &image);
+void cycle_cache_write(const char *folder, const char *path, const char *source, unsigned long long length,
+                       const void *image, unsigned long long count);
 
-std::vector<char> cycle_program_compile(const std::string &source, const char *name, int major, int minor, int lto,
-                                        int report);
+// the source compiled into `image`: 1, or 0, and `image` empty, where it errors
+int cycle_program_compile(const char *source, const char *name, int major, int minor, int lto, int report,
+                          CycleImage *image);
 
-std::vector<char> cycle_program_link(const CycleTarget *lane_target, const std::vector<char> &object, int lto, int ptx,
-                                     int report);
+// the `count` bytes of `object` linked into `cubin`: 1, or 0, and `cubin` empty, where it errors
+int cycle_program_link(const CycleTarget *lane_target, const void *object, unsigned long long count, int lto, int ptx,
+                       int report, CycleImage *cubin);
 
 const CycleTarget *cycle_target(int major, int minor, int lto, int report);
+
+// the bytes of PTX's header, its terminator among them
+#define CYCLE_PTX_HEADER_BYTES 512u
 
 // PTX's header as this toolkit writes it for the device, requested from NVRTC once a process by compiling an empty
 // kernel to PTX, the answer cached in the cache against the question: the one part of PTX's rules the lane does not
@@ -135,9 +159,10 @@ struct CyclePtxHeader
     int tried;
     int major;
     int minor;
-    std::string lines;
+    char lines[CYCLE_PTX_HEADER_BYTES];
 };
 
-const std::string &cycle_ptx_header(int major, int minor, int report);
+// the header's three lines, empty where the call cannot query NVRTC or NVRTC does not answer [BORROWS]
+const char *cycle_ptx_header(int major, int minor, int report);
 
 #endif

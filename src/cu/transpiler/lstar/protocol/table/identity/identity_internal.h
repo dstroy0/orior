@@ -6,24 +6,25 @@
 #define IDENTITY_INTERNAL_H
 
 #include "../../../../../../../includes/file_defs/kdm/kdm.h"
-#include "memoria_operor/memoria_linea.h"
 #include "../../../../../../../includes/file_defs/kernel_blob/forms_blob.h"
 #include "../../../../../../../includes/file_defs/kernel_blob/kernel_blob.h"
+#include "../../../../../../../includes/file_defs/klq/query_trace.h"
 #include "../../../../../../../includes/file_defs/kqr/kqr_record.h"
 #include "../../../../../../../includes/file_defs/krf/krf.h"
 #include "../../../../../../../includes/file_defs/ksc/ksc.h"
+#include "../../../../../../../includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../../scaffolding/ruleset_strings.h"
+#include "../../../../../text_note/text_note.h"
 #include "../../../interface/interface.h"
 #include "../../overseer/overseer.h"
 #include "../../teacher/run_channel.h"
 #include "carrier_flow.h"
 #include "code_generator.h"
 #include "concept_product.h"
+#include "memoria_operor/memoria_linea.h"
 #include "precepts.h"
-#include "../../../../../../../includes/file_defs/qry/writer/qry_member.h"
-#include "../../../../../../../includes/file_defs/klq/query_trace.h"
 #include "target_internal.h"
 #include "word_web.h"
-#include "../../../../../text_note/text_note.h"
 
 #include <ctype.h>
 #include <limits.h>
@@ -32,6 +33,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../../../../../../../includes/parsers/who.h"
+#include "identity_settings.h"
 #include <algorithm>
 #include <chrono>
 #include <condition_variable>
@@ -52,8 +55,6 @@
 #include <tuple>
 #include <unordered_map>
 #include <vector>
-#include "../../../../../../../includes/parsers/who.h"
-#include "identity_settings.h"
 
 // the values each operand is put through: zero, the small numbers, and the edges of every width
 static const unsigned long long s_values[] = {0x0ULL,

@@ -29,10 +29,10 @@
 // the tool writes into the ruleset in place each form whose questions all read whole and alike (read_adopted defines
 // what whole is).
 #include "../../../../../../utils/test/src/cu/engine/analysis/cycle/record_programs.h"
-#include "memoria_operor/memoria_linea.h"
 #include "../../../../engine/engine_note.h"
-#include "cellularum_laboro/cellularum_linea.h"
 #include "cellularum_laboro/cellularum_laboro.h"
+#include "cellularum_laboro/cellularum_linea.h"
+#include "memoria_operor/memoria_linea.h"
 
 // the cubin writer is C and its headers carry no guard of their own: this file names the linkage here
 extern "C"
@@ -43,10 +43,11 @@ extern "C"
 #include "interface_sass_probe.h"
 }
 
+#include "../../../../../platform/platform.h"
 #include "../../../../scaffolding/c_target.h"
+#include "../../../../scaffolding/ruleset_strings.h"
 #include "machine_ir_types.h"
 #include "target.h"
-#include "../../../../../platform/platform.h"
 
 #include <cctype>
 #include <cstdio>
@@ -491,7 +492,7 @@ static void gather_lane(const Krs &c, const HostProgram *program, int reuse, Gat
     }
     std::vector<MachineInstr> items;
     unsigned int places = 0u;
-    if (c_target().decided(&loaded.layout, &places, &items) == 0)
+    if (lane_decided_items(c_target(), &loaded.layout, &places, &items) == 0)
     {
         {
             VerbaLinea *const output_line = platform_line_out();

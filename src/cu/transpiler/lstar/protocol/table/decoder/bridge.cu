@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // bridge.cu: the bridge read from the run, each pair's concept folded, each pair closed with what it is read
 // into written beneath it, the bridge passed back to the run's writer, and the decoding printed
-#include "decoder_internal.h"
 #include "../../../../../../platform/platform.h"
+#include "decoder_internal.h"
 
 // 1 where a line of the bridge is a set's name alone, `<set>_coherence`
 static int set_line(const std::string &entry)
@@ -296,12 +296,13 @@ void Decoding::printed(const char *klq)
     // questions a further pass takes up
     const auto choices_written = [this](const std::map<unsigned long long, unsigned int> &entry) {
         std::string written;
-        for (const auto &flag : trace.named)
+        for (unsigned int flag_at = 0u; flag_at < trace.count; flag_at += 1u)
         {
-            const auto count = entry.find(flag.first);
+            const QueryTraceFlag &flag = trace.flags[flag_at];
+            const auto count = entry.find(flag.word);
             if (count != entry.end())
             {
-                written += (written.empty() ? "" : ", ") + std::to_string(count->second) + " " + flag.second;
+                written += (written.empty() ? "" : ", ") + std::to_string(count->second) + " " + flag.name;
             }
         }
         return written;
@@ -314,7 +315,7 @@ void Decoding::printed(const char *klq)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    const unsigned long long answered_flags = query_trace_flag(trace, "alike") | query_trace_flag(trace, "apart");
+    const unsigned long long answered_flags = query_trace_flag(&trace, "alike") | query_trace_flag(&trace, "apart");
     for (const auto &entry : choices)
     {
         int answered = 0;

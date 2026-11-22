@@ -4,14 +4,11 @@
 // schedule model or a given one
 #include "code_generator.h"
 
-#include <string>
-#include <vector>
-
-std::string CodeGenerator::program(const EngineRecordLayout *layout, const TargetInfo *target,
-                                   const std::string &header, unsigned int *places, unsigned int *live)
+int CodeGenerator::program(const EngineRecordLayout *layout, const TargetInfo *target, const char *header,
+                           PlatformText *text, unsigned int *places, unsigned int *live)
 {
     ScheduleReport report{};
-    return lane(layout, target, header, places, live, program_schedule_model(), &report);
+    return lane(layout, target, header, text, places, live, program_schedule_model(), &report);
 }
 
 const ScheduleModel *CodeGenerator::program_schedule_model(void) const
@@ -41,14 +38,14 @@ int CodeGenerator::program_schedule_costs(ScheduleCosts *costs) const
     return 1;
 }
 
-std::string CodeGenerator::scheduled(const EngineRecordLayout *layout, const TargetInfo *target,
-                                     const std::string &header, unsigned int *places, unsigned int *live,
-                                     const ScheduleModel &model, ScheduleReport *report)
+int CodeGenerator::scheduled(const EngineRecordLayout *layout, const TargetInfo *target, const char *header,
+                             PlatformText *text, unsigned int *places, unsigned int *live, const ScheduleModel &model,
+                             ScheduleReport *report)
 {
-    return lane(layout, target, header, places, live, &model, report);
+    return lane(layout, target, header, text, places, live, &model, report);
 }
 
-int CodeGenerator::decided(const EngineRecordLayout *layout, unsigned int *places, std::vector<MachineInstr> *items)
+int CodeGenerator::decided(const EngineRecordLayout *layout, unsigned int *places, PlatformArray *items)
 {
     unsigned int live = 0u;
     ScheduleReport report{};
@@ -56,7 +53,7 @@ int CodeGenerator::decided(const EngineRecordLayout *layout, unsigned int *place
 }
 
 int CodeGenerator::decided(const EngineRecordLayout *layout, const ScheduleModel &model, ScheduleReport *report,
-                           unsigned int *places, std::vector<MachineInstr> *items)
+                           unsigned int *places, PlatformArray *items)
 {
     unsigned int live = 0u;
     return decide(layout, &model, report, places, &live, items);

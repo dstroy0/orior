@@ -9,11 +9,7 @@
 
 #include "../../klang/klang.h"
 #include "../../qry/writer/qry_member.h"
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-int ruleset_append(const std::string &path, std::string *text);
+#include "cellularum_laboro/cellularum_linea.h"
+#include "memoria_operor/memoria_linea.h"
 
 #endif

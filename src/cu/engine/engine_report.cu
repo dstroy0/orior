@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // engine_report.cu: the run's report
-#include "engine_internal.h"
-#include "cellularum_laboro/cellularum_linea.h"
 #include "../../platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
+#include "engine_internal.h"
 #include "memoria_operor/memoria_linea.h"
 
 static int entry_report_write(VerbaLinea *line, VerbaLinea *out)
@@ -226,7 +226,10 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
         EngineSeal back_seal;
         mmgr_bytes_set(&back_seal, 0, sizeof(back_seal));
         unsigned long long pixels_differ = 0ULL;
-        std::vector<unsigned short> rebuilt(ok ? (size_t)lanes : 0u);
+        unsigned short *const rebuilt = ok ? (unsigned short *)platform_cell_cleared(lanes, sizeof(unsigned short),
+                                                                                     platform_place_g_program_owner, 0)
+                                           : NULL;
+        ok = ok && ENGINE_CHECK(rebuilt != NULL, &rebuilt, error, ENGINE_ERROR_RESOURCE);
         const KrepCrystalRequest read = {iapx_path, &file, &back, &back_seal, error};
         ok = ok && krep_crystal_read(&read) &&
              ENGINE_CHECK((mmgr_bytes_compare(file.extent, extent, sizeof(extent)) == 0) &&
@@ -234,7 +237,7 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
                               (file.lane_offset == written.lane_offset) &&
                               entry_signum_same(&back_seal.roots[ENGINE_SEAL_SAMPLE], &seal.roots[ENGINE_SEAL_SAMPLE]),
                           &file, error, ENGINE_ERROR_LOGIC) &&
-             entry_crystal_verify(&file, &back, &back_seal, device_lanes, rebuilt.data(), record, error) &&
+             entry_crystal_verify(&file, &back, &back_seal, device_lanes, rebuilt, record, error) &&
              ENGINE_CHECK(entry_side_same(&back.side, &section.side), &back, error, ENGINE_ERROR_LOGIC);
         krep_crystal_release(&file);
         krep_side_release(&back);
@@ -242,7 +245,7 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
         cudaFree(device_lanes);
         // the crystal read back from disk and rebuilt, against the lanes the source gave: the pixels are counted only
         // where the two are not one block of bytes
-        if (ok && (mmgr_bytes_compare(host_lanes, rebuilt.data(), (size_t)lanes * sizeof(unsigned short)) != 0))
+        if (ok && (mmgr_bytes_compare(host_lanes, rebuilt, (size_t)lanes * sizeof(unsigned short)) != 0))
         {
             for (size_t pixel = 0u; pixel < (size_t)lanes; pixel += 1u)
             {
@@ -251,6 +254,7 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
         }
         ok = ok && ENGINE_CHECK(pixels_differ == 0ULL, &pixels_differ, error, ENGINE_ERROR_LOGIC);
         platform_cell_released(host_lanes, platform_place_g_program_owner);
+        platform_cell_released(rebuilt, platform_place_g_program_owner);
         record->floors = floors;
         record->crystal_bytes = krep_crystal_bytes(&written, &section, &seal);
         record->raw_bytes = lanes * 2ULL;

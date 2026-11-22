@@ -19,10 +19,9 @@
 #define ASM_PRINTER_FIELD_PART 0u
 #define ASM_PRINTER_FIELD_FIRST 1u
 #define ASM_PRINTER_FIELD_PLACEHOLDER(placeholder_, which_) (2u + (4u * (placeholder_)) + (which_))
-#define ASM_PRINTER_FIELDS (2u + (4u * ASM_PRINTER_PLACEHOLDERS))
 
-// the tables: each part's pieces by part . 8 + piece, each word's length and first character by its number, the characters
-// of every word end to end, ten to each power a digit is taken at, and a byte as itself
+// the tables: each part's pieces by part . 8 + piece, each word's length and first character by its number, the
+// characters of every word end to end, ten to each power a digit is taken at, and a byte as itself
 enum AsmPrinterTable
 {
     ASM_PRINTER_TABLE_PIECE = 0,
@@ -31,14 +30,14 @@ enum AsmPrinterTable
     ASM_PRINTER_TABLE_CHARACTER = 3,
     ASM_PRINTER_TABLE_POWER = 4,
     ASM_PRINTER_TABLE_BYTE = 5,
-    ASM_PRINTER_TABLES = 6
+    ASM_PRINTER_TABLES = ASM_PRINTER_PROGRAM_TABLES
 };
 
 // the rows a part takes in the pieces table, a power of two past its pieces
 #define ASM_PRINTER_PART_ROWS 8u
 
-// the widest word number, length and character offset the tables contain, and the widest index a table takes from a 16-bit
-// field or entry
+// the widest word number, length and character offset the tables contain, and the widest index a table takes from a
+// 16-bit field or entry
 #define ASM_PRINTER_TABLE_BITS_MAX 16u
 
 // the rows the power and byte tables take
@@ -90,9 +89,9 @@ struct AsmPrinterCoreRules
 };
 
 // The build: the ruleset it reads, the capacities of the caller's memory, and what it arranges there. The words, each
-// once, by their numbers, 0 the empty word: each word's first character and length, and its characters end to end; the parts,
-// each once, ASM_PRINTER_PIECES words each, and each part's lanes; the lists as AsmPrinterRuleset stores them; the
-// program's steps, fields, table values and tables, and the step it outputs; and how it ended and where
+// once, by their numbers, 0 the empty word: each word's first character and length, and its characters end to end; the
+// parts, each once, ASM_PRINTER_PIECES words each, and each part's lanes; the lists as AsmPrinterRuleset stores them;
+// the program's steps, fields, table values and tables, and the step it outputs; and how it ended and where
 struct AsmPrinterCoreBuild
 {
     AsmPrinterCoreRules rules;
@@ -137,8 +136,8 @@ struct AsmPrinterCoreBuild
     int full;
 };
 
-// a word's number among the words, `length` characters at `characters` taken on where they are new; 0 where the words or
-// characters are past their capacities, the build left full
+// a word's number among the words, `length` characters at `characters` taken on where they are new; 0 where the words
+// or characters are past their capacities, the build left full
 CODEGEN_CORE unsigned int asm_printer_core_word(AsmPrinterCoreBuild *build, const unsigned char *characters,
                                                 unsigned int length)
 {

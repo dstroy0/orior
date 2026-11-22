@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // interface_ptx_probe_questions.cu: registers, forms and the questions
-#include "interface_ptx_probe_internal.h"
 #include "../../../../engine/engine_note.h"
+#include "../../../../scaffolding/ruleset_strings.h"
+#include "interface_ptx_probe_internal.h"
 
 static const unsigned int s_probe_edges[PROBE_EDGES] = {
     0u, 1u, 2u, 3u, 31u, 32u, 33u, 64u, 0x7FFFFFFFu, 0x80000000u, 0x80000001u, 0xFFFFFFFEu, 0xFFFFFFFFu, 0x10000u};

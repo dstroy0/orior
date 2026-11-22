@@ -27,12 +27,12 @@
 // belong to no ruleset. The writer stores each line as the bridge recorded it, and writes it after the keys.
 // A pair that the bridge recorded a verdict for, put to the part, goes out with that verdict. It also goes out with the
 // set, the concept and the intent that orior_klq_decoder read it into
+#include "../../../../src/cu/scaffolding/ruleset_strings.h"
+#include "../../../../src/platform/platform.h"
 #include "../../qry/writer/qry_member.h"
 #include "code_generator.h"
 #include "target_internal.h"
 #include "verba_scribo/verba_scribo.h"
-#include "../../../../src/platform/platform.h"
-
 
 #include <map>
 #include <sstream>
@@ -91,7 +91,7 @@ static int entry_keyed(const LanguageSet *set, const RulesetSchema *schema, unsi
     const RulesetCoreEntry *const entry = &set->relations.entries[at];
     return ruleset_core_relation_gives(entry->type) &&
            (ruleset_core_relation_giver(&set->relations, entry->name) == at) &&
-           (ruleset_find(schema->forms, schema->form_count, entry_name(set, at)) < schema->form_count);
+           (ruleset_find(schema->forms, schema->form_count, entry_name(set, at).c_str()) < schema->form_count);
 }
 
 // the ruleset `file` read into `set` the way its code generator reads it. 1 where the read of its files succeeded
@@ -99,11 +99,14 @@ static int language_read(const char *file, LanguageSet *set)
 {
     const RulesetSchema *const schema = code_generator(file).schema();
     std::string paths[RULESET_PATHS_MAX];
-    const unsigned int count = ruleset_paths(schema, ruleset_folder() + "/" + schema->file, paths);
+    const unsigned int count = ruleset_strings_paths(schema, ruleset_strings_folder() + "/" + schema->file, paths);
     RulesetFlat flat;
     ruleset_flat_schema(schema, &flat);
     std::string error;
-    if (ruleset_relations_read(paths, count, &flat.schema, &set->memory, &set->relations, &error) == 0)
+    // the read of the relations reads the flat schema, and nothing reads it after
+    const int read = ruleset_relations_strings(paths, count, &flat.schema, &set->memory, &set->relations, &error);
+    ruleset_flat_ended(&flat);
+    if (read == 0)
     {
         {
             VerbaLinea *const output_line = platform_line_out();
@@ -229,7 +232,7 @@ int program_main(int argc, char **argv)
         for (unsigned int at = 0u; at < schema->form_count; at += 1u)
         {
             const std::string key = schema->forms[at].text;
-            if (ruleset_find(schema->forms, at, key) == at)
+            if (ruleset_find(schema->forms, at, key.c_str()) == at)
             {
                 keys.push_back(key);
             }
@@ -260,6 +263,7 @@ int program_main(int argc, char **argv)
             }
             pair_add(&pairs, entry_name(&set, relation->entry), entry_name(&set, relation->other));
         }
+        ruleset_relation_memory_ended(&set.memory);
     }
     const std::string path = folder + "/Lstar.klq";
     // each line of the bridge that no ruleset writes, stored whole. That is its identities between texts and between

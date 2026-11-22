@@ -18,12 +18,13 @@ extern "C"
 #include "../sass_machine.h"
 }
 
-#include "machine_ir_types.h"
 #include "../../../../../../includes/file_defs/krs/ruleset_core_words.h"
 #include "../../../../../../includes/file_defs/krs/ruleset_reader.h"
+#include "../../../../../platform/platform.h"
+#include "../../../../scaffolding/ruleset_strings.h"
+#include "machine_ir_types.h"
 #include "sass_target.h"
 #include "target.h"
-#include "../../../../../platform/platform.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -113,7 +114,7 @@ static void lane_decide(const HostProgram *program, int reuse, unsigned int *que
     *positioned += 1u;
     std::vector<MachineInstr> items;
     unsigned int places = 0u;
-    if (sass_target().decided(&loaded.layout, &places, &items) == 0)
+    if (lane_decided_items(sass_target(), &loaded.layout, &places, &items) == 0)
     {
         {
             VerbaLinea *const output_line = platform_line_out();
@@ -140,7 +141,8 @@ static void lane_decide(const HostProgram *program, int reuse, unsigned int *que
     const TargetInfo target = {0ULL, 8, 6, 12, 0, ""};
     unsigned int lane_places = 0u;
     unsigned int live = 0u;
-    const std::string lane = sass_target().program(&loaded.layout, &target, std::string(), &lane_places, &live);
+    const std::string lane =
+        lane_program_text(sass_target(), &loaded.layout, &target, std::string(), &lane_places, &live);
     unsigned int lines = 0u;
     for (size_t at = 0u; at < lane.size(); at += 1u)
     {

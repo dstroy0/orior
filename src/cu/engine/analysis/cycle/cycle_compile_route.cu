@@ -3,78 +3,116 @@
 // cycle_compile_route.cu: caching programs, the route and the device's code generator
 #include "../../../../../includes/file_defs/krs/ruleset_reader.h"
 #include "../../engine_note.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "cycle_compile_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
-static std::vector<CycleCompiledProgram> s_cycle_programs;
+// the programs compiled in this process, a CycleCompiledProgram each; the array begins at its first program
+static PlatformArray s_cycle_programs;
+
+// the bytes a lane's text holds at max
+#define CYCLE_LANE_TEXT_BYTES (1ULL << 30u)
+
+// the program of this process whose source is the `length` bytes at `text`, else NULL
+static CycleCompiledProgram *cycle_program_found(const char *text, unsigned long long length)
+{
+    for (unsigned long long at = 0ULL; at < s_cycle_programs.count; at += 1ULL)
+    {
+        CycleCompiledProgram *const program = (CycleCompiledProgram *)platform_array_at(&s_cycle_programs, at);
+        if ((program->length == length) && (mmgr_bytes_compare(program->source, text, (size_t)length) == 0))
+        {
+            return program;
+        }
+    }
+    return NULL;
+}
 
 // the program found in this process by its text, else in the cache, else built and cached in both, then loaded as a
 // library: PTX where `ptx`, which nvJitLink assembles as it links it alone, else C source that
 // NVRTC compiles first. `written` is the whole nanoseconds the text took to write, for the report. 0 where the build or
 // the load failed
 static int cycle_program_load(const EngineRecordLayout *layout, CycleRecord *record, const CycleTarget *lane_target,
-                              const std::string &text, int ptx, int lto, unsigned long long written, int report)
+                              const char *text, unsigned long long length, int ptx, int lto, unsigned long long written,
+                              int report)
 {
     const char *const type = (ptx != 0) ? "PTX" : ((lto != 0) ? "LTO-IR" : "relocatable cubin");
-    for (size_t at = 0u; at < s_cycle_programs.size(); at += 1u)
+    if (s_cycle_programs.element == 0ULL)
     {
-        if (s_cycle_programs[at].source == text)
-        {
-            s_cycle_programs[at].holders += 1ULL;
-            record->kernel = s_cycle_programs[at].kernel;
-            record->compiled = 1u;
-            if (report != 0)
-            {
-                EngineNote engine_note;
-                engine_note_begun(&engine_note);
-                mmgr_line_put(&engine_note.line, "  cycle: a program of ");
-                mmgr_line_decimal(&engine_note.line, layout->steps, 1u);
-                mmgr_line_put(&engine_note.line, " steps found in this process, as ");
-                mmgr_line_put(&engine_note.line, type);
-                mmgr_line_ch(&engine_note.line, '\n');
-                engine_note_written(&engine_note);
-            }
-            return 1;
-        }
+        platform_array_begun(&s_cycle_programs, sizeof(CycleCompiledProgram), platform_place_g_program_owner, 0);
     }
-    const std::string folder = cycle_cache_folder();
-    const std::string path = folder.empty() ? std::string() : cycle_cache_path(folder, text);
-    std::vector<char> cubin = path.empty() ? std::vector<char>() : cycle_cache_read(path, text);
-    const int found = !cubin.empty();
-    size_t object_bytes = 0u;
+    CycleCompiledProgram *const held = cycle_program_found(text, length);
+    if (held != NULL)
+    {
+        held->holders += 1ULL;
+        record->kernel = held->kernel;
+        record->compiled = 1u;
+        if (report != 0)
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  cycle: a program of ");
+            mmgr_line_decimal(&engine_note.line, layout->steps, 1u);
+            mmgr_line_put(&engine_note.line, " steps found in this process, as ");
+            mmgr_line_put(&engine_note.line, type);
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
+        return 1;
+    }
+    char folder[PLATFORM_PATH_BYTES];
+    char path[PLATFORM_PATH_BYTES];
+    const int cached = cycle_cache_folder(folder, sizeof(folder));
+    if (cached != 0)
+    {
+        cycle_cache_path(folder, text, length, path, sizeof(path));
+    }
+    CycleImage cubin = {NULL, 0ULL};
+    const int found = (cached != 0) && cycle_cache_read(path, text, length, &cubin);
+    unsigned long long object_bytes = 0ULL;
     unsigned long long compile_nanoseconds = 0ULL;
     unsigned long long link_nanoseconds = 0ULL;
     if (!found)
     {
-        const auto began = std::chrono::steady_clock::now();
+        const unsigned long long began = platform_clock_ns();
         // PTX goes to nvJitLink as its text with the NUL that ends it
-        const std::vector<char> object =
-            (ptx != 0)
-                ? std::vector<char>(text.c_str(), text.c_str() + text.size() + 1u)
-                : cycle_program_compile(text, "cycle_program.cu", lane_target->major, lane_target->minor, lto, report);
-        const auto compiled = std::chrono::steady_clock::now();
-        cubin = object.empty() ? std::vector<char>() : cycle_program_link(lane_target, object, lto, ptx, report);
-        const auto linked = std::chrono::steady_clock::now();
-        object_bytes = object.size();
-        // a steady clock's spans are never negative
-        compile_nanoseconds =
-            (unsigned long long)std::chrono::duration_cast<std::chrono::nanoseconds>(compiled - began).count();
-        link_nanoseconds =
-            (unsigned long long)std::chrono::duration_cast<std::chrono::nanoseconds>(linked - compiled).count();
-        if (!cubin.empty() && !path.empty())
+        CycleImage object = {NULL, 0ULL};
+        const int compiled_ok = (ptx != 0) ? cycle_image_taken(&object, text, length + 1ULL)
+                                           : cycle_program_compile(text, "cycle_program.cu", lane_target->major,
+                                                                   lane_target->minor, lto, report, &object);
+        const unsigned long long compiled = platform_clock_ns();
+        (void)((compiled_ok != 0) &&
+               cycle_program_link(lane_target, object.bytes, object.count, lto, ptx, report, &cubin));
+        const unsigned long long linked = platform_clock_ns();
+        object_bytes = object.count;
+        cycle_image_ended(&object);
+        // the monotonic clock never runs back
+        compile_nanoseconds = compiled - began;
+        link_nanoseconds = linked - compiled;
+        if ((cubin.bytes != NULL) && (cached != 0))
         {
-            cycle_cache_write(folder, path, text, cubin);
+            cycle_cache_write(folder, path, text, length, cubin.bytes, cubin.count);
         }
     }
     CycleCompiledProgram program;
-    program.library = NULL;
-    program.kernel = NULL;
+    mmgr_bytes_set(&program, 0, sizeof(program));
     program.holders = 1ULL;
+    program.length = length;
+    program.source = (char *)platform_cell_taken(length + 1ULL, platform_place_g_program_owner, 0);
+    if (program.source != NULL)
+    {
+        mmgr_bytes_copy(program.source, text, (size_t)length + 1u);
+    }
     const int loaded =
-        !cubin.empty() &&
-        (cudaLibraryLoadData(&program.library, cubin.data(), NULL, NULL, 0u, NULL, NULL, 0u) == cudaSuccess) &&
-        (cudaLibraryGetKernel(&program.kernel, program.library, "cycle_program") == cudaSuccess);
+        (cubin.bytes != NULL) && (program.source != NULL) &&
+        (cudaLibraryLoadData(&program.library, cubin.bytes, NULL, NULL, 0u, NULL, NULL, 0u) == cudaSuccess) &&
+        (cudaLibraryGetKernel(&program.kernel, program.library, "cycle_program") == cudaSuccess) &&
+        platform_array_appended(&s_cycle_programs, &program);
+    const unsigned long long cubin_bytes = cubin.count;
+    const int had_cubin = cubin.bytes != NULL;
+    cycle_image_ended(&cubin);
     if (!loaded)
     {
+        platform_cell_released(program.source, platform_place_g_program_owner);
         if (program.library != NULL)
         {
             cudaLibraryUnload(program.library);
@@ -89,16 +127,14 @@ static int cycle_program_load(const EngineRecordLayout *layout, CycleRecord *rec
             mmgr_line_put(&engine_note.line, type);
             mmgr_line_put(&engine_note.line, " did not build (");
             mmgr_line_put(&engine_note.line,
-                          cubin.empty() ? ((ptx != 0) ? "nvJitLink errored on it" : "NVRTC or nvJitLink errored on it")
-                                        : "its cubin did not load");
+                          !had_cubin ? ((ptx != 0) ? "nvJitLink errored on it" : "NVRTC or nvJitLink errored on it")
+                                     : "its cubin did not load");
             mmgr_line_put(&engine_note.line, ")");
             mmgr_line_ch(&engine_note.line, '\n');
             engine_note_written(&engine_note);
         }
         return 0;
     }
-    program.source = text;
-    s_cycle_programs.push_back(program);
     record->kernel = program.kernel;
     record->compiled = 1u;
     if ((report != 0) && found)
@@ -108,7 +144,7 @@ static int cycle_program_load(const EngineRecordLayout *layout, CycleRecord *rec
         mmgr_line_put(&engine_note.line, "  cycle: a program of ");
         mmgr_line_decimal(&engine_note.line, layout->steps, 1u);
         mmgr_line_put(&engine_note.line, " steps read from the cache, ");
-        mmgr_line_decimal(&engine_note.line, cubin.size(), 1u);
+        mmgr_line_decimal(&engine_note.line, cubin_bytes, 1u);
         mmgr_line_put(&engine_note.line, " bytes of cubin, as ");
         mmgr_line_put(&engine_note.line, type);
         mmgr_line_ch(&engine_note.line, '\n');
@@ -130,7 +166,7 @@ static int cycle_program_load(const EngineRecordLayout *layout, CycleRecord *rec
         mmgr_line_put(&engine_note.line, " bytes, assembled and linked in ");
         mmgr_line_decimal(&engine_note.line, link_nanoseconds, 1u);
         mmgr_line_put(&engine_note.line, " ns to ");
-        mmgr_line_decimal(&engine_note.line, cubin.size(), 1u);
+        mmgr_line_decimal(&engine_note.line, cubin_bytes, 1u);
         mmgr_line_put(&engine_note.line, " bytes of cubin");
         mmgr_line_ch(&engine_note.line, '\n');
         engine_note_written(&engine_note);
@@ -155,7 +191,7 @@ static int cycle_program_load(const EngineRecordLayout *layout, CycleRecord *rec
         mmgr_line_put(&engine_note.line, " bytes, linked in ");
         mmgr_line_decimal(&engine_note.line, link_nanoseconds, 1u);
         mmgr_line_put(&engine_note.line, " ns to ");
-        mmgr_line_decimal(&engine_note.line, cubin.size(), 1u);
+        mmgr_line_decimal(&engine_note.line, cubin_bytes, 1u);
         mmgr_line_put(&engine_note.line, " bytes of cubin");
         mmgr_line_ch(&engine_note.line, '\n');
         engine_note_written(&engine_note);
@@ -167,15 +203,20 @@ static int cycle_program_load(const EngineRecordLayout *layout, CycleRecord *rec
 // unloads it
 void cycle_program_release(cudaKernel_t kernel)
 {
-    for (size_t at = 0u; (kernel != NULL) && (at < s_cycle_programs.size()); at += 1u)
+    for (unsigned long long at = 0ULL; (kernel != NULL) && (at < s_cycle_programs.count); at += 1ULL)
     {
-        if (s_cycle_programs[at].kernel == kernel)
+        CycleCompiledProgram *const program = (CycleCompiledProgram *)platform_array_at(&s_cycle_programs, at);
+        if (program->kernel == kernel)
         {
-            s_cycle_programs[at].holders -= 1ULL;
-            if (s_cycle_programs[at].holders == 0ULL)
+            program->holders -= 1ULL;
+            if (program->holders == 0ULL)
             {
-                cudaLibraryUnload(s_cycle_programs[at].library);
-                s_cycle_programs.erase(s_cycle_programs.begin() + (std::ptrdiff_t)at);
+                cudaLibraryUnload(program->library);
+                platform_cell_released(program->source, platform_place_g_program_owner);
+                // the programs after it move down one place, and the order of the rest holds
+                const unsigned long long after = s_cycle_programs.count - at - 1ULL;
+                mmgr_bytes_move(program, program + 1, (size_t)(after * sizeof(CycleCompiledProgram)));
+                (void)platform_array_counted(&s_cycle_programs, s_cycle_programs.count - 1ULL);
             }
             break;
         }
@@ -214,19 +255,19 @@ static void cycle_record_route(const EngineRecordLayout *layout, CycleRecord *re
     const size_t ptx_frame = attributes.localSizeBytes;
     CodeGenerator &generator = code_generator("c.krs");
     const Ruleset *const rules = generator.ruleset(report);
-    const auto began = std::chrono::steady_clock::now();
+    const unsigned long long began = platform_clock_ns();
     const TargetInfo target = cycle_target_info(lane_target);
     unsigned int source_places = 0u;
     unsigned int source_live = 0u;
-    const std::string source =
-        (rules != NULL) ? generator.program(layout, &target, std::string(target.prelude), &source_places, &source_live)
-                        : std::string();
-    // a steady clock's span is never negative
-    const unsigned long long written = (unsigned long long)std::chrono::duration_cast<std::chrono::nanoseconds>(
-                                           std::chrono::steady_clock::now() - began)
-                                           .count();
-    const int built =
-        !source.empty() && cycle_program_load(layout, record, lane_target, source, 0, lto, written, report);
+    PlatformText source;
+    platform_text_begun(&source, CYCLE_LANE_TEXT_BYTES, platform_place_g_program_owner, 0);
+    const int wrote =
+        (rules != NULL) && generator.program(layout, &target, target.prelude, &source, &source_places, &source_live);
+    // the monotonic clock never runs back
+    const unsigned long long written = platform_clock_ns() - began;
+    const int built = wrote && cycle_program_load(layout, record, lane_target, platform_text_bytes(&source),
+                                                  platform_text_size(&source), 0, lto, written, report);
+    platform_text_ended(&source);
     const int read = built && (cudaFuncGetAttributes(&attributes, (const void *)record->kernel) == cudaSuccess);
     const size_t source_frame = (read != 0) ? attributes.localSizeBytes : 0u;
     const int source_runs = (read != 0) && (source_frame < ptx_frame);
@@ -283,8 +324,42 @@ static thread_local int s_cycle_codegen_depth = 0;
 // the depth at which the assembly printer writes its own lane
 #define CYCLE_CODEGEN_OWN_LANE 2
 
-// the texts the device wrote in this process and the host's matched; each is written once
-static std::vector<std::string> s_cycle_codegen_written;
+// the texts that the device wrote in this process and that the host's matched, a CycleImage each. The device writes
+// each text once. The array begins at its first text
+static PlatformArray s_cycle_codegen_written;
+
+// 1 where the device wrote the `length` bytes at `text` before in this process
+static int cycle_codegen_written_before(const char *text, unsigned long long length)
+{
+    for (unsigned long long at = 0ULL; at < s_cycle_codegen_written.count; at += 1ULL)
+    {
+        const CycleImage *const written = (const CycleImage *)platform_array_at(&s_cycle_codegen_written, at);
+        if ((written->count == length) && (mmgr_bytes_compare(written->bytes, text, (size_t)length) == 0))
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// a report on stderr of how the device read a ruleset: `head`, the ruleset's `name`, `how`, and `why` in brackets
+// where it is not NULL
+static void cycle_codegen_read_noted(const char *head, const char *name, const char *how, const char *why)
+{
+    EngineNote engine_note;
+    engine_note_begun(&engine_note);
+    mmgr_line_put(&engine_note.line, head);
+    mmgr_line_put(&engine_note.line, name);
+    mmgr_line_put(&engine_note.line, how);
+    if (why != NULL)
+    {
+        mmgr_line_put(&engine_note.line, " (");
+        mmgr_line_put(&engine_note.line, why);
+        mmgr_line_put(&engine_note.line, ")");
+    }
+    mmgr_line_ch(&engine_note.line, '\n');
+    engine_note_written(&engine_note);
+}
 
 // The lane as the device writes it from the step table (codegen_device.h), the path every lane takes: the ruleset's
 // file read on the device and its written forms arranged once for the target and the header, the forms decided on the
@@ -295,83 +370,81 @@ static std::vector<std::string> s_cycle_codegen_written;
 // The device splits the lane where `generator`'s program() splits it. A text the device wrote before in this process
 // is not written again
 static int cycle_codegen_on_device(const CodeGenerator &generator, const Ruleset *rules, const TargetInfo *target,
-                                   const std::string &header, const EngineRecordLayout *layout, unsigned int places,
-                                   int report, std::string &text)
+                                   const char *header, const EngineRecordLayout *layout, unsigned int places,
+                                   int report, PlatformText *text)
 {
-    for (size_t at = 0u; at < s_cycle_codegen_written.size(); at += 1u)
+    const char *const host_text = platform_text_bytes(text);
+    const unsigned long long host_length = platform_text_size(text);
+    if (s_cycle_codegen_written.element == 0ULL)
     {
-        if (s_cycle_codegen_written[at] == text)
-        {
-            if (report != 0)
-            {
-                EngineNote engine_note;
-                engine_note_begun(&engine_note);
-                mmgr_line_put(&engine_note.line, "  cycle: the device wrote a program of ");
-                mmgr_line_decimal(&engine_note.line, layout->steps, 1u);
-                mmgr_line_put(&engine_note.line, " steps, ");
-                mmgr_line_decimal(&engine_note.line, text.size(), 1u);
-                mmgr_line_put(&engine_note.line, " bytes, before in this process");
-                mmgr_line_ch(&engine_note.line, '\n');
-                engine_note_written(&engine_note);
-            }
-            return 1;
-        }
+        platform_array_begun(&s_cycle_codegen_written, sizeof(CycleImage), platform_place_g_program_owner, 0);
     }
-    AsmPrinterRuleset text_rules{};
-    std::string error;
-    std::string written;
+    if (cycle_codegen_written_before(host_text, host_length) != 0)
+    {
+        if (report != 0)
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  cycle: the device wrote a program of ");
+            mmgr_line_decimal(&engine_note.line, layout->steps, 1u);
+            mmgr_line_put(&engine_note.line, " steps, ");
+            mmgr_line_decimal(&engine_note.line, host_length, 1u);
+            mmgr_line_put(&engine_note.line, " bytes, before in this process");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
+        return 1;
+    }
+    AsmPrinterRuleset text_rules;
+    mmgr_bytes_set(&text_rules, 0, sizeof(text_rules));
+    char error_text[RULESET_ERROR_BYTES];
+    VerbaLinea error = mmgr_line_over(error_text, sizeof(error_text));
+    PlatformText written;
+    platform_text_begun(&written, CYCLE_LANE_TEXT_BYTES, platform_place_g_program_owner, 0);
     ScheduleCosts costs;
     const int has_costs = generator.program_schedule_costs(&costs);
     s_cycle_codegen_depth += 1;
     const int built = asm_printer_ruleset_build(rules, target, header, &text_rules, &error);
     // the ruleset's file read on the device as well, and the device's built from where it is the host's as read
-    Ruleset device_read{};
-    device_read.schema = rules->schema;
-    std::string read_error;
-    const int read_ran = built && ruleset_read_device(&device_read, rules->path, &read_error);
-    const int read_same = read_ran && ruleset_same(&device_read, rules);
+    Ruleset *const device_read =
+        (Ruleset *)platform_cell_cleared(1ULL, sizeof(Ruleset), platform_place_g_program_owner, 0);
+    if (device_read != NULL)
+    {
+        device_read->schema = rules->schema;
+        platform_array_begun(&device_read->folds, sizeof(RulesetFold), platform_place_g_program_owner, 0);
+        ruleset_released(device_read);
+    }
+    char read_error_text[RULESET_ERROR_BYTES];
+    VerbaLinea read_error = mmgr_line_over(read_error_text, sizeof(read_error_text));
+    const int read_ran = built && (device_read != NULL) && ruleset_read_device(device_read, rules->path, &read_error);
+    (void)mmgr_line_finish(&read_error);
+    const int read_same = read_ran && ruleset_same(device_read, rules);
     if (read_same != 0)
     {
-        device_read.tried = rules->tried;
-        device_read.ready = rules->ready;
+        device_read->tried = rules->tried;
+        device_read->ready = rules->ready;
         if (report != 0)
         {
-            EngineNote engine_note;
-            engine_note_begun(&engine_note);
-            mmgr_line_put(&engine_note.line, "  cycle: the device read the ruleset ");
-            mmgr_line_put(&engine_note.line, rules->name.c_str());
-            mmgr_line_put(&engine_note.line, " as the host did");
-            mmgr_line_ch(&engine_note.line, '\n');
-            engine_note_written(&engine_note);
+            cycle_codegen_read_noted("  cycle: the device read the ruleset ", rules->name, " as the host did", NULL);
         }
     }
     else if (read_ran != 0)
     {
-        EngineNote engine_note;
-        engine_note_begun(&engine_note);
-        mmgr_line_put(&engine_note.line, "  cycle: the device read the ruleset ");
-        mmgr_line_put(&engine_note.line, rules->name.c_str());
-        mmgr_line_put(&engine_note.line, " apart from the host");
-        mmgr_line_ch(&engine_note.line, '\n');
-        engine_note_written(&engine_note);
+        cycle_codegen_read_noted("  cycle: the device read the ruleset ", rules->name, " apart from the host", NULL);
     }
     else if (built != 0)
     {
-        EngineNote engine_note;
-        engine_note_begun(&engine_note);
-        mmgr_line_put(&engine_note.line, "  cycle: the device did not read the ruleset ");
-        mmgr_line_put(&engine_note.line, rules->name.c_str());
-        mmgr_line_put(&engine_note.line, " (");
-        mmgr_line_put(&engine_note.line, read_error.c_str());
-        mmgr_line_put(&engine_note.line, ")");
-        mmgr_line_ch(&engine_note.line, '\n');
-        engine_note_written(&engine_note);
+        cycle_codegen_read_noted("  cycle: the device did not read the ruleset ", rules->name, "",
+                                 (device_read != NULL) ? read_error_text : "the pool cannot meet the ruleset");
     }
     // the ruleset built on the device as well, and the device's written from where it is the host's word for word
-    AsmPrinterRuleset device_rules{};
-    std::string device_error;
-    const int device_built = built && asm_printer_ruleset_device((read_same != 0) ? &device_read : rules, target,
-                                                                 header, &device_rules, &device_error);
+    AsmPrinterRuleset device_rules;
+    mmgr_bytes_set(&device_rules, 0, sizeof(device_rules));
+    char device_error_text[RULESET_ERROR_BYTES];
+    VerbaLinea device_error = mmgr_line_over(device_error_text, sizeof(device_error_text));
+    const int device_built = built && asm_printer_ruleset_device((read_same != 0) ? device_read : rules, target, header,
+                                                                 &device_rules, &device_error);
+    (void)mmgr_line_finish(&device_error);
     const int rules_same = device_built && asm_printer_ruleset_same(&device_rules, &text_rules);
     if ((rules_same != 0) && (report != 0))
     {
@@ -396,7 +469,7 @@ static int cycle_codegen_on_device(const CodeGenerator &generator, const Ruleset
         EngineNote engine_note;
         engine_note_begun(&engine_note);
         mmgr_line_put(&engine_note.line, "  cycle: the device did not build the assembly printer's ruleset (");
-        mmgr_line_put(&engine_note.line, device_error.c_str());
+        mmgr_line_put(&engine_note.line, device_error_text);
         mmgr_line_put(&engine_note.line, ")");
         mmgr_line_ch(&engine_note.line, '\n');
         engine_note_written(&engine_note);
@@ -404,10 +477,11 @@ static int cycle_codegen_on_device(const CodeGenerator &generator, const Ruleset
     // the lane is written only from the device's own ruleset, read and built where it is the host's
     if ((built != 0) && ((read_same == 0) || (rules_same == 0)))
     {
-        error = "its ruleset on the device is not the host's";
+        mmgr_line_put(&error, "its ruleset on the device is not the host's");
     }
     const int ran = (read_same != 0) && (rules_same != 0) &&
                     codegen_device(layout, &device_rules, places, has_costs ? &costs : NULL, &written, &error);
+    (void)mmgr_line_finish(&error);
     if (built)
     {
         asm_printer_ruleset_release(&text_rules);
@@ -416,13 +490,20 @@ static int cycle_codegen_on_device(const CodeGenerator &generator, const Ruleset
     {
         asm_printer_ruleset_release(&device_rules);
     }
-    s_cycle_codegen_depth -= 1;
-    size_t differs = 0u;
-    while ((differs < written.size()) && (differs < text.size()) && (written[differs] == text[differs]))
+    if (device_read != NULL)
     {
-        differs += 1u;
+        ruleset_released(device_read);
     }
-    const int same = (ran != 0) && (written == text);
+    platform_cell_released(device_read, platform_place_g_program_owner);
+    s_cycle_codegen_depth -= 1;
+    const char *const device_text = platform_text_bytes(&written);
+    const unsigned long long device_length = platform_text_size(&written);
+    unsigned long long differs = 0ULL;
+    while ((differs < device_length) && (differs < host_length) && (device_text[differs] == host_text[differs]))
+    {
+        differs += 1ULL;
+    }
+    const int same = (ran != 0) && (device_length == host_length) && (differs == host_length);
     if ((same != 0) && (report != 0))
     {
         EngineNote engine_note;
@@ -430,7 +511,7 @@ static int cycle_codegen_on_device(const CodeGenerator &generator, const Ruleset
         mmgr_line_put(&engine_note.line, "  cycle: the device wrote a program of ");
         mmgr_line_decimal(&engine_note.line, layout->steps, 1u);
         mmgr_line_put(&engine_note.line, " steps, ");
-        mmgr_line_decimal(&engine_note.line, written.size(), 1u);
+        mmgr_line_decimal(&engine_note.line, device_length, 1u);
         mmgr_line_put(&engine_note.line, " bytes, byte for byte the host's");
         mmgr_line_ch(&engine_note.line, '\n');
         engine_note_written(&engine_note);
@@ -442,9 +523,9 @@ static int cycle_codegen_on_device(const CodeGenerator &generator, const Ruleset
         mmgr_line_put(&engine_note.line, "  cycle: the device wrote a program of ");
         mmgr_line_decimal(&engine_note.line, layout->steps, 1u);
         mmgr_line_put(&engine_note.line, " steps as ");
-        mmgr_line_decimal(&engine_note.line, written.size(), 1u);
+        mmgr_line_decimal(&engine_note.line, device_length, 1u);
         mmgr_line_put(&engine_note.line, " bytes against the host's ");
-        mmgr_line_decimal(&engine_note.line, text.size(), 1u);
+        mmgr_line_decimal(&engine_note.line, host_length, 1u);
         mmgr_line_put(&engine_note.line, ", apart from byte ");
         mmgr_line_decimal(&engine_note.line, differs, 1u);
         mmgr_line_ch(&engine_note.line, '\n');
@@ -457,16 +538,22 @@ static int cycle_codegen_on_device(const CodeGenerator &generator, const Ruleset
         mmgr_line_put(&engine_note.line, "  cycle: the device did not write a program of ");
         mmgr_line_decimal(&engine_note.line, layout->steps, 1u);
         mmgr_line_put(&engine_note.line, " steps (");
-        mmgr_line_put(&engine_note.line, error.c_str());
+        mmgr_line_put(&engine_note.line, error_text);
         mmgr_line_put(&engine_note.line, ")");
         mmgr_line_ch(&engine_note.line, '\n');
         engine_note_written(&engine_note);
     }
     if (same != 0)
     {
-        text = written;
-        s_cycle_codegen_written.push_back(written);
+        // the device's text is the host's byte for byte, and the host's stays where it is
+        CycleImage kept = {NULL, 0ULL};
+        if (cycle_image_taken(&kept, device_text, device_length) &&
+            !platform_array_appended(&s_cycle_codegen_written, &kept))
+        {
+            cycle_image_ended(&kept);
+        }
     }
+    platform_text_ended(&written);
     return same;
 }
 
@@ -523,24 +610,24 @@ int cycle_record_compile(const EngineRecordLayout *layout, CycleRecord *record, 
     {
         CodeGenerator &generator = code_generator("ptx.krs");
         const Ruleset *const rules = generator.ruleset(report);
-        const std::string &header = cycle_ptx_header(major, minor, report);
+        const char *const header = cycle_ptx_header(major, minor, report);
         unsigned int places = 0u;
         unsigned int live = 0u;
-        const auto began = std::chrono::steady_clock::now();
-        std::string ptx = ((rules == NULL) || header.empty())
-                              ? std::string()
-                              : generator.program(layout, &target, header, &places, &live);
-        // a steady clock's span is never negative
-        const unsigned long long written = (unsigned long long)std::chrono::duration_cast<std::chrono::nanoseconds>(
-                                               std::chrono::steady_clock::now() - began)
-                                               .count();
-        if (!ptx.empty() &&
-            !CYCLE_CHECK(cycle_codegen_on_device(generator, rules, &target, header, layout, places, report, ptx),
+        const unsigned long long began = platform_clock_ns();
+        PlatformText ptx;
+        platform_text_begun(&ptx, CYCLE_LANE_TEXT_BYTES, platform_place_g_program_owner, 0);
+        const int wrote =
+            (rules != NULL) && (header[0] != '\0') && generator.program(layout, &target, header, &ptx, &places, &live);
+        // the monotonic clock never runs back
+        const unsigned long long written = platform_clock_ns() - began;
+        if (wrote &&
+            !CYCLE_CHECK(cycle_codegen_on_device(generator, rules, &target, header, layout, places, report, &ptx),
                          layout, error, ENGINE_ERROR_LOGIC))
         {
+            platform_text_ended(&ptx);
             return (int)CYCLE_ERROR;
         }
-        if ((report != 0) && !ptx.empty())
+        if ((report != 0) && wrote)
         {
             EngineNote engine_note;
             engine_note_begun(&engine_note);
@@ -552,7 +639,10 @@ int cycle_record_compile(const EngineRecordLayout *layout, CycleRecord *record, 
             mmgr_line_ch(&engine_note.line, '\n');
             engine_note_written(&engine_note);
         }
-        if (!ptx.empty() && cycle_program_load(layout, record, lane_target, ptx, 1, lto, written, report))
+        const int loaded = wrote && cycle_program_load(layout, record, lane_target, platform_text_bytes(&ptx),
+                                                       platform_text_size(&ptx), 1, lto, written, report);
+        platform_text_ended(&ptx);
+        if (loaded)
         {
             record->places = places;
             if (cycle_environment_set("CYCLE_RECORD_RETAIN_PTX") == 0)
@@ -569,11 +659,10 @@ int cycle_record_compile(const EngineRecordLayout *layout, CycleRecord *record, 
             mmgr_line_decimal(&engine_note.line, layout->steps, 1u);
             mmgr_line_put(&engine_note.line, " steps goes to NVRTC (");
             mmgr_line_put(&engine_note.line,
-                          (rules == NULL)  ? "its ruleset, ptx.krs, errored"
-                          : header.empty() ? "PTX's header could not be read"
-                          : ptx.empty()
-                              ? "a step the lane does not support, or a form given other arguments than it takes"
-                              : "its PTX did not build");
+                          (rules == NULL)       ? "its ruleset, ptx.krs, errored"
+                          : (header[0] == '\0') ? "PTX's header could not be read"
+                          : !wrote ? "a step the lane does not support, or a form given other arguments than it takes"
+                                   : "its PTX did not build");
             mmgr_line_put(&engine_note.line, ")");
             mmgr_line_ch(&engine_note.line, '\n');
             engine_note_written(&engine_note);
@@ -581,25 +670,25 @@ int cycle_record_compile(const EngineRecordLayout *layout, CycleRecord *record, 
     }
     CodeGenerator &source_generator = code_generator("c.krs");
     const Ruleset *const source_rules = source_generator.ruleset(report);
-    const auto began = std::chrono::steady_clock::now();
+    const unsigned long long began = platform_clock_ns();
     unsigned int source_places = 0u;
     unsigned int source_live = 0u;
-    std::string source = (source_rules != NULL) ? source_generator.program(layout, &target, std::string(target.prelude),
-                                                                           &source_places, &source_live)
-                                                : std::string();
-    // a steady clock's span is never negative
-    const unsigned long long written = (unsigned long long)std::chrono::duration_cast<std::chrono::nanoseconds>(
-                                           std::chrono::steady_clock::now() - began)
-                                           .count();
-    if (!source.empty() &&
-        !CYCLE_CHECK(cycle_codegen_on_device(source_generator, source_rules, &target, std::string(target.prelude),
-                                             layout, source_places, report, source),
-                     layout, error, ENGINE_ERROR_LOGIC))
+    PlatformText source;
+    platform_text_begun(&source, CYCLE_LANE_TEXT_BYTES, platform_place_g_program_owner, 0);
+    const int wrote = (source_rules != NULL) &&
+                      source_generator.program(layout, &target, target.prelude, &source, &source_places, &source_live);
+    // the monotonic clock never runs back
+    const unsigned long long written = platform_clock_ns() - began;
+    if (wrote && !CYCLE_CHECK(cycle_codegen_on_device(source_generator, source_rules, &target, target.prelude, layout,
+                                                      source_places, report, &source),
+                              layout, error, ENGINE_ERROR_LOGIC))
     {
+        platform_text_ended(&source);
         return (int)CYCLE_ERROR;
     }
-    if (source.empty())
+    if (!wrote)
     {
+        platform_text_ended(&source);
         if (report != 0)
         {
             EngineNote engine_note;
@@ -617,8 +706,12 @@ int cycle_record_compile(const EngineRecordLayout *layout, CycleRecord *record, 
         }
         return 0;
     }
-    const int loaded = (host != 0) ? cycle_host_program_load(layout, record, source, source_places, written, report)
-                                   : cycle_program_load(layout, record, lane_target, source, 0, lto, written, report);
+    const char *const source_text = platform_text_bytes(&source);
+    const int loaded = (host != 0)
+                           ? cycle_host_program_load(layout, record, source_text, source_places, written, report)
+                           : cycle_program_load(layout, record, lane_target, source_text, platform_text_size(&source),
+                                                0, lto, written, report);
+    platform_text_ended(&source);
     if (loaded == 0)
     {
         if (report != 0)

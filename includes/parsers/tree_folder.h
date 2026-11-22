@@ -5,34 +5,49 @@
 #ifndef TREE_FOLDER_H
 #define TREE_FOLDER_H
 
-#include <string>
+#include "cellularum_laboro/cellularum_linea.h"
+#include "verba_scribo/verba_linea.h"
 
-// The folder `rest` names from the folder `ups` folders above the one containing the source file `file`, its separators
-// `/`: `file` itself where it contains no separator, so that the folder is read from where the process is
-static inline std::string tree_folder_from(const std::string &file, unsigned int ups, const char *rest)
+#include <stddef.h>
+
+// The folder `rest` names from the folder `ups` folders above the one that holds the source file `file`, into
+// `folder`, `bytes` of it, its separators `/`. Where `file` holds no separator, the folder climbs from where the
+// process is. 1 where the whole folder fit, else 0
+static inline int tree_folder_from(const char *file, unsigned int ups, const char *rest, char *folder, size_t bytes)
 {
-    std::string folder = file;
-    for (char &each : folder)
+    VerbaLinea line = mmgr_line_over(folder, bytes);
+    size_t end = mmgr_text_length(file, (size_t)-1);
+    size_t slash = end;
+    for (size_t at = 0u; at < end; at += 1u)
     {
-        each = (each == '\\') ? '/' : each;
+        slash = ((file[at] == '/') || (file[at] == '\\')) ? at : slash;
     }
-    size_t slash = folder.find_last_of('/');
-    if (slash == std::string::npos)
+    if (slash == end)
     {
-        std::string climbed;
         for (unsigned int up = 0u; up < ups; up += 1u)
         {
-            climbed += "../";
+            mmgr_line_put(&line, "../");
         }
-        return climbed + rest;
+        mmgr_line_put(&line, rest);
+        return (mmgr_line_finish(&line) != 0u) && (mmgr_line_ok(&line) != 0);
     }
-    folder.resize(slash);
+    end = slash;
     for (unsigned int up = 0u; up < ups; up += 1u)
     {
-        slash = folder.find_last_of('/');
-        folder.resize((slash == std::string::npos) ? 0u : slash);
+        slash = 0u;
+        for (size_t at = 0u; at < end; at += 1u)
+        {
+            slash = ((file[at] == '/') || (file[at] == '\\')) ? at : slash;
+        }
+        end = slash;
     }
-    return folder + "/" + rest;
+    for (size_t at = 0u; at < end; at += 1u)
+    {
+        mmgr_line_ch(&line, (file[at] == '\\') ? '/' : file[at]);
+    }
+    mmgr_line_ch(&line, '/');
+    mmgr_line_put(&line, rest);
+    return (mmgr_line_finish(&line) != 0u) && (mmgr_line_ok(&line) != 0);
 }
 
 #endif

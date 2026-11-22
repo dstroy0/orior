@@ -27,9 +27,10 @@ extern "C"
 }
 
 #include "../../../../../../includes/file_defs/krs/ruleset_flat.h"
+#include "../../../../../platform/platform.h"
+#include "../../../../scaffolding/ruleset_strings.h"
 #include "sass_target.h"
 #include "target.h"
-#include "../../../../../platform/platform.h"
 
 #include <cstdio>
 #include <cstring>
@@ -104,7 +105,7 @@ static std::vector<KrsForm> krs_forms(const Ruleset *rules, const char *path)
     std::vector<KrsForm> forms;
     std::string text;
     std::string error;
-    ruleset_text(rules->schema, path, &text, &error);
+    ruleset_text_strings(rules->schema, path, &text, &error);
     std::istringstream file(text);
     std::string line;
     while (std::getline(file, line))

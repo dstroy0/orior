@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // engine_listing.cu: the listing, geff arrays, lanes and the iapx codec
-#include "engine_internal.h"
 #include "../../platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
+#include "engine_internal.h"
 #include "engine_note.h"
 #include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
 
 static int entry_order_names(const void *left, const void *right)
 {
@@ -14,7 +14,8 @@ static int entry_order_names(const void *left, const void *right)
 
 static unsigned int entry_listing(const char *directory, char ***names, int samples_of_set)
 {
-    std::vector<char *> found;
+    PlatformArray found;
+    platform_array_begun(&found, sizeof(char *), platform_place_g_program_owner, 0);
 #ifdef _WIN32
     char pattern[ENTRY_PATH_CAPACITY];
     {
@@ -68,7 +69,10 @@ static unsigned int entry_listing(const char *directory, char ***names, int samp
             if (copy != NULL)
             {
                 mmgr_bytes_copy(copy, stem, size);
-                found.push_back(copy);
+            }
+            if ((copy != NULL) && (platform_array_appended(&found, &copy) == 0))
+            {
+                platform_cell_released(copy, platform_place_g_program_owner);
             }
         }
     }
@@ -83,31 +87,30 @@ static unsigned int entry_listing(const char *directory, char ***names, int samp
         closedir(search);
     }
 #endif
-    char **const listed =
-        (char **)platform_cell_cleared(found.size() + 1u, sizeof(char *), platform_place_g_program_owner, 0);
-    if (listed == NULL)
+    // the names end in NULL, which the array holds past its count
+    const unsigned long long count = found.count;
+    const char *const end = NULL;
+    if (platform_array_appended(&found, &end) == 0)
     {
-        for (size_t found_at = 0u; found_at < found.size(); found_at += 1u)
+        for (unsigned long long found_at = 0ULL; found_at < count; found_at += 1ULL)
         {
-            platform_cell_released(found[found_at], platform_place_g_program_owner);
+            platform_cell_released(*(char **)platform_array_at(&found, found_at), platform_place_g_program_owner);
         }
+        platform_array_ended(&found);
         *names = NULL;
         return 0u;
     }
-    for (size_t found_at = 0u; found_at < found.size(); found_at += 1u)
-    {
-        listed[found_at] = found[found_at];
-    }
+    char **const listed = (char **)found.cell;
     {
         // the room of the sort, on the temporary tier, which goes back as the sort ends
         void *const sort_room =
-            platform_cell_taken((unsigned long long)(found.size()) * (unsigned long long)(sizeof(char *)),
-                                platform_place_g_program_owner, 1);
-        (void)mmgr_bytes_sort(listed, found.size(), sizeof(char *), entry_order_names, sort_room);
+            platform_cell_taken(count * (unsigned long long)(sizeof(char *)), platform_place_g_program_owner, 1);
+        (void)mmgr_bytes_sort(listed, (size_t)count, sizeof(char *), entry_order_names, sort_room);
         platform_cell_released(sort_room, platform_place_g_program_owner);
     }
     *names = listed;
-    return (unsigned int)found.size();
+    // a listing holds fewer names than an unsigned int counts
+    return (unsigned int)count;
 }
 
 extern "C" unsigned int engine_source_samples(const char *source, char ***names)

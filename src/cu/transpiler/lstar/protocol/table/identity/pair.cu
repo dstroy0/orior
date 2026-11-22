@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pair.cu: the pair: each pair of the bridge put to the part through the carriers, its verdict written beneath it
-#include "pair.h"
-#include "memoria_operor/memoria_linea.h"
 #include "../../../../../../platform/platform.h"
 #include "cellularum_laboro/cellularum_linea.h"
+#include "memoria_operor/memoria_linea.h"
+#include "pair.h"
 
 thread_local RunQuestion *t_question = NULL;
 thread_local std::vector<unsigned int> *t_places = NULL;
@@ -21,7 +21,7 @@ void PairWork::chosen(const char *const *names, unsigned int count, const std::s
     unsigned long long word = 0ULL;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        word |= query_trace_flag(s_query_trace, names[at]);
+        word |= query_trace_flag(&s_query_trace, names[at]);
     }
     {
         TextNote text_note;
@@ -155,13 +155,18 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
         return 1;
     }
     record_open(ksc, "pair");
-    std::string trace_error;
-    if (!query_trace_read(query_trace_path(), &s_query_trace, &trace_error))
+    char trace_path[PLATFORM_PATH_BYTES];
+    char trace_why[QUERY_TRACE_GLOSS_BYTES];
+    VerbaLinea trace_error = mmgr_line_over(trace_why, sizeof(trace_why));
+    const int trace_read =
+        query_trace_path(trace_path, sizeof(trace_path)) && query_trace_read(trace_path, &s_query_trace, &trace_error);
+    (void)mmgr_line_finish(&trace_error);
+    if (!trace_read)
     {
         {
             VerbaLinea *const output_line = platform_line_out();
             mmgr_line_put(output_line, "orior_klq_identity pair: ");
-            mmgr_line_put(output_line, trace_error.c_str());
+            mmgr_line_put(output_line, trace_why);
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }

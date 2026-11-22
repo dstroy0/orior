@@ -2,37 +2,45 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // codegen_rules.cu: the assembly printer's ruleset built on the device, and checked against the host's
 #include "asm_printer_internal.h"
-#include "memoria_operor/memoria_linea.h"
 #include "codegen_device.h"
 #include "codegen_device_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 int asm_printer_ruleset_same(const AsmPrinterRuleset *left, const AsmPrinterRuleset *right)
 {
     const AsmPrinterProgram &left_program = left->program;
     const AsmPrinterProgram &right_program = right->program;
     int same =
-        (left->scratch == right->scratch) && (left->word_lengths == right->word_lengths) &&
-        (left->part_lanes == right->part_lanes) && (left->form_part_first == right->form_part_first) &&
-        (left->form_parts == right->form_parts) && (left->form_placeholder_first == right->form_placeholder_first) &&
-        (left->placeholder_parameters == right->placeholder_parameters) &&
+        asm_printer_words_same(&left->scratch, &right->scratch) &&
+        asm_printer_words_same(&left->word_lengths, &right->word_lengths) &&
+        asm_printer_words_same(&left->part_lanes, &right->part_lanes) &&
+        asm_printer_words_same(&left->form_part_first, &right->form_part_first) &&
+        asm_printer_words_same(&left->form_parts, &right->form_parts) &&
+        asm_printer_words_same(&left->form_placeholder_first, &right->form_placeholder_first) &&
+        asm_printer_words_same(&left->placeholder_parameters, &right->placeholder_parameters) &&
         (mmgr_bytes_compare(left->bank_before, right->bank_before, sizeof(left->bank_before)) == 0) &&
         (mmgr_bytes_compare(left->bank_after, right->bank_after, sizeof(left->bank_after)) == 0) &&
         (mmgr_bytes_compare(left->fixed_word, right->fixed_word, sizeof(left->fixed_word)) == 0) &&
         (left->minus_word == right->minus_word) && (left->hash_word == right->hash_word) &&
         (left->header_part == right->header_part) &&
         (mmgr_bytes_compare(left->target_numbers, right->target_numbers, sizeof(left->target_numbers)) == 0) &&
-        (left_program.steps.size() == right_program.steps.size()) &&
-        (left_program.field_bits == right_program.field_bits) &&
-        (left_program.field_offset == right_program.field_offset) && (left_program.values == right_program.values) &&
-        (left_program.output == right_program.output) && (left_program.tables.size() == right_program.tables.size());
-    for (size_t step = 0u; (same != 0) && (step < left_program.steps.size()); step += 1u)
+        (left_program.step_count == right_program.step_count) &&
+        (mmgr_bytes_compare(left_program.field_bits, right_program.field_bits, sizeof(left_program.field_bits)) == 0) &&
+        (mmgr_bytes_compare(left_program.field_offset, right_program.field_offset, sizeof(left_program.field_offset)) ==
+         0) &&
+        (left_program.output == right_program.output);
+    for (unsigned int table = 0u; (same != 0) && (table < ASM_PRINTER_TABLES); table += 1u)
+    {
+        same = asm_printer_words_same(&left_program.values[table], &right_program.values[table]);
+    }
+    for (unsigned int step = 0u; (same != 0) && (step < left_program.step_count); step += 1u)
     {
         const EngineRecordStep &one = left_program.steps[step];
         const EngineRecordStep &other = right_program.steps[step];
         same = (one.operation == other.operation) && (one.left == other.left) && (one.right == other.right) &&
                (one.member == other.member);
     }
-    for (size_t table = 0u; (same != 0) && (table < left_program.tables.size()); table += 1u)
+    for (unsigned int table = 0u; (same != 0) && (table < ASM_PRINTER_TABLES); table += 1u)
     {
         same = (left_program.tables[table].index_bits == right_program.tables[table].index_bits) &&
                (left_program.tables[table].out_bits == right_program.tables[table].out_bits);
@@ -79,7 +87,7 @@ static void codegen_rules_read(DeviceArena *device_arena, const AsmPrinterCoreBu
                                AsmPrinterCoreBuild *host)
 {
     *host = *ended;
-    asm_printer_memory_size(memory, host);
+    device_arena->ok = (device_arena->ok != 0) && asm_printer_memory_size(memory, host);
     codegen_device_read(device_arena, host->word_start, ended->word_start, ended->words);
     codegen_device_read(device_arena, host->word_length, ended->word_length, ended->words);
     codegen_device_read(device_arena, host->word_characters, ended->word_characters, ended->characters);
@@ -98,14 +106,14 @@ static void codegen_rules_read(DeviceArena *device_arena, const AsmPrinterCoreBu
     }
 }
 
-int asm_printer_ruleset_device(const Ruleset *rules, const TargetInfo *target, const std::string &header,
-                               AsmPrinterRuleset *text_rules, std::string *error)
+int asm_printer_ruleset_device(const Ruleset *rules, const TargetInfo *target, const char *header,
+                               AsmPrinterRuleset *text_rules, VerbaLinea *error)
 {
-    *text_rules = AsmPrinterRuleset{};
+    mmgr_bytes_set(text_rules, 0, sizeof(*text_rules));
     if ((rules->schema->form_count != OPCODE_COUNT) || (rules->schema->bank_count != REGCLASS_COUNT) ||
         (rules->schema->fixed_count != PHYSREG_COUNT))
     {
-        *error = "the ruleset was read against another code generator's schema than the lane's";
+        mmgr_line_put(error, "the ruleset was read against another code generator's schema than the lane's");
         return 0;
     }
     const unsigned int scratch_banks[3] = {REGCLASS_TEMPORARY, REGCLASS_WIDE, REGCLASS_PREDICATE};
@@ -114,17 +122,22 @@ int asm_printer_ruleset_device(const Ruleset *rules, const TargetInfo *target, c
         return 0;
     }
     AsmPrinterFlat flat;
-    asm_printer_flatten(rules, target, header, &flat);
+    if (asm_printer_flatten(rules, target, header, &flat) == 0)
+    {
+        mmgr_line_put(error, "the pool cannot meet the assembly printer");
+        return 0;
+    }
     DeviceArena rules_arena{};
     rules_arena.ok = 1;
     AsmPrinterCoreBuild build{};
     build.rules = flat.rules;
-    build.rules.characters = codegen_device_copy(&rules_arena, flat.characters.data(), flat.characters.size());
-    build.rules.texts = codegen_device_copy(&rules_arena, flat.texts.data(), flat.texts.size());
-    build.rules.placeholders = codegen_device_copy(&rules_arena, flat.placeholders.data(), flat.placeholders.size());
+    build.rules.characters = codegen_device_copy(&rules_arena, flat.rules.characters, flat.character_count);
+    build.rules.texts = codegen_device_copy(&rules_arena, flat.rules.texts, flat.text_count);
+    build.rules.placeholders = codegen_device_copy(&rules_arena, flat.rules.placeholders, flat.placeholder_count);
     unsigned int step_capacity = ASM_PRINTER_STEP_CAPACITY;
     int built = 0;
     AsmPrinterMemory memory;
+    memory.cell = NULL;
     AsmPrinterCoreBuild host{};
     while ((rules_arena.ok != 0) && (built == 0))
     {
@@ -154,19 +167,27 @@ int asm_printer_ruleset_device(const Ruleset *rules, const TargetInfo *target, c
         else if ((built == 0) && ((ended.end != ASM_PRINTER_CORE_FULL) || (step_capacity >= (1u << 30u))))
         {
             codegen_device_release(&rules_arena);
-            *error = asm_printer_ended(ended.end);
+            asm_printer_flat_ended(&flat);
+            mmgr_line_put(error, asm_printer_ended(ended.end));
             return 0;
         }
         step_capacity *= 2u;
     }
     const int ok = rules_arena.ok;
     codegen_device_release(&rules_arena);
+    asm_printer_flat_ended(&flat);
+    const int stored = (ok != 0) && asm_printer_store(&host, text_rules);
+    asm_printer_memory_ended(&memory);
     if (ok == 0)
     {
-        *error = "the device errored on a call";
+        mmgr_line_put(error, "the device errored on a call");
         return 0;
     }
-    asm_printer_store(&host, text_rules);
+    if (stored == 0)
+    {
+        mmgr_line_put(error, "the pool cannot meet the assembly printer's lists");
+        return 0;
+    }
     // the program arranged by the device as well; the host's key is not retained, and the output it names is the
     // program's
     return asm_printer_program_device(&text_rules->program, &text_rules->program.layout, error);
@@ -174,14 +195,14 @@ int asm_printer_ruleset_device(const Ruleset *rules, const TargetInfo *target, c
 
 #else
 
-int asm_printer_ruleset_device(const Ruleset *rules, const TargetInfo *target, const std::string &header,
-                               AsmPrinterRuleset *text_rules, std::string *error)
+int asm_printer_ruleset_device(const Ruleset *rules, const TargetInfo *target, const char *header,
+                               AsmPrinterRuleset *text_rules, VerbaLinea *error)
 {
     (void)rules;
     (void)target;
     (void)header;
-    *text_rules = AsmPrinterRuleset{};
-    *error = "the build has no device";
+    mmgr_bytes_set(text_rules, 0, sizeof(*text_rules));
+    mmgr_line_put(error, "the build has no device");
     return 0;
 }
 

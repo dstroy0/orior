@@ -10,14 +10,12 @@
 // inputs from the device and its records and errors back: the check (CYCLE_RECORD_CHECK=1) checks it against the
 // interpreter as it checks the device's. On Windows the compiler is nvcc handing the source to the host compiler
 // alone, with -ccbin $CYCLE_HOST_CCBIN where it is set; elsewhere it is $CXX, else c++
-#include "cycle_compile_internal.h"
-#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../platform/platform.h"
 #include "../../engine_note.h"
-#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_linea.h"
+#include "cycle_compile_internal.h"
 #include "cycle_record_internal.h"
-
-#include <thread>
+#include "memoria_operor/memoria_linea.h"
 
 #if !defined(_WIN32)
 #include <fcntl.h>
@@ -32,7 +30,6 @@ extern char **environ;
 // the lanes are taken from the one counter and the last thread block out writes the program's block, as on the
 // device. The resident and the grid's setter are the library's exports
 static const char s_cycle_host_prelude[] = R"CYCLE(// a record program's lane, built by the host's compiler
-#include <atomic>
 #if defined(_WIN32)
 #include <intrin.h>
 #define __global__ __declspec(dllexport)
@@ -44,7 +41,11 @@ static const char s_cycle_host_prelude[] = R"CYCLE(// a record program's lane, b
 #define __forceinline__ inline
 #define __launch_bounds__(threads_)
 #define __syncthreads()
-#define __threadfence() std::atomic_thread_fence(std::memory_order_seq_cst)
+#if defined(_WIN32)
+#define __threadfence() _mm_mfence()
+#else
+#define __threadfence() __atomic_thread_fence(__ATOMIC_SEQ_CST)
+#endif
 
 struct CycleHostDimension
 {
@@ -98,97 +99,137 @@ static inline unsigned long long atomicCAS(unsigned long long *address, unsigned
 #define CYCLE_HOST_LIBRARY ".so"
 #endif
 
-// a program the host's compiler built in this process, found again by its whole text, and the records loaded that
-// reference it: the last one released unloads it
+// A program that the host's compiler built in this process. The process finds it again by its whole text, a cell of
+// `length` bytes. `holders` counts the loaded records that reference it, and the last release unloads it
 struct CycleHostProgram
 {
-    std::string source;
+    char *source;
+    unsigned long long length;
     void *library;
     CycleHostEntry entry;
     CycleHostGrid grid;
     unsigned long long holders;
 };
 
-static std::vector<CycleHostProgram> s_cycle_host_programs;
+// the host programs, a CycleHostProgram each; the array begins at its first program
+static PlatformArray s_cycle_host_programs;
 
-// a file's whole contents, empty where it cannot be read
-static std::string cycle_host_file_read(const std::string &path)
+// the bytes a host text or a file of one holds at max
+#define CYCLE_HOST_TEXT_BYTES (1ULL << 30u)
+
+// a file's whole contents onto `contents`, which the caller began empty: 1, or 0 where the call cannot read it
+static int cycle_host_file_read(const char *path, PlatformText *contents)
 {
-    std::string contents;
-    PlatformFile *const file = platform_file_open(path.c_str(), "rb");
+    PlatformFile *const file = platform_file_open(path, "rb");
     if (file == NULL)
     {
-        return contents;
+        return 0;
     }
     char block[65536];
     size_t read = platform_file_read_items(block, 1u, sizeof(block), file);
     while (read != 0u)
     {
-        contents.append(block, read);
+        (void)mmgr_line_put_n(&contents->line, block, read);
         read = platform_file_read_items(block, 1u, sizeof(block), file);
     }
     platform_file_close(file);
-    return contents;
+    return mmgr_line_ok(&contents->line) != 0;
 }
 
-static int cycle_host_file_write(const std::string &path, const std::string &contents)
+// 1 where the file at `path` holds exactly the `length` bytes of `text`
+static int cycle_host_file_same(const char *path, const char *text, unsigned long long length)
 {
-    PlatformFile *const file = platform_file_open(path.c_str(), "wb");
+    PlatformText contents;
+    platform_text_begun(&contents, CYCLE_HOST_TEXT_BYTES, platform_place_g_program_owner, 0);
+    const int same = cycle_host_file_read(path, &contents) && (platform_text_size(&contents) == length) &&
+                     (mmgr_bytes_compare(platform_text_bytes(&contents), text, (size_t)length) == 0);
+    platform_text_ended(&contents);
+    return same;
+}
+
+static int cycle_host_file_write(const char *path, const char *contents, unsigned long long length)
+{
+    PlatformFile *const file = platform_file_open(path, "wb");
     if (file == NULL)
     {
         return 0;
     }
-    const int written = platform_file_write_items(contents.data(), 1u, contents.size(), file) == contents.size();
+    const int written = platform_file_write_items(contents, 1u, (size_t)length, file) == length;
     return (platform_file_close(file) == 0) && written;
 }
 
-// the compiler run on `source` into `library`, its output written to `log`; 1 where it ran and succeeded
-static int cycle_host_compiler_run(const std::string &source, const std::string &library, const std::string &log)
+// the `parts` texts at `part` end to end into `path`, `bytes` of it
+static void cycle_host_path(char *path, size_t bytes, const char *const *part, unsigned int parts)
 {
-    std::vector<std::string> arguments;
+    VerbaLinea line = mmgr_line_over(path, bytes);
+    for (unsigned int at = 0u; at < parts; at += 1u)
+    {
+        mmgr_line_put(&line, part[at]);
+    }
+    (void)mmgr_line_finish(&line);
+}
+
+// the most words of the compiler's command
+#define CYCLE_HOST_ARGUMENTS 16u
+
+// the compiler run on `source` into `library`, its output written to `log`; 1 where it ran and succeeded
+static int cycle_host_compiler_run(const char *source, const char *library, const char *log)
+{
+    const char *arguments[CYCLE_HOST_ARGUMENTS + 1u];
+    unsigned int count = 0u;
 #if defined(_WIN32)
-    char bin_text[PLATFORM_ENVIRONMENT_BYTES];
-    const char *const bin =
-        (platform_environment("CYCLE_HOST_CCBIN", bin_text, sizeof(bin_text)) != 0ULL) ? bin_text : NULL;
-    arguments.push_back("nvcc");
-    if ((bin != NULL) && (bin[0] != '\0'))
+    char bin[PLATFORM_ENVIRONMENT_BYTES];
+    const int named = (platform_environment("CYCLE_HOST_CCBIN", bin, sizeof(bin)) != 0ULL) && (bin[0] != '\0');
+    arguments[count] = "nvcc";
+    count += 1u;
+    if (named != 0)
     {
-        arguments.push_back("-ccbin");
-        arguments.push_back(bin);
+        arguments[count] = "-ccbin";
+        arguments[count + 1u] = bin;
+        count += 2u;
     }
-    for (const char *const flag : {"--shared", "--cudart", "none", "-O1", "-x", "c++"})
-    {
-        arguments.push_back(flag);
-    }
+    const char *const flags[] = {"--shared", "--cudart", "none", "-O1", "-x", "c++"};
 #else
-    char compiler_text[PLATFORM_ENVIRONMENT_BYTES];
-    const char *const compiler =
-        (platform_environment("CXX", compiler_text, sizeof(compiler_text)) != 0ULL) ? compiler_text : NULL;
-    arguments.push_back(((compiler != NULL) && (compiler[0] != '\0')) ? compiler : "c++");
-    for (const char *const flag : {"-shared", "-fPIC", "-O1", "-x", "c++"})
-    {
-        arguments.push_back(flag);
-    }
+    char compiler[PLATFORM_ENVIRONMENT_BYTES];
+    const int named = (platform_environment("CXX", compiler, sizeof(compiler)) != 0ULL) && (compiler[0] != '\0');
+    arguments[count] = (named != 0) ? compiler : "c++";
+    count += 1u;
+    const char *const flags[] = {"-shared", "-fPIC", "-O1", "-x", "c++"};
 #endif
-    arguments.push_back(source);
-    arguments.push_back("-o");
-    arguments.push_back(library);
-#if defined(_WIN32)
-    std::string command;
-    for (size_t at = 0u; at < arguments.size(); at += 1u)
+    for (unsigned int flag = 0u; flag < (sizeof(flags) / sizeof(flags[0])); flag += 1u)
     {
-        command += ((at == 0u) ? "\"" : " \"") + arguments[at] + "\"";
+        arguments[count] = flags[flag];
+        count += 1u;
     }
-    std::vector<char> line(command.begin(), command.end());
-    line.push_back('\0');
+    arguments[count] = source;
+    arguments[count + 1u] = "-o";
+    arguments[count + 2u] = library;
+    count += 3u;
+    arguments[count] = NULL;
+#if defined(_WIN32)
+    PlatformText command;
+    platform_text_begun(&command, PLATFORM_ENVIRONMENT_PATH_BYTES, platform_place_g_program_owner, 1);
+    for (unsigned int at = 0u; at < count; at += 1u)
+    {
+        mmgr_line_put(&command.line, (at == 0u) ? "\"" : " \"");
+        mmgr_line_put(&command.line, arguments[at]);
+        mmgr_line_ch(&command.line, '"');
+    }
+    // CreateProcessA can write into its line, and the text's own cell holds the line
+    char *const line = (char *)platform_text_bytes(&command);
     SECURITY_ATTRIBUTES inherited;
     mmgr_bytes_set(&inherited, 0, sizeof(inherited));
     inherited.nLength = sizeof(inherited);
     inherited.bInheritHandle = TRUE;
-    const HANDLE output = CreateFileA(log.c_str(), GENERIC_WRITE, FILE_SHARE_READ, &inherited, CREATE_ALWAYS,
-                                      FILE_ATTRIBUTE_NORMAL, NULL);
-    if (output == INVALID_HANDLE_VALUE)
+    const HANDLE output =
+        CreateFileA(log, GENERIC_WRITE, FILE_SHARE_READ, &inherited, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    if ((output == INVALID_HANDLE_VALUE) || (mmgr_line_ok(&command.line) == 0))
     {
+        if (output != INVALID_HANDLE_VALUE)
+        {
+            CloseHandle(output);
+        }
+        platform_text_ended(&command);
         return 0;
     }
     STARTUPINFOA startup;
@@ -201,8 +242,7 @@ static int cycle_host_compiler_run(const std::string &source, const std::string 
     PROCESS_INFORMATION process;
     mmgr_bytes_set(&process, 0, sizeof(process));
     DWORD status = 1u;
-    const BOOL started =
-        CreateProcessA(NULL, line.data(), NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &startup, &process);
+    const BOOL started = CreateProcessA(NULL, line, NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &startup, &process);
     if (started)
     {
         WaitForSingleObject(process.hProcess, INFINITE);
@@ -211,20 +251,16 @@ static int cycle_host_compiler_run(const std::string &source, const std::string 
         CloseHandle(process.hProcess);
     }
     CloseHandle(output);
+    platform_text_ended(&command);
     return started && (status == 0u);
 #else
-    std::vector<char *> argv;
-    for (size_t at = 0u; at < arguments.size(); at += 1u)
-    {
-        argv.push_back(&arguments[at][0]);
-    }
-    argv.push_back(NULL);
     posix_spawn_file_actions_t actions;
     posix_spawn_file_actions_init(&actions);
-    posix_spawn_file_actions_addopen(&actions, 1, log.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    posix_spawn_file_actions_addopen(&actions, 1, log, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     posix_spawn_file_actions_adddup2(&actions, 1, 2);
     pid_t child = 0;
-    const int started = posix_spawnp(&child, argv[0], &actions, NULL, argv.data(), environ) == 0;
+    // posix_spawnp reads its words and never writes them, and takes them as the system's own pointers
+    const int started = posix_spawnp(&child, arguments[0], &actions, NULL, (char *const *)arguments, environ) == 0;
     posix_spawn_file_actions_destroy(&actions);
     int status = 1;
     const int waited = started && (waitpid(child, &status, 0) == child);
@@ -232,13 +268,13 @@ static int cycle_host_compiler_run(const std::string &source, const std::string 
 #endif
 }
 
-static void *cycle_host_library_open(const std::string &path)
+static void *cycle_host_library_open(const char *path)
 {
 #if defined(_WIN32)
     // a module handle is stored as a plain pointer beside the Linux one
-    return (void *)LoadLibraryA(path.c_str());
+    return (void *)LoadLibraryA(path);
 #else
-    return dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
+    return dlopen(path, RTLD_NOW | RTLD_LOCAL);
 #endif
 }
 
@@ -251,108 +287,132 @@ static void cycle_host_library_close(void *library)
 #endif
 }
 
-// The host text of a C lane found in this process, else in the cache folder, else compiled there and cached, then
-// loaded. The cache contains the text beside its library, and a library is used only where the text beside it is this
-// text byte for byte. Each is written beside its name and renamed to it, and no reader finds half a file. 0 where
-// there is no cache folder, or the compile or the load failed
-int cycle_host_program_load(const EngineRecordLayout *layout, CycleRecord *record, const std::string &source,
-                            unsigned int places, unsigned long long written, int report)
+// the host program of this process whose text is the `length` bytes at `text`, else NULL
+static CycleHostProgram *cycle_host_program_found(const char *text, unsigned long long length)
 {
-    // one thread's places: a word each, then a sign byte each
-    std::string text = s_cycle_host_prelude + source;
+    for (unsigned long long at = 0ULL; at < s_cycle_host_programs.count; at += 1ULL)
     {
-        TextNote text_note;
-        text_note_begun(&text_note, &text);
-        mmgr_line_put(&text_note.line, "\nthread_local u32 cycle_words[");
-        mmgr_line_decimal(&text_note.line, places + ((places + 3u) / 4u) + 1u, 1u);
-        mmgr_line_put(&text_note.line, "];");
-        mmgr_line_ch(&text_note.line, '\n');
-        text_note_written(&text_note);
-    }
-    for (size_t at = 0u; at < s_cycle_host_programs.size(); at += 1u)
-    {
-        if (s_cycle_host_programs[at].source == text)
+        CycleHostProgram *const program = (CycleHostProgram *)platform_array_at(&s_cycle_host_programs, at);
+        if ((program->length == length) && (mmgr_bytes_compare(program->source, text, (size_t)length) == 0))
         {
-            s_cycle_host_programs[at].holders += 1ULL;
-            record->host_program = s_cycle_host_programs[at].entry;
-            record->host_grid = s_cycle_host_programs[at].grid;
-            record->compiled = 1u;
-            if (report != 0)
-            {
-                EngineNote engine_note;
-                engine_note_begun(&engine_note);
-                mmgr_line_put(&engine_note.line, "  cycle: a program of ");
-                mmgr_line_decimal(&engine_note.line, layout->steps, 1u);
-                mmgr_line_put(&engine_note.line, " steps found in this process, as a host library");
-                mmgr_line_ch(&engine_note.line, '\n');
-                engine_note_written(&engine_note);
-            }
-            return 1;
+            return program;
         }
     }
-    const std::string folder = cycle_cache_folder();
-    if (folder.empty())
+    return NULL;
+}
+
+// The host text of a C lane found in this process, else in the cache folder, else compiled there and cached, then
+// loaded, from `text`, which the caller wrote and gives back. The cache holds the text beside its library, and a
+// library is used only where the text beside it is this text byte for byte. Each is written beside its name and
+// renamed to it, and no reader finds half a file. 0 where there is no cache folder, or the compile or the load failed
+static int cycle_host_program_built(const EngineRecordLayout *layout, CycleRecord *record, PlatformText *text,
+                                    unsigned long long written, int report)
+{
+    const char *const bytes = platform_text_bytes(text);
+    const unsigned long long length = platform_text_size(text);
+    if (s_cycle_host_programs.element == 0ULL)
+    {
+        platform_array_begun(&s_cycle_host_programs, sizeof(CycleHostProgram), platform_place_g_program_owner, 0);
+    }
+    CycleHostProgram *const held = cycle_host_program_found(bytes, length);
+    if (held != NULL)
+    {
+        held->holders += 1ULL;
+        record->host_program = held->entry;
+        record->host_grid = held->grid;
+        record->compiled = 1u;
+        if (report != 0)
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, "  cycle: a program of ");
+            mmgr_line_decimal(&engine_note.line, layout->steps, 1u);
+            mmgr_line_put(&engine_note.line, " steps found in this process, as a host library");
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+        }
+        return 1;
+    }
+    char folder[PLATFORM_PATH_BYTES];
+    if (cycle_cache_folder(folder, sizeof(folder)) == 0)
     {
         return 0;
     }
 #if defined(_WIN32)
-    _mkdir(folder.c_str());
+    _mkdir(folder);
     const int process = _getpid();
     const char *const separator = "\\";
 #else
-    mkdir(folder.c_str(), 0755);
+    mkdir(folder, 0755);
     // a pid is positive. It converts exactly
     const int process = (int)getpid();
     const char *const separator = "/";
 #endif
-    char name[64];
+    char stem[PLATFORM_PATH_BYTES];
     {
-        VerbaLinea buffer_line = mmgr_line_over(name, sizeof(name));
-        mmgr_line_hex(&buffer_line, cycle_source_hash(text), 16u);
+        VerbaLinea buffer_line = mmgr_line_over(stem, sizeof(stem));
+        mmgr_line_put(&buffer_line, folder);
+        mmgr_line_put(&buffer_line, separator);
+        mmgr_line_hex(&buffer_line, cycle_source_hash(bytes, length), 16u);
         mmgr_line_put(&buffer_line, ".host");
         (void)mmgr_line_finish(&buffer_line);
     }
-    const std::string stem = folder + separator + name;
-    const int found = cycle_host_file_read(stem + ".cpp") == text;
+    char named_source[PLATFORM_PATH_BYTES];
+    char named_library[PLATFORM_PATH_BYTES];
+    const char *const source_parts[2] = {stem, ".cpp"};
+    const char *const library_parts[2] = {stem, CYCLE_HOST_LIBRARY};
+    cycle_host_path(named_source, sizeof(named_source), source_parts, 2u);
+    cycle_host_path(named_library, sizeof(named_library), library_parts, 2u);
+    const int found = cycle_host_file_same(named_source, bytes, length);
     unsigned long long compile_nanoseconds = 0ULL;
-    std::string log;
+    char log[PLATFORM_PATH_BYTES];
+    log[0] = '\0';
     if (!found)
     {
-        char suffix[32];
+        char partial[PLATFORM_PATH_BYTES];
         {
-            VerbaLinea buffer_line = mmgr_line_over(suffix, sizeof(suffix));
+            VerbaLinea buffer_line = mmgr_line_over(partial, sizeof(partial));
+            mmgr_line_put(&buffer_line, stem);
             mmgr_line_put(&buffer_line, ".");
             mmgr_line_decimal_signed(&buffer_line, process);
             (void)mmgr_line_finish(&buffer_line);
         }
-        const std::string partial = stem + suffix;
-        log = partial + ".log";
-        const auto began = std::chrono::steady_clock::now();
-        const int built = cycle_host_file_write(partial + ".cpp", text) &&
-                          cycle_host_compiler_run(partial + ".cpp", partial + CYCLE_HOST_LIBRARY, log);
-        // a steady clock's span is never negative
-        compile_nanoseconds = (unsigned long long)std::chrono::duration_cast<std::chrono::nanoseconds>(
-                                  std::chrono::steady_clock::now() - began)
-                                  .count();
+        char partial_source[PLATFORM_PATH_BYTES];
+        char partial_library[PLATFORM_PATH_BYTES];
+        const char *const log_parts[2] = {partial, ".log"};
+        const char *const partial_source_parts[2] = {partial, ".cpp"};
+        const char *const partial_library_parts[2] = {partial, CYCLE_HOST_LIBRARY};
+        cycle_host_path(log, sizeof(log), log_parts, 2u);
+        cycle_host_path(partial_source, sizeof(partial_source), partial_source_parts, 2u);
+        cycle_host_path(partial_library, sizeof(partial_library), partial_library_parts, 2u);
+        const unsigned long long began = platform_clock_ns();
+        const int built = cycle_host_file_write(partial_source, bytes, length) &&
+                          cycle_host_compiler_run(partial_source, partial_library, log);
+        // the monotonic clock never runs back
+        compile_nanoseconds = platform_clock_ns() - began;
         // a name another process took first is left as it is, and its library is loaded
         if (built)
         {
-            (void)platform_file_moved((partial + CYCLE_HOST_LIBRARY).c_str(), (stem + CYCLE_HOST_LIBRARY).c_str());
-            (void)platform_file_moved((partial + ".cpp").c_str(), (stem + ".cpp").c_str());
+            (void)platform_file_moved(partial_library, named_library);
+            (void)platform_file_moved(partial_source, named_source);
         }
-        for (const char *const left : {CYCLE_HOST_LIBRARY, ".cpp", ".lib", ".exp"})
+        const char *const left[4] = {CYCLE_HOST_LIBRARY, ".cpp", ".lib", ".exp"};
+        for (unsigned int at = 0u; at < 4u; at += 1u)
         {
-            (void)platform_file_removed((partial + left).c_str());
+            char left_path[PLATFORM_PATH_BYTES];
+            const char *const left_parts[2] = {partial, left[at]};
+            cycle_host_path(left_path, sizeof(left_path), left_parts, 2u);
+            (void)platform_file_removed(left_path);
         }
         if (built)
         {
-            (void)platform_file_removed(log.c_str());
+            (void)platform_file_removed(log);
+            log[0] = '\0';
         }
     }
     CycleHostProgram program;
-    program.library = cycle_host_library_open(stem + CYCLE_HOST_LIBRARY);
-    program.entry = NULL;
-    program.grid = NULL;
+    mmgr_bytes_set(&program, 0, sizeof(program));
+    program.library = cycle_host_library_open(named_library);
     program.holders = 1ULL;
     if (program.library != NULL)
     {
@@ -365,8 +425,18 @@ int cycle_host_program_load(const EngineRecordLayout *layout, CycleRecord *recor
         program.grid = (CycleHostGrid)dlsym(program.library, "cycle_host_grid");
 #endif
     }
-    if ((program.entry == NULL) || (program.grid == NULL) || (cycle_host_file_read(stem + ".cpp") != text))
+    program.source = (char *)platform_cell_taken(length + 1ULL, platform_place_g_program_owner, 0);
+    program.length = length;
+    if (program.source != NULL)
     {
+        mmgr_bytes_copy(program.source, bytes, (size_t)length + 1u);
+    }
+    const int loaded = (program.entry != NULL) && (program.grid != NULL) && (program.source != NULL) &&
+                       cycle_host_file_same(named_source, bytes, length) &&
+                       platform_array_appended(&s_cycle_host_programs, &program);
+    if (loaded == 0)
+    {
+        platform_cell_released(program.source, platform_place_g_program_owner);
         if (program.library != NULL)
         {
             cycle_host_library_close(program.library);
@@ -379,16 +449,14 @@ int cycle_host_program_load(const EngineRecordLayout *layout, CycleRecord *recor
             mmgr_line_decimal(&engine_note.line, layout->steps, 1u);
             mmgr_line_put(&engine_note.line, " steps did not build on the host (");
             mmgr_line_put(&engine_note.line,
-                          log.empty() ? "its library did not load" : "the compiler errored, its log ");
-            mmgr_line_put(&engine_note.line, log.c_str());
+                          (log[0] == '\0') ? "its library did not load" : "the compiler errored, its log ");
+            mmgr_line_put(&engine_note.line, log);
             mmgr_line_put(&engine_note.line, ")");
             mmgr_line_ch(&engine_note.line, '\n');
             engine_note_written(&engine_note);
         }
         return 0;
     }
-    program.source = text;
-    s_cycle_host_programs.push_back(program);
     record->host_program = program.entry;
     record->host_grid = program.grid;
     record->compiled = 1u;
@@ -411,7 +479,7 @@ int cycle_host_program_load(const EngineRecordLayout *layout, CycleRecord *recor
         mmgr_line_put(&engine_note.line, " steps as C source on the host: written in ");
         mmgr_line_decimal(&engine_note.line, written, 1u);
         mmgr_line_put(&engine_note.line, " ns to ");
-        mmgr_line_decimal(&engine_note.line, text.size(), 1u);
+        mmgr_line_decimal(&engine_note.line, length, 1u);
         mmgr_line_put(&engine_note.line, " bytes, compiled in ");
         mmgr_line_decimal(&engine_note.line, compile_nanoseconds, 1u);
         mmgr_line_put(&engine_note.line, " ns");
@@ -421,37 +489,63 @@ int cycle_host_program_load(const EngineRecordLayout *layout, CycleRecord *recor
     return 1;
 }
 
+int cycle_host_program_load(const EngineRecordLayout *layout, CycleRecord *record, const char *source,
+                            unsigned int places, unsigned long long written, int report)
+{
+    // the prelude, the lane, then one thread's places: a word each, then a sign byte each
+    PlatformText text;
+    platform_text_begun(&text, CYCLE_HOST_TEXT_BYTES, platform_place_g_program_owner, 0);
+    mmgr_line_put(&text.line, s_cycle_host_prelude);
+    mmgr_line_put(&text.line, source);
+    mmgr_line_put(&text.line, "\nthread_local u32 cycle_words[");
+    mmgr_line_decimal(&text.line, places + ((places + 3u) / 4u) + 1u, 1u);
+    mmgr_line_put(&text.line, "];");
+    mmgr_line_ch(&text.line, '\n');
+    const int loaded =
+        (mmgr_line_ok(&text.line) != 0) && cycle_host_program_built(layout, record, &text, written, report);
+    platform_text_ended(&text);
+    return loaded;
+}
+
 // a reference to a host program loaded in this process given back, where `entry` is one; the last reference released
 // unloads it
 void cycle_host_program_release(CycleHostEntry entry)
 {
-    for (size_t at = 0u; (entry != NULL) && (at < s_cycle_host_programs.size()); at += 1u)
+    for (unsigned long long at = 0ULL; (entry != NULL) && (at < s_cycle_host_programs.count); at += 1ULL)
     {
-        if (s_cycle_host_programs[at].entry == entry)
+        CycleHostProgram *const program = (CycleHostProgram *)platform_array_at(&s_cycle_host_programs, at);
+        if (program->entry == entry)
         {
-            s_cycle_host_programs[at].holders -= 1ULL;
-            if (s_cycle_host_programs[at].holders == 0ULL)
+            program->holders -= 1ULL;
+            if (program->holders == 0ULL)
             {
-                cycle_host_library_close(s_cycle_host_programs[at].library);
-                s_cycle_host_programs.erase(s_cycle_host_programs.begin() + (std::ptrdiff_t)at);
+                cycle_host_library_close(program->library);
+                platform_cell_released(program->source, platform_place_g_program_owner);
+                // the programs after it move down one place, and the order of the rest holds
+                const unsigned long long after = s_cycle_host_programs.count - at - 1ULL;
+                mmgr_bytes_move(program, program + 1, (size_t)(after * sizeof(CycleHostProgram)));
+                (void)platform_array_counted(&s_cycle_host_programs, s_cycle_host_programs.count - 1ULL);
             }
             break;
         }
     }
 }
 
-// device words read into the host's copy; nothing is read where there are none
-static int cycle_host_words_read(std::vector<unsigned int> &words, const unsigned int *device, size_t count,
-                                 EngineError *error)
+// `count` device words copied into a cell of the host, which the caller gives back. `taken` is 1 where the copy went or
+// there was nothing to copy, else 0
+static unsigned int *cycle_host_words_read(const unsigned int *device, size_t count, EngineError *error, int *taken)
 {
-    words.assign(count, 0u);
-    return (device == NULL) || (count == 0u) ||
-           CYCLE_STATUS_CHECK(cudaMemcpy(words.data(), device, count * sizeof(unsigned int), cudaMemcpyDeviceToHost),
-                              device, error);
+    unsigned int *const words = (unsigned int *)platform_cell_cleared((count != 0u) ? count : 1u, sizeof(unsigned int),
+                                                                      platform_place_g_program_owner, 0);
+    *taken = (words != NULL) &&
+             ((device == NULL) || (count == 0u) ||
+              CYCLE_STATUS_CHECK(cudaMemcpy(words, device, count * sizeof(unsigned int), cudaMemcpyDeviceToHost),
+                                 device, error));
+    return words;
 }
 
-// the host threads a run starts: $CYCLE_HOST_THREADS where it names a whole number above 0, else the host's hardware
-// threads, and never more than the lanes
+// the host threads a run starts: $CYCLE_HOST_THREADS where it names a whole number above 0, else the host's processors,
+// and never more than the lanes
 static unsigned int cycle_host_threads(unsigned long long lanes)
 {
     char named_text[PLATFORM_ENVIRONMENT_BYTES];
@@ -460,13 +554,50 @@ static unsigned int cycle_host_threads(unsigned long long lanes)
     const char *end = NULL;
     const unsigned long long requested =
         ((named != NULL) && (named[0] >= '0') && (named[0] <= '9')) ? mmgr_text_unsigned_in(named, &end, 10) : 0ULL;
-    const unsigned long long hardware = std::thread::hardware_concurrency();
+    const unsigned long long hardware = platform_processors();
     const unsigned long long threads =
         ((requested != 0ULL) && (end != NULL) && (*end == '\0')) ? requested : ((hardware != 0ULL) ? hardware : 1ULL);
     const unsigned long long used = (threads < lanes) ? threads : lanes;
     // at max the lanes and at max what the environment or the hardware names; a run of more than 2^32 - 1 threads
     // is limited to that
     return (unsigned int)((used == 0ULL) ? 1ULL : ((used > 0xFFFFFFFFULL) ? 0xFFFFFFFFULL : used));
+}
+
+// one host thread of a run: the program's resident on its launch
+struct CycleHostThread
+{
+    CycleHostEntry entry;
+    const CycleCompiledLaunch *program;
+};
+
+static void cycle_host_thread_run(void *context)
+{
+    const CycleHostThread *const thread = (const CycleHostThread *)context;
+    thread->entry(*thread->program);
+}
+
+// the cells of one host run, each given back as the run ends
+struct CycleHostRun
+{
+    unsigned int *in[ENGINE_RECORD_MEMBERS_MAX];
+    unsigned int *index;
+    unsigned int *tables;
+    unsigned int *out;
+    unsigned int *error_count;
+    PlatformWorker *workers;
+};
+
+static void cycle_host_run_ended(CycleHostRun *run)
+{
+    for (unsigned int member = 0u; member < ENGINE_RECORD_MEMBERS_MAX; member += 1u)
+    {
+        platform_cell_released(run->in[member], platform_place_g_program_owner);
+    }
+    platform_cell_released(run->index, platform_place_g_program_owner);
+    platform_cell_released(run->tables, platform_place_g_program_owner);
+    platform_cell_released(run->out, platform_place_g_program_owner);
+    platform_cell_released(run->error_count, platform_place_g_program_owner);
+    platform_cell_released(run->workers, platform_place_g_program_owner);
 }
 
 // The host program run resident, as the device's is (cycle_record_resident): its block arranged for this run, then
@@ -477,31 +608,44 @@ static unsigned int cycle_host_threads(unsigned long long lanes)
 // launch time is taken around each start
 int cycle_host_resident(const CycleRecord *record, CycleCompiledLaunch program, EngineError *error)
 {
-    std::vector<unsigned int> in[ENGINE_RECORD_MEMBERS_MAX];
-    std::vector<unsigned int> index;
-    std::vector<unsigned int> tables;
-    std::vector<unsigned int> out;
-    std::vector<unsigned int> error_count;
+    CycleHostRun run;
+    mmgr_bytes_set(&run, 0, sizeof(run));
     unsigned int *const device_out = program.out;
     unsigned int *const device_error = program.error;
     // a lane count and a record's limbs are the ones the device's buffers were allocated to, which fit in memory
     const size_t out_words = (size_t)(program.count * record->out_limbs);
-    int ok = cycle_host_words_read(index, program.index, (size_t)(program.count * record->members), error) &&
-             cycle_host_words_read(tables, program.tables, (size_t)record->table_words, error) &&
-             cycle_host_words_read(error_count, program.error, 1u, error);
+    int index_taken = 0;
+    int tables_taken = 0;
+    int error_taken = 0;
+    run.index = cycle_host_words_read(program.index, (size_t)(program.count * record->members), error, &index_taken);
+    run.tables = cycle_host_words_read(program.tables, (size_t)record->table_words, error, &tables_taken);
+    run.error_count = cycle_host_words_read(program.error, 1u, error, &error_taken);
+    int ok = index_taken && tables_taken && error_taken;
     for (unsigned int member = 0u; (ok != 0) && (member < record->members); member += 1u)
     {
-        ok = cycle_host_words_read(in[member], program.in[member],
-                                   (size_t)(program.bodies[member] * record->in_limbs[member]), error);
-        program.in[member] = in[member].data();
+        int member_taken = 0;
+        run.in[member] = cycle_host_words_read(
+            program.in[member], (size_t)(program.bodies[member] * record->in_limbs[member]), error, &member_taken);
+        ok = member_taken;
+        program.in[member] = run.in[member];
     }
-    out.assign(out_words, 0u);
+    run.out = (unsigned int *)platform_cell_cleared((out_words != 0u) ? out_words : 1u, sizeof(unsigned int),
+                                                    platform_place_g_program_owner, 0);
+    const unsigned int threads = cycle_host_threads(program.count);
+    run.workers =
+        (PlatformWorker *)platform_cell_cleared(threads, sizeof(PlatformWorker), platform_place_g_program_owner, 0);
+    ok = ok && CYCLE_CHECK((run.out != NULL) && (run.workers != NULL), &run, error, ENGINE_ERROR_RESOURCE);
+    if (ok == 0)
+    {
+        cycle_host_run_ended(&run);
+        return 0;
+    }
     CycleHot hot;
     mmgr_bytes_set(&hot, 0, sizeof(hot));
-    program.index = (program.index != NULL) ? index.data() : NULL;
-    program.tables = (program.tables != NULL) ? tables.data() : NULL;
-    program.out = out.data();
-    program.error = error_count.data();
+    program.index = (program.index != NULL) ? run.index : NULL;
+    program.tables = (program.tables != NULL) ? run.tables : NULL;
+    program.out = run.out;
+    program.error = run.error_count;
     EngineProgramBlock *const block = record->block;
     const unsigned long long ttl =
         1000ULL * cycle_environment_microseconds("CYCLE_RECORD_TTL", CYCLE_PROGRAM_TTL_MICROSECONDS);
@@ -512,7 +656,6 @@ int cycle_host_resident(const CycleRecord *record, CycleCompiledLaunch program, 
     block->signature = signature;
     block->generation = generation;
     block->command = ENGINE_PROGRAM_RUN;
-    const unsigned int threads = cycle_host_threads(program.count);
     block->grant_threads = threads;
     block->state = ENGINE_PROGRAM_PLACED;
     block->span = record->file_limbs;
@@ -520,7 +663,7 @@ int cycle_host_resident(const CycleRecord *record, CycleCompiledLaunch program, 
     block->wdt = wdt;
     block->lanes = program.count;
     // the records' address is stored as a 64-bit word, as every word of the block is
-    block->result = (unsigned long long)(uintptr_t)out.data();
+    block->result = (unsigned long long)(uintptr_t)run.out;
     block->result_words = out_words;
     block->checksum = cycle_block_seal(block);
     program.hot = &hot;
@@ -529,6 +672,7 @@ int cycle_host_resident(const CycleRecord *record, CycleCompiledLaunch program, 
     program.ttl = ttl;
     program.checkin_every = wdt / CYCLE_PROGRAM_CHECKINS_PER_WDT;
     program.places = record->places;
+    const CycleHostThread thread = {record->host_program, &program};
     int running = ok;
     while (running != 0)
     {
@@ -544,25 +688,25 @@ int cycle_host_resident(const CycleRecord *record, CycleCompiledLaunch program, 
         hot.launch_start = 0ULL;
         hot.finished = 0ULL;
         record->host_grid(threads);
-        const auto began = std::chrono::steady_clock::now();
-        std::vector<std::thread> started;
-        started.reserve(threads);
-        for (unsigned int thread = 0u; thread < threads; thread += 1u)
+        const unsigned long long began = platform_clock_ns();
+        unsigned int refused = 0u;
+        for (unsigned int at = 0u; at < threads; at += 1u)
         {
-            started.emplace_back(record->host_program, program);
+            // a thread the system refuses is a thread block that never checks in, and the launch faults
+            refused +=
+                (platform_worker_started(&run.workers[at], cycle_host_thread_run, (void *)&thread) == 0) ? 1u : 0u;
         }
-        for (std::thread &running_thread : started)
+        for (unsigned int at = 0u; at < threads; at += 1u)
         {
-            running_thread.join();
+            platform_worker_joined(&run.workers[at]);
         }
-        const auto ended = std::chrono::steady_clock::now();
+        const unsigned long long ended = platform_clock_ns();
         const unsigned long long state = block->state;
-        ok = CYCLE_CHECK((state == ENGINE_PROGRAM_YIELDED) || (state == ENGINE_PROGRAM_DONE), block, error,
-                         ENGINE_ERROR_LOGIC);
-        // a call's nanoseconds are never negative
-        block->exectime =
-            (unsigned long long)std::chrono::duration_cast<std::chrono::nanoseconds>(ended - began).count();
-        block->error = error_count[0];
+        ok = CYCLE_CHECK((refused == 0u) && ((state == ENGINE_PROGRAM_YIELDED) || (state == ENGINE_PROGRAM_DONE)),
+                         block, error, ENGINE_ERROR_LOGIC);
+        // the monotonic clock never runs back
+        block->exectime = ended - began;
+        block->error = run.error_count[0];
         block->runtime += block->exectime;
         if (ok == 0)
         {
@@ -575,10 +719,11 @@ int cycle_host_resident(const CycleRecord *record, CycleCompiledLaunch program, 
         running = (ok != 0) && (state == ENGINE_PROGRAM_YIELDED);
     }
     ok = ok &&
-         CYCLE_STATUS_CHECK(cudaMemcpy(device_error, error_count.data(), sizeof(unsigned int), cudaMemcpyHostToDevice),
+         CYCLE_STATUS_CHECK(cudaMemcpy(device_error, run.error_count, sizeof(unsigned int), cudaMemcpyHostToDevice),
                             device_error, error) &&
-         ((out_words == 0u) || CYCLE_STATUS_CHECK(cudaMemcpy(device_out, out.data(), out_words * sizeof(unsigned int),
-                                                             cudaMemcpyHostToDevice),
-                                                  device_out, error));
+         ((out_words == 0u) ||
+          CYCLE_STATUS_CHECK(cudaMemcpy(device_out, run.out, out_words * sizeof(unsigned int), cudaMemcpyHostToDevice),
+                             device_out, error));
+    cycle_host_run_ended(&run);
     return ok;
 }

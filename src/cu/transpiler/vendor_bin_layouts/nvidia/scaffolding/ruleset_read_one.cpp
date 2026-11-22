@@ -5,9 +5,10 @@
 //
 //     ruleset_read_one <form> <argument> ...
 //     ruleset_read_one predicate_bitxor P0 P1 P2
+#include "../../../../../platform/platform.h"
+#include "../../../../scaffolding/ruleset_strings.h"
 #include "sass_target.h"
 #include "target.h"
-#include "../../../../../platform/platform.h"
 
 #include <cstdio>
 #include <string>

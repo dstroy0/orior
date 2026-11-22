@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // read.cu: the read: the forms of the rulesets, the members and carriers of the stick, and the candidate paths read
 // against them
-#include "identity_internal.h"
 #include "../../../../../../platform/platform.h"
+#include "identity_internal.h"
 
 // a form's text as the links it writes, each parameter a pattern any operand matches
 static std::vector<std::regex> form_links(const std::string &text)
@@ -49,11 +49,16 @@ int forms_read(int count, char **files, std::vector<std::pair<std::string, std::
         LanguageSet set;
         const RulesetSchema *const schema = code_generator(files[given]).schema();
         std::string paths[RULESET_PATHS_MAX];
-        const unsigned int paths_count = ruleset_paths(schema, ruleset_folder() + "/" + schema->file, paths);
+        const unsigned int paths_count =
+            ruleset_strings_paths(schema, ruleset_strings_folder() + "/" + schema->file, paths);
         RulesetFlat flat;
         ruleset_flat_schema(schema, &flat);
         std::string error;
-        if (ruleset_relations_read(paths, paths_count, &flat.schema, &set.memory, &set.relations, &error) == 0)
+        // the read of the relations reads the flat schema, and nothing reads it after
+        const int read =
+            ruleset_relations_strings(paths, paths_count, &flat.schema, &set.memory, &set.relations, &error);
+        ruleset_flat_ended(&flat);
+        if (read == 0)
         {
             {
                 VerbaLinea *const output_line = platform_line_out();
@@ -76,13 +81,14 @@ int forms_read(int count, char **files, std::vector<std::pair<std::string, std::
             const std::string text((const char *)&set.relations.text[entry->text.first], entry->text.length);
             forms->push_back(std::make_pair(name, form_links(text)));
         }
+        ruleset_relation_memory_ended(&set.memory);
         // a pipe row chooses between an operation and its writing on the other pipe: a link of either was placed by
         // the row's choice, whichever way it went
         for (unsigned int at = 0u; at < paths_count; at += 1u)
         {
             // each file as the run stores it (ruleset_bytes_read)
             std::string form_line;
-            ruleset_bytes_read(paths[at], &form_line);
+            ruleset_bytes_strings(paths[at], &form_line);
             std::stringstream file(form_line);
             std::string line;
             while (std::getline(file, line))

@@ -12,20 +12,26 @@
 #include "codegen_core.h"
 #include "target.h"
 
-#include <map>
-#include <string>
-#include <vector>
+#include <stddef.h>
 
 // a budget or a port count that contains anything
 #define SCHEDULE_UNBOUNDED 0xFFFFFFFFu
 
-// how a lane is split into states, a clock each: the cost of each form by the name its ruleset gives it, as the
-// target's construction set measured it, and the cost of a form it does not name; how much cost a state may chain; and
-// how many memory writes a state may make, which the language's own write ports bound as well. The budget and the
-// writes are the refinement loop's to choose
+// the cost of one form, by the name its ruleset gives it
+struct ScheduleCost
+{
+    const char *form;
+    unsigned int cost;
+};
+
+// How the code splits a lane into states, a clock each. The model holds the cost of each form by the name its ruleset
+// gives it, as the target's construction set measured it, `cost_count` of them. It holds the cost of a form it does
+// not name, and how much cost a state may chain. It holds how many memory writes a state may make, which the
+// language's own write ports bound as well. The budget and the writes are the refinement loop's to choose
 struct ScheduleModel
 {
-    std::map<std::string, unsigned int> cost;
+    const ScheduleCost *cost;
+    unsigned int cost_count;
     unsigned int other;
     unsigned int budget;
     unsigned int writes;
@@ -44,7 +50,7 @@ struct ScheduleReport
 // writes the model lets a state make and the language's write ports
 struct ScheduleCosts
 {
-    std::vector<unsigned int> cost;
+    unsigned int cost[OPCODE_COUNT];
     unsigned int budget;
     unsigned int writes;
     unsigned int ports;
@@ -56,21 +62,33 @@ class CodeGenerator : public Target
     // the code generator of the ruleset `file`, read at its first call to ruleset()
     explicit CodeGenerator(const char *file);
 
-    std::string program(const EngineRecordLayout *layout, const TargetInfo *target, const std::string &header,
-                        unsigned int *places, unsigned int *live) override;
+    ~CodeGenerator() override;
+
+    // a code generator that code_generator() makes lives in a cell of the pool, which `cell` is
+    static void *operator new(size_t bytes, void *cell);
+
+    // the cell given back where the construction in it failed
+    static void operator delete(void *cell, void *place);
+
+    // the cell of a code generator given back
+    static void operator delete(void *cell);
+
+    int program(const EngineRecordLayout *layout, const TargetInfo *target, const char *header, PlatformText *text,
+                unsigned int *places, unsigned int *live) override;
 
     // the lane split into states by `model`, as program() writes it otherwise; `report` informed how it was split
-    std::string scheduled(const EngineRecordLayout *layout, const TargetInfo *target, const std::string &header,
-                          unsigned int *places, unsigned int *live, const ScheduleModel &model, ScheduleReport *report);
+    int scheduled(const EngineRecordLayout *layout, const TargetInfo *target, const char *header, PlatformText *text,
+                  unsigned int *places, unsigned int *live, const ScheduleModel &model, ScheduleReport *report);
 
-    // the forms program() writes the lane in, as the core decides them (codegen_core.h), in the text's order, the
-    // header's place occupied by an item of the form ASM_PRINTER_ALL_ONES, and the places the lane uses in shared
-    // memory; 0 where program() writes nothing for want of a form. The device decides the same (codegen_device.h)
-    int decided(const EngineRecordLayout *layout, unsigned int *places, std::vector<MachineInstr> *items);
+    // The forms program() writes the lane in, as the core decides them (codegen_core.h). They go into `items`, which
+    // the caller began with an element of MachineInstr, in the text's order. The header's place holds an item of the
+    // form ASM_PRINTER_ALL_ONES. Also the places the lane uses in shared memory. 0 where program() writes nothing for
+    // want of a form. The device decides the same (codegen_device.h)
+    int decided(const EngineRecordLayout *layout, unsigned int *places, PlatformArray *items);
 
     // the forms scheduled() writes the lane in, as decided() gives program()'s, and `report` informed how it was split
     int decided(const EngineRecordLayout *layout, const ScheduleModel &model, ScheduleReport *report,
-                unsigned int *places, std::vector<MachineInstr> *items);
+                unsigned int *places, PlatformArray *items);
 
     // `model` as the core splits by it, each form's cost found by the name the ruleset gives it, with the language's
     // write ports, on the host and the device alike
@@ -99,16 +117,16 @@ class CodeGenerator : public Target
     // each register the lane last written uses, one a line: the register as the ruleset writes it, what contains it,
     // its bank, its fixed register's name, or the form whose scratch it is, and the items that claim and release it, by
     // their place in the lane from 1 and their form (codegen_claims)
-    const std::string &register_claims(void) const;
+    const char *register_claims(void);
 
   private:
     int decide(const EngineRecordLayout *layout, const ScheduleModel *model, ScheduleReport *report,
-               unsigned int *places, unsigned int *live, std::vector<MachineInstr> *items);
+               unsigned int *places, unsigned int *live, PlatformArray *items);
 
-    std::string claim_lines;
+    PlatformText claim_lines;
 
-    std::string lane(const EngineRecordLayout *layout, const TargetInfo *target, const std::string &header,
-                     unsigned int *places, unsigned int *live, const ScheduleModel *model, ScheduleReport *report);
+    int lane(const EngineRecordLayout *layout, const TargetInfo *target, const char *header, PlatformText *text,
+             unsigned int *places, unsigned int *live, const ScheduleModel *model, ScheduleReport *report);
 };
 
 // the code generator a process retains for the ruleset `file`, its ruleset read at its first call to ruleset(). A

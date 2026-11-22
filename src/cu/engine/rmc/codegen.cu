@@ -4,6 +4,7 @@
 // tables
 #include "codegen_device_internal.h"
 
+#include "../../../../includes/file_defs/krs/ruleset_reader.h"
 #include "../engine_note.h"
 #include "memoria_operor/memoria_linea.h"
 
@@ -26,15 +27,18 @@ int layout_same(const EngineRecordLayout *left, const EngineRecordLayout *right)
 int layout_device_agrees(const LayoutRequest *request, EngineRecordLayout *layout, int report)
 {
     EngineRecordLayout device_layout{};
-    std::string error;
-    if (layout_device(request, &device_layout, &error) == 0)
+    char error_text[RULESET_ERROR_BYTES];
+    VerbaLinea error = mmgr_line_over(error_text, sizeof(error_text));
+    const int arranged = layout_device(request, &device_layout, &error);
+    (void)mmgr_line_finish(&error);
+    if (arranged == 0)
     {
         EngineNote note;
         engine_note_begun(&note);
         mmgr_line_put(&note.line, "  codegen: the device did not arrange a program of ");
         mmgr_line_decimal(&note.line, layout->steps, 1u);
         mmgr_line_put(&note.line, " steps (");
-        mmgr_line_put(&note.line, error.c_str());
+        mmgr_line_put(&note.line, error_text);
         mmgr_line_put(&note.line, ")\n");
         engine_note_written(&note);
         return 0;
@@ -77,8 +81,8 @@ __global__ void codegen_device_fill(unsigned int *to, unsigned long long count, 
 }
 
 // what each step reads from outside itself, a thread a step. For each record word it is the first put and 1 past its
-// last, and for each atom word its first reader. It is also the loops that the step writes. Their running sum is the loop
-// number that each step begins at
+// last, and for each atom word its first reader. It is also the loops that the step writes. Their running sum is the
+// loop number that each step begins at
 __global__ void codegen_device_facts(IrProgram program, unsigned int *put_first, unsigned int *put_last,
                                      unsigned int *atom_reader, unsigned int *loops)
 {
@@ -194,8 +198,8 @@ __global__ void codegen_device_left(const unsigned int *summary, unsigned int lo
 // The call takes those from `first` to `last` of that order, in one thread, and goes on from the lane that `lane_out`
 // holds. Where `items` is NULL it counts them, and arranges the count of each part in `parts`. Otherwise it writes them
 // from `items` where `parts` puts each. The item of the header, which the assembly printer takes whole, goes where the
-// note goes. The lane stays in `lane_out` for the forms that the call decides after. `states` is the states of the split
-// body, 0 where the schedule does not split it
+// note goes. The lane stays in `lane_out` for the forms that the call decides after. `states` is the states of the
+// split body, 0 where the schedule does not split it
 __global__ void codegen_prologue_epilogue(IrProgram program, const unsigned int *errors, unsigned int *summary,
                                           MachineFunction *lane_out, unsigned int atoms, unsigned int places,
                                           unsigned int first, unsigned int last, int scheduled, unsigned int states,
@@ -273,11 +277,11 @@ __global__ void codegen_prologue_epilogue(IrProgram program, const unsigned int 
     }
 }
 
-// The body split into states, in one thread, from the lane that `lane_out` holds. The forms of the body are `body_count`
-// forms from `body`, in the order that they run: the opening, the steps and the close. The call arranges them into the
-// schedule (codegen_schedule_instr), as the lane of the host splits them. Where `items` is NULL it counts them.
-// Otherwise it writes them there, and the lane stays in `lane_out` for the forms that the call decides after. `ended`
-// holds how the call split the body
+// The body split into states, in one thread, from the lane that `lane_out` holds. The forms of the body are
+// `body_count` forms from `body`, in the order that they run: the opening, the steps and the close. The call arranges
+// them into the schedule (codegen_schedule_instr), as the lane of the host splits them. Where `items` is NULL it counts
+// them. Otherwise it writes them there, and the lane stays in `lane_out` for the forms that the call decides after.
+// `ended` holds how the call split the body
 __global__ void codegen_schedule(IrProgram program, unsigned int *summary, MachineFunction *lane_out, Schedule schedule,
                                  unsigned int writes, unsigned int ports, const MachineInstr *body,
                                  unsigned long long body_count, unsigned long long capacity, MachineInstr *items,

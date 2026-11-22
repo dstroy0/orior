@@ -1,18 +1,14 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-#include "code_generator.h"
-#include "../../../platform/platform.h"
-#include "codegen_core.h"
 #include "../../../../includes/file_defs/krs/ruleset_reader.h"
+#include "../../../platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
+#include "code_generator.h"
+#include "codegen_core.h"
+#include "embed_atomic.h"
+#include "memoria_operor/memoria_linea.h"
 
 #include <stddef.h>
-
-#include <deque>
-#include <initializer_list>
-#include <map>
-#include <mutex>
-#include <string>
-#include <vector>
 
 static const RulesetName s_opcode_names[OPCODE_COUNT] = {OPCODES(OPCODE_WRITTEN)};
 
@@ -49,38 +45,44 @@ struct RegisterFile
     unsigned int takes[REGCLASS_COUNT];
 };
 
-// register `at` of a bank, as the ruleset writes it, positioned into the file by `file` where the language has one
-static std::string code_generator_register(const Ruleset *rules, const RegisterFile *file, unsigned int bank,
-                                           unsigned int at)
+// register `at` of a bank, as the ruleset writes it, positioned into the file by `file` where the language has one,
+// onto `name`
+static void code_generator_register(const Ruleset *rules, const RegisterFile *file, unsigned int bank, unsigned int at,
+                                    VerbaLinea *name)
 {
     const InstrTemplate *const form = &rules->banks[bank];
-    const std::string number = std::to_string(file->at[bank] + (file->takes[bank] * at));
-    std::string name = form->pieces[0];
-    for (size_t index = 0u; index < form->placeholders.size(); index += 1u)
+    const unsigned int number = file->at[bank] + (file->takes[bank] * at);
+    mmgr_line_put(name, form->pieces[0]);
+    for (unsigned int index = 0u; index < form->placeholder_count; index += 1u)
     {
-        name += number;
-        name += form->pieces[index + 1u];
+        mmgr_line_decimal(name, number, 1u);
+        mmgr_line_put(name, form->pieces[index + 1u]);
     }
-    return name;
 }
 
-// an argument the core decided, as the ruleset writes it: a register by its bank, a fixed register by its name, and a
-// number in decimal, a signed one with its minus
-static std::string code_generator_argument(const Ruleset *rules, const RegisterFile *file,
-                                           const MachineOperand &argument)
+// An argument the core decided, as the ruleset writes it, onto `text`. A register goes by its bank and a fixed
+// register by its name. A number goes in decimal, a signed one with its minus
+static void code_generator_argument(const Ruleset *rules, const RegisterFile *file, const MachineOperand &argument,
+                                    VerbaLinea *text)
 {
     if (argument.type == OPERAND_REGISTER)
     {
-        return code_generator_register(rules, file, argument.which, argument.number);
+        code_generator_register(rules, file, argument.which, argument.number, text);
+        return;
     }
     if (argument.type == OPERAND_PHYSREG)
     {
-        return rules->fixed[argument.which];
+        mmgr_line_put(text, rules->fixed[argument.which]);
+        return;
     }
     // a signed number is stored as its two's complement word
-    return ((argument.type == OPERAND_SIGNED) && (argument.number >= 0x80000000u))
-               ? ("-" + std::to_string(0u - argument.number))
-               : std::to_string(argument.number);
+    if ((argument.type == OPERAND_SIGNED) && (argument.number >= 0x80000000u))
+    {
+        mmgr_line_ch(text, '-');
+        mmgr_line_decimal(text, 0u - argument.number, 1u);
+        return;
+    }
+    mmgr_line_decimal(text, argument.number, 1u);
 }
 
 // how many registers of the file one register of a bank takes: two for a bank of 64-bit registers, which the file
@@ -96,7 +98,7 @@ static unsigned int code_generator_takes(unsigned int bank)
 // 0, which writes each register by its own number. The predicates are a file of their own on every
 // language that has them, and are not positioned with the rest. 0 where the banks run past what the file contains, the
 // lane then written by nobody: every register from there on would be one the language has already pinned
-static int code_generator_file(const CodeGenerator *generator, const std::vector<MachineInstr> &items,
+static int code_generator_file(const CodeGenerator *generator, const MachineInstr *items, unsigned long long count,
                                RegisterFile *file)
 {
     for (unsigned int bank = 0u; bank < REGCLASS_COUNT; bank += 1u)
@@ -118,89 +120,143 @@ static int code_generator_file(const CodeGenerator *generator, const std::vector
     unsigned int at = 0u;
     for (unsigned int which = 0u; which < (sizeof(banks) / sizeof(banks[0])); which += 1u)
     {
-        unsigned int count = 0u;
-        for (const MachineInstr &item : items)
+        unsigned int declared = 0u;
+        for (unsigned long long item = 0ULL; item < count; item += 1ULL)
         {
-            count = (item.form == declares[which]) ? item.arguments[0].number : count;
+            declared = (items[item].form == declares[which]) ? items[item].arguments[0].number : declared;
         }
         file->at[banks[which]] = at;
         file->takes[banks[which]] = code_generator_takes(banks[which]);
-        at += count * file->takes[banks[which]];
+        at += declared * file->takes[banks[which]];
     }
     return (at <= file_size) ? 1 : 0;
 }
 
-// a form the core decided, written in the ruleset into `text`: its arguments, the program's note's from its step count
-// and the target, the resident's from the launch's layout, a construct's scratch taken from where the core left each
-// bank as it decided the form. `broken` set where the ruleset cannot write it
-static void code_generator_text(const Ruleset *rules, const RegisterFile *file, const TargetInfo *target,
-                                const MachineInstr &item, std::string &text, int *broken)
+// the most arguments a form the core decides takes, and the bytes of one written argument, its terminator among them
+#define CODE_GENERATOR_ARGUMENTS PROGRAM_UNIT_PARAMETERS
+#define CODE_GENERATOR_ARGUMENT_BYTES 64u
+
+static_assert((CODE_GENERATOR_ARGUMENTS >= 6u) && (CODE_GENERATOR_ARGUMENTS >= MACHINE_INSTR_OPERANDS),
+              "code_generator: a note takes six arguments, and an item its operands");
+
+// the scratch of one form as the core left each bank when it decided the form, and where the lane's banks are
+struct CodeGeneratorScratch
 {
-    std::vector<std::string> arguments;
+    const Ruleset *rules;
+    const RegisterFile *file;
+    unsigned int taken[3];
+    unsigned int banks[3];
+};
+
+// the next scratch register of `bank` that the form takes, onto `name`; 0 where the form takes none of that bank
+static int code_generator_scratch(void *context, unsigned int bank, VerbaLinea *name)
+{
+    CodeGeneratorScratch *const scratch = (CodeGeneratorScratch *)context;
+    for (unsigned int bank_index = 0u; bank_index < 3u; bank_index += 1u)
+    {
+        if (bank == scratch->banks[bank_index])
+        {
+            scratch->taken[bank_index] += 1u;
+            code_generator_register(scratch->rules, scratch->file, bank, scratch->taken[bank_index] - 1u, name);
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// A form the core decided, written in the ruleset onto `text`, with its arguments. The program's note takes its
+// arguments from its step count and the target, and the resident from the launch's layout. A construct takes its
+// scratch from where the core left each bank as it decided the form. `broken` set where the ruleset cannot write it
+static void code_generator_text(const Ruleset *rules, const RegisterFile *file, const TargetInfo *target,
+                                const MachineInstr &item, VerbaLinea *text, int *broken)
+{
+    char written[CODE_GENERATOR_ARGUMENTS][CODE_GENERATOR_ARGUMENT_BYTES];
+    const char *arguments[CODE_GENERATOR_ARGUMENTS];
+    unsigned int count = 0u;
+    VerbaLinea lines[CODE_GENERATOR_ARGUMENTS];
+    for (unsigned int at = 0u; at < CODE_GENERATOR_ARGUMENTS; at += 1u)
+    {
+        lines[at] = mmgr_line_over(written[at], sizeof(written[at]));
+        arguments[at] = written[at];
+    }
     if (item.form == OPCODE_PROGRAM_NOTE)
     {
-        char block[32];
-        {
-            VerbaLinea buffer_line = mmgr_line_over(block, sizeof(block));
-            mmgr_line_hex(&buffer_line, target->block_hash, 16u);
-            (void)mmgr_line_finish(&buffer_line);
-        }
         // a device's compute capability and NVRTC's version are small counts, never negative
-        arguments = {std::to_string(item.arguments[0].number),
-                     std::to_string((unsigned long long)target->major),
-                     std::to_string((unsigned long long)target->minor),
-                     std::to_string((unsigned long long)target->nvrtc_major),
-                     std::to_string((unsigned long long)target->nvrtc_minor),
-                     std::string(block)};
+        mmgr_line_decimal(&lines[0], item.arguments[0].number, 1u);
+        mmgr_line_decimal(&lines[1], (unsigned long long)target->major, 1u);
+        mmgr_line_decimal(&lines[2], (unsigned long long)target->minor, 1u);
+        mmgr_line_decimal(&lines[3], (unsigned long long)target->nvrtc_major, 1u);
+        mmgr_line_decimal(&lines[4], (unsigned long long)target->nvrtc_minor, 1u);
+        mmgr_line_hex(&lines[5], target->block_hash, 16u);
+        count = 6u;
     }
     else if (item.form == OPCODE_PROGRAM_UNIT)
     {
         for (unsigned int at = 0u; at < PROGRAM_UNIT_PARAMETERS; at += 1u)
         {
-            arguments.push_back(std::to_string(codegen_unit(at)));
+            mmgr_line_decimal(&lines[at], codegen_unit(at), 1u);
         }
+        count = PROGRAM_UNIT_PARAMETERS;
     }
     else
     {
         for (unsigned int at = 0u; (at < item.count) && (at < MACHINE_INSTR_OPERANDS); at += 1u)
         {
-            arguments.push_back(code_generator_argument(rules, file, item.arguments[at]));
+            code_generator_argument(rules, file, item.arguments[at], &lines[at]);
+            count = at + 1u;
         }
     }
-    unsigned int taken[3] = {item.scratch[0], item.scratch[1], item.scratch[2]};
-    const unsigned int banks[3] = {REGCLASS_TEMPORARY, REGCLASS_WIDE, REGCLASS_PREDICATE};
-    const ScratchRegisters scratch = [rules, file, &taken, &banks](unsigned int bank) {
-        for (unsigned int bank_index = 0u; bank_index < 3u; bank_index += 1u)
-        {
-            if (bank == banks[bank_index])
-            {
-                taken[bank_index] += 1u;
-                return code_generator_register(rules, file, bank, taken[bank_index] - 1u);
-            }
-        }
-        return std::string();
-    };
-    ruleset_write_list(rules, text, item.form, arguments, scratch, broken);
+    for (unsigned int at = 0u; at < count; at += 1u)
+    {
+        (void)mmgr_line_finish(&lines[at]);
+        *broken = *broken || (mmgr_line_ok(&lines[at]) == 0);
+    }
+    CodeGeneratorScratch taken = {rules,
+                                  file,
+                                  {item.scratch[0], item.scratch[1], item.scratch[2]},
+                                  {REGCLASS_TEMPORARY, REGCLASS_WIDE, REGCLASS_PREDICATE}};
+    const ScratchRegisters scratch = {code_generator_scratch, &taken};
+    ruleset_write_taking(rules, text, item.form, arguments, count, &scratch, broken);
 }
 
-// forms `decide` decides, into items of their own: counted first on a copy of the lane, then decided into as many items
-// as were counted: the lane goes on from the second as from one decision
+// the elements of `from` put after the last of `to`: 1, or 0 where the pool cannot meet the room
+static int code_generator_appended(PlatformArray *to, const PlatformArray *from)
+{
+    const unsigned long long held = to->count;
+    if (platform_array_counted(to, held + from->count) == 0)
+    {
+        return 0;
+    }
+    if (from->count != 0ULL)
+    {
+        mmgr_bytes_copy(platform_array_at(to, held), from->cell, (size_t)(from->count * from->element));
+    }
+    return 1;
+}
+
+// Forms `decide` decides, into `items`, which the call begins. `decide` counts them first on a copy of the lane. It
+// then decides them into as many items as it counted, and the lane goes on from the second as from one decision. 1,
+// or 0 where the pool cannot meet the items
 template <typename Decide>
-static std::vector<MachineInstr> code_generator_decided(MachineFunction *lane, const Decide &decide)
+static int code_generator_decided(MachineFunction *lane, PlatformArray *items, const Decide &decide)
 {
     MachineFunction counting = *lane;
     counting.items = NULL;
     counting.capacity = 0ULL;
     counting.count = 0ULL;
     decide(&counting);
-    std::vector<MachineInstr> items((size_t)counting.count);
-    lane->items = items.data();
+    platform_array_begun(items, sizeof(MachineInstr), platform_place_g_program_owner, 0);
+    if (platform_array_counted(items, counting.count) == 0)
+    {
+        return 0;
+    }
+    lane->items = (MachineInstr *)items->cell;
     lane->capacity = counting.count;
     lane->count = 0ULL;
     decide(lane);
     lane->items = NULL;
     lane->capacity = 0ULL;
-    return items;
+    return 1;
 }
 
 // the 32-bit words every lane uses throughout: %zero, %thread, %threads, %word_base, %word_stride and %sign_base, and
@@ -208,15 +264,35 @@ static std::vector<MachineInstr> code_generator_decided(MachineFunction *lane, c
 // two more
 #define CODEGEN_RESERVED_WORDS 20u
 
+// a cell of `count` words, each `value`, on the temporary tier; NULL where the pool cannot meet it
+static unsigned int *code_generator_words(unsigned long long count, unsigned int value)
+{
+    unsigned int *const words = (unsigned int *)platform_cell_taken(
+        ((count != 0ULL) ? count : 1ULL) * sizeof(unsigned int), platform_place_g_program_owner, 1);
+    for (unsigned long long at = 0ULL; (words != NULL) && (at < count); at += 1ULL)
+    {
+        words[at] = value;
+    }
+    return words;
+}
+
 // the max 32-bit words the lane uses live at once, reckoned from the lifetimes its text gives ptxas: each value's
 // limbs and sign from its step to its last reader, each record word from its first put to its last, each atom word from
 // its first reader to its last, each step's own temporaries at that step (`step_words`), and the words every lane uses
-// throughout
-static unsigned int code_generator_live_max(const IrProgram *program, const std::vector<unsigned int> &step_words,
-                                            const std::vector<unsigned int> &atom_last, unsigned int atoms)
+// throughout. 0 where the pool cannot meet the reckoning
+static unsigned int code_generator_live_max(const IrProgram *program, const unsigned int *step_words,
+                                            const unsigned int *atom_last, unsigned int atoms)
 {
     const unsigned int steps = program->step_count;
-    std::vector<unsigned int> read_last(steps);
+    unsigned int *const read_last = code_generator_words(steps, 0u);
+    long long *const change = (long long *)platform_cell_cleared((unsigned long long)steps + 1ULL, sizeof(long long),
+                                                                 platform_place_g_program_owner, 1);
+    if ((read_last == NULL) || (change == NULL))
+    {
+        platform_cell_released(change, platform_place_g_program_owner);
+        platform_cell_released(read_last, platform_place_g_program_owner);
+        return 0u;
+    }
     for (unsigned int at = 0u; at < steps; at += 1u)
     {
         read_last[at] = at;
@@ -235,7 +311,6 @@ static unsigned int code_generator_live_max(const IrProgram *program, const std:
         }
     }
     // the change in live words at each step, their count its running sum
-    std::vector<long long> change((size_t)steps + 1u, 0LL);
     for (unsigned int at = 0u; at < steps; at += 1u)
     {
         const long long value = (long long)program->steps[at].limbs + 1LL;
@@ -266,41 +341,106 @@ static unsigned int code_generator_live_max(const IrProgram *program, const std:
         live += change[at];
         max = (live > max) ? live : max;
     }
+    platform_cell_released(change, platform_place_g_program_owner);
+    platform_cell_released(read_last, platform_place_g_program_owner);
     // at max the file's limbs and signs, the record's words, the atoms' words and one step's temporaries, far under
     // 2^32
     return (unsigned int)max + CODEGEN_RESERVED_WORDS + (2u * program->members);
 }
 
-// each ruleset's schema, retained for the process: the lane's forms, banks and fixed registers, and the file. The
-// toolchain and the header are the file's own. A deque retains each where it was arranged as more are arranged
-static std::deque<RulesetSchema> s_ruleset_schemas;
-
-static std::mutex s_ruleset_schemas_mutex;
-
+// One ruleset's schema, which the process retains in a cell of its own with the name of its file after it. The schema
+// names the lane's forms, banks and fixed registers, and the file. The toolchain and the header are the file's own.
+// NULL where the pool cannot meet the cell
 static const RulesetSchema *code_generator_schema(const char *file)
 {
-    const std::lock_guard<std::mutex> lock(s_ruleset_schemas_mutex);
-    s_ruleset_schemas.push_back({file, NULL, NULL, s_opcode_names, OPCODE_COUNT, s_regclass_names, REGCLASS_COUNT,
-                                 s_physreg_names, PHYSREG_COUNT});
-    return &s_ruleset_schemas.back();
+    const size_t length = mmgr_text_length(file, PLATFORM_TEXT_TO_TERMINATOR);
+    unsigned char *const cell = (unsigned char *)platform_cell_cleared(1ULL, sizeof(RulesetSchema) + length + 1u,
+                                                                       platform_place_g_program_owner, 0);
+    if (cell == NULL)
+    {
+        return NULL;
+    }
+    char *const named = (char *)(cell + sizeof(RulesetSchema));
+    mmgr_bytes_copy(named, file, length + 1u);
+    RulesetSchema *const schema = (RulesetSchema *)cell;
+    const RulesetSchema made = {
+        named,           NULL,         NULL, s_opcode_names, OPCODE_COUNT, s_regclass_names, REGCLASS_COUNT,
+        s_physreg_names, PHYSREG_COUNT};
+    *schema = made;
+    return schema;
 }
+
+// the bytes that the register claims of one lane hold at max
+#define CODE_GENERATOR_CLAIM_BYTES (1ULL << 30u)
 
 CodeGenerator::CodeGenerator(const char *file) : Target(code_generator_schema(file))
 {
+    platform_text_begun(&claim_lines, CODE_GENERATOR_CLAIM_BYTES, platform_place_g_program_owner, 0);
 }
 
-// the code generators a process retains, one a ruleset file, each retained where it was made
-static std::map<std::string, CodeGenerator *> s_code_generators;
+CodeGenerator::~CodeGenerator()
+{
+    platform_text_ended(&claim_lines);
+}
 
-static std::mutex s_code_generators_mutex;
+void *CodeGenerator::operator new(size_t bytes, void *cell)
+{
+    (void)bytes;
+    return cell;
+}
+
+void CodeGenerator::operator delete(void *cell, void *place)
+{
+    (void)place;
+    platform_cell_released(cell, platform_place_g_program_owner);
+}
+
+void CodeGenerator::operator delete(void *cell)
+{
+    platform_cell_released(cell, platform_place_g_program_owner);
+}
+
+// the most code generators a process retains, one a ruleset file
+#define CODE_GENERATORS_MAX 64u
+
+// the code generators a process retains, each where its maker put it, and the lock the makers take in turn
+static CodeGenerator *s_code_generators[CODE_GENERATORS_MAX];
+
+static unsigned int s_code_generator_count;
+
+static embed_atomic_u32 s_code_generators_lock = EMBED_ATOMIC_INIT(0u);
 
 CodeGenerator &code_generator(const char *file)
 {
-    const std::lock_guard<std::mutex> lock(s_code_generators_mutex);
-    CodeGenerator *&generator = s_code_generators[std::string(file)];
+    const EmbedAtomicU32ExchangeCfg take = {&s_code_generators_lock, 1u};
+    while (embed_atomic_u32_exchange(&take) != 0u)
+    {
+    }
+    CodeGenerator *generator = NULL;
+    for (unsigned int at = 0u; (generator == NULL) && (at < s_code_generator_count); at += 1u)
+    {
+        const RulesetSchema *const schema = s_code_generators[at]->schema();
+        generator = ((schema != NULL) && (mmgr_text_order(schema->file, file, PLATFORM_TEXT_TO_TERMINATOR) == 0))
+                        ? s_code_generators[at]
+                        : NULL;
+    }
     if (generator == NULL)
     {
-        generator = new CodeGenerator(file);
+        void *const cell = platform_cell_cleared(1ULL, sizeof(CodeGenerator), platform_place_g_program_owner, 0);
+        generator = (cell != NULL) ? new (cell) CodeGenerator(file) : NULL;
+        if ((generator != NULL) && (s_code_generator_count < CODE_GENERATORS_MAX))
+        {
+            s_code_generators[s_code_generator_count] = generator;
+            s_code_generator_count += 1u;
+        }
+    }
+    const EmbedAtomicU32StoreCfg give = {&s_code_generators_lock, 0u};
+    embed_atomic_u32_store(&give);
+    if (generator == NULL)
+    {
+        // a code generator of no ruleset reads none and writes no lane, where the pool cannot meet a code generator
+        static CodeGenerator s_refused("");
+        return s_refused;
     }
     return *generator;
 }
@@ -309,26 +449,125 @@ CodeGenerator &code_generator(const char *file)
 // none or is not read
 static unsigned int code_generator_write_ports(const Ruleset *rules)
 {
-    if ((rules == NULL) || rules->write_ports.empty())
+    if ((rules == NULL) || (rules->write_ports[0] == '\0'))
     {
         return SCHEDULE_UNBOUNDED;
     }
     unsigned int ports = 0u;
-    for (const char digit : rules->write_ports)
+    for (const char *digit = rules->write_ports; *digit != '\0'; digit += 1)
     {
-        ports = (ports * 10u) + (unsigned int)(digit - '0');
+        ports = (ports * 10u) + (unsigned int)(*digit - '0');
     }
     return ports;
+}
+
+// the cells of one decision, each given back as the decision ends
+struct CodeGeneratorDecision
+{
+    unsigned int *scratch;
+    unsigned int *put_first;
+    unsigned int *put_last;
+    unsigned int *atom_reader;
+    unsigned int *atom_last;
+    unsigned int *errors;
+    unsigned int *step_words;
+    PlatformArray parts[9];
+};
+
+// the places of the parts of one decision among CodeGeneratorDecision::parts
+enum CodeGeneratorPart
+{
+    CODE_GENERATOR_STEPPED = 0,
+    CODE_GENERATOR_NOTED = 1,
+    CODE_GENERATOR_OPENING_LANE = 2,
+    CODE_GENERATOR_DECLARATIONS = 3,
+    CODE_GENERATOR_OPENED = 4,
+    CODE_GENERATOR_CLOSED = 5,
+    CODE_GENERATOR_BODY_OPEN = 6,
+    CODE_GENERATOR_BODY = 7,
+    CODE_GENERATOR_ENDING = 8
+};
+
+static void code_generator_decision_ended(CodeGeneratorDecision *decision)
+{
+    platform_cell_released(decision->scratch, platform_place_g_program_owner);
+    platform_cell_released(decision->put_first, platform_place_g_program_owner);
+    platform_cell_released(decision->put_last, platform_place_g_program_owner);
+    platform_cell_released(decision->atom_reader, platform_place_g_program_owner);
+    platform_cell_released(decision->atom_last, platform_place_g_program_owner);
+    platform_cell_released(decision->errors, platform_place_g_program_owner);
+    platform_cell_released(decision->step_words, platform_place_g_program_owner);
+    for (unsigned int part = 0u; part < 9u; part += 1u)
+    {
+        platform_array_ended(&decision->parts[part]);
+    }
+}
+
+// The body split into states by `model`, into the body's part of `decision`, and its opening into the body-open
+// part. `report` gets how the split went. 1, or 0 where the pool cannot meet a list
+static int code_generator_scheduled_body(const CodeGenerator *generator, MachineFunction *lane, unsigned int steps,
+                                         const ScheduleModel *model, ScheduleReport *report,
+                                         CodeGeneratorDecision *decision)
+{
+    // each form's cost; an error's label for the opening and one for each step at max, and each loop the steps
+    // wrote
+    const ScheduleCosts costs = generator->schedule_costs(*model);
+    MachineOperand *const dispatch_error = (MachineOperand *)platform_cell_cleared(
+        (unsigned long long)steps + 1ULL, sizeof(MachineOperand), platform_place_g_program_owner, 1);
+    unsigned int *const dispatch_state = code_generator_words((unsigned long long)steps + 1ULL, 0u);
+    unsigned int *const loop_state = code_generator_words((unsigned long long)lane->loops + 1ULL, 0u);
+    int ok = (dispatch_error != NULL) && (dispatch_state != NULL) && (loop_state != NULL);
+    if (ok != 0)
+    {
+        Schedule schedule{};
+        schedule.cost = costs.cost;
+        schedule.budget = costs.budget;
+        schedule.dispatch_error = dispatch_error;
+        schedule.dispatch_state = dispatch_state;
+        schedule.dispatch_max = steps + 1u;
+        schedule.loop_state = loop_state;
+        schedule.loop_count = lane->loops;
+        const unsigned int writes = costs.writes;
+        const unsigned int ports = costs.ports;
+        const PlatformArray *const parts[3] = {&decision->parts[CODE_GENERATOR_OPENED],
+                                               &decision->parts[CODE_GENERATOR_STEPPED],
+                                               &decision->parts[CODE_GENERATOR_CLOSED]};
+        ok = code_generator_decided(
+            lane, &decision->parts[CODE_GENERATOR_BODY], [&schedule, writes, ports, &parts](MachineFunction *deciding) {
+                codegen_schedule_open(deciding, &schedule, writes, ports);
+                for (unsigned int part = 0u; part < 3u; part += 1u)
+                {
+                    for (unsigned long long at = 0ULL; at < parts[part]->count; at += 1ULL)
+                    {
+                        codegen_schedule_instr(deciding, &schedule,
+                                               (const MachineInstr *)platform_array_at(parts[part], at));
+                    }
+                }
+                codegen_schedule_close(deciding, &schedule);
+            });
+        const unsigned int states = schedule.state;
+        ok = ok &&
+             code_generator_decided(lane, &decision->parts[CODE_GENERATOR_BODY_OPEN],
+                                    [states](MachineFunction *deciding) { codegen_body_open(deciding, 1, states); });
+        report->states = schedule.state;
+        report->max = schedule.max;
+        report->over = schedule.over;
+    }
+    platform_cell_released(loop_state, platform_place_g_program_owner);
+    platform_cell_released(dispatch_state, platform_place_g_program_owner);
+    platform_cell_released(dispatch_error, platform_place_g_program_owner);
+    return ok;
 }
 
 // A program's lane and its resident as the core decides them, into `items` in the text's order: the note, the header's
 // place, occupied by an item of the form ASM_PRINTER_ALL_ONES, the lane's opening and declarations, the body's opening,
 // the body and the end; the places a thread uses in shared memory (the file's where the language positions it out
 // there, else 0), and the max words it uses live at once. The core decides the steps first, then the lane's own forms
-// in the order the lane writes them. 0 where the ruleset is not read, a step is one the lane does not support, or a
-// form breaks the lane. With a schedule model, the body is split into states and `report` informed how
+// in the order the lane writes them. 0 where the ruleset is not read, a step is one the lane does not support, a
+// form breaks the lane, or the pool cannot meet a list. With a schedule model, the body is split into states and
+// `report` informed how
 int CodeGenerator::decide(const EngineRecordLayout *layout, const ScheduleModel *model, ScheduleReport *report,
-                          unsigned int *places, unsigned int *live, std::vector<MachineInstr> *items)
+                          unsigned int *places, unsigned int *live, PlatformArray *items)
 {
     const Ruleset *const rules = ready();
     if (rules == NULL)
@@ -337,12 +576,6 @@ int CodeGenerator::decide(const EngineRecordLayout *layout, const ScheduleModel 
     }
     const unsigned int steps = layout->steps;
     const unsigned int scratch_banks[3] = {REGCLASS_TEMPORARY, REGCLASS_WIDE, REGCLASS_PREDICATE};
-    std::vector<unsigned int> scratch;
-    ruleset_scratch(rules, scratch_banks, &scratch);
-    // the program as every step reads it: each record word's first and last put, and each atom word's first and last
-    // reader, found before any step is decided
-    std::vector<unsigned int> put_first(layout->out_limbs, 0u);
-    std::vector<unsigned int> put_last(layout->out_limbs, 0u);
     IrProgram program{};
     program.steps = layout->step_table;
     program.step_count = steps;
@@ -356,20 +589,35 @@ int CodeGenerator::decide(const EngineRecordLayout *layout, const ScheduleModel 
         program.atom_first[member] = atoms;
         atoms += (member < layout->members) ? layout->in_limbs[member] : 0u;
     }
-    for (unsigned int at = 0u; at < steps; at += 1u)
+    CodeGeneratorDecision decision;
+    decision.scratch = ruleset_scratch(rules, scratch_banks);
+    decision.put_first = code_generator_words(layout->out_limbs, 0u);
+    decision.put_last = code_generator_words(layout->out_limbs, 0u);
+    decision.atom_reader = code_generator_words(atoms, steps);
+    decision.atom_last = code_generator_words(atoms, 0u);
+    decision.errors = code_generator_words(steps, 0u);
+    decision.step_words = code_generator_words(steps, 0u);
+    for (unsigned int part = 0u; part < 9u; part += 1u)
+    {
+        platform_array_begun(&decision.parts[part], sizeof(MachineInstr), platform_place_g_program_owner, 0);
+    }
+    int ok = (decision.scratch != NULL) && (decision.put_first != NULL) && (decision.put_last != NULL) &&
+             (decision.atom_reader != NULL) && (decision.atom_last != NULL) && (decision.errors != NULL) &&
+             (decision.step_words != NULL);
+    // The program as every step reads it: each record word's first and last put, and each atom word's first and last
+    // reader. The code finds them before it decides a step
+    for (unsigned int at = 0u; (ok != 0) && (at < steps); at += 1u)
     {
         unsigned int low = 0u;
         unsigned int high = 0u;
         codegen_put_words(&program, &layout->step_table[at], &low, &high);
         for (unsigned int word = low; word < high; word += 1u)
         {
-            put_first[word] = (put_last[word] == 0u) ? at : put_first[word];
-            put_last[word] = at + 1u;
+            decision.put_first[word] = (decision.put_last[word] == 0u) ? at : decision.put_first[word];
+            decision.put_last[word] = at + 1u;
         }
     }
-    std::vector<unsigned int> atom_reader(atoms, steps);
-    std::vector<unsigned int> atom_last(atoms, 0u);
-    for (unsigned int at = 0u; at < steps; at += 1u)
+    for (unsigned int at = 0u; (ok != 0) && (at < steps); at += 1u)
     {
         unsigned int low = 0u;
         unsigned int high = 0u;
@@ -377,111 +625,66 @@ int CodeGenerator::decide(const EngineRecordLayout *layout, const ScheduleModel 
         for (unsigned int word = low; word < high; word += 1u)
         {
             const unsigned int atom = program.atom_first[layout->step_table[at].member] + word;
-            atom_reader[atom] = (atom_reader[atom] == steps) ? at : atom_reader[atom];
-            atom_last[atom] = at;
+            decision.atom_reader[atom] = (decision.atom_reader[atom] == steps) ? at : decision.atom_reader[atom];
+            decision.atom_last[atom] = at;
         }
     }
-    program.put_first = put_first.data();
-    program.put_last = put_last.data();
-    program.atom_reader = atom_reader.data();
-    program.scratch = scratch.data();
+    program.put_first = decision.put_first;
+    program.put_last = decision.put_last;
+    program.atom_reader = decision.atom_reader;
+    program.scratch = decision.scratch;
     MachineFunction lane{};
     lane.program = &program;
     // the lane's opening takes %t0 and %w0 before any step does
     lane.temps_max = 1u;
     lane.wides_max = 1u;
     // the steps, each from the loop number the steps before it left
-    std::vector<MachineInstr> stepped;
-    std::vector<unsigned int> errors(steps, 0u);
-    std::vector<unsigned int> step_words(steps, 0u);
-    for (unsigned int at = 0u; at < steps; at += 1u)
+    for (unsigned int at = 0u; (ok != 0) && (at < steps); at += 1u)
     {
-        int ok = 0;
-        const std::vector<MachineInstr> step =
-            code_generator_decided(&lane, [at, &ok](MachineFunction *deciding) { ok = codegen_step(deciding, at); });
-        if (ok == 0)
-        {
-            return 0;
-        }
-        stepped.insert(stepped.end(), step.begin(), step.end());
-        errors[at] = lane.errors;
+        int stepped = 0;
+        PlatformArray step;
+        ok = code_generator_decided(
+            &lane, &step, [at, &stepped](MachineFunction *deciding) { stepped = codegen_step(deciding, at); });
+        ok = ok && (stepped != 0) && code_generator_appended(&decision.parts[CODE_GENERATOR_STEPPED], &step);
+        platform_array_ended(&step);
+        decision.errors[at] = lane.errors;
         // a 64-bit temporary takes two words
-        step_words[at] = lane.temps + (2u * lane.wides);
+        decision.step_words[at] = lane.temps + (2u * lane.wides);
     }
     // the lane calls nothing; it uses places in shared memory only where its ruleset gives shared 1
-    *places = (rules->shared == "1") ? layout->file_limbs : 0u;
+    *places = (mmgr_text_order(rules->shared, "1", PLATFORM_TEXT_TO_TERMINATOR) == 0) ? layout->file_limbs : 0u;
     const unsigned int place_count = *places;
-    const unsigned int *const error = errors.data();
+    const unsigned int *const error = decision.errors;
     const unsigned int tables = lane.tables;
-    const std::vector<MachineInstr> noted =
-        code_generator_decided(&lane, [](MachineFunction *deciding) { codegen_note(deciding); });
-    const std::vector<MachineInstr> opening_lane =
-        code_generator_decided(&lane, [](MachineFunction *deciding) { codegen_instr0(deciding, OPCODE_LANE_OPEN); });
-    const std::vector<MachineInstr> declarations =
-        code_generator_decided(&lane, [atoms](MachineFunction *deciding) { codegen_declare(deciding, atoms); });
-    const std::vector<MachineInstr> opened =
-        code_generator_decided(&lane, [error, tables, place_count](MachineFunction *deciding) {
-            codegen_open(deciding, error, tables, place_count);
-        });
-    const std::vector<MachineInstr> closed =
-        code_generator_decided(&lane, [error](MachineFunction *deciding) { codegen_close(deciding, error); });
+    ok = ok && code_generator_decided(&lane, &decision.parts[CODE_GENERATOR_NOTED],
+                                      [](MachineFunction *deciding) { codegen_note(deciding); });
+    ok = ok && code_generator_decided(&lane, &decision.parts[CODE_GENERATOR_OPENING_LANE],
+                                      [](MachineFunction *deciding) { codegen_instr0(deciding, OPCODE_LANE_OPEN); });
+    ok = ok && code_generator_decided(&lane, &decision.parts[CODE_GENERATOR_DECLARATIONS],
+                                      [atoms](MachineFunction *deciding) { codegen_declare(deciding, atoms); });
+    ok = ok && code_generator_decided(&lane, &decision.parts[CODE_GENERATOR_OPENED],
+                                      [error, tables, place_count](MachineFunction *deciding) {
+                                          codegen_open(deciding, error, tables, place_count);
+                                      });
+    ok = ok && code_generator_decided(&lane, &decision.parts[CODE_GENERATOR_CLOSED],
+                                      [error](MachineFunction *deciding) { codegen_close(deciding, error); });
     // the body's forms in the text's order, between the forms that open it and those that end the lane
-    std::vector<MachineInstr> body_open;
-    std::vector<MachineInstr> body;
-    if (model == NULL)
+    if ((ok != 0) && (model == NULL))
     {
-        body_open =
-            code_generator_decided(&lane, [](MachineFunction *deciding) { codegen_body_open(deciding, 0, 0u); });
-        const std::vector<MachineInstr> *const parts[3] = {&opened, &stepped, &closed};
-        for (const std::vector<MachineInstr> *part : parts)
-        {
-            body.insert(body.end(), part->begin(), part->end());
-        }
+        ok = code_generator_decided(&lane, &decision.parts[CODE_GENERATOR_BODY_OPEN],
+                                    [](MachineFunction *deciding) { codegen_body_open(deciding, 0, 0u); });
+        ok = ok &&
+             code_generator_appended(&decision.parts[CODE_GENERATOR_BODY], &decision.parts[CODE_GENERATOR_OPENED]) &&
+             code_generator_appended(&decision.parts[CODE_GENERATOR_BODY], &decision.parts[CODE_GENERATOR_STEPPED]) &&
+             code_generator_appended(&decision.parts[CODE_GENERATOR_BODY], &decision.parts[CODE_GENERATOR_CLOSED]);
     }
-    else
+    else if (ok != 0)
     {
-        // each form's cost; an error's label for the opening and one for each step at max, and each loop the steps
-        // wrote
-        const ScheduleCosts costs = schedule_costs(*model);
-        std::vector<MachineOperand> dispatch_error((size_t)steps + 1u);
-        std::vector<unsigned int> dispatch_state((size_t)steps + 1u, 0u);
-        std::vector<unsigned int> loop_state((size_t)lane.loops + 1u, 0u);
-        Schedule schedule{};
-        schedule.cost = costs.cost.data();
-        schedule.budget = costs.budget;
-        schedule.dispatch_error = dispatch_error.data();
-        schedule.dispatch_state = dispatch_state.data();
-        schedule.dispatch_max = steps + 1u;
-        schedule.loop_state = loop_state.data();
-        schedule.loop_count = lane.loops;
-        const unsigned int writes = costs.writes;
-        const unsigned int ports = costs.ports;
-        body = code_generator_decided(
-            &lane, [&schedule, writes, ports, &opened, &stepped, &closed](MachineFunction *deciding) {
-                codegen_schedule_open(deciding, &schedule, writes, ports);
-                const std::vector<MachineInstr> *const parts[3] = {&opened, &stepped, &closed};
-                for (const std::vector<MachineInstr> *part : parts)
-                {
-                    for (const MachineInstr &item : *part)
-                    {
-                        codegen_schedule_instr(deciding, &schedule, &item);
-                    }
-                }
-                codegen_schedule_close(deciding, &schedule);
-            });
-        const unsigned int states = schedule.state;
-        body_open = code_generator_decided(
-            &lane, [states](MachineFunction *deciding) { codegen_body_open(deciding, 1, states); });
-        report->states = schedule.state;
-        report->max = schedule.max;
-        report->over = schedule.over;
+        ok = code_generator_scheduled_body(this, &lane, steps, model, report, &decision);
     }
-    const std::vector<MachineInstr> ending =
-        code_generator_decided(&lane, [](MachineFunction *deciding) { codegen_end(deciding); });
-    if (lane.broken != 0u)
-    {
-        return 0;
-    }
+    ok = ok && code_generator_decided(&lane, &decision.parts[CODE_GENERATOR_ENDING],
+                                      [](MachineFunction *deciding) { codegen_end(deciding); });
+    ok = ok && (lane.broken == 0u);
     // the header's place, which no form of the ruleset writes
     MachineInstr header{};
     header.form = ASM_PRINTER_ALL_ONES;
@@ -489,101 +692,137 @@ int CodeGenerator::decide(const EngineRecordLayout *layout, const ScheduleModel 
     header.arguments[1] = codegen_zero();
     header.arguments[2] = codegen_zero();
     header.arguments[3] = codegen_zero();
-    items->clear();
-    items->reserve(noted.size() + 1u + opening_lane.size() + declarations.size() + body_open.size() + body.size() +
-                   ending.size());
-    items->insert(items->end(), noted.begin(), noted.end());
-    items->push_back(header);
-    const std::vector<MachineInstr> *const parts[5] = {&opening_lane, &declarations, &body_open, &body, &ending};
-    for (const std::vector<MachineInstr> *part : parts)
+    ok = ok && platform_array_counted(items, 0ULL) &&
+         code_generator_appended(items, &decision.parts[CODE_GENERATOR_NOTED]) &&
+         platform_array_appended(items, &header);
+    const unsigned int parts[5] = {CODE_GENERATOR_OPENING_LANE, CODE_GENERATOR_DECLARATIONS, CODE_GENERATOR_BODY_OPEN,
+                                   CODE_GENERATOR_BODY, CODE_GENERATOR_ENDING};
+    for (unsigned int part = 0u; (ok != 0) && (part < 5u); part += 1u)
     {
-        items->insert(items->end(), part->begin(), part->end());
+        ok = code_generator_appended(items, &decision.parts[parts[part]]);
     }
-    *live = code_generator_live_max(&program, step_words, atom_last, atoms);
-    return 1;
+    *live = (ok != 0) ? code_generator_live_max(&program, decision.step_words, decision.atom_last, atoms) : 0u;
+    code_generator_decision_ended(&decision);
+    return ((ok != 0) && (*live != 0u)) ? 1 : 0;
 }
 
-// the lane as decide() decides it, written in the ruleset under `header` for `target`, which the note names. Empty
-// where it is not decided, its banks run past the language's register file, or a form was written with other
-// arguments than it takes
-std::string CodeGenerator::lane(const EngineRecordLayout *layout, const TargetInfo *target, const std::string &header,
-                                unsigned int *places, unsigned int *live, const ScheduleModel *model,
-                                ScheduleReport *report)
+// each register the lane uses onto the claim lines, with the items that claim and release it. 0 where a lane names
+// another item's scratch, and nobody writes the lane, or the pool cannot meet the claims
+static int code_generator_claims_written(const Ruleset *rules, const RegisterFile *file, const MachineInstr *items,
+                                         unsigned long long count, PlatformText *claim_lines)
 {
-    std::vector<MachineInstr> items;
-    if (decide(layout, model, report, places, live, &items) == 0)
+    const unsigned int scratch_banks[3] = {REGCLASS_TEMPORARY, REGCLASS_WIDE, REGCLASS_PREDICATE};
+    unsigned int *const scratch = ruleset_scratch(rules, scratch_banks);
+    const unsigned long long claim_room = (16ULL * count) + 16ULL;
+    CodegenClaim *const claims =
+        (CodegenClaim *)platform_cell_cleared(claim_room, sizeof(CodegenClaim), platform_place_g_program_owner, 1);
+    unsigned long long collided = CODEGEN_NO_ITEM;
+    // the claims of a lane are far under 2^32
+    const unsigned int claim_count =
+        ((scratch != NULL) && (claims != NULL))
+            ? codegen_claims(items, count, scratch, scratch_banks, claims, (unsigned int)claim_room, &collided)
+            : 0u;
+    const int ok = (scratch != NULL) && (claims != NULL) && (collided == CODEGEN_NO_ITEM);
+    platform_text_reset(claim_lines);
+    for (unsigned int at = 0u; (ok != 0) && (at < claim_count); at += 1u)
     {
-        return std::string();
+        const CodegenClaim *const one = &claims[at];
+        VerbaLinea *const line = &claim_lines->line;
+        if (one->bank >= REGCLASS_COUNT)
+        {
+            mmgr_line_put(line, rules->fixed[one->bank - REGCLASS_COUNT]);
+            mmgr_line_ch(line, ' ');
+            mmgr_line_put(line, s_physreg_names[one->bank - REGCLASS_COUNT].text);
+        }
+        else
+        {
+            code_generator_register(rules, file, one->bank, one->number, line);
+            mmgr_line_ch(line, ' ');
+            if (one->scratch_of != CODEGEN_NO_ITEM)
+            {
+                mmgr_line_put(line, "scratch of ");
+                mmgr_line_put(line, s_opcode_names[items[one->scratch_of].form].text);
+            }
+            else
+            {
+                mmgr_line_put(line, s_regclass_names[one->bank].text);
+            }
+        }
+        mmgr_line_put(line, " claimed ");
+        mmgr_line_decimal(line, one->claimed + 1ULL, 1u);
+        mmgr_line_ch(line, ' ');
+        mmgr_line_put(line, s_opcode_names[items[one->claimed].form].text);
+        mmgr_line_put(line, " released ");
+        mmgr_line_decimal(line, one->released + 1ULL, 1u);
+        mmgr_line_ch(line, ' ');
+        mmgr_line_put(line, s_opcode_names[items[one->released].form].text);
+        mmgr_line_ch(line, '\n');
     }
+    platform_cell_released(claims, platform_place_g_program_owner);
+    platform_cell_released(scratch, platform_place_g_program_owner);
+    return ok;
+}
+
+// The lane as decide() decides it, written in the ruleset under `header` for `target`, which the note names, onto
+// `text`. 0, and `text` empty, where decide() does not decide it or its banks run past the language's register file.
+// Also 0 where the code wrote a form with other arguments than it takes
+int CodeGenerator::lane(const EngineRecordLayout *layout, const TargetInfo *target, const char *header,
+                        PlatformText *text, unsigned int *places, unsigned int *live, const ScheduleModel *model,
+                        ScheduleReport *report)
+{
+    platform_text_reset(text);
+    PlatformArray items;
+    platform_array_begun(&items, sizeof(MachineInstr), platform_place_g_program_owner, 0);
     const Ruleset *const rules = ready();
     RegisterFile file;
-    if (code_generator_file(this, items, &file) == 0)
-    {
-        return std::string();
-    }
-    // every register the lane uses, claimed and released by its items; a lane naming another item's scratch is
-    // written by nobody
-    std::vector<unsigned int> scratch;
-    const unsigned int scratch_banks[3] = {REGCLASS_TEMPORARY, REGCLASS_WIDE, REGCLASS_PREDICATE};
-    ruleset_scratch(rules, scratch_banks, &scratch);
-    std::vector<CodegenClaim> claims(16u * items.size() + 16u);
-    unsigned long long collided = CODEGEN_NO_ITEM;
-    const unsigned int claim_count =
-        codegen_claims(items.data(), (unsigned long long)items.size(), scratch.data(), scratch_banks, claims.data(),
-                       (unsigned int)claims.size(), &collided);
-    if (collided != CODEGEN_NO_ITEM)
-    {
-        return std::string();
-    }
-    claim_lines.clear();
-    for (unsigned int at = 0u; at < claim_count; at += 1u)
-    {
-        const CodegenClaim &one = claims[at];
-        const int fixed = one.bank >= REGCLASS_COUNT;
-        const std::string written = fixed ? rules->fixed[one.bank - REGCLASS_COUNT]
-                                          : code_generator_register(rules, &file, one.bank, one.number);
-        const std::string holder = fixed ? std::string(s_physreg_names[one.bank - REGCLASS_COUNT].text)
-                                   : (one.scratch_of != CODEGEN_NO_ITEM)
-                                       ? ("scratch of " + std::string(s_opcode_names[items[one.scratch_of].form].text))
-                                       : std::string(s_regclass_names[one.bank].text);
-        claim_lines += written + " " + holder + " claimed " + std::to_string(one.claimed + 1ULL) + " " +
-                       s_opcode_names[items[one.claimed].form].text + " released " +
-                       std::to_string(one.released + 1ULL) + " " + s_opcode_names[items[one.released].form].text + "\n";
-    }
+    int ok = decide(layout, model, report, places, live, &items) &&
+             code_generator_file(this, (const MachineInstr *)items.cell, items.count, &file) &&
+             code_generator_claims_written(rules, &file, (const MachineInstr *)items.cell, items.count, &claim_lines);
     int broken = 0;
-    std::string text;
-    for (const MachineInstr &item : items)
+    for (unsigned long long at = 0ULL; (ok != 0) && (at < items.count); at += 1ULL)
     {
-        if (item.form == ASM_PRINTER_ALL_ONES)
+        const MachineInstr *const item = (const MachineInstr *)platform_array_at(&items, at);
+        if (item->form == ASM_PRINTER_ALL_ONES)
         {
-            text += header;
+            mmgr_line_put(&text->line, header);
         }
-        else if ((item.form == OPCODE_PROGRAM_UNIT) && (program_unit_written() == 0))
+        else if ((item->form == OPCODE_PROGRAM_UNIT) && (program_unit_written() == 0))
         {
             // the language's resident reaches it already built, and the ruleset is never queried for one
         }
         else
         {
-            code_generator_text(rules, &file, target, item, text, &broken);
+            code_generator_text(rules, &file, target, *item, &text->line, &broken);
         }
     }
-    return (broken != 0) ? std::string() : text;
+    platform_array_ended(&items);
+    ok = ok && (broken == 0) && (mmgr_line_ok(&text->line) != 0);
+    if (ok == 0)
+    {
+        platform_text_reset(text);
+    }
+    return ok;
 }
 
-const std::string &CodeGenerator::register_claims(void) const
+const char *CodeGenerator::register_claims(void)
 {
-    return claim_lines;
+    return platform_text_bytes(&claim_lines);
 }
 
 // each form's cost by its name in the model, and the model's cost for a form it does not name
 ScheduleCosts CodeGenerator::schedule_costs(const ScheduleModel &model) const
 {
     ScheduleCosts costs;
-    costs.cost.assign(OPCODE_COUNT, model.other);
     for (unsigned int form = 0u; form < OPCODE_COUNT; form += 1u)
     {
-        const auto found = model.cost.find(std::string(s_opcode_names[form].text));
-        costs.cost[form] = (found == model.cost.end()) ? model.other : found->second;
+        costs.cost[form] = model.other;
+        for (unsigned int at = 0u; at < model.cost_count; at += 1u)
+        {
+            costs.cost[form] =
+                (mmgr_text_order(model.cost[at].form, s_opcode_names[form].text, PLATFORM_TEXT_TO_TERMINATOR) == 0)
+                    ? model.cost[at].cost
+                    : costs.cost[form];
+        }
     }
     costs.budget = model.budget;
     costs.writes = model.writes;

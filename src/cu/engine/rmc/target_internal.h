@@ -9,17 +9,14 @@
 #include "target.h"
 
 #include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
 
-#include <cstddef>
-#include <functional>
-#include <initializer_list>
-#include <string>
-#include <vector>
+// the folder of the rulesets into `folder`, `bytes` of it: 1 where the whole folder fit
+int ruleset_folder(char *folder, size_t bytes);
 
-std::string ruleset_folder(void);
+// the place of `word` among `count` names, or `count` where it is none of them
+unsigned int ruleset_find(const RulesetName *names, unsigned int count, const char *word);
 
-unsigned int ruleset_find(const RulesetName *names, unsigned int count, const std::string &word);
+// the place of the `length` characters at `word` among `count` names, or `count` where they are none of them
+unsigned int ruleset_find_span(const RulesetName *names, unsigned int count, const char *word, size_t length);
 
 #endif

@@ -11,11 +11,6 @@
 #include "codegen_device.h"
 
 #include <stddef.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include <string>
-#include <vector>
 
 int layout_same(const EngineRecordLayout *left, const EngineRecordLayout *right);
 #if (defined(__CUDACC__))
@@ -149,10 +144,11 @@ __global__ void codegen_device_encode(KeymathCoreEncode encoding, LayoutEnd *end
 
 __global__ void codegen_layout(KeyScheduleCoreLayout layout, LayoutEnd *ended);
 
-// the device memory a lane's writing takes, freed together, and 0 once a call the device errored left it unusable
+// The device memory a lane's writing takes, freed together, and 0 once a call the device errored left it unusable.
+// The list of what it took begins at its first take
 struct DeviceArena
 {
-    std::vector<void *> allocations;
+    PlatformArray allocations;
     int ok;
 };
 
@@ -160,10 +156,17 @@ template <typename Element> static Element *codegen_device_take(DeviceArena *mem
 {
     void *taken = NULL;
     const unsigned long long bytes = ((count == 0ULL) ? 1ULL : count) * sizeof(Element);
+    if (memory->allocations.element == 0ULL)
+    {
+        platform_array_begun(&memory->allocations, sizeof(void *), platform_place_g_program_owner, 0);
+    }
     if ((memory->ok != 0) && (cudaMalloc(&taken, (size_t)bytes) == cudaSuccess))
     {
-        memory->allocations.push_back(taken);
-        return (Element *)taken;
+        if (platform_array_appended(&memory->allocations, &taken) != 0)
+        {
+            return (Element *)taken;
+        }
+        cudaFree(taken);
     }
     memory->ok = 0;
     return NULL;
@@ -217,18 +220,17 @@ static unsigned long long codegen_device_scan(DeviceArena *memory, const Counted
     return (unsigned long long)last_count + (unsigned long long)last_sum;
 }
 
-int asm_printer_program_device(const AsmPrinterProgram *program, EngineRecordLayout *text_layout, std::string *error);
+int asm_printer_program_device(const AsmPrinterProgram *program, EngineRecordLayout *text_layout, VerbaLinea *error);
 
-int asm_printer_program_placed(const AsmPrinterRuleset *text_rules, EngineRecordLayout *text_layout,
-                               std::string *error);
+int asm_printer_program_placed(const AsmPrinterRuleset *text_rules, EngineRecordLayout *text_layout, VerbaLinea *error);
 
 int codegen_device_decide(DeviceArena *device_arena, const EngineRecordLayout *layout,
                           const DeviceRecordStep *device_steps, const unsigned int *scratch,
                           unsigned long long scratch_count, unsigned int places, const ScheduleCosts *costs,
                           ScheduleReport *report, MachineInstr **text_items, unsigned long long *item_count,
-                          std::string *error);
+                          VerbaLinea *error);
 #endif
 
-int layout_device(const LayoutRequest *request, EngineRecordLayout *layout, std::string *error);
+int layout_device(const LayoutRequest *request, EngineRecordLayout *layout, VerbaLinea *error);
 
 #endif

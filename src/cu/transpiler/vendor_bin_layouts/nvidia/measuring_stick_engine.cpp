@@ -49,24 +49,25 @@
 // for the trace of each path (qry_member.h). With no writer of a run to take it, nothing reads it.
 extern "C"
 {
-#include "sass_assemble.h"
-#include "memoria_operor/memoria_linea.h"
 #include "../../../engine/engine_note.h"
 #include "cellularum_laboro/cellularum_linea.h"
-#include "sass_machine.h"
 #include "interface_sass_probe.h"
+#include "memoria_operor/memoria_linea.h"
+#include "sass_assemble.h"
+#include "sass_machine.h"
 }
 #include "../../../text_note/text_note.h"
 
-#include "../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../../../../includes/file_defs/krs/ruleset_core_words.h"
 #include "../../../../../includes/file_defs/krs/ruleset_reader.h"
+#include "../../../../../includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../platform/platform.h"
+#include "../../../scaffolding/ruleset_strings.h"
 #include "cu_target.h"
 #include "machine_ir_types.h"
 #include "sass_target.h"
 #include "target.h"
 #include "verba_scribo/verba_linea.h"
-#include "../../../../platform/platform.h"
 
 #include <algorithm>
 #include <cctype>
@@ -785,14 +786,15 @@ static std::vector<StickPattern> stick_patterns(const Ruleset *rules, const Rule
         // signed char only what is already a sign
         const std::string name = s_form_names[form];
         const int sign = (name.compare(0u, 5u, "sign_") == 0) || (name.compare(0u, 10u, "test_sign_") == 0);
-        if ((rules->form_given[form] != (unsigned char)RULESET_CORE_GIVEN) || text.placeholders.empty() || (sign != 0))
+        if ((rules->form_given[form] != (unsigned char)RULESET_CORE_GIVEN) || (text.placeholder_count == 0u) ||
+            (sign != 0))
         {
             continue;
         }
         std::vector<std::string> pieces;
-        for (const std::string &piece : text.pieces)
+        for (unsigned int piece = 0u; piece <= text.placeholder_count; piece += 1u)
         {
-            pieces.push_back(stick_bare(piece));
+            pieces.push_back(stick_bare(text.pieces[piece]));
         }
         const int expression = (text.placeholders[0] == 0u) && pieces[0].empty() &&
                                (pieces[1].compare(0u, 1u, "=") == 0) && !pieces.back().empty() &&
@@ -826,7 +828,7 @@ static std::vector<StickPattern> stick_patterns(const Ruleset *rules, const Rule
         }
         const std::vector<unsigned int> parameter_bits = stick_parameter_bits(sass, form);
         const size_t first = (expression != 0) ? 1u : 0u;
-        const size_t placeholders = text.placeholders.size() - first;
+        const size_t placeholders = text.placeholder_count - first;
         const int select = (expression != 0) && (placeholders == 3u) && (pieces[0] == "(") &&
                            (pieces[1].compare(0u, 2u, ")?") == 0) && (pieces[2].compare(0u, 1u, ":") == 0);
         std::vector<unsigned int> order;
@@ -1595,9 +1597,11 @@ class StickKernel
     // 1 where this kernel folds and sass.ksc contains a fold of `type` put for form `form`'s parameter `parameter`
     int folded(unsigned int form, const char *type, unsigned int parameter) const
     {
-        for (const RulesetFold &fold : sass->folds)
+        for (unsigned long long at = 0ULL; at < sass->folds.count; at += 1ULL)
         {
-            if ((folding != 0) && (fold.form == form) && (fold.type == type) && (fold.parameter == parameter))
+            const RulesetFold &fold = *(const RulesetFold *)platform_array_at(&sass->folds, at);
+            if ((folding != 0) && (fold.form == form) && (std::string(fold.type) == type) &&
+                (fold.parameter == parameter))
             {
                 return 1;
             }
@@ -1609,7 +1613,7 @@ class StickKernel
     std::string number_text(unsigned int number) const
     {
         const InstrTemplate &bank = cu->banks[REGCLASS_IMMEDIATE];
-        return stick_bare(bank.pieces[0]) + std::to_string(number) + stick_bare(bank.pieces.back());
+        return stick_bare(bank.pieces[0]) + std::to_string(number) + stick_bare(bank.pieces[bank.placeholder_count]);
     }
 
     // 1 where `bare` is a number as cu.krs's bank of immediates writes one, its value in `number`
@@ -1617,7 +1621,7 @@ class StickKernel
     {
         const InstrTemplate &bank = cu->banks[REGCLASS_IMMEDIATE];
         const std::string before = stick_bare(bank.pieces[0]);
-        const std::string after = stick_bare(bank.pieces.back());
+        const std::string after = stick_bare(bank.pieces[bank.placeholder_count]);
         if ((bare.size() <= (before.size() + after.size())) || (bare.compare(0u, before.size(), before) != 0) ||
             (bare.compare(bare.size() - after.size(), after.size(), after) != 0))
         {
@@ -3049,9 +3053,10 @@ static void stick_round(const std::vector<StickSource> &sources,
 static void stick_folds_write(const Ruleset *sass, const std::set<std::string> &openings,
                               const std::set<std::string> &found)
 {
-    const size_t slash = sass->path.find_last_of('/');
-    const std::string rulesets = sass->path.substr(0u, slash);
-    const std::string file = sass->path.substr(slash + 1u);
+    const std::string ruleset_path = sass->path;
+    const size_t slash = ruleset_path.find_last_of('/');
+    const std::string rulesets = ruleset_path.substr(0u, slash);
+    const std::string file = ruleset_path.substr(slash + 1u);
     const std::string stem = file.substr(0u, file.find_last_of('.'));
     sass_class_read(rulesets.c_str(), stem.c_str());
     sass_pipe_read(STICK_MACHINES, s_part.c_str());
@@ -3311,7 +3316,7 @@ int program_main(int argc, char **argv)
         mmgr_line_put(&engine_note.line, " put a question; ");
         mmgr_line_decimal(&engine_note.line, found.size(), 1u);
         mmgr_line_put(&engine_note.line, " folds found on the compile channel, ");
-        mmgr_line_decimal(&engine_note.line, sass->folds.size(), 1u);
+        mmgr_line_decimal(&engine_note.line, sass->folds.count, 1u);
         mmgr_line_put(&engine_note.line, " stored in sass.ksc");
         mmgr_line_ch(&engine_note.line, '\n');
         engine_note_written(&engine_note);

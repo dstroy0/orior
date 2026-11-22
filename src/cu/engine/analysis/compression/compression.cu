@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "compression.h"
 
+#include "../../../../platform/platform.h"
 #include "../../runtime/device_pool/device_pool.h"
 
 #include <cub/cub.cuh>
 #include <cuda_runtime.h>
-
-
-#include <vector>
 
 static_assert(cudaSuccess == 0, "the engine reads a CUDA status of 0 as success");
 
@@ -225,8 +223,8 @@ struct CompressionResident
     size_t stream_capacity;
     void *scan;
     size_t scan_bytes;
-    std::vector<unsigned long long> host_offsets;
-    std::vector<unsigned int> host_stream;
+    PlatformArray host_offsets;
+    PlatformArray host_stream;
 };
 
 static CompressionResident s_compression_resident;
@@ -243,6 +241,8 @@ extern "C" void compression_resident_release(void)
     resident->stream_capacity = 0u;
     resident->scan = NULL;
     resident->scan_bytes = 0u;
+    platform_array_ended(&resident->host_offsets);
+    platform_array_ended(&resident->host_stream);
 }
 
 #define COMPRESSION_CHUNK_SLICES 3u
@@ -397,14 +397,25 @@ extern "C" long compression_encode(const CompressionEncodeRequest *request)
     }
     if (ok != 0)
     {
-        resident->host_offsets.resize((size_t)chunks);
-        resident->host_stream.resize(limbs + 1u);
-        ok = COMPRESSION_STATUS_CHECK(cudaMemcpy(resident->host_offsets.data(), resident->chunk_offsets,
+        // an array with no element size has not begun: it begins at its first copy
+        if (resident->host_offsets.element == 0ULL)
+        {
+            platform_array_begun(&resident->host_offsets, sizeof(unsigned long long), platform_place_g_program_owner,
+                                 0);
+            platform_array_begun(&resident->host_stream, sizeof(unsigned int), platform_place_g_program_owner, 0);
+        }
+        ok = COMPRESSION_STATUS_CHECK(platform_array_counted(&resident->host_offsets, chunks) &&
+                                              platform_array_counted(&resident->host_stream, limbs + 1u)
+                                          ? cudaSuccess
+                                          : cudaErrorMemoryAllocation,
+                                      &resident->host_offsets, error);
+        ok = ok &&
+             COMPRESSION_STATUS_CHECK(cudaMemcpy(resident->host_offsets.cell, resident->chunk_offsets,
                                                  (size_t)chunks * sizeof(unsigned long long), cudaMemcpyDeviceToHost),
-                                      resident->host_offsets.data(), error) &&
-             COMPRESSION_STATUS_CHECK(cudaMemcpy(resident->host_stream.data(), resident->stream,
+                                      resident->host_offsets.cell, error) &&
+             COMPRESSION_STATUS_CHECK(cudaMemcpy(resident->host_stream.cell, resident->stream,
                                                  limbs * sizeof(unsigned int), cudaMemcpyDeviceToHost),
-                                      resident->host_stream.data(), error);
+                                      resident->host_stream.cell, error);
     }
     if (ok == 0)
     {
@@ -412,8 +423,8 @@ extern "C" long compression_encode(const CompressionEncodeRequest *request)
     }
     *request->chunks = chunks;
     *request->bits = bits;
-    *request->offsets = resident->host_offsets.data();
-    *request->stream = resident->host_stream.data();
+    *request->offsets = (const unsigned long long *)resident->host_offsets.cell;
+    *request->stream = (const unsigned int *)resident->host_stream.cell;
     return 0L;
 }
 

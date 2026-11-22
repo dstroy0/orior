@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // codegen_lowering.cu: device memory, and the lowering of a program's steps to machine instructions on the
 // device
+#include "../../../../includes/file_defs/krs/ruleset_reader.h"
 #include "codegen_device_internal.h"
 
 #if (defined(__CUDACC__))
@@ -22,11 +23,11 @@ __global__ void codegen_layout(KeyScheduleCoreLayout layout, LayoutEnd *ended)
 
 void codegen_device_release(DeviceArena *memory)
 {
-    for (void *const allocation : memory->allocations)
+    for (unsigned long long at = 0ULL; at < memory->allocations.count; at += 1ULL)
     {
-        cudaFree(allocation);
+        cudaFree(*(void **)platform_array_at(&memory->allocations, at));
     }
-    memory->allocations.clear();
+    platform_array_ended(&memory->allocations);
 }
 
 // the blocks a kernel over `count` threads takes; 0 where the count is past a grid, which the callers bound below
@@ -43,28 +44,32 @@ void codegen_device_launched(DeviceArena *memory)
 
 // the assembly printer arranged by the device from what a build retained of it, into `text_layout`, which the caller
 // gives back by key_schedule_record_release: 1 where it is arranged, else 0 and why
-int asm_printer_program_device(const AsmPrinterProgram *program, EngineRecordLayout *text_layout, std::string *error)
+int asm_printer_program_device(const AsmPrinterProgram *program, EngineRecordLayout *text_layout, VerbaLinea *error)
 {
     const AsmPrinterProgram &host_program = *program;
     const unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {ASM_PRINTER_RECORD_LIMBS, 0u, 0u};
     LayoutRequest request{};
-    request.steps = host_program.steps.data();
+    request.steps = host_program.steps;
     // the assembly printer's steps are a few hundred, and its fields and tables a handful
-    request.count = (unsigned int)host_program.steps.size();
-    request.field_bits = host_program.field_bits.data();
-    request.field_offset = host_program.field_offset.data();
-    request.fields = (unsigned int)host_program.field_bits.size();
+    request.count = host_program.step_count;
+    request.field_bits = host_program.field_bits;
+    request.field_offset = host_program.field_offset;
+    request.fields = ASM_PRINTER_FIELDS;
     request.members = 1u;
     request.in_limbs = in_limbs;
     request.outputs = &host_program.output;
     request.output_count = 1u;
-    request.tables = host_program.tables.data();
-    request.table_count = (unsigned int)host_program.tables.size();
+    request.tables = host_program.tables;
+    request.table_count = ASM_PRINTER_PROGRAM_TABLES;
     request.reuse = 1;
-    std::string why;
+    char why_text[RULESET_ERROR_BYTES];
+    VerbaLinea why = mmgr_line_over(why_text, sizeof(why_text));
     if (layout_device(&request, text_layout, &why) == 0)
     {
-        *error = "the device did not arrange the assembly printer (" + why + ")";
+        (void)mmgr_line_finish(&why);
+        mmgr_line_put(error, "the device did not arrange the assembly printer (");
+        mmgr_line_put(error, why_text);
+        mmgr_line_put(error, ")");
         return 0;
     }
     return 1;
@@ -73,8 +78,7 @@ int asm_printer_program_device(const AsmPrinterProgram *program, EngineRecordLay
 // the assembly printer arranged by the device from what asm_printer_ruleset_build retained of it, into `text_layout`,
 // which the caller gives back by key_schedule_record_release: 1 where it is arranged and is the host's word for word,
 // else 0 and why
-int asm_printer_program_placed(const AsmPrinterRuleset *text_rules, EngineRecordLayout *text_layout,
-                               std::string *error)
+int asm_printer_program_placed(const AsmPrinterRuleset *text_rules, EngineRecordLayout *text_layout, VerbaLinea *error)
 {
     if (asm_printer_program_device(&text_rules->program, text_layout, error) == 0)
     {
@@ -83,7 +87,7 @@ int asm_printer_program_placed(const AsmPrinterRuleset *text_rules, EngineRecord
     if (layout_same(text_layout, &text_rules->program.layout) == 0)
     {
         key_schedule_record_release(text_layout);
-        *error = "the device arranged the assembly printer apart from the host's";
+        mmgr_line_put(error, "the device arranged the assembly printer apart from the host's");
         return 0;
     }
     return 1;
@@ -113,18 +117,13 @@ int codegen_device_decide(DeviceArena *device_arena, const EngineRecordLayout *l
                           const DeviceRecordStep *device_steps, const unsigned int *scratch,
                           unsigned long long scratch_count, unsigned int places, const ScheduleCosts *costs,
                           ScheduleReport *report, MachineInstr **text_items, unsigned long long *item_count,
-                          std::string *error)
+                          VerbaLinea *error)
 {
     DeviceArena &memory = *device_arena;
     const unsigned int steps = layout->steps;
     if (steps >= CODEGEN_COUNT_MAX)
     {
-        *error = "the program has more steps than a scan counts";
-        return 0;
-    }
-    if ((costs != NULL) && (costs->cost.size() != OPCODE_COUNT))
-    {
-        *error = "the schedule does not give each form a cost";
+        mmgr_line_put(error, "the program has more steps than a scan counts");
         return 0;
     }
     // the program as every step reads it, in device memory
@@ -194,7 +193,7 @@ int codegen_device_decide(DeviceArena *device_arena, const EngineRecordLayout *l
     codegen_device_read(&memory, summary, device_summary, CODEGEN_SUMMARY);
     if ((memory.ok != 0) && (summary[CODEGEN_STEP_FAILED] != 0u))
     {
-        *error = "a step is one the lane does not support";
+        mmgr_line_put(error, "a step is one the lane does not support");
         return 0;
     }
     if (memory.ok != 0)
@@ -224,7 +223,7 @@ int codegen_device_decide(DeviceArena *device_arena, const EngineRecordLayout *l
     }
     if ((memory.ok != 0) && (first_count >= CODEGEN_COUNT_MAX))
     {
-        *error = "the lane contains more forms than a scan counts";
+        mmgr_line_put(error, "the lane contains more forms than a scan counts");
         return 0;
     }
     memory.ok =
@@ -254,10 +253,9 @@ int codegen_device_decide(DeviceArena *device_arena, const EngineRecordLayout *l
     if (costs != NULL)
     {
         Schedule device_schedule{};
-        device_schedule.cost = codegen_device_copy(&memory, costs->cost.data(), costs->cost.size());
+        device_schedule.cost = codegen_device_copy(&memory, costs->cost, OPCODE_COUNT);
         device_schedule.budget = costs->budget;
-        device_schedule.dispatch_error =
-            codegen_device_take<MachineOperand>(&memory, (unsigned long long)steps + 1ULL);
+        device_schedule.dispatch_error = codegen_device_take<MachineOperand>(&memory, (unsigned long long)steps + 1ULL);
         device_schedule.dispatch_state = codegen_device_take<unsigned int>(&memory, (unsigned long long)steps + 1ULL);
         device_schedule.dispatch_max = steps + 1u;
         device_schedule.loop_state = codegen_device_take<unsigned int>(&memory, (unsigned long long)loop_count + 1ULL);
@@ -274,7 +272,7 @@ int codegen_device_decide(DeviceArena *device_arena, const EngineRecordLayout *l
         scheduled_count = schedule_end.count;
         if ((memory.ok != 0) && (scheduled_count >= CODEGEN_COUNT_MAX))
         {
-            *error = "the split lane contains more forms than a scan counts";
+            mmgr_line_put(error, "the split lane contains more forms than a scan counts");
             return 0;
         }
         scheduled_instrs = codegen_device_take<MachineInstr>(&memory, scheduled_count);
@@ -320,7 +318,7 @@ int codegen_device_decide(DeviceArena *device_arena, const EngineRecordLayout *l
     const unsigned long long total = head + last_count + body_written;
     if ((memory.ok != 0) && (total >= CODEGEN_COUNT_MAX))
     {
-        *error = "the lane contains more forms than a scan counts";
+        mmgr_line_put(error, "the lane contains more forms than a scan counts");
         return 0;
     }
     MachineInstr *const text = codegen_device_take<MachineInstr>(&memory, total);
@@ -333,12 +331,12 @@ int codegen_device_decide(DeviceArena *device_arena, const EngineRecordLayout *l
     codegen_device_read(&memory, summary, device_summary, CODEGEN_SUMMARY);
     if (memory.ok == 0)
     {
-        *error = "the device errored on a call";
+        mmgr_line_put(error, "the device errored on a call");
         return 0;
     }
     if (summary[CODEGEN_BROKEN] != 0u)
     {
-        *error = "a form breaks the lane";
+        mmgr_line_put(error, "a form breaks the lane");
         return 0;
     }
     *text_items = text;

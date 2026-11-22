@@ -8,70 +8,77 @@
 #include "ruleset_core.h"
 #include "ruleset_reader.h"
 
-#include <string>
-#include <vector>
+// A run of lists in one cell. A pass with no base counts the bytes of the lists in `used`. A pass with a base puts each
+// list at its offset from the base, and the offset is the same on every pass. A cell of host memory or of device
+// memory can be the base
+struct RulesetCellPlan
+{
+    unsigned char *base;
+    unsigned long long used;
+};
 
-// the schema as the core reads it, in host memory. It holds the characters of each name end to end, with the names of
-// each form, bank and fixed register among them. It also holds the count of parameters of each form, and the view of
-// the core, which points into them
+// `count` elements of `size` bytes each, at the next offset of `plan` that 16 divides. NULL on a pass with no base
+static inline void *ruleset_cell_place(RulesetCellPlan *plan, unsigned long long count, unsigned long long size)
+{
+    const unsigned long long at = (plan->used + 15ULL) & ~15ULL;
+    plan->used = at + (count * size);
+    return (plan->base != NULL) ? (void *)(plan->base + at) : NULL;
+}
+
+// the schema as the core reads it, in one cell of host memory. The cell holds the characters of each name end to end.
+// It holds the span of each form, bank and fixed register among them, and the count of parameters of each form.
+// `schema` is the view of the core, which points into the cell
 struct RulesetFlat
 {
-    std::vector<unsigned char> characters;
-    std::vector<RulesetCoreSpan> forms;
-    std::vector<unsigned int> form_parameters;
-    std::vector<RulesetCoreSpan> banks;
-    std::vector<RulesetCoreSpan> fixed;
+    void *cell;
+    unsigned long long bytes;
     RulesetCoreSchema schema;
 };
 
-// the memory of a read in host memory, each list sized to its capacity
+// the memory of a read, each list sized to its capacity, in one cell of host memory of `bytes`
 struct RulesetMemory
 {
-    std::vector<unsigned char> characters;
-    std::vector<RulesetCoreSpan> pieces;
-    std::vector<unsigned int> placeholders;
-    std::vector<RulesetCoreSpan> words;
-    std::vector<RulesetCoreTemplate> banks;
-    std::vector<RulesetCoreSpan> fixed;
-    std::vector<RulesetCoreTemplate> forms;
-    std::vector<RulesetCoreConstruct> constructs;
-    std::vector<RulesetCoreLine> lines;
-    std::vector<RulesetCoreArgument> arguments;
-    std::vector<unsigned char> bank_given;
-    std::vector<unsigned char> fixed_given;
-    std::vector<unsigned char> form_given;
-    std::vector<RulesetCoreSpan> building_parameters;
+    void *cell;
+    unsigned long long bytes;
 };
 
-// a read ruleset's constructs as the core's scratch reads them, in host memory
+// The constructs of a read ruleset as the core's scratch reads them, in one cell of host memory of `bytes`. The cell
+// holds the constructs, their lines and the arguments of the lines. It also holds the placeholders of each form end
+// to end, with the place of the first of each form. The counts are those of the lines, the arguments and the
+// placeholders
 struct RulesetFlatConstructs
 {
-    std::vector<RulesetCoreConstruct> constructs;
-    std::vector<RulesetCoreLine> lines;
-    std::vector<RulesetCoreArgument> arguments;
-    std::vector<unsigned int> form_placeholder_first;
-    std::vector<unsigned int> form_placeholders;
+    void *cell;
+    unsigned long long bytes;
+    RulesetCoreConstruct *constructs;
+    RulesetCoreLine *lines;
+    RulesetCoreArgument *arguments;
+    unsigned int *form_placeholder_first;
+    unsigned int *form_placeholders;
+    unsigned int form_count;
+    unsigned int line_count;
+    unsigned int argument_count;
+    unsigned int placeholder_count;
 };
 
-// the memory of a relation read in host memory. It holds the characters of the files end to end, and the span of each
-// file with the name that a report knows it by. It also holds the entries, the marks and stack of the walk, and the
-// relations, sized from the lines of the files
+// the memory of a relation read, in one cell of host memory. It holds the characters of the files end to end, and the
+// span of each file with the name that a report knows it by. It also holds the entries, the marks and stack of the
+// walk, and the relations, sized from the lines of the files
 struct RulesetRelationMemory
 {
-    std::vector<unsigned char> text;
-    std::vector<RulesetCoreSpan> files;
-    std::vector<std::string> labels;
-    std::vector<RulesetCoreEntry> entries;
-    std::vector<unsigned int> marks;
-    std::vector<unsigned int> stack;
-    std::vector<RulesetCoreRelation> relations;
+    void *cell;
+    const char **labels;
 };
 
 // the files at `paths`, `count` of them, read into `memory`. The check ruleset_core_relations reads them against each
 // other, and against `schema` where it is not NULL, into `relations`, which points into `memory`. The result is 1, or
-// 0 with its path in `error` where a file did not open
-int ruleset_relations_read(const std::string *paths, unsigned int count, const RulesetCoreSchema *schema,
-                           RulesetRelationMemory *memory, RulesetCoreRelations *relations, std::string *error);
+// 0 with the path of a file that did not open on `error`
+int ruleset_relations_read(const char (*paths)[PLATFORM_PATH_BYTES], unsigned int count,
+                           const RulesetCoreSchema *schema, RulesetRelationMemory *memory,
+                           RulesetCoreRelations *relations, VerbaLinea *error);
+
+// the cell of `memory` given back, after the last read of the relations that point into it
+void ruleset_relation_memory_ended(RulesetRelationMemory *memory);
 
 // what a relation of type `type` states of its entry, as a report writes it after the entry
 const char *ruleset_relation_text(unsigned int type);
@@ -90,7 +97,11 @@ const char *ruleset_map_text(unsigned int type);
 // neither has it.
 // A program built without the run reads each file from the disk. The text stops once it reaches RULESET_FILE_MAX
 // characters, which the caller refuses
-int ruleset_bytes_read(const std::string &path, std::string *text);
+int ruleset_bytes_read(const char *path, PlatformText *text);
+
+// a text begun, empty, for the files of a ruleset: it holds RULESET_FILE_MAX characters and one past them, which the
+// reader refuses
+void ruleset_text_begun(PlatformText *text);
 
 // the files of the ruleset at `path`, into `paths` in the order that ruleset_text reads them:
 //   - the file.
@@ -98,32 +109,52 @@ int ruleset_bytes_read(const std::string &path, std::string *text);
 //   - the .ksc beside the file, where it opens.
 //
 // The result is their count
-unsigned int ruleset_paths(const RulesetSchema *schema, const std::string &path, std::string paths[RULESET_PATHS_MAX]);
+unsigned int ruleset_paths(const RulesetSchema *schema, const char *path,
+                           char paths[RULESET_PATHS_MAX][PLATFORM_PATH_BYTES]);
 
-// the ruleset at `path`, read whole into `text`. Where the file names a part, the .krs of the part comes after it,
-// without its krs 1 line. The ruleset lines of the .kdm of the part come after that. Last come the ruleset lines of
-// the .ksc beside the file, where it has one.
-// The result is 1 where each read succeeded. It is 0, with the reason in `error`, where one did not open or the whole
+// the ruleset at `path`, read whole onto `text`, which the caller began empty. Where the file names a part, the .krs of
+// the part comes after it, without its krs 1 line. The ruleset lines of the .kdm of the part come after that. Last
+// come the ruleset lines of the .ksc beside the file, where it has one.
+// The result is 1 where each read succeeded. It is 0, with the reason on `error`, where one did not open or the whole
 // is more than the reader supports
-int ruleset_text(const RulesetSchema *schema, const std::string &path, std::string *text, std::string *error);
+int ruleset_text(const RulesetSchema *schema, const char *path, PlatformText *text, VerbaLinea *error);
 
-// `rules` begun against its schema, as the reader of the host begins it, with its text read into `text` by
+// `rules` begun against its schema, as the reader of the host begins it, with its text read onto `text` by
 // ruleset_text. The result is 1 where the read succeeded. It is 0, with the reason in rules->error, where it failed
-int ruleset_file(Ruleset *rules, const std::string &path, std::string *text);
+int ruleset_file(Ruleset *rules, const char *path, PlatformText *text);
 
+// The schema laid out on `plan` into `placed`. The names' characters come first, then the spans of the forms, the
+// banks and the fixed registers, then the forms' counts of parameters
+void ruleset_flat_layout(const RulesetSchema *schema, RulesetCellPlan *plan, RulesetCoreSchema *placed);
+
+// the schema flattened into one cell of `flat`, which ruleset_flat_ended gives back
 void ruleset_flat_schema(const RulesetSchema *schema, RulesetFlat *flat);
+
+void ruleset_flat_ended(RulesetFlat *flat);
 
 // `read`'s capacities for a file of `text_length` characters: no read of the file passes them
 void ruleset_capacities(unsigned int text_length, RulesetCoreRead *read);
 
-// `memory` sized to `read`'s capacities and the schema's counts, and `read` pointed at it
-void ruleset_memory_size(RulesetMemory *memory, RulesetCoreRead *read);
+// the lists of `read` laid out on `plan`, each sized from its capacities and the schema's counts
+void ruleset_memory_layout(RulesetCellPlan *plan, RulesetCoreRead *read);
+
+// `memory` sized to `read`'s capacities and the schema's counts, and `read` pointed at it. 1, or 0 where the pool
+// cannot meet the bytes
+int ruleset_memory_size(RulesetMemory *memory, RulesetCoreRead *read);
+
+void ruleset_memory_ended(RulesetMemory *memory);
 
 // what `read` read, from the file `text`, stored in `rules` as the host's reader stored it, with the reason it ended
 // where it did not read the file
-void ruleset_store(const RulesetCoreRead *read, const std::string &text, Ruleset *rules);
+void ruleset_store(const RulesetCoreRead *read, const char *text, Ruleset *rules);
 
-// `rules`' constructs arranged for the core's scratch, each argument's text left out, which the scratch does not read
-void ruleset_flat_constructs(const Ruleset *rules, RulesetFlatConstructs *flat);
+// `rules`' constructs arranged for the core's scratch, each argument's text left out, which the scratch does not read.
+// 1, or 0 where the pool cannot meet the bytes
+int ruleset_flat_constructs(const Ruleset *rules, RulesetFlatConstructs *flat);
+
+// the lists of `flat` pointed at by `arranged` at the same offsets from `base`, a cell of `flat->bytes`
+void ruleset_flat_constructs_at(const RulesetFlatConstructs *flat, unsigned char *base, RulesetCoreScratch *arranged);
+
+void ruleset_flat_constructs_ended(RulesetFlatConstructs *flat);
 
 #endif

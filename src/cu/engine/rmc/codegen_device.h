@@ -16,15 +16,12 @@
 //
 // The step table itself is arranged on the device as well, from the program's steps: keymath's encoding
 // (keymath_core.h) and key_schedule's layout (key_schedule_core.h), each in one thread, since each step reads the steps
-// before it, the one keymath_record_encode and key_schedule_record_layout run on the host. The assembly printer is positioned
-// out there too, from what asm_printer_ruleset_build retained of it, and checked against the host's layout word for
-// word before the record machine loads it
+// before it, the one keymath_record_encode and key_schedule_record_layout run on the host. The assembly printer is
+// positioned out there too, from what asm_printer_ruleset_build retained of it, and checked against the host's layout
+// word for word before the record machine loads it
 
 #include "asm_printer.h"
 #include "code_generator.h"
-
-#include <string>
-#include <vector>
 
 // a program as keymath and key_schedule take it (KeymathRecordRequest, KeyScheduleRecordRequest): its steps, the
 // fields' widths and offsets, its members and the limbs each reads, its outputs and tables, and whether registers are
@@ -46,32 +43,33 @@ struct LayoutRequest
 };
 
 // the lane of `layout` written by the device in the ruleset `text_rules` was arranged from, `places` the places it
-// uses in shared memory (the file's where the language positions it out there, else 0), split into states by `costs` where
-// it is given (the language's CodeGenerator::program_schedule_costs, where its program() splits the lane): 1 where it
-// was written, its text in `text`; 0, and why in `error`, where a step is one the lane does not support, a form breaks
-// the lane, the text is more than the assembly printer supports, the device errored on a call, or the build has no
-// device
+// uses in shared memory (the file's where the language positions it out there, else 0), split into states by `costs`
+// where it is given (the language's CodeGenerator::program_schedule_costs, where its program() splits the lane): 1
+// where it was written, its text on `text`; 0, and why on `error`, where a step is one the lane does not support, a
+// form breaks the lane, the text is more than the assembly printer supports, the device errored on a call, or the build
+// has no device
 int codegen_device(const EngineRecordLayout *layout, const AsmPrinterRuleset *text_rules, unsigned int places,
-                   const ScheduleCosts *costs, std::string *text, std::string *error);
+                   const ScheduleCosts *costs, PlatformText *text, VerbaLinea *error);
 
-// the program of `request` arranged by the device and read back into `layout`, as key_schedule_record_layout positions it
-// out and key_schedule_record_release releases it: 1 where it was arranged; 0, and why in `error`, where keymath or
+// the program of `request` arranged by the device and read back into `layout`, as key_schedule_record_layout positions
+// it out and key_schedule_record_release releases it: 1 where it was arranged; 0, and why on `error`, where keymath or
 // key_schedule errors on it, the device errored on a call, or the build has no device
-int layout_device(const LayoutRequest *request, EngineRecordLayout *layout, std::string *error);
+int layout_device(const LayoutRequest *request, EngineRecordLayout *layout, VerbaLinea *error);
 
 // the lane of the program of `request` written by the device, from the step table the device arranged, none of it read
 // back: arranged as layout_device positions it out and written as codegen_device writes it
 int codegen_device_steps(const LayoutRequest *request, const AsmPrinterRuleset *text_rules, unsigned int places,
-                         const ScheduleCosts *costs, std::string *text, std::string *error);
+                         const ScheduleCosts *costs, PlatformText *text, VerbaLinea *error);
 
-// the forms of the lane of `layout` as the device decides them, in the text's order, each construct taking its scratch
-// from `scratch` (ruleset_scratch), and read back into `items`: those CodeGenerator::decided gives, where `costs`
-// is NULL, else the lane split by `costs` into states and `report` informed how, as the scheduled decided gives them. 1
-// where they were decided; 0, and why in `error`, where a step is one the lane does not support, a form breaks the
-// lane, the device errored on a call, or the build has no device
-int codegen_device_instrs(const EngineRecordLayout *layout, const std::vector<unsigned int> &scratch,
-                          unsigned int places, const ScheduleCosts *costs, ScheduleReport *report,
-                          std::vector<MachineInstr> *items, std::string *error);
+// The forms of the lane of `layout` as the device decides them, in the text's order. Each construct takes its scratch
+// from `scratch`, `scratch_count` words (ruleset_scratch). They are read back into `items`, an array of MachineInstr
+// that the caller began: those CodeGenerator::decided gives, where `costs` is NULL, else the lane split by `costs`
+// into states and `report` informed how, as the scheduled decided gives them. 1 where they were decided; 0, and why
+// on `error`, where a step is one the lane does not support, a form breaks the lane, the device errored on a call, or
+// the build has no device
+int codegen_device_instrs(const EngineRecordLayout *layout, const unsigned int *scratch,
+                          unsigned long long scratch_count, unsigned int places, const ScheduleCosts *costs,
+                          ScheduleReport *report, PlatformArray *items, VerbaLinea *error);
 
 // 1 where two layouts are the same word for word: their sizes, step tables and tables' values
 int layout_same(const EngineRecordLayout *left, const EngineRecordLayout *right);
@@ -84,9 +82,9 @@ int layout_device_agrees(const LayoutRequest *request, EngineRecordLayout *layou
 // asm_printer_ruleset_build on the device: the schema checked on the host, the scratch taken by the device
 // (ruleset_scratch_device), then the build (asm_printer_core.h) in one device thread and the program arranged by the
 // device (layout_device). The program's key is not retained, and its output is the program's. 1 where it is built, else
-// 0 and why in `error`, as the host's build errors, or where the device errored on a call or the build has no device
-int asm_printer_ruleset_device(const Ruleset *rules, const TargetInfo *target, const std::string &header,
-                               AsmPrinterRuleset *text_rules, std::string *error);
+// 0 and why on `error`, as the host's build errors, or where the device errored on a call or the build has no device
+int asm_printer_ruleset_device(const Ruleset *rules, const TargetInfo *target, const char *header,
+                               AsmPrinterRuleset *text_rules, VerbaLinea *error);
 
 // 1 where two builds of a ruleset are the same word for word: their scratch and lists, the program's steps, fields,
 // tables and output, and its layout
@@ -94,14 +92,15 @@ int asm_printer_ruleset_same(const AsmPrinterRuleset *left, const AsmPrinterRule
 
 // the ruleset at `path` read into `rules` against rules->schema as the host's reader reads it, the file opened on the
 // host and its lines read in one device thread (ruleset_core.h): 1 where the device read it, `rules` then as the
-// host's reader leaves them, read or errored; 0, and why in `error`, where the device errored on a call or the build
+// host's reader leaves them, read or errored; 0, and why on `error`, where the device errored on a call or the build
 // has no device
-int ruleset_read_device(Ruleset *rules, const std::string &path, std::string *error);
+int ruleset_read_device(Ruleset *rules, const char *path, VerbaLinea *error);
 
-// ruleset_scratch arranged in one device thread (ruleset_core_scratch.h): 1 where it was; 0, and why in `error`,
-// where the device errored on a call or the build has no device
-int ruleset_scratch_device(const Ruleset *rules, const unsigned int *banks, std::vector<unsigned int> *scratch,
-                           std::string *error);
+// ruleset_scratch arranged in one device thread (ruleset_core_scratch.h), into `scratch`, four words a form. 1 where
+// it was; 0, and why on `error`, where the pool cannot meet the cell, the device errored on a call or the build has
+// no device. The caller gives the cell of `scratch` back
+int ruleset_scratch_device(const Ruleset *rules, const unsigned int *banks, AsmPrinterWords *scratch,
+                           VerbaLinea *error);
 
 // 1 where two rulesets are the same as read: their schema, path, reason, names, banks, registers, forms, constructs,
 // which were given, and the construct being read with its parameters

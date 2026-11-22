@@ -5,53 +5,93 @@
 #include "../../src/cu/engine/rmc/codegen_device.h"
 #include "../../src/cu/engine/rmc/codegen_device_internal.h"
 #include "../file_defs/krs/ruleset_flat.h"
+#include "cellularum_laboro/cellularum_linea.h"
+#include "memoria_operor/memoria_linea.h"
 
-// 1 where two templates are the same: their pieces and placeholders
-static int ruleset_same_templates(const std::vector<InstrTemplate> &left, const std::vector<InstrTemplate> &right)
+// 1 where two texts are the same
+static int ruleset_same_text(const char *left, const char *right)
 {
-    int same = left.size() == right.size();
-    for (size_t at = 0u; (same != 0) && (at < left.size()); at += 1u)
+    return mmgr_text_order(left, right, PLATFORM_TEXT_TO_TERMINATOR) == 0;
+}
+
+// 1 where two lists of `count` templates are the same: their pieces and placeholders
+static int ruleset_same_templates(const InstrTemplate *left, const InstrTemplate *right, unsigned int count)
+{
+    int same = 1;
+    for (unsigned int at = 0u; (same != 0) && (at < count); at += 1u)
     {
-        same = (left[at].pieces == right[at].pieces) && (left[at].placeholders == right[at].placeholders);
+        same = (left[at].placeholder_count == right[at].placeholder_count) &&
+               ((left[at].placeholder_count == 0u) ||
+                (mmgr_bytes_compare(left[at].placeholders, right[at].placeholders,
+                                    (size_t)left[at].placeholder_count * sizeof(unsigned int)) == 0));
+        for (unsigned int piece = 0u; (same != 0) && (piece <= left[at].placeholder_count); piece += 1u)
+        {
+            same = ruleset_same_text(left[at].pieces[piece], right[at].pieces[piece]);
+        }
     }
     return same;
 }
 
-// 1 where two rulesets' constructs are the same: each line's form and each argument's type, placeholder, number and
-// text
-static int ruleset_same_constructs(const std::vector<Pseudo> &left, const std::vector<Pseudo> &right)
+// 1 where two rulesets' `count` constructs are the same: each line's form and each argument's type, placeholder, number
+// and text
+static int ruleset_same_constructs(const Pseudo *left, const Pseudo *right, unsigned int count)
 {
-    int same = left.size() == right.size();
-    for (size_t construct = 0u; (same != 0) && (construct < left.size()); construct += 1u)
+    int same = 1;
+    for (unsigned int construct = 0u; (same != 0) && (construct < count); construct += 1u)
     {
-        const std::vector<PseudoLine> &one = left[construct].lines;
-        const std::vector<PseudoLine> &other = right[construct].lines;
-        same = one.size() == other.size();
-        for (size_t line = 0u; (same != 0) && (line < one.size()); line += 1u)
+        const Pseudo *const one = &left[construct];
+        const Pseudo *const other = &right[construct];
+        same = one->line_count == other->line_count;
+        for (unsigned int line = 0u; (same != 0) && (line < one->line_count); line += 1u)
         {
-            same = (one[line].form == other[line].form) && (one[line].arguments.size() == other[line].arguments.size());
-            for (size_t at = 0u; (same != 0) && (at < one[line].arguments.size()); at += 1u)
+            same = (one->lines[line].form == other->lines[line].form) &&
+                   (one->lines[line].argument_count == other->lines[line].argument_count);
+            for (unsigned int at = 0u; (same != 0) && (at < one->lines[line].argument_count); at += 1u)
             {
-                const PseudoOperand &given = one[line].arguments[at];
-                const PseudoOperand &taken = other[line].arguments[at];
-                same = (given.type == taken.type) && (given.placeholder == taken.placeholder) &&
-                       (given.number == taken.number) && (given.text == taken.text);
+                const PseudoOperand *const given = &one->lines[line].arguments[at];
+                const PseudoOperand *const taken = &other->lines[line].arguments[at];
+                same = (given->type == taken->type) && (given->placeholder == taken->placeholder) &&
+                       (given->number == taken->number) && ruleset_same_text(given->text, taken->text);
             }
         }
     }
     return same;
 }
 
+// 1 where two lists of `count` texts are the same
+static int ruleset_same_texts(const char *const *left, const char *const *right, unsigned int count)
+{
+    int same = 1;
+    for (unsigned int at = 0u; (same != 0) && (at < count); at += 1u)
+    {
+        same = ruleset_same_text(left[at], right[at]);
+    }
+    return same;
+}
+
 int ruleset_same(const Ruleset *left, const Ruleset *right)
 {
-    return (left->schema == right->schema) && (left->path == right->path) && (left->error == right->error) &&
-           (left->name == right->name) && (left->toolchain == right->toolchain) && (left->header == right->header) &&
-           (left->shared == right->shared) && (left->write_ports == right->write_ports) && (left->part == right->part) &&
-           ruleset_same_templates(left->banks, right->banks) && (left->fixed == right->fixed) &&
-           ruleset_same_templates(left->forms, right->forms) &&
-           ruleset_same_constructs(left->constructs, right->constructs) && (left->bank_given == right->bank_given) &&
-           (left->fixed_given == right->fixed_given) && (left->form_given == right->form_given) &&
-           (left->building == right->building) && (left->building_parameters == right->building_parameters);
+    const RulesetSchema *const schema = left->schema;
+    const int heads = (left->schema == right->schema) && ruleset_same_text(left->path, right->path) &&
+                      ruleset_same_text(left->error, right->error);
+    // a ruleset whose file did not open stores no lists, and two such are the same where their heads are
+    if ((left->cell == NULL) || (right->cell == NULL))
+    {
+        return heads && (left->cell == right->cell);
+    }
+    return heads && ruleset_same_text(left->name, right->name) &&
+           ruleset_same_text(left->toolchain, right->toolchain) && ruleset_same_text(left->header, right->header) &&
+           ruleset_same_text(left->shared, right->shared) && ruleset_same_text(left->write_ports, right->write_ports) &&
+           ruleset_same_text(left->part, right->part) &&
+           ruleset_same_templates(left->banks, right->banks, schema->bank_count) &&
+           ruleset_same_texts(left->fixed, right->fixed, schema->fixed_count) &&
+           ruleset_same_templates(left->forms, right->forms, schema->form_count) &&
+           ruleset_same_constructs(left->constructs, right->constructs, schema->form_count) &&
+           (mmgr_bytes_compare(left->bank_given, right->bank_given, schema->bank_count) == 0) &&
+           (mmgr_bytes_compare(left->fixed_given, right->fixed_given, schema->fixed_count) == 0) &&
+           (mmgr_bytes_compare(left->form_given, right->form_given, schema->form_count) == 0) &&
+           (left->building == right->building) && (left->building_parameter_count == right->building_parameter_count) &&
+           ruleset_same_texts(left->building_parameters, right->building_parameters, left->building_parameter_count);
 }
 
 #if (defined(__CUDACC__))
@@ -77,87 +117,38 @@ __global__ void codegen_reader_scratch(RulesetCoreScratch *scratch)
     ruleset_core_scratch(scratch);
 }
 
-// device memory as many entries as `sized` sizes
-template <typename Element> static Element *codegen_reader_take(DeviceArena *memory, const std::vector<Element> &sized)
+int ruleset_read_device(Ruleset *rules, const char *path, VerbaLinea *error)
 {
-    return codegen_device_take<Element>(memory, sized.size());
-}
-
-// `to`, as many entries as it has room for, read back from the device's `from`
-template <typename Element>
-static void codegen_reader_back(DeviceArena *memory, std::vector<Element> *to, const Element *from)
-{
-    codegen_device_read(memory, to->data(), from, to->size());
-}
-
-// `read`'s lists taken on the device, as many entries each as `memory` sized it
-static void codegen_reader_memory(DeviceArena *device_arena, const RulesetMemory *memory, RulesetCoreRead *read)
-{
-    read->characters = codegen_reader_take(device_arena, memory->characters);
-    read->pieces = codegen_reader_take(device_arena, memory->pieces);
-    read->placeholders = codegen_reader_take(device_arena, memory->placeholders);
-    read->words = codegen_reader_take(device_arena, memory->words);
-    read->banks = codegen_reader_take(device_arena, memory->banks);
-    read->fixed = codegen_reader_take(device_arena, memory->fixed);
-    read->forms = codegen_reader_take(device_arena, memory->forms);
-    read->constructs = codegen_reader_take(device_arena, memory->constructs);
-    read->lines = codegen_reader_take(device_arena, memory->lines);
-    read->arguments = codegen_reader_take(device_arena, memory->arguments);
-    read->bank_given = codegen_reader_take(device_arena, memory->bank_given);
-    read->fixed_given = codegen_reader_take(device_arena, memory->fixed_given);
-    read->form_given = codegen_reader_take(device_arena, memory->form_given);
-    read->building_parameters = codegen_reader_take(device_arena, memory->building_parameters);
-}
-
-// what the device's read wrote, read back into `memory`, which `host` points at
-static void codegen_reader_read_back(DeviceArena *device_arena, const RulesetCoreRead *ended, RulesetMemory *memory,
-                                     RulesetCoreRead *host)
-{
-    *host = *ended;
-    ruleset_memory_size(memory, host);
-    codegen_reader_back(device_arena, &memory->characters, ended->characters);
-    codegen_reader_back(device_arena, &memory->pieces, ended->pieces);
-    codegen_reader_back(device_arena, &memory->placeholders, ended->placeholders);
-    codegen_reader_back(device_arena, &memory->words, ended->words);
-    codegen_reader_back(device_arena, &memory->banks, ended->banks);
-    codegen_reader_back(device_arena, &memory->fixed, ended->fixed);
-    codegen_reader_back(device_arena, &memory->forms, ended->forms);
-    codegen_reader_back(device_arena, &memory->constructs, ended->constructs);
-    codegen_reader_back(device_arena, &memory->lines, ended->lines);
-    codegen_reader_back(device_arena, &memory->arguments, ended->arguments);
-    codegen_reader_back(device_arena, &memory->bank_given, ended->bank_given);
-    codegen_reader_back(device_arena, &memory->fixed_given, ended->fixed_given);
-    codegen_reader_back(device_arena, &memory->form_given, ended->form_given);
-    codegen_reader_back(device_arena, &memory->building_parameters, ended->building_parameters);
-}
-
-int ruleset_read_device(Ruleset *rules, const std::string &path, std::string *error)
-{
-    std::string ruleset_text;
+    PlatformText ruleset_text;
+    ruleset_text_begun(&ruleset_text);
     if (ruleset_file(rules, path, &ruleset_text) == 0)
     {
+        platform_text_ended(&ruleset_text);
         return 1;
     }
+    const char *const text = platform_text_bytes(&ruleset_text);
     RulesetFlat flat;
     ruleset_flat_schema(rules->schema, &flat);
     DeviceArena reader_arena{};
-    reader_arena.ok = 1;
+    reader_arena.ok = (flat.cell != NULL) ? 1 : 0;
     RulesetCoreRead read{};
     read.schema = flat.schema;
-    read.schema.characters = codegen_device_copy(&reader_arena, flat.characters.data(), flat.characters.size());
-    read.schema.forms = codegen_device_copy(&reader_arena, flat.forms.data(), flat.forms.size());
-    read.schema.form_parameters =
-        codegen_device_copy(&reader_arena, flat.form_parameters.data(), flat.form_parameters.size());
-    read.schema.banks = codegen_device_copy(&reader_arena, flat.banks.data(), flat.banks.size());
-    read.schema.fixed = codegen_device_copy(&reader_arena, flat.fixed.data(), flat.fixed.size());
-    read.text = codegen_device_copy(&reader_arena, (const unsigned char *)ruleset_text.data(), ruleset_text.size());
-    // ruleset_file contains a ruleset below RULESET_FILE_MAX characters
-    read.text_length = (unsigned int)ruleset_text.size();
+    // the schema's one cell copied whole, and the device's view of it at the same offsets
+    unsigned char *const device_schema =
+        codegen_device_copy(&reader_arena, (const unsigned char *)flat.cell, flat.bytes);
+    RulesetCellPlan schema_plan = {device_schema, 0ULL};
+    ruleset_flat_layout(rules->schema, &schema_plan, &read.schema);
+    // ruleset_file holds a ruleset below RULESET_FILE_MAX characters
+    read.text_length = (unsigned int)platform_text_size(&ruleset_text);
+    read.text = codegen_device_copy(&reader_arena, (const unsigned char *)text, read.text_length);
     ruleset_capacities(read.text_length, &read);
-    RulesetMemory memory;
+    RulesetMemory memory = {NULL, 0ULL};
     RulesetCoreRead sized = read;
-    ruleset_memory_size(&memory, &sized);
-    codegen_reader_memory(&reader_arena, &memory, &read);
+    reader_arena.ok = (reader_arena.ok != 0) && ruleset_memory_size(&memory, &sized);
+    // the memory's one cell taken whole on the device, and the read pointed into it at the same offsets
+    unsigned char *const device_memory = codegen_device_take<unsigned char>(&reader_arena, memory.bytes);
+    RulesetCellPlan memory_plan = {device_memory, 0ULL};
+    ruleset_memory_layout(&memory_plan, &read);
     RulesetCoreRead *const device_read = codegen_device_copy(&reader_arena, &read, 1ULL);
     if (reader_arena.ok != 0)
     {
@@ -166,83 +157,102 @@ int ruleset_read_device(Ruleset *rules, const std::string &path, std::string *er
     }
     RulesetCoreRead ended{};
     codegen_device_read(&reader_arena, &ended, device_read, 1ULL);
-    RulesetCoreRead host{};
-    if (reader_arena.ok != 0)
-    {
-        codegen_reader_read_back(&reader_arena, &ended, &memory, &host);
-    }
+    // what the device read, its memory read back whole into the host's cell, and the host's view of it
+    codegen_device_read(&reader_arena, (unsigned char *)memory.cell, device_memory, memory.bytes);
+    RulesetCoreRead host = ended;
+    host.schema = flat.schema;
+    host.text = (const unsigned char *)text;
+    RulesetCellPlan host_plan = {(unsigned char *)memory.cell, 0ULL};
+    ruleset_memory_layout(&host_plan, &host);
     const int ok = reader_arena.ok;
     codegen_device_release(&reader_arena);
+    if (ok != 0)
+    {
+        ruleset_store(&host, text, rules);
+    }
+    ruleset_memory_ended(&memory);
+    ruleset_flat_ended(&flat);
+    platform_text_ended(&ruleset_text);
     if (ok == 0)
     {
-        *error = "the device errored on a call";
+        mmgr_line_put(error, "the device errored on a call");
         return 0;
     }
-    ruleset_store(&host, ruleset_text, rules);
     return 1;
 }
 
-int ruleset_scratch_device(const Ruleset *rules, const unsigned int *banks, std::vector<unsigned int> *scratch,
-                           std::string *error)
+int ruleset_scratch_device(const Ruleset *rules, const unsigned int *banks, AsmPrinterWords *scratch, VerbaLinea *error)
 {
     const unsigned int forms = rules->schema->form_count;
+    scratch->words = NULL;
+    scratch->count = 0ULL;
     RulesetFlatConstructs flat;
-    ruleset_flat_constructs(rules, &flat);
+    if (ruleset_flat_constructs(rules, &flat) == 0)
+    {
+        mmgr_line_put(error, "the pool cannot meet the constructs");
+        return 0;
+    }
+    const unsigned long long words = (4ULL * forms) + 1ULL;
+    scratch->words =
+        (unsigned int *)platform_cell_cleared(words, sizeof(unsigned int), platform_place_g_program_owner, 0);
     DeviceArena scratch_arena{};
-    scratch_arena.ok = 1;
+    scratch_arena.ok = (scratch->words != NULL) ? 1 : 0;
     RulesetCoreScratch arranged{};
-    arranged.constructs = codegen_device_copy(&scratch_arena, flat.constructs.data(), flat.constructs.size());
-    arranged.lines = codegen_device_copy(&scratch_arena, flat.lines.data(), flat.lines.size());
-    arranged.arguments = codegen_device_copy(&scratch_arena, flat.arguments.data(), flat.arguments.size());
-    arranged.form_placeholder_first =
-        codegen_device_copy(&scratch_arena, flat.form_placeholder_first.data(), flat.form_placeholder_first.size());
-    arranged.form_placeholders =
-        codegen_device_copy(&scratch_arena, flat.form_placeholders.data(), flat.form_placeholders.size());
+    // the constructs' one cell copied whole, and the device's view of it at the same offsets
+    unsigned char *const device_constructs =
+        codegen_device_copy(&scratch_arena, (const unsigned char *)flat.cell, flat.bytes);
+    ruleset_flat_constructs_at(&flat, device_constructs, &arranged);
     arranged.form_count = forms;
     arranged.banks[0] = banks[0];
     arranged.banks[1] = banks[1];
     arranged.banks[2] = banks[2];
-    scratch->assign((4u * (size_t)forms) + 1u, 0u);
-    arranged.scratch = codegen_reader_take(&scratch_arena, *scratch);
+    arranged.scratch = codegen_device_take<unsigned int>(&scratch_arena, words);
+    scratch_arena.ok = (scratch_arena.ok != 0) &&
+                       (cudaMemset(arranged.scratch, 0, (size_t)words * sizeof(unsigned int)) == cudaSuccess);
     arranged.counted = codegen_device_take<unsigned char>(&scratch_arena, (unsigned long long)forms + 1ULL);
     arranged.frames = codegen_device_take<RulesetCoreFrame>(&scratch_arena, (unsigned long long)forms + 1ULL);
-    arranged.taken_bank = codegen_reader_take(&scratch_arena, std::vector<unsigned int>(flat.arguments.size()));
-    arranged.taken_number = codegen_reader_take(&scratch_arena, std::vector<unsigned int>(flat.arguments.size()));
+    arranged.taken_bank =
+        codegen_device_take<unsigned int>(&scratch_arena, (unsigned long long)flat.argument_count + 1ULL);
+    arranged.taken_number =
+        codegen_device_take<unsigned int>(&scratch_arena, (unsigned long long)flat.argument_count + 1ULL);
     RulesetCoreScratch *const device_scratch = codegen_device_copy(&scratch_arena, &arranged, 1ULL);
     if (scratch_arena.ok != 0)
     {
         codegen_reader_scratch<<<1u, 1u>>>(device_scratch);
         codegen_device_launched(&scratch_arena);
     }
-    codegen_reader_back(&scratch_arena, scratch, arranged.scratch);
+    codegen_device_read(&scratch_arena, scratch->words, arranged.scratch, words);
     const int ok = scratch_arena.ok;
     codegen_device_release(&scratch_arena);
-    scratch->resize(4u * (size_t)forms);
+    ruleset_flat_constructs_ended(&flat);
     if (ok == 0)
     {
-        *error = "the device errored on a call";
+        platform_cell_released(scratch->words, platform_place_g_program_owner);
+        scratch->words = NULL;
+        mmgr_line_put(error, "the device errored on a call");
         return 0;
     }
+    scratch->count = 4ULL * forms;
     return 1;
 }
 
 #else
 
-int ruleset_read_device(Ruleset *rules, const std::string &path, std::string *error)
+int ruleset_read_device(Ruleset *rules, const char *path, VerbaLinea *error)
 {
     (void)rules;
     (void)path;
-    *error = "the build has no device";
+    mmgr_line_put(error, "the build has no device");
     return 0;
 }
 
-int ruleset_scratch_device(const Ruleset *rules, const unsigned int *banks, std::vector<unsigned int> *scratch,
-                           std::string *error)
+int ruleset_scratch_device(const Ruleset *rules, const unsigned int *banks, AsmPrinterWords *scratch, VerbaLinea *error)
 {
     (void)rules;
     (void)banks;
-    scratch->clear();
-    *error = "the build has no device";
+    scratch->words = NULL;
+    scratch->count = 0ULL;
+    mmgr_line_put(error, "the build has no device");
     return 0;
 }
 

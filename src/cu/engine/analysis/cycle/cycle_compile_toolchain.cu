@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cycle_compile_toolchain.cu: the environment, the compiler and linker, and the cache's names
+#include "../../../../platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "cycle_compile_internal.h"
 #include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
-#include "../../../../platform/platform.h"
 
 CycleCompiler g_cycle_compiler;
 
@@ -160,67 +160,76 @@ int cycle_linker_ready(void)
 }
 
 // the target's text for the device and the type of link, which names both, then the prelude
-std::string cycle_target_source(int major, int minor, int lto)
+void cycle_target_source(int major, int minor, int lto, PlatformText *text)
 {
-    std::string text;
+    mmgr_line_put(&text->line, "// a record program's lane, for sm_");
+    mmgr_line_decimal_signed(&text->line, major);
+    mmgr_line_decimal_signed(&text->line, minor);
+    mmgr_line_put(&text->line, ", NVRTC ");
+    mmgr_line_decimal_signed(&text->line, g_cycle_compiler.major);
+    mmgr_line_put(&text->line, ".");
+    mmgr_line_decimal_signed(&text->line, g_cycle_compiler.minor);
+    mmgr_line_put(&text->line, ", as ");
+    mmgr_line_put(&text->line, (lto != 0) ? "LTO-IR" : "relocatable cubin");
+    mmgr_line_ch(&text->line, '\n');
+    mmgr_line_put(&text->line, g_cycle_prelude);
+}
+
+// the `parts` texts at `part` end to end into `folder`, `bytes` of it: 1 where they fit
+static int cycle_folder_joined(char *folder, size_t bytes, const char *const *part, unsigned int parts)
+{
+    VerbaLinea line = mmgr_line_over(folder, bytes);
+    for (unsigned int at = 0u; at < parts; at += 1u)
     {
-        TextNote text_note;
-        text_note_begun(&text_note, &text);
-        mmgr_line_put(&text_note.line, "// a record program's lane, for sm_");
-        mmgr_line_decimal_signed(&text_note.line, major);
-        mmgr_line_decimal_signed(&text_note.line, minor);
-        mmgr_line_put(&text_note.line, ", NVRTC ");
-        mmgr_line_decimal_signed(&text_note.line, g_cycle_compiler.major);
-        mmgr_line_put(&text_note.line, ".");
-        mmgr_line_decimal_signed(&text_note.line, g_cycle_compiler.minor);
-        mmgr_line_put(&text_note.line, ", as ");
-        mmgr_line_put(&text_note.line, (lto != 0) ? "LTO-IR" : "relocatable cubin");
-        mmgr_line_ch(&text_note.line, '\n');
-        text_note_written(&text_note);
+        mmgr_line_put(&line, part[at]);
     }
-    text += g_cycle_prelude;
-    return text;
+    return (mmgr_line_finish(&line) != 0u) && (mmgr_line_ok(&line) != 0);
 }
 
 // the folder compiled programs are cached in across processes: $CYCLE_CACHE, else the user's cache, then cycle
-std::string cycle_cache_folder(void)
+int cycle_cache_folder(char *folder, size_t bytes)
 {
-    char named_text[PLATFORM_ENVIRONMENT_BYTES];
-    const char *const named =
-        (platform_environment("CYCLE_CACHE", named_text, sizeof(named_text)) != 0ULL) ? named_text : NULL;
-    if ((named != NULL) && (named[0] != '\0'))
+    char named[PLATFORM_ENVIRONMENT_BYTES];
+    if ((platform_environment("CYCLE_CACHE", named, sizeof(named)) != 0ULL) && (named[0] != '\0'))
     {
-        return std::string(named);
+        const char *const parts[1] = {named};
+        return cycle_folder_joined(folder, bytes, parts, 1u);
     }
 #if defined(_WIN32)
-    char local_text[PLATFORM_ENVIRONMENT_BYTES];
-    const char *const local =
-        (platform_environment("LOCALAPPDATA", local_text, sizeof(local_text)) != 0ULL) ? local_text : NULL;
-    return (local != NULL) ? (std::string(local) + "\\cycle") : std::string();
+    char local[PLATFORM_ENVIRONMENT_BYTES];
+    if (platform_environment("LOCALAPPDATA", local, sizeof(local)) == 0ULL)
+    {
+        return 0;
+    }
+    const char *const parts[2] = {local, "\\cycle"};
+    return cycle_folder_joined(folder, bytes, parts, 2u);
 #else
-    char cache_text[PLATFORM_ENVIRONMENT_BYTES];
-    const char *const cache =
-        (platform_environment("XDG_CACHE_HOME", cache_text, sizeof(cache_text)) != 0ULL) ? cache_text : NULL;
-    char home_text[PLATFORM_ENVIRONMENT_BYTES];
-    const char *const home = (platform_environment("HOME", home_text, sizeof(home_text)) != 0ULL) ? home_text : NULL;
-    if ((cache != NULL) && (cache[0] != '\0'))
+    char cache[PLATFORM_ENVIRONMENT_BYTES];
+    if ((platform_environment("XDG_CACHE_HOME", cache, sizeof(cache)) != 0ULL) && (cache[0] != '\0'))
     {
-        return std::string(cache) + "/cycle";
+        const char *const parts[2] = {cache, "/cycle"};
+        return cycle_folder_joined(folder, bytes, parts, 2u);
     }
-    if (home == NULL)
+    char home[PLATFORM_ENVIRONMENT_BYTES];
+    if (platform_environment("HOME", home, sizeof(home)) == 0ULL)
     {
-        return std::string();
+        return 0;
     }
-    mkdir((std::string(home) + "/.cache").c_str(), 0755);
-    return std::string(home) + "/.cache/cycle";
+    const char *const above[2] = {home, "/.cache"};
+    if (cycle_folder_joined(folder, bytes, above, 2u) != 0)
+    {
+        mkdir(folder, 0755);
+    }
+    const char *const parts[2] = {home, "/.cache/cycle"};
+    return cycle_folder_joined(folder, bytes, parts, 2u);
 #endif
 }
 
 // a source's FNV-1a
-unsigned long long cycle_source_hash(const std::string &source)
+unsigned long long cycle_source_hash(const char *source, unsigned long long length)
 {
     unsigned long long hash = 0xCBF29CE484222325ULL;
-    for (size_t at = 0u; at < source.size(); at += 1u)
+    for (unsigned long long at = 0ULL; at < length; at += 1ULL)
     {
         // a source byte is read as its unsigned value
         hash = (hash ^ (unsigned long long)(unsigned char)source[at]) * 0x100000001B3ULL;
@@ -231,18 +240,35 @@ unsigned long long cycle_source_hash(const std::string &source)
 // a source's file in the cache, the image built from it (a program's linked cubin, or an answer requested from NVRTC):
 // its source's FNV-1a in hex. The name need not be unique: a file is used only where the source it contains is this
 // source, byte for byte
-std::string cycle_cache_path(const std::string &folder, const std::string &source)
+void cycle_cache_path(const char *folder, const char *source, unsigned long long length, char *path, size_t bytes)
 {
-    char name[32];
-    {
-        VerbaLinea buffer_line = mmgr_line_over(name, sizeof(name));
-        mmgr_line_hex(&buffer_line, cycle_source_hash(source), 16u);
-        mmgr_line_put(&buffer_line, ".image");
-        (void)mmgr_line_finish(&buffer_line);
-    }
+    VerbaLinea line = mmgr_line_over(path, bytes);
+    mmgr_line_put(&line, folder);
 #if defined(_WIN32)
-    return folder + "\\" + name;
+    mmgr_line_ch(&line, '\\');
 #else
-    return folder + "/" + name;
+    mmgr_line_ch(&line, '/');
 #endif
+    mmgr_line_hex(&line, cycle_source_hash(source, length), 16u);
+    mmgr_line_put(&line, ".image");
+    (void)mmgr_line_finish(&line);
+}
+
+int cycle_image_taken(CycleImage *image, const void *from, unsigned long long count)
+{
+    image->bytes = (unsigned char *)platform_cell_taken(count + 1ULL, platform_place_g_program_owner, 0);
+    image->count = (image->bytes != NULL) ? count : 0ULL;
+    if (image->bytes != NULL)
+    {
+        mmgr_bytes_copy(image->bytes, from, (size_t)count);
+        image->bytes[count] = 0u;
+    }
+    return (image->bytes != NULL) ? 1 : 0;
+}
+
+void cycle_image_ended(CycleImage *image)
+{
+    platform_cell_released(image->bytes, platform_place_g_program_owner);
+    image->bytes = NULL;
+    image->count = 0ULL;
 }

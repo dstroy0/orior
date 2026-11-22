@@ -12,13 +12,14 @@
 // refined by it (engine_table M23): split at the budgets the loop proposes, each schedule checked against the host, and
 // the least cost among those that pass retained.
 #include "../../../includes/file_defs/krep/krep.h"
-#include "../engine/engine_note.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../utils/test/src/cu/engine/analysis/cycle/record_image.h"
+#include "../../platform/platform.h"
+#include "../engine/engine_note.h"
+#include "cellularum_laboro/cellularum_linea.h"
+#include "memoria_operor/memoria_linea.h"
+#include "ruleset_strings.h"
 #include "vhdl_target.h"
 #include "yosys_script.h"
-#include "../../platform/platform.h"
 
 #include <stddef.h>
 #include <stdio.h>
@@ -339,7 +340,7 @@ static void vhdl_run(void *context, const HostProgram *program, int reuse, unsig
     unsigned int places = 0u;
     unsigned int live = 0u;
     const std::string text = (generator.ruleset(1) != NULL)
-                                 ? generator.program(layout, &target, std::string(), &places, &live)
+                                 ? lane_program_text(generator, layout, &target, std::string(), &places, &live)
                                  : std::string();
     if (text.empty())
     {
@@ -364,14 +365,15 @@ static void vhdl_run(void *context, const HostProgram *program, int reuse, unsig
 
     // the lane split at the two ends of what a construction set can require: only where the lane must be split, and
     // every form alone in a state of its own
-    const ScheduleModel ends[2] = {{{}, 0u, SCHEDULE_UNBOUNDED, SCHEDULE_UNBOUNDED}, {{}, 1u, 1u, SCHEDULE_UNBOUNDED}};
+    const ScheduleModel ends[2] = {{NULL, 0u, 0u, SCHEDULE_UNBOUNDED, SCHEDULE_UNBOUNDED},
+                                   {NULL, 0u, 1u, 1u, SCHEDULE_UNBOUNDED}};
     const char *const end_names[2] = {"split where it must be", "every form alone"};
     unsigned long long end_costs[2] = {0ULL, 0ULL};
     for (unsigned int end = 0u; end < 2u; end += 1u)
     {
         ScheduleReport report = {0u, 0u, 0u};
         const std::string scheduled_text =
-            generator.scheduled(layout, &target, std::string(), &places, &live, ends[end], &report);
+            lane_scheduled_text(generator, layout, &target, std::string(), &places, &live, ends[end], &report);
         const std::string what = name + ", " + end_names[end];
         if (end == 0u)
         {
@@ -422,10 +424,12 @@ static void vhdl_run(void *context, const HostProgram *program, int reuse, unsig
     unsigned int rounds = 0u;
     for (unsigned int budget = 1u; budget <= (4u * place->budget); budget *= 2u)
     {
-        const ScheduleModel model = {place->costs, 0u, budget, SCHEDULE_UNBOUNDED};
+        ScheduleModelStrings strings;
+        schedule_model_strings(place->costs, 0u, budget, SCHEDULE_UNBOUNDED, &strings);
+        const ScheduleModel &model = strings.model;
         ScheduleReport report = {0u, 0u, 0u};
         const std::string scheduled_text =
-            generator.scheduled(layout, &target, std::string(), &places, &live, model, &report);
+            lane_scheduled_text(generator, layout, &target, std::string(), &places, &live, model, &report);
         if (std::find(tried.begin(), tried.end(), scheduled_text) != tried.end())
         {
             continue;

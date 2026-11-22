@@ -5,30 +5,42 @@
 #ifndef QUERY_TRACE_H
 #define QUERY_TRACE_H
 
-#include <map>
-#include <string>
-#include <vector>
+#include "verba_scribo/verba_linea.h"
 
-// the trace's flags as its table defines them: each flag's word by its name, and each flag's name and gloss in the
-// table's order
-struct QueryTrace
+#include <stddef.h>
+
+// the most flags of a trace, one a bit of its word, and the bytes of a flag's name and gloss, the terminator among them
+#define QUERY_TRACE_FLAGS_MAX 64u
+#define QUERY_TRACE_NAME_BYTES 64u
+#define QUERY_TRACE_GLOSS_BYTES 512u
+
+// one flag as its table defines it: its word, its name and its gloss
+struct QueryTraceFlag
 {
-    std::map<std::string, unsigned long long> flags;
-    std::vector<std::pair<unsigned long long, std::string>> named;
-    std::vector<std::string> glosses;
+    unsigned long long word;
+    char name[QUERY_TRACE_NAME_BYTES];
+    char gloss[QUERY_TRACE_GLOSS_BYTES];
 };
 
-// the table at includes/file_defs/klq/query_trace.tsv in the tree this file was built from
-std::string query_trace_path(void);
+// the trace's flags as its table defines them, `count` of them, in the table's order
+struct QueryTrace
+{
+    QueryTraceFlag flags[QUERY_TRACE_FLAGS_MAX];
+    unsigned int count;
+};
 
-// the table at `path` read into `trace`: 1, or 0 and why in `error` where it could not be read or a line of it gives no
-// flag of one bit, or one two names share
-int query_trace_read(const std::string &path, QueryTrace *trace, std::string *error);
+// the table at includes/file_defs/klq/query_trace.tsv in the tree this file was built from, into `path`, `bytes` of
+// it: 1 where the whole path fit
+int query_trace_path(char *path, size_t bytes);
+
+// the table at `path` read into `trace`: 1, or 0 and why on `error` where it could not be read, or a line of it gives
+// no flag of one bit, one two names share, or a name or gloss past its bytes
+int query_trace_read(const char *path, QueryTrace *trace, VerbaLinea *error);
 
 // the word of the flag `name`, 0 where the table gives no such flag
-unsigned long long query_trace_flag(const QueryTrace &trace, const std::string &name);
+unsigned long long query_trace_flag(const QueryTrace *trace, const char *name);
 
-// the names of the flags `word` contains, in the table's order, a space between each
-std::string query_trace_names(const QueryTrace &trace, unsigned long long word);
+// the names of the flags `word` contains onto `names`, in the table's order, a space between each
+void query_trace_names(const QueryTrace *trace, unsigned long long word, VerbaLinea *names);
 
 #endif

@@ -12,10 +12,11 @@
 // max RECORD_C_TEXT_BYTES_MAX bytes is written again as the device writes it, on the host: the core's forms arranged as
 // the assembly printer's records and written by the host oracle (asm_printer.h), checked against the code generator's
 // text byte for byte.
+#include "../../../../../../../src/cu/scaffolding/ruleset_strings.h"
+#include "../../../../../../../src/platform/platform.h"
 #include "asm_printer.h"
 #include "code_generator.h"
 #include "record_image.h"
-#include "../../../../../../../src/platform/platform.h"
 
 #include <stddef.h>
 #include <stdio.h>
@@ -213,7 +214,7 @@ static void c_run(void *context, const HostProgram *program, int reuse, unsigned
     unsigned int places = 0u;
     unsigned int live = 0u;
     const std::string lane = (generator.ruleset(1) != NULL)
-                                 ? generator.program(layout, &target, std::string(s_c_shim), &places, &live)
+                                 ? lane_program_text(generator, layout, &target, std::string(s_c_shim), &places, &live)
                                  : std::string();
     if (lane.empty())
     {
@@ -241,10 +242,10 @@ static void c_run(void *context, const HostProgram *program, int reuse, unsigned
         AsmPrinterRuleset text_rules{};
         std::string error;
         std::string from_items;
-        const int decided = generator.decided(layout, &item_places, &items);
-        const int built = decided && asm_printer_ruleset_build(generator.ruleset(0), &target, std::string(s_c_shim),
+        const int decided = lane_decided_items(generator, layout, &item_places, &items);
+        const int built = decided && asm_printer_build_strings(generator.ruleset(0), &target, std::string(s_c_shim),
                                                                &text_rules, &error);
-        const int ran = built && asm_printer_host(&text_rules, items, &from_items, &error);
+        const int ran = built && asm_printer_host_strings(&text_rules, items, &from_items, &error);
         if (built)
         {
             asm_printer_ruleset_release(&text_rules);

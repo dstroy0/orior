@@ -181,6 +181,9 @@ PlatformSignalHandler platform_signal_handled(int number, PlatformSignalHandler 
 #define PLATFORM_ENVIRONMENT_BYTES 4096u
 #define PLATFORM_ENVIRONMENT_PATH_BYTES 32768u
 
+// the bytes of a buffer that one path of a file goes into, its terminator among them
+#define PLATFORM_PATH_BYTES 4096u
+
 // the size of the file at `path` into `bytes`: 1, or 0 where the system cannot open the file
 int platform_file_size(const char *path, unsigned long long *bytes);
 
