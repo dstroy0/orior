@@ -195,6 +195,11 @@ EMBED_INLINE void cli_each_lock(const PluginsCtx *args)
 
 void cli_plugins_each(const CliPluginsEachCfg *args)
 {
+    cli_plugins_settings_each(args);
+}
+
+void cli_plugins_files_each(const CliPluginsEachCfg *args)
+{
     void (*each)(const CliEachPluginCfg *) = args->each;
     void *context = args->context;
     EMBED_CALL(cli_each_lock, PluginsCtx, .each = each, .context = context);
@@ -363,15 +368,10 @@ static void cli_language_each(const CliEachPluginCfg *args)
 {
     void *context = args->context;
     CliLanguagesBuilt *const languages = (CliLanguagesBuilt *)context;
-    CliJson json;
-    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    char why[CLI_PATH_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-    const unsigned int root =
-        EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
-                   .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ULL,
-                   .err_msg = &err_msg, .owner = g_cli_plugins_owner);
+    // the tree the plugins module keeps for the plugin. The record views the kept tree's cells, and this
+    // reader gives none of them back
+    const CliJson json = (args->plugin->json != NULL) ? *args->plugin->json : (CliJson){0};
+    const unsigned int root = (args->plugin->json != NULL) ? args->plugin->root : CLI_JSON_NONE;
     const char *const type =
         (root != CLI_JSON_NONE)
             ? EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
@@ -384,9 +384,6 @@ static void cli_language_each(const CliEachPluginCfg *args)
     {
         EMBED_CALL(cli_language_grammar_note, PluginsCtx, .languages = languages, .json = &json, .root = root,
                    .language = 0, .plugin = args->plugin);
-        g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
-        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
-                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         return;
     }
     const char *const named =
@@ -464,9 +461,6 @@ static void cli_language_each(const CliEachPluginCfg *args)
     }
     EMBED_CALL(cli_language_grammar_note, PluginsCtx, .languages = languages, .json = &json, .root = root,
                .language = 1, .plugin = args->plugin);
-    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
-    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
 
 // the token `pairs` put in place of the languages' cell, and the cell before it given back
@@ -482,6 +476,8 @@ EMBED_INLINE void cli_languages_placed(const PluginsCtx *args)
 // written into a movable cell sized to them. That cell goes in place of the one before it
 void cli_plugins_languages_changed(void)
 {
+    // the settings are read again first, and the languages are read from them
+    cli_plugins_settings_changed();
     CliLanguagePair *const pair = g_cli_guard->temporary_buf_alloc(
         ((unsigned long long)CLI_LANGUAGE_PAIRS * sizeof(CliLanguagePair)) +
             ((unsigned long long)CLI_LANGUAGE_GRAMMARS * sizeof(CliLanguageGrammarEntry)),
@@ -591,6 +587,7 @@ void cli_plugins_watch_start(void)
 void cli_plugins_languages_end(void)
 {
     EMBED_CALL(cli_languages_placed, PluginsCtx, .pairs = NULL);
+    cli_plugins_settings_end();
 }
 
 // the token of the languages' cell, the cell read from the plugins where no call read it before

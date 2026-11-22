@@ -100,13 +100,10 @@ static void cli_plugin_each(const CliEachPluginCfg *args)
     {
         return;
     }
-    CliJson json = {0};
-    char why[CLI_NAME_MAX_LEN];
-    VerbaLinea unread = {why, sizeof(why), 0ULL};
-    const unsigned int root =
-        EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
-                   .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ULL,
-                   .err_msg = &unread, .owner = g_cli_purpose_owner);
+    // the tree the plugins module keeps for the plugin. The record views the kept tree's cells, and this
+    // reader gives none of them back
+    const CliJson json = (args->plugin->json != NULL) ? *args->plugin->json : (CliJson){0};
+    const unsigned int root = (args->plugin->json != NULL) ? args->plugin->root : CLI_JSON_NONE;
     const unsigned int comments = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
                                              .object = root, .name = "comments");
     const char *const line =
@@ -133,9 +130,6 @@ static void cli_plugin_each(const CliEachPluginCfg *args)
     EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_capacity = s_work_state.open, .text = open, .otherwise = "");
     EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_capacity = s_work_state.close, .text = close,
                .otherwise = "");
-    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
-    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     // the first plugin of the id names the marks
     s_work_state.id[0] = '\0';
 }
@@ -152,7 +146,8 @@ EMBED_INLINE void cli_marks_get(const PurposeCommentCtx *args)
     }
 }
 
-// the first sentences of a text, its words joined by spaces, up to CLI_PURPOSE_TEXT_MAX_LEN characters, written into `out`
+// the first sentences of a text, its words joined by spaces, up to CLI_PURPOSE_TEXT_MAX_LEN characters, written into
+// `out`
 static void cli_sentences(const PurposeCommentCtx *args)
 {
     const char *text = args->text;
@@ -163,9 +158,9 @@ static void cli_sentences(const PurposeCommentCtx *args)
     for (unsigned long long at = 0ULL; at < args->size;)
     {
         unsigned int character = 0u;
-        const unsigned long long step =
-            EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
-                       .text_bytes = (const unsigned char *)text, .length = args->size, .at = at, .character = &character);
+        const unsigned long long step = EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                                                   .text_bytes = (const unsigned char *)text, .length = args->size,
+                                                   .at = at, .character = &character);
         if (EMBED_CALL(cli_files_character_internal.fuzzy_white, CliFilesLetterCtx, .character = character))
         {
             in_word = 0;

@@ -149,6 +149,8 @@ static void reader_plugin_written(void)
     cli_unity_folder("plugins_reader_home", home);
     (void)EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = home);
     file_written(home, "plugins/readers/plugin.json", s_manifest);
+    // the test tells the plugins module of the change, as the folder watch tells it in the window
+    cli_plugins_languages_changed();
 }
 
 // a script plugin whose `main` names `main_list`, with its code, written in a fresh ORIOR_HOME
@@ -167,6 +169,8 @@ static void parts_plugin_written(const char *main_list)
     file_written(home, "plugins/parts/plugin.json", manifest);
     file_written(home, "plugins/parts/one.js", "const one = 1;");
     file_written(home, "plugins/parts/lib/two.js", "const two = one + 1;");
+    // the test tells the plugins module of the change, as the folder watch tells it in the window
+    cli_plugins_languages_changed();
 }
 
 // a plugin that serves the folders of a tree, and what it says of each, read once for the process

@@ -50,13 +50,10 @@ EMBED_INLINE int cli_same_case_aside(const FormatCtx *args)
 
 static void cli_plugin_each(const CliEachPluginCfg *args)
 {
-    CliJson json;
-    char why[CLI_NAME_MAX_LEN];
-    VerbaLinea unread = {why, sizeof(why), 0ULL};
-    const unsigned int root =
-        EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
-                   .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ULL,
-                   .err_msg = &unread, .owner = g_cli_toolchains_owner);
+    // the tree the plugins module keeps for the plugin. The record views the kept tree's cells, and this
+    // reader gives none of them back
+    const CliJson json = (args->plugin->json != NULL) ? *args->plugin->json : (CliJson){0};
+    const unsigned int root = (args->plugin->json != NULL) ? args->plugin->root : CLI_JSON_NONE;
     const unsigned int extensions = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                .json_read = &json, .object = root, .name = "extensions");
     int names = 0;
@@ -83,9 +80,6 @@ static void cli_plugin_each(const CliEachPluginCfg *args)
             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->plugin->id, .cap = CLI_POOL_BYTES}) + 1u});
         s_choice.chosen = 1;
     }
-    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
-    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
 
 int cli_format_language_get(const CliFormatCfg *args)

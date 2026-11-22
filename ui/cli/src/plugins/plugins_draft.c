@@ -388,7 +388,8 @@ EMBED_INLINE unsigned int cli_comments_get(const PluginsDraftCtx *args)
     return comments;
 }
 
-// The plugin of `id` to start from, the last found of that id, its text read into `json`: its node, or CLI_JSON_NONE
+// The plugin of `id` to start from, the last found of that id, its kept tree copied into `json`: its node, or
+// CLI_JSON_NONE
 typedef struct
 {
     const char *id;
@@ -400,25 +401,13 @@ typedef struct
 static void cli_template_each(const CliEachPluginCfg *args)
 {
     CliTemplate *const template_of = (CliTemplate *)args->context;
-    if (!cellul.eq(&(CatenaFinitaCfg){.src = args->plugin->id, .other = template_of->id, .cap = CLI_POOL_BYTES}))
-    {
-        return;
-    }
     template_of->seen = 1;
-    char why[CLI_PATH_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-    // the plugin's tokens in a cell of their count, given back once they are read into the tree
-    const unsigned int count = EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg,
-                                          .text = args->plugin->text, .size = args->plugin->size) +
-                               1u;
-    CfgJsonToken *const tokens =
-        g_cli_guard->temporary_buf_alloc((unsigned long long)count * sizeof(*tokens), g_cli_plugins_owner);
+    // the copy comes from the tree the plugins module keeps for the plugin, and the call does not read the text again
     template_of->found =
-        (tokens != NULL) ? EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg,
-                                      .json = template_of->json, .text = args->plugin->text, .size = args->plugin->size,
-                                      .tokens = tokens, .tokens_max = count, .err_msg = &err_msg)
-                         : CLI_JSON_NONE;
-    g_cli_guard->persistent_buf_release(tokens, g_cli_plugins_owner);
+        ((args->plugin->json != NULL) && (args->plugin->root != CLI_JSON_NONE))
+            ? EMBED_CALL(cli_json_tree_node.json_copy_from, CliJsonTreeNodeCfg, .node = args->plugin->root,
+                         .to = template_of->json, .from = args->plugin->json)
+            : CLI_JSON_NONE;
 }
 
 // The work state the plugin of `id` takes, the last found of that id: its tokens and its bytes
@@ -432,12 +421,11 @@ typedef struct
 static void cli_template_capacity_each(const CliEachPluginCfg *args)
 {
     CliTemplateCapacity *const work_state = (CliTemplateCapacity *)args->context;
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->plugin->id, .other = work_state->id, .cap = CLI_POOL_BYTES}))
+    // the kept tree's own count of nodes and bytes, which the copy takes
+    if (args->plugin->json != NULL)
     {
-        work_state->nodes = EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg,
-                                       .text = args->plugin->text, .size = args->plugin->size) +
-                            1u;
-        work_state->text = args->plugin->size;
+        work_state->nodes = args->plugin->json->nodes;
+        work_state->text = args->plugin->json->used;
     }
 }
 
@@ -452,8 +440,8 @@ unsigned int cli_plugins_draft_tree(const CliPluginsErrMsgJsonSpecCfg *args)
     if (EMBED_CALL(cli_answer, PluginsDraftCtx, .json_read = args->json, .spec = args->spec, .name = "from",
                    .out = from, .capacity = sizeof(from)) != 0ULL)
     {
-        EMBED_CALL(cli_plugins_each_table.each, CliPluginsEachCfg, .each = cli_template_capacity_each,
-                   .context = &work_state);
+        (void)EMBED_CALL(cli_plugins_settings_of_table.of, CliPluginsSettingsOfCfg, .id = from,
+                         .each = cli_template_capacity_each, .context = &work_state);
     }
     // the answers twice over, as the draft copies their words, the plugin started from, and the members, patterns and
     // lists the draft makes besides
@@ -499,7 +487,8 @@ EMBED_INLINE unsigned int cli_extensions_read(const PluginsDraftCtx *args)
         VerbaLinea line = {lower, sizeof(lower), 0ULL};
         for (const char *character = at; character < end; character += 1)
         {
-            mmgr_line_ch(&line, ((character[0] >= 'A') && (character[0] <= 'Z')) ? (char)(character[0] + 32) : character[0]);
+            mmgr_line_ch(&line,
+                         ((character[0] >= 'A') && (character[0] <= 'Z')) ? (char)(character[0] + 32) : character[0]);
         }
         if (mmgr_line_finish(&line) != 0ULL)
         {
@@ -598,7 +587,8 @@ EMBED_INLINE int cli_draft_from_template(const PluginsDraftCtx *args)
 {
     CliJson *const json = args->json;
     CliTemplate template_of = {args->from, json, CLI_JSON_NONE, 0};
-    EMBED_CALL(cli_plugins_each_table.each, CliPluginsEachCfg, .each = cli_template_each, .context = &template_of);
+    (void)EMBED_CALL(cli_plugins_settings_of_table.of, CliPluginsSettingsOfCfg, .id = args->from,
+                     .each = cli_template_each, .context = &template_of);
     if (!template_of.seen || (template_of.found == CLI_JSON_NONE))
     {
         mmgr_line_put(args->err_msg, template_of.seen ? "plugin " : "no plugin ");

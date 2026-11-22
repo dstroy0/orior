@@ -76,30 +76,32 @@ static void tools_plugin_row(const CliEachPluginCfg *args)
     EMBED_CALL(tools_copy, CommandLineToolsCtx, .into = row->source, .capacity = sizeof(row->source),
                .text = args->plugin->source,
                .size = cellul.len(&(CatenaFinitaCfg){.src = args->plugin->source, .cap = CLI_POOL_BYTES}));
-    char why[512];
-    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-    g_cli_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
-    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    const unsigned int read =
-        EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &s_json,
-                   .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ULL,
-                   .err_msg = &err_msg, .owner = g_cli_command_line_owner);
+    // the tree the plugins module keeps for the plugin. The record views the kept tree's cells, and this
+    // reader gives none of them back
+    const CliJson json = (args->plugin->json != NULL) ? *args->plugin->json : (CliJson){0};
+    const unsigned int read = (args->plugin->json != NULL) ? args->plugin->root : CLI_JSON_NONE;
     if (read == CLI_JSON_NONE)
     {
+        // the call reads a text that is no JSON once more, only to say why
+        char why[512];
+        VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+        CliJson unread;
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &unread,
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+        (void)EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &unread,
+                         .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ULL,
+                         .err_msg = &err_msg, .owner = g_cli_command_line_owner);
+        g_cli_guard->persistent_buf_release(unread.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), unread.node));
         VerbaLinea name = {row->name, sizeof(row->name), 0ULL};
         mmgr_line_put(&name, "does not read: ");
         mmgr_line_put_n(&name, why, mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL);
         (void)mmgr_line_finish(&name);
         row->opens[0] = '\0';
-        g_cli_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
-        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
-                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         return;
     }
     const char *const name =
-        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_json,
-                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json,
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
                                       .object = read, .name = "name"),
                    .length_pointer = NULL);
     EMBED_CALL(
@@ -108,15 +110,15 @@ static void tools_plugin_row(const CliEachPluginCfg *args)
         .size = cellul.len(&(CatenaFinitaCfg){.src = (name != NULL) ? name : args->plugin->id, .cap = CLI_POOL_BYTES}));
     VerbaLinea opens = {row->opens, sizeof(row->opens), 0ULL};
     const unsigned int extensions = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                               .json_read = &s_json, .object = read, .name = "extensions");
-    const unsigned int first = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_json,
+                                               .json_read = &json, .object = read, .name = "extensions");
+    const unsigned int first = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json,
                                           .node = extensions, .type = CFG_JSON_ARRAY)
-                                   ? s_json.node[extensions].first
+                                   ? json.node[extensions].first
                                    : CLI_JSON_NONE;
-    for (unsigned int extension = first; extension != CLI_JSON_NONE; extension = s_json.node[extension].next)
+    for (unsigned int extension = first; extension != CLI_JSON_NONE; extension = json.node[extension].next)
     {
         const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
-                                            .json_read = &s_json, .node = extension, .length_pointer = NULL);
+                                            .json_read = &json, .node = extension, .length_pointer = NULL);
         if (text != NULL)
         {
             mmgr_line_put(&opens, (opens.at > 0ULL) ? " ." : ".");
@@ -127,9 +129,6 @@ static void tools_plugin_row(const CliEachPluginCfg *args)
     {
         row->opens[0] = '\0';
     }
-    g_cli_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
-    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
 
 // `text` written and padded with spaces to `width` characters

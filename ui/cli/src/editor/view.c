@@ -759,65 +759,47 @@ EMBED_INLINE void view_table_read(const ViewCtx *args)
                                                 : 0u;
 }
 
-// The pairs, quotes and pattern of the plugin with the id in the search read into the view. Where the plugin names
-// none, the defaults apply: the brackets, the two quotes, and the pattern of an opener at a line's end
+// the node of the view's plugin's tree that the dotted key `key` reaches, CLI_JSON_NONE where it reaches none
+EMBED_INLINE unsigned int view_setting(const CliPlugin *plugin, const char *key)
+{
+    return EMBED_CALL(cli_plugins_setting_table.setting, CliPluginsSettingCfg, .json = plugin->json,
+                      .node = plugin->root, .key = key);
+}
+
+// The pairs, quotes and pattern of the plugin read into the view, from the settings the plugins module keeps for it.
+// Where the plugin names none, the defaults apply: the brackets, the two quotes, and the pattern of an opener at a
+// line's end
 static void view_plugin_read(const CliEachPluginCfg *args)
 {
     CliViewPluginNeedle *const needle = args->context;
     CliView *const view = needle->view;
-    if (!cellul.eq(&(CatenaFinitaCfg){.src = args->plugin->id, .other = needle->id, .cap = CLI_NAME_MAX_LEN}))
+    const CliPlugin *const plugin = args->plugin;
+    if (plugin->json == NULL)
     {
         return;
     }
-    char error_text[256];
-    VerbaLinea why = {error_text, sizeof(error_text), 0ULL};
-    CliJson json;
-    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    const unsigned int root =
-        EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
-                   .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ULL,
-                   .err_msg = &why, .owner = g_cli_views_owner);
-    if (root == CLI_JSON_NONE)
-    {
-        return;
-    }
-    const unsigned int pairs = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
-                                          .object = root, .name = "pairs");
-    const unsigned int quotes = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
-                                           .object = root, .name = "quotes");
-    const unsigned int after = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
-                                          .object = root, .name = "indentAfter");
-    const unsigned int comments = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
-                                             .object = root, .name = "comments");
+    const CliJson *const json = plugin->json;
+    const unsigned int pairs = view_setting(plugin, "pairs");
+    const unsigned int quotes = view_setting(plugin, "quotes");
+    const unsigned int after = view_setting(plugin, "indentAfter");
     EMBED_CALL(view_comment_read, ViewCtx, .mark = view->comment_line, .capacity = sizeof(view->comment_line),
-               .json = &json,
-               .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
-                                  .object = comments, .name = "line"));
-    const unsigned int block = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
-                                          .object = comments, .name = "block");
+               .json = json, .node = view_setting(plugin, "comments.line"));
     EMBED_CALL(view_comment_read, ViewCtx, .mark = view->comment_open, .capacity = sizeof(view->comment_open),
-               .json = &json,
-               .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = &json,
-                                  .array = block, .index = 0u));
+               .json = json, .node = view_setting(plugin, "comments.block.0"));
     EMBED_CALL(view_comment_read, ViewCtx, .mark = view->comment_close, .capacity = sizeof(view->comment_close),
-               .json = &json,
-               .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = &json,
-                                  .array = block, .index = 1u));
+               .json = json, .node = view_setting(plugin, "comments.block.1"));
     view->quotes = 0u;
-    EMBED_CALL(view_pairs_read, ViewCtx, .view = view, .json = &json, .node = pairs);
-    EMBED_CALL(view_table_read, ViewCtx, .view = view, .json = &json,
-               .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
-                                  .object = root, .name = "delimiters"));
-    if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json, .node = quotes,
+    EMBED_CALL(view_pairs_read, ViewCtx, .view = view, .json = json, .node = pairs);
+    EMBED_CALL(view_table_read, ViewCtx, .view = view, .json = json, .node = view_setting(plugin, "delimiters"));
+    if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = quotes,
                    .type = CFG_JSON_ARRAY))
     {
-        for (unsigned int at = 0u; (at < json.node[quotes].count) && (view->quotes < CLI_VIEW_QUOTES); at += 1u)
+        for (unsigned int at = 0u; (at < json->node[quotes].count) && (view->quotes < CLI_VIEW_QUOTES); at += 1u)
         {
             const unsigned int quote =
-                EMBED_CALL(view_character_get, ViewCtx, .json = &json,
+                EMBED_CALL(view_character_get, ViewCtx, .json = json,
                            .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
-                                              .json_read = &json, .array = quotes, .index = at));
+                                              .json_read = json, .array = quotes, .index = at));
             if (quote != 0u)
             {
                 view->quote[view->quotes] = quote;
@@ -834,7 +816,7 @@ static void view_plugin_read(const CliEachPluginCfg *args)
     VerbaLinea pattern = {view->indent_after, sizeof(view->indent_after), 0ULL};
     unsigned long long length = 0ULL;
     const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
-                                        .json_read = &json, .node = after, .length_pointer = &length);
+                                        .json_read = json, .node = after, .length_pointer = &length);
     if (text != NULL)
     {
         mmgr_line_put_n(&pattern, text, length);
@@ -847,9 +829,6 @@ static void view_plugin_read(const CliEachPluginCfg *args)
     {
         view->indent_after[0] = '\0';
     }
-    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
-    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
 
 // the view's language read off the plugin the file at its path opens as; none where no plugin does
@@ -861,7 +840,8 @@ EMBED_INLINE void view_language_read(const ViewCtx *args)
     if (named)
     {
         CliViewPluginNeedle needle = {id, args->view};
-        EMBED_CALL(cli_plugins_each_table.each, CliPluginsEachCfg, .each = view_plugin_read, .context = &needle);
+        (void)EMBED_CALL(cli_plugins_settings_of_table.of, CliPluginsSettingsOfCfg, .id = id, .each = view_plugin_read,
+                         .context = &needle);
     }
 }
 

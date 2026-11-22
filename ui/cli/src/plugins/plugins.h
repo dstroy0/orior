@@ -63,6 +63,9 @@ typedef struct CliPluginsIdNameValueCfg CliPluginsIdNameValueCfg;
 typedef struct CliPluginsIdNameCfg CliPluginsIdNameCfg;
 typedef struct CliPluginsRootCfg CliPluginsRootCfg;
 typedef struct CliPluginsTreeCfg CliPluginsTreeCfg;
+typedef struct CliPluginsSettingsOfCfg CliPluginsSettingsOfCfg;
+typedef struct CliPluginsSettingCfg CliPluginsSettingCfg;
+typedef struct CliPluginsSettingSetCfg CliPluginsSettingSetCfg;
 
 // the max keys of extensions, names and paths the languages contain, and the max plugins the reader installs
 #define CLI_LANGUAGE_PAIRS 4096u
@@ -100,8 +103,10 @@ typedef struct
 extern const CliBundled g_cli_bundled[];
 extern const unsigned int g_cli_bundled_count;
 
-// A plugin as found: its id, where it came from, "bundled" or "user", the folder of a reader's own, NULL for one that
-// comes with orior, and the text of its plugin.json
+// A plugin as found: its id, and where it came from, "bundled" or "user". The record holds the folder of a reader's
+// own, NULL for one that comes with orior, and the text of its plugin.json. `json` is the tree of its settings and
+// `root` its root, as the plugins module keeps them in memory. `json` is NULL where the text is no JSON. A reader reads
+// the tree and does not read the text again (plugins_settings.c)
 typedef struct
 {
     const char *id;
@@ -109,6 +114,8 @@ typedef struct
     const char *folder;
     const char *text;
     unsigned long long size;
+    const CliJson *json;
+    unsigned int root;
 } CliPlugin;
 
 typedef struct
@@ -117,8 +124,37 @@ typedef struct
     const CliPlugin *plugin;
 } CliEachPluginCfg;
 
-// every plugin passed to `each`: those that come with orior, then the reader's, each in the order of its id
+// every plugin passed to `each`: those that come with orior, then the reader's, each in the order of its id. Each one
+// comes from the settings the plugins module keeps, with its tree
 void cli_plugins_each(const CliPluginsEachCfg *args);
+// every plugin passed to `each` as its file holds it, the reader's read from their folder, with no tree. Only the
+// build of the settings walks the files (plugins.c)
+void cli_plugins_files_each(const CliPluginsEachCfg *args);
+
+// The settings of the plugins (plugins_settings.c). The plugins module reads each plugin's plugin.json once into a tree
+// and keeps it in memory. A reader gets the tree and reaches a setting by its dotted key, as `comments.line` or
+// `comments.block.0`. A key part that is a number reaches the item at that place of an array. A member name can carry
+// dots, as `palette.keyword.control`, and the longest member name that fits wins.
+//
+// A change of a setting changes the kept tree in place. A change under the reader's plugins folder reads every plugin
+// again.
+//
+// every plugin passed to `each` from the kept settings, as cli_plugins_each passes them
+void cli_plugins_settings_each(const CliPluginsEachCfg *args);
+// the last plugin of the id `id` passed to `each`. The reader's own takes the place of one that comes with orior. 1, or
+// 0 where no plugin of the id is
+int cli_plugins_settings_of(const CliPluginsSettingsOfCfg *args);
+// the node of `json` that the dotted key `key` reaches from the node `node`: the node, or CLI_JSON_NONE where the key
+// reaches none
+unsigned int cli_plugins_setting(const CliPluginsSettingCfg *args);
+// the member `name` made the string `value`, in place of the value it had. The member is in the object that the dotted
+// key `object` reaches in the kept settings of the plugin `id`. 1, or 0 where no plugin of the id is, the key reaches
+// no object, or the tree has no room
+int cli_plugins_setting_set(const CliPluginsSettingSetCfg *args);
+// every plugin's settings read again from its plugin.json, the kept ones given back; and every kept one given back as
+// the program ends
+void cli_plugins_settings_changed(void);
+void cli_plugins_settings_end(void);
 // The language each extension, whole name and pattern of paths opens as, read anew from the language plugins into the
 // table the plugins module owns, a reader's plugin located in for one that comes with orior. The next call of
 // cli_plugins_language_for reads the new table. The reader's plugins folder, made where it is absent, kept open from
@@ -358,6 +394,55 @@ typedef struct
 EMBED_TABLE_LAYOUT(CliPluginsEachNs, each);
 EMBED_TABLE_STORAGE CliPluginsEachNs cli_plugins_each_table EMBED_UNUSED = {
     .each = cli_plugins_each,
+};
+
+struct CliPluginsSettingsOfCfg
+{
+    const char *id;
+    void (*each)(const CliEachPluginCfg *args);
+    void *context;
+};
+
+struct CliPluginsSettingCfg
+{
+    const CliJson *json;
+    unsigned int node;
+    const char *key;
+};
+
+struct CliPluginsSettingSetCfg
+{
+    const char *id;
+    const char *object;
+    const char *name;
+    const char *value;
+};
+
+typedef struct
+{
+    int (*of)(const CliPluginsSettingsOfCfg *args);
+} CliPluginsSettingsOfNs;
+EMBED_TABLE_LAYOUT(CliPluginsSettingsOfNs, of);
+EMBED_TABLE_STORAGE CliPluginsSettingsOfNs cli_plugins_settings_of_table EMBED_UNUSED = {
+    .of = cli_plugins_settings_of,
+};
+
+typedef struct
+{
+    unsigned int (*setting)(const CliPluginsSettingCfg *args);
+} CliPluginsSettingNs;
+EMBED_TABLE_LAYOUT(CliPluginsSettingNs, setting);
+EMBED_TABLE_STORAGE CliPluginsSettingNs cli_plugins_setting_table EMBED_UNUSED = {
+    .setting = cli_plugins_setting,
+};
+
+typedef struct
+{
+    int (*set)(const CliPluginsSettingSetCfg *args);
+} CliPluginsSettingSetNs;
+EMBED_TABLE_LAYOUT(CliPluginsSettingSetNs, set);
+EMBED_TABLE_STORAGE CliPluginsSettingSetNs cli_plugins_setting_set_table EMBED_UNUSED = {
+    .set = cli_plugins_setting_set,
 };
 
 typedef struct

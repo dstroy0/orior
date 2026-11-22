@@ -374,15 +374,17 @@ static void tool_look(const CliEachPluginCfg *args)
     g_cli_guard->persistent_buf_release(json->node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json->node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json, .node_json_node_pointer = NULL,
                .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea unread = {why, sizeof(why), 0ULL};
-    const unsigned int root =
-        EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = args->plugin->text,
-                   .size = args->plugin->size)
-            ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = json,
-                         .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ULL,
-                         .err_msg = &unread, .owner = g_cli_plugins_owner)
-            : CLI_JSON_NONE;
+    // the copy comes from the tree the plugins module keeps for the plugin, and the call does not read the text again
+    const CliJson *const kept = args->plugin->json;
+    const int readable = (kept != NULL) && (args->plugin->root != CLI_JSON_NONE) &&
+                         EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = args->plugin->text,
+                                    .size = args->plugin->size);
+    const unsigned int root = (readable && EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg,
+                                                      .json = json, .nodes_max = kept->nodes, .text_max = kept->used,
+                                                      .what = "a tool's plugin", .owner = g_cli_plugins_owner))
+                                  ? EMBED_CALL(cli_json_tree_node.json_copy_from, CliJsonTreeNodeCfg,
+                                               .node = args->plugin->root, .to = json, .from = kept)
+                                  : CLI_JSON_NONE;
     GuiTool *const tool = &g_cli_validate->tool;
     if ((root == CLI_JSON_NONE) || !EMBED_CALL(tool_read, ValidateToolCtx, .json = json, .root = root, .tool = tool))
     {
