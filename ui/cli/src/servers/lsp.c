@@ -480,7 +480,7 @@ void cli_lsp_overseen(const CliLspCtx *args)
     {
         return;
     }
-    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = args->lsp->overseen, .kind = CLI_OVERSEER_SERVER,
+    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = args->lsp->overseen, .role = args->lsp->overseen_role,
                .event = args->event, .pid = args->lsp->spawned.id);
 }
 

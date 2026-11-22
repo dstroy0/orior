@@ -12,13 +12,14 @@
 
 typedef struct GuiDotsCfg GuiDotsCfg;
 
-// the most dots of one kind on a head, and the side of a dot and the gap after it, in the page's pixels
+// the most dots of one `role` on a head, and the side of a dot and the gap after it, in the page's pixels
 #define GUI_DOTS_MAX 16u
 #define GUI_DOTS_SIDE 7
 #define GUI_DOTS_GAP 5
 
-// The dots of the records of the kind `kind`, one each, drawn right to left from `right` in the row `top`, `height`
-// high, at the frame's scale `scale`, within `clip`. Where `worst` is 1, one dot shows the heaviest state of the kind.
+// The dots of the records of the `role` given, one each, drawn right to left from `right` in the row `top`,
+// `height` high, at the frame's scale `scale`, within `clip`. Where `worst` is 1, one dot shows the heaviest state of
+// those records.
 // The x of the left edge of the dots, `right` where none shows
 int gui_dots_draw(const GuiDotsCfg *args);
 // the color of a dot of the state `state`, transparent where the state has no dot
@@ -33,7 +34,7 @@ struct GuiDotsCfg
     int top;
     int height;
     int scale;
-    unsigned int kind;
+    unsigned int role;
     int worst;
     unsigned int state;
     unsigned long long now_ms;

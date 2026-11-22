@@ -123,7 +123,8 @@ void cli_lsp_key_get(const CliLspLengthCfg *args);
 // `length` bytes of JSON, with the settings `settings`, `setting_count` of them; `recv` takes what it sends unprompted:
 // the server, referenced once for its starter, or NULL with why given. The server referenced once more, and a reference
 // given back, the server ended with the last (lsp_start.c). Where `overseen` names it, the server reports its start,
-// its readiness, its stop and an end it did not ask for to the overseer under that name
+// its readiness, its stop and an end it did not ask for to the overseer under that name. `overseen_role` is its `role`
+// there
 CliLsp *cli_lsp_start(const CliLspErrMsgCfg *args);
 void cli_lsp_ref(const CliLspContextCfg *args);
 void cli_lsp_unref(const CliLspContextCfg *args);
@@ -183,6 +184,7 @@ struct CliLspErrMsgCfg
     CliLspRecvFn recv;
     void *context;
     const char *overseen;
+    unsigned int overseen_role;
 };
 
 struct CliLspErrMsgLengthCfg

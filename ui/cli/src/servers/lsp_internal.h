@@ -56,6 +56,7 @@ struct CliLsp
     CliThread complaint_thread;
     CliLspReader reader;
     char overseen[CLI_NAME_MAX_LEN];
+    unsigned int overseen_role;
     int stopping;
 };
 

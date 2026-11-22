@@ -143,6 +143,7 @@ CliLsp *cli_lsp_start(const CliLspErrMsgCfg *args)
     lsp->stopping = 0;
     (void)cellul.copy(&(CatenaFinitaCfg){
         .dst = lsp->overseen, .src = (args->overseen != NULL) ? args->overseen : "", .cap = sizeof(lsp->overseen)});
+    lsp->overseen_role = args->overseen_role;
     EMBED_CALL(cli_lsp_internal.overseen, CliLspCtx, .lsp = lsp, .event = CLI_OVERSEER_CONNECTING);
     lsp->words.count = 0u;
     lsp->words.used = 0u;

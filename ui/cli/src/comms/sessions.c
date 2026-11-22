@@ -197,7 +197,7 @@ int cli_sessions_join_words(const CliSessionsCfg *args)
         mmgr_line_put(args->err_msg, "the address does not fit a session's");
         return 0;
     }
-    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = session.address, .kind = CLI_OVERSEER_REMOTE,
+    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = session.address, .role = CLI_OVERSEER_REMOTE,
                .event = CLI_OVERSEER_CONNECTING);
     // the words end at a NULL, as a spawn reads them; the count is the settings', and there are none
     if (!EMBED_CALL(cli_words_err_msg_internal.spawn_piped_as, CliWordsErrMsgCtx, .priority = CLI_PRIORITY_WORK,
@@ -632,7 +632,7 @@ EMBED_INLINE const char *sessions_tree_name(const SessionsOpCtx *args)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES});
     unsigned long long cut = length;
-    // a path ends in no separator; the name follows the last one of either kind
+    // a path ends in no separator; the name follows the last `/` or `\`
     while ((cut > 0ULL) && (args->root[cut - 1ULL] != '/') && (args->root[cut - 1ULL] != '\\'))
     {
         cut -= 1ULL;

@@ -414,7 +414,7 @@ CliLsp *cli_servers_server(const CliServersLanguageCtx *args)
             EMBED_CALL(start_failure, ServersStartCtx, .tool = spec->tool, .err_msg = err_msg->out);
             EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = server);
             // the server stays stopped, and its dot shows the failure
-            EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = spec->tool, .kind = CLI_OVERSEER_SERVER,
+            EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = spec->tool, .role = CLI_OVERSEER_SERVER,
                        .event = CLI_OVERSEER_FAILED);
             return NULL;
         }

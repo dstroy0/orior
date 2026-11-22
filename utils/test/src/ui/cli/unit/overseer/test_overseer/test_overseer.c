@@ -14,11 +14,11 @@ static void overseer_fake_end(void *context)
     s_ended += 1u;
 }
 
-// the state of the record `name` of the kind `kind`, CLI_OVERSEER_NONE where it is absent
-static unsigned int overseer_state_of(const char *name, unsigned int kind)
+// the state of the record `name` of the `role` given, CLI_OVERSEER_NONE where it is absent
+static unsigned int overseer_state_of(const char *name, unsigned int role)
 {
     CliOverseerSeen seen[8];
-    const unsigned int count = EMBED_CALL(cli_overseer.seen, CliOverseerCfg, .kind = kind, .seen_out = seen, .max = 8u);
+    const unsigned int count = EMBED_CALL(cli_overseer.seen, CliOverseerCfg, .role = role, .seen_out = seen, .max = 8u);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         if (cellul.eq(&(CatenaFinitaCfg){.src = seen[at].name, .other = name, .cap = CLI_NAME_MAX_LEN}))
@@ -43,7 +43,7 @@ void tearDown(void)
 
 void test_a_spawned_server_starts_and_ready_makes_it_up(void)
 {
-    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "clangd", .kind = CLI_OVERSEER_SERVER,
+    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "clangd", .role = CLI_OVERSEER_SERVER,
                .event = CLI_OVERSEER_SPAWNED, .pid = 1ULL);
     TEST_ASSERT_EQUAL_UINT(CLI_OVERSEER_STARTING, overseer_state_of("clangd", CLI_OVERSEER_SERVER));
     EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "clangd", .event = CLI_OVERSEER_READY);
@@ -58,7 +58,7 @@ void test_each_event_gives_its_state(void)
                                             CLI_OVERSEER_ERROR,    CLI_OVERSEER_CRITICAL, CLI_OVERSEER_CRITICAL};
     for (unsigned int at = 0u; at < (sizeof(s_events) / sizeof(s_events[0])); at += 1u)
     {
-        EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "remote", .kind = CLI_OVERSEER_REMOTE,
+        EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "remote", .role = CLI_OVERSEER_REMOTE,
                    .event = s_events[at]);
         TEST_ASSERT_EQUAL_UINT(s_states[at], overseer_state_of("remote", CLI_OVERSEER_REMOTE));
     }
@@ -66,7 +66,7 @@ void test_each_event_gives_its_state(void)
 
 void test_an_ask_keeps_the_state(void)
 {
-    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "plugin", .kind = CLI_OVERSEER_PLUGIN,
+    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "plugin", .role = CLI_OVERSEER_PLUGIN,
                .event = CLI_OVERSEER_READY);
     EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "plugin", .event = CLI_OVERSEER_ASKED);
     TEST_ASSERT_EQUAL_UINT(CLI_OVERSEER_UP, overseer_state_of("plugin", CLI_OVERSEER_PLUGIN));
@@ -76,9 +76,9 @@ void test_an_ask_keeps_the_state(void)
 
 void test_stopped_removes_the_record(void)
 {
-    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "one", .kind = CLI_OVERSEER_SERVER,
+    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "one", .role = CLI_OVERSEER_SERVER,
                .event = CLI_OVERSEER_READY);
-    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "two", .kind = CLI_OVERSEER_SERVER,
+    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "two", .role = CLI_OVERSEER_SERVER,
                .event = CLI_OVERSEER_READY);
     EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "one", .event = CLI_OVERSEER_STOPPED);
     TEST_ASSERT_EQUAL_UINT(CLI_OVERSEER_NONE, overseer_state_of("one", CLI_OVERSEER_SERVER));
@@ -90,14 +90,14 @@ void test_the_records_list_by_name_and_by_kind(void)
     static const char *const s_names[] = {"pyright", "clangd", "rust-analyzer", "gopls", "bash"};
     for (unsigned int at = 0u; at < (sizeof(s_names) / sizeof(s_names[0])); at += 1u)
     {
-        EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = s_names[at], .kind = CLI_OVERSEER_SERVER,
+        EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = s_names[at], .role = CLI_OVERSEER_SERVER,
                    .event = CLI_OVERSEER_READY);
     }
-    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "host", .kind = CLI_OVERSEER_REMOTE,
+    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "host", .role = CLI_OVERSEER_REMOTE,
                .event = CLI_OVERSEER_READY);
     CliOverseerSeen seen[16];
     const unsigned int count =
-        EMBED_CALL(cli_overseer.seen, CliOverseerCfg, .kind = CLI_OVERSEER_SERVER, .seen_out = seen, .max = 16u);
+        EMBED_CALL(cli_overseer.seen, CliOverseerCfg, .role = CLI_OVERSEER_SERVER, .seen_out = seen, .max = 16u);
     TEST_ASSERT_EQUAL_UINT(5u, count);
     TEST_ASSERT_EQUAL_STRING("bash", seen[0].name);
     TEST_ASSERT_EQUAL_STRING("clangd", seen[1].name);
@@ -108,14 +108,14 @@ void test_the_records_list_by_name_and_by_kind(void)
 
 void test_the_worst_state_of_a_kind_wins(void)
 {
-    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "a", .kind = CLI_OVERSEER_REMOTE,
+    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "a", .role = CLI_OVERSEER_REMOTE,
                .event = CLI_OVERSEER_READY);
-    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "b", .kind = CLI_OVERSEER_REMOTE,
+    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "b", .role = CLI_OVERSEER_REMOTE,
                .event = CLI_OVERSEER_LINK_ERROR);
     TEST_ASSERT_EQUAL_UINT(CLI_OVERSEER_STOPPING,
-                           EMBED_CALL(cli_overseer.worst, CliOverseerCfg, .kind = CLI_OVERSEER_REMOTE));
+                           EMBED_CALL(cli_overseer.worst, CliOverseerCfg, .role = CLI_OVERSEER_REMOTE));
     TEST_ASSERT_EQUAL_UINT(CLI_OVERSEER_NONE,
-                           EMBED_CALL(cli_overseer.worst, CliOverseerCfg, .kind = CLI_OVERSEER_SERVER));
+                           EMBED_CALL(cli_overseer.worst, CliOverseerCfg, .role = CLI_OVERSEER_SERVER));
 }
 
 void test_a_blinking_state_shows_for_half_of_each_blink_and_a_solid_one_always(void)
@@ -133,7 +133,7 @@ void test_a_blinking_state_shows_for_half_of_each_blink_and_a_solid_one_always(v
 void test_the_next_wake_is_none_without_records_and_the_next_half_blink_while_one_blinks(void)
 {
     TEST_ASSERT_EQUAL_UINT64(0ULL, EMBED_CALL(cli_overseer.due_ms, CliOverseerCfg, .now_ms = 100ULL));
-    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "clangd", .kind = CLI_OVERSEER_SERVER,
+    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "clangd", .role = CLI_OVERSEER_SERVER,
                .event = CLI_OVERSEER_CONNECTING);
     // before the first tick, the tick is due at once
     TEST_ASSERT_EQUAL_UINT64(101ULL, EMBED_CALL(cli_overseer.due_ms, CliOverseerCfg, .now_ms = 100ULL));
@@ -146,7 +146,7 @@ void test_the_next_wake_is_none_without_records_and_the_next_half_blink_while_on
 
 void test_a_process_past_its_memory_is_ended_and_its_record_shows_the_error(void)
 {
-    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "greedy", .kind = CLI_OVERSEER_PLUGIN,
+    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "greedy", .role = CLI_OVERSEER_PLUGIN,
                .event = CLI_OVERSEER_SPAWNED, .pid = (unsigned long long)cli_process_own());
     EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "greedy", .event = CLI_OVERSEER_READY);
     EMBED_CALL(cli_overseer.limits, CliOverseerCfg, .name = "greedy", .memory_bytes = 1ULL, .end = overseer_fake_end,
@@ -158,7 +158,7 @@ void test_a_process_past_its_memory_is_ended_and_its_record_shows_the_error(void
 
 void test_a_process_within_its_limits_is_not_ended_and_reads_its_working_set(void)
 {
-    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "modest", .kind = CLI_OVERSEER_PLUGIN,
+    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "modest", .role = CLI_OVERSEER_PLUGIN,
                .event = CLI_OVERSEER_SPAWNED, .pid = (unsigned long long)cli_process_own());
     EMBED_CALL(cli_overseer.limits, CliOverseerCfg, .name = "modest", .memory_bytes = 1ULL << 40u,
                .end = overseer_fake_end, .context = NULL);
@@ -166,13 +166,13 @@ void test_a_process_within_its_limits_is_not_ended_and_reads_its_working_set(voi
     TEST_ASSERT_EQUAL_UINT(0u, s_ended);
     CliOverseerSeen seen[1];
     TEST_ASSERT_EQUAL_UINT(
-        1u, EMBED_CALL(cli_overseer.seen, CliOverseerCfg, .kind = CLI_OVERSEER_PLUGIN, .seen_out = seen, .max = 1u));
+        1u, EMBED_CALL(cli_overseer.seen, CliOverseerCfg, .role = CLI_OVERSEER_PLUGIN, .seen_out = seen, .max = 1u));
     TEST_ASSERT_GREATER_THAN_UINT64(0ULL, seen[0].working);
 }
 
 void test_an_ask_past_its_time_is_ended(void)
 {
-    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "slow", .kind = CLI_OVERSEER_PLUGIN,
+    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "slow", .role = CLI_OVERSEER_PLUGIN,
                .event = CLI_OVERSEER_SPAWNED, .pid = (unsigned long long)cli_process_own());
     EMBED_CALL(cli_overseer.limits, CliOverseerCfg, .name = "slow", .ask_ms = 50ULL, .end = overseer_fake_end,
                .context = NULL);
@@ -184,7 +184,7 @@ void test_an_ask_past_its_time_is_ended(void)
 void test_a_remote_link_whose_process_is_gone_is_lost(void)
 {
     // a pid far past any the system gives out
-    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "host", .kind = CLI_OVERSEER_REMOTE,
+    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "host", .role = CLI_OVERSEER_REMOTE,
                .event = CLI_OVERSEER_SPAWNED, .pid = 0xFFFFFFF0ULL);
     EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "host", .event = CLI_OVERSEER_READY);
     (void)EMBED_CALL(cli_overseer.tick, CliOverseerCfg, .now_ms = cli_clock_milliseconds());
@@ -193,7 +193,7 @@ void test_a_remote_link_whose_process_is_gone_is_lost(void)
 
 void test_a_tick_says_whether_a_state_changed(void)
 {
-    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "clangd", .kind = CLI_OVERSEER_SERVER,
+    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "clangd", .role = CLI_OVERSEER_SERVER,
                .event = CLI_OVERSEER_READY);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_overseer.tick, CliOverseerCfg, .now_ms = 10000ULL));
     TEST_ASSERT_FALSE(EMBED_CALL(cli_overseer.tick, CliOverseerCfg, .now_ms = 10000ULL + CLI_OVERSEER_TICK_MS));

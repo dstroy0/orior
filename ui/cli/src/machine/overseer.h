@@ -20,7 +20,7 @@ extern "C"
 
     typedef struct CliOverseerCfg CliOverseerCfg;
 
-// the kinds of record: a language server, a script plugin's host, and a remote session
+// the values of a record's `role`: a language server, a script plugin's host, and a remote session
 #define CLI_OVERSEER_SERVER 0u
 #define CLI_OVERSEER_PLUGIN 1u
 #define CLI_OVERSEER_REMOTE 2u
@@ -54,18 +54,18 @@ extern "C"
 #define CLI_OVERSEER_BLINK_MS 500ULL
 #define CLI_OVERSEER_CPU_TICKS 3u
 
-    // One record as the window reads it. It has its name, its kind, its state and its working set in bytes. Then it
+    // One record as the window reads it. It has its name, its `role`, its state and its working set in bytes. Then it
     // has its percent of one processor over the last tick
     typedef struct
     {
         char name[CLI_NAME_MAX_LEN];
-        unsigned int kind;
+        unsigned int role;
         unsigned int state;
         unsigned long long working;
         unsigned int cpu_percent;
     } CliOverseerSeen;
 
-    // the event `event` of the record `name` of the kind `kind`, with the process `pid` for `CLI_OVERSEER_SPAWNED`. The
+    // the event `event` of the record `name`, its `role` given, with the process `pid` for `CLI_OVERSEER_SPAWNED`. The
     // event makes a record where none has the name, and `CLI_OVERSEER_STOPPED` removes it
     void cli_overseer_report(const CliOverseerCfg *args);
     // the limits of the record `name`: `memory_bytes` of working set, `cpu_percent` of one processor, and `ask_ms` for
@@ -74,9 +74,10 @@ extern "C"
     // the tick at `now_ms`: each process read, each limit applied, and a telemetry line for each record where
     // `telemetry` is 1. 1 where a state changed since the last tick, else 0
     int cli_overseer_tick(const CliOverseerCfg *args);
-    // the records of the kind `kind` into `seen_out`, `max` at most, in the order of their names: their count
+    // the records of the `role` given into `seen_out`, `max` at most, in the order of their names: their
+    // count
     unsigned int cli_overseer_seen(const CliOverseerCfg *args);
-    // the heaviest state among the records of the kind `kind`, CLI_OVERSEER_NONE where it has none
+    // the heaviest state among the records of the `role` given, CLI_OVERSEER_NONE where it has none
     unsigned int cli_overseer_worst(const CliOverseerCfg *args);
     // whether a dot of the state `state` shows at `now_ms`. A state that blinks shows for half of each blink
     int cli_overseer_lit(const CliOverseerCfg *args);
@@ -90,7 +91,7 @@ extern "C"
     struct CliOverseerCfg
     {
         const char *name;
-        unsigned int kind;
+        unsigned int role;
         unsigned int event;
         unsigned long long pid;
         unsigned long long memory_bytes;

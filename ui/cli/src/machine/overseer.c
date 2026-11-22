@@ -8,13 +8,13 @@
 // the records that the cell grows by at once
 #define OVERSEER_GROWTH 8u
 
-// One record: its name, its kind and its state, and the process that it watches, 0 for none. Its limits follow, with
+// One record: its name, its `role` and its state, and the process that it watches, 0 for none. Its limits follow, with
 // the call that ends its process. Then the start of the ask under way, 0 for none. Then the reading of the last tick:
 // the processor time and its time, and the working set. Last, the share of a processor and the ticks past its limit
 typedef struct
 {
     char name[CLI_NAME_MAX_LEN];
-    unsigned int kind;
+    unsigned int role;
     unsigned int state;
     unsigned long long pid;
     unsigned long long memory_bytes;
@@ -160,7 +160,7 @@ void cli_overseer_report(const CliOverseerCfg *args)
         }
         memor.set(&(MemoriaCfg){.dst = &record, .val = 0, .bytes = sizeof(record)});
         (void)cellul.copy(&(CatenaFinitaCfg){.dst = record.name, .src = args->name, .cap = sizeof(record.name)});
-        record.kind = args->kind;
+        record.role = args->role;
         s_count += 1u;
     }
     else
@@ -311,7 +311,7 @@ int cli_overseer_tick(const CliOverseerCfg *args)
         // the process reads with the gate open, because a system call can take a while
         const int read = EMBED_CALL(overseer_measure, OverseerCtx, .record = &record, .now_ms = args->now_ms);
         // the far end of a remote link that the system no longer lists lost the link
-        if ((record.kind == CLI_OVERSEER_REMOTE) && (record.pid != 0ULL) && !read)
+        if ((record.role == CLI_OVERSEER_REMOTE) && (record.pid != 0ULL) && !read)
         {
             cli_overseer_report(&(CliOverseerCfg){.name = record.name, .event = CLI_OVERSEER_LINK_LOST});
         }
@@ -378,7 +378,7 @@ unsigned int cli_overseer_seen(const CliOverseerCfg *args)
     {
         OverseerRecord record;
         EMBED_CALL(overseer_read, OverseerCtx, .at = at, .record = &record);
-        if (record.kind != args->kind)
+        if (record.role != args->role)
         {
             continue;
         }
@@ -391,7 +391,7 @@ unsigned int cli_overseer_seen(const CliOverseerCfg *args)
         }
         CliOverseerSeen *const seen = &args->seen_out[place];
         (void)cellul.copy(&(CatenaFinitaCfg){.dst = seen->name, .src = record.name, .cap = sizeof(seen->name)});
-        seen->kind = record.kind;
+        seen->role = record.role;
         seen->state = record.state;
         seen->working = record.working;
         seen->cpu_percent = record.cpu_now;
@@ -409,7 +409,7 @@ unsigned int cli_overseer_worst(const CliOverseerCfg *args)
     {
         OverseerRecord record;
         EMBED_CALL(overseer_read, OverseerCtx, .at = at, .record = &record);
-        worst = ((record.kind == args->kind) && (record.state > worst)) ? record.state : worst;
+        worst = ((record.role == args->role) && (record.state > worst)) ? record.state : worst;
     }
     cli_gate_opened(&s_gate);
     return worst;

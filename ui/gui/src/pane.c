@@ -389,14 +389,14 @@ void gui_pane_draw(const GuiPaneCfg *args)
         const int pad = EMBED_CALL(pane_scaled, PaneCtx, .frame = frame, .pixels = GUI_PANE_PAD_LEFT);
         (void)EMBED_CALL(gui_dots.draw, GuiDotsCfg, .raster = raster, .palette = args->palette, .clip = inside,
                          .right = inside.x + inside.width - pad, .top = side.y, .height = side_head,
-                         .scale = frame->scale, .kind = CLI_OVERSEER_SERVER, .now_ms = now_ms);
+                         .scale = frame->scale, .role = CLI_OVERSEER_SERVER, .now_ms = now_ms);
         if ((table != NULL) && table->remote_dot)
         {
             const int dot = EMBED_CALL(pane_scaled, PaneCtx, .frame = frame, .pixels = GUI_DOTS_SIDE + GUI_DOTS_GAP);
             // the title's end lies inside the side, far inside an int
             (void)EMBED_CALL(gui_dots.draw, GuiDotsCfg, .raster = raster, .palette = args->palette, .clip = inside,
                              .right = (int)title_end + dot, .top = side.y, .height = side_head, .scale = frame->scale,
-                             .kind = CLI_OVERSEER_REMOTE, .worst = 1, .now_ms = now_ms);
+                             .role = CLI_OVERSEER_REMOTE, .worst = 1, .now_ms = now_ms);
         }
     }
     if (table == NULL)

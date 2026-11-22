@@ -50,7 +50,7 @@ int gui_dots_draw(const GuiDotsCfg *args)
     GuiDotsCfg one = *args;
     if (args->worst)
     {
-        one.state = EMBED_CALL(cli_overseer.worst, CliOverseerCfg, .kind = args->kind);
+        one.state = EMBED_CALL(cli_overseer.worst, CliOverseerCfg, .role = args->role);
         if (one.state == CLI_OVERSEER_NONE)
         {
             return args->right;
@@ -62,7 +62,7 @@ int gui_dots_draw(const GuiDotsCfg *args)
     }
     CliOverseerSeen seen[GUI_DOTS_MAX];
     const unsigned int count =
-        EMBED_CALL(cli_overseer.seen, CliOverseerCfg, .kind = args->kind, .seen_out = seen, .max = GUI_DOTS_MAX);
+        EMBED_CALL(cli_overseer.seen, CliOverseerCfg, .role = args->role, .seen_out = seen, .max = GUI_DOTS_MAX);
     // the dots go right to left, the last name rightmost
     int right = args->right;
     for (unsigned int at = count; at > 0u; at -= 1u)
