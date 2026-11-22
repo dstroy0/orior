@@ -6,9 +6,6 @@
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 #define NIFTI_ONE_HEADER 348ULL
 #define NIFTI_TWO_HEADER 540ULL

@@ -12,7 +12,6 @@
 #include <windows.h>
 
 #include <stddef.h>
-#include <string.h>
 
 // the most wide characters of a path. That is the longest name of a file of a run under the top, with the name of a
 // stream after it

@@ -24,10 +24,6 @@
 
 #include "../sass_machine.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 static SassMachine s_machine;
 static SassMachine s_taken;
 static SassListing s_listing;
@@ -40,9 +36,9 @@ static char *take_file(const char *path)
     {
         return NULL;
     }
-    platform_file_seek(file, 0L, SEEK_END);
+    platform_file_seek(file, 0L, PLATFORM_FILE_FROM_END);
     const long size = platform_file_tell(file);
-    platform_file_seek(file, 0L, SEEK_SET);
+    platform_file_seek(file, 0L, PLATFORM_FILE_FROM_START);
     // a size the file reported is at least 0, and a byte past it ends the text
     char *const text =
         (size >= 0L) ? (char *)platform_cell_taken((size_t)size + 1u, platform_place_g_program_owner, 0) : NULL;

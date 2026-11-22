@@ -42,8 +42,6 @@
 #include "cellularum_laboro/cellularum_linea.h"
 #include "kdecode/kdecode_internal.h"
 #include "verba_scribo/verba_linea.h"
-#include <stdio.h>
-#include <string.h>
 
 int program_main(int count, char **words)
 {

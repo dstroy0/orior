@@ -8,9 +8,6 @@
 
 #include "../../parsers/line_read.h"
 #include "../../parsers/who.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 // the max answers a channel's counts are taken again over
 #define KSC_ANSWERS 32u

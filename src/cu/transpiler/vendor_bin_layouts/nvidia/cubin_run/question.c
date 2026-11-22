@@ -7,8 +7,6 @@
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
 #include "verba_scribo/verba_linea.h"
-#include <stdio.h>
-#include <string.h>
 
 // a part of a driver's error name and the cause a conference reads it as (overseer.h)
 typedef struct

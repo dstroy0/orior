@@ -7,7 +7,6 @@
 
 #include "../../../../../../includes/exact_types/integers/exact_integer.h"
 
-#include <string.h>
 
 // the count of ones in `word`
 static unsigned int bits_set(unsigned int word)

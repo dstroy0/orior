@@ -6,9 +6,6 @@
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 // one tab-separated word of `line` from `at`, into `word`; the place the next word starts, or 0 at the end
 static unsigned int layout_word(const char *line, unsigned int at, char *word, unsigned int room)

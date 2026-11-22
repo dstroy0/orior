@@ -4,8 +4,6 @@
 #include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
-#include <stdlib.h>
-#include <string.h>
 
 _Static_assert(sizeof(unsigned int) == 4u, "shift_agreement: unsigned int must be 32 bits, a residue");
 _Static_assert(sizeof(unsigned long long) == 8u, "shift_agreement: unsigned long long must be 64 bits, a product");

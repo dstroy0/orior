@@ -6,7 +6,6 @@
 
 #include "../../codecs/crc/crc_key.h"
 
-#include <string.h>
 
 static const unsigned long long s_crc_table[256] = CRC_KEY_TABLE;
 

@@ -33,8 +33,6 @@
 #include "verba_scribo/verba_scribo.h"
 #include "../../../../src/platform/platform.h"
 
-#include <stdio.h>
-#include <stdlib.h>
 
 #include <map>
 #include <sstream>

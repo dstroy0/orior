@@ -3,7 +3,6 @@
 #include "print_pair.h"
 #include "memoria_operor/memoria_linea.h"
 
-#include <string.h>
 
 #define PRINT_PAIR_OTHER PRINT_PAIR_BANDS
 

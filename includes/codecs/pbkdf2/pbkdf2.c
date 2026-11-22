@@ -6,7 +6,6 @@
 
 #include "../sha512/sha512.h"
 
-#include <string.h>
 
 // the bytes of the block of SHA-512, which is B of RFC 2104
 #define HMAC_BLOCK_BYTES SHA512_BLOCK_BYTES

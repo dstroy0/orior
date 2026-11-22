@@ -5,7 +5,6 @@
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
 
-#include <string.h>
 
 typedef struct
 {

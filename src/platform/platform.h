@@ -259,9 +259,15 @@ char *platform_file_text_read(char *out, int capacity, PlatformFile *file);
 // what a file written holds passed to the system: 0, or PLATFORM_FILE_END where it did not go, as fflush answers
 int platform_file_flush(PlatformFile *file);
 
-// The place of the file moved to `offset`, as fseek moves it. A `whence` of 0 counts from the start, 1 from the place
-// now and 2 from the end. The answer is 0, or -1 where the system refused. The end of the file is no longer met after
-// a move
+// the three places that a move of a file counts from: the start, the place now and the end. SEEK_SET, SEEK_CUR and
+// SEEK_END name the same three
+#define PLATFORM_FILE_FROM_START 0
+#define PLATFORM_FILE_FROM_HERE 1
+#define PLATFORM_FILE_FROM_END 2
+
+// The place of the file moved to `offset`, as fseek moves it. A `whence` of PLATFORM_FILE_FROM_START counts from the
+// start, PLATFORM_FILE_FROM_HERE from the place now and PLATFORM_FILE_FROM_END from the end. The answer is 0, or -1
+// where the system refused. The end of the file is no longer met after a move
 int platform_file_seek(PlatformFile *file, long long offset, int whence);
 
 // the place of the file, as ftell answers it: the bytes before the next write or read, or -1 where the system refused

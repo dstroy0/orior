@@ -10,8 +10,6 @@
 #include "../cubin_write.h"
 #include "../sass_assemble.h"
 
-#include <stdio.h>
-#include <string.h>
 
 // the max bytes a cubin, its code and its text take
 #define SASS_CUBIN_BYTES 262144u

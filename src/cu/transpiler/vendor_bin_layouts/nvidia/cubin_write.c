@@ -9,8 +9,6 @@
 #include "../container_write.h"
 #include "../../../../../includes/parsers/line_read.h"
 
-#include <stdio.h>
-#include <string.h>
 
 // the layout of a cubin, in the folder of this file in the tree it was built from, read once a
 // process; NULL where it could not be read, with the reason printed

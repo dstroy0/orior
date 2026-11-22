@@ -22,9 +22,6 @@
 #include "../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../../../../includes/parsers/who.h"
 #include "../../lstar/protocol/query/query_put.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 #if defined(_WIN32)
 #include "scaffolding/mmio_read.h"

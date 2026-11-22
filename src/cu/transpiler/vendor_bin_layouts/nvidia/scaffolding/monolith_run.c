@@ -17,8 +17,6 @@
 #include "../monolith.h"
 
 #include <cuda.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 // the words the first entry reads: the left word, the right word and the flag, which is 0 on every run
 #define MONOLITH_IN_WORDS 3u
@@ -71,9 +69,9 @@ static unsigned char *monolith_file(const char *path)
     {
         return NULL;
     }
-    platform_file_seek(file, 0L, SEEK_END);
+    platform_file_seek(file, 0L, PLATFORM_FILE_FROM_END);
     const long size = platform_file_tell(file);
-    platform_file_seek(file, 0L, SEEK_SET);
+    platform_file_seek(file, 0L, PLATFORM_FILE_FROM_START);
     // a size the file reported is at least 0, and a byte past it ends the image
     unsigned char *const bytes =
         (size > 0L) ? (unsigned char *)platform_cell_taken((size_t)size + 1u, platform_place_g_program_owner, 0) : NULL;

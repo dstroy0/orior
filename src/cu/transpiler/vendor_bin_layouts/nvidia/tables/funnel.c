@@ -7,9 +7,6 @@
 #include "memoria_operor/memoria_linea.h"
 #include "../../../../../../includes/parsers/line_read.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 // the max an archive unpacks to: a table is a few million bytes, and a header past this is no header
 #define TABLES_MAX (256u * 1024u * 1024u)

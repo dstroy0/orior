@@ -4,10 +4,7 @@
 #include "chain_build.h"
 #include "memoria_operor/memoria_linea.h"
 #include "verba_scribo/verba_linea.h"
-#include <stdio.h>
-#include <string.h>
 
-#include <string.h>
 
 // The precepts a chain is built from: the ones that carry a word and take a child. NOP carries no child, ERR reports a
 // thing cannot be done, and the two branches go nowhere a word comes back from

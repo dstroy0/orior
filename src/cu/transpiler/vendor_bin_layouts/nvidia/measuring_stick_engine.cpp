@@ -67,8 +67,6 @@ extern "C"
 #include "target.h"
 #include "verba_scribo/verba_linea.h"
 #include "../../../../platform/platform.h"
-#include <stdio.h>
-#include <string.h>
 
 #include <algorithm>
 #include <cctype>

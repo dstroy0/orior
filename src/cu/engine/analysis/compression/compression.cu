@@ -7,8 +7,6 @@
 #include <cub/cub.cuh>
 #include <cuda_runtime.h>
 
-#include <stdlib.h>
-#include <string.h>
 
 #include <vector>
 

@@ -6,7 +6,6 @@
 
 #include "../../../../../includes/file_defs/qry/writer/qry_member.h"
 
-#include <string.h>
 
 // the numbers this process appended, an open table twice the texts a run of it numbers
 #define TABLE_TEXT_SLOTS (1u << 16u)

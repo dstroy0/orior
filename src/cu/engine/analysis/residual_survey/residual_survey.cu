@@ -7,9 +7,6 @@
 #include "../golden_bands/golden_bands.h"
 #include "../../runtime/radix_keys/radix_keys.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 unsigned int g_survey = 0u;
 

@@ -5,7 +5,6 @@
 
 #include <cuda_runtime.h>
 
-#include <string.h>
 
 static_assert(cudaSuccess == 0, "the engine reads a CUDA status of 0 as success");
 

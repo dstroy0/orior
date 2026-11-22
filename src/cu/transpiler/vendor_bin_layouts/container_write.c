@@ -6,7 +6,6 @@
 #include "../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
-#include <stdlib.h>
 
 static void value_put(unsigned char *bytes, unsigned int width, unsigned long long value)
 {

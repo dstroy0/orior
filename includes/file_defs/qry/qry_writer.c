@@ -27,8 +27,6 @@
 #include "qry_read.h"
 #include "writer/qry_writer_internal.h"
 
-#include <stdlib.h>
-#include <string.h>
 
 // the path of the .qry the writer writes
 static const char *s_qry;

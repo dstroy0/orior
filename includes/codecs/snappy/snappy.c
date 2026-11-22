@@ -3,7 +3,6 @@
 #include "snappy.h"
 #include "memoria_operor/memoria_linea.h"
 
-#include <string.h>
 
 #define SNAPPY_PREAMBLE_BYTES 5u
 #define SNAPPY_LITERAL 0u

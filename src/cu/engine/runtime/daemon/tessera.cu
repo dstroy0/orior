@@ -10,8 +10,6 @@
 
 #include <cuda_runtime.h>
 
-#include <stdlib.h>
-#include <string.h>
 
 // the calls from `first` made in order by one thread, each answered, until one the ledger's arrays cannot take:
 // `stopped` is that call, or `count` where every call was made

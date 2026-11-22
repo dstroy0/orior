@@ -5,8 +5,6 @@
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
 
-#include <stdlib.h>
-#include <string.h>
 
 #if defined(_WIN32)
 #define TESSERA_SEPARATOR '\\'

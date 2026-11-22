@@ -10,10 +10,7 @@
 
 #include "../../../../../../includes/parsers/line_read.h"
 
-#include <stdio.h>
 
-#include <stdlib.h>
-#include <string.h>
 
     static const char *tables_past_spaces(const char *at)
 {

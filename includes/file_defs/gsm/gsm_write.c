@@ -28,9 +28,6 @@
 #include "../vendor_writer_run.h"
 #include "verba_scribo/verba_scribo.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 // the name for the relation of a form in the pass back, as khw_write writes it
 #define GSM_READS_LADDER "ladder."

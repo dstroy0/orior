@@ -22,9 +22,6 @@
 #include "../qry/writer/qry_writer_internal.h"
 #include "verba_scribo/verba_scribo.h"
 
-#include <stdio.h>
-#include <string.h>
-
 // the bytes of a file read at once, and the max lines that differ named for one file
 #define KSG_READ_BYTES (256u << 10u)
 #define KSG_NAMED_MAX 64u
@@ -120,9 +117,10 @@ static PlatformFile *ksg_seal_opened(const char *path, unsigned char *stored_tra
     unsigned char head[KREP_HEAD_BYTES];
     unsigned char stored_head[KREP_HEAD_BYTES];
     ksg_head(head);
-    const int opened = (seal != NULL) && (platform_file_seek(seal, -(long)KSG_TRAILER_BYTES, SEEK_END) == 0) &&
+    const int opened = (seal != NULL) &&
+                       (platform_file_seek(seal, -(long)KSG_TRAILER_BYTES, PLATFORM_FILE_FROM_END) == 0) &&
                        (platform_file_read_items(stored_trailer, 1u, KSG_TRAILER_BYTES, seal) == KSG_TRAILER_BYTES) &&
-                       (platform_file_seek(seal, 0L, SEEK_SET) == 0) &&
+                       (platform_file_seek(seal, 0L, PLATFORM_FILE_FROM_START) == 0) &&
                        (platform_file_read_items(stored_head, 1u, sizeof(stored_head), seal) == sizeof(stored_head)) &&
                        (mmgr_bytes_compare(stored_head, head, sizeof(head)) == 0);
     if (!opened && (seal != NULL))

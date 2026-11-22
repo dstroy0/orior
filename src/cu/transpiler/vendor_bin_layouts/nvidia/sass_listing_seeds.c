@@ -12,12 +12,9 @@
 //     orior_sass_listing_seeds <listing.sass> [--modifiers]
 //
 // Exit 0 with the seeds on the standard output; 1 where the listing did not read; 2 where the words are not these
-#include <stdio.h>
 #include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
-#include <stdlib.h>
-#include <string.h>
 
 // the operation key, the low word's bits 0 to 11
 #define SEED_KEY_BITS 12u

@@ -3,7 +3,6 @@
 #include "contact_side.h"
 #include "memoria_operor/memoria_linea.h"
 
-#include <string.h>
 
 typedef struct
 {

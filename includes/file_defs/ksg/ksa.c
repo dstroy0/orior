@@ -9,7 +9,6 @@
 
 #include "../../codecs/ed25519/ed25519.h"
 
-#include <string.h>
 
 _Static_assert(ED25519_SEED_BYTES <= KSA_SECRET_MAX, "an Ed25519 seed fits a ksa secret");
 _Static_assert(ED25519_PUBLIC_BYTES <= KSA_KEY_MAX, "an Ed25519 public key fits a ksa key");

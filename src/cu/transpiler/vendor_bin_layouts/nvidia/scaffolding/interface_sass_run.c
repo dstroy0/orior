@@ -31,9 +31,6 @@
 
 #include <cuda.h>
 #include <windows.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 // the max bytes a cubin takes, and the longest line of the list
 #define SASS_RUN_CUBIN 262144u

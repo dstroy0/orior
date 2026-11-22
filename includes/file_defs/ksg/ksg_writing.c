@@ -9,7 +9,6 @@
 
 #include "../qry/writer/qry_writer_internal.h"
 
-#include <string.h>
 
 // `path` with `suffix` after it into `out`, which has room for KSG_PATH_MAX_LEN: 1, or 0 where it does not fit
 static int ksg_named(const char *path, const char *suffix, char *out)

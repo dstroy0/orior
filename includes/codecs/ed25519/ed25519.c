@@ -8,7 +8,6 @@
 
 #include "../sha512/sha512.h"
 
-#include <string.h>
 
 // the limbs of a field element, and the bytes of a scalar's reduction
 #define ED25519_LIMBS 16u

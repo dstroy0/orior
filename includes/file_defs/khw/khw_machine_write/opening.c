@@ -7,8 +7,6 @@
 
 #include "../../ksc/ksc.h"
 
-#include <stdio.h>
-#include <string.h>
 
 // the word of the row `run answers <k> <question>` of the .ksc at `ksc_path` whose question begins with `question`, or
 // `none` where no such row is or the file is not there

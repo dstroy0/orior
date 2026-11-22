@@ -3,8 +3,6 @@
 #include "residual.h"
 #include "memoria_operor/memoria_linea.h"
 
-#include <stdlib.h>
-#include <string.h>
 
 #define RESIDUAL_CHECK(condition_, evacaddr_, error_, type_)                                                           \
     engine_error_check((condition_), (type_), ENGINE_MODULE_RESIDUAL, (unsigned int)__LINE__,                          \

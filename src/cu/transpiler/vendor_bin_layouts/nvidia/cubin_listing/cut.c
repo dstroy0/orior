@@ -6,9 +6,6 @@
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 // the offset a label carries before the instruction it is before is read
 #define CUBIN_LABEL_UNSET (~0ULL)

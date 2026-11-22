@@ -11,8 +11,6 @@
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
 
-#include <stdio.h>
-#include <string.h>
 
 #define INTERFACE_PTX_CAPACITY 65536u
 // a question's limit: the membership queries assemble and run a kernel for each question

@@ -4,8 +4,6 @@
 #include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
-#include <stdlib.h>
-#include <string.h>
 
 #define GROW_CHECK(condition_, evacaddr_, error_, type_)                                                               \
     engine_error_check((condition_), (type_), ENGINE_MODULE_GROW, (unsigned int)__LINE__, (const void *)(evacaddr_),   \

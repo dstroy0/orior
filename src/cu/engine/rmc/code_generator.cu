@@ -6,7 +6,6 @@
 #include "../../../../includes/file_defs/krs/ruleset_reader.h"
 
 #include <stddef.h>
-#include <stdio.h>
 
 #include <deque>
 #include <initializer_list>

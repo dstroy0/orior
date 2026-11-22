@@ -6,7 +6,6 @@
 #include "memoria_operor/memoria_linea.h"
 
 #include <limits.h>
-#include <string.h>
 
 _Static_assert(CHAR_BIT == 8, "sha512: a byte contains 8 bits");
 _Static_assert(ULLONG_MAX >= 0xFFFFFFFFFFFFFFFFULL, "sha512: an unsigned long long represents a 64-bit word");

@@ -7,9 +7,6 @@
 #include "cellularum_laboro/cellularum_linea.h"
 
 #include "../../parsers/who.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 // the longest head line, `krf <part>`
 #define KRF_HEAD 256u

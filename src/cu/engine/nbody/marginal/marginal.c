@@ -5,8 +5,6 @@
 #include "memoria_operor/memoria_linea.h"
 #include "../../../../../includes/exact_types/integers/exact_integer.h"
 
-#include <stdlib.h>
-#include <string.h>
 
 _Static_assert(MARGINAL_LIMBS <= ORIOR_EXACT_LIMBS, "marginal: the host's exact integer must represent every sum");
 

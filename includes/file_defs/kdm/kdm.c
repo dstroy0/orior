@@ -8,9 +8,6 @@
 #include "cellularum_laboro/cellularum_laboro.h"
 
 #include "../../parsers/who.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
     int kdm_read(KdmFile *file, const char *path)
 {

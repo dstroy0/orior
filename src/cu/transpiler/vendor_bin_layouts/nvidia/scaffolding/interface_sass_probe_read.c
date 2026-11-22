@@ -6,8 +6,6 @@
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
 
-#include <stdlib.h>
-#include <string.h>
 
 // the output a process gives, a cubin's whole listing with its encodings
 #define SASS_OUTPUT_CAPACITY (4u * 1024u * 1024u)

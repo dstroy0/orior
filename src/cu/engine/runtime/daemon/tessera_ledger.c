@@ -9,8 +9,6 @@
 #include "memoria_operor/memoria_linea.h"
 #include "tessera_ledger_core.h"
 
-#include <stdlib.h>
-#include <string.h>
 
 // `items` grown to contain `wanted` of `size` bytes each, its capacity doubled until it does
 static int tessera_grow(void **items, unsigned long long *capacity, unsigned long long wanted, size_t size)

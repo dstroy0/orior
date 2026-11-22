@@ -8,7 +8,6 @@
 
 #include "../tables/read.h"
 
-#include <ctype.h>
 
 int cubin_class_control_or_wait(const struct TablesSetTag *tables, unsigned long long low, unsigned long long high)
 {

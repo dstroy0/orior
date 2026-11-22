@@ -3,7 +3,6 @@
 #include "velocity.h"
 #include "memoria_operor/memoria_linea.h"
 
-#include <string.h>
 
 #define VELOCITY_EARLIER_MASS 0u
 

@@ -20,9 +20,6 @@
 #include "cellularum_laboro/cellularum_linea.h"
 #include "read.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 // the file at `path` whole, or NULL
 static unsigned char *whole(const char *path, size_t *size)

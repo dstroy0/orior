@@ -8,11 +8,7 @@
 #include "memoria_operor/memoria_linea.h"
 #include "../../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "verba_scribo/verba_linea.h"
-#include <stdio.h>
-#include <string.h>
 
-#include <stdlib.h>
-#include <string.h>
 
 #define QUERY_INTERFACE_CHECK(condition_, evacaddr_, error_, type_)                                                    \
     engine_error_check((condition_), (type_), ENGINE_MODULE_INTERFACE, (unsigned int)__LINE__,                         \

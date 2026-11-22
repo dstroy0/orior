@@ -12,7 +12,6 @@
 #include "../file_defs/qry/writer/qry_member.h"
 #include "verba_scribo/verba_scribo.h"
 
-#include <string.h>
 
 // the sources whose numbers were requested, each looked up in the table once
 #define WHO_LOOKUPS 64u

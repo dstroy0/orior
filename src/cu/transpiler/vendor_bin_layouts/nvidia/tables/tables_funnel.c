@@ -11,8 +11,6 @@
 #include "../../../../../platform/platform.h"
 #include "../../../../engine/engine_note.h"
 
-#include <stdio.h>
-#include <stdlib.h>
 
 static unsigned char *tables_file_read(const char *path, size_t *size)
 {

@@ -93,7 +93,7 @@ int omega_engine_ledger_write(const char *path, const OmegaEngineJob *job)
     PlatformFile *before = platform_file_open(path, "rb");
     if (before != NULL)
     {
-        if (platform_file_seek(before, -1L, SEEK_END) == 0)
+        if (platform_file_seek(before, -1L, PLATFORM_FILE_FROM_END) == 0)
         {
             ended = (platform_file_char_get(before) == '\n');
         }

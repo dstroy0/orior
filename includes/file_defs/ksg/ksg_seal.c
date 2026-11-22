@@ -10,7 +10,6 @@
 
 #include "../../../src/cu/engine/runtime/obsignatio/obsignatio_internal.h"
 
-#include <string.h>
 
 // `size` bytes signed with `key`, as obsignatio's keyed signum on the host, into `out`: 1
 static int ksg_signed(const unsigned char *key, const void *bytes, unsigned long long size, unsigned char *out)

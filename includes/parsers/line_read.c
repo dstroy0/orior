@@ -6,7 +6,6 @@
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
 
-#include <string.h>
 
 int line_read(const unsigned char *bytes, unsigned long long size, unsigned long long *at, char *line, size_t room)
 {

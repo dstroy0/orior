@@ -12,9 +12,6 @@
 
 #include "../../../src/cu/transpiler/lstar/protocol/table_text.h"
 #include "../../parsers/who.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 // `length` characters at `text` copied into an allocation of their own, ended: NULL where there was no memory
 static char *kfile_lines_copy(const char *text, size_t length)

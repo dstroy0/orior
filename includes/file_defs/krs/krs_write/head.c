@@ -8,8 +8,6 @@
 #include "../../ksc/ksc.h"
 #include "verba_scribo/verba_scribo.h"
 
-#include <stdio.h>
-#include <string.h>
 
 unsigned int krs_head_written(char *out, size_t cap, size_t *at, const char *ksc_path, char *missing, size_t room)
 {

@@ -15,8 +15,6 @@
 #include "cellularum_laboro/cellularum_linea.h"
 #include "../sass_assemble.h"
 
-#include <stdio.h>
-#include <string.h>
 
 #define CHECK_CUBIN_BYTES 1048576u
 #define CHECK_CODE_INSTRUCTIONS 4u

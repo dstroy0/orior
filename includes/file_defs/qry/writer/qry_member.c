@@ -3,14 +3,13 @@
 // qry_member.c: a module's run found, its ring taken, a record written once into the ring with its time and CRC, the
 // run's records read where the writer puts them, and the panic line
 #include "qry_writer_internal.h"
+#include <stdlib.h>
 #include "../../../../src/platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
 
 #include "../qry_read.h"
 
-#include <stdlib.h>
-#include <string.h>
 
 // the run this process is a member of, the path of its .qry, and how many runs it joined
 static QryShared *s_run = NULL;

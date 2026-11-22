@@ -14,9 +14,6 @@
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "verba_scribo/verba_scribo.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include "../../../../../../includes/parsers/who.h"
 #include "../../../../../../includes/parsers/line_read.h"
 

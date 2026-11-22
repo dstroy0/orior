@@ -35,8 +35,6 @@
 
 #include <cuda_runtime.h>
 
-#include <stdio.h>
-#include <string.h>
 
 /** @brief Threads per block. 256 suits each device of the build, and needs no change here. */
 #define ORIOR_GPU_BLOCK 256u

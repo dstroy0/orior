@@ -4,8 +4,6 @@
 #include "memoria_operor/memoria_linea.h"
 #include "../../../../platform/platform.h"
 
-#include <stdlib.h>
-#include <string.h>
 
 _Static_assert(sizeof(unsigned int) == 4u, "body_overlap: unsigned int must be 32 bits, a peak index");
 _Static_assert(sizeof(unsigned long long) == 8u, "body_overlap: unsigned long long must be 64 bits, a pair");

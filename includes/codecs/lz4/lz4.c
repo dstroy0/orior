@@ -4,7 +4,6 @@
 #include "memoria_operor/memoria_linea.h"
 
 #include <limits.h>
-#include <string.h>
 
 #define LZ4_FRAME_MAGIC 0x184D2204u
 #define LZ4_SKIPPABLE_MAGIC 0x184D2A50u

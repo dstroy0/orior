@@ -8,7 +8,6 @@
 #include "../../src/cu/transpiler/lstar/interface/interface.h"
 #include "qry/writer/qry_member.h"
 
-#include <stdio.h>
 
 int vendor_writer_run(char *const *command, const char *machine_name, const char *program, const char *mode)
 {

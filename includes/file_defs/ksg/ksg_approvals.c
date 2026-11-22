@@ -10,8 +10,6 @@
 
 #include "../qry/writer/qry_writer_internal.h"
 
-#include <stdio.h>
-#include <string.h>
 
 #if defined(_WIN32)
 #define NOMINMAX

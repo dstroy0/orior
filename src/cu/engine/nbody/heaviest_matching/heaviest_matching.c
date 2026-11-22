@@ -4,8 +4,6 @@
 #include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
-#include <stdlib.h>
-#include <string.h>
 
 _Static_assert(sizeof(long long) == 8u, "heaviest_matching: long long must be 64 bits, a path cost");
 

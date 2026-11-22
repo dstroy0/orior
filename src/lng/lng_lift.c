@@ -12,7 +12,6 @@
 #include "cellularum_laboro/cellularum_linea.h"
 
 #include <lean/lean.h>
-#include <stdlib.h>
 
 extern void lean_initialize_runtime_module(void);
 extern lean_object *initialize_Lng_LngLift(uint8_t builtin);

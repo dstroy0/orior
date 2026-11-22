@@ -7,8 +7,6 @@
 
 #include <cuda_runtime.h>
 
-#include <stdlib.h>
-#include <string.h>
 
 #define BODY_OVERLAP_BLOCK 256u
 

@@ -15,8 +15,6 @@
 #include "../../../../../platform/platform.h"
 #include "../../../../engine/engine_note.h"
 
-#include <stdio.h>
-#include <stdlib.h>
 
 // the register at offset 0 of BAR0: the part's chip name, read to prove the aperture is live
 #define MMIO_CHECK_BOOT_0 0x0u

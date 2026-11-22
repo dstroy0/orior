@@ -5,9 +5,6 @@
 #include "../../../src/cu/engine/engine_note.h"
 #include "memoria_operor/memoria_linea.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 #define BLOSC_HEADER_BYTES 16ULL
 #define BLOSC_START_BYTES 4ULL

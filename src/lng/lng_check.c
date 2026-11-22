@@ -14,9 +14,6 @@
 #include "lng.h"
 #include "verba_scribo/verba_scribo.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 #define LNG_SCHEMA "src/cu/engine/rmc/machine_ir_types.h"
 #define LNG_GNASCOR "src/cu/transpiler/gnascor.md"

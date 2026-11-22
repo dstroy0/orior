@@ -5,8 +5,6 @@
 
 #include <cuda_runtime.h>
 
-#include <stdlib.h>
-#include <string.h>
 
 #define MARGINAL_BLOCK 128u
 

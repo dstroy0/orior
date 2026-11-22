@@ -6,7 +6,6 @@
 #include "memoria_operor/memoria_linea.h"
 
 #include <limits.h>
-#include <string.h>
 
 _Static_assert(CHAR_BIT == 8, "sha256: a byte contains 8 bits");
 _Static_assert(UINT_MAX >= 0xFFFFFFFFu, "sha256: an unsigned int represents a 32-bit word");

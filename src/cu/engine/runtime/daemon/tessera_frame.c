@@ -3,7 +3,6 @@
 #include "tessera.h"
 #include "memoria_operor/memoria_linea.h"
 
-#include <string.h>
 
 #define TESSERA_AT_MAGIC 0u
 #define TESSERA_AT_VERSION 4u

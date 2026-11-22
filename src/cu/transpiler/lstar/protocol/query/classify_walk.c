@@ -12,12 +12,9 @@
 #include "../../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
-#include <stdio.h>
-#include <string.h>
 #include "../../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "query_put.h"
 
-#include <stdlib.h>
 
 int program_main(int count_of_words, char **words)
 {

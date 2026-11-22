@@ -6,7 +6,6 @@
 
 #include <cuda_runtime.h>
 
-#include <string.h>
 
 #define UNIT_SWEEP_THREADS 256u
 

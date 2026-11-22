@@ -38,7 +38,6 @@
 
 #include <cuda_runtime.h>
 
-#include <stdio.h>
 
 /** @brief Threads per block. 256 suits every device this is built for and needs no tuning here. */
 #define ORIOR_STEER_GPU_BLOCK 256u

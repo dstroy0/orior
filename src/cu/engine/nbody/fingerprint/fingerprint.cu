@@ -3,7 +3,6 @@
 #include "fingerprint.h"
 #include "memoria_operor/memoria_linea.h"
 
-#include <string.h>
 
 static const unsigned int FINGERPRINT_FIRST_AXIS[FINGERPRINT_MOMENTS] = {0u, 1u, 2u, 0u, 0u, 1u};
 

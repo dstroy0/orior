@@ -28,9 +28,6 @@
 #include "../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../lstar/interface/interface.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 // one code of the list: its number, its kernel's name, its bytes and their size, its exits, and 1 where it is set
 // aside to be read alone

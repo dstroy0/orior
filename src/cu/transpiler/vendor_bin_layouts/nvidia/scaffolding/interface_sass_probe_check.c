@@ -10,8 +10,6 @@
 #include "../sass_assemble.h"
 #include "../sass_machine.h"
 
-#include <stdio.h>
-#include <string.h>
 
 unsigned int sass_text_read(const char *output, const char *kernel, char *text, unsigned int room)
 {

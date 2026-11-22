@@ -10,9 +10,6 @@
 #include "../../includes/parsers/who.h"
 #include "verba_scribo/verba_scribo.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 #if defined(_WIN32)
 #include <windows.h>

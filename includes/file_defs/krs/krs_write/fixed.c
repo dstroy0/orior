@@ -11,9 +11,6 @@
 #include "../../krf/krf.h"
 #include "../../ksc/ksc.h"
 #include "verba_scribo/verba_scribo.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 // The four fixed registers the kernel the system accepted leaves at its probe place. The lines come in this order.
 static const char *const s_fixed_names[] = {"zero", "lane_number", "record", "index"};

@@ -205,11 +205,11 @@ int daemon_history_load(void)
         return 1;
     }
     // the file is its whole records, then the seal over them; any other length is a broken history
-    int ok = platform_file_seek(file, 0L, SEEK_END) == 0;
+    int ok = platform_file_seek(file, 0L, PLATFORM_FILE_FROM_END) == 0;
     const long length = ok ? platform_file_tell(file) : -1L;
     ok = ok && (length >= (long)OBSIGNATIO_SIGNUM_BYTES) &&
          ((((unsigned long long)length - OBSIGNATIO_SIGNUM_BYTES) % TESSERA_HISTORY_RECORD) == 0ULL) &&
-         (platform_file_seek(file, 0L, SEEK_SET) == 0);
+         (platform_file_seek(file, 0L, PLATFORM_FILE_FROM_START) == 0);
     // a length checked non-negative above is the file's byte count
     const unsigned long long total = ok ? (unsigned long long)length : 0ULL;
     unsigned char *const bytes =

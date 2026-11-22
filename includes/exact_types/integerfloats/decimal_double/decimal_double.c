@@ -5,7 +5,6 @@
 
 #include <limits.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 #define DECIMAL_DOUBLE_CHECK(condition_, evacaddr_, error_, type_)                                                     \
     engine_error_check((condition_), (type_), ENGINE_MODULE_DECIMAL_DOUBLE, (unsigned int)__LINE__,                    \

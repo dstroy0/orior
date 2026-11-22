@@ -9,9 +9,6 @@
 
 #include <cuda_runtime.h>
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 const char *g_schedule_path = NULL;
 

@@ -24,9 +24,6 @@
 #include "kdm.h"
 #include "verba_scribo/verba_scribo.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 #define KDM_TEXT_MAX_LEN 160u
 #define KDM_ROWS (LADDER_ANCHOR_COUNT * CHAIN_MAX)
