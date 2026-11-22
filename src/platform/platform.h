@@ -297,6 +297,28 @@ unsigned long long platform_clock_ns(void);
 // the clock of the calendar: the whole seconds since the start of 1970, UTC, as time answers them
 unsigned long long platform_epoch_seconds(void);
 
+// the processors that the system runs threads on, 1 at the fewest
+unsigned int platform_processors(void);
+
+// the bytes that the system's handle of a worker takes at max
+#define PLATFORM_WORKER_HANDLE_BYTES 16u
+
+// A thread of the system that the program starts and then waits for. The caller holds the worker from its start to
+// its wait, and the thread reads it in that time
+typedef struct
+{
+    void (*run)(void *context);                                        // The call that the thread runs.
+    void *context;                                                     // What the call reads [BORROWS].
+    int running;                                                       // One from the start to the wait.
+    EMBED_ALIGN(8) unsigned char handle[PLATFORM_WORKER_HANDLE_BYTES]; // The handle of the system.
+} PlatformWorker;
+
+// The worker started on run(context). The answer is 1, or 0 where the system refused the thread
+int platform_worker_started(PlatformWorker *worker, void (*run)(void *context), void *context);
+
+// The wait for the worker to end, and its handle given back. A worker that does not run is no wait
+void platform_worker_joined(PlatformWorker *worker);
+
 // the hooks that platform_close runs most allowed
 #define PLATFORM_CLOSE_HOOKS 32u
 

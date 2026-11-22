@@ -25,9 +25,6 @@ embed_word platform_thread_id(void);
 // the processor given up by the thread that calls, for the next thread that waits for it
 void platform_thread_yield(void);
 
-// the processors that the system runs threads on, 1 at the fewest
-unsigned int platform_processors(void);
-
 // A file of the system, on the handle that platform_file.c holds. A kind of 0 reads the file. A kind of 1 writes a
 // file made new in place of any file there. A kind of 2 writes after the end of the file, which the call makes where
 // none is there. The answer is the handle, and 0 where the system refused

@@ -80,12 +80,18 @@ extern "C" long engine_entropy_set(const EngineEntropySetRequest *request)
         const long windows = ok ? entropy_history_windows(extent, error) : ENTROPY_HISTORY_ERROR;
         ok = ok && (windows != ENTROPY_HISTORY_ERROR);
         const unsigned long long window_count = ok ? (unsigned long long)windows : 0ULL;
-        std::vector<unsigned long long> cloud((size_t)(window_count * window_count));
-        std::vector<unsigned long long> payload((size_t)(window_count * extent[1] * extent[2] * extent[3]));
+        // the cloud and the payload of the history, each in a cell of zeros, which go back at each end of the pass
+        const unsigned long long cloud_count = window_count * window_count;
+        const unsigned long long payload_count = window_count * extent[1] * extent[2] * extent[3];
+        unsigned long long *const cloud = (unsigned long long *)platform_cell_cleared(
+            cloud_count, sizeof(unsigned long long), platform_place_g_program_owner, 0);
+        unsigned long long *const payload = (unsigned long long *)platform_cell_cleared(
+            payload_count, sizeof(unsigned long long), platform_place_g_program_owner, 0);
+        ok = ok && (cloud != NULL) && (payload != NULL);
         EngineHistory history;
         mmgr_bytes_set(&history, 0, sizeof(history));
-        history.cloud = cloud.data();
-        history.history = payload.data();
+        history.cloud = cloud;
+        history.history = payload;
         EntropyHistoryProjectRequest project;
         mmgr_bytes_set(&project, 0, sizeof(project));
         project.volume = volume;
@@ -109,6 +115,8 @@ extern "C" long engine_entropy_set(const EngineEntropySetRequest *request)
                 mmgr_line_ch(&engine_note.line, '\n');
                 engine_note_written(&engine_note);
             }
+            platform_cell_released(cloud, platform_place_g_program_owner);
+            platform_cell_released(payload, platform_place_g_program_owner);
             ok = 0;
             break;
         }
@@ -130,6 +138,8 @@ extern "C" long engine_entropy_set(const EngineEntropySetRequest *request)
                 mmgr_line_ch(&engine_note.line, '\n');
                 engine_note_written(&engine_note);
             }
+            platform_cell_released(cloud, platform_place_g_program_owner);
+            platform_cell_released(payload, platform_place_g_program_owner);
             break;
         }
         {
@@ -143,8 +153,7 @@ extern "C" long engine_entropy_set(const EngineEntropySetRequest *request)
             mmgr_line_put(output_line, " windows of ");
             mmgr_line_decimal(output_line, ENGINE_HISTORY_WINDOW, 1u);
             mmgr_line_put(output_line, " transitions, entropy conserved at every voxel, ");
-            mmgr_line_decimal(output_line, (unsigned long long)(payload.size() * sizeof(unsigned long long)) >> 20u,
-                              1u);
+            mmgr_line_decimal(output_line, (payload_count * sizeof(unsigned long long)) >> 20u, 1u);
             mmgr_line_put(output_line, " MiB, read back whole, CRC-64 ");
             mmgr_line_hex(output_line, history.payload_crc, 16u);
             mmgr_line_put(output_line, ", in ");
@@ -155,6 +164,8 @@ extern "C" long engine_entropy_set(const EngineEntropySetRequest *request)
         }
         entropy_history_report(&history);
         platform_line_flushed();
+        platform_cell_released(cloud, platform_place_g_program_owner);
+        platform_cell_released(payload, platform_place_g_program_owner);
     }
     if (ok == 0)
     {

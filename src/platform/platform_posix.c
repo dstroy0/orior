@@ -104,6 +104,43 @@ embed_word platform_thread_id(void)
 #endif
 }
 
+// the entry of a worker's thread: its call run on its context
+static void *platform_worker_entered(void *supplied)
+{
+    // Explicit cast takes the pointer that the starter gave as the worker that it holds
+    const PlatformWorker *const worker = (const PlatformWorker *)supplied;
+    worker->run(worker->context);
+    return NULL;
+}
+
+int platform_worker_started(PlatformWorker *worker, void (*run)(void *context), void *context)
+{
+    worker->run = run;
+    worker->context = context;
+    worker->running = 0;
+    pthread_t started;
+    if (pthread_create(&started, NULL, platform_worker_entered, worker) != 0)
+    {
+        return 0;
+    }
+    _Static_assert(sizeof(pthread_t) <= PLATFORM_WORKER_HANDLE_BYTES, "a pthread_t fits the handle of a worker");
+    mmgr_bytes_copy(worker->handle, &started, sizeof(started));
+    worker->running = 1;
+    return 1;
+}
+
+void platform_worker_joined(PlatformWorker *worker)
+{
+    if (worker->running == 0)
+    {
+        return;
+    }
+    pthread_t started;
+    mmgr_bytes_copy(&started, worker->handle, sizeof(started));
+    (void)pthread_join(started, NULL);
+    worker->running = 0;
+}
+
 void platform_thread_yield(void)
 {
     (void)sched_yield();

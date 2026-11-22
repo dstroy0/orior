@@ -6,9 +6,7 @@
 #include "engine_note.h"
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
-
-#include <atomic>
-#include <thread>
+#include "embed_atomic.h"
 
 static int entry_directory_end(const char *walk, size_t at, size_t length, int include_last)
 {
@@ -150,37 +148,60 @@ static unsigned long long entry_each_workers(unsigned long long items)
     return (workers < items) ? workers : items;
 }
 
-// every item on the workers, each taking the next item from one counter until none is left or one failed
+// the workers that one run of items takes at max, the one that calls among them
+#define ENTRY_EACH_WORKERS_MAX 256u
+
+// what the workers of one run of items share: the counter of the next item, the mark of a failure, and the work
+struct EntryEach
+{
+    embed_atomic_u64 next;
+    embed_atomic_u32 failed;
+    unsigned long long items;
+    EngineEachWork work;
+    void *context;
+};
+
+// one worker: the next item from the counter, until the items run out or one failed
+static void entry_each_run(void *supplied)
+{
+    // Explicit cast takes the pointer that the run gave as the state that its workers share
+    EntryEach *const each = (EntryEach *)supplied;
+    for (;;)
+    {
+        const EmbedAtomicU64FetchAddCfg take = {&each->next, 1ULL};
+        const unsigned long long item = embed_atomic_u64_fetch_add(&take);
+        const EmbedAtomicU32LoadCfg seen = {&each->failed};
+        if ((item >= each->items) || (embed_atomic_u32_load(&seen) != 0u))
+        {
+            return;
+        }
+        if (each->work(each->context, item) == 0)
+        {
+            const EmbedAtomicU32StoreCfg mark = {&each->failed, 1u};
+            embed_atomic_u32_store(&mark);
+        }
+    }
+}
+
+// every item on the workers, each taking the next item from one counter until none is left or one failed. A worker
+// the system refuses leaves its share to the ones that run
 static int entry_each(unsigned long long items, EngineEachWork work, void *context)
 {
-    std::atomic<unsigned long long> next(0ULL);
-    std::atomic<int> failed(0);
-    const auto run = [&]() {
-        for (;;)
-        {
-            const unsigned long long item = next.fetch_add(1ULL);
-            if ((item >= items) || (failed.load() != 0))
-            {
-                return;
-            }
-            if (work(context, item) == 0)
-            {
-                failed.store(1);
-            }
-        }
-    };
-    const unsigned long long workers = entry_each_workers(items);
-    std::vector<std::thread> started;
+    EntryEach each = {EMBED_ATOMIC_INIT(0ULL), EMBED_ATOMIC_INIT(0u), items, work, context};
+    const unsigned long long asked = entry_each_workers(items);
+    const unsigned long long workers = (asked < ENTRY_EACH_WORKERS_MAX) ? asked : ENTRY_EACH_WORKERS_MAX;
+    PlatformWorker started[ENTRY_EACH_WORKERS_MAX];
     for (unsigned long long worker = 1ULL; worker < workers; worker += 1ULL)
     {
-        started.emplace_back(run);
+        (void)platform_worker_started(&started[worker], entry_each_run, &each);
     }
-    run();
-    for (std::thread &running : started)
+    entry_each_run(&each);
+    for (unsigned long long worker = 1ULL; worker < workers; worker += 1ULL)
     {
-        running.join();
+        platform_worker_joined(&started[worker]);
     }
-    return (failed.load() == 0) ? 1 : 0;
+    const EmbedAtomicU32LoadCfg seen = {&each.failed};
+    return (embed_atomic_u32_load(&seen) == 0u) ? 1 : 0;
 }
 
 static long long entry_blosc_decode(const EngineBytesRequest *request)
@@ -200,7 +221,7 @@ static long long entry_blosc_decode(const EngineBytesRequest *request)
 
 struct EntrySpan
 {
-    std::thread reader;
+    PlatformWorker reader;
     char path[ENTRY_PATH_CAPACITY];
     unsigned long long first;
     unsigned long long length;
@@ -211,10 +232,7 @@ struct EntrySpan
 
     ~EntrySpan()
     {
-        if (reader.joinable())
-        {
-            reader.join();
-        }
+        platform_worker_joined(&reader);
         platform_cell_released(bytes, platform_place_g_program_owner);
     }
 };
@@ -225,10 +243,7 @@ static unsigned long long s_span_requests;
 
 static void entry_span_release(EntrySpan *span)
 {
-    if (span->reader.joinable())
-    {
-        span->reader.join();
-    }
+    platform_worker_joined(&span->reader);
     platform_cell_released(span->bytes, platform_place_g_program_owner);
     span->bytes = NULL;
     span->path[0] = '\0';
@@ -239,13 +254,23 @@ static void entry_span_release(EntrySpan *span)
     span->waiting = 0;
 }
 
+// the reader of a span: the span read from its file into its bytes
+static void entry_span_reader(void *supplied)
+{
+    // Explicit cast takes the pointer that the start gave as the span that the reader fills
+    EntrySpan *const span = (EntrySpan *)supplied;
+    const EngineFileRange range = {span->path, span->first, span->length, span->bytes};
+    span->read = stack_file_read(&range);
+}
+
+// the reader of the span started. Where the system refuses the thread, the span reads on the thread that calls
 static void entry_span_start(EntrySpan *span)
 {
     span->waiting = 0;
-    span->reader = std::thread([span]() {
-        const EngineFileRange range = {span->path, span->first, span->length, span->bytes};
-        span->read = stack_file_read(&range);
-    });
+    if (platform_worker_started(&span->reader, entry_span_reader, span) == 0)
+    {
+        entry_span_reader(span);
+    }
 }
 
 // a range inside a buffered span is copied from it once its reader is done, and a span waiting behind that reader
@@ -271,9 +296,9 @@ static long long entry_span_read(const EngineFileRange *range)
     {
         entry_span_start(span);
     }
-    if (span->reader.joinable())
+    if (span->reader.running != 0)
     {
-        span->reader.join();
+        platform_worker_joined(&span->reader);
     }
     for (unsigned int at = 0u; at < ENTRY_SPAN_COUNT; at += 1u)
     {
@@ -350,7 +375,7 @@ extern "C" long engine_source_prefetch(const char *source, const char *sample, E
     int running = 0;
     for (unsigned int other = 0u; other < ENTRY_SPAN_COUNT; other += 1u)
     {
-        running |= ((&s_spans[other] != at) && s_spans[other].reader.joinable()) ? 1 : 0;
+        running |= ((&s_spans[other] != at) && (s_spans[other].reader.running != 0)) ? 1 : 0;
     }
     if (running != 0)
     {

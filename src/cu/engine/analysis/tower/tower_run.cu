@@ -100,10 +100,10 @@ static int tower_edge_check(const TowerEdge *edges, unsigned int edge_count, uns
     return 1;
 }
 
-static void tower_active_extent(const std::vector<TowerStep> &floors, const unsigned long long *extent,
-                                unsigned int floor_at, unsigned long long out[4])
+static void tower_active_extent(const TowerFloors &floors, const unsigned long long *extent, unsigned int floor_at,
+                                unsigned long long out[4])
 {
-    if (floors.empty())
+    if ((floors.count == 0u))
     {
         for (unsigned int axis = 0u; axis < 4u; axis += 1u)
         {
@@ -111,23 +111,23 @@ static void tower_active_extent(const std::vector<TowerStep> &floors, const unsi
         }
         return;
     }
-    if (floor_at < floors.size())
+    if (floor_at < floors.count)
     {
         for (unsigned int axis = 0u; axis < 4u; axis += 1u)
         {
-            out[axis] = floors[floor_at].extent[axis];
+            out[axis] = floors.step[floor_at].extent[axis];
         }
     }
     else
     {
         for (unsigned int axis = 0u; axis < 4u; axis += 1u)
         {
-            out[axis] = (floors.back().extent[axis] + 1ULL) / 2ULL;
+            out[axis] = (floors.step[floors.count - 1u].extent[axis] + 1ULL) / 2ULL;
         }
     }
 }
 
-static int tower_edge_run(const TowerEdge *edges, unsigned int edge_count, const std::vector<TowerStep> &floors,
+static int tower_edge_run(const TowerEdge *edges, unsigned int edge_count, const TowerFloors &floors,
                           const unsigned long long *extent, unsigned int floor_at, int inverse, EngineError *error)
 {
     TowerResident *const resident = &g_tower_resident;
@@ -211,8 +211,9 @@ extern "C" long tower_lift(const TowerLiftRequest *request)
     {
         return TOWER_ERROR;
     }
-    const std::vector<TowerStep> floors = tower_floors(request->extent);
-    if (tower_edge_check(request->edges, request->edge_count, (unsigned int)floors.size(), error) == 0)
+    TowerFloors floors;
+    tower_floors(request->extent, &floors);
+    if (tower_edge_check(request->edges, request->edge_count, (unsigned int)floors.count, error) == 0)
     {
         return TOWER_ERROR;
     }
@@ -231,11 +232,11 @@ extern "C" long tower_lift(const TowerLiftRequest *request)
     }
     // floor 0 is before the first lifting level
     ok = ok && tower_edge_run(request->edges, request->edge_count, floors, request->extent, 0u, 0, error);
-    for (size_t level = 0u; (ok != 0) && (level < floors.size()); level += 1u)
+    for (size_t level = 0u; (ok != 0) && (level < floors.count); level += 1u)
     {
         for (unsigned int axis = 0u; (ok != 0) && (axis < 4u); axis += 1u)
         {
-            TowerStep step = floors[level];
+            TowerStep step = floors.step[level];
             if (step.extent[axis] < 2ULL)
             {
                 continue;
@@ -262,7 +263,7 @@ extern "C" long tower_lift(const TowerLiftRequest *request)
     }
     *request->coefficients = resident->coefficients;
     *request->scratch = (unsigned int *)resident->scratch;
-    *request->floors = (unsigned int)floors.size();
+    *request->floors = (unsigned int)floors.count;
     return 0L;
 }
 
@@ -303,19 +304,20 @@ extern "C" long tower_lower(const TowerLowerRequest *request)
     {
         return TOWER_ERROR;
     }
-    const std::vector<TowerStep> floors = tower_floors(request->extent);
-    if (tower_edge_check(request->edges, request->edge_count, (unsigned int)floors.size(), error) == 0)
+    TowerFloors floors;
+    tower_floors(request->extent, &floors);
+    if (tower_edge_check(request->edges, request->edge_count, (unsigned int)floors.count, error) == 0)
     {
         return TOWER_ERROR;
     }
     // the collapsed floor's edge is undone first, then each level and the edge that preceded it, in reverse
-    int ok = tower_edge_run(request->edges, request->edge_count, floors, request->extent, (unsigned int)floors.size(),
-                            1, error);
-    for (size_t level = floors.size(); (ok != 0) && (level > 0u); level -= 1u)
+    int ok = tower_edge_run(request->edges, request->edge_count, floors, request->extent, (unsigned int)floors.count, 1,
+                            error);
+    for (size_t level = floors.count; (ok != 0) && (level > 0u); level -= 1u)
     {
         for (unsigned int axis = 4u; (ok != 0) && (axis > 0u); axis -= 1u)
         {
-            TowerStep step = floors[level - 1u];
+            TowerStep step = floors.step[level - 1u];
             if (step.extent[axis - 1u] < 2ULL)
             {
                 continue;

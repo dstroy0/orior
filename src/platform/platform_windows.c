@@ -4,6 +4,7 @@
 // wait from WaitOnAddress, the clock from the performance counter, and the streams from WriteFile
 #include "platform_internal.h"
 #include "cellularum_laboro/cellularum_linea.h"
+#include "memoria_operor/memoria_linea.h"
 
 #if defined(_WIN32)
 #define NOMINMAX
@@ -67,6 +68,44 @@ int platform_thread_started(void (*run)(void *context), void *context)
 embed_word platform_thread_id(void)
 {
     return (embed_word)GetCurrentThreadId();
+}
+
+// the entry of a worker's thread: its call run on its context
+static DWORD WINAPI platform_worker_entered(LPVOID supplied)
+{
+    // Explicit cast takes the pointer that the starter gave as the worker that it holds
+    const PlatformWorker *const worker = (const PlatformWorker *)supplied;
+    worker->run(worker->context);
+    return 0u;
+}
+
+int platform_worker_started(PlatformWorker *worker, void (*run)(void *context), void *context)
+{
+    worker->run = run;
+    worker->context = context;
+    worker->running = 0;
+    const HANDLE started = CreateThread(NULL, 0u, platform_worker_entered, worker, 0u, NULL);
+    if (started == NULL)
+    {
+        return 0;
+    }
+    _Static_assert(sizeof(HANDLE) <= PLATFORM_WORKER_HANDLE_BYTES, "a HANDLE fits the handle of a worker");
+    mmgr_bytes_copy(worker->handle, &started, sizeof(started));
+    worker->running = 1;
+    return 1;
+}
+
+void platform_worker_joined(PlatformWorker *worker)
+{
+    if (worker->running == 0)
+    {
+        return;
+    }
+    HANDLE started = NULL;
+    mmgr_bytes_copy(&started, worker->handle, sizeof(started));
+    (void)WaitForSingleObject(started, INFINITE);
+    (void)CloseHandle(started);
+    worker->running = 0;
 }
 
 void platform_thread_yield(void)

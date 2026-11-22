@@ -7,14 +7,12 @@
 #include "tower.h"
 
 #include "../../runtime/device_pool/device_pool.h"
+#include "../../../../platform/platform.h"
 
 #include <cuda_runtime.h>
 
 #include <stdlib.h>
 #include <string.h>
-
-#include <utility>
-#include <vector>
 
 static_assert(cudaSuccess == 0, "the engine reads a CUDA status of 0 as success");
 
@@ -58,7 +56,17 @@ __global__ void tower_narrow_kernel(const int *rebuilt, unsigned long long count
 
 unsigned int tower_blocks(unsigned long long count);
 
-std::vector<TowerStep> tower_floors(const unsigned long long *extent);
+// the floors that an extent takes at max. Each floor halves every extent. An extent below 2^64 reaches 1 in 64
+#define TOWER_FLOORS_MAX 65u
+
+// the floors of a tower, from the whole extent up, and their count
+struct TowerFloors
+{
+    TowerStep step[TOWER_FLOORS_MAX];
+    unsigned int count;
+};
+
+void tower_floors(const unsigned long long *extent, TowerFloors *floors);
 
 // the coefficients, the scratch, the flag and the mismatch count are slices of one pool, sized for the max lanes
 // requested so far. The edge table grows apart, only when an edge is arranged
@@ -84,13 +92,22 @@ DevicePoolPlan tower_plan(size_t lanes, EngineError *error, DevicePoolTakeReques
 
 unsigned long long tower_lanes(const unsigned long long *extent);
 
+// a constant of the record floors: its value and the register of the step that holds it
+struct TowerConstant
+{
+    unsigned long long value;
+    unsigned int step;
+};
+
 // the record floors' writer: every step is counted, and written only where the caller's program is allocated. Each
-// constant is arranged once, where it is first read, and its register stored beside its value.
+// constant is arranged once, where it is first read, and its register stored beside its value. `constants` holds a
+// TowerConstant for each
 struct TowerRecordBuilder
 {
     EngineRecordStep *steps;
     unsigned long long count;
-    std::vector<std::pair<unsigned long long, unsigned int>> constants;
+    PlatformArray constants;
+    int failed;
 };
 
 #endif

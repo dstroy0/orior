@@ -204,9 +204,9 @@ unsigned int tower_blocks(unsigned long long count)
     return (unsigned int)((needed < 65536ULL) ? ((needed == 0ULL) ? 1ULL : needed) : 65536ULL);
 }
 
-std::vector<TowerStep> tower_floors(const unsigned long long *extent)
+void tower_floors(const unsigned long long *extent, TowerFloors *floors)
 {
-    std::vector<TowerStep> floors;
+    floors->count = 0u;
     TowerStep step;
     mmgr_bytes_set(&step, 0, sizeof(step));
     step.stride[3] = 1ULL;
@@ -217,16 +217,18 @@ std::vector<TowerStep> tower_floors(const unsigned long long *extent)
     {
         step.extent[axis] = extent[axis];
     }
-    while ((step.extent[0] > 1ULL) || (step.extent[1] > 1ULL) || (step.extent[2] > 1ULL) || (step.extent[3] > 1ULL))
+    // each floor halves every extent, and so the floors stop inside TOWER_FLOORS_MAX
+    while (((step.extent[0] > 1ULL) || (step.extent[1] > 1ULL) || (step.extent[2] > 1ULL) || (step.extent[3] > 1ULL)) &&
+           (floors->count < TOWER_FLOORS_MAX))
     {
         step.count = step.extent[0] * step.extent[1] * step.extent[2] * step.extent[3];
-        floors.push_back(step);
+        floors->step[floors->count] = step;
+        floors->count += 1u;
         for (unsigned int axis = 0u; axis < 4u; axis += 1u)
         {
             step.extent[axis] = (step.extent[axis] + 1ULL) / 2ULL;
         }
     }
-    return floors;
 }
 
 TowerResident g_tower_resident;
