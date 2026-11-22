@@ -149,8 +149,17 @@ int cli_lsp_request(const CliLspErrMsgLengthCfg *args);
 int cli_lsp_notify(const CliLspErrMsgLengthCfg *args);
 // the request the server sent that its receiver is processing now left unanswered, to be answered later, its id's JSON
 // into `id`, sized for `capacity`: 1, or 0 where what is received is no request or its id does not fit; and the request
-// of the id `id` answered with `size` bytes of JSON `result`: 1, or 0 with why given (lsp.c)
+// of the id `id` of the server `lsp` answered with `size` bytes of JSON `result`: 1, or 0 with why given (lsp.c)
 int cli_lsp_answer_later(const CliLspCfg *args);
+typedef struct
+{
+    CliLsp *lsp;
+    const char *id;
+    const char *result;
+    unsigned long long size;
+    VerbaLinea *err_msg;
+} CliLspAnsweredCfg;
+int cli_lsp_answered(const CliLspAnsweredCfg *args);
 // the params of a request about the place `line`, `col` of `path` written, `added`, members of JSON, after the place
 // where it is given (lsp_wire.c)
 void cli_lsp_at(const CliLspPathCfg *args);
@@ -495,6 +504,15 @@ typedef struct
 EMBED_TABLE_LAYOUT(CliLspNs, answer_later);
 EMBED_TABLE_STORAGE CliLspNs cli_lsp EMBED_UNUSED = {
     .answer_later = cli_lsp_answer_later,
+};
+
+typedef struct
+{
+    int (*answered)(const CliLspAnsweredCfg *args);
+} CliLspAnsweredNs;
+EMBED_TABLE_LAYOUT(CliLspAnsweredNs, answered);
+EMBED_TABLE_STORAGE CliLspAnsweredNs cli_lsp_answered_table EMBED_UNUSED = {
+    .answered = cli_lsp_answered,
 };
 
 typedef struct

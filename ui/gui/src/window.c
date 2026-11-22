@@ -42,6 +42,7 @@
 #include "../../cli/src/preview/preview.h"
 #include "../../cli/src/runs/job_runs.h"
 #include "../../cli/src/runs/qry.h"
+#include "../../cli/src/scripts/scripts.h"
 #include "../../cli/src/tests/testing.h"
 #include "../../cli/src/text/text.h"
 #include "../../cli/src/toolchains/format.h"
@@ -315,6 +316,8 @@ EMBED_INLINE void window_setting_apply(const GuiWindowCtx *args);
 EMBED_INLINE void window_autosave_step(const GuiWindowCtx *args);
 EMBED_INLINE void window_autosave_after_apply(const GuiWindowCtx *args);
 EMBED_INLINE void window_trust_answered(const GuiWindowCtx *args);
+EMBED_INLINE void window_rights_ask(const GuiWindowCtx *args);
+EMBED_INLINE void window_rights_answered(const GuiWindowCtx *args);
 
 void gui_window_end(const GuiWindowCfg *args)
 {
@@ -1564,6 +1567,8 @@ static void window_tick_called(const GuiWindowCfg *args)
     const unsigned long long now_ms = cli_clock_milliseconds();
     EMBED_CALL(window_autosave_step, GuiWindowCtx, .window = args->window);
     EMBED_CALL(window_trust_answered, GuiWindowCtx, .window = args->window);
+    EMBED_CALL(window_rights_answered, GuiWindowCtx, .window = args->window);
+    EMBED_CALL(window_rights_ask, GuiWindowCtx, .window = args->window);
     (void)EMBED_CALL(gui_autohide_state.step, GuiAutohideStateCfg, .claim = &args->window->claim,
                      .menu_open = g_cli_menus_open.levels > 0u, .time_ms = cli_clock_milliseconds());
     const int moving =
@@ -3683,6 +3688,55 @@ EMBED_INLINE void window_trust_answered(const GuiWindowCtx *args)
     }
     cli_notice_post(&(CliNoticesCfg){
         .text = (answer.button == 0u) ? "The tree is trusted." : "The tree is not trusted.", .failed = 0});
+    window->pending = 1;
+}
+
+// A script plugin's question of a right asked in the dialog: Allow or Do not allow. The window asks only while no
+// dialog shows and no trust question waits. A dialog that does not open refuses the calls of that right
+EMBED_INLINE void window_rights_ask(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    if (window->rights_asked || window->trust_asked || window->dialog.displayed)
+    {
+        return;
+    }
+    char title[CLI_NAME_MAX_LEN + 64u];
+    char body[512];
+    VerbaLinea titled = {title, sizeof(title), 0ULL};
+    VerbaLinea bodied = {body, sizeof(body), 0ULL};
+    if (!EMBED_CALL(cli_scripts_question_table.question, CliScriptsQuestionCfg, .title = &titled, .body = &bodied))
+    {
+        return;
+    }
+    (void)mmgr_line_finish(&titled);
+    (void)mmgr_line_finish(&bodied);
+    static const char *const s_labels[2] = {"Allow", "Do not allow"};
+    window->rights_asked = EMBED_CALL(
+        gui_window_dialog_asking.ask, GuiWindowDialogAskCfg, .window = window,
+        .owner = (window->preferences.displayed && window->preferences.focused) ? CLI_VIEW_PREFERENCES : CLI_VIEW_MAIN,
+        .title = title, .body = body, .labels = s_labels, .count = 2u, .preferred = 1u, .held = 0, .error = 0);
+    if (!window->rights_asked)
+    {
+        EMBED_CALL(cli_scripts_question_table.answered, CliScriptsQuestionCfg, .answer = CLI_SCRIPTS_UNASKED);
+    }
+}
+
+// The question's answer, taken once the dialog ends. Allow or Do not allow goes into the plugin's store, and a close
+// stores nothing. Each call that waits on the right gets its answer
+EMBED_INLINE void window_rights_answered(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    if (!window->rights_asked || (window->dialog_answer.type == GUI_DIALOG_NOTHING))
+    {
+        return;
+    }
+    const GuiDialogChange answer = window->dialog_answer;
+    window->rights_asked = 0;
+    window->dialog_answer = (GuiDialogChange){GUI_DIALOG_NOTHING, GUI_DIALOG_BUTTONS_MAX};
+    const unsigned int given = (answer.type != GUI_DIALOG_ANSWERED) ? CLI_SCRIPTS_UNASKED
+                               : (answer.button == 0u)              ? CLI_SCRIPTS_ALLOWED
+                                                                    : CLI_SCRIPTS_REFUSED;
+    EMBED_CALL(cli_scripts_question_table.answered, CliScriptsQuestionCfg, .answer = given);
     window->pending = 1;
 }
 

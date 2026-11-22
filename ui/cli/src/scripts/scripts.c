@@ -6,13 +6,13 @@
 // host in `initialize`. The host reports to the overseer as a plugin, under the plugin's id, held to its resources. A
 // watcher thread stops each host after a quiet, and the state that the plugin keeps goes into plugin_state/<id>.json
 // first
-#include "scripts.h"
 #include "../command_line/pool.h"
 #include "../machine/overseer.h"
 #include "../plugins/plugins.h"
 #include "../programs/executables.h"
 #include "../servers/lsp.h"
 #include "../text/json_tree.h"
+#include "scripts_internal.h"
 
 // the most bytes of a plugin's code, the most bytes of its stored state, and how often the watcher looks, in
 // milliseconds
@@ -77,9 +77,8 @@ EMBED_INLINE unsigned int scripts_position(const ScriptsCtx *args)
     return at;
 }
 
-// the path of `name` in the folder `leaf` of orior's own folder into `path_out`, sized for CLI_PATH_MAX_LEN. The call
-// makes the folder where it is not there: 1, or 0 with why given
-EMBED_INLINE int scripts_path(const ScriptsCtx *args)
+// the path of a file in a folder of orior's own folder (scripts_internal.h)
+int cli_scripts_path(const CliScriptsPathCtx *args)
 {
     char home[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = home))
@@ -142,13 +141,15 @@ static void scripts_resources_read(const CliEachPluginCfg *args)
                         1000ULL;
 }
 
-// what the host sends unprompted. The window refuses a call of `orior.*` here until its family has a call in C; a line
-// that the plugin logs goes nowhere
+// what the host sends unprompted. A call of `orior.*` goes to the calls of scripts_calls.c, with the host's plugin and
+// server. A line that the plugin logs goes nowhere
 static void scripts_recv(const CliLspRecvCfg *args)
 {
+    const ScriptsHost *const host = (const ScriptsHost *)args->context;
     if (cellul.eq(&(CatenaFinitaCfg){.src = args->method, .other = "orior/call", .cap = 16u}))
     {
-        mmgr_line_put(args->answer, "{\"oriorError\":\"the window answers no call of this plugin\"}");
+        EMBED_CALL(cli_scripts_internal.call, CliScriptsCallCtx, .id = host->id, .lsp = host->lsp,
+                   .params = args->params, .size = args->size, .answer = args->answer);
     }
 }
 
@@ -190,12 +191,13 @@ EMBED_INLINE int scripts_options(const ScriptsCtx *args)
     mmgr_line_put(&named, args->id);
     mmgr_line_put(&named, ".json");
     unsigned long long state_size = 0ULL;
-    const unsigned char *const state = (read && (mmgr_line_finish(&named) != 0ULL) &&
-                                        EMBED_CALL(scripts_path, ScriptsCtx, .leaf = "plugin_state", .name = state_name,
-                                                   .path_out = state_path, .err_msg = args->err_msg))
-                                           ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = state_path,
-                                                        .size_pointer = &state_size, .owner = g_cli_scripts_owner)
-                                           : NULL;
+    const unsigned char *const state =
+        (read && (mmgr_line_finish(&named) != 0ULL) &&
+         EMBED_CALL(cli_scripts_internal.path, CliScriptsPathCtx, .leaf = "plugin_state", .name = state_name,
+                    .path_out = state_path, .err_msg = args->err_msg))
+            ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = state_path, .size_pointer = &state_size,
+                         .owner = g_cli_scripts_owner)
+            : NULL;
     if (read)
     {
         mmgr_line_put(out, "{\"id\":");
@@ -236,8 +238,8 @@ EMBED_INLINE int scripts_start(const ScriptsCtx *args)
 {
     char host_path[CLI_PATH_MAX_LEN];
     char node[CLI_PATH_MAX_LEN];
-    int ready = EMBED_CALL(scripts_path, ScriptsCtx, .leaf = "plugin_host", .name = "host.js", .path_out = host_path,
-                           .err_msg = args->err_msg) &&
+    int ready = EMBED_CALL(cli_scripts_internal.path, CliScriptsPathCtx, .leaf = "plugin_host", .name = "host.js",
+                           .path_out = host_path, .err_msg = args->err_msg) &&
                 EMBED_CALL(cli_executables_tool.program, CliExecutablesToolCfg, .tool = "node", .name = "node",
                            .path = node, .err_msg = args->err_msg);
     // the host's folder is its root and where it starts: host.js's path up to its last separator
@@ -315,8 +317,8 @@ EMBED_INLINE void scripts_kept_stop(const ScriptsCtx *args)
         mmgr_line_put(&named, args->id);
         mmgr_line_put(&named, ".json");
         if ((mmgr_line_finish(&named) != 0ULL) &&
-            EMBED_CALL(scripts_path, ScriptsCtx, .leaf = "plugin_state", .name = state_name, .path_out = state_path,
-                       .err_msg = &err_msg))
+            EMBED_CALL(cli_scripts_internal.path, CliScriptsPathCtx, .leaf = "plugin_state", .name = state_name,
+                       .path_out = state_path, .err_msg = &err_msg))
         {
             (void)EMBED_CALL(cli_path_bytes_internal.private_file_write, CliPathBytesCtx, .path = state_path,
                              .bytes = answer.text, .size = answer.size, .fresh = 1);

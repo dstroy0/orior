@@ -413,6 +413,20 @@ int cli_lsp_answer_later(const CliLspCfg *args)
     return 1;
 }
 
+int cli_lsp_answered(const CliLspAnsweredCfg *args)
+{
+    const unsigned long long id_size = cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_POOL_BYTES});
+    const int has_result = (args->result != NULL) && (args->size > 0ULL);
+    const CliLspPart parts[5] = {CLI_LSP_RAW("{\"jsonrpc\":\"2.0\",\"id\":"),
+                                 {args->id, id_size, 0},
+                                 CLI_LSP_RAW(",\"result\":"),
+                                 {has_result ? args->result : "null", has_result ? args->size : 4ULL, 0},
+                                 CLI_LSP_RAW("}")};
+    return (id_size > 0ULL) &&
+           EMBED_CALL(cli_lsp_writer_lock.send_parts, CliLspWriterLockCfg, .writer = &args->lsp->input, .parts = parts,
+                      .count = 5u, .err_msg = args->err_msg);
+}
+
 const char *cli_lsp_capabilities(const CliLspSizeTypeCfg *args)
 {
     unsigned long long *size = args->size;

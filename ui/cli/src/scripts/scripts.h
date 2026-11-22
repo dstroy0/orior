@@ -34,6 +34,95 @@ extern "C"
 #define CLI_SCRIPTS_EVENT 1u
 #define CLI_SCRIPTS_SERVER 2u
 
+// The rights of a plugin.json, in the order of the store. The plugin reads the tree's files, writes them, and reaches
+// hosts on the network. Then the reader's answer for one right. The window did not ask yet, the reader refused the
+// right, or the reader allowed it
+#define CLI_SCRIPTS_READS 0u
+#define CLI_SCRIPTS_WRITES 1u
+#define CLI_SCRIPTS_REACHES 2u
+#define CLI_SCRIPTS_RIGHTS 3u
+#define CLI_SCRIPTS_UNASKED 0u
+#define CLI_SCRIPTS_REFUSED 1u
+#define CLI_SCRIPTS_ALLOWED 2u
+
+    typedef struct CliScriptsRightsCfg CliScriptsRightsCfg;
+
+    // whether the list of the right `right` in the plugin.json of `id` names `name`. For reads and writes, `name` is a
+    // path from the tree's top with `/` between its names. For reaches, `name` is a host (scripts_rights.c)
+    int cli_scripts_rights_named(const CliScriptsRightsCfg *args);
+    // the reader's answer for the right `right` of the plugin `id`, from the store in plugin_state/<id>.rights.json
+    unsigned int cli_scripts_rights_answer(const CliScriptsRightsCfg *args);
+    // the answer `answer` for the right `right` of the plugin `id` put in the store: 1, or 0 with why given
+    int cli_scripts_rights_answer_set(const CliScriptsRightsCfg *args);
+
+    struct CliScriptsRightsCfg
+    {
+        const char *id;
+        unsigned int right;
+        const char *name;
+        unsigned int answer;
+        VerbaLinea *err_msg;
+    };
+
+    typedef struct
+    {
+        int (*named)(const CliScriptsRightsCfg *args);
+        unsigned int (*answer)(const CliScriptsRightsCfg *args);
+        int (*answer_set)(const CliScriptsRightsCfg *args);
+    } CliScriptsRightsNs;
+    EMBED_TABLE_LAYOUT(CliScriptsRightsNs, named, answer, answer_set);
+    EMBED_TABLE_STORAGE CliScriptsRightsNs cli_scripts_rights EMBED_UNUSED = {
+        .named = cli_scripts_rights_named,
+        .answer = cli_scripts_rights_answer,
+        .answer_set = cli_scripts_rights_answer_set,
+    };
+
+    typedef struct CliScriptsTreeCfg CliScriptsTreeCfg;
+    typedef struct CliScriptsQuestionCfg CliScriptsQuestionCfg;
+
+    // the tree that a plugin's files calls read and write in, a copy of `root` kept, none where `root` is NULL
+    // (scripts_calls.c)
+    void cli_scripts_set_tree(const CliScriptsTreeCfg *args);
+    // A call that needs a right that the reader did not answer yet waits, and the window asks the reader in a dialog.
+    // The question of the first such call goes into `title` and `body`, once for each question: 1, or 0 where no
+    // question waits or one shows now. Then the reader's answer `answer` to the question that shows. An allow or a
+    // refusal goes into the store, and each call of that right gets its answer. CLI_SCRIPTS_UNASKED refuses those
+    // calls and stores nothing
+    int cli_scripts_question(const CliScriptsQuestionCfg *args);
+    void cli_scripts_question_answered(const CliScriptsQuestionCfg *args);
+
+    struct CliScriptsTreeCfg
+    {
+        const char *root;
+    };
+
+    struct CliScriptsQuestionCfg
+    {
+        VerbaLinea *title;
+        VerbaLinea *body;
+        unsigned int answer;
+    };
+
+    typedef struct
+    {
+        void (*set_tree)(const CliScriptsTreeCfg *args);
+    } CliScriptsTreeNs;
+    EMBED_TABLE_LAYOUT(CliScriptsTreeNs, set_tree);
+    EMBED_TABLE_STORAGE CliScriptsTreeNs cli_scripts_tree EMBED_UNUSED = {
+        .set_tree = cli_scripts_set_tree,
+    };
+
+    typedef struct
+    {
+        int (*question)(const CliScriptsQuestionCfg *args);
+        void (*answered)(const CliScriptsQuestionCfg *args);
+    } CliScriptsQuestionNs;
+    EMBED_TABLE_LAYOUT(CliScriptsQuestionNs, question, answered);
+    EMBED_TABLE_STORAGE CliScriptsQuestionNs cli_scripts_question_table EMBED_UNUSED = {
+        .question = cli_scripts_question,
+        .answered = cli_scripts_question_answered,
+    };
+
     // the bytes of host.js, built into the program by bundle/plugins_bundle.c, and their count
     extern const unsigned char g_cli_scripts_host[];
     extern const unsigned long long g_cli_scripts_host_size;

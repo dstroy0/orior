@@ -312,6 +312,8 @@ typedef struct GuiWindow
     unsigned long long autosave_ms;
     unsigned long long edited_ms;
     int trust_asked;
+    // whether a script plugin's question of a right is in the dialog, its answer taken at the next tick
+    int rights_asked;
     // Whether a save of the reader's own formats the text first, and takes the blanks off its lines' ends. Then
     // whether it puts a line end after its last line. Auto save's writes do none of these
     int format_on_save;

@@ -11,7 +11,11 @@ extern void setUp(void);
 extern void tearDown(void);
 extern void test_an_ask_starts_the_host_and_answers(void);
 extern void test_the_kept_state_comes_back_after_a_stop(void);
-extern void test_a_call_the_window_does_not_answer_is_refused(void);
+extern void test_a_read_of_a_file_that_reads_does_not_list_is_refused(void);
+extern void test_a_read_that_the_reader_refused_is_refused(void);
+extern void test_a_read_that_the_reader_allowed_reads_the_file(void);
+extern void test_a_read_waits_on_the_question_and_gets_the_file_once_the_reader_allows_it(void);
+extern void test_a_write_that_the_reader_allowed_writes_the_file(void);
 extern void test_an_unknown_command_fails(void);
 extern void test_a_host_past_its_memory_ends_and_the_next_ask_starts_it_again(void);
 extern void test_a_quiet_stops_the_host(void);
@@ -76,12 +80,16 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("utils/test/src/ui/cli/unit/scripts/test_scripts/test_scripts.c");
-  run_test(test_an_ask_starts_the_host_and_answers, "test_an_ask_starts_the_host_and_answers", 86);
-  run_test(test_the_kept_state_comes_back_after_a_stop, "test_the_kept_state_comes_back_after_a_stop", 93);
-  run_test(test_a_call_the_window_does_not_answer_is_refused, "test_a_call_the_window_does_not_answer_is_refused", 102);
-  run_test(test_an_unknown_command_fails, "test_an_unknown_command_fails", 108);
-  run_test(test_a_host_past_its_memory_ends_and_the_next_ask_starts_it_again, "test_a_host_past_its_memory_ends_and_the_next_ask_starts_it_again", 113);
-  run_test(test_a_quiet_stops_the_host, "test_a_quiet_stops_the_host", 120);
+  run_test(test_an_ask_starts_the_host_and_answers, "test_an_ask_starts_the_host_and_answers", 132);
+  run_test(test_the_kept_state_comes_back_after_a_stop, "test_the_kept_state_comes_back_after_a_stop", 139);
+  run_test(test_a_read_of_a_file_that_reads_does_not_list_is_refused, "test_a_read_of_a_file_that_reads_does_not_list_is_refused", 148);
+  run_test(test_a_read_that_the_reader_refused_is_refused, "test_a_read_that_the_reader_refused_is_refused", 155);
+  run_test(test_a_read_that_the_reader_allowed_reads_the_file, "test_a_read_that_the_reader_allowed_reads_the_file", 162);
+  run_test(test_a_read_waits_on_the_question_and_gets_the_file_once_the_reader_allows_it, "test_a_read_waits_on_the_question_and_gets_the_file_once_the_reader_allows_it", 169);
+  run_test(test_a_write_that_the_reader_allowed_writes_the_file, "test_a_write_that_the_reader_allowed_writes_the_file", 181);
+  run_test(test_an_unknown_command_fails, "test_an_unknown_command_fails", 197);
+  run_test(test_a_host_past_its_memory_ends_and_the_next_ask_starts_it_again, "test_a_host_past_its_memory_ends_and_the_next_ask_starts_it_again", 202);
+  run_test(test_a_quiet_stops_the_host, "test_a_quiet_stops_the_host", 209);
 
   return UNITY_END();
 }

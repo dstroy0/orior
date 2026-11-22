@@ -18,6 +18,7 @@
 #include "../machine/reach.h"
 #include "../plugins/plugins.h"
 #include "../runs/qry.h"
+#include "../scripts/scripts.h"
 #include "../servers/servers.h"
 #include "../text/text.h"
 #include "../toolchains/toolchains.h"
@@ -183,6 +184,7 @@ void cli_command_line_tree_begin(void (*woken)(void))
         memor.cpy(&(MemoriaCfg){.dst = s_window.root, .src = root, .bytes = size});
         EMBED_CALL(cli_toolchains_root.set_tree, CliToolchainsRootCfg, .root = s_window.root);
         EMBED_CALL(cli_plugins_root.set_tree, CliPluginsRootCfg, .root = s_window.root);
+        EMBED_CALL(cli_scripts_tree.set_tree, CliScriptsTreeCfg, .root = s_window.root);
     }
     err_msg.at = 0ULL;
     if (!cli_reach_open(&(CliReachCfg){.root = cli_command_line_root(), .woken = woken, .err_msg = &err_msg}))
@@ -205,6 +207,7 @@ void cli_command_line_tree_end(void)
     cli_container_members_end();
     cli_reach_close();
     s_window.rooted = 0;
+    EMBED_CALL(cli_scripts_tree.set_tree, CliScriptsTreeCfg, .root = NULL);
     s_window.root[0] = '\0';
 }
 
